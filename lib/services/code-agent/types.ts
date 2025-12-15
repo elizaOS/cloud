@@ -252,7 +252,11 @@ export interface RuntimeInstance {
   writeFile(path: string, content: string): Promise<void>;
   listFiles(path: string): Promise<FileEntry[]>;
   deleteFile(path: string): Promise<void>;
-  runCommand(cmd: string, args?: string[], options?: { env?: Record<string, string>; cwd?: string; timeout?: number }): Promise<{ exitCode: number; stdout: string; stderr: string }>;
+  runCommand(
+    cmd: string,
+    args?: string[],
+    options?: { env?: Record<string, string>; cwd?: string; timeout?: number },
+  ): Promise<{ exitCode: number; stdout: string; stderr: string }>;
   createArchive(paths: string[]): Promise<Buffer>;
   extractArchive(archive: Buffer, targetPath: string): Promise<void>;
   stop(): Promise<void>;
@@ -264,10 +268,19 @@ export type CodeAgentEvent =
   | { type: "session_error"; sessionId: string; error: string }
   | { type: "session_terminated"; sessionId: string }
   | { type: "command_started"; sessionId: string; commandId: string }
-  | { type: "command_output"; sessionId: string; commandId: string; output: string }
-  | { type: "command_completed"; sessionId: string; commandId: string; result: CommandResult }
+  | {
+      type: "command_output";
+      sessionId: string;
+      commandId: string;
+      output: string;
+    }
+  | {
+      type: "command_completed";
+      sessionId: string;
+      commandId: string;
+      result: CommandResult;
+    }
   | { type: "snapshot_created"; sessionId: string; snapshotId: string }
   | { type: "snapshot_restored"; sessionId: string; snapshotId: string };
 
 export type CodeAgentEventHandler = (event: CodeAgentEvent) => void;
-

@@ -1,7 +1,7 @@
 /**
  * Secrets settings tab component for managing encrypted secrets.
  * Supports creating, viewing, editing, and deleting secrets with scoping support.
- * 
+ *
  * Features:
  * - Organization-level (global) secrets
  * - Project-scoped secrets (for agents, MCPs, workflows, containers, apps)
@@ -16,7 +16,20 @@
 
 import { BrandCard, CornerBrackets } from "@/components/brand";
 import type { UserWithOrganization } from "@/lib/types";
-import { Plus, Copy, Trash2, Loader2, Eye, EyeOff, X, Lock, Shield, Edit2, RotateCw, History } from "lucide-react";
+import {
+  Plus,
+  Copy,
+  Trash2,
+  Loader2,
+  Eye,
+  EyeOff,
+  X,
+  Lock,
+  Shield,
+  Edit2,
+  RotateCw,
+  History,
+} from "lucide-react";
 import { toast } from "sonner";
 import { useState, useEffect, useCallback } from "react";
 import { Input } from "@/components/ui/input";
@@ -27,7 +40,21 @@ interface SecretsTabProps {
   user: UserWithOrganization;
 }
 
-type SecretProvider = "openai" | "anthropic" | "google" | "elevenlabs" | "fal" | "stripe" | "discord" | "telegram" | "twitter" | "github" | "slack" | "aws" | "vercel" | "custom";
+type SecretProvider =
+  | "openai"
+  | "anthropic"
+  | "google"
+  | "elevenlabs"
+  | "fal"
+  | "stripe"
+  | "discord"
+  | "telegram"
+  | "twitter"
+  | "github"
+  | "slack"
+  | "aws"
+  | "vercel"
+  | "custom";
 
 interface SecretMetadata {
   id: string;
@@ -255,11 +282,17 @@ export function SecretsTab({ user }: SecretsTabProps) {
       const name = line.substring(0, eqIndex).trim();
       let value = line.substring(eqIndex + 1).trim();
       // Remove surrounding quotes
-      if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+      if (
+        (value.startsWith('"') && value.endsWith('"')) ||
+        (value.startsWith("'") && value.endsWith("'"))
+      ) {
         value = value.slice(1, -1);
       }
       if (name && value) {
-        secretsToCreate.push({ name: name.toUpperCase().replace(/[^A-Z0-9_]/g, "_"), value });
+        secretsToCreate.push({
+          name: name.toUpperCase().replace(/[^A-Z0-9_]/g, "_"),
+          value,
+        });
       }
     }
 
@@ -286,16 +319,16 @@ export function SecretsTab({ user }: SecretsTabProps) {
     const result = await response.json();
     updateModal({ showBulkImportModal: false });
     await fetchSecrets();
-    
+
     const createdCount = result.created?.length || 0;
     const errorCount = result.errors?.length || 0;
-    
+
     if (errorCount > 0) {
       toast.warning(`Imported ${createdCount} secrets, ${errorCount} failed`);
     } else {
       toast.success(`Imported ${createdCount} secrets successfully`);
     }
-    
+
     setBulkImportState({ envContent: "", importing: false });
   };
 
@@ -343,14 +376,17 @@ export function SecretsTab({ user }: SecretsTabProps) {
     if (!modalState.selectedSecret) return;
 
     updateOperation({ updating: true });
-    const response = await fetch(`/api/v1/secrets/${modalState.selectedSecret.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        value: formState.value || undefined,
-        description: formState.description.trim() || undefined,
-      }),
-    });
+    const response = await fetch(
+      `/api/v1/secrets/${modalState.selectedSecret.id}`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          value: formState.value || undefined,
+          description: formState.description.trim() || undefined,
+        }),
+      },
+    );
 
     if (!response.ok) {
       const error = await response.json();
@@ -368,9 +404,9 @@ export function SecretsTab({ user }: SecretsTabProps) {
 
   const handleRevealValue = async (secret: SecretMetadata) => {
     updateOperation({ revealingSecretId: secret.id });
-    
+
     const response = await fetch(`/api/v1/secrets/${secret.id}`);
-    
+
     if (!response.ok) {
       const error = await response.json();
       toast.error(error.error || "Failed to reveal secret");
@@ -379,7 +415,11 @@ export function SecretsTab({ user }: SecretsTabProps) {
     }
 
     const data = await response.json();
-    updateModal({ showValueModal: true, selectedSecret: secret, revealedValue: data.value });
+    updateModal({
+      showValueModal: true,
+      selectedSecret: secret,
+      revealedValue: data.value,
+    });
     updateOperation({ revealingSecretId: null });
   };
 
@@ -390,7 +430,11 @@ export function SecretsTab({ user }: SecretsTabProps) {
   };
 
   const handleDeleteSecret = async (secretId: string, secretName: string) => {
-    if (!window.confirm(`Are you sure you want to delete the secret "${secretName}"? This action cannot be undone.`)) {
+    if (
+      !window.confirm(
+        `Are you sure you want to delete the secret "${secretName}"? This action cannot be undone.`,
+      )
+    ) {
       return;
     }
 
@@ -428,11 +472,14 @@ export function SecretsTab({ user }: SecretsTabProps) {
     }
 
     updateOperation({ rotating: true });
-    const response = await fetch(`/api/v1/secrets/${modalState.selectedSecret.id}/rotate`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ newValue: formState.value }),
-    });
+    const response = await fetch(
+      `/api/v1/secrets/${modalState.selectedSecret.id}/rotate`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ newValue: formState.value }),
+      },
+    );
 
     if (!response.ok) {
       const error = await response.json();
@@ -450,7 +497,11 @@ export function SecretsTab({ user }: SecretsTabProps) {
 
   const handleViewAudit = async (secret: SecretMetadata) => {
     updateOperation({ loadingAudit: true });
-    updateModal({ showAuditModal: true, selectedSecret: secret, auditLogs: [] });
+    updateModal({
+      showAuditModal: true,
+      selectedSecret: secret,
+      auditLogs: [],
+    });
 
     const response = await fetch(`/api/v1/secrets/audit?secretId=${secret.id}`);
 
@@ -508,14 +559,15 @@ export function SecretsTab({ user }: SecretsTabProps) {
               </div>
               <div className="text-xs md:text-sm font-mono text-[#858585] tracking-tight space-y-2">
                 <p>
-                  Manage encrypted secrets for your organization. Secrets are encrypted at rest
-                  using AES-256-GCM with envelope encryption and are automatically available to
-                  your agents, MCPs, workflows, and deployments.
+                  Manage encrypted secrets for your organization. Secrets are
+                  encrypted at rest using AES-256-GCM with envelope encryption
+                  and are automatically available to your agents, MCPs,
+                  workflows, and deployments.
                 </p>
                 <p className="hidden sm:block">
                   <strong>Global secrets</strong> are available everywhere.{" "}
-                  <strong>Project-scoped secrets</strong> are only available to specific agents, MCPs,
-                  workflows, containers, or apps.
+                  <strong>Project-scoped secrets</strong> are only available to
+                  specific agents, MCPs, workflows, containers, or apps.
                 </p>
               </div>
             </div>
@@ -527,7 +579,9 @@ export function SecretsTab({ user }: SecretsTabProps) {
                 onClick={handleBulkImport}
                 className="h-11 px-4 border border-[#303030] text-white hover:bg-white/5 active:bg-white/10 transition-colors flex items-center justify-center gap-2 w-full sm:w-auto"
               >
-                <span className="font-mono text-sm whitespace-nowrap">Import .env</span>
+                <span className="font-mono text-sm whitespace-nowrap">
+                  Import .env
+                </span>
               </button>
               <button
                 type="button"
@@ -584,7 +638,9 @@ export function SecretsTab({ user }: SecretsTabProps) {
                             <span className="px-2 py-0.5 bg-[rgba(255,88,0,0.25)] border border-[#FF5800]/40 text-[#FF5800] text-[10px] md:text-xs font-mono uppercase">
                               {formatScopeLabel(secret)}
                             </span>
-                            <span className="hidden md:inline text-xs font-mono text-white/40">v{secret.version}</span>
+                            <span className="hidden md:inline text-xs font-mono text-white/40">
+                              v{secret.version}
+                            </span>
                           </div>
                         </div>
                         {secret.description && (
@@ -597,27 +653,44 @@ export function SecretsTab({ user }: SecretsTabProps) {
                       {/* Info Grid - 2 cols on phone, 4 cols on tablet */}
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-2 border-t border-white/10">
                         <div className="space-y-1">
-                          <p className="text-[10px] md:text-xs font-mono text-white/40 uppercase">Version</p>
-                          <p className="text-xs font-mono text-white/80">v{secret.version}</p>
-                        </div>
-                        <div className="space-y-1">
-                          <p className="text-[10px] md:text-xs font-mono text-white/40 uppercase">Accessed</p>
-                          <p className="text-xs font-mono text-white/80">{secret.accessCount}x</p>
-                        </div>
-                        <div className="space-y-1">
-                          <p className="text-[10px] md:text-xs font-mono text-white/40 uppercase">Created</p>
+                          <p className="text-[10px] md:text-xs font-mono text-white/40 uppercase">
+                            Version
+                          </p>
                           <p className="text-xs font-mono text-white/80">
-                            {new Date(secret.createdAt).toLocaleDateString("en-US", {
-                              month: "short",
-                              day: "numeric",
-                            })}
+                            v{secret.version}
                           </p>
                         </div>
                         <div className="space-y-1">
-                          <p className="text-[10px] md:text-xs font-mono text-white/40 uppercase">Last Used</p>
+                          <p className="text-[10px] md:text-xs font-mono text-white/40 uppercase">
+                            Accessed
+                          </p>
+                          <p className="text-xs font-mono text-white/80">
+                            {secret.accessCount}x
+                          </p>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-[10px] md:text-xs font-mono text-white/40 uppercase">
+                            Created
+                          </p>
+                          <p className="text-xs font-mono text-white/80">
+                            {new Date(secret.createdAt).toLocaleDateString(
+                              "en-US",
+                              {
+                                month: "short",
+                                day: "numeric",
+                              },
+                            )}
+                          </p>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-[10px] md:text-xs font-mono text-white/40 uppercase">
+                            Last Used
+                          </p>
                           <p className="text-xs font-mono text-white/80">
                             {secret.lastAccessedAt
-                              ? new Date(secret.lastAccessedAt).toLocaleDateString("en-US", {
+                              ? new Date(
+                                  secret.lastAccessedAt,
+                                ).toLocaleDateString("en-US", {
                                   month: "short",
                                   day: "numeric",
                                 })
@@ -633,7 +706,9 @@ export function SecretsTab({ user }: SecretsTabProps) {
                           <button
                             type="button"
                             onClick={() => handleRevealValue(secret)}
-                            disabled={operationState.revealingSecretId === secret.id}
+                            disabled={
+                              operationState.revealingSecretId === secret.id
+                            }
                             className="h-11 px-2 md:px-3 border border-white/20 hover:bg-white/5 active:bg-white/10 transition-colors disabled:opacity-50 flex items-center justify-center gap-1 md:gap-1.5"
                           >
                             {operationState.revealingSecretId === secret.id ? (
@@ -641,7 +716,9 @@ export function SecretsTab({ user }: SecretsTabProps) {
                             ) : (
                               <Eye className="h-4 w-4 text-white/60" />
                             )}
-                            <span className="text-[10px] md:text-xs font-mono text-white/60">Reveal</span>
+                            <span className="text-[10px] md:text-xs font-mono text-white/60">
+                              Reveal
+                            </span>
                           </button>
                           <button
                             type="button"
@@ -649,7 +726,9 @@ export function SecretsTab({ user }: SecretsTabProps) {
                             className="h-11 px-2 md:px-3 border border-white/20 hover:bg-white/5 active:bg-white/10 transition-colors flex items-center justify-center gap-1 md:gap-1.5"
                           >
                             <RotateCw className="h-4 w-4 text-white/60" />
-                            <span className="text-[10px] md:text-xs font-mono text-white/60">Rotate</span>
+                            <span className="text-[10px] md:text-xs font-mono text-white/60">
+                              Rotate
+                            </span>
                           </button>
                           <button
                             type="button"
@@ -657,7 +736,9 @@ export function SecretsTab({ user }: SecretsTabProps) {
                             className="h-11 px-2 md:px-3 border border-white/20 hover:bg-white/5 active:bg-white/10 transition-colors flex items-center justify-center gap-1 md:gap-1.5"
                           >
                             <History className="h-4 w-4 text-white/60" />
-                            <span className="text-[10px] md:text-xs font-mono text-white/60">Audit</span>
+                            <span className="text-[10px] md:text-xs font-mono text-white/60">
+                              Audit
+                            </span>
                           </button>
                           <button
                             type="button"
@@ -665,12 +746,18 @@ export function SecretsTab({ user }: SecretsTabProps) {
                             className="h-11 px-2 md:px-3 border border-white/20 hover:bg-white/5 active:bg-white/10 transition-colors flex items-center justify-center gap-1 md:gap-1.5"
                           >
                             <Edit2 className="h-4 w-4 text-white/60" />
-                            <span className="text-[10px] md:text-xs font-mono text-white/60">Edit</span>
+                            <span className="text-[10px] md:text-xs font-mono text-white/60">
+                              Edit
+                            </span>
                           </button>
                           <button
                             type="button"
-                            onClick={() => handleDeleteSecret(secret.id, secret.name)}
-                            disabled={operationState.deletingSecretId === secret.id}
+                            onClick={() =>
+                              handleDeleteSecret(secret.id, secret.name)
+                            }
+                            disabled={
+                              operationState.deletingSecretId === secret.id
+                            }
                             className="h-11 px-2 md:px-3 border border-[#EB4335]/40 bg-[#EB4335]/10 hover:bg-[#EB4335]/20 active:bg-[#EB4335]/30 transition-colors disabled:opacity-50 flex items-center justify-center gap-1 md:gap-1.5 col-span-3 md:col-span-1"
                           >
                             {operationState.deletingSecretId === secret.id ? (
@@ -678,7 +765,9 @@ export function SecretsTab({ user }: SecretsTabProps) {
                             ) : (
                               <Trash2 className="h-4 w-4 text-[#EB4335]" />
                             )}
-                            <span className="text-[10px] md:text-xs font-mono text-[#EB4335]">Delete</span>
+                            <span className="text-[10px] md:text-xs font-mono text-[#EB4335]">
+                              Delete
+                            </span>
                           </button>
                         </div>
                       </div>
@@ -704,7 +793,9 @@ export function SecretsTab({ user }: SecretsTabProps) {
                             <span className="px-2 py-0.5 bg-[rgba(255,88,0,0.25)] border border-[#FF5800]/40 text-[#FF5800] text-xs font-mono uppercase">
                               {formatScopeLabel(secret)}
                             </span>
-                            <span className="text-xs font-mono text-white/40">v{secret.version}</span>
+                            <span className="text-xs font-mono text-white/40">
+                              v{secret.version}
+                            </span>
                           </div>
                           {secret.description && (
                             <p className="text-xs font-mono text-white/40 ml-7">
@@ -717,17 +808,24 @@ export function SecretsTab({ user }: SecretsTabProps) {
                         <div className="flex items-center gap-6">
                           <div className="flex gap-6">
                             <div className="space-y-1 text-right">
-                              <p className="text-xs font-mono text-white/40 uppercase">Created</p>
+                              <p className="text-xs font-mono text-white/40 uppercase">
+                                Created
+                              </p>
                               <p className="text-xs font-mono text-white/80">
-                                {new Date(secret.createdAt).toLocaleDateString("en-US", {
-                                  year: "numeric",
-                                  month: "short",
-                                  day: "numeric",
-                                })}
+                                {new Date(secret.createdAt).toLocaleDateString(
+                                  "en-US",
+                                  {
+                                    year: "numeric",
+                                    month: "short",
+                                    day: "numeric",
+                                  },
+                                )}
                               </p>
                             </div>
                             <div className="space-y-1 text-right">
-                              <p className="text-xs font-mono text-white/40 uppercase">Accessed</p>
+                              <p className="text-xs font-mono text-white/40 uppercase">
+                                Accessed
+                              </p>
                               <p className="text-xs font-mono text-white/80">
                                 {secret.accessCount}x
                               </p>
@@ -739,11 +837,14 @@ export function SecretsTab({ user }: SecretsTabProps) {
                             <button
                               type="button"
                               onClick={() => handleRevealValue(secret)}
-                              disabled={operationState.revealingSecretId === secret.id}
+                              disabled={
+                                operationState.revealingSecretId === secret.id
+                              }
                               className="px-3 py-2 border border-white/20 hover:bg-white/5 transition-colors disabled:opacity-50"
                               title="Reveal value"
                             >
-                              {operationState.revealingSecretId === secret.id ? (
+                              {operationState.revealingSecretId ===
+                              secret.id ? (
                                 <Loader2 className="h-4 w-4 animate-spin text-white/60" />
                               ) : (
                                 <Eye className="h-4 w-4 text-white/60" />
@@ -775,8 +876,12 @@ export function SecretsTab({ user }: SecretsTabProps) {
                             </button>
                             <button
                               type="button"
-                              onClick={() => handleDeleteSecret(secret.id, secret.name)}
-                              disabled={operationState.deletingSecretId === secret.id}
+                              onClick={() =>
+                                handleDeleteSecret(secret.id, secret.name)
+                              }
+                              disabled={
+                                operationState.deletingSecretId === secret.id
+                              }
                               className="px-3 py-2 border border-[#EB4335]/40 bg-[#EB4335]/10 hover:bg-[#EB4335]/20 transition-colors disabled:opacity-50"
                               title="Delete secret"
                             >
@@ -825,7 +930,13 @@ export function SecretsTab({ user }: SecretsTabProps) {
                   </Label>
                   <Input
                     value={formState.name}
-                    onChange={(e) => updateForm({ name: e.target.value.toUpperCase().replace(/[^A-Z0-9_]/g, "_") })}
+                    onChange={(e) =>
+                      updateForm({
+                        name: e.target.value
+                          .toUpperCase()
+                          .replace(/[^A-Z0-9_]/g, "_"),
+                      })
+                    }
                     placeholder="MY_API_KEY"
                     className="bg-transparent border-[#303030] text-white font-mono h-11"
                   />
@@ -852,88 +963,155 @@ export function SecretsTab({ user }: SecretsTabProps) {
                   </Label>
                   <Input
                     value={formState.description}
-                    onChange={(e) => updateForm({ description: e.target.value })}
+                    onChange={(e) =>
+                      updateForm({ description: e.target.value })
+                    }
                     placeholder="OpenAI API key for production"
                     className="bg-transparent border-[#303030] text-white h-11"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-white font-mono text-xs md:text-sm">Provider (optional)</Label>
+                  <Label className="text-white font-mono text-xs md:text-sm">
+                    Provider (optional)
+                  </Label>
                   <select
                     value={formState.provider}
-                    onChange={(e) => updateForm({ provider: e.target.value as FormState["provider"] })}
+                    onChange={(e) =>
+                      updateForm({
+                        provider: e.target.value as FormState["provider"],
+                      })
+                    }
                     className="w-full bg-transparent border border-[#303030] text-white h-11 px-3 font-mono text-sm appearance-none"
                   >
-                    <option value="" className="bg-[#0a0a0a]">Auto-detect / Custom</option>
+                    <option value="" className="bg-[#0a0a0a]">
+                      Auto-detect / Custom
+                    </option>
                     {Object.entries(PROVIDER_LABELS).map(([key, label]) => (
-                      <option key={key} value={key} className="bg-[#0a0a0a]">{label}</option>
+                      <option key={key} value={key} className="bg-[#0a0a0a]">
+                        {label}
+                      </option>
                     ))}
                   </select>
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-white font-mono text-xs md:text-sm">Scope</Label>
+                  <Label className="text-white font-mono text-xs md:text-sm">
+                    Scope
+                  </Label>
                   <select
                     value={formState.scope}
-                    onChange={(e) => updateForm({ scope: e.target.value as FormState["scope"] })}
+                    onChange={(e) =>
+                      updateForm({
+                        scope: e.target.value as FormState["scope"],
+                      })
+                    }
                     className="w-full bg-transparent border border-[#303030] text-white h-11 px-3 font-mono text-sm appearance-none"
                   >
-                    <option value="organization" className="bg-[#0a0a0a]">Global (all projects)</option>
-                    <option value="project" className="bg-[#0a0a0a]">Project-scoped</option>
-                    <option value="environment" className="bg-[#0a0a0a]">Environment-scoped</option>
+                    <option value="organization" className="bg-[#0a0a0a]">
+                      Global (all projects)
+                    </option>
+                    <option value="project" className="bg-[#0a0a0a]">
+                      Project-scoped
+                    </option>
+                    <option value="environment" className="bg-[#0a0a0a]">
+                      Environment-scoped
+                    </option>
                   </select>
                 </div>
 
                 {formState.scope === "project" && (
                   <div className="space-y-2">
-                    <Label className="text-white font-mono text-xs md:text-sm">Project Type</Label>
+                    <Label className="text-white font-mono text-xs md:text-sm">
+                      Project Type
+                    </Label>
                     <select
                       value={formState.projectType}
-                      onChange={(e) => updateForm({ projectType: e.target.value as FormState["projectType"] })}
+                      onChange={(e) =>
+                        updateForm({
+                          projectType: e.target
+                            .value as FormState["projectType"],
+                        })
+                      }
                       className="w-full bg-transparent border border-[#303030] text-white h-11 px-3 font-mono text-sm appearance-none"
                     >
-                      <option value="" className="bg-[#0a0a0a]">Select type...</option>
-                      <option value="character" className="bg-[#0a0a0a]">Agent</option>
-                      <option value="mcp" className="bg-[#0a0a0a]">MCP</option>
-                      <option value="workflow" className="bg-[#0a0a0a]">Workflow</option>
-                      <option value="container" className="bg-[#0a0a0a]">Container</option>
-                      <option value="app" className="bg-[#0a0a0a]">App</option>
+                      <option value="" className="bg-[#0a0a0a]">
+                        Select type...
+                      </option>
+                      <option value="character" className="bg-[#0a0a0a]">
+                        Agent
+                      </option>
+                      <option value="mcp" className="bg-[#0a0a0a]">
+                        MCP
+                      </option>
+                      <option value="workflow" className="bg-[#0a0a0a]">
+                        Workflow
+                      </option>
+                      <option value="container" className="bg-[#0a0a0a]">
+                        Container
+                      </option>
+                      <option value="app" className="bg-[#0a0a0a]">
+                        App
+                      </option>
                     </select>
                   </div>
                 )}
 
                 {formState.scope === "project" && formState.projectType && (
                   <div className="space-y-2">
-                    <Label className="text-white font-mono text-xs md:text-sm">Project ID</Label>
+                    <Label className="text-white font-mono text-xs md:text-sm">
+                      Project ID
+                    </Label>
                     <Input
                       value={formState.projectId}
-                      onChange={(e) => updateForm({ projectId: e.target.value })}
+                      onChange={(e) =>
+                        updateForm({ projectId: e.target.value })
+                      }
                       placeholder="Enter UUID..."
                       className="bg-transparent border-[#303030] text-white font-mono h-11"
                     />
                     <p className="text-[10px] md:text-xs text-white/40 font-mono">
-                      {formState.projectType === "character" && "Find agent IDs in My Agents → select agent → URL contains the ID"}
-                      {formState.projectType === "mcp" && "Find MCP IDs in your MCP settings"}
-                      {formState.projectType === "workflow" && "Find workflow IDs in your n8n workflows list"}
-                      {formState.projectType === "container" && "Find container IDs in your Containers dashboard"}
-                      {formState.projectType === "app" && "Find app IDs in your Miniapps dashboard"}
+                      {formState.projectType === "character" &&
+                        "Find agent IDs in My Agents → select agent → URL contains the ID"}
+                      {formState.projectType === "mcp" &&
+                        "Find MCP IDs in your MCP settings"}
+                      {formState.projectType === "workflow" &&
+                        "Find workflow IDs in your n8n workflows list"}
+                      {formState.projectType === "container" &&
+                        "Find container IDs in your Containers dashboard"}
+                      {formState.projectType === "app" &&
+                        "Find app IDs in your Miniapps dashboard"}
                     </p>
                   </div>
                 )}
 
                 {formState.scope === "environment" && (
                   <div className="space-y-2">
-                    <Label className="text-white font-mono text-xs md:text-sm">Environment</Label>
+                    <Label className="text-white font-mono text-xs md:text-sm">
+                      Environment
+                    </Label>
                     <select
                       value={formState.environment}
-                      onChange={(e) => updateForm({ environment: e.target.value as FormState["environment"] })}
+                      onChange={(e) =>
+                        updateForm({
+                          environment: e.target
+                            .value as FormState["environment"],
+                        })
+                      }
                       className="w-full bg-transparent border border-[#303030] text-white h-11 px-3 font-mono text-sm appearance-none"
                     >
-                      <option value="" className="bg-[#0a0a0a]">Select environment...</option>
-                      <option value="development" className="bg-[#0a0a0a]">Development</option>
-                      <option value="preview" className="bg-[#0a0a0a]">Preview</option>
-                      <option value="production" className="bg-[#0a0a0a]">Production</option>
+                      <option value="" className="bg-[#0a0a0a]">
+                        Select environment...
+                      </option>
+                      <option value="development" className="bg-[#0a0a0a]">
+                        Development
+                      </option>
+                      <option value="preview" className="bg-[#0a0a0a]">
+                        Preview
+                      </option>
+                      <option value="production" className="bg-[#0a0a0a]">
+                        Production
+                      </option>
                     </select>
                   </div>
                 )}
@@ -946,12 +1124,18 @@ export function SecretsTab({ user }: SecretsTabProps) {
                   className="h-11 px-4 border border-[#303030] text-white hover:bg-white/5 active:bg-white/10 transition-colors order-2 sm:order-1 w-full sm:w-auto"
                   disabled={operationState.creating}
                 >
-                  <span className="font-mono text-sm whitespace-nowrap">Cancel</span>
+                  <span className="font-mono text-sm whitespace-nowrap">
+                    Cancel
+                  </span>
                 </button>
                 <button
                   type="button"
                   onClick={handleCreateSubmit}
-                  disabled={operationState.creating || !formState.name.trim() || !formState.value.trim()}
+                  disabled={
+                    operationState.creating ||
+                    !formState.name.trim() ||
+                    !formState.value.trim()
+                  }
                   className="relative h-11 bg-[#e1e1e1] px-6 overflow-hidden hover:bg-white active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed order-1 sm:order-2 w-full sm:w-auto"
                 >
                   <div
@@ -991,7 +1175,9 @@ export function SecretsTab({ user }: SecretsTabProps) {
                 </h3>
                 <button
                   type="button"
-                  onClick={() => updateModal({ showEditModal: false, selectedSecret: null })}
+                  onClick={() =>
+                    updateModal({ showEditModal: false, selectedSecret: null })
+                  }
                   className="text-white/60 hover:text-white transition-colors p-1 -m-1"
                 >
                   <X className="h-5 w-5" />
@@ -1021,10 +1207,14 @@ export function SecretsTab({ user }: SecretsTabProps) {
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-white font-mono text-sm">Description</Label>
+                  <Label className="text-white font-mono text-sm">
+                    Description
+                  </Label>
                   <Input
                     value={formState.description}
-                    onChange={(e) => updateForm({ description: e.target.value })}
+                    onChange={(e) =>
+                      updateForm({ description: e.target.value })
+                    }
                     placeholder="Update description..."
                     className="bg-transparent border-[#303030] text-white"
                   />
@@ -1034,11 +1224,15 @@ export function SecretsTab({ user }: SecretsTabProps) {
               <div className="flex flex-col sm:flex-row gap-3 justify-end pt-4">
                 <button
                   type="button"
-                  onClick={() => updateModal({ showEditModal: false, selectedSecret: null })}
+                  onClick={() =>
+                    updateModal({ showEditModal: false, selectedSecret: null })
+                  }
                   className="h-11 px-4 border border-[#303030] text-white hover:bg-white/5 active:bg-white/10 transition-colors order-2 sm:order-1 w-full sm:w-auto"
                   disabled={operationState.updating}
                 >
-                  <span className="font-mono text-sm whitespace-nowrap">Cancel</span>
+                  <span className="font-mono text-sm whitespace-nowrap">
+                    Cancel
+                  </span>
                 </button>
                 <button
                   type="button"
@@ -1071,75 +1265,95 @@ export function SecretsTab({ user }: SecretsTabProps) {
       )}
 
       {/* Reveal Value Modal */}
-      {modalState.showValueModal && modalState.selectedSecret && modalState.revealedValue && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="relative bg-[#0a0a0a] border border-brand-surface p-4 sm:p-6 w-full max-w-2xl my-auto max-h-[90vh] overflow-y-auto">
-            <CornerBrackets size="sm" className="opacity-50" />
+      {modalState.showValueModal &&
+        modalState.selectedSecret &&
+        modalState.revealedValue && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto">
+            <div className="relative bg-[#0a0a0a] border border-brand-surface p-4 sm:p-6 w-full max-w-2xl my-auto max-h-[90vh] overflow-y-auto">
+              <CornerBrackets size="sm" className="opacity-50" />
 
-            <div className="relative z-10 space-y-4">
-              <div className="flex items-start justify-between gap-3">
-                <h3 className="text-base sm:text-lg font-mono text-white uppercase truncate flex-1 min-w-0">
-                  {modalState.selectedSecret.name}
-                </h3>
-                <button
-                  type="button"
-                  onClick={() => updateModal({ showValueModal: false, selectedSecret: null, revealedValue: null })}
-                  className="text-white/60 hover:text-white transition-colors p-1 -m-1 flex-shrink-0"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-
-              <div className="space-y-4">
-                <div className="bg-[rgba(255,88,0,0.1)] border border-[#FF5800] p-3 sm:p-4">
-                  <p className="text-xs sm:text-sm text-[#FF5800] font-mono">
-                    ⚠️ This secret is now visible. Don&apos;t share it or expose it in client-side code.
-                  </p>
+              <div className="relative z-10 space-y-4">
+                <div className="flex items-start justify-between gap-3">
+                  <h3 className="text-base sm:text-lg font-mono text-white uppercase truncate flex-1 min-w-0">
+                    {modalState.selectedSecret.name}
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      updateModal({
+                        showValueModal: false,
+                        selectedSecret: null,
+                        revealedValue: null,
+                      })
+                    }
+                    className="text-white/60 hover:text-white transition-colors p-1 -m-1 flex-shrink-0"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
                 </div>
 
-                <div className="space-y-2">
-                  <Label className="text-white font-mono text-sm">Secret Value</Label>
-                  <div className="flex flex-col gap-2">
-                    <div className="bg-[rgba(10,10,10,0.75)] border border-brand-surface p-3 max-h-[200px] overflow-y-auto">
-                      <p className="text-xs sm:text-sm text-white/80 font-mono break-all whitespace-pre-wrap">
-                        {modalState.revealedValue}
-                      </p>
+                <div className="space-y-4">
+                  <div className="bg-[rgba(255,88,0,0.1)] border border-[#FF5800] p-3 sm:p-4">
+                    <p className="text-xs sm:text-sm text-[#FF5800] font-mono">
+                      ⚠️ This secret is now visible. Don&apos;t share it or
+                      expose it in client-side code.
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-white font-mono text-sm">
+                      Secret Value
+                    </Label>
+                    <div className="flex flex-col gap-2">
+                      <div className="bg-[rgba(10,10,10,0.75)] border border-brand-surface p-3 max-h-[200px] overflow-y-auto">
+                        <p className="text-xs sm:text-sm text-white/80 font-mono break-all whitespace-pre-wrap">
+                          {modalState.revealedValue}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleCopyValue}
+                        className="h-11 px-4 bg-[#e1e1e1] hover:bg-white active:bg-gray-200 transition-colors flex items-center justify-center gap-2"
+                        title="Copy to clipboard"
+                      >
+                        <Copy className="h-5 w-5 text-black" />
+                        <span className="text-black font-mono text-sm">
+                          Copy to Clipboard
+                        </span>
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      onClick={handleCopyValue}
-                      className="h-11 px-4 bg-[#e1e1e1] hover:bg-white active:bg-gray-200 transition-colors flex items-center justify-center gap-2"
-                      title="Copy to clipboard"
-                    >
-                      <Copy className="h-5 w-5 text-black" />
-                      <span className="text-black font-mono text-sm">Copy to Clipboard</span>
-                    </button>
                   </div>
                 </div>
-              </div>
 
-              <div className="flex justify-end pt-4">
-                <button
-                  type="button"
-                  onClick={() => updateModal({ showValueModal: false, selectedSecret: null, revealedValue: null })}
-                  className="relative bg-[#e1e1e1] px-6 py-3 overflow-hidden hover:bg-white transition-colors w-full sm:w-auto"
-                >
-                  <div
-                    className="absolute inset-0 opacity-20 bg-repeat pointer-events-none"
-                    style={{
-                      backgroundImage: `url(/assets/settings/pattern-6px-flip.png)`,
-                      backgroundSize: "2.915576934814453px 2.915576934814453px",
-                    }}
-                  />
-                  <span className="relative z-10 text-black font-mono font-medium text-sm sm:text-base whitespace-nowrap">
-                    Done
-                  </span>
-                </button>
+                <div className="flex justify-end pt-4">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      updateModal({
+                        showValueModal: false,
+                        selectedSecret: null,
+                        revealedValue: null,
+                      })
+                    }
+                    className="relative bg-[#e1e1e1] px-6 py-3 overflow-hidden hover:bg-white transition-colors w-full sm:w-auto"
+                  >
+                    <div
+                      className="absolute inset-0 opacity-20 bg-repeat pointer-events-none"
+                      style={{
+                        backgroundImage: `url(/assets/settings/pattern-6px-flip.png)`,
+                        backgroundSize:
+                          "2.915576934814453px 2.915576934814453px",
+                      }}
+                    />
+                    <span className="relative z-10 text-black font-mono font-medium text-sm sm:text-base whitespace-nowrap">
+                      Done
+                    </span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
       {/* Bulk Import Modal */}
       {modalState.showBulkImportModal && (
@@ -1163,8 +1377,8 @@ export function SecretsTab({ user }: SecretsTabProps) {
 
               <div className="space-y-4">
                 <p className="text-sm text-white/60 font-mono">
-                  Paste your .env file contents below. Each line should be in the format KEY=value.
-                  Lines starting with # are ignored.
+                  Paste your .env file contents below. Each line should be in
+                  the format KEY=value. Lines starting with # are ignored.
                 </p>
 
                 <div className="space-y-2">
@@ -1173,7 +1387,12 @@ export function SecretsTab({ user }: SecretsTabProps) {
                   </Label>
                   <Textarea
                     value={bulkImportState.envContent}
-                    onChange={(e) => setBulkImportState((prev) => ({ ...prev, envContent: e.target.value }))}
+                    onChange={(e) =>
+                      setBulkImportState((prev) => ({
+                        ...prev,
+                        envContent: e.target.value,
+                      }))
+                    }
                     placeholder={`# API Keys
 OPENAI_API_KEY=sk-...
 ANTHROPIC_API_KEY=sk-ant-...
@@ -1184,8 +1403,8 @@ DISCORD_BOT_TOKEN=...`}
 
                 <div className="bg-[rgba(255,88,0,0.1)] border border-[#FF5800]/40 p-3">
                   <p className="text-xs text-[#FF5800] font-mono">
-                    ⚠️ Existing secrets with the same name will NOT be overwritten.
-                    Any duplicates will be reported as errors.
+                    ⚠️ Existing secrets with the same name will NOT be
+                    overwritten. Any duplicates will be reported as errors.
                   </p>
                 </div>
               </div>
@@ -1197,12 +1416,17 @@ DISCORD_BOT_TOKEN=...`}
                   className="h-11 px-4 border border-[#303030] text-white hover:bg-white/5 active:bg-white/10 transition-colors order-2 sm:order-1 w-full sm:w-auto"
                   disabled={bulkImportState.importing}
                 >
-                  <span className="font-mono text-sm whitespace-nowrap">Cancel</span>
+                  <span className="font-mono text-sm whitespace-nowrap">
+                    Cancel
+                  </span>
                 </button>
                 <button
                   type="button"
                   onClick={handleBulkImportSubmit}
-                  disabled={bulkImportState.importing || !bulkImportState.envContent.trim()}
+                  disabled={
+                    bulkImportState.importing ||
+                    !bulkImportState.envContent.trim()
+                  }
                   className="relative h-11 bg-[#e1e1e1] px-6 overflow-hidden hover:bg-white active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed order-1 sm:order-2 w-full sm:w-auto"
                 >
                   <div
@@ -1242,7 +1466,12 @@ DISCORD_BOT_TOKEN=...`}
                 </h3>
                 <button
                   type="button"
-                  onClick={() => updateModal({ showRotateModal: false, selectedSecret: null })}
+                  onClick={() =>
+                    updateModal({
+                      showRotateModal: false,
+                      selectedSecret: null,
+                    })
+                  }
                   className="text-white/60 hover:text-white transition-colors p-1 -m-1"
                 >
                   <X className="h-5 w-5" />
@@ -1252,13 +1481,16 @@ DISCORD_BOT_TOKEN=...`}
               <div className="space-y-4">
                 <div className="bg-[rgba(255,88,0,0.1)] border border-[#FF5800]/40 p-3">
                   <p className="text-xs text-[#FF5800] font-mono">
-                    ⚠️ Rotating a secret will create a new version. The old value will be
-                    replaced immediately. Make sure your applications are ready for the new value.
+                    ⚠️ Rotating a secret will create a new version. The old
+                    value will be replaced immediately. Make sure your
+                    applications are ready for the new value.
                   </p>
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-white font-mono text-sm">Secret Name</Label>
+                  <Label className="text-white font-mono text-sm">
+                    Secret Name
+                  </Label>
                   <Input
                     value={modalState.selectedSecret.name}
                     disabled
@@ -1281,7 +1513,13 @@ DISCORD_BOT_TOKEN=...`}
                 <div className="text-xs font-mono text-white/40">
                   Current version: v{modalState.selectedSecret.version}
                   {modalState.selectedSecret.lastRotatedAt && (
-                    <> • Last rotated: {new Date(modalState.selectedSecret.lastRotatedAt).toLocaleDateString()}</>
+                    <>
+                      {" "}
+                      • Last rotated:{" "}
+                      {new Date(
+                        modalState.selectedSecret.lastRotatedAt,
+                      ).toLocaleDateString()}
+                    </>
                   )}
                 </div>
               </div>
@@ -1289,11 +1527,18 @@ DISCORD_BOT_TOKEN=...`}
               <div className="flex flex-col sm:flex-row gap-3 justify-end pt-4">
                 <button
                   type="button"
-                  onClick={() => updateModal({ showRotateModal: false, selectedSecret: null })}
+                  onClick={() =>
+                    updateModal({
+                      showRotateModal: false,
+                      selectedSecret: null,
+                    })
+                  }
                   className="h-11 px-4 border border-[#303030] text-white hover:bg-white/5 active:bg-white/10 transition-colors order-2 sm:order-1 w-full sm:w-auto"
                   disabled={operationState.rotating}
                 >
-                  <span className="font-mono text-sm whitespace-nowrap">Cancel</span>
+                  <span className="font-mono text-sm whitespace-nowrap">
+                    Cancel
+                  </span>
                 </button>
                 <button
                   type="button"
@@ -1330,14 +1575,22 @@ DISCORD_BOT_TOKEN=...`}
             <div className="relative z-10 flex flex-col h-full min-h-0">
               <div className="flex items-start justify-between gap-3 mb-4 flex-shrink-0">
                 <div className="min-w-0 flex-1">
-                  <p className="text-xs font-mono text-white/40 uppercase mb-1">Audit Log</p>
+                  <p className="text-xs font-mono text-white/40 uppercase mb-1">
+                    Audit Log
+                  </p>
                   <h3 className="text-base sm:text-lg font-mono text-white truncate">
                     {modalState.selectedSecret.name}
                   </h3>
                 </div>
                 <button
                   type="button"
-                  onClick={() => updateModal({ showAuditModal: false, selectedSecret: null, auditLogs: [] })}
+                  onClick={() =>
+                    updateModal({
+                      showAuditModal: false,
+                      selectedSecret: null,
+                      auditLogs: [],
+                    })
+                  }
                   className="text-white/60 hover:text-white transition-colors p-1 -m-1 flex-shrink-0"
                 >
                   <X className="h-5 w-5" />
@@ -1362,12 +1615,17 @@ DISCORD_BOT_TOKEN=...`}
                         className="p-3 bg-[rgba(10,10,10,0.5)] border border-brand-surface"
                       >
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-2">
-                          <span className={`px-2 py-0.5 text-[10px] sm:text-xs font-mono uppercase w-fit ${
-                            log.action === "created" ? "bg-green-500/20 text-green-400" :
-                            log.action === "deleted" ? "bg-red-500/20 text-red-400" :
-                            log.action === "rotated" ? "bg-[#FF5800]/20 text-[#FF5800]" :
-                            "bg-white/10 text-white/60"
-                          }`}>
+                          <span
+                            className={`px-2 py-0.5 text-[10px] sm:text-xs font-mono uppercase w-fit ${
+                              log.action === "created"
+                                ? "bg-green-500/20 text-green-400"
+                                : log.action === "deleted"
+                                  ? "bg-red-500/20 text-red-400"
+                                  : log.action === "rotated"
+                                    ? "bg-[#FF5800]/20 text-[#FF5800]"
+                                    : "bg-white/10 text-white/60"
+                            }`}
+                          >
                             {log.action}
                           </span>
                           <span className="text-[10px] sm:text-xs font-mono text-white/40">
@@ -1376,14 +1634,21 @@ DISCORD_BOT_TOKEN=...`}
                         </div>
                         <div className="text-[10px] sm:text-xs font-mono text-white/60 break-all">
                           <span className="text-white/40">By:</span>{" "}
-                          <span className="break-all">{log.actorEmail || log.actorId}</span>
+                          <span className="break-all">
+                            {log.actorEmail || log.actorId}
+                          </span>
                           {log.actorType !== "user" && (
-                            <span className="text-white/30"> ({log.actorType})</span>
+                            <span className="text-white/30">
+                              {" "}
+                              ({log.actorType})
+                            </span>
                           )}
                           {log.ipAddress && (
                             <>
                               <br className="sm:hidden" />
-                              <span className="text-white/30 sm:before:content-['_']">from {log.ipAddress}</span>
+                              <span className="text-white/30 sm:before:content-['_']">
+                                from {log.ipAddress}
+                              </span>
                             </>
                           )}
                         </div>
@@ -1396,7 +1661,13 @@ DISCORD_BOT_TOKEN=...`}
               <div className="flex justify-end pt-4 mt-4 border-t border-white/10">
                 <button
                   type="button"
-                  onClick={() => updateModal({ showAuditModal: false, selectedSecret: null, auditLogs: [] })}
+                  onClick={() =>
+                    updateModal({
+                      showAuditModal: false,
+                      selectedSecret: null,
+                      auditLogs: [],
+                    })
+                  }
                   className="relative bg-[#e1e1e1] px-6 py-2.5 overflow-hidden hover:bg-white transition-colors"
                 >
                   <span className="relative z-10 text-black font-mono font-medium text-sm">
@@ -1411,4 +1682,3 @@ DISCORD_BOT_TOKEN=...`}
     </div>
   );
 }
-

@@ -19,10 +19,16 @@ export async function GET(request: NextRequest, { params }: Params) {
   }
 
   const { confirmationId } = await params;
-  const confirmation = await replyConfirmationService.get(confirmationId, user.organization_id);
+  const confirmation = await replyConfirmationService.get(
+    confirmationId,
+    user.organization_id,
+  );
 
   if (!confirmation) {
-    return NextResponse.json({ error: "Reply confirmation not found" }, { status: 404 });
+    return NextResponse.json(
+      { error: "Reply confirmation not found" },
+      { status: 404 },
+    );
   }
 
   return NextResponse.json({
@@ -82,14 +88,17 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       confirmationId,
       user.organization_id,
       user.id,
-      user.email ?? undefined
+      user.email ?? undefined,
     );
 
     if (!result.success) {
-      return NextResponse.json({
-        success: false,
-        error: result.error,
-      }, { status: 400 });
+      return NextResponse.json(
+        {
+          success: false,
+          error: result.error,
+        },
+        { status: 400 },
+      );
     }
 
     return NextResponse.json({
@@ -105,7 +114,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       confirmationId,
       user.organization_id,
       user.id,
-      reason
+      reason,
     );
 
     return NextResponse.json({
@@ -136,7 +145,7 @@ export async function DELETE(request: NextRequest, { params }: Params) {
     confirmationId,
     user.organization_id,
     user.id,
-    "Cancelled by user"
+    "Cancelled by user",
   );
 
   return NextResponse.json({ success: true });

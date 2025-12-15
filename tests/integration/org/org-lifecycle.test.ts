@@ -6,7 +6,11 @@
  */
 
 import { describe, test, expect, beforeAll } from "bun:test";
-import { ORG_CHARACTER_IDS, getOrgCharacter, type orgCharacters } from "@/lib/eliza/characters/org";
+import {
+  ORG_CHARACTER_IDS,
+  getOrgCharacter,
+  type orgCharacters,
+} from "@/lib/eliza/characters/org";
 
 // Type alias matching the service's OrgAgentType
 type OrgAgentType = keyof typeof orgCharacters;
@@ -114,7 +118,9 @@ describe("Org Agent Lifecycle Service", () => {
           servers: { "org-tools": { url: string; transport: string } };
         };
         expect(mcpSettings?.servers?.["org-tools"]).toBeDefined();
-        expect(mcpSettings?.servers?.["org-tools"]?.url).toBe("/api/mcp/org/sse");
+        expect(mcpSettings?.servers?.["org-tools"]?.url).toBe(
+          "/api/mcp/org/sse",
+        );
       }
     });
   });
@@ -173,7 +179,9 @@ describe("Org Agent Lifecycle Service", () => {
 
       // Verify separation
       for (const secret of secrets) {
-        expect(secret).toMatch(/TOKEN|PASSWORD|SECRET|API_TOKEN|APPLICATION_ID|EMAIL/);
+        expect(secret).toMatch(
+          /TOKEN|PASSWORD|SECRET|API_TOKEN|APPLICATION_ID|EMAIL/,
+        );
       }
 
       for (const nonSecret of nonSecrets) {
@@ -270,4 +278,3 @@ describe("Agent Loader - Org Character Loading Design", () => {
     expect(names.size).toBeGreaterThanOrEqual(5);
   });
 });
-

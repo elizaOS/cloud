@@ -3,10 +3,12 @@ import { GatewayManager } from "../gateway-manager";
 
 const originalFetch = globalThis.fetch;
 
-const mockFetch = mock(() => Promise.resolve({
-  ok: true,
-  json: () => Promise.resolve({ assignments: [] }),
-}));
+const mockFetch = mock(() =>
+  Promise.resolve({
+    ok: true,
+    json: () => Promise.resolve({ assignments: [] }),
+  }),
+);
 
 describe("GatewayManager", () => {
   beforeEach(() => {

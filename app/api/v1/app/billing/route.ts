@@ -51,10 +51,7 @@ export async function GET(request: NextRequest) {
   const corsResult = await validateOrigin(request);
 
   // Rate limiting
-  const rateLimitResult = await checkAppRateLimit(
-    request,
-    APP_RATE_LIMITS,
-  );
+  const rateLimitResult = await checkAppRateLimit(request, APP_RATE_LIMITS);
   if (!rateLimitResult.allowed) {
     return createRateLimitErrorResponse(
       rateLimitResult,
@@ -140,10 +137,7 @@ export async function GET(request: NextRequest) {
         const app = await appsService.getById(appId);
 
         if (app && app.monetization_enabled) {
-          const appBalance = await appCreditsService.getBalance(
-            appId,
-            user.id,
-          );
+          const appBalance = await appCreditsService.getBalance(appId, user.id);
           const monetizationSettings =
             await appCreditsService.getMonetizationSettings(appId);
 

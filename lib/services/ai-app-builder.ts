@@ -1,5 +1,9 @@
 import { sandboxService, type SandboxProgress } from "./sandbox";
-import { buildFullAppPrompt, getExamplePrompts, type FullAppTemplateType } from "@/lib/fragments/prompt";
+import {
+  buildFullAppPrompt,
+  getExamplePrompts,
+  type FullAppTemplateType,
+} from "@/lib/fragments/prompt";
 import { logger } from "@/lib/utils/logger";
 import { db } from "@/db/client";
 import {
@@ -27,7 +31,12 @@ export interface BuilderSessionConfig {
   appName?: string;
   appDescription?: string;
   initialPrompt?: string;
-  templateType?: "chat" | "agent-dashboard" | "landing-page" | "analytics" | "blank";
+  templateType?:
+    | "chat"
+    | "agent-dashboard"
+    | "landing-page"
+    | "analytics"
+    | "blank";
   includeMonetization?: boolean;
   includeAnalytics?: boolean;
   onProgress?: (progress: SandboxProgress) => void;
@@ -56,13 +65,17 @@ export interface PromptResult {
 }
 
 export class AIAppBuilderService {
-  private async verifyOwnership(sessionId: string, userId: string): Promise<AppSandboxSession> {
+  private async verifyOwnership(
+    sessionId: string,
+    userId: string,
+  ): Promise<AppSandboxSession> {
     const session = await db.query.appSandboxSessions.findFirst({
       where: eq(appSandboxSessions.id, sessionId),
     });
 
     if (!session) throw new Error("Session not found");
-    if (session.user_id !== userId) throw new Error("Access denied: You don't own this session");
+    if (session.user_id !== userId)
+      throw new Error("Access denied: You don't own this session");
 
     return session;
   }
@@ -81,7 +94,11 @@ export class AIAppBuilderService {
       onProgress,
     } = config;
 
-    logger.info("Starting AI App Builder session", { userId, templateType, appName });
+    logger.info("Starting AI App Builder session", {
+      userId,
+      templateType,
+      appName,
+    });
 
     let templateUrl: string | undefined;
     if (templateType !== "blank") {
@@ -136,7 +153,8 @@ export class AIAppBuilderService {
       completed_at: new Date(),
     } satisfies NewAppBuilderPrompt);
 
-    const examplePrompts = EXAMPLE_PROMPTS[templateType] || EXAMPLE_PROMPTS.blank;
+    const examplePrompts =
+      EXAMPLE_PROMPTS[templateType] || EXAMPLE_PROMPTS.blank;
 
     logger.info("AI App Builder session started", {
       sessionId: session.id,
@@ -158,14 +176,23 @@ export class AIAppBuilderService {
     sessionId: string,
     prompt: string,
     userId: string,
-    options: { onToolUse?: (tool: string, input: unknown, result: string) => void; onThinking?: (text: string) => void } = {}
+    options: {
+      onToolUse?: (tool: string, input: unknown, result: string) => void;
+      onThinking?: (text: string) => void;
+    } = {},
   ): Promise<PromptResult> {
-    logger.info("Sending prompt to AI App Builder", { sessionId, promptLength: prompt.length });
+    logger.info("Sending prompt to AI App Builder", {
+      sessionId,
+      promptLength: prompt.length,
+    });
 
     const session = await this.verifyOwnership(sessionId, userId);
 
     if (!session.sandbox_id) throw new Error("Sandbox not available");
-    if (session.status !== "ready") throw new Error(`Session is not ready. Current status: ${session.status}`);
+    if (session.status !== "ready")
+      throw new Error(
+        `Session is not ready. Current status: ${session.status}`,
+      );
 
     await db
       .update(appSandboxSessions)
@@ -188,11 +215,15 @@ export class AIAppBuilderService {
     });
 
     const startTime = Date.now();
-    const result = await sandboxService.executeClaudeCode(session.sandbox_id, prompt, {
-      systemPrompt: systemPromptRecord?.content,
-      onToolUse: options.onToolUse,
-      onThinking: options.onThinking,
-    });
+    const result = await sandboxService.executeClaudeCode(
+      session.sandbox_id,
+      prompt,
+      {
+        systemPrompt: systemPromptRecord?.content,
+        onToolUse: options.onToolUse,
+        onThinking: options.onThinking,
+      },
+    );
     const durationMs = Date.now() - startTime;
 
     await db
@@ -215,10 +246,15 @@ export class AIAppBuilderService {
       completed_at: new Date(),
     } satisfies NewAppBuilderPrompt);
 
-    const messages = (session.claude_messages as BuilderSession["messages"]) || [];
+    const messages =
+      (session.claude_messages as BuilderSession["messages"]) || [];
     messages.push(
       { role: "user", content: prompt, timestamp: new Date().toISOString() },
-      { role: "assistant", content: result.output, timestamp: new Date().toISOString() }
+      {
+        role: "assistant",
+        content: result.output,
+        timestamp: new Date().toISOString(),
+      },
     );
 
     await db
@@ -227,23 +263,42 @@ export class AIAppBuilderService {
         status: "ready",
         claude_messages: messages,
         generated_files: [
-          ...(session.generated_files as Array<{ path: string; type: "created" | "modified" | "deleted"; timestamp: string }>) || [],
-          ...result.filesAffected.map((path) => ({ path, type: "modified" as const, timestamp: new Date().toISOString() })),
+          ...((session.generated_files as Array<{
+            path: string;
+            type: "created" | "modified" | "deleted";
+            timestamp: string;
+          }>) || []),
+          ...result.filesAffected.map((path) => ({
+            path,
+            type: "modified" as const,
+            timestamp: new Date().toISOString(),
+          })),
         ],
         updated_at: new Date(),
       })
       .where(eq(appSandboxSessions.id, sessionId));
 
-    logger.info("Prompt completed", { sessionId, success: result.success, filesAffected: result.filesAffected.length, durationMs });
+    logger.info("Prompt completed", {
+      sessionId,
+      success: result.success,
+      filesAffected: result.filesAffected.length,
+      durationMs,
+    });
 
     return result;
   }
 
-  async verifySessionOwnership(sessionId: string, userId: string): Promise<AppSandboxSession> {
+  async verifySessionOwnership(
+    sessionId: string,
+    userId: string,
+  ): Promise<AppSandboxSession> {
     return this.verifyOwnership(sessionId, userId);
   }
 
-  async getSession(sessionId: string, userId: string): Promise<BuilderSession | null> {
+  async getSession(
+    sessionId: string,
+    userId: string,
+  ): Promise<BuilderSession | null> {
     const session = await this.verifyOwnership(sessionId, userId);
 
     const prompts = await db.query.appBuilderPrompts.findMany({
@@ -260,8 +315,10 @@ export class AIAppBuilderService {
       }))
       .reverse();
 
-    const templateType = (session.template_type as keyof typeof EXAMPLE_PROMPTS) || "blank";
-    const examplePrompts = EXAMPLE_PROMPTS[templateType] || EXAMPLE_PROMPTS.blank;
+    const templateType =
+      (session.template_type as keyof typeof EXAMPLE_PROMPTS) || "blank";
+    const examplePrompts =
+      EXAMPLE_PROMPTS[templateType] || EXAMPLE_PROMPTS.blank;
 
     return {
       id: session.id,
@@ -273,7 +330,10 @@ export class AIAppBuilderService {
     };
   }
 
-  async listSessions(userId: string, options: { limit?: number; includeInactive?: boolean } = {}): Promise<AppSandboxSession[]> {
+  async listSessions(
+    userId: string,
+    options: { limit?: number; includeInactive?: boolean } = {},
+  ): Promise<AppSandboxSession[]> {
     const { limit = 10, includeInactive = false } = options;
 
     const sessions = await db.query.appSandboxSessions.findMany({
@@ -283,13 +343,19 @@ export class AIAppBuilderService {
     });
 
     if (!includeInactive) {
-      return sessions.filter((s) => s.status !== "stopped" && s.status !== "timeout");
+      return sessions.filter(
+        (s) => s.status !== "stopped" && s.status !== "timeout",
+      );
     }
 
     return sessions;
   }
 
-  async extendSession(sessionId: string, userId: string, durationMs: number = 15 * 60 * 1000): Promise<void> {
+  async extendSession(
+    sessionId: string,
+    userId: string,
+    durationMs: number = 15 * 60 * 1000,
+  ): Promise<void> {
     const session = await this.verifyOwnership(sessionId, userId);
 
     if (!session.sandbox_id) throw new Error("Sandbox not available");
@@ -305,7 +371,11 @@ export class AIAppBuilderService {
     logger.info("Extended session timeout", { sessionId, newExpiresAt });
   }
 
-  async getLogs(sessionId: string, userId: string, tail: number = 50): Promise<string[]> {
+  async getLogs(
+    sessionId: string,
+    userId: string,
+    tail: number = 50,
+  ): Promise<string[]> {
     const session = await this.verifyOwnership(sessionId, userId);
     if (!session.sandbox_id) return [];
     return sandboxService.getLogs(session.sandbox_id, tail);
@@ -320,7 +390,11 @@ export class AIAppBuilderService {
 
     await db
       .update(appSandboxSessions)
-      .set({ status: "stopped", stopped_at: new Date(), updated_at: new Date() })
+      .set({
+        status: "stopped",
+        stopped_at: new Date(),
+        updated_at: new Date(),
+      })
       .where(eq(appSandboxSessions.id, sessionId));
 
     logger.info("Session stopped", { sessionId });
@@ -328,17 +402,17 @@ export class AIAppBuilderService {
 
   /**
    * Deploy a sandbox session to production
-   * 
+   *
    * @experimental This feature is not yet available.
    * Currently in development - use export/download instead.
    */
   async deploySession(
     _sessionId: string,
     _userId: string,
-    _config: { appName: string; appDescription?: string; appUrl?: string }
+    _config: { appName: string; appDescription?: string; appUrl?: string },
   ): Promise<{ appId: string; deploymentUrl: string }> {
     throw new Error(
-      "Deployment is not yet available. Please use the export feature to download your app code, then deploy manually to your preferred hosting provider."
+      "Deployment is not yet available. Please use the export feature to download your app code, then deploy manually to your preferred hosting provider.",
     );
   }
 }

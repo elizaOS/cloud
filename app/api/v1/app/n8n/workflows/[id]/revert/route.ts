@@ -14,7 +14,8 @@ import { z } from "zod";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-App-Token, X-Api-Key",
+  "Access-Control-Allow-Headers":
+    "Content-Type, Authorization, X-App-Token, X-Api-Key",
 };
 
 const RevertWorkflowSchema = z.object({
@@ -31,7 +32,7 @@ export async function OPTIONS() {
  */
 export async function POST(
   request: NextRequest,
-  ctx: { params: Promise<{ id: string }> }
+  ctx: { params: Promise<{ id: string }> },
 ) {
   try {
     const user = await requireAppAuth(request);
@@ -41,7 +42,7 @@ export async function POST(
     if (apps.length === 0) {
       return NextResponse.json(
         { success: false, error: "No app found" },
-        { status: 404, headers: corsHeaders }
+        { status: 404, headers: corsHeaders },
       );
     }
 
@@ -55,7 +56,7 @@ export async function POST(
           error: "Invalid request",
           details: validation.error.format(),
         },
-        { status: 400, headers: corsHeaders }
+        { status: 400, headers: corsHeaders },
       );
     }
 
@@ -64,7 +65,7 @@ export async function POST(
     const workflow = await n8nWorkflowsService.revertWorkflowToVersion(
       id,
       version,
-      user.id
+      user.id,
     );
 
     return NextResponse.json(
@@ -76,18 +77,17 @@ export async function POST(
           updatedAt: workflow.updated_at,
         },
       },
-      { headers: corsHeaders }
+      { headers: corsHeaders },
     );
   } catch (error) {
     logger.error("[App N8N Workflows] Error reverting workflow:", error);
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "Failed to revert workflow",
+        error:
+          error instanceof Error ? error.message : "Failed to revert workflow",
       },
-      { status: 500, headers: corsHeaders }
+      { status: 500, headers: corsHeaders },
     );
   }
 }
-
-

@@ -35,7 +35,7 @@ interface RouteParams {
 async function getGalleryItemUrl(
   id: string,
   source: "generation" | "upload",
-  organizationId: string
+  organizationId: string,
 ): Promise<string | null> {
   if (source === "generation") {
     const generation = await generationsService.getById(id);
@@ -71,7 +71,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   if (!parsed.success) {
     return NextResponse.json(
       { error: "Invalid request", details: parsed.error.flatten() },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -84,12 +84,12 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     const url = await getGalleryItemUrl(
       parsed.data.logoFromGallery.id,
       parsed.data.logoFromGallery.source,
-      user.organization_id!
+      user.organization_id!,
     );
     if (!url) {
       return NextResponse.json(
         { error: "Logo gallery item not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
     updates.logo_url = url;
@@ -103,12 +103,12 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     const url = await getGalleryItemUrl(
       parsed.data.ogImageFromGallery.id,
       parsed.data.ogImageFromGallery.source,
-      user.organization_id!
+      user.organization_id!,
     );
     if (!url) {
       return NextResponse.json(
         { error: "OG image gallery item not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
     ogImageUrl = url;

@@ -2,7 +2,7 @@
   "$schema": "./x402.schema.json",
   "_comment": "x402 Payment Configuration - SINGLE SOURCE OF TRUTH for all contract addresses",
   "_lastUpdated": "2025-12-09",
-  
+
   "pricing": {
     "creditsPerDollar": 100,
     "topupPrice": "$1.00",
@@ -13,7 +13,7 @@
       "minUploadFee": "$0.01"
     }
   },
-  
+
   "networks": {
     "jeju-localnet": {
       "name": "Jeju Localnet",
@@ -187,4 +187,3 @@
     "fallbackProductionNetwork": "base"
   }
 }
-

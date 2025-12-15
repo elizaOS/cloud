@@ -15,7 +15,9 @@ import { Loader2, AlertCircle, CheckCircle } from "lucide-react";
 function AuthCallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
+  const [status, setStatus] = useState<"loading" | "success" | "error">(
+    "loading",
+  );
   const [errorMessage, setErrorMessage] = useState<string>("");
 
   useEffect(() => {

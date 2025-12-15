@@ -9,7 +9,8 @@ describe("Gallery Service", () => {
   });
 
   test("media uploads service exports required methods", async () => {
-    const { mediaUploadsService } = await import("@/lib/services/media-uploads");
+    const { mediaUploadsService } =
+      await import("@/lib/services/media-uploads");
     expect(mediaUploadsService.getById).toBeDefined();
     expect(mediaUploadsService.listByOrganization).toBeDefined();
     expect(mediaUploadsService.upload).toBeDefined();
@@ -18,7 +19,8 @@ describe("Gallery Service", () => {
 
 describe("Media Collections Service", () => {
   test("exports required methods", async () => {
-    const { mediaCollectionsService } = await import("@/lib/services/media-collections");
+    const { mediaCollectionsService } =
+      await import("@/lib/services/media-collections");
     expect(mediaCollectionsService.getById).toBeDefined();
     expect(mediaCollectionsService.listByOrganization).toBeDefined();
     expect(mediaCollectionsService.create).toBeDefined();
@@ -41,12 +43,16 @@ describe("Gallery Actions", () => {
 
 describe("Service Singletons", () => {
   test("services are singleton instances", async () => {
-    const { generationsService: s1 } = await import("@/lib/services/generations");
-    const { generationsService: s2 } = await import("@/lib/services/generations");
+    const { generationsService: s1 } =
+      await import("@/lib/services/generations");
+    const { generationsService: s2 } =
+      await import("@/lib/services/generations");
     expect(s1).toBe(s2);
 
-    const { mediaCollectionsService: c1 } = await import("@/lib/services/media-collections");
-    const { mediaCollectionsService: c2 } = await import("@/lib/services/media-collections");
+    const { mediaCollectionsService: c1 } =
+      await import("@/lib/services/media-collections");
+    const { mediaCollectionsService: c2 } =
+      await import("@/lib/services/media-collections");
     expect(c1).toBe(c2);
   });
 });

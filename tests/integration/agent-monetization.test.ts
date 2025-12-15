@@ -1,11 +1,11 @@
 /**
  * Agent Monetization Integration Tests
- * 
+ *
  * Verifies that agent monetization works like apps:
  * 1. Public agents can charge markup
  * 2. Creator earnings go to redeemable earnings (not org credits)
  * 3. Supports HTTP, A2A, and MCP protocols
- * 
+ *
  * Run: bun test tests/integration/agent-monetization.test.ts
  */
 
@@ -20,7 +20,9 @@ mock.module("@/db/client", () => ({
       redeemableEarnings: { findFirst: mock() },
       redeemableEarningsLedger: { findFirst: mock(), findMany: mock() },
     },
-    select: mock(() => ({ from: mock(() => ({ where: mock(() => ({ for: mock() })) })) })),
+    select: mock(() => ({
+      from: mock(() => ({ where: mock(() => ({ for: mock() })) })),
+    })),
     from: mock(() => ({ where: mock() })),
     where: mock(),
     for: mock(),
@@ -81,8 +83,8 @@ describe("Agent Monetization", () => {
       // WRONG (old way): creditsService.addCredits({ organizationId, ... })
       // This adds to org spending balance, not redeemable
 
-      // CORRECT (new way): redeemableEarningsService.addEarnings({ 
-      //   userId, source: "agent", ... 
+      // CORRECT (new way): redeemableEarningsService.addEarnings({
+      //   userId, source: "agent", ...
       // })
       // This adds to user's redeemable earnings balance
 
@@ -111,8 +113,8 @@ describe("Agent Monetization", () => {
       expect(userEarnings.earned_from_agents).toBe(50);
       expect(
         userEarnings.earned_from_apps +
-        userEarnings.earned_from_agents +
-        userEarnings.earned_from_mcps
+          userEarnings.earned_from_agents +
+          userEarnings.earned_from_mcps,
       ).toBe(userEarnings.available_balance);
 
       console.log("✅ Earnings breakdown tracked separately");
@@ -160,9 +162,9 @@ describe("Agent Monetization", () => {
       // Precision maintained - no floating point errors
       expect(markup.toNumber()).toBeGreaterThan(0);
       expect(total.toNumber()).toBeGreaterThan(baseCost.toNumber());
-      
+
       // Verify calculation is correct
-      const expected = 0.0123456789 * 33.33 / 100;
+      const expected = (0.0123456789 * 33.33) / 100;
       expect(Math.abs(markup.toNumber() - expected)).toBeLessThan(0.0000001);
 
       console.log("✅ Decimal precision maintained");
@@ -218,7 +220,9 @@ describe("Agent Monetization", () => {
       };
 
       expect(expectedEarningsCall.protocol).toBe("http");
-      console.log("✅ HTTP would credit creator via agent monetization service");
+      console.log(
+        "✅ HTTP would credit creator via agent monetization service",
+      );
     });
   });
 
@@ -296,4 +300,3 @@ describe("Agent vs App Comparison", () => {
     expect(Object.keys(features).length).toBe(5);
   });
 });
-

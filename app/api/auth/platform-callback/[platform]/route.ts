@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { platformCredentialsService, OAUTH_CONFIGS } from "@/lib/services/platform-credentials";
+import {
+  platformCredentialsService,
+  OAUTH_CONFIGS,
+} from "@/lib/services/platform-credentials";
 import { logger } from "@/lib/utils/logger";
 
 const CLOUD_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
@@ -20,25 +23,38 @@ async function sendWebhookCallback(url: string, payload: CallbackPayload) {
     body: JSON.stringify(payload),
   });
   if (!response.ok) {
-    logger.warn("[OAuth] Webhook callback failed", { url, status: response.status });
+    logger.warn("[OAuth] Webhook callback failed", {
+      url,
+      status: response.status,
+    });
   }
 }
 
-async function sendMessageCallback(context: Record<string, unknown>, payload: CallbackPayload) {
+async function sendMessageCallback(
+  context: Record<string, unknown>,
+  payload: CallbackPayload,
+) {
   const { platform, server_id, channel_id, user_id } = context;
 
-  const message = payload.status === "success"
-    ? `✅ Successfully connected ${payload.platform} account @${payload.username || payload.display_name}!`
-    : `❌ Failed to connect ${payload.platform}: ${payload.error || "Unknown error"}`;
+  const message =
+    payload.status === "success"
+      ? `✅ Successfully connected ${payload.platform} account @${payload.username || payload.display_name}!`
+      : `❌ Failed to connect ${payload.platform}: ${payload.error || "Unknown error"}`;
 
   if (platform === "discord" && channel_id) {
     const botToken = process.env.DISCORD_BOT_TOKEN;
     if (botToken) {
-      await fetch(`https://discord.com/api/v10/channels/${channel_id}/messages`, {
-        method: "POST",
-        headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ content: message }),
-      });
+      await fetch(
+        `https://discord.com/api/v10/channels/${channel_id}/messages`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bot ${botToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ content: message }),
+        },
+      );
     }
   } else if (platform === "telegram" && user_id) {
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
@@ -52,7 +68,12 @@ async function sendMessageCallback(context: Record<string, unknown>, payload: Ca
   }
 }
 
-async function exchangeCode(platform: string, code: string, state: string, instanceUrl?: string) {
+async function exchangeCode(
+  platform: string,
+  code: string,
+  state: string,
+  instanceUrl?: string,
+) {
   const config = OAUTH_CONFIGS[platform];
   if (!config) throw new Error(`Unsupported platform: ${platform}`);
 
@@ -63,7 +84,8 @@ async function exchangeCode(platform: string, code: string, state: string, insta
   // Mastodon uses dynamic per-instance app credentials
   if (platform === "mastodon" && instanceUrl) {
     tokenUrl = `${instanceUrl}/oauth/token`;
-    const creds = await platformCredentialsService.getMastodonAppCredentials(instanceUrl);
+    const creds =
+      await platformCredentialsService.getMastodonAppCredentials(instanceUrl);
     if (!creds) throw new Error(`No app registered for ${instanceUrl}`);
     clientId = creds.clientId;
     clientSecret = creds.clientSecret;
@@ -72,7 +94,8 @@ async function exchangeCode(platform: string, code: string, state: string, insta
     clientSecret = process.env[config.clientSecretEnv];
   }
 
-  if (!clientId || !clientSecret) throw new Error(`${platform} OAuth not configured`);
+  if (!clientId || !clientSecret)
+    throw new Error(`${platform} OAuth not configured`);
 
   const body: Record<string, string> = {
     client_id: clientId,
@@ -82,7 +105,8 @@ async function exchangeCode(platform: string, code: string, state: string, insta
     redirect_uri: `${CLOUD_URL}/api/auth/platform-callback/${platform}`,
   };
   if (platform === "twitter") body.code_verifier = state;
-  if (platform === "reddit") body.redirect_uri = `${CLOUD_URL}/api/auth/platform-callback/reddit`;
+  if (platform === "reddit")
+    body.redirect_uri = `${CLOUD_URL}/api/auth/platform-callback/reddit`;
 
   const headers: Record<string, string> = {
     "Content-Type": "application/x-www-form-urlencoded",
@@ -101,7 +125,11 @@ async function exchangeCode(platform: string, code: string, state: string, insta
 
   if (!response.ok) {
     const errorText = await response.text();
-    logger.error("[OAuth] Token exchange failed", { platform, status: response.status, error: errorText });
+    logger.error("[OAuth] Token exchange failed", {
+      platform,
+      status: response.status,
+      error: errorText,
+    });
     throw new Error(`Token exchange failed: ${response.status}`);
   }
   const data = await response.json();
@@ -114,7 +142,11 @@ async function exchangeCode(platform: string, code: string, state: string, insta
   };
 }
 
-async function fetchProfile(platform: string, accessToken: string, instanceUrl?: string) {
+async function fetchProfile(
+  platform: string,
+  accessToken: string,
+  instanceUrl?: string,
+) {
   const config = OAUTH_CONFIGS[platform];
   if (!config) throw new Error(`Unsupported platform: ${platform}`);
 
@@ -125,56 +157,139 @@ async function fetchProfile(platform: string, accessToken: string, instanceUrl?:
   }
 
   const response = await fetch(profileUrl, {
-    headers: { Authorization: `Bearer ${accessToken}`, ...config.profileHeaders },
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      ...config.profileHeaders,
+    },
   });
   if (!response.ok) {
     const errorText = await response.text();
-    logger.error("[OAuth] Profile fetch failed", { platform, status: response.status, error: errorText });
+    logger.error("[OAuth] Profile fetch failed", {
+      platform,
+      status: response.status,
+      error: errorText,
+    });
     throw new Error(`Profile fetch failed: ${response.status}`);
   }
 
   const data = await response.json();
 
-  type Profile = { id: string; username?: string; displayName?: string; avatarUrl?: string; email?: string; raw: Record<string, unknown> };
+  type Profile = {
+    id: string;
+    username?: string;
+    displayName?: string;
+    avatarUrl?: string;
+    email?: string;
+    raw: Record<string, unknown>;
+  };
 
   const googleProfile = (): Profile => ({
-    id: data.id, username: data.email?.split("@")[0], displayName: data.name, avatarUrl: data.picture, email: data.email, raw: data,
+    id: data.id,
+    username: data.email?.split("@")[0],
+    displayName: data.name,
+    avatarUrl: data.picture,
+    email: data.email,
+    raw: data,
   });
 
   const normalizers: Record<string, () => Profile> = {
     discord: () => ({
-      id: data.id, username: data.username, displayName: data.global_name || data.username,
-      avatarUrl: data.avatar ? `https://cdn.discordapp.com/avatars/${data.id}/${data.avatar}.png` : undefined,
-      email: data.email, raw: data,
+      id: data.id,
+      username: data.username,
+      displayName: data.global_name || data.username,
+      avatarUrl: data.avatar
+        ? `https://cdn.discordapp.com/avatars/${data.id}/${data.avatar}.png`
+        : undefined,
+      email: data.email,
+      raw: data,
     }),
-    twitter: () => ({ id: data.data.id, username: data.data.username, displayName: data.data.name, avatarUrl: data.data.profile_image_url, raw: data.data }),
+    twitter: () => ({
+      id: data.data.id,
+      username: data.data.username,
+      displayName: data.data.name,
+      avatarUrl: data.data.profile_image_url,
+      raw: data.data,
+    }),
     google: googleProfile,
     gmail: googleProfile,
     google_calendar: googleProfile,
-    github: () => ({ id: String(data.id), username: data.login, displayName: data.name || data.login, avatarUrl: data.avatar_url, email: data.email, raw: data }),
+    github: () => ({
+      id: String(data.id),
+      username: data.login,
+      displayName: data.name || data.login,
+      avatarUrl: data.avatar_url,
+      email: data.email,
+      raw: data,
+    }),
     slack: () => {
       const u = data.user || data.authed_user || {};
-      return { id: u.id, username: u.name, displayName: u.name, avatarUrl: data.user?.image_192, email: u.email, raw: data.user || data };
+      return {
+        id: u.id,
+        username: u.name,
+        displayName: u.name,
+        avatarUrl: data.user?.image_192,
+        email: u.email,
+        raw: data.user || data,
+      };
     },
-    reddit: () => ({ id: data.id, username: data.name, displayName: data.subreddit?.display_name_prefixed || data.name, avatarUrl: data.icon_img?.split("?")[0], raw: data }),
-    facebook: () => ({ id: data.id, username: data.email?.split("@")[0], displayName: data.name, email: data.email, raw: data }),
-    instagram: () => ({ id: data.id, username: data.username, displayName: data.username, raw: data }),
+    reddit: () => ({
+      id: data.id,
+      username: data.name,
+      displayName: data.subreddit?.display_name_prefixed || data.name,
+      avatarUrl: data.icon_img?.split("?")[0],
+      raw: data,
+    }),
+    facebook: () => ({
+      id: data.id,
+      username: data.email?.split("@")[0],
+      displayName: data.name,
+      email: data.email,
+      raw: data,
+    }),
+    instagram: () => ({
+      id: data.id,
+      username: data.username,
+      displayName: data.username,
+      raw: data,
+    }),
     tiktok: () => {
       const u = data.data?.user || data;
-      return { id: u.open_id, username: u.display_name, displayName: u.display_name, avatarUrl: u.avatar_url, raw: u };
+      return {
+        id: u.open_id,
+        username: u.display_name,
+        displayName: u.display_name,
+        avatarUrl: u.avatar_url,
+        raw: u,
+      };
     },
     linkedin: () => ({
-      id: data.id || data.sub, username: data.email?.split("@")[0],
-      displayName: data.localizedFirstName ? `${data.localizedFirstName} ${data.localizedLastName}` : data.name,
-      avatarUrl: data.profilePicture?.["displayImage~"]?.elements?.[0]?.identifiers?.[0]?.identifier, email: data.email, raw: data,
+      id: data.id || data.sub,
+      username: data.email?.split("@")[0],
+      displayName: data.localizedFirstName
+        ? `${data.localizedFirstName} ${data.localizedLastName}`
+        : data.name,
+      avatarUrl:
+        data.profilePicture?.["displayImage~"]?.elements?.[0]?.identifiers?.[0]
+          ?.identifier,
+      email: data.email,
+      raw: data,
     }),
-    mastodon: () => ({ id: data.id, username: data.username, displayName: data.display_name || data.username, avatarUrl: data.avatar, raw: data }),
+    mastodon: () => ({
+      id: data.id,
+      username: data.username,
+      displayName: data.display_name || data.username,
+      avatarUrl: data.avatar,
+      raw: data,
+    }),
   };
 
   return normalizers[platform]?.() || { id: data.id || "unknown", raw: data };
 }
 
-export async function GET(request: NextRequest, { params }: { params: Promise<{ platform: string }> }) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ platform: string }> },
+) {
   const { platform } = await params;
   const { searchParams } = request.nextUrl;
   const code = searchParams.get("code");
@@ -183,33 +298,55 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
   if (error) {
     logger.warn("[OAuth] Provider error", { platform, error });
-    if (state) await platformCredentialsService.failSession(state, error, searchParams.get("error_description") || error);
-    return NextResponse.redirect(`${CLOUD_URL}/auth/platform-link/error?error=${encodeURIComponent(error)}`);
+    if (state)
+      await platformCredentialsService.failSession(
+        state,
+        error,
+        searchParams.get("error_description") || error,
+      );
+    return NextResponse.redirect(
+      `${CLOUD_URL}/auth/platform-link/error?error=${encodeURIComponent(error)}`,
+    );
   }
 
   if (!code || !state) {
-    return NextResponse.redirect(`${CLOUD_URL}/auth/platform-link/error?error=missing_params`);
+    return NextResponse.redirect(
+      `${CLOUD_URL}/auth/platform-link/error?error=missing_params`,
+    );
   }
 
-  const session = await platformCredentialsService.getSessionByOAuthState(state);
+  const session =
+    await platformCredentialsService.getSessionByOAuthState(state);
   if (!session) {
-    return NextResponse.redirect(`${CLOUD_URL}/auth/platform-link/error?error=invalid_session`);
+    return NextResponse.redirect(
+      `${CLOUD_URL}/auth/platform-link/error?error=invalid_session`,
+    );
   }
 
-  logger.info("[OAuth] Processing", { platform, sessionId: session.session_id.slice(0, 8) });
+  logger.info("[OAuth] Processing", {
+    platform,
+    sessionId: session.session_id.slice(0, 8),
+  });
 
-  const instanceUrl = (session.callback_context as Record<string, unknown>)?.instanceUrl as string | undefined;
+  const instanceUrl = (session.callback_context as Record<string, unknown>)
+    ?.instanceUrl as string | undefined;
 
   let tokens;
   let profile;
-  
+
   try {
     tokens = await exchangeCode(platform, code, state, instanceUrl);
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Token exchange failed";
     logger.error("[OAuth] Token exchange error", { platform, error: msg });
-    await platformCredentialsService.failSession(state, "token_exchange_failed", msg);
-    return NextResponse.redirect(`${CLOUD_URL}/auth/platform-link/error?error=token_exchange_failed`);
+    await platformCredentialsService.failSession(
+      state,
+      "token_exchange_failed",
+      msg,
+    );
+    return NextResponse.redirect(
+      `${CLOUD_URL}/auth/platform-link/error?error=token_exchange_failed`,
+    );
   }
 
   try {
@@ -217,8 +354,14 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Profile fetch failed";
     logger.error("[OAuth] Profile fetch error", { platform, error: msg });
-    await platformCredentialsService.failSession(state, "profile_fetch_failed", msg);
-    return NextResponse.redirect(`${CLOUD_URL}/auth/platform-link/error?error=profile_fetch_failed`);
+    await platformCredentialsService.failSession(
+      state,
+      "profile_fetch_failed",
+      msg,
+    );
+    return NextResponse.redirect(
+      `${CLOUD_URL}/auth/platform-link/error?error=profile_fetch_failed`,
+    );
   }
 
   const credential = await platformCredentialsService.completeOAuth({
@@ -252,13 +395,17 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       if (session.callback_url) {
         await sendWebhookCallback(session.callback_url, callbackPayload);
       }
-      return NextResponse.redirect(`${CLOUD_URL}/auth/platform-link/success?platform=${platform}&session=${session.session_id}`);
+      return NextResponse.redirect(
+        `${CLOUD_URL}/auth/platform-link/success?platform=${platform}&session=${session.session_id}`,
+      );
 
     case "message":
       if (session.callback_context) {
         await sendMessageCallback(session.callback_context, callbackPayload);
       }
-      return NextResponse.redirect(`${CLOUD_URL}/auth/platform-link/success?platform=${platform}&session=${session.session_id}`);
+      return NextResponse.redirect(
+        `${CLOUD_URL}/auth/platform-link/success?platform=${platform}&session=${session.session_id}`,
+      );
 
     case "redirect":
     default:
@@ -269,6 +416,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         url.searchParams.set("status", "success");
         return NextResponse.redirect(url.toString());
       }
-      return NextResponse.redirect(`${CLOUD_URL}/auth/platform-link/success?platform=${platform}&session=${session.session_id}`);
+      return NextResponse.redirect(
+        `${CLOUD_URL}/auth/platform-link/success?platform=${platform}&session=${session.session_id}`,
+      );
   }
 }

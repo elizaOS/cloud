@@ -7,8 +7,15 @@ import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { appsService } from "@/lib/services/apps";
 import { logger } from "@/lib/utils/logger";
 import type { AuditContext, SecretMetadata } from "@/lib/services/secrets";
-import type { AppSecretRequirement, SecretAuditLog } from "@/db/schemas/secrets";
-import { secretProviderEnum, secretProjectTypeEnum, secretEnvironmentEnum } from "@/db/schemas/secrets";
+import type {
+  AppSecretRequirement,
+  SecretAuditLog,
+} from "@/db/schemas/secrets";
+import {
+  secretProviderEnum,
+  secretProjectTypeEnum,
+  secretEnvironmentEnum,
+} from "@/db/schemas/secrets";
 
 export const PROVIDERS = secretProviderEnum.enumValues;
 export const PROJECT_TYPES = secretProjectTypeEnum.enumValues;
@@ -41,7 +48,10 @@ export async function getAppContext(request: NextRequest): Promise<AppContext> {
 /**
  * Verify app ownership and return app (for app management routes)
  */
-export async function verifyAppOwnership(appId: string, organizationId: string) {
+export async function verifyAppOwnership(
+  appId: string,
+  organizationId: string,
+) {
   const app = await appsService.getById(organizationId, appId);
   if (!app) throw new Error("App not found");
   return app;
@@ -50,7 +60,10 @@ export async function verifyAppOwnership(appId: string, organizationId: string) 
 /**
  * Create audit context from auth result
  */
-export function createAudit(user: AuthResult["user"], source: string): AuditContext {
+export function createAudit(
+  user: AuthResult["user"],
+  source: string,
+): AuditContext {
   return { actorType: "user", actorId: user.id, source };
 }
 
@@ -111,12 +124,18 @@ export function formatAuditEntry(e: SecretAuditLog) {
 /**
  * Build detailed audit context (for individual secret operations)
  */
-export function buildDetailedAudit(request: NextRequest, authResult: AuthResult): AuditContext {
+export function buildDetailedAudit(
+  request: NextRequest,
+  authResult: AuthResult,
+): AuditContext {
   return {
     actorType: authResult.apiKey ? "api_key" : "user",
     actorId: authResult.apiKey?.id ?? authResult.user.id,
     actorEmail: authResult.user.email,
-    ipAddress: request.headers.get("x-forwarded-for") ?? request.headers.get("x-real-ip") ?? undefined,
+    ipAddress:
+      request.headers.get("x-forwarded-for") ??
+      request.headers.get("x-real-ip") ??
+      undefined,
     userAgent: request.headers.get("user-agent") ?? undefined,
     source: authResult.apiKey ? "api" : "dashboard",
   };
@@ -125,7 +144,10 @@ export function buildDetailedAudit(request: NextRequest, authResult: AuthResult)
 /**
  * Handle API errors with appropriate status codes
  */
-export function handleSecretsError(error: unknown, context?: string): NextResponse {
+export function handleSecretsError(
+  error: unknown,
+  context?: string,
+): NextResponse {
   const message = error instanceof Error ? error.message : "Operation failed";
   const logContext = context ? `[${context}]` : "[Secrets]";
   logger.error(`${logContext} Operation failed`, { error: message });
@@ -141,4 +163,3 @@ export function handleSecretsError(error: unknown, context?: string): NextRespon
   }
   return NextResponse.json({ error: message }, { status: 500 });
 }
-

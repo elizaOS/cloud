@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { agentRuntime } from "@/lib/eliza/agent-runtime";
 import { requireAuthOrApiKey } from "@/lib/auth";
-import { getOrCreateSessionUser, incrementSessionMessageCount, type SessionUser } from "@/lib/session";
+import {
+  getOrCreateSessionUser,
+  incrementSessionMessageCount,
+  type SessionUser,
+} from "@/lib/session";
 import { creditsService } from "@/lib/services/credits";
 import { usageService } from "@/lib/services/usage";
 import { organizationsService } from "@/lib/services/organizations";
@@ -26,7 +30,7 @@ export const maxDuration = 60;
 // POST /api/eliza/rooms/[roomId]/messages - Send a message
 export async function POST(
   request: NextRequest,
-  ctx: { params: Promise<{ roomId: string }> }
+  ctx: { params: Promise<{ roomId: string }> },
 ) {
   try {
     // Support both authenticated and anonymous users
@@ -64,7 +68,7 @@ export async function POST(
       logger.error("[Eliza Messages API] Missing roomId");
       return NextResponse.json(
         { error: "roomId is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -72,17 +76,23 @@ export async function POST(
       logger.error("[Eliza Messages API] Invalid or missing text", { text });
       return NextResponse.json(
         { error: "text is required and must be a non-empty string" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     // Check if user is blocked due to moderation violations
     if (await contentModerationService.shouldBlockUser(user.id)) {
-      logger.warn("[Eliza Messages API] User blocked due to moderation violations", {
-        userId: user.id,
-      });
+      logger.warn(
+        "[Eliza Messages API] User blocked due to moderation violations",
+        {
+          userId: user.id,
+        },
+      );
       return NextResponse.json(
-        { error: "Your account has been suspended due to policy violations. Please contact support." },
+        {
+          error:
+            "Your account has been suspended due to policy violations. Please contact support.",
+        },
         { status: 403 },
       );
     }
@@ -93,26 +103,34 @@ export async function POST(
       user.id,
       roomId,
       (result) => {
-        logger.warn("[Eliza Messages API] Async moderation detected violation", {
-          userId: user.id,
-          roomId,
-          categories: result.flaggedCategories,
-          action: result.action,
-        });
-      }
+        logger.warn(
+          "[Eliza Messages API] Async moderation detected violation",
+          {
+            userId: user.id,
+            roomId,
+            categories: result.flaggedCategories,
+            action: result.action,
+          },
+        );
+      },
     );
 
     // Handle anonymous user rate limiting
     if (isAnonymous && anonymousSession) {
-      const remaining = anonymousSession.messages_limit - anonymousSession.message_count;
+      const remaining =
+        anonymousSession.messages_limit - anonymousSession.message_count;
 
       // Check message limit
       if (remaining <= 0) {
-        logger.warn("eliza-messages-api", "Anonymous user message limit reached", {
-          userId: user.id,
-          sessionId: anonymousSession.id,
-          limit: anonymousSession.messages_limit,
-        });
+        logger.warn(
+          "eliza-messages-api",
+          "Anonymous user message limit reached",
+          {
+            userId: user.id,
+            sessionId: anonymousSession.id,
+            limit: anonymousSession.messages_limit,
+          },
+        );
 
         return NextResponse.json(
           {
@@ -122,27 +140,34 @@ export async function POST(
             limit: anonymousSession.messages_limit,
             remaining: 0,
           },
-          { status: 429 }
+          { status: 429 },
         );
       }
 
       // Check hourly rate limit
-      const rateLimitResult = await anonymousSessionsService.checkRateLimit(anonymousSession.id);
+      const rateLimitResult = await anonymousSessionsService.checkRateLimit(
+        anonymousSession.id,
+      );
       if (!rateLimitResult.allowed) {
-        logger.warn("eliza-messages-api", "Anonymous user hourly limit reached", {
-          userId: user.id,
-          sessionId: anonymousSession.id,
-        });
+        logger.warn(
+          "eliza-messages-api",
+          "Anonymous user hourly limit reached",
+          {
+            userId: user.id,
+            sessionId: anonymousSession.id,
+          },
+        );
 
         return NextResponse.json(
           {
-            error: "You've reached the hourly rate limit. Please wait an hour or sign up for unlimited access.",
+            error:
+              "You've reached the hourly rate limit. Please wait an hour or sign up for unlimited access.",
             requiresSignup: true,
             reason: "hourly_limit",
             limit: anonymousSession.messages_limit,
             remaining: rateLimitResult.remaining,
           },
-          { status: 429 }
+          { status: 429 },
         );
       }
 
@@ -164,17 +189,17 @@ export async function POST(
         model,
         provider,
         estimatedInputTokens,
-        estimatedOutputTokens
+        estimatedOutputTokens,
       );
 
       if (!user.organization_id) {
         logger.error(
           "[Eliza Messages API] User has no organization - cannot proceed",
-          { userId: user.id }
+          { userId: user.id },
         );
         return NextResponse.json(
           { error: "User has no organization" },
-          { status: 400 }
+          { status: 400 },
         );
       }
 
@@ -183,7 +208,7 @@ export async function POST(
       if (!org) {
         return NextResponse.json(
           { error: "Organization not found" },
-          { status: 404 }
+          { status: 404 },
         );
       }
 
@@ -195,13 +220,16 @@ export async function POST(
             creditBalance,
             estimatedCost,
           },
-          { status: 402 }
+          { status: 402 },
         );
       }
     }
 
     // Process message via agent runtime (backward compatibility layer)
-    logger.info("[Eliza Messages API] Processing message:", { roomId, userId: user.id });
+    logger.info("[Eliza Messages API] Processing message:", {
+      roomId,
+      userId: user.id,
+    });
 
     const room = await roomsRepository.findById(roomId);
     const characterId = room?.agentId || undefined;
@@ -213,7 +241,7 @@ export async function POST(
       {
         userId: user.id,
         apiKey: apiKey?.key,
-      }
+      },
     );
 
     // Deduct credits and track usage for authenticated users
@@ -224,7 +252,7 @@ export async function POST(
           result.usage.model,
           provider,
           result.usage.inputTokens,
-          result.usage.outputTokens
+          result.usage.outputTokens,
         );
 
         // Deduct credits
@@ -288,7 +316,7 @@ export async function POST(
         const character =
           characterId &&
           (await db.execute<{ name: string }>(
-            sql`SELECT name FROM user_characters WHERE id = ${characterId}::uuid LIMIT 1`
+            sql`SELECT name FROM user_characters WHERE id = ${characterId}::uuid LIMIT 1`,
           ));
 
         const agentMessage = `**${character?.rows[0]?.name || "Agent"}:** ${responseText}`;
@@ -300,7 +328,7 @@ export async function POST(
       } catch (error) {
         logger.error(
           "[Eliza Messages API] Failed to send to Discord thread:",
-          error
+          error,
         );
       }
     }
@@ -316,7 +344,7 @@ export async function POST(
         error:
           error instanceof Error ? error.message : "Failed to process message",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

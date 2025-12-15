@@ -12,7 +12,7 @@ export const TELEGRAM_API_BASE = "https://api.telegram.org";
 export async function telegramBotApiRequest<T>(
   botToken: string,
   method: string,
-  params?: Record<string, unknown>
+  params?: Record<string, unknown>,
 ): Promise<T> {
   const url = `${TELEGRAM_API_BASE}/bot${botToken}/${method}`;
 
@@ -26,7 +26,8 @@ export async function telegramBotApiRequest<T>(
 
   if (!data.ok) {
     throw new Error(
-      data.description ?? `Telegram API error: ${data.error_code ?? response.status}`
+      data.description ??
+        `Telegram API error: ${data.error_code ?? response.status}`,
     );
   }
 
@@ -39,7 +40,7 @@ export async function telegramBotApiRequest<T>(
 export async function telegramBotApiGet<T>(
   botToken: string,
   method: string,
-  params?: Record<string, string | number | boolean>
+  params?: Record<string, string | number | boolean>,
 ): Promise<T> {
   const url = new URL(`${TELEGRAM_API_BASE}/bot${botToken}/${method}`);
 
@@ -54,10 +55,10 @@ export async function telegramBotApiGet<T>(
 
   if (!data.ok) {
     throw new Error(
-      data.description ?? `Telegram API error: ${data.error_code ?? response.status}`
+      data.description ??
+        `Telegram API error: ${data.error_code ?? response.status}`,
     );
   }
 
   return data.result as T;
 }
-

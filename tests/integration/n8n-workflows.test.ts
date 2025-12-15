@@ -39,7 +39,10 @@ describe("N8N Workflow Integration Tests", () => {
       testUserId = user.id;
       setupSuccessful = true;
     } catch (error) {
-      console.log("⚠️ N8N test setup failed - database schema may not match:", (error as Error).message);
+      console.log(
+        "⚠️ N8N test setup failed - database schema may not match:",
+        (error as Error).message,
+      );
     }
   });
 
@@ -153,7 +156,9 @@ describe("N8N Workflow Integration Tests", () => {
 
       expect(updated.version).toBe(2);
 
-      const versions = await n8nWorkflowsService.getWorkflowVersions(workflow.id);
+      const versions = await n8nWorkflowsService.getWorkflowVersions(
+        workflow.id,
+      );
       expect(versions.length).toBe(2);
     });
 
@@ -173,7 +178,7 @@ describe("N8N Workflow Integration Tests", () => {
       const reverted = await n8nWorkflowsService.revertWorkflowToVersion(
         workflow.id,
         1,
-        testUserId
+        testUserId,
       );
 
       expect(reverted.version).toBe(3); // New version created
@@ -279,7 +284,9 @@ describe("N8N Workflow Integration Tests", () => {
       });
 
       // Validate using the full plaintext key (not just prefix)
-      const validated = await n8nWorkflowsService.validateApiKey(result.plaintextKey);
+      const validated = await n8nWorkflowsService.validateApiKey(
+        result.plaintextKey,
+      );
 
       expect(validated).toBeDefined();
       expect(validated?.is_active).toBe(true);
@@ -295,12 +302,14 @@ describe("N8N Workflow Integration Tests", () => {
 
       // Try to validate with just the prefix (should fail now)
       const keyPrefix = result.plaintextKey.substring(0, 12);
-      const invalidValidation = await n8nWorkflowsService.validateApiKey(keyPrefix);
+      const invalidValidation =
+        await n8nWorkflowsService.validateApiKey(keyPrefix);
       expect(invalidValidation).toBeNull();
 
       // Try to validate with a tampered key
       const tamperedKey = result.plaintextKey.slice(0, -5) + "xxxxx";
-      const tamperedValidation = await n8nWorkflowsService.validateApiKey(tamperedKey);
+      const tamperedValidation =
+        await n8nWorkflowsService.validateApiKey(tamperedKey);
       expect(tamperedValidation).toBeNull();
     });
 
@@ -315,15 +324,16 @@ describe("N8N Workflow Integration Tests", () => {
       // Validate with required scope
       const validWithScope = await n8nWorkflowsService.validateApiKeyWithScope(
         result.plaintextKey,
-        "workflows:read"
+        "workflows:read",
       );
       expect(validWithScope).toBeDefined();
 
       // Validate with missing scope should fail
-      const invalidWithScope = await n8nWorkflowsService.validateApiKeyWithScope(
-        result.plaintextKey,
-        "admin:delete"
-      );
+      const invalidWithScope =
+        await n8nWorkflowsService.validateApiKeyWithScope(
+          result.plaintextKey,
+          "admin:delete",
+        );
       expect(invalidWithScope).toBeNull();
     });
 
@@ -335,13 +345,21 @@ describe("N8N Workflow Integration Tests", () => {
         scopes: ["workflows:*"],
       });
 
-      const validated = await n8nWorkflowsService.validateApiKey(result.plaintextKey);
+      const validated = await n8nWorkflowsService.validateApiKey(
+        result.plaintextKey,
+      );
       expect(validated).toBeDefined();
 
       // Check wildcard scope
-      expect(n8nWorkflowsService.hasScope(validated!, "workflows:read")).toBe(true);
-      expect(n8nWorkflowsService.hasScope(validated!, "workflows:write")).toBe(true);
-      expect(n8nWorkflowsService.hasScope(validated!, "admin:delete")).toBe(false);
+      expect(n8nWorkflowsService.hasScope(validated!, "workflows:read")).toBe(
+        true,
+      );
+      expect(n8nWorkflowsService.hasScope(validated!, "workflows:write")).toBe(
+        true,
+      );
+      expect(n8nWorkflowsService.hasScope(validated!, "admin:delete")).toBe(
+        false,
+      );
     });
 
     it("should revoke API key", async () => {
@@ -352,14 +370,18 @@ describe("N8N Workflow Integration Tests", () => {
       });
 
       // Verify key is active
-      const validBefore = await n8nWorkflowsService.validateApiKey(result.plaintextKey);
+      const validBefore = await n8nWorkflowsService.validateApiKey(
+        result.plaintextKey,
+      );
       expect(validBefore?.is_active).toBe(true);
 
       // Revoke the key
       await n8nWorkflowsService.revokeApiKey(result.apiKey.id);
 
       // Verify key is now invalid
-      const validAfter = await n8nWorkflowsService.validateApiKey(result.plaintextKey);
+      const validAfter = await n8nWorkflowsService.validateApiKey(
+        result.plaintextKey,
+      );
       expect(validAfter).toBeNull();
     });
   });
@@ -399,7 +421,9 @@ describe("N8N Workflow Integration Tests", () => {
         userId: testUserId,
       });
 
-      const executions = await n8nWorkflowsService.getWorkflowExecutions(workflow.id);
+      const executions = await n8nWorkflowsService.getWorkflowExecutions(
+        workflow.id,
+      );
       expect(executions.length).toBeGreaterThan(0);
     });
   });
@@ -446,7 +470,7 @@ describe("N8N Workflow Integration Tests", () => {
         "Test Instance",
         "https://n8n.example.com",
         "test-api-key",
-        false
+        false,
       );
 
       expect(instance).toBeDefined();
@@ -460,5 +484,3 @@ describe("N8N Workflow Integration Tests", () => {
     });
   });
 });
-
-

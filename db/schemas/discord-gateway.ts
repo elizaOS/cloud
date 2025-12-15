@@ -123,22 +123,22 @@ export const discordBotConnections = pgTable(
   (table) => ({
     org_idx: index("discord_bot_connections_org_idx").on(table.organization_id),
     platform_idx: index("discord_bot_connections_platform_idx").on(
-      table.platform_connection_id
+      table.platform_connection_id,
     ),
     app_id_idx: index("discord_bot_connections_app_id_idx").on(
-      table.application_id
+      table.application_id,
     ),
     status_idx: index("discord_bot_connections_status_idx").on(table.status),
     shard_idx: index("discord_bot_connections_shard_idx").on(
       table.shard_id,
-      table.shard_count
+      table.shard_count,
     ),
     pod_idx: index("discord_bot_connections_pod_idx").on(table.gateway_pod),
     unique_shard: uniqueIndex("discord_bot_connections_unique").on(
       table.platform_connection_id,
-      table.shard_id
+      table.shard_id,
     ),
-  })
+  }),
 );
 
 // =============================================================================
@@ -196,17 +196,17 @@ export const discordEventRoutes = pgTable(
   (table) => ({
     org_idx: index("discord_event_routes_org_idx").on(table.organization_id),
     connection_idx: index("discord_event_routes_connection_idx").on(
-      table.platform_connection_id
+      table.platform_connection_id,
     ),
     guild_idx: index("discord_event_routes_guild_idx").on(table.guild_id),
     channel_idx: index("discord_event_routes_channel_idx").on(
       table.guild_id,
-      table.channel_id
+      table.channel_id,
     ),
     type_idx: index("discord_event_routes_type_idx").on(table.event_type),
     enabled_idx: index("discord_event_routes_enabled_idx").on(table.enabled),
     priority_idx: index("discord_event_routes_priority_idx").on(table.priority),
-  })
+  }),
 );
 
 // =============================================================================
@@ -265,10 +265,10 @@ export const discordEventQueue = pgTable(
     status_idx: index("discord_event_queue_status_idx").on(table.status),
     process_idx: index("discord_event_queue_process_idx").on(
       table.status,
-      table.process_after
+      table.process_after,
     ),
     event_idx: index("discord_event_queue_event_idx").on(table.event_id),
-  })
+  }),
 );
 
 // =============================================================================
@@ -286,7 +286,5 @@ export type NewDiscordEventQueueItem = typeof discordEventQueue.$inferInsert;
 
 export type DiscordConnectionStatus =
   (typeof discordConnectionStatusEnum.enumValues)[number];
-export type DiscordEventType =
-  (typeof discordEventTypeEnum.enumValues)[number];
+export type DiscordEventType = (typeof discordEventTypeEnum.enumValues)[number];
 export type DiscordRouteType = (typeof discordRouteTypeEnum.enumValues)[number];
-

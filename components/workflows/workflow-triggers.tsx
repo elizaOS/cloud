@@ -46,21 +46,44 @@ interface WorkflowTriggersProps {
   workflowName: string;
 }
 
-const TRIGGER_CONFIG: Record<TriggerType, { 
-  label: string; 
-  description: string; 
-  icon: typeof Globe; 
-  color: string;
-}> = {
-  webhook: { label: "Webhook", description: "HTTP endpoint trigger", icon: Globe, color: "from-green-500 to-emerald-500" },
-  cron: { label: "Schedule", description: "Cron-based scheduling", icon: Clock, color: "from-blue-500 to-cyan-500" },
-  mcp: { label: "MCP Tool", description: "Model Context Protocol", icon: Bot, color: "from-purple-500 to-pink-500" },
-  a2a: { label: "A2A Skill", description: "Agent-to-Agent", icon: Zap, color: "from-orange-500 to-red-500" },
+const TRIGGER_CONFIG: Record<
+  TriggerType,
+  {
+    label: string;
+    description: string;
+    icon: typeof Globe;
+    color: string;
+  }
+> = {
+  webhook: {
+    label: "Webhook",
+    description: "HTTP endpoint trigger",
+    icon: Globe,
+    color: "from-green-500 to-emerald-500",
+  },
+  cron: {
+    label: "Schedule",
+    description: "Cron-based scheduling",
+    icon: Clock,
+    color: "from-blue-500 to-cyan-500",
+  },
+  mcp: {
+    label: "MCP Tool",
+    description: "Model Context Protocol",
+    icon: Bot,
+    color: "from-purple-500 to-pink-500",
+  },
+  a2a: {
+    label: "A2A Skill",
+    description: "Agent-to-Agent",
+    icon: Zap,
+    color: "from-orange-500 to-red-500",
+  },
 };
 
-const TRIGGER_TYPES = Object.entries(TRIGGER_CONFIG).map(([value, config]) => ({ 
-  value: value as TriggerType, 
-  ...config 
+const TRIGGER_TYPES = Object.entries(TRIGGER_CONFIG).map(([value, config]) => ({
+  value: value as TriggerType,
+  ...config,
 }));
 
 const CRON_PRESETS = [
@@ -71,7 +94,10 @@ const CRON_PRESETS = [
   { label: "Every Monday at 9am", value: "0 9 * * 1" },
 ];
 
-export function WorkflowTriggers({ workflowId, workflowName }: WorkflowTriggersProps) {
+export function WorkflowTriggers({
+  workflowId,
+  workflowName,
+}: WorkflowTriggersProps) {
   const [triggers, setTriggers] = useState<Trigger[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -91,7 +117,9 @@ export function WorkflowTriggers({ workflowId, workflowName }: WorkflowTriggersP
     let cancelled = false;
     async function load() {
       setIsRefreshing(true);
-      const response = await fetch(`/api/v1/n8n/triggers?workflowId=${workflowId}`);
+      const response = await fetch(
+        `/api/v1/n8n/triggers?workflowId=${workflowId}`,
+      );
       if (response.ok && !cancelled) {
         const data = await response.json();
         setTriggers(data.triggers || []);
@@ -102,12 +130,16 @@ export function WorkflowTriggers({ workflowId, workflowName }: WorkflowTriggersP
       }
     }
     void load();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [workflowId]);
 
   const fetchTriggers = async () => {
     setIsRefreshing(true);
-    const response = await fetch(`/api/v1/n8n/triggers?workflowId=${workflowId}`);
+    const response = await fetch(
+      `/api/v1/n8n/triggers?workflowId=${workflowId}`,
+    );
     if (response.ok) {
       const data = await response.json();
       setTriggers(data.triggers || []);
@@ -179,7 +211,11 @@ export function WorkflowTriggers({ workflowId, workflowName }: WorkflowTriggersP
       return;
     }
 
-    setTriggers(triggers.map((t) => (t.id === trigger.id ? { ...t, isActive: active } : t)));
+    setTriggers(
+      triggers.map((t) =>
+        t.id === trigger.id ? { ...t, isActive: active } : t,
+      ),
+    );
     toast.success(active ? "Trigger enabled" : "Trigger disabled");
   };
 
@@ -208,7 +244,10 @@ export function WorkflowTriggers({ workflowId, workflowName }: WorkflowTriggersP
 
   const getEndpointUrl = (trigger: Trigger): string => {
     if (trigger.webhookUrl) return trigger.webhookUrl;
-    const baseUrl = typeof window !== "undefined" ? window.location.origin : "https://elizacloud.ai";
+    const baseUrl =
+      typeof window !== "undefined"
+        ? window.location.origin
+        : "https://elizacloud.ai";
     const urls: Record<TriggerType, string> = {
       webhook: `${baseUrl}/api/v1/n8n/webhooks/${trigger.triggerKey}`,
       mcp: `${baseUrl}/api/mcp/workflows/${workflowId}`,
@@ -238,9 +277,15 @@ export function WorkflowTriggers({ workflowId, workflowName }: WorkflowTriggersP
             disabled={isRefreshing}
             className="text-white/60 hover:text-white"
           >
-            <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
+            <RefreshCw
+              className={cn("h-4 w-4", isRefreshing && "animate-spin")}
+            />
           </Button>
-          <BrandButton variant="primary" size="sm" onClick={() => setShowCreateDialog(true)}>
+          <BrandButton
+            variant="primary"
+            size="sm"
+            onClick={() => setShowCreateDialog(true)}
+          >
             <Plus className="h-4 w-4 mr-2" />
             Add Trigger
           </BrandButton>
@@ -254,11 +299,17 @@ export function WorkflowTriggers({ workflowId, workflowName }: WorkflowTriggersP
             <div className="mx-auto w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mb-4">
               <Zap className="h-6 w-6 text-white/40" />
             </div>
-            <h4 className="text-white font-medium mb-2">No triggers configured</h4>
+            <h4 className="text-white font-medium mb-2">
+              No triggers configured
+            </h4>
             <p className="text-sm text-white/50 mb-4">
-              Add a trigger to run this workflow via webhook, schedule, MCP, or A2A
+              Add a trigger to run this workflow via webhook, schedule, MCP, or
+              A2A
             </p>
-            <BrandButton variant="secondary" onClick={() => setShowCreateDialog(true)}>
+            <BrandButton
+              variant="secondary"
+              onClick={() => setShowCreateDialog(true)}
+            >
               <Plus className="h-4 w-4 mr-2" />
               Add Trigger
             </BrandButton>
@@ -276,7 +327,12 @@ export function WorkflowTriggers({ workflowId, workflowName }: WorkflowTriggersP
                 <div className="relative z-10 p-4">
                   <div className="flex items-start justify-between">
                     <div className="flex items-start gap-3">
-                      <div className={cn("p-2 rounded-lg bg-gradient-to-r", config.color)}>
+                      <div
+                        className={cn(
+                          "p-2 rounded-lg bg-gradient-to-r",
+                          config.color,
+                        )}
+                      >
                         <config.icon className="h-4 w-4 text-white" />
                       </div>
                       <div>
@@ -285,14 +341,16 @@ export function WorkflowTriggers({ workflowId, workflowName }: WorkflowTriggersP
                             {trigger.triggerType === "a2a"
                               ? "A2A Skill"
                               : trigger.triggerType === "mcp"
-                              ? "MCP Tool"
-                              : trigger.triggerType}
+                                ? "MCP Tool"
+                                : trigger.triggerType}
                           </span>
                           <Badge
                             variant="outline"
                             className={cn(
                               "text-xs",
-                              trigger.isActive ? STATUS_COLORS.active : STATUS_COLORS.archived
+                              trigger.isActive
+                                ? STATUS_COLORS.active
+                                : STATUS_COLORS.archived,
                             )}
                           >
                             {trigger.isActive ? "Active" : "Inactive"}
@@ -305,26 +363,34 @@ export function WorkflowTriggers({ workflowId, workflowName }: WorkflowTriggersP
                           </code>
                         )}
 
-                        {trigger.triggerType === "mcp" && trigger.config.toolName && (
-                          <code className="text-xs text-[#FF5800] font-mono">
-                            {trigger.config.toolName}
-                          </code>
-                        )}
+                        {trigger.triggerType === "mcp" &&
+                          trigger.config.toolName && (
+                            <code className="text-xs text-[#FF5800] font-mono">
+                              {trigger.config.toolName}
+                            </code>
+                          )}
 
-                        {trigger.triggerType === "a2a" && trigger.config.skillId && (
-                          <code className="text-xs text-[#FF5800] font-mono">
-                            {trigger.config.skillId}
-                          </code>
-                        )}
+                        {trigger.triggerType === "a2a" &&
+                          trigger.config.skillId && (
+                            <code className="text-xs text-[#FF5800] font-mono">
+                              {trigger.config.skillId}
+                            </code>
+                          )}
 
                         <div className="flex items-center gap-4 mt-2 text-xs text-white/40">
                           <span>{trigger.executionCount} executions</span>
                           {trigger.errorCount > 0 && (
-                            <span className="text-red-400">{trigger.errorCount} errors</span>
+                            <span className="text-red-400">
+                              {trigger.errorCount} errors
+                            </span>
                           )}
                           {trigger.lastExecutedAt && (
                             <span>
-                              Last run {formatDistanceToNow(new Date(trigger.lastExecutedAt))} ago
+                              Last run{" "}
+                              {formatDistanceToNow(
+                                new Date(trigger.lastExecutedAt),
+                              )}{" "}
+                              ago
                             </span>
                           )}
                         </div>
@@ -334,7 +400,9 @@ export function WorkflowTriggers({ workflowId, workflowName }: WorkflowTriggersP
                     <div className="flex items-center gap-2">
                       <Switch
                         checked={trigger.isActive}
-                        onCheckedChange={(checked) => handleToggle(trigger, checked)}
+                        onCheckedChange={(checked) =>
+                          handleToggle(trigger, checked)
+                        }
                       />
                       <Button
                         variant="ghost"
@@ -387,30 +455,38 @@ export function WorkflowTriggers({ workflowId, workflowName }: WorkflowTriggersP
             <div>
               <Label className="text-white/80">Trigger Type</Label>
               <div className="grid grid-cols-2 gap-2 mt-2">
-                {TRIGGER_TYPES.map(({ value, label, description, icon: Icon }) => (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() => setCreateType(value as TriggerType)}
-                    className={cn(
-                      "flex items-center gap-2 p-3 rounded-lg border text-left transition-all",
-                      createType === value
-                        ? "border-[#FF5800]/50 bg-[#FF5800]/10"
-                        : "border-white/10 bg-white/5 hover:bg-white/10"
-                    )}
-                  >
-                    <Icon
+                {TRIGGER_TYPES.map(
+                  ({ value, label, description, icon: Icon }) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setCreateType(value as TriggerType)}
                       className={cn(
-                        "h-4 w-4",
-                        createType === value ? "text-[#FF5800]" : "text-white/50"
+                        "flex items-center gap-2 p-3 rounded-lg border text-left transition-all",
+                        createType === value
+                          ? "border-[#FF5800]/50 bg-[#FF5800]/10"
+                          : "border-white/10 bg-white/5 hover:bg-white/10",
                       )}
-                    />
-                    <div>
-                      <div className="text-sm font-medium text-white">{label}</div>
-                      <div className="text-xs text-white/40">{description}</div>
-                    </div>
-                  </button>
-                ))}
+                    >
+                      <Icon
+                        className={cn(
+                          "h-4 w-4",
+                          createType === value
+                            ? "text-[#FF5800]"
+                            : "text-white/50",
+                        )}
+                      />
+                      <div>
+                        <div className="text-sm font-medium text-white">
+                          {label}
+                        </div>
+                        <div className="text-xs text-white/40">
+                          {description}
+                        </div>
+                      </div>
+                    </button>
+                  ),
+                )}
               </div>
             </div>
 
@@ -419,7 +495,9 @@ export function WorkflowTriggers({ workflowId, workflowName }: WorkflowTriggersP
                 <Label className="text-white/80">Schedule</Label>
                 <Select
                   value={createConfig.cronExpression}
-                  onValueChange={(v) => setCreateConfig({ ...createConfig, cronExpression: v })}
+                  onValueChange={(v) =>
+                    setCreateConfig({ ...createConfig, cronExpression: v })
+                  }
                 >
                   <SelectTrigger className="mt-1">
                     <SelectValue />
@@ -435,7 +513,10 @@ export function WorkflowTriggers({ workflowId, workflowName }: WorkflowTriggersP
                 <Input
                   value={createConfig.cronExpression}
                   onChange={(e) =>
-                    setCreateConfig({ ...createConfig, cronExpression: e.target.value })
+                    setCreateConfig({
+                      ...createConfig,
+                      cronExpression: e.target.value,
+                    })
                   }
                   placeholder="Custom cron expression"
                   className="mt-2 font-mono text-sm"
@@ -448,7 +529,12 @@ export function WorkflowTriggers({ workflowId, workflowName }: WorkflowTriggersP
                 <Label className="text-white/80">Tool Name</Label>
                 <Input
                   value={createConfig.toolName}
-                  onChange={(e) => setCreateConfig({ ...createConfig, toolName: e.target.value })}
+                  onChange={(e) =>
+                    setCreateConfig({
+                      ...createConfig,
+                      toolName: e.target.value,
+                    })
+                  }
                   placeholder="e.g., run_workflow"
                   className="mt-1 font-mono"
                 />
@@ -463,7 +549,12 @@ export function WorkflowTriggers({ workflowId, workflowName }: WorkflowTriggersP
                 <Label className="text-white/80">Skill ID</Label>
                 <Input
                   value={createConfig.skillId}
-                  onChange={(e) => setCreateConfig({ ...createConfig, skillId: e.target.value })}
+                  onChange={(e) =>
+                    setCreateConfig({
+                      ...createConfig,
+                      skillId: e.target.value,
+                    })
+                  }
                   placeholder="e.g., process-data"
                   className="mt-1 font-mono"
                 />
@@ -478,8 +569,8 @@ export function WorkflowTriggers({ workflowId, workflowName }: WorkflowTriggersP
                 <div className="flex items-start gap-2">
                   <AlertCircle className="h-4 w-4 text-blue-400 mt-0.5" />
                   <div className="text-sm text-blue-300">
-                    A unique webhook URL will be generated. You can send POST requests to trigger the
-                    workflow.
+                    A unique webhook URL will be generated. You can send POST
+                    requests to trigger the workflow.
                   </div>
                 </div>
               </div>
@@ -491,7 +582,10 @@ export function WorkflowTriggers({ workflowId, workflowName }: WorkflowTriggersP
                 type="number"
                 value={createConfig.maxExecutionsPerDay}
                 onChange={(e) =>
-                  setCreateConfig({ ...createConfig, maxExecutionsPerDay: parseInt(e.target.value) || 1000 })
+                  setCreateConfig({
+                    ...createConfig,
+                    maxExecutionsPerDay: parseInt(e.target.value) || 1000,
+                  })
                 }
                 className="mt-1"
               />

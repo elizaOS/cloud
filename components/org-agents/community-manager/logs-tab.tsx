@@ -59,7 +59,9 @@ const ACTION_LABELS: Record<string, string> = {
 export function LogsTab({ organizationId, serverId }: LogsTabProps) {
   const [events, setEvents] = useState<OrgModerationEvent[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [filter, setFilter] = useState<"all" | "unresolved" | "resolved">("all");
+  const [filter, setFilter] = useState<"all" | "unresolved" | "resolved">(
+    "all",
+  );
   const [expandedEvent, setExpandedEvent] = useState<string | null>(null);
   const [isResolving, setIsResolving] = useState<string | null>(null);
 
@@ -90,23 +92,26 @@ export function LogsTab({ organizationId, serverId }: LogsTabProps) {
   const handleResolve = async (
     eventId: string,
     falsePositive: boolean,
-    notes?: string
+    notes?: string,
   ) => {
     setIsResolving(eventId);
 
-    const res = await fetch(`/api/v1/org/moderation/events/${eventId}/resolve`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ falsePositive, notes }),
-    });
+    const res = await fetch(
+      `/api/v1/org/moderation/events/${eventId}/resolve`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ falsePositive, notes }),
+      },
+    );
 
     if (res.ok) {
       setEvents(
         events.map((e) =>
           e.id === eventId
             ? { ...e, resolved_at: new Date(), false_positive: falsePositive }
-            : e
-        )
+            : e,
+        ),
       );
     }
 
@@ -145,7 +150,9 @@ export function LogsTab({ organizationId, serverId }: LogsTabProps) {
             disabled={isLoading}
             className="p-2 hover:bg-zinc-800 rounded-lg"
           >
-            <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
+            <RefreshCw
+              className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
+            />
           </button>
         </div>
       </div>
@@ -192,7 +199,8 @@ export function LogsTab({ organizationId, serverId }: LogsTabProps) {
                       </span>
                       {event.action_taken && (
                         <span className="text-xs px-2 py-0.5 bg-zinc-800 rounded">
-                          {ACTION_LABELS[event.action_taken] || event.action_taken}
+                          {ACTION_LABELS[event.action_taken] ||
+                            event.action_taken}
                         </span>
                       )}
                       {event.resolved_at && (
@@ -243,17 +251,23 @@ export function LogsTab({ organizationId, serverId }: LogsTabProps) {
 
                   <div className="grid grid-cols-3 gap-4 text-sm">
                     <div>
-                      <label className="text-xs text-muted-foreground">Platform</label>
+                      <label className="text-xs text-muted-foreground">
+                        Platform
+                      </label>
                       <div className="capitalize">{event.platform}</div>
                     </div>
                     <div>
-                      <label className="text-xs text-muted-foreground">Channel</label>
+                      <label className="text-xs text-muted-foreground">
+                        Channel
+                      </label>
                       <div className="font-mono text-xs">
                         {event.channel_id || "N/A"}
                       </div>
                     </div>
                     <div>
-                      <label className="text-xs text-muted-foreground">Confidence</label>
+                      <label className="text-xs text-muted-foreground">
+                        Confidence
+                      </label>
                       <div>{event.confidence_score ?? "N/A"}%</div>
                     </div>
                   </div>
@@ -305,4 +319,3 @@ export function LogsTab({ organizationId, serverId }: LogsTabProps) {
     </div>
   );
 }
-

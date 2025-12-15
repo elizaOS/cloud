@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
   let domains;
   if (filter === "unassigned") {
     domains = await domainManagementService.listUnassignedDomains(
-      user.organization_id
+      user.organization_id,
     );
   } else {
     domains = await domainManagementService.listDomains(user.organization_id);
@@ -53,7 +53,15 @@ export async function POST(request: NextRequest) {
   const result = await parseJsonBody(request, RegisterDomainSchema);
   if (!result.success) return result.response;
 
-  const { domain, type, nameserverMode, registrantInfo, paymentMethod, stripePaymentIntentId, autoRenew } = result.data;
+  const {
+    domain,
+    type,
+    nameserverMode,
+    registrantInfo,
+    paymentMethod,
+    stripePaymentIntentId,
+    autoRenew,
+  } = result.data;
 
   logger.info("[Domains API] Registering domain", {
     domain,
@@ -66,14 +74,14 @@ export async function POST(request: NextRequest) {
     if (!registrantInfo) {
       return NextResponse.json(
         { error: "Registrant information is required for domain purchase" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (!paymentMethod) {
       return NextResponse.json(
         { error: "Payment method is required for domain purchase" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -89,7 +97,7 @@ export async function POST(request: NextRequest) {
     if (!result.success) {
       return NextResponse.json(
         { error: result.error || "Failed to purchase domain" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -103,13 +111,13 @@ export async function POST(request: NextRequest) {
     const result = await domainManagementService.registerExternalDomain(
       domain,
       user.organization_id,
-      nameserverMode
+      nameserverMode,
     );
 
     if (!result.success) {
       return NextResponse.json(
         { error: result.error || "Failed to register domain" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -117,8 +125,8 @@ export async function POST(request: NextRequest) {
       success: true,
       domain: result.domain,
       dnsInstructions: result.dnsInstructions,
-      message: "Domain registered. Follow DNS instructions to verify ownership.",
+      message:
+        "Domain registered. Follow DNS instructions to verify ownership.",
     });
   }
 }
-

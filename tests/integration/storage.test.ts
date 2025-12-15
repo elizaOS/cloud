@@ -1,6 +1,6 @@
 /**
  * Storage API Integration Tests
- * 
+ *
  * Tests the permissionless storage system with x402 payments.
  * Verifies REST, MCP, and A2A storage endpoints.
  */
@@ -31,22 +31,24 @@ beforeAll(async () => {
 
 describe("Storage Service Configuration", () => {
   test("storage service exports required functions", async () => {
-    const { storageService, calculateUploadCost, formatPrice } = await import("@/lib/services/storage");
-    
+    const { storageService, calculateUploadCost, formatPrice } =
+      await import("@/lib/services/storage");
+
     expect(storageService).toBeDefined();
     expect(storageService.upload).toBeFunction();
     expect(storageService.list).toBeFunction();
     expect(storageService.delete).toBeFunction();
     expect(storageService.getStats).toBeFunction();
     expect(storageService.getPricing).toBeFunction();
-    
+
     expect(calculateUploadCost).toBeFunction();
     expect(formatPrice).toBeFunction();
   });
 
   test("IPFS service exports required functions", async () => {
-    const { ipfsService, IPFSPaymentRequiredError } = await import("@/lib/services/ipfs");
-    
+    const { ipfsService, IPFSPaymentRequiredError } =
+      await import("@/lib/services/ipfs");
+
     expect(ipfsService).toBeDefined();
     expect(ipfsService.health).toBeFunction();
     expect(ipfsService.pin).toBeFunction();
@@ -56,7 +58,7 @@ describe("Storage Service Configuration", () => {
     expect(ipfsService.unpin).toBeFunction();
     expect(ipfsService.getGatewayUrl).toBeFunction();
     expect(ipfsService.calculatePinCost).toBeFunction();
-    
+
     expect(IPFSPaymentRequiredError).toBeDefined();
   });
 });
@@ -64,23 +66,23 @@ describe("Storage Service Configuration", () => {
 describe("Storage Pricing", () => {
   test("calculateUploadCost returns correct values", async () => {
     const { calculateUploadCost } = await import("@/lib/services/storage");
-    
+
     // Min fee is $0.01
     const minCost = calculateUploadCost(0);
     expect(minCost).toBe(0.01); // Min $0.01
-    
+
     // 1MB at $0.001/MB = $0.001, but min is $0.01
     const oneMBCost = calculateUploadCost(1024 * 1024);
     expect(oneMBCost).toBe(0.01); // Min $0.01
-    
+
     // 100MB at $0.001/MB = $0.10
     const hundredMBCost = calculateUploadCost(100 * 1024 * 1024);
-    expect(hundredMBCost).toBeCloseTo(0.10, 2);
+    expect(hundredMBCost).toBeCloseTo(0.1, 2);
   });
 
   test("formatPrice formats correctly", async () => {
     const { formatPrice } = await import("@/lib/services/storage");
-    
+
     // formatPrice formats as $X.XXXX
     expect(formatPrice(0.01)).toBe("$0.0100");
     expect(formatPrice(1)).toBe("$1.0000");
@@ -89,9 +91,9 @@ describe("Storage Pricing", () => {
 
   test("getPricing returns valid pricing structure", async () => {
     const { storageService } = await import("@/lib/services/storage");
-    
+
     const pricing = storageService.getPricing();
-    
+
     expect(pricing.uploadPerMB).toBeDefined();
     expect(pricing.retrievalPerMB).toBeDefined();
     expect(pricing.pinPerGBMonth).toBeDefined();
@@ -102,32 +104,32 @@ describe("Storage Pricing", () => {
 describe("Storage REST API", () => {
   test("GET /api/v1/storage?stats=true returns pricing info", async () => {
     if (!serverAvailable) return;
-    
+
     const response = await fetch(`${BASE_URL}/api/v1/storage?stats=true`);
-    
+
     if (response.status === 402) {
       // x402 enabled - this is expected for unauthenticated requests
       return;
     }
-    
+
     expect(response.ok).toBe(true);
     const data = await response.json();
-    
+
     expect(data.stats).toBeDefined();
     expect(data.pricing).toBeDefined();
   });
 
   test("POST /api/v1/storage returns 402 without payment", async () => {
     if (!serverAvailable) return;
-    
+
     const formData = new FormData();
     formData.append("file", new Blob(["test content"]), "test.txt");
-    
+
     const response = await fetch(`${BASE_URL}/api/v1/storage`, {
       method: "POST",
       body: formData,
     });
-    
+
     // Should return 402 requiring x402 payment
     expect([402, 501]).toContain(response.status);
   });
@@ -137,13 +139,13 @@ describe("A2A Storage Skills", () => {
   test("AVAILABLE_SKILLS includes storage skills", async () => {
     try {
       const { AVAILABLE_SKILLS } = await import("@/lib/api/a2a/handlers");
-      
-      const storageSkills = AVAILABLE_SKILLS.filter(
-        (s) => s.id.startsWith("storage_")
+
+      const storageSkills = AVAILABLE_SKILLS.filter((s) =>
+        s.id.startsWith("storage_"),
       );
-      
+
       expect(storageSkills.length).toBeGreaterThanOrEqual(5);
-      
+
       const skillIds = storageSkills.map((s) => s.id);
       expect(skillIds).toContain("storage_upload");
       expect(skillIds).toContain("storage_list");
@@ -167,7 +169,7 @@ describe("A2A Storage Skills", () => {
         executeSkillStorageCalculateCost,
         executeSkillStoragePin,
       } = await import("@/lib/api/a2a/skills");
-      
+
       expect(executeSkillStorageUpload).toBeFunction();
       expect(executeSkillStorageList).toBeFunction();
       expect(executeSkillStorageStats).toBeFunction();
@@ -185,20 +187,20 @@ describe("A2A Storage Skills", () => {
 describe("Agent Card Storage Skills", () => {
   test("agent card includes storage skills", async () => {
     if (!serverAvailable) return;
-    
+
     const response = await fetch(`${BASE_URL}/.well-known/agent-card.json`);
-    
+
     if (!response.ok) {
       console.log("⚠️ Agent card endpoint not available");
       return;
     }
-    
+
     const agentCard = await response.json();
-    
-    const storageSkills = agentCard.skills?.filter(
-      (s: { id: string }) => s.id.startsWith("storage_")
+
+    const storageSkills = agentCard.skills?.filter((s: { id: string }) =>
+      s.id.startsWith("storage_"),
     );
-    
+
     expect(storageSkills?.length).toBeGreaterThanOrEqual(5);
   });
 });
@@ -206,7 +208,7 @@ describe("Agent Card Storage Skills", () => {
 describe("ERC-8004 Storage Capabilities", () => {
   test("erc8004.json includes storage capabilities", async () => {
     const config = await import("@/config/erc8004.json");
-    
+
     expect(config.service.capabilities).toBeDefined();
     expect(config.service.capabilities.storage).toBeDefined();
     expect(config.service.capabilities.storage.providers).toContain("blob");
@@ -216,7 +218,7 @@ describe("ERC-8004 Storage Capabilities", () => {
 
   test("x402.json includes storage pricing", async () => {
     const config = await import("@/config/x402.json");
-    
+
     expect(config.pricing.storage).toBeDefined();
     expect(config.pricing.storage.uploadPerMB).toBeDefined();
     expect(config.pricing.storage.retrievalPerMB).toBeDefined();
@@ -228,22 +230,22 @@ describe("ERC-8004 Storage Capabilities", () => {
 describe("IPFS Pinning", () => {
   test("calculatePinCost returns correct values", async () => {
     const { ipfsService } = await import("@/lib/services/ipfs");
-    
+
     // 1GB for 1 month at $0.10/GB/month
     const oneGBCost = ipfsService.calculatePinCost(1024 * 1024 * 1024, 1);
-    expect(oneGBCost).toBeCloseTo(0.10, 2);
-    
+    expect(oneGBCost).toBeCloseTo(0.1, 2);
+
     // 1GB for 12 months
     const yearCost = ipfsService.calculatePinCost(1024 * 1024 * 1024, 12);
-    expect(yearCost).toBeCloseTo(1.20, 2);
+    expect(yearCost).toBeCloseTo(1.2, 2);
   });
 
   test("getGatewayUrl returns valid URL", async () => {
     const { ipfsService } = await import("@/lib/services/ipfs");
-    
+
     const cid = "QmTest123";
     const url = ipfsService.getGatewayUrl(cid);
-    
+
     expect(url).toContain("/ipfs/");
     expect(url).toContain(cid);
   });
@@ -278,4 +280,3 @@ describe("Storage Integration Summary", () => {
     expect(true).toBe(true);
   });
 });
-

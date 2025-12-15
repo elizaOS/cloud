@@ -19,23 +19,34 @@ type MarketSource = "coingecko" | "coinmarketcap";
 type OHLCVSource = "birdeye" | "coingecko";
 type SearchSource = "defined" | "coingecko";
 
-const PRICE_FETCHERS: Record<PriceSource, (id: string, chain?: string) => Promise<{
-  priceUsd: number;
-  priceChange24h?: number;
-  volume24h?: number;
-  marketCap?: number;
-  lastUpdated?: Date;
-}>> = {
-  birdeye: (id, chain) => getBirdeyeService().getTokenPrice(id, chain as "solana"),
+const PRICE_FETCHERS: Record<
+  PriceSource,
+  (
+    id: string,
+    chain?: string,
+  ) => Promise<{
+    priceUsd: number;
+    priceChange24h?: number;
+    volume24h?: number;
+    marketCap?: number;
+    lastUpdated?: Date;
+  }>
+> = {
+  birdeye: (id, chain) =>
+    getBirdeyeService().getTokenPrice(id, chain as "solana"),
   jupiter: (id) => getJupiterService().getTokenPrice(id),
   coingecko: (id) => getCoinGeckoService().getCoinPrice(id),
   coinmarketcap: (id) => getCoinMarketCapService().getTokenPrice(id),
 };
 
-export async function fetchTokenPrice(source: PriceSource, identifier: string, chain?: string) {
+export async function fetchTokenPrice(
+  source: PriceSource,
+  identifier: string,
+  chain?: string,
+) {
   const fetcher = PRICE_FETCHERS[source];
   if (!fetcher) throw new Error(`Unsupported source: ${source}`);
-  
+
   const price = await fetcher(identifier, chain);
   return {
     source,
@@ -51,10 +62,17 @@ export async function fetchTokenPrice(source: PriceSource, identifier: string, c
 export async function fetchTrendingTokens(source: TrendingSource, limit = 20) {
   let trending;
   switch (source) {
-    case "birdeye": trending = await getBirdeyeService().getTrendingTokens({ limit }); break;
-    case "coingecko": trending = await getCoinGeckoService().getTrending(); break;
-    case "coinmarketcap": trending = await getCoinMarketCapService().getTrending(limit); break;
-    default: throw new Error(`Unsupported source: ${source}`);
+    case "birdeye":
+      trending = await getBirdeyeService().getTrendingTokens({ limit });
+      break;
+    case "coingecko":
+      trending = await getCoinGeckoService().getTrending();
+      break;
+    case "coinmarketcap":
+      trending = await getCoinMarketCapService().getTrending(limit);
+      break;
+    default:
+      throw new Error(`Unsupported source: ${source}`);
   }
 
   return {
@@ -72,9 +90,10 @@ export async function fetchTrendingTokens(source: TrendingSource, limit = 20) {
 }
 
 export async function fetchMarketOverview(source: MarketSource) {
-  const overview = source === "coinmarketcap"
-    ? await getCoinMarketCapService().getMarketOverview()
-    : await getCoinGeckoService().getGlobalData();
+  const overview =
+    source === "coinmarketcap"
+      ? await getCoinMarketCapService().getMarketOverview()
+      : await getCoinGeckoService().getGlobalData();
 
   return {
     source,
@@ -133,17 +152,28 @@ export async function fetchJupiterQuote(params: {
   });
 
   return {
-    inputToken: { address: quote.inputToken.address, symbol: quote.inputToken.symbol },
-    outputToken: { address: quote.outputToken.address, symbol: quote.outputToken.symbol },
+    inputToken: {
+      address: quote.inputToken.address,
+      symbol: quote.inputToken.symbol,
+    },
+    outputToken: {
+      address: quote.outputToken.address,
+      symbol: quote.outputToken.symbol,
+    },
     inputAmount: quote.inputAmount,
     outputAmount: quote.outputAmount,
     priceImpactPercent: quote.priceImpactPercent,
-    routes: quote.routes.map((r) => ({ protocol: r.protocol, portion: r.portion })),
+    routes: quote.routes.map((r) => ({
+      protocol: r.protocol,
+      portion: r.portion,
+    })),
   };
 }
 
 export async function fetchHeliusTransactions(address: string, limit = 20) {
-  const result = await getHeliusService().getTransactionHistory(address, { limit });
+  const result = await getHeliusService().getTransactionHistory(address, {
+    limit,
+  });
   return {
     address,
     transactions: result.transactions.map((tx) => ({
@@ -166,8 +196,13 @@ export async function fetchZeroExQuote(params: {
 }) {
   const chain = params.chain ?? "ethereum";
   const quote = await getZeroExService().getQuote(
-    { sellToken: params.sellToken, buyToken: params.buyToken, sellAmount: params.sellAmount, slippagePercentage: params.slippagePercentage ?? 0.01 },
-    chain
+    {
+      sellToken: params.sellToken,
+      buyToken: params.buyToken,
+      sellAmount: params.sellAmount,
+      slippagePercentage: params.slippagePercentage ?? 0.01,
+    },
+    chain,
   );
 
   return {
@@ -178,17 +213,29 @@ export async function fetchZeroExQuote(params: {
     buyAmount: quote.outputAmount,
     priceImpactPercent: quote.priceImpactPercent,
     estimatedGas: quote.estimatedGas,
-    routes: quote.routes.map((r) => ({ protocol: r.protocol, portion: r.portion })),
+    routes: quote.routes.map((r) => ({
+      protocol: r.protocol,
+      portion: r.portion,
+    })),
   };
 }
 
-export async function searchTokens(source: SearchSource, query: string, limit = 20) {
+export async function searchTokens(
+  source: SearchSource,
+  query: string,
+  limit = 20,
+) {
   if (source === "defined") {
     const tokens = await getDefinedService().searchTokens(query, { limit });
     return {
       source,
       query,
-      tokens: tokens.map((t) => ({ address: t.address, symbol: t.symbol, name: t.name, networkId: t.networkId })),
+      tokens: tokens.map((t) => ({
+        address: t.address,
+        symbol: t.symbol,
+        name: t.name,
+        networkId: t.networkId,
+      })),
     };
   }
 
@@ -196,33 +243,68 @@ export async function searchTokens(source: SearchSource, query: string, limit = 
   return {
     source,
     query,
-    tokens: tokens.slice(0, limit).map((t) => ({ address: t.address, symbol: t.symbol, name: t.name, chainId: t.chainId })),
+    tokens: tokens.slice(0, limit).map((t) => ({
+      address: t.address,
+      symbol: t.symbol,
+      name: t.name,
+      chainId: t.chainId,
+    })),
   };
 }
 
-export async function fetchTokenHolders(address: string, networkId: number, limit = 20) {
-  const result = await getDefinedService().getTokenHolders(address, networkId, { limit });
+export async function fetchTokenHolders(
+  address: string,
+  networkId: number,
+  limit = 20,
+) {
+  const result = await getDefinedService().getTokenHolders(address, networkId, {
+    limit,
+  });
   return {
     address,
     networkId,
-    holders: result.holders.map((h) => ({ address: h.address, balance: h.balance, sharePercent: h.share })),
+    holders: result.holders.map((h) => ({
+      address: h.address,
+      balance: h.balance,
+      sharePercent: h.share,
+    })),
   };
 }
 
-export async function fetchOHLCV(source: OHLCVSource, identifier: string, options: { interval?: string; days?: string } = {}) {
-  const ohlcv = source === "birdeye"
-    ? await getBirdeyeService().getOHLCV(identifier, { interval: (options.interval ?? "1H") as "1H" })
-    : await getCoinGeckoService().getOHLC(identifier, { days: (options.days ?? "7") as "7" });
+export async function fetchOHLCV(
+  source: OHLCVSource,
+  identifier: string,
+  options: { interval?: string; days?: string } = {},
+) {
+  const ohlcv =
+    source === "birdeye"
+      ? await getBirdeyeService().getOHLCV(identifier, {
+          interval: (options.interval ?? "1H") as "1H",
+        })
+      : await getCoinGeckoService().getOHLC(identifier, {
+          days: (options.days ?? "7") as "7",
+        });
 
   return {
     source,
     identifier,
-    candles: ohlcv.slice(-100).map((c) => ({ timestamp: c.timestamp, open: c.open, high: c.high, low: c.low, close: c.close, volume: c.volume })),
+    candles: ohlcv.slice(-100).map((c) => ({
+      timestamp: c.timestamp,
+      open: c.open,
+      high: c.high,
+      low: c.low,
+      close: c.close,
+      volume: c.volume,
+    })),
   };
 }
 
 // Wrap service getter + healthCheck in single async to catch missing env var errors
-const safeHealthCheck = async (getter: () => { healthCheck: () => Promise<{ healthy: boolean; latencyMs: number }> }) => {
+const safeHealthCheck = async (
+  getter: () => {
+    healthCheck: () => Promise<{ healthy: boolean; latencyMs: number }>;
+  },
+) => {
   const service = getter();
   return service.healthCheck();
 };
@@ -238,22 +320,35 @@ const SERVICE_HEALTH_CHECKS = [
 ] as const;
 
 export async function checkServicesHealth(serviceNames?: string[]) {
-  const services = serviceNames !== undefined
-    ? SERVICE_HEALTH_CHECKS.filter((s) => serviceNames.includes(s.name))
-    : SERVICE_HEALTH_CHECKS;
+  const services =
+    serviceNames !== undefined
+      ? SERVICE_HEALTH_CHECKS.filter((s) => serviceNames.includes(s.name))
+      : SERVICE_HEALTH_CHECKS;
 
   const results = await Promise.allSettled(services.map((s) => s.fn()));
   const checks: Record<string, { healthy: boolean; latencyMs: number }> = {};
 
   services.forEach((service, i) => {
     const result = results[i];
-    checks[service.name] = result.status === "fulfilled" ? result.value : { healthy: false, latencyMs: -1 };
+    checks[service.name] =
+      result.status === "fulfilled"
+        ? result.value
+        : { healthy: false, latencyMs: -1 };
   });
 
   const healthyCount = Object.values(checks).filter((c) => c.healthy).length;
   return {
-    status: healthyCount === services.length ? "healthy" as const : healthyCount > 0 ? "degraded" as const : "down" as const,
+    status:
+      healthyCount === services.length
+        ? ("healthy" as const)
+        : healthyCount > 0
+          ? ("degraded" as const)
+          : ("down" as const),
     services: checks,
-    summary: { total: services.length, healthy: healthyCount, unhealthy: services.length - healthyCount },
+    summary: {
+      total: services.length,
+      healthy: healthyCount,
+      unhealthy: services.length - healthyCount,
+    },
   };
 }

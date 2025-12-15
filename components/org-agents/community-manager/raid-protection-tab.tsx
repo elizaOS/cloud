@@ -23,16 +23,16 @@ export function RaidProtectionTab({
   isSaving,
 }: RaidProtectionTabProps) {
   const [raidProtectionEnabled, setRaidProtectionEnabled] = useState(
-    settings.raidProtectionEnabled ?? false
+    settings.raidProtectionEnabled ?? false,
   );
   const [joinRateLimitPerMinute, setJoinRateLimitPerMinute] = useState(
-    settings.joinRateLimitPerMinute ?? 10
+    settings.joinRateLimitPerMinute ?? 10,
   );
   const [autoLockdownThreshold, setAutoLockdownThreshold] = useState(
-    settings.autoLockdownThreshold ?? 20
+    settings.autoLockdownThreshold ?? 20,
   );
   const [lockdownDurationMinutes, setLockdownDurationMinutes] = useState(
-    settings.lockdownDurationMinutes ?? 30
+    settings.lockdownDurationMinutes ?? 30,
   );
 
   const handleSave = async () => {
@@ -54,11 +54,15 @@ export function RaidProtectionTab({
             <AlertTriangle className="h-5 w-5 text-orange-500" />
             <h3 className="font-semibold">Raid Protection</h3>
           </div>
-          <Toggle checked={raidProtectionEnabled} onChange={setRaidProtectionEnabled} />
+          <Toggle
+            checked={raidProtectionEnabled}
+            onChange={setRaidProtectionEnabled}
+          />
         </div>
 
         <p className="text-sm text-muted-foreground mb-4">
-          Automatically detect and respond to mass join attacks that could overwhelm your community.
+          Automatically detect and respond to mass join attacks that could
+          overwhelm your community.
         </p>
 
         {raidProtectionEnabled && (
@@ -70,14 +74,19 @@ export function RaidProtectionTab({
                 <h4 className="font-medium">Join Rate Limiting</h4>
               </div>
               <p className="text-sm text-muted-foreground">
-                Limit how many new members can join per minute before triggering alerts.
+                Limit how many new members can join per minute before triggering
+                alerts.
               </p>
               <div className="space-y-2">
-                <label className="text-sm font-medium">Max Joins per Minute</label>
+                <label className="text-sm font-medium">
+                  Max Joins per Minute
+                </label>
                 <input
                   type="number"
                   value={joinRateLimitPerMinute}
-                  onChange={(e) => setJoinRateLimitPerMinute(parseInt(e.target.value) || 10)}
+                  onChange={(e) =>
+                    setJoinRateLimitPerMinute(parseInt(e.target.value) || 10)
+                  }
                   min={1}
                   max={100}
                   className="w-full px-3 py-2 rounded-lg bg-zinc-800 border border-zinc-700 text-sm"
@@ -99,11 +108,15 @@ export function RaidProtectionTab({
               </p>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Lockdown Threshold</label>
+                  <label className="text-sm font-medium">
+                    Lockdown Threshold
+                  </label>
                   <input
                     type="number"
                     value={autoLockdownThreshold}
-                    onChange={(e) => setAutoLockdownThreshold(parseInt(e.target.value) || 20)}
+                    onChange={(e) =>
+                      setAutoLockdownThreshold(parseInt(e.target.value) || 20)
+                    }
                     min={5}
                     max={200}
                     className="w-full px-3 py-2 rounded-lg bg-zinc-800 border border-zinc-700 text-sm"
@@ -113,11 +126,15 @@ export function RaidProtectionTab({
                   </p>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Lockdown Duration</label>
+                  <label className="text-sm font-medium">
+                    Lockdown Duration
+                  </label>
                   <input
                     type="number"
                     value={lockdownDurationMinutes}
-                    onChange={(e) => setLockdownDurationMinutes(parseInt(e.target.value) || 30)}
+                    onChange={(e) =>
+                      setLockdownDurationMinutes(parseInt(e.target.value) || 30)
+                    }
                     min={1}
                     max={1440}
                     className="w-full px-3 py-2 rounded-lg bg-zinc-800 border border-zinc-700 text-sm"
@@ -187,5 +204,3 @@ function Toggle({ checked, onChange }: ToggleProps) {
     </button>
   );
 }
-
-

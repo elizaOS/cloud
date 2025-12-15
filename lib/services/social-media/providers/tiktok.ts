@@ -34,31 +34,48 @@ interface TikTokPublishInfo {
 }
 
 interface TikTokPublishStatus {
-  status: "PROCESSING_UPLOAD" | "PROCESSING_DOWNLOAD" | "SEND_TO_USER_INBOX" | "PUBLISH_COMPLETE" | "FAILED";
+  status:
+    | "PROCESSING_UPLOAD"
+    | "PROCESSING_DOWNLOAD"
+    | "SEND_TO_USER_INBOX"
+    | "PUBLISH_COMPLETE"
+    | "FAILED";
   fail_reason?: string;
   publicaly_available_post_id?: string[];
 }
 
-async function tiktokApiRequest<T>(endpoint: string, accessToken: string, options: RequestInit = {}): Promise<T> {
-  const url = endpoint.startsWith("http") ? endpoint : `${TIKTOK_API_BASE}${endpoint}`;
+async function tiktokApiRequest<T>(
+  endpoint: string,
+  accessToken: string,
+  options: RequestInit = {},
+): Promise<T> {
+  const url = endpoint.startsWith("http")
+    ? endpoint
+    : `${TIKTOK_API_BASE}${endpoint}`;
 
-  const { data } = await withRetry<{ data: T; error?: { code: string; message: string } }>(
-    () => fetch(url, {
-      ...options,
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json; charset=UTF-8",
-        ...options.headers,
-      },
-    }),
+  const { data } = await withRetry<{
+    data: T;
+    error?: { code: string; message: string };
+  }>(
+    () =>
+      fetch(url, {
+        ...options,
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json; charset=UTF-8",
+          ...options.headers,
+        },
+      }),
     async (response) => {
       const json = await response.json();
       if (json.error?.code && json.error.code !== "ok") {
-        throw new Error(json.error.message || `TikTok error: ${json.error.code}`);
+        throw new Error(
+          json.error.message || `TikTok error: ${json.error.code}`,
+        );
       }
       return json;
     },
-    { platform: "tiktok", maxRetries: 3 }
+    { platform: "tiktok", maxRetries: 3 },
   );
 
   return data.data;
@@ -67,7 +84,7 @@ async function tiktokApiRequest<T>(endpoint: string, accessToken: string, option
 async function waitForPublish(
   accessToken: string,
   publishId: string,
-  maxWait = 300000 // 5 minutes
+  maxWait = 300000, // 5 minutes
 ): Promise<TikTokPublishStatus> {
   const startTime = Date.now();
 
@@ -78,7 +95,7 @@ async function waitForPublish(
       {
         method: "POST",
         body: JSON.stringify({ publish_id: publishId }),
-      }
+      },
     );
 
     if (status.status === "PUBLISH_COMPLETE") {
@@ -96,7 +113,6 @@ async function waitForPublish(
   throw new Error("Publish timeout");
 }
 
-
 export const tiktokProvider: SocialMediaProvider = {
   platform: "tiktok",
 
@@ -108,7 +124,7 @@ export const tiktokProvider: SocialMediaProvider = {
     try {
       const user = await tiktokApiRequest<{ user: TikTokUser }>(
         "/user/info/?fields=open_id,union_id,display_name,avatar_url",
-        credentials.accessToken
+        credentials.accessToken,
       );
 
       return {
@@ -129,10 +145,14 @@ export const tiktokProvider: SocialMediaProvider = {
   async createPost(
     credentials: SocialCredentials,
     content: PostContent,
-    options?: PlatformPostOptions
+    options?: PlatformPostOptions,
   ): Promise<PostResult> {
     if (!credentials.accessToken) {
-      return { platform: "tiktok", success: false, error: "Access token required" };
+      return {
+        platform: "tiktok",
+        success: false,
+        error: "Access token required",
+      };
     }
 
     // TikTok requires video content
@@ -159,12 +179,14 @@ export const tiktokProvider: SocialMediaProvider = {
       };
 
       if (options?.tiktok?.videoCoverTimestampMs) {
-        postInfo.video_cover_timestamp_ms = options.tiktok.videoCoverTimestampMs;
+        postInfo.video_cover_timestamp_ms =
+          options.tiktok.videoCoverTimestampMs;
       }
 
       if (options?.tiktok?.brandContentToggle) {
         postInfo.brand_content_toggle = true;
-        postInfo.brand_organic_toggle = options.tiktok.brandOrganicToggle || false;
+        postInfo.brand_organic_toggle =
+          options.tiktok.brandOrganicToggle || false;
       }
 
       // Initialize upload from URL (pull method)
@@ -181,13 +203,13 @@ export const tiktokProvider: SocialMediaProvider = {
                 video_url: video.url,
               },
             }),
-          }
+          },
         );
 
         // Wait for publish to complete
         const status = await waitForPublish(
           credentials.accessToken,
-          initResponse.publish_id
+          initResponse.publish_id,
         );
 
         const postId = status.publicaly_available_post_id?.[0];
@@ -196,7 +218,9 @@ export const tiktokProvider: SocialMediaProvider = {
           platform: "tiktok",
           success: true,
           postId: postId || initResponse.publish_id,
-          postUrl: postId ? `https://www.tiktok.com/@me/video/${postId}` : undefined,
+          postUrl: postId
+            ? `https://www.tiktok.com/@me/video/${postId}`
+            : undefined,
           metadata: { publishId: initResponse.publish_id },
         };
       }
@@ -217,10 +241,12 @@ export const tiktokProvider: SocialMediaProvider = {
                 source: "FILE_UPLOAD",
                 video_size: videoData.length,
                 chunk_size: 10 * 1024 * 1024, // 10MB chunks
-                total_chunk_count: Math.ceil(videoData.length / (10 * 1024 * 1024)),
+                total_chunk_count: Math.ceil(
+                  videoData.length / (10 * 1024 * 1024),
+                ),
               },
             }),
-          }
+          },
         );
 
         if (!initResponse.upload_url) {
@@ -244,7 +270,7 @@ export const tiktokProvider: SocialMediaProvider = {
         // Wait for publish to complete
         const status = await waitForPublish(
           credentials.accessToken,
-          initResponse.publish_id
+          initResponse.publish_id,
         );
 
         const postId = status.publicaly_available_post_id?.[0];
@@ -253,7 +279,9 @@ export const tiktokProvider: SocialMediaProvider = {
           platform: "tiktok",
           success: true,
           postId: postId || initResponse.publish_id,
-          postUrl: postId ? `https://www.tiktok.com/@me/video/${postId}` : undefined,
+          postUrl: postId
+            ? `https://www.tiktok.com/@me/video/${postId}`
+            : undefined,
         };
       }
 
@@ -274,7 +302,7 @@ export const tiktokProvider: SocialMediaProvider = {
 
   async getPostAnalytics(
     credentials: SocialCredentials,
-    postId: string
+    postId: string,
   ): Promise<PostAnalytics | null> {
     if (!credentials.accessToken) {
       return null;
@@ -295,7 +323,7 @@ export const tiktokProvider: SocialMediaProvider = {
         {
           method: "POST",
           body: JSON.stringify({ filters: { video_ids: [postId] } }),
-        }
+        },
       );
 
       const video = response.videos?.[0];
@@ -318,7 +346,7 @@ export const tiktokProvider: SocialMediaProvider = {
   },
 
   async getAccountAnalytics(
-    credentials: SocialCredentials
+    credentials: SocialCredentials,
   ): Promise<AccountAnalytics | null> {
     if (!credentials.accessToken) {
       return null;
@@ -327,7 +355,7 @@ export const tiktokProvider: SocialMediaProvider = {
     try {
       const user = await tiktokApiRequest<{ user: TikTokUser }>(
         "/user/info/?fields=open_id,display_name,follower_count,following_count,video_count",
-        credentials.accessToken
+        credentials.accessToken,
       );
 
       return {
@@ -355,4 +383,3 @@ export const tiktokProvider: SocialMediaProvider = {
     throw new Error("TikTok requires video URL for posting");
   },
 };
-

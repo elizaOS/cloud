@@ -2,12 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { n8nWorkflowsService } from "@/lib/services/n8n-workflows";
 import { logger } from "@/lib/utils/logger";
-import { CreateApiKeySchema, formatApiKey, ErrorResponses } from "@/lib/n8n/schemas";
+import {
+  CreateApiKeySchema,
+  formatApiKey,
+  ErrorResponses,
+} from "@/lib/n8n/schemas";
 
 export async function GET(request: NextRequest) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const apiKeys = await n8nWorkflowsService.listApiKeys(user.organization_id);
-  return NextResponse.json({ success: true, apiKeys: apiKeys.map(formatApiKey) });
+  return NextResponse.json({
+    success: true,
+    apiKeys: apiKeys.map(formatApiKey),
+  });
 }
 
 export async function POST(request: NextRequest) {
@@ -16,7 +23,10 @@ export async function POST(request: NextRequest) {
   const validation = CreateApiKeySchema.safeParse(body);
 
   if (!validation.success) {
-    return NextResponse.json(ErrorResponses.invalidRequest(validation.error.format()), { status: 400 });
+    return NextResponse.json(
+      ErrorResponses.invalidRequest(validation.error.format()),
+      { status: 400 },
+    );
   }
 
   const { name, scopes, expiresAt } = validation.data;
@@ -40,5 +50,3 @@ export async function POST(request: NextRequest) {
     },
   });
 }
-
-

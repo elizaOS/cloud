@@ -31,16 +31,23 @@ export class HeliusService {
 
   constructor(config: HeliusConfig) {
     this.config = config;
-    this.client = new HeliusClient({ apiKey: config.apiKey, timeout: config.timeout, devnet: config.devnet });
+    this.client = new HeliusClient({
+      apiKey: config.apiKey,
+      timeout: config.timeout,
+      devnet: config.devnet,
+    });
   }
 
   static fromEnv(): HeliusService {
     const apiKey = process.env.HELIUS_API_KEY;
-    if (!apiKey) throw new Error("HELIUS_API_KEY environment variable is required");
+    if (!apiKey)
+      throw new Error("HELIUS_API_KEY environment variable is required");
 
     return new HeliusService({
       apiKey,
-      timeout: process.env.HELIUS_TIMEOUT ? parseInt(process.env.HELIUS_TIMEOUT, 10) : undefined,
+      timeout: process.env.HELIUS_TIMEOUT
+        ? parseInt(process.env.HELIUS_TIMEOUT, 10)
+        : undefined,
       devnet: process.env.HELIUS_DEVNET === "true",
     });
   }
@@ -49,30 +56,46 @@ export class HeliusService {
     return this.client.getRpcUrl();
   }
 
-  async parseTransactions(signatures: string[]): Promise<HeliusEnhancedTransaction[]> {
+  async parseTransactions(
+    signatures: string[],
+  ): Promise<HeliusEnhancedTransaction[]> {
     logger.info(`[Helius] Parsing ${signatures.length} transactions`);
-    return this.client.post<HeliusEnhancedTransaction[]>("/transactions", { transactions: signatures });
+    return this.client.post<HeliusEnhancedTransaction[]>("/transactions", {
+      transactions: signatures,
+    });
   }
 
-  async parseTransaction(signature: string): Promise<HeliusEnhancedTransaction> {
+  async parseTransaction(
+    signature: string,
+  ): Promise<HeliusEnhancedTransaction> {
     const results = await this.parseTransactions([signature]);
-    if (results.length === 0) throw new Error(`Transaction not found: ${signature}`);
+    if (results.length === 0)
+      throw new Error(`Transaction not found: ${signature}`);
     return results[0];
   }
 
   async getTransactionHistory(
     address: string,
-    options: { before?: string; until?: string; limit?: number; source?: string; type?: HeliusTransactionType } = {}
+    options: {
+      before?: string;
+      until?: string;
+      limit?: number;
+      source?: string;
+      type?: HeliusTransactionType;
+    } = {},
   ): Promise<{ transactions: TokenTransaction[]; hasMore: boolean }> {
     logger.info(`[Helius] Getting transaction history for ${address}`);
 
-    const results = await this.client.get<HeliusEnhancedTransaction[]>(`/addresses/${address}/transactions`, {
-      before: options.before,
-      until: options.until,
-      limit: options.limit ?? 100,
-      source: options.source,
-      type: options.type,
-    });
+    const results = await this.client.get<HeliusEnhancedTransaction[]>(
+      `/addresses/${address}/transactions`,
+      {
+        before: options.before,
+        until: options.until,
+        limit: options.limit ?? 100,
+        source: options.source,
+        type: options.type,
+      },
+    );
 
     return {
       transactions: results.map((tx) => ({
@@ -90,14 +113,17 @@ export class HeliusService {
 
   async getRawTransactionHistory(
     address: string,
-    options: { before?: string; until?: string; limit?: number } = {}
+    options: { before?: string; until?: string; limit?: number } = {},
   ): Promise<HeliusEnhancedTransaction[]> {
     logger.info(`[Helius] Getting raw transaction history for ${address}`);
-    return this.client.get<HeliusEnhancedTransaction[]>(`/addresses/${address}/transactions`, {
-      before: options.before,
-      until: options.until,
-      limit: options.limit ?? 100,
-    });
+    return this.client.get<HeliusEnhancedTransaction[]>(
+      `/addresses/${address}/transactions`,
+      {
+        before: options.before,
+        until: options.until,
+        limit: options.limit ?? 100,
+      },
+    );
   }
 
   async getAsset(assetId: string): Promise<HeliusAsset> {
@@ -107,16 +133,28 @@ export class HeliusService {
 
   async getAssetsByOwner(
     ownerAddress: string,
-    options: { page?: number; limit?: number; showFungible?: boolean; showNativeBalance?: boolean } = {}
+    options: {
+      page?: number;
+      limit?: number;
+      showFungible?: boolean;
+      showNativeBalance?: boolean;
+    } = {},
   ): Promise<{ items: HeliusAsset[]; total: number; page: number }> {
     logger.info(`[Helius] Getting assets for owner: ${ownerAddress}`);
 
-    return this.client.rpcRequest<{ items: HeliusAsset[]; total: number; page: number }>("getAssetsByOwner", [
+    return this.client.rpcRequest<{
+      items: HeliusAsset[];
+      total: number;
+      page: number;
+    }>("getAssetsByOwner", [
       {
         ownerAddress,
         page: options.page ?? 1,
         limit: options.limit ?? 100,
-        displayOptions: { showFungible: options.showFungible ?? true, showNativeBalance: options.showNativeBalance ?? true },
+        displayOptions: {
+          showFungible: options.showFungible ?? true,
+          showNativeBalance: options.showNativeBalance ?? true,
+        },
       },
     ]);
   }
@@ -124,12 +162,21 @@ export class HeliusService {
   async getAssetsByGroup(
     groupKey: "collection",
     groupValue: string,
-    options: { page?: number; limit?: number } = {}
+    options: { page?: number; limit?: number } = {},
   ): Promise<{ items: HeliusAsset[]; total: number; page: number }> {
     logger.info(`[Helius] Getting assets by ${groupKey}: ${groupValue}`);
 
-    return this.client.rpcRequest<{ items: HeliusAsset[]; total: number; page: number }>("getAssetsByGroup", [
-      { groupKey, groupValue, page: options.page ?? 1, limit: options.limit ?? 100 },
+    return this.client.rpcRequest<{
+      items: HeliusAsset[];
+      total: number;
+      page: number;
+    }>("getAssetsByGroup", [
+      {
+        groupKey,
+        groupValue,
+        page: options.page ?? 1,
+        limit: options.limit ?? 100,
+      },
     ]);
   }
 
@@ -143,10 +190,17 @@ export class HeliusService {
     limit?: number;
   }): Promise<{ items: HeliusAsset[]; total: number; page: number }> {
     logger.info("[Helius] Searching assets");
-    return this.client.rpcRequest<{ items: HeliusAsset[]; total: number; page: number }>("searchAssets", [params]);
+    return this.client.rpcRequest<{
+      items: HeliusAsset[];
+      total: number;
+      page: number;
+    }>("searchAssets", [params]);
   }
 
-  async getTokenMetadata(mintAccounts: string[], options: { includeOffChain?: boolean } = {}): Promise<HeliusTokenMetadata[]> {
+  async getTokenMetadata(
+    mintAccounts: string[],
+    options: { includeOffChain?: boolean } = {},
+  ): Promise<HeliusTokenMetadata[]> {
     logger.info(`[Helius] Getting metadata for ${mintAccounts.length} tokens`);
     return this.client.post<HeliusTokenMetadata[]>("/token-metadata", {
       mintAccounts,
@@ -166,7 +220,8 @@ export class HeliusService {
 
     return {
       address: mintAddress,
-      symbol: onChain?.symbol ?? legacy?.symbol ?? offChain?.symbol ?? "UNKNOWN",
+      symbol:
+        onChain?.symbol ?? legacy?.symbol ?? offChain?.symbol ?? "UNKNOWN",
       name: onChain?.name ?? legacy?.name ?? offChain?.name ?? "Unknown Token",
       decimals: parsed?.decimals ?? legacy?.decimals ?? 9,
       chainId: "solana",
@@ -179,10 +234,14 @@ export class HeliusService {
     return this.client.get<HeliusBalance>(`/addresses/${address}/balances`);
   }
 
-  async getWalletPortfolio(address: string, options: { includePrices?: boolean } = {}): Promise<WalletPortfolio> {
+  async getWalletPortfolio(
+    address: string,
+    options: { includePrices?: boolean } = {},
+  ): Promise<WalletPortfolio> {
     const balances = await this.getBalances(address);
     const tokenMints = balances.tokens.map((t) => t.mint);
-    const metadata = tokenMints.length > 0 ? await this.getTokenMetadata(tokenMints) : [];
+    const metadata =
+      tokenMints.length > 0 ? await this.getTokenMetadata(tokenMints) : [];
     const metadataMap = new Map(metadata.map((m) => [m.mint, m]));
 
     // Optionally fetch prices from Birdeye
@@ -192,7 +251,9 @@ export class HeliusService {
         const { getBirdeyeService } = await import("../birdeye");
         const birdeye = getBirdeyeService();
         const prices = await birdeye.getMultiPrice(tokenMints);
-        priceMap = new Map([...prices.entries()].map(([k, v]) => [k, v.priceUsd]));
+        priceMap = new Map(
+          [...prices.entries()].map(([k, v]) => [k, v.priceUsd]),
+        );
       } catch {
         // Birdeye unavailable, continue without prices
       }
@@ -221,30 +282,52 @@ export class HeliusService {
       };
     });
 
-    const totalValueUsd = holdings.reduce((sum, h) => sum + h.balanceUsd, 0) + (balances.nativeBalance / 1e9 * (priceMap.get("So11111111111111111111111111111111111111112") ?? 0));
+    const totalValueUsd =
+      holdings.reduce((sum, h) => sum + h.balanceUsd, 0) +
+      (balances.nativeBalance / 1e9) *
+        (priceMap.get("So11111111111111111111111111111111111111112") ?? 0);
 
     // Calculate percentages
     holdings.forEach((h) => {
-      h.percentage = totalValueUsd > 0 ? (h.balanceUsd / totalValueUsd) * 100 : 0;
+      h.percentage =
+        totalValueUsd > 0 ? (h.balanceUsd / totalValueUsd) * 100 : 0;
     });
 
     return { address, totalValueUsd, holdings, lastUpdated: new Date() };
   }
 
-  async getPriorityFee(accountKeys?: string[], options?: { recommended?: boolean }): Promise<HeliusPriorityFeeResponse> {
+  async getPriorityFee(
+    accountKeys?: string[],
+    options?: { recommended?: boolean },
+  ): Promise<HeliusPriorityFeeResponse> {
     logger.info("[Helius] Getting priority fee estimate");
-    return this.client.rpcRequest<HeliusPriorityFeeResponse>("getPriorityFeeEstimate", [
-      { accountKeys, options: { includeAllPriorityFeeLevels: true, recommended: options?.recommended ?? true } },
-    ]);
+    return this.client.rpcRequest<HeliusPriorityFeeResponse>(
+      "getPriorityFeeEstimate",
+      [
+        {
+          accountKeys,
+          options: {
+            includeAllPriorityFeeLevels: true,
+            recommended: options?.recommended ?? true,
+          },
+        },
+      ],
+    );
   }
 
   async createWebhook(
     webhookURL: string,
     accountAddresses: string[],
     transactionTypes: HeliusTransactionType[],
-    options: { webhookType?: "enhanced" | "raw" | "discord"; txnStatus?: "all" | "success" | "failed"; authHeader?: string } = {}
+    options: {
+      webhookType?: "enhanced" | "raw" | "discord";
+      txnStatus?: "all" | "success" | "failed";
+      authHeader?: string;
+    } = {},
   ): Promise<HeliusWebhook> {
-    logger.info(`[Helius] Creating webhook for ${accountAddresses.length} addresses`);
+    logger.info(
+      `[Helius] Creating webhook for ${accountAddresses.length} addresses`,
+    );
     return this.client.post<HeliusWebhook>("/webhooks", {
       webhookURL,
       transactionTypes,

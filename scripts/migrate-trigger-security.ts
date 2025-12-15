@@ -1,13 +1,13 @@
 /**
  * Migration Script: Add Security Fields to Existing Triggers
- * 
+ *
  * This script updates existing webhook triggers to have:
  * - webhookSecret (auto-generated if missing)
  * - requireSignature (default: true)
  * - maxExecutionsPerDay (default: 10000)
- * 
+ *
  * Run with: bun run scripts/migrate-trigger-security.ts
- * 
+ *
  * IMPORTANT: Run this ONCE after deploying the security updates.
  * The script is idempotent - running it multiple times is safe.
  */
@@ -55,23 +55,27 @@ async function migrateTriggerSecurity() {
     if (config.requireSignature === undefined) {
       updates.requireSignature = true;
       needsUpdate = true;
-      console.log(`  [${trigger.id.slice(0, 8)}...] Setting requireSignature=true`);
+      console.log(
+        `  [${trigger.id.slice(0, 8)}...] Setting requireSignature=true`,
+      );
     }
 
     // Add maxExecutionsPerDay if not set
     if (!config.maxExecutionsPerDay) {
       updates.maxExecutionsPerDay = 10000;
       needsUpdate = true;
-      console.log(`  [${trigger.id.slice(0, 8)}...] Setting maxExecutionsPerDay=10000`);
+      console.log(
+        `  [${trigger.id.slice(0, 8)}...] Setting maxExecutionsPerDay=10000`,
+      );
     }
 
     if (needsUpdate) {
       try {
         const newConfig = { ...config, ...updates };
-        
+
         await db
           .update(n8nWorkflowTriggers)
-          .set({ 
+          .set({
             config: newConfig,
             updated_at: new Date(),
           })
@@ -85,7 +89,9 @@ async function migrateTriggerSecurity() {
       }
     } else {
       skipped++;
-      console.log(`  ⏭️  Trigger ${trigger.id.slice(0, 8)}... already has security fields\n`);
+      console.log(
+        `  ⏭️  Trigger ${trigger.id.slice(0, 8)}... already has security fields\n`,
+      );
     }
   }
 
@@ -103,17 +109,19 @@ async function migrateTriggerSecurity() {
     if (!config.maxExecutionsPerDay) {
       try {
         const newConfig = { ...config, maxExecutionsPerDay: 1440 }; // 1 per minute max
-        
+
         await db
           .update(n8nWorkflowTriggers)
-          .set({ 
+          .set({
             config: newConfig,
             updated_at: new Date(),
           })
           .where(eq(n8nWorkflowTriggers.id, trigger.id));
 
         updated++;
-        console.log(`  ✅ Updated cron trigger ${trigger.id.slice(0, 8)}... with execution limit\n`);
+        console.log(
+          `  ✅ Updated cron trigger ${trigger.id.slice(0, 8)}... with execution limit\n`,
+        );
       } catch (error) {
         errors++;
         console.error(`  ❌ Error updating cron trigger ${trigger.id}:`, error);
@@ -137,9 +145,13 @@ async function migrateTriggerSecurity() {
   }
 
   console.log("✅ All triggers now have security fields configured.");
-  console.log("\n📝 IMPORTANT: Existing webhook callers will need to update their");
-  console.log("   integrations to include signature headers if requireSignature=true.\n");
-  
+  console.log(
+    "\n📝 IMPORTANT: Existing webhook callers will need to update their",
+  );
+  console.log(
+    "   integrations to include signature headers if requireSignature=true.\n",
+  );
+
   process.exit(0);
 }
 
@@ -148,4 +160,3 @@ migrateTriggerSecurity().catch((error) => {
   console.error("Migration failed:", error);
   process.exit(1);
 });
-

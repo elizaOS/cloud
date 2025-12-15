@@ -10,14 +10,38 @@ import { z } from "zod";
  * Supported currencies
  */
 export const CurrencySchema = z.enum([
-  "usd", "eur", "gbp", "jpy", "cny", "krw", "btc", "eth",
-  "aud", "cad", "chf", "hkd", "inr", "sgd", "twd", "brl",
+  "usd",
+  "eur",
+  "gbp",
+  "jpy",
+  "cny",
+  "krw",
+  "btc",
+  "eth",
+  "aud",
+  "cad",
+  "chf",
+  "hkd",
+  "inr",
+  "sgd",
+  "twd",
+  "brl",
 ]);
 
 /**
  * Time range for historical data
  */
-export const TimeRangeSchema = z.enum(["1h", "24h", "7d", "14d", "30d", "90d", "180d", "1y", "max"]);
+export const TimeRangeSchema = z.enum([
+  "1h",
+  "24h",
+  "7d",
+  "14d",
+  "30d",
+  "90d",
+  "180d",
+  "1y",
+  "max",
+]);
 
 /**
  * Sort order
@@ -54,7 +78,9 @@ export const GetMarketsSchema = z.object({
   perPage: z.number().int().min(1).max(250).optional().default(100),
   page: z.number().int().min(1).optional().default(1),
   sparkline: z.boolean().optional().default(false),
-  priceChangePercentage: z.array(z.enum(["1h", "24h", "7d", "14d", "30d", "200d", "1y"])).optional(),
+  priceChangePercentage: z
+    .array(z.enum(["1h", "24h", "7d", "14d", "30d", "200d", "1y"]))
+    .optional(),
 });
 
 /**
@@ -115,7 +141,16 @@ export const GetExchangesSchema = z.object({
  * Token price by contract address
  */
 export const GetTokenPriceSchema = z.object({
-  platform: z.enum(["ethereum", "polygon-pos", "binance-smart-chain", "solana", "base", "arbitrum-one", "optimistic-ethereum", "avalanche"]),
+  platform: z.enum([
+    "ethereum",
+    "polygon-pos",
+    "binance-smart-chain",
+    "solana",
+    "base",
+    "arbitrum-one",
+    "optimistic-ethereum",
+    "avalanche",
+  ]),
   contractAddresses: z.array(z.string().min(1)).min(1),
   vsCurrencies: z.array(CurrencySchema).min(1).default(["usd"]),
   includeMarketCap: z.boolean().optional().default(false),
@@ -132,4 +167,3 @@ export type SearchInput = z.infer<typeof SearchSchema>;
 export type GetCoinListInput = z.infer<typeof GetCoinListSchema>;
 export type GetExchangesInput = z.infer<typeof GetExchangesSchema>;
 export type GetTokenPriceInput = z.infer<typeof GetTokenPriceSchema>;
-

@@ -6,7 +6,9 @@ import { CreateInstanceSchema, ErrorResponses } from "@/lib/n8n/schemas";
 
 export async function GET(request: NextRequest) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
-  const instances = await n8nWorkflowsService.listInstances(user.organization_id);
+  const instances = await n8nWorkflowsService.listInstances(
+    user.organization_id,
+  );
 
   return NextResponse.json({
     success: true,
@@ -26,7 +28,10 @@ export async function POST(request: NextRequest) {
   const body = await request.json();
   const validation = CreateInstanceSchema.safeParse(body);
   if (!validation.success) {
-    return NextResponse.json(ErrorResponses.invalidRequest(validation.error.format()), { status: 400 });
+    return NextResponse.json(
+      ErrorResponses.invalidRequest(validation.error.format()),
+      { status: 400 },
+    );
   }
 
   const { name, endpoint, apiKey, isDefault } = validation.data;
@@ -45,11 +50,16 @@ export async function POST(request: NextRequest) {
     updated_at: new Date(),
   };
 
-  const isConnected = await n8nWorkflowsService.testInstanceConnection(testInstance);
+  const isConnected =
+    await n8nWorkflowsService.testInstanceConnection(testInstance);
   if (!isConnected) {
     return NextResponse.json(
-      { success: false, error: "Cannot connect to n8n instance. Please check your endpoint and API key." },
-      { status: 400 }
+      {
+        success: false,
+        error:
+          "Cannot connect to n8n instance. Please check your endpoint and API key.",
+      },
+      { status: 400 },
     );
   }
 
@@ -59,7 +69,7 @@ export async function POST(request: NextRequest) {
     name,
     endpoint,
     apiKey,
-    isDefault || false
+    isDefault || false,
   );
 
   logger.info(`[N8N Instances] Created instance: ${name}`, {
@@ -79,4 +89,3 @@ export async function POST(request: NextRequest) {
     },
   });
 }
-

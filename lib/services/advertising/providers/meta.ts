@@ -59,18 +59,18 @@ function isRetryableError(code: number): boolean {
 async function checkRateLimit(): Promise<void> {
   const now = Date.now();
   const oneMinuteAgo = now - 60000;
-  
+
   // Clean old timestamps
   RATE_LIMIT.requestTimestamps = RATE_LIMIT.requestTimestamps.filter(
-    (ts) => ts > oneMinuteAgo
+    (ts) => ts > oneMinuteAgo,
   );
-  
+
   if (RATE_LIMIT.requestTimestamps.length >= RATE_LIMIT.requestsPerMinute) {
     const waitTime = RATE_LIMIT.requestTimestamps[0] - oneMinuteAgo + 100;
     logger.info("[MetaAds] Rate limit approaching, waiting", { waitTime });
     await new Promise((resolve) => setTimeout(resolve, waitTime));
   }
-  
+
   RATE_LIMIT.requestTimestamps.push(now);
 }
 
@@ -81,12 +81,12 @@ async function sleep(ms: number): Promise<void> {
 async function graphApiRequest<T>(
   endpoint: string,
   accessToken: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
 ): Promise<T> {
   await checkRateLimit();
-  
+
   const url = new URL(
-    endpoint.startsWith("http") ? endpoint : `${GRAPH_API_BASE}${endpoint}`
+    endpoint.startsWith("http") ? endpoint : `${GRAPH_API_BASE}${endpoint}`,
   );
 
   if (!options.method || options.method === "GET") {
@@ -94,7 +94,7 @@ async function graphApiRequest<T>(
   }
 
   let lastError: Error | null = null;
-  
+
   for (let attempt = 1; attempt <= RETRY_CONFIG.maxAttempts; attempt++) {
     const response = await fetch(url.toString(), {
       ...options,
@@ -108,22 +108,24 @@ async function graphApiRequest<T>(
 
     if ((json as GraphApiError).error) {
       const error = (json as GraphApiError).error!;
-      lastError = new Error(`Meta API Error: ${error.message} (code: ${error.code})`);
-      
+      lastError = new Error(
+        `Meta API Error: ${error.message} (code: ${error.code})`,
+      );
+
       if (isRetryableError(error.code) && attempt < RETRY_CONFIG.maxAttempts) {
         const delay = Math.min(
           RETRY_CONFIG.baseDelayMs * Math.pow(2, attempt - 1),
-          RETRY_CONFIG.maxDelayMs
+          RETRY_CONFIG.maxDelayMs,
         );
-        logger.info("[MetaAds] Retrying after error", { 
-          code: error.code, 
-          attempt, 
-          delay 
+        logger.info("[MetaAds] Retrying after error", {
+          code: error.code,
+          attempt,
+          delay,
         });
         await sleep(delay);
         continue;
       }
-      
+
       throw lastError;
     }
 
@@ -166,7 +168,7 @@ export const metaAdsProvider: AdProvider = {
   platform: "meta",
 
   async validateCredentials(
-    credentials: AdAccountCredentials
+    credentials: AdAccountCredentials,
   ): Promise<AdProviderValidationResult> {
     try {
       const response = await graphApiRequest<{
@@ -193,26 +195,28 @@ export const metaAdsProvider: AdProvider = {
     // long-lived token for a new one before it expires. This requires app credentials.
     const appId = process.env.META_APP_ID;
     const appSecret = process.env.META_APP_SECRET;
-    
+
     if (!appId || !appSecret) {
-      throw new Error("META_APP_ID and META_APP_SECRET required for token refresh");
+      throw new Error(
+        "META_APP_ID and META_APP_SECRET required for token refresh",
+      );
     }
-    
+
     const response = await graphApiRequest<{
       access_token: string;
       token_type: string;
       expires_in?: number;
     }>(
       `/oauth/access_token?grant_type=fb_exchange_token&client_id=${appId}&client_secret=${appSecret}&fb_exchange_token=${currentToken}`,
-      currentToken
+      currentToken,
     );
-    
-    const expiresAt = response.expires_in 
+
+    const expiresAt = response.expires_in
       ? new Date(Date.now() + response.expires_in * 1000)
       : new Date(Date.now() + 60 * 24 * 60 * 60 * 1000); // Default 60 days
-    
+
     logger.info("[MetaAds] Token refreshed", { expiresAt });
-    
+
     return {
       accessToken: response.access_token,
       expiresAt,
@@ -220,13 +224,13 @@ export const metaAdsProvider: AdProvider = {
   },
 
   async listAdAccounts(
-    credentials: AdAccountCredentials
+    credentials: AdAccountCredentials,
   ): Promise<Array<{ id: string; name: string }>> {
     const response = await graphApiRequest<{
       data: AdAccountResponse[];
     }>(
       "/me/adaccounts?fields=id,name,account_status,currency,timezone_name",
-      credentials.accessToken
+      credentials.accessToken,
     );
 
     return response.data
@@ -240,7 +244,7 @@ export const metaAdsProvider: AdProvider = {
   async createCampaign(
     credentials: AdAccountCredentials,
     accountId: string,
-    input: CreateCampaignInput
+    input: CreateCampaignInput,
   ): Promise<AdProviderCampaignResult> {
     try {
       logger.info("[MetaAds] Creating campaign", {
@@ -265,7 +269,7 @@ export const metaAdsProvider: AdProvider = {
       const campaign = await graphApiRequest<CampaignResponse>(
         `/${actAccountId}/campaigns?${campaignParams}`,
         credentials.accessToken,
-        { method: "POST" }
+        { method: "POST" },
       );
 
       // Create ad set with budget and targeting
@@ -282,7 +286,7 @@ export const metaAdsProvider: AdProvider = {
         adSetParams.daily_budget = String(Math.round(input.budgetAmount * 100));
       } else {
         adSetParams.lifetime_budget = String(
-          Math.round(input.budgetAmount * 100)
+          Math.round(input.budgetAmount * 100),
         );
       }
 
@@ -333,7 +337,7 @@ export const metaAdsProvider: AdProvider = {
       await graphApiRequest(
         `/${actAccountId}/adsets?${new URLSearchParams(adSetParams)}`,
         credentials.accessToken,
-        { method: "POST" }
+        { method: "POST" },
       );
 
       logger.info("[MetaAds] Campaign created", { campaignId: campaign.id });
@@ -354,7 +358,7 @@ export const metaAdsProvider: AdProvider = {
   async updateCampaign(
     credentials: AdAccountCredentials,
     externalCampaignId: string,
-    input: UpdateCampaignInput
+    input: UpdateCampaignInput,
   ): Promise<AdProviderCampaignResult> {
     try {
       const params: Record<string, string> = {
@@ -370,7 +374,7 @@ export const metaAdsProvider: AdProvider = {
       await graphApiRequest(
         `/${externalCampaignId}?${updateParams}`,
         credentials.accessToken,
-        { method: "POST" }
+        { method: "POST" },
       );
 
       logger.info("[MetaAds] Campaign updated", { externalCampaignId });
@@ -387,7 +391,7 @@ export const metaAdsProvider: AdProvider = {
 
   async pauseCampaign(
     credentials: AdAccountCredentials,
-    externalCampaignId: string
+    externalCampaignId: string,
   ): Promise<AdProviderCampaignResult> {
     try {
       const params = new URLSearchParams({
@@ -398,7 +402,7 @@ export const metaAdsProvider: AdProvider = {
       await graphApiRequest(
         `/${externalCampaignId}?${params}`,
         credentials.accessToken,
-        { method: "POST" }
+        { method: "POST" },
       );
 
       logger.info("[MetaAds] Campaign paused", { externalCampaignId });
@@ -415,7 +419,7 @@ export const metaAdsProvider: AdProvider = {
 
   async activateCampaign(
     credentials: AdAccountCredentials,
-    externalCampaignId: string
+    externalCampaignId: string,
   ): Promise<AdProviderCampaignResult> {
     try {
       const params = new URLSearchParams({
@@ -426,7 +430,7 @@ export const metaAdsProvider: AdProvider = {
       await graphApiRequest(
         `/${externalCampaignId}?${params}`,
         credentials.accessToken,
-        { method: "POST" }
+        { method: "POST" },
       );
 
       logger.info("[MetaAds] Campaign activated", { externalCampaignId });
@@ -443,7 +447,7 @@ export const metaAdsProvider: AdProvider = {
 
   async deleteCampaign(
     credentials: AdAccountCredentials,
-    externalCampaignId: string
+    externalCampaignId: string,
   ): Promise<{ success: boolean; error?: string }> {
     try {
       const params = new URLSearchParams({
@@ -453,7 +457,7 @@ export const metaAdsProvider: AdProvider = {
       await graphApiRequest(
         `/${externalCampaignId}?${params}`,
         credentials.accessToken,
-        { method: "DELETE" }
+        { method: "DELETE" },
       );
 
       logger.info("[MetaAds] Campaign deleted", { externalCampaignId });
@@ -472,7 +476,7 @@ export const metaAdsProvider: AdProvider = {
     credentials: AdAccountCredentials,
     accountId: string,
     externalCampaignId: string,
-    input: CreateCreativeInput
+    input: CreateCreativeInput,
   ): Promise<AdProviderCreativeResult> {
     try {
       logger.info("[MetaAds] Creating creative", {
@@ -490,7 +494,7 @@ export const metaAdsProvider: AdProvider = {
         data: Array<{ id: string; name: string }>;
       }>(
         `/${externalCampaignId}/adsets?fields=id,name&access_token=${credentials.accessToken}`,
-        credentials.accessToken
+        credentials.accessToken,
       );
 
       if (!adSets.data.length) {
@@ -500,7 +504,10 @@ export const metaAdsProvider: AdProvider = {
       const adSetId = adSets.data[0].id;
 
       if (!input.destinationUrl) {
-        return { success: false, error: "Destination URL is required for creative" };
+        return {
+          success: false,
+          error: "Destination URL is required for creative",
+        };
       }
 
       // Create ad creative
@@ -521,11 +528,12 @@ export const metaAdsProvider: AdProvider = {
 
       // Add image if provided
       if (input.media.length > 0 && input.media[0].type === "image") {
-        (creativeData.object_story_spec as Record<string, unknown>).link_data = {
-          ...(creativeData.object_story_spec as Record<string, unknown>)
-            .link_data,
-          picture: input.media[0].url,
-        };
+        (creativeData.object_story_spec as Record<string, unknown>).link_data =
+          {
+            ...(creativeData.object_story_spec as Record<string, unknown>)
+              .link_data,
+            picture: input.media[0].url,
+          };
       }
 
       const creativeParams = new URLSearchParams({
@@ -534,14 +542,14 @@ export const metaAdsProvider: AdProvider = {
           Object.entries(creativeData).map(([k, v]) => [
             k,
             typeof v === "object" ? JSON.stringify(v) : String(v),
-          ])
+          ]),
         ),
       });
 
       const creative = await graphApiRequest<{ id: string }>(
         `/${actAccountId}/adcreatives?${creativeParams}`,
         credentials.accessToken,
-        { method: "POST" }
+        { method: "POST" },
       );
 
       // Create ad linking creative to ad set
@@ -556,7 +564,7 @@ export const metaAdsProvider: AdProvider = {
       const ad = await graphApiRequest<{ id: string }>(
         `/${actAccountId}/ads?${adParams}`,
         credentials.accessToken,
-        { method: "POST" }
+        { method: "POST" },
       );
 
       logger.info("[MetaAds] Creative created", {
@@ -572,7 +580,8 @@ export const metaAdsProvider: AdProvider = {
       logger.error("[MetaAds] Create creative failed", { error });
       return {
         success: false,
-        error: error instanceof Error ? error.message : "Failed to create creative",
+        error:
+          error instanceof Error ? error.message : "Failed to create creative",
       };
     }
   },
@@ -580,7 +589,7 @@ export const metaAdsProvider: AdProvider = {
   async getCampaignMetrics(
     credentials: AdAccountCredentials,
     externalCampaignId: string,
-    dateRange?: { start: Date; end: Date }
+    dateRange?: { start: Date; end: Date },
   ): Promise<AdProviderMetricsResult> {
     try {
       const fields = [

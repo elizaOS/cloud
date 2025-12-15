@@ -42,43 +42,55 @@ interface DiscordUser {
   bot?: boolean;
 }
 
-async function discordApiRequest<T>(endpoint: string, botToken: string, options: RequestInit = {}): Promise<T> {
+async function discordApiRequest<T>(
+  endpoint: string,
+  botToken: string,
+  options: RequestInit = {},
+): Promise<T> {
   const { data } = await withRetry<T>(
-    () => fetch(`${DISCORD_API_BASE}${endpoint}`, {
-      ...options,
-      headers: {
-        ...discordBotHeaders(botToken),
-        ...options.headers,
-      },
-    }),
+    () =>
+      fetch(`${DISCORD_API_BASE}${endpoint}`, {
+        ...options,
+        headers: {
+          ...discordBotHeaders(botToken),
+          ...options.headers,
+        },
+      }),
     async (response) => {
       const json = await response.json();
-      if (json.code) throw new Error(json.message || `Discord error ${json.code}`);
+      if (json.code)
+        throw new Error(json.message || `Discord error ${json.code}`);
       return json;
     },
-    { platform: "discord", maxRetries: 3 }
+    { platform: "discord", maxRetries: 3 },
   );
   return data;
 }
 
-async function webhookRequest<T>(webhookUrl: string, payload: Record<string, unknown>): Promise<T> {
-  const url = webhookUrl.includes("?") ? `${webhookUrl}&wait=true` : `${webhookUrl}?wait=true`;
+async function webhookRequest<T>(
+  webhookUrl: string,
+  payload: Record<string, unknown>,
+): Promise<T> {
+  const url = webhookUrl.includes("?")
+    ? `${webhookUrl}&wait=true`
+    : `${webhookUrl}?wait=true`;
   const { data } = await withRetry<T>(
-    () => fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    }),
+    () =>
+      fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      }),
     async (response) => {
       const json = await response.json();
-      if (json.code) throw new Error(json.message || `Webhook error ${json.code}`);
+      if (json.code)
+        throw new Error(json.message || `Webhook error ${json.code}`);
       return json;
     },
-    { platform: "discord", maxRetries: 3 }
+    { platform: "discord", maxRetries: 3 },
   );
   return data;
 }
-
 
 export const discordProvider: SocialMediaProvider = {
   platform: "discord",
@@ -113,7 +125,7 @@ export const discordProvider: SocialMediaProvider = {
     try {
       const user = await discordApiRequest<DiscordUser>(
         "/users/@me",
-        credentials.botToken
+        credentials.botToken,
       );
 
       return {
@@ -136,7 +148,7 @@ export const discordProvider: SocialMediaProvider = {
   async createPost(
     credentials: SocialCredentials,
     content: PostContent,
-    options?: PlatformPostOptions
+    options?: PlatformPostOptions,
   ): Promise<PostResult> {
     try {
       // Build message payload
@@ -179,7 +191,7 @@ export const discordProvider: SocialMediaProvider = {
       if (credentials.webhookUrl) {
         message = await webhookRequest<DiscordMessage>(
           credentials.webhookUrl,
-          payload
+          payload,
         );
       } else if (credentials.botToken) {
         // Use bot token with channel ID
@@ -198,7 +210,7 @@ export const discordProvider: SocialMediaProvider = {
           {
             method: "POST",
             body: JSON.stringify(payload),
-          }
+          },
         );
       } else {
         return {
@@ -235,14 +247,17 @@ export const discordProvider: SocialMediaProvider = {
       : [credentials.channelId, postId];
 
     if (!channelId || !messageId) {
-      return { success: false, error: "Invalid post ID format (expected channelId/messageId)" };
+      return {
+        success: false,
+        error: "Invalid post ID format (expected channelId/messageId)",
+      };
     }
 
     try {
       await discordApiRequest(
         `/channels/${channelId}/messages/${messageId}`,
         credentials.botToken,
-        { method: "DELETE" }
+        { method: "DELETE" },
       );
 
       return { success: true };
@@ -258,10 +273,14 @@ export const discordProvider: SocialMediaProvider = {
     credentials: SocialCredentials,
     postId: string,
     content: PostContent,
-    options?: PlatformPostOptions
+    options?: PlatformPostOptions,
   ): Promise<PostResult> {
     if (!credentials.botToken) {
-      return { platform: "discord", success: false, error: "Bot token required for replies" };
+      return {
+        platform: "discord",
+        success: false,
+        error: "Bot token required for replies",
+      };
     }
 
     const [channelId, messageId] = postId.includes("/")
@@ -292,7 +311,7 @@ export const discordProvider: SocialMediaProvider = {
         {
           method: "POST",
           body: JSON.stringify(payload),
-        }
+        },
       );
 
       return {
@@ -329,7 +348,7 @@ export const discordProvider: SocialMediaProvider = {
       await discordApiRequest(
         `/channels/${channelId}/messages/${messageId}/reactions/%F0%9F%91%8D/@me`,
         credentials.botToken,
-        { method: "PUT" }
+        { method: "PUT" },
       );
 
       return { success: true };
@@ -341,4 +360,3 @@ export const discordProvider: SocialMediaProvider = {
     }
   },
 };
-

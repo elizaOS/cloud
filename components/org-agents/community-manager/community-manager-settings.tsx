@@ -32,7 +32,12 @@ interface CommunityManagerSettingsProps {
   onSettingsChange: (settings: CommunityModerationSettings) => Promise<void>;
 }
 
-type SettingsTab = "moderation" | "token-gating" | "raid-protection" | "logs" | "general";
+type SettingsTab =
+  | "moderation"
+  | "token-gating"
+  | "raid-protection"
+  | "logs"
+  | "general";
 
 export function CommunityManagerSettings({
   organizationId,
@@ -42,10 +47,14 @@ export function CommunityManagerSettings({
 }: CommunityManagerSettingsProps) {
   const searchParams = useSearchParams();
   const tabFromUrl = searchParams.get("section") as SettingsTab | null;
-  const [activeTab, setActiveTab] = useState<SettingsTab>(tabFromUrl ?? "general");
+  const [activeTab, setActiveTab] = useState<SettingsTab>(
+    tabFromUrl ?? "general",
+  );
   const [isSaving, setIsSaving] = useState(false);
 
-  const handleSave = async (newSettings: Partial<CommunityModerationSettings>) => {
+  const handleSave = async (
+    newSettings: Partial<CommunityModerationSettings>,
+  ) => {
     setIsSaving(true);
     await onSettingsChange({ ...settings, ...newSettings });
     setIsSaving(false);
@@ -60,14 +69,19 @@ export function CommunityManagerSettings({
             <Shield className="h-6 w-6 text-orange-500" />
           </div>
           <div>
-            <h2 className="text-xl font-semibold">Community Manager Settings</h2>
+            <h2 className="text-xl font-semibold">
+              Community Manager Settings
+            </h2>
             <p className="text-sm text-muted-foreground">
               Configure moderation, token gating, and community protection
             </p>
           </div>
         </div>
 
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as SettingsTab)}>
+        <Tabs
+          value={activeTab}
+          onValueChange={(v) => setActiveTab(v as SettingsTab)}
+        >
           <TabsList className="grid w-full grid-cols-5 mb-6">
             <TabsTrigger value="general" className="flex items-center gap-2">
               <Settings className="h-4 w-4" />
@@ -77,11 +91,17 @@ export function CommunityManagerSettings({
               <Shield className="h-4 w-4" />
               <span className="hidden sm:inline">Moderation</span>
             </TabsTrigger>
-            <TabsTrigger value="token-gating" className="flex items-center gap-2">
+            <TabsTrigger
+              value="token-gating"
+              className="flex items-center gap-2"
+            >
               <Coins className="h-4 w-4" />
               <span className="hidden sm:inline">Token Gate</span>
             </TabsTrigger>
-            <TabsTrigger value="raid-protection" className="flex items-center gap-2">
+            <TabsTrigger
+              value="raid-protection"
+              className="flex items-center gap-2"
+            >
               <AlertTriangle className="h-4 w-4" />
               <span className="hidden sm:inline">Raid</span>
             </TabsTrigger>
@@ -128,10 +148,7 @@ export function CommunityManagerSettings({
           </TabsContent>
 
           <TabsContent value="logs">
-            <LogsTab
-              organizationId={organizationId}
-              serverId={serverId}
-            />
+            <LogsTab organizationId={organizationId} serverId={serverId} />
           </TabsContent>
         </Tabs>
       </BrandCard>
@@ -150,11 +167,21 @@ interface GeneralSettingsProps {
 }
 
 function GeneralSettings({ settings, onSave, isSaving }: GeneralSettingsProps) {
-  const [greetNewMembers, setGreetNewMembers] = useState(settings.greetNewMembers ?? false);
-  const [greetingMessage, setGreetingMessage] = useState(settings.greetingMessage ?? "");
-  const [logModerationActions, setLogModerationActions] = useState(settings.logModerationActions ?? true);
-  const [logMemberJoins, setLogMemberJoins] = useState(settings.logMemberJoins ?? false);
-  const [logMemberLeaves, setLogMemberLeaves] = useState(settings.logMemberLeaves ?? false);
+  const [greetNewMembers, setGreetNewMembers] = useState(
+    settings.greetNewMembers ?? false,
+  );
+  const [greetingMessage, setGreetingMessage] = useState(
+    settings.greetingMessage ?? "",
+  );
+  const [logModerationActions, setLogModerationActions] = useState(
+    settings.logModerationActions ?? true,
+  );
+  const [logMemberJoins, setLogMemberJoins] = useState(
+    settings.logMemberJoins ?? false,
+  );
+  const [logMemberLeaves, setLogMemberLeaves] = useState(
+    settings.logMemberLeaves ?? false,
+  );
 
   const handleSave = async () => {
     await onSave({
@@ -268,7 +295,12 @@ interface ToggleSettingProps {
   onChange: (checked: boolean) => void;
 }
 
-function ToggleSetting({ label, description, checked, onChange }: ToggleSettingProps) {
+function ToggleSetting({
+  label,
+  description,
+  checked,
+  onChange,
+}: ToggleSettingProps) {
   return (
     <div className="flex items-center justify-between py-2">
       <div>
@@ -293,5 +325,3 @@ function ToggleSetting({ label, description, checked, onChange }: ToggleSettingP
     </div>
   );
 }
-
-

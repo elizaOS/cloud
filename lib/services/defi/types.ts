@@ -17,13 +17,38 @@ export const CHAIN_METADATA: Record<
   { name: string; nativeCurrency: string; decimals: number; isEVM: boolean }
 > = {
   solana: { name: "Solana", nativeCurrency: "SOL", decimals: 9, isEVM: false },
-  ethereum: { name: "Ethereum", nativeCurrency: "ETH", decimals: 18, isEVM: true },
+  ethereum: {
+    name: "Ethereum",
+    nativeCurrency: "ETH",
+    decimals: 18,
+    isEVM: true,
+  },
   base: { name: "Base", nativeCurrency: "ETH", decimals: 18, isEVM: true },
-  arbitrum: { name: "Arbitrum", nativeCurrency: "ETH", decimals: 18, isEVM: true },
-  optimism: { name: "Optimism", nativeCurrency: "ETH", decimals: 18, isEVM: true },
-  polygon: { name: "Polygon", nativeCurrency: "MATIC", decimals: 18, isEVM: true },
+  arbitrum: {
+    name: "Arbitrum",
+    nativeCurrency: "ETH",
+    decimals: 18,
+    isEVM: true,
+  },
+  optimism: {
+    name: "Optimism",
+    nativeCurrency: "ETH",
+    decimals: 18,
+    isEVM: true,
+  },
+  polygon: {
+    name: "Polygon",
+    nativeCurrency: "MATIC",
+    decimals: 18,
+    isEVM: true,
+  },
   bsc: { name: "BNB Chain", nativeCurrency: "BNB", decimals: 18, isEVM: true },
-  avalanche: { name: "Avalanche", nativeCurrency: "AVAX", decimals: 18, isEVM: true },
+  avalanche: {
+    name: "Avalanche",
+    nativeCurrency: "AVAX",
+    decimals: 18,
+    isEVM: true,
+  },
 };
 
 export interface TokenInfo {
@@ -54,7 +79,15 @@ export interface OHLCVDataPoint {
   volume: number;
 }
 
-export type TimeInterval = "1m" | "5m" | "15m" | "30m" | "1h" | "4h" | "1d" | "1w";
+export type TimeInterval =
+  | "1m"
+  | "5m"
+  | "15m"
+  | "30m"
+  | "1h"
+  | "4h"
+  | "1d"
+  | "1w";
 
 export interface SwapQuoteRequest {
   inputToken: string;

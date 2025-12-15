@@ -1,6 +1,6 @@
 /**
  * Eliza Cloud SDK Reference
- * 
+ *
  * Compact, comprehensive API reference for AI App Builder.
  * Provides easy-to-use patterns for all Eliza Cloud services.
  */
@@ -496,4 +496,3 @@ When building apps that need data persistence, use the Storage API instead of lo
 For AI features, always use our chat/image/video APIs - they handle model routing, billing, and rate limiting.
 For automation, use n8n workflows - they can be triggered via webhooks or executed directly.
 `;
-

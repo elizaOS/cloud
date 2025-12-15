@@ -56,11 +56,11 @@ export const appAgents = pgTable(
     // Each app-agent pair must be unique
     unique_idx: uniqueIndex("app_agents_unique_idx").on(
       table.app_id,
-      table.agent_id
+      table.agent_id,
     ),
     app_idx: index("app_agents_app_idx").on(table.app_id),
     agent_idx: index("app_agents_agent_idx").on(table.agent_id),
-  })
+  }),
 );
 
 // =============================================================================
@@ -96,11 +96,11 @@ export const appWorkflows = pgTable(
     // Each app-workflow pair must be unique
     unique_idx: uniqueIndex("app_workflows_unique_idx").on(
       table.app_id,
-      table.workflow_id
+      table.workflow_id,
     ),
     app_idx: index("app_workflows_app_idx").on(table.app_id),
     workflow_idx: index("app_workflows_workflow_idx").on(table.workflow_id),
-  })
+  }),
 );
 
 // =============================================================================
@@ -136,11 +136,11 @@ export const appServices = pgTable(
     // Each app-service pair must be unique
     unique_idx: uniqueIndex("app_services_unique_idx").on(
       table.app_id,
-      table.service_id
+      table.service_id,
     ),
     app_idx: index("app_services_app_idx").on(table.app_id),
     service_idx: index("app_services_service_idx").on(table.service_id),
-  })
+  }),
 );
 
 // =============================================================================
@@ -153,5 +153,3 @@ export type AppWorkflow = InferSelectModel<typeof appWorkflows>;
 export type NewAppWorkflow = InferInsertModel<typeof appWorkflows>;
 export type AppService = InferSelectModel<typeof appServices>;
 export type NewAppService = InferInsertModel<typeof appServices>;
-
-

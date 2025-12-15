@@ -5,7 +5,7 @@ import { ErrorResponses } from "@/lib/n8n/schemas";
 
 export async function GET(
   request: NextRequest,
-  ctx: { params: Promise<{ id: string }> }
+  ctx: { params: Promise<{ id: string }> },
 ) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { id } = await ctx.params;
@@ -15,7 +15,9 @@ export async function GET(
     return NextResponse.json(ErrorResponses.workflowNotFound, { status: 404 });
   }
 
-  const limit = Number.parseInt(request.nextUrl.searchParams.get("limit") || "50");
+  const limit = Number.parseInt(
+    request.nextUrl.searchParams.get("limit") || "50",
+  );
 
   const executions = await n8nWorkflowsService.getWorkflowExecutions(id, limit);
 
@@ -37,5 +39,3 @@ export async function GET(
     count: executions.length,
   });
 }
-
-

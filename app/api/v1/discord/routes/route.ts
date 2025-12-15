@@ -9,7 +9,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/utils/logger";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { discordEventRouter } from "@/lib/services/discord-gateway";
-import type { NewDiscordEventRoute, DiscordEventType, DiscordRouteType } from "@/db/schemas/discord-gateway";
+import type {
+  NewDiscordEventRoute,
+  DiscordEventType,
+  DiscordRouteType,
+} from "@/db/schemas/discord-gateway";
 import { z } from "zod";
 
 export const dynamic = "force-dynamic";
@@ -44,7 +48,13 @@ const CreateRouteSchema = z.object({
   filter_self_messages: z.boolean().optional().default(true),
   mention_only: z.boolean().optional().default(false),
   command_prefix: z.string().max(10).optional(),
-  rate_limit_per_minute: z.number().int().min(1).max(1000).optional().default(60),
+  rate_limit_per_minute: z
+    .number()
+    .int()
+    .min(1)
+    .max(1000)
+    .optional()
+    .default(60),
   rate_limit_burst: z.number().int().min(1).max(100).optional().default(10),
   enabled: z.boolean().optional().default(true),
   priority: z.number().int().min(1).max(1000).optional().default(100),
@@ -99,8 +109,12 @@ export async function POST(request: NextRequest) {
   const parsed = CreateRouteSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
-      { success: false, error: "Invalid request", details: parsed.error.issues },
-      { status: 400 }
+      {
+        success: false,
+        error: "Invalid request",
+        details: parsed.error.issues,
+      },
+      { status: 400 },
     );
   }
 
@@ -146,4 +160,3 @@ export async function POST(request: NextRequest) {
     },
   });
 }
-

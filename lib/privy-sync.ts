@@ -15,7 +15,10 @@ import { discordService } from "@/lib/services/discord";
 import { apiKeysService } from "@/lib/services/api-keys";
 import { creditsService } from "@/lib/services/credits";
 import { organizationInvitesRepository } from "@/db/repositories";
-import { abuseDetectionService, type SignupContext } from "@/lib/services/abuse-detection";
+import {
+  abuseDetectionService,
+  type SignupContext,
+} from "@/lib/services/abuse-detection";
 import { logger } from "@/lib/utils/logger";
 import type { UserWithOrganization } from "@/lib/types";
 
@@ -86,7 +89,7 @@ export async function syncUserFromPrivy(
 
   // Extract email (optional - only some OAuth providers share this)
   let email: string | undefined;
-  
+
   // Try primary email field first
   if (privyUser.email?.address) {
     email = privyUser.email.address.toLowerCase().trim();
@@ -96,11 +99,15 @@ export async function syncUserFromPrivy(
   if (!email && privyUser.linkedAccounts) {
     for (const account of privyUser.linkedAccounts) {
       // Email account type
-      if (account.type === "email" && "address" in account && typeof account.address === "string") {
+      if (
+        account.type === "email" &&
+        "address" in account &&
+        typeof account.address === "string"
+      ) {
         email = account.address.toLowerCase().trim();
         break;
       }
-      
+
       // OAuth providers (Discord, Google, etc.) may include email
       if (
         account.type.includes("oauth") &&
@@ -121,11 +128,18 @@ export async function syncUserFromPrivy(
 
   if (privyUser.linkedAccounts) {
     for (const account of privyUser.linkedAccounts) {
-      if (account.type === "wallet" && "address" in account && typeof account.address === "string") {
+      if (
+        account.type === "wallet" &&
+        "address" in account &&
+        typeof account.address === "string"
+      ) {
         walletAddress = account.address.toLowerCase();
-        walletChainType = "chainType" in account && typeof account.chainType === "string" && account.chainType.includes("solana")
-          ? "solana"
-          : "ethereum";
+        walletChainType =
+          "chainType" in account &&
+          typeof account.chainType === "string" &&
+          account.chainType.includes("solana")
+            ? "solana"
+            : "ethereum";
         walletVerified = "verified" in account && account.verified === true;
         break;
       }
@@ -134,27 +148,35 @@ export async function syncUserFromPrivy(
 
   // Extract name - prioritize: OAuth name > OAuth username > email > wallet
   let name: string | null | undefined;
-  
+
   if (privyUser.linkedAccounts) {
     // Try OAuth account name first
     for (const account of privyUser.linkedAccounts) {
-      if ("name" in account && typeof account.name === "string" && account.name.length > 0) {
+      if (
+        "name" in account &&
+        typeof account.name === "string" &&
+        account.name.length > 0
+      ) {
         name = account.name;
         break;
       }
     }
-    
+
     // Fallback to OAuth username (GitHub, Discord, etc.)
     if (!name) {
       for (const account of privyUser.linkedAccounts) {
-        if ("username" in account && typeof account.username === "string" && account.username.length > 0) {
+        if (
+          "username" in account &&
+          typeof account.username === "string" &&
+          account.username.length > 0
+        ) {
           name = account.username;
           break;
         }
       }
     }
   }
-  
+
   // Final fallbacks for name
   if (!name && email) {
     name = email.split("@")[0]; // Use email prefix
@@ -193,7 +215,6 @@ export async function syncUserFromPrivy(
 
     return user;
   }
-
 
   // Check for pending invite first (before creating new organization)
   if (email) {
@@ -258,7 +279,9 @@ export async function syncUserFromPrivy(
     });
 
     if (!abuseCheck.allowed) {
-      throw new Error(abuseCheck.reason || "Signup blocked due to suspicious activity");
+      throw new Error(
+        abuseCheck.reason || "Signup blocked due to suspicious activity",
+      );
     }
   }
 
@@ -276,7 +299,9 @@ export async function syncUserFromPrivy(
     orgSlug = `${sanitized}-${timestamp}${random}`;
   } else {
     // Should never reach here - name always has a fallback
-    throw new Error(`Cannot generate organization slug for user ${privyUserId}`);
+    throw new Error(
+      `Cannot generate organization slug for user ${privyUserId}`,
+    );
   }
 
   // Ensure slug is unique
@@ -300,10 +325,12 @@ export async function syncUserFromPrivy(
     credit_balance: "0.00",
   });
 
-
   // Record signup metadata for future abuse detection
   if (signupContext) {
-    await abuseDetectionService.recordSignupMetadata(organization.id, signupContext);
+    await abuseDetectionService.recordSignupMetadata(
+      organization.id,
+      signupContext,
+    );
   }
 
   // Add initial free credits via creditsService for proper tracking
@@ -384,11 +411,14 @@ export async function syncUserFromPrivy(
           if (existingUser.privy_user_id !== privyUserId) {
             // Email is already registered with a different Privy account
             // This happens when user signs up with email, then tries OAuth with same email
-            logger.warn("[PrivySync] Email conflict - different Privy account", {
-              email,
-              existingPrivyId: existingUser.privy_user_id,
-              newPrivyId: privyUserId,
-            });
+            logger.warn(
+              "[PrivySync] Email conflict - different Privy account",
+              {
+                email,
+                existingPrivyId: existingUser.privy_user_id,
+                newPrivyId: privyUserId,
+              },
+            );
             await organizationsService.delete(organization.id);
             throw new Error(
               `Email ${email} is already registered with a different account`,
@@ -405,10 +435,13 @@ export async function syncUserFromPrivy(
       }
 
       // Couldn't find existing user even after retries - cleanup and rethrow
-      logger.error("[PrivySync] Duplicate key error but user not found after retries", {
-        privyUserId,
-        maxRetries,
-      });
+      logger.error(
+        "[PrivySync] Duplicate key error but user not found after retries",
+        {
+          privyUserId,
+          maxRetries,
+        },
+      );
       await organizationsService.delete(organization.id);
     }
     // Not a duplicate key error or couldn't find the existing user - rethrow
@@ -425,7 +458,6 @@ export async function syncUserFromPrivy(
   if (!userWithOrg) {
     throw new Error(`Failed to fetch newly created user ${privyUserId}`);
   }
-
 
   // Send welcome email asynchronously (fire-and-forget)
   const recipientEmail = email || userWithOrg.organization?.billing_email;
@@ -446,18 +478,17 @@ export async function syncUserFromPrivy(
   }
 
   // Log to Discord (fire-and-forget)
-  discordService
-    .logUserSignup({
-      userId: userWithOrg.id,
-      privyUserId: userWithOrg.privy_user_id!,
-      email: userWithOrg.email || null,
-      name: userWithOrg.name || null,
-      walletAddress: userWithOrg.wallet_address || null,
-      organizationId: userWithOrg.organization?.id || "",
-      organizationName: userWithOrg.organization?.name || "",
-      role: userWithOrg.role,
-      isNewOrganization: true,
-    })
+  discordService.logUserSignup({
+    userId: userWithOrg.id,
+    privyUserId: userWithOrg.privy_user_id!,
+    email: userWithOrg.email || null,
+    name: userWithOrg.name || null,
+    walletAddress: userWithOrg.wallet_address || null,
+    organizationId: userWithOrg.organization?.id || "",
+    organizationName: userWithOrg.organization?.name || "",
+    role: userWithOrg.role,
+    isNewOrganization: true,
+  });
 
   // Auto-generate default API key for new user (fire-and-forget)
   void ensureUserHasApiKey(userWithOrg.id, userWithOrg.organization?.id || "");
@@ -487,7 +518,10 @@ async function ensureUserHasApiKey(
   }
 
   if (!organizationId || organizationId.trim() === "") {
-    logger.warn("[PrivySync] No organization for user, skipping API key creation", { userId });
+    logger.warn(
+      "[PrivySync] No organization for user, skipping API key creation",
+      { userId },
+    );
     return;
   }
 

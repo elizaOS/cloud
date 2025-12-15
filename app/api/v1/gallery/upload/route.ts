@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
         error: "Unsupported file type",
         allowedTypes: ALLOWED_TYPES,
       },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
         maxSize: MAX_FILE_SIZE,
         maxSizeMB: MAX_FILE_SIZE / 1024 / 1024,
       },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -97,6 +97,6 @@ export async function POST(request: NextRequest) {
       dimensions: upload.dimensions,
       createdAt: upload.created_at.toISOString(),
     },
-    { status: 201 }
+    { status: 201 },
   );
 }

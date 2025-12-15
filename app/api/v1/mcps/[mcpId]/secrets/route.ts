@@ -11,7 +11,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { secretsService, isSecretsConfigured, type AuditContext } from "@/lib/services/secrets";
+import {
+  secretsService,
+  isSecretsConfigured,
+  type AuditContext,
+} from "@/lib/services/secrets";
 import { userMcpsService } from "@/lib/services/user-mcps";
 
 export const dynamic = "force-dynamic";
@@ -24,7 +28,7 @@ const createSecretSchema = z.object({
     .max(256)
     .regex(
       /^[A-Z][A-Z0-9_]*$/,
-      "Secret name must be uppercase with underscores (e.g., MY_API_KEY)"
+      "Secret name must be uppercase with underscores (e.g., MY_API_KEY)",
     ),
   value: z.string().min(1).max(65536),
   description: z.string().max(1024).optional(),
@@ -37,7 +41,7 @@ const createSecretSchema = z.object({
  */
 export async function GET(
   request: NextRequest,
-  ctx: { params: Promise<{ mcpId: string }> }
+  ctx: { params: Promise<{ mcpId: string }> },
 ) {
   const authResult = await requireAuthOrApiKeyWithOrg(request);
   const { mcpId } = await ctx.params;
@@ -47,7 +51,7 @@ export async function GET(
   if (!mcp || mcp.organization_id !== authResult.user.organization_id) {
     return NextResponse.json(
       { success: false, error: "MCP not found or access denied" },
-      { status: 404 }
+      { status: 404 },
     );
   }
 
@@ -78,7 +82,7 @@ export async function GET(
  */
 export async function POST(
   request: NextRequest,
-  ctx: { params: Promise<{ mcpId: string }> }
+  ctx: { params: Promise<{ mcpId: string }> },
 ) {
   const authResult = await requireAuthOrApiKeyWithOrg(request);
   const { mcpId } = await ctx.params;
@@ -88,14 +92,14 @@ export async function POST(
   if (!mcp || mcp.organization_id !== authResult.user.organization_id) {
     return NextResponse.json(
       { success: false, error: "MCP not found or access denied" },
-      { status: 404 }
+      { status: 404 },
     );
   }
 
   if (!isSecretsConfigured()) {
     return NextResponse.json(
       { success: false, error: "Secrets service is not configured" },
-      { status: 503 }
+      { status: 503 },
     );
   }
 
@@ -104,8 +108,12 @@ export async function POST(
 
   if (!validation.success) {
     return NextResponse.json(
-      { success: false, error: "Invalid request", details: validation.error.flatten() },
-      { status: 400 }
+      {
+        success: false,
+        error: "Invalid request",
+        details: validation.error.flatten(),
+      },
+      { status: 400 },
     );
   }
 
@@ -115,7 +123,10 @@ export async function POST(
     actorType: authResult.apiKey ? "api_key" : "user",
     actorId: authResult.apiKey?.id || authResult.user.id,
     actorEmail: authResult.user.email,
-    ipAddress: request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || undefined,
+    ipAddress:
+      request.headers.get("x-forwarded-for") ||
+      request.headers.get("x-real-ip") ||
+      undefined,
     userAgent: request.headers.get("user-agent") || undefined,
     source: authResult.apiKey ? "api" : "dashboard",
     endpoint: `/api/v1/mcps/${mcpId}/secrets`,
@@ -133,7 +144,7 @@ export async function POST(
       environment: data.environment,
       createdBy: authResult.user.id,
     },
-    auditContext
+    auditContext,
   );
 
   return NextResponse.json({
@@ -146,4 +157,3 @@ export async function POST(
     createdAt: secret.createdAt.toISOString(),
   });
 }
-

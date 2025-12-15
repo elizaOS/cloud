@@ -110,7 +110,9 @@ export function CollectionsPageClient() {
         setIsLoading(false);
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -119,7 +121,9 @@ export function CollectionsPageClient() {
     void (async () => {
       await refreshCollectionItems(selectedCollection.id);
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [selectedCollection]);
 
   const handleCreate = async () => {
@@ -270,7 +274,10 @@ export function CollectionsPageClient() {
             {collections.length} collection{collections.length !== 1 ? "s" : ""}
           </p>
         </div>
-        <BrandButton variant="primary" onClick={() => setShowCreateDialog(true)}>
+        <BrandButton
+          variant="primary"
+          onClick={() => setShowCreateDialog(true)}
+        >
           <PlusIcon className="w-4 h-4 mr-2" />
           New Collection
         </BrandButton>
@@ -372,7 +379,8 @@ export function CollectionsPageClient() {
                 </div>
 
                 <p className="text-xs text-white/40 mt-2">
-                  Created {format(new Date(collection.createdAt), "MMM d, yyyy")}
+                  Created{" "}
+                  {format(new Date(collection.createdAt), "MMM d, yyyy")}
                 </p>
               </div>
             </BrandCard>

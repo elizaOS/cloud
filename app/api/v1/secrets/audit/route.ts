@@ -6,7 +6,7 @@ import { formatAuditEntry } from "@/lib/api/secrets-helpers";
 export async function GET(request: NextRequest) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { searchParams } = request.nextUrl;
-  
+
   const secretId = searchParams.get("secretId");
   const limit = Math.min(parseInt(searchParams.get("limit") || "100"), 1000);
 

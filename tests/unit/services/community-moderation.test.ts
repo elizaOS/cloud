@@ -19,7 +19,9 @@ import { describe, test, expect, beforeEach, afterEach } from "bun:test";
 // =============================================================================
 
 describe("Link Safety Service", () => {
-  let linkSafetyService: Awaited<typeof import("@/lib/services/link-safety")>["linkSafetyService"];
+  let linkSafetyService: Awaited<
+    typeof import("@/lib/services/link-safety")
+  >["linkSafetyService"];
 
   beforeEach(async () => {
     const linkSafetyModule = await import("@/lib/services/link-safety");
@@ -68,16 +70,28 @@ describe("Link Safety Service", () => {
 
   describe("URL Shortener Detection", () => {
     test("detects known URL shorteners", () => {
-      expect(linkSafetyService.isUrlShortener("https://bit.ly/abc123")).toBe(true);
-      expect(linkSafetyService.isUrlShortener("https://tinyurl.com/test")).toBe(true);
+      expect(linkSafetyService.isUrlShortener("https://bit.ly/abc123")).toBe(
+        true,
+      );
+      expect(linkSafetyService.isUrlShortener("https://tinyurl.com/test")).toBe(
+        true,
+      );
       expect(linkSafetyService.isUrlShortener("https://t.co/xyz")).toBe(true);
-      expect(linkSafetyService.isUrlShortener("https://goo.gl/short")).toBe(true);
+      expect(linkSafetyService.isUrlShortener("https://goo.gl/short")).toBe(
+        true,
+      );
     });
 
     test("returns false for regular URLs", () => {
-      expect(linkSafetyService.isUrlShortener("https://example.com")).toBe(false);
-      expect(linkSafetyService.isUrlShortener("https://google.com")).toBe(false);
-      expect(linkSafetyService.isUrlShortener("https://github.com/repo")).toBe(false);
+      expect(linkSafetyService.isUrlShortener("https://example.com")).toBe(
+        false,
+      );
+      expect(linkSafetyService.isUrlShortener("https://google.com")).toBe(
+        false,
+      );
+      expect(linkSafetyService.isUrlShortener("https://github.com/repo")).toBe(
+        false,
+      );
     });
 
     test("handles invalid URLs gracefully", () => {
@@ -95,26 +109,34 @@ describe("Link Safety Service", () => {
     });
 
     test("detects known scam domains", async () => {
-      const result = await linkSafetyService.checkUrl("https://discord-nitro-free.com/claim");
+      const result = await linkSafetyService.checkUrl(
+        "https://discord-nitro-free.com/claim",
+      );
       expect(result.safe).toBe(false);
       expect(result.threats).toContain("scam");
     });
 
     test("detects known scam domains", async () => {
       // dlscord.com is in the KNOWN_THREAT_DOMAINS list, so it's marked as "scam"
-      const result = await linkSafetyService.checkUrl("https://dlscord.com/login");
+      const result = await linkSafetyService.checkUrl(
+        "https://dlscord.com/login",
+      );
       expect(result.safe).toBe(false);
       expect(result.threats).toContain("scam");
     });
 
     test("detects IP address URLs as suspicious", async () => {
-      const result = await linkSafetyService.checkUrl("http://192.168.1.1/login");
+      const result = await linkSafetyService.checkUrl(
+        "http://192.168.1.1/login",
+      );
       expect(result.safe).toBe(false);
       expect(result.threats).toContain("suspicious_domain");
     });
 
     test("detects excessive subdomains as suspicious", async () => {
-      const result = await linkSafetyService.checkUrl("https://login.secure.verify.account.suspicious.com");
+      const result = await linkSafetyService.checkUrl(
+        "https://login.secure.verify.account.suspicious.com",
+      );
       expect(result.safe).toBe(false);
     });
 
@@ -125,12 +147,16 @@ describe("Link Safety Service", () => {
     });
 
     test("detects high-abuse TLDs", async () => {
-      const result = await linkSafetyService.checkUrl("https://free-airdrop.xyz");
+      const result = await linkSafetyService.checkUrl(
+        "https://free-airdrop.xyz",
+      );
       expect(result.safe).toBe(false);
     });
 
     test("returns domain in result", async () => {
-      const result = await linkSafetyService.checkUrl("https://example.com/path?query=1");
+      const result = await linkSafetyService.checkUrl(
+        "https://example.com/path?query=1",
+      );
       expect(result.domain).toBe("example.com");
     });
   });
@@ -145,9 +171,15 @@ describe("Link Safety Service", () => {
       const results = await linkSafetyService.checkUrls(urls);
 
       expect(results).toHaveLength(3);
-      expect(results.find((r) => r.url === "https://google.com")?.safe).toBe(true);
-      expect(results.find((r) => r.url === "https://discord-nitro-free.com")?.safe).toBe(false);
-      expect(results.find((r) => r.url === "https://github.com")?.safe).toBe(true);
+      expect(results.find((r) => r.url === "https://google.com")?.safe).toBe(
+        true,
+      );
+      expect(
+        results.find((r) => r.url === "https://discord-nitro-free.com")?.safe,
+      ).toBe(false);
+      expect(results.find((r) => r.url === "https://github.com")?.safe).toBe(
+        true,
+      );
     });
 
     test("handles empty array", async () => {
@@ -195,13 +227,17 @@ describe("Link Safety Service", () => {
     });
 
     test("detects fake official domain patterns", async () => {
-      const result = await linkSafetyService.checkUrl("https://discord-official.com");
+      const result = await linkSafetyService.checkUrl(
+        "https://discord-official.com",
+      );
       expect(result.safe).toBe(false);
     });
 
     test("allows legitimate similar domains", async () => {
       // discord.com is the real one
-      const result = await linkSafetyService.checkUrl("https://discord.com/login");
+      const result = await linkSafetyService.checkUrl(
+        "https://discord.com/login",
+      );
       expect(result.safe).toBe(true);
     });
   });
@@ -227,7 +263,10 @@ describe("Spam Detection", () => {
       const { createHash } = require("crypto");
       const hashMessage = (content: string): string => {
         const normalized = content.toLowerCase().replace(/\s+/g, " ").trim();
-        return createHash("sha256").update(normalized).digest("hex").slice(0, 16);
+        return createHash("sha256")
+          .update(normalized)
+          .digest("hex")
+          .slice(0, 16);
       };
 
       const hash1 = hashMessage("Hello World");
@@ -242,7 +281,10 @@ describe("Spam Detection", () => {
       const { createHash } = require("crypto");
       const hashMessage = (content: string): string => {
         const normalized = content.toLowerCase().replace(/\s+/g, " ").trim();
-        return createHash("sha256").update(normalized).digest("hex").slice(0, 16);
+        return createHash("sha256")
+          .update(normalized)
+          .digest("hex")
+          .slice(0, 16);
       };
 
       const hash1 = hashMessage("Hello World");
@@ -264,7 +306,7 @@ describe("Spam Detection", () => {
       ];
 
       const inWindow = timestamps.filter(
-        (ts) => now - new Date(ts).getTime() < MESSAGE_WINDOW_MS
+        (ts) => now - new Date(ts).getTime() < MESSAGE_WINDOW_MS,
       );
 
       expect(inWindow).toHaveLength(2);
@@ -272,7 +314,8 @@ describe("Spam Detection", () => {
 
     test("rate limit correctly triggers at threshold", () => {
       const maxMessages = 10;
-      const isRateLimited = (messageCount: number) => messageCount >= maxMessages;
+      const isRateLimited = (messageCount: number) =>
+        messageCount >= maxMessages;
 
       expect(isRateLimited(9)).toBe(false);
       expect(isRateLimited(10)).toBe(true);
@@ -538,7 +581,9 @@ describe("Escalation Logic", () => {
         { created_at: new Date(now - 1 * 24 * 60 * 60 * 1000) }, // 1 day ago
       ];
 
-      const recentCount = events.filter((e) => e.created_at >= cutoffDate).length;
+      const recentCount = events.filter(
+        (e) => e.created_at >= cutoffDate,
+      ).length;
       expect(recentCount).toBe(2);
     });
   });
@@ -551,19 +596,23 @@ describe("Escalation Logic", () => {
 describe("Settings Link Generation", () => {
   test("generates correct base link", () => {
     const generateLink = (orgId: string, section?: string) => {
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://elizacloud.ai";
+      const baseUrl =
+        process.env.NEXT_PUBLIC_APP_URL ?? "https://elizacloud.ai";
       let path = `/dashboard/org/${orgId}/settings/agents/community-manager`;
       if (section) path += `/${section}`;
       return `${baseUrl}${path}`;
     };
 
     const link = generateLink("org-123");
-    expect(link).toContain("/dashboard/org/org-123/settings/agents/community-manager");
+    expect(link).toContain(
+      "/dashboard/org/org-123/settings/agents/community-manager",
+    );
   });
 
   test("generates link with section", () => {
     const generateLink = (orgId: string, section?: string) => {
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://elizacloud.ai";
+      const baseUrl =
+        process.env.NEXT_PUBLIC_APP_URL ?? "https://elizacloud.ai";
       let path = `/dashboard/org/${orgId}/settings/agents/community-manager`;
       if (section) path += `/${section}`;
       return `${baseUrl}${path}`;
@@ -710,10 +759,15 @@ describe("Concurrent Behavior", () => {
     test("handles many concurrent checks", async () => {
       const { linkSafetyService } = await import("@/lib/services/link-safety");
 
-      const urls = Array.from({ length: 50 }, (_, i) => `https://example${i}.com`);
+      const urls = Array.from(
+        { length: 50 },
+        (_, i) => `https://example${i}.com`,
+      );
 
       const startTime = Date.now();
-      const results = await Promise.all(urls.map((url) => linkSafetyService.checkUrl(url)));
+      const results = await Promise.all(
+        urls.map((url) => linkSafetyService.checkUrl(url)),
+      );
       const duration = Date.now() - startTime;
 
       expect(results).toHaveLength(50);
@@ -728,7 +782,7 @@ describe("Concurrent Behavior", () => {
       const createOrFetch = async (
         serverId: string,
         userId: string,
-        existingRecords: Map<string, object>
+        existingRecords: Map<string, object>,
       ) => {
         const key = `${serverId}:${userId}`;
 
@@ -810,7 +864,8 @@ describe("Error Handling", () => {
   describe("Boundary Conditions", () => {
     test("handles very long messages", () => {
       const MAX_CONTENT_SAMPLE = 500;
-      const truncate = (content: string) => content.slice(0, MAX_CONTENT_SAMPLE);
+      const truncate = (content: string) =>
+        content.slice(0, MAX_CONTENT_SAMPLE);
 
       const longMessage = "a".repeat(10000);
       const truncated = truncate(longMessage);
@@ -856,7 +911,9 @@ describe("Error Handling", () => {
     });
 
     test("handles zero duration", () => {
-      const calculateExpiry = (durationMinutes: number | undefined): Date | null => {
+      const calculateExpiry = (
+        durationMinutes: number | undefined,
+      ): Date | null => {
         if (!durationMinutes) return null;
         return new Date(Date.now() + durationMinutes * 60_000);
       };
@@ -965,7 +1022,9 @@ describe("Repository Edge Cases", () => {
       ];
 
       const filterForServer = (serverId: string) =>
-        patterns.filter((p) => p.server_id === serverId || p.server_id === null);
+        patterns.filter(
+          (p) => p.server_id === serverId || p.server_id === null,
+        );
 
       const result = filterForServer("server-1");
       expect(result).toHaveLength(2); // server-1 specific + org-wide
@@ -978,7 +1037,8 @@ describe("Repository Edge Cases", () => {
     test("respects limit parameter", () => {
       const items = Array.from({ length: 100 }, (_, i) => ({ id: i }));
 
-      const paginate = (arr: { id: number }[], limit: number) => arr.slice(0, limit);
+      const paginate = (arr: { id: number }[], limit: number) =>
+        arr.slice(0, limit);
 
       expect(paginate(items, 10)).toHaveLength(10);
       expect(paginate(items, 50)).toHaveLength(50);
@@ -988,7 +1048,8 @@ describe("Repository Edge Cases", () => {
     test("handles limit larger than data", () => {
       const items = Array.from({ length: 5 }, (_, i) => ({ id: i }));
 
-      const paginate = (arr: { id: number }[], limit: number) => arr.slice(0, limit);
+      const paginate = (arr: { id: number }[], limit: number) =>
+        arr.slice(0, limit);
 
       expect(paginate(items, 100)).toHaveLength(5);
     });
@@ -1009,7 +1070,7 @@ describe("Repository Edge Cases", () => {
           acc[e.event_type] = (acc[e.event_type] || 0) + 1;
           return acc;
         },
-        {} as Record<string, number>
+        {} as Record<string, number>,
       );
 
       expect(byType.spam).toBe(3);
@@ -1025,11 +1086,10 @@ describe("Repository Edge Cases", () => {
           acc[e.event_type] = (acc[e.event_type] || 0) + 1;
           return acc;
         },
-        {} as Record<string, number>
+        {} as Record<string, number>,
       );
 
       expect(Object.keys(byType)).toHaveLength(0);
     });
   });
 });
-

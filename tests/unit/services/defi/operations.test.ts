@@ -4,13 +4,25 @@
  * Tests edge cases, error handling, concurrent behavior, and data transformations.
  */
 
-import { describe, test, expect, beforeEach, afterEach, mock, spyOn } from "bun:test";
+import {
+  describe,
+  test,
+  expect,
+  beforeEach,
+  afterEach,
+  mock,
+  spyOn,
+} from "bun:test";
 
 // Store original fetch
 const originalFetch = global.fetch;
 
 // Mock responses for different APIs
-const createMockResponse = (data: unknown, status = 200, headers: Record<string, string> = {}) => ({
+const createMockResponse = (
+  data: unknown,
+  status = 200,
+  headers: Record<string, string> = {},
+) => ({
   ok: status >= 200 && status < 300,
   status,
   headers: new Headers(headers),
@@ -86,10 +98,15 @@ describe("DeFi Operations", () => {
 
       global.fetch = mock(() => Promise.resolve(createMockResponse(mockData)));
 
-      const result = await fetchTokenPrice("birdeye", "So11111111111111111111111111111111111111112");
+      const result = await fetchTokenPrice(
+        "birdeye",
+        "So11111111111111111111111111111111111111112",
+      );
 
       expect(result.source).toBe("birdeye");
-      expect(result.identifier).toBe("So11111111111111111111111111111111111111112");
+      expect(result.identifier).toBe(
+        "So11111111111111111111111111111111111111112",
+      );
       expect(result.priceUsd).toBe(156.78);
       expect(result.priceChange24h).toBe(-2.5);
       expect(result.lastUpdated).toMatch(/^\d{4}-\d{2}-\d{2}T/);
@@ -97,10 +114,16 @@ describe("DeFi Operations", () => {
 
     test("handles zero price", async () => {
       global.fetch = mock(() =>
-        Promise.resolve(createMockResponse({
-          success: true,
-          data: { value: 0, updateUnixTime: Date.now() / 1000, priceChange24h: 0 },
-        }))
+        Promise.resolve(
+          createMockResponse({
+            success: true,
+            data: {
+              value: 0,
+              updateUnixTime: Date.now() / 1000,
+              priceChange24h: 0,
+            },
+          }),
+        ),
       );
 
       const result = await fetchTokenPrice("birdeye", "dead-token");
@@ -109,10 +132,16 @@ describe("DeFi Operations", () => {
 
     test("handles negative price change", async () => {
       global.fetch = mock(() =>
-        Promise.resolve(createMockResponse({
-          success: true,
-          data: { value: 100, updateUnixTime: Date.now() / 1000, priceChange24h: -99.9 },
-        }))
+        Promise.resolve(
+          createMockResponse({
+            success: true,
+            data: {
+              value: 100,
+              updateUnixTime: Date.now() / 1000,
+              priceChange24h: -99.9,
+            },
+          }),
+        ),
       );
 
       const result = await fetchTokenPrice("birdeye", "crashed-token");
@@ -120,12 +149,14 @@ describe("DeFi Operations", () => {
     });
 
     test("throws on unsupported source", async () => {
-      await expect(fetchTokenPrice("invalid" as "birdeye", "test")).rejects.toThrow("Unsupported source: invalid");
+      await expect(
+        fetchTokenPrice("invalid" as "birdeye", "test"),
+      ).rejects.toThrow("Unsupported source: invalid");
     });
 
     test("propagates API errors", async () => {
       global.fetch = mock(() =>
-        Promise.resolve(createMockResponse({ error: "Token not found" }, 404))
+        Promise.resolve(createMockResponse({ error: "Token not found" }, 404)),
       );
 
       await expect(fetchTokenPrice("birdeye", "nonexistent")).rejects.toThrow();
@@ -133,10 +164,12 @@ describe("DeFi Operations", () => {
 
     test("handles missing optional fields", async () => {
       global.fetch = mock(() =>
-        Promise.resolve(createMockResponse({
-          success: true,
-          data: { value: 50, updateUnixTime: Date.now() / 1000 },
-        }))
+        Promise.resolve(
+          createMockResponse({
+            success: true,
+            data: { value: 50, updateUnixTime: Date.now() / 1000 },
+          }),
+        ),
       );
 
       const result = await fetchTokenPrice("birdeye", "minimal-token");
@@ -147,10 +180,14 @@ describe("DeFi Operations", () => {
     });
 
     test("works with Birdeye source", async () => {
-      global.fetch = mock(() => Promise.resolve(createMockResponse({
-        success: true,
-        data: { value: 100, updateUnixTime: Date.now() / 1000 },
-      })));
+      global.fetch = mock(() =>
+        Promise.resolve(
+          createMockResponse({
+            success: true,
+            data: { value: 100, updateUnixTime: Date.now() / 1000 },
+          }),
+        ),
+      );
 
       const result = await fetchTokenPrice("birdeye", "test-token");
       expect(result.source).toBe("birdeye");
@@ -158,12 +195,20 @@ describe("DeFi Operations", () => {
     });
 
     test("works with Jupiter source", async () => {
-      global.fetch = mock(() => Promise.resolve(createMockResponse({
-        data: {
-          "test-token": { id: "test-token", type: "derivedPrice", price: "100.5" },
-        },
-        timeTaken: 0.1,
-      })));
+      global.fetch = mock(() =>
+        Promise.resolve(
+          createMockResponse({
+            data: {
+              "test-token": {
+                id: "test-token",
+                type: "derivedPrice",
+                price: "100.5",
+              },
+            },
+            timeTaken: 0.1,
+          }),
+        ),
+      );
 
       const result = await fetchTokenPrice("jupiter", "test-token");
       expect(result.source).toBe("jupiter");
@@ -171,9 +216,17 @@ describe("DeFi Operations", () => {
     });
 
     test("works with CoinGecko source", async () => {
-      global.fetch = mock(() => Promise.resolve(createMockResponse({
-        "test-token": { usd: 100, usd_24h_change: 5, usd_market_cap: 1000000 },
-      })));
+      global.fetch = mock(() =>
+        Promise.resolve(
+          createMockResponse({
+            "test-token": {
+              usd: 100,
+              usd_24h_change: 5,
+              usd_market_cap: 1000000,
+            },
+          }),
+        ),
+      );
 
       const result = await fetchTokenPrice("coingecko", "test-token");
       expect(result.source).toBe("coingecko");
@@ -181,17 +234,31 @@ describe("DeFi Operations", () => {
     });
 
     test("works with CoinMarketCap source", async () => {
-      global.fetch = mock(() => Promise.resolve(createMockResponse({
-        data: {
-          // CMC returns an array per symbol key
-          BTC: [{
-            id: 1,
-            symbol: "BTC",
-            name: "Bitcoin",
-            quote: { USD: { price: 50000, percent_change_24h: 2.5, volume_24h: 1000000, market_cap: 1000000000, last_updated: new Date().toISOString() } },
-          }],
-        },
-      })));
+      global.fetch = mock(() =>
+        Promise.resolve(
+          createMockResponse({
+            data: {
+              // CMC returns an array per symbol key
+              BTC: [
+                {
+                  id: 1,
+                  symbol: "BTC",
+                  name: "Bitcoin",
+                  quote: {
+                    USD: {
+                      price: 50000,
+                      percent_change_24h: 2.5,
+                      volume_24h: 1000000,
+                      market_cap: 1000000000,
+                      last_updated: new Date().toISOString(),
+                    },
+                  },
+                },
+              ],
+            },
+          }),
+        ),
+      );
 
       const result = await fetchTokenPrice("coinmarketcap", "btc");
       expect(result.source).toBe("coinmarketcap");
@@ -214,7 +281,9 @@ describe("DeFi Operations", () => {
       }));
 
       global.fetch = mock(() =>
-        Promise.resolve(createMockResponse({ success: true, data: { items: tokens } }))
+        Promise.resolve(
+          createMockResponse({ success: true, data: { items: tokens } }),
+        ),
       );
 
       const result = await fetchTrendingTokens("birdeye", 5);
@@ -225,7 +294,9 @@ describe("DeFi Operations", () => {
 
     test("handles empty results", async () => {
       global.fetch = mock(() =>
-        Promise.resolve(createMockResponse({ success: true, data: { items: [] } }))
+        Promise.resolve(
+          createMockResponse({ success: true, data: { items: [] } }),
+        ),
       );
 
       const result = await fetchTrendingTokens("birdeye", 20);
@@ -234,10 +305,26 @@ describe("DeFi Operations", () => {
 
     test("handles limit larger than available tokens", async () => {
       global.fetch = mock(() =>
-        Promise.resolve(createMockResponse({
-          success: true,
-          data: { items: [{ address: "only-one", symbol: "ONE", name: "Only One", decimals: 9, price: 1, priceChange24hPercent: 0, v24hUSD: 0, rank: 1, logoURI: "" }] },
-        }))
+        Promise.resolve(
+          createMockResponse({
+            success: true,
+            data: {
+              items: [
+                {
+                  address: "only-one",
+                  symbol: "ONE",
+                  name: "Only One",
+                  decimals: 9,
+                  price: 1,
+                  priceChange24hPercent: 0,
+                  v24hUSD: 0,
+                  rank: 1,
+                  logoURI: "",
+                },
+              ],
+            },
+          }),
+        ),
       );
 
       const result = await fetchTrendingTokens("birdeye", 100);
@@ -246,7 +333,26 @@ describe("DeFi Operations", () => {
 
     test("limit of 0 returns empty array", async () => {
       global.fetch = mock(() =>
-        Promise.resolve(createMockResponse({ success: true, data: { items: [{ address: "a", symbol: "A", name: "A", decimals: 9, price: 1, priceChange24hPercent: 0, v24hUSD: 0, rank: 1, logoURI: "" }] } }))
+        Promise.resolve(
+          createMockResponse({
+            success: true,
+            data: {
+              items: [
+                {
+                  address: "a",
+                  symbol: "A",
+                  name: "A",
+                  decimals: 9,
+                  price: 1,
+                  priceChange24hPercent: 0,
+                  v24hUSD: 0,
+                  rank: 1,
+                  logoURI: "",
+                },
+              ],
+            },
+          }),
+        ),
       );
 
       const result = await fetchTrendingTokens("birdeye", 0);
@@ -254,22 +360,26 @@ describe("DeFi Operations", () => {
     });
 
     test("throws on unsupported source", async () => {
-      await expect(fetchTrendingTokens("invalid" as "birdeye")).rejects.toThrow("Unsupported source");
+      await expect(fetchTrendingTokens("invalid" as "birdeye")).rejects.toThrow(
+        "Unsupported source",
+      );
     });
   });
 
   describe("fetchMarketOverview", () => {
     test("transforms CoinGecko global data correctly", async () => {
       global.fetch = mock(() =>
-        Promise.resolve(createMockResponse({
-          data: {
-            active_cryptocurrencies: 15000,
-            total_market_cap: { usd: 2500000000000 },
-            total_volume: { usd: 150000000000 },
-            market_cap_percentage: { btc: 52.1, eth: 17.3 },
-            updated_at: 1700000000,
-          },
-        }))
+        Promise.resolve(
+          createMockResponse({
+            data: {
+              active_cryptocurrencies: 15000,
+              total_market_cap: { usd: 2500000000000 },
+              total_volume: { usd: 150000000000 },
+              market_cap_percentage: { btc: 52.1, eth: 17.3 },
+              updated_at: 1700000000,
+            },
+          }),
+        ),
       );
 
       const result = await fetchMarketOverview("coingecko");
@@ -284,15 +394,17 @@ describe("DeFi Operations", () => {
 
     test("handles extreme values", async () => {
       global.fetch = mock(() =>
-        Promise.resolve(createMockResponse({
-          data: {
-            active_cryptocurrencies: 0,
-            total_market_cap: { usd: 0 },
-            total_volume: { usd: 0 },
-            market_cap_percentage: { btc: 100, eth: 0 },
-            updated_at: 0,
-          },
-        }))
+        Promise.resolve(
+          createMockResponse({
+            data: {
+              active_cryptocurrencies: 0,
+              total_market_cap: { usd: 0 },
+              total_volume: { usd: 0 },
+              market_cap_percentage: { btc: 100, eth: 0 },
+              updated_at: 0,
+            },
+          }),
+        ),
       );
 
       const result = await fetchMarketOverview("coingecko");
@@ -304,10 +416,12 @@ describe("DeFi Operations", () => {
   describe("fetchSolanaWalletPortfolio", () => {
     test("handles wallet with no holdings", async () => {
       global.fetch = mock(() =>
-        Promise.resolve(createMockResponse({
-          success: true,
-          data: { wallet: "empty-wallet", totalUsd: 0, items: [] },
-        }))
+        Promise.resolve(
+          createMockResponse({
+            success: true,
+            data: { wallet: "empty-wallet", totalUsd: 0, items: [] },
+          }),
+        ),
       );
 
       const result = await fetchSolanaWalletPortfolio("empty-wallet");
@@ -317,17 +431,39 @@ describe("DeFi Operations", () => {
 
     test("calculates percentages correctly", async () => {
       global.fetch = mock(() =>
-        Promise.resolve(createMockResponse({
-          success: true,
-          data: {
-            wallet: "test-wallet",
-            totalUsd: 1000,
-            items: [
-              { address: "t1", symbol: "SOL", name: "Solana", decimals: 9, uiAmount: 5, valueUsd: 500, priceUsd: 100, logoURI: "", chainId: "solana" },
-              { address: "t2", symbol: "USDC", name: "USD Coin", decimals: 6, uiAmount: 500, valueUsd: 500, priceUsd: 1, logoURI: "", chainId: "solana" },
-            ],
-          },
-        }))
+        Promise.resolve(
+          createMockResponse({
+            success: true,
+            data: {
+              wallet: "test-wallet",
+              totalUsd: 1000,
+              items: [
+                {
+                  address: "t1",
+                  symbol: "SOL",
+                  name: "Solana",
+                  decimals: 9,
+                  uiAmount: 5,
+                  valueUsd: 500,
+                  priceUsd: 100,
+                  logoURI: "",
+                  chainId: "solana",
+                },
+                {
+                  address: "t2",
+                  symbol: "USDC",
+                  name: "USD Coin",
+                  decimals: 6,
+                  uiAmount: 500,
+                  valueUsd: 500,
+                  priceUsd: 1,
+                  logoURI: "",
+                  chainId: "solana",
+                },
+              ],
+            },
+          }),
+        ),
       );
 
       const result = await fetchSolanaWalletPortfolio("test-wallet");
@@ -341,23 +477,51 @@ describe("DeFi Operations", () => {
       global.fetch = mock((url) => {
         const urlStr = url as string;
         if (urlStr.includes("/quote")) {
-          return Promise.resolve(createMockResponse({
-            inputMint: "SOL",
-            outputMint: "USDC",
-            inAmount: "1000000000",
-            outAmount: "100000000",
-            priceImpactPct: "0.05",
-            routePlan: [
-              { swapInfo: { ammKey: "a1", label: "Raydium", inputMint: "SOL", outputMint: "USDT", inAmount: "500", outAmount: "50", feeAmount: "1", feeMint: "SOL" }, percent: 50 },
-              { swapInfo: { ammKey: "a2", label: "Orca", inputMint: "SOL", outputMint: "USDC", inAmount: "500", outAmount: "50", feeAmount: "1", feeMint: "SOL" }, percent: 50 },
-            ],
-          }));
+          return Promise.resolve(
+            createMockResponse({
+              inputMint: "SOL",
+              outputMint: "USDC",
+              inAmount: "1000000000",
+              outAmount: "100000000",
+              priceImpactPct: "0.05",
+              routePlan: [
+                {
+                  swapInfo: {
+                    ammKey: "a1",
+                    label: "Raydium",
+                    inputMint: "SOL",
+                    outputMint: "USDT",
+                    inAmount: "500",
+                    outAmount: "50",
+                    feeAmount: "1",
+                    feeMint: "SOL",
+                  },
+                  percent: 50,
+                },
+                {
+                  swapInfo: {
+                    ammKey: "a2",
+                    label: "Orca",
+                    inputMint: "SOL",
+                    outputMint: "USDC",
+                    inAmount: "500",
+                    outAmount: "50",
+                    feeAmount: "1",
+                    feeMint: "SOL",
+                  },
+                  percent: 50,
+                },
+              ],
+            }),
+          );
         }
         // Token list response
-        return Promise.resolve(createMockResponse([
-          { address: "SOL", symbol: "SOL", name: "Solana", decimals: 9 },
-          { address: "USDC", symbol: "USDC", name: "USD Coin", decimals: 6 },
-        ]));
+        return Promise.resolve(
+          createMockResponse([
+            { address: "SOL", symbol: "SOL", name: "Solana", decimals: 9 },
+            { address: "USDC", symbol: "USDC", name: "USD Coin", decimals: 6 },
+          ]),
+        );
       });
 
       const result = await fetchJupiterQuote({
@@ -378,19 +542,23 @@ describe("DeFi Operations", () => {
       global.fetch = mock((url) => {
         const urlStr = url as string;
         if (urlStr.includes("/quote")) {
-          return Promise.resolve(createMockResponse({
-            inputMint: "SOL",
-            outputMint: "USDC",
-            inAmount: "1000000000",
-            outAmount: "100000000",
-            priceImpactPct: "0.01",
-            routePlan: [],
-          }));
+          return Promise.resolve(
+            createMockResponse({
+              inputMint: "SOL",
+              outputMint: "USDC",
+              inAmount: "1000000000",
+              outAmount: "100000000",
+              priceImpactPct: "0.01",
+              routePlan: [],
+            }),
+          );
         }
-        return Promise.resolve(createMockResponse([
-          { address: "SOL", symbol: "SOL", name: "Solana", decimals: 9 },
-          { address: "USDC", symbol: "USDC", name: "USD Coin", decimals: 6 },
-        ]));
+        return Promise.resolve(
+          createMockResponse([
+            { address: "SOL", symbol: "SOL", name: "Solana", decimals: 9 },
+            { address: "USDC", symbol: "USDC", name: "USD Coin", decimals: 6 },
+          ]),
+        );
       });
 
       const result = await fetchJupiterQuote({
@@ -406,9 +574,7 @@ describe("DeFi Operations", () => {
 
   describe("fetchHeliusTransactions", () => {
     test("handles wallet with no transactions", async () => {
-      global.fetch = mock(() =>
-        Promise.resolve(createMockResponse([]))
-      );
+      global.fetch = mock(() => Promise.resolve(createMockResponse([])));
 
       const result = await fetchHeliusTransactions("new-wallet", 20);
       expect(result.transactions).toHaveLength(0);
@@ -421,15 +587,31 @@ describe("DeFi Operations", () => {
           signature: "sig1",
           timestamp: 1700000000,
           type: "TRANSFER",
-          nativeTransfers: [{ fromUserAccount: "from1", toUserAccount: "to1", amount: 1000 }],
-          tokenTransfers: [{ mint: "token1", fromUserAccount: "from1", toUserAccount: "to1", tokenAmount: 100 }],
+          nativeTransfers: [
+            { fromUserAccount: "from1", toUserAccount: "to1", amount: 1000 },
+          ],
+          tokenTransfers: [
+            {
+              mint: "token1",
+              fromUserAccount: "from1",
+              toUserAccount: "to1",
+              tokenAmount: 100,
+            },
+          ],
         },
         {
           signature: "sig2",
           timestamp: 1700000060,
           type: "SWAP",
           nativeTransfers: [],
-          tokenTransfers: [{ mint: "token2", fromUserAccount: "from2", toUserAccount: "to2", tokenAmount: 200 }],
+          tokenTransfers: [
+            {
+              mint: "token2",
+              fromUserAccount: "from2",
+              toUserAccount: "to2",
+              tokenAmount: 200,
+            },
+          ],
         },
       ];
 
@@ -454,7 +636,9 @@ describe("DeFi Operations", () => {
       }));
 
       global.fetch = mock(() =>
-        Promise.resolve(createMockResponse({ success: true, data: { items: candles } }))
+        Promise.resolve(
+          createMockResponse({ success: true, data: { items: candles } }),
+        ),
       );
 
       const result = await fetchOHLCV("birdeye", "token", { interval: "1H" });
@@ -465,7 +649,9 @@ describe("DeFi Operations", () => {
 
     test("handles empty candle data", async () => {
       global.fetch = mock(() =>
-        Promise.resolve(createMockResponse({ success: true, data: { items: [] } }))
+        Promise.resolve(
+          createMockResponse({ success: true, data: { items: [] } }),
+        ),
       );
 
       const result = await fetchOHLCV("birdeye", "token");
@@ -473,9 +659,18 @@ describe("DeFi Operations", () => {
     });
 
     test("preserves OHLCV data integrity", async () => {
-      const mockCandle = { unixTime: 1700000000, o: 100.5, h: 110.25, l: 95.75, c: 105.5, v: 1234567.89 };
+      const mockCandle = {
+        unixTime: 1700000000,
+        o: 100.5,
+        h: 110.25,
+        l: 95.75,
+        c: 105.5,
+        v: 1234567.89,
+      };
       global.fetch = mock(() =>
-        Promise.resolve(createMockResponse({ success: true, data: { items: [mockCandle] } }))
+        Promise.resolve(
+          createMockResponse({ success: true, data: { items: [mockCandle] } }),
+        ),
       );
 
       const result = await fetchOHLCV("birdeye", "token");
@@ -493,7 +688,7 @@ describe("DeFi Operations", () => {
   describe("searchTokens", () => {
     test("handles empty search results", async () => {
       global.fetch = mock(() =>
-        Promise.resolve(createMockResponse({ coins: [] }))
+        Promise.resolve(createMockResponse({ coins: [] })),
       );
 
       const result = await searchTokens("coingecko", "xyznonexistent123", 20);
@@ -518,7 +713,7 @@ describe("DeFi Operations", () => {
   describe("checkServicesHealth", () => {
     test("returns healthy when all services respond", async () => {
       global.fetch = mock(() =>
-        Promise.resolve(createMockResponse({ success: true, data: {} }))
+        Promise.resolve(createMockResponse({ success: true, data: {} })),
       );
 
       const result = await checkServicesHealth();
@@ -559,7 +754,7 @@ describe("DeFi Operations", () => {
 
     test("filters by service names", async () => {
       global.fetch = mock(() =>
-        Promise.resolve(createMockResponse({ success: true }))
+        Promise.resolve(createMockResponse({ success: true })),
       );
 
       const result = await checkServicesHealth(["birdeye", "jupiter"]);
@@ -578,10 +773,14 @@ describe("DeFi Operations", () => {
     });
 
     test("reports latency for each service", async () => {
-      global.fetch = mock(() =>
-        new Promise((resolve) =>
-          setTimeout(() => resolve(createMockResponse({ success: true })), 10)
-        )
+      global.fetch = mock(
+        () =>
+          new Promise((resolve) =>
+            setTimeout(
+              () => resolve(createMockResponse({ success: true })),
+              10,
+            ),
+          ),
       );
 
       const result = await checkServicesHealth(["birdeye"]);
@@ -605,10 +804,12 @@ describe("DeFi Operations", () => {
       let callCount = 0;
       global.fetch = mock(() => {
         callCount++;
-        return Promise.resolve(createMockResponse({
-          success: true,
-          data: { value: callCount * 100, updateUnixTime: Date.now() / 1000 },
-        }));
+        return Promise.resolve(
+          createMockResponse({
+            success: true,
+            data: { value: callCount * 100, updateUnixTime: Date.now() / 1000 },
+          }),
+        );
       });
 
       const results = await Promise.all([
@@ -643,15 +844,20 @@ describe("DeFi Operations", () => {
   });
 
   describe("Error Handling", () => {
-    test("handles network timeout", async () => {
-      global.fetch = mock(() =>
-        new Promise((_, reject) =>
-          setTimeout(() => reject(new Error("Request timed out")), 10)
-        )
-      );
+    test(
+      "handles network timeout",
+      async () => {
+        global.fetch = mock(
+          () =>
+            new Promise((_, reject) =>
+              setTimeout(() => reject(new Error("Request timed out")), 10),
+            ),
+        );
 
-      await expect(fetchTokenPrice("birdeye", "token")).rejects.toThrow();
-    }, { timeout: 15000 }); // Service has internal retry logic that can take time
+        await expect(fetchTokenPrice("birdeye", "token")).rejects.toThrow();
+      },
+      { timeout: 15000 },
+    ); // Service has internal retry logic that can take time
 
     test("handles malformed JSON response", async () => {
       global.fetch = mock(() => ({
@@ -670,12 +876,18 @@ describe("DeFi Operations", () => {
       global.fetch = mock(() => {
         attempts++;
         if (attempts < 3) {
-          return Promise.resolve(createMockResponse({ error: "Rate limited" }, 429, { "retry-after": "1" }));
+          return Promise.resolve(
+            createMockResponse({ error: "Rate limited" }, 429, {
+              "retry-after": "1",
+            }),
+          );
         }
-        return Promise.resolve(createMockResponse({
-          success: true,
-          data: { value: 100, updateUnixTime: Date.now() / 1000 },
-        }));
+        return Promise.resolve(
+          createMockResponse({
+            success: true,
+            data: { value: 100, updateUnixTime: Date.now() / 1000 },
+          }),
+        );
       });
 
       // Should eventually succeed after retries
@@ -689,12 +901,16 @@ describe("DeFi Operations", () => {
       global.fetch = mock(() => {
         attempts++;
         if (attempts < 2) {
-          return Promise.resolve(createMockResponse({ error: "Server error" }, 500));
+          return Promise.resolve(
+            createMockResponse({ error: "Server error" }, 500),
+          );
         }
-        return Promise.resolve(createMockResponse({
-          success: true,
-          data: { value: 100, updateUnixTime: Date.now() / 1000 },
-        }));
+        return Promise.resolve(
+          createMockResponse({
+            success: true,
+            data: { value: 100, updateUnixTime: Date.now() / 1000 },
+          }),
+        );
       });
 
       const result = await fetchTokenPrice("birdeye", "token");
@@ -705,7 +921,9 @@ describe("DeFi Operations", () => {
       let attempts = 0;
       global.fetch = mock(() => {
         attempts++;
-        return Promise.resolve(createMockResponse({ error: "Bad request" }, 400));
+        return Promise.resolve(
+          createMockResponse({ error: "Bad request" }, 400),
+        );
       });
 
       await expect(fetchTokenPrice("birdeye", "token")).rejects.toThrow();
@@ -716,10 +934,12 @@ describe("DeFi Operations", () => {
   describe("Data Validation", () => {
     test("fetchTokenPrice returns ISO timestamp", async () => {
       global.fetch = mock(() =>
-        Promise.resolve(createMockResponse({
-          success: true,
-          data: { value: 100, updateUnixTime: 1700000000 },
-        }))
+        Promise.resolve(
+          createMockResponse({
+            success: true,
+            data: { value: 100, updateUnixTime: 1700000000 },
+          }),
+        ),
       );
 
       const result = await fetchTokenPrice("birdeye", "token");
@@ -727,18 +947,52 @@ describe("DeFi Operations", () => {
       // Verify it's a valid ISO string
       const parsed = new Date(result.lastUpdated);
       expect(parsed.getTime()).toBeGreaterThan(0);
-      expect(result.lastUpdated).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
+      expect(result.lastUpdated).toMatch(
+        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/,
+      );
     });
 
     test("fetchTrendingTokens preserves token ranking order", async () => {
       const tokens = [
-        { address: "third", symbol: "C", name: "Third", decimals: 9, price: 1, priceChange24hPercent: 0, v24hUSD: 0, rank: 3, logoURI: "" },
-        { address: "first", symbol: "A", name: "First", decimals: 9, price: 1, priceChange24hPercent: 0, v24hUSD: 0, rank: 1, logoURI: "" },
-        { address: "second", symbol: "B", name: "Second", decimals: 9, price: 1, priceChange24hPercent: 0, v24hUSD: 0, rank: 2, logoURI: "" },
+        {
+          address: "third",
+          symbol: "C",
+          name: "Third",
+          decimals: 9,
+          price: 1,
+          priceChange24hPercent: 0,
+          v24hUSD: 0,
+          rank: 3,
+          logoURI: "",
+        },
+        {
+          address: "first",
+          symbol: "A",
+          name: "First",
+          decimals: 9,
+          price: 1,
+          priceChange24hPercent: 0,
+          v24hUSD: 0,
+          rank: 1,
+          logoURI: "",
+        },
+        {
+          address: "second",
+          symbol: "B",
+          name: "Second",
+          decimals: 9,
+          price: 1,
+          priceChange24hPercent: 0,
+          v24hUSD: 0,
+          rank: 2,
+          logoURI: "",
+        },
       ];
 
       global.fetch = mock(() =>
-        Promise.resolve(createMockResponse({ success: true, data: { items: tokens } }))
+        Promise.resolve(
+          createMockResponse({ success: true, data: { items: tokens } }),
+        ),
       );
 
       const result = await fetchTrendingTokens("birdeye", 10);
@@ -764,7 +1018,9 @@ describe("DeFi Operations", () => {
       };
 
       global.fetch = mock(() =>
-        Promise.resolve(createMockResponse({ success: true, data: mockOverview }))
+        Promise.resolve(
+          createMockResponse({ success: true, data: mockOverview }),
+        ),
       );
 
       const result = await fetchSolanaTokenOverview("token123");

@@ -2,20 +2,22 @@ import { describe, it, expect, beforeEach, mock, spyOn } from "bun:test";
 import { AWSKMSProvider } from "@/lib/services/secrets/encryption";
 
 // Mock AWS SDK
-const mockSend = mock(() => Promise.resolve({
-  Plaintext: new Uint8Array(32).fill(1),
-  CiphertextBlob: new Uint8Array(48).fill(2),
-}));
+const mockSend = mock(() =>
+  Promise.resolve({
+    Plaintext: new Uint8Array(32).fill(1),
+    CiphertextBlob: new Uint8Array(48).fill(2),
+  }),
+);
 
-const MockKMSClient = mock(function() {
+const MockKMSClient = mock(function () {
   return { send: mockSend };
 });
 
-const MockGenerateDataKeyCommand = mock(function(params: unknown) {
+const MockGenerateDataKeyCommand = mock(function (params: unknown) {
   return { type: "GenerateDataKey", params };
 });
 
-const MockDecryptCommand = mock(function(params: unknown) {
+const MockDecryptCommand = mock(function (params: unknown) {
   return { type: "Decrypt", params };
 });
 
@@ -31,7 +33,7 @@ describe("AWSKMSProvider", () => {
     MockKMSClient.mockClear();
     MockGenerateDataKeyCommand.mockClear();
     MockDecryptCommand.mockClear();
-    
+
     // Reset env
     process.env.AWS_KMS_KEY_ID = "test-key-id";
     process.env.AWS_REGION = "us-west-2";
@@ -62,9 +64,9 @@ describe("AWSKMSProvider", () => {
     it("calls KMS with correct parameters", async () => {
       process.env.AWS_KMS_KEY_ID = "test-key-id";
       const provider = new AWSKMSProvider();
-      
+
       const result = await provider.generateDataKey();
-      
+
       expect(mockSend).toHaveBeenCalledTimes(1);
       expect(MockGenerateDataKeyCommand).toHaveBeenCalledWith({
         KeyId: "test-key-id",
@@ -79,17 +81,19 @@ describe("AWSKMSProvider", () => {
       mockSend.mockResolvedValueOnce({});
       process.env.AWS_KMS_KEY_ID = "test-key";
       const provider = new AWSKMSProvider();
-      
-      await expect(provider.generateDataKey()).rejects.toThrow("empty response");
+
+      await expect(provider.generateDataKey()).rejects.toThrow(
+        "empty response",
+      );
     });
 
     it("reuses KMS client across calls", async () => {
       process.env.AWS_KMS_KEY_ID = "test-key";
       const provider = new AWSKMSProvider();
-      
+
       await provider.generateDataKey();
       await provider.generateDataKey();
-      
+
       // Client should only be created once
       expect(MockKMSClient).toHaveBeenCalledTimes(1);
       expect(mockSend).toHaveBeenCalledTimes(2);
@@ -100,10 +104,12 @@ describe("AWSKMSProvider", () => {
     it("calls KMS decrypt with correct parameters", async () => {
       process.env.AWS_KMS_KEY_ID = "test-key-id";
       const provider = new AWSKMSProvider();
-      
-      const testCiphertext = Buffer.from("test-encrypted-data").toString("base64");
+
+      const testCiphertext = Buffer.from("test-encrypted-data").toString(
+        "base64",
+      );
       const result = await provider.decrypt(testCiphertext);
-      
+
       expect(mockSend).toHaveBeenCalledTimes(1);
       expect(MockDecryptCommand).toHaveBeenCalled();
       expect(result).toBeInstanceOf(Buffer);
@@ -113,8 +119,10 @@ describe("AWSKMSProvider", () => {
       mockSend.mockResolvedValueOnce({ Plaintext: undefined });
       process.env.AWS_KMS_KEY_ID = "test-key";
       const provider = new AWSKMSProvider();
-      
-      await expect(provider.decrypt("dGVzdA==")).rejects.toThrow("empty response");
+
+      await expect(provider.decrypt("dGVzdA==")).rejects.toThrow(
+        "empty response",
+      );
     });
   });
 
@@ -123,10 +131,10 @@ describe("AWSKMSProvider", () => {
       process.env.AWS_KMS_KEY_ID = "test-key";
       process.env.AWS_ACCESS_KEY_ID = "AKIATEST";
       process.env.AWS_SECRET_ACCESS_KEY = "secret123";
-      
+
       const provider = new AWSKMSProvider();
       await provider.generateDataKey();
-      
+
       // KMSClient should be constructed with credentials
       expect(MockKMSClient).toHaveBeenCalled();
     });
@@ -135,10 +143,10 @@ describe("AWSKMSProvider", () => {
       process.env.AWS_KMS_KEY_ID = "test-key";
       delete process.env.AWS_ACCESS_KEY_ID;
       delete process.env.AWS_SECRET_ACCESS_KEY;
-      
+
       const provider = new AWSKMSProvider();
       await provider.generateDataKey();
-      
+
       expect(MockKMSClient).toHaveBeenCalled();
     });
   });
@@ -147,12 +155,12 @@ describe("AWSKMSProvider", () => {
 describe("SecretsEncryptionService with AWS KMS", () => {
   it("selects AWS KMS when key ID is set", async () => {
     process.env.AWS_KMS_KEY_ID = "test-key";
-    
+
     // Dynamic import to pick up env change
-    const { SecretsEncryptionService } = await import("@/lib/services/secrets/encryption");
+    const { SecretsEncryptionService } =
+      await import("@/lib/services/secrets/encryption");
     const service = new SecretsEncryptionService();
-    
+
     expect(service.isConfigured()).toBe(true);
   });
 });
-

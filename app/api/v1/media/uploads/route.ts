@@ -16,11 +16,13 @@ export const dynamic = "force-dynamic";
 const UploadFromUrlSchema = z.object({
   url: z.string().url(),
   filename: z.string().optional(),
-  metadata: z.object({
-    source: z.string().optional(),
-    altText: z.string().optional(),
-    tags: z.array(z.string()).optional(),
-  }).optional(),
+  metadata: z
+    .object({
+      source: z.string().optional(),
+      altText: z.string().optional(),
+      tags: z.array(z.string()).optional(),
+    })
+    .optional(),
 });
 
 /**
@@ -31,7 +33,11 @@ export async function GET(request: NextRequest) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
 
   const url = new URL(request.url);
-  const type = url.searchParams.get("type") as "image" | "video" | "audio" | null;
+  const type = url.searchParams.get("type") as
+    | "image"
+    | "video"
+    | "audio"
+    | null;
   const limit = parseInt(url.searchParams.get("limit") || "50");
   const offset = parseInt(url.searchParams.get("offset") || "0");
 
@@ -41,7 +47,7 @@ export async function GET(request: NextRequest) {
       type: type || undefined,
       limit,
       offset,
-    }
+    },
   );
 
   return NextResponse.json({
@@ -82,7 +88,7 @@ export async function POST(request: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json(
         { error: "Invalid request", details: parsed.error.flatten() },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -94,14 +100,17 @@ export async function POST(request: NextRequest) {
       metadata: parsed.data.metadata,
     });
 
-    return NextResponse.json({
-      id: upload.id,
-      type: upload.type,
-      url: upload.storage_url,
-      filename: upload.filename,
-      mimeType: upload.mime_type,
-      createdAt: upload.created_at.toISOString(),
-    }, { status: 201 });
+    return NextResponse.json(
+      {
+        id: upload.id,
+        type: upload.type,
+        url: upload.storage_url,
+        filename: upload.filename,
+        mimeType: upload.mime_type,
+        createdAt: upload.created_at.toISOString(),
+      },
+      { status: 201 },
+    );
   }
 
   // Handle form data (file upload)
@@ -110,10 +119,7 @@ export async function POST(request: NextRequest) {
     const file = formData.get("file") as File | null;
 
     if (!file) {
-      return NextResponse.json(
-        { error: "No file provided" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "No file provided" }, { status: 400 });
     }
 
     const arrayBuffer = await file.arrayBuffer();
@@ -128,19 +134,21 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return NextResponse.json({
-      id: upload.id,
-      type: upload.type,
-      url: upload.storage_url,
-      filename: upload.filename,
-      mimeType: upload.mime_type,
-      createdAt: upload.created_at.toISOString(),
-    }, { status: 201 });
+    return NextResponse.json(
+      {
+        id: upload.id,
+        type: upload.type,
+        url: upload.storage_url,
+        filename: upload.filename,
+        mimeType: upload.mime_type,
+        createdAt: upload.created_at.toISOString(),
+      },
+      { status: 201 },
+    );
   }
 
   return NextResponse.json(
     { error: "Unsupported content type" },
-    { status: 415 }
+    { status: 415 },
   );
 }
-

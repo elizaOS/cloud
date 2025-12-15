@@ -27,7 +27,7 @@ import { orgPlatformServers } from "./org-platforms";
 // ENUMS
 // =============================================================================
 
-export const moderationActionEnum = pgEnum("moderation_action", [
+export const orgModerationActionEnum = pgEnum("org_moderation_action", [
   "warn",
   "delete",
   "timeout",
@@ -106,7 +106,7 @@ export const orgTokenGates = pgTable(
     token_type: tokenGateTypeEnum("token_type").notNull(),
     token_address: text("token_address").notNull(),
     min_balance: text("min_balance").notNull().default("1"), // String for BigInt support
-    
+
     // Optional NFT-specific
     nft_collection_id: text("nft_collection_id"),
     required_traits: jsonb("required_traits").$type<Record<string, string[]>>(),
@@ -132,7 +132,7 @@ export const orgTokenGates = pgTable(
     index("org_token_gates_org_idx").on(table.organization_id),
     index("org_token_gates_server_idx").on(table.server_id),
     index("org_token_gates_enabled_idx").on(table.enabled),
-  ]
+  ],
 );
 
 // =============================================================================
@@ -190,15 +190,18 @@ export const orgMemberWallets = pgTable(
     index("org_member_wallets_server_idx").on(table.server_id),
     index("org_member_wallets_platform_user_idx").on(
       table.platform_user_id,
-      table.platform
+      table.platform,
     ),
-    index("org_member_wallets_wallet_idx").on(table.wallet_address, table.chain),
+    index("org_member_wallets_wallet_idx").on(
+      table.wallet_address,
+      table.chain,
+    ),
     uniqueIndex("org_member_wallets_unique_wallet").on(
       table.server_id,
       table.wallet_address,
-      table.chain
+      table.chain,
     ),
-  ]
+  ],
 );
 
 // =============================================================================
@@ -230,7 +233,7 @@ export const orgModerationEvents = pgTable(
     // Event details
     event_type: moderationEventTypeEnum("event_type").notNull(),
     severity: moderationSeverityEnum("severity").notNull(),
-    
+
     // Content info
     message_id: text("message_id"),
     channel_id: text("channel_id"),
@@ -238,7 +241,7 @@ export const orgModerationEvents = pgTable(
     matched_pattern: text("matched_pattern"), // What triggered detection
 
     // Action taken
-    action_taken: moderationActionEnum("action_taken"),
+    action_taken: orgModerationActionEnum("action_taken"),
     action_duration_minutes: integer("action_duration_minutes"), // For timeouts
     action_expires_at: timestamp("action_expires_at"),
 
@@ -261,7 +264,7 @@ export const orgModerationEvents = pgTable(
     index("org_mod_events_type_idx").on(table.event_type),
     index("org_mod_events_created_idx").on(table.created_at),
     index("org_mod_events_unresolved_idx").on(table.resolved_at),
-  ]
+  ],
 );
 
 // =============================================================================
@@ -321,10 +324,10 @@ export const orgSpamTracking = pgTable(
     uniqueIndex("org_spam_tracking_unique_user").on(
       table.server_id,
       table.platform_user_id,
-      table.platform
+      table.platform,
     ),
     index("org_spam_tracking_rate_limited_idx").on(table.is_rate_limited),
-  ]
+  ],
 );
 
 // =============================================================================
@@ -354,7 +357,7 @@ export const orgBlockedPatterns = pgTable(
     category: text("category").notNull(), // 'scam', 'spam', 'phishing', 'banned_word'
 
     // Action
-    action: moderationActionEnum("action").notNull().default("delete"),
+    action: orgModerationActionEnum("action").notNull().default("delete"),
     severity: moderationSeverityEnum("severity").notNull().default("medium"),
 
     // Metadata
@@ -371,7 +374,7 @@ export const orgBlockedPatterns = pgTable(
     index("org_blocked_patterns_server_idx").on(table.server_id),
     index("org_blocked_patterns_category_idx").on(table.category),
     index("org_blocked_patterns_enabled_idx").on(table.enabled),
-  ]
+  ],
 );
 
 // =============================================================================
@@ -404,7 +407,7 @@ export const orgMemberWalletsRelations = relations(
       fields: [orgMemberWallets.server_id],
       references: [orgPlatformServers.id],
     }),
-  })
+  }),
 );
 
 export const orgModerationEventsRelations = relations(
@@ -422,7 +425,7 @@ export const orgModerationEventsRelations = relations(
       fields: [orgModerationEvents.resolved_by],
       references: [users.id],
     }),
-  })
+  }),
 );
 
 export const orgSpamTrackingRelations = relations(
@@ -436,7 +439,7 @@ export const orgSpamTrackingRelations = relations(
       fields: [orgSpamTracking.server_id],
       references: [orgPlatformServers.id],
     }),
-  })
+  }),
 );
 
 export const orgBlockedPatternsRelations = relations(
@@ -454,7 +457,7 @@ export const orgBlockedPatternsRelations = relations(
       fields: [orgBlockedPatterns.created_by],
       references: [users.id],
     }),
-  })
+  }),
 );
 
 // =============================================================================
@@ -468,7 +471,9 @@ export type OrgMemberWallet = InferSelectModel<typeof orgMemberWallets>;
 export type NewOrgMemberWallet = InferInsertModel<typeof orgMemberWallets>;
 
 export type OrgModerationEvent = InferSelectModel<typeof orgModerationEvents>;
-export type NewOrgModerationEvent = InferInsertModel<typeof orgModerationEvents>;
+export type NewOrgModerationEvent = InferInsertModel<
+  typeof orgModerationEvents
+>;
 
 export type OrgSpamTracking = InferSelectModel<typeof orgSpamTracking>;
 export type NewOrgSpamTracking = InferInsertModel<typeof orgSpamTracking>;
@@ -477,11 +482,13 @@ export type OrgBlockedPattern = InferSelectModel<typeof orgBlockedPatterns>;
 export type NewOrgBlockedPattern = InferInsertModel<typeof orgBlockedPatterns>;
 
 // Enum value types
-export type ModerationAction = (typeof moderationActionEnum.enumValues)[number];
-export type ModerationEventType = (typeof moderationEventTypeEnum.enumValues)[number];
-export type ModerationSeverity = (typeof moderationSeverityEnum.enumValues)[number];
+export type OrgModerationAction =
+  (typeof orgModerationActionEnum.enumValues)[number];
+export type ModerationEventType =
+  (typeof moderationEventTypeEnum.enumValues)[number];
+export type ModerationSeverity =
+  (typeof moderationSeverityEnum.enumValues)[number];
 export type TokenGateChain = (typeof tokenGateChainEnum.enumValues)[number];
 export type TokenGateType = (typeof tokenGateTypeEnum.enumValues)[number];
-export type VerificationMethod = (typeof verificationMethodEnum.enumValues)[number];
-
-
+export type VerificationMethod =
+  (typeof verificationMethodEnum.enumValues)[number];

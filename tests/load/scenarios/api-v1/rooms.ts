@@ -5,26 +5,40 @@ import { roomsCreated } from "../../helpers/metrics";
 
 const config = getConfig();
 
-interface Room { id: string; name: string }
+interface Room {
+  id: string;
+  name: string;
+}
 
 export function listRooms(): Room[] {
-  const body = httpGet<{ rooms: Room[] }>("/api/eliza/rooms", { tags: { endpoint: "rooms" } });
+  const body = httpGet<{ rooms: Room[] }>("/api/eliza/rooms", {
+    tags: { endpoint: "rooms" },
+  });
   return body?.rooms ?? [];
 }
 
 export function createRoom(name?: string): string | null {
-  const body = httpPost<{ roomId?: string; id?: string }>("/api/eliza/rooms", { name: name || `LoadTest-Room-${Date.now()}` }, { tags: { endpoint: "rooms" } });
+  const body = httpPost<{ roomId?: string; id?: string }>(
+    "/api/eliza/rooms",
+    { name: name || `LoadTest-Room-${Date.now()}` },
+    { tags: { endpoint: "rooms" } },
+  );
   if (!body) return null;
   roomsCreated.add(1);
   return body.roomId ?? body.id ?? null;
 }
 
 export function getRoom(roomId: string): Room | null {
-  return httpGet<Room>(`/api/eliza/rooms/${roomId}`, { tags: { endpoint: "rooms" } });
+  return httpGet<Room>(`/api/eliza/rooms/${roomId}`, {
+    tags: { endpoint: "rooms" },
+  });
 }
 
 export function getRoomMessages(roomId: string, limit = 20): unknown[] {
-  const body = httpGet<{ messages: unknown[] }>(`/api/eliza/rooms/${roomId}/messages?limit=${limit}`, { tags: { endpoint: "rooms" } });
+  const body = httpGet<{ messages: unknown[] }>(
+    `/api/eliza/rooms/${roomId}/messages?limit=${limit}`,
+    { tags: { endpoint: "rooms" } },
+  );
   return body?.messages ?? [];
 }
 

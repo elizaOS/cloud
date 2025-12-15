@@ -28,8 +28,8 @@ import {
   isPaymasterEnabled,
   type X402Network,
 } from "@/lib/config/x402";
-import { 
-  isFacilitatorConfigured, 
+import {
+  isFacilitatorConfigured,
   isDecentralizedFacilitator,
   getX402Status as getFullStatus,
 } from "@/lib/middleware/x402-payment";
@@ -42,7 +42,7 @@ export async function GET() {
   const isDecentralized = isDecentralizedFacilitator(network);
 
   // Get network statuses
-  const networkStatuses = SUPPORTED_NETWORKS.map(net => ({
+  const networkStatuses = SUPPORTED_NETWORKS.map((net) => ({
     network: net,
     chainId: CHAIN_IDS[net],
     ecosystem: getNetworkEcosystem(net),
@@ -54,7 +54,7 @@ export async function GET() {
   const status = {
     enabled: X402_ENABLED,
     configured: isX402Configured(),
-    
+
     // Current network
     network: {
       current: network,
@@ -62,11 +62,12 @@ export async function GET() {
       ecosystem,
       chainId: CHAIN_IDS[network],
     },
-    
+
     // Configuration details
     config: {
       recipientAddress: X402_RECIPIENT_ADDRESS,
-      recipientConfigured: X402_RECIPIENT_ADDRESS !== "0x0000000000000000000000000000000000000000",
+      recipientConfigured:
+        X402_RECIPIENT_ADDRESS !== "0x0000000000000000000000000000000000000000",
       usdcAddress: USDC_ADDRESSES[network],
       topupPrice: TOPUP_PRICE,
       creditsPerDollar: CREDITS_PER_DOLLAR,
@@ -75,7 +76,11 @@ export async function GET() {
     // Facilitator status
     facilitator: {
       configured: isFacilitatorConfigured(network),
-      type: isDecentralized ? "decentralized" : (isFacilitatorConfigured(network) ? "cdp" : "public"),
+      type: isDecentralized
+        ? "decentralized"
+        : isFacilitatorConfigured(network)
+          ? "cdp"
+          : "public",
       isDecentralized,
       warning: getDecentralizedWarning(network, isDecentralized),
     },
@@ -127,8 +132,8 @@ export async function GET() {
       usdcValid: isValidAddress(USDC_ADDRESSES[network]),
       facilitatorReady: isFacilitatorConfigured(network),
       ready: isX402Configured() && isValidAddress(X402_RECIPIENT_ADDRESS),
-      jejuReady: JEJU_NETWORKS.some(n => isFacilitatorConfigured(n)),
-      baseReady: BASE_NETWORKS.some(n => isFacilitatorConfigured(n)),
+      jejuReady: JEJU_NETWORKS.some((n) => isFacilitatorConfigured(n)),
+      baseReady: BASE_NETWORKS.some((n) => isFacilitatorConfigured(n)),
     },
   };
 
@@ -136,20 +141,27 @@ export async function GET() {
 }
 
 function isValidAddress(address: string): boolean {
-  return /^0x[a-fA-F0-9]{40}$/.test(address) && 
-         address !== "0x0000000000000000000000000000000000000000";
+  return (
+    /^0x[a-fA-F0-9]{40}$/.test(address) &&
+    address !== "0x0000000000000000000000000000000000000000"
+  );
 }
 
-function getDecentralizedWarning(network: X402Network, isDecentralized: boolean): string | null {
+function getDecentralizedWarning(
+  network: X402Network,
+  isDecentralized: boolean,
+): string | null {
   if (isDecentralized) {
     return null; // No warning for Jeju decentralized facilitator
   }
-  
+
   if (!isFacilitatorConfigured(network)) {
-    return "Using public facilitator for Base - has rate limits. " +
-           "Set CDP_API_KEY_ID and CDP_API_KEY_SECRET, or use Jeju network (no credentials required).";
+    return (
+      "Using public facilitator for Base - has rate limits. " +
+      "Set CDP_API_KEY_ID and CDP_API_KEY_SECRET, or use Jeju network (no credentials required)."
+    );
   }
-  
+
   return null;
 }
 
@@ -163,4 +175,3 @@ export async function OPTIONS() {
     },
   });
 }
-

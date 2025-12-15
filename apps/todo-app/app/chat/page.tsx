@@ -35,14 +35,18 @@ function parseArgsFromMessage(message: string): Record<string, string> {
   const lower = message.toLowerCase();
   const args: Record<string, string> = {};
 
-  args.type = lower.includes("daily") || lower.includes("habit")
-    ? "daily"
-    : lower.includes("goal") || lower.includes("aspiration")
-      ? "aspirational"
-      : "one-off";
+  args.type =
+    lower.includes("daily") || lower.includes("habit")
+      ? "daily"
+      : lower.includes("goal") || lower.includes("aspiration")
+        ? "aspirational"
+        : "one-off";
 
-  const nameMatch = message.match(/:\s*(.+)/) || 
-    message.match(/(?:add|create|new|complete|done|finish)\s+(?:a\s+)?(?:task|habit|goal)?\s*(.+)/i);
+  const nameMatch =
+    message.match(/:\s*(.+)/) ||
+    message.match(
+      /(?:add|create|new|complete|done|finish)\s+(?:a\s+)?(?:task|habit|goal)?\s*(.+)/i,
+    );
   if (nameMatch?.[1]) {
     args.name = nameMatch[1].trim();
   }
@@ -59,12 +63,15 @@ export default function ChatPage() {
   const { isLoading, isAuthenticated, token } = useAuth();
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const [messages, setMessages] = useState<Message[]>([{
-    id: "welcome",
-    role: "assistant",
-    content: "Hi! I can help manage your tasks. Try:\n\n• \"Add a daily habit: Morning meditation\"\n• \"Create a task: Submit report\"\n• \"Show my tasks\"\n• \"What's my level?\"",
-    timestamp: new Date(),
-  }]);
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      id: "welcome",
+      role: "assistant",
+      content:
+        'Hi! I can help manage your tasks. Try:\n\n• "Add a daily habit: Morning meditation"\n• "Create a task: Submit report"\n• "Show my tasks"\n• "What\'s my level?"',
+      timestamp: new Date(),
+    },
+  ]);
   const [input, setInput] = useState("");
   const [isThinking, setIsThinking] = useState(false);
 
@@ -96,7 +103,10 @@ export default function ChatPage() {
       body: JSON.stringify({
         jsonrpc: "2.0",
         method: "tools/call",
-        params: { name: parseToolFromMessage(input.trim()), arguments: parseArgsFromMessage(input.trim()) },
+        params: {
+          name: parseToolFromMessage(input.trim()),
+          arguments: parseArgsFromMessage(input.trim()),
+        },
         id: Date.now(),
       }),
     });
@@ -111,12 +121,15 @@ export default function ChatPage() {
       }
     }
 
-    setMessages((prev) => [...prev, {
-      id: (Date.now() + 1).toString(),
-      role: "assistant",
-      content: assistantContent,
-      timestamp: new Date(),
-    }]);
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: (Date.now() + 1).toString(),
+        role: "assistant",
+        content: assistantContent,
+        timestamp: new Date(),
+      },
+    ]);
     setIsThinking(false);
   }, [input, isThinking, token]);
 
@@ -139,7 +152,10 @@ export default function ChatPage() {
     <div className="min-h-screen bg-background flex flex-col">
       <header className="border-b border-border/50 backdrop-blur-sm sticky top-0 z-40 bg-background/80">
         <div className="max-w-2xl mx-auto px-4 py-3 flex items-center gap-4">
-          <Link href="/dashboard" className="p-2 rounded-lg hover:bg-muted transition-colors">
+          <Link
+            href="/dashboard"
+            className="p-2 rounded-lg hover:bg-muted transition-colors"
+          >
             <ArrowLeft className="h-5 w-5" />
           </Link>
           <div className="flex items-center gap-2 flex-1">
@@ -154,18 +170,28 @@ export default function ChatPage() {
       <main className="flex-1 overflow-auto">
         <div className="max-w-2xl mx-auto px-4 py-6 space-y-4">
           {messages.map((message) => (
-            <div key={message.id} className={`flex gap-3 ${message.role === "user" ? "justify-end" : "justify-start"}`}>
+            <div
+              key={message.id}
+              className={`flex gap-3 ${message.role === "user" ? "justify-end" : "justify-start"}`}
+            >
               {message.role === "assistant" && (
                 <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-orange-600 flex items-center justify-center flex-shrink-0">
                   <Bot className="h-4 w-4 text-white" />
                 </div>
               )}
-              <div className={`max-w-[80%] rounded-2xl px-4 py-3 ${
-                message.role === "user" ? "bg-primary text-primary-foreground" : "bg-card border border-border"
-              }`}>
+              <div
+                className={`max-w-[80%] rounded-2xl px-4 py-3 ${
+                  message.role === "user"
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-card border border-border"
+                }`}
+              >
                 <p className="whitespace-pre-wrap">{message.content}</p>
                 <p className="text-xs opacity-60 mt-1">
-                  {message.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                  {message.timestamp.toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
                 </p>
               </div>
               {message.role === "user" && (
@@ -184,8 +210,14 @@ export default function ChatPage() {
               <div className="bg-card border border-border rounded-2xl px-4 py-3">
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full bg-muted-foreground animate-bounce" />
-                  <div className="w-2 h-2 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: "0.1s" }} />
-                  <div className="w-2 h-2 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: "0.2s" }} />
+                  <div
+                    className="w-2 h-2 rounded-full bg-muted-foreground animate-bounce"
+                    style={{ animationDelay: "0.1s" }}
+                  />
+                  <div
+                    className="w-2 h-2 rounded-full bg-muted-foreground animate-bounce"
+                    style={{ animationDelay: "0.2s" }}
+                  />
                 </div>
               </div>
             </div>
@@ -206,7 +238,12 @@ export default function ChatPage() {
               className="flex-1 px-4 py-3 rounded-xl bg-card border border-border focus:border-primary focus:outline-none transition-colors"
               disabled={isThinking}
             />
-            <Button onClick={sendMessage} disabled={!input.trim() || isThinking} size="lg" className="px-4">
+            <Button
+              onClick={sendMessage}
+              disabled={!input.trim() || isThinking}
+              size="lg"
+              className="px-4"
+            >
               <Send className="h-5 w-5" />
             </Button>
           </div>

@@ -57,18 +57,18 @@ export const mediaCollections = pgTable(
   },
   (table) => ({
     organization_idx: index("media_collections_organization_idx").on(
-      table.organization_id
+      table.organization_id,
     ),
     user_idx: index("media_collections_user_idx").on(table.user_id),
     org_user_idx: index("media_collections_org_user_idx").on(
       table.organization_id,
-      table.user_id
+      table.user_id,
     ),
     name_idx: index("media_collections_name_idx").on(table.name),
     created_at_idx: index("media_collections_created_at_idx").on(
-      table.created_at
+      table.created_at,
     ),
-  })
+  }),
 );
 
 export type MediaCollection = InferSelectModel<typeof mediaCollections>;

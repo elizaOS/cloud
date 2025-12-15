@@ -14,7 +14,10 @@ export async function GET(request: NextRequest, { params }: Params) {
   const event = await engagementEventService.get(eventId, user.organization_id);
 
   if (!event) {
-    return NextResponse.json({ error: "Engagement event not found" }, { status: 404 });
+    return NextResponse.json(
+      { error: "Engagement event not found" },
+      { status: 404 },
+    );
   }
 
   return NextResponse.json({

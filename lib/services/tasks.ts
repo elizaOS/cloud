@@ -136,8 +136,8 @@ class TasksService {
       .where(
         and(
           eq(orgTodos.id, todoId),
-          eq(orgTodos.organization_id, organizationId)
-        )
+          eq(orgTodos.organization_id, organizationId),
+        ),
       )
       .limit(1);
 
@@ -150,7 +150,7 @@ class TasksService {
   async update(
     todoId: string,
     organizationId: string,
-    updates: UpdateTodoParams
+    updates: UpdateTodoParams,
   ): Promise<OrgTodo> {
     logger.info("[Tasks] Updating todo", {
       todoId,
@@ -163,7 +163,8 @@ class TasksService {
     };
 
     if (updates.title !== undefined) updateData.title = updates.title;
-    if (updates.description !== undefined) updateData.description = updates.description;
+    if (updates.description !== undefined)
+      updateData.description = updates.description;
     if (updates.priority !== undefined) updateData.priority = updates.priority;
     if (updates.due_date !== undefined) updateData.due_date = updates.dueDate;
     if (updates.tags !== undefined) updateData.tags = updates.tags;
@@ -197,8 +198,8 @@ class TasksService {
       .where(
         and(
           eq(orgTodos.id, todoId),
-          eq(orgTodos.organization_id, organizationId)
-        )
+          eq(orgTodos.organization_id, organizationId),
+        ),
       )
       .returning();
 
@@ -220,15 +221,17 @@ class TasksService {
       .where(
         and(
           eq(orgTodos.id, todoId),
-          eq(orgTodos.organization_id, organizationId)
-        )
+          eq(orgTodos.organization_id, organizationId),
+        ),
       );
   }
 
   /**
    * List todos with filters
    */
-  async list(params: ListTodosParams): Promise<{ todos: OrgTodo[]; total: number }> {
+  async list(
+    params: ListTodosParams,
+  ): Promise<{ todos: OrgTodo[]; total: number }> {
     const {
       organizationId,
       status,
@@ -303,7 +306,8 @@ class TasksService {
       updated_at: orgTodos.updated_at,
     }[orderBy];
 
-    const orderFn = orderDir === "desc" ? desc : (col: typeof orderColumn) => col;
+    const orderFn =
+      orderDir === "desc" ? desc : (col: typeof orderColumn) => col;
 
     // Get todos
     const todos = await db
@@ -324,7 +328,10 @@ class TasksService {
   /**
    * Mark a todo as in progress
    */
-  async startProgress(todoId: string, organizationId: string): Promise<OrgTodo> {
+  async startProgress(
+    todoId: string,
+    organizationId: string,
+  ): Promise<OrgTodo> {
     return this.update(todoId, organizationId, { status: "in_progress" });
   }
 
@@ -363,7 +370,7 @@ class TasksService {
       platformId: string;
       platform: "discord" | "telegram";
       name?: string;
-    }
+    },
   ): Promise<OrgTodo> {
     return this.update(todoId, organizationId, {
       assigneePlatformId: assignee.platformId,
@@ -421,7 +428,7 @@ class TasksService {
   async getAssignedTodos(
     organizationId: string,
     platformId: string,
-    platform: "discord" | "telegram"
+    platform: "discord" | "telegram",
   ): Promise<OrgTodo[]> {
     return db
       .select()
@@ -431,8 +438,8 @@ class TasksService {
           eq(orgTodos.organization_id, organizationId),
           eq(orgTodos.assignee_platform_id, platformId),
           eq(orgTodos.assignee_platform, platform),
-          inArray(orgTodos.status, ["pending", "in_progress"])
-        )
+          inArray(orgTodos.status, ["pending", "in_progress"]),
+        ),
       )
       .orderBy(orgTodos.due_date, desc(orgTodos.priority));
   }
@@ -450,8 +457,8 @@ class TasksService {
         and(
           eq(orgTodos.organization_id, organizationId),
           lte(orgTodos.due_date, now),
-          inArray(orgTodos.status, ["pending", "in_progress"])
-        )
+          inArray(orgTodos.status, ["pending", "in_progress"]),
+        ),
       )
       .orderBy(orgTodos.due_date);
   }
@@ -466,8 +473,8 @@ class TasksService {
       .where(
         and(
           eq(orgTodos.organization_id, organizationId),
-          sql`${orgTodos.tags} @> ${JSON.stringify([tag])}::jsonb`
-        )
+          sql`${orgTodos.tags} @> ${JSON.stringify([tag])}::jsonb`,
+        ),
       )
       .orderBy(desc(orgTodos.created_at));
   }
@@ -478,7 +485,7 @@ class TasksService {
   async search(
     organizationId: string,
     query: string,
-    limit = 20
+    limit = 20,
   ): Promise<OrgTodo[]> {
     const searchPattern = `%${query}%`;
 
@@ -490,9 +497,9 @@ class TasksService {
           eq(orgTodos.organization_id, organizationId),
           or(
             sql`${orgTodos.title} ilike ${searchPattern}`,
-            sql`${orgTodos.description} ilike ${searchPattern}`
-          )
-        )
+            sql`${orgTodos.description} ilike ${searchPattern}`,
+          ),
+        ),
       )
       .orderBy(desc(orgTodos.created_at))
       .limit(limit);
@@ -508,7 +515,7 @@ class TasksService {
   async bulkUpdateStatus(
     todoIds: string[],
     organizationId: string,
-    status: TodoStatus
+    status: TodoStatus,
   ): Promise<number> {
     const result = await db
       .update(orgTodos)
@@ -520,8 +527,8 @@ class TasksService {
       .where(
         and(
           inArray(orgTodos.id, todoIds),
-          eq(orgTodos.organization_id, organizationId)
-        )
+          eq(orgTodos.organization_id, organizationId),
+        ),
       );
 
     return todoIds.length;
@@ -536,8 +543,8 @@ class TasksService {
       .where(
         and(
           inArray(orgTodos.id, todoIds),
-          eq(orgTodos.organization_id, organizationId)
-        )
+          eq(orgTodos.organization_id, organizationId),
+        ),
       );
 
     return todoIds.length;
@@ -549,4 +556,3 @@ class TasksService {
 // =============================================================================
 
 export const tasksService = new TasksService();
-

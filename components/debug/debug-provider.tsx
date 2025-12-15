@@ -12,6 +12,10 @@
  * - Every 30 seconds if there's activity
  * - On route changes
  * - Before page unload
+ *
+ * Controlled by environment variables:
+ * - NEXT_PUBLIC_ENABLE_DEBUG_LOGGING=true - Enable all performance summary logging
+ * - NEXT_PUBLIC_ENABLE_RENDER_TRACKING=true - Enable React Profiler render tracking
  */
 
 import {
@@ -27,12 +31,21 @@ import { usePathname } from "next/navigation";
 // Only load in development
 const isDev = process.env.NODE_ENV === "development";
 
+// Debug logging controlled by env flag (default: false)
+const isDebugLoggingEnabled =
+  isDev && process.env.NEXT_PUBLIC_ENABLE_DEBUG_LOGGING === "true";
+
+// Render tracking controlled by env flag (default: false)
+const isRenderTrackingEnabled =
+  isDev && process.env.NEXT_PUBLIC_ENABLE_RENDER_TRACKING === "true";
+
 // Lazy load debug tools to avoid bundling in production
 let renderTracker: {
   logRenderSummary: () => void;
   shouldAutoLog: () => boolean;
   getInitialLogDelay: () => number;
   onRenderCallback: ProfilerOnRenderCallback;
+  RENDER_TRACKING_ENABLED: boolean;
 } | null = null;
 
 let apiTracker: {
@@ -41,7 +54,10 @@ let apiTracker: {
 } | null = null;
 
 if (isDev && typeof window !== "undefined") {
-  renderTracker = require("@/lib/debug/render-tracker");
+  // Only load render tracker if enabled
+  if (isRenderTrackingEnabled) {
+    renderTracker = require("@/lib/debug/render-tracker");
+  }
   apiTracker = require("@/lib/debug/api-tracker");
 }
 
@@ -50,7 +66,7 @@ let hasLoggedInitial = false;
 let lastRouteLogTime = 0;
 
 function logSummary(reason: string): void {
-  if (!isDev) return;
+  if (!isDebugLoggingEnabled) return;
 
   console.group(`📊 Performance Summary (${reason})`);
   renderTracker?.logRenderSummary();
@@ -65,7 +81,7 @@ export function DebugProvider({ children }: { children?: ReactNode }) {
 
   // Log on route change (debounced)
   useEffect(() => {
-    if (!isDev) return;
+    if (!isDebugLoggingEnabled) return;
 
     const now = Date.now();
     // Don't log too frequently on route changes
@@ -82,61 +98,67 @@ export function DebugProvider({ children }: { children?: ReactNode }) {
   useEffect(() => {
     if (!isDev) return;
 
-    // Log after initial page load
-    if (!hasLoggedInitial) {
-      const delay = renderTracker?.getInitialLogDelay() || 5000;
-      initialLogRef.current = setTimeout(() => {
-        hasLoggedInitial = true;
-        logSummary("initial page load");
-      }, delay);
-    }
-
-    // Set up periodic logging (every 30s)
-    intervalRef.current = setInterval(() => {
-      const shouldLogRender = renderTracker?.shouldAutoLog() ?? false;
-      const shouldLogApi = apiTracker?.shouldAutoLog() ?? false;
-
-      if (shouldLogRender || shouldLogApi) {
-        logSummary("periodic check");
+    // Only set up auto-logging if debug logging is enabled
+    if (isDebugLoggingEnabled) {
+      // Log after initial page load
+      if (!hasLoggedInitial) {
+        const delay = renderTracker?.getInitialLogDelay() || 5000;
+        initialLogRef.current = setTimeout(() => {
+          hasLoggedInitial = true;
+          logSummary("initial page load");
+        }, delay);
       }
-    }, 30000);
 
-    // Log on page unload
-    const handleBeforeUnload = () => {
-      logSummary("page unload");
-    };
-    window.addEventListener("beforeunload", handleBeforeUnload);
+      // Set up periodic logging (every 30s)
+      intervalRef.current = setInterval(() => {
+        const shouldLogRender = renderTracker?.shouldAutoLog() ?? false;
+        const shouldLogApi = apiTracker?.shouldAutoLog() ?? false;
 
-    // Log on visibility change (when user comes back to tab)
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        const shouldLog =
-          (renderTracker?.shouldAutoLog() ?? false) ||
-          (apiTracker?.shouldAutoLog() ?? false);
-        if (shouldLog) {
-          logSummary("tab focused");
+        if (shouldLogRender || shouldLogApi) {
+          logSummary("periodic check");
         }
-      }
-    };
-    document.addEventListener("visibilitychange", handleVisibilityChange);
+      }, 30000);
 
-    // Log startup message
-    console.log(
-      "%c🛠️ Debug Mode Active",
-      "color: #10b981; font-weight: bold; font-size: 14px;",
-      "\n\nAuto-logging enabled. Manual commands:",
-      "\n  window.__logRenderSummary__() - Render stats",
-      "\n  window.__logApiSummary__() - API stats",
-      "\n  window.__resetRenderStats__() - Reset render tracking",
-      "\n  window.__resetApiStats__() - Reset API tracking",
-    );
+      // Log on page unload
+      const handleBeforeUnload = () => {
+        logSummary("page unload");
+      };
+      window.addEventListener("beforeunload", handleBeforeUnload);
 
-    return () => {
-      if (initialLogRef.current) clearTimeout(initialLogRef.current);
-      if (intervalRef.current) clearInterval(intervalRef.current);
-      window.removeEventListener("beforeunload", handleBeforeUnload);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-    };
+      // Log on visibility change (when user comes back to tab)
+      const handleVisibilityChange = () => {
+        if (document.visibilityState === "visible") {
+          const shouldLog =
+            (renderTracker?.shouldAutoLog() ?? false) ||
+            (apiTracker?.shouldAutoLog() ?? false);
+          if (shouldLog) {
+            logSummary("tab focused");
+          }
+        }
+      };
+      document.addEventListener("visibilitychange", handleVisibilityChange);
+
+      // Log startup message
+      console.log(
+        "%c🛠️ Debug Mode Active",
+        "color: #10b981; font-weight: bold; font-size: 14px;",
+        "\n\nAuto-logging enabled. Manual commands:",
+        "\n  window.__logRenderSummary__() - Render stats",
+        "\n  window.__logApiSummary__() - API stats",
+        "\n  window.__resetRenderStats__() - Reset render tracking",
+        "\n  window.__resetApiStats__() - Reset API tracking",
+      );
+
+      return () => {
+        if (initialLogRef.current) clearTimeout(initialLogRef.current);
+        if (intervalRef.current) clearInterval(intervalRef.current);
+        window.removeEventListener("beforeunload", handleBeforeUnload);
+        document.removeEventListener(
+          "visibilitychange",
+          handleVisibilityChange,
+        );
+      };
+    }
   }, []);
 
   // Wrap children in Profiler for automatic render tracking
@@ -159,12 +181,18 @@ export function DebugProvider({ children }: { children?: ReactNode }) {
     return null;
   }
 
-  // Wrap in Profiler to track all renders
-  return (
-    <Profiler id="App" onRender={handleRender}>
-      {children}
-    </Profiler>
-  );
+  // Only wrap in Profiler if render tracking is enabled
+  if (isRenderTrackingEnabled && renderTracker) {
+    return (
+      <Profiler id="App" onRender={handleRender}>
+        {children}
+      </Profiler>
+    );
+  }
+
+  // Render tracking disabled - return children without profiler
+  if (children) return children;
+  return null;
 }
 
 // No-op for production

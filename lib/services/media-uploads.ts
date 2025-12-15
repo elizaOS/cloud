@@ -59,7 +59,7 @@ function getMediaType(mimeType: string): "image" | "video" | "audio" {
 
 async function getImageDimensions(
   data: Buffer,
-  mimeType: string
+  mimeType: string,
 ): Promise<{ width: number; height: number } | undefined> {
   // Basic image dimension detection for common formats
   if (mimeType === "image/png" && data.length > 24) {
@@ -92,11 +92,11 @@ class MediaUploadsService {
       type?: "image" | "video" | "audio";
       limit?: number;
       offset?: number;
-    }
+    },
   ): Promise<MediaUpload[]> {
     return await mediaUploadsRepository.listByOrganization(
       organizationId,
-      options
+      options,
     );
   }
 
@@ -163,15 +163,21 @@ class MediaUploadsService {
 
     // Run moderation in background (fire and forget)
     if (mediaType === "image") {
-      this.moderateUpload(upload, data).catch(err => {
-        logger.error("[MediaUploads] Background moderation failed", { id: upload.id, error: String(err) });
+      this.moderateUpload(upload, data).catch((err) => {
+        logger.error("[MediaUploads] Background moderation failed", {
+          id: upload.id,
+          error: String(err),
+        });
       });
     }
 
     return upload;
   }
 
-  private async moderateUpload(upload: MediaUpload, data: Buffer): Promise<void> {
+  private async moderateUpload(
+    upload: MediaUpload,
+    data: Buffer,
+  ): Promise<void> {
     const result = await contentModerationService.scan({
       contentType: "image",
       sourceTable: "media_uploads",
@@ -188,9 +194,9 @@ class MediaUploadsService {
     if (result.status === "deleted") {
       // Delete the content
       await this.delete(upload.id);
-      logger.warn("[MediaUploads] Content deleted due to moderation", { 
-        id: upload.id, 
-        flags: result.flags.map(f => f.type).join(", "),
+      logger.warn("[MediaUploads] Content deleted due to moderation", {
+        id: upload.id,
+        flags: result.flags.map((f) => f.type).join(", "),
       });
     }
   }
@@ -234,7 +240,7 @@ class MediaUploadsService {
 
   async update(
     id: string,
-    metadata: { altText?: string; tags?: string[] }
+    metadata: { altText?: string; tags?: string[] },
   ): Promise<MediaUpload | undefined> {
     logger.info("[MediaUploads] Updating upload metadata", { id });
 
@@ -268,7 +274,10 @@ class MediaUploadsService {
     await mediaUploadsRepository.delete(id);
   }
 
-  async getStats(organizationId: string, userId?: string): Promise<UploadStats> {
+  async getStats(
+    organizationId: string,
+    userId?: string,
+  ): Promise<UploadStats> {
     return await mediaUploadsRepository.getStats(organizationId, userId);
   }
 
@@ -277,7 +286,7 @@ class MediaUploadsService {
    */
   async validateOwnership(
     uploadId: string,
-    organizationId: string
+    organizationId: string,
   ): Promise<boolean> {
     const upload = await this.getById(uploadId);
     return upload?.organization_id === organizationId;

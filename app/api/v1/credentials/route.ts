@@ -20,12 +20,20 @@ export async function GET(request: NextRequest) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
 
   const searchParams = request.nextUrl.searchParams;
-  const platform = searchParams.get("platform") as "discord" | "twitter" | "google" | "gmail" | "github" | "slack" | "telegram" | undefined;
+  const platform = searchParams.get("platform") as
+    | "discord"
+    | "twitter"
+    | "google"
+    | "gmail"
+    | "github"
+    | "slack"
+    | "telegram"
+    | undefined;
   const status = searchParams.get("status") || undefined;
 
   const credentials = await platformCredentialsService.listCredentials(
     user.organization_id,
-    { platform, status }
+    { platform, status },
   );
 
   return NextResponse.json({
@@ -51,7 +59,15 @@ export async function GET(request: NextRequest) {
 // =============================================================================
 
 const CreateLinkSchema = z.object({
-  platform: z.enum(["discord", "telegram", "twitter", "gmail", "google", "github", "slack"]),
+  platform: z.enum([
+    "discord",
+    "telegram",
+    "twitter",
+    "gmail",
+    "google",
+    "github",
+    "slack",
+  ]),
   scopes: z.array(z.string()).optional(),
   callbackUrl: z.string().url().optional(),
   callbackType: z.enum(["redirect", "webhook", "message"]).optional(),
@@ -75,7 +91,7 @@ export async function POST(request: NextRequest) {
   if (!validation.success) {
     return NextResponse.json(
       { error: "Invalid request", details: validation.error.format() },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -111,10 +127,12 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(
       {
-        error: error instanceof Error ? error.message : "Failed to create link session",
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to create link session",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
-

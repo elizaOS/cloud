@@ -13,8 +13,18 @@ import { checkinsService } from "@/lib/services/checkins";
 const CreateSchema = z.object({
   serverId: z.string().uuid(),
   name: z.string().min(1).max(200),
-  checkinType: z.enum(["standup", "sprint", "mental_health", "project_status", "retrospective"]).optional(),
-  frequency: z.enum(["daily", "weekdays", "weekly", "bi_weekly", "monthly"]).optional(),
+  checkinType: z
+    .enum([
+      "standup",
+      "sprint",
+      "mental_health",
+      "project_status",
+      "retrospective",
+    ])
+    .optional(),
+  frequency: z
+    .enum(["daily", "weekdays", "weekly", "bi_weekly", "monthly"])
+    .optional(),
   timeUtc: z.string().regex(/^\d{2}:\d{2}$/),
   timezone: z.string().optional(),
   checkinChannelId: z.string().min(1),
@@ -27,13 +37,13 @@ export async function GET(request: NextRequest) {
   const params = Object.fromEntries(request.nextUrl.searchParams);
 
   const serverId = params.serverId;
-  
+
   const schedules = serverId
     ? await checkinsService.listServerSchedules(serverId)
     : await checkinsService.listSchedules(user.organization_id);
 
   return NextResponse.json({
-    schedules: schedules.map(s => ({
+    schedules: schedules.map((s) => ({
       id: s.id,
       serverId: s.server_id,
       name: s.name,
@@ -57,7 +67,10 @@ export async function POST(request: NextRequest) {
   const body = await request.json();
   const parsed = CreateSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: "Invalid request", details: parsed.error.format() }, { status: 400 });
+    return NextResponse.json(
+      { error: "Invalid request", details: parsed.error.format() },
+      { status: 400 },
+    );
   }
 
   const data = parsed.data;
@@ -75,17 +88,19 @@ export async function POST(request: NextRequest) {
     createdBy: user.id,
   });
 
-  return NextResponse.json({
-    schedule: {
-      id: schedule.id,
-      serverId: schedule.server_id,
-      name: schedule.name,
-      checkinType: schedule.checkin_type,
-      frequency: schedule.frequency,
-      timeUtc: schedule.time_utc,
-      enabled: schedule.enabled,
-      createdAt: schedule.created_at.toISOString(),
+  return NextResponse.json(
+    {
+      schedule: {
+        id: schedule.id,
+        serverId: schedule.server_id,
+        name: schedule.name,
+        checkinType: schedule.checkin_type,
+        frequency: schedule.frequency,
+        timeUtc: schedule.time_utc,
+        enabled: schedule.enabled,
+        createdAt: schedule.created_at.toISOString(),
+      },
     },
-  }, { status: 201 });
+    { status: 201 },
+  );
 }
-

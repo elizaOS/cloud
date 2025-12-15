@@ -1,6 +1,6 @@
 /**
  * App Domains Schema
- * 
+ *
  * Manages subdomains and custom domains for apps.
  * Integrates with Vercel for DNS and SSL.
  */
@@ -37,7 +37,9 @@ export const appDomains = pgTable(
 
     // Custom domain (optional)
     custom_domain: text("custom_domain"),
-    custom_domain_verified: boolean("custom_domain_verified").default(false).notNull(),
+    custom_domain_verified: boolean("custom_domain_verified")
+      .default(false)
+      .notNull(),
     verification_records: jsonb("verification_records")
       .$type<DomainVerificationRecord[]>()
       .default([]),
@@ -65,15 +67,13 @@ export const appDomains = pgTable(
     app_id_idx: index("app_domains_app_id_idx").on(table.app_id),
     subdomain_idx: uniqueIndex("app_domains_subdomain_idx").on(table.subdomain),
     custom_domain_idx: uniqueIndex("app_domains_custom_domain_idx").on(
-      table.custom_domain
+      table.custom_domain,
     ),
     vercel_domain_idx: index("app_domains_vercel_domain_idx").on(
-      table.vercel_domain_id
+      table.vercel_domain_id,
     ),
-  })
+  }),
 );
 
 export type AppDomain = InferSelectModel<typeof appDomains>;
 export type NewAppDomain = InferInsertModel<typeof appDomains>;
-
-

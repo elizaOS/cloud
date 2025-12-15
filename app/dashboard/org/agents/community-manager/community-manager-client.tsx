@@ -42,11 +42,13 @@ export function CommunityManagerSettingsClient({
 }: CommunityManagerSettingsClientProps) {
   const router = useRouter();
   const [selectedServerId, setSelectedServerId] = useState<string | undefined>(
-    platforms[0]?.servers[0]?.id
+    platforms[0]?.servers[0]?.id,
   );
   const [currentSettings, setCurrentSettings] = useState(settings);
 
-  const handleSettingsChange = async (newSettings: CommunityModerationSettings) => {
+  const handleSettingsChange = async (
+    newSettings: CommunityModerationSettings,
+  ) => {
     const res = await fetch(`/api/v1/org/agents/community-manager/settings`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -169,7 +171,8 @@ function NoConnectionsCard() {
       <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
       <h3 className="text-lg font-medium mb-2">No Platform Connections</h3>
       <p className="text-muted-foreground mb-4">
-        Connect a Discord or Telegram bot to get started with community management.
+        Connect a Discord or Telegram bot to get started with community
+        management.
       </p>
       <a
         href="/dashboard/settings?tab=apis"
@@ -188,8 +191,8 @@ function NoServersCard({ platforms }: { platforms: Platform[] }) {
       <Server className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
       <h3 className="text-lg font-medium mb-2">No Servers Connected</h3>
       <p className="text-muted-foreground mb-4">
-        Your bot{platforms.length > 1 ? "s are" : " is"} connected but not added to any servers.
-        Add the bot to a server to configure moderation.
+        Your bot{platforms.length > 1 ? "s are" : " is"} connected but not added
+        to any servers. Add the bot to a server to configure moderation.
       </p>
       <div className="text-sm text-muted-foreground">
         {platforms.map((p) => (
@@ -201,5 +204,3 @@ function NoServersCard({ platforms }: { platforms: Platform[] }) {
     </BrandCard>
   );
 }
-
-

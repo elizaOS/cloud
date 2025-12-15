@@ -52,13 +52,10 @@ export const platformCredentialTypeEnum = pgEnum("platform_credential_type", [
   "google_calendar",
 ]);
 
-export const platformCredentialStatusEnum = pgEnum("platform_credential_status", [
-  "pending",
-  "active",
-  "expired",
-  "revoked",
-  "error",
-]);
+export const platformCredentialStatusEnum = pgEnum(
+  "platform_credential_status",
+  ["pending", "active", "expired", "revoked", "error"],
+);
 
 // =============================================================================
 // PLATFORM CREDENTIALS
@@ -77,10 +74,10 @@ export const platformCredentials = pgTable(
     organization_id: uuid("organization_id")
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
-    user_id: uuid("user_id")
-      .references(() => users.id, { onDelete: "cascade" }), // Cloud user (optional)
-    app_id: uuid("app_id")
-      .references(() => apps.id, { onDelete: "cascade" }), // Which app requested this
+    user_id: uuid("user_id").references(() => users.id, {
+      onDelete: "cascade",
+    }), // Cloud user (optional)
+    app_id: uuid("app_id").references(() => apps.id, { onDelete: "cascade" }), // Which app requested this
 
     // Platform identity
     platform: platformCredentialTypeEnum("platform").notNull(),
@@ -136,10 +133,10 @@ export const platformCredentials = pgTable(
     platform_user_idx: uniqueIndex("platform_credentials_platform_user_idx").on(
       table.organization_id,
       table.platform,
-      table.platform_user_id
+      table.platform_user_id,
     ),
     status_idx: index("platform_credentials_status_idx").on(table.status),
-  })
+  }),
 );
 
 // =============================================================================
@@ -162,10 +159,10 @@ export const platformCredentialSessions = pgTable(
     organization_id: uuid("organization_id")
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
-    app_id: uuid("app_id")
-      .references(() => apps.id, { onDelete: "cascade" }),
-    requesting_user_id: uuid("requesting_user_id")
-      .references(() => users.id, { onDelete: "set null" }),
+    app_id: uuid("app_id").references(() => apps.id, { onDelete: "cascade" }),
+    requesting_user_id: uuid("requesting_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
 
     // What platform is being linked
     platform: platformCredentialTypeEnum("platform").notNull(),
@@ -193,7 +190,7 @@ export const platformCredentialSessions = pgTable(
     // Result
     credential_id: uuid("credential_id").references(
       () => platformCredentials.id,
-      { onDelete: "set null" }
+      { onDelete: "set null" },
     ),
     error_code: text("error_code"),
     error_message: text("error_message"),
@@ -205,21 +202,21 @@ export const platformCredentialSessions = pgTable(
   },
   (table) => ({
     session_id_idx: index("platform_credential_sessions_session_idx").on(
-      table.session_id
+      table.session_id,
     ),
     org_idx: index("platform_credential_sessions_org_idx").on(
-      table.organization_id
+      table.organization_id,
     ),
     oauth_state_idx: uniqueIndex(
-      "platform_credential_sessions_oauth_state_idx"
+      "platform_credential_sessions_oauth_state_idx",
     ).on(table.oauth_state),
     status_idx: index("platform_credential_sessions_status_idx").on(
-      table.status
+      table.status,
     ),
     expires_idx: index("platform_credential_sessions_expires_idx").on(
-      table.expires_at
+      table.expires_at,
     ),
-  })
+  }),
 );
 
 // =============================================================================
@@ -229,7 +226,9 @@ export const platformCredentialSessions = pgTable(
 export type PlatformCredential = typeof platformCredentials.$inferSelect;
 export type NewPlatformCredential = typeof platformCredentials.$inferInsert;
 
-export type PlatformCredentialSession = typeof platformCredentialSessions.$inferSelect;
-export type NewPlatformCredentialSession = typeof platformCredentialSessions.$inferInsert;
+export type PlatformCredentialSession =
+  typeof platformCredentialSessions.$inferSelect;
+export type NewPlatformCredentialSession =
+  typeof platformCredentialSessions.$inferInsert;
 
 export type PlatformType = PlatformCredential["platform"];

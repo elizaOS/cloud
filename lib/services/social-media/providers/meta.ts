@@ -46,23 +46,31 @@ interface InstagramMediaContainer {
   id: string;
 }
 
-async function graphApiRequest<T>(endpoint: string, accessToken: string, options: RequestInit = {}): Promise<T> {
-  const url = new URL(endpoint.startsWith("http") ? endpoint : `${GRAPH_API_BASE}${endpoint}`);
+async function graphApiRequest<T>(
+  endpoint: string,
+  accessToken: string,
+  options: RequestInit = {},
+): Promise<T> {
+  const url = new URL(
+    endpoint.startsWith("http") ? endpoint : `${GRAPH_API_BASE}${endpoint}`,
+  );
   if (!options.method || options.method === "GET") {
     url.searchParams.set("access_token", accessToken);
   }
 
   const { data } = await withRetry<T>(
-    () => fetch(url.toString(), {
-      ...options,
-      headers: { "Content-Type": "application/json", ...options.headers },
-    }),
+    () =>
+      fetch(url.toString(), {
+        ...options,
+        headers: { "Content-Type": "application/json", ...options.headers },
+      }),
     async (response) => {
       const json = await response.json();
-      if ((json as GraphApiError).error) throw new Error((json as GraphApiError).error!.message);
+      if ((json as GraphApiError).error)
+        throw new Error((json as GraphApiError).error!.message);
       return json;
     },
-    { platform: "facebook", maxRetries: 3 }
+    { platform: "facebook", maxRetries: 3 },
   );
 
   return data;
@@ -73,7 +81,7 @@ async function graphApiRequest<T>(endpoint: string, accessToken: string, options
 async function createFacebookPost(
   credentials: SocialCredentials,
   content: PostContent,
-  options?: PlatformPostOptions
+  options?: PlatformPostOptions,
 ): Promise<PostResult> {
   const pageId = options?.facebook?.pageId || credentials.pageId;
 
@@ -82,7 +90,11 @@ async function createFacebookPost(
   }
 
   if (!credentials.accessToken) {
-    return { platform: "facebook", success: false, error: "Access token required" };
+    return {
+      platform: "facebook",
+      success: false,
+      error: "Access token required",
+    };
   }
 
   try {
@@ -110,7 +122,7 @@ async function createFacebookPost(
       postData = await graphApiRequest<FacebookPost>(
         `/${pageId}/photos?${searchParams}`,
         credentials.accessToken,
-        { method: "POST" }
+        { method: "POST" },
       );
     }
     // Video post
@@ -129,7 +141,7 @@ async function createFacebookPost(
       postData = await graphApiRequest<FacebookPost>(
         `/${pageId}/videos?${searchParams}`,
         credentials.accessToken,
-        { method: "POST" }
+        { method: "POST" },
       );
     }
     // Link post
@@ -143,7 +155,7 @@ async function createFacebookPost(
       postData = await graphApiRequest<FacebookPost>(
         `/${pageId}/feed?${params}`,
         credentials.accessToken,
-        { method: "POST" }
+        { method: "POST" },
       );
     }
     // Text post
@@ -156,7 +168,7 @@ async function createFacebookPost(
       postData = await graphApiRequest<FacebookPost>(
         `/${pageId}/feed?${params}`,
         credentials.accessToken,
-        { method: "POST" }
+        { method: "POST" },
       );
     }
 
@@ -181,16 +193,24 @@ async function createFacebookPost(
 async function createInstagramPost(
   credentials: SocialCredentials,
   content: PostContent,
-  options?: PlatformPostOptions
+  options?: PlatformPostOptions,
 ): Promise<PostResult> {
   const accountId = options?.instagram?.accountId || credentials.accountId;
 
   if (!accountId) {
-    return { platform: "instagram", success: false, error: "Instagram account ID required" };
+    return {
+      platform: "instagram",
+      success: false,
+      error: "Instagram account ID required",
+    };
   }
 
   if (!credentials.accessToken) {
-    return { platform: "instagram", success: false, error: "Access token required" };
+    return {
+      platform: "instagram",
+      success: false,
+      error: "Access token required",
+    };
   }
 
   // Instagram requires at least one image
@@ -228,7 +248,7 @@ async function createInstagramPost(
       const container = await graphApiRequest<InstagramMediaContainer>(
         `/${accountId}/media?${new URLSearchParams(containerParams)}`,
         credentials.accessToken,
-        { method: "POST" }
+        { method: "POST" },
       );
 
       // Step 2: Publish the media
@@ -240,7 +260,7 @@ async function createInstagramPost(
       const post = await graphApiRequest<{ id: string }>(
         `/${accountId}/media_publish?${publishParams}`,
         credentials.accessToken,
-        { method: "POST" }
+        { method: "POST" },
       );
 
       return {
@@ -271,7 +291,7 @@ async function createInstagramPost(
       const container = await graphApiRequest<InstagramMediaContainer>(
         `/${accountId}/media?${containerParams}`,
         credentials.accessToken,
-        { method: "POST" }
+        { method: "POST" },
       );
 
       containerIds.push(container.id);
@@ -288,7 +308,7 @@ async function createInstagramPost(
     const carousel = await graphApiRequest<InstagramMediaContainer>(
       `/${accountId}/media?${carouselParams}`,
       credentials.accessToken,
-      { method: "POST" }
+      { method: "POST" },
     );
 
     // Publish the carousel
@@ -300,7 +320,7 @@ async function createInstagramPost(
     const post = await graphApiRequest<{ id: string }>(
       `/${accountId}/media_publish?${publishParams}`,
       credentials.accessToken,
-      { method: "POST" }
+      { method: "POST" },
     );
 
     return {
@@ -318,7 +338,6 @@ async function createInstagramPost(
     };
   }
 }
-
 
 export const metaProvider: SocialMediaProvider = {
   platform: "facebook",
@@ -352,7 +371,7 @@ export const metaProvider: SocialMediaProvider = {
   async createPost(
     credentials: SocialCredentials,
     content: PostContent,
-    options?: PlatformPostOptions
+    options?: PlatformPostOptions,
   ): Promise<PostResult> {
     // Determine which platform to post to based on options
     if (options?.instagram?.accountId || credentials.accountId) {
@@ -371,7 +390,7 @@ export const metaProvider: SocialMediaProvider = {
       await graphApiRequest(
         `/${postId}?access_token=${credentials.accessToken}`,
         credentials.accessToken,
-        { method: "DELETE" }
+        { method: "DELETE" },
       );
 
       return { success: true };
@@ -385,7 +404,7 @@ export const metaProvider: SocialMediaProvider = {
 
   async getPostAnalytics(
     credentials: SocialCredentials,
-    postId: string
+    postId: string,
   ): Promise<PostAnalytics | null> {
     if (!credentials.accessToken) {
       return null;
@@ -400,7 +419,7 @@ export const metaProvider: SocialMediaProvider = {
         comments?: { summary: { total_count: number } };
       }>(
         `/${postId}?fields=id,shares,likes.summary(true),comments.summary(true)`,
-        credentials.accessToken
+        credentials.accessToken,
       );
 
       return {
@@ -422,7 +441,7 @@ export const metaProvider: SocialMediaProvider = {
           comments_count?: number;
         }>(
           `/${postId}?fields=id,like_count,comments_count`,
-          credentials.accessToken
+          credentials.accessToken,
         );
 
         return {
@@ -441,7 +460,7 @@ export const metaProvider: SocialMediaProvider = {
   },
 
   async getAccountAnalytics(
-    credentials: SocialCredentials
+    credentials: SocialCredentials,
   ): Promise<AccountAnalytics | null> {
     if (!credentials.accessToken) {
       return null;
@@ -452,7 +471,7 @@ export const metaProvider: SocialMediaProvider = {
       try {
         const response = await graphApiRequest<InstagramAccount>(
           `/${credentials.accountId}?fields=id,username,name,profile_picture_url,followers_count,follows_count,media_count`,
-          credentials.accessToken
+          credentials.accessToken,
         );
 
         return {
@@ -479,7 +498,7 @@ export const metaProvider: SocialMediaProvider = {
           fan_count?: number;
         }>(
           `/${credentials.pageId}?fields=id,name,fan_count`,
-          credentials.accessToken
+          credentials.accessToken,
         );
 
         return {
@@ -511,10 +530,14 @@ export const metaProvider: SocialMediaProvider = {
   async replyToPost(
     credentials: SocialCredentials,
     postId: string,
-    content: PostContent
+    content: PostContent,
   ): Promise<PostResult> {
     if (!credentials.accessToken) {
-      return { platform: "facebook", success: false, error: "Access token required" };
+      return {
+        platform: "facebook",
+        success: false,
+        error: "Access token required",
+      };
     }
 
     try {
@@ -526,7 +549,7 @@ export const metaProvider: SocialMediaProvider = {
       const response = await graphApiRequest<{ id: string }>(
         `/${postId}/comments?${params}`,
         credentials.accessToken,
-        { method: "POST" }
+        { method: "POST" },
       );
 
       return {
@@ -552,7 +575,7 @@ export const metaProvider: SocialMediaProvider = {
       await graphApiRequest(
         `/${postId}/likes?access_token=${credentials.accessToken}`,
         credentials.accessToken,
-        { method: "POST" }
+        { method: "POST" },
       );
 
       return { success: true };
@@ -564,4 +587,3 @@ export const metaProvider: SocialMediaProvider = {
     }
   },
 };
-

@@ -3,7 +3,7 @@
  *
  * Multi-chain x402 payment support for Jeju and Base networks.
  * Uses OIF/EIL for cross-chain payment routing - accept tokens from any supported chain.
- * 
+ *
  * Supports:
  * - Jeju networks (localnet, testnet, mainnet) with decentralized facilitator
  * - Base networks (Sepolia, mainnet) with Coinbase CDP facilitator
@@ -25,11 +25,11 @@ import configJson from "@/config/x402.json";
 // ============================================================================
 
 /** All supported x402 networks including Jeju and Base */
-export type X402Network = 
-  | "jeju-localnet" 
-  | "jeju-testnet" 
-  | "jeju" 
-  | "base-sepolia" 
+export type X402Network =
+  | "jeju-localnet"
+  | "jeju-testnet"
+  | "jeju"
+  | "base-sepolia"
   | "base";
 
 /** Network ecosystem for determining facilitator and routing */
@@ -128,14 +128,18 @@ const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000" as Address;
 /** All supported x402 networks */
 export const SUPPORTED_NETWORKS: X402Network[] = [
   "jeju-localnet",
-  "jeju-testnet", 
+  "jeju-testnet",
   "jeju",
-  "base-sepolia", 
+  "base-sepolia",
   "base",
 ];
 
 /** Jeju networks */
-export const JEJU_NETWORKS: X402Network[] = ["jeju-localnet", "jeju-testnet", "jeju"];
+export const JEJU_NETWORKS: X402Network[] = [
+  "jeju-localnet",
+  "jeju-testnet",
+  "jeju",
+];
 
 /** Base/Coinbase networks */
 export const BASE_NETWORKS: X402Network[] = ["base-sepolia", "base"];
@@ -166,9 +170,8 @@ export const USDC_ADDRESSES: Record<X402Network, Address> = {
 export const X402_ENABLED = process.env.ENABLE_X402_PAYMENTS !== "false";
 
 /** Recipient address for x402 payments */
-export const X402_RECIPIENT_ADDRESS: Address = (
-  process.env.X402_RECIPIENT_ADDRESS || ZERO_ADDRESS
-) as Address;
+export const X402_RECIPIENT_ADDRESS: Address = (process.env
+  .X402_RECIPIENT_ADDRESS || ZERO_ADDRESS) as Address;
 
 /** Credit pricing from config */
 export const TOPUP_PRICE = config.pricing.topupPrice;
@@ -187,7 +190,8 @@ export const CROSS_CHAIN_PAYMENTS = config.crossChainPayments;
 export const ACCOUNT_ABSTRACTION = config.accountAbstraction;
 
 /** ERC-4337 EntryPoint address */
-export const ENTRYPOINT_ADDRESS = config.accountAbstraction.erc4337.entryPoint as Address;
+export const ENTRYPOINT_ADDRESS = config.accountAbstraction.erc4337
+  .entryPoint as Address;
 
 // ============================================================================
 // Network Helper Functions
@@ -203,7 +207,7 @@ export function isJejuDeployed(): boolean {
 
 /**
  * Get default network based on environment
- * 
+ *
  * Priority:
  * 1. Explicit X402_NETWORK env var
  * 2. Localnet mode (JEJU_NETWORK=localnet)
@@ -213,22 +217,22 @@ export function isJejuDeployed(): boolean {
 export function getDefaultNetwork(): X402Network {
   const envNetwork = process.env.X402_NETWORK as X402Network | undefined;
   if (envNetwork && CHAIN_IDS[envNetwork]) return envNetwork;
-  
+
   // Check for localnet mode
   if (process.env.JEJU_NETWORK === "localnet") {
     return config.defaults.localnetNetwork as X402Network;
   }
-  
+
   // Use Jeju if deployed, otherwise fallback to Base
   const jejuDeployed = isJejuDeployed();
-  
+
   if (process.env.NODE_ENV === "production") {
-    return jejuDeployed 
-      ? (config.defaults.jejuProductionNetwork as X402Network) 
+    return jejuDeployed
+      ? (config.defaults.jejuProductionNetwork as X402Network)
       : (config.defaults.productionNetwork as X402Network);
   }
-  
-  return jejuDeployed 
+
+  return jejuDeployed
     ? (config.defaults.jejuNetwork as X402Network)
     : (config.defaults.network as X402Network);
 }
@@ -299,18 +303,20 @@ export function getX402NetworkConfig(network: X402Network) {
 /**
  * Get facilitator type for a network
  */
-export function getFacilitatorType(network: X402Network): "cdp" | "decentralized" | "public" {
+export function getFacilitatorType(
+  network: X402Network,
+): "cdp" | "decentralized" | "public" {
   const ecosystem = getNetworkEcosystem(network);
-  
+
   if (ecosystem === "jeju") {
     return "decentralized";
   }
-  
+
   // Base networks - check if CDP credentials are configured
   const hasCdpCredentials = Boolean(
-    process.env.CDP_API_KEY_ID && process.env.CDP_API_KEY_SECRET
+    process.env.CDP_API_KEY_ID && process.env.CDP_API_KEY_SECRET,
   );
-  
+
   return hasCdpCredentials ? "cdp" : "public";
 }
 
@@ -319,7 +325,7 @@ export function getFacilitatorType(network: X402Network): "cdp" | "decentralized
  */
 export function getFacilitatorConfig(network: X402Network): FacilitatorConfig {
   const type = getFacilitatorType(network);
-  
+
   if (type === "decentralized") {
     return config.facilitators.jeju;
   }
@@ -337,7 +343,9 @@ export function getFacilitatorConfig(network: X402Network): FacilitatorConfig {
  * Check if cross-chain payments are enabled
  */
 export function isCrossChainEnabled(): boolean {
-  return CROSS_CHAIN_PAYMENTS.enabled && CROSS_CHAIN_PAYMENTS.oifIntegration.enabled;
+  return (
+    CROSS_CHAIN_PAYMENTS.enabled && CROSS_CHAIN_PAYMENTS.oifIntegration.enabled
+  );
 }
 
 /**
@@ -347,14 +355,20 @@ export function getOIFAggregatorUrl(): string {
   if (process.env.NODE_ENV === "production") {
     return CROSS_CHAIN_PAYMENTS.oifIntegration.aggregatorUrlProduction;
   }
-  return process.env.OIF_AGGREGATOR_URL || CROSS_CHAIN_PAYMENTS.oifIntegration.aggregatorUrl;
+  return (
+    process.env.OIF_AGGREGATOR_URL ||
+    CROSS_CHAIN_PAYMENTS.oifIntegration.aggregatorUrl
+  );
 }
 
 /**
  * Get supported source chains for cross-chain payments
  */
 export function getSupportedSourceChains(): number[] {
-  if (process.env.NODE_ENV === "production" || process.env.JEJU_NETWORK === "mainnet") {
+  if (
+    process.env.NODE_ENV === "production" ||
+    process.env.JEJU_NETWORK === "mainnet"
+  ) {
     return CROSS_CHAIN_PAYMENTS.supportedSourceChains.mainnet;
   }
   return CROSS_CHAIN_PAYMENTS.supportedSourceChains.testnet;
@@ -364,7 +378,10 @@ export function getSupportedSourceChains(): number[] {
  * Get settlement chain for cross-chain payments
  */
 export function getSettlementChain(): X402Network {
-  if (process.env.NODE_ENV === "production" || process.env.JEJU_NETWORK === "mainnet") {
+  if (
+    process.env.NODE_ENV === "production" ||
+    process.env.JEJU_NETWORK === "mainnet"
+  ) {
     return CROSS_CHAIN_PAYMENTS.settlementChains.primary as X402Network;
   }
   return CROSS_CHAIN_PAYMENTS.settlementChains.testnetPrimary as X402Network;
@@ -374,7 +391,10 @@ export function getSettlementChain(): X402Network {
  * Get settlement fallback chain (Base)
  */
 export function getSettlementFallbackChain(): X402Network {
-  if (process.env.NODE_ENV === "production" || process.env.JEJU_NETWORK === "mainnet") {
+  if (
+    process.env.NODE_ENV === "production" ||
+    process.env.JEJU_NETWORK === "mainnet"
+  ) {
     return CROSS_CHAIN_PAYMENTS.settlementChains.fallback as X402Network;
   }
   return CROSS_CHAIN_PAYMENTS.settlementChains.testnetFallback as X402Network;
@@ -402,7 +422,10 @@ export function isAccountAbstractionEnabled(): boolean {
  * Check if paymaster is enabled for gasless transactions
  */
 export function isPaymasterEnabled(): boolean {
-  return ACCOUNT_ABSTRACTION.erc4337.enabled && ACCOUNT_ABSTRACTION.erc4337.paymasterEnabled;
+  return (
+    ACCOUNT_ABSTRACTION.erc4337.enabled &&
+    ACCOUNT_ABSTRACTION.erc4337.paymasterEnabled
+  );
 }
 
 /**

@@ -3,12 +3,18 @@ import { describe, it, expect } from "bun:test";
 describe("Advertising Providers", () => {
   describe("Google Ads Objective Mapping", () => {
     const mapObjectiveToGoogleAds = (objective: string) => {
-      const mapping: Record<string, { advertisingChannelType: string; advertisingChannelSubType?: string }> = {
+      const mapping: Record<
+        string,
+        { advertisingChannelType: string; advertisingChannelSubType?: string }
+      > = {
         awareness: { advertisingChannelType: "DISPLAY" },
         traffic: { advertisingChannelType: "SEARCH" },
         engagement: { advertisingChannelType: "DISPLAY" },
         leads: { advertisingChannelType: "SEARCH" },
-        app_promotion: { advertisingChannelType: "MULTI_CHANNEL", advertisingChannelSubType: "APP_CAMPAIGN" },
+        app_promotion: {
+          advertisingChannelType: "MULTI_CHANNEL",
+          advertisingChannelSubType: "APP_CAMPAIGN",
+        },
         sales: { advertisingChannelType: "SHOPPING" },
         conversions: { advertisingChannelType: "PERFORMANCE_MAX" },
       };
@@ -16,11 +22,15 @@ describe("Advertising Providers", () => {
     };
 
     it("maps awareness to DISPLAY", () => {
-      expect(mapObjectiveToGoogleAds("awareness").advertisingChannelType).toBe("DISPLAY");
+      expect(mapObjectiveToGoogleAds("awareness").advertisingChannelType).toBe(
+        "DISPLAY",
+      );
     });
 
     it("maps traffic to SEARCH", () => {
-      expect(mapObjectiveToGoogleAds("traffic").advertisingChannelType).toBe("SEARCH");
+      expect(mapObjectiveToGoogleAds("traffic").advertisingChannelType).toBe(
+        "SEARCH",
+      );
     });
 
     it("maps app_promotion to MULTI_CHANNEL with APP_CAMPAIGN subtype", () => {
@@ -30,7 +40,9 @@ describe("Advertising Providers", () => {
     });
 
     it("defaults unknown objectives to SEARCH", () => {
-      expect(mapObjectiveToGoogleAds("unknown").advertisingChannelType).toBe("SEARCH");
+      expect(mapObjectiveToGoogleAds("unknown").advertisingChannelType).toBe(
+        "SEARCH",
+      );
     });
   });
 
@@ -158,4 +170,3 @@ describe("Advertising Providers", () => {
     });
   });
 });
-

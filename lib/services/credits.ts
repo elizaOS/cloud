@@ -5,6 +5,7 @@
 import {
   creditTransactionsRepository,
   creditPacksRepository,
+  organizationsRepository,
   type CreditTransaction,
   type NewCreditTransaction,
   type CreditPack,

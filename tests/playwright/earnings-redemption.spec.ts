@@ -37,7 +37,9 @@ test.describe("Earnings Page UI", () => {
   });
 
   test("earnings page loads and shows balance cards", async ({ page }) => {
-    const response = await page.goto(`${BASE_URL}/dashboard/earnings`).catch(() => null);
+    const response = await page
+      .goto(`${BASE_URL}/dashboard/earnings`)
+      .catch(() => null);
     if (!response) {
       console.log("ℹ️ Page navigation failed - skipping");
       return;
@@ -54,15 +56,17 @@ test.describe("Earnings Page UI", () => {
     }
 
     // Should show balance cards
-    const availableBalance = page.locator('text=/Available to Redeem/i');
-    const totalEarned = page.locator('text=/Total Earned/i');
-    const redeemed = page.locator('text=/Already Redeemed/i');
+    const availableBalance = page.locator("text=/Available to Redeem/i");
+    const totalEarned = page.locator("text=/Total Earned/i");
+    const redeemed = page.locator("text=/Already Redeemed/i");
 
     const hasAvailable = await availableBalance.isVisible().catch(() => false);
     const hasTotal = await totalEarned.isVisible().catch(() => false);
     const hasRedeemed = await redeemed.isVisible().catch(() => false);
 
-    console.log(`✅ Earnings page - Available: ${hasAvailable}, Total: ${hasTotal}, Redeemed: ${hasRedeemed}`);
+    console.log(
+      `✅ Earnings page - Available: ${hasAvailable}, Total: ${hasTotal}, Redeemed: ${hasRedeemed}`,
+    );
     expect(hasAvailable || hasTotal || hasRedeemed).toBe(true);
   });
 
@@ -118,11 +122,15 @@ test.describe("Earnings Page UI", () => {
         const hasNetwork = await networkSelect.isVisible().catch(() => false);
         const hasAddress = await addressInput.isVisible().catch(() => false);
 
-        console.log(`✅ Dialog contents - Amount: ${hasAmount}, Network: ${hasNetwork}, Address: ${hasAddress}`);
+        console.log(
+          `✅ Dialog contents - Amount: ${hasAmount}, Network: ${hasNetwork}, Address: ${hasAddress}`,
+        );
         expect(hasAmount).toBe(true);
       }
     } else {
-      console.log("ℹ️ Redeem button not visible (may be disabled due to low balance)");
+      console.log(
+        "ℹ️ Redeem button not visible (may be disabled due to low balance)",
+      );
     }
   });
 
@@ -153,13 +161,15 @@ test.describe("Earnings Page UI", () => {
       await page.waitForTimeout(300);
 
       // Check for network options
-      const baseOption = page.locator('text=Base');
-      const solanaOption = page.locator('text=Solana');
+      const baseOption = page.locator("text=Base");
+      const solanaOption = page.locator("text=Solana");
 
       const hasBase = await baseOption.isVisible().catch(() => false);
       const hasSolana = await solanaOption.isVisible().catch(() => false);
 
-      console.log(`✅ Network options - Base: ${hasBase}, Solana: ${hasSolana}`);
+      console.log(
+        `✅ Network options - Base: ${hasBase}, Solana: ${hasSolana}`,
+      );
       expect(hasBase || hasSolana).toBe(true);
     }
   });
@@ -176,7 +186,7 @@ test.describe("Earnings Page UI", () => {
     }
 
     // Look for recent earnings section
-    const recentEarnings = page.locator('text=/Recent Earnings/i');
+    const recentEarnings = page.locator("text=/Recent Earnings/i");
     const hasRecent = await recentEarnings.isVisible().catch(() => false);
 
     console.log(`✅ Recent earnings section: ${hasRecent}`);
@@ -195,7 +205,7 @@ test.describe("Earnings Page UI", () => {
     }
 
     // Look for redemption history
-    const historySection = page.locator('text=/Redemption History/i');
+    const historySection = page.locator("text=/Redemption History/i");
     const hasHistory = await historySection.isVisible().catch(() => false);
 
     console.log(`✅ Redemption history section: ${hasHistory}`);
@@ -214,7 +224,9 @@ test.describe("Earnings Page UI", () => {
     }
 
     // Find and click refresh button in redemption history
-    const refreshButton = page.locator('button:has(svg[class*="RefreshCw"])').first();
+    const refreshButton = page
+      .locator('button:has(svg[class*="RefreshCw"])')
+      .first();
     if (await refreshButton.isVisible()) {
       await refreshButton.click();
       await page.waitForTimeout(1000);
@@ -234,15 +246,17 @@ test.describe("Earnings Page UI", () => {
     }
 
     // Look for source breakdown
-    const app = page.locator('text=/app/i');
-    const agent = page.locator('text=/agent/i');
-    const mcp = page.locator('text=/mcp/i');
+    const app = page.locator("text=/app/i");
+    const agent = page.locator("text=/agent/i");
+    const mcp = page.locator("text=/mcp/i");
 
     const hasApp = await app.isVisible().catch(() => false);
     const hasAgent = await agent.isVisible().catch(() => false);
     const hasMcp = await mcp.isVisible().catch(() => false);
 
-    console.log(`✅ Source breakdown - App: ${hasApp}, Agent: ${hasAgent}, MCP: ${hasMcp}`);
+    console.log(
+      `✅ Source breakdown - App: ${hasApp}, Agent: ${hasAgent}, MCP: ${hasMcp}`,
+    );
   });
 
   test("system status banner shows when payouts limited", async ({ page }) => {
@@ -257,7 +271,7 @@ test.describe("Earnings Page UI", () => {
     }
 
     // Look for system status banner
-    const statusBanner = page.locator('text=/Redemptions Limited/i');
+    const statusBanner = page.locator("text=/Redemptions Limited/i");
     const hasBanner = await statusBanner.isVisible().catch(() => false);
 
     console.log(`✅ System status banner visible: ${hasBanner}`);
@@ -271,10 +285,15 @@ test.describe("Earnings Page UI", () => {
 test.describe("Earnings Balance API", () => {
   test.skip(() => !API_KEY, "TEST_API_KEY environment variable required");
 
-  test("GET /api/v1/redemptions/balance returns balance data", async ({ request }) => {
-    const response = await request.get(`${BASE_URL}/api/v1/redemptions/balance`, {
-      headers: authHeaders(),
-    });
+  test("GET /api/v1/redemptions/balance returns balance data", async ({
+    request,
+  }) => {
+    const response = await request.get(
+      `${BASE_URL}/api/v1/redemptions/balance`,
+      {
+        headers: authHeaders(),
+      },
+    );
 
     expect(response.status()).toBe(200);
 
@@ -287,13 +306,18 @@ test.describe("Earnings Balance API", () => {
     expect(data).toHaveProperty("limits");
     expect(data).toHaveProperty("eligibility");
 
-    console.log(`✅ Balance: $${data.balance.availableBalance} available, $${data.balance.totalEarned} total earned`);
+    console.log(
+      `✅ Balance: $${data.balance.availableBalance} available, $${data.balance.totalEarned} total earned`,
+    );
   });
 
   test("balance includes earnings breakdown by source", async ({ request }) => {
-    const response = await request.get(`${BASE_URL}/api/v1/redemptions/balance`, {
-      headers: authHeaders(),
-    });
+    const response = await request.get(
+      `${BASE_URL}/api/v1/redemptions/balance`,
+      {
+        headers: authHeaders(),
+      },
+    );
 
     expect(response.status()).toBe(200);
 
@@ -311,9 +335,12 @@ test.describe("Earnings Balance API", () => {
   });
 
   test("balance includes recent earnings list", async ({ request }) => {
-    const response = await request.get(`${BASE_URL}/api/v1/redemptions/balance`, {
-      headers: authHeaders(),
-    });
+    const response = await request.get(
+      `${BASE_URL}/api/v1/redemptions/balance`,
+      {
+        headers: authHeaders(),
+      },
+    );
 
     expect(response.status()).toBe(200);
 
@@ -333,9 +360,12 @@ test.describe("Earnings Balance API", () => {
   });
 
   test("balance includes eligibility status", async ({ request }) => {
-    const response = await request.get(`${BASE_URL}/api/v1/redemptions/balance`, {
-      headers: authHeaders(),
-    });
+    const response = await request.get(
+      `${BASE_URL}/api/v1/redemptions/balance`,
+      {
+        headers: authHeaders(),
+      },
+    );
 
     expect(response.status()).toBe(200);
 
@@ -347,13 +377,18 @@ test.describe("Earnings Balance API", () => {
       expect(data.eligibility).toHaveProperty("reason");
     }
 
-    console.log(`✅ Can redeem: ${data.eligibility.canRedeem}, Reason: ${data.eligibility.reason || "N/A"}`);
+    console.log(
+      `✅ Can redeem: ${data.eligibility.canRedeem}, Reason: ${data.eligibility.reason || "N/A"}`,
+    );
   });
 
   test("balance includes redemption limits", async ({ request }) => {
-    const response = await request.get(`${BASE_URL}/api/v1/redemptions/balance`, {
-      headers: authHeaders(),
-    });
+    const response = await request.get(
+      `${BASE_URL}/api/v1/redemptions/balance`,
+      {
+        headers: authHeaders(),
+      },
+    );
 
     expect(response.status()).toBe(200);
 
@@ -362,17 +397,21 @@ test.describe("Earnings Balance API", () => {
     expect(data.limits).toHaveProperty("maxSingleRedemptionUsd");
     expect(data.limits).toHaveProperty("userDailyLimitUsd");
 
-    console.log(`✅ Limits: $${data.limits.minRedemptionUsd} min, $${data.limits.maxSingleRedemptionUsd} max`);
+    console.log(
+      `✅ Limits: $${data.limits.minRedemptionUsd} min, $${data.limits.maxSingleRedemptionUsd} max`,
+    );
   });
 });
 
 test.describe("Redemption Quote API", () => {
   test.skip(() => !API_KEY, "TEST_API_KEY environment variable required");
 
-  test("GET /api/v1/redemptions/quote returns price quote", async ({ request }) => {
+  test("GET /api/v1/redemptions/quote returns price quote", async ({
+    request,
+  }) => {
     const response = await request.get(
       `${BASE_URL}/api/v1/redemptions/quote?amount=10&network=base`,
-      { headers: authHeaders() }
+      { headers: authHeaders() },
     );
 
     // May fail if no TWAP samples or system paused
@@ -386,7 +425,9 @@ test.describe("Redemption Quote API", () => {
       expect(data.quote).toHaveProperty("elizaPriceUsd");
       expect(data.quote).toHaveProperty("expiresAt");
 
-      console.log(`✅ Quote: $${data.quote.usdValue} = ${data.quote.elizaAmount} elizaOS at $${data.quote.elizaPriceUsd}`);
+      console.log(
+        `✅ Quote: $${data.quote.usdValue} = ${data.quote.elizaAmount} elizaOS at $${data.quote.elizaPriceUsd}`,
+      );
     } else {
       const error = await response.json();
       console.log(`ℹ️ Quote unavailable: ${error.error}`);
@@ -396,7 +437,7 @@ test.describe("Redemption Quote API", () => {
   test("quote requires valid network parameter", async ({ request }) => {
     const response = await request.get(
       `${BASE_URL}/api/v1/redemptions/quote?amount=10&network=invalid`,
-      { headers: authHeaders() }
+      { headers: authHeaders() },
     );
 
     expect([400, 422]).toContain(response.status());
@@ -406,7 +447,7 @@ test.describe("Redemption Quote API", () => {
   test("quote requires amount parameter", async ({ request }) => {
     const response = await request.get(
       `${BASE_URL}/api/v1/redemptions/quote?network=base`,
-      { headers: authHeaders() }
+      { headers: authHeaders() },
     );
 
     expect([400, 422]).toContain(response.status());
@@ -416,7 +457,7 @@ test.describe("Redemption Quote API", () => {
   test("quote validates minimum amount", async ({ request }) => {
     const response = await request.get(
       `${BASE_URL}/api/v1/redemptions/quote?amount=0.01&network=base`,
-      { headers: authHeaders() }
+      { headers: authHeaders() },
     );
 
     // Should reject amounts below minimum
@@ -428,10 +469,15 @@ test.describe("Redemption Quote API", () => {
 test.describe("Redemption Status API", () => {
   test.skip(() => !API_KEY, "TEST_API_KEY environment variable required");
 
-  test("GET /api/v1/redemptions/status returns system status", async ({ request }) => {
-    const response = await request.get(`${BASE_URL}/api/v1/redemptions/status`, {
-      headers: authHeaders(),
-    });
+  test("GET /api/v1/redemptions/status returns system status", async ({
+    request,
+  }) => {
+    const response = await request.get(
+      `${BASE_URL}/api/v1/redemptions/status`,
+      {
+        headers: authHeaders(),
+      },
+    );
 
     expect(response.status()).toBe(200);
 
@@ -444,25 +490,34 @@ test.describe("Redemption Status API", () => {
   });
 
   test("status includes network availability", async ({ request }) => {
-    const response = await request.get(`${BASE_URL}/api/v1/redemptions/status`, {
-      headers: authHeaders(),
-    });
+    const response = await request.get(
+      `${BASE_URL}/api/v1/redemptions/status`,
+      {
+        headers: authHeaders(),
+      },
+    );
 
     expect(response.status()).toBe(200);
 
     const data = await response.json();
     expect(data.networks).toBeDefined();
 
-    for (const [network, status] of Object.entries(data.networks) as [string, { available: boolean }][]) {
+    for (const [network, status] of Object.entries(data.networks) as [
+      string,
+      { available: boolean },
+    ][]) {
       expect(status).toHaveProperty("available");
       console.log(`  ${network}: ${status.available ? "✅" : "❌"}`);
     }
   });
 
   test("status includes wallet configuration", async ({ request }) => {
-    const response = await request.get(`${BASE_URL}/api/v1/redemptions/status`, {
-      headers: authHeaders(),
-    });
+    const response = await request.get(
+      `${BASE_URL}/api/v1/redemptions/status`,
+      {
+        headers: authHeaders(),
+      },
+    );
 
     expect(response.status()).toBe(200);
 
@@ -470,7 +525,9 @@ test.describe("Redemption Status API", () => {
     if (data.wallets) {
       expect(data.wallets).toHaveProperty("evm");
       expect(data.wallets).toHaveProperty("solana");
-      console.log(`✅ EVM configured: ${data.wallets.evm?.configured}, Solana configured: ${data.wallets.solana?.configured}`);
+      console.log(
+        `✅ EVM configured: ${data.wallets.evm?.configured}, Solana configured: ${data.wallets.solana?.configured}`,
+      );
     }
   });
 });
@@ -478,10 +535,15 @@ test.describe("Redemption Status API", () => {
 test.describe("Redemption Request API", () => {
   test.skip(() => !API_KEY, "TEST_API_KEY environment variable required");
 
-  test("GET /api/v1/redemptions lists user redemptions", async ({ request }) => {
-    const response = await request.get(`${BASE_URL}/api/v1/redemptions?limit=10`, {
-      headers: authHeaders(),
-    });
+  test("GET /api/v1/redemptions lists user redemptions", async ({
+    request,
+  }) => {
+    const response = await request.get(
+      `${BASE_URL}/api/v1/redemptions?limit=10`,
+      {
+        headers: authHeaders(),
+      },
+    );
 
     expect(response.status()).toBe(200);
 
@@ -499,7 +561,9 @@ test.describe("Redemption Request API", () => {
     console.log(`✅ Found ${data.redemptions.length} redemptions`);
   });
 
-  test("POST /api/v1/redemptions validates required fields", async ({ request }) => {
+  test("POST /api/v1/redemptions validates required fields", async ({
+    request,
+  }) => {
     const response = await request.post(`${BASE_URL}/api/v1/redemptions`, {
       headers: authHeaders(),
       data: {
@@ -511,7 +575,9 @@ test.describe("Redemption Request API", () => {
     console.log("✅ Missing fields rejected");
   });
 
-  test("POST /api/v1/redemptions validates wallet address format", async ({ request }) => {
+  test("POST /api/v1/redemptions validates wallet address format", async ({
+    request,
+  }) => {
     const response = await request.post(`${BASE_URL}/api/v1/redemptions`, {
       headers: authHeaders(),
       data: {
@@ -525,7 +591,9 @@ test.describe("Redemption Request API", () => {
     console.log("✅ Invalid address rejected");
   });
 
-  test("POST /api/v1/redemptions validates solana address format", async ({ request }) => {
+  test("POST /api/v1/redemptions validates solana address format", async ({
+    request,
+  }) => {
     const response = await request.post(`${BASE_URL}/api/v1/redemptions`, {
       headers: authHeaders(),
       data: {
@@ -550,7 +618,9 @@ test.describe("Admin Redemptions Page UI", () => {
   });
 
   test("admin redemptions page loads", async ({ page }) => {
-    const response = await page.goto(`${BASE_URL}/dashboard/admin/redemptions`).catch(() => null);
+    const response = await page
+      .goto(`${BASE_URL}/dashboard/admin/redemptions`)
+      .catch(() => null);
     if (!response) {
       console.log("ℹ️ Page navigation failed - skipping");
       return;
@@ -565,13 +635,15 @@ test.describe("Admin Redemptions Page UI", () => {
     }
 
     // Should show admin UI elements
-    const systemStatus = page.locator('text=/System Status/i');
-    const queueStats = page.locator('text=/Queue Stats/i');
+    const systemStatus = page.locator("text=/System Status/i");
+    const queueStats = page.locator("text=/Queue Stats/i");
 
     const hasStatus = await systemStatus.isVisible().catch(() => false);
     const hasQueue = await queueStats.isVisible().catch(() => false);
 
-    console.log(`✅ Admin UI - System Status: ${hasStatus}, Queue Stats: ${hasQueue}`);
+    console.log(
+      `✅ Admin UI - System Status: ${hasStatus}, Queue Stats: ${hasQueue}`,
+    );
   });
 
   test("admin page shows filter controls", async ({ page }) => {
@@ -591,7 +663,9 @@ test.describe("Admin Redemptions Page UI", () => {
     const hasStatus = await statusFilter.isVisible().catch(() => false);
     const hasRefresh = await refreshButton.isVisible().catch(() => false);
 
-    console.log(`✅ Filters - Search: ${hasSearch}, Status: ${hasStatus}, Refresh: ${hasRefresh}`);
+    console.log(
+      `✅ Filters - Search: ${hasSearch}, Status: ${hasStatus}, Refresh: ${hasRefresh}`,
+    );
   });
 
   test("admin status filter changes results", async ({ page }) => {
@@ -664,7 +738,7 @@ test.describe("Admin Redemptions Page UI", () => {
       console.log("✅ Redemptions table found");
     } else {
       // May show empty state
-      const emptyState = page.locator('text=/No redemptions/i');
+      const emptyState = page.locator("text=/No redemptions/i");
       const hasEmpty = await emptyState.isVisible().catch(() => false);
       console.log(`✅ Table visible: ${hasTable}, Empty state: ${hasEmpty}`);
     }
@@ -689,7 +763,7 @@ test.describe("Admin Redemptions Page UI", () => {
       const hasDialog = await dialog.isVisible().catch(() => false);
 
       if (hasDialog) {
-        const detailsTitle = page.locator('text=/Redemption Details/i');
+        const detailsTitle = page.locator("text=/Redemption Details/i");
         const hasTitle = await detailsTitle.isVisible().catch(() => false);
         console.log(`✅ Details dialog opened: ${hasTitle}`);
 
@@ -713,7 +787,9 @@ test.describe("Admin Redemptions Page UI", () => {
     if (!url.includes("/admin/redemptions")) return;
 
     // Look for approve button (check icon, green color)
-    const approveButton = page.locator('button.text-green-400:has(svg)').first();
+    const approveButton = page
+      .locator("button.text-green-400:has(svg)")
+      .first();
     if (await approveButton.isVisible()) {
       await approveButton.click();
       await page.waitForTimeout(500);
@@ -745,7 +821,7 @@ test.describe("Admin Redemptions Page UI", () => {
     if (!url.includes("/admin/redemptions")) return;
 
     // Look for reject button (ban icon, red color)
-    const rejectButton = page.locator('button.text-red-400:has(svg)').first();
+    const rejectButton = page.locator("button.text-red-400:has(svg)").first();
     if (await rejectButton.isVisible()) {
       await rejectButton.click();
       await page.waitForTimeout(500);
@@ -779,7 +855,9 @@ test.describe("Admin Redemptions Page UI", () => {
 test.describe("Admin Redemptions API", () => {
   test.skip(() => !API_KEY, "TEST_API_KEY environment variable required");
 
-  test("GET /api/admin/redemptions lists all redemptions", async ({ request }) => {
+  test("GET /api/admin/redemptions lists all redemptions", async ({
+    request,
+  }) => {
     const response = await request.get(`${BASE_URL}/api/admin/redemptions`, {
       headers: authHeaders(),
     });
@@ -809,13 +887,15 @@ test.describe("Admin Redemptions API", () => {
     expect(data.stats).toHaveProperty("completed");
     expect(data.stats).toHaveProperty("totalPendingUsd");
 
-    console.log(`✅ Stats: ${data.stats.pending} pending, $${data.stats.totalPendingUsd} pending value`);
+    console.log(
+      `✅ Stats: ${data.stats.pending} pending, $${data.stats.totalPendingUsd} pending value`,
+    );
   });
 
   test("admin list supports status filter", async ({ request }) => {
     const response = await request.get(
       `${BASE_URL}/api/admin/redemptions?status=pending`,
-      { headers: authHeaders() }
+      { headers: authHeaders() },
     );
 
     if (response.status() !== 200) return;
@@ -830,7 +910,7 @@ test.describe("Admin Redemptions API", () => {
   test("admin list supports network filter", async ({ request }) => {
     const response = await request.get(
       `${BASE_URL}/api/admin/redemptions?network=base`,
-      { headers: authHeaders() }
+      { headers: authHeaders() },
     );
 
     if (response.status() !== 200) return;
@@ -850,11 +930,16 @@ test.describe("Admin Redemptions API", () => {
 test.describe("Complete Redemption Flow", () => {
   test.skip(() => !API_KEY, "TEST_API_KEY environment variable required");
 
-  test("full flow: check balance → get quote → verify eligibility", async ({ request }) => {
+  test("full flow: check balance → get quote → verify eligibility", async ({
+    request,
+  }) => {
     // Step 1: Get balance
-    const balanceRes = await request.get(`${BASE_URL}/api/v1/redemptions/balance`, {
-      headers: authHeaders(),
-    });
+    const balanceRes = await request.get(
+      `${BASE_URL}/api/v1/redemptions/balance`,
+      {
+        headers: authHeaders(),
+      },
+    );
     expect(balanceRes.status()).toBe(200);
     const balance = await balanceRes.json();
 
@@ -862,9 +947,12 @@ test.describe("Complete Redemption Flow", () => {
     console.log(`        Eligible: ${balance.eligibility.canRedeem}`);
 
     // Step 2: Check system status
-    const statusRes = await request.get(`${BASE_URL}/api/v1/redemptions/status`, {
-      headers: authHeaders(),
-    });
+    const statusRes = await request.get(
+      `${BASE_URL}/api/v1/redemptions/status`,
+      {
+        headers: authHeaders(),
+      },
+    );
     expect(statusRes.status()).toBe(200);
     const status = await statusRes.json();
 
@@ -874,12 +962,14 @@ test.describe("Complete Redemption Flow", () => {
     if (balance.eligibility.canRedeem && status.operational) {
       const quoteRes = await request.get(
         `${BASE_URL}/api/v1/redemptions/quote?amount=${balance.limits.minRedemptionUsd}&network=base`,
-        { headers: authHeaders() }
+        { headers: authHeaders() },
       );
 
       if (quoteRes.status() === 200) {
         const quote = await quoteRes.json();
-        console.log(`Step 3: Quote = ${quote.quote.elizaAmount} elizaOS for $${quote.quote.usdValue}`);
+        console.log(
+          `Step 3: Quote = ${quote.quote.elizaAmount} elizaOS for $${quote.quote.usdValue}`,
+        );
         console.log(`        Price: $${quote.quote.elizaPriceUsd}`);
         console.log(`        Expires: ${quote.quote.expiresAt}`);
       } else {
@@ -890,13 +980,18 @@ test.describe("Complete Redemption Flow", () => {
     }
 
     // Step 4: List existing redemptions
-    const listRes = await request.get(`${BASE_URL}/api/v1/redemptions?limit=5`, {
-      headers: authHeaders(),
-    });
+    const listRes = await request.get(
+      `${BASE_URL}/api/v1/redemptions?limit=5`,
+      {
+        headers: authHeaders(),
+      },
+    );
     expect(listRes.status()).toBe(200);
     const list = await listRes.json();
 
-    console.log(`Step 4: User has ${list.redemptions.length} existing redemptions`);
+    console.log(
+      `Step 4: User has ${list.redemptions.length} existing redemptions`,
+    );
 
     console.log("✅ Complete flow verified");
   });
@@ -925,7 +1020,9 @@ test.describe("Sidebar Navigation", () => {
     console.log(`✅ Earnings sidebar link: ${hasLink}`);
   });
 
-  test("clicking earnings link navigates to earnings page", async ({ page }) => {
+  test("clicking earnings link navigates to earnings page", async ({
+    page,
+  }) => {
     await page.goto(`${BASE_URL}/dashboard`);
     await page.waitForLoadState("networkidle");
     await page.waitForTimeout(2000);
@@ -946,4 +1043,3 @@ test.describe("Sidebar Navigation", () => {
     }
   });
 });
-

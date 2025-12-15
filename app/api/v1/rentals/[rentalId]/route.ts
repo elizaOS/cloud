@@ -4,17 +4,17 @@
  * Get, update, or terminate a specific rental.
  */
 
-import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth';
+import { NextRequest, NextResponse } from "next/server";
+import { requireAuth } from "@/lib/auth";
 
-export const runtime = 'nodejs';
-export const dynamic = 'force-dynamic';
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 interface Rental {
   id: string;
   userId: string;
   gpuType: string;
-  status: 'provisioning' | 'running' | 'completed' | 'failed' | 'terminated';
+  status: "provisioning" | "running" | "completed" | "failed" | "terminated";
   sshHost: string;
   sshPort: number;
   containerImage?: string;
@@ -32,11 +32,11 @@ const rentals = new Map<string, Rental>();
  */
 export async function GET(
   _request: NextRequest,
-  { params }: { params: Promise<{ rentalId: string }> }
+  { params }: { params: Promise<{ rentalId: string }> },
 ) {
   const user = await requireAuth().catch(() => null);
   if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const { rentalId } = await params;
@@ -47,8 +47,8 @@ export async function GET(
     return NextResponse.json({
       id: rentalId,
       userId: user.id,
-      gpuType: 'H200',
-      status: 'running',
+      gpuType: "H200",
+      status: "running",
       sshHost: `gpu-${rentalId.slice(0, 8)}.compute.jeju.ai`,
       sshPort: 22,
       expiresAt: new Date(Date.now() + 3600000).toISOString(),
@@ -58,7 +58,7 @@ export async function GET(
 
   // Verify ownership
   if (rental.userId !== user.id) {
-    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
   return NextResponse.json(rental);
@@ -70,11 +70,11 @@ export async function GET(
  */
 export async function DELETE(
   _request: NextRequest,
-  { params }: { params: Promise<{ rentalId: string }> }
+  { params }: { params: Promise<{ rentalId: string }> },
 ) {
   const user = await requireAuth().catch(() => null);
   if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const { rentalId } = await params;
@@ -86,8 +86,8 @@ export async function DELETE(
     rental = {
       id: rentalId,
       userId: user.id,
-      gpuType: 'H200',
-      status: 'terminated',
+      gpuType: "H200",
+      status: "terminated",
       sshHost: `gpu-${rentalId.slice(0, 8)}.compute.jeju.ai`,
       sshPort: 22,
       expiresAt: new Date(),
@@ -98,10 +98,10 @@ export async function DELETE(
   } else {
     // Verify ownership
     if (rental.userId !== user.id) {
-      return NextResponse.json({ error: 'Not found' }, { status: 404 });
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
-    rental.status = 'terminated';
+    rental.status = "terminated";
     rental.terminatedAt = new Date();
   }
 
@@ -116,7 +116,7 @@ export async function DELETE(
   return NextResponse.json({
     success: true,
     rentalId,
-    status: 'terminated',
-    refundWei: '0', // No refund in demo
+    status: "terminated",
+    refundWei: "0", // No refund in demo
   });
 }

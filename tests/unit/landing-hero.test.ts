@@ -8,20 +8,20 @@ import {
 
 describe("TAB_CONFIG Structure", () => {
   test("contains all required tabs", () => {
-    ALL_TABS.forEach(tab => {
+    ALL_TABS.forEach((tab) => {
       expect(TAB_CONFIG[tab]).toBeDefined();
     });
   });
 
   test("each tab has exactly 3 prompts", () => {
-    ALL_TABS.forEach(tab => {
+    ALL_TABS.forEach((tab) => {
       expect(TAB_CONFIG[tab].prompts.length).toBe(3);
     });
   });
 
   test("prompts are non-empty strings", () => {
-    ALL_TABS.forEach(tab => {
-      TAB_CONFIG[tab].prompts.forEach(prompt => {
+    ALL_TABS.forEach((tab) => {
+      TAB_CONFIG[tab].prompts.forEach((prompt) => {
         expect(typeof prompt).toBe("string");
         expect(prompt.length).toBeGreaterThan(10);
       });
@@ -29,7 +29,7 @@ describe("TAB_CONFIG Structure", () => {
   });
 
   test("placeholders are descriptive questions", () => {
-    ALL_TABS.forEach(tab => {
+    ALL_TABS.forEach((tab) => {
       const placeholder = TAB_CONFIG[tab].placeholder;
       expect(placeholder.length).toBeGreaterThan(15);
       expect(placeholder).toMatch(/\?|\.{3}$/); // Ends with ? or ...
@@ -37,7 +37,7 @@ describe("TAB_CONFIG Structure", () => {
   });
 
   test("destinations are valid dashboard paths", () => {
-    ALL_TABS.forEach(tab => {
+    ALL_TABS.forEach((tab) => {
       const dest = TAB_CONFIG[tab].destination;
       expect(dest).toMatch(/^\/dashboard\//);
     });
@@ -65,7 +65,7 @@ describe("JOURNEY_STEPS Configuration", () => {
   });
 
   test("all colors are valid hex colors", () => {
-    JOURNEY_STEPS.forEach(step => {
+    JOURNEY_STEPS.forEach((step) => {
       expect(step.color).toMatch(/^#[A-Fa-f0-9]{6}$/);
     });
   });
@@ -75,13 +75,13 @@ describe("JOURNEY_STEPS Configuration", () => {
   });
 
   test("each step has unique color", () => {
-    const colors = JOURNEY_STEPS.map(s => s.color);
+    const colors = JOURNEY_STEPS.map((s) => s.color);
     const uniqueColors = new Set(colors);
     expect(uniqueColors.size).toBe(JOURNEY_STEPS.length);
   });
 
   test("all steps have icon components", () => {
-    JOURNEY_STEPS.forEach(step => {
+    JOURNEY_STEPS.forEach((step) => {
       expect(step.icon).toBeDefined();
       // Lucide icons are ForwardRef components (objects with $$typeof)
       expect(step.icon).toBeTruthy();
@@ -91,22 +91,31 @@ describe("JOURNEY_STEPS Configuration", () => {
 
 describe("Prompt Content Quality", () => {
   test("agent prompts are edgy/unconventional", () => {
-    const edgyTerms = ["dead father", "sober", "roasts", "crypto degen", "3am", "sarcastic"];
+    const edgyTerms = [
+      "dead father",
+      "sober",
+      "roasts",
+      "crypto degen",
+      "3am",
+      "sarcastic",
+    ];
     const agentPrompts = TAB_CONFIG.agent.prompts.join(" ").toLowerCase();
-    const hasEdgyContent = edgyTerms.some(term => agentPrompts.includes(term.toLowerCase()));
+    const hasEdgyContent = edgyTerms.some((term) =>
+      agentPrompts.includes(term.toLowerCase()),
+    );
     expect(hasEdgyContent).toBe(true);
   });
 
   test("app prompts mention technical features", () => {
     const techTerms = ["mcp", "a2a", "landing page", "dashboard", "workflow"];
     const appPrompts = TAB_CONFIG.app.prompts.join(" ").toLowerCase();
-    const hasTechContent = techTerms.some(term => appPrompts.includes(term));
+    const hasTechContent = techTerms.some((term) => appPrompts.includes(term));
     expect(hasTechContent).toBe(true);
   });
 
   test("no prompts are duplicated across tabs", () => {
     const allPrompts: string[] = [];
-    Object.values(TAB_CONFIG).forEach(config => {
+    Object.values(TAB_CONFIG).forEach((config) => {
       allPrompts.push(...config.prompts);
     });
     const uniquePrompts = new Set(allPrompts);
@@ -114,8 +123,8 @@ describe("Prompt Content Quality", () => {
   });
 
   test("prompts do not contain HTML or markdown", () => {
-    Object.values(TAB_CONFIG).forEach(config => {
-      config.prompts.forEach(prompt => {
+    Object.values(TAB_CONFIG).forEach((config) => {
+      config.prompts.forEach((prompt) => {
         expect(prompt).not.toMatch(/<[^>]+>/); // No HTML tags
         expect(prompt).not.toMatch(/\[.*\]\(.*\)/); // No markdown links
         expect(prompt).not.toMatch(/```/); // No code blocks
@@ -139,7 +148,9 @@ describe("ALL_TABS Array", () => {
 describe("URL Parameter Generation", () => {
   test("empty input produces no query parameter", () => {
     const inputValue = "";
-    const promptParam = inputValue ? `?prompt=${encodeURIComponent(inputValue)}` : "";
+    const promptParam = inputValue
+      ? `?prompt=${encodeURIComponent(inputValue)}`
+      : "";
     expect(promptParam).toBe("");
   });
 
@@ -181,7 +192,7 @@ describe("SessionStorage Pending Prompt", () => {
     const prompt = "build me something cool";
     const pendingData = JSON.stringify({ tab, prompt });
     const parsed = JSON.parse(pendingData);
-    
+
     expect(parsed.tab).toBe("agent");
     expect(parsed.prompt).toBe("build me something cool");
   });
@@ -191,13 +202,13 @@ describe("SessionStorage Pending Prompt", () => {
     const prompt = "";
     const pendingData = JSON.stringify({ tab, prompt });
     const parsed = JSON.parse(pendingData);
-    
+
     expect(parsed.tab).toBe("app");
     expect(parsed.prompt).toBe("");
   });
 
   test("tab value is preserved for all tabs", () => {
-    ALL_TABS.forEach(tab => {
+    ALL_TABS.forEach((tab) => {
       const pendingData = JSON.stringify({ tab, prompt: "test" });
       const parsed = JSON.parse(pendingData);
       expect(parsed.tab).toBe(tab);
@@ -207,13 +218,17 @@ describe("SessionStorage Pending Prompt", () => {
 
 describe("Edge Cases", () => {
   test("tab config structure is consistent", () => {
-    Object.values(TAB_CONFIG).forEach(config => {
-      expect(Object.keys(config).sort()).toEqual(["destination", "placeholder", "prompts"]);
+    Object.values(TAB_CONFIG).forEach((config) => {
+      expect(Object.keys(config).sort()).toEqual([
+        "destination",
+        "placeholder",
+        "prompts",
+      ]);
     });
   });
 
   test("destinations are unique", () => {
-    const destinations = Object.values(TAB_CONFIG).map(c => c.destination);
+    const destinations = Object.values(TAB_CONFIG).map((c) => c.destination);
     // Note: Some destinations might be the same intentionally
     expect(destinations.length).toBe(4);
   });

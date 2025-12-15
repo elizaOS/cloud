@@ -65,4 +65,3 @@ export function FragmentWeb({ result }: { result: ExecutionResultWeb }) {
     </div>
   );
 }
-

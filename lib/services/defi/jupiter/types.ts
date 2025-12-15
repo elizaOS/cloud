@@ -284,4 +284,3 @@ export interface JupiterSwapInstructionsResponse {
   };
   addressLookupTableAddresses: string[];
 }
-

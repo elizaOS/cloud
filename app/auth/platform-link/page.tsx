@@ -78,7 +78,9 @@ function PlatformLinkContent() {
 
     async function fetchSession() {
       try {
-        const response = await fetch(`/api/v1/credentials/session/${sessionId}`);
+        const response = await fetch(
+          `/api/v1/credentials/session/${sessionId}`,
+        );
         const data = await response.json();
 
         if (data.status === "not_found") {
@@ -97,7 +99,9 @@ function PlatformLinkContent() {
         }
 
         // Fetch full session details
-        const detailsRes = await fetch(`/api/v1/credentials/session/${sessionId}/details`);
+        const detailsRes = await fetch(
+          `/api/v1/credentials/session/${sessionId}/details`,
+        );
         if (detailsRes.ok) {
           const details = await detailsRes.json();
           setSessionInfo(details);
@@ -164,7 +168,9 @@ function PlatformLinkContent() {
           >
             {platformMeta.icon}
           </div>
-          <h1 className="mb-2 text-2xl font-bold">{platformMeta.description}</h1>
+          <h1 className="mb-2 text-2xl font-bold">
+            {platformMeta.description}
+          </h1>
           <p className="text-zinc-400">
             {sessionInfo.appName || "An app"} is requesting access to your{" "}
             {platformMeta.name} account
@@ -172,22 +178,23 @@ function PlatformLinkContent() {
         </div>
 
         {/* Scopes */}
-        {sessionInfo.requestedScopes && sessionInfo.requestedScopes.length > 0 && (
-          <div className="mb-6 rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
-            <h3 className="mb-3 flex items-center gap-2 text-sm font-medium text-zinc-400">
-              <Shield className="h-4 w-4" />
-              Requested permissions
-            </h3>
-            <ul className="space-y-2 text-sm">
-              {sessionInfo.requestedScopes.map((scope) => (
-                <li key={scope} className="flex items-center gap-2">
-                  <span className="h-1.5 w-1.5 rounded-full bg-purple-500" />
-                  {scope}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
+        {sessionInfo.requestedScopes &&
+          sessionInfo.requestedScopes.length > 0 && (
+            <div className="mb-6 rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
+              <h3 className="mb-3 flex items-center gap-2 text-sm font-medium text-zinc-400">
+                <Shield className="h-4 w-4" />
+                Requested permissions
+              </h3>
+              <ul className="space-y-2 text-sm">
+                {sessionInfo.requestedScopes.map((scope) => (
+                  <li key={scope} className="flex items-center gap-2">
+                    <span className="h-1.5 w-1.5 rounded-full bg-purple-500" />
+                    {scope}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
         {/* Continue Button */}
         {sessionInfo.linkUrl && (
@@ -224,4 +231,3 @@ export default function PlatformLinkPage() {
     </Suspense>
   );
 }
-

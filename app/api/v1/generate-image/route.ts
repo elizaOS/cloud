@@ -67,7 +67,9 @@ async function authenticateUser(req: NextRequest): Promise<AuthContext> {
     logger.info("[Generate Image] Privy auth failed, trying session...");
 
     const sessionUser = await getOrCreateSessionUser(req);
-    logger.info(`[Generate Image] Session user: ${sessionUser.userId} (anonymous: ${sessionUser.isAnonymous})`);
+    logger.info(
+      `[Generate Image] Session user: ${sessionUser.userId} (anonymous: ${sessionUser.isAnonymous})`,
+    );
 
     return {
       user: sessionUser.user,
@@ -451,25 +453,39 @@ async function handlePOST(req: NextRequest) {
     // Moderate generated images in background
     if (generationId && uploadResults.length > 0) {
       const firstResult = uploadResults[0];
-      contentModerationService.scan({
-        contentType: "image",
-        sourceTable: "generations",
-        sourceId: generationId,
-        organizationId: user.organization_id ?? undefined,
-        userId: user.id,
-        isPublic: true, // Generated images are public
-        contentUrl: firstResult.blobUrl !== firstResult.imageBase64 ? firstResult.blobUrl : undefined,
-        contentData: firstResult.imageBase64,
-        contentMimeType: firstResult.mimeType,
-        contentSizeBytes: firstResult.fileSize ? Number(firstResult.fileSize) : undefined,
-      }).then(result => {
-        if (result.status === "deleted" && generationId) {
-          generationsService.update(generationId, { status: "deleted" }).catch(() => {});
-          logger.warn("[Generate Image] Content deleted due to moderation", { generationId });
-        }
-      }).catch(err => {
-        logger.error("[Generate Image] Moderation failed", { error: String(err) });
-      });
+      contentModerationService
+        .scan({
+          contentType: "image",
+          sourceTable: "generations",
+          sourceId: generationId,
+          organizationId: user.organization_id ?? undefined,
+          userId: user.id,
+          isPublic: true, // Generated images are public
+          contentUrl:
+            firstResult.blobUrl !== firstResult.imageBase64
+              ? firstResult.blobUrl
+              : undefined,
+          contentData: firstResult.imageBase64,
+          contentMimeType: firstResult.mimeType,
+          contentSizeBytes: firstResult.fileSize
+            ? Number(firstResult.fileSize)
+            : undefined,
+        })
+        .then((result) => {
+          if (result.status === "deleted" && generationId) {
+            generationsService
+              .update(generationId, { status: "deleted" })
+              .catch(() => {});
+            logger.warn("[Generate Image] Content deleted due to moderation", {
+              generationId,
+            });
+          }
+        })
+        .catch((err) => {
+          logger.error("[Generate Image] Moderation failed", {
+            error: String(err),
+          });
+        });
     }
 
     return Response.json({

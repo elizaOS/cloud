@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
   if (!parsed.success) {
     return NextResponse.json(
       { error: "Invalid query parameters", details: parsed.error.format() },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
 
   let conditions = and(
     eq(orgModerationEvents.server_id, serverId),
-    eq(orgModerationEvents.organization_id, user.organization_id)
+    eq(orgModerationEvents.organization_id, user.organization_id),
   );
 
   if (unresolved === "true") {
@@ -59,5 +59,3 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({ events });
 }
-
-

@@ -19,7 +19,11 @@ import {
   type OrgAgentConfig,
   type NewOrgAgentConfig,
 } from "@/db/schemas/org-agents";
-import { secretsService, loadSecrets, isSecretsConfigured } from "@/lib/services/secrets";
+import {
+  secretsService,
+  loadSecrets,
+  isSecretsConfigured,
+} from "@/lib/services/secrets";
 import { logger } from "@/lib/utils/logger";
 import {
   ORG_CHARACTER_IDS,
@@ -94,7 +98,7 @@ class AgentLifecycleService {
   async getOrCreateInstance(
     organizationId: string,
     agentType: OrgAgentType,
-    createdBy?: string
+    createdBy?: string,
   ): Promise<OrgAgentInstance> {
     // Check for existing instance
     const existing = await this.getInstance(organizationId, agentType);
@@ -113,8 +117,11 @@ class AgentLifecycleService {
   /**
    * Create a new org agent instance for an organization.
    */
-  async createInstance(params: CreateOrgAgentParams): Promise<OrgAgentInstance> {
-    const { organizationId, agentType, displayName, enabled, createdBy } = params;
+  async createInstance(
+    params: CreateOrgAgentParams,
+  ): Promise<OrgAgentInstance> {
+    const { organizationId, agentType, displayName, enabled, createdBy } =
+      params;
 
     // Validate agent type
     if (!isOrgCharacter(agentType)) {
@@ -129,7 +136,9 @@ class AgentLifecycleService {
     // Check if instance already exists
     const existing = await this.getInstance(organizationId, agentType);
     if (existing) {
-      throw new Error(`Org agent ${agentType} already exists for organization ${organizationId}`);
+      throw new Error(
+        `Org agent ${agentType} already exists for organization ${organizationId}`,
+      );
     }
 
     logger.info("[OrgAgentLifecycle] Creating agent instance", {
@@ -160,7 +169,11 @@ class AgentLifecycleService {
 
       // Store secrets securely
       if (params.platformConfigs) {
-        await this.storeAgentSecrets(organizationId, instance.id, params.platformConfigs);
+        await this.storeAgentSecrets(
+          organizationId,
+          instance.id,
+          params.platformConfigs,
+        );
       }
     }
 
@@ -172,7 +185,7 @@ class AgentLifecycleService {
    */
   async getInstance(
     organizationId: string,
-    agentType: OrgAgentType
+    agentType: OrgAgentType,
   ): Promise<OrgAgentInstance | null> {
     const [instance] = await db
       .select()
@@ -180,8 +193,8 @@ class AgentLifecycleService {
       .where(
         and(
           eq(orgAgentInstances.organization_id, organizationId),
-          eq(orgAgentInstances.agent_type, agentType)
-        )
+          eq(orgAgentInstances.agent_type, agentType),
+        ),
       )
       .limit(1);
 
@@ -229,8 +242,8 @@ class AgentLifecycleService {
         and(
           eq(orgAgentInstances.organization_id, organizationId),
           eq(orgAgentInstances.enabled, true),
-          eq(orgAgentInstances.status, "active")
-        )
+          eq(orgAgentInstances.status, "active"),
+        ),
       );
   }
 
@@ -239,7 +252,7 @@ class AgentLifecycleService {
    */
   async getAgentWithCharacter(
     organizationId: string,
-    agentType: OrgAgentType
+    agentType: OrgAgentType,
   ): Promise<OrgAgentWithCharacter | null> {
     const instance = await this.getInstance(organizationId, agentType);
     if (!instance) {
@@ -267,7 +280,7 @@ class AgentLifecycleService {
    */
   async updateInstance(
     instanceId: string,
-    params: UpdateOrgAgentParams
+    params: UpdateOrgAgentParams,
   ): Promise<OrgAgentInstance> {
     const instance = await this.getInstanceById(instanceId);
     if (!instance) {
@@ -311,7 +324,7 @@ class AgentLifecycleService {
         await this.storeAgentSecrets(
           instance.organization_id,
           instanceId,
-          params.platformConfigs
+          params.platformConfigs,
         );
       }
     }
@@ -387,10 +400,12 @@ class AgentLifecycleService {
     params: {
       platformConfigs?: CreateOrgAgentParams["platformConfigs"];
       customSettings?: Record<string, unknown>;
-    }
+    },
   ): Promise<OrgAgentConfig> {
     // Remove secrets from platform configs (they're stored separately)
-    const sanitizedPlatformConfigs = this.sanitizePlatformConfigs(params.platformConfigs);
+    const sanitizedPlatformConfigs = this.sanitizePlatformConfigs(
+      params.platformConfigs,
+    );
 
     const [config] = await db
       .insert(orgAgentConfigs)
@@ -427,18 +442,23 @@ class AgentLifecycleService {
     params: {
       platformConfigs?: CreateOrgAgentParams["platformConfigs"];
       customSettings?: Record<string, unknown>;
-    }
+    },
   ): Promise<OrgAgentConfig> {
     const existing = await this.getConfig(instanceId);
-    const sanitizedPlatformConfigs = this.sanitizePlatformConfigs(params.platformConfigs);
+    const sanitizedPlatformConfigs = this.sanitizePlatformConfigs(
+      params.platformConfigs,
+    );
 
     if (existing) {
       const [updated] = await db
         .update(orgAgentConfigs)
         .set({
-          discord_config: sanitizedPlatformConfigs?.discord ?? existing.discord_config,
-          telegram_config: sanitizedPlatformConfigs?.telegram ?? existing.telegram_config,
-          twitter_config: sanitizedPlatformConfigs?.twitter ?? existing.twitter_config,
+          discord_config:
+            sanitizedPlatformConfigs?.discord ?? existing.discord_config,
+          telegram_config:
+            sanitizedPlatformConfigs?.telegram ?? existing.telegram_config,
+          twitter_config:
+            sanitizedPlatformConfigs?.twitter ?? existing.twitter_config,
           custom_settings: params.customSettings ?? existing.custom_settings,
           updated_at: new Date(),
         })
@@ -455,7 +475,7 @@ class AgentLifecycleService {
    * Remove secrets from platform configs (stored separately in secrets service).
    */
   private sanitizePlatformConfigs(
-    configs?: CreateOrgAgentParams["platformConfigs"]
+    configs?: CreateOrgAgentParams["platformConfigs"],
   ): CreateOrgAgentParams["platformConfigs"] | undefined {
     if (!configs) return undefined;
 
@@ -492,7 +512,7 @@ class AgentLifecycleService {
   private async storeAgentSecrets(
     organizationId: string,
     instanceId: string,
-    platformConfigs: CreateOrgAgentParams["platformConfigs"]
+    platformConfigs: CreateOrgAgentParams["platformConfigs"],
   ): Promise<void> {
     if (!isSecretsConfigured()) {
       return;
@@ -533,7 +553,7 @@ class AgentLifecycleService {
    */
   async getAgentSecrets(
     organizationId: string,
-    instanceId: string
+    instanceId: string,
   ): Promise<Record<string, string>> {
     if (!isSecretsConfigured()) {
       return {};
@@ -546,7 +566,7 @@ class AgentLifecycleService {
    */
   private async deleteAgentSecrets(
     organizationId: string,
-    instanceId: string
+    instanceId: string,
   ): Promise<void> {
     if (!isSecretsConfigured()) {
       return;
@@ -581,9 +601,11 @@ class AgentLifecycleService {
    */
   async provisionOrgAgents(
     organizationId: string,
-    createdBy?: string
+    createdBy?: string,
   ): Promise<OrgAgentInstance[]> {
-    logger.info("[OrgAgentLifecycle] Provisioning org agents", { organizationId });
+    logger.info("[OrgAgentLifecycle] Provisioning org agents", {
+      organizationId,
+    });
 
     const instances: OrgAgentInstance[] = [];
 
@@ -611,7 +633,10 @@ class AgentLifecycleService {
     total: number;
     enabled: number;
     configured: number;
-    byAgent: Record<OrgAgentType, { enabled: boolean; status: OrgAgentStatus; configured: boolean }>;
+    byAgent: Record<
+      OrgAgentType,
+      { enabled: boolean; status: OrgAgentStatus; configured: boolean }
+    >;
   }> {
     const instances = await this.getOrgInstances(organizationId);
     const configs = await db
@@ -620,8 +645,8 @@ class AgentLifecycleService {
       .where(
         inArray(
           orgAgentConfigs.instance_id,
-          instances.map((i) => i.id)
-        )
+          instances.map((i) => i.id),
+        ),
       );
 
     const configMap = new Map(configs.map((c) => [c.instance_id, c]));
@@ -661,7 +686,7 @@ class AgentLifecycleService {
       action: string;
       userId?: string;
       details?: Record<string, unknown>;
-    }
+    },
   ): Promise<void> {
     // Update last_activity_at on the instance
     await db
@@ -686,11 +711,16 @@ class AgentLifecycleService {
    */
   async buildConfiguredCharacter(
     organizationId: string,
-    agentType: OrgAgentType
+    agentType: OrgAgentType,
   ): Promise<Character> {
-    const agentData = await this.getAgentWithCharacter(organizationId, agentType);
+    const agentData = await this.getAgentWithCharacter(
+      organizationId,
+      agentType,
+    );
     if (!agentData) {
-      throw new Error(`Org agent ${agentType} not found for organization ${organizationId}`);
+      throw new Error(
+        `Org agent ${agentType} not found for organization ${organizationId}`,
+      );
     }
 
     const { character, config, secrets } = agentData;
@@ -743,4 +773,3 @@ class AgentLifecycleService {
 
 // Export singleton instance
 export const agentLifecycleService = new AgentLifecycleService();
-

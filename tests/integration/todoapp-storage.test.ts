@@ -152,4 +152,3 @@ function calculateTestLevel(points: number): { level: number; name: string } {
   }
   return { level: currentLevel.level, name: currentLevel.name };
 }
-

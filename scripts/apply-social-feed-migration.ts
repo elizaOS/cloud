@@ -1,6 +1,6 @@
 /**
  * Apply social feed migration to Neon database
- * 
+ *
  * Run with: bun scripts/apply-social-feed-migration.ts
  */
 
@@ -60,8 +60,18 @@ async function applyMigration() {
   `);
 
   console.log("Current state:");
-  console.log("  Tables:", existingTables.rows.length > 0 ? existingTables.rows.map((r: { table_name: string }) => r.table_name) : "(none)");
-  console.log("  Enums:", existingEnums.rows.length > 0 ? existingEnums.rows.map((r: { typname: string }) => r.typname) : "(none)");
+  console.log(
+    "  Tables:",
+    existingTables.rows.length > 0
+      ? existingTables.rows.map((r: { table_name: string }) => r.table_name)
+      : "(none)",
+  );
+  console.log(
+    "  Enums:",
+    existingEnums.rows.length > 0
+      ? existingEnums.rows.map((r: { typname: string }) => r.typname)
+      : "(none)",
+  );
 
   if (existingTables.rows.length === 4 && existingEnums.rows.length === 2) {
     console.log("\n✅ Migration already complete.");
@@ -71,7 +81,10 @@ async function applyMigration() {
   console.log("\nApplying migration...\n");
 
   // Read the migration file
-  const migrationPath = join(__dirname, "../db/migrations/0024_social_feed_management.sql");
+  const migrationPath = join(
+    __dirname,
+    "../db/migrations/0024_social_feed_management.sql",
+  );
   const migrationSql = readFileSync(migrationPath, "utf-8");
 
   const statements = splitSqlStatements(migrationSql);
@@ -81,13 +94,18 @@ async function applyMigration() {
   let skipped = 0;
 
   for (const statement of statements) {
-    const preview = statement.substring(0, 70).replace(/\n/g, " ").replace(/\s+/g, " ");
+    const preview = statement
+      .substring(0, 70)
+      .replace(/\n/g, " ")
+      .replace(/\s+/g, " ");
 
     // Check if this is a CREATE statement for something that might exist
     const isCreateType = statement.toUpperCase().startsWith("CREATE TYPE");
     const isCreateTable = statement.toUpperCase().startsWith("CREATE TABLE");
     const isCreateIndex = statement.toUpperCase().startsWith("CREATE INDEX");
-    const isCreateUniqueIndex = statement.toUpperCase().startsWith("CREATE UNIQUE INDEX");
+    const isCreateUniqueIndex = statement
+      .toUpperCase()
+      .startsWith("CREATE UNIQUE INDEX");
     const isComment = statement.toUpperCase().startsWith("COMMENT ON");
 
     try {
@@ -95,19 +113,26 @@ async function applyMigration() {
       console.log(`✓ [${executed + skipped + 1}] ${preview}...`);
       executed++;
     } catch (error: unknown) {
-      const err = error as { cause?: { code?: string; message?: string }; message?: string };
+      const err = error as {
+        cause?: { code?: string; message?: string };
+        message?: string;
+      };
       const causeCode = err.cause?.code;
       const causeMessage = err.cause?.message ?? "";
       const errorMessage = err.message ?? String(error);
-      
+
       // Check for "already exists" errors - these are safe to skip
       // 42710 = duplicate_object (type already exists)
       // 42P07 = duplicate_table (table already exists)
-      const isDuplicate = causeCode === "42710" || causeCode === "42P07" || 
-                          causeMessage.includes("already exists");
-      
+      const isDuplicate =
+        causeCode === "42710" ||
+        causeCode === "42P07" ||
+        causeMessage.includes("already exists");
+
       if (isDuplicate) {
-        console.log(`⊘ [${executed + skipped + 1}] SKIP (exists): ${preview}...`);
+        console.log(
+          `⊘ [${executed + skipped + 1}] SKIP (exists): ${preview}...`,
+        );
         skipped++;
       } else {
         console.error(`✗ [${executed + skipped + 1}] FAILED: ${preview}...`);
@@ -117,7 +142,9 @@ async function applyMigration() {
     }
   }
 
-  console.log(`\n✅ Migration complete. Executed: ${executed}, Skipped: ${skipped}`);
+  console.log(
+    `\n✅ Migration complete. Executed: ${executed}, Skipped: ${skipped}`,
+  );
 
   // Verify final state
   const finalTables = await db.execute(sql`
@@ -133,11 +160,19 @@ async function applyMigration() {
   `);
 
   console.log("\nFinal state:");
-  console.log("  Tables:", finalTables.rows.map((r: { table_name: string }) => r.table_name));
-  console.log("  Enums:", finalEnums.rows.map((r: { typname: string }) => r.typname));
+  console.log(
+    "  Tables:",
+    finalTables.rows.map((r: { table_name: string }) => r.table_name),
+  );
+  console.log(
+    "  Enums:",
+    finalEnums.rows.map((r: { typname: string }) => r.typname),
+  );
 
   if (finalTables.rows.length !== 4 || finalEnums.rows.length !== 2) {
-    console.error("\n⚠️  Warning: Expected 4 tables and 2 enums but got different counts.");
+    console.error(
+      "\n⚠️  Warning: Expected 4 tables and 2 enums but got different counts.",
+    );
     process.exit(1);
   }
 

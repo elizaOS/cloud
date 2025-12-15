@@ -244,7 +244,9 @@ export function BuildModeAssistant({
     loadMessages();
   }, [builderRoomId]);
 
-  const sendElizaMessageRef = useRef<((text: string) => Promise<void>) | null>(null);
+  const sendElizaMessageRef = useRef<((text: string) => Promise<void>) | null>(
+    null,
+  );
 
   // Auto-submit initial prompt after room is initialized
   useEffect(() => {
@@ -259,100 +261,122 @@ export function BuildModeAssistant({
     ) {
       initialPromptSentRef.current = true;
       setInputText("");
-      
+
       const sendFn = sendElizaMessageRef.current;
       queueMicrotask(() => sendFn(initialPrompt));
     }
-  }, [isInitializing, builderRoomId, initialPrompt, messages.length, isLoading]);
+  }, [
+    isInitializing,
+    builderRoomId,
+    initialPrompt,
+    messages.length,
+    isLoading,
+  ]);
 
   // Send message to ElizaOS stream endpoint with BUILD workflow
-  const sendElizaMessage = useCallback(async (text: string) => {
-    if (!text.trim() || !builderRoomId) return;
+  const sendElizaMessage = useCallback(
+    async (text: string) => {
+      if (!text.trim() || !builderRoomId) return;
 
-    setIsLoading(true);
+      setIsLoading(true);
 
-    // Add user message to UI immediately
-    const userMessage: Message = {
-      id: `user-${Date.now()}`,
-      role: "user",
-      content: text,
-      timestamp: Date.now(),
-    };
-    setMessages((prev) => [...prev, userMessage]);
+      // Add user message to UI immediately
+      const userMessage: Message = {
+        id: `user-${Date.now()}`,
+        role: "user",
+        content: text,
+        timestamp: Date.now(),
+      };
+      setMessages((prev) => [...prev, userMessage]);
 
-    // Build metadata based on mode
-    const metadata: Record<string, unknown> = isCreatorMode
-      ? { isCreatorMode: true }
-      : { targetCharacterId: character?.id };
+      // Build metadata based on mode
+      const metadata: Record<string, unknown> = isCreatorMode
+        ? { isCreatorMode: true }
+        : { targetCharacterId: character?.id };
 
-    try {
-      const response = await fetch(
-        `/api/eliza/rooms/${builderRoomId}/messages/stream`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            text,
-            agentMode: {
-              mode: AgentMode.BUILD,
-              metadata,
-            },
-          }),
-        },
-      );
+      try {
+        const response = await fetch(
+          `/api/eliza/rooms/${builderRoomId}/messages/stream`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              text,
+              agentMode: {
+                mode: AgentMode.BUILD,
+                metadata,
+              },
+            }),
+          },
+        );
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
 
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
-      let assistantMessage = "";
-      let assistantMessageId = "";
+        const reader = response.body?.getReader();
+        const decoder = new TextDecoder();
+        let assistantMessage = "";
+        let assistantMessageId = "";
 
-      if (reader) {
-        let buffer = "";
-        let detectedApplyAction = false;
-        let detectedCharacterCreated = false;
-        let createdCharacterId: string | null = null;
-        let proposedCharacterUpdate: Partial<ElizaCharacter> | null = null;
+        if (reader) {
+          let buffer = "";
+          let detectedApplyAction = false;
+          let detectedCharacterCreated = false;
+          let createdCharacterId: string | null = null;
+          let proposedCharacterUpdate: Partial<ElizaCharacter> | null = null;
 
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
 
-          buffer += decoder.decode(value, { stream: true });
+            buffer += decoder.decode(value, { stream: true });
 
-          const events = buffer.split("\n\n");
-          buffer = events.pop() || "";
+            const events = buffer.split("\n\n");
+            buffer = events.pop() || "";
 
-          for (const eventBlock of events) {
-            if (!eventBlock.trim()) continue;
+            for (const eventBlock of events) {
+              if (!eventBlock.trim()) continue;
 
-            const lines = eventBlock.split("\n");
-            let eventType = "";
-            let eventData = "";
+              const lines = eventBlock.split("\n");
+              let eventType = "";
+              let eventData = "";
 
-            for (const line of lines) {
-              if (line.startsWith("event: ")) {
-                eventType = line.slice(7).trim();
-              } else if (line.startsWith("data: ")) {
-                eventData = line.slice(6);
+              for (const line of lines) {
+                if (line.startsWith("event: ")) {
+                  eventType = line.slice(7).trim();
+                } else if (line.startsWith("data: ")) {
+                  eventData = line.slice(6);
+                }
               }
-            }
 
-            if (eventData) {
-              try {
-                const data = JSON.parse(eventData);
+              if (eventData) {
+                try {
+                  const data = JSON.parse(eventData);
 
-                if (data.type === "agent" && data.content?.text) {
-                  // Skip action result messages from UI but process metadata
-                  if (data.content?.metadata?.type === "action_result") {
-                    // Check for character creation in action results
-                    if (data.content?.metadata?.characterId) {
-                      detectedCharacterCreated = true;
-                      createdCharacterId = data.content.metadata.characterId;
+                  if (data.type === "agent" && data.content?.text) {
+                    // Skip action result messages from UI but process metadata
+                    if (data.content?.metadata?.type === "action_result") {
+                      // Check for character creation in action results
+                      if (data.content?.metadata?.characterId) {
+                        detectedCharacterCreated = true;
+                        createdCharacterId = data.content.metadata.characterId;
+                      }
+                      // Check for SAVE_CHANGES action
+                      if (
+                        data.content?.actions &&
+                        Array.isArray(data.content.actions)
+                      ) {
+                        if (data.content.actions.includes("SAVE_CHANGES")) {
+                          detectedApplyAction = true;
+                        }
+                      }
+                      continue;
                     }
+
+                    assistantMessage = data.content.text;
+                    assistantMessageId = data.id;
+
                     // Check for SAVE_CHANGES action
                     if (
                       data.content?.actions &&
@@ -362,103 +386,97 @@ export function BuildModeAssistant({
                         detectedApplyAction = true;
                       }
                     }
-                    continue;
-                  }
 
-                  assistantMessage = data.content.text;
-                  assistantMessageId = data.id;
+                    // Check for CREATE_CHARACTER metadata
+                    if (
+                      data.content?.metadata?.action === "CREATE_CHARACTER" &&
+                      data.content?.metadata?.characterCreated
+                    ) {
+                      detectedCharacterCreated = true;
+                      createdCharacterId =
+                        data.content.metadata.characterId || null;
+                    }
 
-                  // Check for SAVE_CHANGES action
-                  if (
-                    data.content?.actions &&
-                    Array.isArray(data.content.actions)
-                  ) {
-                    if (data.content.actions.includes("SAVE_CHANGES")) {
-                      detectedApplyAction = true;
+                    // Check for SUGGEST_CHANGES with partial field updates
+                    if (
+                      data.content?.metadata?.action === "SUGGEST_CHANGES" &&
+                      data.content?.metadata?.changes
+                    ) {
+                      proposedCharacterUpdate = data.content.metadata.changes;
                     }
                   }
-
-                  // Check for CREATE_CHARACTER metadata
-                  if (
-                    data.content?.metadata?.action === "CREATE_CHARACTER" &&
-                    data.content?.metadata?.characterCreated
-                  ) {
-                    detectedCharacterCreated = true;
-                    createdCharacterId =
-                      data.content.metadata.characterId || null;
-                  }
-
-                  // Check for SUGGEST_CHANGES with partial field updates
-                  if (
-                    data.content?.metadata?.action === "SUGGEST_CHANGES" &&
-                    data.content?.metadata?.changes
-                  ) {
-                    proposedCharacterUpdate = data.content.metadata.changes;
-                  }
+                } catch {
+                  // Silently ignore parse errors during streaming
                 }
-              } catch {
-                // Silently ignore parse errors during streaming
               }
-            }
 
-            // Handle done event
-            if (eventType === "done") {
-              if (assistantMessage) {
-                const newAssistantMessage: Message = {
-                  id: assistantMessageId || `assistant-${Date.now()}`,
-                  role: "assistant",
-                  content: assistantMessage,
-                  timestamp: Date.now(),
-                };
-                setMessages((prev) => [...prev, newAssistantMessage]);
+              // Handle done event
+              if (eventType === "done") {
+                if (assistantMessage) {
+                  const newAssistantMessage: Message = {
+                    id: assistantMessageId || `assistant-${Date.now()}`,
+                    role: "assistant",
+                    content: assistantMessage,
+                    timestamp: Date.now(),
+                  };
+                  setMessages((prev) => [...prev, newAssistantMessage]);
 
-                // Apply character updates to editor
-                if (proposedCharacterUpdate) {
-                  onCharacterUpdate(proposedCharacterUpdate);
-                  toast.success("Character preview updated!", {
-                    duration: 4000,
-                  });
-                }
+                  // Apply character updates to editor
+                  if (proposedCharacterUpdate) {
+                    onCharacterUpdate(proposedCharacterUpdate);
+                    toast.success("Character preview updated!", {
+                      duration: 4000,
+                    });
+                  }
 
-                // Handle character creation in creator mode - lock the room
-                if (
-                  isCreatorMode &&
-                  detectedCharacterCreated &&
-                  createdCharacterId
-                ) {
-                  // Lock the room and show link to chat with the created agent
-                  setLockedRoom({
-                    characterId: createdCharacterId,
-                    characterName:
-                      (proposedCharacterUpdate?.name as string) || "your agent",
-                  });
-                  toast.success(
-                    "Character created! You can now chat with your agent.",
-                    { duration: 4000 },
-                  );
-                }
+                  // Handle character creation in creator mode - lock the room
+                  if (
+                    isCreatorMode &&
+                    detectedCharacterCreated &&
+                    createdCharacterId
+                  ) {
+                    // Lock the room and show link to chat with the created agent
+                    setLockedRoom({
+                      characterId: createdCharacterId,
+                      characterName:
+                        (proposedCharacterUpdate?.name as string) ||
+                        "your agent",
+                    });
+                    toast.success(
+                      "Character created! You can now chat with your agent.",
+                      { duration: 4000 },
+                    );
+                  }
 
-                // Refresh character data after apply action
-                if (detectedApplyAction && onCharacterRefresh) {
-                  toast.success("Character saved!", { duration: 3000 });
-                  await onCharacterRefresh();
+                  // Refresh character data after apply action
+                  if (detectedApplyAction && onCharacterRefresh) {
+                    toast.success("Character saved!", { duration: 3000 });
+                    await onCharacterRefresh();
+                  }
                 }
               }
             }
           }
         }
+      } catch (error) {
+        console.error("[BuildMode] Error sending message:", error);
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : "Failed to send message. Please try again.",
+        );
+      } finally {
+        setIsLoading(false);
       }
-    } catch (error) {
-      console.error("[BuildMode] Error sending message:", error);
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Failed to send message. Please try again.",
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  }, [builderRoomId, isCreatorMode, character?.id, onCharacterUpdate, onCharacterRefresh]);
+    },
+    [
+      builderRoomId,
+      isCreatorMode,
+      character?.id,
+      onCharacterUpdate,
+      onCharacterRefresh,
+    ],
+  );
 
   useEffect(() => {
     sendElizaMessageRef.current = sendElizaMessage;

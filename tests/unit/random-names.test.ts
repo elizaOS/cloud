@@ -31,7 +31,15 @@ describe("Name Format Validation", () => {
   });
 
   test("generateServiceName produces adjective-suffix format", () => {
-    const validSuffixes = ["api", "service", "hub", "connect", "sync", "flow", "bridge"];
+    const validSuffixes = [
+      "api",
+      "service",
+      "hub",
+      "connect",
+      "sync",
+      "flow",
+      "bridge",
+    ];
     for (let i = 0; i < 100; i++) {
       const name = generateServiceName();
       expect(name).toMatch(/^[a-z]+-[a-z]+$/);
@@ -59,9 +67,18 @@ describe("Uniqueness and Distribution", () => {
   });
 
   test("service suffixes are all valid", () => {
-    const expected = new Set(["api", "service", "hub", "connect", "sync", "flow", "bridge"]);
+    const expected = new Set([
+      "api",
+      "service",
+      "hub",
+      "connect",
+      "sync",
+      "flow",
+      "bridge",
+    ]);
     const found = new Set<string>();
-    for (let i = 0; i < 200; i++) found.add(generateServiceName().split("-")[1]);
+    for (let i = 0; i < 200; i++)
+      found.add(generateServiceName().split("-")[1]);
     found.forEach((s) => expect(expected.has(s)).toBe(true));
     expect(found.size).toBeGreaterThanOrEqual(5);
   });
@@ -83,7 +100,15 @@ describe("generateNameForType", () => {
   });
 
   test("returns service name for service type", () => {
-    const validSuffixes = ["api", "service", "hub", "connect", "sync", "flow", "bridge"];
+    const validSuffixes = [
+      "api",
+      "service",
+      "hub",
+      "connect",
+      "sync",
+      "flow",
+      "bridge",
+    ];
     for (let i = 0; i < 20; i++) {
       const name = generateNameForType("service");
       expect(validSuffixes).toContain(name.split("-")[1]);
@@ -94,7 +119,12 @@ describe("generateNameForType", () => {
 describe("Edge Cases", () => {
   test("names are never empty and have reasonable length", () => {
     for (let i = 0; i < 100; i++) {
-      [generateRandomName(), generateDisplayName(), generateWorkflowName(), generateServiceName()].forEach((name) => {
+      [
+        generateRandomName(),
+        generateDisplayName(),
+        generateWorkflowName(),
+        generateServiceName(),
+      ].forEach((name) => {
         expect(name.length).toBeGreaterThanOrEqual(3);
         expect(name.length).toBeLessThanOrEqual(50);
       });
@@ -109,7 +139,9 @@ describe("Edge Cases", () => {
   });
 
   test("consecutive calls produce varied results", () => {
-    const results = Array(10).fill(null).map(() => generateRandomName());
+    const results = Array(10)
+      .fill(null)
+      .map(() => generateRandomName());
     expect(new Set(results).size).toBeGreaterThanOrEqual(5);
   });
 });

@@ -1,6 +1,6 @@
 /**
  * Domain Sync API
- * 
+ *
  * Syncs domain status from Vercel to the local database.
  * Use this to refresh verification status and SSL certificate info.
  */
@@ -21,7 +21,7 @@ interface RouteParams {
  */
 export async function POST(
   request: NextRequest,
-  { params }: RouteParams
+  { params }: RouteParams,
 ): Promise<NextResponse> {
   const user = await requireAuthWithOrg(request);
   const { id: appId } = await params;
@@ -30,11 +30,14 @@ export async function POST(
   if (!app || app.organization_id !== user.organization_id) {
     return NextResponse.json(
       { success: false, error: "App not found" },
-      { status: 404 }
+      { status: 404 },
     );
   }
 
-  logger.info("[Domains API] Syncing domain status", { appId, userId: user.id });
+  logger.info("[Domains API] Syncing domain status", {
+    appId,
+    userId: user.id,
+  });
 
   await vercelDomainsService.syncDomainStatus(appId);
   const domains = await vercelDomainsService.getDomainsForApp(appId);
@@ -45,4 +48,3 @@ export async function POST(
     syncedAt: new Date().toISOString(),
   });
 }
-

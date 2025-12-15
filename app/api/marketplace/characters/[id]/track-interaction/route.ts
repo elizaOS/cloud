@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 /**
  * POST /api/marketplace/characters/[id]/track-interaction
- * 
+ *
  * @deprecated Use /api/my-agents/characters/[id]/track-interaction instead.
  * This endpoint is maintained for backwards compatibility.
  */

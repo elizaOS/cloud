@@ -10,7 +10,10 @@ import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { botsService } from "@/lib/services/bots";
 import { logger } from "@/lib/utils/logger";
 
-export async function GET(request: NextRequest, { params }: { params: Promise<{ botId: string }> }) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ botId: string }> },
+) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { botId } = await params;
 
@@ -33,7 +36,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       connectedAt: connection.connected_at?.toISOString(),
       lastHealthCheck: connection.last_health_check?.toISOString(),
     },
-    servers: servers.map(s => ({
+    servers: servers.map((s) => ({
       id: s.id,
       serverId: s.server_id,
       serverName: s.server_name,
@@ -45,7 +48,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   });
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: Promise<{ botId: string }> }) {
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ botId: string }> },
+) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { botId } = await params;
 
@@ -59,4 +65,3 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
 
   return NextResponse.json({ success: true });
 }
-

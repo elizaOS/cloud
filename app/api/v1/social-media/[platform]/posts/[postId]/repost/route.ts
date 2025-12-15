@@ -18,14 +18,17 @@ export async function POST(request: NextRequest, ctx: RouteContext) {
   const credentialId = body.credentialId as string | undefined;
 
   if (!socialMediaService.isPlatformSupported(platform as SocialPlatform)) {
-    return NextResponse.json({ error: `Unsupported platform: ${platform}` }, { status: 400 });
+    return NextResponse.json(
+      { error: `Unsupported platform: ${platform}` },
+      { status: 400 },
+    );
   }
 
   const result = await socialMediaService.repost(
     user.organization_id,
     platform as SocialPlatform,
     postId,
-    credentialId
+    credentialId,
   );
 
   if (!result.success) {
@@ -34,4 +37,3 @@ export async function POST(request: NextRequest, ctx: RouteContext) {
 
   return NextResponse.json(result);
 }
-

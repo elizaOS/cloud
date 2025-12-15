@@ -54,12 +54,15 @@ export class DiscordEventRouter {
 
   async updateRoute(
     routeId: string,
-    data: Partial<NewDiscordEventRoute>
+    data: Partial<NewDiscordEventRoute>,
   ): Promise<DiscordEventRoute | null> {
     const route = await discordEventRoutesRepository.update(routeId, data);
 
     if (route) {
-      await this.invalidateRouteCache(route.platform_connection_id, route.guild_id);
+      await this.invalidateRouteCache(
+        route.platform_connection_id,
+        route.guild_id,
+      );
     }
 
     return route;
@@ -72,7 +75,10 @@ export class DiscordEventRouter {
 
     const deleted = await discordEventRoutesRepository.delete(routeId);
     if (deleted) {
-      await this.invalidateRouteCache(route.platform_connection_id, route.guild_id);
+      await this.invalidateRouteCache(
+        route.platform_connection_id,
+        route.guild_id,
+      );
     }
     return deleted;
   }
@@ -81,11 +87,20 @@ export class DiscordEventRouter {
     return discordEventRoutesRepository.listByOrganization(organizationId);
   }
 
-  async setRouteEnabled(routeId: string, enabled: boolean): Promise<DiscordEventRoute | null> {
-    const route = await discordEventRoutesRepository.setEnabled(routeId, enabled);
+  async setRouteEnabled(
+    routeId: string,
+    enabled: boolean,
+  ): Promise<DiscordEventRoute | null> {
+    const route = await discordEventRoutesRepository.setEnabled(
+      routeId,
+      enabled,
+    );
 
     if (route) {
-      await this.invalidateRouteCache(route.platform_connection_id, route.guild_id);
+      await this.invalidateRouteCache(
+        route.platform_connection_id,
+        route.guild_id,
+      );
     }
 
     return route;
@@ -101,16 +116,21 @@ export class DiscordEventRouter {
     });
 
     // Check for social notification replies before regular routing
-    if (event.eventType === "MESSAGE_CREATE" && event.data.message?.referenced_message) {
+    if (
+      event.eventType === "MESSAGE_CREATE" &&
+      event.data.message?.referenced_message
+    ) {
       const handled = await this.handleSocialFeedReply(event);
       if (handled) {
-        return [{
-          success: true,
-          routeId: "social_feed_reply",
-          routeType: "internal",
-          routeTarget: "social_feed",
-          responseTime: Date.now() - startTime,
-        }];
+        return [
+          {
+            success: true,
+            routeId: "social_feed_reply",
+            routeType: "internal",
+            routeTarget: "social_feed",
+            responseTime: Date.now() - startTime,
+          },
+        ];
       }
     }
 
@@ -127,7 +147,7 @@ export class DiscordEventRouter {
 
     // Apply filters and check which routes should fire
     const matchResults = await Promise.all(
-      routes.map((route) => this.evaluateRoute(route, event))
+      routes.map((route) => this.evaluateRoute(route, event)),
     );
 
     const routesToFire = matchResults.filter((m) => m.shouldRoute);
@@ -142,7 +162,7 @@ export class DiscordEventRouter {
 
     // Dispatch to all matching routes
     const results = await Promise.all(
-      routesToFire.map((match) => this.dispatchToRoute(match.route, event))
+      routesToFire.map((match) => this.dispatchToRoute(match.route, event)),
     );
 
     const successCount = results.filter((r) => r.success).length;
@@ -178,7 +198,9 @@ export class DiscordEventRouter {
     return item.id;
   }
 
-  async processQueue(limit = 100): Promise<{ processed: number; failed: number }> {
+  async processQueue(
+    limit = 100,
+  ): Promise<{ processed: number; failed: number }> {
     const items = await discordEventQueueRepository.getPending(limit);
     let processed = 0;
     let failed = 0;
@@ -189,7 +211,9 @@ export class DiscordEventRouter {
       // Look up platform_connection_id from route if available
       let platformConnectionId = "";
       if (item.route_id) {
-        const routes = await discordEventRoutesRepository.listByOrganization(item.organization_id);
+        const routes = await discordEventRoutesRepository.listByOrganization(
+          item.organization_id,
+        );
         const route = routes.find((r) => r.id === item.route_id);
         if (route) {
           platformConnectionId = route.platform_connection_id;
@@ -197,10 +221,13 @@ export class DiscordEventRouter {
       }
 
       if (!platformConnectionId) {
-        logger.warn("[Discord Event Router] Queue item missing platform_connection_id", {
-          queueId: item.id,
-          routeId: item.route_id,
-        });
+        logger.warn(
+          "[Discord Event Router] Queue item missing platform_connection_id",
+          {
+            queueId: item.id,
+            routeId: item.route_id,
+          },
+        );
       }
 
       const event: RoutableEvent = {
@@ -217,7 +244,8 @@ export class DiscordEventRouter {
       };
 
       const results = await this.routeEvent(event);
-      const allSuccessful = results.length === 0 || results.every((r) => r.success);
+      const allSuccessful =
+        results.length === 0 || results.every((r) => r.success);
 
       if (allSuccessful) {
         await discordEventQueueRepository.markCompleted(item.id);
@@ -242,7 +270,9 @@ export class DiscordEventRouter {
   /**
    * Find routes matching an event.
    */
-  private async findMatchingRoutes(event: RoutableEvent): Promise<DiscordEventRoute[]> {
+  private async findMatchingRoutes(
+    event: RoutableEvent,
+  ): Promise<DiscordEventRoute[]> {
     const cacheKey = `discord:routes:${event.platformConnectionId}:${event.guildId}:${event.eventType}`;
 
     // Check cache
@@ -268,14 +298,18 @@ export class DiscordEventRouter {
    */
   private async evaluateRoute(
     route: DiscordEventRoute,
-    event: RoutableEvent
+    event: RoutableEvent,
   ): Promise<RouteMatch> {
     if (!route.enabled) {
       return { route, shouldRoute: false, reason: "Route disabled" };
     }
 
     const rateLimitKey = `discord:rate:${route.id}`;
-    const rateLimit = await checkRateLimitRedis(rateLimitKey, 60000, route.rate_limit_per_minute ?? 60);
+    const rateLimit = await checkRateLimitRedis(
+      rateLimitKey,
+      60000,
+      route.rate_limit_per_minute ?? 60,
+    );
     if (!rateLimit.allowed) {
       return { route, shouldRoute: false, reason: "Rate limited" };
     }
@@ -288,16 +322,23 @@ export class DiscordEventRouter {
       }
 
       if (route.filter_self_messages) {
-        const connection = await discordBotConnectionsRepository.getByPlatformConnection(
-          event.platformConnectionId
-        );
-        if (connection?.bot_user_id && message.author.id === connection.bot_user_id) {
+        const connection =
+          await discordBotConnectionsRepository.getByPlatformConnection(
+            event.platformConnectionId,
+          );
+        if (
+          connection?.bot_user_id &&
+          message.author.id === connection.bot_user_id
+        ) {
           return { route, shouldRoute: false, reason: "Self message filtered" };
         }
       }
 
       if (route.mention_only) {
-        const mentionsBot = await this.messageContainsBotMention(message, event.platformConnectionId);
+        const mentionsBot = await this.messageContainsBotMention(
+          message,
+          event.platformConnectionId,
+        );
         if (!mentionsBot) {
           return { route, shouldRoute: false, reason: "Not mentioned" };
         }
@@ -315,7 +356,7 @@ export class DiscordEventRouter {
 
   private async dispatchToRoute(
     route: DiscordEventRoute,
-    event: RoutableEvent
+    event: RoutableEvent,
   ): Promise<EventRoutingResult> {
     const startTime = Date.now();
 
@@ -353,13 +394,16 @@ export class DiscordEventRouter {
     await discordEventRoutesRepository.incrementCounters(
       route.id,
       1, // matched
-      result.success ? 1 : 0 // routed
+      result.success ? 1 : 0, // routed
     );
 
     return result;
   }
 
-  private async dispatchToA2A(route: DiscordEventRoute, event: RoutableEvent): Promise<boolean> {
+  private async dispatchToA2A(
+    route: DiscordEventRoute,
+    event: RoutableEvent,
+  ): Promise<boolean> {
     const message = event.data.message;
     if (!message && event.eventType === "MESSAGE_CREATE") {
       return false;
@@ -381,7 +425,10 @@ export class DiscordEventRouter {
             message_id: message?.id ?? event.eventId,
             author_id: message?.author.id ?? "",
             author_username: message?.author.username ?? "",
-            mentions_bot: await this.messageContainsBotMention(message, event.platformConnectionId),
+            mentions_bot: await this.messageContainsBotMention(
+              message,
+              event.platformConnectionId,
+            ),
             reply_to: message?.referenced_message?.id,
             attachments: message?.attachments.map((a) => ({
               url: a.url,
@@ -421,7 +468,10 @@ export class DiscordEventRouter {
     return true;
   }
 
-  private async dispatchToMCP(route: DiscordEventRoute, event: RoutableEvent): Promise<boolean> {
+  private async dispatchToMCP(
+    route: DiscordEventRoute,
+    event: RoutableEvent,
+  ): Promise<boolean> {
     const targetUrl = route.route_target.startsWith("http")
       ? route.route_target
       : `${process.env.NEXTAUTH_URL ?? "https://elizacloud.ai"}/api/mcp`;
@@ -467,7 +517,7 @@ export class DiscordEventRouter {
 
   private async dispatchToWebhook(
     route: DiscordEventRoute,
-    event: RoutableEvent
+    event: RoutableEvent,
   ): Promise<boolean> {
     // Generate signature for webhook verification
     const timestamp = new Date().toISOString();
@@ -521,10 +571,11 @@ export class DiscordEventRouter {
 
   private async dispatchToContainer(
     route: DiscordEventRoute,
-    event: RoutableEvent
+    event: RoutableEvent,
   ): Promise<boolean> {
     // route_target should be container ID or URL
-    const containerBaseUrl = process.env.CONTAINER_BASE_URL ?? "https://{id}.containers.elizacloud.ai";
+    const containerBaseUrl =
+      process.env.CONTAINER_BASE_URL ?? "https://{id}.containers.elizacloud.ai";
     const containerUrl = route.route_target.startsWith("http")
       ? route.route_target
       : containerBaseUrl.replace("{id}", route.route_target);
@@ -561,7 +612,7 @@ export class DiscordEventRouter {
 
   private async dispatchToInternal(
     route: DiscordEventRoute,
-    event: RoutableEvent
+    event: RoutableEvent,
   ): Promise<boolean> {
     // Queue the event for internal processing
     const queueId = await this.queueEvent(event, route.id);
@@ -586,7 +637,8 @@ export class DiscordEventRouter {
 
     if (!channelId) return false;
 
-    const { replyRouterService } = await import("@/lib/services/social-feed/reply-router");
+    const { replyRouterService } =
+      await import("@/lib/services/social-feed/reply-router");
 
     const result = await replyRouterService.processIncomingReply({
       platform: "discord",
@@ -615,29 +667,37 @@ export class DiscordEventRouter {
 
   private async messageContainsBotMention(
     message: DiscordMessage | undefined,
-    platformConnectionId: string
+    platformConnectionId: string,
   ): Promise<boolean> {
     if (!message) return false;
 
     // Look up the bot's user ID from the connection
-    const connection = await discordBotConnectionsRepository.getByPlatformConnection(platformConnectionId);
+    const connection =
+      await discordBotConnectionsRepository.getByPlatformConnection(
+        platformConnectionId,
+      );
     if (connection?.bot_user_id) {
       // Check if the specific bot is mentioned
       return message.mentions.some((m) => m.id === connection.bot_user_id);
     }
 
     // Fallback: check if any bot is mentioned (less accurate but works without connection data)
-    logger.warn("[Discord Event Router] No bot_user_id found, using fallback bot mention check", {
-      platformConnectionId,
-    });
+    logger.warn(
+      "[Discord Event Router] No bot_user_id found, using fallback bot mention check",
+      {
+        platformConnectionId,
+      },
+    );
     return message.mentions.some((m) => m.bot);
   }
 
   private async invalidateRouteCache(
     platformConnectionId: string,
-    guildId: string
+    guildId: string,
   ): Promise<void> {
-    await cache.delPattern(`discord:routes:${platformConnectionId}:${guildId}:*`);
+    await cache.delPattern(
+      `discord:routes:${platformConnectionId}:${guildId}:*`,
+    );
   }
 }
 

@@ -29,6 +29,7 @@ Manages domain search, purchase, assignment, and monitoring for the Eliza Cloud 
 ## Services
 
 ### DomainManagementService
+
 - Domain search and availability checking via Vercel API
 - Domain purchasing (credits only, x402 not yet implemented)
 - External domain registration with DNS verification
@@ -36,6 +37,7 @@ Manages domain search, purchase, assignment, and monitoring for the Eliza Cloud 
 - DNS record management
 
 ### DomainModerationService
+
 - Pre-purchase domain name validation
 - Expletive and CSAM term detection
 - Suspicious pattern detection (keyboard walks, random strings)
@@ -43,6 +45,7 @@ Manages domain search, purchase, assignment, and monitoring for the Eliza Cloud 
 - Content scanning of live domains
 
 ### DomainHealthMonitorService
+
 - Periodic health checks (runs every 6 hours via cron)
 - HTTP/HTTPS connectivity and SSL verification
 - Content scans for live domains (runs daily via cron)
@@ -50,6 +53,7 @@ Manages domain search, purchase, assignment, and monitoring for the Eliza Cloud 
 - Timeout protection (50s max runtime)
 
 ### DomainRouterService
+
 - Routes custom domain requests to assigned resources
 - Supports apps, containers, agents, and MCPs
 - Error page generation for suspended/unverified domains
@@ -57,22 +61,26 @@ Manages domain search, purchase, assignment, and monitoring for the Eliza Cloud 
 ## Environment Variables
 
 Required:
+
 - `VERCEL_TOKEN` - Vercel API token with domain management permissions
 - `VERCEL_TEAM_ID` - Vercel team ID (optional, for team-scoped domains)
 - `CRON_SECRET` - Secret for authenticating cron job requests
 
 Optional:
+
 - `DATABASE_URL` - PostgreSQL connection string (Neon recommended)
 - `REDIS_RATE_LIMITING` - Set to "true" for production rate limiting
 
 ## Database Migration
 
 Before first use, run the migration:
+
 ```bash
 bun run db:migrate
 ```
 
 This creates:
+
 - `managed_domains` table
 - `domain_moderation_events` table
 - Required enums for status types
@@ -80,6 +88,7 @@ This creates:
 ## API Endpoints
 
 ### Public API (`/api/v1/domains/*`)
+
 - `GET /search?q=keyword` - Search available domains
 - `GET /check?domain=example.com` - Check single domain availability
 - `POST /purchase` - Purchase domain (rate limited: 5/5min)
@@ -89,6 +98,7 @@ This creates:
 - `GET /:id/dns` - Get DNS records
 
 ### MCP Tools
+
 - `domains_search` - Search domains (free)
 - `domains_check` - Check availability (free)
 - `domains_purchase` - Purchase domain
@@ -96,6 +106,7 @@ This creates:
 - `domains_assign_resource` - Assign to resource
 
 ### Cron Jobs
+
 - `GET /api/cron/domain-health` - Health checks (every 6 hours)
 - `POST /api/cron/domain-health` - Content scans (daily)
 
@@ -120,4 +131,3 @@ bun test tests/unit/domain-api-routes.test.ts
 ```
 
 Note: Batch test runs may have mock isolation issues with Bun's test runner.
-

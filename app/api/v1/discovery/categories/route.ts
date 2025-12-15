@@ -39,7 +39,10 @@ interface CategoriesResponse {
 // Category Definitions
 // ============================================================================
 
-const CATEGORY_META: Record<string, { displayName: string; description: string; icon: string }> = {
+const CATEGORY_META: Record<
+  string,
+  { displayName: string; description: string; icon: string }
+> = {
   ai: {
     displayName: "AI & Machine Learning",
     description: "AI-powered agents, inference, and ML tools",
@@ -113,10 +116,16 @@ export async function GET(_request: NextRequest) {
     // Check cache (15 minutes TTL)
     const cached = await cache.get<CategoriesResponse>(cacheKey);
     if (cached) {
-      return NextResponse.json({ ...cached, meta: { ...cached.meta, cached: true } });
+      return NextResponse.json({
+        ...cached,
+        meta: { ...cached.meta, cached: true },
+      });
     }
 
-    const categoryCounts = new Map<string, { local: number; erc8004: number }>();
+    const categoryCounts = new Map<
+      string,
+      { local: number; erc8004: number }
+    >();
 
     // ========================================================================
     // Count from local sources (with graceful fallback)
@@ -131,7 +140,10 @@ export async function GET(_request: NextRequest) {
       });
       for (const char of result.characters) {
         if (char.category) {
-          const existing = categoryCounts.get(char.category) ?? { local: 0, erc8004: 0 };
+          const existing = categoryCounts.get(char.category) ?? {
+            local: 0,
+            erc8004: 0,
+          };
           existing.local++;
           categoryCounts.set(char.category, existing);
         }
@@ -141,7 +153,10 @@ export async function GET(_request: NextRequest) {
       const mcps = await userMcpsService.listPublic({ limit: 500 });
       for (const mcp of mcps) {
         if (mcp.category) {
-          const existing = categoryCounts.get(mcp.category) ?? { local: 0, erc8004: 0 };
+          const existing = categoryCounts.get(mcp.category) ?? {
+            local: 0,
+            erc8004: 0,
+          };
           existing.local++;
           categoryCounts.set(mcp.category, existing);
         }
@@ -150,73 +165,79 @@ export async function GET(_request: NextRequest) {
       // Database unavailable - continue with ERC-8004 only
     }
 
-  // ========================================================================
-  // Count from ERC-8004
-  // ========================================================================
+    // ========================================================================
+    // Count from ERC-8004
+    // ========================================================================
 
-  const agents = await agent0Service.searchAgentsCached({ active: true });
-  for (const agent of agents) {
-    // Try to infer category from tools/skills
-    const category = inferCategory(agent);
-    if (category) {
-      const existing = categoryCounts.get(category) ?? { local: 0, erc8004: 0 };
-      existing.erc8004++;
-      categoryCounts.set(category, existing);
+    const agents = await agent0Service.searchAgentsCached({ active: true });
+    for (const agent of agents) {
+      // Try to infer category from tools/skills
+      const category = inferCategory(agent);
+      if (category) {
+        const existing = categoryCounts.get(category) ?? {
+          local: 0,
+          erc8004: 0,
+        };
+        existing.erc8004++;
+        categoryCounts.set(category, existing);
+      }
     }
-  }
 
-  // ========================================================================
-  // Build response
-  // ========================================================================
+    // ========================================================================
+    // Build response
+    // ========================================================================
 
-  const categories: CategoryInfo[] = [];
+    const categories: CategoryInfo[] = [];
 
-  for (const [category, counts] of categoryCounts.entries()) {
-    const meta = CATEGORY_META[category] ?? {
-      displayName: category.charAt(0).toUpperCase() + category.slice(1),
-      description: `${category} services and tools`,
-      icon: "📁",
+    for (const [category, counts] of categoryCounts.entries()) {
+      const meta = CATEGORY_META[category] ?? {
+        displayName: category.charAt(0).toUpperCase() + category.slice(1),
+        description: `${category} services and tools`,
+        icon: "📁",
+      };
+
+      let source: "local" | "erc8004" | "both";
+      if (counts.local > 0 && counts.erc8004 > 0) {
+        source = "both";
+      } else if (counts.local > 0) {
+        source = "local";
+      } else {
+        source = "erc8004";
+      }
+
+      categories.push({
+        category,
+        displayName: meta.displayName,
+        description: meta.description,
+        count: counts.local + counts.erc8004,
+        icon: meta.icon,
+        source,
+      });
+    }
+
+    // Sort by count descending
+    categories.sort((a, b) => b.count - a.count);
+
+    const response: CategoriesResponse = {
+      categories,
+      total: categories.length,
+      meta: {
+        cached: false,
+        lastUpdated: new Date().toISOString(),
+      },
     };
 
-    let source: "local" | "erc8004" | "both";
-    if (counts.local > 0 && counts.erc8004 > 0) {
-      source = "both";
-    } else if (counts.local > 0) {
-      source = "local";
-    } else {
-      source = "erc8004";
-    }
+    // Cache for 15 minutes
+    await cache.set(cacheKey, response, CacheTTL.erc8004.discovery);
 
-    categories.push({
-      category,
-      displayName: meta.displayName,
-      description: meta.description,
-      count: counts.local + counts.erc8004,
-      icon: meta.icon,
-      source,
-    });
-  }
-
-  // Sort by count descending
-  categories.sort((a, b) => b.count - a.count);
-
-  const response: CategoriesResponse = {
-    categories,
-    total: categories.length,
-    meta: {
-      cached: false,
-      lastUpdated: new Date().toISOString(),
-    },
-  };
-
-  // Cache for 15 minutes
-  await cache.set(cacheKey, response, CacheTTL.erc8004.discovery);
-
-  return NextResponse.json(response);
+    return NextResponse.json(response);
   } catch (error) {
     return NextResponse.json(
-      { error: "Internal server error", message: error instanceof Error ? error.message : String(error) },
-      { status: 500 }
+      {
+        error: "Internal server error",
+        message: error instanceof Error ? error.message : String(error),
+      },
+      { status: 500 },
     );
   }
 }
@@ -239,30 +260,65 @@ function inferCategory(agent: {
     ...(agent.a2aSkills ?? []),
     agent.name.toLowerCase(),
     (agent.description ?? "").toLowerCase(),
-  ].join(" ").toLowerCase();
+  ]
+    .join(" ")
+    .toLowerCase();
 
-  if (allTerms.includes("chat") || allTerms.includes("llm") || allTerms.includes("inference") || allTerms.includes("gpt")) {
+  if (
+    allTerms.includes("chat") ||
+    allTerms.includes("llm") ||
+    allTerms.includes("inference") ||
+    allTerms.includes("gpt")
+  ) {
     return "ai";
   }
-  if (allTerms.includes("swap") || allTerms.includes("trade") || allTerms.includes("defi") || allTerms.includes("price")) {
+  if (
+    allTerms.includes("swap") ||
+    allTerms.includes("trade") ||
+    allTerms.includes("defi") ||
+    allTerms.includes("price")
+  ) {
     return "defi";
   }
-  if (allTerms.includes("game") || allTerms.includes("npc") || allTerms.includes("play")) {
+  if (
+    allTerms.includes("game") ||
+    allTerms.includes("npc") ||
+    allTerms.includes("play")
+  ) {
     return "gaming";
   }
-  if (allTerms.includes("tweet") || allTerms.includes("discord") || allTerms.includes("social") || allTerms.includes("post")) {
+  if (
+    allTerms.includes("tweet") ||
+    allTerms.includes("discord") ||
+    allTerms.includes("social") ||
+    allTerms.includes("post")
+  ) {
     return "social";
   }
-  if (allTerms.includes("storage") || allTerms.includes("ipfs") || allTerms.includes("file") || allTerms.includes("upload")) {
+  if (
+    allTerms.includes("storage") ||
+    allTerms.includes("ipfs") ||
+    allTerms.includes("file") ||
+    allTerms.includes("upload")
+  ) {
     return "storage";
   }
-  if (allTerms.includes("code") || allTerms.includes("debug") || allTerms.includes("github") || allTerms.includes("deploy")) {
+  if (
+    allTerms.includes("code") ||
+    allTerms.includes("debug") ||
+    allTerms.includes("github") ||
+    allTerms.includes("deploy")
+  ) {
     return "developer";
   }
-  if (allTerms.includes("image") || allTerms.includes("art") || allTerms.includes("music") || allTerms.includes("video")) {
+  if (
+    allTerms.includes("image") ||
+    allTerms.includes("art") ||
+    allTerms.includes("music") ||
+    allTerms.includes("video")
+  ) {
     return "creative";
   }
 
   return "utilities";
 }
-

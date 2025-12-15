@@ -16,7 +16,14 @@ const CreateSchema = z.object({
   serverId: z.string().uuid(),
   name: z.string().min(1).max(100),
   description: z.string().optional(),
-  chain: z.enum(["solana", "ethereum", "base", "polygon", "arbitrum", "optimism"]),
+  chain: z.enum([
+    "solana",
+    "ethereum",
+    "base",
+    "polygon",
+    "arbitrum",
+    "optimism",
+  ]),
   tokenType: z.enum(["token", "nft", "nft_collection"]),
   tokenAddress: z.string().min(1),
   minBalance: z.string().optional().default("1"),
@@ -34,7 +41,7 @@ export async function GET(request: NextRequest) {
   if (!serverId) {
     return NextResponse.json(
       { error: "serverId is required" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -44,8 +51,8 @@ export async function GET(request: NextRequest) {
     .where(
       and(
         eq(orgTokenGates.server_id, serverId),
-        eq(orgTokenGates.organization_id, user.organization_id)
-      )
+        eq(orgTokenGates.organization_id, user.organization_id),
+      ),
     );
 
   return NextResponse.json({
@@ -75,7 +82,7 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) {
     return NextResponse.json(
       { error: "Invalid request body", details: parsed.error.format() },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -110,5 +117,3 @@ export async function POST(request: NextRequest) {
     },
   });
 }
-
-

@@ -27,27 +27,47 @@ export function listVoices(): unknown[] {
 }
 
 export function listContainers(): unknown[] {
-  return callMcpTool<{ containers: unknown[] }>("list_containers")?.containers ?? [];
+  return (
+    callMcpTool<{ containers: unknown[] }>("list_containers")?.containers ?? []
+  );
 }
 
 export function getUserProfile(): Record<string, unknown> | null {
-  return callMcpTool<{ user: Record<string, unknown> }>("get_user_profile")?.user ?? null;
+  return (
+    callMcpTool<{ user: Record<string, unknown> }>("get_user_profile")?.user ??
+    null
+  );
 }
 
 export function getCreditSummary(): Record<string, unknown> | null {
-  return callMcpTool<{ summary: Record<string, unknown> }>("get_credit_summary")?.summary ?? null;
+  return (
+    callMcpTool<{ summary: Record<string, unknown> }>("get_credit_summary")
+      ?.summary ?? null
+  );
 }
 
 export function getBillingUsage(days = 7): Record<string, unknown> | null {
-  return callMcpTool<{ usage: Record<string, unknown> }>("get_billing_usage", { days })?.usage ?? null;
+  return (
+    callMcpTool<{ usage: Record<string, unknown> }>("get_billing_usage", {
+      days,
+    })?.usage ?? null
+  );
 }
 
 export function getContainerQuota(): Record<string, unknown> | null {
-  return callMcpTool<{ quota: Record<string, unknown> }>("get_container_quota")?.quota ?? null;
+  return (
+    callMcpTool<{ quota: Record<string, unknown> }>("get_container_quota")
+      ?.quota ?? null
+  );
 }
 
 export function discoverServices(sources = ["local"], limit = 10): unknown[] {
-  return callMcpTool<{ services: unknown[] }>("discover_services", { sources, limit })?.services ?? [];
+  return (
+    callMcpTool<{ services: unknown[] }>("discover_services", {
+      sources,
+      limit,
+    })?.services ?? []
+  );
 }
 
 export function lightMcpTools() {

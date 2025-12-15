@@ -49,7 +49,9 @@ interface SlackBlock {
 }
 
 interface TelegramInlineKeyboard {
-  inline_keyboard: Array<Array<{ text: string; url?: string; callback_data?: string }>>;
+  inline_keyboard: Array<
+    Array<{ text: string; url?: string; callback_data?: string }>
+  >;
 }
 
 function getEventTypeEmoji(eventType: string): string {
@@ -103,7 +105,8 @@ function formatForDiscord(event: SocialEngagementEvent): FormattedNotification {
   const emoji = getEventTypeEmoji(event.event_type);
   const label = getEventTypeLabel(event.event_type);
 
-  const authorDisplay = event.author_display_name || event.author_username || "Someone";
+  const authorDisplay =
+    event.author_display_name || event.author_username || "Someone";
   const authorHandle = event.author_username ? `@${event.author_username}` : "";
   const verifiedBadge = event.author_verified ? " ✓" : "";
   const followerText = event.author_follower_count
@@ -143,7 +146,10 @@ function formatForDiscord(event: SocialEngagementEvent): FormattedNotification {
     });
   }
 
-  if (event.original_post_url && event.original_post_url !== event.source_post_url) {
+  if (
+    event.original_post_url &&
+    event.original_post_url !== event.source_post_url
+  ) {
     fields.push({
       name: "Original",
       value: `[View original](${event.original_post_url})`,
@@ -172,11 +178,14 @@ function formatForDiscord(event: SocialEngagementEvent): FormattedNotification {
   };
 }
 
-function formatForTelegram(event: SocialEngagementEvent): FormattedNotification {
+function formatForTelegram(
+  event: SocialEngagementEvent,
+): FormattedNotification {
   const emoji = getEventTypeEmoji(event.event_type);
   const label = getEventTypeLabel(event.event_type);
 
-  const authorDisplay = event.author_display_name || event.author_username || "Someone";
+  const authorDisplay =
+    event.author_display_name || event.author_username || "Someone";
   const authorHandle = event.author_username ? `@${event.author_username}` : "";
   const verifiedBadge = event.author_verified ? " ✓" : "";
   const followerText = event.author_follower_count
@@ -208,7 +217,8 @@ function formatForTelegram(event: SocialEngagementEvent): FormattedNotification 
 
   text += "💬 <i>Reply to this message to respond</i>";
 
-  const buttons: Array<{ text: string; url?: string; callback_data?: string }> = [];
+  const buttons: Array<{ text: string; url?: string; callback_data?: string }> =
+    [];
 
   if (event.source_post_url) {
     buttons.push({
@@ -217,7 +227,10 @@ function formatForTelegram(event: SocialEngagementEvent): FormattedNotification 
     });
   }
 
-  if (event.original_post_url && event.original_post_url !== event.source_post_url) {
+  if (
+    event.original_post_url &&
+    event.original_post_url !== event.source_post_url
+  ) {
     buttons.push({
       text: "View Original",
       url: event.original_post_url,
@@ -235,7 +248,8 @@ function formatForSlack(event: SocialEngagementEvent): FormattedNotification {
   const emoji = getEventTypeEmoji(event.event_type);
   const label = getEventTypeLabel(event.event_type);
 
-  const authorDisplay = event.author_display_name || event.author_username || "Someone";
+  const authorDisplay =
+    event.author_display_name || event.author_username || "Someone";
   const authorHandle = event.author_username ? `@${event.author_username}` : "";
   const verifiedBadge = event.author_verified ? " :white_check_mark:" : "";
   const followerText = event.author_follower_count
@@ -283,13 +297,18 @@ function formatForSlack(event: SocialEngagementEvent): FormattedNotification {
   const contextElements: string[] = [];
   const slackMetrics = event.engagement_metrics;
   if (slackMetrics) {
-    if (slackMetrics.likes) contextElements.push(`${slackMetrics.likes} :heart:`);
-    if (slackMetrics.reposts) contextElements.push(`${slackMetrics.reposts} :recycle:`);
-    if (slackMetrics.replies) contextElements.push(`${slackMetrics.replies} :speech_balloon:`);
+    if (slackMetrics.likes)
+      contextElements.push(`${slackMetrics.likes} :heart:`);
+    if (slackMetrics.reposts)
+      contextElements.push(`${slackMetrics.reposts} :recycle:`);
+    if (slackMetrics.replies)
+      contextElements.push(`${slackMetrics.replies} :speech_balloon:`);
   }
 
   if (event.source_post_url) {
-    contextElements.push(`<${event.source_post_url}|View on ${event.source_platform}>`);
+    contextElements.push(
+      `<${event.source_post_url}|View on ${event.source_platform}>`,
+    );
   }
 
   if (contextElements.length > 0) {
@@ -334,13 +353,15 @@ function escapeHtml(text: string): string {
 async function sendToDiscord(
   channel: NotificationChannel,
   notification: FormattedNotification,
-  organizationId: string
+  organizationId: string,
 ): Promise<NotificationResult> {
   try {
     const connections = await botsService.getConnections(organizationId);
     const discordConnection = connections.find(
-      (c) => c.platform === "discord" && c.status === "active" &&
-        (channel.connectionId ? c.id === channel.connectionId : true)
+      (c) =>
+        c.platform === "discord" &&
+        c.status === "active" &&
+        (channel.connectionId ? c.id === channel.connectionId : true),
     );
 
     if (!discordConnection) {
@@ -352,7 +373,10 @@ async function sendToDiscord(
       };
     }
 
-    const botToken = await botsService.getBotToken(discordConnection.id, organizationId);
+    const botToken = await botsService.getBotToken(
+      discordConnection.id,
+      organizationId,
+    );
 
     const payload: Record<string, unknown> = {
       content: notification.text,
@@ -371,7 +395,7 @@ async function sendToDiscord(
           "Content-Type": "application/json",
         },
         body: JSON.stringify(payload),
-      }
+      },
     );
 
     if (!response.ok) {
@@ -401,13 +425,15 @@ async function sendToDiscord(
 async function sendToTelegram(
   channel: NotificationChannel,
   notification: FormattedNotification,
-  organizationId: string
+  organizationId: string,
 ): Promise<NotificationResult> {
   try {
     const connections = await botsService.getConnections(organizationId);
     const telegramConnection = connections.find(
-      (c) => c.platform === "telegram" && c.status === "active" &&
-        (channel.connectionId ? c.id === channel.connectionId : true)
+      (c) =>
+        c.platform === "telegram" &&
+        c.status === "active" &&
+        (channel.connectionId ? c.id === channel.connectionId : true),
     );
 
     if (!telegramConnection) {
@@ -427,7 +453,7 @@ async function sendToTelegram(
       {
         parse_mode: "HTML",
         reply_markup: notification.replyMarkup,
-      }
+      },
     );
 
     return {
@@ -450,10 +476,13 @@ async function sendToTelegram(
 async function sendToSlack(
   channel: NotificationChannel,
   notification: FormattedNotification,
-  organizationId: string
+  organizationId: string,
 ): Promise<NotificationResult> {
   try {
-    const botToken = await secretsService.get(organizationId, "SLACK_BOT_TOKEN");
+    const botToken = await secretsService.get(
+      organizationId,
+      "SLACK_BOT_TOKEN",
+    );
 
     if (!botToken) {
       return {
@@ -508,7 +537,7 @@ async function sendToSlack(
 class SocialNotificationService {
   async sendNotification(
     event: SocialEngagementEvent,
-    config: OrgFeedConfig
+    config: OrgFeedConfig,
   ): Promise<NotificationResult[]> {
     const channels = config.notification_channels ?? [];
     const results: NotificationResult[] = [];
@@ -526,15 +555,27 @@ class SocialNotificationService {
       switch (channel.platform) {
         case "discord":
           notification = formatForDiscord(event);
-          result = await sendToDiscord(channel, notification, config.organization_id);
+          result = await sendToDiscord(
+            channel,
+            notification,
+            config.organization_id,
+          );
           break;
         case "telegram":
           notification = formatForTelegram(event);
-          result = await sendToTelegram(channel, notification, config.organization_id);
+          result = await sendToTelegram(
+            channel,
+            notification,
+            config.organization_id,
+          );
           break;
         case "slack":
           notification = formatForSlack(event);
-          result = await sendToSlack(channel, notification, config.organization_id);
+          result = await sendToSlack(
+            channel,
+            notification,
+            config.organization_id,
+          );
           break;
         default:
           result = {
@@ -555,7 +596,7 @@ class SocialNotificationService {
           channel.channelId,
           result.messageId,
           channel.serverId,
-          channel.threadId
+          channel.threadId,
         );
       }
     }
@@ -565,14 +606,15 @@ class SocialNotificationService {
       const messageIds: Record<string, string> = {};
       for (const result of successfulChannels) {
         if (result.messageId) {
-          messageIds[`${result.platform}:${result.channelId}`] = result.messageId;
+          messageIds[`${result.platform}:${result.channelId}`] =
+            result.messageId;
         }
       }
 
       await engagementEventService.markNotificationSent(
         event.id,
         successfulChannels.map((r) => `${r.platform}:${r.channelId}`),
-        messageIds
+        messageIds,
       );
     }
 
@@ -592,13 +634,18 @@ class SocialNotificationService {
   }> {
     const events = await engagementEventService.getUnnotifiedEvents(50);
 
-    logger.info("[Notifications] Processing unnotified events", { count: events.length });
+    logger.info("[Notifications] Processing unnotified events", {
+      count: events.length,
+    });
 
     let successful = 0;
     let failed = 0;
 
     for (const event of events) {
-      const config = await feedConfigService.get(event.feed_config_id, event.organization_id);
+      const config = await feedConfigService.get(
+        event.feed_config_id,
+        event.organization_id,
+      );
       if (!config || !config.enabled) {
         await engagementEventService.markNotificationSent(event.id, [], {});
         continue;

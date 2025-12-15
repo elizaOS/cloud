@@ -28,7 +28,10 @@ async function handleSimulateUsage(req: NextRequest) {
       );
     }
 
-    logger.info("[SimulateUsage] Deducting credits", { amount: amount.toFixed(2), organizationId });
+    logger.info("[SimulateUsage] Deducting credits", {
+      amount: amount.toFixed(2),
+      organizationId,
+    });
 
     const result = await creditsService.deductCredits({
       organizationId,

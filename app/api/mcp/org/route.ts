@@ -80,7 +80,7 @@ function formatToolForMCP(tool: MCPToolDefinition) {
       for (const [key, value] of Object.entries(shape)) {
         const zodValue = value as z.ZodType;
         properties[key] = zodToJsonSchema(zodValue);
-        
+
         if (!(zodValue instanceof z.ZodOptional)) {
           required.push(key);
         }
@@ -184,7 +184,7 @@ export async function POST(request: NextRequest) {
             data: validation.error.format(),
           },
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -209,7 +209,7 @@ export async function POST(request: NextRequest) {
                 message: `Tool not found: ${name}`,
               },
             },
-            { status: 404 }
+            { status: 404 },
           );
         }
 
@@ -224,7 +224,7 @@ export async function POST(request: NextRequest) {
                 data: argsValidation.error.format(),
               },
             },
-            { status: 400 }
+            { status: 400 },
           );
         }
 
@@ -268,7 +268,7 @@ export async function POST(request: NextRequest) {
                 message: `Resource not found: ${uri}`,
               },
             },
-            { status: 404 }
+            { status: 404 },
           );
         }
 
@@ -296,7 +296,7 @@ export async function POST(request: NextRequest) {
             message: "Authentication required",
           },
         },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -308,8 +308,7 @@ export async function POST(request: NextRequest) {
           data: error instanceof Error ? error.message : "Unknown error",
         },
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
-

@@ -9,9 +9,17 @@
  * - Warns about excessive re-renders
  * - Tracks render duration for performance issues
  * - Auto-logs summaries at sensible intervals
+ *
+ * CONTROLLED BY ENV: NEXT_PUBLIC_ENABLE_RENDER_TRACKING (default: false)
+ * Set to "true" to enable render tracking in development.
  */
 
 import { useRef, useEffect, type ProfilerOnRenderCallback } from "react";
+
+// Feature flag: disabled by default, enable with NEXT_PUBLIC_ENABLE_RENDER_TRACKING=true
+export const RENDER_TRACKING_ENABLED =
+  process.env.NODE_ENV === "development" &&
+  process.env.NEXT_PUBLIC_ENABLE_RENDER_TRACKING === "true";
 
 interface RenderInfo {
   count: number;
@@ -57,7 +65,7 @@ function trackRender(
   _startTime: number,
   _commitTime: number,
 ): void {
-  if (process.env.NODE_ENV !== "development") return;
+  if (!RENDER_TRACKING_ENABLED) return;
 
   const now = Date.now();
   globalStats.totalRenders += 1;
@@ -151,7 +159,7 @@ export function useRenderTracker(
   const lastRenderRef = useRef<number>(0);
 
   useEffect(() => {
-    if (process.env.NODE_ENV !== "development") return;
+    if (!RENDER_TRACKING_ENABLED) return;
 
     renderCountRef.current += 1;
     const now = Date.now();
@@ -215,7 +223,7 @@ export function useWhyDidYouUpdate<T extends Record<string, unknown>>(
   const previousProps = useRef<T | undefined>(undefined);
 
   useEffect(() => {
-    if (process.env.NODE_ENV !== "development") return;
+    if (!RENDER_TRACKING_ENABLED) return;
 
     if (previousProps.current) {
       const allKeys = new Set([
@@ -269,7 +277,7 @@ export function resetRenderStats(): void {
  * Log render summary to console
  */
 export function logRenderSummary(): void {
-  if (process.env.NODE_ENV !== "development") return;
+  if (!RENDER_TRACKING_ENABLED) return;
 
   const sessionDuration = (
     (Date.now() - globalStats.sessionStart) /
@@ -323,6 +331,7 @@ export function logRenderSummary(): void {
  * Check if we should auto-log (called by debug provider)
  */
 export function shouldAutoLog(): boolean {
+  if (!RENDER_TRACKING_ENABLED) return false;
   return Date.now() - globalStats.lastLogTime >= AUTO_LOG_INTERVAL_MS;
 }
 
@@ -333,8 +342,8 @@ export function getInitialLogDelay(): number {
   return INITIAL_LOG_DELAY_MS;
 }
 
-// Expose to window
-if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
+// Expose to window (only when render tracking is enabled)
+if (typeof window !== "undefined" && RENDER_TRACKING_ENABLED) {
   const win = window as Window & {
     __renderStats__?: () => GlobalRenderStats;
     __logRenderSummary__?: () => void;

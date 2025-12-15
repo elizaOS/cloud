@@ -1,17 +1,16 @@
 /**
  * Payout Status Service
- * 
+ *
  * Provides system-wide status checks for the payout infrastructure.
  * Used to inform users and admins about payout availability.
  */
 
 import { logger } from "@/lib/utils/logger";
-import { ELIZA_TOKEN_ADDRESSES, type SupportedNetwork } from "./eliza-token-price";
 import {
-  createPublicClient,
-  http,
-  type Address,
-} from "viem";
+  ELIZA_TOKEN_ADDRESSES,
+  type SupportedNetwork,
+} from "./eliza-token-price";
+import { createPublicClient, http, type Address } from "viem";
 import { ERC20_ABI } from "@/lib/utils/abis/erc20";
 import { mainnet, base, bsc } from "viem/chains";
 import { jeju, jejuTestnet } from "@/lib/config/chains";
@@ -74,7 +73,12 @@ class PayoutStatusService {
    */
   async getStatus(forceRefresh = false): Promise<PayoutSystemStatus> {
     // Return cached if valid
-    if (!forceRefresh && this.cachedStatus && this.cacheExpiry && new Date() < this.cacheExpiry) {
+    if (
+      !forceRefresh &&
+      this.cachedStatus &&
+      this.cacheExpiry &&
+      new Date() < this.cacheExpiry
+    ) {
       return this.cachedStatus;
     }
 
@@ -82,7 +86,8 @@ class PayoutStatusService {
     const warnings: string[] = [];
 
     // Check EVM networks (support both naming conventions)
-    const evmPrivateKey = process.env.EVM_PAYOUT_PRIVATE_KEY || process.env.EVM_PRIVATE_KEY;
+    const evmPrivateKey =
+      process.env.EVM_PAYOUT_PRIVATE_KEY || process.env.EVM_PRIVATE_KEY;
     const evmWalletAddress = evmPrivateKey
       ? this.getEvmWalletAddress(evmPrivateKey)
       : null;
@@ -90,7 +95,7 @@ class PayoutStatusService {
     for (const network of ["ethereum", "base", "bnb"] as const) {
       const status = await this.checkEvmNetwork(network, evmWalletAddress);
       networks.push(status);
-      
+
       if (status.status !== "operational") {
         warnings.push(`${network}: ${status.message}`);
       }
@@ -104,20 +109,26 @@ class PayoutStatusService {
 
     const solanaStatus = await this.checkSolanaNetwork(solanaWalletAddress);
     networks.push(solanaStatus);
-    
+
     if (solanaStatus.status !== "operational") {
       warnings.push(`solana: ${solanaStatus.message}`);
     }
 
     // Determine overall operational status
-    const operationalNetworks = networks.filter(n => n.status === "operational");
+    const operationalNetworks = networks.filter(
+      (n) => n.status === "operational",
+    );
     const operational = operationalNetworks.length > 0;
 
     // Add general warnings
     if (!operational) {
-      warnings.unshift("⚠️ No payout networks currently available. Token redemption is temporarily disabled.");
+      warnings.unshift(
+        "⚠️ No payout networks currently available. Token redemption is temporarily disabled.",
+      );
     } else if (operationalNetworks.length < networks.length) {
-      warnings.unshift(`⚠️ Some payout networks are unavailable. Available: ${operationalNetworks.map(n => n.network).join(", ")}`);
+      warnings.unshift(
+        `⚠️ Some payout networks are unavailable. Available: ${operationalNetworks.map((n) => n.network).join(", ")}`,
+      );
     }
 
     const status: PayoutSystemStatus = {
@@ -142,7 +153,7 @@ class PayoutStatusService {
     message: string;
   }> {
     const status = await this.getStatus();
-    const networkStatus = status.networks.find(n => n.network === network);
+    const networkStatus = status.networks.find((n) => n.network === network);
 
     if (!networkStatus) {
       return {
@@ -161,7 +172,9 @@ class PayoutStatusService {
    * Get user-friendly message for payout unavailability
    */
   getUserMessage(network?: SupportedNetwork): string | null {
-    const evmConfigured = !!(process.env.EVM_PAYOUT_PRIVATE_KEY || process.env.EVM_PRIVATE_KEY);
+    const evmConfigured = !!(
+      process.env.EVM_PAYOUT_PRIVATE_KEY || process.env.EVM_PRIVATE_KEY
+    );
     const solanaConfigured = !!process.env.SOLANA_PAYOUT_PRIVATE_KEY;
 
     if (!evmConfigured && !solanaConfigured) {
@@ -186,8 +199,8 @@ class PayoutStatusService {
 
   private getEvmWalletAddress(privateKey: string): string | null {
     const key = privateKey.startsWith("0x")
-      ? privateKey as `0x${string}`
-      : `0x${privateKey}` as `0x${string}`;
+      ? (privateKey as `0x${string}`)
+      : (`0x${privateKey}` as `0x${string}`);
     const account = privateKeyToAccount(key);
     return account.address;
   }
@@ -203,7 +216,7 @@ class PayoutStatusService {
 
   private async checkEvmNetwork(
     network: "ethereum" | "base" | "bnb",
-    walletAddress: string | null
+    walletAddress: string | null,
   ): Promise<NetworkStatus> {
     if (!walletAddress) {
       return {
@@ -229,20 +242,24 @@ class PayoutStatusService {
     let balance = 0;
     let error: string | null = null;
 
-    const rawBalance = await publicClient.readContract({
-      address: tokenAddress,
-      abi: ERC20_ABI,
-      functionName: "balanceOf",
-      args: [walletAddress as Address],
-    }).catch((err) => {
-      error = err.message;
-      return BigInt(0);
-    });
+    const rawBalance = await publicClient
+      .readContract({
+        address: tokenAddress,
+        abi: ERC20_ABI,
+        functionName: "balanceOf",
+        args: [walletAddress as Address],
+      })
+      .catch((err) => {
+        error = err.message;
+        return BigInt(0);
+      });
 
     balance = Number(rawBalance) / Math.pow(10, decimals);
 
     if (error) {
-      logger.warn(`[PayoutStatus] Failed to check ${network} balance`, { error });
+      logger.warn(`[PayoutStatus] Failed to check ${network} balance`, {
+        error,
+      });
       return {
         network,
         configured: true,
@@ -289,7 +306,9 @@ class PayoutStatusService {
     };
   }
 
-  private async checkSolanaNetwork(walletAddress: string | null): Promise<NetworkStatus> {
+  private async checkSolanaNetwork(
+    walletAddress: string | null,
+  ): Promise<NetworkStatus> {
     if (!walletAddress) {
       return {
         network: "solana",
@@ -302,7 +321,8 @@ class PayoutStatusService {
       };
     }
 
-    const solanaRpc = process.env.SOLANA_RPC_URL || "https://api.mainnet-beta.solana.com";
+    const solanaRpc =
+      process.env.SOLANA_RPC_URL || "https://api.mainnet-beta.solana.com";
     const connection = new Connection(solanaRpc, "confirmed");
     const mintAddress = new PublicKey(ELIZA_TOKEN_ADDRESSES.solana);
     const walletPubkey = new PublicKey(walletAddress);
@@ -369,4 +389,3 @@ class PayoutStatusService {
 
 // Export singleton
 export const payoutStatusService = new PayoutStatusService();
-

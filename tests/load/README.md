@@ -49,6 +49,7 @@ bun run load:stress       # High load test
 ### CI/CD
 
 The CI workflow automatically:
+
 1. Sets up PostgreSQL database
 2. Runs `db:push` to create schema
 3. Runs `seed-test-api-key.ts` to create test data
@@ -57,21 +58,22 @@ The CI workflow automatically:
 6. Runs load tests
 
 Triggered by:
+
 - Pull requests to main (smoke test)
 - Nightly schedule (smoke test)
 - Manual dispatch (any scenario)
 
 ## Scenarios
 
-| Scenario | Command | Description |
-|----------|---------|-------------|
-| Smoke | `bun run load:smoke` | Quick sanity (1 VU, 1 min) |
-| Full Platform | `bun run load:local` | Complete API coverage |
-| Stress | `bun run load:stress` | High load beyond normal |
-| Spike | `bun run load:spike` | Sudden traffic burst |
-| Soak | `bun run load:soak` | Endurance (30 min) |
-| Throughput | `bun run load:throughput` | RPS capacity test |
-| Rate Limit | `bun run load:rate-limit` | Rate limiter validation |
+| Scenario      | Command                   | Description                |
+| ------------- | ------------------------- | -------------------------- |
+| Smoke         | `bun run load:smoke`      | Quick sanity (1 VU, 1 min) |
+| Full Platform | `bun run load:local`      | Complete API coverage      |
+| Stress        | `bun run load:stress`     | High load beyond normal    |
+| Spike         | `bun run load:spike`      | Sudden traffic burst       |
+| Soak          | `bun run load:soak`       | Endurance (30 min)         |
+| Throughput    | `bun run load:throughput` | RPS capacity test          |
+| Rate Limit    | `bun run load:rate-limit` | Rate limiter validation    |
 
 ## API Coverage (23 scenarios)
 
@@ -87,13 +89,13 @@ Triggered by:
 
 The `seed-test-api-key.ts` script creates:
 
-| Entity | ID/Value |
-|--------|----------|
+| Entity          | ID/Value                               |
+| --------------- | -------------------------------------- |
 | Organization ID | `ec42ddc9-c6bc-4306-815b-438ba59bf876` |
-| User ID | `318fafde-d785-4990-9bda-a4a2eed8db62` |
-| API Key ID | `926a821a-bb75-4eb8-b43f-05ed8ae9020c` |
-| API Key | `eliza_test_0123...` |
-| Credits | $1000 |
+| User ID         | `318fafde-d785-4990-9bda-a4a2eed8db62` |
+| API Key ID      | `926a821a-bb75-4eb8-b43f-05ed8ae9020c` |
+| API Key         | `eliza_test_0123...`                   |
+| Credits         | $1000                                  |
 
 ## Structure
 
@@ -115,14 +117,14 @@ tests/load/
 
 ## Environment Variables
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `LOAD_TEST_ENV` | Environment (local/staging/production) | `local` |
-| `BASE_URL` | Server URL | `http://localhost:3000` |
-| `API_KEY` | API key (overrides all) | Universal test key |
-| `LOCAL_API_KEY` | Local override | Universal test key |
-| `STAGING_API_KEY` | Staging API key | Required for staging |
-| `PROD_API_KEY` | Production API key | Required for production |
+| Variable          | Description                            | Default                 |
+| ----------------- | -------------------------------------- | ----------------------- |
+| `LOAD_TEST_ENV`   | Environment (local/staging/production) | `local`                 |
+| `BASE_URL`        | Server URL                             | `http://localhost:3000` |
+| `API_KEY`         | API key (overrides all)                | Universal test key      |
+| `LOCAL_API_KEY`   | Local override                         | Universal test key      |
+| `STAGING_API_KEY` | Staging API key                        | Required for staging    |
+| `PROD_API_KEY`    | Production API key                     | Required for production |
 
 ## Commands
 
@@ -140,6 +142,7 @@ bun run load:production # Test against production (needs PROD_API_KEY)
 ## Troubleshooting
 
 ### Server not responding
+
 ```bash
 # Check server is running
 curl http://localhost:3000/.well-known/agent-card.json
@@ -150,6 +153,7 @@ bun run dev
 ```
 
 ### Authentication failures
+
 ```bash
 # Re-seed test data
 bun run db:seed:test-key
@@ -160,6 +164,7 @@ curl -H "Authorization: Bearer eliza_test_0123456789abcdef0123456789abcdef012345
 ```
 
 ### k6 not installed
+
 ```bash
 # macOS
 brew install k6

@@ -20,12 +20,15 @@ const RequestSchema = z.object({
     workflowData: z.record(z.unknown()),
   }),
   message: z.string().min(1).max(10000),
-  history: z.array(
-    z.object({
-      role: z.enum(["user", "assistant"]),
-      content: z.string(),
-    })
-  ).optional().default([]),
+  history: z
+    .array(
+      z.object({
+        role: z.enum(["user", "assistant"]),
+        content: z.string(),
+      }),
+    )
+    .optional()
+    .default([]),
 });
 
 const SYSTEM_PROMPT = `You are an expert n8n workflow editor assistant. Your job is to help users modify their n8n workflows through natural language.
@@ -83,13 +86,19 @@ export async function POST(request: NextRequest) {
   const validation = RequestSchema.safeParse(body);
 
   if (!validation.success) {
-    return NextResponse.json(ErrorResponses.invalidRequest(validation.error.format()), { status: 400 });
+    return NextResponse.json(
+      ErrorResponses.invalidRequest(validation.error.format()),
+      { status: 400 },
+    );
   }
 
   const { workflowId, currentWorkflow, message, history } = validation.data;
 
   const existingWorkflow = await n8nWorkflowsService.getWorkflow(workflowId);
-  if (!existingWorkflow || existingWorkflow.organization_id !== user.organization_id) {
+  if (
+    !existingWorkflow ||
+    existingWorkflow.organization_id !== user.organization_id
+  ) {
     return NextResponse.json(ErrorResponses.workflowNotFound, { status: 404 });
   }
 
@@ -104,8 +113,15 @@ Current Workflow Data:
 ${JSON.stringify(currentWorkflow.workflowData, null, 2)}`;
 
   const messages: Array<{ role: "user" | "assistant"; content: string }> = [
-    { role: "user", content: `Here is the workflow I want to edit:\n\n${workflowContext}` },
-    { role: "assistant", content: "I've analyzed your workflow. What changes would you like to make?" },
+    {
+      role: "user",
+      content: `Here is the workflow I want to edit:\n\n${workflowContext}`,
+    },
+    {
+      role: "assistant",
+      content:
+        "I've analyzed your workflow. What changes would you like to make?",
+    },
   ];
 
   for (const msg of history.slice(-10)) {
@@ -122,24 +138,36 @@ ${JSON.stringify(currentWorkflow.workflowData, null, 2)}`;
 
   const textContent = response.text;
   if (!textContent) {
-    return NextResponse.json({ success: false, error: "No response from AI" }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: "No response from AI" },
+      { status: 500 },
+    );
   }
 
-  let parsedResponse: { message: string; proposedChanges?: Record<string, unknown> };
+  let parsedResponse: {
+    message: string;
+    proposedChanges?: Record<string, unknown>;
+  };
   try {
     parsedResponse = JSON.parse(textContent);
   } catch {
     const firstBrace = textContent.indexOf("{");
     if (firstBrace !== -1) {
-      let depth = 0, endIndex = -1;
+      let depth = 0,
+        endIndex = -1;
       for (let i = firstBrace; i < textContent.length; i++) {
         if (textContent[i] === "{") depth++;
         if (textContent[i] === "}") depth--;
-        if (depth === 0) { endIndex = i; break; }
+        if (depth === 0) {
+          endIndex = i;
+          break;
+        }
       }
       if (endIndex !== -1) {
         try {
-          parsedResponse = JSON.parse(textContent.slice(firstBrace, endIndex + 1));
+          parsedResponse = JSON.parse(
+            textContent.slice(firstBrace, endIndex + 1),
+          );
         } catch {
           parsedResponse = { message: textContent };
         }
@@ -152,9 +180,13 @@ ${JSON.stringify(currentWorkflow.workflowData, null, 2)}`;
   }
 
   if (parsedResponse.proposedChanges?.workflowData) {
-    const workflowData = parsedResponse.proposedChanges.workflowData as Record<string, unknown>;
-    const validationResult = await n8nWorkflowsService.validateWorkflow(workflowData);
-    
+    const workflowData = parsedResponse.proposedChanges.workflowData as Record<
+      string,
+      unknown
+    >;
+    const validationResult =
+      await n8nWorkflowsService.validateWorkflow(workflowData);
+
     if (!validationResult.valid) {
       parsedResponse.message += `\n\n⚠️ Note: The proposed workflow has some validation warnings:\n${validationResult.errors.join("\n")}`;
     }
@@ -166,4 +198,3 @@ ${JSON.stringify(currentWorkflow.workflowData, null, 2)}`;
     proposedChanges: parsedResponse.proposedChanges,
   });
 }
-

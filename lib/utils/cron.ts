@@ -17,12 +17,12 @@ const LOCK_TTL_MS = 120000; // 2 minutes
 export function acquireLock(jobName: string): boolean {
   const now = Date.now();
   const existing = locks[jobName];
-  
+
   // Lock exists and hasn't expired
   if (existing && now < existing) {
     return false;
   }
-  
+
   // Acquire lock
   locks[jobName] = now + LOCK_TTL_MS;
   return true;

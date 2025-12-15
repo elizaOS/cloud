@@ -42,7 +42,11 @@ import { agentBudgetService } from "@/lib/services/agent-budgets";
 import { analyticsService } from "@/lib/services/analytics";
 import { getElevenLabsService } from "@/lib/services/elevenlabs";
 import { characterMarketplaceService } from "@/lib/services/characters/marketplace";
-import { storageService, calculateUploadCost, formatPrice } from "@/lib/services/storage";
+import {
+  storageService,
+  calculateUploadCost,
+  formatPrice,
+} from "@/lib/services/storage";
 import { ipfsService } from "@/lib/services/ipfs";
 import { seoService } from "@/lib/services/seo";
 import { streamText } from "ai";
@@ -3527,7 +3531,9 @@ const mcpHandler = createMcpHandler(
             .string()
             .optional()
             .default("google/veo3")
-            .describe("Model to use (e.g., google/veo3, kling/v2.1-master, minimax/hailuo-standard)"),
+            .describe(
+              "Model to use (e.g., google/veo3, kling/v2.1-master, minimax/hailuo-standard)",
+            ),
         },
       },
       async ({ prompt, model }) => {
@@ -5619,7 +5625,8 @@ const mcpHandler = createMcpHandler(
     server.registerTool(
       "get_x402_topup_requirements",
       {
-        description: "Get x402 payment requirements for permissionless credit topup. Returns payment details needed to top up credits via x402. FREE tool - works without authentication.",
+        description:
+          "Get x402 payment requirements for permissionless credit topup. Returns payment details needed to top up credits via x402. FREE tool - works without authentication.",
         inputSchema: {},
       },
       async () => {
@@ -5636,55 +5643,80 @@ const mcpHandler = createMcpHandler(
 
           if (!isX402Configured()) {
             return {
-              content: [{
-                type: "text" as const,
-                text: JSON.stringify({
-                  error: "x402 payments not configured",
-                  message: "x402 payments are not enabled on this server",
-                }, null, 2),
-              }],
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify(
+                    {
+                      error: "x402 payments not configured",
+                      message: "x402 payments are not enabled on this server",
+                    },
+                    null,
+                    2,
+                  ),
+                },
+              ],
               isError: true,
             };
           }
 
           const network = getDefaultNetwork();
-          const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+          const baseUrl =
+            process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
           return {
-            content: [{
-              type: "text" as const,
-              text: JSON.stringify({
-                success: true,
-                x402: {
-                  enabled: X402_ENABLED,
-                  topupEndpoint: `${baseUrl}/api/v1/credits/topup`,
-                  network,
-                  asset: USDC_ADDRESSES[network],
-                  payTo: X402_RECIPIENT_ADDRESS,
-                  price: TOPUP_PRICE,
-                  creditsPerDollar: CREDITS_PER_DOLLAR,
-                  creditsPerTopup: Math.floor(parseFloat(TOPUP_PRICE.replace("$", "")) * CREDITS_PER_DOLLAR),
-                  instructions: [
-                    "1. Sign payment authorization with your wallet using x402 protocol",
-                    "2. Include X-PAYMENT header in POST request to topupEndpoint",
-                    "3. Credits will be added to your organization (created from wallet address if needed)",
-                    "4. Get API key from the organization to use for subsequent MCP/A2A calls",
-                    "5. Use the credits to call MCP tools or A2A skills",
-                  ],
-                  docs: "https://x402.org",
-                  note: "After topping up, you can get an API key from your organization to authenticate future requests",
-                },
-              }, null, 2),
-            }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: true,
+                    x402: {
+                      enabled: X402_ENABLED,
+                      topupEndpoint: `${baseUrl}/api/v1/credits/topup`,
+                      network,
+                      asset: USDC_ADDRESSES[network],
+                      payTo: X402_RECIPIENT_ADDRESS,
+                      price: TOPUP_PRICE,
+                      creditsPerDollar: CREDITS_PER_DOLLAR,
+                      creditsPerTopup: Math.floor(
+                        parseFloat(TOPUP_PRICE.replace("$", "")) *
+                          CREDITS_PER_DOLLAR,
+                      ),
+                      instructions: [
+                        "1. Sign payment authorization with your wallet using x402 protocol",
+                        "2. Include X-PAYMENT header in POST request to topupEndpoint",
+                        "3. Credits will be added to your organization (created from wallet address if needed)",
+                        "4. Get API key from the organization to use for subsequent MCP/A2A calls",
+                        "5. Use the credits to call MCP tools or A2A skills",
+                      ],
+                      docs: "https://x402.org",
+                      note: "After topping up, you can get an API key from your organization to authenticate future requests",
+                    },
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
           };
         } catch (error) {
           return {
-            content: [{
-              type: "text" as const,
-              text: JSON.stringify({
-                error: error instanceof Error ? error.message : "Failed to get x402 topup requirements",
-              }, null, 2),
-            }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to get x402 topup requirements",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -6225,29 +6257,51 @@ const mcpHandler = createMcpHandler(
     server.registerTool(
       "storage_upload",
       {
-        description: "Upload file to decentralized storage (Vercel Blob + optional IPFS pinning)",
+        description:
+          "Upload file to decentralized storage (Vercel Blob + optional IPFS pinning)",
         inputSchema: {
           content: z.string().describe("Base64 encoded file content"),
           filename: z.string().describe("Filename for the upload"),
-          contentType: z.string().optional().describe("MIME type (default: application/octet-stream)"),
-          pinToIPFS: z.boolean().optional().default(true).describe("Also pin to IPFS"),
+          contentType: z
+            .string()
+            .optional()
+            .describe("MIME type (default: application/octet-stream)"),
+          pinToIPFS: z
+            .boolean()
+            .optional()
+            .default(true)
+            .describe("Also pin to IPFS"),
         },
       },
-      async ({ content, filename, contentType = "application/octet-stream", pinToIPFS = true }) => {
+      async ({
+        content,
+        filename,
+        contentType = "application/octet-stream",
+        pinToIPFS = true,
+      }) => {
         const { user } = getAuthContext();
-        
+
         const buffer = Buffer.from(content, "base64");
         const cost = calculateUploadCost(buffer.length);
-        
+
         // Check balance
         const org = await organizationsService.getById(user.organization_id);
         if (!org || Number(org.credit_balance) < cost) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: `Insufficient credits: need ${formatPrice(cost)}` }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  { error: `Insufficient credits: need ${formatPrice(cost)}` },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
-        
+
         // Deduct credits
         await creditsService.deductCredits({
           organizationId: user.organization_id,
@@ -6255,28 +6309,34 @@ const mcpHandler = createMcpHandler(
           description: `MCP storage upload: ${filename}`,
           metadata: { user_id: user.id, filename, size: buffer.length },
         });
-        
+
         const result = await storageService.upload(buffer, {
           filename,
           contentType,
           ownerAddress: user.id,
           pinToIPFS,
         });
-        
+
         return {
-          content: [{
-            type: "text" as const,
-            text: JSON.stringify({
-              id: result.id,
-              url: result.url,
-              cid: result.cid,
-              ipfsGatewayUrl: result.ipfsGatewayUrl,
-              size: result.size,
-              contentType: result.contentType,
-              cost: formatPrice(cost),
-              pinned: result.pinned,
-            }, null, 2),
-          }],
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                {
+                  id: result.id,
+                  url: result.url,
+                  cid: result.cid,
+                  ipfsGatewayUrl: result.ipfsGatewayUrl,
+                  size: result.size,
+                  contentType: result.contentType,
+                  cost: formatPrice(cost),
+                  pinned: result.pinned,
+                },
+                null,
+                2,
+              ),
+            },
+          ],
         };
       },
     );
@@ -6287,36 +6347,49 @@ const mcpHandler = createMcpHandler(
       {
         description: "List your stored files",
         inputSchema: {
-          limit: z.number().int().min(1).max(100).optional().default(50).describe("Max files to return"),
+          limit: z
+            .number()
+            .int()
+            .min(1)
+            .max(100)
+            .optional()
+            .default(50)
+            .describe("Max files to return"),
           cursor: z.string().optional().describe("Pagination cursor"),
         },
       },
       async ({ limit = 50, cursor }) => {
         const { user } = getAuthContext();
-        
+
         const result = await storageService.list({
           ownerAddress: user.id,
           limit,
           cursor,
         });
-        
+
         return {
-          content: [{
-            type: "text" as const,
-            text: JSON.stringify({
-              items: result.items.map(item => ({
-                id: item.id,
-                url: item.url,
-                pathname: item.pathname,
-                contentType: item.contentType,
-                size: item.size,
-                uploadedAt: item.uploadedAt.toISOString(),
-              })),
-              count: result.items.length,
-              hasMore: result.hasMore,
-              cursor: result.cursor,
-            }, null, 2),
-          }],
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                {
+                  items: result.items.map((item) => ({
+                    id: item.id,
+                    url: item.url,
+                    pathname: item.pathname,
+                    contentType: item.contentType,
+                    size: item.size,
+                    uploadedAt: item.uploadedAt.toISOString(),
+                  })),
+                  count: result.items.length,
+                  hasMore: result.hasMore,
+                  cursor: result.cursor,
+                },
+                null,
+                2,
+              ),
+            },
+          ],
         };
       },
     );
@@ -6330,20 +6403,26 @@ const mcpHandler = createMcpHandler(
       },
       async () => {
         const { user } = getAuthContext();
-        
+
         const stats = await storageService.getStats(user.id);
         const pricing = storageService.getPricing();
-        
+
         return {
-          content: [{
-            type: "text" as const,
-            text: JSON.stringify({
-              totalFiles: stats.totalFiles,
-              totalSizeBytes: stats.totalSizeBytes,
-              totalSizeGB: stats.totalSizeGB,
-              pricing,
-            }, null, 2),
-          }],
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                {
+                  totalFiles: stats.totalFiles,
+                  totalSizeBytes: stats.totalSizeBytes,
+                  totalSizeGB: stats.totalSizeGB,
+                  pricing,
+                },
+                null,
+                2,
+              ),
+            },
+          ],
         };
       },
     );
@@ -6360,18 +6439,24 @@ const mcpHandler = createMcpHandler(
       async ({ sizeBytes }) => {
         const cost = calculateUploadCost(sizeBytes);
         const pricing = storageService.getPricing();
-        
+
         return {
-          content: [{
-            type: "text" as const,
-            text: JSON.stringify({
-              sizeBytes,
-              sizeMB: (sizeBytes / (1024 * 1024)).toFixed(2),
-              cost,
-              costFormatted: formatPrice(cost),
-              pricing,
-            }, null, 2),
-          }],
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                {
+                  sizeBytes,
+                  sizeMB: (sizeBytes / (1024 * 1024)).toFixed(2),
+                  cost,
+                  costFormatted: formatPrice(cost),
+                  pricing,
+                },
+                null,
+                2,
+              ),
+            },
+          ],
         };
       },
     );
@@ -6390,23 +6475,38 @@ const mcpHandler = createMcpHandler(
         const health = await ipfsService.health().catch(() => null);
         if (!health) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: "IPFS service unavailable" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  { error: "IPFS service unavailable" },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
-        
+
         const result = await ipfsService.pin({ cid, name: name || cid });
-        
+
         return {
-          content: [{
-            type: "text" as const,
-            text: JSON.stringify({
-              id: result.id,
-              cid: result.cid,
-              status: result.status,
-              gatewayUrl: ipfsService.getGatewayUrl(result.cid),
-            }, null, 2),
-          }],
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                {
+                  id: result.id,
+                  cid: result.cid,
+                  status: result.status,
+                  gatewayUrl: ipfsService.getGatewayUrl(result.cid),
+                },
+                null,
+                2,
+              ),
+            },
+          ],
         };
       },
     );
@@ -6417,7 +6517,10 @@ const mcpHandler = createMcpHandler(
       {
         description: "List pinned content on IPFS",
         inputSchema: {
-          status: z.string().optional().describe("Filter by status (pinning, pinned, failed)"),
+          status: z
+            .string()
+            .optional()
+            .describe("Filter by status (pinning, pinned, failed)"),
           limit: z.number().int().min(1).max(100).optional().default(50),
         },
       },
@@ -6425,24 +6528,39 @@ const mcpHandler = createMcpHandler(
         const health = await ipfsService.health().catch(() => null);
         if (!health) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: "IPFS service unavailable" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  { error: "IPFS service unavailable" },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
-        
+
         const result = await ipfsService.listPins({ status, limit });
-        
+
         return {
-          content: [{
-            type: "text" as const,
-            text: JSON.stringify({
-              count: result.count,
-              pins: result.results.map(pin => ({
-                ...pin,
-                gatewayUrl: ipfsService.getGatewayUrl(pin.cid),
-              })),
-            }, null, 2),
-          }],
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                {
+                  count: result.count,
+                  pins: result.results.map((pin) => ({
+                    ...pin,
+                    gatewayUrl: ipfsService.getGatewayUrl(pin.cid),
+                  })),
+                },
+                null,
+                2,
+              ),
+            },
+          ],
         };
       },
     );
@@ -6453,28 +6571,54 @@ const mcpHandler = createMcpHandler(
     server.registerTool(
       "n8n_create_workflow",
       {
-        description: "Create a new n8n workflow. Requires workflow name and workflow data (nodes, connections, etc.)",
+        description:
+          "Create a new n8n workflow. Requires workflow name and workflow data (nodes, connections, etc.)",
         inputSchema: {
           name: z.string().describe("Workflow name"),
           description: z.string().optional().describe("Workflow description"),
-          workflowData: z.record(z.unknown()).describe("n8n workflow JSON (nodes, connections, settings)"),
+          workflowData: z
+            .record(z.unknown())
+            .describe("n8n workflow JSON (nodes, connections, settings)"),
           tags: z.array(z.string()).optional().describe("Workflow tags"),
         },
       },
       async ({ name, description, workflowData, tags }) => {
-        const { n8nWorkflowsService } = await import("@/lib/services/n8n-workflows");
+        const { n8nWorkflowsService } =
+          await import("@/lib/services/n8n-workflows");
 
         if (!user.organization_id) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: "User has no organization" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  { error: "User has no organization" },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
 
-        const validationResult = await n8nWorkflowsService.validateWorkflow(workflowData);
+        const validationResult =
+          await n8nWorkflowsService.validateWorkflow(workflowData);
         if (!validationResult.valid) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: "Invalid workflow structure", errors: validationResult.errors }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error: "Invalid workflow structure",
+                    errors: validationResult.errors,
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -6489,19 +6633,25 @@ const mcpHandler = createMcpHandler(
         });
 
         return {
-          content: [{
-            type: "text" as const,
-            text: JSON.stringify({
-              success: true,
-              workflow: {
-                id: workflow.id,
-                name: workflow.name,
-                status: workflow.status,
-                version: workflow.version,
-                createdAt: workflow.created_at,
-              },
-            }, null, 2),
-          }],
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                {
+                  success: true,
+                  workflow: {
+                    id: workflow.id,
+                    name: workflow.name,
+                    status: workflow.status,
+                    version: workflow.version,
+                    createdAt: workflow.created_at,
+                  },
+                },
+                null,
+                2,
+              ),
+            },
+          ],
         };
       },
     );
@@ -6510,45 +6660,68 @@ const mcpHandler = createMcpHandler(
     server.registerTool(
       "n8n_list_workflows",
       {
-        description: "List n8n workflows. Can filter by status (draft, active, archived).",
+        description:
+          "List n8n workflows. Can filter by status (draft, active, archived).",
         inputSchema: {
-          status: z.enum(["draft", "active", "archived"]).optional().describe("Filter by workflow status"),
+          status: z
+            .enum(["draft", "active", "archived"])
+            .optional()
+            .describe("Filter by workflow status"),
           limit: z.number().int().min(1).max(100).optional().default(20),
         },
       },
       async ({ status, limit = 20 }) => {
-        const { n8nWorkflowsService } = await import("@/lib/services/n8n-workflows");
+        const { n8nWorkflowsService } =
+          await import("@/lib/services/n8n-workflows");
 
         if (!user.organization_id) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: "User has no organization" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  { error: "User has no organization" },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
 
-        const workflows = await n8nWorkflowsService.listWorkflows(user.organization_id, {
-          status,
-          limit,
-        });
+        const workflows = await n8nWorkflowsService.listWorkflows(
+          user.organization_id,
+          {
+            status,
+            limit,
+          },
+        );
 
         return {
-          content: [{
-            type: "text" as const,
-            text: JSON.stringify({
-              success: true,
-              workflows: workflows.map((w) => ({
-                id: w.id,
-                name: w.name,
-                description: w.description,
-                status: w.status,
-                version: w.version,
-                tags: w.tags,
-                createdAt: w.created_at.toISOString(),
-                updatedAt: w.updated_at.toISOString(),
-              })),
-              count: workflows.length,
-            }, null, 2),
-          }],
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                {
+                  success: true,
+                  workflows: workflows.map((w) => ({
+                    id: w.id,
+                    name: w.name,
+                    description: w.description,
+                    status: w.status,
+                    version: w.version,
+                    tags: w.tags,
+                    createdAt: w.created_at.toISOString(),
+                    updatedAt: w.updated_at.toISOString(),
+                  })),
+                  count: workflows.length,
+                },
+                null,
+                2,
+              ),
+            },
+          ],
         };
       },
     );
@@ -6557,34 +6730,71 @@ const mcpHandler = createMcpHandler(
     server.registerTool(
       "n8n_generate_workflow",
       {
-        description: "Generate an n8n workflow using AI from a natural language prompt. Uses Claude Opus 4.5.",
+        description:
+          "Generate an n8n workflow using AI from a natural language prompt. Uses Claude Opus 4.5.",
         inputSchema: {
-          prompt: z.string().describe("Natural language description of the desired workflow"),
-          context: z.object({
-            availableNodes: z.array(z.unknown()).optional().describe("Available n8n nodes for context"),
-            existingWorkflows: z.array(z.unknown()).optional().describe("Existing workflows for reference"),
-            variables: z.record(z.string()).optional().describe("Available variables"),
-          }).optional().describe("Additional context for generation"),
-          autoSave: z.boolean().optional().default(false).describe("Automatically save the generated workflow"),
-          workflowName: z.string().optional().describe("Name for the workflow (required if autoSave is true)"),
-          tags: z.array(z.string()).optional().describe("Tags for the workflow"),
+          prompt: z
+            .string()
+            .describe("Natural language description of the desired workflow"),
+          context: z
+            .object({
+              availableNodes: z
+                .array(z.unknown())
+                .optional()
+                .describe("Available n8n nodes for context"),
+              existingWorkflows: z
+                .array(z.unknown())
+                .optional()
+                .describe("Existing workflows for reference"),
+              variables: z
+                .record(z.string())
+                .optional()
+                .describe("Available variables"),
+            })
+            .optional()
+            .describe("Additional context for generation"),
+          autoSave: z
+            .boolean()
+            .optional()
+            .default(false)
+            .describe("Automatically save the generated workflow"),
+          workflowName: z
+            .string()
+            .optional()
+            .describe("Name for the workflow (required if autoSave is true)"),
+          tags: z
+            .array(z.string())
+            .optional()
+            .describe("Tags for the workflow"),
         },
       },
       async ({ prompt, context, autoSave, workflowName, tags }) => {
-        const { n8nWorkflowsService } = await import("@/lib/services/n8n-workflows");
-        const { endpointDiscoveryService } = await import("@/lib/services/endpoint-discovery");
+        const { n8nWorkflowsService } =
+          await import("@/lib/services/n8n-workflows");
+        const { endpointDiscoveryService } =
+          await import("@/lib/services/endpoint-discovery");
 
         if (!user.organization_id) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: "User has no organization" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  { error: "User has no organization" },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
 
         try {
           // Discover available endpoints
-          const availableEndpoints = await endpointDiscoveryService.discoverAllEndpoints();
-          const endpointNodes = availableEndpoints.map(e => ({
+          const availableEndpoints =
+            await endpointDiscoveryService.discoverAllEndpoints();
+          const endpointNodes = availableEndpoints.map((e) => ({
             id: e.id,
             name: e.name,
             description: e.description,
@@ -6595,8 +6805,11 @@ const mcpHandler = createMcpHandler(
           }));
 
           // Get user's existing workflows for context
-          const existingWorkflows = await n8nWorkflowsService.listWorkflows(user.organization_id, { limit: 10 });
-          const workflowContext = existingWorkflows.map(w => ({
+          const existingWorkflows = await n8nWorkflowsService.listWorkflows(
+            user.organization_id,
+            { limit: 10 },
+          );
+          const workflowContext = existingWorkflows.map((w) => ({
             id: w.id,
             name: w.name,
             description: w.description,
@@ -6604,46 +6817,72 @@ const mcpHandler = createMcpHandler(
           }));
 
           // Get global variables
-          const globalVariables = await n8nWorkflowsService.getGlobalVariables(user.organization_id);
+          const globalVariables = await n8nWorkflowsService.getGlobalVariables(
+            user.organization_id,
+          );
           const variablesContext = Object.fromEntries(
-            globalVariables.map(v => [v.name, v.is_secret ? "***" : v.value])
+            globalVariables.map((v) => [v.name, v.is_secret ? "***" : v.value]),
           );
 
           // Call the generation endpoint via HTTP (using API key for internal calls)
-          const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+          const baseUrl =
+            process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
           const apiKey = process.env.ELIZA_CLOUD_API_KEY;
 
           if (!apiKey) {
             return {
-              content: [{ type: "text" as const, text: JSON.stringify({ error: "Cloud API key not configured" }, null, 2) }],
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify(
+                    { error: "Cloud API key not configured" },
+                    null,
+                    2,
+                  ),
+                },
+              ],
               isError: true,
             };
           }
 
-          const response = await fetch(`${baseUrl}/api/v1/n8n/generate-workflow`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${apiKey}`,
-            },
-            body: JSON.stringify({
-              prompt,
-              context: {
-                ...context,
-                availableNodes: endpointNodes,
-                existingWorkflows: workflowContext,
-                variables: variablesContext,
+          const response = await fetch(
+            `${baseUrl}/api/v1/n8n/generate-workflow`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${apiKey}`,
               },
-              autoSave,
-              workflowName,
-              tags,
-            }),
-          });
+              body: JSON.stringify({
+                prompt,
+                context: {
+                  ...context,
+                  availableNodes: endpointNodes,
+                  existingWorkflows: workflowContext,
+                  variables: variablesContext,
+                },
+                autoSave,
+                workflowName,
+                tags,
+              }),
+            },
+          );
 
           if (!response.ok) {
-            const error = await response.json().catch(() => ({ error: "Unknown error" }));
+            const error = await response
+              .json()
+              .catch(() => ({ error: "Unknown error" }));
             return {
-              content: [{ type: "text" as const, text: JSON.stringify({ error: error.error || response.statusText }, null, 2) }],
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify(
+                    { error: error.error || response.statusText },
+                    null,
+                    2,
+                  ),
+                },
+              ],
               isError: true,
             };
           }
@@ -6651,20 +6890,40 @@ const mcpHandler = createMcpHandler(
           const result = await response.json();
 
           return {
-            content: [{
-              type: "text" as const,
-              text: JSON.stringify({
-                success: true,
-                workflow: result.workflow,
-                savedWorkflow: result.savedWorkflow,
-                validation: result.validation,
-                metadata: result.metadata,
-              }, null, 2),
-            }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: true,
+                    workflow: result.workflow,
+                    savedWorkflow: result.savedWorkflow,
+                    validation: result.validation,
+                    metadata: result.metadata,
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
           };
         } catch (error) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to generate workflow" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to generate workflow",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -6681,12 +6940,22 @@ const mcpHandler = createMcpHandler(
         },
       },
       async ({ workflowId }) => {
-        const { n8nWorkflowsService } = await import("@/lib/services/n8n-workflows");
+        const { n8nWorkflowsService } =
+          await import("@/lib/services/n8n-workflows");
         const { appsService } = await import("@/lib/services/apps");
 
         if (!user.organization_id) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: "User has no organization" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  { error: "User has no organization" },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -6694,7 +6963,16 @@ const mcpHandler = createMcpHandler(
         const apps = await appsService.listByOrganization(user.organization_id);
         if (apps.length === 0) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: "No app found for this organization" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  { error: "No app found for this organization" },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -6702,31 +6980,42 @@ const mcpHandler = createMcpHandler(
         const workflow = await n8nWorkflowsService.getWorkflow(workflowId);
         if (!workflow || workflow.app_id !== apps[0].id) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: "Workflow not found" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify({ error: "Workflow not found" }, null, 2),
+              },
+            ],
             isError: true,
           };
         }
 
         return {
-          content: [{
-            type: "text" as const,
-            text: JSON.stringify({
-              success: true,
-              workflow: {
-                id: workflow.id,
-                name: workflow.name,
-                description: workflow.description,
-                workflowData: workflow.workflow_data,
-                status: workflow.status,
-                version: workflow.version,
-                tags: workflow.tags,
-                n8nWorkflowId: workflow.n8n_workflow_id,
-                isActiveInN8n: workflow.is_active_in_n8n,
-                createdAt: workflow.created_at.toISOString(),
-                updatedAt: workflow.updated_at.toISOString(),
-              },
-            }, null, 2),
-          }],
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                {
+                  success: true,
+                  workflow: {
+                    id: workflow.id,
+                    name: workflow.name,
+                    description: workflow.description,
+                    workflowData: workflow.workflow_data,
+                    status: workflow.status,
+                    version: workflow.version,
+                    tags: workflow.tags,
+                    n8nWorkflowId: workflow.n8n_workflow_id,
+                    isActiveInN8n: workflow.is_active_in_n8n,
+                    createdAt: workflow.created_at.toISOString(),
+                    updatedAt: workflow.updated_at.toISOString(),
+                  },
+                },
+                null,
+                2,
+              ),
+            },
+          ],
         };
       },
     );
@@ -6739,19 +7028,38 @@ const mcpHandler = createMcpHandler(
         inputSchema: {
           workflowId: z.string().describe("Workflow ID"),
           name: z.string().optional().describe("New workflow name"),
-          description: z.string().optional().describe("New workflow description"),
-          workflowData: z.record(z.unknown()).optional().describe("Updated workflow data"),
-          status: z.enum(["draft", "active", "archived"]).optional().describe("New workflow status"),
+          description: z
+            .string()
+            .optional()
+            .describe("New workflow description"),
+          workflowData: z
+            .record(z.unknown())
+            .optional()
+            .describe("Updated workflow data"),
+          status: z
+            .enum(["draft", "active", "archived"])
+            .optional()
+            .describe("New workflow status"),
           tags: z.array(z.string()).optional().describe("New workflow tags"),
         },
       },
       async ({ workflowId, name, description, workflowData, status, tags }) => {
-        const { n8nWorkflowsService } = await import("@/lib/services/n8n-workflows");
+        const { n8nWorkflowsService } =
+          await import("@/lib/services/n8n-workflows");
         const { appsService } = await import("@/lib/services/apps");
 
         if (!user.organization_id) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: "User has no organization" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  { error: "User has no organization" },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -6759,16 +7067,38 @@ const mcpHandler = createMcpHandler(
         const apps = await appsService.listByOrganization(user.organization_id);
         if (apps.length === 0) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: "No app found for this organization" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  { error: "No app found for this organization" },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
 
         if (workflowData) {
-          const validationResult = await n8nWorkflowsService.validateWorkflow(workflowData);
+          const validationResult =
+            await n8nWorkflowsService.validateWorkflow(workflowData);
           if (!validationResult.valid) {
             return {
-              content: [{ type: "text" as const, text: JSON.stringify({ error: "Invalid workflow structure", errors: validationResult.errors }, null, 2) }],
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify(
+                    {
+                      error: "Invalid workflow structure",
+                      errors: validationResult.errors,
+                    },
+                    null,
+                    2,
+                  ),
+                },
+              ],
               isError: true,
             };
           }
@@ -6783,19 +7113,25 @@ const mcpHandler = createMcpHandler(
         });
 
         return {
-          content: [{
-            type: "text" as const,
-            text: JSON.stringify({
-              success: true,
-              workflow: {
-                id: workflow.id,
-                name: workflow.name,
-                status: workflow.status,
-                version: workflow.version,
-                updatedAt: workflow.updated_at.toISOString(),
-              },
-            }, null, 2),
-          }],
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                {
+                  success: true,
+                  workflow: {
+                    id: workflow.id,
+                    name: workflow.name,
+                    status: workflow.status,
+                    version: workflow.version,
+                    updatedAt: workflow.updated_at.toISOString(),
+                  },
+                },
+                null,
+                2,
+              ),
+            },
+          ],
         };
       },
     );
@@ -6811,25 +7147,35 @@ const mcpHandler = createMcpHandler(
         },
       },
       async ({ workflowId, limit = 50 }) => {
-        const { n8nWorkflowsService } = await import("@/lib/services/n8n-workflows");
+        const { n8nWorkflowsService } =
+          await import("@/lib/services/n8n-workflows");
 
-        const versions = await n8nWorkflowsService.getWorkflowVersions(workflowId, limit);
+        const versions = await n8nWorkflowsService.getWorkflowVersions(
+          workflowId,
+          limit,
+        );
 
         return {
-          content: [{
-            type: "text" as const,
-            text: JSON.stringify({
-              success: true,
-              versions: versions.map((v) => ({
-                id: v.id,
-                version: v.version,
-                changeDescription: v.change_description,
-                createdAt: v.created_at.toISOString(),
-                createdBy: v.created_by,
-              })),
-              count: versions.length,
-            }, null, 2),
-          }],
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                {
+                  success: true,
+                  versions: versions.map((v) => ({
+                    id: v.id,
+                    version: v.version,
+                    changeDescription: v.change_description,
+                    createdAt: v.created_at.toISOString(),
+                    createdBy: v.created_by,
+                  })),
+                  count: versions.length,
+                },
+                null,
+                2,
+              ),
+            },
+          ],
         };
       },
     );
@@ -6841,15 +7187,29 @@ const mcpHandler = createMcpHandler(
         description: "Revert a workflow to a specific version",
         inputSchema: {
           workflowId: z.string().describe("Workflow ID"),
-          version: z.number().int().positive().describe("Version number to revert to"),
+          version: z
+            .number()
+            .int()
+            .positive()
+            .describe("Version number to revert to"),
         },
       },
       async ({ workflowId, version }) => {
-        const { n8nWorkflowsService } = await import("@/lib/services/n8n-workflows");
+        const { n8nWorkflowsService } =
+          await import("@/lib/services/n8n-workflows");
 
         if (!user.organization_id) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: "User has no organization" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  { error: "User has no organization" },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -6857,21 +7217,27 @@ const mcpHandler = createMcpHandler(
         const workflow = await n8nWorkflowsService.revertWorkflowToVersion(
           workflowId,
           version,
-          user.id
+          user.id,
         );
 
         return {
-          content: [{
-            type: "text" as const,
-            text: JSON.stringify({
-              success: true,
-              workflow: {
-                id: workflow.id,
-                version: workflow.version,
-                updatedAt: workflow.updated_at.toISOString(),
-              },
-            }, null, 2),
-          }],
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                {
+                  success: true,
+                  workflow: {
+                    id: workflow.id,
+                    version: workflow.version,
+                    updatedAt: workflow.updated_at.toISOString(),
+                  },
+                },
+                null,
+                2,
+              ),
+            },
+          ],
         };
       },
     );
@@ -6883,15 +7249,28 @@ const mcpHandler = createMcpHandler(
         description: "Test execution of a workflow",
         inputSchema: {
           workflowId: z.string().describe("Workflow ID"),
-          inputData: z.record(z.unknown()).optional().describe("Input data for the workflow test"),
+          inputData: z
+            .record(z.unknown())
+            .optional()
+            .describe("Input data for the workflow test"),
         },
       },
       async ({ workflowId, inputData }) => {
-        const { n8nWorkflowsService } = await import("@/lib/services/n8n-workflows");
+        const { n8nWorkflowsService } =
+          await import("@/lib/services/n8n-workflows");
 
         if (!user.organization_id) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: "User has no organization" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  { error: "User has no organization" },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -6903,21 +7282,27 @@ const mcpHandler = createMcpHandler(
         });
 
         return {
-          content: [{
-            type: "text" as const,
-            text: JSON.stringify({
-              success: true,
-              execution: {
-                id: execution.id,
-                status: execution.status,
-                outputData: execution.output_data,
-                errorMessage: execution.error_message,
-                durationMs: execution.duration_ms,
-                startedAt: execution.started_at.toISOString(),
-                finishedAt: execution.finished_at?.toISOString(),
-              },
-            }, null, 2),
-          }],
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                {
+                  success: true,
+                  execution: {
+                    id: execution.id,
+                    status: execution.status,
+                    outputData: execution.output_data,
+                    errorMessage: execution.error_message,
+                    durationMs: execution.duration_ms,
+                    startedAt: execution.started_at.toISOString(),
+                    finishedAt: execution.finished_at?.toISOString(),
+                  },
+                },
+                null,
+                2,
+              ),
+            },
+          ],
         };
       },
     );
@@ -6928,33 +7313,64 @@ const mcpHandler = createMcpHandler(
     server.registerTool(
       "n8n_discover_nodes",
       {
-        description: "Discover all available A2A, MCP, and REST endpoints that can be used as n8n workflow nodes. Search across the entire marketplace network.",
+        description:
+          "Discover all available A2A, MCP, and REST endpoints that can be used as n8n workflow nodes. Search across the entire marketplace network.",
         inputSchema: {
-          query: z.string().optional().describe("Search query to filter endpoints by name, description, or category"),
-          types: z.array(z.enum(["a2a", "mcp", "rest"])).optional().describe("Filter by endpoint type"),
-          categories: z.array(z.string()).optional().describe("Filter by category (e.g., 'ai', 'storage', 'infrastructure')"),
-          limit: z.number().int().min(1).max(200).optional().default(100).describe("Maximum number of results"),
+          query: z
+            .string()
+            .optional()
+            .describe(
+              "Search query to filter endpoints by name, description, or category",
+            ),
+          types: z
+            .array(z.enum(["a2a", "mcp", "rest"]))
+            .optional()
+            .describe("Filter by endpoint type"),
+          categories: z
+            .array(z.string())
+            .optional()
+            .describe(
+              "Filter by category (e.g., 'ai', 'storage', 'infrastructure')",
+            ),
+          limit: z
+            .number()
+            .int()
+            .min(1)
+            .max(200)
+            .optional()
+            .default(100)
+            .describe("Maximum number of results"),
         },
       },
       async ({ query, types, categories, limit }) => {
-        const { endpointDiscoveryService } = await import("@/lib/services/endpoint-discovery");
+        const { endpointDiscoveryService } =
+          await import("@/lib/services/endpoint-discovery");
 
-        const results = await endpointDiscoveryService.searchEndpoints(query || "", {
-          types,
-          categories,
-          limit,
-        });
+        const results = await endpointDiscoveryService.searchEndpoints(
+          query || "",
+          {
+            types,
+            categories,
+            limit,
+          },
+        );
 
         return {
-          content: [{
-            type: "text" as const,
-            text: JSON.stringify({
-              success: true,
-              nodes: results.nodes,
-              total: results.total,
-              categories: results.categories,
-            }, null, 2),
-          }],
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                {
+                  success: true,
+                  nodes: results.nodes,
+                  total: results.total,
+                  categories: results.categories,
+                },
+                null,
+                2,
+              ),
+            },
+          ],
         };
       },
     );
@@ -6963,15 +7379,23 @@ const mcpHandler = createMcpHandler(
     server.registerTool(
       "n8n_generate_node",
       {
-        description: "Generate an n8n workflow node from a discovered endpoint. Creates an HTTP Request node configured for the endpoint.",
+        description:
+          "Generate an n8n workflow node from a discovered endpoint. Creates an HTTP Request node configured for the endpoint.",
         inputSchema: {
           endpointId: z.string().describe("Endpoint ID from discover_nodes"),
-          position: z.tuple([z.number(), z.number()]).optional().describe("Node position [x, y]"),
-          parameters: z.record(z.unknown()).optional().describe("Additional parameters for the node"),
+          position: z
+            .tuple([z.number(), z.number()])
+            .optional()
+            .describe("Node position [x, y]"),
+          parameters: z
+            .record(z.unknown())
+            .optional()
+            .describe("Additional parameters for the node"),
         },
       },
       async ({ endpointId, position, parameters }) => {
-        const { n8nNodeGeneratorService } = await import("@/lib/services/n8n-node-generator");
+        const { n8nNodeGeneratorService } =
+          await import("@/lib/services/n8n-node-generator");
 
         const node = await n8nNodeGeneratorService.generateNode({
           endpointId,
@@ -6980,13 +7404,19 @@ const mcpHandler = createMcpHandler(
         });
 
         return {
-          content: [{
-            type: "text" as const,
-            text: JSON.stringify({
-              success: true,
-              node,
-            }, null, 2),
-          }],
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                {
+                  success: true,
+                  node,
+                },
+                null,
+                2,
+              ),
+            },
+          ],
         };
       },
     );
@@ -6995,28 +7425,43 @@ const mcpHandler = createMcpHandler(
     server.registerTool(
       "n8n_generate_workflow_from_endpoints",
       {
-        description: "Generate a complete n8n workflow by connecting multiple endpoints as nodes.",
+        description:
+          "Generate a complete n8n workflow by connecting multiple endpoints as nodes.",
         inputSchema: {
-          endpointIds: z.array(z.string()).min(1).describe("Array of endpoint IDs to include in the workflow"),
-          workflowName: z.string().min(1).describe("Name for the generated workflow"),
+          endpointIds: z
+            .array(z.string())
+            .min(1)
+            .describe("Array of endpoint IDs to include in the workflow"),
+          workflowName: z
+            .string()
+            .min(1)
+            .describe("Name for the generated workflow"),
         },
       },
       async ({ endpointIds, workflowName }) => {
-        const { n8nNodeGeneratorService } = await import("@/lib/services/n8n-node-generator");
+        const { n8nNodeGeneratorService } =
+          await import("@/lib/services/n8n-node-generator");
 
-        const workflow = await n8nNodeGeneratorService.generateWorkflowFromEndpoints(
-          endpointIds,
-          workflowName
-        );
+        const workflow =
+          await n8nNodeGeneratorService.generateWorkflowFromEndpoints(
+            endpointIds,
+            workflowName,
+          );
 
         return {
-          content: [{
-            type: "text" as const,
-            text: JSON.stringify({
-              success: true,
-              workflow,
-            }, null, 2),
-          }],
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                {
+                  success: true,
+                  workflow,
+                },
+                null,
+                2,
+              ),
+            },
+          ],
         };
       },
     );
@@ -7025,26 +7470,48 @@ const mcpHandler = createMcpHandler(
     server.registerTool(
       "n8n_execute_trigger",
       {
-        description: "Execute an n8n workflow via its A2A or MCP trigger. Use this to run workflows that have been configured with triggers.",
+        description:
+          "Execute an n8n workflow via its A2A or MCP trigger. Use this to run workflows that have been configured with triggers.",
         inputSchema: {
           triggerKey: z.string().optional().describe("Trigger key to execute"),
-          workflowId: z.string().optional().describe("Workflow ID (finds active A2A/MCP trigger)"),
-          inputData: z.record(z.unknown()).optional().describe("Input data to pass to the workflow"),
+          workflowId: z
+            .string()
+            .optional()
+            .describe("Workflow ID (finds active A2A/MCP trigger)"),
+          inputData: z
+            .record(z.unknown())
+            .optional()
+            .describe("Input data to pass to the workflow"),
         },
       },
       async ({ triggerKey, workflowId, inputData }) => {
-        const { n8nWorkflowsService } = await import("@/lib/services/n8n-workflows");
+        const { n8nWorkflowsService } =
+          await import("@/lib/services/n8n-workflows");
 
         if (!user.organization_id) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: "No organization" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify({ error: "No organization" }, null, 2),
+              },
+            ],
             isError: true,
           };
         }
 
         if (!triggerKey && !workflowId) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: "Either triggerKey or workflowId is required" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  { error: "Either triggerKey or workflowId is required" },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -7054,43 +7521,79 @@ const mcpHandler = createMcpHandler(
           trigger = await n8nWorkflowsService.findTriggerByKey(triggerKey);
         } else if (workflowId) {
           const triggers = await n8nWorkflowsService.listTriggers(workflowId);
-          trigger = triggers.find(t => t.is_active && (t.trigger_type === "a2a" || t.trigger_type === "mcp"));
+          trigger = triggers.find(
+            (t) =>
+              t.is_active &&
+              (t.trigger_type === "a2a" || t.trigger_type === "mcp"),
+          );
         }
 
         if (!trigger) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: "No active A2A/MCP trigger found" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  { error: "No active A2A/MCP trigger found" },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
 
         if (trigger.organization_id !== user.organization_id) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: "Unauthorized" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify({ error: "Unauthorized" }, null, 2),
+              },
+            ],
             isError: true,
           };
         }
 
         if (trigger.trigger_type !== "a2a" && trigger.trigger_type !== "mcp") {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: "Use webhook endpoint for webhook triggers" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  { error: "Use webhook endpoint for webhook triggers" },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
 
-        const execution = await n8nWorkflowsService.executeWorkflowTrigger(trigger.id, inputData);
+        const execution = await n8nWorkflowsService.executeWorkflowTrigger(
+          trigger.id,
+          inputData,
+        );
 
         return {
-          content: [{
-            type: "text" as const,
-            text: JSON.stringify({
-              success: true,
-              executionId: execution.id,
-              status: execution.status,
-              workflowId: trigger.workflow_id,
-              triggerId: trigger.id,
-            }, null, 2),
-          }],
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                {
+                  success: true,
+                  executionId: execution.id,
+                  status: execution.status,
+                  workflowId: trigger.workflow_id,
+                  triggerId: trigger.id,
+                },
+                null,
+                2,
+              ),
+            },
+          ],
         };
       },
     );
@@ -7099,50 +7602,72 @@ const mcpHandler = createMcpHandler(
     server.registerTool(
       "n8n_list_triggers",
       {
-        description: "List n8n workflow triggers for your organization. Can filter by workflow ID or trigger type.",
+        description:
+          "List n8n workflow triggers for your organization. Can filter by workflow ID or trigger type.",
         inputSchema: {
           workflowId: z.string().optional().describe("Filter by workflow ID"),
-          triggerType: z.enum(["cron", "webhook", "a2a", "mcp"]).optional().describe("Filter by trigger type"),
+          triggerType: z
+            .enum(["cron", "webhook", "a2a", "mcp"])
+            .optional()
+            .describe("Filter by trigger type"),
         },
       },
       async ({ workflowId, triggerType }) => {
-        const { n8nWorkflowTriggersRepository } = await import("@/db/repositories/n8n-workflows");
+        const { n8nWorkflowTriggersRepository } =
+          await import("@/db/repositories/n8n-workflows");
 
         if (!user.organization_id) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: "No organization" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify({ error: "No organization" }, null, 2),
+              },
+            ],
             isError: true,
           };
         }
 
         let triggers;
         if (workflowId) {
-          triggers = await n8nWorkflowTriggersRepository.findByWorkflow(workflowId);
+          triggers =
+            await n8nWorkflowTriggersRepository.findByWorkflow(workflowId);
         } else {
-          triggers = await n8nWorkflowTriggersRepository.findByOrganization(user.organization_id);
+          triggers = await n8nWorkflowTriggersRepository.findByOrganization(
+            user.organization_id,
+          );
         }
 
         if (triggerType) {
-          triggers = triggers.filter(t => t.trigger_type === triggerType);
+          triggers = triggers.filter((t) => t.trigger_type === triggerType);
         }
 
         return {
-          content: [{
-            type: "text" as const,
-            text: JSON.stringify({
-              success: true,
-              triggers: triggers.map(t => ({
-                id: t.id,
-                workflowId: t.workflow_id,
-                triggerType: t.trigger_type,
-                triggerKey: t.trigger_type === "webhook" ? t.trigger_key.slice(0, 8) + "..." : t.trigger_key,
-                isActive: t.is_active,
-                executionCount: t.execution_count,
-                lastExecutedAt: t.last_executed_at?.toISOString() || null,
-              })),
-              total: triggers.length,
-            }, null, 2),
-          }],
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                {
+                  success: true,
+                  triggers: triggers.map((t) => ({
+                    id: t.id,
+                    workflowId: t.workflow_id,
+                    triggerType: t.trigger_type,
+                    triggerKey:
+                      t.trigger_type === "webhook"
+                        ? t.trigger_key.slice(0, 8) + "..."
+                        : t.trigger_key,
+                    isActive: t.is_active,
+                    executionCount: t.execution_count,
+                    lastExecutedAt: t.last_executed_at?.toISOString() || null,
+                  })),
+                  total: triggers.length,
+                },
+                null,
+                2,
+              ),
+            },
+          ],
         };
       },
     );
@@ -7151,24 +7676,48 @@ const mcpHandler = createMcpHandler(
     server.registerTool(
       "n8n_create_trigger",
       {
-        description: "Create a new trigger for an n8n workflow. Supports cron, webhook, A2A, and MCP trigger types.",
+        description:
+          "Create a new trigger for an n8n workflow. Supports cron, webhook, A2A, and MCP trigger types.",
         inputSchema: {
           workflowId: z.string().describe("Workflow ID to create trigger for"),
-          triggerType: z.enum(["cron", "webhook", "a2a", "mcp"]).describe("Type of trigger"),
-          triggerKey: z.string().optional().describe("Custom trigger key (auto-generated if not provided)"),
-          config: z.object({
-            cronExpression: z.string().optional().describe("Cron expression (required for cron triggers)"),
-            maxExecutionsPerDay: z.number().optional().describe("Maximum executions per day"),
-            estimatedCostPerExecution: z.number().optional().describe("Estimated cost in credits per execution"),
-          }).optional().describe("Trigger configuration"),
+          triggerType: z
+            .enum(["cron", "webhook", "a2a", "mcp"])
+            .describe("Type of trigger"),
+          triggerKey: z
+            .string()
+            .optional()
+            .describe("Custom trigger key (auto-generated if not provided)"),
+          config: z
+            .object({
+              cronExpression: z
+                .string()
+                .optional()
+                .describe("Cron expression (required for cron triggers)"),
+              maxExecutionsPerDay: z
+                .number()
+                .optional()
+                .describe("Maximum executions per day"),
+              estimatedCostPerExecution: z
+                .number()
+                .optional()
+                .describe("Estimated cost in credits per execution"),
+            })
+            .optional()
+            .describe("Trigger configuration"),
         },
       },
       async ({ workflowId, triggerType, triggerKey, config }) => {
-        const { n8nWorkflowsService } = await import("@/lib/services/n8n-workflows");
+        const { n8nWorkflowsService } =
+          await import("@/lib/services/n8n-workflows");
 
         if (!user.organization_id) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: "No organization" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify({ error: "No organization" }, null, 2),
+              },
+            ],
             isError: true,
           };
         }
@@ -7176,19 +7725,38 @@ const mcpHandler = createMcpHandler(
         const workflow = await n8nWorkflowsService.getWorkflow(workflowId);
         if (!workflow || workflow.organization_id !== user.organization_id) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: "Workflow not found" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify({ error: "Workflow not found" }, null, 2),
+              },
+            ],
             isError: true,
           };
         }
 
         if (triggerType === "cron" && !config?.cronExpression) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: "cronExpression is required for cron triggers" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  { error: "cronExpression is required for cron triggers" },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
 
-        const trigger = await n8nWorkflowsService.createTrigger(workflowId, triggerType, triggerKey, config || {});
+        const trigger = await n8nWorkflowsService.createTrigger(
+          workflowId,
+          triggerType,
+          triggerKey,
+          config || {},
+        );
 
         const result: Record<string, unknown> = {
           success: true,
@@ -7199,17 +7767,20 @@ const mcpHandler = createMcpHandler(
         };
 
         if (triggerType === "webhook") {
-          const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
+          const baseUrl =
+            process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
           result.webhookUrl = `${baseUrl}/api/v1/n8n/webhooks/${trigger.trigger_key}`;
           result.webhookSecret = trigger.config.webhookSecret;
           result.note = "Save webhookSecret now - it will not be shown again";
         }
 
         return {
-          content: [{
-            type: "text" as const,
-            text: JSON.stringify(result, null, 2),
-          }],
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
         };
       },
     );
@@ -7220,47 +7791,123 @@ const mcpHandler = createMcpHandler(
     server.registerTool(
       "create_app_trigger",
       {
-        description: "Create a trigger for an app (fragment project), agent (container), or MCP. Supports cron, webhook, and event triggers.",
+        description:
+          "Create a trigger for an app (fragment project), agent (container), or MCP. Supports cron, webhook, and event triggers.",
         inputSchema: {
-          targetType: z.enum(["fragment_project", "container", "user_mcp"]).describe("Type of target: fragment_project (app), container (agent), or user_mcp"),
-          targetId: z.string().uuid().describe("ID of the target app, agent, or MCP"),
-          triggerType: z.enum(["cron", "webhook", "event"]).describe("Type of trigger"),
+          targetType: z
+            .enum(["fragment_project", "container", "user_mcp"])
+            .describe(
+              "Type of target: fragment_project (app), container (agent), or user_mcp",
+            ),
+          targetId: z
+            .string()
+            .uuid()
+            .describe("ID of the target app, agent, or MCP"),
+          triggerType: z
+            .enum(["cron", "webhook", "event"])
+            .describe("Type of trigger"),
           name: z.string().describe("Human-readable name for the trigger"),
-          description: z.string().optional().describe("Description of what this trigger does"),
-          config: z.object({
-            cronExpression: z.string().optional().describe("Cron expression (required for cron triggers)"),
-            eventTypes: z.array(z.string()).optional().describe("Event types to listen for (required for event triggers)"),
-            maxExecutionsPerDay: z.number().optional().describe("Maximum executions per day"),
-            timeout: z.number().optional().describe("Timeout in seconds"),
-          }).optional().describe("Trigger configuration"),
-          actionType: z.enum(["call_endpoint", "restart", "execute_workflow", "notify"]).optional().describe("Action to perform"),
-          actionConfig: z.object({
-            endpoint: z.string().optional().describe("Endpoint to call"),
-            method: z.enum(["GET", "POST", "PUT", "DELETE"]).optional().describe("HTTP method"),
-            workflowId: z.string().uuid().optional().describe("N8N workflow ID for execute_workflow action"),
-          }).optional().describe("Action configuration"),
+          description: z
+            .string()
+            .optional()
+            .describe("Description of what this trigger does"),
+          config: z
+            .object({
+              cronExpression: z
+                .string()
+                .optional()
+                .describe("Cron expression (required for cron triggers)"),
+              eventTypes: z
+                .array(z.string())
+                .optional()
+                .describe(
+                  "Event types to listen for (required for event triggers)",
+                ),
+              maxExecutionsPerDay: z
+                .number()
+                .optional()
+                .describe("Maximum executions per day"),
+              timeout: z.number().optional().describe("Timeout in seconds"),
+            })
+            .optional()
+            .describe("Trigger configuration"),
+          actionType: z
+            .enum(["call_endpoint", "restart", "execute_workflow", "notify"])
+            .optional()
+            .describe("Action to perform"),
+          actionConfig: z
+            .object({
+              endpoint: z.string().optional().describe("Endpoint to call"),
+              method: z
+                .enum(["GET", "POST", "PUT", "DELETE"])
+                .optional()
+                .describe("HTTP method"),
+              workflowId: z
+                .string()
+                .uuid()
+                .optional()
+                .describe("N8N workflow ID for execute_workflow action"),
+            })
+            .optional()
+            .describe("Action configuration"),
         },
       },
-      async ({ targetType, targetId, triggerType, name, description, config, actionType, actionConfig }) => {
-        const { applicationTriggersService } = await import("@/lib/services/application-triggers");
+      async ({
+        targetType,
+        targetId,
+        triggerType,
+        name,
+        description,
+        config,
+        actionType,
+        actionConfig,
+      }) => {
+        const { applicationTriggersService } =
+          await import("@/lib/services/application-triggers");
 
         if (!user.organization_id) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: "No organization" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify({ error: "No organization" }, null, 2),
+              },
+            ],
             isError: true,
           };
         }
 
         if (triggerType === "cron" && !config?.cronExpression) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: "cronExpression is required for cron triggers" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  { error: "cronExpression is required for cron triggers" },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
 
-        if (triggerType === "event" && (!config?.eventTypes || config.eventTypes.length === 0)) {
+        if (
+          triggerType === "event" &&
+          (!config?.eventTypes || config.eventTypes.length === 0)
+        ) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: "eventTypes is required for event triggers" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  { error: "eventTypes is required for event triggers" },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -7287,17 +7934,20 @@ const mcpHandler = createMcpHandler(
         };
 
         if (triggerType === "webhook") {
-          const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
+          const baseUrl =
+            process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
           result.webhookUrl = `${baseUrl}/api/v1/triggers/webhooks/${trigger.trigger_key}`;
           result.webhookSecret = trigger.config.webhookSecret;
           result.note = "Save webhookSecret now - it will not be shown again";
         }
 
         return {
-          content: [{
-            type: "text" as const,
-            text: JSON.stringify(result, null, 2),
-          }],
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
         };
       },
     );
@@ -7306,53 +7956,85 @@ const mcpHandler = createMcpHandler(
     server.registerTool(
       "list_app_triggers",
       {
-        description: "List triggers for apps, agents, or MCPs in your organization.",
+        description:
+          "List triggers for apps, agents, or MCPs in your organization.",
         inputSchema: {
-          targetType: z.enum(["fragment_project", "container", "user_mcp"]).optional().describe("Filter by target type"),
-          targetId: z.string().uuid().optional().describe("Filter by specific target ID"),
-          triggerType: z.enum(["cron", "webhook", "event"]).optional().describe("Filter by trigger type"),
+          targetType: z
+            .enum(["fragment_project", "container", "user_mcp"])
+            .optional()
+            .describe("Filter by target type"),
+          targetId: z
+            .string()
+            .uuid()
+            .optional()
+            .describe("Filter by specific target ID"),
+          triggerType: z
+            .enum(["cron", "webhook", "event"])
+            .optional()
+            .describe("Filter by trigger type"),
         },
       },
       async ({ targetType, targetId, triggerType }) => {
-        const { applicationTriggersService } = await import("@/lib/services/application-triggers");
+        const { applicationTriggersService } =
+          await import("@/lib/services/application-triggers");
 
         if (!user.organization_id) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: "No organization" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify({ error: "No organization" }, null, 2),
+              },
+            ],
             isError: true,
           };
         }
 
         let triggers;
         if (targetId && targetType) {
-          triggers = await applicationTriggersService.listTriggersByTarget(targetType, targetId);
-          triggers = triggers.filter(t => t.organization_id === user.organization_id);
-        } else {
-          triggers = await applicationTriggersService.listTriggersByOrganization(
-            user.organization_id,
-            { targetType, triggerType }
+          triggers = await applicationTriggersService.listTriggersByTarget(
+            targetType,
+            targetId,
           );
+          triggers = triggers.filter(
+            (t) => t.organization_id === user.organization_id,
+          );
+        } else {
+          triggers =
+            await applicationTriggersService.listTriggersByOrganization(
+              user.organization_id,
+              { targetType, triggerType },
+            );
         }
 
         return {
-          content: [{
-            type: "text" as const,
-            text: JSON.stringify({
-              success: true,
-              triggers: triggers.map(t => ({
-                id: t.id,
-                name: t.name,
-                targetType: t.target_type,
-                targetId: t.target_id,
-                triggerType: t.trigger_type,
-                triggerKey: t.trigger_type === "webhook" ? t.trigger_key.slice(0, 8) + "..." : t.trigger_key,
-                isActive: t.is_active,
-                executionCount: t.execution_count,
-                lastExecutedAt: t.last_executed_at?.toISOString() || null,
-              })),
-              total: triggers.length,
-            }, null, 2),
-          }],
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                {
+                  success: true,
+                  triggers: triggers.map((t) => ({
+                    id: t.id,
+                    name: t.name,
+                    targetType: t.target_type,
+                    targetId: t.target_id,
+                    triggerType: t.trigger_type,
+                    triggerKey:
+                      t.trigger_type === "webhook"
+                        ? t.trigger_key.slice(0, 8) + "..."
+                        : t.trigger_key,
+                    isActive: t.is_active,
+                    executionCount: t.execution_count,
+                    lastExecutedAt: t.last_executed_at?.toISOString() || null,
+                  })),
+                  total: triggers.length,
+                },
+                null,
+                2,
+              ),
+            },
+          ],
         };
       },
     );
@@ -7364,15 +8046,24 @@ const mcpHandler = createMcpHandler(
         description: "Manually execute a trigger for an app, agent, or MCP.",
         inputSchema: {
           triggerId: z.string().uuid().describe("ID of the trigger to execute"),
-          inputData: z.record(z.unknown()).optional().describe("Input data to pass to the trigger"),
+          inputData: z
+            .record(z.unknown())
+            .optional()
+            .describe("Input data to pass to the trigger"),
         },
       },
       async ({ triggerId, inputData }) => {
-        const { applicationTriggersService } = await import("@/lib/services/application-triggers");
+        const { applicationTriggersService } =
+          await import("@/lib/services/application-triggers");
 
         if (!user.organization_id) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: "No organization" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify({ error: "No organization" }, null, 2),
+              },
+            ],
             isError: true,
           };
         }
@@ -7380,31 +8071,51 @@ const mcpHandler = createMcpHandler(
         const trigger = await applicationTriggersService.getTrigger(triggerId);
         if (!trigger) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: "Trigger not found" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify({ error: "Trigger not found" }, null, 2),
+              },
+            ],
             isError: true,
           };
         }
 
         if (trigger.organization_id !== user.organization_id) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: "Unauthorized" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify({ error: "Unauthorized" }, null, 2),
+              },
+            ],
             isError: true,
           };
         }
 
-        const result = await applicationTriggersService.executeTrigger(triggerId, inputData, "manual");
+        const result = await applicationTriggersService.executeTrigger(
+          triggerId,
+          inputData,
+          "manual",
+        );
 
         return {
-          content: [{
-            type: "text" as const,
-            text: JSON.stringify({
-              success: result.status === "success",
-              executionId: result.executionId,
-              status: result.status,
-              ...(result.output && { output: result.output }),
-              ...(result.error && { error: result.error }),
-            }, null, 2),
-          }],
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                {
+                  success: result.status === "success",
+                  executionId: result.executionId,
+                  status: result.status,
+                  ...(result.output && { output: result.output }),
+                  ...(result.error && { error: result.error }),
+                },
+                null,
+                2,
+              ),
+            },
+          ],
         };
       },
     );
@@ -7413,21 +8124,47 @@ const mcpHandler = createMcpHandler(
     server.registerTool(
       "fragments_generate",
       {
-        description: "Generate a code fragment from a natural language prompt. Supports Next.js, Vue, Streamlit, Gradio, and Python templates.",
+        description:
+          "Generate a code fragment from a natural language prompt. Supports Next.js, Vue, Streamlit, Gradio, and Python templates.",
         inputSchema: {
-          prompt: z.string().describe("Natural language description of the desired code fragment"),
-          template: z.string().optional().describe("Template to use (auto, nextjs-developer, vue-developer, streamlit-developer, gradio-developer, code-interpreter-v1)"),
-          model: z.string().optional().describe("Model to use for generation (default: gpt-4o)"),
-          temperature: z.number().optional().describe("Temperature for generation (0-1)"),
+          prompt: z
+            .string()
+            .describe(
+              "Natural language description of the desired code fragment",
+            ),
+          template: z
+            .string()
+            .optional()
+            .describe(
+              "Template to use (auto, nextjs-developer, vue-developer, streamlit-developer, gradio-developer, code-interpreter-v1)",
+            ),
+          model: z
+            .string()
+            .optional()
+            .describe("Model to use for generation (default: gpt-4o)"),
+          temperature: z
+            .number()
+            .optional()
+            .describe("Temperature for generation (0-1)"),
         },
       },
       async ({ prompt, template = "auto", model = "gpt-4o", temperature }) => {
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+        const baseUrl =
+          process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
         const apiKey = process.env.ELIZA_CLOUD_API_KEY;
 
         if (!apiKey) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: "Cloud API key not configured" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  { error: "Cloud API key not configured" },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -7452,9 +8189,20 @@ const mcpHandler = createMcpHandler(
           });
 
           if (!response.ok) {
-            const error = await response.json().catch(() => ({ error: "Unknown error" }));
+            const error = await response
+              .json()
+              .catch(() => ({ error: "Unknown error" }));
             return {
-              content: [{ type: "text" as const, text: JSON.stringify({ error: error.error || response.statusText }, null, 2) }],
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify(
+                    { error: error.error || response.statusText },
+                    null,
+                    2,
+                  ),
+                },
+              ],
               isError: true,
             };
           }
@@ -7463,7 +8211,12 @@ const mcpHandler = createMcpHandler(
           const reader = response.body?.getReader();
           if (!reader) {
             return {
-              content: [{ type: "text" as const, text: JSON.stringify({ error: "No response body" }, null, 2) }],
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify({ error: "No response body" }, null, 2),
+                },
+              ],
               isError: true,
             };
           }
@@ -7500,23 +8253,52 @@ const mcpHandler = createMcpHandler(
 
           if (!fragment) {
             return {
-              content: [{ type: "text" as const, text: JSON.stringify({ error: "Failed to parse fragment" }, null, 2) }],
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify(
+                    { error: "Failed to parse fragment" },
+                    null,
+                    2,
+                  ),
+                },
+              ],
               isError: true,
             };
           }
 
           return {
-            content: [{
-              type: "text" as const,
-              text: JSON.stringify({
-                success: true,
-                fragment,
-              }, null, 2),
-            }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: true,
+                    fragment,
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
           };
         } catch (error) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to generate fragment" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to generate fragment",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -7527,26 +8309,39 @@ const mcpHandler = createMcpHandler(
     server.registerTool(
       "fragments_execute",
       {
-        description: "Execute a code fragment in a sandbox environment. Returns preview URL for web apps or execution results for Python.",
+        description:
+          "Execute a code fragment in a sandbox environment. Returns preview URL for web apps or execution results for Python.",
         inputSchema: {
-          fragment: z.object({
-            template: z.string(),
-            code: z.string(),
-            file_path: z.string(),
-            port: z.number().nullable().optional(),
-            additional_dependencies: z.array(z.string()).optional(),
-            has_additional_dependencies: z.boolean().optional(),
-            install_dependencies_command: z.string().optional(),
-          }).describe("Fragment object to execute"),
+          fragment: z
+            .object({
+              template: z.string(),
+              code: z.string(),
+              file_path: z.string(),
+              port: z.number().nullable().optional(),
+              additional_dependencies: z.array(z.string()).optional(),
+              has_additional_dependencies: z.boolean().optional(),
+              install_dependencies_command: z.string().optional(),
+            })
+            .describe("Fragment object to execute"),
         },
       },
       async ({ fragment }) => {
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+        const baseUrl =
+          process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
         const apiKey = process.env.ELIZA_CLOUD_API_KEY;
 
         if (!apiKey) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: "Cloud API key not configured" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  { error: "Cloud API key not configured" },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -7564,9 +8359,20 @@ const mcpHandler = createMcpHandler(
           });
 
           if (!response.ok) {
-            const error = await response.json().catch(() => ({ error: "Unknown error" }));
+            const error = await response
+              .json()
+              .catch(() => ({ error: "Unknown error" }));
             return {
-              content: [{ type: "text" as const, text: JSON.stringify({ error: error.error || response.statusText }, null, 2) }],
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify(
+                    { error: error.error || response.statusText },
+                    null,
+                    2,
+                  ),
+                },
+              ],
               isError: true,
             };
           }
@@ -7574,17 +8380,37 @@ const mcpHandler = createMcpHandler(
           const result = await response.json();
 
           return {
-            content: [{
-              type: "text" as const,
-              text: JSON.stringify({
-                success: true,
-                result,
-              }, null, 2),
-            }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: true,
+                    result,
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
           };
         } catch (error) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to execute fragment" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to execute fragment",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -7595,19 +8421,33 @@ const mcpHandler = createMcpHandler(
     server.registerTool(
       "fragments_list_projects",
       {
-        description: "List all fragment projects for the organization. Supports filtering by status and userId.",
+        description:
+          "List all fragment projects for the organization. Supports filtering by status and userId.",
         inputSchema: {
-          status: z.string().optional().describe("Filter by status (draft, deployed, archived)"),
+          status: z
+            .string()
+            .optional()
+            .describe("Filter by status (draft, deployed, archived)"),
           userId: z.string().optional().describe("Filter by user ID"),
         },
       },
       async ({ status, userId }) => {
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+        const baseUrl =
+          process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
         const apiKey = process.env.ELIZA_CLOUD_API_KEY;
 
         if (!apiKey) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: "Cloud API key not configured" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  { error: "Cloud API key not configured" },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -7617,17 +8457,31 @@ const mcpHandler = createMcpHandler(
           if (status) searchParams.set("status", status);
           if (userId) searchParams.set("userId", userId);
 
-          const response = await fetch(`${baseUrl}/api/v1/fragments/projects?${searchParams.toString()}`, {
-            method: "GET",
-            headers: {
-              Authorization: `Bearer ${apiKey}`,
+          const response = await fetch(
+            `${baseUrl}/api/v1/fragments/projects?${searchParams.toString()}`,
+            {
+              method: "GET",
+              headers: {
+                Authorization: `Bearer ${apiKey}`,
+              },
             },
-          });
+          );
 
           if (!response.ok) {
-            const error = await response.json().catch(() => ({ error: "Unknown error" }));
+            const error = await response
+              .json()
+              .catch(() => ({ error: "Unknown error" }));
             return {
-              content: [{ type: "text" as const, text: JSON.stringify({ error: error.error || response.statusText }, null, 2) }],
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify(
+                    { error: error.error || response.statusText },
+                    null,
+                    2,
+                  ),
+                },
+              ],
               isError: true,
             };
           }
@@ -7635,18 +8489,38 @@ const mcpHandler = createMcpHandler(
           const data = await response.json();
 
           return {
-            content: [{
-              type: "text" as const,
-              text: JSON.stringify({
-                success: true,
-                projects: data.projects,
-                count: data.projects?.length || 0,
-              }, null, 2),
-            }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: true,
+                    projects: data.projects,
+                    count: data.projects?.length || 0,
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
           };
         } catch (error) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to list projects" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to list projects",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -7657,31 +8531,44 @@ const mcpHandler = createMcpHandler(
     server.registerTool(
       "fragments_create_project",
       {
-        description: "Create a new fragment project from a fragment. Saves the fragment for later use and deployment.",
+        description:
+          "Create a new fragment project from a fragment. Saves the fragment for later use and deployment.",
         inputSchema: {
           name: z.string().describe("Project name"),
           description: z.string().optional().describe("Project description"),
-          fragment: z.object({
-            template: z.string(),
-            code: z.string(),
-            file_path: z.string(),
-            commentary: z.string().optional(),
-            title: z.string().optional(),
-            description: z.string().optional(),
-            additional_dependencies: z.array(z.string()).optional(),
-            has_additional_dependencies: z.boolean().optional(),
-            install_dependencies_command: z.string().optional(),
-            port: z.number().nullable().optional(),
-          }).describe("Fragment object to save as project"),
+          fragment: z
+            .object({
+              template: z.string(),
+              code: z.string(),
+              file_path: z.string(),
+              commentary: z.string().optional(),
+              title: z.string().optional(),
+              description: z.string().optional(),
+              additional_dependencies: z.array(z.string()).optional(),
+              has_additional_dependencies: z.boolean().optional(),
+              install_dependencies_command: z.string().optional(),
+              port: z.number().nullable().optional(),
+            })
+            .describe("Fragment object to save as project"),
         },
       },
       async ({ name, description, fragment }) => {
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+        const baseUrl =
+          process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
         const apiKey = process.env.ELIZA_CLOUD_API_KEY;
 
         if (!apiKey) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: "Cloud API key not configured" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  { error: "Cloud API key not configured" },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -7701,9 +8588,20 @@ const mcpHandler = createMcpHandler(
           });
 
           if (!response.ok) {
-            const error = await response.json().catch(() => ({ error: "Unknown error" }));
+            const error = await response
+              .json()
+              .catch(() => ({ error: "Unknown error" }));
             return {
-              content: [{ type: "text" as const, text: JSON.stringify({ error: error.error || response.statusText }, null, 2) }],
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify(
+                    { error: error.error || response.statusText },
+                    null,
+                    2,
+                  ),
+                },
+              ],
               isError: true,
             };
           }
@@ -7711,17 +8609,37 @@ const mcpHandler = createMcpHandler(
           const data = await response.json();
 
           return {
-            content: [{
-              type: "text" as const,
-              text: JSON.stringify({
-                success: true,
-                project: data.project,
-              }, null, 2),
-            }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: true,
+                    project: data.project,
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
           };
         } catch (error) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to create project" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to create project",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -7732,34 +8650,59 @@ const mcpHandler = createMcpHandler(
     server.registerTool(
       "fragments_get_project",
       {
-        description: "Get a fragment project by ID. Returns full project details including fragment data.",
+        description:
+          "Get a fragment project by ID. Returns full project details including fragment data.",
         inputSchema: {
           projectId: z.string().describe("Project ID"),
         },
       },
       async ({ projectId }) => {
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+        const baseUrl =
+          process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
         const apiKey = process.env.ELIZA_CLOUD_API_KEY;
 
         if (!apiKey) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: "Cloud API key not configured" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  { error: "Cloud API key not configured" },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
 
         try {
-          const response = await fetch(`${baseUrl}/api/v1/fragments/projects/${projectId}`, {
-            method: "GET",
-            headers: {
-              Authorization: `Bearer ${apiKey}`,
+          const response = await fetch(
+            `${baseUrl}/api/v1/fragments/projects/${projectId}`,
+            {
+              method: "GET",
+              headers: {
+                Authorization: `Bearer ${apiKey}`,
+              },
             },
-          });
+          );
 
           if (!response.ok) {
-            const error = await response.json().catch(() => ({ error: "Unknown error" }));
+            const error = await response
+              .json()
+              .catch(() => ({ error: "Unknown error" }));
             return {
-              content: [{ type: "text" as const, text: JSON.stringify({ error: error.error || response.statusText }, null, 2) }],
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify(
+                    { error: error.error || response.statusText },
+                    null,
+                    2,
+                  ),
+                },
+              ],
               isError: true,
             };
           }
@@ -7767,17 +8710,37 @@ const mcpHandler = createMcpHandler(
           const data = await response.json();
 
           return {
-            content: [{
-              type: "text" as const,
-              text: JSON.stringify({
-                success: true,
-                project: data.project,
-              }, null, 2),
-            }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: true,
+                    project: data.project,
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
           };
         } catch (error) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to get project" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to get project",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -7788,33 +8751,53 @@ const mcpHandler = createMcpHandler(
     server.registerTool(
       "fragments_update_project",
       {
-        description: "Update a fragment project. Can update name, description, fragment data, or status.",
+        description:
+          "Update a fragment project. Can update name, description, fragment data, or status.",
         inputSchema: {
           projectId: z.string().describe("Project ID"),
           name: z.string().optional().describe("New project name"),
-          description: z.string().optional().describe("New project description"),
-          fragment: z.object({
-            template: z.string(),
-            code: z.string(),
-            file_path: z.string(),
-            commentary: z.string().optional(),
-            title: z.string().optional(),
-            description: z.string().optional(),
-            additional_dependencies: z.array(z.string()).optional(),
-            has_additional_dependencies: z.boolean().optional(),
-            install_dependencies_command: z.string().optional(),
-            port: z.number().nullable().optional(),
-          }).optional().describe("Updated fragment data"),
-          status: z.enum(["draft", "deployed", "archived"]).optional().describe("Project status"),
+          description: z
+            .string()
+            .optional()
+            .describe("New project description"),
+          fragment: z
+            .object({
+              template: z.string(),
+              code: z.string(),
+              file_path: z.string(),
+              commentary: z.string().optional(),
+              title: z.string().optional(),
+              description: z.string().optional(),
+              additional_dependencies: z.array(z.string()).optional(),
+              has_additional_dependencies: z.boolean().optional(),
+              install_dependencies_command: z.string().optional(),
+              port: z.number().nullable().optional(),
+            })
+            .optional()
+            .describe("Updated fragment data"),
+          status: z
+            .enum(["draft", "deployed", "archived"])
+            .optional()
+            .describe("Project status"),
         },
       },
       async ({ projectId, name, description, fragment, status }) => {
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+        const baseUrl =
+          process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
         const apiKey = process.env.ELIZA_CLOUD_API_KEY;
 
         if (!apiKey) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: "Cloud API key not configured" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  { error: "Cloud API key not configured" },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -7826,19 +8809,33 @@ const mcpHandler = createMcpHandler(
           if (fragment !== undefined) updateData.fragment = fragment;
           if (status !== undefined) updateData.status = status;
 
-          const response = await fetch(`${baseUrl}/api/v1/fragments/projects/${projectId}`, {
-            method: "PUT",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${apiKey}`,
+          const response = await fetch(
+            `${baseUrl}/api/v1/fragments/projects/${projectId}`,
+            {
+              method: "PUT",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${apiKey}`,
+              },
+              body: JSON.stringify(updateData),
             },
-            body: JSON.stringify(updateData),
-          });
+          );
 
           if (!response.ok) {
-            const error = await response.json().catch(() => ({ error: "Unknown error" }));
+            const error = await response
+              .json()
+              .catch(() => ({ error: "Unknown error" }));
             return {
-              content: [{ type: "text" as const, text: JSON.stringify({ error: error.error || response.statusText }, null, 2) }],
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify(
+                    { error: error.error || response.statusText },
+                    null,
+                    2,
+                  ),
+                },
+              ],
               isError: true,
             };
           }
@@ -7846,17 +8843,37 @@ const mcpHandler = createMcpHandler(
           const data = await response.json();
 
           return {
-            content: [{
-              type: "text" as const,
-              text: JSON.stringify({
-                success: true,
-                project: data.project,
-              }, null, 2),
-            }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: true,
+                    project: data.project,
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
           };
         } catch (error) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to update project" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to update project",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -7873,44 +8890,88 @@ const mcpHandler = createMcpHandler(
         },
       },
       async ({ projectId }) => {
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+        const baseUrl =
+          process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
         const apiKey = process.env.ELIZA_CLOUD_API_KEY;
 
         if (!apiKey) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: "Cloud API key not configured" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  { error: "Cloud API key not configured" },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
 
         try {
-          const response = await fetch(`${baseUrl}/api/v1/fragments/projects/${projectId}`, {
-            method: "DELETE",
-            headers: {
-              Authorization: `Bearer ${apiKey}`,
+          const response = await fetch(
+            `${baseUrl}/api/v1/fragments/projects/${projectId}`,
+            {
+              method: "DELETE",
+              headers: {
+                Authorization: `Bearer ${apiKey}`,
+              },
             },
-          });
+          );
 
           if (!response.ok) {
-            const error = await response.json().catch(() => ({ error: "Unknown error" }));
+            const error = await response
+              .json()
+              .catch(() => ({ error: "Unknown error" }));
             return {
-              content: [{ type: "text" as const, text: JSON.stringify({ error: error.error || response.statusText }, null, 2) }],
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify(
+                    { error: error.error || response.statusText },
+                    null,
+                    2,
+                  ),
+                },
+              ],
               isError: true,
             };
           }
 
           return {
-            content: [{
-              type: "text" as const,
-              text: JSON.stringify({
-                success: true,
-                message: "Project deleted successfully",
-              }, null, 2),
-            }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: true,
+                    message: "Project deleted successfully",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
           };
         } catch (error) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to delete project" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to delete project",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -7921,27 +8982,74 @@ const mcpHandler = createMcpHandler(
     server.registerTool(
       "fragments_deploy_project",
       {
-        description: "Deploy a fragment project as a app or container. Returns deployment details including app ID and API key.",
+        description:
+          "Deploy a fragment project as a app or container. Returns deployment details including app ID and API key.",
         inputSchema: {
           projectId: z.string().describe("Project ID to deploy"),
           type: z.enum(["app", "container"]).describe("Deployment type"),
-          appUrl: z.string().url().optional().describe("App URL for app deployment (auto-generated if not provided)"),
-          allowedOrigins: z.array(z.string()).optional().describe("Allowed origins for app"),
-          autoStorage: z.boolean().optional().default(true).describe("Auto-create storage collections"),
-          autoInject: z.boolean().optional().default(true).describe("Auto-inject app helpers"),
+          appUrl: z
+            .string()
+            .url()
+            .optional()
+            .describe(
+              "App URL for app deployment (auto-generated if not provided)",
+            ),
+          allowedOrigins: z
+            .array(z.string())
+            .optional()
+            .describe("Allowed origins for app"),
+          autoStorage: z
+            .boolean()
+            .optional()
+            .default(true)
+            .describe("Auto-create storage collections"),
+          autoInject: z
+            .boolean()
+            .optional()
+            .default(true)
+            .describe("Auto-inject app helpers"),
           // Container deployment options
-          name: z.string().optional().describe("Container name (for container deployment)"),
-          project_name: z.string().optional().describe("Project name (for container deployment)"),
-          port: z.number().optional().describe("Container port (for container deployment)"),
+          name: z
+            .string()
+            .optional()
+            .describe("Container name (for container deployment)"),
+          project_name: z
+            .string()
+            .optional()
+            .describe("Project name (for container deployment)"),
+          port: z
+            .number()
+            .optional()
+            .describe("Container port (for container deployment)"),
         },
       },
-      async ({ projectId, type, appUrl, allowedOrigins, autoStorage, autoInject, name, project_name, port }) => {
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+      async ({
+        projectId,
+        type,
+        appUrl,
+        allowedOrigins,
+        autoStorage,
+        autoInject,
+        name,
+        project_name,
+        port,
+      }) => {
+        const baseUrl =
+          process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
         const apiKey = process.env.ELIZA_CLOUD_API_KEY;
 
         if (!apiKey) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: "Cloud API key not configured" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  { error: "Cloud API key not configured" },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -7959,19 +9067,33 @@ const mcpHandler = createMcpHandler(
             if (port) deployData.port = port;
           }
 
-          const response = await fetch(`${baseUrl}/api/v1/fragments/projects/${projectId}/deploy`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${apiKey}`,
+          const response = await fetch(
+            `${baseUrl}/api/v1/fragments/projects/${projectId}/deploy`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${apiKey}`,
+              },
+              body: JSON.stringify(deployData),
             },
-            body: JSON.stringify(deployData),
-          });
+          );
 
           if (!response.ok) {
-            const error = await response.json().catch(() => ({ error: "Unknown error" }));
+            const error = await response
+              .json()
+              .catch(() => ({ error: "Unknown error" }));
             return {
-              content: [{ type: "text" as const, text: JSON.stringify({ error: error.error || response.statusText }, null, 2) }],
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify(
+                    { error: error.error || response.statusText },
+                    null,
+                    2,
+                  ),
+                },
+              ],
               isError: true,
             };
           }
@@ -7979,17 +9101,37 @@ const mcpHandler = createMcpHandler(
           const data = await response.json();
 
           return {
-            content: [{
-              type: "text" as const,
-              text: JSON.stringify({
-                success: true,
-                deployment: data.deployment,
-              }, null, 2),
-            }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: true,
+                    deployment: data.deployment,
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
           };
         } catch (error) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to deploy project" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to deploy project",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -8000,21 +9142,49 @@ const mcpHandler = createMcpHandler(
     server.registerTool(
       "seo_create_request",
       {
-        description: "Create an SEO request using DataForSEO, SerpApi, Claude, and IndexNow.",
+        description:
+          "Create an SEO request using DataForSEO, SerpApi, Claude, and IndexNow.",
         inputSchema: {
-          type: z.enum(seoRequestTypeEnum.enumValues).describe("SEO request type"),
+          type: z
+            .enum(seoRequestTypeEnum.enumValues)
+            .describe("SEO request type"),
           pageUrl: z.string().url().optional().describe("Target page URL"),
           keywords: z.array(z.string()).optional().describe("Seed keywords"),
           locale: z.string().optional().describe("Locale, e.g., en-US"),
-          searchEngine: z.string().optional().describe("Search engine (google, bing)"),
-          device: z.string().optional().describe("Device type (desktop, mobile)"),
+          searchEngine: z
+            .string()
+            .optional()
+            .describe("Search engine (google, bing)"),
+          device: z
+            .string()
+            .optional()
+            .describe("Device type (desktop, mobile)"),
           environment: z.string().optional().describe("App environment"),
-          agentIdentifier: z.string().optional().describe("Agent identifier for attribution"),
-          promptContext: z.string().optional().describe("Additional context for Claude"),
-          idempotencyKey: z.string().optional().describe("Idempotency key for deduplication"),
-          locationCode: z.number().int().optional().describe("DataForSEO location code (defaults to US 2840)"),
-          query: z.string().optional().describe("Explicit query for SERP snapshot"),
-          appId: z.string().optional().describe("App ID to associate the request"),
+          agentIdentifier: z
+            .string()
+            .optional()
+            .describe("Agent identifier for attribution"),
+          promptContext: z
+            .string()
+            .optional()
+            .describe("Additional context for Claude"),
+          idempotencyKey: z
+            .string()
+            .optional()
+            .describe("Idempotency key for deduplication"),
+          locationCode: z
+            .number()
+            .int()
+            .optional()
+            .describe("DataForSEO location code (defaults to US 2840)"),
+          query: z
+            .string()
+            .optional()
+            .describe("Explicit query for SERP snapshot"),
+          appId: z
+            .string()
+            .optional()
+            .describe("App ID to associate the request"),
         },
       },
       async (input) => {
@@ -8105,7 +9275,11 @@ const mcpHandler = createMcpHandler(
               content: [
                 {
                   type: "text" as const,
-                  text: JSON.stringify({ error: "SEO request not found" }, null, 2),
+                  text: JSON.stringify(
+                    { error: "SEO request not found" },
+                    null,
+                    2,
+                  ),
                 },
               ],
               isError: true,
@@ -8183,39 +9357,69 @@ const mcpHandler = createMcpHandler(
           "Search for available domain names. Returns availability status and pricing. " +
           "Provide a keyword and optionally specific TLDs to check. FREE tool.",
         inputSchema: {
-          query: z.string().min(1).max(63).describe("Domain name keyword to search for"),
-          tlds: z.array(z.string()).optional().describe("TLDs to check (default: com, ai, io, co, app, dev)"),
+          query: z
+            .string()
+            .min(1)
+            .max(63)
+            .describe("Domain name keyword to search for"),
+          tlds: z
+            .array(z.string())
+            .optional()
+            .describe("TLDs to check (default: com, ai, io, co, app, dev)"),
         },
       },
       async ({ query, tlds }) => {
         try {
-          const { domainManagementService } = await import("@/lib/services/domain-management");
-          const results = await domainManagementService.searchDomains(query, tlds);
+          const { domainManagementService } =
+            await import("@/lib/services/domain-management");
+          const results = await domainManagementService.searchDomains(
+            query,
+            tlds,
+          );
 
           return {
-            content: [{
-              type: "text" as const,
-              text: JSON.stringify({
-                query,
-                results: results.map(r => ({
-                  domain: r.domain,
-                  available: r.available,
-                  price: r.price ? {
-                    amount: r.price.price / 100, // Convert cents to dollars
-                    currency: r.price.currency,
-                    period: r.price.period,
-                  } : null,
-                })),
-                availableCount: results.filter(r => r.available).length,
-              }, null, 2),
-            }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    query,
+                    results: results.map((r) => ({
+                      domain: r.domain,
+                      available: r.available,
+                      price: r.price
+                        ? {
+                            amount: r.price.price / 100, // Convert cents to dollars
+                            currency: r.price.currency,
+                            period: r.price.period,
+                          }
+                        : null,
+                    })),
+                    availableCount: results.filter((r) => r.available).length,
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
           };
         } catch (error) {
           return {
-            content: [{
-              type: "text" as const,
-              text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to search domains" }, null, 2),
-            }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to search domains",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -8230,54 +9434,87 @@ const mcpHandler = createMcpHandler(
           "Check if a specific domain is available for purchase. " +
           "Returns availability, pricing, and any moderation concerns. FREE tool.",
         inputSchema: {
-          domain: z.string().min(3).max(253).describe("Full domain name to check (e.g., example.com)"),
+          domain: z
+            .string()
+            .min(3)
+            .max(253)
+            .describe("Full domain name to check (e.g., example.com)"),
         },
       },
       async ({ domain }) => {
         try {
-          const { domainManagementService } = await import("@/lib/services/domain-management");
-          const { domainModerationService } = await import("@/lib/services/domain-moderation");
+          const { domainManagementService } =
+            await import("@/lib/services/domain-management");
+          const { domainModerationService } =
+            await import("@/lib/services/domain-moderation");
 
-          const moderation = await domainModerationService.validateDomainName(domain);
+          const moderation =
+            await domainModerationService.validateDomainName(domain);
           if (!moderation.allowed) {
             return {
-              content: [{
-                type: "text" as const,
-                text: JSON.stringify({
-                  domain,
-                  available: false,
-                  reason: "Domain name not allowed by moderation policy",
-                  flags: moderation.flags,
-                }, null, 2),
-              }],
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify(
+                    {
+                      domain,
+                      available: false,
+                      reason: "Domain name not allowed by moderation policy",
+                      flags: moderation.flags,
+                    },
+                    null,
+                    2,
+                  ),
+                },
+              ],
             };
           }
 
-          const result = await domainManagementService.checkAvailability(domain);
+          const result =
+            await domainManagementService.checkAvailability(domain);
 
           return {
-            content: [{
-              type: "text" as const,
-              text: JSON.stringify({
-                domain: result.domain,
-                available: result.available,
-                price: result.price ? {
-                  amount: result.price.price / 100,
-                  currency: result.price.currency,
-                  period: result.price.period,
-                  renewalAmount: result.price.renewalPrice / 100,
-                } : null,
-                moderationFlags: moderation.flags,
-                requiresReview: moderation.requiresReview,
-              }, null, 2),
-            }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    domain: result.domain,
+                    available: result.available,
+                    price: result.price
+                      ? {
+                          amount: result.price.price / 100,
+                          currency: result.price.currency,
+                          period: result.price.period,
+                          renewalAmount: result.price.renewalPrice / 100,
+                        }
+                      : null,
+                    moderationFlags: moderation.flags,
+                    requiresReview: moderation.requiresReview,
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
           };
         } catch (error) {
           return {
-            content: [{
-              type: "text" as const,
-              text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to check domain" }, null, 2),
-            }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to check domain",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -8292,51 +9529,80 @@ const mcpHandler = createMcpHandler(
           "List all domains owned by your organization. " +
           "Shows status, assignment, and expiration info. FREE tool.",
         inputSchema: {
-          filter: z.enum(["all", "unassigned", "assigned"]).optional().default("all").describe("Filter domains by assignment status"),
+          filter: z
+            .enum(["all", "unassigned", "assigned"])
+            .optional()
+            .default("all")
+            .describe("Filter domains by assignment status"),
         },
       },
       async ({ filter }) => {
         try {
           const { user } = getAuthContext();
-          const { domainManagementService } = await import("@/lib/services/domain-management");
+          const { domainManagementService } =
+            await import("@/lib/services/domain-management");
 
           let domains;
           if (filter === "unassigned") {
-            domains = await domainManagementService.listUnassignedDomains(user.organization_id);
+            domains = await domainManagementService.listUnassignedDomains(
+              user.organization_id,
+            );
           } else {
-            domains = await domainManagementService.listDomains(user.organization_id);
+            domains = await domainManagementService.listDomains(
+              user.organization_id,
+            );
             if (filter === "assigned") {
-              domains = domains.filter(d => d.resourceType !== null);
+              domains = domains.filter((d) => d.resourceType !== null);
             }
           }
 
-          const stats = await domainManagementService.getStats(user.organization_id);
+          const stats = await domainManagementService.getStats(
+            user.organization_id,
+          );
 
           return {
-            content: [{
-              type: "text" as const,
-              text: JSON.stringify({
-                domains: domains.map(d => ({
-                  id: d.id,
-                  domain: d.domain,
-                  status: d.status,
-                  verified: d.verified,
-                  resourceType: d.resourceType,
-                  resourceId: d.appId || d.containerId || d.agentId || d.mcpId,
-                  expiresAt: d.expiresAt?.toISOString(),
-                  sslStatus: d.sslStatus,
-                  isLive: d.isLive,
-                })),
-                stats,
-              }, null, 2),
-            }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    domains: domains.map((d) => ({
+                      id: d.id,
+                      domain: d.domain,
+                      status: d.status,
+                      verified: d.verified,
+                      resourceType: d.resourceType,
+                      resourceId:
+                        d.appId || d.containerId || d.agentId || d.mcpId,
+                      expiresAt: d.expiresAt?.toISOString(),
+                      sslStatus: d.sslStatus,
+                      isLive: d.isLive,
+                    })),
+                    stats,
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
           };
         } catch (error) {
           return {
-            content: [{
-              type: "text" as const,
-              text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to list domains" }, null, 2),
-            }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to list domains",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -8351,9 +9617,18 @@ const mcpHandler = createMcpHandler(
           "Register an external domain you already own. " +
           "Returns DNS instructions for verification. Costs 1 credit.",
         inputSchema: {
-          domain: z.string().min(3).max(253).describe("Domain name to register"),
-          nameserverMode: z.enum(["vercel", "external"]).optional().default("external")
-            .describe("'vercel' = delegate nameservers to Vercel, 'external' = keep your nameservers and add DNS records"),
+          domain: z
+            .string()
+            .min(3)
+            .max(253)
+            .describe("Domain name to register"),
+          nameserverMode: z
+            .enum(["vercel", "external"])
+            .optional()
+            .default("external")
+            .describe(
+              "'vercel' = delegate nameservers to Vercel, 'external' = keep your nameservers and add DNS records",
+            ),
         },
       },
       async ({ domain, nameserverMode }) => {
@@ -8370,53 +9645,80 @@ const mcpHandler = createMcpHandler(
 
           if (!creditResult.success) {
             return {
-              content: [{
-                type: "text" as const,
-                text: JSON.stringify({ error: "Insufficient credits", required: 1 }, null, 2),
-              }],
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify(
+                    { error: "Insufficient credits", required: 1 },
+                    null,
+                    2,
+                  ),
+                },
+              ],
               isError: true,
             };
           }
 
-          const { domainManagementService } = await import("@/lib/services/domain-management");
+          const { domainManagementService } =
+            await import("@/lib/services/domain-management");
           const result = await domainManagementService.registerExternalDomain(
             domain,
             user.organization_id,
-            nameserverMode
+            nameserverMode,
           );
 
           if (!result.success) {
             return {
-              content: [{
-                type: "text" as const,
-                text: JSON.stringify({ error: result.error }, null, 2),
-              }],
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify({ error: result.error }, null, 2),
+                },
+              ],
               isError: true,
             };
           }
 
           return {
-            content: [{
-              type: "text" as const,
-              text: JSON.stringify({
-                success: true,
-                domain: {
-                  id: result.domain!.id,
-                  domain: result.domain!.domain,
-                  status: result.domain!.status,
-                  verificationToken: result.domain!.verificationToken,
-                },
-                dnsInstructions: result.dnsInstructions,
-                message: "Add the DNS records below to verify domain ownership",
-              }, null, 2),
-            }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: true,
+                    domain: {
+                      id: result.domain!.id,
+                      domain: result.domain!.domain,
+                      status: result.domain!.status,
+                      verificationToken: result.domain!.verificationToken,
+                    },
+                    dnsInstructions: result.dnsInstructions,
+                    message:
+                      "Add the DNS records below to verify domain ownership",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
           };
         } catch (error) {
           return {
-            content: [{
-              type: "text" as const,
-              text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to register domain" }, null, 2),
-            }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to register domain",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -8437,15 +9739,21 @@ const mcpHandler = createMcpHandler(
       async ({ domainId }) => {
         try {
           const { user } = getAuthContext();
-          const { domainManagementService } = await import("@/lib/services/domain-management");
+          const { domainManagementService } =
+            await import("@/lib/services/domain-management");
 
-          const domain = await domainManagementService.getDomain(domainId, user.organization_id);
+          const domain = await domainManagementService.getDomain(
+            domainId,
+            user.organization_id,
+          );
           if (!domain) {
             return {
-              content: [{
-                type: "text" as const,
-                text: JSON.stringify({ error: "Domain not found" }, null, 2),
-              }],
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify({ error: "Domain not found" }, null, 2),
+                },
+              ],
               isError: true,
             };
           }
@@ -8454,42 +9762,68 @@ const mcpHandler = createMcpHandler(
 
           if (result.verified) {
             return {
-              content: [{
-                type: "text" as const,
-                text: JSON.stringify({
-                  success: true,
-                  verified: true,
-                  domain: domain.domain,
-                  message: "Domain verified successfully! You can now assign it to a resource.",
-                }, null, 2),
-              }],
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify(
+                    {
+                      success: true,
+                      verified: true,
+                      domain: domain.domain,
+                      message:
+                        "Domain verified successfully! You can now assign it to a resource.",
+                    },
+                    null,
+                    2,
+                  ),
+                },
+              ],
             };
           }
 
-          const dnsInstructions = domainManagementService.generateDnsInstructions(
-            domain.domain,
-            domain.verificationToken || "",
-            domain.nameserverMode
-          );
+          const dnsInstructions =
+            domainManagementService.generateDnsInstructions(
+              domain.domain,
+              domain.verificationToken || "",
+              domain.nameserverMode,
+            );
 
           return {
-            content: [{
-              type: "text" as const,
-              text: JSON.stringify({
-                success: true,
-                verified: false,
-                error: result.error,
-                dnsInstructions,
-                message: "Verification failed. Please check your DNS configuration and try again.",
-              }, null, 2),
-            }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: true,
+                    verified: false,
+                    error: result.error,
+                    dnsInstructions,
+                    message:
+                      "Verification failed. Please check your DNS configuration and try again.",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
           };
         } catch (error) {
           return {
-            content: [{
-              type: "text" as const,
-              text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to verify domain" }, null, 2),
-            }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to verify domain",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -8505,7 +9839,9 @@ const mcpHandler = createMcpHandler(
           "The domain must be verified first. Costs 1 credit.",
         inputSchema: {
           domainId: z.string().uuid().describe("Domain ID to assign"),
-          resourceType: z.enum(["app", "container", "agent", "mcp"]).describe("Type of resource to assign to"),
+          resourceType: z
+            .enum(["app", "container", "agent", "mcp"])
+            .describe("Type of resource to assign to"),
           resourceId: z.string().uuid().describe("ID of the resource"),
         },
       },
@@ -8518,55 +9854,100 @@ const mcpHandler = createMcpHandler(
             organizationId: user.organization_id,
             amount: 1,
             description: `Assign domain to ${resourceType}: ${resourceId}`,
-            metadata: { tool: "domains_assign", domainId, resourceType, resourceId },
+            metadata: {
+              tool: "domains_assign",
+              domainId,
+              resourceType,
+              resourceId,
+            },
           });
 
           if (!creditResult.success) {
             return {
-              content: [{
-                type: "text" as const,
-                text: JSON.stringify({ error: "Insufficient credits", required: 1 }, null, 2),
-              }],
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify(
+                    { error: "Insufficient credits", required: 1 },
+                    null,
+                    2,
+                  ),
+                },
+              ],
               isError: true,
             };
           }
 
-          const { domainManagementService } = await import("@/lib/services/domain-management");
+          const { domainManagementService } =
+            await import("@/lib/services/domain-management");
 
-          const updated = await domainManagementService.assignToResource(domainId, resourceType, resourceId, user.organization_id);
+          const updated = await domainManagementService.assignToResource(
+            domainId,
+            resourceType,
+            resourceId,
+            user.organization_id,
+          );
           if (!updated) {
             return {
-              content: [{
-                type: "text" as const,
-                text: JSON.stringify({
-                  error: "Failed to assign domain. Ensure the domain is verified and the resource exists.",
-                }, null, 2),
-              }],
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify(
+                    {
+                      error:
+                        "Failed to assign domain. Ensure the domain is verified and the resource exists.",
+                    },
+                    null,
+                    2,
+                  ),
+                },
+              ],
               isError: true,
             };
           }
 
           return {
-            content: [{
-              type: "text" as const,
-              text: JSON.stringify({
-                success: true,
-                domain: {
-                  id: updated.id,
-                  domain: updated.domain,
-                  resourceType: updated.resourceType,
-                  resourceId: updated.appId || updated.containerId || updated.agentId || updated.mcpId,
-                },
-                message: `Domain assigned to ${resourceType}`,
-              }, null, 2),
-            }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: true,
+                    domain: {
+                      id: updated.id,
+                      domain: updated.domain,
+                      resourceType: updated.resourceType,
+                      resourceId:
+                        updated.appId ||
+                        updated.containerId ||
+                        updated.agentId ||
+                        updated.mcpId,
+                    },
+                    message: `Domain assigned to ${resourceType}`,
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
           };
         } catch (error) {
           return {
-            content: [{
-              type: "text" as const,
-              text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to assign domain" }, null, 2),
-            }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to assign domain",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -8587,39 +9968,66 @@ const mcpHandler = createMcpHandler(
       async ({ domainId }) => {
         try {
           const { user } = getAuthContext();
-          const { domainManagementService } = await import("@/lib/services/domain-management");
+          const { domainManagementService } =
+            await import("@/lib/services/domain-management");
 
-          const updated = await domainManagementService.unassignDomain(domainId, user.organization_id);
+          const updated = await domainManagementService.unassignDomain(
+            domainId,
+            user.organization_id,
+          );
 
           if (!updated) {
             return {
-              content: [{
-                type: "text" as const,
-                text: JSON.stringify({ error: "Domain not found or already unassigned" }, null, 2),
-              }],
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify(
+                    { error: "Domain not found or already unassigned" },
+                    null,
+                    2,
+                  ),
+                },
+              ],
               isError: true,
             };
           }
 
           return {
-            content: [{
-              type: "text" as const,
-              text: JSON.stringify({
-                success: true,
-                domain: {
-                  id: updated.id,
-                  domain: updated.domain,
-                },
-                message: "Domain unassigned successfully",
-              }, null, 2),
-            }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: true,
+                    domain: {
+                      id: updated.id,
+                      domain: updated.domain,
+                    },
+                    message: "Domain unassigned successfully",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
           };
         } catch (error) {
           return {
-            content: [{
-              type: "text" as const,
-              text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to unassign domain" }, null, 2),
-            }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to unassign domain",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -8639,15 +10047,21 @@ const mcpHandler = createMcpHandler(
       async ({ domainId }) => {
         try {
           const { user } = getAuthContext();
-          const { domainManagementService } = await import("@/lib/services/domain-management");
+          const { domainManagementService } =
+            await import("@/lib/services/domain-management");
 
-          const domain = await domainManagementService.getDomain(domainId, user.organization_id);
+          const domain = await domainManagementService.getDomain(
+            domainId,
+            user.organization_id,
+          );
           if (!domain) {
             return {
-              content: [{
-                type: "text" as const,
-                text: JSON.stringify({ error: "Domain not found" }, null, 2),
-              }],
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify({ error: "Domain not found" }, null, 2),
+                },
+              ],
               isError: true,
             };
           }
@@ -8655,21 +10069,40 @@ const mcpHandler = createMcpHandler(
           const records = await domainManagementService.getDnsRecords(domainId);
 
           return {
-            content: [{
-              type: "text" as const,
-              text: JSON.stringify({
-                domain: domain.domain,
-                manageable: domain.registrar === "vercel" && domain.nameserverMode === "vercel",
-                records,
-              }, null, 2),
-            }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    domain: domain.domain,
+                    manageable:
+                      domain.registrar === "vercel" &&
+                      domain.nameserverMode === "vercel",
+                    records,
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
           };
         } catch (error) {
           return {
-            content: [{
-              type: "text" as const,
-              text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to get DNS records" }, null, 2),
-            }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to get DNS records",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -8684,11 +10117,23 @@ const mcpHandler = createMcpHandler(
           "Add a DNS record to a domain. Only works for domains using Vercel nameservers. Costs 1 credit.",
         inputSchema: {
           domainId: z.string().uuid().describe("Domain ID"),
-          type: z.enum(["A", "AAAA", "CNAME", "TXT", "MX"]).describe("Record type"),
+          type: z
+            .enum(["A", "AAAA", "CNAME", "TXT", "MX"])
+            .describe("Record type"),
           name: z.string().min(1).describe("Record name (subdomain or @)"),
           value: z.string().min(1).describe("Record value"),
-          ttl: z.number().int().min(60).max(86400).optional().describe("TTL in seconds"),
-          priority: z.number().int().optional().describe("Priority for MX records"),
+          ttl: z
+            .number()
+            .int()
+            .min(60)
+            .max(86400)
+            .optional()
+            .describe("TTL in seconds"),
+          priority: z
+            .number()
+            .int()
+            .optional()
+            .describe("Priority for MX records"),
         },
       },
       async ({ domainId, type, name, value, ttl, priority }) => {
@@ -8705,23 +10150,35 @@ const mcpHandler = createMcpHandler(
 
           if (!creditResult.success) {
             return {
-              content: [{
-                type: "text" as const,
-                text: JSON.stringify({ error: "Insufficient credits", required: 1 }, null, 2),
-              }],
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify(
+                    { error: "Insufficient credits", required: 1 },
+                    null,
+                    2,
+                  ),
+                },
+              ],
               isError: true,
             };
           }
 
-          const { domainManagementService } = await import("@/lib/services/domain-management");
+          const { domainManagementService } =
+            await import("@/lib/services/domain-management");
 
-          const domain = await domainManagementService.getDomain(domainId, user.organization_id);
+          const domain = await domainManagementService.getDomain(
+            domainId,
+            user.organization_id,
+          );
           if (!domain) {
             return {
-              content: [{
-                type: "text" as const,
-                text: JSON.stringify({ error: "Domain not found" }, null, 2),
-              }],
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify({ error: "Domain not found" }, null, 2),
+                },
+              ],
               isError: true,
             };
           }
@@ -8736,30 +10193,49 @@ const mcpHandler = createMcpHandler(
 
           if (!result.success) {
             return {
-              content: [{
-                type: "text" as const,
-                text: JSON.stringify({ error: result.error }, null, 2),
-              }],
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify({ error: result.error }, null, 2),
+                },
+              ],
               isError: true,
             };
           }
 
           return {
-            content: [{
-              type: "text" as const,
-              text: JSON.stringify({
-                success: true,
-                record: result.record,
-                message: "DNS record added",
-              }, null, 2),
-            }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: true,
+                    record: result.record,
+                    message: "DNS record added",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
           };
         } catch (error) {
           return {
-            content: [{
-              type: "text" as const,
-              text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to add DNS record" }, null, 2),
-            }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to add DNS record",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -8774,17 +10250,66 @@ const mcpHandler = createMcpHandler(
     server.registerTool(
       "secrets_list",
       {
-        description: "List secrets (metadata only, no values). FREE tool. Use filters to narrow results.",
+        description:
+          "List secrets (metadata only, no values). FREE tool. Use filters to narrow results.",
         inputSchema: {
-          projectId: z.string().uuid().optional().describe("Filter by project ID"),
-          projectType: z.enum(["character", "app", "workflow", "container", "mcp"]).optional().describe("Filter by project type"),
-          environment: z.enum(["development", "preview", "production"]).optional().describe("Filter by environment"),
-          provider: z.enum(["openai", "anthropic", "google", "elevenlabs", "fal", "stripe", "discord", "telegram", "twitter", "github", "slack", "aws", "vercel", "custom"]).optional().describe("Filter by provider"),
-          limit: z.number().int().min(1).max(500).optional().default(100).describe("Max results"),
-          offset: z.number().int().min(0).optional().default(0).describe("Offset for pagination"),
+          projectId: z
+            .string()
+            .uuid()
+            .optional()
+            .describe("Filter by project ID"),
+          projectType: z
+            .enum(["character", "app", "workflow", "container", "mcp"])
+            .optional()
+            .describe("Filter by project type"),
+          environment: z
+            .enum(["development", "preview", "production"])
+            .optional()
+            .describe("Filter by environment"),
+          provider: z
+            .enum([
+              "openai",
+              "anthropic",
+              "google",
+              "elevenlabs",
+              "fal",
+              "stripe",
+              "discord",
+              "telegram",
+              "twitter",
+              "github",
+              "slack",
+              "aws",
+              "vercel",
+              "custom",
+            ])
+            .optional()
+            .describe("Filter by provider"),
+          limit: z
+            .number()
+            .int()
+            .min(1)
+            .max(500)
+            .optional()
+            .default(100)
+            .describe("Max results"),
+          offset: z
+            .number()
+            .int()
+            .min(0)
+            .optional()
+            .default(0)
+            .describe("Offset for pagination"),
         },
       },
-      async ({ projectId, projectType, environment, provider, limit, offset }) => {
+      async ({
+        projectId,
+        projectType,
+        environment,
+        provider,
+        limit,
+        offset,
+      }) => {
         try {
           const { user } = getAuthContext();
           const { secretsService } = await import("@/lib/services/secrets");
@@ -8800,32 +10325,52 @@ const mcpHandler = createMcpHandler(
           });
 
           return {
-            content: [{
-              type: "text" as const,
-              text: JSON.stringify({
-                secrets: result.secrets.map((s) => ({
-                  id: s.id,
-                  name: s.name,
-                  description: s.description,
-                  scope: s.scope,
-                  projectId: s.projectId,
-                  projectType: s.projectType,
-                  environment: s.environment,
-                  provider: s.provider,
-                  version: s.version,
-                  createdAt: s.createdAt.toISOString(),
-                  lastAccessedAt: s.lastAccessedAt?.toISOString(),
-                  accessCount: s.accessCount,
-                })),
-                total: result.total,
-                limit,
-                offset,
-              }, null, 2),
-            }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    secrets: result.secrets.map((s) => ({
+                      id: s.id,
+                      name: s.name,
+                      description: s.description,
+                      scope: s.scope,
+                      projectId: s.projectId,
+                      projectType: s.projectType,
+                      environment: s.environment,
+                      provider: s.provider,
+                      version: s.version,
+                      createdAt: s.createdAt.toISOString(),
+                      lastAccessedAt: s.lastAccessedAt?.toISOString(),
+                      accessCount: s.accessCount,
+                    })),
+                    total: result.total,
+                    limit,
+                    offset,
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
           };
         } catch (error) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to list secrets" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to list secrets",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -8836,11 +10381,19 @@ const mcpHandler = createMcpHandler(
     server.registerTool(
       "secrets_get",
       {
-        description: "Get a secret value by name. Retrieves the decrypted value.",
+        description:
+          "Get a secret value by name. Retrieves the decrypted value.",
         inputSchema: {
           name: z.string().min(1).describe("Secret name"),
-          projectId: z.string().uuid().optional().describe("Project ID for scoped secrets"),
-          environment: z.enum(["development", "preview", "production"]).optional().describe("Environment"),
+          projectId: z
+            .string()
+            .uuid()
+            .optional()
+            .describe("Project ID for scoped secrets"),
+          environment: z
+            .enum(["development", "preview", "production"])
+            .optional()
+            .describe("Environment"),
         },
       },
       async ({ name, projectId, environment }) => {
@@ -8853,21 +10406,45 @@ const mcpHandler = createMcpHandler(
             name,
             projectId,
             environment,
-            { actorType: "api_key", actorId: user.id, source: "mcp" }
+            { actorType: "api_key", actorId: user.id, source: "mcp" },
           );
 
           if (!value) {
             return {
-              content: [{ type: "text" as const, text: JSON.stringify({ name, found: false }, null, 2) }],
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify({ name, found: false }, null, 2),
+                },
+              ],
             };
           }
 
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ name, value }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify({ name, value }, null, 2),
+              },
+            ],
           };
         } catch (error) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to get secret" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to get secret",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -8878,16 +10455,41 @@ const mcpHandler = createMcpHandler(
     server.registerTool(
       "secrets_get_bulk",
       {
-        description: "Get multiple secrets by names. Returns a key-value object of decrypted values.",
+        description:
+          "Get multiple secrets by names. Returns a key-value object of decrypted values.",
         inputSchema: {
-          names: z.array(z.string()).min(1).max(50).describe("Secret names to retrieve"),
-          projectId: z.string().uuid().optional().describe("Project ID for scoped secrets"),
-          projectType: z.enum(["character", "app", "workflow", "container", "mcp"]).optional().describe("Project type"),
-          environment: z.enum(["development", "preview", "production"]).optional().describe("Environment"),
-          includeBindings: z.boolean().optional().default(true).describe("Include bound secrets"),
+          names: z
+            .array(z.string())
+            .min(1)
+            .max(50)
+            .describe("Secret names to retrieve"),
+          projectId: z
+            .string()
+            .uuid()
+            .optional()
+            .describe("Project ID for scoped secrets"),
+          projectType: z
+            .enum(["character", "app", "workflow", "container", "mcp"])
+            .optional()
+            .describe("Project type"),
+          environment: z
+            .enum(["development", "preview", "production"])
+            .optional()
+            .describe("Environment"),
+          includeBindings: z
+            .boolean()
+            .optional()
+            .default(true)
+            .describe("Include bound secrets"),
         },
       },
-      async ({ names, projectId, projectType, environment, includeBindings }) => {
+      async ({
+        names,
+        projectId,
+        projectType,
+        environment,
+        includeBindings,
+      }) => {
         try {
           const { user } = getAuthContext();
           const { secretsService } = await import("@/lib/services/secrets");
@@ -8901,15 +10503,38 @@ const mcpHandler = createMcpHandler(
               names,
               includeBindings,
             },
-            { actorType: "api_key", actorId: user.id, source: "mcp" }
+            { actorType: "api_key", actorId: user.id, source: "mcp" },
           );
 
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ secrets, count: Object.keys(secrets).length }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  { secrets, count: Object.keys(secrets).length },
+                  null,
+                  2,
+                ),
+              },
+            ],
           };
         } catch (error) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to get secrets" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to get secrets",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -8922,16 +10547,56 @@ const mcpHandler = createMcpHandler(
       {
         description: "Create a new secret. Secrets are encrypted at rest.",
         inputSchema: {
-          name: z.string().min(1).max(255).describe("Secret name (unique within scope)"),
+          name: z
+            .string()
+            .min(1)
+            .max(255)
+            .describe("Secret name (unique within scope)"),
           value: z.string().min(1).describe("Secret value"),
           description: z.string().optional().describe("Description"),
-          provider: z.enum(["openai", "anthropic", "google", "elevenlabs", "fal", "stripe", "discord", "telegram", "twitter", "github", "slack", "aws", "vercel", "custom"]).optional().describe("Provider type"),
-          projectId: z.string().uuid().optional().describe("Project ID for scoped secrets"),
-          projectType: z.enum(["character", "app", "workflow", "container", "mcp"]).optional().describe("Project type"),
-          environment: z.enum(["development", "preview", "production"]).optional().describe("Environment"),
+          provider: z
+            .enum([
+              "openai",
+              "anthropic",
+              "google",
+              "elevenlabs",
+              "fal",
+              "stripe",
+              "discord",
+              "telegram",
+              "twitter",
+              "github",
+              "slack",
+              "aws",
+              "vercel",
+              "custom",
+            ])
+            .optional()
+            .describe("Provider type"),
+          projectId: z
+            .string()
+            .uuid()
+            .optional()
+            .describe("Project ID for scoped secrets"),
+          projectType: z
+            .enum(["character", "app", "workflow", "container", "mcp"])
+            .optional()
+            .describe("Project type"),
+          environment: z
+            .enum(["development", "preview", "production"])
+            .optional()
+            .describe("Environment"),
         },
       },
-      async ({ name, value, description, provider, projectId, projectType, environment }) => {
+      async ({
+        name,
+        value,
+        description,
+        provider,
+        projectId,
+        projectType,
+        environment,
+      }) => {
         try {
           const { user } = getAuthContext();
           const { secretsService } = await import("@/lib/services/secrets");
@@ -8949,15 +10614,38 @@ const mcpHandler = createMcpHandler(
               scope: projectId ? "project" : "organization",
               createdBy: user.id,
             },
-            { actorType: "api_key", actorId: user.id, source: "mcp" }
+            { actorType: "api_key", actorId: user.id, source: "mcp" },
           );
 
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ success: true, id: secret.id, name: secret.name }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  { success: true, id: secret.id, name: secret.name },
+                  null,
+                  2,
+                ),
+              },
+            ],
           };
         } catch (error) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to create secret" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to create secret",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -8984,15 +10672,43 @@ const mcpHandler = createMcpHandler(
             secretId,
             user.organization_id!,
             { value, description },
-            { actorType: "api_key", actorId: user.id, source: "mcp" }
+            { actorType: "api_key", actorId: user.id, source: "mcp" },
           );
 
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ success: true, id: updated.id, name: updated.name, version: updated.version }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: true,
+                    id: updated.id,
+                    name: updated.name,
+                    version: updated.version,
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
           };
         } catch (error) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to update secret" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to update secret",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -9013,18 +10729,37 @@ const mcpHandler = createMcpHandler(
           const { user } = getAuthContext();
           const { secretsService } = await import("@/lib/services/secrets");
 
-          await secretsService.delete(
-            secretId,
-            user.organization_id!,
-            { actorType: "api_key", actorId: user.id, source: "mcp" }
-          );
+          await secretsService.delete(secretId, user.organization_id!, {
+            actorType: "api_key",
+            actorId: user.id,
+            source: "mcp",
+          });
 
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ success: true, secretId }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify({ success: true, secretId }, null, 2),
+              },
+            ],
           };
         } catch (error) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to delete secret" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to delete secret",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -9035,11 +10770,14 @@ const mcpHandler = createMcpHandler(
     server.registerTool(
       "secrets_bind",
       {
-        description: "Bind an organization-level secret to a project. Allows reusing secrets across projects without duplication.",
+        description:
+          "Bind an organization-level secret to a project. Allows reusing secrets across projects without duplication.",
         inputSchema: {
           secretId: z.string().uuid().describe("Secret ID to bind"),
           projectId: z.string().uuid().describe("Project ID"),
-          projectType: z.enum(["character", "app", "workflow", "container", "mcp"]).describe("Project type"),
+          projectType: z
+            .enum(["character", "app", "workflow", "container", "mcp"])
+            .describe("Project type"),
         },
       },
       async ({ secretId, projectId, projectType }) => {
@@ -9049,15 +10787,42 @@ const mcpHandler = createMcpHandler(
 
           const binding = await secretsService.bindSecret(
             { secretId, projectId, projectType, createdBy: user.id },
-            { actorType: "api_key", actorId: user.id, source: "mcp" }
+            { actorType: "api_key", actorId: user.id, source: "mcp" },
           );
 
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ success: true, bindingId: binding.id, secretName: binding.secretName }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: true,
+                    bindingId: binding.id,
+                    secretName: binding.secretName,
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
           };
         } catch (error) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to bind secret" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to bind secret",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -9078,18 +10843,37 @@ const mcpHandler = createMcpHandler(
           const { user } = getAuthContext();
           const { secretsService } = await import("@/lib/services/secrets");
 
-          await secretsService.unbindSecret(
-            bindingId,
-            user.organization_id!,
-            { actorType: "api_key", actorId: user.id, source: "mcp" }
-          );
+          await secretsService.unbindSecret(bindingId, user.organization_id!, {
+            actorType: "api_key",
+            actorId: user.id,
+            source: "mcp",
+          });
 
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ success: true, bindingId }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify({ success: true, bindingId }, null, 2),
+              },
+            ],
           };
         } catch (error) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to unbind secret" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to unbind secret",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -9100,11 +10884,23 @@ const mcpHandler = createMcpHandler(
     server.registerTool(
       "secrets_list_bindings",
       {
-        description: "List secret bindings for a project or for a specific secret.",
+        description:
+          "List secret bindings for a project or for a specific secret.",
         inputSchema: {
-          projectId: z.string().uuid().optional().describe("Project ID to list bindings for"),
-          projectType: z.enum(["character", "app", "workflow", "container", "mcp"]).optional().describe("Project type filter"),
-          secretId: z.string().uuid().optional().describe("Secret ID to list bindings for"),
+          projectId: z
+            .string()
+            .uuid()
+            .optional()
+            .describe("Project ID to list bindings for"),
+          projectType: z
+            .enum(["character", "app", "workflow", "container", "mcp"])
+            .optional()
+            .describe("Project type filter"),
+          secretId: z
+            .string()
+            .uuid()
+            .optional()
+            .describe("Secret ID to list bindings for"),
         },
       },
       async ({ projectId, projectType, secretId }) => {
@@ -9114,7 +10910,16 @@ const mcpHandler = createMcpHandler(
 
           if (!projectId && !secretId) {
             return {
-              content: [{ type: "text" as const, text: JSON.stringify({ error: "Either projectId or secretId is required" }, null, 2) }],
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify(
+                    { error: "Either projectId or secretId is required" },
+                    null,
+                    2,
+                  ),
+                },
+              ],
               isError: true,
             };
           }
@@ -9122,17 +10927,53 @@ const mcpHandler = createMcpHandler(
           if (secretId) {
             const bindings = await secretsService.listSecretBindings(secretId);
             return {
-              content: [{ type: "text" as const, text: JSON.stringify({ bindings, count: bindings.length }, null, 2) }],
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify(
+                    { bindings, count: bindings.length },
+                    null,
+                    2,
+                  ),
+                },
+              ],
             };
           }
 
-          const result = await secretsService.listBindings(user.organization_id, projectId!, projectType);
+          const result = await secretsService.listBindings(
+            user.organization_id,
+            projectId!,
+            projectType,
+          );
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ bindings: result.bindings, total: result.total }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  { bindings: result.bindings, total: result.total },
+                  null,
+                  2,
+                ),
+              },
+            ],
           };
         } catch (error) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to list bindings" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to list bindings",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -9153,16 +10994,41 @@ const mcpHandler = createMcpHandler(
           "Cost: ~$0.01 to create, plus usage-based billing.",
         inputSchema: {
           name: z.string().max(200).optional().describe("Session name"),
-          description: z.string().max(1000).optional().describe("Session description"),
-          templateUrl: z.string().url().optional().describe("Git URL for template to clone"),
-          loadOrgSecrets: z.boolean().optional().default(true).describe("Load organization secrets into environment"),
-          expiresInSeconds: z.number().min(60).max(86400).optional().default(1800).describe("Session timeout in seconds (default: 30 min, max: 24h)"),
+          description: z
+            .string()
+            .max(1000)
+            .optional()
+            .describe("Session description"),
+          templateUrl: z
+            .string()
+            .url()
+            .optional()
+            .describe("Git URL for template to clone"),
+          loadOrgSecrets: z
+            .boolean()
+            .optional()
+            .default(true)
+            .describe("Load organization secrets into environment"),
+          expiresInSeconds: z
+            .number()
+            .min(60)
+            .max(86400)
+            .optional()
+            .default(1800)
+            .describe("Session timeout in seconds (default: 30 min, max: 24h)"),
         },
       },
-      async ({ name, description, templateUrl, loadOrgSecrets, expiresInSeconds }) => {
+      async ({
+        name,
+        description,
+        templateUrl,
+        loadOrgSecrets,
+        expiresInSeconds,
+      }) => {
         try {
           const { user } = getAuthContext();
-          const { codeAgentService } = await import("@/lib/services/code-agent");
+          const { codeAgentService } =
+            await import("@/lib/services/code-agent");
 
           const session = await codeAgentService.createSession({
             organizationId: user.organization_id!,
@@ -9175,23 +11041,43 @@ const mcpHandler = createMcpHandler(
           });
 
           return {
-            content: [{
-              type: "text" as const,
-              text: JSON.stringify({
-                success: true,
-                session: {
-                  id: session.id,
-                  name: session.name,
-                  status: session.status,
-                  runtimeUrl: session.runtimeUrl,
-                  expiresAt: session.expiresAt,
-                },
-              }, null, 2),
-            }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: true,
+                    session: {
+                      id: session.id,
+                      name: session.name,
+                      status: session.status,
+                      runtimeUrl: session.runtimeUrl,
+                      expiresAt: session.expiresAt,
+                    },
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
           };
         } catch (error) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to create session" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to create session",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -9208,24 +11094,55 @@ const mcpHandler = createMcpHandler(
         inputSchema: {
           sessionId: z.string().uuid().describe("Session ID"),
           type: z.enum(["code", "command"]).describe("Execution type"),
-          language: z.enum(["python", "javascript", "typescript", "shell"]).optional().describe("Language for code execution"),
+          language: z
+            .enum(["python", "javascript", "typescript", "shell"])
+            .optional()
+            .describe("Language for code execution"),
           code: z.string().max(100000).optional().describe("Code to execute"),
-          command: z.string().max(10000).optional().describe("Shell command to run"),
+          command: z
+            .string()
+            .max(10000)
+            .optional()
+            .describe("Shell command to run"),
           args: z.array(z.string()).optional().describe("Command arguments"),
           workingDirectory: z.string().optional().describe("Working directory"),
-          timeout: z.number().min(1000).max(300000).optional().default(60000).describe("Timeout in milliseconds"),
+          timeout: z
+            .number()
+            .min(1000)
+            .max(300000)
+            .optional()
+            .default(60000)
+            .describe("Timeout in milliseconds"),
         },
       },
-      async ({ sessionId, type, language, code, command, args, workingDirectory, timeout }) => {
+      async ({
+        sessionId,
+        type,
+        language,
+        code,
+        command,
+        args,
+        workingDirectory,
+        timeout,
+      }) => {
         try {
           const { user } = getAuthContext();
-          const { codeAgentService } = await import("@/lib/services/code-agent");
+          const { codeAgentService } =
+            await import("@/lib/services/code-agent");
 
           // Verify session ownership
-          const session = await codeAgentService.getSession(sessionId, user.organization_id!);
+          const session = await codeAgentService.getSession(
+            sessionId,
+            user.organization_id!,
+          );
           if (!session) {
             return {
-              content: [{ type: "text" as const, text: JSON.stringify({ error: "Session not found" }, null, 2) }],
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify({ error: "Session not found" }, null, 2),
+                },
+              ],
               isError: true,
             };
           }
@@ -9234,7 +11151,16 @@ const mcpHandler = createMcpHandler(
           if (type === "code") {
             if (!code || !language) {
               return {
-                content: [{ type: "text" as const, text: JSON.stringify({ error: "code and language required for type=code" }, null, 2) }],
+                content: [
+                  {
+                    type: "text" as const,
+                    text: JSON.stringify(
+                      { error: "code and language required for type=code" },
+                      null,
+                      2,
+                    ),
+                  },
+                ],
                 isError: true,
               };
             }
@@ -9247,7 +11173,16 @@ const mcpHandler = createMcpHandler(
           } else {
             if (!command) {
               return {
-                content: [{ type: "text" as const, text: JSON.stringify({ error: "command required for type=command" }, null, 2) }],
+                content: [
+                  {
+                    type: "text" as const,
+                    text: JSON.stringify(
+                      { error: "command required for type=command" },
+                      null,
+                      2,
+                    ),
+                  },
+                ],
                 isError: true,
               };
             }
@@ -9260,20 +11195,40 @@ const mcpHandler = createMcpHandler(
           }
 
           return {
-            content: [{
-              type: "text" as const,
-              text: JSON.stringify({
-                success: result.success,
-                exitCode: result.exitCode,
-                stdout: result.stdout,
-                stderr: result.stderr,
-                durationMs: result.durationMs,
-              }, null, 2),
-            }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: result.success,
+                    exitCode: result.exitCode,
+                    stdout: result.stdout,
+                    stderr: result.stderr,
+                    durationMs: result.durationMs,
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
           };
         } catch (error) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Execution failed" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Execution failed",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -9293,12 +11248,21 @@ const mcpHandler = createMcpHandler(
       async ({ sessionId, path }) => {
         try {
           const { user } = getAuthContext();
-          const { codeAgentService } = await import("@/lib/services/code-agent");
+          const { codeAgentService } =
+            await import("@/lib/services/code-agent");
 
-          const session = await codeAgentService.getSession(sessionId, user.organization_id!);
+          const session = await codeAgentService.getSession(
+            sessionId,
+            user.organization_id!,
+          );
           if (!session) {
             return {
-              content: [{ type: "text" as const, text: JSON.stringify({ error: "Session not found" }, null, 2) }],
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify({ error: "Session not found" }, null, 2),
+                },
+              ],
               isError: true,
             };
           }
@@ -9307,20 +11271,45 @@ const mcpHandler = createMcpHandler(
 
           if (!result.success) {
             return {
-              content: [{ type: "text" as const, text: JSON.stringify({ error: result.error }, null, 2) }],
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify({ error: result.error }, null, 2),
+                },
+              ],
               isError: true,
             };
           }
 
           return {
-            content: [{
-              type: "text" as const,
-              text: JSON.stringify({ path, content: result.content, size: result.size }, null, 2),
-            }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  { path, content: result.content, size: result.size },
+                  null,
+                  2,
+                ),
+              },
+            ],
           };
         } catch (error) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to read file" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to read file",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -9331,7 +11320,8 @@ const mcpHandler = createMcpHandler(
     server.registerTool(
       "code_agent_write_file",
       {
-        description: "Write a file to a code agent session. Creates directories as needed.",
+        description:
+          "Write a file to a code agent session. Creates directories as needed.",
         inputSchema: {
           sessionId: z.string().uuid().describe("Session ID"),
           path: z.string().describe("File path to write"),
@@ -9341,31 +11331,68 @@ const mcpHandler = createMcpHandler(
       async ({ sessionId, path, content }) => {
         try {
           const { user } = getAuthContext();
-          const { codeAgentService } = await import("@/lib/services/code-agent");
+          const { codeAgentService } =
+            await import("@/lib/services/code-agent");
 
-          const session = await codeAgentService.getSession(sessionId, user.organization_id!);
+          const session = await codeAgentService.getSession(
+            sessionId,
+            user.organization_id!,
+          );
           if (!session) {
             return {
-              content: [{ type: "text" as const, text: JSON.stringify({ error: "Session not found" }, null, 2) }],
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify({ error: "Session not found" }, null, 2),
+                },
+              ],
               isError: true,
             };
           }
 
-          const result = await codeAgentService.writeFile({ sessionId, path, content });
+          const result = await codeAgentService.writeFile({
+            sessionId,
+            path,
+            content,
+          });
 
           if (!result.success) {
             return {
-              content: [{ type: "text" as const, text: JSON.stringify({ error: result.error }, null, 2) }],
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify({ error: result.error }, null, 2),
+                },
+              ],
               isError: true,
             };
           }
 
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ success: true, path }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify({ success: true, path }, null, 2),
+              },
+            ],
           };
         } catch (error) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to write file" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to write file",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -9380,34 +11407,82 @@ const mcpHandler = createMcpHandler(
         inputSchema: {
           sessionId: z.string().uuid().describe("Session ID"),
           path: z.string().describe("Directory path to list"),
-          recursive: z.boolean().optional().default(true).describe("List recursively"),
-          maxDepth: z.number().min(1).max(10).optional().default(3).describe("Max directory depth"),
+          recursive: z
+            .boolean()
+            .optional()
+            .default(true)
+            .describe("List recursively"),
+          maxDepth: z
+            .number()
+            .min(1)
+            .max(10)
+            .optional()
+            .default(3)
+            .describe("Max directory depth"),
         },
       },
       async ({ sessionId, path, recursive, maxDepth }) => {
         try {
           const { user } = getAuthContext();
-          const { codeAgentService } = await import("@/lib/services/code-agent");
+          const { codeAgentService } =
+            await import("@/lib/services/code-agent");
 
-          const session = await codeAgentService.getSession(sessionId, user.organization_id!);
+          const session = await codeAgentService.getSession(
+            sessionId,
+            user.organization_id!,
+          );
           if (!session) {
             return {
-              content: [{ type: "text" as const, text: JSON.stringify({ error: "Session not found" }, null, 2) }],
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify({ error: "Session not found" }, null, 2),
+                },
+              ],
               isError: true,
             };
           }
 
-          const result = await codeAgentService.listFiles({ sessionId, path, recursive, maxDepth });
+          const result = await codeAgentService.listFiles({
+            sessionId,
+            path,
+            recursive,
+            maxDepth,
+          });
 
           return {
-            content: [{
-              type: "text" as const,
-              text: JSON.stringify({ path, entries: result.entries, count: result.entries.length }, null, 2),
-            }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    path,
+                    entries: result.entries,
+                    count: result.entries.length,
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
           };
         } catch (error) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to list files" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to list files",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -9423,41 +11498,89 @@ const mcpHandler = createMcpHandler(
           sessionId: z.string().uuid().describe("Session ID"),
           url: z.string().url().describe("Git repository URL"),
           branch: z.string().optional().describe("Branch to clone"),
-          depth: z.number().min(1).optional().describe("Clone depth (shallow clone)"),
+          depth: z
+            .number()
+            .min(1)
+            .optional()
+            .describe("Clone depth (shallow clone)"),
           directory: z.string().optional().describe("Target directory"),
         },
       },
       async ({ sessionId, url, branch, depth, directory }) => {
         try {
           const { user } = getAuthContext();
-          const { codeAgentService } = await import("@/lib/services/code-agent");
+          const { codeAgentService } =
+            await import("@/lib/services/code-agent");
 
-          const session = await codeAgentService.getSession(sessionId, user.organization_id!);
+          const session = await codeAgentService.getSession(
+            sessionId,
+            user.organization_id!,
+          );
           if (!session) {
             return {
-              content: [{ type: "text" as const, text: JSON.stringify({ error: "Session not found" }, null, 2) }],
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify({ error: "Session not found" }, null, 2),
+                },
+              ],
               isError: true,
             };
           }
 
-          const result = await codeAgentService.gitClone({ sessionId, url, branch, depth, directory });
+          const result = await codeAgentService.gitClone({
+            sessionId,
+            url,
+            branch,
+            depth,
+            directory,
+          });
 
           if (!result.success) {
             return {
-              content: [{ type: "text" as const, text: JSON.stringify({ error: result.error }, null, 2) }],
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify({ error: result.error }, null, 2),
+                },
+              ],
               isError: true,
             };
           }
 
           return {
-            content: [{
-              type: "text" as const,
-              text: JSON.stringify({ success: true, message: result.message, gitState: result.gitState }, null, 2),
-            }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: true,
+                    message: result.message,
+                    gitState: result.gitState,
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
           };
         } catch (error) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Git clone failed" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Git clone failed",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -9468,45 +11591,105 @@ const mcpHandler = createMcpHandler(
     server.registerTool(
       "code_agent_install_packages",
       {
-        description: "Install packages in a code agent session using npm, pip, bun, or cargo.",
+        description:
+          "Install packages in a code agent session using npm, pip, bun, or cargo.",
         inputSchema: {
           sessionId: z.string().uuid().describe("Session ID"),
-          packages: z.array(z.string()).min(1).max(50).describe("Package names to install"),
-          manager: z.enum(["npm", "pip", "bun", "cargo"]).optional().default("npm").describe("Package manager"),
-          dev: z.boolean().optional().default(false).describe("Install as dev dependency"),
+          packages: z
+            .array(z.string())
+            .min(1)
+            .max(50)
+            .describe("Package names to install"),
+          manager: z
+            .enum(["npm", "pip", "bun", "cargo"])
+            .optional()
+            .default("npm")
+            .describe("Package manager"),
+          dev: z
+            .boolean()
+            .optional()
+            .default(false)
+            .describe("Install as dev dependency"),
         },
       },
       async ({ sessionId, packages, manager, dev }) => {
         try {
           const { user } = getAuthContext();
-          const { codeAgentService } = await import("@/lib/services/code-agent");
+          const { codeAgentService } =
+            await import("@/lib/services/code-agent");
 
-          const session = await codeAgentService.getSession(sessionId, user.organization_id!);
+          const session = await codeAgentService.getSession(
+            sessionId,
+            user.organization_id!,
+          );
           if (!session) {
             return {
-              content: [{ type: "text" as const, text: JSON.stringify({ error: "Session not found" }, null, 2) }],
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify({ error: "Session not found" }, null, 2),
+                },
+              ],
               isError: true,
             };
           }
 
-          const result = await codeAgentService.installPackages({ sessionId, packages, manager, dev });
+          const result = await codeAgentService.installPackages({
+            sessionId,
+            packages,
+            manager,
+            dev,
+          });
 
           if (!result.success) {
             return {
-              content: [{ type: "text" as const, text: JSON.stringify({ error: result.error, output: result.output }, null, 2) }],
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify(
+                    { error: result.error, output: result.output },
+                    null,
+                    2,
+                  ),
+                },
+              ],
               isError: true,
             };
           }
 
           return {
-            content: [{
-              type: "text" as const,
-              text: JSON.stringify({ success: true, packages: result.packages, installedCount: result.installedCount }, null, 2),
-            }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: true,
+                    packages: result.packages,
+                    installedCount: result.installedCount,
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
           };
         } catch (error) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Package installation failed" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Package installation failed",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -9517,44 +11700,87 @@ const mcpHandler = createMcpHandler(
     server.registerTool(
       "code_agent_snapshot",
       {
-        description: "Create a snapshot of a code agent session for later restoration.",
+        description:
+          "Create a snapshot of a code agent session for later restoration.",
         inputSchema: {
           sessionId: z.string().uuid().describe("Session ID"),
           name: z.string().max(200).optional().describe("Snapshot name"),
-          description: z.string().max(1000).optional().describe("Snapshot description"),
+          description: z
+            .string()
+            .max(1000)
+            .optional()
+            .describe("Snapshot description"),
         },
       },
       async ({ sessionId, name, description }) => {
         try {
           const { user } = getAuthContext();
-          const { codeAgentService } = await import("@/lib/services/code-agent");
+          const { codeAgentService } =
+            await import("@/lib/services/code-agent");
 
-          const session = await codeAgentService.getSession(sessionId, user.organization_id!);
+          const session = await codeAgentService.getSession(
+            sessionId,
+            user.organization_id!,
+          );
           if (!session) {
             return {
-              content: [{ type: "text" as const, text: JSON.stringify({ error: "Session not found" }, null, 2) }],
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify({ error: "Session not found" }, null, 2),
+                },
+              ],
               isError: true,
             };
           }
 
-          const result = await codeAgentService.createSnapshot({ sessionId, name, description });
+          const result = await codeAgentService.createSnapshot({
+            sessionId,
+            name,
+            description,
+          });
 
           if (!result.success) {
             return {
-              content: [{ type: "text" as const, text: JSON.stringify({ error: result.error }, null, 2) }],
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify({ error: result.error }, null, 2),
+                },
+              ],
               isError: true,
             };
           }
 
           return {
-            content: [{
-              type: "text" as const,
-              text: JSON.stringify({ success: true, snapshot: result.snapshot }, null, 2),
-            }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  { success: true, snapshot: result.snapshot },
+                  null,
+                  2,
+                ),
+              },
+            ],
           };
         } catch (error) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Snapshot creation failed" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Snapshot creation failed",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -9565,7 +11791,8 @@ const mcpHandler = createMcpHandler(
     server.registerTool(
       "code_agent_terminate",
       {
-        description: "Terminate a code agent session. Creates a final snapshot before termination.",
+        description:
+          "Terminate a code agent session. Creates a final snapshot before termination.",
         inputSchema: {
           sessionId: z.string().uuid().describe("Session ID to terminate"),
         },
@@ -9573,16 +11800,43 @@ const mcpHandler = createMcpHandler(
       async ({ sessionId }) => {
         try {
           const { user } = getAuthContext();
-          const { codeAgentService } = await import("@/lib/services/code-agent");
+          const { codeAgentService } =
+            await import("@/lib/services/code-agent");
 
-          await codeAgentService.terminateSession(sessionId, user.organization_id!);
+          await codeAgentService.terminateSession(
+            sessionId,
+            user.organization_id!,
+          );
 
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ success: true, message: "Session terminated" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  { success: true, message: "Session terminated" },
+                  null,
+                  2,
+                ),
+              },
+            ],
           };
         } catch (error) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Failed to terminate session" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to terminate session",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }
@@ -9602,16 +11856,29 @@ const mcpHandler = createMcpHandler(
           "No session required - great for calculations, data processing, quick scripts. " +
           "Cost: ~$0.001 per execution.",
         inputSchema: {
-          language: z.enum(["python", "javascript", "typescript", "shell"]).describe("Programming language"),
+          language: z
+            .enum(["python", "javascript", "typescript", "shell"])
+            .describe("Programming language"),
           code: z.string().min(1).max(50000).describe("Code to execute"),
-          packages: z.array(z.string()).max(20).optional().describe("Packages to install (Python/npm)"),
-          timeout: z.number().min(1000).max(60000).optional().default(30000).describe("Timeout in milliseconds"),
+          packages: z
+            .array(z.string())
+            .max(20)
+            .optional()
+            .describe("Packages to install (Python/npm)"),
+          timeout: z
+            .number()
+            .min(1000)
+            .max(60000)
+            .optional()
+            .default(30000)
+            .describe("Timeout in milliseconds"),
         },
       },
       async ({ language, code, packages, timeout }) => {
         try {
           const { user } = getAuthContext();
-          const { interpreterService } = await import("@/lib/services/code-agent");
+          const { interpreterService } =
+            await import("@/lib/services/code-agent");
 
           const result = await interpreterService.execute({
             organizationId: user.organization_id!,
@@ -9623,21 +11890,41 @@ const mcpHandler = createMcpHandler(
           });
 
           return {
-            content: [{
-              type: "text" as const,
-              text: JSON.stringify({
-                success: result.success,
-                output: result.output,
-                error: result.error,
-                exitCode: result.exitCode,
-                durationMs: result.durationMs,
-                costCents: result.costCents,
-              }, null, 2),
-            }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: result.success,
+                    output: result.output,
+                    error: result.error,
+                    exitCode: result.exitCode,
+                    durationMs: result.durationMs,
+                    costCents: result.costCents,
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
           };
         } catch (error) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: error instanceof Error ? error.message : "Execution failed" }, null, 2) }],
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Execution failed",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
             isError: true,
           };
         }

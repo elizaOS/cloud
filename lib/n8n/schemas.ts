@@ -9,7 +9,8 @@ import { z } from "zod";
 // CONSTANTS
 // =============================================================================
 
-export const N8N_BASE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
+export const N8N_BASE_URL =
+  process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
 
 export const VARIABLE_TYPES = ["string", "number", "boolean", "json"] as const;
 export type VariableType = (typeof VARIABLE_TYPES)[number];
@@ -106,15 +107,17 @@ export const CreateInstanceSchema = z.object({
 // SCHEMAS - Triggers
 // =============================================================================
 
-const TriggerConfigSchema = z.object({
-  cronExpression: z.string().optional(),
-  inputData: z.record(z.unknown()).optional(),
-  requireSignature: z.boolean().optional().default(true),
-  includeOutputInResponse: z.boolean().optional().default(false),
-  allowedIps: z.array(z.string()).optional(),
-  maxExecutionsPerDay: z.number().int().positive().max(100000).optional(),
-  estimatedCostPerExecution: z.number().min(0).max(100).optional(),
-}).passthrough();
+const TriggerConfigSchema = z
+  .object({
+    cronExpression: z.string().optional(),
+    inputData: z.record(z.unknown()).optional(),
+    requireSignature: z.boolean().optional().default(true),
+    includeOutputInResponse: z.boolean().optional().default(false),
+    allowedIps: z.array(z.string()).optional(),
+    maxExecutionsPerDay: z.number().int().positive().max(100000).optional(),
+    estimatedCostPerExecution: z.number().min(0).max(100).optional(),
+  })
+  .passthrough();
 
 export const CreateTriggerSchema = z.object({
   workflowId: z.string().uuid(),
@@ -213,7 +216,9 @@ interface TriggerRecord {
   updated_at: Date;
 }
 
-export function redactTriggerConfig(config: Record<string, unknown>): Record<string, unknown> {
+export function redactTriggerConfig(
+  config: Record<string, unknown>,
+): Record<string, unknown> {
   const safe = { ...config };
   if (safe.webhookSecret) {
     delete safe.webhookSecret;
@@ -260,4 +265,3 @@ export const ErrorResponses = {
     details,
   }),
 } as const;
-

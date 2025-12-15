@@ -11,7 +11,13 @@ import { agent0Service } from "@/lib/services/agent0";
 import { cache } from "@/lib/cache/client";
 import { CacheTTL } from "@/lib/cache/keys";
 import { logger } from "@/lib/utils/logger";
-import { getDefaultNetwork, CHAIN_IDS, BLOCK_EXPLORERS, getContractAddresses, type ERC8004Network } from "@/lib/config/erc8004";
+import {
+  getDefaultNetwork,
+  CHAIN_IDS,
+  BLOCK_EXPLORERS,
+  getContractAddresses,
+  type ERC8004Network,
+} from "@/lib/config/erc8004";
 import { isValidAgentId, parseAgentId } from "@/lib/types/erc8004";
 
 // ============================================================================
@@ -92,15 +98,18 @@ interface AgentDetailResponse {
 
 export async function GET(
   _request: NextRequest,
-  { params }: { params: Promise<{ agentId: string }> }
+  { params }: { params: Promise<{ agentId: string }> },
 ) {
   const { agentId } = await params;
 
   // Validate agentId format
   if (!agentId || !isValidAgentId(agentId)) {
     return NextResponse.json(
-      { error: "Invalid agent ID format. Expected: chainId:tokenId (e.g., 8453:123)" },
-      { status: 400 }
+      {
+        error:
+          "Invalid agent ID format. Expected: chainId:tokenId (e.g., 8453:123)",
+      },
+      { status: 400 },
     );
   }
 
@@ -120,7 +129,7 @@ export async function GET(
   if (!agent) {
     return NextResponse.json(
       { error: "Agent not found", agentId },
-      { status: 404 }
+      { status: 404 },
     );
   }
 
@@ -198,12 +207,22 @@ function inferCategory(agent: {
     ...(agent.a2aSkills ?? []),
     agent.name.toLowerCase(),
     (agent.description ?? "").toLowerCase(),
-  ].join(" ").toLowerCase();
+  ]
+    .join(" ")
+    .toLowerCase();
 
-  if (allTerms.includes("chat") || allTerms.includes("llm") || allTerms.includes("inference")) {
+  if (
+    allTerms.includes("chat") ||
+    allTerms.includes("llm") ||
+    allTerms.includes("inference")
+  ) {
     return "ai";
   }
-  if (allTerms.includes("swap") || allTerms.includes("trade") || allTerms.includes("defi")) {
+  if (
+    allTerms.includes("swap") ||
+    allTerms.includes("trade") ||
+    allTerms.includes("defi")
+  ) {
     return "defi";
   }
   if (allTerms.includes("game") || allTerms.includes("npc")) {
@@ -220,4 +239,3 @@ function getRegistryAddress(network: string): string {
   const contracts = getContractAddresses(network as ERC8004Network);
   return contracts.identity;
 }
-

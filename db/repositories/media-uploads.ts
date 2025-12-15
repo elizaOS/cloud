@@ -25,7 +25,7 @@ export class MediaUploadsRepository {
       type?: "image" | "video" | "audio";
       limit?: number;
       offset?: number;
-    }
+    },
   ): Promise<MediaUpload[]> {
     const conditions = [eq(mediaUploads.organization_id, organizationId)];
 
@@ -52,7 +52,7 @@ export class MediaUploadsRepository {
 
   async update(
     id: string,
-    data: Partial<Omit<NewMediaUpload, "id" | "organization_id" | "user_id">>
+    data: Partial<Omit<NewMediaUpload, "id" | "organization_id" | "user_id">>,
   ): Promise<MediaUpload | undefined> {
     const [updated] = await db
       .update(mediaUploads)
@@ -68,7 +68,7 @@ export class MediaUploadsRepository {
 
   async getStats(
     organizationId: string,
-    userId?: string
+    userId?: string,
   ): Promise<{
     totalUploads: number;
     totalImages: number;

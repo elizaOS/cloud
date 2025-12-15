@@ -6,7 +6,7 @@ import { DeployWorkflowSchema, ErrorResponses } from "@/lib/n8n/schemas";
 
 export async function POST(
   request: NextRequest,
-  ctx: { params: Promise<{ id: string }> }
+  ctx: { params: Promise<{ id: string }> },
 ) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { id } = await ctx.params;
@@ -19,7 +19,10 @@ export async function POST(
   const body = await request.json();
   const validation = DeployWorkflowSchema.safeParse(body);
   if (!validation.success) {
-    return NextResponse.json(ErrorResponses.invalidRequest(validation.error.format()), { status: 400 });
+    return NextResponse.json(
+      ErrorResponses.invalidRequest(validation.error.format()),
+      { status: 400 },
+    );
   }
 
   const { instanceId } = validation.data;
@@ -37,5 +40,3 @@ export async function POST(
     n8nWorkflowId: result.n8nWorkflowId,
   });
 }
-
-

@@ -28,36 +28,39 @@ interface ChatRequest {
 
 function getModel(modelName: string, req: NextRequest, apiKey: string | null) {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-  
-  const customFetch = async (url: string | URL, init?: RequestInit): Promise<Response> => {
+
+  const customFetch = async (
+    url: string | URL,
+    init?: RequestInit,
+  ): Promise<Response> => {
     const authHeader = req.headers.get("authorization");
     const cookieHeader = req.headers.get("cookie");
     const headers = new Headers(init?.headers);
-    
+
     if (authHeader) {
       headers.set("Authorization", authHeader);
     }
-    
+
     if (cookieHeader) {
       headers.set("Cookie", cookieHeader);
     }
-    
+
     if (apiKey) {
       headers.set("Authorization", `Bearer ${apiKey}`);
     }
-    
+
     return fetch(url, {
       ...init,
       headers,
     });
   };
-  
+
   const openai = createOpenAI({
     apiKey: apiKey || "session-auth",
     baseURL: `${baseUrl}/api/v1`,
     fetch: customFetch,
   });
-  
+
   return openai(modelName);
 }
 
@@ -85,10 +88,7 @@ async function handlePOST(req: NextRequest) {
           : templateInput;
 
     if (!templateMap || Object.keys(templateMap).length === 0) {
-      return NextResponse.json(
-        { error: "Invalid template" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Invalid template" }, { status: 400 });
     }
 
     const systemPrompt = await buildFragmentPrompt(templateMap, true);
@@ -116,13 +116,11 @@ async function handlePOST(req: NextRequest) {
     logger.error("[Fragments Chat] Error", error);
     return NextResponse.json(
       {
-        error:
-        error instanceof Error ? error.message : "Internal server error",
+        error: error instanceof Error ? error.message : "Internal server error",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
 export const POST = withRateLimit(handlePOST, RateLimitPresets.STRICT);
-

@@ -159,7 +159,7 @@ describe("Todo App Types and Calculations", () => {
     });
 
     test("only last level has no nextThreshold", () => {
-      const levelsWithoutNext = types.LEVELS.filter(l => !l.nextThreshold);
+      const levelsWithoutNext = types.LEVELS.filter((l) => !l.nextThreshold);
       expect(levelsWithoutNext.length).toBe(1);
       expect(levelsWithoutNext[0].level).toBe(10);
     });
@@ -319,38 +319,77 @@ describe("MCP Todo Handler Points Calculation", () => {
   describe("Daily Tasks", () => {
     test("base points without streak", () => {
       expect(calculatePoints({ type: "daily", metadata: {} })).toBe(10);
-      expect(calculatePoints({ type: "daily", metadata: { streak: 0 } })).toBe(10);
+      expect(calculatePoints({ type: "daily", metadata: { streak: 0 } })).toBe(
+        10,
+      );
     });
 
     test("streak bonus increases linearly", () => {
-      expect(calculatePoints({ type: "daily", metadata: { streak: 1 } })).toBe(15);
-      expect(calculatePoints({ type: "daily", metadata: { streak: 2 } })).toBe(20);
-      expect(calculatePoints({ type: "daily", metadata: { streak: 5 } })).toBe(35);
+      expect(calculatePoints({ type: "daily", metadata: { streak: 1 } })).toBe(
+        15,
+      );
+      expect(calculatePoints({ type: "daily", metadata: { streak: 2 } })).toBe(
+        20,
+      );
+      expect(calculatePoints({ type: "daily", metadata: { streak: 5 } })).toBe(
+        35,
+      );
     });
 
     test("streak bonus caps at 50", () => {
-      expect(calculatePoints({ type: "daily", metadata: { streak: 10 } })).toBe(60);
-      expect(calculatePoints({ type: "daily", metadata: { streak: 11 } })).toBe(60);
-      expect(calculatePoints({ type: "daily", metadata: { streak: 100 } })).toBe(60);
+      expect(calculatePoints({ type: "daily", metadata: { streak: 10 } })).toBe(
+        60,
+      );
+      expect(calculatePoints({ type: "daily", metadata: { streak: 11 } })).toBe(
+        60,
+      );
+      expect(
+        calculatePoints({ type: "daily", metadata: { streak: 100 } }),
+      ).toBe(60);
     });
 
     test("negative streak is capped at 0", () => {
-      const result = calculatePoints({ type: "daily", metadata: { streak: -5 } });
+      const result = calculatePoints({
+        type: "daily",
+        metadata: { streak: -5 },
+      });
       expect(result).toBe(10); // Negative streaks treated as 0
     });
   });
 
   describe("One-off Tasks", () => {
     test("priority points scale inversely", () => {
-      expect(calculatePoints({ type: "one-off", priority: 1, metadata: {} })).toBe(40);
-      expect(calculatePoints({ type: "one-off", priority: 2, metadata: {} })).toBe(30);
-      expect(calculatePoints({ type: "one-off", priority: 3, metadata: {} })).toBe(20);
-      expect(calculatePoints({ type: "one-off", priority: 4, metadata: {} })).toBe(10);
+      expect(
+        calculatePoints({ type: "one-off", priority: 1, metadata: {} }),
+      ).toBe(40);
+      expect(
+        calculatePoints({ type: "one-off", priority: 2, metadata: {} }),
+      ).toBe(30);
+      expect(
+        calculatePoints({ type: "one-off", priority: 3, metadata: {} }),
+      ).toBe(20);
+      expect(
+        calculatePoints({ type: "one-off", priority: 4, metadata: {} }),
+      ).toBe(10);
     });
 
     test("urgent bonus adds 10 points", () => {
-      expect(calculatePoints({ type: "one-off", priority: 1, urgent: true, metadata: {} })).toBe(50);
-      expect(calculatePoints({ type: "one-off", priority: 4, urgent: true, metadata: {} })).toBe(20);
+      expect(
+        calculatePoints({
+          type: "one-off",
+          priority: 1,
+          urgent: true,
+          metadata: {},
+        }),
+      ).toBe(50);
+      expect(
+        calculatePoints({
+          type: "one-off",
+          priority: 4,
+          urgent: true,
+          metadata: {},
+        }),
+      ).toBe(20);
     });
 
     test("no priority defaults to 10 base points", () => {
@@ -358,7 +397,9 @@ describe("MCP Todo Handler Points Calculation", () => {
     });
 
     test("urgent without priority gives 20 points", () => {
-      expect(calculatePoints({ type: "one-off", urgent: true, metadata: {} })).toBe(20);
+      expect(
+        calculatePoints({ type: "one-off", urgent: true, metadata: {} }),
+      ).toBe(20);
     });
   });
 
@@ -368,11 +409,15 @@ describe("MCP Todo Handler Points Calculation", () => {
     });
 
     test("ignores priority for aspirational", () => {
-      expect(calculatePoints({ type: "aspirational", priority: 1, metadata: {} })).toBe(50);
+      expect(
+        calculatePoints({ type: "aspirational", priority: 1, metadata: {} }),
+      ).toBe(50);
     });
 
     test("ignores urgent for aspirational", () => {
-      expect(calculatePoints({ type: "aspirational", urgent: true, metadata: {} })).toBe(50);
+      expect(
+        calculatePoints({ type: "aspirational", urgent: true, metadata: {} }),
+      ).toBe(50);
     });
   });
 });
@@ -404,11 +449,12 @@ describe("Chat NLP Parsing", () => {
     const lower = message.toLowerCase();
     const args: Record<string, string> = {};
 
-    args.type = lower.includes("daily") || lower.includes("habit")
-      ? "daily"
-      : lower.includes("goal") || lower.includes("aspiration")
-        ? "aspirational"
-        : "one-off";
+    args.type =
+      lower.includes("daily") || lower.includes("habit")
+        ? "daily"
+        : lower.includes("goal") || lower.includes("aspiration")
+          ? "aspirational"
+          : "one-off";
 
     for (const pattern of NAME_PATTERNS) {
       const match = message.match(pattern);
@@ -536,8 +582,8 @@ describe("Concurrent Operations", () => {
 
   test("calculateLevel is thread-safe (pure function)", async () => {
     // Run 1000 concurrent calculations
-    const promises = Array.from({ length: 1000 }, (_, i) => 
-      Promise.resolve(types.calculateLevel(i * 10))
+    const promises = Array.from({ length: 1000 }, (_, i) =>
+      Promise.resolve(types.calculateLevel(i * 10)),
     );
 
     const results = await Promise.all(promises);
@@ -549,8 +595,8 @@ describe("Concurrent Operations", () => {
   });
 
   test("calculateProgress is thread-safe (pure function)", async () => {
-    const promises = Array.from({ length: 1000 }, (_, i) => 
-      Promise.resolve(types.calculateProgress(i * 10))
+    const promises = Array.from({ length: 1000 }, (_, i) =>
+      Promise.resolve(types.calculateProgress(i * 10)),
     );
 
     const results = await Promise.all(promises);

@@ -28,7 +28,10 @@ function AppLoginContent() {
   // Compute initial status from props to avoid setState in effect
   const initialStatus = useMemo(() => {
     if (!sessionId) {
-      return { status: "error" as const, errorMessage: "Invalid authentication link. Missing session ID." };
+      return {
+        status: "error" as const,
+        errorMessage: "Invalid authentication link. Missing session ID.",
+      };
     }
     if (!authenticated) {
       return { status: "waiting_auth" as const, errorMessage: "" };
@@ -60,9 +63,7 @@ function AppLoginContent() {
       if (!response.ok) {
         const errorData = await response.json();
         setStatus("error");
-        setErrorMessage(
-          errorData.error || "Failed to complete authentication",
-        );
+        setErrorMessage(errorData.error || "Failed to complete authentication");
         return;
       }
 
@@ -81,14 +82,13 @@ function AppLoginContent() {
           : "Failed to complete authentication",
       );
     }
-
   }, [sessionId]);
 
   // Update status when props change (avoiding synchronous setState)
   useEffect(() => {
     const nextStatus = initialStatus.status;
     const nextErrorMessage = initialStatus.errorMessage;
-    
+
     // Only update if status changed to avoid unnecessary renders
     if (status !== nextStatus || errorMessage !== nextErrorMessage) {
       // Use setTimeout to avoid synchronous setState in effect

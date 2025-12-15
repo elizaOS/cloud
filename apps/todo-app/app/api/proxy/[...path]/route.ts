@@ -25,7 +25,7 @@ export async function OPTIONS() {
 
 async function proxyRequest(
   request: NextRequest,
-  { params }: { params: Promise<{ path: string[] }> }
+  { params }: { params: Promise<{ path: string[] }> },
 ) {
   const { path } = await params;
   const pathString = path.join("/");
@@ -83,7 +83,8 @@ async function proxyRequest(
     statusText: response.statusText,
     headers: {
       ...corsHeaders,
-      "Content-Type": response.headers.get("Content-Type") || "application/json",
+      "Content-Type":
+        response.headers.get("Content-Type") || "application/json",
     },
   });
 }

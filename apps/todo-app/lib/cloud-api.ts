@@ -8,7 +8,7 @@ const POINTS_COLLECTION = "user_points";
 async function fetchWithRetry(
   url: string,
   options: RequestInit,
-  retries = 2
+  retries = 2,
 ): Promise<Response> {
   for (let i = 0; i <= retries; i++) {
     const response = await fetch(url, options).catch((err) => {
@@ -64,13 +64,16 @@ const toTask = (doc: StorageDocument): Task => ({
   metadata: (doc.data.metadata as Task["metadata"]) || {},
 });
 
-export async function createAppSession(callbackUrl: string): Promise<AppSession> {
+export async function createAppSession(
+  callbackUrl: string,
+): Promise<AppSession> {
   const response = await fetchWithRetry(`${CLOUD_URL}/api/auth/app-session`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ callbackUrl, appId: APP_ID }),
   });
-  if (!response.ok) throw new Error(`Session creation failed: ${response.status}`);
+  if (!response.ok)
+    throw new Error(`Session creation failed: ${response.status}`);
   return response.json();
 }
 
@@ -86,25 +89,30 @@ const DEFAULT_PAGE_SIZE = 20;
 
 export async function listTasks(
   token: string,
-  options?: { type?: Task["type"] | "all"; completed?: boolean; limit?: number; offset?: number }
+  options?: {
+    type?: Task["type"] | "all";
+    completed?: boolean;
+    limit?: number;
+    offset?: number;
+  },
 ): Promise<PaginatedTasks> {
   const params = new URLSearchParams();
   const filter: Record<string, unknown> = {};
-  
+
   if (options?.type && options.type !== "all") filter.type = options.type;
   if (options?.completed !== undefined) filter.completed = options.completed;
   if (Object.keys(filter).length) params.set("filter", JSON.stringify(filter));
-  
+
   const limit = options?.limit ?? DEFAULT_PAGE_SIZE;
   params.set("limit", String(limit));
   if (options?.offset) params.set("offset", String(options.offset));
 
   const response = await fetchWithRetry(
     `${CLOUD_URL}/api/v1/app/storage/${TASKS_COLLECTION}?${params}`,
-    { headers: authHeaders(token) }
+    { headers: authHeaders(token) },
   );
   if (!response.ok) throw new Error(`List tasks failed: ${response.status}`);
-  
+
   const data = (await response.json()) as StorageResponse;
   return {
     tasks: data.documents.map(toTask),
@@ -113,28 +121,38 @@ export async function listTasks(
   };
 }
 
-export async function createTask(token: string, task: Omit<Task, "id">): Promise<Task> {
-  const response = await fetchWithRetry(`${CLOUD_URL}/api/v1/app/storage/${TASKS_COLLECTION}`, {
-    method: "POST",
-    headers: authHeaders(token),
-    body: JSON.stringify({
-      ...task,
-      metadata: { ...task.metadata, createdAt: new Date().toISOString() },
-    }),
-  });
+export async function createTask(
+  token: string,
+  task: Omit<Task, "id">,
+): Promise<Task> {
+  const response = await fetchWithRetry(
+    `${CLOUD_URL}/api/v1/app/storage/${TASKS_COLLECTION}`,
+    {
+      method: "POST",
+      headers: authHeaders(token),
+      body: JSON.stringify({
+        ...task,
+        metadata: { ...task.metadata, createdAt: new Date().toISOString() },
+      }),
+    },
+  );
   if (!response.ok) throw new Error(`Create task failed: ${response.status}`);
-  return toTask((await response.json() as DocumentResponse).document);
+  return toTask(((await response.json()) as DocumentResponse).document);
 }
 
 export async function deleteTask(token: string, taskId: string): Promise<void> {
   const response = await fetchWithRetry(
     `${CLOUD_URL}/api/v1/app/storage/${TASKS_COLLECTION}/${taskId}`,
-    { method: "DELETE", headers: authHeaders(token) }
+    { method: "DELETE", headers: authHeaders(token) },
   );
   if (!response.ok) throw new Error(`Delete task failed: ${response.status}`);
 }
 
-async function callMCP(token: string, tool: string, args: Record<string, unknown>): Promise<string> {
+async function callMCP(
+  token: string,
+  tool: string,
+  args: Record<string, unknown>,
+): Promise<string> {
   const response = await fetchWithRetry(`${CLOUD_URL}/api/mcp/todoapp`, {
     method: "POST",
     headers: authHeaders(token),
@@ -146,13 +164,16 @@ async function callMCP(token: string, tool: string, args: Record<string, unknown
     }),
   });
   if (!response.ok) throw new Error(`MCP call failed: ${response.status}`);
-  
+
   const data = (await response.json()) as MCPResponse;
   if (data.error) throw new Error(data.error.message);
   return data.result?.content[0]?.text || "";
 }
 
-export async function completeTask(token: string, taskId: string): Promise<{ message: string; points: number }> {
+export async function completeTask(
+  token: string,
+  taskId: string,
+): Promise<{ message: string; points: number }> {
   const result = await callMCP(token, "complete_task", { id: taskId });
   const points = parseInt(result.match(/Earned (\d+) points/)?.[1] || "0", 10);
   return { message: result, points };
@@ -161,13 +182,13 @@ export async function completeTask(token: string, taskId: string): Promise<{ mes
 export async function getUserPoints(token: string): Promise<UserPoints> {
   const response = await fetchWithRetry(
     `${CLOUD_URL}/api/v1/app/storage/${POINTS_COLLECTION}?limit=1`,
-    { headers: authHeaders(token) }
+    { headers: authHeaders(token) },
   );
   if (!response.ok) throw new Error(`Get points failed: ${response.status}`);
-  
+
   const { documents } = (await response.json()) as StorageResponse;
   if (!documents.length) return { currentPoints: 0, totalEarned: 0, streak: 0 };
-  
+
   const { data } = documents[0];
   return {
     currentPoints: (data.currentPoints as number) || 0,

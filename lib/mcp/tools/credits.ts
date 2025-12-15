@@ -1,6 +1,6 @@
 /**
  * MCP Tools: Credits & Billing
- * 
+ *
  * Tools for checking credit balance, transactions, and billing usage.
  */
 
@@ -8,7 +8,11 @@ import { z } from "zod";
 import { creditsService } from "@/lib/services/credits";
 import { organizationsService } from "@/lib/services/organizations";
 import { usageService } from "@/lib/services/usage";
-import { successResponse, errorResponse, type AuthResultWithOrg } from "./types";
+import {
+  successResponse,
+  errorResponse,
+  type AuthResultWithOrg,
+} from "./types";
 import type { Server as McpServer } from "@modelcontextprotocol/sdk/server/index.js";
 
 /**
@@ -16,13 +20,14 @@ import type { Server as McpServer } from "@modelcontextprotocol/sdk/server/index
  */
 export function registerCreditTools(
   server: McpServer,
-  getAuthContext: () => AuthResultWithOrg
+  getAuthContext: () => AuthResultWithOrg,
 ) {
   // Tool: Check Credits - View balance and recent transactions
   server.registerTool(
     "check_credits",
     {
-      description: "Check balance and recent transactions for your organization",
+      description:
+        "Check balance and recent transactions for your organization",
       inputSchema: {
         includeTransactions: z
           .boolean()
@@ -64,10 +69,11 @@ export function registerCreditTools(
       };
 
       if (includeTransactions) {
-        const transactions = await creditsService.listTransactionsByOrganization(
-          user.organization_id,
-          limit
-        );
+        const transactions =
+          await creditsService.listTransactionsByOrganization(
+            user.organization_id,
+            limit,
+          );
         response.transactions = transactions.map((t) => ({
           id: t.id,
           amount: Number(t.amount),
@@ -78,14 +84,15 @@ export function registerCreditTools(
       }
 
       return successResponse(response);
-    }
+    },
   );
 
   // Tool: Get Credit Summary
   server.registerTool(
     "get_credit_summary",
     {
-      description: "Get detailed credit summary including balance and usage breakdown",
+      description:
+        "Get detailed credit summary including balance and usage breakdown",
       inputSchema: {
         period: z
           .enum(["day", "week", "month"])
@@ -120,7 +127,7 @@ export function registerCreditTools(
       const usage = await usageService.getUsageStats(
         user.organization_id,
         startDate,
-        now
+        now,
       );
 
       return successResponse({
@@ -132,7 +139,7 @@ export function registerCreditTools(
           breakdown: usage.breakdown,
         },
       });
-    }
+    },
   );
 
   // Tool: List Credit Transactions
@@ -169,7 +176,7 @@ export function registerCreditTools(
         user.organization_id,
         limit,
         offset,
-        type
+        type,
       );
 
       return successResponse({
@@ -183,7 +190,7 @@ export function registerCreditTools(
         })),
         pagination: { limit, offset, count: transactions.length },
       });
-    }
+    },
   );
 
   // Tool: List Credit Packs
@@ -206,7 +213,7 @@ export function registerCreditTools(
           popular: p.is_popular,
         })),
       });
-    }
+    },
   );
 
   // Tool: Get Billing Usage
@@ -215,26 +222,22 @@ export function registerCreditTools(
     {
       description: "Get detailed billing and usage statistics",
       inputSchema: {
-        startDate: z
-          .string()
-          .optional()
-          .describe("Start date (ISO format)"),
-        endDate: z
-          .string()
-          .optional()
-          .describe("End date (ISO format)"),
+        startDate: z.string().optional().describe("Start date (ISO format)"),
+        endDate: z.string().optional().describe("End date (ISO format)"),
       },
     },
     async ({ startDate, endDate }) => {
       const { user } = getAuthContext();
 
-      const start = startDate ? new Date(startDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const start = startDate
+        ? new Date(startDate)
+        : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
       const end = endDate ? new Date(endDate) : new Date();
 
       const usage = await usageService.getUsageStats(
         user.organization_id,
         start,
-        end
+        end,
       );
 
       return successResponse({
@@ -248,6 +251,6 @@ export function registerCreditTools(
           breakdown: usage.breakdown,
         },
       });
-    }
+    },
   );
 }

@@ -19,7 +19,10 @@ export type ERC8004Protocol = "a2a" | "mcp" | "openapi" | "x402";
 export type ERC8004PaymentMethod = "free" | "credits" | "x402";
 
 /** Trust mechanisms */
-export type ERC8004TrustType = "reputation" | "crypto-economic" | "tee-attestation";
+export type ERC8004TrustType =
+  | "reputation"
+  | "crypto-economic"
+  | "tee-attestation";
 
 // ============================================================================
 // Standardized Tags for Discovery
@@ -37,7 +40,7 @@ export const AGENT_SKILL_TAGS = [
   "nlp/sentiment-analysis",
   "nlp/entity-extraction",
   "nlp/question-answering",
-  
+
   // Software Engineering
   "dev/code-generation",
   "dev/code-review",
@@ -45,37 +48,37 @@ export const AGENT_SKILL_TAGS = [
   "dev/documentation",
   "dev/testing",
   "dev/refactoring",
-  
+
   // Advanced Reasoning
   "reasoning/logical",
   "reasoning/mathematical",
   "reasoning/planning",
   "reasoning/decision-making",
-  
+
   // Creative
   "creative/writing",
   "creative/storytelling",
   "creative/brainstorming",
   "creative/design",
-  
+
   // Data & Analytics
   "data/analysis",
   "data/visualization",
   "data/extraction",
   "data/transformation",
-  
+
   // Research
   "research/web-search",
   "research/fact-checking",
   "research/literature-review",
   "research/citation",
-  
+
   // Communication
   "comm/email",
   "comm/chat",
   "comm/social-media",
   "comm/customer-support",
-  
+
   // Productivity
   "productivity/scheduling",
   "productivity/task-management",
@@ -96,7 +99,7 @@ export const AGENT_DOMAIN_TAGS = [
   "domain/devops",
   "domain/web3",
   "domain/saas",
-  
+
   // Business
   "domain/finance",
   "domain/marketing",
@@ -104,25 +107,25 @@ export const AGENT_DOMAIN_TAGS = [
   "domain/hr",
   "domain/legal",
   "domain/consulting",
-  
+
   // Creative
   "domain/gaming",
   "domain/entertainment",
   "domain/media",
   "domain/art",
   "domain/music",
-  
+
   // Education
   "domain/learning",
   "domain/tutoring",
   "domain/training",
   "domain/certification",
-  
+
   // Healthcare
   "domain/health",
   "domain/wellness",
   "domain/fitness",
-  
+
   // Science
   "domain/research",
   "domain/engineering",
@@ -250,7 +253,7 @@ export interface ERC8004MarketplaceItem {
   creatorId: string;
   /** Organization identifier */
   organizationId: string;
-  
+
   /** ERC-8004 registration info */
   erc8004: {
     registered: boolean;
@@ -259,19 +262,19 @@ export interface ERC8004MarketplaceItem {
     agentUri?: string;
     registeredAt?: string;
   };
-  
+
   /** Protocol endpoints */
   endpoints: {
     a2a?: string;
     mcp?: string;
     openapi?: string;
   };
-  
+
   /** Tags for discovery */
   tags: string[];
   /** Category */
   category?: string;
-  
+
   /** Capabilities */
   capabilities: {
     streaming: boolean;
@@ -279,7 +282,7 @@ export interface ERC8004MarketplaceItem {
     multimodal: boolean;
     voice: boolean;
   };
-  
+
   /** Pricing info */
   pricing: {
     type: ERC8004PaymentMethod;
@@ -287,7 +290,7 @@ export interface ERC8004MarketplaceItem {
     x402PriceUsd?: number;
     inferenceMarkup?: number;
   };
-  
+
   /** Stats */
   stats: {
     popularity: number;
@@ -295,7 +298,7 @@ export interface ERC8004MarketplaceItem {
     interactionCount: number;
     totalRequests: number;
   };
-  
+
   /** Status */
   status: {
     active: boolean;
@@ -303,7 +306,7 @@ export interface ERC8004MarketplaceItem {
     verified: boolean;
     featured: boolean;
   };
-  
+
   /** Timestamps */
   createdAt: string;
   updatedAt: string;
@@ -398,7 +401,7 @@ export const TAG_METADATA: Record<string, TagMetadata> = {
     description: "Search and retrieve web information",
     group: "skill",
   },
-  
+
   // Domains
   "domain/ai": {
     id: "domain/ai",
@@ -424,7 +427,7 @@ export const TAG_METADATA: Record<string, TagMetadata> = {
     description: "Games and interactive entertainment",
     group: "domain",
   },
-  
+
   // MCP Categories
   "mcp/utilities": {
     id: "mcp/utilities",
@@ -450,7 +453,7 @@ export const TAG_METADATA: Record<string, TagMetadata> = {
     description: "Workflow automation tools",
     group: "mcp",
   },
-  
+
   // Capabilities
   "cap/streaming": {
     id: "cap/streaming",
@@ -476,14 +479,20 @@ export const TAG_METADATA: Record<string, TagMetadata> = {
  * Get tag metadata with fallback
  */
 export function getTagMetadata(tag: string): TagMetadata {
-  return TAG_METADATA[tag] || {
-    id: tag,
-    label: tag.split("/").pop() || tag,
-    description: tag,
-    group: tag.startsWith("mcp/") ? "mcp" : 
-           tag.startsWith("cap/") ? "capability" :
-           tag.startsWith("domain/") ? "domain" : "skill",
-  };
+  return (
+    TAG_METADATA[tag] || {
+      id: tag,
+      label: tag.split("/").pop() || tag,
+      description: tag,
+      group: tag.startsWith("mcp/")
+        ? "mcp"
+        : tag.startsWith("cap/")
+          ? "capability"
+          : tag.startsWith("domain/")
+            ? "domain"
+            : "skill",
+    }
+  );
 }
 
 /**
@@ -497,12 +506,12 @@ export function groupTags(tags: string[]): Record<string, string[]> {
     capability: [],
     other: [],
   };
-  
+
   for (const tag of tags) {
     const meta = getTagMetadata(tag);
     const group = groups[meta.group] || groups.other;
     group.push(tag);
   }
-  
+
   return groups;
 }

@@ -16,7 +16,11 @@ import { memoryService } from "@/lib/services/memory";
 import { charactersService } from "@/lib/services/characters/characters";
 import { containersService } from "@/lib/services/containers";
 import { agentsService } from "@/lib/services/agents/agents";
-import { storageService, calculateUploadCost, formatPrice } from "@/lib/services/storage";
+import {
+  storageService,
+  calculateUploadCost,
+  formatPrice,
+} from "@/lib/services/storage";
 import { ipfsService } from "@/lib/services/ipfs";
 import {
   calculateCost,
@@ -52,10 +56,7 @@ import type {
   FullAppBuilderStatusResult,
 } from "./types";
 
-export type {
-  N8nWorkflowResult,
-  N8nWorkflowListResult,
-};
+export type { N8nWorkflowResult, N8nWorkflowListResult };
 
 /**
  * Chat completion skill - Generate text with LLMs
@@ -63,12 +64,13 @@ export type {
 export async function executeSkillChatCompletion(
   textContent: string,
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<ChatCompletionResult> {
   const model = (dataContent.model as string) || "gpt-4o";
-  const messages = (dataContent.messages as Array<{ role: string; content: string }>) || [
-    { role: "user", content: textContent },
-  ];
+  const messages = (dataContent.messages as Array<{
+    role: string;
+    content: string;
+  }>) || [{ role: "user", content: textContent }];
   const options = {
     temperature: dataContent.temperature as number | undefined,
     maxTokens: dataContent.max_tokens as number | undefined,
@@ -79,7 +81,7 @@ export async function executeSkillChatCompletion(
 
   if (Number(ctx.user.organization.credit_balance) < estimatedCost) {
     throw new Error(
-      `Insufficient credits: need $${estimatedCost.toFixed(4)}, have $${Number(ctx.user.organization.credit_balance).toFixed(4)}`
+      `Insufficient credits: need $${estimatedCost.toFixed(4)}, have $${Number(ctx.user.organization.credit_balance).toFixed(4)}`,
     );
   }
 
@@ -109,7 +111,7 @@ export async function executeSkillChatCompletion(
     model,
     provider,
     usage?.inputTokens || 0,
-    usage?.outputTokens || 0
+    usage?.outputTokens || 0,
   );
   const costDiff = totalCost - estimatedCost;
 
@@ -161,7 +163,7 @@ export async function executeSkillChatCompletion(
 export async function executeSkillImageGeneration(
   textContent: string,
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<ImageGenerationResult> {
   const prompt = (dataContent.prompt as string) || textContent;
   const aspectRatio = (dataContent.aspectRatio as string) || "1:1";
@@ -169,7 +171,9 @@ export async function executeSkillImageGeneration(
   if (!prompt) throw new Error("Image prompt required");
 
   if (Number(ctx.user.organization.credit_balance) < IMAGE_GENERATION_COST) {
-    throw new Error(`Insufficient credits: need $${IMAGE_GENERATION_COST.toFixed(4)}`);
+    throw new Error(
+      `Insufficient credits: need $${IMAGE_GENERATION_COST.toFixed(4)}`,
+    );
   }
 
   const deduction = await creditsService.deductCredits({
@@ -235,7 +239,12 @@ export async function executeSkillImageGeneration(
     completed_at: new Date(),
   });
 
-  return { image: imageBase64, mimeType, aspectRatio, cost: IMAGE_GENERATION_COST };
+  return {
+    image: imageBase64,
+    mimeType,
+    aspectRatio,
+    cost: IMAGE_GENERATION_COST,
+  };
 }
 
 /**
@@ -245,7 +254,7 @@ export async function executeSkillImageGeneration(
 export async function executeSkillGetX402TopupRequirements(
   textContent: string,
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<{
   x402: {
     enabled: boolean;
@@ -286,7 +295,9 @@ export async function executeSkillGetX402TopupRequirements(
       payTo: X402_RECIPIENT_ADDRESS,
       price: TOPUP_PRICE,
       creditsPerDollar: CREDITS_PER_DOLLAR,
-      creditsPerTopup: Math.floor(parseFloat(TOPUP_PRICE.replace("$", "")) * CREDITS_PER_DOLLAR),
+      creditsPerTopup: Math.floor(
+        parseFloat(TOPUP_PRICE.replace("$", "")) * CREDITS_PER_DOLLAR,
+      ),
       instructions: [
         "1. Sign payment authorization with your wallet",
         "2. Include X-PAYMENT header in POST request to topupEndpoint",
@@ -301,7 +312,9 @@ export async function executeSkillGetX402TopupRequirements(
 /**
  * Check balance skill
  */
-export async function executeSkillCheckBalance(ctx: A2AContext): Promise<BalanceResult> {
+export async function executeSkillCheckBalance(
+  ctx: A2AContext,
+): Promise<BalanceResult> {
   const org = await organizationsService.getById(ctx.user.organization_id);
   if (!org) throw new Error("Organization not found");
   return {
@@ -316,10 +329,13 @@ export async function executeSkillCheckBalance(ctx: A2AContext): Promise<Balance
  */
 export async function executeSkillGetUsage(
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<UsageResult> {
   const limit = Math.min(50, (dataContent.limit as number) || 10);
-  const records = await usageService.listByOrganization(ctx.user.organization_id, limit);
+  const records = await usageService.listByOrganization(
+    ctx.user.organization_id,
+    limit,
+  );
   return {
     usage: records.map((r) => ({
       id: r.id,
@@ -339,10 +355,12 @@ export async function executeSkillGetUsage(
  */
 export async function executeSkillListAgents(
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<ListAgentsResult> {
   const limit = (dataContent.limit as number) || 20;
-  const chars = await charactersService.listByOrganization(ctx.user.organization_id);
+  const chars = await charactersService.listByOrganization(
+    ctx.user.organization_id,
+  );
   return {
     agents: chars.slice(0, limit).map((c) => ({
       id: c.id,
@@ -361,7 +379,7 @@ export async function executeSkillListAgents(
 export async function executeSkillChatWithAgent(
   textContent: string,
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<ChatWithAgentResult> {
   const message = (dataContent.message as string) || textContent;
   const roomId = dataContent.roomId as string | undefined;
@@ -372,7 +390,9 @@ export async function executeSkillChatWithAgent(
   if (!agentId && !roomId) throw new Error("agentId or roomId required");
 
   // If we have a roomId, use it directly; otherwise create/get a room for the agent
-  const actualRoomId = roomId || (await agentsService.getOrCreateRoom(entityId || ctx.user.id, agentId!));
+  const actualRoomId =
+    roomId ||
+    (await agentsService.getOrCreateRoom(entityId || ctx.user.id, agentId!));
 
   const response = await agentsService.sendMessage({
     roomId: actualRoomId,
@@ -396,10 +416,12 @@ export async function executeSkillChatWithAgent(
 export async function executeSkillSaveMemory(
   textContent: string,
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<SaveMemoryResult> {
   const content = (dataContent.content as string) || textContent;
-  const type = (dataContent.type as "fact" | "preference" | "context" | "document") || "fact";
+  const type =
+    (dataContent.type as "fact" | "preference" | "context" | "document") ||
+    "fact";
   const roomId = dataContent.roomId as string;
   const tags = dataContent.tags as string[] | undefined;
   const metadata = dataContent.metadata as Record<string, unknown> | undefined;
@@ -435,14 +457,16 @@ export async function executeSkillSaveMemory(
 export async function executeSkillRetrieveMemories(
   textContent: string,
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<RetrieveMemoriesResult> {
   const query = (dataContent.query as string) || textContent;
   const roomId = dataContent.roomId as string | undefined;
   const type = dataContent.type as string[] | undefined;
   const tags = dataContent.tags as string[] | undefined;
   const limit = Math.min(50, (dataContent.limit as number) || 10);
-  const sortBy = (dataContent.sortBy as "relevance" | "recent" | "importance") || "relevance";
+  const sortBy =
+    (dataContent.sortBy as "relevance" | "recent" | "importance") ||
+    "relevance";
 
   const memories = await memoryService.retrieveMemories({
     organizationId: ctx.user.organization_id,
@@ -473,7 +497,7 @@ export async function executeSkillRetrieveMemories(
  */
 export async function executeSkillCreateConversation(
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<CreateConversationResult> {
   const title = dataContent.title as string;
   const model = (dataContent.model as string) || "gpt-4o";
@@ -498,7 +522,12 @@ export async function executeSkillCreateConversation(
     settings: { systemPrompt },
   });
 
-  return { conversationId: conv.id, title: conv.title, model: conv.model, cost: COST };
+  return {
+    conversationId: conv.id,
+    title: conv.title,
+    model: conv.model,
+    cost: COST,
+  };
 }
 
 /**
@@ -506,10 +535,12 @@ export async function executeSkillCreateConversation(
  */
 export async function executeSkillListContainers(
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<ListContainersResult> {
   const status = dataContent.status as string | undefined;
-  let containers = await containersService.listByOrganization(ctx.user.organization_id);
+  let containers = await containersService.listByOrganization(
+    ctx.user.organization_id,
+  );
   if (status) containers = containers.filter((c) => c.status === status);
   return {
     containers: containers.map((c) => ({
@@ -528,7 +559,7 @@ export async function executeSkillListContainers(
  */
 export async function executeSkillDeleteMemory(
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<{ success: boolean; memoryId: string }> {
   const memoryId = dataContent.memoryId as string;
   if (!memoryId) throw new Error("memoryId required");
@@ -545,13 +576,16 @@ export async function executeSkillDeleteMemory(
  */
 export async function executeSkillGetConversationContext(
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<{ context: Record<string, unknown> }> {
   const conversationId = dataContent.conversationId as string;
   if (!conversationId) throw new Error("conversationId required");
 
   const conversation = await conversationsService.getById(conversationId);
-  if (!conversation || conversation.organization_id !== ctx.user.organization_id) {
+  if (
+    !conversation ||
+    conversation.organization_id !== ctx.user.organization_id
+  ) {
     throw new Error("Conversation not found");
   }
 
@@ -573,7 +607,7 @@ export async function executeSkillGetConversationContext(
 export async function executeSkillVideoGeneration(
   textContent: string,
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<VideoGenerationResult> {
   const prompt = (dataContent.prompt as string) || textContent;
   const model = (dataContent.model as string) || "google/veo3";
@@ -620,7 +654,7 @@ export async function executeSkillVideoGeneration(
  * Get user profile skill
  */
 export async function executeSkillGetUserProfile(
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<{ user: Record<string, unknown> }> {
   return {
     user: {
@@ -632,7 +666,6 @@ export async function executeSkillGetUserProfile(
     },
   };
 }
-
 
 /**
  * Storage upload result
@@ -684,26 +717,29 @@ export interface StorageStatsResult {
  */
 export async function executeSkillStorageUpload(
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<StorageUploadResult> {
   const content = dataContent.content as string;
   const filename = (dataContent.filename as string) || "file.bin";
-  const contentType = (dataContent.contentType as string) || "application/octet-stream";
+  const contentType =
+    (dataContent.contentType as string) || "application/octet-stream";
   const pinToIPFS = (dataContent.pinToIPFS as boolean) ?? true;
-  
+
   if (!content) {
     throw new Error("Content required (base64 encoded)");
   }
-  
+
   // Decode base64 content
   const buffer = Buffer.from(content, "base64");
   const cost = calculateUploadCost(buffer.length);
-  
+
   // Check balance
   if (Number(ctx.user.organization.credit_balance) < cost) {
-    throw new Error(`Insufficient credits: need ${formatPrice(cost)}, have ${formatPrice(Number(ctx.user.organization.credit_balance))}`);
+    throw new Error(
+      `Insufficient credits: need ${formatPrice(cost)}, have ${formatPrice(Number(ctx.user.organization.credit_balance))}`,
+    );
   }
-  
+
   // Deduct credits
   const deduction = await creditsService.deductCredits({
     organizationId: ctx.user.organization_id,
@@ -711,11 +747,11 @@ export async function executeSkillStorageUpload(
     description: `A2A storage upload: ${filename}`,
     metadata: { user_id: ctx.user.id, filename, size: buffer.length },
   });
-  
+
   if (!deduction.success) {
     throw new Error("Credit deduction failed");
   }
-  
+
   // Upload
   const result = await storageService.upload(buffer, {
     filename,
@@ -723,7 +759,7 @@ export async function executeSkillStorageUpload(
     ownerAddress: ctx.user.id,
     pinToIPFS,
   });
-  
+
   return {
     id: result.id,
     url: result.url,
@@ -741,19 +777,19 @@ export async function executeSkillStorageUpload(
  */
 export async function executeSkillStorageList(
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<StorageListResult> {
   const limit = Math.min(100, (dataContent.limit as number) || 50);
   const cursor = dataContent.cursor as string | undefined;
-  
+
   const result = await storageService.list({
     ownerAddress: ctx.user.id,
     limit,
     cursor,
   });
-  
+
   return {
-    items: result.items.map(item => ({
+    items: result.items.map((item) => ({
       id: item.id,
       url: item.url,
       pathname: item.pathname,
@@ -770,11 +806,11 @@ export async function executeSkillStorageList(
  * Get storage stats skill
  */
 export async function executeSkillStorageStats(
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<StorageStatsResult> {
   const stats = await storageService.getStats(ctx.user.id);
   const pricing = storageService.getPricing();
-  
+
   return {
     ...stats,
     pricing,
@@ -785,16 +821,16 @@ export async function executeSkillStorageStats(
  * Calculate storage cost skill
  */
 export async function executeSkillStorageCalculateCost(
-  dataContent: Record<string, unknown>
+  dataContent: Record<string, unknown>,
 ): Promise<{ sizeBytes: number; cost: number; costFormatted: string }> {
   const sizeBytes = dataContent.sizeBytes as number;
-  
+
   if (!sizeBytes || sizeBytes <= 0) {
     throw new Error("sizeBytes required and must be positive");
   }
-  
+
   const cost = calculateUploadCost(sizeBytes);
-  
+
   return {
     sizeBytes,
     cost,
@@ -807,26 +843,26 @@ export async function executeSkillStorageCalculateCost(
  */
 export async function executeSkillStoragePin(
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<{ id: string; cid: string; status: string; gatewayUrl: string }> {
   const cid = dataContent.cid as string;
   const name = (dataContent.name as string) || cid;
-  
+
   if (!cid) {
     throw new Error("CID required");
   }
-  
+
   // Check IPFS health
   const health = await ipfsService.health().catch(() => null);
   if (!health) {
     throw new Error("IPFS service unavailable");
   }
-  
+
   const result = await ipfsService.pin({
     cid,
     name,
   });
-  
+
   return {
     id: result.id,
     cid: result.cid,
@@ -834,7 +870,6 @@ export async function executeSkillStoragePin(
     gatewayUrl: ipfsService.getGatewayUrl(result.cid),
   };
 }
-
 
 /**
  * N8N workflow result types
@@ -863,14 +898,16 @@ export interface N8nWorkflowListResult {
 export async function executeSkillN8nCreateWorkflow(
   textContent: string,
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<N8nWorkflowResult> {
   const { n8nWorkflowsService } = await import("@/lib/services/n8n-workflows");
   const { appsService } = await import("@/lib/services/apps");
 
   const name = (dataContent.name as string) || textContent;
   const description = dataContent.description as string | undefined;
-  const workflowData = dataContent.workflowData as Record<string, unknown> | undefined;
+  const workflowData = dataContent.workflowData as
+    | Record<string, unknown>
+    | undefined;
   const tags = dataContent.tags as string[] | undefined;
 
   if (!name) {
@@ -908,17 +945,24 @@ export async function executeSkillN8nCreateWorkflow(
  */
 export async function executeSkillN8nListWorkflows(
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<N8nWorkflowListResult> {
   const { n8nWorkflowsService } = await import("@/lib/services/n8n-workflows");
 
-  const status = dataContent.status as "draft" | "active" | "archived" | undefined;
+  const status = dataContent.status as
+    | "draft"
+    | "active"
+    | "archived"
+    | undefined;
   const limit = Math.min(50, (dataContent.limit as number) || 20);
 
-  const workflows = await n8nWorkflowsService.listWorkflows(ctx.user.organization_id, {
-    status,
-    limit,
-  });
+  const workflows = await n8nWorkflowsService.listWorkflows(
+    ctx.user.organization_id,
+    {
+      status,
+      limit,
+    },
+  );
 
   return {
     workflows: workflows.map((w) => ({
@@ -938,8 +982,13 @@ export async function executeSkillN8nListWorkflows(
 export async function executeSkillN8nGenerateWorkflow(
   textContent: string,
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
-): Promise<{ workflow: Record<string, unknown>; cost: number; savedWorkflow?: { id: string; name: string }; validation?: { valid: boolean; errors: string[]; warnings: string[] } }> {
+  ctx: A2AContext,
+): Promise<{
+  workflow: Record<string, unknown>;
+  cost: number;
+  savedWorkflow?: { id: string; name: string };
+  validation?: { valid: boolean; errors: string[]; warnings: string[] };
+}> {
   const prompt = (dataContent.prompt as string) || textContent;
   const context = dataContent.context as Record<string, unknown> | undefined;
   const autoSave = (dataContent.autoSave as boolean) || false;
@@ -952,11 +1001,13 @@ export async function executeSkillN8nGenerateWorkflow(
 
   // Import services for context
   const { n8nWorkflowsService } = await import("@/lib/services/n8n-workflows");
-  const { endpointDiscoveryService } = await import("@/lib/services/endpoint-discovery");
+  const { endpointDiscoveryService } =
+    await import("@/lib/services/endpoint-discovery");
 
   // Discover endpoints and get context
-  const availableEndpoints = await endpointDiscoveryService.discoverAllEndpoints();
-  const endpointNodes = availableEndpoints.map(e => ({
+  const availableEndpoints =
+    await endpointDiscoveryService.discoverAllEndpoints();
+  const endpointNodes = availableEndpoints.map((e) => ({
     id: e.id,
     name: e.name,
     description: e.description,
@@ -966,17 +1017,22 @@ export async function executeSkillN8nGenerateWorkflow(
     method: e.method,
   }));
 
-  const existingWorkflows = await n8nWorkflowsService.listWorkflows(ctx.user.organization_id, { limit: 10 });
-  const workflowContext = existingWorkflows.map(w => ({
+  const existingWorkflows = await n8nWorkflowsService.listWorkflows(
+    ctx.user.organization_id,
+    { limit: 10 },
+  );
+  const workflowContext = existingWorkflows.map((w) => ({
     id: w.id,
     name: w.name,
     description: w.description,
     tags: w.tags,
   }));
 
-  const globalVariables = await n8nWorkflowsService.getGlobalVariables(ctx.user.organization_id);
+  const globalVariables = await n8nWorkflowsService.getGlobalVariables(
+    ctx.user.organization_id,
+  );
   const variablesContext = Object.fromEntries(
-    globalVariables.map(v => [v.name, v.is_secret ? "***" : v.value])
+    globalVariables.map((v) => [v.name, v.is_secret ? "***" : v.value]),
   );
 
   const baseUrl = BASE_URL;
@@ -1007,8 +1063,12 @@ export async function executeSkillN8nGenerateWorkflow(
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: "Unknown error" }));
-    throw new Error(`Failed to generate workflow: ${error.error || response.statusText}`);
+    const error = await response
+      .json()
+      .catch(() => ({ error: "Unknown error" }));
+    throw new Error(
+      `Failed to generate workflow: ${error.error || response.statusText}`,
+    );
   }
 
   const result = await response.json();
@@ -1027,7 +1087,7 @@ export async function executeSkillN8nGenerateWorkflow(
 export async function executeSkillFragmentGenerate(
   textContent: string,
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<FragmentGenerationResult> {
   const prompt = (dataContent.prompt as string) || textContent;
   const template = (dataContent.template as string) || "auto";
@@ -1063,8 +1123,12 @@ export async function executeSkillFragmentGenerate(
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: "Unknown error" }));
-    throw new Error(`Failed to generate fragment: ${error.error || response.statusText}`);
+    const error = await response
+      .json()
+      .catch(() => ({ error: "Unknown error" }));
+    throw new Error(
+      `Failed to generate fragment: ${error.error || response.statusText}`,
+    );
   }
 
   // Parse streaming response
@@ -1119,7 +1183,7 @@ export async function executeSkillFragmentGenerate(
 export async function executeSkillFragmentExecute(
   textContent: string,
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<FragmentExecutionResult> {
   const fragment = dataContent.fragment as Record<string, unknown>;
 
@@ -1146,8 +1210,12 @@ export async function executeSkillFragmentExecute(
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: "Unknown error" }));
-    throw new Error(`Failed to execute fragment: ${error.error || response.statusText}`);
+    const error = await response
+      .json()
+      .catch(() => ({ error: "Unknown error" }));
+    throw new Error(
+      `Failed to execute fragment: ${error.error || response.statusText}`,
+    );
   }
 
   const result = await response.json();
@@ -1166,7 +1234,7 @@ export async function executeSkillFragmentExecute(
 export async function executeSkillFragmentListProjects(
   textContent: string,
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<FragmentProjectListResult> {
   const baseUrl = BASE_URL;
   const apiKey = process.env.ELIZA_CLOUD_API_KEY;
@@ -1182,16 +1250,23 @@ export async function executeSkillFragmentListProjects(
   if (status) searchParams.set("status", status);
   if (userId) searchParams.set("userId", userId);
 
-  const response = await fetch(`${baseUrl}/api/v1/fragments/projects?${searchParams.toString()}`, {
-    method: "GET",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
+  const response = await fetch(
+    `${baseUrl}/api/v1/fragments/projects?${searchParams.toString()}`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+      },
     },
-  });
+  );
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: "Unknown error" }));
-    throw new Error(`Failed to list projects: ${error.error || response.statusText}`);
+    const error = await response
+      .json()
+      .catch(() => ({ error: "Unknown error" }));
+    throw new Error(
+      `Failed to list projects: ${error.error || response.statusText}`,
+    );
   }
 
   const data = await response.json();
@@ -1208,7 +1283,7 @@ export async function executeSkillFragmentListProjects(
 export async function executeSkillFragmentCreateProject(
   textContent: string,
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<FragmentProjectResult> {
   const baseUrl = BASE_URL;
   const apiKey = process.env.ELIZA_CLOUD_API_KEY;
@@ -1239,8 +1314,12 @@ export async function executeSkillFragmentCreateProject(
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: "Unknown error" }));
-    throw new Error(`Failed to create project: ${error.error || response.statusText}`);
+    const error = await response
+      .json()
+      .catch(() => ({ error: "Unknown error" }));
+    throw new Error(
+      `Failed to create project: ${error.error || response.statusText}`,
+    );
   }
 
   const data = await response.json();
@@ -1256,7 +1335,7 @@ export async function executeSkillFragmentCreateProject(
 export async function executeSkillFragmentGetProject(
   textContent: string,
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<FragmentProjectResult> {
   const baseUrl = BASE_URL;
   const apiKey = process.env.ELIZA_CLOUD_API_KEY;
@@ -1271,16 +1350,23 @@ export async function executeSkillFragmentGetProject(
     throw new Error("Project ID is required");
   }
 
-  const response = await fetch(`${baseUrl}/api/v1/fragments/projects/${projectId}`, {
-    method: "GET",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
+  const response = await fetch(
+    `${baseUrl}/api/v1/fragments/projects/${projectId}`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+      },
     },
-  });
+  );
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: "Unknown error" }));
-    throw new Error(`Failed to get project: ${error.error || response.statusText}`);
+    const error = await response
+      .json()
+      .catch(() => ({ error: "Unknown error" }));
+    throw new Error(
+      `Failed to get project: ${error.error || response.statusText}`,
+    );
   }
 
   const data = await response.json();
@@ -1296,7 +1382,7 @@ export async function executeSkillFragmentGetProject(
 export async function executeSkillFragmentUpdateProject(
   textContent: string,
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<FragmentProjectResult> {
   const baseUrl = BASE_URL;
   const apiKey = process.env.ELIZA_CLOUD_API_KEY;
@@ -1309,7 +1395,11 @@ export async function executeSkillFragmentUpdateProject(
   const name = dataContent.name as string | undefined;
   const description = dataContent.description as string | undefined;
   const fragment = dataContent.fragment as Record<string, unknown> | undefined;
-  const status = dataContent.status as "draft" | "deployed" | "archived" | undefined;
+  const status = dataContent.status as
+    | "draft"
+    | "deployed"
+    | "archived"
+    | undefined;
 
   if (!projectId) {
     throw new Error("Project ID is required");
@@ -1321,18 +1411,25 @@ export async function executeSkillFragmentUpdateProject(
   if (fragment !== undefined) updateData.fragment = fragment;
   if (status !== undefined) updateData.status = status;
 
-  const response = await fetch(`${baseUrl}/api/v1/fragments/projects/${projectId}`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
+  const response = await fetch(
+    `${baseUrl}/api/v1/fragments/projects/${projectId}`,
+    {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify(updateData),
     },
-    body: JSON.stringify(updateData),
-  });
+  );
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: "Unknown error" }));
-    throw new Error(`Failed to update project: ${error.error || response.statusText}`);
+    const error = await response
+      .json()
+      .catch(() => ({ error: "Unknown error" }));
+    throw new Error(
+      `Failed to update project: ${error.error || response.statusText}`,
+    );
   }
 
   const data = await response.json();
@@ -1348,7 +1445,7 @@ export async function executeSkillFragmentUpdateProject(
 export async function executeSkillFragmentDeleteProject(
   textContent: string,
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<{ success: boolean; message: string }> {
   const baseUrl = BASE_URL;
   const apiKey = process.env.ELIZA_CLOUD_API_KEY;
@@ -1363,16 +1460,23 @@ export async function executeSkillFragmentDeleteProject(
     throw new Error("Project ID is required");
   }
 
-  const response = await fetch(`${baseUrl}/api/v1/fragments/projects/${projectId}`, {
-    method: "DELETE",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
+  const response = await fetch(
+    `${baseUrl}/api/v1/fragments/projects/${projectId}`,
+    {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+      },
     },
-  });
+  );
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: "Unknown error" }));
-    throw new Error(`Failed to delete project: ${error.error || response.statusText}`);
+    const error = await response
+      .json()
+      .catch(() => ({ error: "Unknown error" }));
+    throw new Error(
+      `Failed to delete project: ${error.error || response.statusText}`,
+    );
   }
 
   return {
@@ -1387,7 +1491,7 @@ export async function executeSkillFragmentDeleteProject(
 export async function executeSkillFragmentDeployProject(
   textContent: string,
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<FragmentDeploymentResult> {
   const baseUrl = BASE_URL;
   const apiKey = process.env.ELIZA_CLOUD_API_KEY;
@@ -1422,18 +1526,25 @@ export async function executeSkillFragmentDeployProject(
     if (port) deployData.port = port;
   }
 
-  const response = await fetch(`${baseUrl}/api/v1/fragments/projects/${projectId}/deploy`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
+  const response = await fetch(
+    `${baseUrl}/api/v1/fragments/projects/${projectId}/deploy`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify(deployData),
     },
-    body: JSON.stringify(deployData),
-  });
+  );
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: "Unknown error" }));
-    throw new Error(`Failed to deploy project: ${error.error || response.statusText}`);
+    const error = await response
+      .json()
+      .catch(() => ({ error: "Unknown error" }));
+    throw new Error(
+      `Failed to deploy project: ${error.error || response.statusText}`,
+    );
   }
 
   const data = await response.json();
@@ -1442,7 +1553,6 @@ export async function executeSkillFragmentDeployProject(
     deployment: data.deployment,
   };
 }
-
 
 /**
  * Marketplace discovery result type
@@ -1498,9 +1608,10 @@ export interface MarketplaceTagsResult {
 export async function executeSkillMarketplaceDiscover(
   textContent: string,
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<MarketplaceDiscoveryResult> {
-  const { erc8004MarketplaceService } = await import("@/lib/services/erc8004-marketplace");
+  const { erc8004MarketplaceService } =
+    await import("@/lib/services/erc8004-marketplace");
 
   const query = (dataContent.query as string) || textContent || undefined;
   const types = dataContent.types as string[] | undefined;
@@ -1533,7 +1644,7 @@ export async function executeSkillMarketplaceDiscover(
       sortBy: sortBy as "relevance" | "popularity" | "recent" | "name",
       order: "desc",
     },
-    { page, limit }
+    { page, limit },
   );
 
   return {
@@ -1599,15 +1710,21 @@ export async function executeSkillMarketplaceGetTags(): Promise<MarketplaceTagsR
  */
 export async function executeSkillMarketplaceFindByTags(
   textContent: string,
-  dataContent: Record<string, unknown>
+  dataContent: Record<string, unknown>,
 ): Promise<MarketplaceDiscoveryResult> {
-  const { erc8004MarketplaceService } = await import("@/lib/services/erc8004-marketplace");
+  const { erc8004MarketplaceService } =
+    await import("@/lib/services/erc8004-marketplace");
 
-  const tags = (dataContent.tags as string[]) || textContent.split(",").map((t) => t.trim());
+  const tags =
+    (dataContent.tags as string[]) ||
+    textContent.split(",").map((t) => t.trim());
   const limit = Math.min(20, (dataContent.limit as number) || 10);
   const activeOnly = (dataContent.activeOnly as boolean) ?? true;
 
-  const items = await erc8004MarketplaceService.getByTags(tags, { limit, activeOnly });
+  const items = await erc8004MarketplaceService.getByTags(tags, {
+    limit,
+    activeOnly,
+  });
 
   return {
     items: items.map((item) => ({
@@ -1644,11 +1761,14 @@ export async function executeSkillMarketplaceFindByTags(
  */
 export async function executeSkillMarketplaceFindByMCPTools(
   textContent: string,
-  dataContent: Record<string, unknown>
+  dataContent: Record<string, unknown>,
 ): Promise<MarketplaceDiscoveryResult> {
-  const { erc8004MarketplaceService } = await import("@/lib/services/erc8004-marketplace");
+  const { erc8004MarketplaceService } =
+    await import("@/lib/services/erc8004-marketplace");
 
-  const tools = (dataContent.tools as string[]) || textContent.split(",").map((t) => t.trim());
+  const tools =
+    (dataContent.tools as string[]) ||
+    textContent.split(",").map((t) => t.trim());
   const limit = Math.min(20, (dataContent.limit as number) || 10);
 
   const items = await erc8004MarketplaceService.getByMCPTools(tools, { limit });
@@ -1688,14 +1808,18 @@ export async function executeSkillMarketplaceFindByMCPTools(
  */
 export async function executeSkillMarketplaceFindPayable(
   textContent: string,
-  dataContent: Record<string, unknown>
+  dataContent: Record<string, unknown>,
 ): Promise<MarketplaceDiscoveryResult> {
-  const { erc8004MarketplaceService } = await import("@/lib/services/erc8004-marketplace");
+  const { erc8004MarketplaceService } =
+    await import("@/lib/services/erc8004-marketplace");
 
   const type = dataContent.type as "agent" | "mcp" | "app" | undefined;
   const limit = Math.min(20, (dataContent.limit as number) || 10);
 
-  const items = await erc8004MarketplaceService.getPayableServices({ type, limit });
+  const items = await erc8004MarketplaceService.getPayableServices({
+    type,
+    limit,
+  });
 
   return {
     items: items.map((item) => ({
@@ -1726,7 +1850,6 @@ export async function executeSkillMarketplaceFindPayable(
   };
 }
 
-
 /**
  * Start a full app builder session skill
  * Creates a Vercel sandbox with a Next.js template for building complete multi-file apps
@@ -1734,14 +1857,21 @@ export async function executeSkillMarketplaceFindPayable(
 export async function executeSkillFullAppBuilderStart(
   textContent: string,
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<FullAppBuilderSessionResult> {
   const { aiAppBuilderService } = await import("@/lib/services/ai-app-builder");
 
   const appName = (dataContent.appName as string) || textContent;
   const appDescription = dataContent.appDescription as string | undefined;
-  const templateType = (dataContent.templateType as "chat" | "agent-dashboard" | "landing-page" | "analytics" | "blank") || "blank";
-  const includeMonetization = (dataContent.includeMonetization as boolean) || false;
+  const templateType =
+    (dataContent.templateType as
+      | "chat"
+      | "agent-dashboard"
+      | "landing-page"
+      | "analytics"
+      | "blank") || "blank";
+  const includeMonetization =
+    (dataContent.includeMonetization as boolean) || false;
   const includeAnalytics = (dataContent.includeAnalytics as boolean) ?? true;
 
   const session = await aiAppBuilderService.startSession({
@@ -1770,7 +1900,7 @@ export async function executeSkillFullAppBuilderStart(
 export async function executeSkillFullAppBuilderPrompt(
   textContent: string,
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<FullAppBuilderPromptResult> {
   const { aiAppBuilderService } = await import("@/lib/services/ai-app-builder");
 
@@ -1785,7 +1915,11 @@ export async function executeSkillFullAppBuilderPrompt(
     throw new Error("prompt is required");
   }
 
-  const result = await aiAppBuilderService.sendPrompt(sessionId, prompt, ctx.user.id);
+  const result = await aiAppBuilderService.sendPrompt(
+    sessionId,
+    prompt,
+    ctx.user.id,
+  );
 
   return {
     success: result.success,
@@ -1802,7 +1936,7 @@ export async function executeSkillFullAppBuilderPrompt(
 export async function executeSkillFullAppBuilderStatus(
   textContent: string,
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<FullAppBuilderStatusResult> {
   const { aiAppBuilderService } = await import("@/lib/services/ai-app-builder");
   const { db } = await import("@/db/client");
@@ -1826,7 +1960,8 @@ export async function executeSkillFullAppBuilderStatus(
     where: eq(appSandboxSessions.id, sessionId),
   });
 
-  const generatedFiles = (dbSession?.generated_files as Array<{ path: string }>) || [];
+  const generatedFiles =
+    (dbSession?.generated_files as Array<{ path: string }>) || [];
 
   return {
     sessionId: session.id,
@@ -1849,7 +1984,7 @@ export async function executeSkillFullAppBuilderStatus(
 export async function executeSkillFullAppBuilderStop(
   textContent: string,
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<{ success: boolean; message: string }> {
   const { aiAppBuilderService } = await import("@/lib/services/ai-app-builder");
 
@@ -1874,7 +2009,7 @@ export async function executeSkillFullAppBuilderStop(
 export async function executeSkillFullAppBuilderExtend(
   textContent: string,
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<{ success: boolean; message: string; expiresIn: number }> {
   const { aiAppBuilderService } = await import("@/lib/services/ai-app-builder");
 
@@ -1901,7 +2036,7 @@ export async function executeSkillFullAppBuilderExtend(
  */
 export async function executeSkillFullAppBuilderListSessions(
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<{
   sessions: Array<{
     id: string;
@@ -1942,14 +2077,14 @@ export async function executeSkillFullAppBuilderListSessions(
 
 /**
  * Execute N8N workflow via A2A/MCP trigger
- * 
+ *
  * This skill allows triggering N8N workflows that have been configured
  * with A2A or MCP trigger types.
  */
 export async function executeSkillN8nTriggerWorkflow(
   textContent: string,
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<{
   executionId: string;
   status: string;
@@ -1961,21 +2096,24 @@ export async function executeSkillN8nTriggerWorkflow(
   // Find trigger by key or workflow ID
   const triggerKey = dataContent.triggerKey as string | undefined;
   const workflowId = dataContent.workflowId as string | undefined;
-  const inputData = dataContent.inputData as Record<string, unknown> | undefined;
+  const inputData = dataContent.inputData as
+    | Record<string, unknown>
+    | undefined;
 
   if (!triggerKey && !workflowId) {
     throw new Error("Either triggerKey or workflowId is required");
   }
 
   let trigger;
-  
+
   if (triggerKey) {
     trigger = await n8nWorkflowsService.findTriggerByKey(triggerKey);
   } else if (workflowId) {
     // Find an active A2A or MCP trigger for this workflow
     const triggers = await n8nWorkflowsService.listTriggers(workflowId);
     trigger = triggers.find(
-      t => t.is_active && (t.trigger_type === "a2a" || t.trigger_type === "mcp")
+      (t) =>
+        t.is_active && (t.trigger_type === "a2a" || t.trigger_type === "mcp"),
     );
   }
 
@@ -1985,12 +2123,16 @@ export async function executeSkillN8nTriggerWorkflow(
 
   // Verify the trigger belongs to the user's organization
   if (trigger.organization_id !== ctx.user.organization_id) {
-    throw new Error("Unauthorized: Trigger belongs to a different organization");
+    throw new Error(
+      "Unauthorized: Trigger belongs to a different organization",
+    );
   }
 
   // Verify trigger type is A2A or MCP
   if (trigger.trigger_type !== "a2a" && trigger.trigger_type !== "mcp") {
-    throw new Error(`Invalid trigger type: ${trigger.trigger_type}. Use webhook endpoint for webhook triggers.`);
+    throw new Error(
+      `Invalid trigger type: ${trigger.trigger_type}. Use webhook endpoint for webhook triggers.`,
+    );
   }
 
   // Merge text content as message if provided
@@ -2006,7 +2148,7 @@ export async function executeSkillN8nTriggerWorkflow(
 
   const execution = await n8nWorkflowsService.executeWorkflowTrigger(
     trigger.id,
-    finalInputData
+    finalInputData,
   );
 
   return {
@@ -2023,7 +2165,7 @@ export async function executeSkillN8nTriggerWorkflow(
  */
 export async function executeSkillN8nListTriggers(
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<{
   triggers: Array<{
     id: string;
@@ -2036,32 +2178,36 @@ export async function executeSkillN8nListTriggers(
   }>;
   total: number;
 }> {
-  const { n8nWorkflowTriggersRepository } = await import("@/db/repositories/n8n-workflows");
+  const { n8nWorkflowTriggersRepository } =
+    await import("@/db/repositories/n8n-workflows");
 
   const workflowId = dataContent.workflowId as string | undefined;
   const triggerType = dataContent.triggerType as string | undefined;
 
   let triggers;
-  
+
   if (workflowId) {
     triggers = await n8nWorkflowTriggersRepository.findByWorkflow(workflowId);
   } else {
-    triggers = await n8nWorkflowTriggersRepository.findByOrganization(ctx.user.organization_id);
+    triggers = await n8nWorkflowTriggersRepository.findByOrganization(
+      ctx.user.organization_id,
+    );
   }
 
   // Filter by trigger type if specified
   if (triggerType) {
-    triggers = triggers.filter(t => t.trigger_type === triggerType);
+    triggers = triggers.filter((t) => t.trigger_type === triggerType);
   }
 
   return {
-    triggers: triggers.map(t => ({
+    triggers: triggers.map((t) => ({
       id: t.id,
       workflowId: t.workflow_id,
       triggerType: t.trigger_type,
-      triggerKey: t.trigger_type === "webhook" 
-        ? t.trigger_key.slice(0, 8) + "..." // Redact webhook keys
-        : t.trigger_key,
+      triggerKey:
+        t.trigger_type === "webhook"
+          ? t.trigger_key.slice(0, 8) + "..." // Redact webhook keys
+          : t.trigger_key,
       isActive: t.is_active,
       executionCount: t.execution_count,
       lastExecutedAt: t.last_executed_at?.toISOString() || null,
@@ -2077,7 +2223,7 @@ export async function executeSkillN8nListTriggers(
 export async function executeSkillN8nCreateTrigger(
   textContent: string,
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<{
   triggerId: string;
   triggerType: string;
@@ -2088,7 +2234,11 @@ export async function executeSkillN8nCreateTrigger(
   const { n8nWorkflowsService } = await import("@/lib/services/n8n-workflows");
 
   const workflowId = dataContent.workflowId as string;
-  const triggerType = dataContent.triggerType as "cron" | "webhook" | "a2a" | "mcp";
+  const triggerType = dataContent.triggerType as
+    | "cron"
+    | "webhook"
+    | "a2a"
+    | "mcp";
   const triggerKey = dataContent.triggerKey as string | undefined;
   const config = dataContent.config as Record<string, unknown> | undefined;
 
@@ -2115,7 +2265,7 @@ export async function executeSkillN8nCreateTrigger(
     workflowId,
     triggerType,
     triggerKey,
-    config || {}
+    config || {},
   );
 
   const result: {
@@ -2149,7 +2299,7 @@ export async function executeSkillN8nCreateTrigger(
 export async function executeSkillCreateAppTrigger(
   textContent: string,
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<{
   triggerId: string;
   triggerType: string;
@@ -2157,16 +2307,22 @@ export async function executeSkillCreateAppTrigger(
   webhookUrl?: string;
   webhookSecret?: string;
 }> {
-  const { applicationTriggersService } = await import("@/lib/services/application-triggers");
+  const { applicationTriggersService } =
+    await import("@/lib/services/application-triggers");
 
-  const targetType = dataContent.targetType as "fragment_project" | "container" | "user_mcp";
+  const targetType = dataContent.targetType as
+    | "fragment_project"
+    | "container"
+    | "user_mcp";
   const targetId = dataContent.targetId as string;
   const triggerType = dataContent.triggerType as "cron" | "webhook" | "event";
   const name = (dataContent.name as string) || textContent || "Unnamed Trigger";
   const description = dataContent.description as string | undefined;
   const config = dataContent.config as Record<string, unknown> | undefined;
   const actionType = dataContent.actionType as string | undefined;
-  const actionConfig = dataContent.actionConfig as Record<string, unknown> | undefined;
+  const actionConfig = dataContent.actionConfig as
+    | Record<string, unknown>
+    | undefined;
 
   if (!targetType || !targetId) {
     throw new Error("targetType and targetId are required");
@@ -2180,7 +2336,10 @@ export async function executeSkillCreateAppTrigger(
     throw new Error("cronExpression is required for cron triggers");
   }
 
-  if (triggerType === "event" && (!config?.eventTypes || (config.eventTypes as string[]).length === 0)) {
+  if (
+    triggerType === "event" &&
+    (!config?.eventTypes || (config.eventTypes as string[]).length === 0)
+  ) {
     throw new Error("eventTypes is required for event triggers");
   }
 
@@ -2224,7 +2383,7 @@ export async function executeSkillCreateAppTrigger(
  */
 export async function executeSkillListAppTriggers(
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<{
   triggers: Array<{
     id: string;
@@ -2238,25 +2397,39 @@ export async function executeSkillListAppTriggers(
   }>;
   total: number;
 }> {
-  const { applicationTriggersService } = await import("@/lib/services/application-triggers");
+  const { applicationTriggersService } =
+    await import("@/lib/services/application-triggers");
 
-  const targetType = dataContent.targetType as "fragment_project" | "container" | "user_mcp" | undefined;
+  const targetType = dataContent.targetType as
+    | "fragment_project"
+    | "container"
+    | "user_mcp"
+    | undefined;
   const targetId = dataContent.targetId as string | undefined;
-  const triggerType = dataContent.triggerType as "cron" | "webhook" | "event" | undefined;
+  const triggerType = dataContent.triggerType as
+    | "cron"
+    | "webhook"
+    | "event"
+    | undefined;
 
   let triggers;
   if (targetId && targetType) {
-    triggers = await applicationTriggersService.listTriggersByTarget(targetType, targetId);
-    triggers = triggers.filter(t => t.organization_id === ctx.user.organization_id);
+    triggers = await applicationTriggersService.listTriggersByTarget(
+      targetType,
+      targetId,
+    );
+    triggers = triggers.filter(
+      (t) => t.organization_id === ctx.user.organization_id,
+    );
   } else {
     triggers = await applicationTriggersService.listTriggersByOrganization(
       ctx.user.organization_id,
-      { targetType, triggerType }
+      { targetType, triggerType },
     );
   }
 
   return {
-    triggers: triggers.map(t => ({
+    triggers: triggers.map((t) => ({
       id: t.id,
       name: t.name,
       targetType: t.target_type,
@@ -2277,17 +2450,20 @@ export async function executeSkillListAppTriggers(
 export async function executeSkillExecuteAppTrigger(
   textContent: string,
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<{
   executionId: string;
   status: string;
   output?: Record<string, unknown>;
   error?: string;
 }> {
-  const { applicationTriggersService } = await import("@/lib/services/application-triggers");
+  const { applicationTriggersService } =
+    await import("@/lib/services/application-triggers");
 
   const triggerId = dataContent.triggerId as string;
-  const inputData = dataContent.inputData as Record<string, unknown> | undefined;
+  const inputData = dataContent.inputData as
+    | Record<string, unknown>
+    | undefined;
 
   if (!triggerId) {
     throw new Error("triggerId is required");
@@ -2299,7 +2475,9 @@ export async function executeSkillExecuteAppTrigger(
   }
 
   if (trigger.organization_id !== ctx.user.organization_id) {
-    throw new Error("Unauthorized: Trigger belongs to a different organization");
+    throw new Error(
+      "Unauthorized: Trigger belongs to a different organization",
+    );
   }
 
   const result = await applicationTriggersService.executeTrigger(
@@ -2313,7 +2491,7 @@ export async function executeSkillExecuteAppTrigger(
         agentIdentifier: ctx.agentIdentifier,
       },
     },
-    "manual"
+    "manual",
   );
 
   return result;
@@ -2327,7 +2505,7 @@ export async function executeSkillExecuteAppTrigger(
 export async function executeSkillTelegramSendMessage(
   textContent: string,
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<{
   success: boolean;
   messageId: number;
@@ -2346,8 +2524,12 @@ export async function executeSkillTelegramSendMessage(
   // Get connection ID
   let connId = connectionId;
   if (!connId) {
-    const connections = await botsService.getConnections(ctx.user.organization_id);
-    const telegramConn = connections.find(c => c.platform === "telegram" && c.status === "active");
+    const connections = await botsService.getConnections(
+      ctx.user.organization_id,
+    );
+    const telegramConn = connections.find(
+      (c) => c.platform === "telegram" && c.status === "active",
+    );
     if (!telegramConn) throw new Error("No active Telegram bot connection");
     connId = telegramConn.id;
   }
@@ -2357,7 +2539,13 @@ export async function executeSkillTelegramSendMessage(
     ctx.user.organization_id,
     chatId,
     text,
-    { parse_mode: dataContent.parseMode as "HTML" | "Markdown" | "MarkdownV2" | undefined }
+    {
+      parse_mode: dataContent.parseMode as
+        | "HTML"
+        | "Markdown"
+        | "MarkdownV2"
+        | undefined,
+    },
   );
 
   return {
@@ -2372,7 +2560,7 @@ export async function executeSkillTelegramSendMessage(
  */
 export async function executeSkillTelegramListChats(
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<{
   chats: Array<{ chatId: string; name: string; enabled: boolean }>;
   count: number;
@@ -2384,16 +2572,23 @@ export async function executeSkillTelegramListChats(
 
   let connId = connectionId;
   if (!connId) {
-    const connections = await botsService.getConnections(ctx.user.organization_id);
-    const telegramConn = connections.find(c => c.platform === "telegram" && c.status === "active");
+    const connections = await botsService.getConnections(
+      ctx.user.organization_id,
+    );
+    const telegramConn = connections.find(
+      (c) => c.platform === "telegram" && c.status === "active",
+    );
     if (!telegramConn) throw new Error("No active Telegram bot connection");
     connId = telegramConn.id;
   }
 
-  const chats = await telegramService.listChats(connId, ctx.user.organization_id);
+  const chats = await telegramService.listChats(
+    connId,
+    ctx.user.organization_id,
+  );
 
   return {
-    chats: chats.map(c => ({
+    chats: chats.map((c) => ({
       chatId: c.chatId,
       name: c.name,
       enabled: c.enabled,
@@ -2405,9 +2600,7 @@ export async function executeSkillTelegramListChats(
 /**
  * List connected Telegram bots
  */
-export async function executeSkillTelegramListBots(
-  ctx: A2AContext
-): Promise<{
+export async function executeSkillTelegramListBots(ctx: A2AContext): Promise<{
   bots: Array<{
     id: string;
     botId: string | null;
@@ -2418,11 +2611,13 @@ export async function executeSkillTelegramListBots(
 }> {
   const { botsService } = await import("@/lib/services/bots");
 
-  const connections = await botsService.getConnections(ctx.user.organization_id);
-  const telegramBots = connections.filter(c => c.platform === "telegram");
+  const connections = await botsService.getConnections(
+    ctx.user.organization_id,
+  );
+  const telegramBots = connections.filter((c) => c.platform === "telegram");
 
   return {
-    bots: telegramBots.map(b => ({
+    bots: telegramBots.map((b) => ({
       id: b.id,
       botId: b.platform_bot_id,
       botUsername: b.platform_bot_username,
@@ -2440,7 +2635,7 @@ export async function executeSkillTelegramListBots(
 export async function executeSkillCreateTask(
   textContent: string,
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<{
   success: boolean;
   task: {
@@ -2459,10 +2654,20 @@ export async function executeSkillCreateTask(
     organizationId: ctx.user.organization_id,
     title,
     description: dataContent.description as string | undefined,
-    priority: dataContent.priority as "low" | "medium" | "high" | "urgent" | undefined,
-    dueDate: dataContent.dueDate ? new Date(dataContent.dueDate as string) : undefined,
+    priority: dataContent.priority as
+      | "low"
+      | "medium"
+      | "high"
+      | "urgent"
+      | undefined,
+    dueDate: dataContent.dueDate
+      ? new Date(dataContent.dueDate as string)
+      : undefined,
     assigneePlatformId: dataContent.assigneePlatformId as string | undefined,
-    assigneePlatform: dataContent.assigneePlatform as "discord" | "telegram" | undefined,
+    assigneePlatform: dataContent.assigneePlatform as
+      | "discord"
+      | "telegram"
+      | undefined,
     assigneeName: dataContent.assigneeName as string | undefined,
     tags: dataContent.tags as string[] | undefined,
     createdByUserId: ctx.user.id,
@@ -2485,7 +2690,7 @@ export async function executeSkillCreateTask(
  */
 export async function executeSkillListTasks(
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<{
   tasks: Array<{
     id: string;
@@ -2499,13 +2704,23 @@ export async function executeSkillListTasks(
   const { tasksService } = await import("@/lib/services/tasks");
 
   const result = await tasksService.list(ctx.user.organization_id, {
-    status: dataContent.status as "pending" | "in_progress" | "completed" | "cancelled" | undefined,
-    priority: dataContent.priority as "low" | "medium" | "high" | "urgent" | undefined,
+    status: dataContent.status as
+      | "pending"
+      | "in_progress"
+      | "completed"
+      | "cancelled"
+      | undefined,
+    priority: dataContent.priority as
+      | "low"
+      | "medium"
+      | "high"
+      | "urgent"
+      | undefined,
     limit: (dataContent.limit as number) || 20,
   });
 
   return {
-    tasks: result.items.map(t => ({
+    tasks: result.items.map((t) => ({
       id: t.id,
       title: t.title,
       status: t.status,
@@ -2522,7 +2737,7 @@ export async function executeSkillListTasks(
 export async function executeSkillUpdateTask(
   _textContent: string,
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<{
   success: boolean;
   task: {
@@ -2539,8 +2754,18 @@ export async function executeSkillUpdateTask(
   const task = await tasksService.update(taskId, ctx.user.organization_id, {
     title: dataContent.title as string | undefined,
     description: dataContent.description as string | undefined,
-    status: dataContent.status as "pending" | "in_progress" | "completed" | "cancelled" | undefined,
-    priority: dataContent.priority as "low" | "medium" | "high" | "urgent" | undefined,
+    status: dataContent.status as
+      | "pending"
+      | "in_progress"
+      | "completed"
+      | "cancelled"
+      | undefined,
+    priority: dataContent.priority as
+      | "low"
+      | "medium"
+      | "high"
+      | "urgent"
+      | undefined,
   });
 
   if (!task) throw new Error("Task not found");
@@ -2561,7 +2786,7 @@ export async function executeSkillUpdateTask(
 export async function executeSkillCompleteTask(
   _textContent: string,
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<{
   success: boolean;
   task: { id: string; status: string };
@@ -2586,9 +2811,7 @@ export async function executeSkillCompleteTask(
 /**
  * Get task statistics
  */
-export async function executeSkillGetTaskStats(
-  ctx: A2AContext
-): Promise<{
+export async function executeSkillGetTaskStats(ctx: A2AContext): Promise<{
   total: number;
   pending: number;
   inProgress: number;
@@ -2613,7 +2836,7 @@ export async function executeSkillGetTaskStats(
 export async function executeSkillCreateCheckinSchedule(
   _textContent: string,
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<{
   success: boolean;
   schedule: {
@@ -2639,8 +2862,20 @@ export async function executeSkillCreateCheckinSchedule(
     organizationId: ctx.user.organization_id,
     serverId,
     name,
-    checkinType: dataContent.checkinType as "standup" | "sprint" | "mental_health" | "project_status" | "retrospective" | undefined,
-    frequency: dataContent.frequency as "daily" | "weekdays" | "weekly" | "bi_weekly" | "monthly" | undefined,
+    checkinType: dataContent.checkinType as
+      | "standup"
+      | "sprint"
+      | "mental_health"
+      | "project_status"
+      | "retrospective"
+      | undefined,
+    frequency: dataContent.frequency as
+      | "daily"
+      | "weekdays"
+      | "weekly"
+      | "bi_weekly"
+      | "monthly"
+      | undefined,
     timeUtc,
     checkinChannelId,
     questions: dataContent.questions as string[] | undefined,
@@ -2663,7 +2898,7 @@ export async function executeSkillCreateCheckinSchedule(
  */
 export async function executeSkillListCheckinSchedules(
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<{
   schedules: Array<{
     id: string;
@@ -2677,13 +2912,13 @@ export async function executeSkillListCheckinSchedules(
   const { checkinsService } = await import("@/lib/services/checkins");
 
   const serverId = dataContent.serverId as string | undefined;
-  
+
   const schedules = serverId
     ? await checkinsService.listServerSchedules(serverId)
     : await checkinsService.listSchedules(ctx.user.organization_id);
 
   return {
-    schedules: schedules.map(s => ({
+    schedules: schedules.map((s) => ({
       id: s.id,
       name: s.name,
       frequency: s.frequency,
@@ -2700,7 +2935,7 @@ export async function executeSkillListCheckinSchedules(
 export async function executeSkillRecordCheckinResponse(
   _textContent: string,
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<{
   success: boolean;
   responseId: string;
@@ -2709,7 +2944,9 @@ export async function executeSkillRecordCheckinResponse(
 
   const scheduleId = dataContent.scheduleId as string;
   const responderPlatformId = dataContent.responderPlatformId as string;
-  const responderPlatform = dataContent.responderPlatform as "discord" | "telegram";
+  const responderPlatform = dataContent.responderPlatform as
+    | "discord"
+    | "telegram";
   const answers = dataContent.answers as Record<string, string>;
 
   if (!scheduleId) throw new Error("scheduleId is required");
@@ -2738,7 +2975,7 @@ export async function executeSkillRecordCheckinResponse(
 export async function executeSkillGenerateCheckinReport(
   _textContent: string,
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<{
   report: {
     scheduleId: string;
@@ -2765,7 +3002,7 @@ export async function executeSkillGenerateCheckinReport(
     {
       start: new Date(startDate),
       end: new Date(endDate),
-    }
+    },
   );
 
   return { report };
@@ -2777,7 +3014,7 @@ export async function executeSkillGenerateCheckinReport(
 export async function executeSkillAddTeamMember(
   _textContent: string,
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<{
   success: boolean;
   member: {
@@ -2821,7 +3058,7 @@ export async function executeSkillAddTeamMember(
  */
 export async function executeSkillListTeamMembers(
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<{
   members: Array<{
     id: string;
@@ -2840,7 +3077,7 @@ export async function executeSkillListTeamMembers(
   const members = await checkinsService.getTeamMembers(serverId);
 
   return {
-    members: members.map(m => ({
+    members: members.map((m) => ({
       id: m.id,
       platformUserId: m.platform_user_id,
       displayName: m.display_name,
@@ -2854,9 +3091,7 @@ export async function executeSkillListTeamMembers(
 /**
  * Get platform connection status
  */
-export async function executeSkillGetPlatformStatus(
-  ctx: A2AContext
-): Promise<{
+export async function executeSkillGetPlatformStatus(ctx: A2AContext): Promise<{
   platforms: Array<{
     platform: string;
     status: string;
@@ -2866,14 +3101,19 @@ export async function executeSkillGetPlatformStatus(
 }> {
   const { botsService } = await import("@/lib/services/bots");
 
-  const connections = await botsService.getConnections(ctx.user.organization_id);
+  const connections = await botsService.getConnections(
+    ctx.user.organization_id,
+  );
 
   return {
-    platforms: connections.map(c => ({
+    platforms: connections.map((c) => ({
       platform: c.platform,
       status: c.status,
       botUsername: c.platform_bot_username,
-      serverCount: ((c.profile_data as Record<string, unknown>)?.servers as unknown[] || []).length,
+      serverCount: (
+        ((c.profile_data as Record<string, unknown>)?.servers as unknown[]) ||
+        []
+      ).length,
     })),
   };
 }
@@ -2918,21 +3158,27 @@ export interface SocialMediaAnalyticsResult {
 export async function executeSkillSocialMediaPost(
   textContent: string,
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<SocialMediaPostResult> {
   const { socialMediaService } = await import("@/lib/services/social-media");
 
   const text = (dataContent.text as string) || textContent;
   const platforms = dataContent.platforms as string[];
-  const media = dataContent.media as Array<{
-    type: "image" | "video" | "gif";
-    url?: string;
-    mimeType: string;
-    altText?: string;
-  }> | undefined;
+  const media = dataContent.media as
+    | Array<{
+        type: "image" | "video" | "gif";
+        url?: string;
+        mimeType: string;
+        altText?: string;
+      }>
+    | undefined;
   const link = dataContent.link as string | undefined;
-  const platformOptions = dataContent.platformOptions as Record<string, unknown> | undefined;
-  const credentialIds = dataContent.credentialIds as Record<string, string> | undefined;
+  const platformOptions = dataContent.platformOptions as
+    | Record<string, unknown>
+    | undefined;
+  const credentialIds = dataContent.credentialIds as
+    | Record<string, string>
+    | undefined;
 
   if (!text) throw new Error("Text content required");
   if (!platforms?.length) throw new Error("At least one platform required");
@@ -2941,14 +3187,37 @@ export async function executeSkillSocialMediaPost(
     organizationId: ctx.user.organization_id,
     userId: ctx.user.id,
     content: { text, media, link },
-    platforms: platforms as Array<"twitter" | "bluesky" | "discord" | "telegram" | "reddit" | "facebook" | "instagram" | "tiktok" | "linkedin">,
+    platforms: platforms as Array<
+      | "twitter"
+      | "bluesky"
+      | "discord"
+      | "telegram"
+      | "reddit"
+      | "facebook"
+      | "instagram"
+      | "tiktok"
+      | "linkedin"
+    >,
     platformOptions,
-    credentialIds: credentialIds as Partial<Record<"twitter" | "bluesky" | "discord" | "telegram" | "reddit" | "facebook" | "instagram" | "tiktok" | "linkedin", string>>,
+    credentialIds: credentialIds as Partial<
+      Record<
+        | "twitter"
+        | "bluesky"
+        | "discord"
+        | "telegram"
+        | "reddit"
+        | "facebook"
+        | "instagram"
+        | "tiktok"
+        | "linkedin",
+        string
+      >
+    >,
   });
 
   return {
     success: result.successCount > 0,
-    results: result.results.map(r => ({
+    results: result.results.map((r) => ({
       platform: r.platform,
       success: r.success,
       postId: r.postId,
@@ -2969,7 +3238,7 @@ export async function executeSkillSocialMediaPost(
 export async function executeSkillSocialMediaPostToPlatform(
   textContent: string,
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<{
   platform: string;
   success: boolean;
@@ -2981,14 +3250,18 @@ export async function executeSkillSocialMediaPostToPlatform(
 
   const text = (dataContent.text as string) || textContent;
   const platform = dataContent.platform as string;
-  const media = dataContent.media as Array<{
-    type: "image" | "video" | "gif";
-    url?: string;
-    mimeType: string;
-    altText?: string;
-  }> | undefined;
+  const media = dataContent.media as
+    | Array<{
+        type: "image" | "video" | "gif";
+        url?: string;
+        mimeType: string;
+        altText?: string;
+      }>
+    | undefined;
   const link = dataContent.link as string | undefined;
-  const platformOptions = dataContent.platformOptions as Record<string, unknown> | undefined;
+  const platformOptions = dataContent.platformOptions as
+    | Record<string, unknown>
+    | undefined;
   const credentialId = dataContent.credentialId as string | undefined;
 
   if (!text) throw new Error("Text content required");
@@ -2998,7 +3271,18 @@ export async function executeSkillSocialMediaPostToPlatform(
     organizationId: ctx.user.organization_id,
     userId: ctx.user.id,
     content: { text, media, link },
-    platforms: [platform as "twitter" | "bluesky" | "discord" | "telegram" | "reddit" | "facebook" | "instagram" | "tiktok" | "linkedin"],
+    platforms: [
+      platform as
+        | "twitter"
+        | "bluesky"
+        | "discord"
+        | "telegram"
+        | "reddit"
+        | "facebook"
+        | "instagram"
+        | "tiktok"
+        | "linkedin",
+    ],
     platformOptions,
     credentialIds: credentialId ? { [platform]: credentialId } : undefined,
   });
@@ -3012,7 +3296,7 @@ export async function executeSkillSocialMediaPostToPlatform(
 export async function executeSkillSocialMediaDeletePost(
   _textContent: string,
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<{ success: boolean; error?: string }> {
   const { socialMediaService } = await import("@/lib/services/social-media");
 
@@ -3025,9 +3309,18 @@ export async function executeSkillSocialMediaDeletePost(
 
   return socialMediaService.deletePost(
     ctx.user.organization_id,
-    platform as "twitter" | "bluesky" | "discord" | "telegram" | "reddit" | "facebook" | "instagram" | "tiktok" | "linkedin",
+    platform as
+      | "twitter"
+      | "bluesky"
+      | "discord"
+      | "telegram"
+      | "reddit"
+      | "facebook"
+      | "instagram"
+      | "tiktok"
+      | "linkedin",
     postId,
-    credentialId
+    credentialId,
   );
 }
 
@@ -3037,7 +3330,7 @@ export async function executeSkillSocialMediaDeletePost(
 export async function executeSkillSocialMediaReply(
   textContent: string,
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<{
   platform: string;
   success: boolean;
@@ -3050,7 +3343,9 @@ export async function executeSkillSocialMediaReply(
   const text = (dataContent.text as string) || textContent;
   const platform = dataContent.platform as string;
   const postId = dataContent.postId as string;
-  const platformOptions = dataContent.platformOptions as Record<string, unknown> | undefined;
+  const platformOptions = dataContent.platformOptions as
+    | Record<string, unknown>
+    | undefined;
   const credentialId = dataContent.credentialId as string | undefined;
 
   if (!text) throw new Error("Reply text required");
@@ -3059,11 +3354,20 @@ export async function executeSkillSocialMediaReply(
 
   return socialMediaService.replyToPost(
     ctx.user.organization_id,
-    platform as "twitter" | "bluesky" | "discord" | "telegram" | "reddit" | "facebook" | "instagram" | "tiktok" | "linkedin",
+    platform as
+      | "twitter"
+      | "bluesky"
+      | "discord"
+      | "telegram"
+      | "reddit"
+      | "facebook"
+      | "instagram"
+      | "tiktok"
+      | "linkedin",
     postId,
     { text },
     platformOptions,
-    credentialId
+    credentialId,
   );
 }
 
@@ -3073,7 +3377,7 @@ export async function executeSkillSocialMediaReply(
 export async function executeSkillSocialMediaLike(
   _textContent: string,
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<{ success: boolean; error?: string }> {
   const { socialMediaService } = await import("@/lib/services/social-media");
 
@@ -3086,9 +3390,18 @@ export async function executeSkillSocialMediaLike(
 
   return socialMediaService.likePost(
     ctx.user.organization_id,
-    platform as "twitter" | "bluesky" | "discord" | "telegram" | "reddit" | "facebook" | "instagram" | "tiktok" | "linkedin",
+    platform as
+      | "twitter"
+      | "bluesky"
+      | "discord"
+      | "telegram"
+      | "reddit"
+      | "facebook"
+      | "instagram"
+      | "tiktok"
+      | "linkedin",
     postId,
-    credentialId
+    credentialId,
   );
 }
 
@@ -3098,7 +3411,7 @@ export async function executeSkillSocialMediaLike(
 export async function executeSkillSocialMediaRepost(
   _textContent: string,
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<{
   platform: string;
   success: boolean;
@@ -3116,9 +3429,18 @@ export async function executeSkillSocialMediaRepost(
 
   return socialMediaService.repost(
     ctx.user.organization_id,
-    platform as "twitter" | "bluesky" | "discord" | "telegram" | "reddit" | "facebook" | "instagram" | "tiktok" | "linkedin",
+    platform as
+      | "twitter"
+      | "bluesky"
+      | "discord"
+      | "telegram"
+      | "reddit"
+      | "facebook"
+      | "instagram"
+      | "tiktok"
+      | "linkedin",
     postId,
-    credentialId
+    credentialId,
   );
 }
 
@@ -3128,7 +3450,7 @@ export async function executeSkillSocialMediaRepost(
 export async function executeSkillSocialMediaGetPostAnalytics(
   _textContent: string,
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<SocialMediaAnalyticsResult> {
   const { socialMediaService } = await import("@/lib/services/social-media");
 
@@ -3141,18 +3463,29 @@ export async function executeSkillSocialMediaGetPostAnalytics(
 
   const analytics = await socialMediaService.getPostAnalytics({
     organizationId: ctx.user.organization_id,
-    platform: platform as "twitter" | "bluesky" | "discord" | "telegram" | "reddit" | "facebook" | "instagram" | "tiktok" | "linkedin",
+    platform: platform as
+      | "twitter"
+      | "bluesky"
+      | "discord"
+      | "telegram"
+      | "reddit"
+      | "facebook"
+      | "instagram"
+      | "tiktok"
+      | "linkedin",
     postId,
     credentialId,
   });
 
   return {
-    analytics: analytics ? {
-      platform: analytics.platform,
-      postId: analytics.postId,
-      metrics: analytics.metrics as Record<string, number | undefined>,
-      fetchedAt: analytics.fetchedAt.toISOString(),
-    } : null,
+    analytics: analytics
+      ? {
+          platform: analytics.platform,
+          postId: analytics.postId,
+          metrics: analytics.metrics as Record<string, number | undefined>,
+          fetchedAt: analytics.fetchedAt.toISOString(),
+        }
+      : null,
   };
 }
 
@@ -3162,7 +3495,7 @@ export async function executeSkillSocialMediaGetPostAnalytics(
 export async function executeSkillSocialMediaGetAccountAnalytics(
   _textContent: string,
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<SocialMediaAnalyticsResult> {
   const { socialMediaService } = await import("@/lib/services/social-media");
 
@@ -3173,17 +3506,28 @@ export async function executeSkillSocialMediaGetAccountAnalytics(
 
   const analytics = await socialMediaService.getAccountAnalytics({
     organizationId: ctx.user.organization_id,
-    platform: platform as "twitter" | "bluesky" | "discord" | "telegram" | "reddit" | "facebook" | "instagram" | "tiktok" | "linkedin",
+    platform: platform as
+      | "twitter"
+      | "bluesky"
+      | "discord"
+      | "telegram"
+      | "reddit"
+      | "facebook"
+      | "instagram"
+      | "tiktok"
+      | "linkedin",
     credentialId,
   });
 
   return {
-    analytics: analytics ? {
-      platform: analytics.platform,
-      accountId: analytics.accountId,
-      metrics: analytics.metrics as Record<string, number | undefined>,
-      fetchedAt: analytics.fetchedAt.toISOString(),
-    } : null,
+    analytics: analytics
+      ? {
+          platform: analytics.platform,
+          accountId: analytics.accountId,
+          metrics: analytics.metrics as Record<string, number | undefined>,
+          fetchedAt: analytics.fetchedAt.toISOString(),
+        }
+      : null,
   };
 }
 
@@ -3210,7 +3554,7 @@ export async function executeSkillSocialMediaGetPlatforms(): Promise<{
 export async function executeSkillSocialMediaStoreCredentials(
   _textContent: string,
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<{ success: boolean; platform: string }> {
   const { socialMediaService } = await import("@/lib/services/social-media");
 
@@ -3225,8 +3569,17 @@ export async function executeSkillSocialMediaStoreCredentials(
   await socialMediaService.storeCredentials(
     ctx.user.organization_id,
     ctx.user.id,
-    platform as "twitter" | "bluesky" | "discord" | "telegram" | "reddit" | "facebook" | "instagram" | "tiktok" | "linkedin",
-    credentials
+    platform as
+      | "twitter"
+      | "bluesky"
+      | "discord"
+      | "telegram"
+      | "reddit"
+      | "facebook"
+      | "instagram"
+      | "tiktok"
+      | "linkedin",
+    credentials,
   );
 
   return { success: true, platform };
@@ -3238,7 +3591,7 @@ export async function executeSkillSocialMediaStoreCredentials(
 export async function executeSkillSocialMediaValidateCredentials(
   _textContent: string,
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<{
   valid: boolean;
   accountId?: string;
@@ -3256,8 +3609,17 @@ export async function executeSkillSocialMediaValidateCredentials(
 
   return socialMediaService.validateCredentials(
     ctx.user.organization_id,
-    platform as "twitter" | "bluesky" | "discord" | "telegram" | "reddit" | "facebook" | "instagram" | "tiktok" | "linkedin",
-    credentialId
+    platform as
+      | "twitter"
+      | "bluesky"
+      | "discord"
+      | "telegram"
+      | "reddit"
+      | "facebook"
+      | "instagram"
+      | "tiktok"
+      | "linkedin",
+    credentialId,
   );
 }
 
@@ -3268,7 +3630,7 @@ export async function executeSkillSocialMediaValidateCredentials(
  */
 export async function executeSkillAdsListAccounts(
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<{
   accounts: Array<{
     id: string;
@@ -3283,7 +3645,9 @@ export async function executeSkillAdsListAccounts(
   const platform = dataContent.platform as string | undefined;
   const accounts = await advertisingService.listAccounts(
     ctx.user.organization_id,
-    platform ? { platform: platform as "meta" | "google" | "tiktok" } : undefined
+    platform
+      ? { platform: platform as "meta" | "google" | "tiktok" }
+      : undefined,
   );
 
   return {
@@ -3302,7 +3666,7 @@ export async function executeSkillAdsListAccounts(
  */
 export async function executeSkillAdsListCampaigns(
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<{
   campaigns: Array<{
     id: string;
@@ -3322,10 +3686,14 @@ export async function executeSkillAdsListCampaigns(
     ctx.user.organization_id,
     {
       adAccountId: dataContent.adAccountId as string | undefined,
-      platform: dataContent.platform as "meta" | "google" | "tiktok" | undefined,
+      platform: dataContent.platform as
+        | "meta"
+        | "google"
+        | "tiktok"
+        | undefined,
       status: dataContent.status as string | undefined,
       appId: dataContent.appId as string | undefined,
-    }
+    },
   );
 
   return {
@@ -3349,7 +3717,7 @@ export async function executeSkillAdsListCampaigns(
 export async function executeSkillAdsCreateCampaign(
   textContent: string,
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<{
   success: boolean;
   campaign: {
@@ -3380,12 +3748,23 @@ export async function executeSkillAdsCreateCampaign(
     organizationId: ctx.user.organization_id,
     adAccountId,
     name,
-    objective: objective as "awareness" | "traffic" | "engagement" | "leads" | "app_promotion" | "sales" | "conversions",
+    objective: objective as
+      | "awareness"
+      | "traffic"
+      | "engagement"
+      | "leads"
+      | "app_promotion"
+      | "sales"
+      | "conversions",
     budgetType,
     budgetAmount,
     budgetCurrency: dataContent.budgetCurrency as string | undefined,
-    startDate: dataContent.startDate ? new Date(dataContent.startDate as string) : undefined,
-    endDate: dataContent.endDate ? new Date(dataContent.endDate as string) : undefined,
+    startDate: dataContent.startDate
+      ? new Date(dataContent.startDate as string)
+      : undefined,
+    endDate: dataContent.endDate
+      ? new Date(dataContent.endDate as string)
+      : undefined,
     targeting: dataContent.targeting as Record<string, unknown> | undefined,
     appId: dataContent.appId as string | undefined,
   });
@@ -3406,7 +3785,7 @@ export async function executeSkillAdsCreateCampaign(
  */
 export async function executeSkillAdsStartCampaign(
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<{ success: boolean; campaignId: string; status: string }> {
   const { advertisingService } = await import("@/lib/services/advertising");
 
@@ -3415,7 +3794,7 @@ export async function executeSkillAdsStartCampaign(
 
   const campaign = await advertisingService.startCampaign(
     campaignId,
-    ctx.user.organization_id
+    ctx.user.organization_id,
   );
 
   return {
@@ -3430,7 +3809,7 @@ export async function executeSkillAdsStartCampaign(
  */
 export async function executeSkillAdsPauseCampaign(
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<{ success: boolean; campaignId: string; status: string }> {
   const { advertisingService } = await import("@/lib/services/advertising");
 
@@ -3439,7 +3818,7 @@ export async function executeSkillAdsPauseCampaign(
 
   const campaign = await advertisingService.pauseCampaign(
     campaignId,
-    ctx.user.organization_id
+    ctx.user.organization_id,
   );
 
   return {
@@ -3454,7 +3833,7 @@ export async function executeSkillAdsPauseCampaign(
  */
 export async function executeSkillAdsDeleteCampaign(
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<{ success: boolean }> {
   const { advertisingService } = await import("@/lib/services/advertising");
 
@@ -3471,7 +3850,7 @@ export async function executeSkillAdsDeleteCampaign(
  */
 export async function executeSkillAdsGetCampaignAnalytics(
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<{
   campaignId: string;
   metrics: {
@@ -3500,7 +3879,7 @@ export async function executeSkillAdsGetCampaignAnalytics(
   const metrics = await advertisingService.getCampaignMetrics(
     campaignId,
     ctx.user.organization_id,
-    dateRange
+    dateRange,
   );
 
   return { campaignId, metrics };
@@ -3511,7 +3890,7 @@ export async function executeSkillAdsGetCampaignAnalytics(
  */
 export async function executeSkillAdsGetStats(
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<{
   totalCampaigns: number;
   activeCampaigns: number;
@@ -3533,7 +3912,7 @@ export async function executeSkillAdsGetStats(
 export async function executeSkillAdsCreateCreative(
   textContent: string,
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<{
   success: boolean;
   creative: {
@@ -3572,10 +3951,21 @@ export async function executeSkillAdsCreateCreative(
       headline: dataContent.headline as string | undefined,
       primaryText: dataContent.primaryText as string | undefined,
       description: dataContent.description as string | undefined,
-      callToAction: dataContent.callToAction as "learn_more" | "shop_now" | "sign_up" | "download" | "contact_us" | "get_offer" | "book_now" | "watch_more" | "apply_now" | "subscribe" | undefined,
+      callToAction: dataContent.callToAction as
+        | "learn_more"
+        | "shop_now"
+        | "sign_up"
+        | "download"
+        | "contact_us"
+        | "get_offer"
+        | "book_now"
+        | "watch_more"
+        | "apply_now"
+        | "subscribe"
+        | undefined,
       destinationUrl: dataContent.destinationUrl as string | undefined,
       media,
-    }
+    },
   );
 
   return {
@@ -3597,7 +3987,7 @@ export async function executeSkillAdsCreateCreative(
 export async function executeSkillSeoCreateRequest(
   textContent: string,
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<{
   id: string;
   status: string;
@@ -3608,7 +3998,9 @@ export async function executeSkillSeoCreateRequest(
   const type = dataContent.type as string;
   if (
     !type ||
-    !seoRequestTypeEnum.enumValues.includes(type as (typeof seoRequestTypeEnum.enumValues)[number])
+    !seoRequestTypeEnum.enumValues.includes(
+      type as (typeof seoRequestTypeEnum.enumValues)[number],
+    )
   ) {
     throw new Error("Valid SEO request type is required");
   }
@@ -3628,7 +4020,8 @@ export async function executeSkillSeoCreateRequest(
     locale: (dataContent.locale as string | undefined) || "en-US",
     searchEngine: (dataContent.searchEngine as string | undefined) || "google",
     device: (dataContent.device as string | undefined) || "desktop",
-    environment: (dataContent.environment as string | undefined) || "production",
+    environment:
+      (dataContent.environment as string | undefined) || "production",
     agentIdentifier: dataContent.agentIdentifier as string | undefined,
     promptContext: dataContent.promptContext as string | undefined,
     idempotencyKey: dataContent.idempotencyKey as string | undefined,
@@ -3648,7 +4041,7 @@ export async function executeSkillSeoCreateRequest(
  */
 export async function executeSkillSeoGetRequest(
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<{
   request: {
     id: string;
@@ -3711,7 +4104,7 @@ export async function executeSkillSeoGetRequest(
  */
 export async function executeSkillCollectionsList(
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<{
   collections: Array<{
     id: string;
@@ -3721,7 +4114,8 @@ export async function executeSkillCollectionsList(
   }>;
   count: number;
 }> {
-  const { mediaCollectionsService } = await import("@/lib/services/media-collections");
+  const { mediaCollectionsService } =
+    await import("@/lib/services/media-collections");
 
   const collections = await mediaCollectionsService.listByOrganization(
     ctx.user.organization_id,
@@ -3729,7 +4123,7 @@ export async function executeSkillCollectionsList(
       userId: ctx.user.id,
       limit: (dataContent.limit as number) || 50,
       offset: dataContent.offset as number | undefined,
-    }
+    },
   );
 
   return {
@@ -3749,12 +4143,13 @@ export async function executeSkillCollectionsList(
 export async function executeSkillCollectionsCreate(
   textContent: string,
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<{
   success: boolean;
   collection: { id: string; name: string };
 }> {
-  const { mediaCollectionsService } = await import("@/lib/services/media-collections");
+  const { mediaCollectionsService } =
+    await import("@/lib/services/media-collections");
 
   const name = (dataContent.name as string) || textContent;
   if (!name) throw new Error("Collection name required");
@@ -3764,7 +4159,11 @@ export async function executeSkillCollectionsCreate(
     userId: ctx.user.id,
     name,
     description: dataContent.description as string | undefined,
-    purpose: dataContent.purpose as "advertising" | "app_assets" | "general" | undefined,
+    purpose: dataContent.purpose as
+      | "advertising"
+      | "app_assets"
+      | "general"
+      | undefined,
     tags: dataContent.tags as string[] | undefined,
   });
 
@@ -3779,7 +4178,7 @@ export async function executeSkillCollectionsCreate(
  */
 export async function executeSkillCollectionsGet(
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<{
   id: string;
   name: string;
@@ -3793,18 +4192,20 @@ export async function executeSkillCollectionsGet(
     type: string;
   }>;
 } | null> {
-  const { mediaCollectionsService } = await import("@/lib/services/media-collections");
+  const { mediaCollectionsService } =
+    await import("@/lib/services/media-collections");
 
   const collectionId = dataContent.collectionId as string;
   if (!collectionId) throw new Error("Collection ID required");
 
   const isOwner = await mediaCollectionsService.validateOwnership(
     collectionId,
-    ctx.user.organization_id
+    ctx.user.organization_id,
   );
   if (!isOwner) return null;
 
-  const collection = await mediaCollectionsService.getByIdWithItems(collectionId);
+  const collection =
+    await mediaCollectionsService.getByIdWithItems(collectionId);
   if (!collection) return null;
 
   return {
@@ -3827,9 +4228,10 @@ export async function executeSkillCollectionsGet(
  */
 export async function executeSkillCollectionsAddItems(
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<{ success: boolean; added: number }> {
-  const { mediaCollectionsService } = await import("@/lib/services/media-collections");
+  const { mediaCollectionsService } =
+    await import("@/lib/services/media-collections");
 
   const collectionId = dataContent.collectionId as string;
   if (!collectionId) throw new Error("Collection ID required");
@@ -3842,7 +4244,7 @@ export async function executeSkillCollectionsAddItems(
 
   const isOwner = await mediaCollectionsService.validateOwnership(
     collectionId,
-    ctx.user.organization_id
+    ctx.user.organization_id,
   );
   if (!isOwner) throw new Error("Collection not found");
 
@@ -3856,9 +4258,10 @@ export async function executeSkillCollectionsAddItems(
  */
 export async function executeSkillCollectionsRemoveItems(
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<{ success: boolean }> {
-  const { mediaCollectionsService } = await import("@/lib/services/media-collections");
+  const { mediaCollectionsService } =
+    await import("@/lib/services/media-collections");
 
   const collectionId = dataContent.collectionId as string;
   if (!collectionId) throw new Error("Collection ID required");
@@ -3868,7 +4271,7 @@ export async function executeSkillCollectionsRemoveItems(
 
   const isOwner = await mediaCollectionsService.validateOwnership(
     collectionId,
-    ctx.user.organization_id
+    ctx.user.organization_id,
   );
   if (!isOwner) throw new Error("Collection not found");
 
@@ -3884,7 +4287,7 @@ export async function executeSkillCollectionsRemoveItems(
  */
 export async function executeSkillDiscordGatewayListConnections(
   _dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<{
   connections: Array<{
     id: string;
@@ -3893,10 +4296,11 @@ export async function executeSkillDiscordGatewayListConnections(
     guildCount: number;
   }>;
 }> {
-  const { discordGatewayService } = await import("@/lib/services/discord-gateway");
+  const { discordGatewayService } =
+    await import("@/lib/services/discord-gateway");
 
   const botStatuses = await discordGatewayService.getBotStatus(
-    ctx.user.organization_id
+    ctx.user.organization_id,
   );
 
   return {
@@ -3914,7 +4318,7 @@ export async function executeSkillDiscordGatewayListConnections(
  */
 export async function executeSkillDiscordGatewayListRoutes(
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<{
   routes: Array<{
     id: string;
@@ -3952,7 +4356,7 @@ export async function executeSkillDiscordGatewayListRoutes(
 export async function executeSkillDiscordGatewayCreateRoute(
   _taskId: string,
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<{
   id: string;
   guildId: string;
@@ -4003,7 +4407,7 @@ export async function executeSkillDiscordGatewayCreateRoute(
  */
 export async function executeSkillDiscordGatewayUpdateRoute(
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<{ id: string; enabled: boolean; updatedAt: string }> {
   const { discordEventRouter } = await import("@/lib/services/discord-gateway");
 
@@ -4036,7 +4440,7 @@ export async function executeSkillDiscordGatewayUpdateRoute(
  */
 export async function executeSkillDiscordGatewayDeleteRoute(
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<{ success: boolean }> {
   const { discordEventRouter } = await import("@/lib/services/discord-gateway");
 
@@ -4059,7 +4463,7 @@ export async function executeSkillDiscordGatewayDeleteRoute(
  */
 export async function executeSkillDiscordGatewayGetStats(
   _dataContent: Record<string, unknown>,
-  _ctx: A2AContext
+  _ctx: A2AContext,
 ): Promise<{
   connections: {
     totalBots: number;
@@ -4073,7 +4477,8 @@ export async function executeSkillDiscordGatewayGetStats(
     deadLetter: number;
   };
 }> {
-  const { discordGatewayService } = await import("@/lib/services/discord-gateway");
+  const { discordGatewayService } =
+    await import("@/lib/services/discord-gateway");
 
   const health = await discordGatewayService.getHealth();
 
@@ -4098,7 +4503,7 @@ export async function executeSkillDiscordGatewayGetStats(
 export async function executeSkillCreateFeedConfig(
   textContent: string,
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<{
   success: boolean;
   configId: string;
@@ -4113,11 +4518,12 @@ export async function executeSkillCreateFeedConfig(
   if (!sourcePlatform) throw new Error("sourcePlatform is required");
   if (!sourceAccountId) throw new Error("sourceAccountId is required");
 
-  const notificationChannels = (dataContent.notificationChannels as Array<{
-    platform: string;
-    channelId: string;
-    serverId?: string;
-  }>) || [];
+  const notificationChannels =
+    (dataContent.notificationChannels as Array<{
+      platform: string;
+      channelId: string;
+      serverId?: string;
+    }>) || [];
 
   const config = await feedConfigService.create({
     organizationId: ctx.user.organization_id,
@@ -4132,7 +4538,9 @@ export async function executeSkillCreateFeedConfig(
       channelId: c.channelId,
       serverId: c.serverId,
     })),
-    pollingIntervalSeconds: dataContent.pollingIntervalSeconds as number | undefined,
+    pollingIntervalSeconds: dataContent.pollingIntervalSeconds as
+      | number
+      | undefined,
     minFollowerCount: dataContent.minFollowerCount as number | undefined,
     createdBy: ctx.user.id,
   });
@@ -4150,7 +4558,7 @@ export async function executeSkillCreateFeedConfig(
  */
 export async function executeSkillListFeedConfigs(
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<{
   configs: Array<{
     id: string;
@@ -4187,7 +4595,7 @@ export async function executeSkillListFeedConfigs(
  */
 export async function executeSkillListEngagements(
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<{
   engagements: Array<{
     id: string;
@@ -4205,8 +4613,14 @@ export async function executeSkillListEngagements(
   const { events, total } = await engagementEventService.list({
     organizationId: ctx.user.organization_id,
     feedConfigId: dataContent.feedConfigId as string | undefined,
-    eventType: dataContent.eventType as "mention" | "reply" | "quote_tweet" | undefined,
-    since: dataContent.since ? new Date(dataContent.since as string) : undefined,
+    eventType: dataContent.eventType as
+      | "mention"
+      | "reply"
+      | "quote_tweet"
+      | undefined,
+    since: dataContent.since
+      ? new Date(dataContent.since as string)
+      : undefined,
     limit: (dataContent.limit as number) || 50,
   });
 
@@ -4229,7 +4643,7 @@ export async function executeSkillListEngagements(
  */
 export async function executeSkillListPendingReplies(
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<{
   pendingReplies: Array<{
     id: string;
@@ -4241,9 +4655,14 @@ export async function executeSkillListPendingReplies(
   }>;
   total: number;
 }> {
-  const { replyConfirmationService } = await import("@/lib/services/social-feed");
+  const { replyConfirmationService } =
+    await import("@/lib/services/social-feed");
 
-  const status = dataContent.status as "pending" | "confirmed" | "rejected" | undefined;
+  const status = dataContent.status as
+    | "pending"
+    | "confirmed"
+    | "rejected"
+    | undefined;
   const { confirmations, total } = await replyConfirmationService.list({
     organizationId: ctx.user.organization_id,
     status: status || "pending",
@@ -4268,14 +4687,15 @@ export async function executeSkillListPendingReplies(
  */
 export async function executeSkillConfirmReply(
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<{
   success: boolean;
   postId?: string;
   postUrl?: string;
   error?: string;
 }> {
-  const { replyRouterService } = await import("@/lib/services/social-feed/reply-router");
+  const { replyRouterService } =
+    await import("@/lib/services/social-feed/reply-router");
 
   const confirmationId = dataContent.confirmationId as string;
   if (!confirmationId) throw new Error("confirmationId is required");
@@ -4284,7 +4704,7 @@ export async function executeSkillConfirmReply(
     confirmationId,
     ctx.user.organization_id,
     ctx.user.id,
-    ctx.user.email || "Agent"
+    ctx.user.email || "Agent",
   );
 
   return {
@@ -4300,9 +4720,10 @@ export async function executeSkillConfirmReply(
  */
 export async function executeSkillRejectReply(
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<{ success: boolean }> {
-  const { replyRouterService } = await import("@/lib/services/social-feed/reply-router");
+  const { replyRouterService } =
+    await import("@/lib/services/social-feed/reply-router");
 
   const confirmationId = dataContent.confirmationId as string;
   if (!confirmationId) throw new Error("confirmationId is required");
@@ -4311,7 +4732,7 @@ export async function executeSkillRejectReply(
     confirmationId,
     ctx.user.organization_id,
     ctx.user.id,
-    dataContent.reason as string | undefined
+    dataContent.reason as string | undefined,
   );
 
   return { success: true };
@@ -4322,14 +4743,15 @@ export async function executeSkillRejectReply(
  */
 export async function executeSkillPollFeeds(
   _dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<{
   feedsPolled: number;
   newEngagements: number;
   errors: string[];
 }> {
   const { feedConfigService } = await import("@/lib/services/social-feed");
-  const { feedPollingService } = await import("@/lib/services/social-feed/polling");
+  const { feedPollingService } =
+    await import("@/lib/services/social-feed/polling");
 
   const { configs } = await feedConfigService.list({
     organizationId: ctx.user.organization_id,
@@ -4358,13 +4780,14 @@ export async function executeSkillPollFeeds(
  */
 export async function executeSkillProcessNotifications(
   _dataContent: Record<string, unknown>,
-  _ctx: A2AContext
+  _ctx: A2AContext,
 ): Promise<{
   processed: number;
   successful: number;
   failed: number;
 }> {
-  const { socialNotificationService } = await import("@/lib/services/social-feed/notifications");
+  const { socialNotificationService } =
+    await import("@/lib/services/social-feed/notifications");
 
   return socialNotificationService.processUnnotifiedEvents();
 }
@@ -4414,16 +4837,21 @@ const a2aAudit = (ctx: A2AContext) => ({
  */
 export async function executeSkillSecretsList(
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<SecretsListResult> {
   const { secretsService } = await import("@/lib/services/secrets");
-  const { SecretProvider, SecretProjectType, SecretEnvironment } = await import("@/db/schemas/secrets");
+  const { SecretProvider, SecretProjectType, SecretEnvironment } =
+    await import("@/db/schemas/secrets");
 
   const result = await secretsService.listFiltered({
     organizationId: ctx.user.organization_id,
     projectId: dataContent.projectId as string | undefined,
-    projectType: dataContent.projectType as typeof SecretProjectType.$type | undefined,
-    environment: dataContent.environment as typeof SecretEnvironment.$type | undefined,
+    projectType: dataContent.projectType as
+      | typeof SecretProjectType.$type
+      | undefined,
+    environment: dataContent.environment as
+      | typeof SecretEnvironment.$type
+      | undefined,
     provider: dataContent.provider as typeof SecretProvider.$type | undefined,
     limit: Math.min((dataContent.limit as number) || 100, 500),
     offset: (dataContent.offset as number) || 0,
@@ -4453,7 +4881,7 @@ export async function executeSkillSecretsList(
  */
 export async function executeSkillSecretsGet(
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<SecretValueResult | null> {
   const { secretsService } = await import("@/lib/services/secrets");
   const { SecretEnvironment } = await import("@/db/schemas/secrets");
@@ -4466,7 +4894,7 @@ export async function executeSkillSecretsGet(
     name,
     dataContent.projectId as string | undefined,
     dataContent.environment as typeof SecretEnvironment.$type | undefined,
-    a2aAudit(ctx)
+    a2aAudit(ctx),
   );
 
   return value ? { name, value } : null;
@@ -4477,24 +4905,32 @@ export async function executeSkillSecretsGet(
  */
 export async function executeSkillSecretsGetBulk(
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<Record<string, string>> {
   const { secretsService } = await import("@/lib/services/secrets");
-  const { SecretEnvironment, SecretProjectType } = await import("@/db/schemas/secrets");
+  const { SecretEnvironment, SecretProjectType } =
+    await import("@/db/schemas/secrets");
 
   const names = dataContent.names as string[];
   if (!names || !Array.isArray(names) || names.length === 0) {
     throw new Error("names array is required");
   }
 
-  return secretsService.getDecrypted({
-    organizationId: ctx.user.organization_id,
-    projectId: dataContent.projectId as string | undefined,
-    projectType: dataContent.projectType as typeof SecretProjectType.$type | undefined,
-    environment: dataContent.environment as typeof SecretEnvironment.$type | undefined,
-    names,
-    includeBindings: (dataContent.includeBindings as boolean) ?? true,
-  }, a2aAudit(ctx));
+  return secretsService.getDecrypted(
+    {
+      organizationId: ctx.user.organization_id,
+      projectId: dataContent.projectId as string | undefined,
+      projectType: dataContent.projectType as
+        | typeof SecretProjectType.$type
+        | undefined,
+      environment: dataContent.environment as
+        | typeof SecretEnvironment.$type
+        | undefined,
+      names,
+      includeBindings: (dataContent.includeBindings as boolean) ?? true,
+    },
+    a2aAudit(ctx),
+  );
 }
 
 /**
@@ -4502,27 +4938,35 @@ export async function executeSkillSecretsGetBulk(
  */
 export async function executeSkillSecretsCreate(
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<SecretCreateResult> {
   const { secretsService } = await import("@/lib/services/secrets");
-  const { SecretProvider, SecretProjectType, SecretEnvironment } = await import("@/db/schemas/secrets");
+  const { SecretProvider, SecretProjectType, SecretEnvironment } =
+    await import("@/db/schemas/secrets");
 
   const name = dataContent.name as string;
   const value = dataContent.value as string;
   if (!name) throw new Error("name is required");
   if (!value) throw new Error("value is required");
 
-  const secret = await secretsService.create({
-    organizationId: ctx.user.organization_id,
-    name,
-    value,
-    description: dataContent.description as string | undefined,
-    provider: dataContent.provider as typeof SecretProvider.$type | undefined,
-    projectId: dataContent.projectId as string | undefined,
-    projectType: dataContent.projectType as typeof SecretProjectType.$type | undefined,
-    environment: dataContent.environment as typeof SecretEnvironment.$type | undefined,
-    createdBy: ctx.user.id,
-  }, a2aAudit(ctx));
+  const secret = await secretsService.create(
+    {
+      organizationId: ctx.user.organization_id,
+      name,
+      value,
+      description: dataContent.description as string | undefined,
+      provider: dataContent.provider as typeof SecretProvider.$type | undefined,
+      projectId: dataContent.projectId as string | undefined,
+      projectType: dataContent.projectType as
+        | typeof SecretProjectType.$type
+        | undefined,
+      environment: dataContent.environment as
+        | typeof SecretEnvironment.$type
+        | undefined,
+      createdBy: ctx.user.id,
+    },
+    a2aAudit(ctx),
+  );
 
   return { id: secret.id, name: secret.name };
 }
@@ -4532,17 +4976,22 @@ export async function executeSkillSecretsCreate(
  */
 export async function executeSkillSecretsUpdate(
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<SecretMetadataResult> {
   const { secretsService } = await import("@/lib/services/secrets");
 
   const secretId = dataContent.secretId as string;
   if (!secretId) throw new Error("secretId is required");
 
-  const updated = await secretsService.update(secretId, ctx.user.organization_id, {
-    value: dataContent.value as string | undefined,
-    description: dataContent.description as string | undefined,
-  }, a2aAudit(ctx));
+  const updated = await secretsService.update(
+    secretId,
+    ctx.user.organization_id,
+    {
+      value: dataContent.value as string | undefined,
+      description: dataContent.description as string | undefined,
+    },
+    a2aAudit(ctx),
+  );
 
   return {
     id: updated.id,
@@ -4565,14 +5014,18 @@ export async function executeSkillSecretsUpdate(
  */
 export async function executeSkillSecretsDelete(
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<{ success: boolean }> {
   const { secretsService } = await import("@/lib/services/secrets");
 
   const secretId = dataContent.secretId as string;
   if (!secretId) throw new Error("secretId is required");
 
-  await secretsService.delete(secretId, ctx.user.organization_id, a2aAudit(ctx));
+  await secretsService.delete(
+    secretId,
+    ctx.user.organization_id,
+    a2aAudit(ctx),
+  );
 
   return { success: true };
 }
@@ -4582,7 +5035,7 @@ export async function executeSkillSecretsDelete(
  */
 export async function executeSkillSecretsBind(
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<{ bindingId: string }> {
   const { secretsService } = await import("@/lib/services/secrets");
   const { SecretProjectType } = await import("@/db/schemas/secrets");
@@ -4595,12 +5048,15 @@ export async function executeSkillSecretsBind(
   if (!projectId) throw new Error("projectId is required");
   if (!projectType) throw new Error("projectType is required");
 
-  const binding = await secretsService.bindSecret({
-    secretId,
-    projectId,
-    projectType,
-    createdBy: ctx.user.id,
-  }, a2aAudit(ctx));
+  const binding = await secretsService.bindSecret(
+    {
+      secretId,
+      projectId,
+      projectType,
+      createdBy: ctx.user.id,
+    },
+    a2aAudit(ctx),
+  );
 
   return { bindingId: binding.id };
 }
@@ -4610,14 +5066,18 @@ export async function executeSkillSecretsBind(
  */
 export async function executeSkillSecretsUnbind(
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<{ success: boolean }> {
   const { secretsService } = await import("@/lib/services/secrets");
 
   const bindingId = dataContent.bindingId as string;
   if (!bindingId) throw new Error("bindingId is required");
 
-  await secretsService.unbindSecret(bindingId, ctx.user.organization_id, a2aAudit(ctx));
+  await secretsService.unbindSecret(
+    bindingId,
+    ctx.user.organization_id,
+    a2aAudit(ctx),
+  );
 
   return { success: true };
 }
@@ -4640,9 +5100,10 @@ import type {
  */
 export async function executeSkillDomainsSearch(
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<DomainSearchResult> {
-  const { domainManagementService } = await import("@/lib/services/domain-management");
+  const { domainManagementService } =
+    await import("@/lib/services/domain-management");
 
   const query = dataContent.query as string;
   if (!query) throw new Error("query is required");
@@ -4673,10 +5134,12 @@ export async function executeSkillDomainsSearch(
  */
 export async function executeSkillDomainsCheck(
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<DomainCheckResult> {
-  const { domainManagementService } = await import("@/lib/services/domain-management");
-  const { domainModerationService } = await import("@/lib/services/domain-moderation");
+  const { domainManagementService } =
+    await import("@/lib/services/domain-management");
+  const { domainModerationService } =
+    await import("@/lib/services/domain-moderation");
 
   const domain = dataContent.domain as string;
   if (!domain) throw new Error("domain is required");
@@ -4723,23 +5186,31 @@ export async function executeSkillDomainsCheck(
  */
 export async function executeSkillDomainsList(
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<DomainListResult> {
-  const { domainManagementService } = await import("@/lib/services/domain-management");
+  const { domainManagementService } =
+    await import("@/lib/services/domain-management");
 
-  const filter = (dataContent.filter as "all" | "unassigned" | "assigned") || "all";
+  const filter =
+    (dataContent.filter as "all" | "unassigned" | "assigned") || "all";
 
   let domains;
   if (filter === "unassigned") {
-    domains = await domainManagementService.listUnassignedDomains(ctx.user.organization_id);
+    domains = await domainManagementService.listUnassignedDomains(
+      ctx.user.organization_id,
+    );
   } else {
-    domains = await domainManagementService.listDomains(ctx.user.organization_id);
+    domains = await domainManagementService.listDomains(
+      ctx.user.organization_id,
+    );
     if (filter === "assigned") {
       domains = domains.filter((d) => d.resourceType !== null);
     }
   }
 
-  const stats = await domainManagementService.getStats(ctx.user.organization_id);
+  const stats = await domainManagementService.getStats(
+    ctx.user.organization_id,
+  );
 
   return {
     domains: domains.map((d) => ({
@@ -4762,14 +5233,16 @@ export async function executeSkillDomainsList(
  */
 export async function executeSkillDomainsRegister(
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<DomainRegisterResult> {
-  const { domainManagementService } = await import("@/lib/services/domain-management");
+  const { domainManagementService } =
+    await import("@/lib/services/domain-management");
 
   const domain = dataContent.domain as string;
   if (!domain) throw new Error("domain is required");
 
-  const nameserverMode = (dataContent.nameserverMode as "vercel" | "external") || "external";
+  const nameserverMode =
+    (dataContent.nameserverMode as "vercel" | "external") || "external";
 
   const deduction = await creditsService.deductCredits({
     organizationId: ctx.user.organization_id,
@@ -4783,7 +5256,7 @@ export async function executeSkillDomainsRegister(
   const result = await domainManagementService.registerExternalDomain(
     domain,
     ctx.user.organization_id,
-    nameserverMode
+    nameserverMode,
   );
 
   if (!result.success) {
@@ -4808,14 +5281,18 @@ export async function executeSkillDomainsRegister(
  */
 export async function executeSkillDomainsVerify(
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<DomainVerifyResult> {
-  const { domainManagementService } = await import("@/lib/services/domain-management");
+  const { domainManagementService } =
+    await import("@/lib/services/domain-management");
 
   const domainId = dataContent.domainId as string;
   if (!domainId) throw new Error("domainId is required");
 
-  const domain = await domainManagementService.getDomain(domainId, ctx.user.organization_id);
+  const domain = await domainManagementService.getDomain(
+    domainId,
+    ctx.user.organization_id,
+  );
   if (!domain) {
     throw new Error("Domain not found");
   }
@@ -4833,7 +5310,7 @@ export async function executeSkillDomainsVerify(
   const dnsInstructions = domainManagementService.generateDnsInstructions(
     domain.domain,
     domain.verificationToken || "",
-    domain.nameserverMode
+    domain.nameserverMode,
   );
 
   return {
@@ -4850,12 +5327,17 @@ export async function executeSkillDomainsVerify(
  */
 export async function executeSkillDomainsAssign(
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<DomainAssignResult> {
-  const { domainManagementService } = await import("@/lib/services/domain-management");
+  const { domainManagementService } =
+    await import("@/lib/services/domain-management");
 
   const domainId = dataContent.domainId as string;
-  const resourceType = dataContent.resourceType as "app" | "container" | "agent" | "mcp";
+  const resourceType = dataContent.resourceType as
+    | "app"
+    | "container"
+    | "agent"
+    | "mcp";
   const resourceId = dataContent.resourceId as string;
 
   if (!domainId) throw new Error("domainId is required");
@@ -4871,8 +5353,16 @@ export async function executeSkillDomainsAssign(
 
   if (!deduction.success) throw new Error("Insufficient credits");
 
-  const updated = await domainManagementService.assignToResource(domainId, resourceType, resourceId, ctx.user.organization_id);
-  if (!updated) throw new Error("Failed to assign domain. Ensure domain is verified and resource exists.");
+  const updated = await domainManagementService.assignToResource(
+    domainId,
+    resourceType,
+    resourceId,
+    ctx.user.organization_id,
+  );
+  if (!updated)
+    throw new Error(
+      "Failed to assign domain. Ensure domain is verified and resource exists.",
+    );
 
   return {
     success: true,
@@ -4880,7 +5370,10 @@ export async function executeSkillDomainsAssign(
       id: updated.id,
       domain: updated.domain,
       resourceType: updated.resourceType!,
-      resourceId: (updated.appId || updated.containerId || updated.agentId || updated.mcpId)!,
+      resourceId: (updated.appId ||
+        updated.containerId ||
+        updated.agentId ||
+        updated.mcpId)!,
     },
     message: `Domain assigned to ${resourceType}`,
   };
@@ -4891,14 +5384,18 @@ export async function executeSkillDomainsAssign(
  */
 export async function executeSkillDomainsUnassign(
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<{ success: boolean; message: string }> {
-  const { domainManagementService } = await import("@/lib/services/domain-management");
+  const { domainManagementService } =
+    await import("@/lib/services/domain-management");
 
   const domainId = dataContent.domainId as string;
   if (!domainId) throw new Error("domainId is required");
 
-  const updated = await domainManagementService.unassignDomain(domainId, ctx.user.organization_id);
+  const updated = await domainManagementService.unassignDomain(
+    domainId,
+    ctx.user.organization_id,
+  );
 
   if (!updated) {
     throw new Error("Domain not found or already unassigned");
@@ -4928,15 +5425,15 @@ import type {
 export async function executeSkillCodeAgentCreateSession(
   textContent: string,
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<CodeAgentSessionResult> {
   const { codeAgentService } = await import("@/lib/services/code-agent");
 
   const name = dataContent.name as string | undefined;
   const description = dataContent.description as string | undefined;
   const templateUrl = dataContent.templateUrl as string | undefined;
-  const loadOrgSecrets = dataContent.loadOrgSecrets as boolean ?? true;
-  const expiresInSeconds = dataContent.expiresInSeconds as number ?? 1800;
+  const loadOrgSecrets = (dataContent.loadOrgSecrets as boolean) ?? true;
+  const expiresInSeconds = (dataContent.expiresInSeconds as number) ?? 1800;
 
   const session = await codeAgentService.createSession({
     organizationId: ctx.user.organization_id,
@@ -4963,13 +5460,18 @@ export async function executeSkillCodeAgentCreateSession(
 export async function executeSkillCodeAgentExecute(
   textContent: string,
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<CodeExecutionResult> {
   const { codeAgentService } = await import("@/lib/services/code-agent");
 
   const sessionId = dataContent.sessionId as string;
   const type = dataContent.type as "code" | "command";
-  const language = dataContent.language as "python" | "javascript" | "typescript" | "shell" | undefined;
+  const language = dataContent.language as
+    | "python"
+    | "javascript"
+    | "typescript"
+    | "shell"
+    | undefined;
   const code = dataContent.code as string | undefined;
   const command = dataContent.command as string | undefined;
   const args = dataContent.args as string[] | undefined;
@@ -4980,12 +5482,16 @@ export async function executeSkillCodeAgentExecute(
   if (!type) throw new Error("type is required");
 
   // Verify session belongs to org
-  const session = await codeAgentService.getSession(sessionId, ctx.user.organization_id);
+  const session = await codeAgentService.getSession(
+    sessionId,
+    ctx.user.organization_id,
+  );
   if (!session) throw new Error("Session not found");
 
   let result;
   if (type === "code") {
-    if (!code || !language) throw new Error("code and language required for type=code");
+    if (!code || !language)
+      throw new Error("code and language required for type=code");
     result = await codeAgentService.executeCode({
       sessionId,
       language,
@@ -5018,7 +5524,7 @@ export async function executeSkillCodeAgentExecute(
 export async function executeSkillCodeAgentReadFile(
   textContent: string,
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<FileOperationResult> {
   const { codeAgentService } = await import("@/lib/services/code-agent");
 
@@ -5028,7 +5534,10 @@ export async function executeSkillCodeAgentReadFile(
   if (!sessionId) throw new Error("sessionId is required");
   if (!path) throw new Error("path is required");
 
-  const session = await codeAgentService.getSession(sessionId, ctx.user.organization_id);
+  const session = await codeAgentService.getSession(
+    sessionId,
+    ctx.user.organization_id,
+  );
   if (!session) throw new Error("Session not found");
 
   const result = await codeAgentService.readFile({ sessionId, path });
@@ -5048,7 +5557,7 @@ export async function executeSkillCodeAgentReadFile(
 export async function executeSkillCodeAgentWriteFile(
   textContent: string,
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<FileOperationResult> {
   const { codeAgentService } = await import("@/lib/services/code-agent");
 
@@ -5060,7 +5569,10 @@ export async function executeSkillCodeAgentWriteFile(
   if (!path) throw new Error("path is required");
   if (!content) throw new Error("content is required");
 
-  const session = await codeAgentService.getSession(sessionId, ctx.user.organization_id);
+  const session = await codeAgentService.getSession(
+    sessionId,
+    ctx.user.organization_id,
+  );
   if (!session) throw new Error("Session not found");
 
   const result = await codeAgentService.writeFile({ sessionId, path, content });
@@ -5078,26 +5590,43 @@ export async function executeSkillCodeAgentWriteFile(
 export async function executeSkillCodeAgentListFiles(
   textContent: string,
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
-): Promise<{ success: boolean; path: string; entries: Array<{ path: string; type: string; size?: number }>; count: number }> {
+  ctx: A2AContext,
+): Promise<{
+  success: boolean;
+  path: string;
+  entries: Array<{ path: string; type: string; size?: number }>;
+  count: number;
+}> {
   const { codeAgentService } = await import("@/lib/services/code-agent");
 
   const sessionId = dataContent.sessionId as string;
   const path = (dataContent.path as string) || textContent || "/app";
-  const recursive = dataContent.recursive as boolean ?? true;
-  const maxDepth = dataContent.maxDepth as number ?? 3;
+  const recursive = (dataContent.recursive as boolean) ?? true;
+  const maxDepth = (dataContent.maxDepth as number) ?? 3;
 
   if (!sessionId) throw new Error("sessionId is required");
 
-  const session = await codeAgentService.getSession(sessionId, ctx.user.organization_id);
+  const session = await codeAgentService.getSession(
+    sessionId,
+    ctx.user.organization_id,
+  );
   if (!session) throw new Error("Session not found");
 
-  const result = await codeAgentService.listFiles({ sessionId, path, recursive, maxDepth });
+  const result = await codeAgentService.listFiles({
+    sessionId,
+    path,
+    recursive,
+    maxDepth,
+  });
 
   return {
     success: result.success,
     path: result.path,
-    entries: result.entries.map(e => ({ path: e.path, type: e.type, size: e.size })),
+    entries: result.entries.map((e) => ({
+      path: e.path,
+      type: e.type,
+      size: e.size,
+    })),
     count: result.entries.length,
   };
 }
@@ -5108,7 +5637,7 @@ export async function executeSkillCodeAgentListFiles(
 export async function executeSkillCodeAgentGitClone(
   textContent: string,
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<GitOperationResult> {
   const { codeAgentService } = await import("@/lib/services/code-agent");
 
@@ -5121,10 +5650,19 @@ export async function executeSkillCodeAgentGitClone(
   if (!sessionId) throw new Error("sessionId is required");
   if (!url) throw new Error("url is required");
 
-  const session = await codeAgentService.getSession(sessionId, ctx.user.organization_id);
+  const session = await codeAgentService.getSession(
+    sessionId,
+    ctx.user.organization_id,
+  );
   if (!session) throw new Error("Session not found");
 
-  const result = await codeAgentService.gitClone({ sessionId, url, branch, depth, directory });
+  const result = await codeAgentService.gitClone({
+    sessionId,
+    url,
+    branch,
+    depth,
+    directory,
+  });
 
   return {
     success: result.success,
@@ -5140,22 +5678,38 @@ export async function executeSkillCodeAgentGitClone(
 export async function executeSkillCodeAgentInstallPackages(
   textContent: string,
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
-): Promise<{ success: boolean; packages: string[]; installedCount: number; output: string; error?: string }> {
+  ctx: A2AContext,
+): Promise<{
+  success: boolean;
+  packages: string[];
+  installedCount: number;
+  output: string;
+  error?: string;
+}> {
   const { codeAgentService } = await import("@/lib/services/code-agent");
 
   const sessionId = dataContent.sessionId as string;
   const packages = dataContent.packages as string[];
-  const manager = (dataContent.manager as "npm" | "pip" | "bun" | "cargo") || "npm";
-  const dev = dataContent.dev as boolean ?? false;
+  const manager =
+    (dataContent.manager as "npm" | "pip" | "bun" | "cargo") || "npm";
+  const dev = (dataContent.dev as boolean) ?? false;
 
   if (!sessionId) throw new Error("sessionId is required");
-  if (!packages || packages.length === 0) throw new Error("packages is required");
+  if (!packages || packages.length === 0)
+    throw new Error("packages is required");
 
-  const session = await codeAgentService.getSession(sessionId, ctx.user.organization_id);
+  const session = await codeAgentService.getSession(
+    sessionId,
+    ctx.user.organization_id,
+  );
   if (!session) throw new Error("Session not found");
 
-  const result = await codeAgentService.installPackages({ sessionId, packages, manager, dev });
+  const result = await codeAgentService.installPackages({
+    sessionId,
+    packages,
+    manager,
+    dev,
+  });
 
   return {
     success: result.success,
@@ -5172,8 +5726,14 @@ export async function executeSkillCodeAgentInstallPackages(
 export async function executeSkillCodeAgentSnapshot(
   textContent: string,
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
-): Promise<{ success: boolean; snapshotId?: string; name?: string; fileCount?: number; error?: string }> {
+  ctx: A2AContext,
+): Promise<{
+  success: boolean;
+  snapshotId?: string;
+  name?: string;
+  fileCount?: number;
+  error?: string;
+}> {
   const { codeAgentService } = await import("@/lib/services/code-agent");
 
   const sessionId = dataContent.sessionId as string;
@@ -5182,10 +5742,17 @@ export async function executeSkillCodeAgentSnapshot(
 
   if (!sessionId) throw new Error("sessionId is required");
 
-  const session = await codeAgentService.getSession(sessionId, ctx.user.organization_id);
+  const session = await codeAgentService.getSession(
+    sessionId,
+    ctx.user.organization_id,
+  );
   if (!session) throw new Error("Session not found");
 
-  const result = await codeAgentService.createSnapshot({ sessionId, name, description });
+  const result = await codeAgentService.createSnapshot({
+    sessionId,
+    name,
+    description,
+  });
 
   if (!result.success) {
     return { success: false, error: result.error };
@@ -5205,7 +5772,7 @@ export async function executeSkillCodeAgentSnapshot(
 export async function executeSkillCodeAgentTerminate(
   textContent: string,
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<{ success: boolean; message: string }> {
   const { codeAgentService } = await import("@/lib/services/code-agent");
 
@@ -5227,11 +5794,15 @@ export async function executeSkillCodeAgentTerminate(
 export async function executeSkillCodeInterpreter(
   textContent: string,
   dataContent: Record<string, unknown>,
-  ctx: A2AContext
+  ctx: A2AContext,
 ): Promise<CodeInterpreterResult> {
   const { interpreterService } = await import("@/lib/services/code-agent");
 
-  const language = dataContent.language as "python" | "javascript" | "typescript" | "shell";
+  const language = dataContent.language as
+    | "python"
+    | "javascript"
+    | "typescript"
+    | "shell";
   const code = (dataContent.code as string) || textContent;
   const packages = dataContent.packages as string[] | undefined;
   const timeout = dataContent.timeout as number | undefined;
@@ -5258,4 +5829,3 @@ export async function executeSkillCodeInterpreter(
     costCents: result.costCents,
   };
 }
-

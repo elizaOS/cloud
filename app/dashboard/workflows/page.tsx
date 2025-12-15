@@ -31,7 +31,8 @@ export default function WorkflowsPage() {
   const { ready, authenticated } = usePrivy();
   const [activeTab, setActiveTab] = useState("workflows");
   const [view, setView] = useState<View>("list");
-  const [selectedWorkflow, setSelectedWorkflow] = useState<SelectedWorkflow | null>(null);
+  const [selectedWorkflow, setSelectedWorkflow] =
+    useState<SelectedWorkflow | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
   if (!ready) {
@@ -46,8 +47,13 @@ export default function WorkflowsPage() {
     return (
       <div className="flex h-full w-full items-center justify-center">
         <div className="text-center">
-          <p className="text-white/60 mb-4">Please log in to access workflows</p>
-          <BrandButton variant="primary" onClick={() => window.location.href = "/login"}>
+          <p className="text-white/60 mb-4">
+            Please log in to access workflows
+          </p>
+          <BrandButton
+            variant="primary"
+            onClick={() => (window.location.href = "/login")}
+          >
             Log In
           </BrandButton>
         </div>
@@ -165,4 +171,3 @@ export default function WorkflowsPage() {
     </div>
   );
 }
-

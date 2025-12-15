@@ -8,15 +8,31 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { ArrowUp, Paperclip, Square, X } from "lucide-react";
-import { SetStateAction, useCallback, useEffect, useMemo, useState } from "react";
+import {
+  SetStateAction,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import Image from "next/image";
 // Dynamic import for react-textarea-autosize
-let TextareaAutosize: React.ComponentType<React.TextareaHTMLAttributes<HTMLTextAreaElement> & { minRows?: number; maxRows?: number }>;
+let TextareaAutosize: React.ComponentType<
+  React.TextareaHTMLAttributes<HTMLTextAreaElement> & {
+    minRows?: number;
+    maxRows?: number;
+  }
+>;
 try {
   TextareaAutosize = require("react-textarea-autosize").default;
 } catch {
   // Fallback to regular textarea
-  function TextareaAutosizeFallback(props: React.TextareaHTMLAttributes<HTMLTextAreaElement> & { minRows?: number; maxRows?: number }) {
+  function TextareaAutosizeFallback(
+    props: React.TextareaHTMLAttributes<HTMLTextAreaElement> & {
+      minRows?: number;
+      maxRows?: number;
+    },
+  ) {
     const { minRows, maxRows, ...rest } = props;
     return <textarea {...rest} rows={minRows || 1} />;
   }
@@ -65,9 +81,12 @@ export function ChatInput({
     });
   }
 
-  const handleFileRemove = useCallback((file: File) => {
-    handleFileChange((prev) => prev.filter((f) => f !== file));
-  }, [handleFileChange]);
+  const handleFileRemove = useCallback(
+    (file: File) => {
+      handleFileChange((prev) => prev.filter((f) => f !== file));
+    },
+    [handleFileChange],
+  );
 
   function handlePaste(e: React.ClipboardEvent<HTMLTextAreaElement>) {
     const items = Array.from(e.clipboardData.items);
@@ -107,13 +126,13 @@ export function ChatInput({
     setDragActive(false);
 
     const droppedFiles = Array.from(e.dataTransfer.files).filter((file) =>
-      file.type.startsWith("image/")
+      file.type.startsWith("image/"),
     );
 
     if (droppedFiles.length > 0) {
       handleFileChange((prev) => {
         const uniqueFiles = droppedFiles.filter(
-          (file) => !isFileInArray(file, prev)
+          (file) => !isFileInArray(file, prev),
         );
         return [...prev, ...uniqueFiles];
       });
@@ -197,7 +216,9 @@ export function ChatInput({
               : ""
           }`}
         >
-          <div className="flex items-center px-2 sm:px-3 py-1.5 sm:py-2 gap-1 flex-wrap">{children}</div>
+          <div className="flex items-center px-2 sm:px-3 py-1.5 sm:py-2 gap-1 flex-wrap">
+            {children}
+          </div>
           <TextareaAutosize
             autoFocus={true}
             minRows={1}
@@ -288,4 +309,3 @@ export function ChatInput({
     </form>
   );
 }
-

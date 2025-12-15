@@ -1,19 +1,24 @@
 import { describe, test, expect } from "bun:test";
 function isValidUUID(str: string): boolean {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+    str,
+  );
 }
 
 function isValidRole(role: string): boolean {
   return role === "user" || role === "assistant";
 }
 
-function validateRequest(request: Record<string, unknown>): { valid: boolean; errors: string[] } {
+function validateRequest(request: Record<string, unknown>): {
+  valid: boolean;
+  errors: string[];
+} {
   const errors: string[] = [];
-  
+
   if (!request.workflowId || !isValidUUID(request.workflowId as string)) {
     errors.push("Invalid workflowId");
   }
-  
+
   if (request.message === undefined || request.message === null) {
     errors.push("Missing message");
   } else if (typeof request.message !== "string") {
@@ -23,8 +28,10 @@ function validateRequest(request: Record<string, unknown>): { valid: boolean; er
   } else if ((request.message as string).length > 10000) {
     errors.push("Message too long");
   }
-  
-  const workflow = request.currentWorkflow as Record<string, unknown> | undefined;
+
+  const workflow = request.currentWorkflow as
+    | Record<string, unknown>
+    | undefined;
   if (!workflow) {
     errors.push("Missing currentWorkflow");
   } else {
@@ -35,8 +42,10 @@ function validateRequest(request: Record<string, unknown>): { valid: boolean; er
     if (!Array.isArray(workflow.tags)) errors.push("Missing workflow tags");
     if (!workflow.workflowData) errors.push("Missing workflowData");
   }
-  
-  const history = request.history as Array<{ role: string; content: string }> | undefined;
+
+  const history = request.history as
+    | Array<{ role: string; content: string }>
+    | undefined;
   if (history && !Array.isArray(history)) {
     errors.push("Invalid history");
   } else if (history) {
@@ -46,7 +55,7 @@ function validateRequest(request: Record<string, unknown>): { valid: boolean; er
       }
     }
   }
-  
+
   return { valid: errors.length === 0, errors };
 }
 
@@ -130,7 +139,7 @@ describe("Request Validation", () => {
     };
     const result = validateRequest(invalid);
     expect(result.valid).toBe(false);
-    expect(result.errors.some(e => e.includes("Invalid role"))).toBe(true);
+    expect(result.errors.some((e) => e.includes("Invalid role"))).toBe(true);
   });
 
   test("accepts complex history with valid roles", () => {
@@ -193,7 +202,8 @@ describe("Message Parsing Edge Cases", () => {
   });
 
   test("handles newlines in message", () => {
-    const message = "Add a webhook node\nThen add an HTTP node\nFinally add a response";
+    const message =
+      "Add a webhook node\nThen add an HTTP node\nFinally add a response";
     const lines = message.split("\n");
     expect(lines.length).toBe(3);
   });
@@ -204,7 +214,8 @@ describe("Message Parsing Edge Cases", () => {
   });
 
   test("handles JSON in message", () => {
-    const message = 'Set the parameters to {"url": "https://api.com", "method": "POST"}';
+    const message =
+      'Set the parameters to {"url": "https://api.com", "method": "POST"}';
     expect(message).toContain("{");
     expect(message).toContain("}");
   });
@@ -217,10 +228,11 @@ describe("Message Parsing Edge Cases", () => {
 
 describe("Response Parsing", () => {
   test("extracts JSON from response with surrounding text", () => {
-    const response = 'Here is the change: {"message": "Added node", "proposedChanges": {"name": "New Name"}} That should work.';
+    const response =
+      'Here is the change: {"message": "Added node", "proposedChanges": {"name": "New Name"}} That should work.';
     const jsonMatch = response.match(/\{[\s\S]*\}/);
     expect(jsonMatch).not.toBeNull();
-    
+
     const parsed = JSON.parse(jsonMatch![0]);
     expect(parsed.message).toBe("Added node");
     expect(parsed.proposedChanges.name).toBe("New Name");
@@ -261,7 +273,9 @@ describe("Response Parsing", () => {
     }`;
     const parsed = JSON.parse(response);
     expect(parsed.proposedChanges.workflowData.nodes.length).toBe(1);
-    expect(parsed.proposedChanges.workflowData.nodes[0].type).toBe("n8n-nodes-base.webhook");
+    expect(parsed.proposedChanges.workflowData.nodes[0].type).toBe(
+      "n8n-nodes-base.webhook",
+    );
   });
 });
 
@@ -286,7 +300,7 @@ describe("Proposed Changes Structure", () => {
   test("description can be null or string", () => {
     const withString = { description: "New description" };
     const withNull = { description: null };
-    
+
     expect(typeof withString.description).toBe("string");
     expect(withNull.description).toBeNull();
   });
@@ -305,7 +319,9 @@ describe("Proposed Changes Structure", () => {
   test("partial changes are valid", () => {
     const proposedChanges = { name: "New Name" };
     expect(proposedChanges.name).toBeDefined();
-    expect((proposedChanges as Record<string, unknown>).workflowData).toBeUndefined();
+    expect(
+      (proposedChanges as Record<string, unknown>).workflowData,
+    ).toBeUndefined();
     expect((proposedChanges as Record<string, unknown>).status).toBeUndefined();
   });
 });
@@ -365,10 +381,10 @@ describe("Update Payload Construction", () => {
 describe("History Management", () => {
   test("history is limited to last 10 messages", () => {
     const fullHistory = Array.from({ length: 20 }, (_, i) => ({
-      role: i % 2 === 0 ? "user" as const : "assistant" as const,
+      role: i % 2 === 0 ? ("user" as const) : ("assistant" as const),
       content: `Message ${i}`,
     }));
-    
+
     const limited = fullHistory.slice(-10);
     expect(limited.length).toBe(10);
     expect(limited[0].content).toBe("Message 10");
@@ -428,10 +444,9 @@ describe("Message ID Generation", () => {
     const userId = `user-${Date.now()}`;
     const assistantId = `assistant-${Date.now()}`;
     const errorId = `error-${Date.now()}`;
-    
+
     expect(userId).toMatch(/^user-\d+$/);
     expect(assistantId).toMatch(/^assistant-\d+$/);
     expect(errorId).toMatch(/^error-\d+$/);
   });
 });
-

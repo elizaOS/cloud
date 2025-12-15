@@ -40,11 +40,14 @@ describe("Code Agent API - Sessions", () => {
     test("validates required auth", async () => {
       if (skipIfNoServer()) return;
 
-      const response = await fetch(`${testContext.serverUrl}${API_BASE}/sessions`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ runtimeType: "vercel" }),
-      });
+      const response = await fetch(
+        `${testContext.serverUrl}${API_BASE}/sessions`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ runtimeType: "vercel" }),
+        },
+      );
 
       expect(response.status).toBe(401);
     });
@@ -129,7 +132,7 @@ describe("Code Agent API - Session Operations", () => {
       const validUUID = "123e4567-e89b-12d3-a456-426614174000";
       const isValidUUID =
         /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-          validUUID
+          validUUID,
         );
 
       expect(isValidUUID).toBe(true);
@@ -218,7 +221,14 @@ describe("Code Agent API - Execute", () => {
     });
 
     test("supports all languages", () => {
-      const languages = ["python", "javascript", "typescript", "shell", "rust", "go"];
+      const languages = [
+        "python",
+        "javascript",
+        "typescript",
+        "shell",
+        "rust",
+        "go",
+      ];
 
       for (const lang of languages) {
         const request = { type: "code", language: lang, code: "test" };
@@ -553,5 +563,3 @@ describe("Code Agent API - Concurrent Requests", () => {
     expect(running.length).toBe(1); // Only one running at a time
   });
 });
-
-

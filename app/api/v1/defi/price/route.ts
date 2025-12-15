@@ -7,9 +7,13 @@ import { z } from "zod";
 import { fetchTokenPrice } from "@/lib/services/defi/operations";
 
 const QuerySchema = z.object({
-  source: z.enum(["birdeye", "jupiter", "coingecko", "coinmarketcap"]).default("coingecko"),
+  source: z
+    .enum(["birdeye", "jupiter", "coingecko", "coinmarketcap"])
+    .default("coingecko"),
   identifier: z.string().min(1),
-  chain: z.enum(["solana", "ethereum", "base", "polygon", "arbitrum", "bsc"]).optional(),
+  chain: z
+    .enum(["solana", "ethereum", "base", "polygon", "arbitrum", "bsc"])
+    .optional(),
 });
 
 export async function GET(request: Request) {
@@ -21,7 +25,10 @@ export async function GET(request: Request) {
   });
 
   if (!parsed.success) {
-    return NextResponse.json({ error: "Invalid parameters", details: parsed.error.format() }, { status: 400 });
+    return NextResponse.json(
+      { error: "Invalid parameters", details: parsed.error.format() },
+      { status: 400 },
+    );
   }
 
   const { source, identifier, chain } = parsed.data;

@@ -1,12 +1,12 @@
 /**
  * ORG API Integration Tests
- * 
+ *
  * Tests ALL org-related API endpoints with:
  * - Real HTTP requests
  * - Database verification for write operations
  * - Cross-platform validation
  * - Error handling
- * 
+ *
  * Requirements:
  * - TEST_API_KEY or TEST_APP_TOKEN: Valid auth token
  * - Server running at TEST_SERVER_URL (default: http://localhost:3000)
@@ -42,16 +42,18 @@ let organizationId: string | null = null;
 async function fetchWithAuth(
   endpoint: string,
   method: "GET" | "POST" | "PATCH" | "DELETE" = "GET",
-  body?: Record<string, unknown>
+  body?: Record<string, unknown>,
 ): Promise<Response> {
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
-  
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+
   if (APP_TOKEN) {
     headers["X-App-Token"] = APP_TOKEN;
   } else if (API_KEY) {
     headers["Authorization"] = `Bearer ${API_KEY}`;
   }
-  
+
   return fetch(`${SERVER_URL}/api/v1/app${endpoint}`, {
     method,
     headers,
@@ -60,20 +62,25 @@ async function fetchWithAuth(
   });
 }
 
-async function orgMcpCall(toolName: string, args: Record<string, unknown> = {}): Promise<{
+async function orgMcpCall(
+  toolName: string,
+  args: Record<string, unknown> = {},
+): Promise<{
   jsonrpc: string;
   id: number;
   result?: { content?: Array<{ type: string; text: string }> };
   error?: { code: number; message: string };
 }> {
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
-  
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+
   if (APP_TOKEN) {
     headers["X-App-Token"] = APP_TOKEN;
   } else if (API_KEY) {
     headers["Authorization"] = `Bearer ${API_KEY}`;
   }
-  
+
   const response = await fetch(`${SERVER_URL}/api/mcp/org/sse`, {
     method: "POST",
     headers,
@@ -85,11 +92,13 @@ async function orgMcpCall(toolName: string, args: Record<string, unknown> = {}):
     }),
     signal: AbortSignal.timeout(TIMEOUT),
   });
-  
+
   return response.json();
 }
 
-function parseMcpResult(data: { result?: { content?: Array<{ type: string; text: string }> } }): Record<string, unknown> {
+function parseMcpResult(data: {
+  result?: { content?: Array<{ type: string; text: string }> };
+}): Record<string, unknown> {
   const text = data.result?.content?.[0]?.text;
   if (!text) throw new Error("No content in MCP response");
   return JSON.parse(text);
@@ -119,7 +128,9 @@ beforeAll(async () => {
 
   // Check auth
   if (!APP_TOKEN && !API_KEY) {
-    console.log(`⚠️ No TEST_APP_TOKEN or TEST_API_KEY set - tests will be skipped`);
+    console.log(
+      `⚠️ No TEST_APP_TOKEN or TEST_API_KEY set - tests will be skipped`,
+    );
     return;
   }
 
@@ -382,7 +393,9 @@ describe("Org MCP Tools", () => {
   test("tools/list - returns org tools", async () => {
     if (skip()) return;
 
-    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
     if (APP_TOKEN) headers["X-App-Token"] = APP_TOKEN;
     else if (API_KEY) headers["Authorization"] = `Bearer ${API_KEY}`;
 
@@ -401,7 +414,7 @@ describe("Org MCP Tools", () => {
     const data = await response.json();
     expect(data.result).toHaveProperty("tools");
     expect(Array.isArray(data.result.tools)).toBe(true);
-    
+
     // Should have at least the core tools
     const toolNames = data.result.tools.map((t: { name: string }) => t.name);
     expect(toolNames).toContain("create_todo");
@@ -487,7 +500,7 @@ describe("Error Handling", () => {
     if (skip()) return;
 
     const response = await fetchWithAuth(
-      "/tasks/00000000-0000-0000-0000-000000000000"
+      "/tasks/00000000-0000-0000-0000-000000000000",
     );
     expect(response.status).toBe(404);
   });
@@ -496,7 +509,7 @@ describe("Error Handling", () => {
     if (skip()) return;
 
     const response = await fetchWithAuth(
-      "/bots/00000000-0000-0000-0000-000000000000"
+      "/bots/00000000-0000-0000-0000-000000000000",
     );
     expect(response.status).toBe(404);
   });
@@ -505,18 +518,17 @@ describe("Error Handling", () => {
     if (skip()) return;
 
     const response = await fetchWithAuth(
-      "/credentials/00000000-0000-0000-0000-000000000000"
+      "/credentials/00000000-0000-0000-0000-000000000000",
     );
     expect(response.status).toBe(404);
   });
 
   test("Missing auth returns 401", async () => {
     if (!serverRunning) return; // Skip if server not running
-    
+
     const response = await fetch(`${SERVER_URL}/api/v1/tasks`, {
       signal: AbortSignal.timeout(TIMEOUT),
     });
     expect(response.status).toBe(401);
   });
 });
-

@@ -4,32 +4,32 @@ on:
   workflow_dispatch:
     inputs:
       scenario:
-        description: 'Test scenario'
+        description: "Test scenario"
         required: true
-        default: 'smoke'
+        default: "smoke"
         type: choice
         options: [smoke, full-platform, stress, spike, throughput]
       environment:
-        description: 'Target environment'
+        description: "Target environment"
         required: true
-        default: 'local'
+        default: "local"
         type: choice
         options: [local, staging]
 
   pull_request:
     branches: [main]
     paths:
-      - 'app/api/**'
-      - 'lib/services/**'
-      - 'tests/load/**'
+      - "app/api/**"
+      - "lib/services/**"
+      - "tests/load/**"
 
   schedule:
-    - cron: '0 2 * * *' # Nightly at 2 AM UTC
+    - cron: "0 2 * * *" # Nightly at 2 AM UTC
 
 env:
-  BUN_VERSION: '1.2'
+  BUN_VERSION: "1.2"
   # Universal test API key - created by seed-test-api-key.ts
-  TEST_API_KEY: 'eliza_test_0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
+  TEST_API_KEY: "eliza_test_0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 
 jobs:
   # Framework tests - always run, no server needed
@@ -60,7 +60,7 @@ jobs:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: eliza_test
-        ports: ['5432:5432']
+        ports: ["5432:5432"]
         options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
 
     env:

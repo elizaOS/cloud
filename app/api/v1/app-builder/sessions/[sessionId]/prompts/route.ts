@@ -20,12 +20,20 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
   if (!validationResult.success) {
     return NextResponse.json(
-      { success: false, error: "Invalid request data", details: validationResult.error.format() },
-      { status: 400 }
+      {
+        success: false,
+        error: "Invalid request data",
+        details: validationResult.error.format(),
+      },
+      { status: 400 },
     );
   }
 
-  const result = await aiAppBuilderService.sendPrompt(sessionId, validationResult.data.prompt, user.id);
+  const result = await aiAppBuilderService.sendPrompt(
+    sessionId,
+    validationResult.data.prompt,
+    user.id,
+  );
 
   return NextResponse.json({
     success: result.success,

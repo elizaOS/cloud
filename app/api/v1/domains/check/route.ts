@@ -16,11 +16,13 @@ export async function GET(request: NextRequest) {
   const parsed = DomainCheckSchema.safeParse({ domain });
   if (!parsed.success) return validationError(parsed.error.issues);
 
-  logger.info("[Domains API] Checking domain availability", { domain: parsed.data.domain });
+  logger.info("[Domains API] Checking domain availability", {
+    domain: parsed.data.domain,
+  });
 
   // Check moderation first
   const moderation = await domainModerationService.validateDomainName(
-    parsed.data.domain
+    parsed.data.domain,
   );
 
   if (!moderation.allowed) {
@@ -35,7 +37,7 @@ export async function GET(request: NextRequest) {
 
   // Check availability and pricing
   const result = await domainManagementService.checkAvailability(
-    parsed.data.domain
+    parsed.data.domain,
   );
 
   return NextResponse.json({
@@ -45,4 +47,3 @@ export async function GET(request: NextRequest) {
     requiresReview: moderation.requiresReview,
   });
 }
-

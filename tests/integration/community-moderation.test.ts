@@ -9,7 +9,14 @@
  * Note: These tests are skipped if the org_token_gates table doesn't exist.
  */
 
-import { describe, test, expect, beforeAll, afterAll, afterEach } from "bun:test";
+import {
+  describe,
+  test,
+  expect,
+  beforeAll,
+  afterAll,
+  afterEach,
+} from "bun:test";
 import { db } from "@/db";
 import { eq, and, sql } from "drizzle-orm";
 import {
@@ -20,7 +27,10 @@ import {
   orgBlockedPatterns,
 } from "@/db/schemas/org-community-moderation";
 import { organizations } from "@/db/schemas/organizations";
-import { orgPlatformConnections, orgPlatformServers } from "@/db/schemas/org-platforms";
+import {
+  orgPlatformConnections,
+  orgPlatformServers,
+} from "@/db/schemas/org-platforms";
 import { v4 as uuidv4 } from "uuid";
 
 // =============================================================================
@@ -35,8 +45,12 @@ beforeAll(async () => {
     await db.execute(sql`SELECT 1 FROM org_token_gates LIMIT 0`);
     TABLES_EXIST = true;
   } catch {
-    console.log("\n[Community Moderation Integration Tests] SKIPPED - tables not migrated.");
-    console.log("Run 'bun run db:migrate' to create the community moderation tables.\n");
+    console.log(
+      "\n[Community Moderation Integration Tests] SKIPPED - tables not migrated.",
+    );
+    console.log(
+      "Run 'bun run db:migrate' to create the community moderation tables.\n",
+    );
     TABLES_EXIST = false;
   }
 });
@@ -63,7 +77,9 @@ async function setupTestData() {
       slug: `test-org-cm-${Date.now()}`,
     });
     testOrgCreated = true;
-  } catch { /* May already exist */ }
+  } catch {
+    /* May already exist */
+  }
 
   try {
     await db.insert(orgPlatformConnections).values({
@@ -75,7 +91,9 @@ async function setupTestData() {
       status: "connected",
     });
     testConnectionCreated = true;
-  } catch { /* May already exist */ }
+  } catch {
+    /* May already exist */
+  }
 
   try {
     await db.insert(orgPlatformServers).values({
@@ -87,29 +105,47 @@ async function setupTestData() {
       enabled: true,
     });
     testServerCreated = true;
-  } catch { /* May already exist */ }
+  } catch {
+    /* May already exist */
+  }
 }
 
 async function cleanupTestData() {
   if (!TABLES_EXIST) return;
 
   try {
-    await db.delete(orgBlockedPatterns).where(eq(orgBlockedPatterns.organization_id, TEST_ORG_ID));
-    await db.delete(orgSpamTracking).where(eq(orgSpamTracking.organization_id, TEST_ORG_ID));
-    await db.delete(orgModerationEvents).where(eq(orgModerationEvents.organization_id, TEST_ORG_ID));
-    await db.delete(orgMemberWallets).where(eq(orgMemberWallets.organization_id, TEST_ORG_ID));
-    await db.delete(orgTokenGates).where(eq(orgTokenGates.organization_id, TEST_ORG_ID));
+    await db
+      .delete(orgBlockedPatterns)
+      .where(eq(orgBlockedPatterns.organization_id, TEST_ORG_ID));
+    await db
+      .delete(orgSpamTracking)
+      .where(eq(orgSpamTracking.organization_id, TEST_ORG_ID));
+    await db
+      .delete(orgModerationEvents)
+      .where(eq(orgModerationEvents.organization_id, TEST_ORG_ID));
+    await db
+      .delete(orgMemberWallets)
+      .where(eq(orgMemberWallets.organization_id, TEST_ORG_ID));
+    await db
+      .delete(orgTokenGates)
+      .where(eq(orgTokenGates.organization_id, TEST_ORG_ID));
 
     if (testServerCreated) {
-      await db.delete(orgPlatformServers).where(eq(orgPlatformServers.id, TEST_SERVER_ID));
+      await db
+        .delete(orgPlatformServers)
+        .where(eq(orgPlatformServers.id, TEST_SERVER_ID));
     }
     if (testConnectionCreated) {
-      await db.delete(orgPlatformConnections).where(eq(orgPlatformConnections.id, TEST_CONNECTION_ID));
+      await db
+        .delete(orgPlatformConnections)
+        .where(eq(orgPlatformConnections.id, TEST_CONNECTION_ID));
     }
     if (testOrgCreated) {
       await db.delete(organizations).where(eq(organizations.id, TEST_ORG_ID));
     }
-  } catch { /* Ignore cleanup errors */ }
+  } catch {
+    /* Ignore cleanup errors */
+  }
 }
 
 // Helper to skip tests if tables don't exist
@@ -138,7 +174,9 @@ describe("Token Gates Repository Integration", () => {
 
   afterEach(async () => {
     if (!TABLES_EXIST) return;
-    await db.delete(orgTokenGates).where(eq(orgTokenGates.organization_id, TEST_ORG_ID));
+    await db
+      .delete(orgTokenGates)
+      .where(eq(orgTokenGates.organization_id, TEST_ORG_ID));
   });
 
   itIfTables("creates a token gate with all fields", async () => {
@@ -234,7 +272,9 @@ describe("Moderation Events Repository Integration", () => {
 
   afterEach(async () => {
     if (!TABLES_EXIST) return;
-    await db.delete(orgModerationEvents).where(eq(orgModerationEvents.organization_id, TEST_ORG_ID));
+    await db
+      .delete(orgModerationEvents)
+      .where(eq(orgModerationEvents.organization_id, TEST_ORG_ID));
   });
 
   itIfTables("creates moderation event with all fields", async () => {
@@ -306,8 +346,8 @@ describe("Moderation Events Repository Integration", () => {
         and(
           eq(orgModerationEvents.server_id, TEST_SERVER_ID),
           eq(orgModerationEvents.platform_user_id, userId),
-          eq(orgModerationEvents.false_positive, false)
-        )
+          eq(orgModerationEvents.false_positive, false),
+        ),
       );
 
     expect(Number(result.count)).toBe(2);
@@ -329,7 +369,9 @@ describe("Spam Tracking Repository Integration", () => {
 
   afterEach(async () => {
     if (!TABLES_EXIST) return;
-    await db.delete(orgSpamTracking).where(eq(orgSpamTracking.organization_id, TEST_ORG_ID));
+    await db
+      .delete(orgSpamTracking)
+      .where(eq(orgSpamTracking.organization_id, TEST_ORG_ID));
   });
 
   itIfTables("creates spam tracking record", async () => {
@@ -366,9 +408,11 @@ describe("Spam Tracking Repository Integration", () => {
       Array.from({ length: 5 }, () =>
         db
           .update(orgSpamTracking)
-          .set({ total_violations: sql`${orgSpamTracking.total_violations} + 1` })
-          .where(eq(orgSpamTracking.id, tracking.id))
-      )
+          .set({
+            total_violations: sql`${orgSpamTracking.total_violations} + 1`,
+          })
+          .where(eq(orgSpamTracking.id, tracking.id)),
+      ),
     );
 
     const [updated] = await db
@@ -395,7 +439,9 @@ describe("Blocked Patterns Repository Integration", () => {
 
   afterEach(async () => {
     if (!TABLES_EXIST) return;
-    await db.delete(orgBlockedPatterns).where(eq(orgBlockedPatterns.organization_id, TEST_ORG_ID));
+    await db
+      .delete(orgBlockedPatterns)
+      .where(eq(orgBlockedPatterns.organization_id, TEST_ORG_ID));
   });
 
   itIfTables("creates blocked pattern", async () => {
@@ -478,7 +524,9 @@ describe("Member Wallets Repository Integration", () => {
 
   afterEach(async () => {
     if (!TABLES_EXIST) return;
-    await db.delete(orgMemberWallets).where(eq(orgMemberWallets.organization_id, TEST_ORG_ID));
+    await db
+      .delete(orgMemberWallets)
+      .where(eq(orgMemberWallets.organization_id, TEST_ORG_ID));
   });
 
   itIfTables("creates member wallet", async () => {
@@ -533,8 +581,8 @@ describe("Member Wallets Repository Integration", () => {
         and(
           eq(orgMemberWallets.server_id, TEST_SERVER_ID),
           eq(orgMemberWallets.platform_user_id, userId),
-          eq(orgMemberWallets.platform, "discord")
-        )
+          eq(orgMemberWallets.platform, "discord"),
+        ),
       );
 
     expect(wallets.length).toBe(2);
@@ -569,6 +617,8 @@ describe("Member Wallets Repository Integration", () => {
       .returning();
 
     expect(updated.last_balance).toBeDefined();
-    expect((updated.last_balance as typeof balanceData).tokens["0xtoken"]).toBe("1000000000000000000");
+    expect((updated.last_balance as typeof balanceData).tokens["0xtoken"]).toBe(
+      "1000000000000000000",
+    );
   });
 });

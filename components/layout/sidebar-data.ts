@@ -15,7 +15,6 @@ import {
   Shield,
   Wallet,
   Coins,
-  FolderOpen,
   Workflow,
   Megaphone,
   Sparkles,
@@ -82,21 +81,6 @@ export const sidebarSections: SidebarSection[] = [
     title: "Generation Studio",
     items: [
       {
-        id: "fragments",
-        label: "Fragments",
-        href: "/dashboard/fragments",
-        icon: Code,
-        freeAllowed: false, // Requires signup
-        isNew: true,
-      },
-      {
-        id: "fragment-projects",
-        label: "Fragment Projects",
-        href: "/dashboard/fragments/projects",
-        icon: FolderOpen,
-        freeAllowed: false, // Requires signup
-      },
-      {
         id: "image-generation",
         label: "Images",
         href: "/dashboard/image",
@@ -123,14 +107,6 @@ export const sidebarSections: SidebarSection[] = [
         label: "Gallery",
         href: "/dashboard/gallery",
         icon: LayersIcon,
-        freeAllowed: false,
-        featureFlag: "gallery",
-      },
-      {
-        id: "collections",
-        label: "Collections",
-        href: "/dashboard/collections",
-        icon: FolderOpen,
         freeAllowed: false,
         featureFlag: "gallery",
       },

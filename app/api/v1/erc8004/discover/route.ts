@@ -5,7 +5,7 @@
  * Supports search, filtering by tags, protocols, and capabilities.
  *
  * GET /api/v1/erc8004/discover - Search and discover marketplace items
- * 
+ *
  * Query Parameters:
  * - query: Free text search
  * - types: Comma-separated service types (agent, mcp, app)
@@ -67,7 +67,9 @@ export async function GET(request: NextRequest) {
 
   const paymentMethods = searchParams.get("paymentMethods");
   if (paymentMethods) {
-    filters.paymentMethods = paymentMethods.split(",") as ERC8004PaymentMethod[];
+    filters.paymentMethods = paymentMethods.split(
+      ",",
+    ) as ERC8004PaymentMethod[];
   }
 
   const category = searchParams.get("category");
@@ -109,13 +111,16 @@ export async function GET(request: NextRequest) {
   // Parse pagination
   const pagination: ERC8004PaginationOptions = {
     page: Math.max(1, parseInt(searchParams.get("page") || "1", 10)),
-    limit: Math.min(50, Math.max(1, parseInt(searchParams.get("limit") || "20", 10))),
+    limit: Math.min(
+      50,
+      Math.max(1, parseInt(searchParams.get("limit") || "20", 10)),
+    ),
   };
 
   const result = await erc8004MarketplaceService.discover(
     filters,
     sort,
-    pagination
+    pagination,
   );
 
   return NextResponse.json(result, {
@@ -137,4 +142,3 @@ export async function OPTIONS() {
     },
   });
 }
-

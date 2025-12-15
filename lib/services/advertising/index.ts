@@ -57,19 +57,19 @@ class AdvertisingService {
   // ============================================
 
   private async getCredentials(
-    account: AdAccount
+    account: AdAccount,
   ): Promise<AdAccountCredentials> {
     const [accessToken, refreshToken] = await Promise.all([
       account.access_token_secret_id
         ? secretsService.getDecryptedValue(
             account.access_token_secret_id,
-            account.organization_id
+            account.organization_id,
           )
         : undefined,
       account.refresh_token_secret_id
         ? secretsService.getDecryptedValue(
             account.refresh_token_secret_id,
-            account.organization_id
+            account.organization_id,
           )
         : undefined,
     ]);
@@ -91,9 +91,12 @@ class AdvertisingService {
 
   async listAccounts(
     organizationId: string,
-    options?: { platform?: AdPlatform }
+    options?: { platform?: AdPlatform },
   ): Promise<AdAccount[]> {
-    return await adAccountsRepository.listByOrganization(organizationId, options);
+    return await adAccountsRepository.listByOrganization(
+      organizationId,
+      options,
+    );
   }
 
   async getAccount(id: string): Promise<AdAccount | undefined> {
@@ -131,7 +134,11 @@ class AdvertisingService {
         scope: "organization",
         createdBy: input.userId,
       },
-      { actorType: "user", actorId: input.userId, source: "advertising-service" }
+      {
+        actorType: "user",
+        actorId: input.userId,
+        source: "advertising-service",
+      },
     );
 
     // Store refresh token if provided
@@ -145,7 +152,11 @@ class AdvertisingService {
           scope: "organization",
           createdBy: input.userId,
         },
-        { actorType: "user", actorId: input.userId, source: "advertising-service" }
+        {
+          actorType: "user",
+          actorId: input.userId,
+          source: "advertising-service",
+        },
       );
       refreshTokenSecretId = refreshTokenSecret.id;
     }
@@ -173,7 +184,7 @@ class AdvertisingService {
 
   async disconnectAccount(
     accountId: string,
-    organizationId: string
+    organizationId: string,
   ): Promise<void> {
     const account = await adAccountsRepository.findById(accountId);
 
@@ -185,12 +196,20 @@ class AdvertisingService {
     if (account.access_token_secret_id) {
       await secretsService
         .delete(account.access_token_secret_id, organizationId)
-        .catch((e) => logger.warn("[Advertising] Failed to delete access token secret", { error: e }));
+        .catch((e) =>
+          logger.warn("[Advertising] Failed to delete access token secret", {
+            error: e,
+          }),
+        );
     }
     if (account.refresh_token_secret_id) {
       await secretsService
         .delete(account.refresh_token_secret_id, organizationId)
-        .catch((e) => logger.warn("[Advertising] Failed to delete refresh token secret", { error: e }));
+        .catch((e) =>
+          logger.warn("[Advertising] Failed to delete refresh token secret", {
+            error: e,
+          }),
+        );
     }
 
     await adAccountsRepository.delete(accountId);
@@ -201,7 +220,7 @@ class AdvertisingService {
   async listAvailableAdAccounts(
     organizationId: string,
     platform: AdPlatform,
-    accessToken: string
+    accessToken: string,
   ): Promise<Array<{ id: string; name: string }>> {
     const provider = this.getProvider(platform);
     return await provider.listAdAccounts({ accessToken });
@@ -218,11 +237,11 @@ class AdvertisingService {
       platform?: AdPlatform;
       status?: string;
       appId?: string;
-    }
+    },
   ): Promise<AdCampaign[]> {
     return await adCampaignsRepository.listByOrganization(
       organizationId,
-      options as Parameters<typeof adCampaignsRepository.listByOrganization>[1]
+      options as Parameters<typeof adCampaignsRepository.listByOrganization>[1],
     );
   }
 
@@ -256,7 +275,7 @@ class AdvertisingService {
     // Allocate budget credits
     const budgetCredits = calculateSpendCredits(
       account.platform,
-      input.budgetAmount
+      input.budgetAmount,
     );
 
     const budgetDeduction = await creditsService.deductCredits({
@@ -275,7 +294,8 @@ class AdvertisingService {
       await creditsService.refundCredits({
         organizationId: input.organizationId,
         amount: 0.5,
-        description: "Refund: Campaign creation failed due to insufficient budget",
+        description:
+          "Refund: Campaign creation failed due to insufficient budget",
         metadata: {},
       });
       throw new Error("Insufficient credits for campaign budget");
@@ -288,7 +308,7 @@ class AdvertisingService {
     const result = await provider.createCampaign(
       credentials,
       account.external_account_id,
-      input
+      input,
     );
 
     if (!result.success) {
@@ -344,7 +364,7 @@ class AdvertisingService {
   async updateCampaign(
     campaignId: string,
     organizationId: string,
-    input: UpdateCampaignInput
+    input: UpdateCampaignInput,
   ): Promise<AdCampaign> {
     const campaign = await adCampaignsRepository.findById(campaignId);
     if (!campaign || campaign.organization_id !== organizationId) {
@@ -366,7 +386,7 @@ class AdvertisingService {
     const result = await provider.updateCampaign(
       credentials,
       campaign.external_campaign_id,
-      input
+      input,
     );
 
     if (!result.success) {
@@ -375,7 +395,9 @@ class AdvertisingService {
 
     const updated = await adCampaignsRepository.update(campaignId, {
       name: input.name,
-      budget_amount: input.budgetAmount ? String(input.budgetAmount) : undefined,
+      budget_amount: input.budgetAmount
+        ? String(input.budgetAmount)
+        : undefined,
       start_date: input.startDate,
       end_date: input.endDate,
       targeting: input.targeting,
@@ -388,7 +410,7 @@ class AdvertisingService {
 
   async startCampaign(
     campaignId: string,
-    organizationId: string
+    organizationId: string,
   ): Promise<AdCampaign> {
     const campaign = await adCampaignsRepository.findById(campaignId);
     if (!campaign || campaign.organization_id !== organizationId) {
@@ -409,7 +431,7 @@ class AdvertisingService {
 
     const result = await provider.activateCampaign(
       credentials,
-      campaign.external_campaign_id
+      campaign.external_campaign_id,
     );
 
     if (!result.success) {
@@ -418,7 +440,7 @@ class AdvertisingService {
 
     const updated = await adCampaignsRepository.updateStatus(
       campaignId,
-      "active"
+      "active",
     );
 
     logger.info("[Advertising] Campaign started", { campaignId });
@@ -428,7 +450,7 @@ class AdvertisingService {
 
   async pauseCampaign(
     campaignId: string,
-    organizationId: string
+    organizationId: string,
   ): Promise<AdCampaign> {
     const campaign = await adCampaignsRepository.findById(campaignId);
     if (!campaign || campaign.organization_id !== organizationId) {
@@ -449,7 +471,7 @@ class AdvertisingService {
 
     const result = await provider.pauseCampaign(
       credentials,
-      campaign.external_campaign_id
+      campaign.external_campaign_id,
     );
 
     if (!result.success) {
@@ -458,7 +480,7 @@ class AdvertisingService {
 
     const updated = await adCampaignsRepository.updateStatus(
       campaignId,
-      "paused"
+      "paused",
     );
 
     logger.info("[Advertising] Campaign paused", { campaignId });
@@ -468,7 +490,7 @@ class AdvertisingService {
 
   async deleteCampaign(
     campaignId: string,
-    organizationId: string
+    organizationId: string,
   ): Promise<void> {
     const campaign = await adCampaignsRepository.findById(campaignId);
     if (!campaign || campaign.organization_id !== organizationId) {
@@ -478,12 +500,15 @@ class AdvertisingService {
     // If synced with platform, delete there first
     if (campaign.external_campaign_id) {
       const account = await adAccountsRepository.findById(
-        campaign.ad_account_id
+        campaign.ad_account_id,
       );
       if (account) {
         const credentials = await this.getCredentials(account);
         const provider = this.getProvider(account.platform);
-        await provider.deleteCampaign(credentials, campaign.external_campaign_id);
+        await provider.deleteCampaign(
+          credentials,
+          campaign.external_campaign_id,
+        );
       }
     }
 
@@ -519,7 +544,7 @@ class AdvertisingService {
   async getCampaignMetrics(
     campaignId: string,
     organizationId: string,
-    dateRange?: { start: Date; end: Date }
+    dateRange?: { start: Date; end: Date },
   ): Promise<CampaignMetrics> {
     const campaign = await adCampaignsRepository.findById(campaignId);
     if (!campaign || campaign.organization_id !== organizationId) {
@@ -547,7 +572,7 @@ class AdvertisingService {
     const result = await provider.getCampaignMetrics(
       credentials,
       campaign.external_campaign_id,
-      dateRange
+      dateRange,
     );
 
     if (!result.success || !result.metrics) {
@@ -571,7 +596,7 @@ class AdvertisingService {
 
   async listCreatives(
     campaignId: string,
-    organizationId: string
+    organizationId: string,
   ): Promise<AdCreative[]> {
     const campaign = await adCampaignsRepository.findById(campaignId);
     if (!campaign || campaign.organization_id !== organizationId) {
@@ -583,7 +608,7 @@ class AdvertisingService {
 
   async createCreative(
     organizationId: string,
-    input: CreateCreativeInput
+    input: CreateCreativeInput,
   ): Promise<AdCreative> {
     const campaign = await adCampaignsRepository.findById(input.campaignId);
     if (!campaign || campaign.organization_id !== organizationId) {
@@ -619,7 +644,7 @@ class AdvertisingService {
     // Sync with platform if campaign is synced
     if (campaign.external_campaign_id) {
       const account = await adAccountsRepository.findById(
-        campaign.ad_account_id
+        campaign.ad_account_id,
       );
       if (account) {
         const credentials = await this.getCredentials(account);
@@ -629,7 +654,7 @@ class AdvertisingService {
           credentials,
           account.external_account_id,
           campaign.external_campaign_id,
-          input
+          input,
         );
 
         if (result.success && result.externalCreativeId) {
@@ -649,7 +674,7 @@ class AdvertisingService {
   async updateCreative(
     creativeId: string,
     organizationId: string,
-    input: UpdateCreativeInput
+    input: UpdateCreativeInput,
   ): Promise<AdCreative> {
     const creative = await adCreativesRepository.findById(creativeId);
     if (!creative) {
@@ -678,7 +703,7 @@ class AdvertisingService {
 
   async deleteCreative(
     creativeId: string,
-    organizationId: string
+    organizationId: string,
   ): Promise<void> {
     const creative = await adCreativesRepository.findById(creativeId);
     if (!creative) {
@@ -701,7 +726,7 @@ class AdvertisingService {
 
   async getStats(
     organizationId: string,
-    options?: { platform?: AdPlatform }
+    options?: { platform?: AdPlatform },
   ): Promise<{
     totalCampaigns: number;
     activeCampaigns: number;

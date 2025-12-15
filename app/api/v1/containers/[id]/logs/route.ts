@@ -296,9 +296,9 @@ async function getCloudWatchLogs(
           })),
         );
       } catch (streamError) {
-        logger.warn("Failed to fetch logs from stream", { 
-          streamName: stream.logStreamName, 
-          error: streamError 
+        logger.warn("Failed to fetch logs from stream", {
+          streamName: stream.logStreamName,
+          error: streamError,
         });
         // Continue with other streams
       }
@@ -318,9 +318,9 @@ async function getCloudWatchLogs(
       error.name === "ResourceNotFoundException" &&
       logGroupName === newLogGroupName
     ) {
-      logger.debug("Log group not found, trying old format", { 
-        newLogGroupName, 
-        oldLogGroupName 
+      logger.debug("Log group not found, trying old format", {
+        newLogGroupName,
+        oldLogGroupName,
       });
       logGroupName = oldLogGroupName;
 
@@ -340,7 +340,9 @@ async function getCloudWatchLogs(
 
         const logStreams = streamsResponse.logStreams || [];
         if (logStreams.length === 0) {
-          logger.debug("No log streams found", { logGroupName: oldLogGroupName });
+          logger.debug("No log streams found", {
+            logGroupName: oldLogGroupName,
+          });
           return [];
         }
 
@@ -368,9 +370,9 @@ async function getCloudWatchLogs(
               })),
             );
           } catch (streamError) {
-            logger.warn("Failed to fetch logs from stream", { 
-              streamName: stream.logStreamName, 
-              error: streamError 
+            logger.warn("Failed to fetch logs from stream", {
+              streamName: stream.logStreamName,
+              error: streamError,
             });
           }
         }
@@ -382,7 +384,9 @@ async function getCloudWatchLogs(
           )
           .slice(0, options.limit || 100);
       } catch (oldFormatError) {
-        logger.debug("Old log group format also not found", { logGroupName: oldLogGroupName });
+        logger.debug("Old log group format also not found", {
+          logGroupName: oldLogGroupName,
+        });
         return [];
       }
     }

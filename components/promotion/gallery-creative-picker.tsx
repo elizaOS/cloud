@@ -68,9 +68,13 @@ export function GalleryCreativePicker({
   allowedTypes = ["image", "video"],
   selectedIds = [],
 }: GalleryCreativePickerProps) {
-  const [tab, setTab] = useState<"collections" | "generations" | "uploads">("collections");
+  const [tab, setTab] = useState<"collections" | "generations" | "uploads">(
+    "collections",
+  );
   const [collections, setCollections] = useState<MediaCollection[]>([]);
-  const [selectedCollection, setSelectedCollection] = useState<string | null>(null);
+  const [selectedCollection, setSelectedCollection] = useState<string | null>(
+    null,
+  );
   const [items, setItems] = useState<MediaItem[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set(selectedIds));
   const [isLoading, setIsLoading] = useState(true);
@@ -118,20 +122,34 @@ export function GalleryCreativePicker({
 
         // Normalize the data structure
         const normalizedItems: MediaItem[] = (
-          data.items || data.generations || data.uploads || []
+          data.items ||
+          data.generations ||
+          data.uploads ||
+          []
         ).map((item: Record<string, unknown>) => ({
           id: item.id as string,
-          type: (item.type as string || "image") as "image" | "video",
+          type: ((item.type as string) || "image") as "image" | "video",
           url: (item.url || item.storage_url || item.output_url) as string,
-          thumbnailUrl: (item.thumbnailUrl || item.thumbnail_url) as string | undefined,
-          title: (item.title || item.filename || item.prompt) as string | undefined,
-          sourceType: (item.sourceType || (tab === "generations" ? "generation" : "upload")) as "generation" | "upload",
-          createdAt: new Date(item.createdAt as string || item.created_at as string || item.addedAt as string),
+          thumbnailUrl: (item.thumbnailUrl || item.thumbnail_url) as
+            | string
+            | undefined,
+          title: (item.title || item.filename || item.prompt) as
+            | string
+            | undefined,
+          sourceType: (item.sourceType ||
+            (tab === "generations" ? "generation" : "upload")) as
+            | "generation"
+            | "upload",
+          createdAt: new Date(
+            (item.createdAt as string) ||
+              (item.created_at as string) ||
+              (item.addedAt as string),
+          ),
         }));
 
         // Filter by allowed types
         const filtered = normalizedItems.filter((item) =>
-          allowedTypes.includes(item.type)
+          allowedTypes.includes(item.type),
         );
 
         setItems(filtered);
@@ -162,7 +180,7 @@ export function GalleryCreativePicker({
     ? items.filter(
         (item) =>
           item.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          item.id.includes(searchQuery)
+          item.id.includes(searchQuery),
       )
     : items;
 
@@ -179,13 +197,23 @@ export function GalleryCreativePicker({
           </DialogDescription>
         </DialogHeader>
 
-        <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)} className="w-full">
+        <Tabs
+          value={tab}
+          onValueChange={(v) => setTab(v as typeof tab)}
+          className="w-full"
+        >
           <TabsList className="w-full justify-start">
-            <TabsTrigger value="collections" className="flex items-center gap-2">
+            <TabsTrigger
+              value="collections"
+              className="flex items-center gap-2"
+            >
               <FolderOpen className="h-4 w-4" />
               Collections
             </TabsTrigger>
-            <TabsTrigger value="generations" className="flex items-center gap-2">
+            <TabsTrigger
+              value="generations"
+              className="flex items-center gap-2"
+            >
               <Sparkles className="h-4 w-4" />
               AI Generated
             </TabsTrigger>
@@ -242,7 +270,9 @@ export function GalleryCreativePicker({
                             <FolderOpen className="h-8 w-8 text-muted-foreground" />
                           )}
                         </div>
-                        <h4 className="font-medium truncate">{collection.name}</h4>
+                        <h4 className="font-medium truncate">
+                          {collection.name}
+                        </h4>
                         <p className="text-sm text-muted-foreground">
                           {collection.itemCount} items
                         </p>
@@ -360,8 +390,8 @@ function MediaGrid({
                 isSelected
                   ? "border-primary ring-2 ring-primary/30"
                   : canSelect
-                  ? "border-transparent hover:border-muted-foreground/30"
-                  : "border-transparent opacity-50 cursor-not-allowed"
+                    ? "border-transparent hover:border-muted-foreground/30"
+                    : "border-transparent opacity-50 cursor-not-allowed"
               }`}
             >
               {item.type === "video" ? (
@@ -405,4 +435,3 @@ function MediaGrid({
     </ScrollArea>
   );
 }
-

@@ -22,7 +22,12 @@ export function setup() {
 }
 
 export default function () {
-  const ops = [creditOperationsCycle, lightMcpTools, lightA2aMethods, agentReadOnly];
+  const ops = [
+    creditOperationsCycle,
+    lightMcpTools,
+    lightA2aMethods,
+    agentReadOnly,
+  ];
   ops[__ITER % ops.length]();
   sleep(2);
 }

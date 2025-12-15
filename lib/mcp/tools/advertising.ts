@@ -1,5 +1,8 @@
 import { z } from "zod";
-import { advertisingService, type AdPlatform } from "@/lib/services/advertising";
+import {
+  advertisingService,
+  type AdPlatform,
+} from "@/lib/services/advertising";
 import {
   AdPlatformSchema,
   ListAccountsSchema,
@@ -13,7 +16,9 @@ import {
 } from "@/lib/services/advertising/schemas";
 import type { ToolResponse, AuthResultWithOrg } from "./types";
 
-const McpConnectAccountSchema = ConnectAccountSchema.omit({ externalAccountId: true });
+const McpConnectAccountSchema = ConnectAccountSchema.omit({
+  externalAccountId: true,
+});
 const McpUpdateCampaignSchema = CampaignIdSchema.merge(UpdateCampaignSchema);
 const McpCreateCreativeSchema = CampaignIdSchema.merge(CreateCreativeSchema);
 
@@ -27,11 +32,11 @@ function ok(data: unknown): ToolResponse {
 
 export async function handleListAdAccounts(
   params: z.infer<typeof ListAccountsSchema>,
-  auth: AuthResultWithOrg
+  auth: AuthResultWithOrg,
 ): Promise<ToolResponse> {
   const accounts = await advertisingService.listAccounts(
     auth.user.organization_id,
-    params.platform ? { platform: params.platform as AdPlatform } : undefined
+    params.platform ? { platform: params.platform as AdPlatform } : undefined,
   );
 
   return ok({
@@ -47,7 +52,7 @@ export async function handleListAdAccounts(
 
 export async function handleConnectAdAccount(
   params: z.infer<typeof ConnectAccountSchema>,
-  auth: AuthResultWithOrg
+  auth: AuthResultWithOrg,
 ): Promise<ToolResponse> {
   const account = await advertisingService.connectAccount({
     organizationId: auth.user.organization_id,
@@ -71,7 +76,7 @@ export async function handleConnectAdAccount(
 
 export async function handleListCampaigns(
   params: { adAccountId?: string; platform?: string; status?: string },
-  auth: AuthResultWithOrg
+  auth: AuthResultWithOrg,
 ): Promise<ToolResponse> {
   const campaigns = await advertisingService.listCampaigns(
     auth.user.organization_id,
@@ -79,7 +84,7 @@ export async function handleListCampaigns(
       adAccountId: params.adAccountId,
       platform: params.platform as AdPlatform,
       status: params.status,
-    }
+    },
   );
 
   return ok({
@@ -100,7 +105,7 @@ export async function handleListCampaigns(
 
 export async function handleCreateCampaign(
   params: z.infer<typeof CreateCampaignSchema>,
-  auth: AuthResultWithOrg
+  auth: AuthResultWithOrg,
 ): Promise<ToolResponse> {
   const campaign = await advertisingService.createCampaign({
     organizationId: auth.user.organization_id,
@@ -129,7 +134,7 @@ export async function handleCreateCampaign(
 
 export async function handleUpdateCampaign(
   params: z.infer<typeof McpUpdateCampaignSchema>,
-  auth: AuthResultWithOrg
+  auth: AuthResultWithOrg,
 ): Promise<ToolResponse> {
   const campaign = await advertisingService.updateCampaign(
     params.campaignId,
@@ -138,7 +143,7 @@ export async function handleUpdateCampaign(
       name: params.name,
       budgetAmount: params.budgetAmount,
       targeting: params.targeting,
-    }
+    },
   );
 
   return ok({
@@ -153,11 +158,11 @@ export async function handleUpdateCampaign(
 
 export async function handleStartCampaign(
   params: z.infer<typeof CampaignIdSchema>,
-  auth: AuthResultWithOrg
+  auth: AuthResultWithOrg,
 ): Promise<ToolResponse> {
   const campaign = await advertisingService.startCampaign(
     params.campaignId,
-    auth.user.organization_id
+    auth.user.organization_id,
   );
 
   return ok({
@@ -168,11 +173,11 @@ export async function handleStartCampaign(
 
 export async function handlePauseCampaign(
   params: z.infer<typeof CampaignIdSchema>,
-  auth: AuthResultWithOrg
+  auth: AuthResultWithOrg,
 ): Promise<ToolResponse> {
   const campaign = await advertisingService.pauseCampaign(
     params.campaignId,
-    auth.user.organization_id
+    auth.user.organization_id,
   );
 
   return ok({
@@ -183,11 +188,11 @@ export async function handlePauseCampaign(
 
 export async function handleDeleteCampaign(
   params: z.infer<typeof CampaignIdSchema>,
-  auth: AuthResultWithOrg
+  auth: AuthResultWithOrg,
 ): Promise<ToolResponse> {
   await advertisingService.deleteCampaign(
     params.campaignId,
-    auth.user.organization_id
+    auth.user.organization_id,
   );
 
   return ok({ success: true });
@@ -195,7 +200,7 @@ export async function handleDeleteCampaign(
 
 export async function handleCreateCreative(
   params: z.infer<typeof McpCreateCreativeSchema>,
-  auth: AuthResultWithOrg
+  auth: AuthResultWithOrg,
 ): Promise<ToolResponse> {
   const creative = await advertisingService.createCreative(
     auth.user.organization_id,
@@ -209,7 +214,7 @@ export async function handleCreateCreative(
       callToAction: params.callToAction,
       destinationUrl: params.destinationUrl,
       media: params.media,
-    }
+    },
   );
 
   return ok({
@@ -225,7 +230,7 @@ export async function handleCreateCreative(
 
 export async function handleGetCampaignAnalytics(
   params: z.infer<typeof GetAnalyticsSchema>,
-  auth: AuthResultWithOrg
+  auth: AuthResultWithOrg,
 ): Promise<ToolResponse> {
   const dateRange =
     params.startDate && params.endDate
@@ -235,7 +240,7 @@ export async function handleGetCampaignAnalytics(
   const metrics = await advertisingService.getCampaignMetrics(
     params.campaignId,
     auth.user.organization_id,
-    dateRange
+    dateRange,
   );
 
   return ok({ campaignId: params.campaignId, metrics });
@@ -243,7 +248,7 @@ export async function handleGetCampaignAnalytics(
 
 export async function handleGetAdStats(
   params: { platform?: string },
-  auth: AuthResultWithOrg
+  auth: AuthResultWithOrg,
 ): Promise<ToolResponse> {
   const stats = await advertisingService.getStats(auth.user.organization_id, {
     platform: params.platform as AdPlatform,
@@ -273,7 +278,8 @@ export const advertisingTools = [
   },
   {
     name: "ads_connect_account",
-    description: "Connect a new advertising platform account (Meta, Google, TikTok).",
+    description:
+      "Connect a new advertising platform account (Meta, Google, TikTok).",
     inputSchema: McpConnectAccountSchema,
     handler: handleConnectAdAccount,
   },

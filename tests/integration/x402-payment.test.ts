@@ -30,12 +30,18 @@ import {
 
 // ===== Test Configuration =====
 
-const TEST_NETWORK = (process.env.TEST_NETWORK || "base-sepolia") as X402Network;
+const TEST_NETWORK = (process.env.TEST_NETWORK ||
+  "base-sepolia") as X402Network;
 const TEST_API_URL = process.env.TEST_API_URL || "http://localhost:3000";
-const TEST_PRIVATE_KEY = process.env.TEST_WALLET_PRIVATE_KEY as `0x${string}` | undefined;
+const TEST_PRIVATE_KEY = process.env.TEST_WALLET_PRIVATE_KEY as
+  | `0x${string}`
+  | undefined;
 
 const CHAINS = { "base-sepolia": baseSepolia, base: base } as const;
-const RPC_URLS = { "base-sepolia": "https://sepolia.base.org", base: "https://mainnet.base.org" } as const;
+const RPC_URLS = {
+  "base-sepolia": "https://sepolia.base.org",
+  base: "https://mainnet.base.org",
+} as const;
 
 function getConfig() {
   return {
@@ -164,7 +170,9 @@ describe("Discovery Endpoints", () => {
     const response = await fetch(`${config.apiUrl}`).catch(() => null);
     serverAvailable = response?.ok ?? false;
     if (!serverAvailable) {
-      console.log(`⚠️ Server not available at ${config.apiUrl}. Skipping discovery endpoint tests.`);
+      console.log(
+        `⚠️ Server not available at ${config.apiUrl}. Skipping discovery endpoint tests.`,
+      );
     }
   });
 
@@ -192,7 +200,9 @@ describe("Discovery Endpoints", () => {
   describe("GET /.well-known/agent-card.json", () => {
     test("returns valid agent card", async () => {
       if (!serverAvailable) return;
-      const response = await fetch(`${config.apiUrl}/.well-known/agent-card.json`);
+      const response = await fetch(
+        `${config.apiUrl}/.well-known/agent-card.json`,
+      );
       if (response.status === 500) {
         console.log("⚠️ Server returned 500 - skipping");
         return;
@@ -205,33 +215,43 @@ describe("Discovery Endpoints", () => {
 
     test("includes bearer auth scheme", async () => {
       if (!serverAvailable) return;
-      const response = await fetch(`${config.apiUrl}/.well-known/agent-card.json`);
+      const response = await fetch(
+        `${config.apiUrl}/.well-known/agent-card.json`,
+      );
       if (response.status === 500) {
         console.log("⚠️ Server returned 500 - skipping");
         return;
       }
       const card = (await response.json()) as AgentCard;
 
-      const bearerScheme = card.authentication.schemes.find((s) => s.scheme === "bearer");
+      const bearerScheme = card.authentication.schemes.find(
+        (s) => s.scheme === "bearer",
+      );
       expect(bearerScheme).toBeDefined();
       expect(bearerScheme?.description).toContain("API Key");
     });
 
     test("includes x402 auth scheme when enabled", async () => {
       if (!serverAvailable) return;
-      const response = await fetch(`${config.apiUrl}/.well-known/agent-card.json`);
+      const response = await fetch(
+        `${config.apiUrl}/.well-known/agent-card.json`,
+      );
       if (response.status === 500) {
         console.log("⚠️ Server returned 500 - skipping");
         return;
       }
       const card = (await response.json()) as AgentCard;
 
-      const x402Scheme = card.authentication.schemes.find((s) => s.scheme === "x402");
+      const x402Scheme = card.authentication.schemes.find(
+        (s) => s.scheme === "x402",
+      );
       // x402 scheme presence depends on ENABLE_X402_PAYMENTS env var
       if (x402Scheme) {
         expect(x402Scheme.description).toContain("x402");
         // x402 info is now in capabilities.extensions (A2A v0.3.0 spec)
-        const x402Extension = card.capabilities?.extensions?.find((e) => e.uri.includes("x402"));
+        const x402Extension = card.capabilities?.extensions?.find((e) =>
+          e.uri.includes("x402"),
+        );
         expect(x402Extension).toBeDefined();
         expect(x402Extension?.params?.assets).toContain("USDC");
       }
@@ -241,7 +261,9 @@ describe("Discovery Endpoints", () => {
   describe("GET /.well-known/erc8004-registration.json", () => {
     test("returns valid ERC-8004 registration", async () => {
       if (!serverAvailable) return;
-      const response = await fetch(`${config.apiUrl}/.well-known/erc8004-registration.json`);
+      const response = await fetch(
+        `${config.apiUrl}/.well-known/erc8004-registration.json`,
+      );
       if (response.status === 500) {
         console.log("⚠️ Server returned 500 - skipping");
         return;
@@ -249,14 +271,18 @@ describe("Discovery Endpoints", () => {
       expect(response.status).toBe(200);
 
       const reg = (await response.json()) as ERC8004Registration;
-      expect(reg.type).toBe("https://eips.ethereum.org/EIPS/eip-8004#registration-v1");
+      expect(reg.type).toBe(
+        "https://eips.ethereum.org/EIPS/eip-8004#registration-v1",
+      );
       expect(reg.name).toBe("Eliza Cloud");
       expect(reg.endpoints).toBeInstanceOf(Array);
     });
 
     test("includes required endpoints", async () => {
       if (!serverAvailable) return;
-      const response = await fetch(`${config.apiUrl}/.well-known/erc8004-registration.json`);
+      const response = await fetch(
+        `${config.apiUrl}/.well-known/erc8004-registration.json`,
+      );
       if (response.status === 500) {
         console.log("⚠️ Server returned 500 - skipping");
         return;
@@ -341,11 +367,15 @@ describe("Payment Flows", () => {
 
       if (response.status === 402) {
         expect(data.error.data?.x402).toBeDefined();
-        expect(data.error.data?.x402?.topupEndpoint).toBe("/api/v1/credits/topup");
+        expect(data.error.data?.x402?.topupEndpoint).toBe(
+          "/api/v1/credits/topup",
+        );
         expect(data.error.data?.x402?.network).toBe(config.network);
         expect(data.error.data?.x402?.asset).toBe(config.usdcAddress);
         expect(data.error.data?.x402?.minimumTopup).toBe(TOPUP_PRICE);
-        expect(data.error.data?.x402?.creditsPerDollar).toBe(CREDITS_PER_DOLLAR);
+        expect(data.error.data?.x402?.creditsPerDollar).toBe(
+          CREDITS_PER_DOLLAR,
+        );
       }
     });
   });
@@ -436,22 +466,32 @@ describe("Wallet Connection", () => {
     } catch (error) {
       // Network issues - skip gracefully
       const message = error instanceof Error ? error.message : String(error);
-      if (message.includes("fetch failed") || message.includes("ECONNREFUSED") || message.includes("timeout")) {
-        console.log(`⏭️ Skipping RPC test - network unavailable: ${message.slice(0, 50)}`);
+      if (
+        message.includes("fetch failed") ||
+        message.includes("ECONNREFUSED") ||
+        message.includes("timeout")
+      ) {
+        console.log(
+          `⏭️ Skipping RPC test - network unavailable: ${message.slice(0, 50)}`,
+        );
         return;
       }
       throw error;
     }
-    
+
     expect(blockNumber).toBeGreaterThan(0n);
-    console.log(`✅ Connected to ${config.network} RPC at block ${blockNumber}`);
+    console.log(
+      `✅ Connected to ${config.network} RPC at block ${blockNumber}`,
+    );
   });
 
   // Wallet balance test (requires private key)
   test("wallet has ETH balance (if TEST_WALLET_PRIVATE_KEY set)", async () => {
     if (!TEST_PRIVATE_KEY) {
       // Still pass the test, just log that we can't check wallet balance
-      console.log("ℹ️  TEST_WALLET_PRIVATE_KEY not set - wallet balance check skipped");
+      console.log(
+        "ℹ️  TEST_WALLET_PRIVATE_KEY not set - wallet balance check skipped",
+      );
       console.log("   This is optional - set it to verify wallet connectivity");
       expect(true).toBe(true); // Pass with no-op
       return;
@@ -485,27 +525,41 @@ describe("CORS Headers", () => {
 
   test("OPTIONS /api/a2a returns correct CORS headers", async () => {
     if (!serverAvailable) return;
-    const response = await fetch(`${config.apiUrl}/api/a2a`, { method: "OPTIONS" });
+    const response = await fetch(`${config.apiUrl}/api/a2a`, {
+      method: "OPTIONS",
+    });
     // Accept 204 (no content), 200 (ok), 400 (CORS not configured), or 500 (server error)
     if ([400, 500].includes(response.status)) {
-      console.log(`⚠️ Server returned ${response.status} - skipping CORS validation`);
+      console.log(
+        `⚠️ Server returned ${response.status} - skipping CORS validation`,
+      );
       return;
     }
     expect([200, 204]).toContain(response.status);
     expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");
-    expect(response.headers.get("Access-Control-Allow-Methods")).toContain("POST");
-    expect(response.headers.get("Access-Control-Allow-Headers")).toContain("X-PAYMENT");
+    expect(response.headers.get("Access-Control-Allow-Methods")).toContain(
+      "POST",
+    );
+    expect(response.headers.get("Access-Control-Allow-Headers")).toContain(
+      "X-PAYMENT",
+    );
   });
 
   test("OPTIONS /api/v1/credits/topup returns correct CORS headers", async () => {
     if (!serverAvailable) return;
-    const response = await fetch(`${config.apiUrl}/api/v1/credits/topup`, { method: "OPTIONS" });
+    const response = await fetch(`${config.apiUrl}/api/v1/credits/topup`, {
+      method: "OPTIONS",
+    });
     if ([400, 500].includes(response.status)) {
-      console.log(`⚠️ Server returned ${response.status} - skipping CORS validation`);
+      console.log(
+        `⚠️ Server returned ${response.status} - skipping CORS validation`,
+      );
       return;
     }
     expect([200, 204]).toContain(response.status);
     expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");
-    expect(response.headers.get("Access-Control-Allow-Headers")).toContain("X-PAYMENT");
+    expect(response.headers.get("Access-Control-Allow-Headers")).toContain(
+      "X-PAYMENT",
+    );
   });
 });

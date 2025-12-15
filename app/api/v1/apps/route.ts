@@ -4,20 +4,24 @@ import { appsService } from "@/lib/services/apps";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
 
-const FeaturesEnabledSchema = z.object({
-  chat: z.boolean().optional(),
-  image: z.boolean().optional(),
-  video: z.boolean().optional(),
-  voice: z.boolean().optional(),
-  agents: z.boolean().optional(),
-  embedding: z.boolean().optional(),
-}).optional();
+const FeaturesEnabledSchema = z
+  .object({
+    chat: z.boolean().optional(),
+    image: z.boolean().optional(),
+    video: z.boolean().optional(),
+    voice: z.boolean().optional(),
+    agents: z.boolean().optional(),
+    embedding: z.boolean().optional(),
+  })
+  .optional();
 
-const ServiceEndpointsSchema = z.object({
-  mcp: z.boolean().optional(),
-  a2a: z.boolean().optional(),
-  rest: z.boolean().optional(),
-}).optional();
+const ServiceEndpointsSchema = z
+  .object({
+    mcp: z.boolean().optional(),
+    a2a: z.boolean().optional(),
+    rest: z.boolean().optional(),
+  })
+  .optional();
 
 const CreateAppSchema = z.object({
   name: z.string().min(1).max(100),
@@ -28,16 +32,23 @@ const CreateAppSchema = z.object({
   allowed_origins: z.array(z.string()).optional(),
   logo_url: z.string().url().optional(),
   features_enabled: FeaturesEnabledSchema,
-  metadata: z.object({
-    app_type: z.enum(["miniapp", "workflow", "service"]).optional(),
-    service_endpoints: ServiceEndpointsSchema,
-    service_tools: z.array(z.object({
-      name: z.string(),
-      description: z.string(),
-      inputSchema: z.record(z.unknown()).optional(),
-    })).optional(),
-    linked_workflows: z.array(z.string()).optional(),
-  }).passthrough().optional(),
+  metadata: z
+    .object({
+      app_type: z.enum(["miniapp", "workflow", "service"]).optional(),
+      service_endpoints: ServiceEndpointsSchema,
+      service_tools: z
+        .array(
+          z.object({
+            name: z.string(),
+            description: z.string(),
+            inputSchema: z.record(z.unknown()).optional(),
+          }),
+        )
+        .optional(),
+      linked_workflows: z.array(z.string()).optional(),
+    })
+    .passthrough()
+    .optional(),
 });
 
 /**

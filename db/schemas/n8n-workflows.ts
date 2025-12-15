@@ -71,9 +71,9 @@ export const n8nInstances = pgTable(
     user_id_idx: index("n8n_instances_user_id_idx").on(table.user_id),
     org_default_idx: index("n8n_instances_org_default_idx").on(
       table.organization_id,
-      table.is_default
+      table.is_default,
     ),
-  })
+  }),
 );
 
 // =============================================================================
@@ -105,7 +105,9 @@ export const n8nWorkflows = pgTable(
     description: text("description"),
 
     // The actual n8n workflow JSON
-    workflow_data: jsonb("workflow_data").$type<Record<string, unknown>>().notNull(),
+    workflow_data: jsonb("workflow_data")
+      .$type<Record<string, unknown>>()
+      .notNull(),
 
     // Current version number
     version: integer("version").default(1).notNull(),
@@ -140,11 +142,14 @@ export const n8nWorkflows = pgTable(
   (table) => ({
     org_id_idx: index("n8n_workflows_org_id_idx").on(table.organization_id),
     user_id_idx: index("n8n_workflows_user_id_idx").on(table.user_id),
-    status_idx: index("n8n_workflows_status_idx").on(table.organization_id, table.status),
-    n8n_instance_idx: index("n8n_workflows_n8n_instance_idx").on(
-      table.n8n_instance_id
+    status_idx: index("n8n_workflows_status_idx").on(
+      table.organization_id,
+      table.status,
     ),
-  })
+    n8n_instance_idx: index("n8n_workflows_n8n_instance_idx").on(
+      table.n8n_instance_id,
+    ),
+  }),
 );
 
 // =============================================================================
@@ -173,7 +178,9 @@ export const n8nWorkflowVersions = pgTable(
     version: integer("version").notNull(),
 
     // The workflow JSON at this version
-    workflow_data: jsonb("workflow_data").$type<Record<string, unknown>>().notNull(),
+    workflow_data: jsonb("workflow_data")
+      .$type<Record<string, unknown>>()
+      .notNull(),
 
     // Change description
     change_description: text("change_description"),
@@ -188,13 +195,15 @@ export const n8nWorkflowVersions = pgTable(
   },
   (table) => ({
     workflow_version_idx: uniqueIndex(
-      "n8n_workflow_versions_workflow_version_idx"
+      "n8n_workflow_versions_workflow_version_idx",
     ).on(table.workflow_id, table.version),
     workflow_id_idx: index("n8n_workflow_versions_workflow_id_idx").on(
-      table.workflow_id
+      table.workflow_id,
     ),
-    org_id_idx: index("n8n_workflow_versions_org_id_idx").on(table.organization_id),
-  })
+    org_id_idx: index("n8n_workflow_versions_org_id_idx").on(
+      table.organization_id,
+    ),
+  }),
 );
 
 // =============================================================================
@@ -243,13 +252,15 @@ export const n8nWorkflowVariables = pgTable(
   },
   (table) => ({
     org_workflow_name_idx: uniqueIndex(
-      "n8n_workflow_variables_org_workflow_name_idx"
+      "n8n_workflow_variables_org_workflow_name_idx",
     ).on(table.organization_id, table.workflow_id, table.name),
-    org_id_idx: index("n8n_workflow_variables_org_id_idx").on(table.organization_id),
-    workflow_id_idx: index("n8n_workflow_variables_workflow_id_idx").on(
-      table.workflow_id
+    org_id_idx: index("n8n_workflow_variables_org_id_idx").on(
+      table.organization_id,
     ),
-  })
+    workflow_id_idx: index("n8n_workflow_variables_workflow_id_idx").on(
+      table.workflow_id,
+    ),
+  }),
 );
 
 // =============================================================================
@@ -285,10 +296,7 @@ export const n8nWorkflowApiKeys = pgTable(
     key_prefix: text("key_prefix").notNull(),
 
     // Permissions/scopes (JSON array)
-    scopes: jsonb("scopes")
-      .$type<string[]>()
-      .default([])
-      .notNull(),
+    scopes: jsonb("scopes").$type<string[]>().default([]).notNull(),
 
     // Whether key is active
     is_active: boolean("is_active").default(true).notNull(),
@@ -304,14 +312,16 @@ export const n8nWorkflowApiKeys = pgTable(
     updated_at: timestamp("updated_at").notNull().defaultNow(),
   },
   (table) => ({
-    org_id_idx: index("n8n_workflow_api_keys_org_id_idx").on(table.organization_id),
+    org_id_idx: index("n8n_workflow_api_keys_org_id_idx").on(
+      table.organization_id,
+    ),
     workflow_id_idx: index("n8n_workflow_api_keys_workflow_id_idx").on(
-      table.workflow_id
+      table.workflow_id,
     ),
     key_prefix_idx: index("n8n_workflow_api_keys_key_prefix_idx").on(
-      table.key_prefix
+      table.key_prefix,
     ),
-  })
+  }),
 );
 
 // =============================================================================
@@ -380,25 +390,27 @@ export const n8nWorkflowExecutions = pgTable(
   },
   (table) => ({
     workflow_id_idx: index("n8n_workflow_executions_workflow_id_idx").on(
-      table.workflow_id
+      table.workflow_id,
     ),
-    org_id_idx: index("n8n_workflow_executions_org_id_idx").on(table.organization_id),
+    org_id_idx: index("n8n_workflow_executions_org_id_idx").on(
+      table.organization_id,
+    ),
     trigger_id_idx: index("n8n_workflow_executions_trigger_id_idx").on(
-      table.trigger_id
+      table.trigger_id,
     ),
     status_idx: index("n8n_workflow_executions_status_idx").on(
       table.workflow_id,
-      table.status
+      table.status,
     ),
     created_at_idx: index("n8n_workflow_executions_created_at_idx").on(
-      table.created_at
+      table.created_at,
     ),
     // Composite index for counting executions by trigger per day
     trigger_date_idx: index("n8n_workflow_executions_trigger_date_idx").on(
       table.trigger_id,
-      table.created_at
+      table.created_at,
     ),
-  })
+  }),
 );
 
 // =============================================================================
@@ -413,7 +425,7 @@ export interface WorkflowTriggerConfig {
   // === Cron trigger config ===
   cronExpression?: string;
   inputData?: Record<string, unknown>;
-  
+
   // === Webhook trigger config ===
   /** Auto-generated HMAC secret for signature verification */
   webhookSecret?: string;
@@ -425,17 +437,17 @@ export interface WorkflowTriggerConfig {
   allowedIps?: string[];
   /** Auto-generated webhook URL (for reference) */
   webhookUrl?: string;
-  
+
   // === A2A/MCP trigger config ===
   skillId?: string;
   toolName?: string;
-  
+
   // === Common config ===
   /** Maximum executions per day (default: 10000 for webhooks, 1440 for cron) */
   maxExecutionsPerDay?: number;
   /** Estimated cost per execution in credits (for budget control) */
   estimatedCostPerExecution?: number;
-  
+
   // Allow additional custom properties
   [key: string]: unknown;
 }
@@ -489,17 +501,19 @@ export const n8nWorkflowTriggers = pgTable(
   },
   (table) => ({
     workflow_id_idx: index("n8n_workflow_triggers_workflow_id_idx").on(
-      table.workflow_id
+      table.workflow_id,
     ),
-    org_id_idx: index("n8n_workflow_triggers_org_id_idx").on(table.organization_id),
+    org_id_idx: index("n8n_workflow_triggers_org_id_idx").on(
+      table.organization_id,
+    ),
     trigger_type_idx: index("n8n_workflow_triggers_trigger_type_idx").on(
       table.trigger_type,
-      table.is_active
+      table.is_active,
     ),
     trigger_key_idx: index("n8n_workflow_triggers_trigger_key_idx").on(
-      table.trigger_key
+      table.trigger_key,
     ),
-  })
+  }),
 );
 
 // =============================================================================
@@ -511,13 +525,22 @@ export type NewN8nInstance = InferInsertModel<typeof n8nInstances>;
 export type N8nWorkflow = InferSelectModel<typeof n8nWorkflows>;
 export type NewN8nWorkflow = InferInsertModel<typeof n8nWorkflows>;
 export type N8nWorkflowVersion = InferSelectModel<typeof n8nWorkflowVersions>;
-export type NewN8nWorkflowVersion = InferInsertModel<typeof n8nWorkflowVersions>;
+export type NewN8nWorkflowVersion = InferInsertModel<
+  typeof n8nWorkflowVersions
+>;
 export type N8nWorkflowVariable = InferSelectModel<typeof n8nWorkflowVariables>;
-export type NewN8nWorkflowVariable = InferInsertModel<typeof n8nWorkflowVariables>;
+export type NewN8nWorkflowVariable = InferInsertModel<
+  typeof n8nWorkflowVariables
+>;
 export type N8nWorkflowApiKey = InferSelectModel<typeof n8nWorkflowApiKeys>;
 export type NewN8nWorkflowApiKey = InferInsertModel<typeof n8nWorkflowApiKeys>;
-export type N8nWorkflowExecution = InferSelectModel<typeof n8nWorkflowExecutions>;
-export type NewN8nWorkflowExecution = InferInsertModel<typeof n8nWorkflowExecutions>;
+export type N8nWorkflowExecution = InferSelectModel<
+  typeof n8nWorkflowExecutions
+>;
+export type NewN8nWorkflowExecution = InferInsertModel<
+  typeof n8nWorkflowExecutions
+>;
 export type N8nWorkflowTrigger = InferSelectModel<typeof n8nWorkflowTriggers>;
-export type NewN8nWorkflowTrigger = InferInsertModel<typeof n8nWorkflowTriggers>;
-
+export type NewN8nWorkflowTrigger = InferInsertModel<
+  typeof n8nWorkflowTriggers
+>;

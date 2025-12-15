@@ -25,7 +25,10 @@ import { roomTable, memoryTable, participantTable } from "@/db/schemas/eliza";
 import { eq, and, asc } from "drizzle-orm";
 import type { UUID } from "@elizaos/core";
 import type { RoomMetadata } from "@/lib/types/message-content";
-import { parseMessageContent, type MessageAttachment } from "@/lib/types/message-content";
+import {
+  parseMessageContent,
+  type MessageAttachment,
+} from "@/lib/types/message-content";
 
 export async function OPTIONS(request: NextRequest) {
   const origin = request.headers.get("origin");
@@ -150,19 +153,25 @@ export async function GET(
     // Log raw message count and check for duplicates
     logger.info("[Miniapp API] Raw messages from DB", {
       count: messages.length,
-      ids: messages.map(m => m.id),
-      contentPreviews: messages.map(m => {
+      ids: messages.map((m) => m.id),
+      contentPreviews: messages.map((m) => {
         const c = m.content as Record<string, unknown>;
-        return { id: m.id, text: (c?.text as string)?.substring(0, 30), entityId: m.entityId };
+        return {
+          id: m.id,
+          text: (c?.text as string)?.substring(0, 30),
+          entityId: m.entityId,
+        };
       }),
     });
 
     // Deduplicate messages by content hash (same text + same entityId within 5 seconds = duplicate)
-    const seenMessages = new Map<string, typeof messages[0]>();
+    const seenMessages = new Map<string, (typeof messages)[0]>();
     const deduplicatedMessages = messages.filter((msg) => {
       const content = msg.content as Record<string, unknown>;
       const text = (content?.text as string) || "";
-      const createdAt = msg.createdAt ? new Date(msg.createdAt as string | number | Date).getTime() : 0;
+      const createdAt = msg.createdAt
+        ? new Date(msg.createdAt as string | number | Date).getTime()
+        : 0;
       const key = `${msg.entityId}-${text}-${Math.floor(createdAt / 5000)}`; // 5 second window
 
       if (seenMessages.has(key)) {
@@ -230,7 +239,14 @@ export async function GET(
         // Last resort: find ANY non-empty string field
         else {
           const stringFields = Object.entries(c)
-            .filter(([key, v]) => typeof v === "string" && (v as string).length > 0 && key !== "source" && key !== "action" && key !== "inReplyTo")
+            .filter(
+              ([key, v]) =>
+                typeof v === "string" &&
+                (v as string).length > 0 &&
+                key !== "source" &&
+                key !== "action" &&
+                key !== "inReplyTo",
+            )
             .sort((a, b) => (b[1] as string).length - (a[1] as string).length); // Prefer longer strings
           if (stringFields.length > 0) {
             textContent = stringFields[0][1] as string;
@@ -243,9 +259,15 @@ export async function GET(
         const meta = msg.metadata as Record<string, unknown>;
         if (typeof meta.text === "string" && meta.text.length > 0) {
           textContent = meta.text;
-        } else if (typeof meta.response === "string" && meta.response.length > 0) {
+        } else if (
+          typeof meta.response === "string" &&
+          meta.response.length > 0
+        ) {
           textContent = meta.response;
-        } else if (typeof meta.content === "string" && meta.content.length > 0) {
+        } else if (
+          typeof meta.content === "string" &&
+          meta.content.length > 0
+        ) {
           textContent = meta.content;
         }
       }
@@ -281,11 +303,19 @@ export async function GET(
       try {
         if (typeof msg.createdAt === "string") {
           const testDate = new Date(msg.createdAt);
-          createdAtValue = !isNaN(testDate.getTime()) ? msg.createdAt : new Date().toISOString();
+          createdAtValue = !isNaN(testDate.getTime())
+            ? msg.createdAt
+            : new Date().toISOString();
         } else if (typeof msg.createdAt === "number") {
           createdAtValue = new Date(msg.createdAt).toISOString();
-        } else if (msg.createdAt && typeof (msg.createdAt as { getTime?: () => number }).getTime === "function") {
-          createdAtValue = new Date((msg.createdAt as { getTime: () => number }).getTime()).toISOString();
+        } else if (
+          msg.createdAt &&
+          typeof (msg.createdAt as { getTime?: () => number }).getTime ===
+            "function"
+        ) {
+          createdAtValue = new Date(
+            (msg.createdAt as { getTime: () => number }).getTime(),
+          ).toISOString();
         } else {
           createdAtValue = new Date().toISOString();
         }

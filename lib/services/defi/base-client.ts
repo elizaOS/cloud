@@ -35,7 +35,10 @@ export class BaseHttpClient {
   constructor(config: HttpClientConfig, provider: string) {
     this.baseUrl = config.baseUrl.replace(/\/$/, "");
     this.apiKey = config.apiKey;
-    this.defaultHeaders = { "Content-Type": "application/json", ...config.headers };
+    this.defaultHeaders = {
+      "Content-Type": "application/json",
+      ...config.headers,
+    };
     this.timeout = config.timeout ?? 30000;
     this.maxRetries = config.maxRetries ?? 3;
     this.retryDelay = config.retryDelay ?? 1000;
@@ -44,7 +47,7 @@ export class BaseHttpClient {
 
   protected buildUrl(
     endpoint: string,
-    params?: Record<string, string | number | boolean | undefined>
+    params?: Record<string, string | number | boolean | undefined>,
   ): string {
     const url = new URL(`${this.baseUrl}${endpoint}`);
     if (params) {
@@ -64,7 +67,9 @@ export class BaseHttpClient {
       return {
         remaining: parseInt(remaining, 10),
         limit: parseInt(limit, 10),
-        resetAt: reset ? new Date(parseInt(reset, 10) * 1000) : new Date(Date.now() + 60000),
+        resetAt: reset
+          ? new Date(parseInt(reset, 10) * 1000)
+          : new Date(Date.now() + 60000),
       };
     }
     return null;
@@ -82,7 +87,10 @@ export class BaseHttpClient {
 
     for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), options.timeout ?? this.timeout);
+      const timeoutId = setTimeout(
+        () => controller.abort(),
+        options.timeout ?? this.timeout,
+      );
 
       try {
         const response = await fetch(url, {
@@ -110,7 +118,9 @@ export class BaseHttpClient {
 
         if (response.status >= 500 && attempt < this.maxRetries) {
           const waitTime = this.retryDelay * Math.pow(2, attempt);
-          logger.warn(`[${this.provider}] Server error ${response.status}, retrying in ${waitTime}ms`);
+          logger.warn(
+            `[${this.provider}] Server error ${response.status}, retrying in ${waitTime}ms`,
+          );
           await this.sleep(waitTime);
           continue;
         }
@@ -124,7 +134,9 @@ export class BaseHttpClient {
         clearTimeout(timeoutId);
 
         if (error instanceof Error && error.name === "AbortError") {
-          lastError = new Error(`Request to ${this.provider} timed out after ${this.timeout}ms`);
+          lastError = new Error(
+            `Request to ${this.provider} timed out after ${this.timeout}ms`,
+          );
         } else if (error instanceof Error) {
           lastError = error;
         } else {
@@ -139,7 +151,9 @@ export class BaseHttpClient {
 
         if (shouldRetry) {
           const waitTime = this.retryDelay * Math.pow(2, attempt);
-          logger.warn(`[${this.provider}] Network error, retrying in ${waitTime}ms`);
+          logger.warn(
+            `[${this.provider}] Network error, retrying in ${waitTime}ms`,
+          );
           await this.sleep(waitTime);
           continue;
         }
@@ -148,18 +162,30 @@ export class BaseHttpClient {
       }
     }
 
-    throw lastError ?? new Error(`Failed to complete request to ${this.provider}`);
+    throw (
+      lastError ?? new Error(`Failed to complete request to ${this.provider}`)
+    );
   }
 
-  async get<T>(endpoint: string, params?: Record<string, string | number | boolean | undefined>): Promise<T> {
+  async get<T>(
+    endpoint: string,
+    params?: Record<string, string | number | boolean | undefined>,
+  ): Promise<T> {
     return this.request<T>(endpoint, { method: "GET", params });
   }
 
-  async post<T>(endpoint: string, body?: Record<string, unknown>, params?: Record<string, string | number | boolean | undefined>): Promise<T> {
+  async post<T>(
+    endpoint: string,
+    body?: Record<string, unknown>,
+    params?: Record<string, string | number | boolean | undefined>,
+  ): Promise<T> {
     return this.request<T>(endpoint, { method: "POST", body, params });
   }
 
-  private createApiError(statusCode: number, responseBody: string): DeFiApiError & Error {
+  private createApiError(
+    statusCode: number,
+    responseBody: string,
+  ): DeFiApiError & Error {
     let message = `API error from ${this.provider}`;
     let code = "UNKNOWN_ERROR";
 

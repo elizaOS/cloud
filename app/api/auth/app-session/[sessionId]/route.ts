@@ -53,8 +53,7 @@ export async function GET(
 
     // If authenticated, return the auth token (one-time retrieval)
     if (status.status === "authenticated") {
-      const tokenData =
-        await appAuthSessionsService.getAuthToken(sessionId);
+      const tokenData = await appAuthSessionsService.getAuthToken(sessionId);
 
       if (!tokenData) {
         return NextResponse.json(

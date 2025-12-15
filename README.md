@@ -1132,19 +1132,19 @@ See `docs/STRIPE_SETUP.md` for detailed Stripe configuration.
 
 **Supported Platforms**:
 
-| Platform | Post | Delete | Reply | Like | Repost | Analytics |
-|----------|------|--------|-------|------|--------|-----------|
-| Twitter/X | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Bluesky | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Discord | ✅ | ✅ | ✅ | ✅ | - | - |
-| Telegram | ✅ | ✅ | - | - | - | - |
-| Slack | ✅ | ✅ | ✅ | - | - | - |
-| Reddit | ✅ | ✅ | ✅ | ✅ | - | ✅ |
-| Facebook | ✅ | ✅ | ✅ | ✅ | - | ✅ |
-| Instagram | ✅ | ✅ | - | ✅ | - | ✅ |
-| TikTok | ✅ | ✅ | - | - | - | ✅ |
-| LinkedIn | ✅ | ✅ | ✅ | ✅ | - | ✅ |
-| Mastodon | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Platform  | Post | Delete | Reply | Like | Repost | Analytics |
+| --------- | ---- | ------ | ----- | ---- | ------ | --------- |
+| Twitter/X | ✅   | ✅     | ✅    | ✅   | ✅     | ✅        |
+| Bluesky   | ✅   | ✅     | ✅    | ✅   | ✅     | ✅        |
+| Discord   | ✅   | ✅     | ✅    | ✅   | -      | -         |
+| Telegram  | ✅   | ✅     | -     | -    | -      | -         |
+| Slack     | ✅   | ✅     | ✅    | -    | -      | -         |
+| Reddit    | ✅   | ✅     | ✅    | ✅   | -      | ✅        |
+| Facebook  | ✅   | ✅     | ✅    | ✅   | -      | ✅        |
+| Instagram | ✅   | ✅     | -     | ✅   | -      | ✅        |
+| TikTok    | ✅   | ✅     | -     | -    | -      | ✅        |
+| LinkedIn  | ✅   | ✅     | ✅    | ✅   | -      | ✅        |
+| Mastodon  | ✅   | ✅     | ✅    | ✅   | ✅     | ✅        |
 
 **API**:
 
@@ -1174,23 +1174,24 @@ POST /api/v1/social-media/credentials/validate
 
 **Required Environment Variables** (per platform):
 
-| Platform | Required Variables |
-|----------|-------------------|
-| Twitter | `TWITTER_ACCESS_TOKEN`, `TWITTER_REFRESH_TOKEN` (optional) |
-| Bluesky | `BLUESKY_HANDLE`, `BLUESKY_APP_PASSWORD` |
-| Discord | `DISCORD_BOT_TOKEN` or `DISCORD_WEBHOOK_URL` |
-| Telegram | `TELEGRAM_BOT_TOKEN` |
-| Slack | `SLACK_BOT_TOKEN` or `SLACK_WEBHOOK_URL` |
-| Reddit | `REDDIT_CLIENT_ID`, `REDDIT_CLIENT_SECRET`, `REDDIT_USERNAME`, `REDDIT_PASSWORD` |
-| Facebook | `META_ACCESS_TOKEN`, `META_PAGE_ID` |
-| Instagram | `META_ACCESS_TOKEN`, `META_IG_ACCOUNT_ID` |
-| TikTok | `TIKTOK_ACCESS_TOKEN` |
-| LinkedIn | `LINKEDIN_ACCESS_TOKEN` |
-| Mastodon | `MASTODON_ACCESS_TOKEN`, `MASTODON_INSTANCE_URL` (optional) |
+| Platform  | Required Variables                                                               |
+| --------- | -------------------------------------------------------------------------------- |
+| Twitter   | `TWITTER_ACCESS_TOKEN`, `TWITTER_REFRESH_TOKEN` (optional)                       |
+| Bluesky   | `BLUESKY_HANDLE`, `BLUESKY_APP_PASSWORD`                                         |
+| Discord   | `DISCORD_BOT_TOKEN` or `DISCORD_WEBHOOK_URL`                                     |
+| Telegram  | `TELEGRAM_BOT_TOKEN`                                                             |
+| Slack     | `SLACK_BOT_TOKEN` or `SLACK_WEBHOOK_URL`                                         |
+| Reddit    | `REDDIT_CLIENT_ID`, `REDDIT_CLIENT_SECRET`, `REDDIT_USERNAME`, `REDDIT_PASSWORD` |
+| Facebook  | `META_ACCESS_TOKEN`, `META_PAGE_ID`                                              |
+| Instagram | `META_ACCESS_TOKEN`, `META_IG_ACCOUNT_ID`                                        |
+| TikTok    | `TIKTOK_ACCESS_TOKEN`                                                            |
+| LinkedIn  | `LINKEDIN_ACCESS_TOKEN`                                                          |
+| Mastodon  | `MASTODON_ACCESS_TOKEN`, `MASTODON_INSTANCE_URL` (optional)                      |
 
 **Full Documentation**: See `docs/social-media-api-keys.md` for detailed setup instructions.
 
 **MCP Tools Available**:
+
 - `social_media_create_post` - Post to multiple platforms
 - `social_media_post_to_platform` - Post to a single platform
 - `social_media_delete_post` - Delete a post
@@ -1201,6 +1202,7 @@ POST /api/v1/social-media/credentials/validate
 - `social_media_get_account_analytics` - Get account metrics
 
 **A2A Skills Available**:
+
 - `social_media_post` / `post_social` - Multi-platform posting
 - `social_media_reply` / `reply_to_post` - Reply to posts
 - `social_media_like` / `like_post` - Like posts
@@ -1833,6 +1835,7 @@ DATABASE_URL=postgres://prod-url npm run db:migrate
 - **Verify bootstrapper image**: Ensure `elizaos/bootstrapper:latest` exists and is accessible
 
 **Debug Steps**:
+
 ```bash
 # Check container status via API
 curl https://your-app.com/api/v1/containers/{container-id} \
@@ -1863,6 +1866,7 @@ curl https://your-app.com/api/v1/artifacts/stats \
 - **Increase timeout**: Large artifacts may need more time to upload
 
 **Debug Steps**:
+
 ```bash
 # Test R2 access directly
 aws s3 cp test.txt s3://eliza-artifacts/test/ \
@@ -1870,8 +1874,8 @@ aws s3 cp test.txt s3://eliza-artifacts/test/ \
 
 # Check artifact database records
 # Run in psql or Drizzle Studio
-SELECT id, project_id, version, size, created_at 
-FROM artifacts 
+SELECT id, project_id, version, size, created_at
+FROM artifacts
 WHERE organization_id = 'your-org-id'
 ORDER BY created_at DESC
 LIMIT 10;

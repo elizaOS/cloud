@@ -89,7 +89,15 @@ export interface DnsRecord {
 
 // Moderation flag structure
 export interface DomainModerationFlag {
-  type: "expletive" | "trademark" | "suspicious" | "restricted" | "content" | "csam" | "illegal" | "ai_flagged";
+  type:
+    | "expletive"
+    | "trademark"
+    | "suspicious"
+    | "restricted"
+    | "content"
+    | "csam"
+    | "illegal"
+    | "ai_flagged";
   severity: "low" | "medium" | "high" | "critical";
   reason: string;
   detectedAt: string;
@@ -191,7 +199,9 @@ export const managedDomains = pgTable(
     // Suspension tracking
     suspendedAt: timestamp("suspended_at"),
     suspensionReason: text("suspension_reason"),
-    suspensionNotification: jsonb("suspension_notification").$type<SuspensionNotification>(),
+    suspensionNotification: jsonb(
+      "suspension_notification",
+    ).$type<SuspensionNotification>(),
     ownerNotifiedAt: timestamp("owner_notified_at"),
 
     // Pricing (for purchased domains)
@@ -213,14 +223,15 @@ export const managedDomains = pgTable(
     mcpIdx: index("managed_domains_mcp_idx").on(table.mcpId),
     statusIdx: index("managed_domains_status_idx").on(table.status),
     moderationIdx: index("managed_domains_moderation_idx").on(
-      table.moderationStatus
+      table.moderationStatus,
     ),
     expiresIdx: index("managed_domains_expires_idx").on(table.expiresAt),
-    contentScanIdx: index("managed_domains_content_scan_idx").on(table.lastContentScanAt),
+    contentScanIdx: index("managed_domains_content_scan_idx").on(
+      table.lastContentScanAt,
+    ),
     suspendedIdx: index("managed_domains_suspended_idx").on(table.suspendedAt),
-  })
+  }),
 );
 
 export type ManagedDomain = InferSelectModel<typeof managedDomains>;
 export type NewManagedDomain = InferInsertModel<typeof managedDomains>;
-

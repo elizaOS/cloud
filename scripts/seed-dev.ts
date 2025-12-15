@@ -26,8 +26,15 @@ import { users } from "../db/schemas/users";
 import { organizations } from "../db/schemas/organizations";
 import { apps, appUsers, type NewApp } from "../db/schemas/apps";
 import { apiKeys } from "../db/schemas/api-keys";
-import { userCharacters, type NewUserCharacter } from "../db/schemas/user-characters";
-import { appCollections, type CollectionSchema, type CollectionIndex } from "../db/schemas/app-storage";
+import {
+  userCharacters,
+  type NewUserCharacter,
+} from "../db/schemas/user-characters";
+import {
+  appCollections,
+  type CollectionSchema,
+  type CollectionIndex,
+} from "../db/schemas/app-storage";
 import { eq, and } from "drizzle-orm";
 import crypto from "crypto";
 
@@ -110,7 +117,12 @@ const API_KEY_PERMISSIONS = [
 // Helpers
 // ============================================
 
-function generateApiKey(): { key: string; hash: string; prefix: string; lastFour: string } {
+function generateApiKey(): {
+  key: string;
+  hash: string;
+  prefix: string;
+  lastFour: string;
+} {
   const key = `eliza_${crypto.randomBytes(32).toString("hex")}`;
   const hash = crypto.createHash("sha256").update(key).digest("hex");
   const prefix = key.substring(0, 12);
@@ -118,10 +130,15 @@ function generateApiKey(): { key: string; hash: string; prefix: string; lastFour
   return { key, hash, prefix, lastFour };
 }
 
-function writeEnvFile(filePath: string, apiKey: string, cloudUrl: string, appUrl: string): void {
+function writeEnvFile(
+  filePath: string,
+  apiKey: string,
+  cloudUrl: string,
+  appUrl: string,
+): void {
   const fullPath = path.join(process.cwd(), filePath);
   const dir = path.dirname(fullPath);
-  
+
   if (!fs.existsSync(dir)) {
     console.log(`  ⚠ Directory ${dir} does not exist, skipping env file`);
     return;
@@ -150,7 +167,7 @@ NEXT_PUBLIC_APP_URL=${appUrl}
 
 async function seedDev() {
   const forceRegenerate = process.argv.includes("--force");
-  
+
   console.log("\n" + "=".repeat(60));
   console.log("  Eliza Cloud - Local Development Seed");
   console.log("=".repeat(60) + "\n");
@@ -278,12 +295,20 @@ async function seedDev() {
     const [newApp] = await db.insert(apps).values(appData).returning();
     app = newApp;
     console.log(`  ✨ Created: ${app?.id}`);
-    writeEnvFile(APP_CONFIG.envFile, appKey, "http://localhost:3000", APP_CONFIG.appUrl);
+    writeEnvFile(
+      APP_CONFIG.envFile,
+      appKey,
+      "http://localhost:3000",
+      APP_CONFIG.appUrl,
+    );
   } else {
     // Update allowed origins
     await db
       .update(apps)
-      .set({ allowed_origins: APP_CONFIG.allowedOrigins, organization_id: org.id })
+      .set({
+        allowed_origins: APP_CONFIG.allowedOrigins,
+        organization_id: org.id,
+      })
       .where(eq(apps.id, app.id));
 
     if (forceRegenerate && app.api_key_id) {
@@ -292,10 +317,20 @@ async function seedDev() {
       appKey = key;
       await db
         .update(apiKeys)
-        .set({ key: key, key_hash: hash, key_prefix: prefix, updated_at: new Date() })
+        .set({
+          key: key,
+          key_hash: hash,
+          key_prefix: prefix,
+          updated_at: new Date(),
+        })
         .where(eq(apiKeys.id, app.api_key_id));
       console.log(`  🔄 Regenerated API key: ${prefix}...`);
-      writeEnvFile(APP_CONFIG.envFile, appKey, "http://localhost:3000", APP_CONFIG.appUrl);
+      writeEnvFile(
+        APP_CONFIG.envFile,
+        appKey,
+        "http://localhost:3000",
+        APP_CONFIG.appUrl,
+      );
     } else {
       console.log(`  ♻️  Reused: ${app.id}`);
     }
@@ -308,7 +343,9 @@ async function seedDev() {
     where: and(eq(appUsers.app_id, app.id), eq(appUsers.user_id, user.id)),
   });
   if (!existingAppUser) {
-    await db.insert(appUsers).values({ app_id: app.id, user_id: user.id, signup_source: "seed" });
+    await db
+      .insert(appUsers)
+      .values({ app_id: app.id, user_id: user.id, signup_source: "seed" });
   }
 
   // ============================================
@@ -359,12 +396,20 @@ async function seedDev() {
     const [newApp] = await db.insert(apps).values(appData).returning();
     todoapp = newApp;
     console.log(`  ✨ Created: ${todoapp?.id}`);
-    writeEnvFile(TODOAPP_CONFIG.envFile, todoappKey, "http://localhost:3000", TODOAPP_CONFIG.appUrl);
+    writeEnvFile(
+      TODOAPP_CONFIG.envFile,
+      todoappKey,
+      "http://localhost:3000",
+      TODOAPP_CONFIG.appUrl,
+    );
   } else {
     // Update allowed origins
     await db
       .update(apps)
-      .set({ allowed_origins: TODOAPP_CONFIG.allowedOrigins, organization_id: org.id })
+      .set({
+        allowed_origins: TODOAPP_CONFIG.allowedOrigins,
+        organization_id: org.id,
+      })
       .where(eq(apps.id, todoapp.id));
 
     if (forceRegenerate && todoapp.api_key_id) {
@@ -373,10 +418,20 @@ async function seedDev() {
       todoappKey = key;
       await db
         .update(apiKeys)
-        .set({ key: key, key_hash: hash, key_prefix: prefix, updated_at: new Date() })
+        .set({
+          key: key,
+          key_hash: hash,
+          key_prefix: prefix,
+          updated_at: new Date(),
+        })
         .where(eq(apiKeys.id, todoapp.api_key_id));
       console.log(`  🔄 Regenerated API key: ${prefix}...`);
-      writeEnvFile(TODOAPP_CONFIG.envFile, todoappKey, "http://localhost:3000", TODOAPP_CONFIG.appUrl);
+      writeEnvFile(
+        TODOAPP_CONFIG.envFile,
+        todoappKey,
+        "http://localhost:3000",
+        TODOAPP_CONFIG.appUrl,
+      );
     } else {
       console.log(`  ♻️  Reused: ${todoapp.id}`);
     }
@@ -389,7 +444,9 @@ async function seedDev() {
     where: and(eq(appUsers.app_id, todoapp.id), eq(appUsers.user_id, user.id)),
   });
   if (!existingTodoappUser) {
-    await db.insert(appUsers).values({ app_id: todoapp.id, user_id: user.id, signup_source: "seed" });
+    await db
+      .insert(appUsers)
+      .values({ app_id: todoapp.id, user_id: user.id, signup_source: "seed" });
   }
 
   // ============================================
@@ -397,12 +454,12 @@ async function seedDev() {
   // ============================================
   console.log("\n[5/7] Task Assistant Agent...");
   let agent: { id: string } | null = null;
-  
+
   try {
     agent = await db.query.userCharacters.findFirst({
       where: and(
         eq(userCharacters.name, "Task Assistant"),
-        eq(userCharacters.organization_id, org.id)
+        eq(userCharacters.organization_id, org.id),
       ),
     });
   } catch {
@@ -412,11 +469,11 @@ async function seedDev() {
   if (!agent) {
     try {
       const characterData: NewUserCharacter = {
-      organization_id: org.id,
-      user_id: user.id,
-      name: "Task Assistant",
-      username: "task-assistant",
-      system: `You are a friendly and motivating task management assistant. Your role is to help users:
+        organization_id: org.id,
+        user_id: user.id,
+        name: "Task Assistant",
+        username: "task-assistant",
+        system: `You are a friendly and motivating task management assistant. Your role is to help users:
 
 1. Create and organize tasks (daily habits, one-off tasks, aspirational goals)
 2. Stay motivated with gamification (points, streaks, levels)
@@ -431,58 +488,73 @@ When users ask to create tasks, extract:
 - Due date: if mentioned
 
 Be encouraging and celebrate completions! Use the gamification system to motivate users.`,
-      bio: [
-        "I help you manage tasks, build habits, and stay productive.",
-        "Let me help you organize your day and achieve your goals.",
-      ],
-      message_examples: [
-        [
-          { user: "user", content: { text: "Add a task to review the quarterly report by Friday" } },
-          {
-            user: "Task Assistant",
-            content: {
-              text: "I've created a one-off task: 'Review quarterly report' with a due date of Friday. I've set it as priority 2 since it has a deadline. Would you like me to mark it as urgent?",
-            },
-          },
+        bio: [
+          "I help you manage tasks, build habits, and stay productive.",
+          "Let me help you organize your day and achieve your goals.",
         ],
-        [
-          { user: "user", content: { text: "I want to exercise every morning" } },
-          {
-            user: "Task Assistant",
-            content: {
-              text: "Great goal! I've added 'Morning exercise' as a daily habit. You'll earn 10 base points each day you complete it, plus bonus points for maintaining your streak. Ready to build that habit? 💪",
+        message_examples: [
+          [
+            {
+              user: "user",
+              content: {
+                text: "Add a task to review the quarterly report by Friday",
+              },
             },
-          },
+            {
+              user: "Task Assistant",
+              content: {
+                text: "I've created a one-off task: 'Review quarterly report' with a due date of Friday. I've set it as priority 2 since it has a deadline. Would you like me to mark it as urgent?",
+              },
+            },
+          ],
+          [
+            {
+              user: "user",
+              content: { text: "I want to exercise every morning" },
+            },
+            {
+              user: "Task Assistant",
+              content: {
+                text: "Great goal! I've added 'Morning exercise' as a daily habit. You'll earn 10 base points each day you complete it, plus bonus points for maintaining your streak. Ready to build that habit? 💪",
+              },
+            },
+          ],
         ],
-      ],
-      topics: ["productivity", "task management", "habits", "goals"],
-      adjectives: ["helpful", "encouraging", "organized", "motivating"],
-      style: {
-        all: ["Be encouraging", "Celebrate completions", "Use gamification language"],
-        chat: ["Be conversational", "Ask clarifying questions"],
-      },
-      plugins: ["@elizaos/plugin-mcp"],
-      settings: {
-        model: "claude-sonnet-4-20250514",
-        voice: { model: "en_US-hfc_female-medium" },
-        mcp: {
-          servers: {
-            "todo-tasks": {
-              type: "http",
-              url: "/api/mcp/todoapp",
+        topics: ["productivity", "task management", "habits", "goals"],
+        adjectives: ["helpful", "encouraging", "organized", "motivating"],
+        style: {
+          all: [
+            "Be encouraging",
+            "Celebrate completions",
+            "Use gamification language",
+          ],
+          chat: ["Be conversational", "Ask clarifying questions"],
+        },
+        plugins: ["@elizaos/plugin-mcp"],
+        settings: {
+          model: "claude-sonnet-4-20250514",
+          voice: { model: "en_US-hfc_female-medium" },
+          mcp: {
+            servers: {
+              "todo-tasks": {
+                type: "http",
+                url: "/api/mcp/todoapp",
+              },
             },
           },
         },
-      },
-      character_data: {},
-      source: "app",
-      is_public: true,
-      is_template: false,
-      a2a_enabled: true,
-      mcp_enabled: true,
-    };
+        character_data: {},
+        source: "app",
+        is_public: true,
+        is_template: false,
+        a2a_enabled: true,
+        mcp_enabled: true,
+      };
 
-      const [newAgent] = await db.insert(userCharacters).values(characterData).returning();
+      const [newAgent] = await db
+        .insert(userCharacters)
+        .values(characterData)
+        .returning();
       agent = newAgent;
       console.log(`  ✨ Created: ${agent?.id}`);
     } catch (e) {
@@ -503,7 +575,7 @@ Be encouraging and celebrate completions! Use the gamification system to motivat
     const tasksCollection = await db.query.appCollections.findFirst({
       where: and(
         eq(appCollections.app_id, todoapp.id),
-        eq(appCollections.name, "tasks")
+        eq(appCollections.name, "tasks"),
       ),
     });
 
@@ -512,7 +584,10 @@ Be encouraging and celebrate completions! Use the gamification system to motivat
         type: "object",
         properties: {
           name: { type: "string", description: "Task name" },
-          type: { type: "string", description: "Task type: daily, one-off, aspirational" },
+          type: {
+            type: "string",
+            description: "Task type: daily, one-off, aspirational",
+          },
           priority: { type: "integer", description: "Priority 1-4" },
           urgent: { type: "boolean", description: "Is urgent" },
           completed: { type: "boolean", description: "Is completed" },
@@ -542,7 +617,7 @@ Be encouraging and celebrate completions! Use the gamification system to motivat
     const pointsCollection = await db.query.appCollections.findFirst({
       where: and(
         eq(appCollections.app_id, todoapp.id),
-        eq(appCollections.name, "user_points")
+        eq(appCollections.name, "user_points"),
       ),
     });
 
@@ -570,7 +645,9 @@ Be encouraging and celebrate completions! Use the gamification system to motivat
       console.log("  ♻️  Reused user_points collection");
     }
   } catch {
-    console.log("  ⚠ Collections table not found - will be created on first use");
+    console.log(
+      "  ⚠ Collections table not found - will be created on first use",
+    );
   }
 
   // ============================================
@@ -615,7 +692,9 @@ Be encouraging and celebrate completions! Use the gamification system to motivat
 
   console.log("\n🔐 Test Wallet (for Privy login):");
   console.log(`   Address: ${TEST_WALLET_ADDRESS}`);
-  console.log('   Seed:    "test test test test test test test test test test test junk"');
+  console.log(
+    '   Seed:    "test test test test test test test test test test test junk"',
+  );
 
   console.log("\n" + "=".repeat(60) + "\n");
 }
@@ -627,4 +706,3 @@ seedDev()
     console.error("\n❌ Error:", error);
     process.exit(1);
   });
-

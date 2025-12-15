@@ -24,7 +24,7 @@ export async function vercelApiRequest<T>(
   path: string,
   token: string,
   options: RequestInit = {},
-  teamId?: string
+  teamId?: string,
 ): Promise<T> {
   const url = buildVercelUrl(path, teamId);
   const response = await fetch(url, {
@@ -41,10 +41,9 @@ export async function vercelApiRequest<T>(
       error: { message: response.statusText },
     }));
     throw new Error(
-      error.error?.message || `Vercel API error: ${response.status}`
+      error.error?.message || `Vercel API error: ${response.status}`,
     );
   }
 
   return response.json();
 }
-

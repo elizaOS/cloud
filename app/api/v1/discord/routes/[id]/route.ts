@@ -47,7 +47,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   if (!route) {
     return NextResponse.json(
       { success: false, error: "Route not found" },
-      { status: 404 }
+      { status: 404 },
     );
   }
 
@@ -95,15 +95,19 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   if (!existingRoute) {
     return NextResponse.json(
       { success: false, error: "Route not found" },
-      { status: 404 }
+      { status: 404 },
     );
   }
 
   const parsed = UpdateRouteSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
-      { success: false, error: "Invalid request", details: parsed.error.issues },
-      { status: 400 }
+      {
+        success: false,
+        error: "Invalid request",
+        details: parsed.error.issues,
+      },
+      { status: 400 },
     );
   }
 
@@ -118,7 +122,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   if (!route) {
     return NextResponse.json(
       { success: false, error: "Failed to update route" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 
@@ -152,7 +156,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
   if (!existingRoute) {
     return NextResponse.json(
       { success: false, error: "Route not found" },
-      { status: 404 }
+      { status: 404 },
     );
   }
 
@@ -166,7 +170,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
   if (!success) {
     return NextResponse.json(
       { success: false, error: "Failed to delete route" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 
@@ -175,4 +179,3 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     message: "Route deleted",
   });
 }
-

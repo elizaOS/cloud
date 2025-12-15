@@ -161,17 +161,17 @@ export default function AppCreatorPage() {
   // Setup state
   const [step, setStep] = useState<"setup" | "building">("setup");
   const [appName, setAppName] = useState(
-    sourceContext ? `${sourceContext.name} App` : ""
+    sourceContext ? `${sourceContext.name} App` : "",
   );
   const [appDescription, setAppDescription] = useState(
     sourceContext
       ? `An app built with ${sourceContext.name} ${sourceContext.type}`
-      : ""
+      : "",
   );
   const [templateType, setTemplateType] = useState<TemplateType>(
     sourceContext
       ? SOURCE_CONTEXT_INFO[sourceContext.type].templateSuggestion
-      : "blank"
+      : "blank",
   );
   const [includeMonetization, setIncludeMonetization] = useState(false);
   const [includeAnalytics, setIncludeAnalytics] = useState(true);
@@ -312,7 +312,7 @@ What would you like to build?`,
         iframeRef.current.src = session.sandboxUrl;
       }
     },
-    [input, session, status]
+    [input, session, status],
   );
 
   // Stop the session
@@ -369,7 +369,12 @@ What would you like to build?`,
 
         {/* Source Context Banner */}
         {sourceContext && (
-          <BrandCard className="relative border-l-4" style={{ borderLeftColor: SOURCE_CONTEXT_INFO[sourceContext.type].color }}>
+          <BrandCard
+            className="relative border-l-4"
+            style={{
+              borderLeftColor: SOURCE_CONTEXT_INFO[sourceContext.type].color,
+            }}
+          >
             <div className="flex items-center gap-3">
               {(() => {
                 const Icon = SOURCE_CONTEXT_INFO[sourceContext.type].icon;
@@ -688,7 +693,9 @@ What would you like to build?`,
               <Input
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && sendPrompt()}
+                onKeyDown={(e) =>
+                  e.key === "Enter" && !e.shiftKey && sendPrompt()
+                }
                 placeholder="Describe what you want to build..."
                 className="flex-1 bg-black/40 border-white/20 text-white"
                 disabled={status !== "ready"}
@@ -726,5 +733,3 @@ What would you like to build?`,
     </div>
   );
 }
-
-

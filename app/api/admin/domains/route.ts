@@ -115,7 +115,7 @@ export async function GET(request: NextRequest) {
       if (!domainId) {
         return NextResponse.json(
           { error: "domainId required" },
-          { status: 400 }
+          { status: 400 },
         );
       }
 
@@ -123,7 +123,7 @@ export async function GET(request: NextRequest) {
       if (!domain) {
         return NextResponse.json(
           { error: "Domain not found" },
-          { status: 404 }
+          { status: 404 },
         );
       }
 
@@ -168,7 +168,7 @@ export async function POST(request: NextRequest) {
         domainId,
         reason,
         severity || "medium",
-        auth.user.id
+        auth.user.id,
       );
       return NextResponse.json({ success, action: "flagged" });
     }
@@ -177,7 +177,7 @@ export async function POST(request: NextRequest) {
       const success = await domainModerationService.suspendDomain(
         domainId,
         reason,
-        auth.user.id
+        auth.user.id,
       );
       return NextResponse.json({ success, action: "suspended" });
     }
@@ -186,7 +186,7 @@ export async function POST(request: NextRequest) {
       const success = await domainModerationService.reinstateDomain(
         domainId,
         reason,
-        auth.user.id
+        auth.user.id,
       );
       return NextResponse.json({ success, action: "reinstated" });
     }
@@ -195,21 +195,18 @@ export async function POST(request: NextRequest) {
       if (!eventId) {
         return NextResponse.json(
           { error: "eventId required for resolve action" },
-          { status: 400 }
+          { status: 400 },
         );
       }
 
       const event = await managedDomainsRepository.resolveEvent(
         eventId,
         auth.user.id,
-        reason
+        reason,
       );
 
       if (!event) {
-        return NextResponse.json(
-          { error: "Event not found" },
-          { status: 404 }
-        );
+        return NextResponse.json({ error: "Event not found" }, { status: 404 });
       }
 
       return NextResponse.json({ success: true, action: "resolved", event });
@@ -219,4 +216,3 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid action" }, { status: 400 });
   }
 }
-

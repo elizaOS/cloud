@@ -26,7 +26,12 @@ const gatewayManager = new GatewayManager({
 // Health check endpoint
 app.get("/health", (c) => {
   const health = gatewayManager.getHealth();
-  const status = health.status === "healthy" ? 200 : health.status === "degraded" ? 200 : 503;
+  const status =
+    health.status === "healthy"
+      ? 200
+      : health.status === "degraded"
+        ? 200
+        : 503;
   return c.json(health, status);
 });
 
@@ -69,4 +74,3 @@ gatewayManager.start().catch((err) => {
   logger.error("Failed to start gateway manager", { error: err });
   process.exit(1);
 });
-

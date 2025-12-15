@@ -58,7 +58,9 @@ test.describe("CLI Session API", () => {
     }
   });
 
-  test("POST /api/auth/cli-session creates CLI session", async ({ request }) => {
+  test("POST /api/auth/cli-session creates CLI session", async ({
+    request,
+  }) => {
     const response = await request.post(`${CLOUD_URL}/api/auth/cli-session`, {
       headers: {
         "Content-Type": "application/json",
@@ -84,13 +86,18 @@ test.describe("CLI Session API", () => {
     }
   });
 
-  test("GET /api/auth/cli-session/:sessionId checks session status", async ({ request }) => {
+  test("GET /api/auth/cli-session/:sessionId checks session status", async ({
+    request,
+  }) => {
     // First create a session
-    const createResponse = await request.post(`${CLOUD_URL}/api/auth/cli-session`, {
-      headers: {
-        "Content-Type": "application/json",
+    const createResponse = await request.post(
+      `${CLOUD_URL}/api/auth/cli-session`,
+      {
+        headers: {
+          "Content-Type": "application/json",
+        },
       },
-    });
+    );
 
     if (createResponse.status() !== 200 && createResponse.status() !== 201) {
       return;
@@ -101,11 +108,14 @@ test.describe("CLI Session API", () => {
     testSessionId = session.sessionId;
 
     // Check status
-    const response = await request.get(`${CLOUD_URL}/api/auth/cli-session/${testSessionId}`, {
-      headers: {
-        "Content-Type": "application/json",
+    const response = await request.get(
+      `${CLOUD_URL}/api/auth/cli-session/${testSessionId}`,
+      {
+        headers: {
+          "Content-Type": "application/json",
+        },
       },
-    });
+    );
 
     expect([200, 404]).toContain(response.status());
 
@@ -117,13 +127,18 @@ test.describe("CLI Session API", () => {
     }
   });
 
-  test("POST /api/auth/cli-session/:sessionId/complete completes session", async ({ request }) => {
+  test("POST /api/auth/cli-session/:sessionId/complete completes session", async ({
+    request,
+  }) => {
     // First create a session
-    const createResponse = await request.post(`${CLOUD_URL}/api/auth/cli-session`, {
-      headers: {
-        "Content-Type": "application/json",
+    const createResponse = await request.post(
+      `${CLOUD_URL}/api/auth/cli-session`,
+      {
+        headers: {
+          "Content-Type": "application/json",
+        },
       },
-    });
+    );
 
     if (createResponse.status() !== 200 && createResponse.status() !== 201) {
       return;
@@ -138,7 +153,7 @@ test.describe("CLI Session API", () => {
       `${CLOUD_URL}/api/auth/cli-session/${sessionId}/complete`,
       {
         headers: authHeaders(),
-      }
+      },
     );
 
     expect([200, 201, 400, 403, 404, 500, 501]).toContain(response.status());
@@ -162,14 +177,19 @@ test.describe("App Session Completion API", () => {
     request,
   }) => {
     // First create a app session
-    const createResponse = await request.post(`${CLOUD_URL}/api/auth/app-session`, {
-      headers: {
-        "Content-Type": "application/json",
+    const createResponse = await request.post(
+      `${CLOUD_URL}/api/auth/app-session`,
+      {
+        headers: {
+          "Content-Type": "application/json",
+        },
       },
-    });
+    );
 
     if (createResponse.status() !== 200 && createResponse.status() !== 201) {
-      console.log(`ℹ️ App session creation returned ${createResponse.status()}`);
+      console.log(
+        `ℹ️ App session creation returned ${createResponse.status()}`,
+      );
       return;
     }
 
@@ -182,7 +202,7 @@ test.describe("App Session Completion API", () => {
       `${CLOUD_URL}/api/auth/app-session/${sessionId}/complete`,
       {
         headers: authHeaders(),
-      }
+      },
     );
 
     expect([200, 201, 400, 403, 404, 500, 501]).toContain(response.status());
@@ -198,13 +218,18 @@ test.describe("App Session Completion API", () => {
 test.describe("Anonymous Session Migration API", () => {
   test.skip(() => !API_KEY, "TEST_API_KEY environment variable required");
 
-  test("POST /api/auth/migrate-anonymous migrates anonymous data", async ({ request }) => {
-    const response = await request.post(`${CLOUD_URL}/api/auth/migrate-anonymous`, {
-      headers: authHeaders(),
-      data: {
-        anonymousSessionId: "test-anonymous-session-id",
+  test("POST /api/auth/migrate-anonymous migrates anonymous data", async ({
+    request,
+  }) => {
+    const response = await request.post(
+      `${CLOUD_URL}/api/auth/migrate-anonymous`,
+      {
+        headers: authHeaders(),
+        data: {
+          anonymousSessionId: "test-anonymous-session-id",
+        },
       },
-    });
+    );
 
     expect([200, 201, 400, 404, 500, 501]).toContain(response.status());
 
@@ -223,7 +248,9 @@ test.describe("Anonymous Session Migration API", () => {
 test.describe("Current Session API", () => {
   test.skip(() => !API_KEY, "TEST_API_KEY environment variable required");
 
-  test("GET /api/sessions/current returns current session info", async ({ request }) => {
+  test("GET /api/sessions/current returns current session info", async ({
+    request,
+  }) => {
     const response = await request.get(`${CLOUD_URL}/api/sessions/current`, {
       headers: authHeaders(),
     });
@@ -244,7 +271,9 @@ test.describe("Current Session API", () => {
         console.log("   Organization info included");
       }
     } else if (response.status() === 401) {
-      console.log("✅ Current session requires authentication (expected with API key)");
+      console.log(
+        "✅ Current session requires authentication (expected with API key)",
+      );
     } else {
       console.log(`ℹ️ Current session returned ${response.status()}`);
     }
@@ -252,12 +281,17 @@ test.describe("Current Session API", () => {
 });
 
 test.describe("Anonymous Session API", () => {
-  test("POST /api/set-anonymous-session creates anonymous session", async ({ request }) => {
-    const response = await request.post(`${CLOUD_URL}/api/set-anonymous-session`, {
-      headers: {
-        "Content-Type": "application/json",
+  test("POST /api/set-anonymous-session creates anonymous session", async ({
+    request,
+  }) => {
+    const response = await request.post(
+      `${CLOUD_URL}/api/set-anonymous-session`,
+      {
+        headers: {
+          "Content-Type": "application/json",
+        },
       },
-    });
+    );
 
     expect([200, 201, 400, 404, 500, 501]).toContain(response.status());
 
@@ -266,17 +300,24 @@ test.describe("Anonymous Session API", () => {
       expect(data).toBeDefined();
       console.log("✅ Anonymous session created");
     } else {
-      console.log(`ℹ️ Anonymous session creation returned ${response.status()}`);
+      console.log(
+        `ℹ️ Anonymous session creation returned ${response.status()}`,
+      );
     }
   });
 
-  test("GET /api/anonymous-session retrieves anonymous session", async ({ request }) => {
+  test("GET /api/anonymous-session retrieves anonymous session", async ({
+    request,
+  }) => {
     // First create an anonymous session
-    const createResponse = await request.post(`${CLOUD_URL}/api/set-anonymous-session`, {
-      headers: {
-        "Content-Type": "application/json",
+    const createResponse = await request.post(
+      `${CLOUD_URL}/api/set-anonymous-session`,
+      {
+        headers: {
+          "Content-Type": "application/json",
+        },
       },
-    });
+    );
 
     const cookies = createResponse.headers()["set-cookie"];
 
@@ -294,18 +335,25 @@ test.describe("Anonymous Session API", () => {
       expect(data).toBeDefined();
       console.log("✅ Anonymous session retrieved");
     } else {
-      console.log(`ℹ️ Anonymous session retrieval returned ${response.status()}`);
+      console.log(
+        `ℹ️ Anonymous session retrieval returned ${response.status()}`,
+      );
     }
   });
 });
 
 test.describe("Create Anonymous Session API", () => {
-  test("POST /api/auth/create-anonymous-session creates session", async ({ request }) => {
-    const response = await request.post(`${CLOUD_URL}/api/auth/create-anonymous-session`, {
-      headers: {
-        "Content-Type": "application/json",
+  test("POST /api/auth/create-anonymous-session creates session", async ({
+    request,
+  }) => {
+    const response = await request.post(
+      `${CLOUD_URL}/api/auth/create-anonymous-session`,
+      {
+        headers: {
+          "Content-Type": "application/json",
+        },
       },
-    });
+    );
 
     expect([200, 201, 400, 404, 500, 501]).toContain(response.status());
 
@@ -383,12 +431,10 @@ test.describe("Logout UI Flow", () => {
 
     // Look for logout button/link
     const logoutButton = page.locator(
-      'button:has-text("Logout"), button:has-text("Sign out"), a:has-text("Logout")'
+      'button:has-text("Logout"), button:has-text("Sign out"), a:has-text("Logout")',
     );
     const hasLogout = await logoutButton.isVisible().catch(() => false);
 
     console.log(`✅ Logout button visible: ${hasLogout}`);
   });
 });
-
-

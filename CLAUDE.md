@@ -112,6 +112,7 @@ The platform uses a **credit-based billing system** where costs are tracked in c
 ### API Route Pattern
 
 All API routes follow this structure:
+
 ```typescript
 export const maxDuration = 60; // Required for streaming/long operations
 
@@ -179,18 +180,21 @@ export async function POST(req: NextRequest) {
 ### Authentication Patterns
 
 **In Server Components:**
+
 ```typescript
 import { requireAuth } from "@/lib/auth";
 const user = await requireAuth(); // Auto-redirects if not authenticated
 ```
 
 **In API Routes:**
+
 ```typescript
 import { requireAuthOrApiKey } from "@/lib/auth";
 const { user, apiKey, authMethod } = await requireAuthOrApiKey(req);
 ```
 
 **Organization Check:**
+
 ```typescript
 import { requireOrganization } from "@/lib/auth";
 const user = await requireOrganization(orgId); // Validates org access
@@ -199,6 +203,7 @@ const user = await requireOrganization(orgId); // Validates org access
 ### Vector Embeddings (Eliza Schema)
 
 The `embeddings` table supports multiple vector dimensions for different embedding models:
+
 - `dim384` (SMALL), `dim512` (MEDIUM), `dim768` (LARGE)
 - `dim1024` (XL), `dim1536` (XXL), `dim3072` (XXXL)
 
@@ -207,6 +212,7 @@ Use `DIMENSION_MAP` constant to map from `VECTOR_DIMS` enum to column names.
 ### Environment Variables
 
 Required variables in `.env.local` (see `example.env.local`):
+
 ```bash
 DATABASE_URL                        # Neon PostgreSQL connection string
 WORKOS_CLIENT_ID                    # WorkOS authentication
@@ -223,23 +229,37 @@ AI_GATEWAY_API_KEY                  # AI SDK Gateway access
 ### Credit Deduction Pattern
 
 Always deduct credits in the `onFinish` callback of streaming operations:
+
 ```typescript
 onFinish: async ({ text, usage }) => {
-  const { totalCost } = await calculateCost(model, provider, usage.inputTokens, usage.outputTokens);
-  const result = await deductCredits(user.organization_id, totalCost, description, user.id);
+  const { totalCost } = await calculateCost(
+    model,
+    provider,
+    usage.inputTokens,
+    usage.outputTokens,
+  );
+  const result = await deductCredits(
+    user.organization_id,
+    totalCost,
+    description,
+    user.id,
+  );
 
   if (!result.success) {
     console.error("Insufficient balance");
     // Handle failure - log but don't block response
   }
 
-  await createUsageRecord({ /* usage details */ });
-}
+  await createUsageRecord({
+    /* usage details */
+  });
+};
 ```
 
 ### Error Handling for API Routes
 
 Always create failed usage records for observability:
+
 ```typescript
 try {
   // Success path
@@ -256,6 +276,7 @@ try {
 ### Query Organization
 
 Reusable database queries live in `lib/queries/`:
+
 - `api-keys.ts`: API key validation, creation, regeneration
 - `conversations.ts`: Chat history management
 - `credits.ts`: Credit operations (deduct, add, check balance)
@@ -275,6 +296,7 @@ Reusable database queries live in `lib/queries/`:
 ## TESTING & VALIDATION
 
 Before considering any task complete:
+
 1. Run `bun run check-types` to ensure TypeScript validity
 2. Run `bun run lint` to check for linting errors
 3. Test authentication flows (both session and API key)

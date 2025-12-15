@@ -30,7 +30,7 @@ test.beforeAll(async ({ request }) => {
 
   if (!todoappAvailable) {
     console.log(
-      `⚠️ Todo app not available at ${TODOAPP_URL}. Skipping full-flow tests.`
+      `⚠️ Todo app not available at ${TODOAPP_URL}. Skipping full-flow tests.`,
     );
   }
 });
@@ -178,7 +178,7 @@ test.describe("Dashboard UI Components", () => {
       `${CLOUD_URL}/api/v1/app/storage/tasks`,
       {
         headers: authHeaders(),
-      }
+      },
     );
 
     expect(response.status()).toBe(200);
@@ -195,7 +195,7 @@ test.describe("Dashboard UI Components", () => {
       `${CLOUD_URL}/api/v1/app/storage/user_points`,
       {
         headers: authHeaders(),
-      }
+      },
     );
 
     expect(response.status()).toBe(200);
@@ -233,7 +233,7 @@ test.describe("Task Management Workflow", () => {
             description: "30 minutes of exercise",
           },
         },
-      }
+      },
     );
 
     expect([200, 201]).toContain(response.status());
@@ -258,7 +258,7 @@ test.describe("Task Management Workflow", () => {
             dueDate: "2024-04-15T00:00:00.000Z",
           },
         },
-      }
+      },
     );
 
     expect([200, 201]).toContain(response.status());
@@ -280,7 +280,7 @@ test.describe("Task Management Workflow", () => {
             description: "Complete first draft of novel",
           },
         },
-      }
+      },
     );
 
     expect([200, 201]).toContain(response.status());
@@ -302,7 +302,7 @@ test.describe("Task Management Workflow", () => {
           completed: false,
           metadata: {},
         },
-      }
+      },
     );
 
     const { document } = await createResponse.json();
@@ -322,7 +322,7 @@ test.describe("Task Management Workflow", () => {
           },
           id: 1,
         },
-      }
+      },
     );
 
     expect(completeResponse.status()).toBe(200);
@@ -349,7 +349,7 @@ test.describe("Gamification System", () => {
           completed: false,
           metadata: { streak: 0 },
         },
-      }
+      },
     );
     const dailyTask = (await dailyCreate.json()).document;
 
@@ -365,7 +365,7 @@ test.describe("Gamification System", () => {
           completed: false,
           metadata: {},
         },
-      }
+      },
     );
     const p1Task = (await p1Create.json()).document;
 
@@ -406,12 +406,11 @@ test.describe("Gamification System", () => {
     // Cleanup
     await request.delete(
       `${CLOUD_URL}/api/v1/app/storage/tasks/${dailyTask.id}`,
-      { headers: authHeaders() }
+      { headers: authHeaders() },
     );
-    await request.delete(
-      `${CLOUD_URL}/api/v1/app/storage/tasks/${p1Task.id}`,
-      { headers: authHeaders() }
-    );
+    await request.delete(`${CLOUD_URL}/api/v1/app/storage/tasks/${p1Task.id}`, {
+      headers: authHeaders(),
+    });
   });
 
   test("level progression display", async ({ request }) => {
@@ -454,12 +453,9 @@ test.describe("Chat Integration", () => {
 
   test("can create chat with agent", async ({ request }) => {
     // Get agents
-    const agentsResponse = await request.get(
-      `${CLOUD_URL}/api/v1/app/agents`,
-      {
-        headers: authHeaders(),
-      }
-    );
+    const agentsResponse = await request.get(`${CLOUD_URL}/api/v1/app/agents`, {
+      headers: authHeaders(),
+    });
     const agents = (await agentsResponse.json()).agents;
 
     if (agents.length === 0) {
@@ -474,7 +470,7 @@ test.describe("Chat Integration", () => {
       `${CLOUD_URL}/api/v1/app/agents/${agentId}/chats`,
       {
         headers: authHeaders(),
-      }
+      },
     );
 
     expect([200, 201]).toContain(chatResponse.status());
@@ -485,7 +481,7 @@ test.describe("Chat Integration", () => {
     // Cleanup
     await request.delete(
       `${CLOUD_URL}/api/v1/app/agents/${agentId}/chats/${chatData.chat.id}`,
-      { headers: authHeaders() }
+      { headers: authHeaders() },
     );
   });
 });
@@ -498,7 +494,7 @@ test.describe("A2A and MCP Protocol Integration", () => {
     const data = await response.json();
 
     const todoMcp = data.registry.find(
-      (m: { id: string }) => m.id === "todo-app"
+      (m: { id: string }) => m.id === "todo-app",
     );
     expect(todoMcp).toBeDefined();
     expect(todoMcp.status).toBe("live");
@@ -543,7 +539,7 @@ test.describe("Error States and Edge Cases", () => {
       `${CLOUD_URL}/api/v1/app/storage/tasks?filter=${encodeURIComponent(JSON.stringify({ name: "definitely-does-not-exist-xyz" }))}`,
       {
         headers: authHeaders(),
-      }
+      },
     );
 
     expect(response.status()).toBe(200);
@@ -562,7 +558,7 @@ test.describe("Error States and Edge Cases", () => {
           // Missing required fields
           completed: false,
         },
-      }
+      },
     );
 
     // Should accept (storage is schema-less) or reject with 400
@@ -581,7 +577,7 @@ test.describe("Error States and Edge Cases", () => {
           completed: false,
           metadata: {},
         },
-      })
+      }),
     );
 
     const responses = await Promise.all(promises);
@@ -600,8 +596,8 @@ test.describe("Error States and Edge Cases", () => {
       createdIds.map((id) =>
         request.delete(`${CLOUD_URL}/api/v1/app/storage/tasks/${id}`, {
           headers: authHeaders(),
-        })
-      )
+        }),
+      ),
     );
   });
 });
@@ -647,4 +643,3 @@ test.describe("Performance and Reliability", () => {
     console.log(`✅ MCP metadata response in ${responseTime}ms`);
   });
 });
-

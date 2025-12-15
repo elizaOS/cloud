@@ -54,7 +54,7 @@ interface SlackBlock {
 async function slackApiRequest<T>(
   method: string,
   botToken: string,
-  body?: Record<string, unknown>
+  body?: Record<string, unknown>,
 ): Promise<T> {
   const { data } = await withRetry<SlackResponse<T>>(
     () =>
@@ -73,7 +73,7 @@ async function slackApiRequest<T>(
       }
       return json;
     },
-    { platform: "slack", maxRetries: 3 }
+    { platform: "slack", maxRetries: 3 },
   );
 
   return data as T;
@@ -81,7 +81,7 @@ async function slackApiRequest<T>(
 
 async function sendWebhook(
   webhookUrl: string,
-  payload: Record<string, unknown>
+  payload: Record<string, unknown>,
 ): Promise<void> {
   const response = await fetch(webhookUrl, {
     method: "POST",
@@ -97,7 +97,7 @@ async function sendWebhook(
 
 function parsePostId(
   postId: string,
-  fallbackChannel?: string
+  fallbackChannel?: string,
 ): { channel: string | undefined; ts: string } {
   if (postId.includes("/")) {
     const [channel, ts] = postId.split("/");
@@ -110,13 +110,20 @@ function buildBlocks(content: PostContent): SlackBlock[] {
   const blocks: SlackBlock[] = [];
 
   if (content.text) {
-    blocks.push({ type: "section", text: { type: "mrkdwn", text: content.text } });
+    blocks.push({
+      type: "section",
+      text: { type: "mrkdwn", text: content.text },
+    });
   }
 
   if (content.media?.length) {
     for (const media of content.media) {
       if (media.type === "image" && media.url) {
-        blocks.push({ type: "image", image_url: media.url, alt_text: media.altText ?? "Image" });
+        blocks.push({
+          type: "image",
+          image_url: media.url,
+          alt_text: media.altText ?? "Image",
+        });
       }
     }
   }
@@ -124,7 +131,10 @@ function buildBlocks(content: PostContent): SlackBlock[] {
   if (content.link) {
     blocks.push({
       type: "section",
-      text: { type: "mrkdwn", text: `<${content.link}|${content.linkTitle ?? content.link}>` },
+      text: {
+        type: "mrkdwn",
+        text: `<${content.link}|${content.linkTitle ?? content.link}>`,
+      },
     });
   }
 
@@ -147,15 +157,18 @@ export const slackProvider: SocialMediaProvider = {
     }
 
     try {
-      const response = await slackApiRequest<SlackResponse & { user: SlackUser }>(
-        "auth.test",
-        credentials.botToken
-      );
+      const response = await slackApiRequest<
+        SlackResponse & { user: SlackUser }
+      >("auth.test", credentials.botToken);
 
       return {
         valid: true,
-        accountId: response.user?.id ?? (response as Record<string, unknown>).user_id as string,
-        username: response.user?.name ?? (response as Record<string, unknown>).user as string,
+        accountId:
+          response.user?.id ??
+          ((response as Record<string, unknown>).user_id as string),
+        username:
+          response.user?.name ??
+          ((response as Record<string, unknown>).user as string),
         displayName: response.user?.real_name,
       };
     } catch (error) {
@@ -169,10 +182,12 @@ export const slackProvider: SocialMediaProvider = {
   async createPost(
     credentials: SocialCredentials,
     content: PostContent,
-    options?: PlatformPostOptions
+    options?: PlatformPostOptions,
   ): Promise<PostResult> {
     try {
-      logger.info("[Slack] Creating post", { hasWebhook: !!credentials.webhookUrl });
+      logger.info("[Slack] Creating post", {
+        hasWebhook: !!credentials.webhookUrl,
+      });
 
       if (credentials.webhookUrl) {
         const payload: Record<string, unknown> = {
@@ -196,30 +211,42 @@ export const slackProvider: SocialMediaProvider = {
       }
 
       if (!credentials.botToken) {
-        return { platform: "slack", success: false, error: "Bot token or webhook URL required" };
+        return {
+          platform: "slack",
+          success: false,
+          error: "Bot token or webhook URL required",
+        };
       }
 
-      const channelId = options?.slack?.channelId ?? options?.discord?.channelId ?? credentials.channelId;
+      const channelId =
+        options?.slack?.channelId ??
+        options?.discord?.channelId ??
+        credentials.channelId;
       if (!channelId) {
-        return { platform: "slack", success: false, error: "Channel ID required for bot posting" };
+        return {
+          platform: "slack",
+          success: false,
+          error: "Channel ID required for bot posting",
+        };
       }
 
-      const payload: Record<string, unknown> = { channel: channelId, text: content.text };
+      const payload: Record<string, unknown> = {
+        channel: channelId,
+        text: content.text,
+      };
       const blocks = buildBlocks(content);
       if (blocks.length > 0) payload.blocks = blocks;
       if (content.replyToId) payload.thread_ts = content.replyToId;
 
-      const response = await slackApiRequest<SlackResponse & { message: SlackMessage; channel: string }>(
-        "chat.postMessage",
-        credentials.botToken,
-        payload
-      );
+      const response = await slackApiRequest<
+        SlackResponse & { message: SlackMessage; channel: string }
+      >("chat.postMessage", credentials.botToken, payload);
 
       return {
         platform: "slack",
         success: true,
-        postId: response.message?.ts ?? response.ts as string,
-        postUrl: `https://slack.com/archives/${response.channel}/p${(response.message?.ts ?? response.ts as string).replace(".", "")}`,
+        postId: response.message?.ts ?? (response.ts as string),
+        postUrl: `https://slack.com/archives/${response.channel}/p${(response.message?.ts ?? (response.ts as string)).replace(".", "")}`,
         metadata: { channel: response.channel },
       };
     } catch (error) {
@@ -239,11 +266,18 @@ export const slackProvider: SocialMediaProvider = {
 
     const { channel, ts } = parsePostId(postId, credentials.channelId);
     if (!channel) {
-      return { success: false, error: "Channel ID required (use channelId/ts format or set channel in credentials)" };
+      return {
+        success: false,
+        error:
+          "Channel ID required (use channelId/ts format or set channel in credentials)",
+      };
     }
 
     try {
-      await slackApiRequest("chat.delete", credentials.botToken, { channel, ts });
+      await slackApiRequest("chat.delete", credentials.botToken, {
+        channel,
+        ts,
+      });
       return { success: true };
     } catch (error) {
       return {
@@ -257,19 +291,23 @@ export const slackProvider: SocialMediaProvider = {
     credentials: SocialCredentials,
     postId: string,
     content: PostContent,
-    options?: PlatformPostOptions
+    options?: PlatformPostOptions,
   ): Promise<PostResult> {
     const fallbackChannel = options?.slack?.channelId ?? credentials.channelId;
     const { channel, ts: threadTs } = parsePostId(postId, fallbackChannel);
 
     if (!channel) {
-      return { platform: "slack", success: false, error: "Channel ID required for replies" };
+      return {
+        platform: "slack",
+        success: false,
+        error: "Channel ID required for replies",
+      };
     }
 
     return this.createPost(
       credentials,
       { ...content, replyToId: threadTs },
-      { ...options, slack: { ...options?.slack, channelId: channel } }
+      { ...options, slack: { ...options?.slack, channelId: channel } },
     );
   },
 
@@ -278,7 +316,10 @@ export const slackProvider: SocialMediaProvider = {
       return { success: false, error: "Bot token required" };
     }
 
-    const { channel, ts: timestamp } = parsePostId(postId, credentials.channelId);
+    const { channel, ts: timestamp } = parsePostId(
+      postId,
+      credentials.channelId,
+    );
     if (!channel) {
       return { success: false, error: "Channel ID required" };
     }
@@ -318,7 +359,11 @@ export const slackProvider: SocialMediaProvider = {
     }
 
     const formData = new FormData();
-    formData.append("file", new Blob([fileData], { type: media.mimeType }), filename);
+    formData.append(
+      "file",
+      new Blob([fileData], { type: media.mimeType }),
+      filename,
+    );
     formData.append("filename", filename);
 
     const response = await fetch(`${SLACK_API_BASE}/files.upload`, {
@@ -329,7 +374,9 @@ export const slackProvider: SocialMediaProvider = {
       body: formData,
     });
 
-    const data = await response.json() as SlackResponse & { file: { id: string; permalink: string } };
+    const data = (await response.json()) as SlackResponse & {
+      file: { id: string; permalink: string };
+    };
 
     if (!data.ok) {
       throw new Error(data.error ?? "File upload failed");
@@ -341,4 +388,3 @@ export const slackProvider: SocialMediaProvider = {
     };
   },
 };
-

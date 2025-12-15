@@ -22,10 +22,7 @@ class AppAuthSessionsRepository {
    * Creates a new app auth session.
    */
   async create(data: NewAppAuthSession): Promise<AppAuthSession> {
-    const [session] = await db
-      .insert(appAuthSessions)
-      .values(data)
-      .returning();
+    const [session] = await db.insert(appAuthSessions).values(data).returning();
     return session;
   }
 
@@ -44,9 +41,7 @@ class AppAuthSessionsRepository {
   /**
    * Gets an active (non-expired, pending) session by session ID.
    */
-  async getActiveSession(
-    sessionId: string,
-  ): Promise<AppAuthSession | null> {
+  async getActiveSession(sessionId: string): Promise<AppAuthSession | null> {
     const [session] = await db
       .select()
       .from(appAuthSessions)
@@ -62,7 +57,7 @@ class AppAuthSessionsRepository {
 
   /**
    * Marks a session as authenticated and stores user/org/auth token information.
-   * 
+   *
    * Only updates sessions with status "pending".
    */
   async markAuthenticated(
@@ -94,14 +89,12 @@ class AppAuthSessionsRepository {
 
   /**
    * Gets and clears auth token (one-time retrieval for security).
-   * 
+   *
    * Marks session as "used" after retrieval. Only works for authenticated sessions.
-   * 
+   *
    * @returns Auth token, user ID, and organization ID, or null if not found.
    */
-  async getAndClearAuthToken(
-    sessionId: string,
-  ): Promise<{
+  async getAndClearAuthToken(sessionId: string): Promise<{
     authToken: string;
     userId: string;
     organizationId: string;
@@ -145,9 +138,9 @@ class AppAuthSessionsRepository {
 
   /**
    * Verifies an auth token against stored hash.
-   * 
+   *
    * Only verifies non-expired sessions.
-   * 
+   *
    * @returns User ID and organization ID if token is valid, null otherwise.
    */
   async verifyAuthToken(
@@ -176,7 +169,7 @@ class AppAuthSessionsRepository {
 
   /**
    * Deletes expired sessions that were never authenticated (cleanup).
-   * 
+   *
    * @returns Number of sessions deleted.
    */
   async deleteExpired(): Promise<number> {
@@ -195,5 +188,4 @@ class AppAuthSessionsRepository {
 /**
  * Singleton instance of AppAuthSessionsRepository.
  */
-export const appAuthSessionsRepository =
-  new AppAuthSessionsRepository();
+export const appAuthSessionsRepository = new AppAuthSessionsRepository();

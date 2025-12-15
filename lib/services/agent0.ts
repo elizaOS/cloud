@@ -47,9 +47,12 @@ async function getSDKModule() {
       const sdkModule = await import("agent0-sdk");
       SDK = sdkModule.SDK;
     } catch (error) {
-      logger.warn("[Agent0] Failed to load agent0-sdk, falling back to indexer", {
-        error: extractErrorMessage(error),
-      });
+      logger.warn(
+        "[Agent0] Failed to load agent0-sdk, falling back to indexer",
+        {
+          error: extractErrorMessage(error),
+        },
+      );
       sdkLoadFailed = true;
       return null;
     }
@@ -60,14 +63,20 @@ async function getSDKModule() {
 // Indexer fallback - queries the local indexer directly
 const INDEXER_URL = process.env.INDEXER_URL || "http://localhost:4000/graphql";
 
-async function fetchFromIndexer(filters: Agent0SearchFilters): Promise<Agent0Agent[]> {
+async function fetchFromIndexer(
+  filters: Agent0SearchFilters,
+): Promise<Agent0Agent[]> {
   const whereConditions: string[] = [];
   if (filters.active !== false) whereConditions.push(`active_eq: true`);
   if (filters.x402Support) whereConditions.push(`x402Support_eq: true`);
-  if (filters.name) whereConditions.push(`name_containsInsensitive: "${filters.name}"`);
-  
-  const whereClause = whereConditions.length > 0 ? `where: { ${whereConditions.join(", ")} }` : "";
-  
+  if (filters.name)
+    whereConditions.push(`name_containsInsensitive: "${filters.name}"`);
+
+  const whereClause =
+    whereConditions.length > 0
+      ? `where: { ${whereConditions.join(", ")} }`
+      : "";
+
   const query = `
     query {
       registeredAgents(limit: ${filters.limit || 50}, orderBy: agentId_DESC${whereClause ? ", " + whereClause : ""}) {
@@ -87,49 +96,51 @@ async function fetchFromIndexer(filters: Agent0SearchFilters): Promise<Agent0Age
       }
     }
   `;
-  
+
   const response = await fetch(INDEXER_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ query }),
   });
-  
+
   const result = await response.json();
-  
+
   if (result.errors) {
     logger.warn("[Agent0/Indexer] GraphQL errors", { errors: result.errors });
     return [];
   }
-  
-  return (result.data?.registeredAgents || []).map((agent: {
-    agentId: string;
-    name: string;
-    description?: string;
-    a2aEndpoint?: string;
-    mcpEndpoint?: string;
-    serviceType?: string;
-    category?: string;
-    x402Support?: boolean;
-    mcpTools?: string[];
-    a2aSkills?: string[];
-    image?: string;
-    tags?: string[];
-    active?: boolean;
-  }): Agent0Agent => ({
-    agentId: agent.agentId,
-    name: agent.name,
-    description: agent.description,
-    image: agent.image,
-    mcpEndpoint: agent.mcpEndpoint,
-    a2aEndpoint: agent.a2aEndpoint,
-    mcpTools: agent.mcpTools || [],
-    a2aSkills: agent.a2aSkills || [],
-    tags: agent.tags || [],
-    active: agent.active ?? true,
-    x402Support: agent.x402Support ?? false,
-    network: getDefaultNetwork(),
-    ecosystem: getNetworkEcosystem(getDefaultNetwork()),
-  }));
+
+  return (result.data?.registeredAgents || []).map(
+    (agent: {
+      agentId: string;
+      name: string;
+      description?: string;
+      a2aEndpoint?: string;
+      mcpEndpoint?: string;
+      serviceType?: string;
+      category?: string;
+      x402Support?: boolean;
+      mcpTools?: string[];
+      a2aSkills?: string[];
+      image?: string;
+      tags?: string[];
+      active?: boolean;
+    }): Agent0Agent => ({
+      agentId: agent.agentId,
+      name: agent.name,
+      description: agent.description,
+      image: agent.image,
+      mcpEndpoint: agent.mcpEndpoint,
+      a2aEndpoint: agent.a2aEndpoint,
+      mcpTools: agent.mcpTools || [],
+      a2aSkills: agent.a2aSkills || [],
+      tags: agent.tags || [],
+      active: agent.active ?? true,
+      x402Support: agent.x402Support ?? false,
+      network: getDefaultNetwork(),
+      ecosystem: getNetworkEcosystem(getDefaultNetwork()),
+    }),
+  );
 }
 
 // Type imports from agent0-sdk
@@ -191,7 +202,7 @@ class Agent0Service {
    */
   private async ensureSDK(network?: ERC8004Network): Promise<SDKInstance> {
     const targetNetwork = network || this.defaultNetwork;
-    
+
     const cached = this.sdkCache.get(targetNetwork);
     if (cached) return cached;
 
@@ -202,7 +213,9 @@ class Agent0Service {
     }
 
     const initPromise = (async () => {
-      const privateKey = process.env.AGENT0_PRIVATE_KEY as `0x${string}` | undefined;
+      const privateKey = process.env.AGENT0_PRIVATE_KEY as
+        | `0x${string}`
+        | undefined;
 
       const SDKClass = await getSDKModule();
       const sdk = new SDKClass({
@@ -231,7 +244,7 @@ class Agent0Service {
     return this.defaultNetwork;
   }
 
-  // Legacy property for backwards compatibility  
+  // Legacy property for backwards compatibility
   private get sdk(): SDKInstance | null {
     return this.sdkCache.get(this.defaultNetwork) || null;
   }
@@ -256,15 +269,18 @@ class Agent0Service {
    * Search for agents on a single network
    * Falls back to indexer if SDK is unavailable
    */
-  async searchAgents(filters: Agent0SearchFilters = {}, network?: ERC8004Network): Promise<Agent0Agent[]> {
+  async searchAgents(
+    filters: Agent0SearchFilters = {},
+    network?: ERC8004Network,
+  ): Promise<Agent0Agent[]> {
     const targetNetwork = network || this.defaultNetwork;
-    
+
     // Try indexer fallback first if SDK failed to load
     if (sdkLoadFailed) {
       logger.debug("[Agent0] Using indexer fallback for search");
       return fetchFromIndexer(filters);
     }
-    
+
     try {
       const sdk = await this.ensureSDK(targetNetwork);
 
@@ -303,11 +319,13 @@ class Agent0Service {
 
   /**
    * Search for agents across MULTIPLE registries (Jeju and Base)
-   * 
+   *
    * This aggregates results from all configured registries and deduplicates
    * based on agent name and wallet address.
    */
-  async searchAgentsMultiRegistry(filters: Agent0SearchFilters = {}): Promise<Agent0Agent[]> {
+  async searchAgentsMultiRegistry(
+    filters: Agent0SearchFilters = {},
+  ): Promise<Agent0Agent[]> {
     if (!isMultiRegistryEnabled() || !INDEXING.aggregateSearch) {
       // Fall back to single network search
       return this.searchAgents(filters);
@@ -316,7 +334,7 @@ class Agent0Service {
     // If ecosystem filter is set, only search that ecosystem
     if (filters.ecosystem) {
       const networks = getSearchNetworks().filter(
-        n => getNetworkEcosystem(n) === filters.ecosystem
+        (n) => getNetworkEcosystem(n) === filters.ecosystem,
       );
       if (networks.length === 0) {
         return [];
@@ -361,8 +379,9 @@ class Agent0Service {
 
     for (const agent of agents) {
       // Use wallet address as primary key, fall back to name
-      const key = agent.walletAddress?.toLowerCase() || agent.name.toLowerCase();
-      
+      const key =
+        agent.walletAddress?.toLowerCase() || agent.name.toLowerCase();
+
       const existing = seen.get(key);
       if (!existing) {
         seen.set(key, agent);
@@ -370,7 +389,10 @@ class Agent0Service {
       }
 
       // Replace if new agent is from preferred ecosystem
-      if (agent.ecosystem === preferredEcosystem && existing.ecosystem !== preferredEcosystem) {
+      if (
+        agent.ecosystem === preferredEcosystem &&
+        existing.ecosystem !== preferredEcosystem
+      ) {
         seen.set(key, agent);
       }
     }
@@ -441,7 +463,10 @@ class Agent0Service {
    */
   private hashFilters(filters: Agent0SearchFilters): string {
     const sortedFilters = JSON.stringify(filters, Object.keys(filters).sort());
-    return createHash("md5").update(sortedFilters).digest("hex").substring(0, 12);
+    return createHash("md5")
+      .update(sortedFilters)
+      .digest("hex")
+      .substring(0, 12);
   }
 
   /**
@@ -451,7 +476,7 @@ class Agent0Service {
    * Falls back to direct search if cache is unavailable.
    */
   async searchAgentsCached(
-    filters: Agent0SearchFilters = {}
+    filters: Agent0SearchFilters = {},
   ): Promise<Agent0Agent[]> {
     const filterHash = this.hashFilters(filters);
     const cacheKey = CacheKeys.erc8004.search(this.network, filterHash);
@@ -465,7 +490,7 @@ class Agent0Service {
           filters,
         });
         return this.searchAgents(filters);
-      }
+      },
     );
 
     return result ?? [];
@@ -525,7 +550,7 @@ class Agent0Service {
    * Search agents across all registries with caching
    */
   async searchAgentsMultiRegistryCached(
-    filters: Agent0SearchFilters = {}
+    filters: Agent0SearchFilters = {},
   ): Promise<Agent0Agent[]> {
     const filterHash = this.hashFilters({ ...filters, multiRegistry: true });
     const cacheKey = CacheKeys.erc8004.search("multi", filterHash);
@@ -534,9 +559,11 @@ class Agent0Service {
       cacheKey,
       CacheStaleTTL.erc8004.search,
       async () => {
-        logger.debug("[Agent0] Multi-registry cache miss, fetching", { filters });
+        logger.debug("[Agent0] Multi-registry cache miss, fetching", {
+          filters,
+        });
         return this.searchAgentsMultiRegistry(filters);
-      }
+      },
     );
 
     return result ?? [];
@@ -545,22 +572,35 @@ class Agent0Service {
   /**
    * Find agents with tools across all registries (cached)
    */
-  async findAgentsWithToolsMultiRegistryCached(tools: string[]): Promise<Agent0Agent[]> {
-    return this.searchAgentsMultiRegistryCached({ mcpTools: tools, active: true });
+  async findAgentsWithToolsMultiRegistryCached(
+    tools: string[],
+  ): Promise<Agent0Agent[]> {
+    return this.searchAgentsMultiRegistryCached({
+      mcpTools: tools,
+      active: true,
+    });
   }
 
   /**
    * Find agents with skills across all registries (cached)
    */
-  async findAgentsWithSkillsMultiRegistryCached(skills: string[]): Promise<Agent0Agent[]> {
-    return this.searchAgentsMultiRegistryCached({ a2aSkills: skills, active: true });
+  async findAgentsWithSkillsMultiRegistryCached(
+    skills: string[],
+  ): Promise<Agent0Agent[]> {
+    return this.searchAgentsMultiRegistryCached({
+      a2aSkills: skills,
+      active: true,
+    });
   }
 
   /**
    * Find payable agents across all registries (cached)
    */
   async findPayableAgentsMultiRegistryCached(): Promise<Agent0Agent[]> {
-    return this.searchAgentsMultiRegistryCached({ x402Support: true, active: true });
+    return this.searchAgentsMultiRegistryCached({
+      x402Support: true,
+      active: true,
+    });
   }
 
   /**
@@ -599,4 +639,3 @@ class Agent0Service {
 // ============================================================================
 
 export const agent0Service = new Agent0Service();
-

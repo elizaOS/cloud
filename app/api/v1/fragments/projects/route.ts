@@ -1,6 +1,6 @@
 /**
  * Fragment Projects API
- * 
+ *
  * CRUD operations for fragment projects
  */
 
@@ -39,7 +39,7 @@ async function handleGET(req: NextRequest) {
 
     const projects = await fragmentProjectsService.listByOrganization(
       user.organization_id!,
-      { status, userId: userId || undefined }
+      { status, userId: userId || undefined },
     );
 
     return NextResponse.json({
@@ -54,7 +54,7 @@ async function handleGET(req: NextRequest) {
         error:
           error instanceof Error ? error.message : "Failed to list projects",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -76,7 +76,7 @@ async function handlePOST(req: NextRequest) {
           error: "Invalid request data",
           details: validationResult.error.format(),
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -95,7 +95,7 @@ async function handlePOST(req: NextRequest) {
         success: true,
         project,
       },
-      { status: 201 }
+      { status: 201 },
     );
   } catch (error) {
     logger.error("[Fragment Projects] Error creating project", error);
@@ -105,11 +105,10 @@ async function handlePOST(req: NextRequest) {
         error:
           error instanceof Error ? error.message : "Failed to create project",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
 export const GET = withRateLimit(handleGET, RateLimitPresets.STRICT);
 export const POST = withRateLimit(handlePOST, RateLimitPresets.STRICT);
-

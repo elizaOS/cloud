@@ -11,7 +11,11 @@ import { seoService } from "./seo";
 import { creditsService } from "./credits";
 import type { App } from "@/db/repositories";
 import type { SocialPlatform, PostContent } from "@/lib/types/social-media";
-import type { AdPlatform, CreateCampaignInput, CreateCreativeInput } from "./advertising/types";
+import type {
+  AdPlatform,
+  CreateCampaignInput,
+  CreateCreativeInput,
+} from "./advertising/types";
 
 export type PromotionChannel = "social" | "seo" | "advertising";
 
@@ -98,9 +102,10 @@ const PROMOTION_COSTS = {
 class AppPromotionService {
   async generatePromotionalContent(
     app: App,
-    targetAudience?: string
+    targetAudience?: string,
   ): Promise<GeneratedPromotionalContent> {
-    const appDescription = app.description || `${app.name} - An app built on Eliza Cloud`;
+    const appDescription =
+      app.description || `${app.name} - An app built on Eliza Cloud`;
     const appUrl = app.app_url;
 
     const prompt = `Generate promotional content for this app:
@@ -135,14 +140,18 @@ Return ONLY valid JSON, no markdown.`;
       prompt,
     });
 
-    return parseAiJson(text, PromotionalContentSchema, "promotional content") as GeneratedPromotionalContent;
+    return parseAiJson(
+      text,
+      PromotionalContentSchema,
+      "promotional content",
+    ) as GeneratedPromotionalContent;
   }
 
   async promoteApp(
     organizationId: string,
     userId: string,
     appId: string,
-    config: PromotionConfig
+    config: PromotionConfig,
   ): Promise<PromotionResult> {
     logger.info("[AppPromotion] Starting app promotion", {
       appId,
@@ -169,7 +178,10 @@ Return ONLY valid JSON, no markdown.`;
 
     // Generate promotional content if needed
     let promotionalContent: GeneratedPromotionalContent | undefined;
-    if (config.channels.includes("social") || config.channels.includes("advertising")) {
+    if (
+      config.channels.includes("social") ||
+      config.channels.includes("advertising")
+    ) {
       const contentDeduction = await creditsService.deductCredits({
         organizationId,
         amount: PROMOTION_COSTS.contentGeneration,
@@ -190,12 +202,13 @@ Return ONLY valid JSON, no markdown.`;
         userId,
         app,
         config.social,
-        promotionalContent
+        promotionalContent,
       );
       if (!result.channels.social.success) {
         result.errors.push("Social media promotion partially failed");
       }
-      result.totalCreditsUsed += config.social.platforms.length * PROMOTION_COSTS.socialPostBase;
+      result.totalCreditsUsed +=
+        config.social.platforms.length * PROMOTION_COSTS.socialPostBase;
     }
 
     if (config.channels.includes("seo") && config.seo) {
@@ -203,10 +216,12 @@ Return ONLY valid JSON, no markdown.`;
         organizationId,
         userId,
         app,
-        config.seo
+        config.seo,
       );
       if (!result.channels.seo.success) {
-        result.errors.push(`SEO optimization failed: ${result.channels.seo.error}`);
+        result.errors.push(
+          `SEO optimization failed: ${result.channels.seo.error}`,
+        );
       }
       result.totalCreditsUsed += PROMOTION_COSTS.seoBundle;
     }
@@ -216,10 +231,12 @@ Return ONLY valid JSON, no markdown.`;
         organizationId,
         app,
         config.advertising,
-        promotionalContent
+        promotionalContent,
       );
       if (!result.channels.advertising.success) {
-        result.errors.push(`Ad campaign creation failed: ${result.channels.advertising.error}`);
+        result.errors.push(
+          `Ad campaign creation failed: ${result.channels.advertising.error}`,
+        );
       }
     }
 
@@ -237,7 +254,7 @@ Return ONLY valid JSON, no markdown.`;
     userId: string,
     app: App,
     config: NonNullable<PromotionConfig["social"]>,
-    content?: GeneratedPromotionalContent
+    content?: GeneratedPromotionalContent,
   ): Promise<NonNullable<PromotionResult["channels"]["social"]>> {
     const results: Array<{
       platform: SocialPlatform;
@@ -248,7 +265,8 @@ Return ONLY valid JSON, no markdown.`;
     }> = [];
 
     for (const platform of config.platforms) {
-      const postText = config.customMessage ||
+      const postText =
+        config.customMessage ||
         content?.socialPosts[platform] ||
         `Check out ${app.name}! ${app.description || ""} ${app.app_url}`;
 
@@ -263,7 +281,9 @@ Return ONLY valid JSON, no markdown.`;
         platforms: [platform],
       });
 
-      const platformResult = postResult.results.find((r) => r.platform === platform);
+      const platformResult = postResult.results.find(
+        (r) => r.platform === platform,
+      );
       results.push({
         platform,
         success: platformResult?.success ?? false,
@@ -283,10 +303,13 @@ Return ONLY valid JSON, no markdown.`;
     organizationId: string,
     userId: string,
     app: App,
-    config: NonNullable<PromotionConfig["seo"]>
+    config: NonNullable<PromotionConfig["seo"]>,
   ): Promise<NonNullable<PromotionResult["channels"]["seo"]>> {
     if (!app.app_url) {
-      return { success: false, error: "App URL is required for SEO optimization" };
+      return {
+        success: false,
+        error: "App URL is required for SEO optimization",
+      };
     }
 
     const seoType = this.determineSeoType(config);
@@ -307,11 +330,14 @@ Return ONLY valid JSON, no markdown.`;
         type: a.type,
         data: a.data as Record<string, unknown>,
       })),
-      error: result.request.status === "failed" ? "SEO request failed" : undefined,
+      error:
+        result.request.status === "failed" ? "SEO request failed" : undefined,
     };
   }
 
-  private determineSeoType(config: NonNullable<PromotionConfig["seo"]>): string {
+  private determineSeoType(
+    config: NonNullable<PromotionConfig["seo"]>,
+  ): string {
     if (config.generateMeta && config.generateSchema) return "publish_bundle";
     if (config.generateMeta) return "meta_generate";
     if (config.generateSchema) return "schema_generate";
@@ -323,7 +349,7 @@ Return ONLY valid JSON, no markdown.`;
     organizationId: string,
     app: App,
     config: NonNullable<PromotionConfig["advertising"]>,
-    content?: GeneratedPromotionalContent
+    content?: GeneratedPromotionalContent,
   ): Promise<NonNullable<PromotionResult["channels"]["advertising"]>> {
     const startDate = new Date();
     const endDate = config.duration
@@ -346,7 +372,12 @@ Return ONLY valid JSON, no markdown.`;
     });
 
     if (content) {
-      await this.createDefaultCreative(organizationId, campaign.id, app, content);
+      await this.createDefaultCreative(
+        organizationId,
+        campaign.id,
+        app,
+        content,
+      );
     }
 
     return {
@@ -360,24 +391,26 @@ Return ONLY valid JSON, no markdown.`;
     organizationId: string,
     campaignId: string,
     app: App,
-    content: GeneratedPromotionalContent
+    content: GeneratedPromotionalContent,
   ): Promise<void> {
-    await advertisingService.createCreative(organizationId, {
-      campaignId,
-      name: `${app.name} - Default Creative`,
-      type: "image",
-      headline: content.headline,
-      primaryText: content.longDescription.substring(0, 500),
-      description: content.shortDescription,
-      callToAction: "LEARN_MORE",
-      destinationUrl: app.app_url,
-      media: [],
-    }).catch((err) => {
-      logger.warn("[AppPromotion] Failed to create default creative", {
+    await advertisingService
+      .createCreative(organizationId, {
         campaignId,
-        error: extractErrorMessage(err),
+        name: `${app.name} - Default Creative`,
+        type: "image",
+        headline: content.headline,
+        primaryText: content.longDescription.substring(0, 500),
+        description: content.shortDescription,
+        callToAction: "LEARN_MORE",
+        destinationUrl: app.app_url,
+        media: [],
+      })
+      .catch((err) => {
+        logger.warn("[AppPromotion] Failed to create default creative", {
+          campaignId,
+          error: extractErrorMessage(err),
+        });
       });
-    });
   }
 
   /**
@@ -385,7 +418,7 @@ Return ONLY valid JSON, no markdown.`;
    */
   async getPromotionSuggestions(
     organizationId: string,
-    appId: string
+    appId: string,
   ): Promise<{
     recommendedChannels: PromotionChannel[];
     estimatedBudget: { min: number; max: number };
@@ -398,7 +431,8 @@ Return ONLY valid JSON, no markdown.`;
     }
 
     // Check what's already connected
-    const hasAdAccount = (await advertisingService.listAccounts(organizationId)).length > 0;
+    const hasAdAccount =
+      (await advertisingService.listAccounts(organizationId)).length > 0;
 
     const recommendedChannels: PromotionChannel[] = ["social", "seo"];
     if (hasAdAccount) {
@@ -425,7 +459,7 @@ Return ONLY valid JSON, no markdown.`;
 
   async getPromotionHistory(
     organizationId: string,
-    appId: string
+    appId: string,
   ): Promise<{
     totalCampaigns: number;
     recentActivity: Array<{
@@ -439,7 +473,9 @@ Return ONLY valid JSON, no markdown.`;
       throw new Error("App not found");
     }
 
-    const campaigns = await advertisingService.listCampaigns(organizationId, { appId });
+    const campaigns = await advertisingService.listCampaigns(organizationId, {
+      appId,
+    });
 
     return {
       totalCampaigns: campaigns.length,
@@ -453,4 +489,3 @@ Return ONLY valid JSON, no markdown.`;
 }
 
 export const appPromotionService = new AppPromotionService();
-

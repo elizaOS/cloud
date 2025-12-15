@@ -1,19 +1,34 @@
 import { group, sleep } from "k6";
 import { httpGet, httpPostFile, httpDelete } from "../../helpers/http";
 import { generateTestFile } from "../../helpers/data-generators";
-import { filesUploaded, filesDownloaded, uploadTime, downloadTime } from "../../helpers/metrics";
+import {
+  filesUploaded,
+  filesDownloaded,
+  uploadTime,
+  downloadTime,
+} from "../../helpers/metrics";
 
-interface StorageFile { id: string; name: string }
+interface StorageFile {
+  id: string;
+  name: string;
+}
 
 export function listFiles(limit = 20): StorageFile[] {
-  const body = httpGet<{ files: StorageFile[] }>(`/api/v1/storage?limit=${limit}`, { tags: { endpoint: "storage" } });
+  const body = httpGet<{ files: StorageFile[] }>(
+    `/api/v1/storage?limit=${limit}`,
+    { tags: { endpoint: "storage" } },
+  );
   return body?.files ?? [];
 }
 
 export function uploadFile(): string | null {
   const file = generateTestFile();
   const start = Date.now();
-  const body = httpPostFile<{ id?: string; fileId?: string }>("/api/v1/storage", file, { tags: { endpoint: "storage" } });
+  const body = httpPostFile<{ id?: string; fileId?: string }>(
+    "/api/v1/storage",
+    file,
+    { tags: { endpoint: "storage" } },
+  );
   uploadTime.add(Date.now() - start);
   if (!body) return null;
   filesUploaded.add(1);
@@ -21,12 +36,16 @@ export function uploadFile(): string | null {
 }
 
 export function getFileMetadata(fileId: string): StorageFile | null {
-  return httpGet<StorageFile>(`/api/v1/storage/${fileId}`, { tags: { endpoint: "storage" } });
+  return httpGet<StorageFile>(`/api/v1/storage/${fileId}`, {
+    tags: { endpoint: "storage" },
+  });
 }
 
 export function downloadFile(fileId: string): boolean {
   const start = Date.now();
-  const body = httpGet(`/api/v1/storage/${fileId}/download`, { tags: { endpoint: "storage" } });
+  const body = httpGet(`/api/v1/storage/${fileId}/download`, {
+    tags: { endpoint: "storage" },
+  });
   downloadTime.add(Date.now() - start);
   if (!body) return false;
   filesDownloaded.add(1);
@@ -34,7 +53,9 @@ export function downloadFile(fileId: string): boolean {
 }
 
 export function deleteFile(fileId: string): boolean {
-  return httpDelete(`/api/v1/storage/${fileId}`, { tags: { endpoint: "storage" } });
+  return httpDelete(`/api/v1/storage/${fileId}`, {
+    tags: { endpoint: "storage" },
+  });
 }
 
 export function storageOperationsCycle() {
@@ -56,7 +77,8 @@ export function storageOperationsCycle() {
 export function storageReadOnly() {
   group("Storage Read", () => {
     const files = listFiles();
-    if (files.length > 0) getFileMetadata(files[Math.floor(Math.random() * files.length)].id);
+    if (files.length > 0)
+      getFileMetadata(files[Math.floor(Math.random() * files.length)].id);
   });
   sleep(0.5);
 }

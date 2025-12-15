@@ -226,14 +226,19 @@ export async function POST(req: NextRequest) {
 
             // Track payment for agent reputation (fire and forget)
             const agentIdentifier = `org:${organizationId}`;
-            agentReputationService.recordPayment({
-              agentIdentifier,
-              amountUsd: credits,
-              paymentType: "stripe",
-              transactionId: paymentIntentId,
-            }).catch((err) => {
-              logger.error("[Stripe Webhook] Failed to record payment for reputation", { error: err });
-            });
+            agentReputationService
+              .recordPayment({
+                agentIdentifier,
+                amountUsd: credits,
+                paymentType: "stripe",
+                transactionId: paymentIntentId,
+              })
+              .catch((err) => {
+                logger.error(
+                  "[Stripe Webhook] Failed to record payment for reputation",
+                  { error: err },
+                );
+              });
           }
 
           // Process referral commission if this user was referred

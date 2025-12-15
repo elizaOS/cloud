@@ -1,6 +1,6 @@
 /**
  * App AI Builder Component
- * 
+ *
  * Embedded AI builder for editing existing apps.
  * Provides a split view with chat interface and live sandbox preview.
  */
@@ -38,7 +38,14 @@ interface AppAIBuilderProps {
   app: App;
 }
 
-type SessionStatus = "idle" | "initializing" | "ready" | "generating" | "error" | "stopped" | "not_configured";
+type SessionStatus =
+  | "idle"
+  | "initializing"
+  | "ready"
+  | "generating"
+  | "error"
+  | "stopped"
+  | "not_configured";
 
 type ProgressStep = "creating" | "installing" | "starting" | "ready" | "error";
 
@@ -73,27 +80,38 @@ export function AppAIBuilder({ app }: AppAIBuilderProps) {
   const [copied, setCopied] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [progressStep, setProgressStep] = useState<ProgressStep>("creating");
-  const [previewTab, setPreviewTab] = useState<"preview" | "console">("preview");
+  const [previewTab, setPreviewTab] = useState<"preview" | "console">(
+    "preview",
+  );
   const [consoleLogs, setConsoleLogs] = useState<string[]>([]);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
     if (messagesContainerRef.current) {
-      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+      messagesContainerRef.current.scrollTop =
+        messagesContainerRef.current.scrollHeight;
     }
   }, [messages, isLoading]);
-
 
   // Listen for console messages from iframe and sandbox
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
       // Accept messages from sandbox
       if (event.data?.type === "console" && event.data?.message) {
-        setConsoleLogs(prev => [...prev, `[${event.data.level || "log"}] ${event.data.message}`]);
+        setConsoleLogs((prev) => [
+          ...prev,
+          `[${event.data.level || "log"}] ${event.data.message}`,
+        ]);
       }
       // Handle Next.js dev server messages
-      if (event.data?.type === "webpack-hmr" || event.data?.action === "built") {
-        setConsoleLogs(prev => [...prev, `[hmr] ${event.data.action || "update"}`]);
+      if (
+        event.data?.type === "webpack-hmr" ||
+        event.data?.action === "built"
+      ) {
+        setConsoleLogs((prev) => [
+          ...prev,
+          `[hmr] ${event.data.action || "update"}`,
+        ]);
       }
     };
     window.addEventListener("message", handleMessage);
@@ -103,7 +121,7 @@ export function AppAIBuilder({ app }: AppAIBuilderProps) {
   // Add log helper
   const addLog = useCallback((message: string, level: string = "info") => {
     const timestamp = new Date().toLocaleTimeString();
-    setConsoleLogs(prev => [...prev, `[${timestamp}] [${level}] ${message}`]);
+    setConsoleLogs((prev) => [...prev, `[${timestamp}] [${level}] ${message}`]);
   }, []);
 
   // Poll for sandbox logs when session is active
@@ -114,24 +132,43 @@ export function AppAIBuilder({ app }: AppAIBuilderProps) {
       return;
     }
 
+    let isCancelled = false;
+
     const fetchLogs = async () => {
+      if (isCancelled) return;
+
       try {
-        const res = await fetch(`/api/v1/app-builder/sessions/${session.id}/logs?tail=100`);
+        const res = await fetch(
+          `/api/v1/app-builder/sessions/${session.id}/logs?tail=100`,
+        );
+
+        // Handle session ownership errors - clear session and stop polling
+        if (res.status === 403 || res.status === 404) {
+          console.warn("Session no longer accessible, stopping log polling");
+          setSession(null);
+          setStatus("idle");
+          return;
+        }
+
+        if (!res.ok) return;
+
         const data = await res.json();
         if (data.success && data.logs?.length > 0) {
           // Only add new logs
           const newLogs = data.logs.slice(lastLogIndexRef.current);
           if (newLogs.length > 0) {
-            setConsoleLogs(prev => {
+            setConsoleLogs((prev) => {
               const timestamp = new Date().toLocaleTimeString();
-              const formatted = newLogs.map((log: string) => `[${timestamp}] ${log}`);
+              const formatted = newLogs.map(
+                (log: string) => `[${timestamp}] ${log}`,
+              );
               return [...prev, ...formatted];
             });
             lastLogIndexRef.current = data.logs.length;
           }
         }
       } catch (e) {
-        // Silently ignore polling errors
+        // Silently ignore network errors
       }
     };
 
@@ -139,7 +176,10 @@ export function AppAIBuilder({ app }: AppAIBuilderProps) {
     const interval = setInterval(fetchLogs, 3000);
     fetchLogs(); // Initial fetch
 
-    return () => clearInterval(interval);
+    return () => {
+      isCancelled = true;
+      clearInterval(interval);
+    };
   }, [session, status]);
   // Start a new builder session for this app using SSE streaming
   const startSession = useCallback(async () => {
@@ -165,9 +205,11 @@ export function AppAIBuilder({ app }: AppAIBuilderProps) {
 
       if (!response.ok) {
         const errorData = await response.json();
-        if (errorData.error?.includes("credentials not configured") || 
-            errorData.error?.includes("VERCEL_TOKEN") ||
-            errorData.error?.includes("OIDC")) {
+        if (
+          errorData.error?.includes("credentials not configured") ||
+          errorData.error?.includes("VERCEL_TOKEN") ||
+          errorData.error?.includes("OIDC")
+        ) {
           setStatus("not_configured");
           setErrorMessage(errorData.error);
           setIsLoading(false);
@@ -198,16 +240,17 @@ export function AppAIBuilder({ app }: AppAIBuilderProps) {
           } else if (line.startsWith("data: ") && eventType) {
             try {
               const data = JSON.parse(line.slice(6));
-              
+
               if (eventType === "progress") {
                 setProgressStep(data.step as ProgressStep);
                 addLog(`Progress: ${data.step}`, "info");
               } else if (eventType === "complete") {
                 setSession(data.session);
                 setStatus("ready");
-                setMessages([{
-                  role: "assistant",
-                  content: `🚀 **Sandbox ready for ${app.name}!**
+                setMessages([
+                  {
+                    role: "assistant",
+                    content: `🚀 **Sandbox ready for ${app.name}!**
 
 I'll help you build and enhance your app. The live preview is loading on the right.
 
@@ -218,9 +261,13 @@ Some ideas:
 - Improve the UI design
 - Add analytics tracking
 - Integrate more APIs`,
-                  timestamp: new Date().toISOString(),
-                }]);
-                addLog(`Sandbox ready at ${data.session.sandboxUrl}`, "success");
+                    timestamp: new Date().toISOString(),
+                  },
+                ]);
+                addLog(
+                  `Sandbox ready at ${data.session.sandboxUrl}`,
+                  "success",
+                );
                 toast.success("Sandbox started!", {
                   description: "Your development environment is ready.",
                 });
@@ -239,7 +286,8 @@ Some ideas:
       setStatus("error");
       setErrorMessage(error instanceof Error ? error.message : "Unknown error");
       toast.error("Failed to start sandbox", {
-        description: error instanceof Error ? error.message : "Please try again",
+        description:
+          error instanceof Error ? error.message : "Please try again",
       });
     } finally {
       setIsLoading(false);
@@ -247,214 +295,254 @@ Some ideas:
   }, [app, addLog]);
 
   // Send a prompt
-  const sendPrompt = useCallback(async (prompt: string) => {
-    if (!session || !prompt.trim() || isLoading) return;
+  const sendPrompt = useCallback(
+    async (prompt: string) => {
+      if (!session || !prompt.trim() || isLoading) return;
 
-    setIsLoading(true);
-    setStatus("generating");
+      setIsLoading(true);
+      setStatus("generating");
 
-    addLog(`Sending prompt: "${prompt.substring(0, 50)}${prompt.length > 50 ? "..." : ""}"`, "info");
-
-    const userMessage: Message = {
-      role: "user",
-      content: prompt,
-      timestamp: new Date().toISOString(),
-    };
-    setMessages((prev) => [...prev, userMessage]);
-    setInput("");
-
-    // Add a "thinking" message that we'll update with progress
-    const thinkingId = Date.now();
-    let thinkingContent = "";
-    let actionsContent = "";
-    
-    const updateThinking = (thinking: string, actions: string) => {
-      let content = "";
-      if (thinking) {
-        content += `💭 *${thinking.substring(0, 200)}${thinking.length > 200 ? "..." : ""}*\n\n`;
-      }
-      if (actions) {
-        content += actions;
-      }
-      if (!content) {
-        content = "🤔 **Thinking...**";
-      }
-      
-      setMessages((prev) => {
-        const updated = [...prev];
-        const thinkingIdx = updated.findIndex(m => m._thinkingId === thinkingId);
-        if (thinkingIdx >= 0) {
-          updated[thinkingIdx] = {
-            ...updated[thinkingIdx],
-            content,
-          };
-        }
-        return updated;
-      });
-    };
-
-    // Add initial thinking message
-    setMessages((prev) => [...prev, {
-      role: "assistant",
-      content: "🤔 **Thinking...**",
-      timestamp: new Date().toISOString(),
-      _thinkingId: thinkingId,
-    } as Message & { _thinkingId: number }]);
-
-    try {
-      const response = await fetch(
-        `/api/v1/app-builder/sessions/${session.id}/prompts/stream`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ prompt }),
-        }
+      addLog(
+        `Sending prompt: "${prompt.substring(0, 50)}${prompt.length > 50 ? "..." : ""}"`,
+        "info",
       );
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to send prompt");
-      }
+      const userMessage: Message = {
+        role: "user",
+        content: prompt,
+        timestamp: new Date().toISOString(),
+      };
+      setMessages((prev) => [...prev, userMessage]);
+      setInput("");
 
-      const reader = response.body?.getReader();
-      if (!reader) throw new Error("No response body");
+      // Add a "thinking" message that we'll update with progress
+      const thinkingId = Date.now();
+      let thinkingContent = "";
+      let actionsContent = "";
 
-      const decoder = new TextDecoder();
-      let buffer = "";
-      let finalData: { output?: string; filesAffected?: string[]; success?: boolean; error?: string } = {};
+      const updateThinking = (thinking: string, actions: string) => {
+        let content = "";
+        if (thinking) {
+          content += `💭 *${thinking.substring(0, 200)}${thinking.length > 200 ? "..." : ""}*\n\n`;
+        }
+        if (actions) {
+          content += actions;
+        }
+        if (!content) {
+          content = "🤔 **Thinking...**";
+        }
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+        setMessages((prev) => {
+          const updated = [...prev];
+          const thinkingIdx = updated.findIndex(
+            (m) => m._thinkingId === thinkingId,
+          );
+          if (thinkingIdx >= 0) {
+            updated[thinkingIdx] = {
+              ...updated[thinkingIdx],
+              content,
+            };
+          }
+          return updated;
+        });
+      };
 
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() || "";
+      // Add initial thinking message
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: "🤔 **Thinking...**",
+          timestamp: new Date().toISOString(),
+          _thinkingId: thinkingId,
+        } as Message & { _thinkingId: number },
+      ]);
 
-        let eventType = "";
-        for (const line of lines) {
-          if (line.startsWith("event: ")) {
-            eventType = line.slice(7);
-          } else if (line.startsWith("data: ") && eventType) {
-            try {
-              const data = JSON.parse(line.slice(6));
+      try {
+        const response = await fetch(
+          `/api/v1/app-builder/sessions/${session.id}/prompts/stream`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ prompt }),
+          },
+        );
 
-              if (eventType === "thinking") {
-                // Update thinking content
-                thinkingContent = data.text || "";
-                updateThinking(thinkingContent, actionsContent);
-                
-                // Also log to console (truncated)
-                const shortThinking = data.text?.substring(0, 100) || "";
-                if (shortThinking) {
-                  addLog(`💭 ${shortThinking}${data.text?.length > 100 ? "..." : ""}`, "info");
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || "Failed to send prompt");
+        }
+
+        const reader = response.body?.getReader();
+        if (!reader) throw new Error("No response body");
+
+        const decoder = new TextDecoder();
+        let buffer = "";
+        let finalData: {
+          output?: string;
+          filesAffected?: string[];
+          success?: boolean;
+          error?: string;
+        } = {};
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || "";
+
+          let eventType = "";
+          for (const line of lines) {
+            if (line.startsWith("event: ")) {
+              eventType = line.slice(7);
+            } else if (line.startsWith("data: ") && eventType) {
+              try {
+                const data = JSON.parse(line.slice(6));
+
+                if (eventType === "thinking") {
+                  // Update thinking content
+                  thinkingContent = data.text || "";
+                  updateThinking(thinkingContent, actionsContent);
+
+                  // Also log to console (truncated)
+                  const shortThinking = data.text?.substring(0, 100) || "";
+                  if (shortThinking) {
+                    addLog(
+                      `💭 ${shortThinking}${data.text?.length > 100 ? "..." : ""}`,
+                      "info",
+                    );
+                  }
+                } else if (eventType === "tool_use") {
+                  const toolName = data.tool;
+                  let toolDisplay = "";
+
+                  if (toolName === "write_file") {
+                    const path = data.input?.path || "file";
+                    toolDisplay = `📝 Writing \`${path}\``;
+                  } else if (toolName === "read_file") {
+                    const path = data.input?.path || "file";
+                    toolDisplay = `👀 Reading \`${path}\``;
+                  } else if (toolName === "install_packages") {
+                    const packages =
+                      data.input?.packages?.join(", ") || "packages";
+                    toolDisplay = `📦 Installing ${packages}`;
+                  } else if (toolName === "check_build") {
+                    toolDisplay = `🔍 Checking build...`;
+                  } else if (toolName === "list_files") {
+                    toolDisplay = `📂 Listing files`;
+                  } else if (toolName === "run_command") {
+                    toolDisplay = `⚡ Running command`;
+                  } else {
+                    toolDisplay = `🔧 ${toolName}`;
+                  }
+
+                  actionsContent += `${toolDisplay}\n`;
+                  updateThinking(thinkingContent, actionsContent);
+
+                  addLog(
+                    `🔧 ${toolName}: ${data.input?.path || data.input?.packages?.join(", ") || ""}`,
+                    "info",
+                  );
+                } else if (eventType === "complete") {
+                  finalData = data;
+                } else if (eventType === "error") {
+                  throw new Error(data.error || "Failed to process prompt");
                 }
-              } else if (eventType === "tool_use") {
-                const toolName = data.tool;
-                let toolDisplay = "";
-                
-                if (toolName === "write_file") {
-                  const path = data.input?.path || "file";
-                  toolDisplay = `📝 Writing \`${path}\``;
-                } else if (toolName === "read_file") {
-                  const path = data.input?.path || "file";
-                  toolDisplay = `👀 Reading \`${path}\``;
-                } else if (toolName === "install_packages") {
-                  const packages = data.input?.packages?.join(", ") || "packages";
-                  toolDisplay = `📦 Installing ${packages}`;
-                } else if (toolName === "check_build") {
-                  toolDisplay = `🔍 Checking build...`;
-                } else if (toolName === "list_files") {
-                  toolDisplay = `📂 Listing files`;
-                } else if (toolName === "run_command") {
-                  toolDisplay = `⚡ Running command`;
-                } else {
-                  toolDisplay = `🔧 ${toolName}`;
-                }
-
-                actionsContent += `${toolDisplay}\n`;
-                updateThinking(thinkingContent, actionsContent);
-                
-                addLog(`🔧 ${toolName}: ${data.input?.path || data.input?.packages?.join(", ") || ""}`, "info");
-              } else if (eventType === "complete") {
-                finalData = data;
-              } else if (eventType === "error") {
-                throw new Error(data.error || "Failed to process prompt");
+              } catch (e) {
+                if (e instanceof SyntaxError) continue;
+                throw e;
               }
-            } catch (e) {
-              if (e instanceof SyntaxError) continue;
-              throw e;
+              eventType = "";
             }
-            eventType = "";
           }
         }
-      }
 
-      if (!finalData.success) {
-        throw new Error(finalData.error || "Failed to process prompt");
-      }
+        if (!finalData.success) {
+          throw new Error(finalData.error || "Failed to process prompt");
+        }
 
-      // Finalize thinking message and add final response
-      setMessages((prev) => {
-        const updated = prev.map(m => {
-          if (m._thinkingId === thinkingId) {
-            // Finalize the thinking message - remove the _thinkingId and clean up content
-            const { _thinkingId: _, ...rest } = m;
-            return {
-              ...rest,
-              content: actionsContent ? `**Progress:**\n${actionsContent}` : "🤔 *Processing...*",
-            };
-          }
-          return m;
+        // Finalize thinking message and add final response
+        setMessages((prev) => {
+          const updated = prev.map((m) => {
+            if (m._thinkingId === thinkingId) {
+              // Finalize the thinking message - remove the _thinkingId and clean up content
+              const { _thinkingId: _, ...rest } = m;
+              return {
+                ...rest,
+                content: actionsContent
+                  ? `**Progress:**\n${actionsContent}`
+                  : "🤔 *Processing...*",
+              };
+            }
+            return m;
+          });
+          // Add the final response as a new message
+          return [
+            ...updated,
+            {
+              role: "assistant",
+              content: finalData.output || "",
+              filesAffected: finalData.filesAffected,
+              timestamp: new Date().toISOString(),
+            },
+          ];
         });
-        // Add the final response as a new message
-        return [...updated, {
-          role: "assistant",
-          content: finalData.output || "",
-          filesAffected: finalData.filesAffected,
-          timestamp: new Date().toISOString(),
-        }];
-      });
 
-      if (finalData.filesAffected && finalData.filesAffected.length > 0) {
-        addLog(`✅ Modified: ${finalData.filesAffected.join(", ")}`, "success");
-      }
-      addLog("Changes applied, refreshing preview...", "info");
+        if (finalData.filesAffected && finalData.filesAffected.length > 0) {
+          addLog(
+            `✅ Modified: ${finalData.filesAffected.join(", ")}`,
+            "success",
+          );
+        }
+        addLog("Changes applied, refreshing preview...", "info");
 
-      if (iframeRef.current && session) {
-        iframeRef.current.src = session.sandboxUrl;
-      }
+        if (iframeRef.current && session) {
+          iframeRef.current.src = session.sandboxUrl;
+        }
 
-      setStatus("ready");
-    } catch (error) {
-      // Finalize thinking message with error indicator and add error message
-      setMessages((prev) => {
-        const updated = prev.map(m => {
-          if (m._thinkingId === thinkingId) {
-            const { _thinkingId: _, ...rest } = m;
-            return {
-              ...rest,
-              content: actionsContent ? `**Progress:**\n${actionsContent}\n\n⚠️ *Error occurred*` : "⚠️ *Error occurred*",
-            };
-          }
-          return m;
+        setStatus("ready");
+      } catch (error) {
+        // Finalize thinking message with error indicator and add error message
+        setMessages((prev) => {
+          const updated = prev.map((m) => {
+            if (m._thinkingId === thinkingId) {
+              const { _thinkingId: _, ...rest } = m;
+              return {
+                ...rest,
+                content: actionsContent
+                  ? `**Progress:**\n${actionsContent}\n\n⚠️ *Error occurred*`
+                  : "⚠️ *Error occurred*",
+              };
+            }
+            return m;
+          });
+          return [
+            ...updated,
+            {
+              role: "assistant",
+              content: `❌ **Error:** ${error instanceof Error ? error.message : "Something went wrong"}`,
+              timestamp: new Date().toISOString(),
+            },
+          ];
         });
-        return [...updated, {
-          role: "assistant",
-          content: `❌ **Error:** ${error instanceof Error ? error.message : "Something went wrong"}`,
-          timestamp: new Date().toISOString(),
-        }];
-      });
-      
-      setStatus("ready");
-      addLog(`Error: ${error instanceof Error ? error.message : "Unknown error"}`, "error");
-      toast.error("Failed to process prompt", {
-        description: error instanceof Error ? error.message : "Please try again",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  }, [session, isLoading, addLog]);
+
+        setStatus("ready");
+        addLog(
+          `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
+          "error",
+        );
+        toast.error("Failed to process prompt", {
+          description:
+            error instanceof Error ? error.message : "Please try again",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [session, isLoading, addLog],
+  );
   const stopSession = useCallback(async () => {
     if (!session) return;
 
@@ -491,20 +579,33 @@ Some ideas:
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-yellow-500/20 mb-6">
               <Settings className="h-8 w-8 text-yellow-500" />
             </div>
-            
+
             <h2 className="text-2xl font-bold text-white mb-3">
               Sandbox Not Configured
             </h2>
             <p className="text-white/60 mb-6">
-              The AI App Builder requires sandbox credentials to create development environments.
+              The AI App Builder requires sandbox credentials to create
+              development environments.
             </p>
 
             <div className="bg-white/5 border border-white/10 rounded-lg p-6 text-left mb-6">
-              <h3 className="font-semibold text-white mb-3">Setup Instructions:</h3>
+              <h3 className="font-semibold text-white mb-3">
+                Setup Instructions:
+              </h3>
               <ol className="space-y-3 text-sm text-white/70">
                 <li className="flex gap-2">
                   <span className="text-[#FF5800] font-mono">1.</span>
-                  <span>Get a Vercel Access Token from <a href="https://vercel.com/account/tokens" target="_blank" rel="noopener" className="text-[#FF5800] hover:underline">vercel.com/account/tokens</a></span>
+                  <span>
+                    Get a Vercel Access Token from{" "}
+                    <a
+                      href="https://vercel.com/account/tokens"
+                      target="_blank"
+                      rel="noopener"
+                      className="text-[#FF5800] hover:underline"
+                    >
+                      vercel.com/account/tokens
+                    </a>
+                  </span>
                 </li>
                 <li className="flex gap-2">
                   <span className="text-[#FF5800] font-mono">2.</span>
@@ -512,16 +613,24 @@ Some ideas:
                 </li>
                 <li className="flex gap-2">
                   <span className="text-[#FF5800] font-mono">3.</span>
-                  <span>Find your Project ID in Project → Settings → General</span>
+                  <span>
+                    Find your Project ID in Project → Settings → General
+                  </span>
                 </li>
                 <li className="flex gap-2">
                   <span className="text-[#FF5800] font-mono">4.</span>
-                  <span>Add to your <code className="bg-white/10 px-1.5 py-0.5 rounded">.env.local</code>:</span>
+                  <span>
+                    Add to your{" "}
+                    <code className="bg-white/10 px-1.5 py-0.5 rounded">
+                      .env.local
+                    </code>
+                    :
+                  </span>
                 </li>
               </ol>
-              
+
               <pre className="mt-4 p-4 bg-black/30 rounded text-xs text-white/80 overflow-x-auto">
-{`VERCEL_TOKEN=your_token_here
+                {`VERCEL_TOKEN=your_token_here
 VERCEL_TEAM_ID=team_xxx
 VERCEL_PROJECT_ID=prj_xxx
 ANTHROPIC_API_KEY=your_key_here`}
@@ -531,7 +640,12 @@ ANTHROPIC_API_KEY=your_key_here`}
             <div className="flex justify-center gap-3">
               <Button
                 variant="outline"
-                onClick={() => window.open("https://vercel.com/docs/vercel-sandbox", "_blank")}
+                onClick={() =>
+                  window.open(
+                    "https://vercel.com/docs/vercel-sandbox",
+                    "_blank",
+                  )
+                }
               >
                 <ExternalLinkIcon className="h-4 w-4 mr-2" />
                 View Documentation
@@ -561,12 +675,13 @@ ANTHROPIC_API_KEY=your_key_here`}
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-r from-purple-600 to-[#FF5800] mb-6">
               <Sparkles className="h-8 w-8 text-white" />
             </div>
-            
+
             <h2 className="text-2xl font-bold text-white mb-3">
               AI App Builder
             </h2>
             <p className="text-white/60 mb-8 max-w-md mx-auto">
-              Launch a sandbox environment to build and enhance your app with AI assistance.
+              Launch a sandbox environment to build and enhance your app with AI
+              assistance.
             </p>
 
             <Button
@@ -600,9 +715,9 @@ ANTHROPIC_API_KEY=your_key_here`}
       { key: "installing", label: "Installing dependencies" },
       { key: "starting", label: "Starting dev server" },
     ];
-    
-    const currentStepIndex = steps.findIndex(s => s.key === progressStep);
-    
+
+    const currentStepIndex = steps.findIndex((s) => s.key === progressStep);
+
     return (
       <BrandCard className="relative">
         <CornerBrackets className="opacity-20" />
@@ -620,12 +735,16 @@ ANTHROPIC_API_KEY=your_key_here`}
                 const isComplete = index < currentStepIndex;
                 const isCurrent = index === currentStepIndex;
                 const isPending = index > currentStepIndex;
-                
+
                 return (
-                  <div 
+                  <div
                     key={step.key}
                     className={`flex items-center gap-2 text-sm transition-all duration-300 ${
-                      isComplete ? "text-white/60" : isCurrent ? "text-white/80" : "text-white/40"
+                      isComplete
+                        ? "text-white/60"
+                        : isCurrent
+                          ? "text-white/80"
+                          : "text-white/40"
                     }`}
                   >
                     {isComplete ? (
@@ -660,7 +779,8 @@ ANTHROPIC_API_KEY=your_key_here`}
               Failed to Start Sandbox
             </h2>
             <p className="text-white/60 mb-4">
-              {errorMessage || "There was an error starting the development environment."}
+              {errorMessage ||
+                "There was an error starting the development environment."}
             </p>
             <Button onClick={startSession} variant="outline">
               Try Again
@@ -677,7 +797,7 @@ ANTHROPIC_API_KEY=your_key_here`}
       {/* Preview Panel - Top */}
       <BrandCard className="relative flex flex-col h-[500px] overflow-hidden">
         <CornerBrackets className="opacity-20" />
-        
+
         {/* Preview Header */}
         <div className="relative z-10 flex items-center justify-between p-3 border-b border-white/10 flex-shrink-0">
           <div className="flex items-center gap-2">
@@ -758,7 +878,9 @@ ANTHROPIC_API_KEY=your_key_here`}
                     className="flex items-center gap-1.5 h-7 px-2 rounded text-xs text-white/60 hover:text-white hover:bg-white/10 transition-colors"
                     title={session.sandboxUrl}
                   >
-                    <span className="max-w-[100px] truncate">{session.sandboxUrl.replace('https://', '').split('.')[0]}</span>
+                    <span className="max-w-[100px] truncate">
+                      {session.sandboxUrl.replace("https://", "").split(".")[0]}
+                    </span>
                     <ExternalLink className="h-3 w-3 shrink-0" />
                   </button>
                 )}
@@ -801,20 +923,33 @@ ANTHROPIC_API_KEY=your_key_here`}
                     // Determine log type and color
                     let colorClass = "text-white/60"; // default server output
                     let bgClass = "";
-                    
+
                     if (log.includes("[info]")) {
                       colorClass = "text-blue-400";
                     } else if (log.includes("[success]")) {
                       colorClass = "text-green-400";
-                    } else if (log.includes("[error]") || log.includes("Error") || log.includes("error")) {
+                    } else if (
+                      log.includes("[error]") ||
+                      log.includes("Error") ||
+                      log.includes("error")
+                    ) {
                       colorClass = "text-red-400";
                       bgClass = "bg-red-500/10";
-                    } else if (log.includes("[warning]") || log.includes("⚠") || log.includes("Warning")) {
+                    } else if (
+                      log.includes("[warning]") ||
+                      log.includes("⚠") ||
+                      log.includes("Warning")
+                    ) {
                       colorClass = "text-yellow-400";
                       bgClass = "bg-yellow-500/5";
                     } else if (log.includes("Progress:")) {
                       colorClass = "text-purple-400";
-                    } else if (log.includes("GET ") || log.includes("POST ") || log.includes("PUT ") || log.includes("DELETE ")) {
+                    } else if (
+                      log.includes("GET ") ||
+                      log.includes("POST ") ||
+                      log.includes("PUT ") ||
+                      log.includes("DELETE ")
+                    ) {
                       // HTTP requests
                       if (log.includes(" 2")) {
                         colorClass = "text-green-400/70";
@@ -825,14 +960,26 @@ ANTHROPIC_API_KEY=your_key_here`}
                       }
                     } else if (log.includes("✓")) {
                       colorClass = "text-green-400/80";
-                    } else if (log.includes("Next.js") || log.includes("Turbopack")) {
+                    } else if (
+                      log.includes("Next.js") ||
+                      log.includes("Turbopack")
+                    ) {
                       colorClass = "text-white/80";
                     }
-                    
+
                     return (
-                      <div key={i} className={`flex gap-2 hover:bg-white/5 px-1 rounded ${bgClass}`}>
-                        <span className="text-white/20 select-none w-5 text-right shrink-0">{i + 1}</span>
-                        <pre className={`whitespace-pre-wrap break-all ${colorClass}`}>{log}</pre>
+                      <div
+                        key={i}
+                        className={`flex gap-2 hover:bg-white/5 px-1 rounded ${bgClass}`}
+                      >
+                        <span className="text-white/20 select-none w-5 text-right shrink-0">
+                          {i + 1}
+                        </span>
+                        <pre
+                          className={`whitespace-pre-wrap break-all ${colorClass}`}
+                        >
+                          {log}
+                        </pre>
                       </div>
                     );
                   })}
@@ -864,7 +1011,7 @@ ANTHROPIC_API_KEY=your_key_here`}
       {/* Chat Panel - Bottom */}
       <BrandCard className="relative flex flex-col flex-1 min-h-[200px] overflow-hidden">
         <CornerBrackets className="opacity-20" />
-        
+
         {/* Compact Header */}
         <div className="relative z-10 flex items-center justify-between px-3 py-1.5 border-b border-white/10 flex-shrink-0">
           <div className="flex items-center gap-1.5">
@@ -875,18 +1022,18 @@ ANTHROPIC_API_KEY=your_key_here`}
                 status === "ready"
                   ? "bg-green-500"
                   : status === "generating"
-                  ? "bg-yellow-500 animate-pulse"
-                  : "bg-gray-500"
+                    ? "bg-yellow-500 animate-pulse"
+                    : "bg-gray-500"
               }`}
             />
           </div>
         </div>
 
         {/* Messages - Scrollable Container */}
-        <div 
+        <div
           ref={messagesContainerRef}
           className="relative z-10 flex-1 overflow-y-auto p-3 scroll-smooth"
-          style={{ scrollBehavior: 'smooth' }}
+          style={{ scrollBehavior: "smooth" }}
         >
           <div className="space-y-3">
             {messages.map((message, index) => (
@@ -908,21 +1055,24 @@ ANTHROPIC_API_KEY=your_key_here`}
                       {message.content}
                     </ReactMarkdown>
                   </div>
-                  {message.filesAffected && message.filesAffected.length > 0 && (
-                    <div className="mt-2 pt-2 border-t border-white/10">
-                      <div className="text-xs text-white/40 mb-1">Files modified:</div>
-                      <div className="flex flex-wrap gap-1">
-                        {message.filesAffected.map((file, i) => (
-                          <span
-                            key={i}
-                            className="text-xs px-1.5 py-0.5 bg-white/10 rounded text-white/70"
-                          >
-                            {file}
-                          </span>
-                        ))}
+                  {message.filesAffected &&
+                    message.filesAffected.length > 0 && (
+                      <div className="mt-2 pt-2 border-t border-white/10">
+                        <div className="text-xs text-white/40 mb-1">
+                          Files modified:
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {message.filesAffected.map((file, i) => (
+                            <span
+                              key={i}
+                              className="text-xs px-1.5 py-0.5 bg-white/10 rounded text-white/70"
+                            >
+                              {file}
+                            </span>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
                 </div>
               </div>
             ))}

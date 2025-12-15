@@ -25,7 +25,8 @@ const InsertManySchema = z.object({
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-App-Token, X-Api-Key",
+  "Access-Control-Allow-Headers":
+    "Content-Type, Authorization, X-App-Token, X-Api-Key",
 };
 
 async function getAppForUser(organizationId: string) {
@@ -42,7 +43,7 @@ export async function OPTIONS() {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ collection: string }> }
+  { params }: { params: Promise<{ collection: string }> },
 ) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { collection: collectionName } = await params;
@@ -51,7 +52,7 @@ export async function GET(
   if (!app) {
     return NextResponse.json(
       { success: false, error: "No app found for this organization" },
-      { status: 404, headers: corsHeaders }
+      { status: 404, headers: corsHeaders },
     );
   }
 
@@ -75,7 +76,8 @@ export async function GET(
   if (offsetStr) queryParams.offset = parseInt(offsetStr, 10);
 
   const includeDeletedStr = searchParams.get("includeDeleted");
-  if (includeDeletedStr) queryParams.includeDeleted = includeDeletedStr === "true";
+  if (includeDeletedStr)
+    queryParams.includeDeleted = includeDeletedStr === "true";
 
   const validation = QueryParamsSchema.safeParse(queryParams);
   if (!validation.success) {
@@ -85,14 +87,14 @@ export async function GET(
         error: "Invalid query parameters",
         details: validation.error.format(),
       },
-      { status: 400, headers: corsHeaders }
+      { status: 400, headers: corsHeaders },
     );
   }
 
   const { documents, total } = await appStorageService.queryDocuments(
     app.id,
     collectionName,
-    validation.data
+    validation.data,
   );
 
   return NextResponse.json(
@@ -100,7 +102,7 @@ export async function GET(
       success: true,
       documents: documents.map((d) => ({
         id: d.id,
-        ...d.data as Record<string, unknown>,
+        ...(d.data as Record<string, unknown>),
         _meta: {
           createdAt: d.created_at,
           updatedAt: d.updated_at,
@@ -115,13 +117,13 @@ export async function GET(
         hasMore: (validation.data.offset ?? 0) + documents.length < total,
       },
     },
-    { headers: corsHeaders }
+    { headers: corsHeaders },
   );
 }
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ collection: string }> }
+  { params }: { params: Promise<{ collection: string }> },
 ) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { collection: collectionName } = await params;
@@ -130,7 +132,7 @@ export async function POST(
   if (!app) {
     return NextResponse.json(
       { success: false, error: "No app found for this organization" },
-      { status: 404, headers: corsHeaders }
+      { status: 404, headers: corsHeaders },
     );
   }
 
@@ -145,7 +147,7 @@ export async function POST(
           error: "Invalid request",
           details: validation.error.format(),
         },
-        { status: 400, headers: corsHeaders }
+        { status: 400, headers: corsHeaders },
       );
     }
 
@@ -153,7 +155,7 @@ export async function POST(
       app.id,
       collectionName,
       validation.data.documents,
-      user.id
+      user.id,
     );
 
     logger.info(`[App Storage API] Inserted ${documents.length} documents`, {
@@ -167,7 +169,7 @@ export async function POST(
         success: true,
         documents: documents.map((d) => ({
           id: d.id,
-          ...d.data as Record<string, unknown>,
+          ...(d.data as Record<string, unknown>),
           _meta: {
             createdAt: d.created_at,
             updatedAt: d.updated_at,
@@ -176,7 +178,7 @@ export async function POST(
         })),
         count: documents.length,
       },
-      { status: 201, headers: corsHeaders }
+      { status: 201, headers: corsHeaders },
     );
   } else {
     const docData = body.data ?? body;
@@ -187,7 +189,7 @@ export async function POST(
       app.id,
       collectionName,
       docData,
-      user.id
+      user.id,
     );
 
     logger.info(`[App Storage API] Inserted document`, {
@@ -202,7 +204,7 @@ export async function POST(
         success: true,
         document: {
           id: document.id,
-          ...document.data as Record<string, unknown>,
+          ...(document.data as Record<string, unknown>),
           _meta: {
             createdAt: document.created_at,
             updatedAt: document.updated_at,
@@ -210,14 +212,14 @@ export async function POST(
           },
         },
       },
-      { status: 201, headers: corsHeaders }
+      { status: 201, headers: corsHeaders },
     );
   }
 }
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ collection: string }> }
+  { params }: { params: Promise<{ collection: string }> },
 ) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { collection: collectionName } = await params;
@@ -226,15 +228,18 @@ export async function DELETE(
   if (!app) {
     return NextResponse.json(
       { success: false, error: "No app found for this organization" },
-      { status: 404, headers: corsHeaders }
+      { status: 404, headers: corsHeaders },
     );
   }
 
-  const collection = await appStorageService.getCollection(app.id, collectionName);
+  const collection = await appStorageService.getCollection(
+    app.id,
+    collectionName,
+  );
   if (!collection) {
     return NextResponse.json(
       { success: false, error: `Collection '${collectionName}' not found` },
-      { status: 404, headers: corsHeaders }
+      { status: 404, headers: corsHeaders },
     );
   }
 
@@ -253,6 +258,6 @@ export async function DELETE(
       message: `Collection '${collectionName}' deleted`,
       documentsDeleted: collection.document_count,
     },
-    { headers: corsHeaders }
+    { headers: corsHeaders },
   );
 }

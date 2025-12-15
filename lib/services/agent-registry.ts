@@ -530,36 +530,40 @@ class AgentRegistryService {
 
   /**
    * Register an agent on MULTIPLE registries (Jeju and Base)
-   * 
+   *
    * This registers the agent on both ecosystems with a single user action.
    * When ERC-4337 batch registration is available, operations are batched
    * into a single UserOperation to minimize signatures and sponsor gas.
-   * 
+   *
    * @param params - Agent registration parameters
    * @returns Registration results from all chains
    */
   async registerAgentMultiChain(
-    params: AgentRegistrationParams
+    params: AgentRegistrationParams,
   ): Promise<MultiChainRegistrationResult> {
     const { character } = params;
-    
+
     if (!isMultiRegistryEnabled()) {
       // Fall back to single registration
       const result = await this.registerAgent(params);
       return {
         success: result.success,
-        registrations: [{
-          network: result.network,
-          ecosystem: getNetworkEcosystem(result.network),
-          agentId: result.agentId,
-          agentURI: result.agentUri,
-        }],
+        registrations: [
+          {
+            network: result.network,
+            ecosystem: getNetworkEcosystem(result.network),
+            agentId: result.agentId,
+            agentURI: result.agentUri,
+          },
+        ],
       };
     }
 
     const networks = getRegistrationNetworks();
-    const canBatch = isBatchRegistrationAvailable() && accountAbstractionService.canBatchRegister();
-    
+    const canBatch =
+      isBatchRegistrationAvailable() &&
+      accountAbstractionService.canBatchRegister();
+
     logger.info("[AgentRegistry] Starting multi-chain registration", {
       characterId: character.id,
       name: character.name,
@@ -577,15 +581,17 @@ class AgentRegistryService {
     const registrations: MultiChainRegistrationResult["registrations"] = [];
 
     for (const network of networks) {
-      const result = await this.registerAgent({ ...params, network }).catch((err) => {
-        const error = extractErrorMessage(err);
-        logger.error("[AgentRegistry] Registration failed", { 
-          network, 
-          characterId: character.id,
-          error,
-        });
-        return { success: false, error };
-      });
+      const result = await this.registerAgent({ ...params, network }).catch(
+        (err) => {
+          const error = extractErrorMessage(err);
+          logger.error("[AgentRegistry] Registration failed", {
+            network,
+            characterId: character.id,
+            error,
+          });
+          return { success: false, error };
+        },
+      );
 
       if ("success" in result && result.success) {
         registrations.push({
@@ -606,13 +612,17 @@ class AgentRegistryService {
       }
     }
 
-    const success = registrations.some(r => !r.error);
-    
+    const success = registrations.some((r) => !r.error);
+
     logger.info("[AgentRegistry] Multi-chain registration complete", {
       characterId: character.id,
       success,
-      successfulNetworks: registrations.filter(r => !r.error).map(r => r.network),
-      failedNetworks: registrations.filter(r => r.error).map(r => r.network),
+      successfulNetworks: registrations
+        .filter((r) => !r.error)
+        .map((r) => r.network),
+      failedNetworks: registrations
+        .filter((r) => r.error)
+        .map((r) => r.network),
     });
 
     return { success, registrations };
@@ -620,55 +630,66 @@ class AgentRegistryService {
 
   /**
    * Register agent using ERC-4337 batch operations
-   * 
+   *
    * Uses account abstraction to batch registration calls across networks,
    * minimizing user signatures and sponsoring gas via paymaster.
    */
   private async registerAgentMultiChainBatched(
-    params: AgentRegistrationParams
+    params: AgentRegistrationParams,
   ): Promise<MultiChainRegistrationResult> {
     const { character } = params;
     const privateKey = process.env.AGENT0_PRIVATE_KEY as Hex | undefined;
-    
+
     if (!privateKey) {
-      logger.warn("[AgentRegistry] No private key for AA batch registration, falling back to sequential");
+      logger.warn(
+        "[AgentRegistry] No private key for AA batch registration, falling back to sequential",
+      );
       // Fall back to sequential registration
       return this.registerAgentMultiChainSequential(params);
     }
 
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
     const tokenURI = `${baseUrl}/api/agents/${character.id}/registration.json`;
-    
+
     // Use the service wallet as the sender
     const senderAddress = process.env.X402_RECIPIENT_ADDRESS as Address;
-    
-    if (!senderAddress || senderAddress === "0x0000000000000000000000000000000000000000") {
-      logger.warn("[AgentRegistry] No sender address for AA batch registration, falling back to sequential");
+
+    if (
+      !senderAddress ||
+      senderAddress === "0x0000000000000000000000000000000000000000"
+    ) {
+      logger.warn(
+        "[AgentRegistry] No sender address for AA batch registration, falling back to sequential",
+      );
       return this.registerAgentMultiChainSequential(params);
     }
 
-    logger.info("[AgentRegistry] Executing batched multi-chain registration via 4337", {
-      characterId: character.id,
-      sender: senderAddress,
-      gasSponsored: accountAbstractionService.isGasSponsored(),
-    });
+    logger.info(
+      "[AgentRegistry] Executing batched multi-chain registration via 4337",
+      {
+        characterId: character.id,
+        sender: senderAddress,
+        gasSponsored: accountAbstractionService.isGasSponsored(),
+      },
+    );
 
     const result = await accountAbstractionService.executeBatchRegistration(
       senderAddress,
       privateKey,
       senderAddress,
-      tokenURI
+      tokenURI,
     );
 
     // Map AA result to MultiChainRegistrationResult
-    const registrations: MultiChainRegistrationResult["registrations"] = result.operations.map(op => ({
-      network: op.network,
-      ecosystem: getNetworkEcosystem(op.network),
-      agentId: op.success ? `${op.chainId}:pending` : "",
-      agentURI: tokenURI,
-      txHash: op.txHash,
-      error: op.error,
-    }));
+    const registrations: MultiChainRegistrationResult["registrations"] =
+      result.operations.map((op) => ({
+        network: op.network,
+        ecosystem: getNetworkEcosystem(op.network),
+        agentId: op.success ? `${op.chainId}:pending` : "",
+        agentURI: tokenURI,
+        txHash: op.txHash,
+        error: op.error,
+      }));
 
     logger.info("[AgentRegistry] Batched registration complete", {
       characterId: character.id,
@@ -688,16 +709,18 @@ class AgentRegistryService {
    * Sequential registration fallback when batch is unavailable
    */
   private async registerAgentMultiChainSequential(
-    params: AgentRegistrationParams
+    params: AgentRegistrationParams,
   ): Promise<MultiChainRegistrationResult> {
     const networks = getRegistrationNetworks();
     const registrations: MultiChainRegistrationResult["registrations"] = [];
 
     for (const network of networks) {
-      const result = await this.registerAgent({ ...params, network }).catch((err) => {
-        const error = extractErrorMessage(err);
-        return { success: false, error };
-      });
+      const result = await this.registerAgent({ ...params, network }).catch(
+        (err) => {
+          const error = extractErrorMessage(err);
+          return { success: false, error };
+        },
+      );
 
       if ("success" in result && result.success) {
         registrations.push({
@@ -718,7 +741,7 @@ class AgentRegistryService {
     }
 
     return {
-      success: registrations.some(r => !r.error),
+      success: registrations.some((r) => !r.error),
       registrations,
     };
   }
@@ -727,20 +750,22 @@ class AgentRegistryService {
    * Register an MCP on MULTIPLE registries (Jeju and Base)
    */
   async registerMCPMultiChain(
-    params: MCPRegistrationParams
+    params: MCPRegistrationParams,
   ): Promise<MultiChainRegistrationResult> {
     const { mcp } = params;
-    
+
     if (!isMultiRegistryEnabled()) {
       const result = await this.registerMCP(params);
       return {
         success: result.success,
-        registrations: [{
-          network: result.network,
-          ecosystem: getNetworkEcosystem(result.network),
-          agentId: result.agentId,
-          agentURI: result.agentUri,
-        }],
+        registrations: [
+          {
+            network: result.network,
+            ecosystem: getNetworkEcosystem(result.network),
+            agentId: result.agentId,
+            agentURI: result.agentUri,
+          },
+        ],
       };
     }
 
@@ -754,15 +779,17 @@ class AgentRegistryService {
     const registrations: MultiChainRegistrationResult["registrations"] = [];
 
     for (const network of networks) {
-      const result = await this.registerMCP({ ...params, network }).catch((err) => {
-        const error = extractErrorMessage(err);
-        logger.error("[AgentRegistry] MCP registration failed", { 
-          network, 
-          mcpId: mcp.id,
-          error,
-        });
-        return { success: false, error };
-      });
+      const result = await this.registerMCP({ ...params, network }).catch(
+        (err) => {
+          const error = extractErrorMessage(err);
+          logger.error("[AgentRegistry] MCP registration failed", {
+            network,
+            mcpId: mcp.id,
+            error,
+          });
+          return { success: false, error };
+        },
+      );
 
       if ("success" in result && result.success) {
         registrations.push({
@@ -783,16 +810,19 @@ class AgentRegistryService {
       }
     }
 
-    const success = registrations.some(r => !r.error);
+    const success = registrations.some((r) => !r.error);
     return { success, registrations };
   }
 
   /**
    * Check if agent is registered on a specific ecosystem
    */
-  isRegisteredOnEcosystem(character: UserCharacter, ecosystem: ERC8004Ecosystem): boolean {
+  isRegisteredOnEcosystem(
+    character: UserCharacter,
+    ecosystem: ERC8004Ecosystem,
+  ): boolean {
     if (!character.erc8004_registered) return false;
-    
+
     const network = character.erc8004_network as ERC8004Network;
     return getNetworkEcosystem(network) === ecosystem;
   }
@@ -807,13 +837,15 @@ class AgentRegistryService {
   }> {
     // For now, single registration is stored. Multi-chain would need DB schema update.
     if (!this.isRegistered(character)) return [];
-    
+
     const network = character.erc8004_network as ERC8004Network;
-    return [{
-      network,
-      ecosystem: getNetworkEcosystem(network),
-      agentId: `${CHAIN_IDS[network]}:${character.erc8004_agent_id}`,
-    }];
+    return [
+      {
+        network,
+        ecosystem: getNetworkEcosystem(network),
+        agentId: `${CHAIN_IDS[network]}:${character.erc8004_agent_id}`,
+      },
+    ];
   }
 }
 

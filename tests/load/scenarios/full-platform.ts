@@ -7,16 +7,36 @@ import { rampUpScenario } from "../config/scenarios";
 import { agentCrudCycle, agentReadOnly } from "./api-v1/agents";
 import { creditOperationsCycle, balancePolling } from "./api-v1/credits";
 import { lightMcpTools, fullMcpToolsCoverage } from "./mcp/tools";
-import { lightA2aMethods, fullA2aMethodsCoverage, criticalA2aMethods } from "./a2a/methods";
+import {
+  lightA2aMethods,
+  fullA2aMethodsCoverage,
+  criticalA2aMethods,
+} from "./a2a/methods";
 
 const config = getConfig();
 const isSafe = config.safeMode;
 
 export const options: Options = {
   scenarios: {
-    warmup: { executor: "constant-vus", vus: 2, duration: "30s", startTime: "0s", exec: "warmup" },
-    main: { ...rampUpScenario(config.maxVUs), startTime: "30s", exec: "mainLoad" },
-    critical: { executor: "constant-vus", vus: 5, duration: config.testDuration, startTime: "30s", exec: "criticalPath" },
+    warmup: {
+      executor: "constant-vus",
+      vus: 2,
+      duration: "30s",
+      startTime: "0s",
+      exec: "warmup",
+    },
+    main: {
+      ...rampUpScenario(config.maxVUs),
+      startTime: "30s",
+      exec: "mainLoad",
+    },
+    critical: {
+      executor: "constant-vus",
+      vus: 5,
+      duration: config.testDuration,
+      startTime: "30s",
+      exec: "criticalPath",
+    },
   },
   thresholds: getThresholds(true),
   summaryTrendStats: ["avg", "min", "med", "max", "p(90)", "p(95)", "p(99)"],
@@ -46,7 +66,9 @@ export default function () {
 }
 
 export function setup() {
-  console.log(`\n🚀 FULL PLATFORM | ${config.name} | VUs: ${config.maxVUs} | Safe: ${isSafe}\n`);
+  console.log(
+    `\n🚀 FULL PLATFORM | ${config.name} | VUs: ${config.maxVUs} | Safe: ${isSafe}\n`,
+  );
 }
 
 export function teardown() {

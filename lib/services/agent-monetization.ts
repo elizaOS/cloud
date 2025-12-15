@@ -1,14 +1,14 @@
 /**
  * Agent Monetization Service
- * 
+ *
  * Handles monetization for public agents, matching the app monetization flow.
- * 
+ *
  * When monetization is enabled on an agent:
  * 1. Users pay base cost + creator markup
  * 2. Base cost goes to platform
  * 3. Creator markup goes to agent owner's REDEEMABLE EARNINGS
  * 4. Earnings can be redeemed for elizaOS tokens
- * 
+ *
  * Supports:
  * - HTTP chat endpoints
  * - A2A protocol
@@ -21,7 +21,11 @@ import { userCharacters } from "@/db/schemas/user-characters";
 import { eq, sql } from "drizzle-orm";
 import { logger } from "@/lib/utils/logger";
 import { redeemableEarningsService } from "./redeemable-earnings";
-import { calculateCost, estimateRequestCost, getProviderFromModel } from "@/lib/pricing";
+import {
+  calculateCost,
+  estimateRequestCost,
+  getProviderFromModel,
+} from "@/lib/pricing";
 import { creditsService } from "./credits";
 import Decimal from "decimal.js";
 
@@ -89,7 +93,9 @@ class AgentMonetizationService {
   /**
    * Get agent monetization info
    */
-  async getAgentMonetization(agentId: string): Promise<AgentMonetizationInfo | null> {
+  async getAgentMonetization(
+    agentId: string,
+  ): Promise<AgentMonetizationInfo | null> {
     const agent = await db.query.userCharacters.findFirst({
       where: eq(userCharacters.id, agentId),
     });
@@ -115,10 +121,10 @@ class AgentMonetizationService {
     model: string,
     messages: Array<{ role: string; content: string }>,
     markupPercentage: number,
-    monetizationEnabled: boolean
+    monetizationEnabled: boolean,
   ): Promise<{ baseCost: number; creatorMarkup: number; totalCost: number }> {
     const baseCost = await estimateRequestCost(model, messages);
-    const creatorMarkup = monetizationEnabled 
+    const creatorMarkup = monetizationEnabled
       ? baseCost * (markupPercentage / 100)
       : 0;
     const totalCost = baseCost + creatorMarkup;
@@ -128,14 +134,14 @@ class AgentMonetizationService {
 
   /**
    * Pre-charge consumer for agent usage
-   * 
+   *
    * This is called BEFORE the inference to ensure the user has sufficient credits.
    */
   async preChargeConsumer(
     consumerOrgId: string,
     agentName: string,
     estimatedCost: number,
-    metadata: Record<string, unknown>
+    metadata: Record<string, unknown>,
   ): Promise<ChargeResult> {
     const result = await creditsService.deductCredits({
       organizationId: consumerOrgId,
@@ -164,11 +170,13 @@ class AgentMonetizationService {
 
   /**
    * Record agent creator earnings
-   * 
+   *
    * CRITICAL: This adds earnings to the user's REDEEMABLE EARNINGS,
    * NOT to org credits. These can be redeemed for elizaOS tokens.
    */
-  async recordCreatorEarnings(params: RecordEarningsParams): Promise<{ success: boolean; error?: string }> {
+  async recordCreatorEarnings(
+    params: RecordEarningsParams,
+  ): Promise<{ success: boolean; error?: string }> {
     const {
       agentId,
       agentName,
@@ -239,13 +247,13 @@ class AgentMonetizationService {
 
   /**
    * Process complete agent usage with monetization
-   * 
+   *
    * This is the main entry point for charging and recording agent usage.
    * Call this after successful inference.
    */
   async processUsage(
     params: AgentUsageParams,
-    usage: { inputTokens: number; outputTokens: number }
+    usage: { inputTokens: number; outputTokens: number },
   ): Promise<{
     success: boolean;
     actualBaseCost: number;
@@ -271,7 +279,7 @@ class AgentMonetizationService {
       model,
       provider,
       usage.inputTokens,
-      usage.outputTokens
+      usage.outputTokens,
     );
 
     const actualCreatorMarkup = monetizationEnabled
@@ -312,14 +320,14 @@ class AgentMonetizationService {
 
   /**
    * Handle cost difference between estimate and actual
-   * 
+   *
    * Called after inference to refund or charge the difference.
    */
   async handleCostDifference(
     consumerOrgId: string,
     agentName: string,
     estimatedCost: number,
-    actualCost: number
+    actualCost: number,
   ): Promise<void> {
     const diff = actualCost - estimatedCost;
 
@@ -350,7 +358,7 @@ class AgentMonetizationService {
       monetizationEnabled?: boolean;
       markupPercentage?: number;
       payoutWalletAddress?: string;
-    }
+    },
   ): Promise<{ success: boolean; error?: string }> {
     // Verify ownership
     const agent = await db.query.userCharacters.findFirst({
@@ -366,7 +374,10 @@ class AgentMonetizationService {
     }
 
     if (!agent.is_public) {
-      return { success: false, error: "Agent must be public to enable monetization" };
+      return {
+        success: false,
+        error: "Agent must be public to enable monetization",
+      };
     }
 
     // Validate markup percentage
@@ -420,17 +431,20 @@ class AgentMonetizationService {
       where: eq(userCharacters.user_id, userId),
     });
 
-    const monetizedAgents = agents.filter(a => a.monetization_enabled);
-    
+    const monetizedAgents = agents.filter((a) => a.monetization_enabled);
+
     const totalEarnings = monetizedAgents.reduce(
       (sum, a) => sum + Number(a.total_creator_earnings),
-      0
+      0,
     );
 
     const topAgents = monetizedAgents
-      .sort((a, b) => Number(b.total_creator_earnings) - Number(a.total_creator_earnings))
+      .sort(
+        (a, b) =>
+          Number(b.total_creator_earnings) - Number(a.total_creator_earnings),
+      )
       .slice(0, 5)
-      .map(a => ({
+      .map((a) => ({
         id: a.id,
         name: a.name,
         earnings: Number(a.total_creator_earnings),
@@ -447,4 +461,3 @@ class AgentMonetizationService {
 
 // Export singleton
 export const agentMonetizationService = new AgentMonetizationService();
-

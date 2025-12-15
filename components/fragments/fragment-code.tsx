@@ -18,9 +18,8 @@ export function FragmentCode({
   files: { name: string; content: string }[];
 }) {
   const [currentFile, setCurrentFile] = useState(files[0]?.name || "");
-  const currentFileContent = files.find(
-    (file) => file.name === currentFile,
-  )?.content || "";
+  const currentFileContent =
+    files.find((file) => file.name === currentFile)?.content || "";
 
   function download(filename: string, content: string) {
     const blob = new Blob([content], { type: "text/plain" });
@@ -56,7 +55,9 @@ export function FragmentCode({
               onClick={() => setCurrentFile(file.name)}
             >
               <FileText className="h-3 w-3 sm:h-4 sm:w-4 shrink-0" />
-              <span className="truncate max-w-[120px] sm:max-w-none">{file.name}</span>
+              <span className="truncate max-w-[120px] sm:max-w-none">
+                {file.name}
+              </span>
             </div>
           ))}
         </div>
@@ -98,4 +99,3 @@ export function FragmentCode({
     </div>
   );
 }
-

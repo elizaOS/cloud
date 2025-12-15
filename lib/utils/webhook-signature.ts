@@ -1,9 +1,9 @@
 /**
  * Webhook Signature Verification Utilities
- * 
+ *
  * Provides HMAC-based signature verification for webhook security.
  * Follows industry best practices (similar to Stripe, GitHub webhooks).
- * 
+ *
  * Signature format: t=<timestamp>,v1=<signature>
  * - timestamp: Unix timestamp when signature was generated
  * - signature: HMAC-SHA256 of "<timestamp>.<payload>" using webhook secret
@@ -63,15 +63,20 @@ const DEFAULT_CONFIG: Required<WebhookSignatureConfig> = {
 
 /**
  * Verify a webhook signature.
- * 
+ *
  * Expected signature format: t=<timestamp>,v1=<signature>
- * 
+ *
  * @param params - Verification parameters
  * @returns Result with valid flag and optional error
  */
-export function verifyWebhookSignature(params: VerifySignatureParams): VerifySignatureResult {
+export function verifyWebhookSignature(
+  params: VerifySignatureParams,
+): VerifySignatureResult {
   const { payload, signature, secret, config = {} } = params;
-  const { algorithm, timestampTolerance, version } = { ...DEFAULT_CONFIG, ...config };
+  const { algorithm, timestampTolerance, version } = {
+    ...DEFAULT_CONFIG,
+    ...config,
+  };
 
   if (!signature) {
     return { valid: false, error: "Missing signature" };
@@ -83,8 +88,8 @@ export function verifyWebhookSignature(params: VerifySignatureParams): VerifySig
 
   // Parse signature: t=<timestamp>,v1=<signature>
   const parts = signature.split(",");
-  const timestampPart = parts.find(p => p.startsWith("t="));
-  const signaturePart = parts.find(p => p.startsWith(`${version}=`));
+  const timestampPart = parts.find((p) => p.startsWith("t="));
+  const signaturePart = parts.find((p) => p.startsWith(`${version}=`));
 
   if (!timestampPart) {
     return { valid: false, error: "Missing timestamp in signature" };
@@ -104,10 +109,10 @@ export function verifyWebhookSignature(params: VerifySignatureParams): VerifySig
   // Check timestamp is within tolerance (prevents replay attacks)
   const now = Math.floor(Date.now() / 1000);
   const timeDiff = Math.abs(now - timestamp);
-  
+
   if (timeDiff > timestampTolerance) {
-    return { 
-      valid: false, 
+    return {
+      valid: false,
       error: `Request expired (${timeDiff}s old, max ${timestampTolerance}s)`,
       timestamp,
     };
@@ -125,7 +130,7 @@ export function verifyWebhookSignature(params: VerifySignatureParams): VerifySig
   try {
     isValid = crypto.timingSafeEqual(
       Buffer.from(providedSignature, "hex"),
-      Buffer.from(expectedSignature, "hex")
+      Buffer.from(expectedSignature, "hex"),
     );
   } catch {
     // If buffers are different lengths, timingSafeEqual throws
@@ -145,11 +150,13 @@ export function verifyWebhookSignature(params: VerifySignatureParams): VerifySig
 
 /**
  * Generate a webhook signature for a payload.
- * 
+ *
  * @param params - Generation parameters
  * @returns Signature string in format "t=<timestamp>,v1=<signature>"
  */
-export function generateWebhookSignature(params: GenerateSignatureParams): string {
+export function generateWebhookSignature(
+  params: GenerateSignatureParams,
+): string {
   const { payload, secret, config = {} } = params;
   const { algorithm, version } = { ...DEFAULT_CONFIG, ...config };
   const timestamp = params.timestamp ?? Math.floor(Date.now() / 1000);
@@ -165,7 +172,7 @@ export function generateWebhookSignature(params: GenerateSignatureParams): strin
 
 /**
  * Generate a secure webhook secret.
- * 
+ *
  * @returns 32-byte hex-encoded secret
  */
 export function generateWebhookSecret(): string {
@@ -178,21 +185,21 @@ export function generateWebhookSecret(): string {
 
 /**
  * Get signature from request headers.
- * 
+ *
  * @param headers - Request headers
  * @param headerName - Header name to look for (default: x-webhook-signature)
  * @returns Signature string or null
  */
 export function getSignatureFromHeaders(
   headers: Headers,
-  headerName: string = DEFAULT_CONFIG.signatureHeader
+  headerName: string = DEFAULT_CONFIG.signatureHeader,
 ): string | null {
   return headers.get(headerName);
 }
 
 /**
  * Create signature headers for outgoing webhook requests.
- * 
+ *
  * @param payload - Request body as string
  * @param secret - Webhook secret
  * @param config - Optional configuration
@@ -201,14 +208,13 @@ export function getSignatureFromHeaders(
 export function createSignatureHeaders(
   payload: string,
   secret: string,
-  config?: WebhookSignatureConfig
+  config?: WebhookSignatureConfig,
 ): Record<string, string> {
   const { signatureHeader } = { ...DEFAULT_CONFIG, ...config };
   const signature = generateWebhookSignature({ payload, secret, config });
-  
+
   return {
     [signatureHeader]: signature,
     "Content-Type": "application/json",
   };
 }
-

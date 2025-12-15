@@ -13,7 +13,8 @@ export class DiscordStateManager {
   private podId: string;
 
   private constructor() {
-    this.podId = process.env.POD_NAME ?? process.env.HOSTNAME ?? `pod-${Date.now()}`;
+    this.podId =
+      process.env.POD_NAME ?? process.env.HOSTNAME ?? `pod-${Date.now()}`;
     this.initializeRedis();
   }
 
@@ -28,7 +29,9 @@ export class DiscordStateManager {
       this.redis = new Redis({ url: restUrl, token: restToken });
     }
 
-    logger.info("[Discord State Manager] Initialized", { enabled: !!this.redis });
+    logger.info("[Discord State Manager] Initialized", {
+      enabled: !!this.redis,
+    });
   }
 
   static getInstance(): DiscordStateManager {
@@ -48,16 +51,30 @@ export class DiscordStateManager {
 
   async saveConnectionState(state: BotConnectionState): Promise<void> {
     if (!this.redis) {
-      logger.warn("[Discord State Manager] Cannot save state - Redis unavailable", { connectionId: state.connectionId });
+      logger.warn(
+        "[Discord State Manager] Cannot save state - Redis unavailable",
+        { connectionId: state.connectionId },
+      );
       return;
     }
-    await this.redis.setex(`discord:state:${state.connectionId}`, STATE_TTL, JSON.stringify(state));
-    logger.debug("[Discord State Manager] Saved state", { connectionId: state.connectionId });
+    await this.redis.setex(
+      `discord:state:${state.connectionId}`,
+      STATE_TTL,
+      JSON.stringify(state),
+    );
+    logger.debug("[Discord State Manager] Saved state", {
+      connectionId: state.connectionId,
+    });
   }
 
-  async getConnectionState(connectionId: string): Promise<BotConnectionState | null> {
+  async getConnectionState(
+    connectionId: string,
+  ): Promise<BotConnectionState | null> {
     if (!this.redis) {
-      logger.debug("[Discord State Manager] Cannot get state - Redis unavailable", { connectionId });
+      logger.debug(
+        "[Discord State Manager] Cannot get state - Redis unavailable",
+        { connectionId },
+      );
       return null;
     }
     const data = await this.redis.get<string>(`discord:state:${connectionId}`);
@@ -66,7 +83,10 @@ export class DiscordStateManager {
 
   async clearConnectionState(connectionId: string): Promise<void> {
     if (!this.redis) {
-      logger.debug("[Discord State Manager] Cannot clear state - Redis unavailable", { connectionId });
+      logger.debug(
+        "[Discord State Manager] Cannot clear state - Redis unavailable",
+        { connectionId },
+      );
       return;
     }
     await this.redis.del(`discord:state:${connectionId}`);
@@ -79,17 +99,32 @@ export class DiscordStateManager {
       state.lastHeartbeat = Date.now();
       await this.saveConnectionState(state);
     } else {
-      logger.debug("[Discord State Manager] Cannot update sequence - state not found", { connectionId, sequence });
+      logger.debug(
+        "[Discord State Manager] Cannot update sequence - state not found",
+        { connectionId, sequence },
+      );
     }
   }
 
-  async updateSession(connectionId: string, sessionId: string, resumeGatewayUrl: string): Promise<void> {
+  async updateSession(
+    connectionId: string,
+    sessionId: string,
+    resumeGatewayUrl: string,
+  ): Promise<void> {
     const state = await this.getConnectionState(connectionId);
     if (state) {
-      Object.assign(state, { sessionId, resumeGatewayUrl, connectedAt: Date.now(), status: "connected" });
+      Object.assign(state, {
+        sessionId,
+        resumeGatewayUrl,
+        connectedAt: Date.now(),
+        status: "connected",
+      });
       await this.saveConnectionState(state);
     } else {
-      logger.warn("[Discord State Manager] Cannot update session - state not found", { connectionId, sessionId });
+      logger.warn(
+        "[Discord State Manager] Cannot update session - state not found",
+        { connectionId, sessionId },
+      );
     }
   }
 
@@ -99,7 +134,10 @@ export class DiscordStateManager {
       state.guilds.push(guildId);
       await this.saveConnectionState(state);
     } else if (!state) {
-      logger.debug("[Discord State Manager] Cannot add guild - state not found", { connectionId, guildId });
+      logger.debug(
+        "[Discord State Manager] Cannot add guild - state not found",
+        { connectionId, guildId },
+      );
     }
   }
 
@@ -109,15 +147,23 @@ export class DiscordStateManager {
       state.guilds = state.guilds.filter((g) => g !== guildId);
       await this.saveConnectionState(state);
     } else {
-      logger.debug("[Discord State Manager] Cannot remove guild - state not found", { connectionId, guildId });
+      logger.debug(
+        "[Discord State Manager] Cannot remove guild - state not found",
+        { connectionId, guildId },
+      );
     }
   }
 
   startPodHeartbeat(): void {
     if (this.heartbeatInterval) return;
-    this.heartbeatInterval = setInterval(() => this.sendPodHeartbeat(), HEARTBEAT_INTERVAL_MS);
+    this.heartbeatInterval = setInterval(
+      () => this.sendPodHeartbeat(),
+      HEARTBEAT_INTERVAL_MS,
+    );
     this.sendPodHeartbeat();
-    logger.info("[Discord State Manager] Heartbeat started", { podId: this.podId });
+    logger.info("[Discord State Manager] Heartbeat started", {
+      podId: this.podId,
+    });
   }
 
   stopPodHeartbeat(): void {
@@ -132,7 +178,9 @@ export class DiscordStateManager {
 
     const connections = await this.getPodConnections();
     const existing = await this.redis.get<string>(`discord:pod:${this.podId}`);
-    const startedAt = existing ? this.parseJson<PodHeartbeatState>(existing).startedAt : Date.now();
+    const startedAt = existing
+      ? this.parseJson<PodHeartbeatState>(existing).startedAt
+      : Date.now();
 
     const state: PodHeartbeatState = {
       podId: this.podId,
@@ -141,7 +189,11 @@ export class DiscordStateManager {
       startedAt,
     };
 
-    await this.redis.setex(`discord:pod:${this.podId}`, HEARTBEAT_TTL, JSON.stringify(state));
+    await this.redis.setex(
+      `discord:pod:${this.podId}`,
+      HEARTBEAT_TTL,
+      JSON.stringify(state),
+    );
     await this.redis.sadd("discord:active_pods", this.podId);
     await this.redis.expire("discord:active_pods", HEARTBEAT_TTL);
   }
@@ -153,8 +205,12 @@ export class DiscordStateManager {
     let cursor = 0;
 
     do {
-      const [newCursor, keys] = await this.redis.scan(cursor, { match: "discord:state:*", count: 100 });
-      cursor = typeof newCursor === "string" ? parseInt(newCursor, 10) : newCursor;
+      const [newCursor, keys] = await this.redis.scan(cursor, {
+        match: "discord:state:*",
+        count: 100,
+      });
+      cursor =
+        typeof newCursor === "string" ? parseInt(newCursor, 10) : newCursor;
 
       for (const key of keys) {
         const data = await this.redis.get<string>(key);
@@ -181,12 +237,16 @@ export class DiscordStateManager {
 
   async isPodAlive(podId: string): Promise<boolean> {
     const status = await this.getPodStatus(podId);
-    return status ? Date.now() - status.lastHeartbeat < HEARTBEAT_TTL * 1000 : false;
+    return status
+      ? Date.now() - status.lastHeartbeat < HEARTBEAT_TTL * 1000
+      : false;
   }
 
   async findDeadPods(): Promise<string[]> {
     const activePods = await this.getActivePods();
-    const results = await Promise.all(activePods.map(async (id) => ({ id, alive: await this.isPodAlive(id) })));
+    const results = await Promise.all(
+      activePods.map(async (id) => ({ id, alive: await this.isPodAlive(id) })),
+    );
     return results.filter((r) => !r.alive).map((r) => r.id);
   }
 
@@ -197,8 +257,12 @@ export class DiscordStateManager {
     let cursor = 0;
 
     do {
-      const [newCursor, keys] = await this.redis.scan(cursor, { match: "discord:state:*", count: 100 });
-      cursor = typeof newCursor === "string" ? parseInt(newCursor, 10) : newCursor;
+      const [newCursor, keys] = await this.redis.scan(cursor, {
+        match: "discord:state:*",
+        count: 100,
+      });
+      cursor =
+        typeof newCursor === "string" ? parseInt(newCursor, 10) : newCursor;
 
       for (const key of keys) {
         const data = await this.redis.get<string>(key);
@@ -209,7 +273,9 @@ export class DiscordStateManager {
             state.status = "disconnected";
             await this.saveConnectionState(state);
             claimed.push(state.connectionId);
-            logger.info("[Discord State Manager] Claimed orphan", { connectionId: state.connectionId });
+            logger.info("[Discord State Manager] Claimed orphan", {
+              connectionId: state.connectionId,
+            });
           }
         }
       }
@@ -224,15 +290,22 @@ export class DiscordStateManager {
     connectionId: string,
     route: string,
     limit: number,
-    windowMs: number
+    windowMs: number,
   ): Promise<{ allowed: boolean; remaining: number; resetAt: number }> {
     if (!this.redis) {
-      logger.warn("[Discord State Manager] Rate limiting bypassed - Redis unavailable", {
-        connectionId,
-        route,
-        limit,
-      });
-      return { allowed: true, remaining: limit, resetAt: Date.now() + windowMs };
+      logger.warn(
+        "[Discord State Manager] Rate limiting bypassed - Redis unavailable",
+        {
+          connectionId,
+          route,
+          limit,
+        },
+      );
+      return {
+        allowed: true,
+        remaining: limit,
+        resetAt: Date.now() + windowMs,
+      };
     }
 
     const key = `discord:ratelimit:${connectionId}:${route}`;
@@ -243,7 +316,9 @@ export class DiscordStateManager {
     let windowStart = now;
 
     if (data) {
-      const parsed = this.parseJson<{ count: number; windowStart: number }>(data);
+      const parsed = this.parseJson<{ count: number; windowStart: number }>(
+        data,
+      );
       if (now - parsed.windowStart < windowMs) {
         count = parsed.count;
         windowStart = parsed.windowStart;
@@ -253,9 +328,17 @@ export class DiscordStateManager {
     const allowed = count < limit;
     const newCount = allowed ? count + 1 : count;
 
-    await this.redis.setex(key, Math.ceil(windowMs / 1000), JSON.stringify({ count: newCount, windowStart }));
+    await this.redis.setex(
+      key,
+      Math.ceil(windowMs / 1000),
+      JSON.stringify({ count: newCount, windowStart }),
+    );
 
-    return { allowed, remaining: Math.max(0, limit - newCount), resetAt: windowStart + windowMs };
+    return {
+      allowed,
+      remaining: Math.max(0, limit - newCount),
+      resetAt: windowStart + windowMs,
+    };
   }
 
   getPodId(): string {

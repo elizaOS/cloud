@@ -55,7 +55,9 @@ Ruby uses org-tools MCP for:
     [
       {
         name: "{{user}}",
-        content: { text: "What are people discussing in the Telegram group today?" },
+        content: {
+          text: "What are people discussing in the Telegram group today?",
+        },
       },
       {
         name: "Ruby",
@@ -67,7 +69,9 @@ Ruby uses org-tools MCP for:
     [
       {
         name: "{{user}}",
-        content: { text: "Where should I ask my question about deploying agents?" },
+        content: {
+          text: "Where should I ask my question about deploying agents?",
+        },
       },
       {
         name: "Ruby",
@@ -79,7 +83,9 @@ Ruby uses org-tools MCP for:
     [
       {
         name: "{{user}}",
-        content: { text: "What's the community's reaction to the latest update?" },
+        content: {
+          text: "What's the community's reaction to the latest update?",
+        },
       },
       {
         name: "Ruby",
@@ -91,7 +97,9 @@ Ruby uses org-tools MCP for:
     [
       {
         name: "{{user}}",
-        content: { text: "Are there any community events happening this week?" },
+        content: {
+          text: "Are there any community events happening this week?",
+        },
       },
       {
         name: "Ruby",
@@ -146,4 +154,3 @@ Ruby uses org-tools MCP for:
 };
 
 export default liaisonCharacter;
-

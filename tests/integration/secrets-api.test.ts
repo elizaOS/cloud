@@ -5,7 +5,14 @@
  * These tests require a running database with the secrets tables.
  */
 
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from "bun:test";
+import {
+  describe,
+  it,
+  expect,
+  beforeAll,
+  afterAll,
+  beforeEach,
+} from "bun:test";
 import { db } from "@/db/client";
 import { secrets, oauthSessions, secretAuditLog } from "@/db/schemas/secrets";
 import { organizations } from "@/db/schemas/organizations";
@@ -17,7 +24,10 @@ import {
   secretAuditLogRepository,
 } from "@/db/repositories/secrets";
 import { SecretsService } from "@/lib/services/secrets/secrets";
-import { LocalKMSProvider, SecretsEncryptionService } from "@/lib/services/secrets/encryption";
+import {
+  LocalKMSProvider,
+  SecretsEncryptionService,
+} from "@/lib/services/secrets/encryption";
 import type { AuditContext } from "@/lib/services/secrets";
 
 // Test fixtures - using valid UUIDs
@@ -25,7 +35,8 @@ const TEST_ORG_ID = "00000000-0000-0000-0000-000000000001";
 const TEST_USER_ID = "00000000-0000-0000-0000-000000000002";
 const TEST_PROJECT_ID = "00000000-0000-0000-0000-000000000003";
 const TEST_PROJECT_ID_2 = "00000000-0000-0000-0000-000000000004";
-const TEST_MASTER_KEY = "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789";
+const TEST_MASTER_KEY =
+  "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789";
 
 // Secrets table check happens in beforeAll to avoid top-level async issues
 let secretsTablesAvailable = false;
@@ -93,15 +104,30 @@ describe("Secrets Integration Tests", () => {
 
   afterAll(async () => {
     if (!secretsTablesAvailable) return;
-    await db.delete(secretAuditLog).where(eq(secretAuditLog.organization_id, TEST_ORG_ID)).catch(() => {});
-    await db.delete(oauthSessions).where(eq(oauthSessions.organization_id, TEST_ORG_ID)).catch(() => {});
-    await db.delete(secrets).where(eq(secrets.organization_id, TEST_ORG_ID)).catch(() => {});
+    await db
+      .delete(secretAuditLog)
+      .where(eq(secretAuditLog.organization_id, TEST_ORG_ID))
+      .catch(() => {});
+    await db
+      .delete(oauthSessions)
+      .where(eq(oauthSessions.organization_id, TEST_ORG_ID))
+      .catch(() => {});
+    await db
+      .delete(secrets)
+      .where(eq(secrets.organization_id, TEST_ORG_ID))
+      .catch(() => {});
   });
 
   beforeEach(async () => {
     if (!secretsTablesAvailable) return;
-    await db.delete(secretAuditLog).where(eq(secretAuditLog.organization_id, TEST_ORG_ID)).catch(() => {});
-    await db.delete(secrets).where(eq(secrets.organization_id, TEST_ORG_ID)).catch(() => {});
+    await db
+      .delete(secretAuditLog)
+      .where(eq(secretAuditLog.organization_id, TEST_ORG_ID))
+      .catch(() => {});
+    await db
+      .delete(secrets)
+      .where(eq(secrets.organization_id, TEST_ORG_ID))
+      .catch(() => {});
   });
 
   describe("Secret CRUD Operations", () => {
@@ -115,7 +141,7 @@ describe("Secrets Integration Tests", () => {
           description: "Test API key",
           createdBy: testUserId,
         },
-        auditContext
+        auditContext,
       );
 
       expect(result.id).toBeDefined();
@@ -143,7 +169,7 @@ describe("Secrets Integration Tests", () => {
           value: secretValue,
           createdBy: testUserId,
         },
-        auditContext
+        auditContext,
       );
 
       const retrieved = await service.get(testOrgId, "DECRYPT_TEST");
@@ -160,7 +186,7 @@ describe("Secrets Integration Tests", () => {
           value: "value1",
           createdBy: testUserId,
         },
-        auditContext
+        auditContext,
       );
 
       await service.create(
@@ -171,18 +197,23 @@ describe("Secrets Integration Tests", () => {
           description: "Second secret",
           createdBy: testUserId,
         },
-        auditContext
+        auditContext,
       );
 
       const list = await service.list(testOrgId);
 
       expect(list).toHaveLength(2);
-      expect(list.map((s) => s.name).sort()).toEqual(["LIST_SECRET_1", "LIST_SECRET_2"]);
+      expect(list.map((s) => s.name).sort()).toEqual([
+        "LIST_SECRET_1",
+        "LIST_SECRET_2",
+      ]);
 
       // Ensure values are not in the list response
       for (const secret of list) {
         expect((secret as Record<string, unknown>).value).toBeUndefined();
-        expect((secret as Record<string, unknown>).encrypted_value).toBeUndefined();
+        expect(
+          (secret as Record<string, unknown>).encrypted_value,
+        ).toBeUndefined();
       }
     });
 
@@ -195,14 +226,14 @@ describe("Secrets Integration Tests", () => {
           value: "original-value",
           createdBy: testUserId,
         },
-        auditContext
+        auditContext,
       );
 
       const updated = await service.update(
         created.id,
         testOrgId,
         { value: "new-value", description: "Updated description" },
-        auditContext
+        auditContext,
       );
 
       expect(updated.version).toBe(2);
@@ -222,14 +253,14 @@ describe("Secrets Integration Tests", () => {
           value: "original-value",
           createdBy: testUserId,
         },
-        auditContext
+        auditContext,
       );
 
       const rotated = await service.rotate(
         created.id,
         testOrgId,
         "rotated-value",
-        auditContext
+        auditContext,
       );
 
       expect(rotated.version).toBe(2);
@@ -249,7 +280,7 @@ describe("Secrets Integration Tests", () => {
           value: "to-be-deleted",
           createdBy: testUserId,
         },
-        auditContext
+        auditContext,
       );
 
       await service.delete(created.id, testOrgId, auditContext);
@@ -278,7 +309,7 @@ describe("Secrets Integration Tests", () => {
           projectType: "container",
           createdBy: testUserId,
         },
-        auditContext
+        auditContext,
       );
 
       // Get with project context
@@ -304,7 +335,7 @@ describe("Secrets Integration Tests", () => {
           environment: "production",
           createdBy: testUserId,
         },
-        auditContext
+        auditContext,
       );
 
       // Get with environment context
@@ -315,7 +346,12 @@ describe("Secrets Integration Tests", () => {
       expect(prodSecrets.ENV_SECRET).toBe("prod-value");
 
       // Dev environment should not have this secret
-      const devSecret = await service.get(testOrgId, "ENV_SECRET", undefined, "development");
+      const devSecret = await service.get(
+        testOrgId,
+        "ENV_SECRET",
+        undefined,
+        "development",
+      );
       expect(devSecret).toBeNull();
     });
 
@@ -330,7 +366,7 @@ describe("Secrets Integration Tests", () => {
           value: "org-default",
           createdBy: testUserId,
         },
-        auditContext
+        auditContext,
       );
 
       // Create project-level override
@@ -343,7 +379,7 @@ describe("Secrets Integration Tests", () => {
           projectId: TEST_PROJECT_ID_2,
           createdBy: testUserId,
         },
-        auditContext
+        auditContext,
       );
 
       // With project context, should get project value
@@ -401,7 +437,9 @@ describe("Secrets Integration Tests", () => {
 
       // Should only have one session
       const connections = await service.listOAuthConnections(testOrgId);
-      const googleConnections = connections.filter((c) => c.provider === "google");
+      const googleConnections = connections.filter(
+        (c) => c.provider === "google",
+      );
       expect(googleConnections).toHaveLength(1);
     });
 
@@ -417,11 +455,17 @@ describe("Secrets Integration Tests", () => {
       const slackConnection = connections.find((c) => c.provider === "slack");
       expect(slackConnection).toBeDefined();
 
-      await service.revokeOAuthConnection(slackConnection!.id, testOrgId, "User disconnected");
+      await service.revokeOAuthConnection(
+        slackConnection!.id,
+        testOrgId,
+        "User disconnected",
+      );
 
       // Connection should still exist but be invalid
       const updatedConnections = await service.listOAuthConnections(testOrgId);
-      const revokedConnection = updatedConnections.find((c) => c.provider === "slack");
+      const revokedConnection = updatedConnections.find(
+        (c) => c.provider === "slack",
+      );
       expect(revokedConnection).toBeDefined();
       expect(revokedConnection!.isValid).toBe(false);
 
@@ -441,11 +485,22 @@ describe("Secrets Integration Tests", () => {
           value: "initial",
           createdBy: testUserId,
         },
-        auditContext
+        auditContext,
       );
 
-      await service.get(testOrgId, "AUDIT_TEST", undefined, undefined, auditContext);
-      await service.update(created.id, testOrgId, { value: "updated" }, auditContext);
+      await service.get(
+        testOrgId,
+        "AUDIT_TEST",
+        undefined,
+        undefined,
+        auditContext,
+      );
+      await service.update(
+        created.id,
+        testOrgId,
+        { value: "updated" },
+        auditContext,
+      );
       await service.rotate(created.id, testOrgId, "rotated", auditContext);
       await service.delete(created.id, testOrgId, auditContext);
 
@@ -479,7 +534,7 @@ describe("Secrets Integration Tests", () => {
           value: "value",
           createdBy: testUserId,
         },
-        customContext
+        customContext,
       );
 
       const auditLog = await service.getSecretAuditLog(created.id);
@@ -505,7 +560,7 @@ describe("Secrets Integration Tests", () => {
           value: "first",
           createdBy: testUserId,
         },
-        auditContext
+        auditContext,
       );
 
       await expect(
@@ -516,8 +571,8 @@ describe("Secrets Integration Tests", () => {
             value: "second",
             createdBy: testUserId,
           },
-          auditContext
-        )
+          auditContext,
+        ),
       ).rejects.toThrow("already exists");
     });
 
@@ -530,17 +585,22 @@ describe("Secrets Integration Tests", () => {
           value: "secret",
           createdBy: testUserId,
         },
-        auditContext
+        auditContext,
       );
 
       // Try to update from different org
       await expect(
-        service.update(created.id, "other-org", { value: "hacked" }, auditContext)
+        service.update(
+          created.id,
+          "other-org",
+          { value: "hacked" },
+          auditContext,
+        ),
       ).rejects.toThrow("not found");
 
       // Try to delete from different org
       await expect(
-        service.delete(created.id, "other-org", auditContext)
+        service.delete(created.id, "other-org", auditContext),
       ).rejects.toThrow("not found");
     });
   });
@@ -549,7 +609,13 @@ describe("Secrets Integration Tests", () => {
     it("retrieves multiple secrets efficiently", async () => {
       if (skipIfNoTables()) return;
       // Create multiple secrets
-      const secretNames = ["BATCH_1", "BATCH_2", "BATCH_3", "BATCH_4", "BATCH_5"];
+      const secretNames = [
+        "BATCH_1",
+        "BATCH_2",
+        "BATCH_3",
+        "BATCH_4",
+        "BATCH_5",
+      ];
 
       for (const name of secretNames) {
         await service.create(
@@ -559,7 +625,7 @@ describe("Secrets Integration Tests", () => {
             value: `value-for-${name}`,
             createdBy: testUserId,
           },
-          auditContext
+          auditContext,
         );
       }
 
@@ -577,4 +643,3 @@ describe("Secrets Integration Tests", () => {
     });
   });
 });
-

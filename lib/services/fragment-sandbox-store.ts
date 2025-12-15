@@ -1,6 +1,6 @@
 /**
  * Fragment Sandbox Store
- * 
+ *
  * In-memory store for ephemeral sandbox fragments.
  * Fragments are stored temporarily for preview and cleaned up after TTL.
  */
@@ -30,7 +30,7 @@ class FragmentSandboxStore {
     containerId: string,
     fragment: FragmentSchema,
     userId: string,
-    organizationId: string
+    organizationId: string,
   ): void {
     const now = new Date();
     this.store.set(containerId, {
@@ -79,5 +79,3 @@ class FragmentSandboxStore {
 }
 
 export const fragmentSandboxStore = new FragmentSandboxStore();
-
-

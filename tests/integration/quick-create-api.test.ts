@@ -28,7 +28,7 @@ describe.skipIf(!hasAuth)("QuickCreateDialog API Integration", () => {
 
       // Should not be a validation error (400)
       expect(response.status).not.toBe(400);
-      
+
       if (response.ok) {
         const data = await response.json();
         expect(data.app).toBeDefined();
@@ -61,7 +61,7 @@ describe.skipIf(!hasAuth)("QuickCreateDialog API Integration", () => {
       });
 
       expect(response.status).not.toBe(400);
-      
+
       if (response.ok) {
         const data = await response.json();
         expect(data.app).toBeDefined();
@@ -87,7 +87,7 @@ describe.skipIf(!hasAuth)("QuickCreateDialog API Integration", () => {
       });
 
       expect(response.status).not.toBe(400);
-      
+
       if (response.ok) {
         const data = await response.json();
         expect(data.agent).toBeDefined();
@@ -115,7 +115,7 @@ describe.skipIf(!hasAuth)("QuickCreateDialog API Integration", () => {
 
       // Note: May fail with 500 if n8n service not configured, but should NOT fail with 400
       expect(response.status).not.toBe(400);
-      
+
       if (response.ok) {
         const data = await response.json();
         expect(data.workflow).toBeDefined();
@@ -133,7 +133,7 @@ describe("API Schema Validation", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ description: "No name" }),
     });
-    
+
     // Should be 400 (validation) or 401 (auth), not 500
     expect([400, 401]).toContain(response.status);
   });
@@ -144,7 +144,7 @@ describe("API Schema Validation", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ bio: "No name" }),
     });
-    
+
     expect([400, 401]).toContain(response.status);
   });
 
@@ -154,7 +154,7 @@ describe("API Schema Validation", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ workflowData: {} }),
     });
-    
+
     expect([400, 401]).toContain(response.status);
   });
 
@@ -167,7 +167,7 @@ describe("API Schema Validation", () => {
         workflow_data: { nodes: [] }, // Wrong! Should be workflowData
       }),
     });
-    
+
     // Should fail validation because workflowData is required
     expect([400, 401]).toContain(response.status);
   });

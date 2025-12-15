@@ -1,12 +1,12 @@
 /**
  * Bootstrap Contracts Script
- * 
+ *
  * Checks if required contracts are deployed on the target network.
  * For local development (Anvil), deploys contracts if they aren't present.
- * 
+ *
  * Usage:
  *   bun run scripts/bootstrap-contracts.ts [--network <network>] [--deploy]
- * 
+ *
  * Options:
  *   --network  Network to check (anvil, base-sepolia, base). Default: anvil
  *   --deploy   Deploy missing contracts (only works on anvil)
@@ -85,7 +85,7 @@ const REQUIRED_CONTRACTS: ContractCheck[] = [
 
 async function checkContractDeployed(
   rpcUrl: string,
-  address: string
+  address: string,
 ): Promise<boolean> {
   if (!address || address === ZERO_ADDRESS) {
     return false;
@@ -112,20 +112,24 @@ async function checkNetwork(network: NetworkType): Promise<{
 
   for (const contract of REQUIRED_CONTRACTS) {
     const address = process.env[contract.envVar];
-    
+
     if (!address) {
-      console.log(`   ❌ ${contract.name}: Not configured (${contract.envVar})`);
+      console.log(
+        `   ❌ ${contract.name}: Not configured (${contract.envVar})`,
+      );
       missing.push(contract);
       continue;
     }
 
     const deployed = await checkContractDeployed(config.rpcUrl, address);
-    
+
     if (deployed) {
       console.log(`   ✅ ${contract.name}: ${address.slice(0, 10)}...`);
       found.push(contract);
     } else {
-      console.log(`   ❌ ${contract.name}: ${address.slice(0, 10)}... (not deployed)`);
+      console.log(
+        `   ❌ ${contract.name}: ${address.slice(0, 10)}... (not deployed)`,
+      );
       missing.push(contract);
     }
   }
@@ -139,19 +143,24 @@ async function checkNetwork(network: NetworkType): Promise<{
 
 async function deployContracts(): Promise<boolean> {
   // Check for contracts directory path from env or use project-local contracts folder
-  const contractsDir = process.env.CONTRACTS_DIR || path.resolve(process.cwd(), "contracts");
-  
+  const contractsDir =
+    process.env.CONTRACTS_DIR || path.resolve(process.cwd(), "contracts");
+
   console.log("\n🚀 Deploying contracts to Anvil...");
   console.log(`   Working directory: ${contractsDir}`);
-  
+
   // Check if forge is available and contracts directory exists
   const fs = await import("fs");
   if (!fs.existsSync(contractsDir)) {
     console.log("\n⚠️  Contracts directory not found.");
     console.log("   To deploy contracts:");
-    console.log("   1. Set CONTRACTS_DIR env var to your contracts project path");
+    console.log(
+      "   1. Set CONTRACTS_DIR env var to your contracts project path",
+    );
     console.log("   2. Or place Solidity contracts in ./contracts/");
-    console.log("   3. Run: forge script script/DeployLocalnet.s.sol --rpc-url http://127.0.0.1:8545 --broadcast");
+    console.log(
+      "   3. Run: forge script script/DeployLocalnet.s.sol --rpc-url http://127.0.0.1:8545 --broadcast",
+    );
     return false;
   }
 
@@ -171,10 +180,11 @@ async function deployContracts(): Promise<boolean> {
         stdio: "inherit",
         env: {
           ...process.env,
-          PRIVATE_KEY: process.env.ANVIL_PRIVATE_KEY || 
+          PRIVATE_KEY:
+            process.env.ANVIL_PRIVATE_KEY ||
             "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80", // Anvil account 0
         },
-      }
+      },
     );
 
     child.on("close", (code) => {
@@ -200,8 +210,11 @@ async function deployContracts(): Promise<boolean> {
 
 async function main() {
   const args = process.argv.slice(2);
-  const networkArg = args.find((a) => a.startsWith("--network="))?.split("=")[1] ||
-    (args.includes("--network") ? args[args.indexOf("--network") + 1] : "anvil");
+  const networkArg =
+    args.find((a) => a.startsWith("--network="))?.split("=")[1] ||
+    (args.includes("--network")
+      ? args[args.indexOf("--network") + 1]
+      : "anvil");
   const shouldDeploy = args.includes("--deploy");
 
   const network = networkArg as NetworkType;
@@ -212,9 +225,15 @@ async function main() {
     process.exit(1);
   }
 
-  console.log("╔══════════════════════════════════════════════════════════════╗");
-  console.log("║           Cloud Contract Bootstrap                          ║");
-  console.log("╚══════════════════════════════════════════════════════════════╝");
+  console.log(
+    "╔══════════════════════════════════════════════════════════════╗",
+  );
+  console.log(
+    "║           Cloud Contract Bootstrap                          ║",
+  );
+  console.log(
+    "╚══════════════════════════════════════════════════════════════╝",
+  );
 
   const { missing, found } = await checkNetwork(network);
 
@@ -224,36 +243,46 @@ async function main() {
   }
 
   const criticalMissing = missing.filter((c) => c.critical);
-  
+
   if (criticalMissing.length > 0) {
-    console.log(`\n⚠️  ${criticalMissing.length} critical contract(s) missing!`);
+    console.log(
+      `\n⚠️  ${criticalMissing.length} critical contract(s) missing!`,
+    );
 
     if (network === "anvil" && shouldDeploy) {
       const success = await deployContracts();
       if (!success) {
         process.exit(1);
       }
-      
+
       // Re-check after deployment
       console.log("\n🔍 Verifying deployment...");
       const { missing: stillMissing } = await checkNetwork(network);
-      
+
       if (stillMissing.length > 0) {
         console.log("\n❌ Some contracts still missing after deployment.");
-        console.log("   You may need to update your .env with deployed addresses.");
+        console.log(
+          "   You may need to update your .env with deployed addresses.",
+        );
         process.exit(1);
       }
-      
+
       console.log("\n✅ All contracts deployed and verified!");
     } else if (network === "anvil") {
       console.log("\nTo deploy contracts locally, run:");
-      console.log("  bun run scripts/bootstrap-contracts.ts --network anvil --deploy");
+      console.log(
+        "  bun run scripts/bootstrap-contracts.ts --network anvil --deploy",
+      );
       console.log("\nOr start Anvil and deploy manually:");
-      console.log("  CONTRACTS_DIR=/path/to/contracts forge script script/DeployLocalnet.s.sol --rpc-url http://127.0.0.1:8545 --broadcast");
+      console.log(
+        "  CONTRACTS_DIR=/path/to/contracts forge script script/DeployLocalnet.s.sol --rpc-url http://127.0.0.1:8545 --broadcast",
+      );
       process.exit(1);
     } else {
       console.log(`\n❌ Cannot auto-deploy to ${network}.`);
-      console.log("   Please deploy contracts manually or use pre-deployed addresses.");
+      console.log(
+        "   Please deploy contracts manually or use pre-deployed addresses.",
+      );
       process.exit(1);
     }
   }
@@ -263,4 +292,3 @@ main().catch((err) => {
   console.error("Bootstrap failed:", err);
   process.exit(1);
 });
-

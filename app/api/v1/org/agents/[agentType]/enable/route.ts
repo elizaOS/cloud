@@ -16,7 +16,7 @@ const EnableSchema = z.object({
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ agentType: string }> }
+  { params }: { params: Promise<{ agentType: string }> },
 ) {
   const auth = await requireAppAuth(request);
   if ("error" in auth) {
@@ -29,7 +29,7 @@ export async function POST(
   if (!user.organization_id) {
     return NextResponse.json(
       { success: false, error: "Organization required" },
-      { status: 403 }
+      { status: 403 },
     );
   }
 
@@ -39,7 +39,7 @@ export async function POST(
   if (!validation.success) {
     return NextResponse.json(
       { success: false, error: "Invalid request" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -47,7 +47,7 @@ export async function POST(
 
   let instance = await agentLifecycleService.getInstance(
     user.organization_id,
-    agentType
+    agentType,
   );
 
   // Create instance if it doesn't exist and enabling
@@ -63,7 +63,7 @@ export async function POST(
   if (!instance) {
     return NextResponse.json(
       { success: false, error: "Agent not found" },
-      { status: 404 }
+      { status: 404 },
     );
   }
 

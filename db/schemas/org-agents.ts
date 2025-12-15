@@ -136,7 +136,9 @@ export const orgAgentInstances = pgTable(
     enabled: boolean("enabled").notNull().default(false),
 
     // Status tracking
-    status: orgAgentInstanceStatusEnum("status").notNull().default("configuring"),
+    status: orgAgentInstanceStatusEnum("status")
+      .notNull()
+      .default("configuring"),
     error_message: text("error_message"),
     last_active_at: timestamp("last_active_at"),
 
@@ -149,12 +151,12 @@ export const orgAgentInstances = pgTable(
     // Each org can only have one instance of each agent type
     uniqueIndex("org_agent_instances_org_type_idx").on(
       table.organization_id,
-      table.agent_type
+      table.agent_type,
     ),
     index("org_agent_instances_org_idx").on(table.organization_id),
     index("org_agent_instances_status_idx").on(table.status),
     index("org_agent_instances_enabled_idx").on(table.enabled),
-  ]
+  ],
 );
 
 // =============================================================================
@@ -214,13 +216,14 @@ export const orgAgentConfigs = pgTable(
     }>(),
 
     // Community settings (for community manager)
-    community_settings: jsonb("community_settings").$type<CommunityModerationSettings>(),
+    community_settings:
+      jsonb("community_settings").$type<CommunityModerationSettings>(),
 
     // Timestamps
     created_at: timestamp("created_at").notNull().defaultNow(),
     updated_at: timestamp("updated_at").notNull().defaultNow(),
   },
-  (table) => [index("org_agent_configs_instance_idx").on(table.instance_id)]
+  (table) => [index("org_agent_configs_instance_idx").on(table.instance_id)],
 );
 
 // =============================================================================
@@ -272,7 +275,7 @@ export const orgAgentActivityLog = pgTable(
     index("org_agent_activity_org_idx").on(table.organization_id),
     index("org_agent_activity_type_idx").on(table.action_type),
     index("org_agent_activity_created_idx").on(table.created_at),
-  ]
+  ],
 );
 
 // =============================================================================
@@ -295,15 +298,18 @@ export const orgAgentInstancesRelations = relations(
       references: [orgAgentConfigs.instance_id],
     }),
     activityLog: many(orgAgentActivityLog),
-  })
+  }),
 );
 
-export const orgAgentConfigsRelations = relations(orgAgentConfigs, ({ one }) => ({
-  instance: one(orgAgentInstances, {
-    fields: [orgAgentConfigs.instance_id],
-    references: [orgAgentInstances.id],
+export const orgAgentConfigsRelations = relations(
+  orgAgentConfigs,
+  ({ one }) => ({
+    instance: one(orgAgentInstances, {
+      fields: [orgAgentConfigs.instance_id],
+      references: [orgAgentInstances.id],
+    }),
   }),
-}));
+);
 
 export const orgAgentActivityLogRelations = relations(
   orgAgentActivityLog,
@@ -316,7 +322,7 @@ export const orgAgentActivityLogRelations = relations(
       fields: [orgAgentActivityLog.organization_id],
       references: [organizations.id],
     }),
-  })
+  }),
 );
 
 // =============================================================================
@@ -330,5 +336,5 @@ export type OrgAgentConfig = typeof orgAgentConfigs.$inferSelect;
 export type NewOrgAgentConfig = typeof orgAgentConfigs.$inferInsert;
 
 export type OrgAgentActivityLogEntry = typeof orgAgentActivityLog.$inferSelect;
-export type NewOrgAgentActivityLogEntry = typeof orgAgentActivityLog.$inferInsert;
-
+export type NewOrgAgentActivityLogEntry =
+  typeof orgAgentActivityLog.$inferInsert;

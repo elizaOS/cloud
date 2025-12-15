@@ -153,13 +153,18 @@ export const CreateWebhookSchema = z.object({
   webhookURL: z.string().url("Webhook URL must be a valid URL"),
   transactionTypes: z.array(TransactionTypeSchema).min(1),
   accountAddresses: z.array(z.string()).min(1),
-  webhookType: z.enum(["enhanced", "raw", "discord"]).optional().default("enhanced"),
+  webhookType: z
+    .enum(["enhanced", "raw", "discord"])
+    .optional()
+    .default("enhanced"),
   txnStatus: z.enum(["all", "success", "failed"]).optional(),
   authHeader: z.string().optional(),
 });
 
 export type ParseTransactionsInput = z.infer<typeof ParseTransactionsSchema>;
-export type GetTransactionHistoryInput = z.infer<typeof GetTransactionHistorySchema>;
+export type GetTransactionHistoryInput = z.infer<
+  typeof GetTransactionHistorySchema
+>;
 export type GetAssetInput = z.infer<typeof GetAssetSchema>;
 export type GetAssetsByOwnerInput = z.infer<typeof GetAssetsByOwnerSchema>;
 export type GetAssetsByGroupInput = z.infer<typeof GetAssetsByGroupSchema>;
@@ -168,4 +173,3 @@ export type GetTokenMetadataInput = z.infer<typeof GetTokenMetadataSchema>;
 export type GetBalancesInput = z.infer<typeof GetBalancesSchema>;
 export type GetPriorityFeeInput = z.infer<typeof GetPriorityFeeSchema>;
 export type CreateWebhookInput = z.infer<typeof CreateWebhookSchema>;
-

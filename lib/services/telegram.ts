@@ -10,9 +10,11 @@ import { telegramBotApiRequest } from "@/lib/utils/telegram-api";
 import { botsService } from "./bots";
 import { secretsService } from "./secrets";
 import { db } from "@/db";
-import { orgPlatformConnections, orgPlatformServers } from "@/db/schemas/org-platforms";
+import {
+  orgPlatformConnections,
+  orgPlatformServers,
+} from "@/db/schemas/org-platforms";
 import { eq, and } from "drizzle-orm";
-
 
 export interface TelegramUser {
   id: number;
@@ -113,7 +115,6 @@ interface TelegramApiResponse<T> {
 
 // Use shared telegramBotApiRequest from @/lib/utils/telegram-api
 
-
 class TelegramService {
   async getMe(token: string): Promise<TelegramUser> {
     return telegramBotApiRequest<TelegramUser>(token, "getMe");
@@ -121,7 +122,7 @@ class TelegramService {
 
   async sendMessage(
     token: string,
-    params: SendMessageParams
+    params: SendMessageParams,
   ): Promise<TelegramMessage> {
     return telegramBotApiRequest<TelegramMessage>(token, "sendMessage", params);
   }
@@ -131,7 +132,7 @@ class TelegramService {
     organizationId: string,
     chatId: number | string,
     text: string,
-    options?: Partial<SendMessageParams>
+    options?: Partial<SendMessageParams>,
   ): Promise<TelegramMessage> {
     const token = await botsService.getBotToken(connectionId, organizationId);
 
@@ -145,7 +146,7 @@ class TelegramService {
   async answerCallbackQuery(
     token: string,
     callbackQueryId: string,
-    options?: { text?: string; show_alert?: boolean }
+    options?: { text?: string; show_alert?: boolean },
   ): Promise<boolean> {
     return telegramBotApiRequest<boolean>(token, "answerCallbackQuery", {
       callback_query_id: callbackQueryId,
@@ -159,7 +160,7 @@ class TelegramService {
     chatId: number | string,
     messageId: number,
     text: string,
-    options?: Partial<SendMessageParams>
+    options?: Partial<SendMessageParams>,
   ): Promise<TelegramMessage | boolean> {
     return telegramBotApiRequest(token, "editMessageText", {
       chat_id: chatId,
@@ -175,29 +176,40 @@ class TelegramService {
     chatId: number | string,
     messageId: number,
     text: string,
-    options?: Partial<SendMessageParams>
+    options?: Partial<SendMessageParams>,
   ): Promise<TelegramMessage | boolean> {
     const token = await botsService.getBotToken(connectionId, organizationId);
     return this.editMessageText(token, chatId, messageId, text, options);
   }
 
   async getChat(token: string, chatId: number | string): Promise<TelegramChat> {
-    return telegramBotApiRequest<TelegramChat>(token, "getChat", { chat_id: chatId });
+    return telegramBotApiRequest<TelegramChat>(token, "getChat", {
+      chat_id: chatId,
+    });
   }
 
-  async getChatMemberCount(token: string, chatId: number | string): Promise<number> {
-    return telegramBotApiRequest<number>(token, "getChatMemberCount", { chat_id: chatId });
+  async getChatMemberCount(
+    token: string,
+    chatId: number | string,
+  ): Promise<number> {
+    return telegramBotApiRequest<number>(token, "getChatMemberCount", {
+      chat_id: chatId,
+    });
   }
 
   async getChatAdministrators(
     token: string,
-    chatId: number | string
+    chatId: number | string,
   ): Promise<Array<{ user: TelegramUser; status: string }>> {
-    return telegramBotApiRequest(token, "getChatAdministrators", { chat_id: chatId });
+    return telegramBotApiRequest(token, "getChatAdministrators", {
+      chat_id: chatId,
+    });
   }
 
   async leaveChat(token: string, chatId: number | string): Promise<boolean> {
-    return telegramBotApiRequest<boolean>(token, "leaveChat", { chat_id: chatId });
+    return telegramBotApiRequest<boolean>(token, "leaveChat", {
+      chat_id: chatId,
+    });
   }
 
   async setWebhook(
@@ -207,7 +219,7 @@ class TelegramService {
       secret_token?: string;
       max_connections?: number;
       allowed_updates?: string[];
-    }
+    },
   ): Promise<boolean> {
     return telegramBotApiRequest<boolean>(token, "setWebhook", {
       url,
@@ -215,7 +227,10 @@ class TelegramService {
     });
   }
 
-  async deleteWebhook(token: string, dropPendingUpdates = false): Promise<boolean> {
+  async deleteWebhook(
+    token: string,
+    dropPendingUpdates = false,
+  ): Promise<boolean> {
     return telegramBotApiRequest<boolean>(token, "deleteWebhook", {
       drop_pending_updates: dropPendingUpdates,
     });
@@ -250,8 +265,8 @@ class TelegramService {
         and(
           eq(orgPlatformConnections.id, server.connection_id),
           eq(orgPlatformConnections.platform, "telegram"),
-          eq(orgPlatformConnections.status, "active")
-        )
+          eq(orgPlatformConnections.status, "active"),
+        ),
       )
       .limit(1);
 
@@ -263,7 +278,7 @@ class TelegramService {
   async setupWebhookForConnection(
     connectionId: string,
     organizationId: string,
-    baseUrl: string
+    baseUrl: string,
   ): Promise<void> {
     const token = await botsService.getBotToken(connectionId, organizationId);
     const botInfo = await this.getMe(token);
@@ -273,21 +288,32 @@ class TelegramService {
 
     await this.setWebhook(token, webhookUrl, {
       secret_token: secretToken,
-      allowed_updates: ["message", "callback_query", "inline_query", "edited_message"],
+      allowed_updates: [
+        "message",
+        "callback_query",
+        "inline_query",
+        "edited_message",
+      ],
     });
 
-    logger.info("[Telegram] Webhook configured", { connectionId, botId, webhookUrl });
+    logger.info("[Telegram] Webhook configured", {
+      connectionId,
+      botId,
+      webhookUrl,
+    });
   }
 
   async listChats(
     connectionId: string,
-    organizationId: string
-  ): Promise<Array<{
-    chatId: string;
-    name: string;
-    memberCount?: number;
-    enabled: boolean;
-  }>> {
+    organizationId: string,
+  ): Promise<
+    Array<{
+      chatId: string;
+      name: string;
+      memberCount?: number;
+      enabled: boolean;
+    }>
+  > {
     const servers = await botsService.getServers(connectionId);
 
     return servers.map((s) => ({
@@ -299,9 +325,10 @@ class TelegramService {
   }
 
   async syncChats(connectionId: string, organizationId: string): Promise<void> {
-    logger.info("[Telegram] Chat sync not fully implemented - chats are added via updates");
+    logger.info(
+      "[Telegram] Chat sync not fully implemented - chats are added via updates",
+    );
   }
 }
 
 export const telegramService = new TelegramService();
-

@@ -1,5 +1,10 @@
 import { logger } from "@/lib/utils/logger";
-import type { CodeAgentRuntime, RuntimeCreateParams, RuntimeInstance, FileEntry } from "../types";
+import type {
+  CodeAgentRuntime,
+  RuntimeCreateParams,
+  RuntimeInstance,
+  FileEntry,
+} from "../types";
 
 interface SandboxHandle {
   id?: string;
@@ -43,7 +48,7 @@ class VercelSandboxInstance implements RuntimeInstance {
   constructor(
     public readonly id: string,
     public readonly url: string | null,
-    private sandbox: SandboxHandle
+    private sandbox: SandboxHandle,
   ) {}
 
   get status(): "running" | "stopped" | "error" {
@@ -91,29 +96,42 @@ class VercelSandboxInstance implements RuntimeInstance {
     // Linux stat format
     let result = await this.sandbox.runCommand({
       cmd: "sh",
-      args: ["-c", `find ${path} -maxdepth 3 \\( -type f -o -type d \\) -exec stat -c '%n|%F|%s|%Y' {} \\; 2>/dev/null | head -200`],
+      args: [
+        "-c",
+        `find ${path} -maxdepth 3 \\( -type f -o -type d \\) -exec stat -c '%n|%F|%s|%Y' {} \\; 2>/dev/null | head -200`,
+      ],
     });
-    
+
     // macOS stat format fallback
     if (result.exitCode !== 0) {
       result = await this.sandbox.runCommand({
         cmd: "sh",
-        args: ["-c", `find ${path} -maxdepth 3 \\( -type f -o -type d \\) -exec stat -f '%N|%HT|%z|%m' {} \\; 2>/dev/null | head -200`],
+        args: [
+          "-c",
+          `find ${path} -maxdepth 3 \\( -type f -o -type d \\) -exec stat -f '%N|%HT|%z|%m' {} \\; 2>/dev/null | head -200`,
+        ],
       });
     }
-    
+
     if (result.exitCode !== 0) return [];
 
-    return (await result.stdout()).split("\n").filter(Boolean).map((line) => {
-      const [filePath, fileType, size, mtime] = line.split("|");
-      const isDir = fileType?.toLowerCase().includes("directory") || fileType === "directory";
-      return {
-        path: filePath,
-        type: isDir ? "directory" : "file",
-        size: isDir ? undefined : parseInt(size || "0", 10),
-        modifiedAt: mtime ? new Date(parseInt(mtime, 10) * 1000).toISOString() : undefined,
-      } as FileEntry;
-    });
+    return (await result.stdout())
+      .split("\n")
+      .filter(Boolean)
+      .map((line) => {
+        const [filePath, fileType, size, mtime] = line.split("|");
+        const isDir =
+          fileType?.toLowerCase().includes("directory") ||
+          fileType === "directory";
+        return {
+          path: filePath,
+          type: isDir ? "directory" : "file",
+          size: isDir ? undefined : parseInt(size || "0", 10),
+          modifiedAt: mtime
+            ? new Date(parseInt(mtime, 10) * 1000).toISOString()
+            : undefined,
+        } as FileEntry;
+      });
   }
 
   async deleteFile(path: string): Promise<void> {
@@ -131,7 +149,7 @@ class VercelSandboxInstance implements RuntimeInstance {
   async runCommand(
     cmd: string,
     args?: string[],
-    options?: { env?: Record<string, string>; cwd?: string; timeout?: number }
+    options?: { env?: Record<string, string>; cwd?: string; timeout?: number },
   ): Promise<{ exitCode: number; stdout: string; stderr: string }> {
     let fullCommand = cmd;
     if (args && args.length > 0) {
@@ -214,7 +232,9 @@ class VercelSandboxInstance implements RuntimeInstance {
     });
 
     if (extractResult.exitCode !== 0) {
-      throw new Error(`Failed to extract archive: ${await extractResult.stderr()}`);
+      throw new Error(
+        `Failed to extract archive: ${await extractResult.stderr()}`,
+      );
     }
   }
 
@@ -224,7 +244,8 @@ class VercelSandboxInstance implements RuntimeInstance {
   }
 }
 
-const DEFAULT_TEMPLATE_URL = "https://github.com/elizaOS/sandbox-template-cloud.git";
+const DEFAULT_TEMPLATE_URL =
+  "https://github.com/elizaOS/sandbox-template-cloud.git";
 const DEFAULT_TIMEOUT_MS = 30 * 60 * 1000;
 
 function getCredentials() {
@@ -252,12 +273,12 @@ export class VercelSandboxRuntime implements CodeAgentRuntime {
   static validateCredentials(): { valid: boolean; missing: string[] } {
     const creds = getCredentials();
     if (creds.hasOIDC) return { valid: true, missing: [] };
-    
+
     const missing: string[] = [];
     if (!process.env.VERCEL_TOKEN) missing.push("VERCEL_TOKEN");
     if (!process.env.VERCEL_TEAM_ID) missing.push("VERCEL_TEAM_ID");
     if (!process.env.VERCEL_PROJECT_ID) missing.push("VERCEL_PROJECT_ID");
-    
+
     return { valid: missing.length === 0, missing };
   }
 
@@ -265,7 +286,7 @@ export class VercelSandboxRuntime implements CodeAgentRuntime {
     const validation = VercelSandboxRuntime.validateCredentials();
     if (!validation.valid) {
       throw new Error(
-        `Vercel Sandbox not configured. Missing: ${validation.missing.join(", ")}`
+        `Vercel Sandbox not configured. Missing: ${validation.missing.join(", ")}`,
       );
     }
 
@@ -307,15 +328,28 @@ export class VercelSandboxRuntime implements CodeAgentRuntime {
     let install = await sandbox.runCommand({ cmd: "pnpm", args: ["install"] });
     if (install.exitCode !== 0) {
       install = await sandbox.runCommand({ cmd: "npm", args: ["install"] });
-      if (install.exitCode !== 0) throw new Error(`Install failed: ${await install.stderr()}`);
+      if (install.exitCode !== 0)
+        throw new Error(`Install failed: ${await install.stderr()}`);
     }
 
     if (params.env && Object.keys(params.env).length > 0) {
-      const envBase64 = Buffer.from(Object.entries(params.env).map(([k, v]) => `${k}=${v}`).join("\n")).toString("base64");
-      await sandbox.runCommand({ cmd: "sh", args: ["-c", `echo "${envBase64}" | base64 -d >> .env.local`] });
+      const envBase64 = Buffer.from(
+        Object.entries(params.env)
+          .map(([k, v]) => `${k}=${v}`)
+          .join("\n"),
+      ).toString("base64");
+      await sandbox.runCommand({
+        cmd: "sh",
+        args: ["-c", `echo "${envBase64}" | base64 -d >> .env.local`],
+      });
     }
 
-    await sandbox.runCommand({ cmd: "sh", args: ["-c", "pnpm dev 2>&1 | tee /tmp/next-dev.log &"], detached: true, env: params.env });
+    await sandbox.runCommand({
+      cmd: "sh",
+      args: ["-c", "pnpm dev 2>&1 | tee /tmp/next-dev.log &"],
+      detached: true,
+      env: params.env,
+    });
     await this.waitForDevServer(sandbox, 3000);
     logger.info("[VercelSandboxRuntime] Ready", { sandboxId, url });
 
@@ -333,25 +367,32 @@ export class VercelSandboxRuntime implements CodeAgentRuntime {
     // Reconnect to existing sandbox (survives serverless cold starts)
     const validation = VercelSandboxRuntime.validateCredentials();
     if (!validation.valid) {
-      throw new Error(`Cannot reconnect: ${validation.missing.join(", ")} not configured`);
+      throw new Error(
+        `Cannot reconnect: ${validation.missing.join(", ")} not configured`,
+      );
     }
 
     const { Sandbox } = await import("@vercel/sandbox");
     const creds = getCredentials();
-    
-    const getParams: { sandboxId: string; token?: string; teamId?: string; projectId?: string } = {
+
+    const getParams: {
+      sandboxId: string;
+      token?: string;
+      teamId?: string;
+      projectId?: string;
+    } = {
       sandboxId: runtimeId,
     };
-    
+
     if (!creds.hasOIDC && creds.hasAccessToken) {
       getParams.token = creds.token!;
       getParams.teamId = creds.teamId!;
       getParams.projectId = creds.projectId!;
     }
 
-    const sandbox = await Sandbox.get(getParams) as SandboxHandle;
+    const sandbox = (await Sandbox.get(getParams)) as SandboxHandle;
     getSandboxRegistry().set(runtimeId, sandbox);
-    
+
     logger.info("[VercelSandboxRuntime] Reconnected to sandbox", { runtimeId });
     const url = sandbox.domain(3000);
     return new VercelSandboxInstance(runtimeId, url, sandbox);
@@ -372,7 +413,14 @@ export class VercelSandboxRuntime implements CodeAgentRuntime {
 
     const result = await sandbox.runCommand({
       cmd: "curl",
-      args: ["-s", "-o", "/dev/null", "-w", "%{http_code}", "http://localhost:3000"],
+      args: [
+        "-s",
+        "-o",
+        "/dev/null",
+        "-w",
+        "%{http_code}",
+        "http://localhost:3000",
+      ],
     });
 
     const statusCode = await result.stdout();
@@ -386,18 +434,28 @@ export class VercelSandboxRuntime implements CodeAgentRuntime {
     }
 
     await sandbox.extendTimeout(durationMs);
-    logger.info("[VercelSandboxRuntime] Timeout extended", { runtimeId, durationMs });
+    logger.info("[VercelSandboxRuntime] Timeout extended", {
+      runtimeId,
+      durationMs,
+    });
   }
 
   private async waitForDevServer(
     sandbox: SandboxHandle,
     port: number,
-    maxAttempts = 45
+    maxAttempts = 45,
   ): Promise<void> {
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       const result = await sandbox.runCommand({
         cmd: "curl",
-        args: ["-s", "-o", "/dev/null", "-w", "%{http_code}", `http://localhost:${port}`],
+        args: [
+          "-s",
+          "-o",
+          "/dev/null",
+          "-w",
+          "%{http_code}",
+          `http://localhost:${port}`,
+        ],
       });
 
       const statusCode = await result.stdout();
@@ -413,4 +471,3 @@ export class VercelSandboxRuntime implements CodeAgentRuntime {
 }
 
 export const vercelSandboxRuntime = new VercelSandboxRuntime();
-

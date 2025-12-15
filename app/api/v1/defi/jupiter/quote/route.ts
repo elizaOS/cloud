@@ -23,7 +23,10 @@ export async function GET(request: Request) {
   });
 
   if (!parsed.success) {
-    return NextResponse.json({ error: "Invalid parameters", details: parsed.error.format() }, { status: 400 });
+    return NextResponse.json(
+      { error: "Invalid parameters", details: parsed.error.format() },
+      { status: 400 },
+    );
   }
 
   const result = await fetchJupiterQuote(parsed.data);

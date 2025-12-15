@@ -154,10 +154,16 @@ export default function AdminPage() {
   const [violations, setViolations] = useState<Violation[]>([]);
 
   // Content moderation state
-  const [contentStats, setContentStats] = useState<ContentModerationStats | null>(null);
-  const [pendingContent, setPendingContent] = useState<ContentModerationItem[]>([]);
-  const [usersWithStrikes, setUsersWithStrikes] = useState<UserWithStrikes[]>([]);
-  const [reviewingItem, setReviewingItem] = useState<ContentModerationItem | null>(null);
+  const [contentStats, setContentStats] =
+    useState<ContentModerationStats | null>(null);
+  const [pendingContent, setPendingContent] = useState<ContentModerationItem[]>(
+    [],
+  );
+  const [usersWithStrikes, setUsersWithStrikes] = useState<UserWithStrikes[]>(
+    [],
+  );
+  const [reviewingItem, setReviewingItem] =
+    useState<ContentModerationItem | null>(null);
 
   // Dialog states
   const [addAdminOpen, setAddAdminOpen] = useState(false);
@@ -263,7 +269,9 @@ export default function AdminPage() {
 
   // Load pending content for review
   const loadPendingContent = useCallback(async () => {
-    const response = await fetch("/api/v1/admin/content-moderation?view=pending&limit=50");
+    const response = await fetch(
+      "/api/v1/admin/content-moderation?view=pending&limit=50",
+    );
     if (!response.ok) {
       toast.error("Failed to load pending content");
       return;
@@ -273,21 +281,26 @@ export default function AdminPage() {
   }, []);
 
   // Review content item
-  const reviewContent = useCallback(async (itemId: string, decision: "confirm" | "dismiss" | "escalate") => {
-    const response = await fetch("/api/v1/admin/content-moderation", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "review", itemId, decision }),
-    });
-    if (!response.ok) {
-      toast.error("Failed to review content");
-      return;
-    }
-    toast.success(`Content ${decision === "dismiss" ? "cleared" : decision === "confirm" ? "removed" : "escalated"}`);
-    setReviewingItem(null);
-    loadPendingContent();
-    loadContentStats();
-  }, [loadPendingContent, loadContentStats]);
+  const reviewContent = useCallback(
+    async (itemId: string, decision: "confirm" | "dismiss" | "escalate") => {
+      const response = await fetch("/api/v1/admin/content-moderation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "review", itemId, decision }),
+      });
+      if (!response.ok) {
+        toast.error("Failed to review content");
+        return;
+      }
+      toast.success(
+        `Content ${decision === "dismiss" ? "cleared" : decision === "confirm" ? "removed" : "escalated"}`,
+      );
+      setReviewingItem(null);
+      loadPendingContent();
+      loadContentStats();
+    },
+    [loadPendingContent, loadContentStats],
+  );
 
   // Load user detail
   const loadUserDetail = useCallback(async (userId: string) => {
@@ -455,7 +468,13 @@ export default function AdminPage() {
             <AlertTriangle className="mr-2 h-4 w-4" />
             Violations
           </TabsTrigger>
-          <TabsTrigger value="content" onClick={() => { loadContentStats(); loadPendingContent(); }}>
+          <TabsTrigger
+            value="content"
+            onClick={() => {
+              loadContentStats();
+              loadPendingContent();
+            }}
+          >
             <ImageIcon className="mr-2 h-4 w-4" />
             Content
           </TabsTrigger>
@@ -562,7 +581,9 @@ export default function AdminPage() {
                   <Clock className="h-4 w-4 text-yellow-500" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{contentStats.pending}</div>
+                  <div className="text-2xl font-bold">
+                    {contentStats.pending}
+                  </div>
                 </CardContent>
               </Card>
               <Card>
@@ -571,7 +592,9 @@ export default function AdminPage() {
                   <FileWarning className="h-4 w-4 text-orange-500" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{contentStats.flagged}</div>
+                  <div className="text-2xl font-bold">
+                    {contentStats.flagged}
+                  </div>
                 </CardContent>
               </Card>
               <Card>
@@ -580,7 +603,9 @@ export default function AdminPage() {
                   <Trash2 className="h-4 w-4 text-red-500" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{contentStats.deleted}</div>
+                  <div className="text-2xl font-bold">
+                    {contentStats.deleted}
+                  </div>
                 </CardContent>
               </Card>
               <Card>
@@ -599,12 +624,14 @@ export default function AdminPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-xs space-y-1">
-                    {Object.entries(contentStats.byType).map(([type, count]) => (
-                      <div key={type} className="flex justify-between">
-                        <span className="capitalize">{type}</span>
-                        <span className="font-medium">{count}</span>
-                      </div>
-                    ))}
+                    {Object.entries(contentStats.byType).map(
+                      ([type, count]) => (
+                        <div key={type} className="flex justify-between">
+                          <span className="capitalize">{type}</span>
+                          <span className="font-medium">{count}</span>
+                        </div>
+                      ),
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -643,7 +670,11 @@ export default function AdminPage() {
                           {item.flags.map((flag, i) => (
                             <Badge
                               key={i}
-                              variant={flag.severity === "critical" ? "destructive" : "secondary"}
+                              variant={
+                                flag.severity === "critical"
+                                  ? "destructive"
+                                  : "secondary"
+                              }
                               className="text-xs"
                             >
                               {flag.type}
@@ -715,15 +746,21 @@ export default function AdminPage() {
                         <div className="flex gap-2 text-xs text-muted-foreground">
                           <span>{user.strikeCount} strikes</span>
                           <span>•</span>
-                          <span>Last: {new Date(user.lastStrikeAt).toLocaleDateString()}</span>
+                          <span>
+                            Last:{" "}
+                            {new Date(user.lastStrikeAt).toLocaleDateString()}
+                          </span>
                         </div>
                       </div>
                       <Badge
                         variant={
-                          user.riskLevel === "critical" ? "destructive" :
-                          user.riskLevel === "high" ? "destructive" :
-                          user.riskLevel === "medium" ? "secondary" :
-                          "outline"
+                          user.riskLevel === "critical"
+                            ? "destructive"
+                            : user.riskLevel === "high"
+                              ? "destructive"
+                              : user.riskLevel === "medium"
+                                ? "secondary"
+                                : "outline"
                         }
                       >
                         {user.riskLevel}
@@ -1117,7 +1154,10 @@ export default function AdminPage() {
       </Dialog>
 
       {/* Content Review Dialog */}
-      <Dialog open={!!reviewingItem} onOpenChange={() => setReviewingItem(null)}>
+      <Dialog
+        open={!!reviewingItem}
+        onOpenChange={() => setReviewingItem(null)}
+      >
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Review Content</DialogTitle>
@@ -1133,22 +1173,23 @@ export default function AdminPage() {
                     {reviewingItem.contentType}
                   </Badge>
                   <span className="text-xs text-muted-foreground">
-                    {reviewingItem.sourceTable} / {reviewingItem.sourceId.slice(0, 8)}...
+                    {reviewingItem.sourceTable} /{" "}
+                    {reviewingItem.sourceId.slice(0, 8)}...
                   </span>
                 </div>
                 {reviewingItem.contentUrl && (
                   <div className="mb-4">
                     {reviewingItem.contentType === "image" ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img 
-                        src={reviewingItem.contentUrl} 
+                      <img
+                        src={reviewingItem.contentUrl}
                         alt="Flagged content"
                         className="max-w-full max-h-[300px] rounded border"
                       />
                     ) : (
-                      <a 
-                        href={reviewingItem.contentUrl} 
-                        target="_blank" 
+                      <a
+                        href={reviewingItem.contentUrl}
+                        target="_blank"
                         rel="noopener noreferrer"
                         className="text-blue-500 hover:underline text-sm"
                       >
@@ -1162,12 +1203,17 @@ export default function AdminPage() {
                   {reviewingItem.flags.map((flag, i) => (
                     <div key={i} className="flex items-center gap-2 text-sm">
                       <Badge
-                        variant={flag.severity === "critical" ? "destructive" : "secondary"}
+                        variant={
+                          flag.severity === "critical"
+                            ? "destructive"
+                            : "secondary"
+                        }
                       >
                         {flag.type}
                       </Badge>
                       <span className="text-muted-foreground">
-                        {flag.severity} severity • {(flag.confidence * 100).toFixed(0)}% confidence
+                        {flag.severity} severity •{" "}
+                        {(flag.confidence * 100).toFixed(0)}% confidence
                       </span>
                     </div>
                   ))}

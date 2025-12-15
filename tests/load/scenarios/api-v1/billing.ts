@@ -15,11 +15,16 @@ export function getBillingUsage(days = 30) {
 }
 
 export function listPaymentMethods(): unknown[] {
-  return billingGet<{ paymentMethods: unknown[] }>("/api/payment-methods/list")?.paymentMethods ?? [];
+  return (
+    billingGet<{ paymentMethods: unknown[] }>("/api/payment-methods/list")
+      ?.paymentMethods ?? []
+  );
 }
 
 export function listInvoices(): unknown[] {
-  return billingGet<{ invoices: unknown[] }>("/api/invoices/list")?.invoices ?? [];
+  return (
+    billingGet<{ invoices: unknown[] }>("/api/invoices/list")?.invoices ?? []
+  );
 }
 
 export function getAutoTopUpSettings() {

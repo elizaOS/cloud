@@ -19,6 +19,8 @@ import {
 } from "@/db/schemas";
 import { eq, desc, and, sql, gte } from "drizzle-orm";
 import { logger } from "@/lib/utils/logger";
+import { cache } from "@/lib/cache/client";
+import { CacheKeys, CacheTTL } from "@/lib/cache/keys";
 
 // Default anvil wallet - admin in devnet only
 const ANVIL_DEFAULT_WALLET = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
@@ -36,25 +38,50 @@ type ModerationAction = "refused" | "warned" | "flagged_for_ban" | "banned";
 
 class AdminService {
   /**
+   * Get admin status and role in a single cached call.
+   * This is the preferred method for checking admin access as it:
+   * 1. Makes only ONE database query instead of two
+   * 2. Caches the result for 5 minutes to reduce DB load
+   */
+  async getAdminStatus(
+    walletAddress: string,
+  ): Promise<{ isAdmin: boolean; role: AdminRole | null }> {
+    const normalizedWallet = walletAddress.toLowerCase();
+
+    // In devnet, the default anvil wallet is always super_admin
+    if (isDevnet() && normalizedWallet === ANVIL_DEFAULT_WALLET.toLowerCase()) {
+      return { isAdmin: true, role: "super_admin" };
+    }
+
+    const cacheKey = CacheKeys.admin.status(normalizedWallet);
+
+    // Use cache with SWR pattern - returns stale data while revalidating
+    const result = await cache.getWithSWR<{
+      isAdmin: boolean;
+      role: AdminRole | null;
+    }>(cacheKey, CacheTTL.admin.status, async () => {
+      const admin = await db.query.adminUsers.findFirst({
+        where: and(
+          eq(adminUsers.walletAddress, normalizedWallet),
+          eq(adminUsers.isActive, true),
+        ),
+      });
+
+      return {
+        isAdmin: !!admin,
+        role: (admin?.role as AdminRole) ?? null,
+      };
+    });
+
+    return result ?? { isAdmin: false, role: null };
+  }
+
+  /**
    * Check if a wallet address is an admin
    */
   async isAdmin(walletAddress: string): Promise<boolean> {
-    // In devnet, the default anvil wallet is always admin
-    if (
-      isDevnet() &&
-      walletAddress.toLowerCase() === ANVIL_DEFAULT_WALLET.toLowerCase()
-    ) {
-      return true;
-    }
-
-    const admin = await db.query.adminUsers.findFirst({
-      where: and(
-        eq(adminUsers.walletAddress, walletAddress.toLowerCase()),
-        eq(adminUsers.isActive, true),
-      ),
-    });
-
-    return !!admin;
+    const { isAdmin } = await this.getAdminStatus(walletAddress);
+    return isAdmin;
   }
 
   /**
@@ -76,22 +103,8 @@ class AdminService {
    * Get admin role for a wallet address
    */
   async getAdminRole(walletAddress: string): Promise<AdminRole | null> {
-    // In devnet, the default anvil wallet is super_admin
-    if (
-      isDevnet() &&
-      walletAddress.toLowerCase() === ANVIL_DEFAULT_WALLET.toLowerCase()
-    ) {
-      return "super_admin";
-    }
-
-    const admin = await db.query.adminUsers.findFirst({
-      where: and(
-        eq(adminUsers.walletAddress, walletAddress.toLowerCase()),
-        eq(adminUsers.isActive, true),
-      ),
-    });
-
-    return admin?.role ?? null;
+    const { role } = await this.getAdminStatus(walletAddress);
+    return role;
   }
 
   /**

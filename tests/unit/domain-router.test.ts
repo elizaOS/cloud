@@ -49,7 +49,8 @@ const { domainRouterService } = await import("@/lib/services/domain-router");
 function createMockRequest(url: string, method = "GET"): NextRequest {
   const nextUrl = new URL(url);
   // Add clone method that NextRequest.nextUrl has
-  (nextUrl as URL & { clone: () => URL }).clone = () => new URL(nextUrl.toString());
+  (nextUrl as URL & { clone: () => URL }).clone = () =>
+    new URL(nextUrl.toString());
   return {
     method,
     url,
@@ -73,7 +74,7 @@ describe("Domain Lookup", () => {
     const result = await domainRouterService.routeCustomDomain(
       request,
       "unknown.example.com",
-      "/"
+      "/",
     );
 
     expect(result.success).toBe(false);
@@ -93,7 +94,7 @@ describe("Domain Lookup", () => {
     const result = await domainRouterService.routeCustomDomain(
       request,
       "suspended.com",
-      "/"
+      "/",
     );
 
     expect(result.success).toBe(false);
@@ -113,7 +114,7 @@ describe("Domain Lookup", () => {
     const result = await domainRouterService.routeCustomDomain(
       request,
       "pending.com",
-      "/"
+      "/",
     );
 
     expect(result.success).toBe(false);
@@ -134,7 +135,7 @@ describe("Domain Lookup", () => {
     const result = await domainRouterService.routeCustomDomain(
       request,
       "moderated.com",
-      "/"
+      "/",
     );
 
     expect(result.success).toBe(false);
@@ -155,7 +156,7 @@ describe("Domain Lookup", () => {
     const result = await domainRouterService.routeCustomDomain(
       request,
       "unassigned.com",
-      "/"
+      "/",
     );
 
     expect(result.success).toBe(false);
@@ -184,7 +185,7 @@ describe("App Routing", () => {
     const result = await domainRouterService.routeCustomDomain(
       request,
       "myapp.com",
-      "/page"
+      "/page",
     );
 
     expect(result.success).toBe(true);
@@ -219,7 +220,7 @@ describe("Container Routing", () => {
     const result = await domainRouterService.routeCustomDomain(
       request,
       "container.com",
-      "/api/health"
+      "/api/health",
     );
 
     expect(result.success).toBe(true);
@@ -243,7 +244,7 @@ describe("Container Routing", () => {
     const result = await domainRouterService.routeCustomDomain(
       request,
       "container.com",
-      "/"
+      "/",
     );
 
     expect(result.success).toBe(false);
@@ -272,7 +273,7 @@ describe("Container Routing", () => {
     const result = await domainRouterService.routeCustomDomain(
       request,
       "container.com",
-      "/"
+      "/",
     );
 
     expect(result.success).toBe(false);
@@ -301,7 +302,7 @@ describe("Container Routing", () => {
     const result = await domainRouterService.routeCustomDomain(
       request,
       "container.com",
-      "/"
+      "/",
     );
 
     expect(result.success).toBe(false);
@@ -335,7 +336,7 @@ describe("Agent Routing", () => {
     const result = await domainRouterService.routeCustomDomain(
       request,
       "agent.ai",
-      "/a2a/tasks"
+      "/a2a/tasks",
     );
 
     expect(result.success).toBe(true);
@@ -362,7 +363,7 @@ describe("Agent Routing", () => {
     const result = await domainRouterService.routeCustomDomain(
       request,
       "agent.ai",
-      "/mcp/tools"
+      "/mcp/tools",
     );
 
     expect(result.success).toBe(true);
@@ -384,11 +385,13 @@ describe("Agent Routing", () => {
       name: "Test Agent",
     });
 
-    const request = createMockRequest("https://agent.ai/.well-known/agent.json");
+    const request = createMockRequest(
+      "https://agent.ai/.well-known/agent.json",
+    );
     const result = await domainRouterService.routeCustomDomain(
       request,
       "agent.ai",
-      "/.well-known/agent.json"
+      "/.well-known/agent.json",
     );
 
     expect(result.success).toBe(true);
@@ -414,7 +417,7 @@ describe("Agent Routing", () => {
     const result = await domainRouterService.routeCustomDomain(
       request,
       "agent.ai",
-      "/"
+      "/",
     );
 
     expect(result.success).toBe(true);
@@ -437,7 +440,7 @@ describe("Agent Routing", () => {
     const result = await domainRouterService.routeCustomDomain(
       request,
       "agent.ai",
-      "/"
+      "/",
     );
 
     expect(result.success).toBe(false);
@@ -480,7 +483,7 @@ describe("MCP Routing", () => {
     const result = await domainRouterService.routeCustomDomain(
       request,
       "mcp.tools",
-      "/list"
+      "/list",
     );
 
     expect(result.success).toBe(true);
@@ -508,7 +511,7 @@ describe("MCP Routing", () => {
     const result = await domainRouterService.routeCustomDomain(
       request,
       "mcp.tools",
-      "/tools"
+      "/tools",
     );
 
     expect(result.success).toBe(true);
@@ -531,7 +534,7 @@ describe("MCP Routing", () => {
     const result = await domainRouterService.routeCustomDomain(
       request,
       "mcp.tools",
-      "/"
+      "/",
     );
 
     expect(result.success).toBe(false);
@@ -565,7 +568,7 @@ describe("MCP Routing", () => {
     const result = await domainRouterService.routeCustomDomain(
       request,
       "mcp.tools",
-      "/"
+      "/",
     );
 
     expect(result.success).toBe(false);
@@ -593,7 +596,7 @@ describe("MCP Routing", () => {
     const result = await domainRouterService.routeCustomDomain(
       request,
       "mcp.tools",
-      "/"
+      "/",
     );
 
     expect(result.success).toBe(false);
@@ -645,15 +648,14 @@ describe("Query String Handling", () => {
     });
 
     const request = createMockRequest(
-      "https://api.example.com/search?q=test&page=2"
+      "https://api.example.com/search?q=test&page=2",
     );
     const result = await domainRouterService.routeCustomDomain(
       request,
       "api.example.com",
-      "/search"
+      "/search",
     );
 
     expect(result.success).toBe(true);
   });
 });
-

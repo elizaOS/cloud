@@ -13,9 +13,16 @@ const CreateSchema = z.object({
 export async function GET(request: NextRequest) {
   try {
     const { app, audit } = await getAppContext(request);
-    const secrets = await secretsService.getAppSecrets(app.id, app.organization_id, audit);
+    const secrets = await secretsService.getAppSecrets(
+      app.id,
+      app.organization_id,
+      audit,
+    );
     return NextResponse.json({
-      secrets: Object.entries(secrets).map(([name, value]) => ({ name, value })),
+      secrets: Object.entries(secrets).map(([name, value]) => ({
+        name,
+        value,
+      })),
     });
   } catch (error) {
     return handleSecretsError(error, "App Secrets");
@@ -27,22 +34,34 @@ export async function POST(request: NextRequest) {
     const { app, user, audit } = await getAppContext(request);
     const parsed = CreateSchema.safeParse(await request.json());
     if (!parsed.success) {
-      return NextResponse.json({ error: "Invalid request", details: parsed.error.format() }, { status: 400 });
+      return NextResponse.json(
+        { error: "Invalid request", details: parsed.error.format() },
+        { status: 400 },
+      );
     }
 
-    const secret = await secretsService.create({
-      organizationId: app.organization_id,
-      name: parsed.data.name,
-      value: parsed.data.value,
-      description: parsed.data.description,
-      scope: "project",
-      projectId: app.id,
-      projectType: "app",
-      createdBy: user.id,
-    }, audit);
+    const secret = await secretsService.create(
+      {
+        organizationId: app.organization_id,
+        name: parsed.data.name,
+        value: parsed.data.value,
+        description: parsed.data.description,
+        scope: "project",
+        projectId: app.id,
+        projectType: "app",
+        createdBy: user.id,
+      },
+      audit,
+    );
 
-    logger.info("[App Secrets] Created", { name: parsed.data.name, appId: app.id });
-    return NextResponse.json({ id: secret.id, name: secret.name }, { status: 201 });
+    logger.info("[App Secrets] Created", {
+      name: parsed.data.name,
+      appId: app.id,
+    });
+    return NextResponse.json(
+      { id: secret.id, name: secret.name },
+      { status: 201 },
+    );
   } catch (error) {
     return handleSecretsError(error, "App Secrets");
   }

@@ -40,4 +40,3 @@ export class SeoProviderCallsRepository {
 }
 
 export const seoProviderCallsRepository = new SeoProviderCallsRepository();
-

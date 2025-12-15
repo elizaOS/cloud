@@ -35,7 +35,7 @@ interface RouteParams {
 async function getGalleryItemUrl(
   id: string,
   source: "generation" | "upload",
-  organizationId: string
+  organizationId: string,
 ): Promise<string | null> {
   if (source === "generation") {
     const generation = await generationsService.getById(id);
@@ -66,10 +66,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     character.organization_id !== user.organization_id ||
     character.user_id !== user.id
   ) {
-    return NextResponse.json(
-      { error: "Character not found" },
-      { status: 404 }
-    );
+    return NextResponse.json({ error: "Character not found" }, { status: 404 });
   }
 
   const body = await request.json();
@@ -78,7 +75,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   if (!parsed.success) {
     return NextResponse.json(
       { error: "Invalid request", details: parsed.error.flatten() },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -91,12 +88,12 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     const url = await getGalleryItemUrl(
       parsed.data.avatarFromGallery.id,
       parsed.data.avatarFromGallery.source,
-      user.organization_id!
+      user.organization_id!,
     );
     if (!url) {
       return NextResponse.json(
         { error: "Avatar gallery item not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
     updates.avatar_url = url;
@@ -110,12 +107,12 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     const url = await getGalleryItemUrl(
       parsed.data.coverImageFromGallery.id,
       parsed.data.coverImageFromGallery.source,
-      user.organization_id!
+      user.organization_id!,
     );
     if (!url) {
       return NextResponse.json(
         { error: "Cover image gallery item not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
     coverImageUrl = url;
@@ -160,10 +157,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     character.organization_id !== user.organization_id ||
     character.user_id !== user.id
   ) {
-    return NextResponse.json(
-      { error: "Character not found" },
-      { status: 404 }
-    );
+    return NextResponse.json({ error: "Character not found" }, { status: 404 });
   }
 
   const settings = character.settings as Record<string, unknown>;

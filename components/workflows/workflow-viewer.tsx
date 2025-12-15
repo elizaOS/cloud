@@ -30,7 +30,11 @@ interface WorkflowViewerProps {
   onTest: (workflow: Workflow) => void;
 }
 
-export function WorkflowViewer({ workflowId, onBack, onTest }: WorkflowViewerProps) {
+export function WorkflowViewer({
+  workflowId,
+  onBack,
+  onTest,
+}: WorkflowViewerProps) {
   const [workflow, setWorkflow] = useState<Workflow | null>(null);
   const [versions, setVersions] = useState<WorkflowVersion[]>([]);
   const [executions, setExecutions] = useState<WorkflowExecution[]>([]);
@@ -56,7 +60,9 @@ export function WorkflowViewer({ workflowId, onBack, onTest }: WorkflowViewerPro
   }, [workflowId]);
 
   const fetchVersions = useCallback(async () => {
-    const response = await fetch(`/api/v1/n8n/workflows/${workflowId}/versions`);
+    const response = await fetch(
+      `/api/v1/n8n/workflows/${workflowId}/versions`,
+    );
     if (response.ok) {
       const data = await response.json();
       setVersions(data.versions || []);
@@ -64,7 +70,9 @@ export function WorkflowViewer({ workflowId, onBack, onTest }: WorkflowViewerPro
   }, [workflowId]);
 
   const fetchExecutions = useCallback(async () => {
-    const response = await fetch(`/api/v1/n8n/workflows/${workflowId}/executions`);
+    const response = await fetch(
+      `/api/v1/n8n/workflows/${workflowId}/executions`,
+    );
     if (response.ok) {
       const data = await response.json();
       setExecutions(data.executions || []);
@@ -81,7 +89,9 @@ export function WorkflowViewer({ workflowId, onBack, onTest }: WorkflowViewerPro
 
   function copyWorkflowJson() {
     if (workflow?.workflowData) {
-      navigator.clipboard.writeText(JSON.stringify(workflow.workflowData, null, 2));
+      navigator.clipboard.writeText(
+        JSON.stringify(workflow.workflowData, null, 2),
+      );
       toast.success("Workflow JSON copied to clipboard");
     }
   }
@@ -137,20 +147,30 @@ export function WorkflowViewer({ workflowId, onBack, onTest }: WorkflowViewerPro
           </Button>
           <div>
             <div className="flex items-center gap-3">
-              <h2 className="text-xl font-semibold text-white">{workflow.name}</h2>
-              <Badge variant="outline" className={`text-xs ${getStatusColor(workflow.status)}`}>
+              <h2 className="text-xl font-semibold text-white">
+                {workflow.name}
+              </h2>
+              <Badge
+                variant="outline"
+                className={`text-xs ${getStatusColor(workflow.status)}`}
+              >
                 {workflow.status}
               </Badge>
               <span className="text-xs text-white/40">v{workflow.version}</span>
             </div>
             {workflow.description && (
-              <p className="text-sm text-white/60 mt-1">{workflow.description}</p>
+              <p className="text-sm text-white/60 mt-1">
+                {workflow.description}
+              </p>
             )}
           </div>
         </div>
 
         <div className="flex items-center gap-2">
-          <BrandButton variant="secondary" onClick={() => setShowChatEditor(true)}>
+          <BrandButton
+            variant="secondary"
+            onClick={() => setShowChatEditor(true)}
+          >
             <Sparkles className="h-4 w-4 mr-2" />
             Edit with AI
           </BrandButton>
@@ -163,23 +183,38 @@ export function WorkflowViewer({ workflowId, onBack, onTest }: WorkflowViewerPro
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="bg-white/5 border border-white/10">
-          <TabsTrigger value="overview" className="data-[state=active]:bg-[#FF5800]">
+          <TabsTrigger
+            value="overview"
+            className="data-[state=active]:bg-[#FF5800]"
+          >
             <Settings className="h-4 w-4 mr-2" />
             Overview
           </TabsTrigger>
-          <TabsTrigger value="triggers" className="data-[state=active]:bg-[#FF5800]">
+          <TabsTrigger
+            value="triggers"
+            className="data-[state=active]:bg-[#FF5800]"
+          >
             <Zap className="h-4 w-4 mr-2" />
             Triggers
           </TabsTrigger>
-          <TabsTrigger value="code" className="data-[state=active]:bg-[#FF5800]">
+          <TabsTrigger
+            value="code"
+            className="data-[state=active]:bg-[#FF5800]"
+          >
             <Code className="h-4 w-4 mr-2" />
             JSON
           </TabsTrigger>
-          <TabsTrigger value="versions" className="data-[state=active]:bg-[#FF5800]">
+          <TabsTrigger
+            value="versions"
+            className="data-[state=active]:bg-[#FF5800]"
+          >
             <History className="h-4 w-4 mr-2" />
             Versions
           </TabsTrigger>
-          <TabsTrigger value="executions" className="data-[state=active]:bg-[#FF5800]">
+          <TabsTrigger
+            value="executions"
+            className="data-[state=active]:bg-[#FF5800]"
+          >
             <Activity className="h-4 w-4 mr-2" />
             Executions
           </TabsTrigger>
@@ -190,7 +225,9 @@ export function WorkflowViewer({ workflowId, onBack, onTest }: WorkflowViewerPro
             <BrandCard>
               <CornerBrackets size="sm" className="opacity-20" />
               <div className="relative z-10 p-6 space-y-4">
-                <h3 className="text-lg font-semibold text-white">Workflow Details</h3>
+                <h3 className="text-lg font-semibold text-white">
+                  Workflow Details
+                </h3>
                 <div className="space-y-3">
                   <div className="flex justify-between text-sm">
                     <span className="text-white/40">Created</span>
@@ -215,16 +252,25 @@ export function WorkflowViewer({ workflowId, onBack, onTest }: WorkflowViewerPro
             <BrandCard>
               <CornerBrackets size="sm" className="opacity-20" />
               <div className="relative z-10 p-6 space-y-4">
-                <h3 className="text-lg font-semibold text-white">Workflow Nodes</h3>
+                <h3 className="text-lg font-semibold text-white">
+                  Workflow Nodes
+                </h3>
                 <div className="space-y-2">
                   {Array.isArray(workflow.workflowData?.nodes) ? (
-                    (workflow.workflowData.nodes as Array<{name: string; type: string}>).map((node, i) => (
+                    (
+                      workflow.workflowData.nodes as Array<{
+                        name: string;
+                        type: string;
+                      }>
+                    ).map((node, i) => (
                       <div
                         key={i}
                         className="flex items-center gap-3 p-2 rounded-lg bg-white/5"
                       >
                         <div className="w-2 h-2 rounded-full bg-[#FF5800]" />
-                        <span className="text-sm text-white/80">{node.name}</span>
+                        <span className="text-sm text-white/80">
+                          {node.name}
+                        </span>
                         <span className="text-xs text-white/40 ml-auto">
                           {node.type}
                         </span>
@@ -240,7 +286,10 @@ export function WorkflowViewer({ workflowId, onBack, onTest }: WorkflowViewerPro
         </TabsContent>
 
         <TabsContent value="triggers" className="mt-6">
-          <WorkflowTriggers workflowId={workflowId} workflowName={workflow.name} />
+          <WorkflowTriggers
+            workflowId={workflowId}
+            workflowName={workflow.name}
+          />
         </TabsContent>
 
         <TabsContent value="code" className="mt-6">
@@ -248,7 +297,9 @@ export function WorkflowViewer({ workflowId, onBack, onTest }: WorkflowViewerPro
             <CornerBrackets size="sm" className="opacity-20" />
             <div className="relative z-10 p-6 space-y-4">
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-white">Workflow JSON</h3>
+                <h3 className="text-lg font-semibold text-white">
+                  Workflow JSON
+                </h3>
                 <Button
                   variant="ghost"
                   size="sm"
@@ -272,7 +323,9 @@ export function WorkflowViewer({ workflowId, onBack, onTest }: WorkflowViewerPro
           <BrandCard>
             <CornerBrackets size="sm" className="opacity-20" />
             <div className="relative z-10 p-6 space-y-4">
-              <h3 className="text-lg font-semibold text-white">Version History</h3>
+              <h3 className="text-lg font-semibold text-white">
+                Version History
+              </h3>
               {versions.length > 0 ? (
                 <div className="space-y-3">
                   {versions.map((version) => (
@@ -282,14 +335,17 @@ export function WorkflowViewer({ workflowId, onBack, onTest }: WorkflowViewerPro
                     >
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-full bg-[#FF5800]/20 flex items-center justify-center">
-                          <span className="text-sm text-[#FF5800]">v{version.version}</span>
+                          <span className="text-sm text-[#FF5800]">
+                            v{version.version}
+                          </span>
                         </div>
                         <div>
                           <p className="text-sm text-white/80">
                             {version.changes_summary || "No summary"}
                           </p>
                           <p className="text-xs text-white/40">
-                            {formatDistanceToNow(new Date(version.created_at))} ago
+                            {formatDistanceToNow(new Date(version.created_at))}{" "}
+                            ago
                           </p>
                         </div>
                       </div>
@@ -309,7 +365,9 @@ export function WorkflowViewer({ workflowId, onBack, onTest }: WorkflowViewerPro
           <BrandCard>
             <CornerBrackets size="sm" className="opacity-20" />
             <div className="relative z-10 p-6 space-y-4">
-              <h3 className="text-lg font-semibold text-white">Execution History</h3>
+              <h3 className="text-lg font-semibold text-white">
+                Execution History
+              </h3>
               {executions.length > 0 ? (
                 <div className="space-y-3">
                   {executions.map((execution) => (
@@ -323,8 +381,8 @@ export function WorkflowViewer({ workflowId, onBack, onTest }: WorkflowViewerPro
                             execution.status === "completed"
                               ? "bg-green-400"
                               : execution.status === "failed"
-                              ? "bg-red-400"
-                              : "bg-yellow-400"
+                                ? "bg-red-400"
+                                : "bg-yellow-400"
                           }`}
                         />
                         <div>
@@ -333,8 +391,12 @@ export function WorkflowViewer({ workflowId, onBack, onTest }: WorkflowViewerPro
                               execution.status.slice(1)}
                           </p>
                           <p className="text-xs text-white/40">
-                            {formatDistanceToNow(new Date(execution.started_at))} ago
-                            {execution.duration_ms && ` • ${execution.duration_ms}ms`}
+                            {formatDistanceToNow(
+                              new Date(execution.started_at),
+                            )}{" "}
+                            ago
+                            {execution.duration_ms &&
+                              ` • ${execution.duration_ms}ms`}
                           </p>
                         </div>
                       </div>

@@ -107,8 +107,39 @@ export const CacheKeys = {
   codeAgent: {
     session: (sessionId: string) => `code_agent:session:${sessionId}:v1`,
     list: (orgId: string) => `code_agent:list:${orgId}:v1`,
-    analytics: (orgId: string, range: string) => `code_agent:analytics:${orgId}:${range}:v1`,
+    analytics: (orgId: string, range: string) =>
+      `code_agent:analytics:${orgId}:${range}:v1`,
     pattern: (orgId: string) => `code_agent:*:${orgId}:*`,
+  },
+  /**
+   * Admin cache keys
+   * Used for caching admin status lookups to reduce DB load
+   */
+  admin: {
+    /** Cache admin status by wallet address (isAdmin + role) */
+    status: (walletAddress: string) =>
+      `admin:status:${walletAddress.toLowerCase()}:v1`,
+    pattern: () => `admin:*`,
+  },
+  /**
+   * Gallery cache keys
+   * Used for caching gallery media items and stats
+   */
+  gallery: {
+    /** Cache gallery items by org/user and filter options */
+    items: (orgId: string, userId: string, filterHash: string) =>
+      `gallery:items:${orgId}:${userId}:${filterHash}:v1`,
+    /** Cache gallery stats by org/user */
+    stats: (orgId: string, userId: string) =>
+      `gallery:stats:${orgId}:${userId}:v1`,
+    /** Cache collections by org/user */
+    collections: (orgId: string, userId: string) =>
+      `gallery:collections:${orgId}:${userId}:v1`,
+    /** Pattern for invalidating all gallery cache for an org */
+    orgPattern: (orgId: string) => `gallery:*:${orgId}:*`,
+    /** Pattern for invalidating all gallery cache for a user */
+    userPattern: (orgId: string, userId: string) =>
+      `gallery:*:${orgId}:${userId}:*`,
   },
 } as const;
 
@@ -189,6 +220,22 @@ export const CacheTTL = {
     list: 30, // 30 seconds - session list changes frequently
     analytics: 60, // 1 minute - analytics refresh quickly
   },
+  /**
+   * Admin cache TTLs
+   * Moderate TTL since admin status changes infrequently
+   */
+  admin: {
+    status: 300, // 5 minutes - admin status rarely changes
+  },
+  /**
+   * Gallery cache TTLs
+   * Moderate TTLs since gallery data changes on upload/delete
+   */
+  gallery: {
+    items: 120, // 2 minutes - gallery items
+    stats: 120, // 2 minutes - gallery stats
+    collections: 300, // 5 minutes - collections change less often
+  },
 } as const;
 
 /**
@@ -212,5 +259,9 @@ export const CacheStaleTTL = {
   codeAgent: {
     session: 30, // Serve stale after 30 seconds
     analytics: 30, // Serve stale analytics after 30 seconds
+  },
+  gallery: {
+    items: 60, // Serve stale gallery items after 1 minute
+    stats: 60, // Serve stale stats after 1 minute
   },
 } as const;

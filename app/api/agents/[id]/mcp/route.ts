@@ -115,7 +115,15 @@ export async function GET(
             model: {
               type: "string",
               description: "Model to use (default: gpt-4o-mini)",
-              enum: ["gpt-4o-mini", "gpt-4o", "gpt-4-turbo", "claude-sonnet-4", "claude-haiku-4", "gemini-2.0-flash", "gemini-1.5-flash"],
+              enum: [
+                "gpt-4o-mini",
+                "gpt-4o",
+                "gpt-4-turbo",
+                "claude-sonnet-4",
+                "claude-haiku-4",
+                "gemini-2.0-flash",
+                "gemini-1.5-flash",
+              ],
             },
           },
           required: ["message"],

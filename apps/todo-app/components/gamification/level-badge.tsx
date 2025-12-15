@@ -31,8 +31,14 @@ export function LevelBadge({ points, compact = false }: LevelBadgeProps) {
 
   if (compact) {
     return (
-      <div className={cn("inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium text-white bg-gradient-to-r", colorClass)}>
-        <Trophy className="h-4 w-4" />Lv.{level.level}
+      <div
+        className={cn(
+          "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium text-white bg-gradient-to-r",
+          colorClass,
+        )}
+      >
+        <Trophy className="h-4 w-4" />
+        Lv.{level.level}
       </div>
     );
   }
@@ -41,7 +47,12 @@ export function LevelBadge({ points, compact = false }: LevelBadgeProps) {
     <div className="p-4 rounded-xl bg-card border border-border">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-3">
-          <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center bg-gradient-to-br text-white", colorClass)}>
+          <div
+            className={cn(
+              "w-12 h-12 rounded-xl flex items-center justify-center bg-gradient-to-br text-white",
+              colorClass,
+            )}
+          >
             <Trophy className="h-6 w-6" />
           </div>
           <div>
@@ -71,11 +82,15 @@ export function LevelBadge({ points, compact = false }: LevelBadgeProps) {
       <div className="flex items-center gap-4 mt-4 pt-4 border-t border-border">
         <div className="flex items-center gap-2">
           <Star className="h-4 w-4 text-yellow-500" />
-          <span className="text-sm"><span className="font-medium">{points.totalEarned}</span> total</span>
+          <span className="text-sm">
+            <span className="font-medium">{points.totalEarned}</span> total
+          </span>
         </div>
         <div className="flex items-center gap-2">
           <Flame className="h-4 w-4 text-orange-500 streak-flame" />
-          <span className="text-sm"><span className="font-medium">{points.streak}</span> day streak</span>
+          <span className="text-sm">
+            <span className="font-medium">{points.streak}</span> day streak
+          </span>
         </div>
       </div>
     </div>

@@ -39,7 +39,7 @@ export interface BlobUploadResult {
  */
 export async function uploadToBlob(
   content: Buffer | string,
-  options: BlobUploadOptions
+  options: BlobUploadOptions,
 ): Promise<BlobUploadResult> {
   if (!process.env.BLOB_READ_WRITE_TOKEN) {
     throw new Error("BLOB_READ_WRITE_TOKEN is not configured");
@@ -84,7 +84,7 @@ export async function uploadToBlob(
 export async function uploadBase64Image(
   base64Data: string,
   options: Omit<BlobUploadOptions, "contentType">,
-  maxSizeMB: number = 10
+  maxSizeMB: number = 10,
 ): Promise<BlobUploadResult> {
   // Extract the base64 data and mime type
   const matches = base64Data.match(/^data:([^;]+);base64,(.+)$/);
@@ -99,11 +99,12 @@ export async function uploadBase64Image(
   const MAX_IMAGE_SIZE = maxSizeMB * 1024 * 1024;
   // Account for base64 padding characters when calculating size
   const paddingCount = (base64Content.match(/=/g) || []).length;
-  const estimatedSize = Math.ceil((base64Content.length * 3) / 4) - paddingCount;
+  const estimatedSize =
+    Math.ceil((base64Content.length * 3) / 4) - paddingCount;
 
   if (estimatedSize > MAX_IMAGE_SIZE) {
     throw new Error(
-      `Image too large (max ${maxSizeMB}MB). Got ${(estimatedSize / 1024 / 1024).toFixed(2)}MB`
+      `Image too large (max ${maxSizeMB}MB). Got ${(estimatedSize / 1024 / 1024).toFixed(2)}MB`,
     );
   }
 
@@ -117,7 +118,7 @@ export async function uploadBase64Image(
   ];
   if (!validImageTypes.includes(mimeType.toLowerCase())) {
     throw new Error(
-      `Invalid image type: ${mimeType}. Allowed: ${validImageTypes.join(", ")}`
+      `Invalid image type: ${mimeType}. Allowed: ${validImageTypes.join(", ")}`,
     );
   }
 
@@ -140,7 +141,7 @@ export async function uploadBase64Image(
 export async function uploadFromBuffer(
   buffer: Buffer,
   filename: string,
-  contentType: string
+  contentType: string,
 ): Promise<string> {
   const result = await uploadToBlob(buffer, {
     filename,
@@ -170,7 +171,7 @@ export function isExternalProviderUrl(url: string): boolean {
   try {
     const urlObj = new URL(url);
     return EXTERNAL_PROVIDER_HOSTNAMES.some((hostname) =>
-      urlObj.hostname.includes(hostname)
+      urlObj.hostname.includes(hostname),
     );
   } catch {
     return false;
@@ -192,7 +193,7 @@ export const isFalAiUrl = isExternalProviderUrl;
  */
 export async function uploadFromUrl(
   sourceUrl: string,
-  options: BlobUploadOptions
+  options: BlobUploadOptions,
 ): Promise<BlobUploadResult> {
   const response = await fetch(sourceUrl);
   if (!response.ok) {
@@ -222,7 +223,7 @@ export async function uploadFromUrl(
  */
 export async function ensureLocalStorageUrl(
   sourceUrl: string,
-  options: BlobUploadOptions & { fallbackToOriginal?: boolean }
+  options: BlobUploadOptions & { fallbackToOriginal?: boolean },
 ): Promise<string> {
   // If it's not an external provider URL, return as-is
   if (!isExternalProviderUrl(sourceUrl)) {
@@ -234,7 +235,10 @@ export async function ensureLocalStorageUrl(
     const result = await uploadFromUrl(sourceUrl, options);
     return result.url;
   } catch (error) {
-    logger.error("[ensureLocalStorageUrl] Failed to upload external URL to our storage", { error });
+    logger.error(
+      "[ensureLocalStorageUrl] Failed to upload external URL to our storage",
+      { error },
+    );
 
     // If fallback is allowed, return original URL
     if (options.fallbackToOriginal !== false) {

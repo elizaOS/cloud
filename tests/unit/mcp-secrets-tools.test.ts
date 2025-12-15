@@ -82,7 +82,7 @@ describe("MCP Secrets Tools Structure", () => {
       limit: 10,
       offset: 0,
     });
-    
+
     expect(result).toHaveProperty("secrets");
     expect(result).toHaveProperty("total");
     expect(Array.isArray(result.secrets)).toBe(true);
@@ -101,7 +101,7 @@ describe("MCP Secrets Tools Structure", () => {
       value: "secret",
       createdBy: "user-123",
     });
-    
+
     expect(result).toHaveProperty("id");
     expect(result).toHaveProperty("name");
   });
@@ -113,13 +113,16 @@ describe("MCP Secrets Tools Structure", () => {
       projectType: "app",
       createdBy: "user-123",
     });
-    
+
     expect(result).toHaveProperty("id");
   });
 
   test("list bindings returns paginated structure", async () => {
-    const result = await mockSecretsService.listBindings("org-123", "project-456");
-    
+    const result = await mockSecretsService.listBindings(
+      "org-123",
+      "project-456",
+    );
+
     expect(result).toHaveProperty("bindings");
     expect(result).toHaveProperty("total");
   });
@@ -147,7 +150,7 @@ describe("MCP Tools Input Validation", () => {
 
   test("create requires name and value", async () => {
     mockSecretsService.create.mockClear();
-    
+
     await mockSecretsService.create({
       organizationId: "org-123",
       name: "KEY",
@@ -160,4 +163,3 @@ describe("MCP Tools Input Validation", () => {
     expect(call.value).toBe("value");
   });
 });
-

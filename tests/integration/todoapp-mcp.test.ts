@@ -6,7 +6,11 @@
  */
 
 import { describe, test, expect, beforeAll } from "bun:test";
-import { setupIntegrationTest, requireServer, testContext } from "../test-utils";
+import {
+  setupIntegrationTest,
+  requireServer,
+  testContext,
+} from "../test-utils";
 
 const SERVER_URL = process.env.TEST_API_URL || "http://localhost:3000";
 const MCP_ENDPOINT = `${SERVER_URL}/api/mcp/todoapp`;
@@ -32,7 +36,7 @@ describe("Todo App MCP Endpoint", () => {
       expect(response.status).toBe(200);
 
       const data = await response.json();
-      
+
       // Verify structure
       expect(data.name).toBe("Todo App MCP");
       expect(data.version).toBe("1.0.0");
@@ -51,7 +55,7 @@ describe("Todo App MCP Endpoint", () => {
       const data = await response.json();
 
       const toolNames = data.tools.map((t: { name: string }) => t.name);
-      
+
       expect(toolNames).toContain("create_task");
       expect(toolNames).toContain("list_tasks");
       expect(toolNames).toContain("complete_task");
@@ -88,11 +92,17 @@ describe("Todo App MCP Endpoint", () => {
       const response = await fetch(MCP_ENDPOINT);
       const data = await response.json();
 
-      const createTask = data.tools.find((t: { name: string }) => t.name === "create_task");
+      const createTask = data.tools.find(
+        (t: { name: string }) => t.name === "create_task",
+      );
       expect(createTask).toBeDefined();
       expect(createTask.inputSchema.required).toContain("name");
       expect(createTask.inputSchema.required).toContain("type");
-      expect(createTask.inputSchema.properties.type.enum).toEqual(["daily", "one-off", "aspirational"]);
+      expect(createTask.inputSchema.properties.type.enum).toEqual([
+        "daily",
+        "one-off",
+        "aspirational",
+      ]);
     });
   });
 
@@ -283,7 +293,9 @@ describe("Todo App MCP Endpoint", () => {
 
       expect(response.status).toBe(204);
       expect(response.headers.get("Access-Control-Allow-Origin")).toBeTruthy();
-      expect(response.headers.get("Access-Control-Allow-Methods")).toContain("POST");
+      expect(response.headers.get("Access-Control-Allow-Methods")).toContain(
+        "POST",
+      );
     });
 
     test("GET response includes CORS headers", async () => {
@@ -315,7 +327,9 @@ describe("MCP Registry Entry", () => {
     expect(response.status).toBe(200);
 
     const data = await response.json();
-    const todoEntry = data.registry.find((e: { id: string }) => e.id === "todo-app");
+    const todoEntry = data.registry.find(
+      (e: { id: string }) => e.id === "todo-app",
+    );
 
     expect(todoEntry).toBeDefined();
     expect(todoEntry.name).toBe("Todo App");
@@ -331,7 +345,9 @@ describe("MCP Registry Entry", () => {
 
     const response = await fetch(`${SERVER_URL}/api/mcp/registry`);
     const data = await response.json();
-    const todoEntry = data.registry.find((e: { id: string }) => e.id === "todo-app");
+    const todoEntry = data.registry.find(
+      (e: { id: string }) => e.id === "todo-app",
+    );
 
     expect(todoEntry.features).toContain("create_task");
     expect(todoEntry.features).toContain("complete_task");
@@ -346,7 +362,9 @@ describe("MCP Registry Entry", () => {
 
     const response = await fetch(`${SERVER_URL}/api/mcp/registry`);
     const data = await response.json();
-    const todoEntry = data.registry.find((e: { id: string }) => e.id === "todo-app");
+    const todoEntry = data.registry.find(
+      (e: { id: string }) => e.id === "todo-app",
+    );
 
     expect(todoEntry.endpoint).toContain("/api/mcp/todoapp");
   });

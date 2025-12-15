@@ -1,7 +1,10 @@
 import { logger } from "@/lib/utils/logger";
 import { extractErrorMessage } from "@/lib/utils/error-handling";
 import { socialMediaService } from "@/lib/services/social-media";
-import type { SocialCredentials, SocialPlatform } from "@/lib/types/social-media";
+import type {
+  SocialCredentials,
+  SocialPlatform,
+} from "@/lib/types/social-media";
 import {
   feedConfigService,
   engagementEventService,
@@ -45,7 +48,7 @@ interface PlatformPoller {
     credentials: SocialCredentials,
     accountId: string,
     config: OrgFeedConfig,
-    sinceId?: string
+    sinceId?: string,
   ): Promise<PollResult>;
 }
 
@@ -56,7 +59,7 @@ class TwitterPoller implements PlatformPoller {
     credentials: SocialCredentials,
     accountId: string,
     config: OrgFeedConfig,
-    sinceId?: string
+    sinceId?: string,
   ): Promise<PollResult> {
     if (!credentials.accessToken) {
       throw new Error("Twitter access token required");
@@ -67,16 +70,27 @@ class TwitterPoller implements PlatformPoller {
     let hasMore = false;
 
     if (config.monitor_mentions) {
-      const mentions = await this.fetchMentions(credentials.accessToken, accountId, sinceId);
+      const mentions = await this.fetchMentions(
+        credentials.accessToken,
+        accountId,
+        sinceId,
+      );
       engagements.push(...mentions.engagements);
       if (mentions.lastSeenId) lastSeenId = mentions.lastSeenId;
       hasMore = hasMore || mentions.hasMore;
     }
 
     if (config.monitor_quote_tweets) {
-      const quotes = await this.fetchQuoteTweets(credentials.accessToken, accountId, sinceId);
+      const quotes = await this.fetchQuoteTweets(
+        credentials.accessToken,
+        accountId,
+        sinceId,
+      );
       engagements.push(...quotes.engagements);
-      if (quotes.lastSeenId && (!lastSeenId || quotes.lastSeenId > lastSeenId)) {
+      if (
+        quotes.lastSeenId &&
+        (!lastSeenId || quotes.lastSeenId > lastSeenId)
+      ) {
         lastSeenId = quotes.lastSeenId;
       }
       hasMore = hasMore || quotes.hasMore;
@@ -88,10 +102,11 @@ class TwitterPoller implements PlatformPoller {
   private async fetchMentions(
     accessToken: string,
     userId: string,
-    sinceId?: string
+    sinceId?: string,
   ): Promise<PollResult> {
     const params = new URLSearchParams({
-      "tweet.fields": "author_id,created_at,public_metrics,referenced_tweets,entities",
+      "tweet.fields":
+        "author_id,created_at,public_metrics,referenced_tweets,entities",
       "user.fields": "username,name,profile_image_url,public_metrics,verified",
       expansions: "author_id,referenced_tweets.id",
       max_results: "100",
@@ -125,7 +140,7 @@ class TwitterPoller implements PlatformPoller {
     for (const tweet of data.data) {
       const author = users.get(tweet.author_id);
       const referencedTweet = tweet.referenced_tweets?.find(
-        (ref: { type: string; id: string }) => ref.type === "replied_to"
+        (ref: { type: string; id: string }) => ref.type === "replied_to",
       );
       const originalTweet = referencedTweet
         ? referencedTweets.get(referencedTweet.id)
@@ -177,7 +192,7 @@ class TwitterPoller implements PlatformPoller {
   private async fetchQuoteTweets(
     accessToken: string,
     userId: string,
-    sinceId?: string
+    sinceId?: string,
   ): Promise<PollResult> {
     // Twitter API v2 doesn't have a direct quote tweets endpoint for user
     // We'd need to search for quotes - simplified implementation
@@ -199,7 +214,7 @@ class TwitterPoller implements PlatformPoller {
         includes?: { users?: TwitterUser[]; tweets?: TwitterTweet[] };
         meta?: { next_token?: string; result_count?: number };
       }>(`/tweets/search/recent?${params}`, accessToken);
-      
+
       const engagements: PolledEngagement[] = [];
 
       if (!data.data) {
@@ -219,9 +234,11 @@ class TwitterPoller implements PlatformPoller {
       for (const tweet of data.data) {
         const author = users.get(tweet.author_id);
         const quotedRef = tweet.referenced_tweets?.find(
-          (ref: { type: string; id: string }) => ref.type === "quoted"
+          (ref: { type: string; id: string }) => ref.type === "quoted",
         );
-        const originalTweet = quotedRef ? referencedTweets.get(quotedRef.id) : undefined;
+        const originalTweet = quotedRef
+          ? referencedTweets.get(quotedRef.id)
+          : undefined;
 
         engagements.push({
           eventType: "quote_tweet",
@@ -257,13 +274,14 @@ class TwitterPoller implements PlatformPoller {
     } catch (error) {
       // Search may not be available on all API tiers
       if (error instanceof Error && error.message.includes("403")) {
-        logger.debug("[Twitter Poller] Quote search not available on this API tier");
+        logger.debug(
+          "[Twitter Poller] Quote search not available on this API tier",
+        );
         return { engagements: [], hasMore: false };
       }
       throw error;
     }
   }
-
 }
 
 interface TwitterUser {
@@ -297,18 +315,25 @@ class BlueskyPoller implements PlatformPoller {
     credentials: SocialCredentials,
     accountId: string,
     config: OrgFeedConfig,
-    sinceId?: string
+    sinceId?: string,
   ): Promise<PollResult> {
     if (!credentials.handle || !credentials.appPassword) {
       throw new Error("Bluesky handle and app password required");
     }
 
-    const session = await this.createSession(credentials.handle, credentials.appPassword);
+    const session = await this.createSession(
+      credentials.handle,
+      credentials.appPassword,
+    );
     const engagements: PolledEngagement[] = [];
 
-    if (config.monitor_mentions || config.monitor_replies || config.monitor_quote_tweets) {
+    if (
+      config.monitor_mentions ||
+      config.monitor_replies ||
+      config.monitor_quote_tweets
+    ) {
       const notifications = await this.fetchNotifications(session, sinceId);
-      
+
       for (const notif of notifications.notifications) {
         if (notif.reason === "mention" && !config.monitor_mentions) continue;
         if (notif.reason === "reply" && !config.monitor_replies) continue;
@@ -331,13 +356,16 @@ class BlueskyPoller implements PlatformPoller {
 
   private async createSession(
     handle: string,
-    appPassword: string
+    appPassword: string,
   ): Promise<{ accessJwt: string; did: string }> {
-    const response = await fetch("https://bsky.social/xrpc/com.atproto.server.createSession", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ identifier: handle, password: appPassword }),
-    });
+    const response = await fetch(
+      "https://bsky.social/xrpc/com.atproto.server.createSession",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ identifier: handle, password: appPassword }),
+      },
+    );
 
     if (!response.ok) {
       throw new Error(`Bluesky auth failed: ${response.status}`);
@@ -348,7 +376,7 @@ class BlueskyPoller implements PlatformPoller {
 
   private async fetchNotifications(
     session: { accessJwt: string; did: string },
-    cursor?: string
+    cursor?: string,
   ): Promise<{ notifications: BlueskyNotification[]; cursor?: string }> {
     const params = new URLSearchParams({ limit: "50" });
     if (cursor) params.set("cursor", cursor);
@@ -357,7 +385,7 @@ class BlueskyPoller implements PlatformPoller {
       `https://bsky.social/xrpc/app.bsky.notification.listNotifications?${params}`,
       {
         headers: { Authorization: `Bearer ${session.accessJwt}` },
-      }
+      },
     );
 
     if (!response.ok) {
@@ -371,7 +399,9 @@ class BlueskyPoller implements PlatformPoller {
     };
   }
 
-  private mapNotificationToEngagement(notif: BlueskyNotification): PolledEngagement {
+  private mapNotificationToEngagement(
+    notif: BlueskyNotification,
+  ): PolledEngagement {
     const eventTypeMap: Record<string, SocialEngagementType> = {
       mention: "mention",
       reply: "reply",
@@ -424,7 +454,7 @@ class RedditPoller implements PlatformPoller {
     credentials: SocialCredentials,
     accountId: string,
     config: OrgFeedConfig,
-    sinceId?: string
+    sinceId?: string,
   ): Promise<PollResult> {
     if (!credentials.accessToken) {
       throw new Error("Reddit access token required");
@@ -448,7 +478,7 @@ class RedditPoller implements PlatformPoller {
 
   private async fetchInbox(
     accessToken: string,
-    after?: string
+    after?: string,
   ): Promise<PollResult> {
     const params = new URLSearchParams({ limit: "100" });
     if (after) params.set("after", after);
@@ -460,12 +490,14 @@ class RedditPoller implements PlatformPoller {
           Authorization: `Bearer ${accessToken}`,
           "User-Agent": "ElizaCloud/1.0",
         },
-      }
+      },
     );
 
     if (!response.ok) {
       const error = await response.text();
-      throw new Error(`Reddit inbox fetch failed: ${response.status} - ${error}`);
+      throw new Error(
+        `Reddit inbox fetch failed: ${response.status} - ${error}`,
+      );
     }
 
     const data = await response.json();
@@ -484,7 +516,9 @@ class RedditPoller implements PlatformPoller {
       engagements.push({
         eventType,
         sourcePostId: item.name ?? item.id,
-        sourcePostUrl: item.context ? `https://reddit.com${item.context}` : undefined,
+        sourcePostUrl: item.context
+          ? `https://reddit.com${item.context}`
+          : undefined,
         authorId: item.author,
         authorUsername: item.author,
         content: item.body,
@@ -505,20 +539,23 @@ class MastodonPoller implements PlatformPoller {
     credentials: SocialCredentials,
     accountId: string,
     config: OrgFeedConfig,
-    sinceId?: string
+    sinceId?: string,
   ): Promise<PollResult> {
     if (!credentials.accessToken) {
       throw new Error("Mastodon access token required");
     }
 
-    const instanceUrl = credentials.instanceUrl ?? credentials.webhookUrl ?? "https://mastodon.social";
+    const instanceUrl =
+      credentials.instanceUrl ??
+      credentials.webhookUrl ??
+      "https://mastodon.social";
     const engagements: PolledEngagement[] = [];
 
     const notifications = await this.fetchNotifications(
       instanceUrl.replace(/\/$/, ""),
       credentials.accessToken,
       config,
-      sinceId
+      sinceId,
     );
 
     engagements.push(...notifications.engagements);
@@ -534,7 +571,7 @@ class MastodonPoller implements PlatformPoller {
     instanceUrl: string,
     accessToken: string,
     config: OrgFeedConfig,
-    sinceId?: string
+    sinceId?: string,
   ): Promise<PollResult> {
     const params = new URLSearchParams({ limit: "40" });
     if (sinceId) params.set("since_id", sinceId);
@@ -553,12 +590,14 @@ class MastodonPoller implements PlatformPoller {
       `${instanceUrl}/api/v1/notifications?${params}`,
       {
         headers: { Authorization: `Bearer ${accessToken}` },
-      }
+      },
     );
 
     if (!response.ok) {
       const error = await response.text();
-      throw new Error(`Mastodon notifications fetch failed: ${response.status} - ${error}`);
+      throw new Error(
+        `Mastodon notifications fetch failed: ${response.status} - ${error}`,
+      );
     }
 
     const notifications: MastodonNotification[] = await response.json();
@@ -622,7 +661,9 @@ const pollers: Partial<Record<SocialPlatform, PlatformPoller>> = {
 };
 
 class FeedPollingService {
-  async pollFeed(config: OrgFeedConfig): Promise<{ newEngagements: number; errors: string[] }> {
+  async pollFeed(
+    config: OrgFeedConfig,
+  ): Promise<{ newEngagements: number; errors: string[] }> {
     const errors: string[] = [];
     let newEngagements = 0;
 
@@ -667,11 +708,14 @@ class FeedPollingService {
         credentials,
         config.source_account_id,
         config,
-        config.last_seen_id ?? undefined
+        config.last_seen_id ?? undefined,
       );
 
       for (const engagement of result.engagements) {
-        const exists = await engagementEventService.exists(config.id, engagement.sourcePostId);
+        const exists = await engagementEventService.exists(
+          config.id,
+          engagement.sourcePostId,
+        );
         if (exists) continue;
 
         if (!this.passesFilters(engagement, config)) continue;
@@ -715,7 +759,10 @@ class FeedPollingService {
       });
     } catch (error) {
       const errorMessage = extractErrorMessage(error);
-      logger.error("[FeedPoller] Poll failed", { configId: config.id, error: errorMessage });
+      logger.error("[FeedPoller] Poll failed", {
+        configId: config.id,
+        error: errorMessage,
+      });
       errors.push(errorMessage);
 
       await feedConfigService.updatePollingState(config.id, {
@@ -734,7 +781,7 @@ class FeedPollingService {
     errors: Array<{ configId: string; error: string }>;
   }> {
     const feeds = await feedConfigService.getFeedsDueForPolling(10);
-    
+
     logger.info("[FeedPoller] Polling due feeds", { count: feeds.length });
 
     let totalNewEngagements = 0;
@@ -755,17 +802,28 @@ class FeedPollingService {
     };
   }
 
-  private async getCredentials(config: OrgFeedConfig): Promise<SocialCredentials | null> {
+  private async getCredentials(
+    config: OrgFeedConfig,
+  ): Promise<SocialCredentials | null> {
     return socialMediaService.getCredentialsForPlatform(
       config.organization_id,
       config.source_platform as SocialPlatform,
-      config.credential_id ?? undefined
+      config.credential_id ?? undefined,
     );
   }
 
-  private passesFilters(engagement: PolledEngagement, config: OrgFeedConfig): boolean {
-    if (config.min_follower_count !== null && config.min_follower_count !== undefined) {
-      if (!engagement.authorFollowerCount || engagement.authorFollowerCount < config.min_follower_count) {
+  private passesFilters(
+    engagement: PolledEngagement,
+    config: OrgFeedConfig,
+  ): boolean {
+    if (
+      config.min_follower_count !== null &&
+      config.min_follower_count !== undefined
+    ) {
+      if (
+        !engagement.authorFollowerCount ||
+        engagement.authorFollowerCount < config.min_follower_count
+      ) {
         return false;
       }
     }
@@ -773,7 +831,9 @@ class FeedPollingService {
     const keywords = config.filter_keywords ?? [];
     if (keywords.length > 0 && engagement.content) {
       const contentLower = engagement.content.toLowerCase();
-      const hasMatch = keywords.some((kw) => contentLower.includes(kw.toLowerCase()));
+      const hasMatch = keywords.some((kw) =>
+        contentLower.includes(kw.toLowerCase()),
+      );
 
       if (config.filter_mode === "include" && !hasMatch) {
         return false;

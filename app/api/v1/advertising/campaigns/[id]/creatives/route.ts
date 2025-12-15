@@ -20,7 +20,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
   const creatives = await advertisingService.listCreatives(
     id,
-    user.organization_id!
+    user.organization_id!,
   );
 
   return NextResponse.json({
@@ -55,7 +55,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   if (!parsed.success) {
     return NextResponse.json(
       { error: "Invalid request", details: parsed.error.flatten() },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -71,7 +71,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       callToAction: parsed.data.callToAction,
       destinationUrl: parsed.data.destinationUrl,
       media: parsed.data.media,
-    }
+    },
   );
 
   logger.info("[Advertising API] Creative created", {
@@ -87,6 +87,6 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       status: creative.status,
       createdAt: creative.created_at.toISOString(),
     },
-    { status: 201 }
+    { status: 201 },
   );
 }

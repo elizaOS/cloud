@@ -41,11 +41,14 @@ export function WorkflowTester({ workflow, onBack }: WorkflowTesterProps) {
         throw new Error("Invalid JSON input");
       }
 
-      const response = await fetch(`/api/v1/n8n/workflows/${workflow.id}/test`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ input: inputData }),
-      });
+      const response = await fetch(
+        `/api/v1/n8n/workflows/${workflow.id}/test`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ input: inputData }),
+        },
+      );
 
       if (!response.ok) {
         const error = await response.json();
@@ -95,7 +98,9 @@ export function WorkflowTester({ workflow, onBack }: WorkflowTesterProps) {
         </Button>
         <div>
           <h2 className="text-xl font-semibold text-white">{workflow.name}</h2>
-          <p className="text-sm text-white/60">Test your workflow with sample input</p>
+          <p className="text-sm text-white/60">
+            Test your workflow with sample input
+          </p>
         </div>
       </div>
 
@@ -170,7 +175,9 @@ export function WorkflowTester({ workflow, onBack }: WorkflowTesterProps) {
                   </div>
                 )}
                 <div>
-                  <h3 className="text-lg font-semibold text-white">Test Result</h3>
+                  <h3 className="text-lg font-semibold text-white">
+                    Test Result
+                  </h3>
                   <p className="text-sm text-white/60">
                     {testResult
                       ? testResult.success
@@ -198,7 +205,9 @@ export function WorkflowTester({ workflow, onBack }: WorkflowTesterProps) {
                 <div className="flex flex-wrap gap-4 text-sm">
                   <div className="flex items-center gap-2">
                     <span className="text-white/40">Status:</span>
-                    <span className={`px-2 py-0.5 rounded-full text-xs ${getStatusColor(testResult.status)}`}>
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-xs ${getStatusColor(testResult.status)}`}
+                    >
                       {testResult.status}
                     </span>
                   </div>
@@ -212,14 +221,18 @@ export function WorkflowTester({ workflow, onBack }: WorkflowTesterProps) {
                           : "bg-amber-500/20 text-amber-400"
                       }`}
                     >
-                      {testResult.executionMode === "real" ? "n8n" : "Simulated"}
+                      {testResult.executionMode === "real"
+                        ? "n8n"
+                        : "Simulated"}
                     </span>
                   </div>
 
                   {testResult.duration && (
                     <div className="flex items-center gap-2">
                       <span className="text-white/40">Duration:</span>
-                      <span className="text-white/80">{testResult.duration}ms</span>
+                      <span className="text-white/80">
+                        {testResult.duration}ms
+                      </span>
                     </div>
                   )}
 
@@ -234,8 +247,9 @@ export function WorkflowTester({ workflow, onBack }: WorkflowTesterProps) {
                 {testResult.executionMode === "simulated" && (
                   <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
                     <p className="text-sm text-amber-400">
-                      <strong>Simulated execution:</strong> This workflow is not deployed to an n8n instance. 
-                      Deploy to n8n for real execution with actual node processing.
+                      <strong>Simulated execution:</strong> This workflow is not
+                      deployed to an n8n instance. Deploy to n8n for real
+                      execution with actual node processing.
                     </p>
                   </div>
                 )}
@@ -243,13 +257,17 @@ export function WorkflowTester({ workflow, onBack }: WorkflowTesterProps) {
                 {testResult.n8nExecutionId && (
                   <div className="flex items-center gap-2 text-sm">
                     <span className="text-white/40">n8n Execution ID:</span>
-                    <code className="text-blue-400 font-mono">{testResult.n8nExecutionId}</code>
+                    <code className="text-blue-400 font-mono">
+                      {testResult.n8nExecutionId}
+                    </code>
                   </div>
                 )}
 
                 {testResult.error && (
                   <div className="p-4 rounded-lg bg-red-500/10 border border-red-500/20">
-                    <p className="text-sm text-red-400 font-medium mb-1">Error</p>
+                    <p className="text-sm text-red-400 font-medium mb-1">
+                      Error
+                    </p>
                     <p className="text-sm text-red-300">{testResult.error}</p>
                   </div>
                 )}
@@ -275,4 +293,3 @@ export function WorkflowTester({ workflow, onBack }: WorkflowTesterProps) {
     </div>
   );
 }
-

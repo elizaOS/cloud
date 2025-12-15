@@ -11,7 +11,10 @@ type Database = NodePgDatabase<typeof schema> | NeonDatabase<typeof schema>;
 
 let _db: Database | null = null;
 let _instrumentationEnabled: boolean | null = null;
-const SLOW_QUERY_THRESHOLD_MS = parseInt(process.env.SLOW_QUERY_THRESHOLD_MS || "50", 10);
+const SLOW_QUERY_THRESHOLD_MS = parseInt(
+  process.env.SLOW_QUERY_THRESHOLD_MS || "50",
+  10,
+);
 
 function isNeonDatabase(url: string): boolean {
   return url.includes("neon.tech") || url.includes("neon.database");
@@ -43,8 +46,12 @@ export function isInstrumentationEnabled(): boolean {
 }
 
 function handleSlowQuery(sqlText: string, durationMs: number): void {
+  if (process.env.SLOW_QUERY_LOGGING_DISABLED === "true") return;
+
   const preview = sqlText.substring(0, 120).replace(/\s+/g, " ");
-  console.warn(`[SlowQuery] ${durationMs}ms | ${preview}${sqlText.length > 120 ? "..." : ""}`);
+  console.warn(
+    `[SlowQuery] ${durationMs}ms | ${preview}${sqlText.length > 120 ? "..." : ""}`,
+  );
 
   import("@/lib/db/slow-query-store")
     .then(({ recordSlowQuery }) => recordSlowQuery(sqlText, durationMs))
@@ -55,14 +62,22 @@ function handleSlowQuery(sqlText: string, durationMs: number): void {
       .then(({ sendSlowQueryAlert, getAlertSeverity }) => {
         const severity = getAlertSeverity(durationMs);
         if (severity) {
-          sendSlowQueryAlert({ query: sqlText, durationMs, timestamp: new Date(), severity });
+          sendSlowQueryAlert({
+            query: sqlText,
+            durationMs,
+            timestamp: new Date(),
+            severity,
+          });
         }
       })
       .catch((e) => console.warn("[DB] query-alerting import failed:", e));
   }
 }
 
-function wrapWithTiming<T>(fn: () => Promise<T>, getSql: () => string): Promise<T> {
+function wrapWithTiming<T>(
+  fn: () => Promise<T>,
+  getSql: () => string,
+): Promise<T> {
   if (!isInstrumentationEnabled()) return fn();
 
   const start = performance.now();
@@ -100,7 +115,11 @@ function extractSql(sqlArg: unknown, fallback = "[unknown]"): string {
     for (const c of obj.queryChunks) {
       if (c == null) {
         parts.push("?");
-      } else if (typeof c === "string" || typeof c === "number" || typeof c === "boolean") {
+      } else if (
+        typeof c === "string" ||
+        typeof c === "number" ||
+        typeof c === "boolean"
+      ) {
         parts.push("?");
       } else if (typeof c === "object") {
         const chunk = c as Record<string, unknown>;
@@ -119,7 +138,10 @@ function extractSql(sqlArg: unknown, fallback = "[unknown]"): string {
   return fallback;
 }
 
-function instrumentQueryBuilder<T extends object>(target: T, methodName: string): T {
+function instrumentQueryBuilder<T extends object>(
+  target: T,
+  methodName: string,
+): T {
   if (!isInstrumentationEnabled()) return target;
 
   return new Proxy(target, {
@@ -132,7 +154,10 @@ function instrumentQueryBuilder<T extends object>(target: T, methodName: string)
 
         if (result instanceof Promise) {
           const sqlText = extractSql(obj, `[${methodName}]`);
-          return wrapWithTiming(() => result, () => sqlText);
+          return wrapWithTiming(
+            () => result,
+            () => sqlText,
+          );
         }
 
         if (result && typeof result === "object") {
@@ -152,17 +177,25 @@ function getDb(): Database {
   if (!url) throw new Error("DATABASE_URL not set");
 
   if (isInstrumentationEnabled()) {
-    console.info(`[DB] ✓ Query instrumentation ENABLED (threshold: ${SLOW_QUERY_THRESHOLD_MS}ms)`);
+    console.info(
+      `[DB] ✓ Query instrumentation ENABLED (threshold: ${SLOW_QUERY_THRESHOLD_MS}ms)`,
+    );
     import("@/lib/db/query-alerting")
       .then(({ checkAlertConfig }) => checkAlertConfig())
-      .catch((e: Error) => console.debug("[DB] Alert config check failed:", e.message));
+      .catch((e: Error) =>
+        console.debug("[DB] Alert config check failed:", e.message),
+      );
   }
 
   if (isNeonDatabase(url)) {
     if (typeof WebSocket === "undefined") neonConfig.webSocketConstructor = ws;
-    _db = drizzleNeon(new NeonPool({ connectionString: url }), { schema }) as Database;
+    _db = drizzleNeon(new NeonPool({ connectionString: url }), {
+      schema,
+    }) as Database;
   } else {
-    _db = drizzleNode(new PgPool({ connectionString: url }), { schema }) as Database;
+    _db = drizzleNode(new PgPool({ connectionString: url }), {
+      schema,
+    }) as Database;
   }
 
   return _db;
@@ -180,19 +213,33 @@ export const db = new Proxy({} as Database, {
       if (prop === "execute" && args[0]) {
         const sqlText = extractSql(args[0]);
         return wrapWithTiming(
-          () => (value as (...a: unknown[]) => Promise<unknown>).apply(database, args),
-          () => sqlText
+          () =>
+            (value as (...a: unknown[]) => Promise<unknown>).apply(
+              database,
+              args,
+            ),
+          () => sqlText,
         );
       }
 
-      const result = (value as (...a: unknown[]) => unknown).apply(database, args);
+      const result = (value as (...a: unknown[]) => unknown).apply(
+        database,
+        args,
+      );
 
-      if (result && typeof result === "object" && !(result instanceof Promise)) {
+      if (
+        result &&
+        typeof result === "object" &&
+        !(result instanceof Promise)
+      ) {
         return instrumentQueryBuilder(result as object, String(prop));
       }
 
       if (result instanceof Promise) {
-        return wrapWithTiming(() => result, () => `[${String(prop)}]`);
+        return wrapWithTiming(
+          () => result,
+          () => `[${String(prop)}]`,
+        );
       }
 
       return result;

@@ -14,15 +14,26 @@ export const OPTIONS = corsOptions;
 export function GET(request: NextRequest) {
   return withCors(async () => {
     const user = await requireAppAuth(request);
-    const status = request.nextUrl.searchParams.get("status") as "draft" | "active" | "archived" | null;
-    const limit = Number.parseInt(request.nextUrl.searchParams.get("limit") || "100");
-    const offset = Number.parseInt(request.nextUrl.searchParams.get("offset") || "0");
+    const status = request.nextUrl.searchParams.get("status") as
+      | "draft"
+      | "active"
+      | "archived"
+      | null;
+    const limit = Number.parseInt(
+      request.nextUrl.searchParams.get("limit") || "100",
+    );
+    const offset = Number.parseInt(
+      request.nextUrl.searchParams.get("offset") || "0",
+    );
 
-    const workflows = await n8nWorkflowsService.listWorkflows(user.organization_id, {
-      status: status || undefined,
-      limit,
-      offset,
-    });
+    const workflows = await n8nWorkflowsService.listWorkflows(
+      user.organization_id,
+      {
+        status: status || undefined,
+        limit,
+        offset,
+      },
+    );
 
     return NextResponse.json(
       {
@@ -40,7 +51,7 @@ export function GET(request: NextRequest) {
           updatedAt: w.updated_at,
         })),
       },
-      { headers: APP_CORS_HEADERS }
+      { headers: APP_CORS_HEADERS },
     );
   });
 }
@@ -53,18 +64,27 @@ export function POST(request: NextRequest) {
 
     if (!validation.success) {
       return NextResponse.json(
-        { success: false, error: "Invalid request", details: validation.error.format() },
-        { status: 400, headers: APP_CORS_HEADERS }
+        {
+          success: false,
+          error: "Invalid request",
+          details: validation.error.format(),
+        },
+        { status: 400, headers: APP_CORS_HEADERS },
       );
     }
 
     const { name, description, workflowData, tags } = validation.data;
-    const validationResult = await n8nWorkflowsService.validateWorkflow(workflowData);
-    
+    const validationResult =
+      await n8nWorkflowsService.validateWorkflow(workflowData);
+
     if (!validationResult.valid) {
       return NextResponse.json(
-        { success: false, error: "Invalid workflow structure", errors: validationResult.errors },
-        { status: 400, headers: APP_CORS_HEADERS }
+        {
+          success: false,
+          error: "Invalid workflow structure",
+          errors: validationResult.errors,
+        },
+        { status: 400, headers: APP_CORS_HEADERS },
       );
     }
 
@@ -77,7 +97,10 @@ export function POST(request: NextRequest) {
       tags,
     });
 
-    logger.info(`[App N8N] Created workflow: ${name}`, { userId: user.id, workflowId: workflow.id });
+    logger.info(`[App N8N] Created workflow: ${name}`, {
+      userId: user.id,
+      workflowId: workflow.id,
+    });
 
     return NextResponse.json(
       {
@@ -93,8 +116,7 @@ export function POST(request: NextRequest) {
           updatedAt: workflow.updated_at,
         },
       },
-      { headers: APP_CORS_HEADERS }
+      { headers: APP_CORS_HEADERS },
     );
   });
 }
-

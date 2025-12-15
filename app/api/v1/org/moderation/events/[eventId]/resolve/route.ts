@@ -16,7 +16,7 @@ const ResolveSchema = z.object({
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ eventId: string }> }
+  { params }: { params: Promise<{ eventId: string }> },
 ) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { eventId } = await params;
@@ -27,7 +27,7 @@ export async function POST(
   if (!parsed.success) {
     return NextResponse.json(
       { error: "Invalid request body", details: parsed.error.format() },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -37,7 +37,7 @@ export async function POST(
     eventId,
     user.id,
     notes,
-    falsePositive
+    falsePositive,
   );
 
   return NextResponse.json({
@@ -47,5 +47,3 @@ export async function POST(
       : "Event resolved",
   });
 }
-
-

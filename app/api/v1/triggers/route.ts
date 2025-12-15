@@ -1,8 +1,8 @@
 /**
  * Application Triggers API
- * 
+ *
  * Manage triggers for apps, agents, and MCPs.
- * 
+ *
  * GET /api/v1/triggers - List triggers
  * POST /api/v1/triggers - Create trigger
  */
@@ -22,22 +22,28 @@ const CreateTriggerSchema = z.object({
   triggerType: z.enum(["cron", "webhook", "event"]),
   name: z.string().min(1).max(100),
   description: z.string().max(500).optional(),
-  config: z.object({
-    cronExpression: z.string().optional(),
-    timezone: z.string().optional(),
-    eventTypes: z.array(z.string()).optional(),
-    maxExecutionsPerDay: z.number().positive().optional(),
-    timeout: z.number().positive().optional(),
-    requireSignature: z.boolean().optional(),
-    allowedIps: z.array(z.string()).optional(),
-  }).optional(),
-  actionType: z.enum(["call_endpoint", "restart", "execute_workflow", "notify"]).optional(),
-  actionConfig: z.object({
-    endpoint: z.string().optional(),
-    method: z.enum(["GET", "POST", "PUT", "DELETE"]).optional(),
-    workflowId: z.string().uuid().optional(),
-    notificationChannels: z.array(z.string()).optional(),
-  }).optional(),
+  config: z
+    .object({
+      cronExpression: z.string().optional(),
+      timezone: z.string().optional(),
+      eventTypes: z.array(z.string()).optional(),
+      maxExecutionsPerDay: z.number().positive().optional(),
+      timeout: z.number().positive().optional(),
+      requireSignature: z.boolean().optional(),
+      allowedIps: z.array(z.string()).optional(),
+    })
+    .optional(),
+  actionType: z
+    .enum(["call_endpoint", "restart", "execute_workflow", "notify"])
+    .optional(),
+  actionConfig: z
+    .object({
+      endpoint: z.string().optional(),
+      method: z.enum(["GET", "POST", "PUT", "DELETE"]).optional(),
+      workflowId: z.string().uuid().optional(),
+      notificationChannels: z.array(z.string()).optional(),
+    })
+    .optional(),
 });
 
 const ListTriggersSchema = z.object({
@@ -65,8 +71,12 @@ export async function GET(request: NextRequest) {
   const validation = ListTriggersSchema.safeParse(params);
   if (!validation.success) {
     return NextResponse.json(
-      { success: false, error: "Invalid parameters", details: validation.error.format() },
-      { status: 400 }
+      {
+        success: false,
+        error: "Invalid parameters",
+        details: validation.error.format(),
+      },
+      { status: 400 },
     );
   }
 
@@ -74,27 +84,40 @@ export async function GET(request: NextRequest) {
 
   let triggers;
   if (targetId && targetType) {
-    triggers = await applicationTriggersService.listTriggersByTarget(targetType, targetId);
+    triggers = await applicationTriggersService.listTriggersByTarget(
+      targetType,
+      targetId,
+    );
     // Filter to only show triggers for the user's organization
-    triggers = triggers.filter(t => t.organization_id === user.organization_id);
+    triggers = triggers.filter(
+      (t) => t.organization_id === user.organization_id,
+    );
   } else {
     triggers = await applicationTriggersService.listTriggersByOrganization(
       user.organization_id,
       {
-        targetType: targetType as "fragment_project" | "container" | "user_mcp" | undefined,
+        targetType: targetType as
+          | "fragment_project"
+          | "container"
+          | "user_mcp"
+          | undefined,
         triggerType: triggerType as "cron" | "webhook" | "event" | undefined,
-        isActive: isActive === "true" ? true : isActive === "false" ? false : undefined,
-      }
+        isActive:
+          isActive === "true" ? true : isActive === "false" ? false : undefined,
+      },
     );
   }
 
   // Redact webhook secrets
-  const safeTriggers = triggers.map(t => ({
+  const safeTriggers = triggers.map((t) => ({
     id: t.id,
     targetType: t.target_type,
     targetId: t.target_id,
     triggerType: t.trigger_type,
-    triggerKey: t.trigger_type === "webhook" ? t.trigger_key.slice(0, 8) + "..." : t.trigger_key,
+    triggerKey:
+      t.trigger_type === "webhook"
+        ? t.trigger_key.slice(0, 8) + "..."
+        : t.trigger_key,
     name: t.name,
     description: t.description,
     config: {
@@ -131,26 +154,42 @@ export async function POST(request: NextRequest) {
 
   if (!validation.success) {
     return NextResponse.json(
-      { success: false, error: "Invalid request", details: validation.error.format() },
-      { status: 400 }
+      {
+        success: false,
+        error: "Invalid request",
+        details: validation.error.format(),
+      },
+      { status: 400 },
     );
   }
 
-  const { targetType, targetId, triggerType, name, description, config, actionType, actionConfig } = validation.data;
+  const {
+    targetType,
+    targetId,
+    triggerType,
+    name,
+    description,
+    config,
+    actionType,
+    actionConfig,
+  } = validation.data;
 
   // Validate cron expression
   if (triggerType === "cron" && !config?.cronExpression) {
     return NextResponse.json(
       { success: false, error: "cronExpression is required for cron triggers" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
   // Validate event types
-  if (triggerType === "event" && (!config?.eventTypes || config.eventTypes.length === 0)) {
+  if (
+    triggerType === "event" &&
+    (!config?.eventTypes || config.eventTypes.length === 0)
+  ) {
     return NextResponse.json(
       { success: false, error: "eventTypes is required for event triggers" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -202,4 +241,3 @@ export async function POST(request: NextRequest) {
 
   return NextResponse.json(response);
 }
-

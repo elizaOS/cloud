@@ -1,3 +1,4 @@
-export { ServicesMarketplace, type MarketplaceService } from "./services-marketplace";
-
-
+export {
+  ServicesMarketplace,
+  type MarketplaceService,
+} from "./services-marketplace";

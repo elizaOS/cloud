@@ -89,13 +89,21 @@ async function testWebhookIdempotency() {
       "   Note: Run database migration to activate unique constraint",
     );
   } catch (error) {
-    if ((error as { code?: string }).code === "23505" || (error instanceof Error ? error.message : String(error))?.includes("unique")) {
+    if (
+      (error as { code?: string }).code === "23505" ||
+      (error instanceof Error ? error.message : String(error))?.includes(
+        "unique",
+      )
+    ) {
       console.log(
         "✓ Duplicate prevented by unique constraint (constraint is active)",
       );
       console.log("  This is the expected behavior after running migration");
     } else {
-      console.log("✗ Unexpected error:", error instanceof Error ? error.message : String(error));
+      console.log(
+        "✗ Unexpected error:",
+        error instanceof Error ? error.message : String(error),
+      );
     }
   }
 

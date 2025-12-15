@@ -1,10 +1,21 @@
 import { describe, test, expect, beforeAll } from "bun:test";
 
 describe("OAUTH_CONFIGS", () => {
-  let OAUTH_CONFIGS: Record<string, { authUrl: string; tokenUrl: string; profileUrl: string; scopes: string[]; clientIdEnv: string; clientSecretEnv: string }>;
+  let OAUTH_CONFIGS: Record<
+    string,
+    {
+      authUrl: string;
+      tokenUrl: string;
+      profileUrl: string;
+      scopes: string[];
+      clientIdEnv: string;
+      clientSecretEnv: string;
+    }
+  >;
 
   beforeAll(async () => {
-    OAUTH_CONFIGS = (await import("@/lib/services/platform-credentials")).OAUTH_CONFIGS;
+    OAUTH_CONFIGS = (await import("@/lib/services/platform-credentials"))
+      .OAUTH_CONFIGS;
   });
 
   test("OAuth platforms have valid URLs and scopes", () => {
@@ -117,4 +128,3 @@ describe("Credential status transitions", () => {
     expect(transitions.expired).toContain("active");
   });
 });
-

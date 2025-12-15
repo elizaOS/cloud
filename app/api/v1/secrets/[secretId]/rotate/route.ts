@@ -18,19 +18,25 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
   const { secretId } = await params;
 
   if (!isSecretsConfigured()) {
-    return NextResponse.json({ error: "Secrets service not configured" }, { status: 503 });
+    return NextResponse.json(
+      { error: "Secrets service not configured" },
+      { status: 503 },
+    );
   }
 
   const parsed = RotateSchema.safeParse(await request.json());
   if (!parsed.success) {
-    return NextResponse.json({ error: "Invalid request", details: parsed.error.flatten() }, { status: 400 });
+    return NextResponse.json(
+      { error: "Invalid request", details: parsed.error.flatten() },
+      { status: 400 },
+    );
   }
 
   const rotated = await secretsService.rotate(
     secretId,
     authResult.user.organization_id,
     parsed.data.newValue,
-    buildDetailedAudit(request, authResult)
+    buildDetailedAudit(request, authResult),
   );
 
   logger.info("[Secrets] Rotated", { secretId, version: rotated.version });

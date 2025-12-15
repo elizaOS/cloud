@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { appsService } from "@/lib/services/apps";
-import { appPromotionAssetsService, type AdSize, AD_SIZES } from "@/lib/services/app-promotion-assets";
+import {
+  appPromotionAssetsService,
+  type AdSize,
+  AD_SIZES,
+} from "@/lib/services/app-promotion-assets";
 import { creditsService } from "@/lib/services/credits";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
@@ -13,7 +17,9 @@ interface RouteParams {
 }
 
 const GenerateAssetsSchema = z.object({
-  sizes: z.array(z.enum(Object.keys(AD_SIZES) as [AdSize, ...AdSize[]])).optional(),
+  sizes: z
+    .array(z.enum(Object.keys(AD_SIZES) as [AdSize, ...AdSize[]]))
+    .optional(),
   includeCopy: z.boolean().optional(),
   includeAdBanners: z.boolean().optional(),
   targetAudience: z.string().max(500).optional(),
@@ -37,7 +43,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   if (!parsed.success) {
     return NextResponse.json(
       { error: "Invalid request", details: parsed.error.flatten() },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -59,7 +65,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   if (!deduction.success) {
     return NextResponse.json(
       { error: "Insufficient credits", required: totalCost },
-      { status: 402 }
+      { status: 402 },
     );
   }
 
@@ -79,7 +85,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
   // Refund for failed generations
   const successfulImages = result.assets.length;
-  const failedImages = (imageCount + bannerCount) - successfulImages;
+  const failedImages = imageCount + bannerCount - successfulImages;
   if (failedImages > 0) {
     await creditsService.refundCredits({
       organizationId: user.organization_id!,
@@ -99,7 +105,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     })),
     copy: result.copy,
     errors: result.errors,
-    creditsUsed: totalCost - (failedImages * ASSET_GENERATION_COST),
+    creditsUsed: totalCost - failedImages * ASSET_GENERATION_COST,
   });
 }
 
@@ -113,7 +119,12 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   }
 
   const url = new URL(request.url);
-  const platform = url.searchParams.get("platform") as "meta" | "google" | "twitter" | "linkedin" | null;
+  const platform = url.searchParams.get("platform") as
+    | "meta"
+    | "google"
+    | "twitter"
+    | "linkedin"
+    | null;
 
   const recommendedSizes = platform
     ? appPromotionAssetsService.getRecommendedSizes(platform)
@@ -132,4 +143,3 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     },
   });
 }
-

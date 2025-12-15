@@ -1,6 +1,6 @@
 /**
  * Fragment Project API (by ID)
- * 
+ *
  * Get, update, delete individual fragment projects
  */
 
@@ -25,7 +25,7 @@ const UpdateProjectSchema = z.object({
  */
 export async function GET(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(req);
@@ -36,7 +36,7 @@ export async function GET(
     if (!project) {
       return NextResponse.json(
         { success: false, error: "Project not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -44,7 +44,7 @@ export async function GET(
     if (project.organization_id !== user.organization_id) {
       return NextResponse.json(
         { success: false, error: "Unauthorized" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -57,10 +57,9 @@ export async function GET(
     return NextResponse.json(
       {
         success: false,
-        error:
-          error instanceof Error ? error.message : "Failed to get project",
+        error: error instanceof Error ? error.message : "Failed to get project",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -71,7 +70,7 @@ export async function GET(
  */
 export async function PUT(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(req);
@@ -86,7 +85,7 @@ export async function PUT(
           error: "Invalid request data",
           details: validationResult.error.format(),
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -95,18 +94,21 @@ export async function PUT(
     if (!project) {
       return NextResponse.json(
         { success: false, error: "Project not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
     if (project.organization_id !== user.organization_id) {
       return NextResponse.json(
         { success: false, error: "Unauthorized" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
-    const updated = await fragmentProjectsService.update(id, validationResult.data);
+    const updated = await fragmentProjectsService.update(
+      id,
+      validationResult.data,
+    );
 
     return NextResponse.json({
       success: true,
@@ -120,7 +122,7 @@ export async function PUT(
         error:
           error instanceof Error ? error.message : "Failed to update project",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -131,7 +133,7 @@ export async function PUT(
  */
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(req);
@@ -142,14 +144,14 @@ export async function DELETE(
     if (!project) {
       return NextResponse.json(
         { success: false, error: "Project not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
     if (project.organization_id !== user.organization_id) {
       return NextResponse.json(
         { success: false, error: "Unauthorized" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -166,8 +168,7 @@ export async function DELETE(
         error:
           error instanceof Error ? error.message : "Failed to delete project",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
-

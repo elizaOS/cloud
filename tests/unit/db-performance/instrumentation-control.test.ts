@@ -44,41 +44,61 @@ describe("instrumentation control", () => {
   describe("threshold configuration", () => {
     it("reads SLOW_QUERY_THRESHOLD_MS from env", () => {
       setEnv("SLOW_QUERY_THRESHOLD_MS", "100");
-      expect(parseInt(process.env.SLOW_QUERY_THRESHOLD_MS || "50", 10)).toBe(100);
+      expect(parseInt(process.env.SLOW_QUERY_THRESHOLD_MS || "50", 10)).toBe(
+        100,
+      );
     });
 
     it("defaults to 50ms when not set", () => {
       setEnv("SLOW_QUERY_THRESHOLD_MS", undefined);
-      expect(parseInt(process.env.SLOW_QUERY_THRESHOLD_MS || "50", 10)).toBe(50);
+      expect(parseInt(process.env.SLOW_QUERY_THRESHOLD_MS || "50", 10)).toBe(
+        50,
+      );
     });
 
     it("handles invalid values", () => {
       setEnv("SLOW_QUERY_THRESHOLD_MS", "not-a-number");
-      const threshold = parseInt(process.env.SLOW_QUERY_THRESHOLD_MS || "50", 10);
+      const threshold = parseInt(
+        process.env.SLOW_QUERY_THRESHOLD_MS || "50",
+        10,
+      );
       expect(Number.isNaN(threshold)).toBe(true);
     });
 
     it("handles negative values", () => {
       setEnv("SLOW_QUERY_THRESHOLD_MS", "-100");
-      expect(parseInt(process.env.SLOW_QUERY_THRESHOLD_MS || "50", 10)).toBe(-100);
+      expect(parseInt(process.env.SLOW_QUERY_THRESHOLD_MS || "50", 10)).toBe(
+        -100,
+      );
     });
   });
 
   describe("alert config detection", () => {
     it("detects Discord webhook", () => {
-      setEnv("DB_SLOW_QUERY_DISCORD_WEBHOOK", "https://discord.com/api/webhooks/test");
+      setEnv(
+        "DB_SLOW_QUERY_DISCORD_WEBHOOK",
+        "https://discord.com/api/webhooks/test",
+      );
       expect(!!process.env.DB_SLOW_QUERY_DISCORD_WEBHOOK).toBe(true);
     });
 
     it("detects Slack webhook", () => {
-      setEnv("DB_SLOW_QUERY_SLACK_WEBHOOK", "https://hooks.slack.com/services/test");
+      setEnv(
+        "DB_SLOW_QUERY_SLACK_WEBHOOK",
+        "https://hooks.slack.com/services/test",
+      );
       expect(!!process.env.DB_SLOW_QUERY_SLACK_WEBHOOK).toBe(true);
     });
 
     it("detects no webhooks configured", () => {
       setEnv("DB_SLOW_QUERY_DISCORD_WEBHOOK", undefined);
       setEnv("DB_SLOW_QUERY_SLACK_WEBHOOK", undefined);
-      expect(!!(process.env.DB_SLOW_QUERY_DISCORD_WEBHOOK || process.env.DB_SLOW_QUERY_SLACK_WEBHOOK)).toBe(false);
+      expect(
+        !!(
+          process.env.DB_SLOW_QUERY_DISCORD_WEBHOOK ||
+          process.env.DB_SLOW_QUERY_SLACK_WEBHOOK
+        ),
+      ).toBe(false);
     });
   });
 });
@@ -87,7 +107,9 @@ describe("overhead analysis", () => {
   it("performance.now() is sub-microsecond", () => {
     const start = performance.now();
     for (let i = 0; i < 10000; i++) performance.now();
-    expect(((performance.now() - start) * 1_000_000) / 10000).toBeLessThan(1000);
+    expect(((performance.now() - start) * 1_000_000) / 10000).toBeLessThan(
+      1000,
+    );
   });
 
   it("Map operations are fast", () => {
@@ -99,13 +121,16 @@ describe("overhead analysis", () => {
   });
 
   it("string hashing is fast", () => {
-    const strings = Array.from({ length: 100 }, (_, i) => `SELECT * FROM table_${i}`);
+    const strings = Array.from(
+      { length: 100 },
+      (_, i) => `SELECT * FROM table_${i}`,
+    );
     const start = performance.now();
     for (let iter = 0; iter < 1000; iter++) {
       for (const s of strings) {
         let hash = 0;
         for (let i = 0; i < s.length; i++) {
-          hash = ((hash << 5) - hash) + s.charCodeAt(i);
+          hash = (hash << 5) - hash + s.charCodeAt(i);
           hash = hash & hash;
         }
       }
@@ -117,45 +142,74 @@ describe("overhead analysis", () => {
 describe("proxy behavior", () => {
   it("get trap is called", () => {
     let calls = 0;
-    const proxy = new Proxy({ foo: "bar" }, {
-      get(obj, prop) { calls++; return Reflect.get(obj, prop); },
-    });
-    proxy.foo; proxy.foo; proxy.foo;
+    const proxy = new Proxy(
+      { foo: "bar" },
+      {
+        get(obj, prop) {
+          calls++;
+          return Reflect.get(obj, prop);
+        },
+      },
+    );
+    proxy.foo;
+    proxy.foo;
+    proxy.foo;
     expect(calls).toBe(3);
   });
 
   it("wraps function calls", () => {
     let calls = 0;
-    const proxy = new Proxy({ execute: async () => ({ rows: [] }) }, {
-      get(obj, prop) {
-        const value = Reflect.get(obj, prop);
-        if (typeof value === "function") {
-          return (...args: unknown[]) => { calls++; return Reflect.apply(value, obj, args); };
-        }
-        return value;
+    const proxy = new Proxy(
+      { execute: async () => ({ rows: [] }) },
+      {
+        get(obj, prop) {
+          const value = Reflect.get(obj, prop);
+          if (typeof value === "function") {
+            return (...args: unknown[]) => {
+              calls++;
+              return Reflect.apply(value, obj, args);
+            };
+          }
+          return value;
+        },
       },
-    });
-    proxy.execute(); proxy.execute();
+    );
+    proxy.execute();
+    proxy.execute();
     expect(calls).toBe(2);
   });
 
   it("preserves async", async () => {
-    const proxy = new Proxy({ query: async () => "result" }, {
-      get(obj, prop) {
-        const value = Reflect.get(obj, prop);
-        return typeof value === "function" ? (...args: unknown[]) => Reflect.apply(value, obj, args) : value;
+    const proxy = new Proxy(
+      { query: async () => "result" },
+      {
+        get(obj, prop) {
+          const value = Reflect.get(obj, prop);
+          return typeof value === "function"
+            ? (...args: unknown[]) => Reflect.apply(value, obj, args)
+            : value;
+        },
       },
-    });
+    );
     expect(await proxy.query()).toBe("result");
   });
 
   it("preserves errors", async () => {
-    const proxy = new Proxy({ fail: async () => { throw new Error("fail"); } }, {
-      get(obj, prop) {
-        const value = Reflect.get(obj, prop);
-        return typeof value === "function" ? (...args: unknown[]) => Reflect.apply(value, obj, args) : value;
+    const proxy = new Proxy(
+      {
+        fail: async () => {
+          throw new Error("fail");
+        },
       },
-    });
+      {
+        get(obj, prop) {
+          const value = Reflect.get(obj, prop);
+          return typeof value === "function"
+            ? (...args: unknown[]) => Reflect.apply(value, obj, args)
+            : value;
+        },
+      },
+    );
     await expect(proxy.fail()).rejects.toThrow("fail");
   });
 });

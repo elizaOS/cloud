@@ -62,7 +62,10 @@
  */
 
 import { describe, it, expect, beforeAll } from "bun:test";
-import type { SocialCredentials, SocialPlatform } from "@/lib/types/social-media";
+import type {
+  SocialCredentials,
+  SocialPlatform,
+} from "@/lib/types/social-media";
 
 // Skip helper that logs warning
 function skipWithWarning(platform: string, reason: string): void {
@@ -188,15 +191,20 @@ function loadTestCredentials(): TestCredentials {
     creds.mastodon = {
       platform: "mastodon",
       accessToken: process.env.MASTODON_ACCESS_TOKEN,
-      instanceUrl: process.env.MASTODON_INSTANCE_URL ?? "https://mastodon.social",
+      instanceUrl:
+        process.env.MASTODON_INSTANCE_URL ?? "https://mastodon.social",
     };
   } else {
     missing.push("MASTODON_ACCESS_TOKEN");
   }
 
   if (missing.length > 0) {
-    console.warn(`\n⚠️  Missing credentials for E2E tests: ${missing.join(", ")}`);
-    console.warn("   Set these environment variables for full test coverage.\n");
+    console.warn(
+      `\n⚠️  Missing credentials for E2E tests: ${missing.join(", ")}`,
+    );
+    console.warn(
+      "   Set these environment variables for full test coverage.\n",
+    );
   }
 
   return creds;
@@ -210,7 +218,9 @@ beforeAll(() => {
   availablePlatforms = Object.keys(testCredentials) as SocialPlatform[];
   const configured = availablePlatforms.length;
   const total = 11;
-  console.log(`\n✅ [Integration Tests] Credentials configured: ${configured}/${total} platforms`);
+  console.log(
+    `\n✅ [Integration Tests] Credentials configured: ${configured}/${total} platforms`,
+  );
   if (configured > 0) {
     console.log(`   Platforms: ${availablePlatforms.join(", ")}`);
   }
@@ -219,14 +229,22 @@ beforeAll(() => {
 
 describe("Provider Imports", () => {
   it("should import all providers without error", async () => {
-    const { twitterProvider } = await import("@/lib/services/social-media/providers/twitter");
-    const { blueskyProvider } = await import("@/lib/services/social-media/providers/bluesky");
-    const { discordProvider } = await import("@/lib/services/social-media/providers/discord");
-    const { telegramProvider } = await import("@/lib/services/social-media/providers/telegram");
-    const { redditProvider } = await import("@/lib/services/social-media/providers/reddit");
-    const { metaProvider } = await import("@/lib/services/social-media/providers/meta");
-    const { tiktokProvider } = await import("@/lib/services/social-media/providers/tiktok");
-    const { linkedinProvider } = await import("@/lib/services/social-media/providers/linkedin");
+    const { twitterProvider } =
+      await import("@/lib/services/social-media/providers/twitter");
+    const { blueskyProvider } =
+      await import("@/lib/services/social-media/providers/bluesky");
+    const { discordProvider } =
+      await import("@/lib/services/social-media/providers/discord");
+    const { telegramProvider } =
+      await import("@/lib/services/social-media/providers/telegram");
+    const { redditProvider } =
+      await import("@/lib/services/social-media/providers/reddit");
+    const { metaProvider } =
+      await import("@/lib/services/social-media/providers/meta");
+    const { tiktokProvider } =
+      await import("@/lib/services/social-media/providers/tiktok");
+    const { linkedinProvider } =
+      await import("@/lib/services/social-media/providers/linkedin");
 
     expect(twitterProvider.platform).toBe("twitter");
     expect(blueskyProvider.platform).toBe("bluesky");
@@ -241,9 +259,12 @@ describe("Provider Imports", () => {
 
 describe("Rate Limit Utility", () => {
   it("should export rate limit functions", async () => {
-    const { withRetry, isRateLimitResponse, createRateLimitError, getRateLimitConfig } = await import(
-      "@/lib/services/social-media/rate-limit"
-    );
+    const {
+      withRetry,
+      isRateLimitResponse,
+      createRateLimitError,
+      getRateLimitConfig,
+    } = await import("@/lib/services/social-media/rate-limit");
 
     expect(typeof withRetry).toBe("function");
     expect(typeof isRateLimitResponse).toBe("function");
@@ -252,7 +273,8 @@ describe("Rate Limit Utility", () => {
   });
 
   it("should have rate limit config for all platforms", async () => {
-    const { getRateLimitConfig } = await import("@/lib/services/social-media/rate-limit");
+    const { getRateLimitConfig } =
+      await import("@/lib/services/social-media/rate-limit");
     const { SUPPORTED_PLATFORMS } = await import("@/lib/types/social-media");
 
     for (const platform of SUPPORTED_PLATFORMS) {
@@ -264,7 +286,8 @@ describe("Rate Limit Utility", () => {
   });
 
   it("should detect 429 status as rate limit", async () => {
-    const { isRateLimitResponse } = await import("@/lib/services/social-media/rate-limit");
+    const { isRateLimitResponse } =
+      await import("@/lib/services/social-media/rate-limit");
 
     const rateLimitedResponse = new Response(null, { status: 429 });
     const okResponse = new Response(null, { status: 200 });
@@ -278,9 +301,8 @@ describe("Rate Limit Utility", () => {
 
 describe("Token Refresh Utility", () => {
   it("should export token refresh functions", async () => {
-    const { isTokenExpired, needsRefresh, refreshToken, getRefreshGuidance } = await import(
-      "@/lib/services/social-media/token-refresh"
-    );
+    const { isTokenExpired, needsRefresh, refreshToken, getRefreshGuidance } =
+      await import("@/lib/services/social-media/token-refresh");
 
     expect(typeof isTokenExpired).toBe("function");
     expect(typeof needsRefresh).toBe("function");
@@ -289,7 +311,8 @@ describe("Token Refresh Utility", () => {
   });
 
   it("should detect expired tokens", async () => {
-    const { isTokenExpired } = await import("@/lib/services/social-media/token-refresh");
+    const { isTokenExpired } =
+      await import("@/lib/services/social-media/token-refresh");
 
     const expiredCreds: SocialCredentials = {
       platform: "twitter",
@@ -314,7 +337,8 @@ describe("Token Refresh Utility", () => {
   });
 
   it("should return guidance for all platforms", async () => {
-    const { getRefreshGuidance } = await import("@/lib/services/social-media/token-refresh");
+    const { getRefreshGuidance } =
+      await import("@/lib/services/social-media/token-refresh");
     const { SUPPORTED_PLATFORMS } = await import("@/lib/types/social-media");
 
     for (const platform of SUPPORTED_PLATFORMS) {
@@ -327,9 +351,12 @@ describe("Token Refresh Utility", () => {
 
 describe("Alert Service", () => {
   it("should export alert functions", async () => {
-    const { sendSocialMediaAlert, alertOnPostFailure, alertOnTokenExpiry, alertOnRateLimit } = await import(
-      "@/lib/services/social-media/alerts"
-    );
+    const {
+      sendSocialMediaAlert,
+      alertOnPostFailure,
+      alertOnTokenExpiry,
+      alertOnRateLimit,
+    } = await import("@/lib/services/social-media/alerts");
 
     expect(typeof sendSocialMediaAlert).toBe("function");
     expect(typeof alertOnPostFailure).toBe("function");
@@ -345,8 +372,11 @@ describe("Twitter Integration", () => {
       return;
     }
 
-    const { twitterProvider } = await import("@/lib/services/social-media/providers/twitter");
-    const result = await twitterProvider.validateCredentials(testCredentials.twitter);
+    const { twitterProvider } =
+      await import("@/lib/services/social-media/providers/twitter");
+    const result = await twitterProvider.validateCredentials(
+      testCredentials.twitter,
+    );
 
     expect(result.valid).toBe(true);
     expect(result.accountId).toBeDefined();
@@ -355,7 +385,8 @@ describe("Twitter Integration", () => {
   });
 
   it("should return error for missing credentials", async () => {
-    const { twitterProvider } = await import("@/lib/services/social-media/providers/twitter");
+    const { twitterProvider } =
+      await import("@/lib/services/social-media/providers/twitter");
     const result = await twitterProvider.validateCredentials({
       platform: "twitter",
     });
@@ -368,12 +399,18 @@ describe("Twitter Integration", () => {
 describe("Bluesky Integration", () => {
   it("should validate credentials", async () => {
     if (!testCredentials.bluesky) {
-      skipWithWarning("Bluesky", "BLUESKY_HANDLE + BLUESKY_APP_PASSWORD not set");
+      skipWithWarning(
+        "Bluesky",
+        "BLUESKY_HANDLE + BLUESKY_APP_PASSWORD not set",
+      );
       return;
     }
 
-    const { blueskyProvider } = await import("@/lib/services/social-media/providers/bluesky");
-    const result = await blueskyProvider.validateCredentials(testCredentials.bluesky);
+    const { blueskyProvider } =
+      await import("@/lib/services/social-media/providers/bluesky");
+    const result = await blueskyProvider.validateCredentials(
+      testCredentials.bluesky,
+    );
 
     expect(result.valid).toBe(true);
     expect(result.accountId).toBeDefined();
@@ -382,13 +419,16 @@ describe("Bluesky Integration", () => {
   });
 
   it("should return error for missing credentials", async () => {
-    const { blueskyProvider } = await import("@/lib/services/social-media/providers/bluesky");
+    const { blueskyProvider } =
+      await import("@/lib/services/social-media/providers/bluesky");
     const result = await blueskyProvider.validateCredentials({
       platform: "bluesky",
     });
 
     expect(result.valid).toBe(false);
-    expect(result.error?.toLowerCase()).toContain("handle and app password required");
+    expect(result.error?.toLowerCase()).toContain(
+      "handle and app password required",
+    );
   });
 });
 
@@ -399,8 +439,11 @@ describe("Discord Integration", () => {
       return;
     }
 
-    const { discordProvider } = await import("@/lib/services/social-media/providers/discord");
-    const result = await discordProvider.validateCredentials(testCredentials.discord);
+    const { discordProvider } =
+      await import("@/lib/services/social-media/providers/discord");
+    const result = await discordProvider.validateCredentials(
+      testCredentials.discord,
+    );
 
     expect(result.valid).toBe(true);
     expect(result.accountId).toBeDefined();
@@ -413,7 +456,8 @@ describe("Discord Integration", () => {
       return;
     }
 
-    const { discordProvider } = await import("@/lib/services/social-media/providers/discord");
+    const { discordProvider } =
+      await import("@/lib/services/social-media/providers/discord");
     const result = await discordProvider.validateCredentials({
       platform: "discord",
       webhookUrl: testCredentials.discord.webhookUrl,
@@ -424,7 +468,8 @@ describe("Discord Integration", () => {
   });
 
   it("should reject invalid webhook format", async () => {
-    const { discordProvider } = await import("@/lib/services/social-media/providers/discord");
+    const { discordProvider } =
+      await import("@/lib/services/social-media/providers/discord");
     const result = await discordProvider.validateCredentials({
       platform: "discord",
       webhookUrl: "https://example.com/not-a-webhook",
@@ -441,8 +486,11 @@ describe("Telegram Integration", () => {
       return;
     }
 
-    const { telegramProvider } = await import("@/lib/services/social-media/providers/telegram");
-    const result = await telegramProvider.validateCredentials(testCredentials.telegram);
+    const { telegramProvider } =
+      await import("@/lib/services/social-media/providers/telegram");
+    const result = await telegramProvider.validateCredentials(
+      testCredentials.telegram,
+    );
 
     expect(result.valid).toBe(true);
     expect(result.accountId).toBeDefined();
@@ -450,7 +498,8 @@ describe("Telegram Integration", () => {
   });
 
   it("should return error for missing credentials", async () => {
-    const { telegramProvider } = await import("@/lib/services/social-media/providers/telegram");
+    const { telegramProvider } =
+      await import("@/lib/services/social-media/providers/telegram");
     const result = await telegramProvider.validateCredentials({
       platform: "telegram",
     });
@@ -467,8 +516,11 @@ describe("Meta (Facebook/Instagram) Integration", () => {
       return;
     }
 
-    const { metaProvider } = await import("@/lib/services/social-media/providers/meta");
-    const result = await metaProvider.validateCredentials(testCredentials.facebook);
+    const { metaProvider } =
+      await import("@/lib/services/social-media/providers/meta");
+    const result = await metaProvider.validateCredentials(
+      testCredentials.facebook,
+    );
 
     expect(result.valid).toBe(true);
     expect(result.accountId).toBeDefined();
@@ -476,7 +528,8 @@ describe("Meta (Facebook/Instagram) Integration", () => {
   });
 
   it("should return error for missing credentials", async () => {
-    const { metaProvider } = await import("@/lib/services/social-media/providers/meta");
+    const { metaProvider } =
+      await import("@/lib/services/social-media/providers/meta");
     const result = await metaProvider.validateCredentials({
       platform: "facebook",
     });
@@ -493,8 +546,11 @@ describe("LinkedIn Integration", () => {
       return;
     }
 
-    const { linkedinProvider } = await import("@/lib/services/social-media/providers/linkedin");
-    const result = await linkedinProvider.validateCredentials(testCredentials.linkedin);
+    const { linkedinProvider } =
+      await import("@/lib/services/social-media/providers/linkedin");
+    const result = await linkedinProvider.validateCredentials(
+      testCredentials.linkedin,
+    );
 
     expect(result.valid).toBe(true);
     expect(result.accountId).toBeDefined();
@@ -502,7 +558,8 @@ describe("LinkedIn Integration", () => {
   });
 
   it("should return error for missing credentials", async () => {
-    const { linkedinProvider } = await import("@/lib/services/social-media/providers/linkedin");
+    const { linkedinProvider } =
+      await import("@/lib/services/social-media/providers/linkedin");
     const result = await linkedinProvider.validateCredentials({
       platform: "linkedin",
     });
@@ -519,8 +576,11 @@ describe("TikTok Integration", () => {
       return;
     }
 
-    const { tiktokProvider } = await import("@/lib/services/social-media/providers/tiktok");
-    const result = await tiktokProvider.validateCredentials(testCredentials.tiktok);
+    const { tiktokProvider } =
+      await import("@/lib/services/social-media/providers/tiktok");
+    const result = await tiktokProvider.validateCredentials(
+      testCredentials.tiktok,
+    );
 
     expect(result.valid).toBe(true);
     expect(result.accountId).toBeDefined();
@@ -530,12 +590,14 @@ describe("TikTok Integration", () => {
 
 describe("Slack Integration", () => {
   it("should validate webhook URL format", async () => {
-    const { slackProvider } = await import("@/lib/services/social-media/providers/slack");
+    const { slackProvider } =
+      await import("@/lib/services/social-media/providers/slack");
 
     // Webhook validation is local - doesn't need real credentials
     const webhookResult = await slackProvider.validateCredentials({
       platform: "slack",
-      webhookUrl: "https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX",
+      webhookUrl:
+        "https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX",
     });
 
     expect(webhookResult.valid).toBe(true);
@@ -548,8 +610,11 @@ describe("Slack Integration", () => {
       return;
     }
 
-    const { slackProvider } = await import("@/lib/services/social-media/providers/slack");
-    const result = await slackProvider.validateCredentials(testCredentials.slack);
+    const { slackProvider } =
+      await import("@/lib/services/social-media/providers/slack");
+    const result = await slackProvider.validateCredentials(
+      testCredentials.slack,
+    );
 
     expect(result.valid).toBe(true);
     expect(result.accountId).toBeDefined();
@@ -557,7 +622,8 @@ describe("Slack Integration", () => {
   });
 
   it("should return error for invalid credentials", async () => {
-    const { slackProvider } = await import("@/lib/services/social-media/providers/slack");
+    const { slackProvider } =
+      await import("@/lib/services/social-media/providers/slack");
     const result = await slackProvider.validateCredentials({
       platform: "slack",
       // No bot token or webhook
@@ -570,7 +636,8 @@ describe("Slack Integration", () => {
 
 describe("Reddit Integration", () => {
   it("should return error for missing credentials", async () => {
-    const { redditProvider } = await import("@/lib/services/social-media/providers/reddit");
+    const { redditProvider } =
+      await import("@/lib/services/social-media/providers/reddit");
     const result = await redditProvider.validateCredentials({
       platform: "reddit",
       // No credentials
@@ -582,12 +649,18 @@ describe("Reddit Integration", () => {
 
   it("should validate credentials", async () => {
     if (!testCredentials.reddit) {
-      skipWithWarning("Reddit", "REDDIT_CLIENT_ID + REDDIT_CLIENT_SECRET not set");
+      skipWithWarning(
+        "Reddit",
+        "REDDIT_CLIENT_ID + REDDIT_CLIENT_SECRET not set",
+      );
       return;
     }
 
-    const { redditProvider } = await import("@/lib/services/social-media/providers/reddit");
-    const result = await redditProvider.validateCredentials(testCredentials.reddit);
+    const { redditProvider } =
+      await import("@/lib/services/social-media/providers/reddit");
+    const result = await redditProvider.validateCredentials(
+      testCredentials.reddit,
+    );
 
     expect(result.valid).toBe(true);
     expect(result.accountId).toBeDefined();
@@ -597,7 +670,8 @@ describe("Reddit Integration", () => {
 
 describe("Mastodon Integration", () => {
   it("should return error for missing credentials", async () => {
-    const { mastodonProvider } = await import("@/lib/services/social-media/providers/mastodon");
+    const { mastodonProvider } =
+      await import("@/lib/services/social-media/providers/mastodon");
     const result = await mastodonProvider.validateCredentials({
       platform: "mastodon",
       // No access token
@@ -613,8 +687,11 @@ describe("Mastodon Integration", () => {
       return;
     }
 
-    const { mastodonProvider } = await import("@/lib/services/social-media/providers/mastodon");
-    const result = await mastodonProvider.validateCredentials(testCredentials.mastodon);
+    const { mastodonProvider } =
+      await import("@/lib/services/social-media/providers/mastodon");
+    const result = await mastodonProvider.validateCredentials(
+      testCredentials.mastodon,
+    );
 
     expect(result.valid).toBe(true);
     expect(result.accountId).toBeDefined();
@@ -627,7 +704,8 @@ describe("Mastodon Integration", () => {
       return;
     }
 
-    const { mastodonProvider } = await import("@/lib/services/social-media/providers/mastodon");
+    const { mastodonProvider } =
+      await import("@/lib/services/social-media/providers/mastodon");
     const result = await mastodonProvider.validateCredentials({
       ...testCredentials.mastodon,
       instanceUrl: testCredentials.mastodon.instanceUrl,
@@ -679,7 +757,9 @@ describe("Service Integration", () => {
   it("should throw for unsupported platform", async () => {
     const { socialMediaService } = await import("@/lib/services/social-media");
     // All platforms are now implemented, so test with an invalid platform
-    expect(() => socialMediaService.getProvider("invalid_platform" as never)).toThrow();
+    expect(() =>
+      socialMediaService.getProvider("invalid_platform" as never),
+    ).toThrow();
   });
 });
 
@@ -691,23 +771,33 @@ describe("Service Integration", () => {
 describe("E2E: Bluesky Post Lifecycle", () => {
   it("should create and delete a test post", async () => {
     if (!testCredentials.bluesky) {
-      skipWithWarning("E2E Bluesky", "BLUESKY_HANDLE + BLUESKY_APP_PASSWORD not set");
+      skipWithWarning(
+        "E2E Bluesky",
+        "BLUESKY_HANDLE + BLUESKY_APP_PASSWORD not set",
+      );
       return;
     }
 
-    const { blueskyProvider } = await import("@/lib/services/social-media/providers/bluesky");
+    const { blueskyProvider } =
+      await import("@/lib/services/social-media/providers/bluesky");
     const testMessage = `🧪 Integration test - ${new Date().toISOString()} - Auto-deleting...`;
 
-    const createResult = await blueskyProvider.createPost(testCredentials.bluesky, { text: testMessage });
+    const createResult = await blueskyProvider.createPost(
+      testCredentials.bluesky,
+      { text: testMessage },
+    );
 
     expect(createResult.success).toBe(true);
     expect(createResult.postId).toBeDefined();
     expect(createResult.postUrl).toBeDefined();
     console.log(`✅ [E2E Bluesky] Created: ${createResult.postUrl}`);
 
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    await new Promise((resolve) => setTimeout(resolve, 2000));
 
-    const deleteResult = await blueskyProvider.deletePost!(testCredentials.bluesky, createResult.postId!);
+    const deleteResult = await blueskyProvider.deletePost!(
+      testCredentials.bluesky,
+      createResult.postId!,
+    );
     expect(deleteResult.success).toBe(true);
     console.log(`✅ [E2E Bluesky] Deleted: ${createResult.postId}`);
   });
@@ -720,19 +810,26 @@ describe("E2E: Mastodon Post Lifecycle", () => {
       return;
     }
 
-    const { mastodonProvider } = await import("@/lib/services/social-media/providers/mastodon");
+    const { mastodonProvider } =
+      await import("@/lib/services/social-media/providers/mastodon");
     const testMessage = `🧪 Integration test - ${new Date().toISOString()} - Auto-deleting...`;
 
-    const createResult = await mastodonProvider.createPost(testCredentials.mastodon, { text: testMessage });
+    const createResult = await mastodonProvider.createPost(
+      testCredentials.mastodon,
+      { text: testMessage },
+    );
 
     expect(createResult.success).toBe(true);
     expect(createResult.postId).toBeDefined();
     expect(createResult.postUrl).toBeDefined();
     console.log(`✅ [E2E Mastodon] Created: ${createResult.postUrl}`);
 
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    await new Promise((resolve) => setTimeout(resolve, 2000));
 
-    const deleteResult = await mastodonProvider.deletePost!(testCredentials.mastodon, createResult.postId!);
+    const deleteResult = await mastodonProvider.deletePost!(
+      testCredentials.mastodon,
+      createResult.postId!,
+    );
     expect(deleteResult.success).toBe(true);
     console.log(`✅ [E2E Mastodon] Deleted: ${createResult.postId}`);
   });
@@ -745,10 +842,13 @@ describe("E2E: Discord Webhook Post", () => {
       return;
     }
 
-    const { discordProvider } = await import("@/lib/services/social-media/providers/discord");
+    const { discordProvider } =
+      await import("@/lib/services/social-media/providers/discord");
     const testMessage = `🧪 Integration test - ${new Date().toISOString()}`;
 
-    const result = await discordProvider.createPost(testCredentials.discord, { text: testMessage });
+    const result = await discordProvider.createPost(testCredentials.discord, {
+      text: testMessage,
+    });
 
     expect(result.success).toBe(true);
     console.log(`✅ [E2E Discord] Webhook message sent`);
@@ -763,10 +863,13 @@ describe("E2E: Slack Webhook Post", () => {
       return;
     }
 
-    const { slackProvider } = await import("@/lib/services/social-media/providers/slack");
+    const { slackProvider } =
+      await import("@/lib/services/social-media/providers/slack");
     const testMessage = `🧪 Integration test - ${new Date().toISOString()}`;
 
-    const result = await slackProvider.createPost(testCredentials.slack, { text: testMessage });
+    const result = await slackProvider.createPost(testCredentials.slack, {
+      text: testMessage,
+    });
 
     expect(result.success).toBe(true);
     expect(result.metadata?.type).toBe("webhook");
@@ -781,10 +884,14 @@ describe("E2E: Twitter Post Lifecycle", () => {
       return;
     }
 
-    const { twitterProvider } = await import("@/lib/services/social-media/providers/twitter");
+    const { twitterProvider } =
+      await import("@/lib/services/social-media/providers/twitter");
     const testMessage = `🧪 Integration test - ${Date.now()} - Auto-deleting...`;
 
-    const createResult = await twitterProvider.createPost(testCredentials.twitter, { text: testMessage });
+    const createResult = await twitterProvider.createPost(
+      testCredentials.twitter,
+      { text: testMessage },
+    );
 
     if (!createResult.success) {
       console.warn(`⚠️ [E2E Twitter] Post failed: ${createResult.error}`);
@@ -795,9 +902,12 @@ describe("E2E: Twitter Post Lifecycle", () => {
     expect(createResult.postId).toBeDefined();
     console.log(`✅ [E2E Twitter] Created: ${createResult.postUrl}`);
 
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    await new Promise((resolve) => setTimeout(resolve, 2000));
 
-    const deleteResult = await twitterProvider.deletePost!(testCredentials.twitter, createResult.postId!);
+    const deleteResult = await twitterProvider.deletePost!(
+      testCredentials.twitter,
+      createResult.postId!,
+    );
     expect(deleteResult.success).toBe(true);
     console.log(`✅ [E2E Twitter] Deleted: ${createResult.postId}`);
   });

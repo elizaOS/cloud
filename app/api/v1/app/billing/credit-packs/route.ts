@@ -37,10 +37,7 @@ export async function GET(request: NextRequest) {
   const corsResult = await validateOrigin(request);
 
   // Rate limiting
-  const rateLimitResult = await checkAppRateLimit(
-    request,
-    APP_RATE_LIMITS,
-  );
+  const rateLimitResult = await checkAppRateLimit(request, APP_RATE_LIMITS);
   if (!rateLimitResult.allowed) {
     return createRateLimitErrorResponse(
       rateLimitResult,

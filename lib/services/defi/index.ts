@@ -24,7 +24,11 @@ export * from "./types";
 export * from "./operations";
 
 // Base client
-export { BaseHttpClient, type HttpClientConfig, type RequestOptions } from "./base-client";
+export {
+  BaseHttpClient,
+  type HttpClientConfig,
+  type RequestOptions,
+} from "./base-client";
 
 // Individual service exports
 export {
@@ -77,4 +81,3 @@ export {
 } from "./defined";
 
 // Use checkServicesHealth from operations.ts for health checks
-

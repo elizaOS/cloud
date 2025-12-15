@@ -28,7 +28,7 @@ export class AdCreativesRepository {
   }
 
   async findByExternalId(
-    externalCreativeId: string
+    externalCreativeId: string,
   ): Promise<AdCreative | undefined> {
     return await db.query.adCreatives.findFirst({
       where: eq(adCreatives.external_creative_id, externalCreativeId),
@@ -42,7 +42,7 @@ export class AdCreativesRepository {
       status?: CreativeStatus;
       limit?: number;
       offset?: number;
-    }
+    },
   ): Promise<AdCreative[]> {
     const conditions = [eq(adCreatives.campaign_id, campaignId)];
 
@@ -69,7 +69,7 @@ export class AdCreativesRepository {
 
   async update(
     id: string,
-    data: Partial<NewAdCreative>
+    data: Partial<NewAdCreative>,
   ): Promise<AdCreative | undefined> {
     const [updated] = await db
       .update(adCreatives)
@@ -81,7 +81,7 @@ export class AdCreativesRepository {
 
   async updateStatus(
     id: string,
-    status: CreativeStatus
+    status: CreativeStatus,
   ): Promise<AdCreative | undefined> {
     return this.update(id, { status });
   }

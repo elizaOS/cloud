@@ -17,11 +17,20 @@ export const options: Options = {
 };
 
 export function setup() {
-  console.log(`\n📈 SPIKE TEST | ${config.name} | Peak: ${config.maxVUs * 2} VUs\n`);
+  console.log(
+    `\n📈 SPIKE TEST | ${config.name} | Peak: ${config.maxVUs * 2} VUs\n`,
+  );
 }
 
 export default function () {
-  const ops = [getAgentCard, getBalance, listAgents, checkCredits, () => sendMessage("ping"), listModels];
+  const ops = [
+    getAgentCard,
+    getBalance,
+    listAgents,
+    checkCredits,
+    () => sendMessage("ping"),
+    listModels,
+  ];
   ops[__ITER % ops.length]();
   sleep(0.05);
 }

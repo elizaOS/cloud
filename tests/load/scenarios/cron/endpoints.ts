@@ -7,7 +7,11 @@ const cronJobLatency = new Trend("cron_job_latency");
 
 const CRON_ENDPOINTS = [
   { name: "auto-top-up", path: "/api/cron/auto-top-up", timeout: 5000 },
-  { name: "cleanup-sessions", path: "/api/cron/cleanup-anonymous-sessions", timeout: 3000 },
+  {
+    name: "cleanup-sessions",
+    path: "/api/cron/cleanup-anonymous-sessions",
+    timeout: 3000,
+  },
   { name: "domain-health", path: "/api/cron/domain-health", timeout: 10000 },
   { name: "agent-budgets", path: "/api/cron/agent-budgets", timeout: 5000 },
   { name: "health-check", path: "/api/v1/cron/health-check", timeout: 5000 },
@@ -15,11 +19,19 @@ const CRON_ENDPOINTS = [
 
 function getCronHeaders() {
   const key = __ENV.CRON_SECRET;
-  if (!key && __ENV.LOAD_TEST_ENV !== "local") throw new Error("CRON_SECRET required");
-  return { "Content-Type": "application/json", Authorization: `Bearer ${key || "test-cron-secret"}` };
+  if (!key && __ENV.LOAD_TEST_ENV !== "local")
+    throw new Error("CRON_SECRET required");
+  return {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${key || "test-cron-secret"}`,
+  };
 }
 
-export function triggerCronEndpoint(ep: { name: string; path: string; timeout: number }): boolean {
+export function triggerCronEndpoint(ep: {
+  name: string;
+  path: string;
+  timeout: number;
+}): boolean {
   const start = Date.now();
   const body = httpGet(ep.path, {
     headers: getCronHeaders(),
@@ -43,7 +55,9 @@ export function testAllCronEndpoints() {
 
 export function testCriticalCronEndpoints() {
   group("Critical Cron", () => {
-    for (const ep of CRON_ENDPOINTS.filter(e => ["auto-top-up", "agent-budgets", "health-check"].includes(e.name))) {
+    for (const ep of CRON_ENDPOINTS.filter((e) =>
+      ["auto-top-up", "agent-budgets", "health-check"].includes(e.name),
+    )) {
       triggerCronEndpoint(ep);
       sleep(0.5);
     }

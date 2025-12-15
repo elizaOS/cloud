@@ -21,9 +21,16 @@ export async function GET(request: Request) {
   });
 
   if (!parsed.success) {
-    return NextResponse.json({ error: "Invalid parameters", details: parsed.error.format() }, { status: 400 });
+    return NextResponse.json(
+      { error: "Invalid parameters", details: parsed.error.format() },
+      { status: 400 },
+    );
   }
 
-  const result = await searchTokens(parsed.data.source, parsed.data.query, parsed.data.limit);
+  const result = await searchTokens(
+    parsed.data.source,
+    parsed.data.query,
+    parsed.data.limit,
+  );
   return NextResponse.json(result);
 }

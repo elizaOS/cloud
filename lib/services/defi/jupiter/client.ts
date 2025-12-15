@@ -23,10 +23,12 @@ export class JupiterClient extends BaseHttpClient {
       {
         baseUrl: JUPITER_API_URL,
         apiKey: config.apiKey ?? "",
-        headers: config.apiKey ? { Authorization: `Bearer ${config.apiKey}` } : {},
+        headers: config.apiKey
+          ? { Authorization: `Bearer ${config.apiKey}` }
+          : {},
         timeout: config.timeout,
       },
-      "Jupiter"
+      "Jupiter",
     );
     this.priceApiUrl = JUPITER_PRICE_API_URL;
     this.tokenApiUrl = JUPITER_TOKEN_API_URL;
@@ -37,7 +39,7 @@ export class JupiterClient extends BaseHttpClient {
    */
   async priceRequest<T>(
     endpoint: string,
-    params?: Record<string, string | number | boolean | undefined>
+    params?: Record<string, string | number | boolean | undefined>,
   ): Promise<T> {
     const url = new URL(`${this.priceApiUrl}${endpoint}`);
 
@@ -95,4 +97,3 @@ export class JupiterClient extends BaseHttpClient {
     }
   }
 }
-

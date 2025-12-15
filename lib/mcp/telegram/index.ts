@@ -7,7 +7,10 @@
  */
 
 import { z } from "zod";
-import { telegramService, type TelegramReplyMarkup } from "@/lib/services/telegram";
+import {
+  telegramService,
+  type TelegramReplyMarkup,
+} from "@/lib/services/telegram";
 import { botsService } from "@/lib/services/bots";
 import { logger } from "@/lib/utils/logger";
 
@@ -25,7 +28,10 @@ interface MCPToolDefinition {
   name: string;
   description: string;
   inputSchema: z.ZodType;
-  handler: (params: Record<string, unknown>, context: MCPContext) => Promise<unknown>;
+  handler: (
+    params: Record<string, unknown>,
+    context: MCPContext,
+  ) => Promise<unknown>;
 }
 
 interface MCPResourceDefinition {
@@ -48,46 +54,78 @@ interface MCPServerDefinition {
 // =============================================================================
 
 const SendMessageSchema = z.object({
-  chatId: z.union([z.string(), z.number()]).describe("Telegram chat ID to send message to"),
+  chatId: z
+    .union([z.string(), z.number()])
+    .describe("Telegram chat ID to send message to"),
   text: z.string().min(1).max(4096).describe("Message text (max 4096 chars)"),
-  parseMode: z.enum(["HTML", "Markdown", "MarkdownV2"]).optional().describe("Text formatting mode"),
+  parseMode: z
+    .enum(["HTML", "Markdown", "MarkdownV2"])
+    .optional()
+    .describe("Text formatting mode"),
   replyToMessageId: z.number().optional().describe("Message ID to reply to"),
-  connectionId: z.string().uuid().optional().describe("Specific bot connection to use"),
+  connectionId: z
+    .string()
+    .uuid()
+    .optional()
+    .describe("Specific bot connection to use"),
 });
 
 const GetChatSchema = z.object({
   chatId: z.union([z.string(), z.number()]).describe("Telegram chat ID"),
-  connectionId: z.string().uuid().optional().describe("Specific bot connection to use"),
+  connectionId: z
+    .string()
+    .uuid()
+    .optional()
+    .describe("Specific bot connection to use"),
 });
 
 const ListChatsSchema = z.object({
-  connectionId: z.string().uuid().optional().describe("Specific bot connection to list chats for"),
+  connectionId: z
+    .string()
+    .uuid()
+    .optional()
+    .describe("Specific bot connection to list chats for"),
 });
 
 const SendButtonsSchema = z.object({
   chatId: z.union([z.string(), z.number()]).describe("Telegram chat ID"),
   text: z.string().min(1).max(4096).describe("Message text"),
-  buttons: z.array(
-    z.array(
-      z.object({
-        text: z.string().describe("Button label"),
-        callbackData: z.string().optional().describe("Data sent when button is clicked"),
-        url: z.string().url().optional().describe("URL to open when button is clicked"),
-      })
+  buttons: z
+    .array(
+      z.array(
+        z.object({
+          text: z.string().describe("Button label"),
+          callbackData: z
+            .string()
+            .optional()
+            .describe("Data sent when button is clicked"),
+          url: z
+            .string()
+            .url()
+            .optional()
+            .describe("URL to open when button is clicked"),
+        }),
+      ),
     )
-  ).describe("2D array of inline keyboard buttons"),
+    .describe("2D array of inline keyboard buttons"),
   connectionId: z.string().uuid().optional(),
 });
 
 const AnswerCallbackSchema = z.object({
   callbackQueryId: z.string().describe("Callback query ID to answer"),
   text: z.string().optional().describe("Text to show to user"),
-  showAlert: z.boolean().optional().describe("Show as alert instead of notification"),
+  showAlert: z
+    .boolean()
+    .optional()
+    .describe("Show as alert instead of notification"),
   connectionId: z.string().uuid().optional(),
 });
 
 const SetupWebhookSchema = z.object({
-  connectionId: z.string().uuid().describe("Bot connection ID to setup webhook for"),
+  connectionId: z
+    .string()
+    .uuid()
+    .describe("Bot connection ID to setup webhook for"),
 });
 
 const ListBotsSchema = z.object({});
@@ -98,7 +136,7 @@ const ListBotsSchema = z.object({});
 
 async function getConnectionId(
   context: MCPContext,
-  specifiedConnectionId?: string
+  specifiedConnectionId?: string,
 ): Promise<string> {
   if (specifiedConnectionId) return specifiedConnectionId;
   if (context.connectionId) return context.connectionId;
@@ -106,11 +144,13 @@ async function getConnectionId(
   // Get first active Telegram connection for the org
   const connections = await botsService.getConnections(context.organizationId);
   const telegramConnection = connections.find(
-    (c) => c.platform === "telegram" && c.status === "active"
+    (c) => c.platform === "telegram" && c.status === "active",
   );
 
   if (!telegramConnection) {
-    throw new Error("No active Telegram bot connection found. Connect a bot first.");
+    throw new Error(
+      "No active Telegram bot connection found. Connect a bot first.",
+    );
   }
 
   return telegramConnection.id;
@@ -122,7 +162,7 @@ async function getConnectionId(
 
 async function handleSendMessage(
   params: z.infer<typeof SendMessageSchema>,
-  ctx: MCPContext
+  ctx: MCPContext,
 ) {
   const connectionId = await getConnectionId(ctx, params.connectionId);
 
@@ -134,7 +174,7 @@ async function handleSendMessage(
     {
       parse_mode: params.parseMode,
       reply_to_message_id: params.replyToMessageId,
-    }
+    },
   );
 
   logger.info("[Telegram MCP] Message sent", {
@@ -153,7 +193,7 @@ async function handleSendMessage(
 
 async function handleGetChat(
   params: z.infer<typeof GetChatSchema>,
-  ctx: MCPContext
+  ctx: MCPContext,
 ) {
   const connectionId = await getConnectionId(ctx, params.connectionId);
   const token = await botsService.getBotToken(connectionId, ctx.organizationId);
@@ -169,10 +209,13 @@ async function handleGetChat(
 
 async function handleListChats(
   params: z.infer<typeof ListChatsSchema>,
-  ctx: MCPContext
+  ctx: MCPContext,
 ) {
   const connectionId = await getConnectionId(ctx, params.connectionId);
-  const chats = await telegramService.listChats(connectionId, ctx.organizationId);
+  const chats = await telegramService.listChats(
+    connectionId,
+    ctx.organizationId,
+  );
 
   return {
     chats,
@@ -182,7 +225,7 @@ async function handleListChats(
 
 async function handleSendButtons(
   params: z.infer<typeof SendButtonsSchema>,
-  ctx: MCPContext
+  ctx: MCPContext,
 ) {
   const connectionId = await getConnectionId(ctx, params.connectionId);
 
@@ -192,7 +235,7 @@ async function handleSendButtons(
         text: btn.text,
         callback_data: btn.callbackData,
         url: btn.url,
-      }))
+      })),
     ),
   };
 
@@ -201,7 +244,7 @@ async function handleSendButtons(
     ctx.organizationId,
     params.chatId,
     params.text,
-    { reply_markup: replyMarkup }
+    { reply_markup: replyMarkup },
   );
 
   return {
@@ -212,7 +255,7 @@ async function handleSendButtons(
 
 async function handleAnswerCallback(
   params: z.infer<typeof AnswerCallbackSchema>,
-  ctx: MCPContext
+  ctx: MCPContext,
 ) {
   const connectionId = await getConnectionId(ctx, params.connectionId);
   const token = await botsService.getBotToken(connectionId, ctx.organizationId);
@@ -221,7 +264,7 @@ async function handleAnswerCallback(
     token,
     params.callbackQueryId,
     params.text,
-    params.showAlert
+    params.showAlert,
   );
 
   return { success: true };
@@ -229,14 +272,14 @@ async function handleAnswerCallback(
 
 async function handleSetupWebhook(
   params: z.infer<typeof SetupWebhookSchema>,
-  ctx: MCPContext
+  ctx: MCPContext,
 ) {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://cloud.eliza.ai";
 
   await telegramService.setupWebhookForConnection(
     params.connectionId,
     ctx.organizationId,
-    baseUrl
+    baseUrl,
   );
 
   return {
@@ -245,7 +288,10 @@ async function handleSetupWebhook(
   };
 }
 
-async function handleListBots(_params: z.infer<typeof ListBotsSchema>, ctx: MCPContext) {
+async function handleListBots(
+  _params: z.infer<typeof ListBotsSchema>,
+  ctx: MCPContext,
+) {
   const connections = await botsService.getConnections(ctx.organizationId);
   const telegramBots = connections.filter((c) => c.platform === "telegram");
 
@@ -297,7 +343,8 @@ export const telegramMcpServer: MCPServerDefinition = {
     },
     {
       name: "answer_telegram_callback",
-      description: "Answer a callback query from an inline keyboard button press",
+      description:
+        "Answer a callback query from an inline keyboard button press",
       inputSchema: AnswerCallbackSchema,
       handler: handleAnswerCallback,
     },
@@ -331,4 +378,3 @@ export const telegramMcpServer: MCPServerDefinition = {
 };
 
 export default telegramMcpServer;
-

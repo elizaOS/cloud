@@ -38,4 +38,3 @@ export const CopyButton = forwardRef<
 });
 
 CopyButton.displayName = "CopyButton";
-

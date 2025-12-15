@@ -13,7 +13,6 @@ import {
   type SocialEngagementEvent,
 } from "./index";
 
-
 interface IncomingReply {
   platform: "discord" | "telegram" | "slack";
   channelId: string;
@@ -41,11 +40,10 @@ interface ReplyPostResult {
   error?: string;
 }
 
-
 function formatConfirmationForDiscord(
   event: SocialEngagementEvent,
   replyContent: string,
-  confirmationId: string
+  confirmationId: string,
 ): {
   content: string;
   embeds: Array<{
@@ -66,7 +64,8 @@ function formatConfirmationForDiscord(
     }>;
   }>;
 } {
-  const authorDisplay = event.author_display_name || event.author_username || "Unknown";
+  const authorDisplay =
+    event.author_display_name || event.author_username || "Unknown";
 
   return {
     content: "📤 **Reply Confirmation Required**",
@@ -119,14 +118,15 @@ function formatConfirmationForDiscord(
 function formatConfirmationForTelegram(
   event: SocialEngagementEvent,
   replyContent: string,
-  confirmationId: string
+  confirmationId: string,
 ): {
   text: string;
   replyMarkup: {
     inline_keyboard: Array<Array<{ text: string; callback_data: string }>>;
   };
 } {
-  const authorDisplay = event.author_display_name || event.author_username || "Unknown";
+  const authorDisplay =
+    event.author_display_name || event.author_username || "Unknown";
 
   const text = `📤 <b>Reply Confirmation Required</b>
 
@@ -143,8 +143,14 @@ ${escapeHtml(replyContent)}
     replyMarkup: {
       inline_keyboard: [
         [
-          { text: "✅ Approve & Send", callback_data: `reply_confirm:${confirmationId}` },
-          { text: "❌ Reject", callback_data: `reply_reject:${confirmationId}` },
+          {
+            text: "✅ Approve & Send",
+            callback_data: `reply_confirm:${confirmationId}`,
+          },
+          {
+            text: "❌ Reject",
+            callback_data: `reply_reject:${confirmationId}`,
+          },
         ],
       ],
     },
@@ -154,19 +160,24 @@ ${escapeHtml(replyContent)}
 function formatConfirmationForSlack(
   event: SocialEngagementEvent,
   replyContent: string,
-  confirmationId: string
+  confirmationId: string,
 ): {
   text: string;
   blocks: unknown[];
 } {
-  const authorDisplay = event.author_display_name || event.author_username || "Unknown";
+  const authorDisplay =
+    event.author_display_name || event.author_username || "Unknown";
 
   return {
     text: "📤 Reply Confirmation Required",
     blocks: [
       {
         type: "header",
-        text: { type: "plain_text", text: "📤 Reply Confirmation Required", emoji: true },
+        text: {
+          type: "plain_text",
+          text: "📤 Reply Confirmation Required",
+          emoji: true,
+        },
       },
       {
         type: "section",
@@ -175,14 +186,23 @@ function formatConfirmationForSlack(
       {
         type: "section",
         fields: [
-          { type: "mrkdwn", text: `*Replying to:*\n${authorDisplay} on ${event.source_platform}` },
-          { type: "mrkdwn", text: `*Original:*\n<${event.source_post_url ?? "#"}|View post>` },
+          {
+            type: "mrkdwn",
+            text: `*Replying to:*\n${authorDisplay} on ${event.source_platform}`,
+          },
+          {
+            type: "mrkdwn",
+            text: `*Original:*\n<${event.source_post_url ?? "#"}|View post>`,
+          },
         ],
       },
       {
         type: "context",
         elements: [
-          { type: "mrkdwn", text: "_This will be posted publicly. Expires in 24 hours._" },
+          {
+            type: "mrkdwn",
+            text: "_This will be posted publicly. Expires in 24 hours._",
+          },
         ],
       },
       {
@@ -190,7 +210,11 @@ function formatConfirmationForSlack(
         elements: [
           {
             type: "button",
-            text: { type: "plain_text", text: "✅ Approve & Send", emoji: true },
+            text: {
+              type: "plain_text",
+              text: "✅ Approve & Send",
+              emoji: true,
+            },
             style: "primary",
             action_id: `reply_confirm`,
             value: confirmationId,
@@ -209,11 +233,16 @@ function formatConfirmationForSlack(
 }
 
 function escapeHtml(text: string): string {
-  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
 }
 
 class ReplyRouterService {
-  async processIncomingReply(reply: IncomingReply): Promise<ConfirmationPromptResult | null> {
+  async processIncomingReply(
+    reply: IncomingReply,
+  ): Promise<ConfirmationPromptResult | null> {
     logger.info("[ReplyRouter] Processing incoming reply", {
       platform: reply.platform,
       channelId: reply.channelId,
@@ -223,7 +252,7 @@ class ReplyRouterService {
     const result = await notificationMessageService.findEngagementByMessage(
       reply.platform,
       reply.channelId,
-      reply.replyToMessageId
+      reply.replyToMessageId,
     );
 
     if (!result) {
@@ -236,9 +265,14 @@ class ReplyRouterService {
 
     const { event } = result;
 
-    const config = await feedConfigService.get(event.feed_config_id, event.organization_id);
+    const config = await feedConfigService.get(
+      event.feed_config_id,
+      event.organization_id,
+    );
     if (!config) {
-      logger.warn("[ReplyRouter] Feed config not found", { feedConfigId: event.feed_config_id });
+      logger.warn("[ReplyRouter] Feed config not found", {
+        feedConfigId: event.feed_config_id,
+      });
       return null;
     }
 
@@ -269,14 +303,14 @@ class ReplyRouterService {
       event,
       reply.content,
       confirmation.id,
-      event.organization_id
+      event.organization_id,
     );
 
     if (promptResult.success && promptResult.messageId) {
       await replyConfirmationService.setConfirmationMessage(
         confirmation.id,
         promptResult.messageId,
-        reply.channelId
+        reply.channelId,
       );
     }
 
@@ -295,7 +329,7 @@ class ReplyRouterService {
     event: SocialEngagementEvent,
     replyContent: string,
     confirmationId: string,
-    organizationId: string
+    organizationId: string,
   ): Promise<{ success: boolean; messageId?: string; error?: string }> {
     try {
       switch (platform) {
@@ -305,7 +339,7 @@ class ReplyRouterService {
             event,
             replyContent,
             confirmationId,
-            organizationId
+            organizationId,
           );
         case "telegram":
           return await this.sendTelegramConfirmation(
@@ -313,7 +347,7 @@ class ReplyRouterService {
             event,
             replyContent,
             confirmationId,
-            organizationId
+            organizationId,
           );
         case "slack":
           return await this.sendSlackConfirmation(
@@ -321,13 +355,15 @@ class ReplyRouterService {
             event,
             replyContent,
             confirmationId,
-            organizationId
+            organizationId,
           );
         default:
           return { success: false, error: `Unsupported platform: ${platform}` };
       }
     } catch (error) {
-      logger.error("[ReplyRouter] Failed to send confirmation prompt", { error });
+      logger.error("[ReplyRouter] Failed to send confirmation prompt", {
+        error,
+      });
       return {
         success: false,
         error: error instanceof Error ? error.message : "Unknown error",
@@ -340,19 +376,26 @@ class ReplyRouterService {
     event: SocialEngagementEvent,
     replyContent: string,
     confirmationId: string,
-    organizationId: string
+    organizationId: string,
   ): Promise<{ success: boolean; messageId?: string; error?: string }> {
     const connections = await botsService.getConnections(organizationId);
     const discordConnection = connections.find(
-      (c) => c.platform === "discord" && c.status === "active"
+      (c) => c.platform === "discord" && c.status === "active",
     );
 
     if (!discordConnection) {
       return { success: false, error: "No active Discord connection" };
     }
 
-    const botToken = await botsService.getBotToken(discordConnection.id, organizationId);
-    const payload = formatConfirmationForDiscord(event, replyContent, confirmationId);
+    const botToken = await botsService.getBotToken(
+      discordConnection.id,
+      organizationId,
+    );
+    const payload = formatConfirmationForDiscord(
+      event,
+      replyContent,
+      confirmationId,
+    );
 
     const response = await fetch(
       `https://discord.com/api/v10/channels/${channelId}/messages`,
@@ -363,7 +406,7 @@ class ReplyRouterService {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(payload),
-      }
+      },
     );
 
     if (!response.ok) {
@@ -380,18 +423,22 @@ class ReplyRouterService {
     event: SocialEngagementEvent,
     replyContent: string,
     confirmationId: string,
-    organizationId: string
+    organizationId: string,
   ): Promise<{ success: boolean; messageId?: string; error?: string }> {
     const connections = await botsService.getConnections(organizationId);
     const telegramConnection = connections.find(
-      (c) => c.platform === "telegram" && c.status === "active"
+      (c) => c.platform === "telegram" && c.status === "active",
     );
 
     if (!telegramConnection) {
       return { success: false, error: "No active Telegram connection" };
     }
 
-    const payload = formatConfirmationForTelegram(event, replyContent, confirmationId);
+    const payload = formatConfirmationForTelegram(
+      event,
+      replyContent,
+      confirmationId,
+    );
 
     const message = await telegramService.sendMessageViaConnection(
       telegramConnection.id,
@@ -401,7 +448,7 @@ class ReplyRouterService {
       {
         parse_mode: "HTML",
         reply_markup: payload.replyMarkup,
-      }
+      },
     );
 
     return { success: true, messageId: String(message.message_id) };
@@ -412,15 +459,22 @@ class ReplyRouterService {
     event: SocialEngagementEvent,
     replyContent: string,
     confirmationId: string,
-    organizationId: string
+    organizationId: string,
   ): Promise<{ success: boolean; messageId?: string; error?: string }> {
-    const botToken = await secretsService.get(organizationId, "SLACK_BOT_TOKEN");
+    const botToken = await secretsService.get(
+      organizationId,
+      "SLACK_BOT_TOKEN",
+    );
 
     if (!botToken) {
       return { success: false, error: "No Slack bot token configured" };
     }
 
-    const payload = formatConfirmationForSlack(event, replyContent, confirmationId);
+    const payload = formatConfirmationForSlack(
+      event,
+      replyContent,
+      confirmationId,
+    );
 
     const response = await fetch("https://slack.com/api/chat.postMessage", {
       method: "POST",
@@ -447,7 +501,7 @@ class ReplyRouterService {
     confirmationId: string,
     organizationId: string,
     confirmedByUserId: string,
-    confirmedByUsername?: string
+    confirmedByUsername?: string,
   ): Promise<ReplyPostResult> {
     logger.info("[ReplyRouter] Processing confirmation", { confirmationId });
 
@@ -455,7 +509,7 @@ class ReplyRouterService {
       confirmationId,
       organizationId,
       confirmedByUserId,
-      confirmedByUsername
+      confirmedByUsername,
     );
 
     return this.postReplyToExternalPlatform(confirmation);
@@ -465,16 +519,21 @@ class ReplyRouterService {
     confirmationId: string,
     organizationId: string,
     rejectedByUserId: string,
-    reason?: string
+    reason?: string,
   ): Promise<void> {
     logger.info("[ReplyRouter] Processing rejection", { confirmationId });
 
-    await replyConfirmationService.reject(confirmationId, organizationId, rejectedByUserId, reason);
+    await replyConfirmationService.reject(
+      confirmationId,
+      organizationId,
+      rejectedByUserId,
+      reason,
+    );
     await this.sendRejectionFeedback(confirmationId, organizationId);
   }
 
   private async postReplyToExternalPlatform(
-    confirmation: PendingReplyConfirmation
+    confirmation: PendingReplyConfirmation,
   ): Promise<ReplyPostResult> {
     logger.info("[ReplyRouter] Posting reply to external platform", {
       confirmationId: confirmation.id,
@@ -487,7 +546,10 @@ class ReplyRouterService {
       replyToId: confirmation.target_post_id,
     };
 
-    if (confirmation.reply_media_urls && confirmation.reply_media_urls.length > 0) {
+    if (
+      confirmation.reply_media_urls &&
+      confirmation.reply_media_urls.length > 0
+    ) {
       content.media = confirmation.reply_media_urls.map((url) => ({
         type: "image" as const,
         url,
@@ -499,35 +561,55 @@ class ReplyRouterService {
       confirmation.organization_id,
       confirmation.target_platform as SocialPlatform,
       confirmation.target_post_id,
-      content
+      content,
     );
 
     if (result.success) {
-      await replyConfirmationService.markSent(confirmation.id, result.postId!, result.postUrl);
+      await replyConfirmationService.markSent(
+        confirmation.id,
+        result.postId!,
+        result.postUrl,
+      );
       await this.sendSuccessFeedback(confirmation, result.postUrl);
       return { success: true, postId: result.postId, postUrl: result.postUrl };
     }
 
-    await replyConfirmationService.markFailed(confirmation.id, result.error ?? "Unknown error");
+    await replyConfirmationService.markFailed(
+      confirmation.id,
+      result.error ?? "Unknown error",
+    );
     return { success: false, error: result.error };
   }
 
-  private async sendSuccessFeedback(confirmation: PendingReplyConfirmation, postUrl?: string): Promise<void> {
-    const message = postUrl ? `✅ Reply posted!\n\n${postUrl}` : "✅ Reply posted!";
+  private async sendSuccessFeedback(
+    confirmation: PendingReplyConfirmation,
+    postUrl?: string,
+  ): Promise<void> {
+    const message = postUrl
+      ? `✅ Reply posted!\n\n${postUrl}`
+      : "✅ Reply posted!";
     await this.sendFeedbackMessage(confirmation, message);
   }
 
-  private async sendRejectionFeedback(confirmationId: string, organizationId: string): Promise<void> {
-    const confirmation = await replyConfirmationService.get(confirmationId, organizationId);
+  private async sendRejectionFeedback(
+    confirmationId: string,
+    organizationId: string,
+  ): Promise<void> {
+    const confirmation = await replyConfirmationService.get(
+      confirmationId,
+      organizationId,
+    );
     if (!confirmation) return;
 
-    const reason = confirmation.rejection_reason ? `\nReason: ${confirmation.rejection_reason}` : "";
+    const reason = confirmation.rejection_reason
+      ? `\nReason: ${confirmation.rejection_reason}`
+      : "";
     await this.sendFeedbackMessage(confirmation, `❌ Reply not sent.${reason}`);
   }
 
   private async sendFeedbackMessage(
     confirmation: PendingReplyConfirmation,
-    message: string
+    message: string,
   ): Promise<void> {
     try {
       const organizationId = confirmation.organization_id;
@@ -536,14 +618,20 @@ class ReplyRouterService {
         case "discord": {
           const connections = await botsService.getConnections(organizationId);
           const discordConnection = connections.find(
-            (c) => c.platform === "discord" && c.status === "active"
+            (c) => c.platform === "discord" && c.status === "active",
           );
           if (!discordConnection) {
-            logger.warn("[ReplyRouter] No Discord connection for feedback", { organizationId, confirmationId: confirmation.id });
+            logger.warn("[ReplyRouter] No Discord connection for feedback", {
+              organizationId,
+              confirmationId: confirmation.id,
+            });
             return;
           }
 
-          const botToken = await botsService.getBotToken(discordConnection.id, organizationId);
+          const botToken = await botsService.getBotToken(
+            discordConnection.id,
+            organizationId,
+          );
 
           const response = await fetch(
             `https://discord.com/api/v10/channels/${confirmation.source_channel_id}/messages`,
@@ -555,22 +643,30 @@ class ReplyRouterService {
               },
               body: JSON.stringify({
                 content: message,
-                message_reference: { message_id: confirmation.confirmation_message_id },
+                message_reference: {
+                  message_id: confirmation.confirmation_message_id,
+                },
               }),
-            }
+            },
           );
           if (!response.ok) {
-            logger.warn("[ReplyRouter] Discord feedback failed", { status: response.status, confirmationId: confirmation.id });
+            logger.warn("[ReplyRouter] Discord feedback failed", {
+              status: response.status,
+              confirmationId: confirmation.id,
+            });
           }
           break;
         }
         case "telegram": {
           const connections = await botsService.getConnections(organizationId);
           const telegramConnection = connections.find(
-            (c) => c.platform === "telegram" && c.status === "active"
+            (c) => c.platform === "telegram" && c.status === "active",
           );
           if (!telegramConnection) {
-            logger.warn("[ReplyRouter] No Telegram connection for feedback", { organizationId, confirmationId: confirmation.id });
+            logger.warn("[ReplyRouter] No Telegram connection for feedback", {
+              organizationId,
+              confirmationId: confirmation.id,
+            });
             return;
           }
 
@@ -583,38 +679,53 @@ class ReplyRouterService {
               reply_to_message_id: confirmation.confirmation_message_id
                 ? parseInt(confirmation.confirmation_message_id)
                 : undefined,
-            }
+            },
           );
           break;
         }
         case "slack": {
-          const botToken = await secretsService.get(organizationId, "SLACK_BOT_TOKEN");
+          const botToken = await secretsService.get(
+            organizationId,
+            "SLACK_BOT_TOKEN",
+          );
           if (!botToken) {
-            logger.warn("[ReplyRouter] No Slack bot token for feedback", { organizationId, confirmationId: confirmation.id });
+            logger.warn("[ReplyRouter] No Slack bot token for feedback", {
+              organizationId,
+              confirmationId: confirmation.id,
+            });
             return;
           }
 
-          const response = await fetch("https://slack.com/api/chat.postMessage", {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${botToken}`,
-              "Content-Type": "application/json; charset=utf-8",
+          const response = await fetch(
+            "https://slack.com/api/chat.postMessage",
+            {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${botToken}`,
+                "Content-Type": "application/json; charset=utf-8",
+              },
+              body: JSON.stringify({
+                channel: confirmation.source_channel_id,
+                text: message,
+                thread_ts: confirmation.confirmation_message_id,
+              }),
             },
-            body: JSON.stringify({
-              channel: confirmation.source_channel_id,
-              text: message,
-              thread_ts: confirmation.confirmation_message_id,
-            }),
-          });
+          );
           const data = await response.json();
           if (!data.ok) {
-            logger.warn("[ReplyRouter] Slack feedback failed", { error: data.error, confirmationId: confirmation.id });
+            logger.warn("[ReplyRouter] Slack feedback failed", {
+              error: data.error,
+              confirmationId: confirmation.id,
+            });
           }
           break;
         }
       }
     } catch (error) {
-      logger.error("[ReplyRouter] Failed to send feedback message", { error, confirmationId: confirmation.id });
+      logger.error("[ReplyRouter] Failed to send feedback message", {
+        error,
+        confirmationId: confirmation.id,
+      });
     }
   }
 
@@ -624,7 +735,7 @@ class ReplyRouterService {
     for (const confirmation of expired) {
       await this.sendFeedbackMessage(
         confirmation,
-        "⏰ Reply confirmation expired. The reply was not sent."
+        "⏰ Reply confirmation expired. The reply was not sent.",
       );
     }
 

@@ -1,10 +1,13 @@
 /**
  * API Context Builder for Fragments
- * 
+ *
  * Builds context from API endpoint discovery for inclusion in generation prompts
  */
 
-import { API_ENDPOINTS, type ApiEndpoint } from "@/lib/swagger/endpoint-discovery";
+import {
+  API_ENDPOINTS,
+  type ApiEndpoint,
+} from "@/lib/swagger/endpoint-discovery";
 
 export interface ApiContextOptions {
   categories?: string[];
@@ -17,7 +20,7 @@ export interface ApiContextOptions {
  * Build API documentation context for LLM prompts
  */
 export async function buildApiContext(
-  options: ApiContextOptions = {}
+  options: ApiContextOptions = {},
 ): Promise<string> {
   const {
     categories = [],
@@ -31,14 +34,14 @@ export async function buildApiContext(
   // Filter by categories
   if (categories.length > 0) {
     filteredEndpoints = filteredEndpoints.filter((endpoint) =>
-      categories.includes(endpoint.category)
+      categories.includes(endpoint.category),
     );
   }
 
   // Filter by tags
   if (tags.length > 0) {
     filteredEndpoints = filteredEndpoints.filter((endpoint) =>
-      tags.some((tag) => endpoint.tags.includes(tag))
+      tags.some((tag) => endpoint.tags.includes(tag)),
     );
   }
 
@@ -70,7 +73,7 @@ export async function buildApiContext(
         parts.push(`**Cost**: FREE\n`);
       } else {
         parts.push(
-          `**Cost**: $${pricing.cost} per ${pricing.unit}${pricing.description ? ` (${pricing.description})` : ""}\n`
+          `**Cost**: $${pricing.cost} per ${pricing.unit}${pricing.description ? ` (${pricing.description})` : ""}\n`,
         );
       }
     }
@@ -83,11 +86,12 @@ export async function buildApiContext(
         paramSections.push("**Body Parameters:**");
         for (const param of endpoint.parameters.body) {
           const required = param.required ? " (required)" : " (optional)";
-          const example = includeExamples && param.example
-            ? `\n  Example: ${JSON.stringify(param.example)}`
-            : "";
+          const example =
+            includeExamples && param.example
+              ? `\n  Example: ${JSON.stringify(param.example)}`
+              : "";
           paramSections.push(
-            `- \`${param.name}\` (${param.type})${required}: ${param.description}${example}`
+            `- \`${param.name}\` (${param.type})${required}: ${param.description}${example}`,
           );
         }
       }
@@ -96,11 +100,12 @@ export async function buildApiContext(
         paramSections.push("**Query Parameters:**");
         for (const param of endpoint.parameters.query) {
           const required = param.required ? " (required)" : " (optional)";
-          const example = includeExamples && param.example
-            ? `\n  Example: ${JSON.stringify(param.example)}`
-            : "";
+          const example =
+            includeExamples && param.example
+              ? `\n  Example: ${JSON.stringify(param.example)}`
+              : "";
           paramSections.push(
-            `- \`${param.name}\` (${param.type})${required}: ${param.description}${example}`
+            `- \`${param.name}\` (${param.type})${required}: ${param.description}${example}`,
           );
         }
       }
@@ -113,7 +118,7 @@ export async function buildApiContext(
     // Authentication
     if (endpoint.requiresAuth) {
       parts.push(
-        `\n**Authentication**: Required. Use API key: \`Authorization: Bearer eliza_your_api_key\`\n`
+        `\n**Authentication**: Required. Use API key: \`Authorization: Bearer eliza_your_api_key\`\n`,
       );
     }
 
@@ -122,7 +127,9 @@ export async function buildApiContext(
       parts.push(`**Example Request:**`);
       parts.push(`\`\`\`bash`);
       parts.push(`curl -X ${endpoint.method} \\`);
-      parts.push(`  ${process.env.NEXT_PUBLIC_APP_URL || "https://your-domain.com"}${endpoint.path} \\`);
+      parts.push(
+        `  ${process.env.NEXT_PUBLIC_APP_URL || "https://your-domain.com"}${endpoint.path} \\`,
+      );
       if (endpoint.requiresAuth) {
         parts.push(`  -H "Authorization: Bearer eliza_your_api_key" \\`);
       }
@@ -157,7 +164,7 @@ export function searchApis(keyword: string): ApiEndpoint[] {
       endpoint.name.toLowerCase().includes(lowerKeyword) ||
       endpoint.description.toLowerCase().includes(lowerKeyword) ||
       endpoint.path.toLowerCase().includes(lowerKeyword) ||
-      endpoint.tags.some((tag) => tag.toLowerCase().includes(lowerKeyword))
+      endpoint.tags.some((tag) => tag.toLowerCase().includes(lowerKeyword)),
   );
 }
 
@@ -174,4 +181,3 @@ export function getApisByCategory(category: string): ApiEndpoint[] {
 export function getApisByTag(tag: string): ApiEndpoint[] {
   return API_ENDPOINTS.filter((endpoint) => endpoint.tags.includes(tag));
 }
-

@@ -26,12 +26,12 @@ import configJson from "@/config/erc8004.json";
 // ============================================================================
 
 /** All supported ERC-8004 networks including Jeju and Base */
-export type ERC8004Network = 
+export type ERC8004Network =
   | "jeju-localnet"
-  | "jeju-testnet" 
+  | "jeju-testnet"
   | "jeju"
-  | "anvil" 
-  | "base-sepolia" 
+  | "anvil"
+  | "base-sepolia"
   | "base";
 
 /** Registry ecosystem */
@@ -129,10 +129,10 @@ function getEnvPrefix(network: ERC8004Network): string {
   const prefixMap: Record<ERC8004Network, string> = {
     "jeju-localnet": "JEJU_LOCALNET",
     "jeju-testnet": "JEJU_TESTNET",
-    "jeju": "JEJU",
-    "anvil": "ANVIL",
+    jeju: "JEJU",
+    anvil: "ANVIL",
     "base-sepolia": "BASE_SEPOLIA",
-    "base": "BASE",
+    base: "BASE",
   };
   return prefixMap[network];
 }
@@ -184,10 +184,18 @@ export const SUPPORTED_NETWORKS: ERC8004Network[] = [
 ];
 
 /** Jeju ecosystem networks */
-export const JEJU_NETWORKS: ERC8004Network[] = ["jeju-localnet", "jeju-testnet", "jeju"];
+export const JEJU_NETWORKS: ERC8004Network[] = [
+  "jeju-localnet",
+  "jeju-testnet",
+  "jeju",
+];
 
 /** Base ecosystem networks */
-export const BASE_NETWORKS: ERC8004Network[] = ["anvil", "base-sepolia", "base"];
+export const BASE_NETWORKS: ERC8004Network[] = [
+  "anvil",
+  "base-sepolia",
+  "base",
+];
 
 /** Chain IDs for all networks */
 export const CHAIN_IDS: Record<ERC8004Network, number> = {
@@ -221,32 +229,50 @@ export const BLOCK_EXPLORERS: Record<ERC8004Network, string> = {
 
 /** Identity registry addresses */
 export const IDENTITY_REGISTRY_ADDRESSES: Record<ERC8004Network, Address> = {
-  "jeju-localnet": (getNetworkConfigInternal("jeju-localnet").contracts.identity || ZERO_ADDRESS) as Address,
-  "jeju-testnet": (getNetworkConfigInternal("jeju-testnet").contracts.identity || ZERO_ADDRESS) as Address,
-  jeju: (getNetworkConfigInternal("jeju").contracts.identity || ZERO_ADDRESS) as Address,
-  anvil: (getNetworkConfigInternal("anvil").contracts.identity || ZERO_ADDRESS) as Address,
-  "base-sepolia": (getNetworkConfigInternal("base-sepolia").contracts.identity || ZERO_ADDRESS) as Address,
-  base: (getNetworkConfigInternal("base").contracts.identity || ZERO_ADDRESS) as Address,
+  "jeju-localnet": (getNetworkConfigInternal("jeju-localnet").contracts
+    .identity || ZERO_ADDRESS) as Address,
+  "jeju-testnet": (getNetworkConfigInternal("jeju-testnet").contracts
+    .identity || ZERO_ADDRESS) as Address,
+  jeju: (getNetworkConfigInternal("jeju").contracts.identity ||
+    ZERO_ADDRESS) as Address,
+  anvil: (getNetworkConfigInternal("anvil").contracts.identity ||
+    ZERO_ADDRESS) as Address,
+  "base-sepolia": (getNetworkConfigInternal("base-sepolia").contracts
+    .identity || ZERO_ADDRESS) as Address,
+  base: (getNetworkConfigInternal("base").contracts.identity ||
+    ZERO_ADDRESS) as Address,
 };
 
 /** Reputation registry addresses */
 export const REPUTATION_REGISTRY_ADDRESSES: Record<ERC8004Network, Address> = {
-  "jeju-localnet": (getNetworkConfigInternal("jeju-localnet").contracts.reputation || ZERO_ADDRESS) as Address,
-  "jeju-testnet": (getNetworkConfigInternal("jeju-testnet").contracts.reputation || ZERO_ADDRESS) as Address,
-  jeju: (getNetworkConfigInternal("jeju").contracts.reputation || ZERO_ADDRESS) as Address,
-  anvil: (getNetworkConfigInternal("anvil").contracts.reputation || ZERO_ADDRESS) as Address,
-  "base-sepolia": (getNetworkConfigInternal("base-sepolia").contracts.reputation || ZERO_ADDRESS) as Address,
-  base: (getNetworkConfigInternal("base").contracts.reputation || ZERO_ADDRESS) as Address,
+  "jeju-localnet": (getNetworkConfigInternal("jeju-localnet").contracts
+    .reputation || ZERO_ADDRESS) as Address,
+  "jeju-testnet": (getNetworkConfigInternal("jeju-testnet").contracts
+    .reputation || ZERO_ADDRESS) as Address,
+  jeju: (getNetworkConfigInternal("jeju").contracts.reputation ||
+    ZERO_ADDRESS) as Address,
+  anvil: (getNetworkConfigInternal("anvil").contracts.reputation ||
+    ZERO_ADDRESS) as Address,
+  "base-sepolia": (getNetworkConfigInternal("base-sepolia").contracts
+    .reputation || ZERO_ADDRESS) as Address,
+  base: (getNetworkConfigInternal("base").contracts.reputation ||
+    ZERO_ADDRESS) as Address,
 };
 
 /** Validation registry addresses */
 export const VALIDATION_REGISTRY_ADDRESSES: Record<ERC8004Network, Address> = {
-  "jeju-localnet": (getNetworkConfigInternal("jeju-localnet").contracts.validation || ZERO_ADDRESS) as Address,
-  "jeju-testnet": (getNetworkConfigInternal("jeju-testnet").contracts.validation || ZERO_ADDRESS) as Address,
-  jeju: (getNetworkConfigInternal("jeju").contracts.validation || ZERO_ADDRESS) as Address,
-  anvil: (getNetworkConfigInternal("anvil").contracts.validation || ZERO_ADDRESS) as Address,
-  "base-sepolia": (getNetworkConfigInternal("base-sepolia").contracts.validation || ZERO_ADDRESS) as Address,
-  base: (getNetworkConfigInternal("base").contracts.validation || ZERO_ADDRESS) as Address,
+  "jeju-localnet": (getNetworkConfigInternal("jeju-localnet").contracts
+    .validation || ZERO_ADDRESS) as Address,
+  "jeju-testnet": (getNetworkConfigInternal("jeju-testnet").contracts
+    .validation || ZERO_ADDRESS) as Address,
+  jeju: (getNetworkConfigInternal("jeju").contracts.validation ||
+    ZERO_ADDRESS) as Address,
+  anvil: (getNetworkConfigInternal("anvil").contracts.validation ||
+    ZERO_ADDRESS) as Address,
+  "base-sepolia": (getNetworkConfigInternal("base-sepolia").contracts
+    .validation || ZERO_ADDRESS) as Address,
+  base: (getNetworkConfigInternal("base").contracts.validation ||
+    ZERO_ADDRESS) as Address,
 };
 
 /** Subgraph URLs */
@@ -260,9 +286,8 @@ export const SUBGRAPH_URLS: Record<ERC8004Network, string | null> = {
 };
 
 /** Service wallet address */
-export const SERVICE_WALLET_ADDRESS: Address = (
-  process.env.X402_RECIPIENT_ADDRESS || ZERO_ADDRESS
-) as Address;
+export const SERVICE_WALLET_ADDRESS: Address = (process.env
+  .X402_RECIPIENT_ADDRESS || ZERO_ADDRESS) as Address;
 
 /** Agent IDs per network */
 export const ELIZA_CLOUD_AGENT_ID: Record<ERC8004Network, number | null> = {
@@ -288,7 +313,8 @@ export const ACCOUNT_ABSTRACTION = config.accountAbstraction;
 export const INDEXING = config.indexing;
 
 /** ERC-4337 EntryPoint address */
-export const ENTRYPOINT_ADDRESS = config.accountAbstraction.entryPoint as Address;
+export const ENTRYPOINT_ADDRESS = config.accountAbstraction
+  .entryPoint as Address;
 
 // ============================================================================
 // Service Info
@@ -320,7 +346,7 @@ export function isJejuDeployed(): boolean {
 
 /**
  * Get default network based on environment
- * 
+ *
  * Priority:
  * 1. Explicit ERC8004_NETWORK env var
  * 2. Anvil mode (USE_ANVIL=true)
@@ -331,24 +357,24 @@ export function isJejuDeployed(): boolean {
 export function getDefaultNetwork(): ERC8004Network {
   const envNetwork = process.env.ERC8004_NETWORK as ERC8004Network | undefined;
   if (envNetwork && CHAIN_IDS[envNetwork]) return envNetwork;
-  
+
   if (process.env.USE_ANVIL === "true") return "anvil";
-  
+
   // Check for localnet mode
   if (process.env.JEJU_NETWORK === "localnet") {
     return config.defaults.localnetNetwork as ERC8004Network;
   }
-  
+
   // Use Jeju if deployed, otherwise fallback to Base
   const jejuDeployed = isJejuDeployed();
-  
+
   if (process.env.NODE_ENV === "production") {
-    return jejuDeployed 
-      ? (config.defaults.jejuProductionNetwork as ERC8004Network) 
+    return jejuDeployed
+      ? (config.defaults.jejuProductionNetwork as ERC8004Network)
       : (config.defaults.productionNetwork as ERC8004Network);
   }
-  
-  return jejuDeployed 
+
+  return jejuDeployed
     ? (config.defaults.jejuNetwork as ERC8004Network)
     : (config.defaults.network as ERC8004Network);
 }
@@ -426,7 +452,9 @@ export function isMultiRegistryEnabled(): boolean {
 /**
  * Get networks for an ecosystem
  */
-export function getEcosystemNetworks(ecosystem: ERC8004Ecosystem): ERC8004Network[] {
+export function getEcosystemNetworks(
+  ecosystem: ERC8004Ecosystem,
+): ERC8004Network[] {
   if (ecosystem === "jeju") return JEJU_NETWORKS;
   return BASE_NETWORKS;
 }
@@ -434,10 +462,13 @@ export function getEcosystemNetworks(ecosystem: ERC8004Ecosystem): ERC8004Networ
 /**
  * Get active network for each ecosystem based on environment
  */
-export function getActiveNetworkPerEcosystem(): Record<ERC8004Ecosystem, ERC8004Network> {
+export function getActiveNetworkPerEcosystem(): Record<
+  ERC8004Ecosystem,
+  ERC8004Network
+> {
   const isProduction = process.env.NODE_ENV === "production";
   const isLocalnet = process.env.JEJU_NETWORK === "localnet";
-  
+
   return {
     jeju: isLocalnet ? "jeju-localnet" : isProduction ? "jeju" : "jeju-testnet",
     base: isProduction ? "base" : "base-sepolia",
@@ -451,7 +482,7 @@ export function getRegistrationNetworks(): ERC8004Network[] {
   if (!isMultiRegistryEnabled()) {
     return [getDefaultNetwork()];
   }
-  
+
   const active = getActiveNetworkPerEcosystem();
   return [active.jeju, active.base];
 }
@@ -463,10 +494,10 @@ export function getSearchNetworks(): ERC8004Network[] {
   if (!INDEXING.aggregateSearch) {
     return [getDefaultNetwork()];
   }
-  
+
   const active = getActiveNetworkPerEcosystem();
   return [active.jeju, active.base].filter(
-    (net) => IDENTITY_REGISTRY_ADDRESSES[net] !== ZERO_ADDRESS
+    (net) => IDENTITY_REGISTRY_ADDRESSES[net] !== ZERO_ADDRESS,
   );
 }
 
@@ -518,19 +549,39 @@ export interface ERC8004RegistrationFile {
  * Generate the ERC-8004 registration file
  * Includes registrations from BOTH Jeju and Base ecosystems
  */
-export function generateRegistrationFile(baseUrl: string): ERC8004RegistrationFile {
+export function generateRegistrationFile(
+  baseUrl: string,
+): ERC8004RegistrationFile {
   const network = getDefaultNetwork();
 
   // Build registrations from all networks
   const allRegistrations = [
     // Jeju networks
-    { agentId: ELIZA_CLOUD_AGENT_ID["jeju-localnet"], network: `eip155:${CHAIN_IDS["jeju-localnet"]}` },
-    { agentId: ELIZA_CLOUD_AGENT_ID["jeju-testnet"], network: `eip155:${CHAIN_IDS["jeju-testnet"]}` },
-    { agentId: ELIZA_CLOUD_AGENT_ID["jeju"], network: `eip155:${CHAIN_IDS["jeju"]}` },
+    {
+      agentId: ELIZA_CLOUD_AGENT_ID["jeju-localnet"],
+      network: `eip155:${CHAIN_IDS["jeju-localnet"]}`,
+    },
+    {
+      agentId: ELIZA_CLOUD_AGENT_ID["jeju-testnet"],
+      network: `eip155:${CHAIN_IDS["jeju-testnet"]}`,
+    },
+    {
+      agentId: ELIZA_CLOUD_AGENT_ID["jeju"],
+      network: `eip155:${CHAIN_IDS["jeju"]}`,
+    },
     // Base networks
-    { agentId: ELIZA_CLOUD_AGENT_ID["anvil"], network: `eip155:${CHAIN_IDS["anvil"]}` },
-    { agentId: ELIZA_CLOUD_AGENT_ID["base-sepolia"], network: `eip155:${CHAIN_IDS["base-sepolia"]}` },
-    { agentId: ELIZA_CLOUD_AGENT_ID["base"], network: `eip155:${CHAIN_IDS["base"]}` },
+    {
+      agentId: ELIZA_CLOUD_AGENT_ID["anvil"],
+      network: `eip155:${CHAIN_IDS["anvil"]}`,
+    },
+    {
+      agentId: ELIZA_CLOUD_AGENT_ID["base-sepolia"],
+      network: `eip155:${CHAIN_IDS["base-sepolia"]}`,
+    },
+    {
+      agentId: ELIZA_CLOUD_AGENT_ID["base"],
+      network: `eip155:${CHAIN_IDS["base"]}`,
+    },
   ].filter((r) => r.agentId !== null && r.agentId !== 0);
 
   return {
@@ -603,7 +654,4 @@ export interface MultiChainRegistrationResult {
 // Re-exports from x402.ts for Account Abstraction
 // ============================================================================
 
-export {
-  isAccountAbstractionEnabled,
-  isPaymasterEnabled,
-} from "./x402";
+export { isAccountAbstractionEnabled, isPaymasterEnabled } from "./x402";

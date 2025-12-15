@@ -17,10 +17,12 @@ import { describe, test, expect, beforeEach } from "bun:test";
 describe("Slack Provider", () => {
   describe("validateCredentials", () => {
     test("accepts valid Slack webhook URL", async () => {
-      const { slackProvider } = await import("@/lib/services/social-media/providers/slack");
+      const { slackProvider } =
+        await import("@/lib/services/social-media/providers/slack");
 
       const result = await slackProvider.validateCredentials({
-        webhookUrl: "https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXX",
+        webhookUrl:
+          "https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXX",
       });
 
       expect(result.valid).toBe(true);
@@ -29,7 +31,8 @@ describe("Slack Provider", () => {
     });
 
     test("rejects non-Slack webhook URLs", async () => {
-      const { slackProvider } = await import("@/lib/services/social-media/providers/slack");
+      const { slackProvider } =
+        await import("@/lib/services/social-media/providers/slack");
 
       const invalidUrls = [
         "https://not-slack.com/webhook",
@@ -40,14 +43,17 @@ describe("Slack Provider", () => {
       ];
 
       for (const url of invalidUrls) {
-        const result = await slackProvider.validateCredentials({ webhookUrl: url });
+        const result = await slackProvider.validateCredentials({
+          webhookUrl: url,
+        });
         expect(result.valid).toBe(false);
         expect(result.error).toBeDefined();
       }
     });
 
     test("requires bot token or webhook URL", async () => {
-      const { slackProvider } = await import("@/lib/services/social-media/providers/slack");
+      const { slackProvider } =
+        await import("@/lib/services/social-media/providers/slack");
 
       const result = await slackProvider.validateCredentials({});
       expect(result.valid).toBe(false);
@@ -55,7 +61,8 @@ describe("Slack Provider", () => {
     });
 
     test("validates bot token format", async () => {
-      const { slackProvider } = await import("@/lib/services/social-media/providers/slack");
+      const { slackProvider } =
+        await import("@/lib/services/social-media/providers/slack");
 
       // Skip if it would make actual API calls with retries
       // This validates the credentials object structure
@@ -67,11 +74,12 @@ describe("Slack Provider", () => {
 
   describe("createPost", () => {
     test("requires channel ID for bot token posts", async () => {
-      const { slackProvider } = await import("@/lib/services/social-media/providers/slack");
+      const { slackProvider } =
+        await import("@/lib/services/social-media/providers/slack");
 
       const result = await slackProvider.createPost(
         { botToken: "xoxb-test" },
-        { text: "Test message" }
+        { text: "Test message" },
       );
 
       expect(result.success).toBe(false);
@@ -79,7 +87,8 @@ describe("Slack Provider", () => {
     });
 
     test("requires bot token or webhook", async () => {
-      const { slackProvider } = await import("@/lib/services/social-media/providers/slack");
+      const { slackProvider } =
+        await import("@/lib/services/social-media/providers/slack");
 
       const result = await slackProvider.createPost({}, { text: "Test" });
 
@@ -90,20 +99,25 @@ describe("Slack Provider", () => {
 
   describe("deletePost", () => {
     test("requires bot token", async () => {
-      const { slackProvider } = await import("@/lib/services/social-media/providers/slack");
+      const { slackProvider } =
+        await import("@/lib/services/social-media/providers/slack");
 
-      const result = await slackProvider.deletePost({}, "C123/1234567890.123456");
+      const result = await slackProvider.deletePost(
+        {},
+        "C123/1234567890.123456",
+      );
       expect(result.success).toBe(false);
       expect(result.error).toContain("Bot token required");
     });
 
     test("requires channel ID in post ID or credentials", async () => {
-      const { slackProvider } = await import("@/lib/services/social-media/providers/slack");
+      const { slackProvider } =
+        await import("@/lib/services/social-media/providers/slack");
 
       // Only timestamp, no channel
       const result = await slackProvider.deletePost(
         { botToken: "xoxb-test" },
-        "1234567890.123456"
+        "1234567890.123456",
       );
       expect(result.success).toBe(false);
       expect(result.error).toContain("Channel ID required");
@@ -126,12 +140,13 @@ describe("Slack Provider", () => {
 
   describe("replyToPost", () => {
     test("requires channel ID", async () => {
-      const { slackProvider } = await import("@/lib/services/social-media/providers/slack");
+      const { slackProvider } =
+        await import("@/lib/services/social-media/providers/slack");
 
       const result = await slackProvider.replyToPost(
         { botToken: "xoxb-test" },
         "1234567890.123456",
-        { text: "Reply text" }
+        { text: "Reply text" },
       );
 
       expect(result.success).toBe(false);
@@ -141,7 +156,8 @@ describe("Slack Provider", () => {
 
   describe("likePost", () => {
     test("requires bot token", async () => {
-      const { slackProvider } = await import("@/lib/services/social-media/providers/slack");
+      const { slackProvider } =
+        await import("@/lib/services/social-media/providers/slack");
 
       const result = await slackProvider.likePost({}, "C123/1234567890.123456");
       expect(result.success).toBe(false);
@@ -151,18 +167,23 @@ describe("Slack Provider", () => {
 
   describe("uploadMedia", () => {
     test("requires bot token", async () => {
-      const { slackProvider } = await import("@/lib/services/social-media/providers/slack");
+      const { slackProvider } =
+        await import("@/lib/services/social-media/providers/slack");
 
       await expect(
-        slackProvider.uploadMedia({}, { type: "image", mimeType: "image/png" })
+        slackProvider.uploadMedia({}, { type: "image", mimeType: "image/png" }),
       ).rejects.toThrow("Bot token required");
     });
 
     test("requires media data", async () => {
-      const { slackProvider } = await import("@/lib/services/social-media/providers/slack");
+      const { slackProvider } =
+        await import("@/lib/services/social-media/providers/slack");
 
       await expect(
-        slackProvider.uploadMedia({ botToken: "xoxb-test" }, { type: "image", mimeType: "image/png" })
+        slackProvider.uploadMedia(
+          { botToken: "xoxb-test" },
+          { type: "image", mimeType: "image/png" },
+        ),
       ).rejects.toThrow("No media data provided");
     });
   });
@@ -178,8 +199,17 @@ describe("Social Media Types", () => {
       const { SUPPORTED_PLATFORMS } = await import("@/lib/types/social-media");
 
       const expected = [
-        "twitter", "bluesky", "discord", "telegram", "slack",
-        "reddit", "facebook", "instagram", "tiktok", "linkedin", "mastodon"
+        "twitter",
+        "bluesky",
+        "discord",
+        "telegram",
+        "slack",
+        "reddit",
+        "facebook",
+        "instagram",
+        "tiktok",
+        "linkedin",
+        "mastodon",
       ];
 
       for (const platform of expected) {
@@ -190,18 +220,26 @@ describe("Social Media Types", () => {
 
   describe("PLATFORM_CAPABILITIES", () => {
     test("defines capabilities for all supported platforms", async () => {
-      const { SUPPORTED_PLATFORMS, PLATFORM_CAPABILITIES } = await import("@/lib/types/social-media");
+      const { SUPPORTED_PLATFORMS, PLATFORM_CAPABILITIES } =
+        await import("@/lib/types/social-media");
 
       for (const platform of SUPPORTED_PLATFORMS) {
         expect(PLATFORM_CAPABILITIES[platform]).toBeDefined();
-        expect(typeof PLATFORM_CAPABILITIES[platform].supportsText).toBe("boolean");
-        expect(typeof PLATFORM_CAPABILITIES[platform].supportsImages).toBe("boolean");
-        expect(typeof PLATFORM_CAPABILITIES[platform].supportsVideo).toBe("boolean");
+        expect(typeof PLATFORM_CAPABILITIES[platform].supportsText).toBe(
+          "boolean",
+        );
+        expect(typeof PLATFORM_CAPABILITIES[platform].supportsImages).toBe(
+          "boolean",
+        );
+        expect(typeof PLATFORM_CAPABILITIES[platform].supportsVideo).toBe(
+          "boolean",
+        );
       }
     });
 
     test("slack supports expected features", async () => {
-      const { PLATFORM_CAPABILITIES } = await import("@/lib/types/social-media");
+      const { PLATFORM_CAPABILITIES } =
+        await import("@/lib/types/social-media");
 
       expect(PLATFORM_CAPABILITIES.slack.supportsText).toBe(true);
       expect(PLATFORM_CAPABILITIES.slack.supportsImages).toBe(true);
@@ -212,7 +250,8 @@ describe("Social Media Types", () => {
 
   describe("validatePlatformOptions", () => {
     test("validates slack requires channelId or webhookUrl", async () => {
-      const { validatePlatformOptions } = await import("@/lib/types/social-media");
+      const { validatePlatformOptions } =
+        await import("@/lib/types/social-media");
 
       const empty = validatePlatformOptions("slack", {});
       expect(empty.valid).toBe(false);
@@ -223,34 +262,43 @@ describe("Social Media Types", () => {
       });
       expect(withWebhook.valid).toBe(true);
 
-      const withChannel = validatePlatformOptions("slack", { channelId: "C12345678" });
+      const withChannel = validatePlatformOptions("slack", {
+        channelId: "C12345678",
+      });
       expect(withChannel.valid).toBe(true);
     });
 
     test("validates discord requires channelId or webhookUrl", async () => {
-      const { validatePlatformOptions } = await import("@/lib/types/social-media");
+      const { validatePlatformOptions } =
+        await import("@/lib/types/social-media");
 
       const empty = validatePlatformOptions("discord", {});
       expect(empty.valid).toBe(false);
 
-      const withChannel = validatePlatformOptions("discord", { channelId: "123456789" });
+      const withChannel = validatePlatformOptions("discord", {
+        channelId: "123456789",
+      });
       expect(withChannel.valid).toBe(true);
     });
 
     test("validates twitter requires no special options", async () => {
-      const { validatePlatformOptions } = await import("@/lib/types/social-media");
+      const { validatePlatformOptions } =
+        await import("@/lib/types/social-media");
 
       const result = validatePlatformOptions("twitter", {});
       expect(result.valid).toBe(true);
     });
 
     test("validates telegram requires chatId", async () => {
-      const { validatePlatformOptions } = await import("@/lib/types/social-media");
+      const { validatePlatformOptions } =
+        await import("@/lib/types/social-media");
 
       const empty = validatePlatformOptions("telegram", {});
       expect(empty.valid).toBe(false);
 
-      const withChat = validatePlatformOptions("telegram", { chatId: "-100123456789" });
+      const withChat = validatePlatformOptions("telegram", {
+        chatId: "-100123456789",
+      });
       expect(withChat.valid).toBe(true);
     });
   });
@@ -296,7 +344,8 @@ describe("Notification Formatting", () => {
 
   test("formats event type emojis correctly", async () => {
     // Import the notification service to test internal functions indirectly
-    const { socialNotificationService } = await import("@/lib/services/social-feed/notifications");
+    const { socialNotificationService } =
+      await import("@/lib/services/social-feed/notifications");
 
     expect(socialNotificationService).toBeDefined();
   });
@@ -316,7 +365,9 @@ describe("Notification Formatting", () => {
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;");
 
-    expect(escaped).toBe("Test &lt;script&gt;alert('xss')&lt;/script&gt; &amp; more");
+    expect(escaped).toBe(
+      "Test &lt;script&gt;alert('xss')&lt;/script&gt; &amp; more",
+    );
     expect(escaped).not.toContain("<script>");
   });
 
@@ -339,7 +390,8 @@ describe("Notification Formatting", () => {
 
 describe("Feed Polling Service", () => {
   test("exports polling service", async () => {
-    const { feedPollingService } = await import("@/lib/services/social-feed/polling");
+    const { feedPollingService } =
+      await import("@/lib/services/social-feed/polling");
 
     expect(feedPollingService).toBeDefined();
     expect(typeof feedPollingService.pollFeed).toBe("function");
@@ -389,7 +441,8 @@ describe("Feed Polling Service", () => {
 
 describe("Reply Router Service", () => {
   test("exports reply router service", async () => {
-    const { replyRouterService } = await import("@/lib/services/social-feed/reply-router");
+    const { replyRouterService } =
+      await import("@/lib/services/social-feed/reply-router");
 
     expect(replyRouterService).toBeDefined();
     expect(typeof replyRouterService.processIncomingReply).toBe("function");
@@ -414,7 +467,10 @@ describe("Reply Router Service", () => {
   test("confirmation prompt includes required Telegram callback data", () => {
     const confirmationId = "conf-456";
     const buttons = [
-      { text: "✅ Approve & Send", callback_data: `reply_confirm:${confirmationId}` },
+      {
+        text: "✅ Approve & Send",
+        callback_data: `reply_confirm:${confirmationId}`,
+      },
       { text: "❌ Reject", callback_data: `reply_reject:${confirmationId}` },
     ];
 
@@ -502,7 +558,8 @@ describe("Feed Config Service", () => {
   });
 
   test("engagementEventService has required methods", async () => {
-    const { engagementEventService } = await import("@/lib/services/social-feed");
+    const { engagementEventService } =
+      await import("@/lib/services/social-feed");
 
     expect(typeof engagementEventService.create).toBe("function");
     expect(typeof engagementEventService.get).toBe("function");
@@ -512,7 +569,8 @@ describe("Feed Config Service", () => {
   });
 
   test("replyConfirmationService has workflow methods", async () => {
-    const { replyConfirmationService } = await import("@/lib/services/social-feed");
+    const { replyConfirmationService } =
+      await import("@/lib/services/social-feed");
 
     expect(typeof replyConfirmationService.create).toBe("function");
     expect(typeof replyConfirmationService.get).toBe("function");
@@ -526,9 +584,8 @@ describe("Feed Config Service", () => {
 
 describe("Rate Limiting", () => {
   test("exports rate limit utilities", async () => {
-    const { withRetry, isRateLimitResponse, createRateLimitError } = await import(
-      "@/lib/services/social-media/rate-limit"
-    );
+    const { withRetry, isRateLimitResponse, createRateLimitError } =
+      await import("@/lib/services/social-media/rate-limit");
 
     expect(typeof withRetry).toBe("function");
     expect(typeof isRateLimitResponse).toBe("function");
@@ -536,10 +593,11 @@ describe("Rate Limiting", () => {
   });
 
   test("isRateLimitResponse detects 429 status", async () => {
-    const { isRateLimitResponse } = await import("@/lib/services/social-media/rate-limit");
+    const { isRateLimitResponse } =
+      await import("@/lib/services/social-media/rate-limit");
 
     // Create mock responses with different status codes
-    const mockResponse = (status: number) => ({ status } as Response);
+    const mockResponse = (status: number) => ({ status }) as Response;
 
     expect(isRateLimitResponse(mockResponse(429))).toBe(true);
     expect(isRateLimitResponse(mockResponse(200))).toBe(false);
@@ -548,7 +606,8 @@ describe("Rate Limiting", () => {
   });
 
   test("createRateLimitError produces correct error structure", async () => {
-    const { createRateLimitError } = await import("@/lib/services/social-media/rate-limit");
+    const { createRateLimitError } =
+      await import("@/lib/services/social-media/rate-limit");
 
     const error = createRateLimitError("slack", 60);
 
@@ -565,12 +624,19 @@ describe("Rate Limiting", () => {
 
 describe("Concurrent Behavior", () => {
   test("multiple validateCredentials calls don't interfere", async () => {
-    const { slackProvider } = await import("@/lib/services/social-media/providers/slack");
+    const { slackProvider } =
+      await import("@/lib/services/social-media/providers/slack");
 
     const results = await Promise.all([
-      slackProvider.validateCredentials({ webhookUrl: "https://hooks.slack.com/a" }),
-      slackProvider.validateCredentials({ webhookUrl: "https://hooks.slack.com/b" }),
-      slackProvider.validateCredentials({ webhookUrl: "https://invalid.com/c" }),
+      slackProvider.validateCredentials({
+        webhookUrl: "https://hooks.slack.com/a",
+      }),
+      slackProvider.validateCredentials({
+        webhookUrl: "https://hooks.slack.com/b",
+      }),
+      slackProvider.validateCredentials({
+        webhookUrl: "https://invalid.com/c",
+      }),
     ]);
 
     expect(results[0].valid).toBe(true);
@@ -579,8 +645,10 @@ describe("Concurrent Behavior", () => {
   });
 
   test("service imports are singleton", async () => {
-    const { feedConfigService: service1 } = await import("@/lib/services/social-feed");
-    const { feedConfigService: service2 } = await import("@/lib/services/social-feed");
+    const { feedConfigService: service1 } =
+      await import("@/lib/services/social-feed");
+    const { feedConfigService: service2 } =
+      await import("@/lib/services/social-feed");
 
     expect(service1).toBe(service2);
   });
@@ -594,7 +662,8 @@ describe("Edge Cases", () => {
   describe("empty and null handling", () => {
     test("handles empty content gracefully", () => {
       const content = "";
-      const truncated = content.length <= 100 ? content : content.slice(0, 97) + "...";
+      const truncated =
+        content.length <= 100 ? content : content.slice(0, 97) + "...";
       expect(truncated).toBe("");
     });
 
@@ -616,7 +685,8 @@ describe("Edge Cases", () => {
         author_id: "123",
       };
 
-      const display = event.author_display_name ?? event.author_username ?? event.author_id;
+      const display =
+        event.author_display_name ?? event.author_username ?? event.author_id;
       expect(display).toBe("123");
     });
   });
@@ -646,7 +716,10 @@ describe("Edge Cases", () => {
     test("handles max Twitter content length", () => {
       const maxLength = 280;
       const content = "A".repeat(300);
-      const truncated = content.length <= maxLength ? content : content.slice(0, maxLength - 3) + "...";
+      const truncated =
+        content.length <= maxLength
+          ? content
+          : content.slice(0, maxLength - 3) + "...";
 
       expect(truncated.length).toBe(maxLength);
     });

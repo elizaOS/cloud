@@ -130,6 +130,44 @@ export class GenerationsRepository {
   }
 
   /**
+   * Gets gallery statistics for completed generations with storage URLs.
+   * Uses efficient SQL aggregation instead of fetching all records.
+   */
+  async getGalleryStats(
+    organizationId: string,
+    userId?: string,
+  ): Promise<{
+    totalImages: number;
+    totalVideos: number;
+    totalSize: bigint;
+  }> {
+    const conditions = [
+      eq(generations.organization_id, organizationId),
+      eq(generations.status, "completed"),
+      sql`${generations.storage_url} IS NOT NULL`,
+    ];
+
+    if (userId) {
+      conditions.push(eq(generations.user_id, userId));
+    }
+
+    const [result] = await db
+      .select({
+        images: sql<number>`count(*) filter (where ${generations.type} = 'image')::int`,
+        videos: sql<number>`count(*) filter (where ${generations.type} = 'video')::int`,
+        totalSize: sql<bigint>`COALESCE(sum(${generations.file_size}), 0)::bigint`,
+      })
+      .from(generations)
+      .where(and(...conditions));
+
+    return {
+      totalImages: result?.images ?? 0,
+      totalVideos: result?.videos ?? 0,
+      totalSize: result?.totalSize ?? BigInt(0),
+    };
+  }
+
+  /**
    * Gets generation statistics for an organization within an optional date range.
    */
   async getStats(

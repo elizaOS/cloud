@@ -46,8 +46,8 @@ describe("Dispatch Error Handling", () => {
               status: code,
               statusText: name,
               json: () => Promise.resolve({ error: name }),
-            } as Response)
-          )
+            } as Response),
+          ),
         );
 
         const response = await fetch("https://api.example.com/webhook", {
@@ -84,7 +84,9 @@ describe("Dispatch Error Handling", () => {
 
     it("should handle DNS resolution failure", async () => {
       setMockFetch(
-        mock(() => Promise.reject(new Error("getaddrinfo ENOTFOUND api.example.com")))
+        mock(() =>
+          Promise.reject(new Error("getaddrinfo ENOTFOUND api.example.com")),
+        ),
       );
 
       let caught = false;
@@ -100,7 +102,9 @@ describe("Dispatch Error Handling", () => {
 
     it("should handle connection refused", async () => {
       setMockFetch(
-        mock(() => Promise.reject(new Error("connect ECONNREFUSED 127.0.0.1:3000")))
+        mock(() =>
+          Promise.reject(new Error("connect ECONNREFUSED 127.0.0.1:3000")),
+        ),
       );
 
       let caught = false;
@@ -152,8 +156,8 @@ describe("Dispatch Error Handling", () => {
             status: 200,
             json: () => Promise.reject(new SyntaxError("Unexpected token")),
             text: () => Promise.resolve("not valid json {"),
-          } as unknown as Response)
-        )
+          } as unknown as Response),
+        ),
       );
 
       const response = await fetch("https://api.example.com/webhook", {
@@ -178,10 +182,11 @@ describe("Dispatch Error Handling", () => {
           Promise.resolve({
             ok: true,
             status: 204,
-            json: () => Promise.reject(new SyntaxError("Unexpected end of JSON input")),
+            json: () =>
+              Promise.reject(new SyntaxError("Unexpected end of JSON input")),
             text: () => Promise.resolve(""),
-          } as unknown as Response)
-        )
+          } as unknown as Response),
+        ),
       );
 
       const response = await fetch("https://api.example.com/webhook", {
@@ -200,9 +205,12 @@ describe("Dispatch Error Handling", () => {
             ok: false,
             status: 500,
             json: () => Promise.reject(new SyntaxError("Unexpected token '<'")),
-            text: () => Promise.resolve("<html><body>Internal Server Error</body></html>"),
-          } as unknown as Response)
-        )
+            text: () =>
+              Promise.resolve(
+                "<html><body>Internal Server Error</body></html>",
+              ),
+          } as unknown as Response),
+        ),
       );
 
       const response = await fetch("https://api.example.com/webhook");
@@ -219,14 +227,18 @@ describe("Dispatch Error Handling", () => {
         mock((_url: string, options?: RequestInit) => {
           const signal = options?.signal;
           if (signal?.aborted) {
-            return Promise.reject(new DOMException("The operation was aborted", "AbortError"));
+            return Promise.reject(
+              new DOMException("The operation was aborted", "AbortError"),
+            );
           }
           return new Promise((_, reject) => {
             signal?.addEventListener("abort", () => {
-              reject(new DOMException("The operation was aborted", "AbortError"));
+              reject(
+                new DOMException("The operation was aborted", "AbortError"),
+              );
             });
           });
-        })
+        }),
       );
 
       const controller = new AbortController();
@@ -252,8 +264,8 @@ describe("Dispatch Error Handling", () => {
             ok: true,
             status: 200,
             json: () => Promise.resolve({ success: true }),
-          } as Response)
-        )
+          } as Response),
+        ),
       );
 
       const controller = new AbortController();
@@ -281,7 +293,7 @@ describe("Dispatch Error Handling", () => {
             return Promise.resolve({ ok: false, status: 503 } as Response);
           }
           return Promise.resolve({ ok: true, status: 200 } as Response);
-        })
+        }),
       );
 
       let success = false;
@@ -341,7 +353,7 @@ describe("Dispatch Error Handling", () => {
         mock(() => {
           attempts++;
           return Promise.resolve({ ok: false, status: 503 } as Response);
-        })
+        }),
       );
 
       let lastResponse: Response | null = null;
@@ -436,7 +448,7 @@ describe("Dispatch Error Handling", () => {
         mock((_url: string, options?: RequestInit) => {
           fetchCalls.push({ url: _url, options: options ?? {} });
           return Promise.resolve({ ok: true, status: 200 } as Response);
-        })
+        }),
       );
 
       await fetch("https://api.example.com/webhook", {
@@ -455,14 +467,14 @@ describe("Dispatch Error Handling", () => {
         emoji: "👋🎉🚀",
         unicode: "Ñoño über naïve résumé",
         newlines: "line1\nline2\r\nline3",
-        quotes: 'He said "hello" and \'goodbye\'',
+        quotes: "He said \"hello\" and 'goodbye'",
       };
 
       setMockFetch(
         mock((_url: string, options?: RequestInit) => {
           fetchCalls.push({ url: _url, options: options ?? {} });
           return Promise.resolve({ ok: true, status: 200 } as Response);
-        })
+        }),
       );
 
       await fetch("https://api.example.com/webhook", {
@@ -497,7 +509,7 @@ describe("Dispatch Error Handling", () => {
         mock((_url: string, options?: RequestInit) => {
           fetchCalls.push({ url: _url, options: options ?? {} });
           return Promise.resolve({ ok: true, status: 200 } as Response);
-        })
+        }),
       );
 
       await fetch("https://api.example.com/webhook", {
@@ -523,7 +535,7 @@ describe("Dispatch Error Handling", () => {
         mock((_url: string, options?: RequestInit) => {
           fetchCalls.push({ url: _url, options: options ?? {} });
           return Promise.resolve({ ok: true, status: 200 } as Response);
-        })
+        }),
       );
 
       await fetch("https://api.example.com/webhook", {
@@ -544,10 +556,12 @@ describe("Dispatch Error Handling", () => {
         mock((_url: string, options?: RequestInit) => {
           fetchCalls.push({ url: _url, options: options ?? {} });
           return Promise.resolve({ ok: true, status: 200 } as Response);
-        })
+        }),
       );
 
-      await fetch("https://api.example.com/webhook?event=MESSAGE_CREATE&org=123");
+      await fetch(
+        "https://api.example.com/webhook?event=MESSAGE_CREATE&org=123",
+      );
 
       expect(fetchCalls[0].url).toContain("event=MESSAGE_CREATE");
       expect(fetchCalls[0].url).toContain("org=123");
@@ -558,10 +572,12 @@ describe("Dispatch Error Handling", () => {
         mock((_url: string, options?: RequestInit) => {
           fetchCalls.push({ url: _url, options: options ?? {} });
           return Promise.resolve({ ok: true, status: 200 } as Response);
-        })
+        }),
       );
 
-      const encodedUrl = encodeURI("https://api.example.com/webhook?name=test user&emoji=👋");
+      const encodedUrl = encodeURI(
+        "https://api.example.com/webhook?name=test user&emoji=👋",
+      );
       await fetch(encodedUrl);
 
       expect(fetchCalls[0].url).toContain("test%20user");
@@ -572,7 +588,7 @@ describe("Dispatch Error Handling", () => {
         mock((_url: string, options?: RequestInit) => {
           fetchCalls.push({ url: _url, options: options ?? {} });
           return Promise.resolve({ ok: true, status: 200 } as Response);
-        })
+        }),
       );
 
       await fetch("https://api.example.com/webhook/");
@@ -589,9 +605,12 @@ describe("Dispatch Error Handling", () => {
         mock(
           () =>
             new Promise((resolve) =>
-              setTimeout(() => resolve({ ok: true, status: 200 } as Response), 50)
-            )
-        )
+              setTimeout(
+                () => resolve({ ok: true, status: 200 } as Response),
+                50,
+              ),
+            ),
+        ),
       );
 
       const startTime = Date.now();
@@ -607,9 +626,12 @@ describe("Dispatch Error Handling", () => {
         mock(
           () =>
             new Promise((resolve) =>
-              setTimeout(() => resolve({ ok: false, status: 500 } as Response), 50)
-            )
-        )
+              setTimeout(
+                () => resolve({ ok: false, status: 500 } as Response),
+                50,
+              ),
+            ),
+        ),
       );
 
       const startTime = Date.now();
@@ -639,7 +661,7 @@ describe("Concurrent Dispatch Operations", () => {
       mock((url: string) => {
         callOrder.push(url);
         return Promise.resolve({ ok: true, status: 200 } as Response);
-      })
+      }),
     );
 
     const urls = [
@@ -666,7 +688,7 @@ describe("Concurrent Dispatch Operations", () => {
           ok: callCount % 2 === 0,
           status: callCount % 2 === 0 ? 200 : 500,
         } as Response);
-      })
+      }),
     );
 
     const results = await Promise.all([
@@ -690,7 +712,7 @@ describe("Concurrent Dispatch Operations", () => {
           return Promise.reject(new Error("Network error"));
         }
         return Promise.resolve({ ok: true, status: 200 } as Response);
-      })
+      }),
     );
 
     const results = await Promise.allSettled([

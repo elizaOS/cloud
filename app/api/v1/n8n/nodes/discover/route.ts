@@ -25,16 +25,23 @@ export async function GET(request: NextRequest) {
     const query = request.nextUrl.searchParams.get("query") || undefined;
     const typesParam = request.nextUrl.searchParams.get("types");
     const categoriesParam = request.nextUrl.searchParams.get("categories");
-    const limit = Number.parseInt(request.nextUrl.searchParams.get("limit") || "100");
+    const limit = Number.parseInt(
+      request.nextUrl.searchParams.get("limit") || "100",
+    );
 
-    const types = typesParam ? typesParam.split(",") as ("a2a" | "mcp" | "rest")[] : undefined;
+    const types = typesParam
+      ? (typesParam.split(",") as ("a2a" | "mcp" | "rest")[])
+      : undefined;
     const categories = categoriesParam ? categoriesParam.split(",") : undefined;
 
-    const results = await endpointDiscoveryService.searchEndpoints(query || "", {
-      types,
-      categories,
-      limit,
-    });
+    const results = await endpointDiscoveryService.searchEndpoints(
+      query || "",
+      {
+        types,
+        categories,
+        limit,
+      },
+    );
 
     return NextResponse.json({
       success: true,
@@ -45,9 +52,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "Failed to discover nodes",
+        error:
+          error instanceof Error ? error.message : "Failed to discover nodes",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -66,7 +74,7 @@ export async function POST(request: NextRequest) {
           error: "Invalid request",
           details: validation.error.format(),
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -76,7 +84,7 @@ export async function POST(request: NextRequest) {
         types: validation.data.types,
         categories: validation.data.categories,
         limit: validation.data.limit,
-      }
+      },
     );
 
     return NextResponse.json({
@@ -88,11 +96,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "Failed to search nodes",
+        error:
+          error instanceof Error ? error.message : "Failed to search nodes",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
-
-

@@ -8,19 +8,28 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { socialMediaService } from "@/lib/services/social-media";
-import type { SocialPlatform, PostContent, PlatformPostOptions } from "@/lib/types/social-media";
+import type {
+  SocialPlatform,
+  PostContent,
+  PlatformPostOptions,
+} from "@/lib/types/social-media";
 
 type RouteContext = { params: Promise<{ platform: string; postId: string }> };
 
 const ReplySchema = z.object({
   content: z.object({
     text: z.string().max(5000),
-    media: z.array(z.object({
-      type: z.enum(["image", "video", "gif"]),
-      url: z.string().url().optional(),
-      mimeType: z.string(),
-      altText: z.string().optional(),
-    })).max(4).optional(),
+    media: z
+      .array(
+        z.object({
+          type: z.enum(["image", "video", "gif"]),
+          url: z.string().url().optional(),
+          mimeType: z.string(),
+          altText: z.string().optional(),
+        }),
+      )
+      .max(4)
+      .optional(),
   }),
   platformOptions: z.record(z.unknown()).optional(),
   credentialId: z.string().optional(),
@@ -31,7 +40,10 @@ export async function POST(request: NextRequest, ctx: RouteContext) {
   const { platform, postId } = await ctx.params;
 
   if (!socialMediaService.isPlatformSupported(platform as SocialPlatform)) {
-    return NextResponse.json({ error: `Unsupported platform: ${platform}` }, { status: 400 });
+    return NextResponse.json(
+      { error: `Unsupported platform: ${platform}` },
+      { status: 400 },
+    );
   }
 
   const body = await request.json();
@@ -43,7 +55,7 @@ export async function POST(request: NextRequest, ctx: RouteContext) {
     postId,
     validated.content as PostContent,
     validated.platformOptions as PlatformPostOptions,
-    validated.credentialId
+    validated.credentialId,
   );
 
   if (!result.success) {
@@ -52,4 +64,3 @@ export async function POST(request: NextRequest, ctx: RouteContext) {
 
   return NextResponse.json(result);
 }
-

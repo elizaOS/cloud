@@ -39,7 +39,7 @@ async function handlePurchase(request: NextRequest): Promise<Response> {
         flags: moderation.flags,
         message: moderation.flags.map((f) => f.reason).join("; "),
       },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -48,14 +48,14 @@ async function handlePurchase(request: NextRequest): Promise<Response> {
   if (!availability.available) {
     return NextResponse.json(
       { error: "Domain is not available for purchase" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
   if (!availability.price) {
     return NextResponse.json(
       { error: "Unable to determine domain price" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 
@@ -77,7 +77,7 @@ async function handlePurchase(request: NextRequest): Promise<Response> {
         required: priceInCents,
         price: { amount: priceInDollars, currency: "USD" },
       },
-      { status: 402 }
+      { status: 402 },
     );
   }
 
@@ -101,7 +101,7 @@ async function handlePurchase(request: NextRequest): Promise<Response> {
 
     return NextResponse.json(
       { error: result.error || "Failed to purchase domain" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 
@@ -136,7 +136,7 @@ export async function GET(request: NextRequest) {
   if (!domain) {
     return NextResponse.json(
       { error: "domain query parameter required" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -192,4 +192,3 @@ export async function GET(request: NextRequest) {
     requiresReview: moderation.requiresReview,
   });
 }
-

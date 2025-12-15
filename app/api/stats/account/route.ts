@@ -21,30 +21,47 @@ async function handleGET() {
     const organizationId = user.organization_id;
     const cacheKey = `stats:account:${organizationId}`;
 
-    const data = await cache.getWithSWR<AccountStats>(cacheKey, 60, async () => {
-      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-      const [generationStats, apiCallStats24h] = await Promise.all([
-        generationsService.getStats(organizationId),
-        usageService.getStatsByOrganization(organizationId, twentyFourHoursAgo),
-      ]);
+    const data = await cache.getWithSWR<AccountStats>(
+      cacheKey,
+      60,
+      async () => {
+        const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+        const [generationStats, apiCallStats24h] = await Promise.all([
+          generationsService.getStats(organizationId),
+          usageService.getStatsByOrganization(
+            organizationId,
+            twentyFourHoursAgo,
+          ),
+        ]);
 
-      const imageCount = generationStats.byType.find((t) => t.type === "image")?.count || 0;
-      const videoCount = generationStats.byType.find((t) => t.type === "video")?.count || 0;
+        const imageCount =
+          generationStats.byType.find((t) => t.type === "image")?.count || 0;
+        const videoCount =
+          generationStats.byType.find((t) => t.type === "video")?.count || 0;
 
-      return {
-        totalGenerations: generationStats.totalGenerations,
-        totalGenerationsBreakdown: { images: imageCount, videos: videoCount },
-        apiCalls24h: apiCallStats24h.totalRequests,
-        apiCalls24hSuccessful: Math.round(apiCallStats24h.totalRequests * apiCallStats24h.successRate),
-        imageGenerationsAllTime: imageCount,
-        videoRendersAllTime: videoCount,
-      };
-    });
+        return {
+          totalGenerations: generationStats.totalGenerations,
+          totalGenerationsBreakdown: { images: imageCount, videos: videoCount },
+          apiCalls24h: apiCallStats24h.totalRequests,
+          apiCalls24hSuccessful: Math.round(
+            apiCallStats24h.totalRequests * apiCallStats24h.successRate,
+          ),
+          imageGenerationsAllTime: imageCount,
+          videoRendersAllTime: videoCount,
+        };
+      },
+    );
 
     return NextResponse.json({ success: true, data });
   } catch (error) {
     logger.error("Error fetching account stats:", error);
-    return NextResponse.json({ success: false, error: error instanceof Error ? error.message : "Failed to fetch stats" }, { status: 500 });
+    return NextResponse.json(
+      {
+        success: false,
+        error: error instanceof Error ? error.message : "Failed to fetch stats",
+      },
+      { status: 500 },
+    );
   }
 }
 

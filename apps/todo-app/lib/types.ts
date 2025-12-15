@@ -67,13 +67,16 @@ export const LEVELS: LevelInfo[] = [
 ];
 
 export function calculateLevel(points: number): LevelInfo {
-  return LEVELS.reduce((current, level) => 
-    points >= level.threshold ? level : current, LEVELS[0]);
+  return LEVELS.reduce(
+    (current, level) => (points >= level.threshold ? level : current),
+    LEVELS[0],
+  );
 }
 
 export function calculateProgress(points: number): number {
   const level = calculateLevel(points);
   if (!level.nextThreshold) return 100;
-  const progress = (points - level.threshold) / (level.nextThreshold - level.threshold);
+  const progress =
+    (points - level.threshold) / (level.nextThreshold - level.threshold);
   return Math.min(100, Math.round(progress * 100));
 }

@@ -34,7 +34,7 @@ const MAX_BOOLEAN_INDEXES = 1;
 
 function validateDocument(
   data: Record<string, unknown>,
-  schema: CollectionSchema
+  schema: CollectionSchema,
 ): string[] {
   const errors: string[] = [];
 
@@ -68,7 +68,7 @@ function validateDocument(
 function validateField(
   fieldName: string,
   value: unknown,
-  schema: JsonSchemaField
+  schema: JsonSchemaField,
 ): string[] {
   const errors: string[] = [];
   const actualType = getJsonType(value);
@@ -76,7 +76,7 @@ function validateField(
   if (actualType !== schema.type) {
     if (!(schema.type === "number" && actualType === "integer")) {
       errors.push(
-        `Field '${fieldName}' expected ${schema.type}, got ${actualType}`
+        `Field '${fieldName}' expected ${schema.type}, got ${actualType}`,
       );
       return errors;
     }
@@ -85,16 +85,21 @@ function validateField(
   if (schema.type === "string" && typeof value === "string") {
     if (schema.minLength !== undefined && value.length < schema.minLength) {
       errors.push(
-        `Field '${fieldName}' must be at least ${schema.minLength} characters`
+        `Field '${fieldName}' must be at least ${schema.minLength} characters`,
       );
     }
     if (schema.maxLength !== undefined && value.length > schema.maxLength) {
       errors.push(
-        `Field '${fieldName}' must be at most ${schema.maxLength} characters`
+        `Field '${fieldName}' must be at most ${schema.maxLength} characters`,
       );
     }
-    if (schema.pattern !== undefined && !new RegExp(schema.pattern).test(value)) {
-      errors.push(`Field '${fieldName}' does not match pattern ${schema.pattern}`);
+    if (
+      schema.pattern !== undefined &&
+      !new RegExp(schema.pattern).test(value)
+    ) {
+      errors.push(
+        `Field '${fieldName}' does not match pattern ${schema.pattern}`,
+      );
     }
   }
 
@@ -113,7 +118,7 @@ function validateField(
   if (schema.enum !== undefined) {
     if (!schema.enum.includes(value as string | number | boolean)) {
       errors.push(
-        `Field '${fieldName}' must be one of: ${schema.enum.join(", ")}`
+        `Field '${fieldName}' must be one of: ${schema.enum.join(", ")}`,
       );
     }
   }
@@ -121,17 +126,21 @@ function validateField(
   if (schema.type === "array" && Array.isArray(value)) {
     if (schema.minItems !== undefined && value.length < schema.minItems) {
       errors.push(
-        `Field '${fieldName}' must have at least ${schema.minItems} items`
+        `Field '${fieldName}' must have at least ${schema.minItems} items`,
       );
     }
     if (schema.maxItems !== undefined && value.length > schema.maxItems) {
       errors.push(
-        `Field '${fieldName}' must have at most ${schema.maxItems} items`
+        `Field '${fieldName}' must have at most ${schema.maxItems} items`,
       );
     }
     if (schema.items) {
       for (let i = 0; i < value.length; i++) {
-        const itemErrors = validateField(`${fieldName}[${i}]`, value[i], schema.items);
+        const itemErrors = validateField(
+          `${fieldName}[${i}]`,
+          value[i],
+          schema.items,
+        );
         errors.push(...itemErrors);
       }
     }
@@ -151,7 +160,7 @@ function getJsonType(value: unknown): string {
 
 function getIndexSlot(
   field: string,
-  indexes: CollectionIndex[]
+  indexes: CollectionIndex[],
 ): string | null {
   let strIdx = 0;
   let numIdx = 0;
@@ -196,7 +205,7 @@ function getValueAtPath(data: Record<string, unknown>, path: string): unknown {
 
 function populateIndexSlots(
   data: Record<string, unknown>,
-  indexes: CollectionIndex[]
+  indexes: CollectionIndex[],
 ): Record<string, string | number | boolean | null> {
   const slots: Record<string, string | number | boolean | null> = {
     idx_str_1: null,
@@ -235,7 +244,9 @@ function populateIndexSlots(
 }
 
 class AppStorageService {
-  async createCollection(params: CreateCollectionParams): Promise<AppCollection> {
+  async createCollection(
+    params: CreateCollectionParams,
+  ): Promise<AppCollection> {
     const { appId, name, description, schema, indexes = [] } = params;
 
     const strIndexes = indexes.filter((i) => i.type === "string").length;
@@ -256,7 +267,7 @@ class AppStorageService {
       const rootField = idx.field.split(".")[0];
       if (!schema.properties[rootField]) {
         throw new Error(
-          `Index field '${idx.field}' not found in schema properties`
+          `Index field '${idx.field}' not found in schema properties`,
         );
       }
     }
@@ -283,16 +294,13 @@ class AppStorageService {
 
   async getCollection(
     appId: string,
-    name: string
+    name: string,
   ): Promise<AppCollection | null> {
     const [collection] = await db
       .select()
       .from(appCollections)
       .where(
-        and(
-          eq(appCollections.app_id, appId),
-          eq(appCollections.name, name)
-        )
+        and(eq(appCollections.app_id, appId), eq(appCollections.name, name)),
       )
       .limit(1);
 
@@ -311,7 +319,7 @@ class AppStorageService {
     appId: string,
     name: string,
     schema: CollectionSchema,
-    indexes?: CollectionIndex[]
+    indexes?: CollectionIndex[],
   ): Promise<AppCollection> {
     const collection = await this.getCollection(appId, name);
     if (!collection) {
@@ -349,9 +357,7 @@ class AppStorageService {
       return; // Idempotent
     }
 
-    await db
-      .delete(appCollections)
-      .where(eq(appCollections.id, collection.id));
+    await db.delete(appCollections).where(eq(appCollections.id, collection.id));
 
     logger.info(`[AppStorage] Deleted collection: ${name}`, {
       appId,
@@ -363,7 +369,7 @@ class AppStorageService {
     appId: string,
     collectionName: string,
     data: Record<string, unknown>,
-    userId?: string
+    userId?: string,
   ): Promise<AppDocument> {
     const collection = await this.getCollection(appId, collectionName);
     if (!collection) {
@@ -374,14 +380,17 @@ class AppStorageService {
       throw new Error(`Collection '${collectionName}' is not writable`);
     }
 
-    const errors = validateDocument(data, collection.schema as CollectionSchema);
+    const errors = validateDocument(
+      data,
+      collection.schema as CollectionSchema,
+    );
     if (errors.length > 0) {
       throw new Error(`Validation failed: ${errors.join("; ")}`);
     }
 
     const indexSlots = populateIndexSlots(
       data,
-      collection.indexes as CollectionIndex[]
+      collection.indexes as CollectionIndex[],
     );
 
     const [document] = await db
@@ -411,7 +420,7 @@ class AppStorageService {
 
   async getDocument(
     appId: string,
-    documentId: string
+    documentId: string,
   ): Promise<AppDocument | null> {
     const [document] = await db
       .select()
@@ -420,8 +429,8 @@ class AppStorageService {
         and(
           eq(appDocuments.app_id, appId),
           eq(appDocuments.id, documentId),
-          isNull(appDocuments.deleted_at)
-        )
+          isNull(appDocuments.deleted_at),
+        ),
       )
       .limit(1);
 
@@ -431,14 +440,20 @@ class AppStorageService {
   async queryDocuments(
     appId: string,
     collectionName: string,
-    params: QueryParams = {}
+    params: QueryParams = {},
   ): Promise<{ documents: AppDocument[]; total: number }> {
     const collection = await this.getCollection(appId, collectionName);
     if (!collection) {
       throw new Error(`Collection '${collectionName}' not found`);
     }
 
-    const { filter = {}, sort, limit = 100, offset = 0, includeDeleted = false } = params;
+    const {
+      filter = {},
+      sort,
+      limit = 100,
+      offset = 0,
+      includeDeleted = false,
+    } = params;
     const indexes = collection.indexes as CollectionIndex[];
 
     const conditions = [
@@ -455,18 +470,24 @@ class AppStorageService {
 
       if (indexSlot) {
         if (indexSlot.startsWith("idx_str_")) {
-          const col = appDocuments[indexSlot as keyof typeof appDocuments] as typeof appDocuments.idx_str_1;
+          const col = appDocuments[
+            indexSlot as keyof typeof appDocuments
+          ] as typeof appDocuments.idx_str_1;
           conditions.push(eq(col, String(value)));
         } else if (indexSlot.startsWith("idx_num_")) {
-          const col = appDocuments[indexSlot as keyof typeof appDocuments] as typeof appDocuments.idx_num_1;
+          const col = appDocuments[
+            indexSlot as keyof typeof appDocuments
+          ] as typeof appDocuments.idx_num_1;
           conditions.push(eq(col, String(value)));
         } else if (indexSlot.startsWith("idx_bool_")) {
-          const col = appDocuments[indexSlot as keyof typeof appDocuments] as typeof appDocuments.idx_bool_1;
+          const col = appDocuments[
+            indexSlot as keyof typeof appDocuments
+          ] as typeof appDocuments.idx_bool_1;
           conditions.push(eq(col, Boolean(value)));
         }
       } else {
         conditions.push(
-          sql`${appDocuments.data}->>${field} = ${String(value)}`
+          sql`${appDocuments.data}->>${field} = ${String(value)}`,
         );
       }
     }
@@ -488,24 +509,26 @@ class AppStorageService {
 
       if (indexSlot) {
         const col = appDocuments[indexSlot as keyof typeof appDocuments];
-        query = query.orderBy(sort.order === "desc" ? desc(col) : asc(col)) as typeof query;
+        query = query.orderBy(
+          sort.order === "desc" ? desc(col) : asc(col),
+        ) as typeof query;
       } else if (sort.field === "created_at") {
         query = query.orderBy(
           sort.order === "desc"
             ? desc(appDocuments.created_at)
-            : asc(appDocuments.created_at)
+            : asc(appDocuments.created_at),
         ) as typeof query;
       } else if (sort.field === "updated_at") {
         query = query.orderBy(
           sort.order === "desc"
             ? desc(appDocuments.updated_at)
-            : asc(appDocuments.updated_at)
+            : asc(appDocuments.updated_at),
         ) as typeof query;
       } else {
         query = query.orderBy(
           sort.order === "desc"
             ? desc(sql`${appDocuments.data}->>${sort.field}`)
-            : asc(sql`${appDocuments.data}->>${sort.field}`)
+            : asc(sql`${appDocuments.data}->>${sort.field}`),
         ) as typeof query;
       }
     } else {
@@ -521,7 +544,7 @@ class AppStorageService {
     appId: string,
     documentId: string,
     data: Partial<Record<string, unknown>>,
-    userId?: string
+    userId?: string,
   ): Promise<AppDocument> {
     const existing = await this.getDocument(appId, documentId);
     if (!existing) {
@@ -537,16 +560,22 @@ class AppStorageService {
       throw new Error(`Collection '${collection.name}' is not writable`);
     }
 
-    const mergedData = { ...existing.data as Record<string, unknown>, ...data };
+    const mergedData = {
+      ...(existing.data as Record<string, unknown>),
+      ...data,
+    };
 
-    const errors = validateDocument(mergedData, collection.schema as CollectionSchema);
+    const errors = validateDocument(
+      mergedData,
+      collection.schema as CollectionSchema,
+    );
     if (errors.length > 0) {
       throw new Error(`Validation failed: ${errors.join("; ")}`);
     }
 
     const indexSlots = populateIndexSlots(
       mergedData,
-      collection.indexes as CollectionIndex[]
+      collection.indexes as CollectionIndex[],
     );
 
     const [updated] = await db
@@ -566,7 +595,7 @@ class AppStorageService {
       "update",
       existing.data as Record<string, unknown>,
       mergedData,
-      userId
+      userId,
     );
 
     return updated;
@@ -576,7 +605,7 @@ class AppStorageService {
     appId: string,
     documentId: string,
     data: Record<string, unknown>,
-    userId?: string
+    userId?: string,
   ): Promise<AppDocument> {
     const existing = await this.getDocument(appId, documentId);
     if (!existing) {
@@ -592,14 +621,17 @@ class AppStorageService {
       throw new Error(`Collection '${collection.name}' is not writable`);
     }
 
-    const errors = validateDocument(data, collection.schema as CollectionSchema);
+    const errors = validateDocument(
+      data,
+      collection.schema as CollectionSchema,
+    );
     if (errors.length > 0) {
       throw new Error(`Validation failed: ${errors.join("; ")}`);
     }
 
     const indexSlots = populateIndexSlots(
       data,
-      collection.indexes as CollectionIndex[]
+      collection.indexes as CollectionIndex[],
     );
 
     const [updated] = await db
@@ -619,7 +651,7 @@ class AppStorageService {
       "update",
       existing.data as Record<string, unknown>,
       data,
-      userId
+      userId,
     );
 
     return updated;
@@ -628,7 +660,7 @@ class AppStorageService {
   async deleteDocument(
     appId: string,
     documentId: string,
-    userId?: string
+    userId?: string,
   ): Promise<void> {
     const existing = await this.getDocument(appId, documentId);
     if (!existing) {
@@ -658,7 +690,7 @@ class AppStorageService {
       "delete",
       existing.data as Record<string, unknown>,
       null,
-      userId
+      userId,
     );
   }
 
@@ -666,10 +698,7 @@ class AppStorageService {
     await db
       .delete(appDocuments)
       .where(
-        and(
-          eq(appDocuments.app_id, appId),
-          eq(appDocuments.id, documentId)
-        )
+        and(eq(appDocuments.app_id, appId), eq(appDocuments.id, documentId)),
       );
   }
 
@@ -677,7 +706,7 @@ class AppStorageService {
     appId: string,
     collectionName: string,
     documents: Record<string, unknown>[],
-    userId?: string
+    userId?: string,
   ): Promise<AppDocument[]> {
     const collection = await this.getCollection(appId, collectionName);
     if (!collection) {
@@ -707,10 +736,7 @@ class AppStorageService {
       ...populateIndexSlots(data, indexes),
     }));
 
-    const inserted = await db
-      .insert(appDocuments)
-      .values(values)
-      .returning();
+    const inserted = await db.insert(appDocuments).values(values).returning();
 
     await db
       .update(appCollections)
@@ -727,7 +753,7 @@ class AppStorageService {
     appId: string,
     collectionName: string,
     filter: Record<string, unknown>,
-    userId?: string
+    userId?: string,
   ): Promise<number> {
     const { documents } = await this.queryDocuments(appId, collectionName, {
       filter,
@@ -757,7 +783,7 @@ class AppStorageService {
     operation: "create" | "update" | "delete",
     previousData: Record<string, unknown> | null,
     newData: Record<string, unknown> | null,
-    userId?: string
+    userId?: string,
   ): Promise<void> {
     await db.insert(appDocumentChanges).values({
       document_id: documentId,

@@ -136,7 +136,8 @@ const ENV_VARS = {
   },
   SOLANA_PAYOUT_PRIVATE_KEY: {
     required: false,
-    description: "Base58-encoded private key for Solana payouts (NEVER log or expose)",
+    description:
+      "Base58-encoded private key for Solana payouts (NEVER log or expose)",
     validate: (value: string) => {
       // Base58 validation (Solana keys are 64 bytes = ~88 base58 chars)
       return /^[1-9A-HJ-NP-Za-km-z]{80,90}$/.test(value);
@@ -151,7 +152,8 @@ const ENV_VARS = {
   },
   AGENT0_PRIVATE_KEY: {
     required: false,
-    description: "Private key for decentralized x402 settlement (NEVER log or expose)",
+    description:
+      "Private key for decentralized x402 settlement (NEVER log or expose)",
     validate: (value: string) => {
       const normalized = value.startsWith("0x") ? value.slice(2) : value;
       return /^[a-fA-F0-9]{64}$/.test(normalized);

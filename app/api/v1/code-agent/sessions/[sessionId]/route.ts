@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { codeAgentService } from "@/lib/services/code-agent";
-import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit-redis";
+import {
+  withRateLimit,
+  RateLimitPresets,
+} from "@/lib/middleware/rate-limit-redis";
 import { logger } from "@/lib/utils/logger";
 
 type RouteContext = { params: Promise<{ sessionId: string }> };
@@ -9,8 +12,12 @@ type RouteContext = { params: Promise<{ sessionId: string }> };
 async function handleGET(request: NextRequest, context: RouteContext) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { sessionId } = await context.params;
-  const session = await codeAgentService.getSession(sessionId, user.organization_id);
-  if (!session) return NextResponse.json({ error: "Session not found" }, { status: 404 });
+  const session = await codeAgentService.getSession(
+    sessionId,
+    user.organization_id,
+  );
+  if (!session)
+    return NextResponse.json({ error: "Session not found" }, { status: 404 });
   return NextResponse.json({ session });
 }
 

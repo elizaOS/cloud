@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
   const expiredSessions = await db.query.codeAgentSessions.findMany({
     where: and(
       lt(codeAgentSessions.expires_at, now),
-      inArray(codeAgentSessions.status, ["ready", "executing", "suspended"])
+      inArray(codeAgentSessions.status, ["ready", "executing", "suspended"]),
     ),
     limit: 50, // Process in batches
   });
@@ -76,7 +76,10 @@ export async function GET(request: NextRequest) {
 
   for (const session of expiredSessions) {
     try {
-      await codeAgentService.terminateSession(session.id, session.organization_id);
+      await codeAgentService.terminateSession(
+        session.id,
+        session.organization_id,
+      );
       stats.expiredSessionsTerminated++;
     } catch (error) {
       const msg = `Failed to terminate session ${session.id}: ${error instanceof Error ? error.message : "Unknown"}`;
@@ -144,8 +147,8 @@ export async function GET(request: NextRequest) {
     .where(
       and(
         eq(codeAgentSessions.status, "creating"),
-        lt(codeAgentSessions.created_at, oneHourAgo)
-      )
+        lt(codeAgentSessions.created_at, oneHourAgo),
+      ),
     )
     .returning({ id: codeAgentSessions.id });
 
@@ -167,4 +170,3 @@ export async function GET(request: NextRequest) {
     },
   });
 }
-

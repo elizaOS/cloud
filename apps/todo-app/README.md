@@ -39,10 +39,10 @@ The app will be available at http://localhost:3002
 
 ### Environment Variables
 
-| Variable | Description | Default |
-|----------|-------------|---------|
+| Variable                | Description                               | Default                 |
+| ----------------------- | ----------------------------------------- | ----------------------- |
 | `NEXT_PUBLIC_CLOUD_URL` | Eliza Cloud URL for client-side API calls | `http://localhost:3000` |
-| `CLOUD_URL` | Eliza Cloud URL for server-side proxy | `http://localhost:3000` |
+| `CLOUD_URL`             | Eliza Cloud URL for server-side proxy     | `http://localhost:3000` |
 
 ## Architecture
 
@@ -63,17 +63,20 @@ All API calls go through the local proxy (`/api/proxy/*`) which forwards to Eliz
 ### Data Storage
 
 Tasks are stored using Eliza Cloud's App Storage API:
+
 - `tasks` collection - Task documents
 - `user_points` collection - Gamification data
 
 ### Gamification
 
 Points system:
+
 - **Daily tasks**: 10 base + 5 per streak day (max 50 bonus)
-- **One-off tasks**: (5 - priority) * 10 + urgent bonus
+- **One-off tasks**: (5 - priority) \* 10 + urgent bonus
 - **Aspirational goals**: 50 points
 
 Levels:
+
 1. Beginner (0)
 2. Apprentice (100)
 3. Journeyman (300)
@@ -175,12 +178,15 @@ Then configure in `next.config.mjs`:
 
 ```javascript
 import { withSentryConfig } from "@sentry/nextjs";
-export default withSentryConfig(nextConfig, { /* options */ });
+export default withSentryConfig(nextConfig, {
+  /* options */
+});
 ```
 
 ### Health Checks
 
 The app relies on Eliza Cloud. Monitor:
+
 - Cloud API availability (`GET /api/health`)
 - MCP endpoint (`GET /api/mcp/todoapp`)
 - Storage service (`GET /api/v1/app/storage/tasks`)

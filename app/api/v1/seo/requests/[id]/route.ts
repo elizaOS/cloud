@@ -5,7 +5,11 @@ import {
   seoProviderCallsRepository,
   seoRequestsRepository,
 } from "@/db/repositories";
-import type { SeoArtifact, SeoProviderCall, SeoRequest } from "@/db/schemas/seo";
+import type {
+  SeoArtifact,
+  SeoProviderCall,
+  SeoRequest,
+} from "@/db/schemas/seo";
 
 function serializeRequest(request: SeoRequest) {
   return {
@@ -40,7 +44,10 @@ export async function GET(
   const request = await seoRequestsRepository.findById(params.id);
 
   if (!request || request.organization_id !== user.organization_id) {
-    return NextResponse.json({ error: "SEO request not found" }, { status: 404 });
+    return NextResponse.json(
+      { error: "SEO request not found" },
+      { status: 404 },
+    );
   }
 
   const [artifacts, providerCalls] = await Promise.all([
@@ -54,4 +61,3 @@ export async function GET(
     providerCalls: providerCalls.map(serializeProviderCall),
   });
 }
-

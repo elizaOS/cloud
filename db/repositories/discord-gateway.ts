@@ -29,7 +29,9 @@ export class DiscordBotConnectionsRepository {
   /**
    * Get all bot connections for an organization.
    */
-  async listByOrganization(organizationId: string): Promise<DiscordBotConnection[]> {
+  async listByOrganization(
+    organizationId: string,
+  ): Promise<DiscordBotConnection[]> {
     return await db
       .select()
       .from(discordBotConnections)
@@ -53,12 +55,14 @@ export class DiscordBotConnectionsRepository {
    * Get a bot connection by platform connection ID.
    */
   async getByPlatformConnection(
-    platformConnectionId: string
+    platformConnectionId: string,
   ): Promise<DiscordBotConnection | null> {
     const [connection] = await db
       .select()
       .from(discordBotConnections)
-      .where(eq(discordBotConnections.platform_connection_id, platformConnectionId))
+      .where(
+        eq(discordBotConnections.platform_connection_id, platformConnectionId),
+      )
       .limit(1);
     return connection ?? null;
   }
@@ -66,7 +70,9 @@ export class DiscordBotConnectionsRepository {
   /**
    * Get all bot connections with a specific status.
    */
-  async listByStatus(status: DiscordConnectionStatus): Promise<DiscordBotConnection[]> {
+  async listByStatus(
+    status: DiscordConnectionStatus,
+  ): Promise<DiscordBotConnection[]> {
     return await db
       .select()
       .from(discordBotConnections)
@@ -95,10 +101,10 @@ export class DiscordBotConnectionsRepository {
         and(
           or(
             isNull(discordBotConnections.gateway_pod),
-            lt(discordBotConnections.last_heartbeat, staleThreshold)
+            lt(discordBotConnections.last_heartbeat, staleThreshold),
           ),
-          eq(discordBotConnections.status, "disconnected")
-        )
+          eq(discordBotConnections.status, "disconnected"),
+        ),
       );
   }
 
@@ -128,7 +134,7 @@ export class DiscordBotConnectionsRepository {
       resumeGatewayUrl?: string;
       sequenceNumber?: number;
       gatewayPod?: string;
-    }
+    },
   ): Promise<DiscordBotConnection | null> {
     const updateData: Partial<DiscordBotConnection> = {
       status,
@@ -191,7 +197,7 @@ export class DiscordBotConnectionsRepository {
   async incrementEventCounters(
     id: string,
     received: number,
-    routed: number
+    routed: number,
   ): Promise<void> {
     await db
       .update(discordBotConnections)
@@ -220,7 +226,10 @@ export class DiscordBotConnectionsRepository {
   /**
    * Assign a pod to handle the connection.
    */
-  async assignPod(id: string, podName: string): Promise<DiscordBotConnection | null> {
+  async assignPod(
+    id: string,
+    podName: string,
+  ): Promise<DiscordBotConnection | null> {
     const [connection] = await db
       .update(discordBotConnections)
       .set({
@@ -253,7 +262,9 @@ export class DiscordEventRoutesRepository {
   /**
    * Get all routes for an organization.
    */
-  async listByOrganization(organizationId: string): Promise<DiscordEventRoute[]> {
+  async listByOrganization(
+    organizationId: string,
+  ): Promise<DiscordEventRoute[]> {
     return await db
       .select()
       .from(discordEventRoutes)
@@ -266,7 +277,7 @@ export class DiscordEventRoutesRepository {
    */
   async listByGuild(
     platformConnectionId: string,
-    guildId: string
+    guildId: string,
   ): Promise<DiscordEventRoute[]> {
     return await db
       .select()
@@ -275,8 +286,8 @@ export class DiscordEventRoutesRepository {
         and(
           eq(discordEventRoutes.platform_connection_id, platformConnectionId),
           eq(discordEventRoutes.guild_id, guildId),
-          eq(discordEventRoutes.enabled, true)
-        )
+          eq(discordEventRoutes.enabled, true),
+        ),
       )
       .orderBy(desc(discordEventRoutes.priority));
   }
@@ -295,17 +306,20 @@ export class DiscordEventRoutesRepository {
       .from(discordEventRoutes)
       .where(
         and(
-          eq(discordEventRoutes.platform_connection_id, params.platformConnectionId),
+          eq(
+            discordEventRoutes.platform_connection_id,
+            params.platformConnectionId,
+          ),
           eq(discordEventRoutes.guild_id, params.guildId),
           eq(discordEventRoutes.event_type, params.eventType),
-          eq(discordEventRoutes.enabled, true)
-        )
+          eq(discordEventRoutes.enabled, true),
+        ),
       )
       .orderBy(desc(discordEventRoutes.priority));
 
     // Filter by channel if specified in route
     return routes.filter(
-      (route) => !route.channel_id || route.channel_id === params.channelId
+      (route) => !route.channel_id || route.channel_id === params.channelId,
     );
   }
 
@@ -328,7 +342,7 @@ export class DiscordEventRoutesRepository {
    */
   async update(
     id: string,
-    data: Partial<NewDiscordEventRoute>
+    data: Partial<NewDiscordEventRoute>,
   ): Promise<DiscordEventRoute | null> {
     const [route] = await db
       .update(discordEventRoutes)
@@ -344,7 +358,11 @@ export class DiscordEventRoutesRepository {
   /**
    * Increment route counters.
    */
-  async incrementCounters(id: string, matched: number, routed: number): Promise<void> {
+  async incrementCounters(
+    id: string,
+    matched: number,
+    routed: number,
+  ): Promise<void> {
     await db
       .update(discordEventRoutes)
       .set({
@@ -359,7 +377,10 @@ export class DiscordEventRoutesRepository {
   /**
    * Enable/disable a route.
    */
-  async setEnabled(id: string, enabled: boolean): Promise<DiscordEventRoute | null> {
+  async setEnabled(
+    id: string,
+    enabled: boolean,
+  ): Promise<DiscordEventRoute | null> {
     const [route] = await db
       .update(discordEventRoutes)
       .set({
@@ -391,11 +412,10 @@ export class DiscordEventQueueRepository {
   /**
    * Add an event to the queue.
    */
-  async enqueue(data: NewDiscordEventQueueItem): Promise<DiscordEventQueueItem> {
-    const [item] = await db
-      .insert(discordEventQueue)
-      .values(data)
-      .returning();
+  async enqueue(
+    data: NewDiscordEventQueueItem,
+  ): Promise<DiscordEventQueueItem> {
+    const [item] = await db.insert(discordEventQueue).values(data).returning();
     return item;
   }
 
@@ -409,8 +429,8 @@ export class DiscordEventQueueRepository {
       .where(
         and(
           eq(discordEventQueue.status, "pending"),
-          lt(discordEventQueue.process_after, new Date())
-        )
+          lt(discordEventQueue.process_after, new Date()),
+        ),
       )
       .orderBy(discordEventQueue.created_at)
       .limit(limit);
@@ -421,7 +441,7 @@ export class DiscordEventQueueRepository {
    */
   async getPendingByOrganization(
     organizationId: string,
-    limit = 100
+    limit = 100,
   ): Promise<DiscordEventQueueItem[]> {
     return await db
       .select()
@@ -430,8 +450,8 @@ export class DiscordEventQueueRepository {
         and(
           eq(discordEventQueue.organization_id, organizationId),
           eq(discordEventQueue.status, "pending"),
-          lt(discordEventQueue.process_after, new Date())
-        )
+          lt(discordEventQueue.process_after, new Date()),
+        ),
       )
       .orderBy(discordEventQueue.created_at)
       .limit(limit);
@@ -515,8 +535,8 @@ export class DiscordEventQueueRepository {
       .where(
         and(
           eq(discordEventQueue.status, "completed"),
-          lt(discordEventQueue.completed_at, cutoff)
-        )
+          lt(discordEventQueue.completed_at, cutoff),
+        ),
       )
       .returning();
     return result.length;
@@ -556,7 +576,7 @@ export class DiscordEventQueueRepository {
 // SINGLETON EXPORTS
 // =============================================================================
 
-export const discordBotConnectionsRepository = new DiscordBotConnectionsRepository();
+export const discordBotConnectionsRepository =
+  new DiscordBotConnectionsRepository();
 export const discordEventRoutesRepository = new DiscordEventRoutesRepository();
 export const discordEventQueueRepository = new DiscordEventQueueRepository();
-

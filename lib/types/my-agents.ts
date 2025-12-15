@@ -1,6 +1,6 @@
 /**
  * @deprecated This file is deprecated. Import from "./characters" instead.
- * 
+ *
  * My Agents types have been consolidated into characters.ts.
  */
 

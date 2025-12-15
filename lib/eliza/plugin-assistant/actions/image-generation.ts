@@ -421,7 +421,9 @@ async function ensureBlobUrl(
   if (!isBase64DataUrl(imageUrl)) {
     // Check if it's an external provider URL - if so, upload to our storage
     if (isFalAiUrl(imageUrl)) {
-      logger.info("[GENERATE_IMAGE] External URL detected, uploading to our storage...");
+      logger.info(
+        "[GENERATE_IMAGE] External URL detected, uploading to our storage...",
+      );
       try {
         const timestamp = Date.now();
         const ourUrl = await ensureElizaCloudUrl(imageUrl, {

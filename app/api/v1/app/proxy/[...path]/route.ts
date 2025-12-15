@@ -1,12 +1,16 @@
 /**
  * App API Proxy - Proxies requests from apps to cloud API.
- * 
+ *
  * Allows apps to make authenticated API calls without exposing credentials.
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { addCorsHeaders, validateOrigin, createPreflightResponse } from "@/lib/middleware/cors-apps";
+import {
+  addCorsHeaders,
+  validateOrigin,
+  createPreflightResponse,
+} from "@/lib/middleware/cors-apps";
 import { logger } from "@/lib/utils/logger";
 
 interface RouteParams {
@@ -23,7 +27,7 @@ export async function OPTIONS(request: NextRequest) {
 
 async function handleProxy(
   request: NextRequest,
-  { params }: RouteParams
+  { params }: RouteParams,
 ): Promise<NextResponse> {
   const corsResult = await validateOrigin(request);
   const { path } = await params;
@@ -34,7 +38,7 @@ async function handleProxy(
 
     // Build target URL
     const targetUrl = new URL(`/api/v1${targetPath}`, BASE_URL);
-    
+
     // Copy query params
     const { searchParams } = new URL(request.url);
     searchParams.forEach((value, key) => {
@@ -51,7 +55,8 @@ async function handleProxy(
     const proxyResponse = await fetch(targetUrl.toString(), {
       method: request.method,
       headers: {
-        "Content-Type": request.headers.get("Content-Type") || "application/json",
+        "Content-Type":
+          request.headers.get("Content-Type") || "application/json",
         "X-Organization-Id": organization.id,
         "X-User-Id": user.id,
         "X-Proxy-Source": "app",
@@ -64,7 +69,8 @@ async function handleProxy(
     const response = new NextResponse(responseBody, {
       status: proxyResponse.status,
       headers: {
-        "Content-Type": proxyResponse.headers.get("Content-Type") || "application/json",
+        "Content-Type":
+          proxyResponse.headers.get("Content-Type") || "application/json",
       },
     });
 
@@ -72,10 +78,16 @@ async function handleProxy(
   } catch (error) {
     logger.error("[App Proxy] Error", { error, path: targetPath });
 
-    const status = error instanceof Error && error.message.includes("Unauthorized") ? 401 : 500;
+    const status =
+      error instanceof Error && error.message.includes("Unauthorized")
+        ? 401
+        : 500;
     const response = NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : "Proxy error" },
-      { status }
+      {
+        success: false,
+        error: error instanceof Error ? error.message : "Proxy error",
+      },
+      { status },
     );
 
     return addCorsHeaders(response, corsResult.origin);
@@ -87,4 +99,3 @@ export const POST = handleProxy;
 export const PUT = handleProxy;
 export const PATCH = handleProxy;
 export const DELETE = handleProxy;
-

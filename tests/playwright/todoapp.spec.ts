@@ -26,7 +26,7 @@ test.beforeAll(async ({ request }) => {
   const cloudResponse = await request.get(CLOUD_URL).catch(() => null);
   if (!cloudResponse?.ok()) {
     throw new Error(
-      `Cloud not available at ${CLOUD_URL}. Start with: bun run dev`
+      `Cloud not available at ${CLOUD_URL}. Start with: bun run dev`,
     );
   }
 
@@ -35,7 +35,7 @@ test.beforeAll(async ({ request }) => {
 
   if (!todoappAvailable) {
     console.log(
-      `⚠️ Todo app not available at ${TODOAPP_URL}. Skipping todo-app tests. Start with: cd todo-app && bun run dev`
+      `⚠️ Todo app not available at ${TODOAPP_URL}. Skipping todo-app tests. Start with: cd todo-app && bun run dev`,
     );
   }
 });
@@ -146,15 +146,12 @@ test.describe("Pass-Through Auth Flow", () => {
   test("POST /api/auth/app-session creates session for todo-app", async ({
     request,
   }) => {
-    const response = await request.post(
-      `${CLOUD_URL}/api/auth/app-session`,
-      {
-        data: {
-          callbackUrl: `${TODOAPP_URL}/auth/callback`,
-          appId: "eliza-todo",
-        },
-      }
-    );
+    const response = await request.post(`${CLOUD_URL}/api/auth/app-session`, {
+      data: {
+        callbackUrl: `${TODOAPP_URL}/auth/callback`,
+        appId: "eliza-todo",
+      },
+    });
 
     expect(response.status()).toBe(201);
 
@@ -173,7 +170,7 @@ test.describe("Pass-Through Auth Flow", () => {
         data: {
           callbackUrl: `${TODOAPP_URL}/auth/callback`,
         },
-      }
+      },
     );
     const { loginUrl } = await createResponse.json();
 
@@ -205,7 +202,7 @@ test.describe("Todo App Proxy", () => {
       return;
     }
     const response = await request.get(
-      `${TODOAPP_URL}/api/proxy/storage/tasks`
+      `${TODOAPP_URL}/api/proxy/storage/tasks`,
     );
 
     // Should return 401 (no auth) - not 500 (server error)
@@ -238,9 +235,7 @@ test.describe("Cloud API - Authentication Required", () => {
   test("GET /app/storage/tasks returns 401 without auth", async ({
     request,
   }) => {
-    const response = await request.get(
-      `${CLOUD_URL}/api/v1/app/storage/tasks`
-    );
+    const response = await request.get(`${CLOUD_URL}/api/v1/app/storage/tasks`);
     expect([401, 403]).toContain(response.status());
   });
 
@@ -251,7 +246,7 @@ test.describe("Cloud API - Authentication Required", () => {
       `${CLOUD_URL}/api/v1/app/storage/tasks`,
       {
         data: { name: "Test", type: "one-off", completed: false },
-      }
+      },
     );
     expect([401, 403]).toContain(response.status());
   });
@@ -269,9 +264,7 @@ test.describe("Todo MCP Endpoint", () => {
     expect(data.tools.length).toBeGreaterThan(0);
 
     // Verify expected tools exist
-    const toolNames = data.tools.map(
-      (t: { name: string }) => t.name
-    );
+    const toolNames = data.tools.map((t: { name: string }) => t.name);
     expect(toolNames).toContain("create_task");
     expect(toolNames).toContain("list_tasks");
     expect(toolNames).toContain("complete_task");
@@ -346,7 +339,7 @@ test.describe("MCP Registry - Todo App Entry", () => {
 
     const data = await response.json();
     const todoEntry = data.registry.find(
-      (entry: { id: string }) => entry.id === "todo-app"
+      (entry: { id: string }) => entry.id === "todo-app",
     );
 
     expect(todoEntry).toBeDefined();
@@ -362,7 +355,7 @@ test.describe("MCP Registry - Todo App Entry", () => {
 
     const data = await response.json();
     const todoEntry = data.registry.find(
-      (entry: { id: string }) => entry.id === "todo-app"
+      (entry: { id: string }) => entry.id === "todo-app",
     );
 
     expect(todoEntry.endpoint).toContain("/api/mcp/todoapp");
@@ -420,7 +413,7 @@ test.describe("Navigation", () => {
     // Click and wait for navigation
     const navigationPromise = page.waitForURL(
       /auth\/app-login|api\/auth\/app-session/,
-      { timeout: 15000 }
+      { timeout: 15000 },
     );
     await loginButton.click();
 
@@ -429,7 +422,7 @@ test.describe("Navigation", () => {
       await navigationPromise;
       const newUrl = page.url();
       expect(newUrl).toContain(
-        CLOUD_URL.replace(/^https?:\/\//, "").split(":")[0]
+        CLOUD_URL.replace(/^https?:\/\//, "").split(":")[0],
       );
     } catch {
       // May timeout if redirect takes longer
@@ -447,7 +440,7 @@ test.describe("Agent A2A/MCP Endpoints", () => {
   }) => {
     // Using a placeholder ID - actual tests would use seeded agent ID
     const response = await request.get(
-      `${CLOUD_URL}/api/agents/non-existent-id/mcp`
+      `${CLOUD_URL}/api/agents/non-existent-id/mcp`,
     );
 
     // Should return 404 (not found) or 403 (not public)
@@ -458,10 +451,9 @@ test.describe("Agent A2A/MCP Endpoints", () => {
     request,
   }) => {
     const response = await request.get(
-      `${CLOUD_URL}/api/agents/non-existent-id/a2a`
+      `${CLOUD_URL}/api/agents/non-existent-id/a2a`,
     );
 
     expect([403, 404]).toContain(response.status());
   });
 });
-

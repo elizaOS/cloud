@@ -7,7 +7,9 @@ import { z } from "zod";
 import { fetchTrendingTokens } from "@/lib/services/defi/operations";
 
 const QuerySchema = z.object({
-  source: z.enum(["birdeye", "coingecko", "coinmarketcap"]).default("coingecko"),
+  source: z
+    .enum(["birdeye", "coingecko", "coinmarketcap"])
+    .default("coingecko"),
   limit: z.coerce.number().int().min(1).max(50).default(20),
 });
 
@@ -19,9 +21,15 @@ export async function GET(request: Request) {
   });
 
   if (!parsed.success) {
-    return NextResponse.json({ error: "Invalid parameters", details: parsed.error.format() }, { status: 400 });
+    return NextResponse.json(
+      { error: "Invalid parameters", details: parsed.error.format() },
+      { status: 400 },
+    );
   }
 
-  const result = await fetchTrendingTokens(parsed.data.source, parsed.data.limit);
+  const result = await fetchTrendingTokens(
+    parsed.data.source,
+    parsed.data.limit,
+  );
   return NextResponse.json(result);
 }

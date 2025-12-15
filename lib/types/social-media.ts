@@ -259,14 +259,33 @@ export interface SocialMediaProvider {
   createPost(
     credentials: SocialCredentials,
     content: PostContent,
-    options?: PlatformPostOptions
+    options?: PlatformPostOptions,
   ): Promise<PostResult>;
-  deletePost?(credentials: SocialCredentials, postId: string): Promise<{ success: boolean; error?: string }>;
-  getPostAnalytics?(credentials: SocialCredentials, postId: string): Promise<PostAnalytics | null>;
-  getAccountAnalytics?(credentials: SocialCredentials): Promise<AccountAnalytics | null>;
-  uploadMedia?(credentials: SocialCredentials, media: MediaAttachment): Promise<{ mediaId: string; url?: string }>;
-  replyToPost?(credentials: SocialCredentials, postId: string, content: PostContent, options?: PlatformPostOptions): Promise<PostResult>;
-  likePost?(credentials: SocialCredentials, postId: string): Promise<{ success: boolean; error?: string }>;
+  deletePost?(
+    credentials: SocialCredentials,
+    postId: string,
+  ): Promise<{ success: boolean; error?: string }>;
+  getPostAnalytics?(
+    credentials: SocialCredentials,
+    postId: string,
+  ): Promise<PostAnalytics | null>;
+  getAccountAnalytics?(
+    credentials: SocialCredentials,
+  ): Promise<AccountAnalytics | null>;
+  uploadMedia?(
+    credentials: SocialCredentials,
+    media: MediaAttachment,
+  ): Promise<{ mediaId: string; url?: string }>;
+  replyToPost?(
+    credentials: SocialCredentials,
+    postId: string,
+    content: PostContent,
+    options?: PlatformPostOptions,
+  ): Promise<PostResult>;
+  likePost?(
+    credentials: SocialCredentials,
+    postId: string,
+  ): Promise<{ success: boolean; error?: string }>;
   repost?(credentials: SocialCredentials, postId: string): Promise<PostResult>;
 }
 
@@ -287,48 +306,132 @@ export interface GetAnalyticsInput {
 }
 
 export const SUPPORTED_PLATFORMS: SocialPlatform[] = [
-  "twitter", "bluesky", "discord", "telegram", "slack", "reddit",
-  "facebook", "instagram", "tiktok", "linkedin", "mastodon",
+  "twitter",
+  "bluesky",
+  "discord",
+  "telegram",
+  "slack",
+  "reddit",
+  "facebook",
+  "instagram",
+  "tiktok",
+  "linkedin",
+  "mastodon",
 ];
 
-export const PLATFORM_CAPABILITIES: Record<SocialPlatform, {
-  supportsText: boolean;
-  supportsImages: boolean;
-  supportsVideo: boolean;
-  maxTextLength: number;
-  maxImages: number;
-}> = {
-  twitter: { supportsText: true, supportsImages: true, supportsVideo: true, maxTextLength: 280, maxImages: 4 },
-  bluesky: { supportsText: true, supportsImages: true, supportsVideo: false, maxTextLength: 300, maxImages: 4 },
-  discord: { supportsText: true, supportsImages: true, supportsVideo: true, maxTextLength: 2000, maxImages: 10 },
-  telegram: { supportsText: true, supportsImages: true, supportsVideo: true, maxTextLength: 4096, maxImages: 10 },
-  slack: { supportsText: true, supportsImages: true, supportsVideo: true, maxTextLength: 40000, maxImages: 10 },
-  reddit: { supportsText: true, supportsImages: true, supportsVideo: true, maxTextLength: 40000, maxImages: 20 },
-  facebook: { supportsText: true, supportsImages: true, supportsVideo: true, maxTextLength: 63206, maxImages: 10 },
-  instagram: { supportsText: true, supportsImages: true, supportsVideo: true, maxTextLength: 2200, maxImages: 10 },
-  tiktok: { supportsText: false, supportsImages: false, supportsVideo: true, maxTextLength: 2200, maxImages: 0 },
-  linkedin: { supportsText: true, supportsImages: true, supportsVideo: true, maxTextLength: 3000, maxImages: 9 },
-  mastodon: { supportsText: true, supportsImages: true, supportsVideo: true, maxTextLength: 500, maxImages: 4 },
+export const PLATFORM_CAPABILITIES: Record<
+  SocialPlatform,
+  {
+    supportsText: boolean;
+    supportsImages: boolean;
+    supportsVideo: boolean;
+    maxTextLength: number;
+    maxImages: number;
+  }
+> = {
+  twitter: {
+    supportsText: true,
+    supportsImages: true,
+    supportsVideo: true,
+    maxTextLength: 280,
+    maxImages: 4,
+  },
+  bluesky: {
+    supportsText: true,
+    supportsImages: true,
+    supportsVideo: false,
+    maxTextLength: 300,
+    maxImages: 4,
+  },
+  discord: {
+    supportsText: true,
+    supportsImages: true,
+    supportsVideo: true,
+    maxTextLength: 2000,
+    maxImages: 10,
+  },
+  telegram: {
+    supportsText: true,
+    supportsImages: true,
+    supportsVideo: true,
+    maxTextLength: 4096,
+    maxImages: 10,
+  },
+  slack: {
+    supportsText: true,
+    supportsImages: true,
+    supportsVideo: true,
+    maxTextLength: 40000,
+    maxImages: 10,
+  },
+  reddit: {
+    supportsText: true,
+    supportsImages: true,
+    supportsVideo: true,
+    maxTextLength: 40000,
+    maxImages: 20,
+  },
+  facebook: {
+    supportsText: true,
+    supportsImages: true,
+    supportsVideo: true,
+    maxTextLength: 63206,
+    maxImages: 10,
+  },
+  instagram: {
+    supportsText: true,
+    supportsImages: true,
+    supportsVideo: true,
+    maxTextLength: 2200,
+    maxImages: 10,
+  },
+  tiktok: {
+    supportsText: false,
+    supportsImages: false,
+    supportsVideo: true,
+    maxTextLength: 2200,
+    maxImages: 0,
+  },
+  linkedin: {
+    supportsText: true,
+    supportsImages: true,
+    supportsVideo: true,
+    maxTextLength: 3000,
+    maxImages: 9,
+  },
+  mastodon: {
+    supportsText: true,
+    supportsImages: true,
+    supportsVideo: true,
+    maxTextLength: 500,
+    maxImages: 4,
+  },
 };
 
 export function validatePostContent(
   content: Partial<PostContent>,
-  platform: SocialPlatform
+  platform: SocialPlatform,
 ): { valid: boolean; error?: string } {
   const cap = PLATFORM_CAPABILITIES[platform];
 
-  if (!cap.supportsText && !content.media?.some(m => m.type === "video")) {
+  if (!cap.supportsText && !content.media?.some((m) => m.type === "video")) {
     return { valid: false, error: `${platform} requires video content` };
   }
 
   if (content.text && content.text.length > cap.maxTextLength) {
-    return { valid: false, error: `Text length ${content.text.length} exceeds ${platform} limit of ${cap.maxTextLength}` };
+    return {
+      valid: false,
+      error: `Text length ${content.text.length} exceeds ${platform} limit of ${cap.maxTextLength}`,
+    };
   }
 
   if (content.media) {
-    const imageCount = content.media.filter(m => m.type === "image").length;
+    const imageCount = content.media.filter((m) => m.type === "image").length;
     if (imageCount > cap.maxImages) {
-      return { valid: false, error: `Number of images ${imageCount} exceeds ${platform} limit of ${cap.maxImages}` };
+      return {
+        valid: false,
+        error: `Number of images ${imageCount} exceeds ${platform} limit of ${cap.maxImages}`,
+      };
     }
   }
 
@@ -337,7 +440,7 @@ export function validatePostContent(
 
 export function validatePlatformOptions(
   platform: SocialPlatform,
-  options: Record<string, unknown>
+  options: Record<string, unknown>,
 ): { valid: boolean; error?: string } {
   if (platform === "reddit" && !options.subreddit) {
     return { valid: false, error: "Reddit requires a subreddit" };
@@ -358,7 +461,7 @@ export function createSuccessResult(
   platform: SocialPlatform,
   postId: string,
   url?: string,
-  metadata?: Record<string, unknown>
+  metadata?: Record<string, unknown>,
 ): PostResult {
   return { platform, success: true, postId, postUrl: url, metadata };
 }
@@ -368,14 +471,23 @@ export function createErrorResult(
   error: string,
   errorCode?: string,
   rateLimited?: boolean,
-  retryAfter?: number
+  retryAfter?: number,
 ): PostResult {
-  return { platform, success: false, error, errorCode, rateLimited, retryAfter };
+  return {
+    platform,
+    success: false,
+    error,
+    errorCode,
+    rateLimited,
+    retryAfter,
+  };
 }
 
-export function aggregateResults(results: PostResult[]): MultiPlatformPostResult {
-  const successful = results.filter(r => r.success);
-  const failed = results.filter(r => !r.success);
+export function aggregateResults(
+  results: PostResult[],
+): MultiPlatformPostResult {
+  const successful = results.filter((r) => r.success);
+  const failed = results.filter((r) => !r.success);
   return {
     results,
     successful,
@@ -386,10 +498,17 @@ export function aggregateResults(results: PostResult[]): MultiPlatformPostResult
   };
 }
 
-export function calculatePostCredits(platforms: SocialPlatform[], content: Partial<PostContent>): number {
+export function calculatePostCredits(
+  platforms: SocialPlatform[],
+  content: Partial<PostContent>,
+): number {
   const BASE = 10;
   const MEDIA_COST = 5;
-  const MULTIPLIERS: Partial<Record<SocialPlatform, number>> = { tiktok: 2.0, instagram: 1.5, linkedin: 1.5 };
+  const MULTIPLIERS: Partial<Record<SocialPlatform, number>> = {
+    tiktok: 2.0,
+    instagram: 1.5,
+    linkedin: 1.5,
+  };
 
   return platforms.reduce((total, platform) => {
     const base = BASE + (content.media?.length || 0) * MEDIA_COST;
@@ -402,11 +521,24 @@ export function calculatePostCredits(platforms: SocialPlatform[], content: Parti
 // =============================================================================
 
 export const SocialPlatformSchema = z.enum([
-  "twitter", "bluesky", "discord", "telegram", "slack", "reddit",
-  "facebook", "instagram", "tiktok", "linkedin", "mastodon",
+  "twitter",
+  "bluesky",
+  "discord",
+  "telegram",
+  "slack",
+  "reddit",
+  "facebook",
+  "instagram",
+  "tiktok",
+  "linkedin",
+  "mastodon",
 ]);
 
-export const NotificationPlatformSchema = z.enum(["discord", "telegram", "slack"]);
+export const NotificationPlatformSchema = z.enum([
+  "discord",
+  "telegram",
+  "slack",
+]);
 
 export const MediaAttachmentSchema = z.object({
   type: z.enum(["image", "video", "gif"]),

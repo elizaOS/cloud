@@ -1,6 +1,6 @@
 /**
  * Agent Secrets Panel Component
- * 
+ *
  * Manages encrypted secrets scoped to a specific agent/character.
  * These secrets are automatically available when the agent runs.
  */
@@ -61,7 +61,10 @@ const ENVIRONMENT_LABELS: Record<string, string> = {
   production: "Production",
 };
 
-export function AgentSecretsPanel({ characterId, characterName }: AgentSecretsPanelProps) {
+export function AgentSecretsPanel({
+  characterId,
+  characterName,
+}: AgentSecretsPanelProps) {
   const [secrets, setSecrets] = useState<SecretMetadata[]>([]);
 
   const [modalState, setModalState] = useState<ModalState>({
@@ -110,7 +113,9 @@ export function AgentSecretsPanel({ characterId, characterName }: AgentSecretsPa
 
   const fetchSecrets = useCallback(async () => {
     updateOperation({ loading: true });
-    const response = await fetch(`/api/my-agents/characters/${characterId}/secrets`);
+    const response = await fetch(
+      `/api/my-agents/characters/${characterId}/secrets`,
+    );
 
     if (!response.ok) {
       updateOperation({ loading: false });
@@ -153,16 +158,19 @@ export function AgentSecretsPanel({ characterId, characterName }: AgentSecretsPa
     }
 
     updateOperation({ creating: true });
-    const response = await fetch(`/api/my-agents/characters/${characterId}/secrets`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: formState.name.trim().toUpperCase().replace(/-/g, "_"),
-        value: formState.value,
-        description: formState.description.trim() || undefined,
-        environment: formState.environment || undefined,
-      }),
-    });
+    const response = await fetch(
+      `/api/my-agents/characters/${characterId}/secrets`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: formState.name.trim().toUpperCase().replace(/-/g, "_"),
+          value: formState.value,
+          description: formState.description.trim() || undefined,
+          environment: formState.environment || undefined,
+        }),
+      },
+    );
 
     if (!response.ok) {
       const error = await response.json();
@@ -191,7 +199,7 @@ export function AgentSecretsPanel({ characterId, characterName }: AgentSecretsPa
           value: formState.value || undefined,
           description: formState.description.trim() || undefined,
         }),
-      }
+      },
     );
 
     if (!response.ok) {
@@ -212,7 +220,7 @@ export function AgentSecretsPanel({ characterId, characterName }: AgentSecretsPa
     updateOperation({ revealingSecretId: secret.id });
 
     const response = await fetch(
-      `/api/my-agents/characters/${characterId}/secrets/${secret.id}`
+      `/api/my-agents/characters/${characterId}/secrets/${secret.id}`,
     );
 
     if (!response.ok) {
@@ -223,7 +231,11 @@ export function AgentSecretsPanel({ characterId, characterName }: AgentSecretsPa
     }
 
     const data = await response.json();
-    updateModal({ showValueModal: true, selectedSecret: secret, revealedValue: data.value });
+    updateModal({
+      showValueModal: true,
+      selectedSecret: secret,
+      revealedValue: data.value,
+    });
     updateOperation({ revealingSecretId: null });
   };
 
@@ -236,7 +248,7 @@ export function AgentSecretsPanel({ characterId, characterName }: AgentSecretsPa
   const handleDeleteSecret = async (secretId: string, secretName: string) => {
     if (
       !window.confirm(
-        `Are you sure you want to delete the secret "${secretName}"? This action cannot be undone.`
+        `Are you sure you want to delete the secret "${secretName}"? This action cannot be undone.`,
       )
     ) {
       return;
@@ -246,7 +258,7 @@ export function AgentSecretsPanel({ characterId, characterName }: AgentSecretsPa
 
     const response = await fetch(
       `/api/my-agents/characters/${characterId}/secrets/${secretId}`,
-      { method: "DELETE" }
+      { method: "DELETE" },
     );
 
     if (!response.ok) {
@@ -282,7 +294,8 @@ export function AgentSecretsPanel({ characterId, characterName }: AgentSecretsPa
                 </h3>
               </div>
               <p className="text-xs font-mono text-[#858585]">
-                Secrets are encrypted and automatically available when {characterName} runs.
+                Secrets are encrypted and automatically available when{" "}
+                {characterName} runs.
               </p>
             </div>
 
@@ -320,7 +333,9 @@ export function AgentSecretsPanel({ characterId, characterName }: AgentSecretsPa
                     <div className="flex items-start gap-2 min-w-0 flex-1">
                       <Lock className="h-3 w-3 text-[#FF5800] flex-shrink-0 mt-0.5" />
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-mono text-white truncate">{secret.name}</p>
+                        <p className="text-sm font-mono text-white truncate">
+                          {secret.name}
+                        </p>
                         {secret.description && (
                           <p className="text-xs font-mono text-white/40 line-clamp-1">
                             {secret.description}
@@ -349,7 +364,9 @@ export function AgentSecretsPanel({ characterId, characterName }: AgentSecretsPa
                       ) : (
                         <Eye className="h-3.5 w-3.5 text-white/60" />
                       )}
-                      <span className="text-xs font-mono text-white/60">Reveal</span>
+                      <span className="text-xs font-mono text-white/60">
+                        Reveal
+                      </span>
                     </button>
                     <button
                       type="button"
@@ -358,7 +375,9 @@ export function AgentSecretsPanel({ characterId, characterName }: AgentSecretsPa
                       title="Edit secret"
                     >
                       <Edit2 className="h-3.5 w-3.5 text-white/60" />
-                      <span className="text-xs font-mono text-white/60">Edit</span>
+                      <span className="text-xs font-mono text-white/60">
+                        Edit
+                      </span>
                     </button>
                     <button
                       type="button"
@@ -389,7 +408,9 @@ export function AgentSecretsPanel({ characterId, characterName }: AgentSecretsPa
 
             <div className="relative z-10 space-y-4">
               <div className="flex items-center justify-between">
-                <h3 className="text-base font-mono text-white uppercase">Add Secret</h3>
+                <h3 className="text-base font-mono text-white uppercase">
+                  Add Secret
+                </h3>
                 <button
                   type="button"
                   onClick={() => updateModal({ showCreateModal: false })}
@@ -407,7 +428,11 @@ export function AgentSecretsPanel({ characterId, characterName }: AgentSecretsPa
                   <Input
                     value={formState.name}
                     onChange={(e) =>
-                      updateForm({ name: e.target.value.toUpperCase().replace(/[^A-Z0-9_]/g, "_") })
+                      updateForm({
+                        name: e.target.value
+                          .toUpperCase()
+                          .replace(/[^A-Z0-9_]/g, "_"),
+                      })
                     }
                     placeholder="MY_API_KEY"
                     className="bg-transparent border-[#303030] text-white font-mono text-sm h-9"
@@ -427,21 +452,29 @@ export function AgentSecretsPanel({ characterId, characterName }: AgentSecretsPa
                 </div>
 
                 <div className="space-y-1">
-                  <Label className="text-white font-mono text-xs">Description</Label>
+                  <Label className="text-white font-mono text-xs">
+                    Description
+                  </Label>
                   <Input
                     value={formState.description}
-                    onChange={(e) => updateForm({ description: e.target.value })}
+                    onChange={(e) =>
+                      updateForm({ description: e.target.value })
+                    }
                     placeholder="API key for..."
                     className="bg-transparent border-[#303030] text-white text-sm h-9"
                   />
                 </div>
 
                 <div className="space-y-1">
-                  <Label className="text-white font-mono text-xs">Environment</Label>
+                  <Label className="text-white font-mono text-xs">
+                    Environment
+                  </Label>
                   <select
                     value={formState.environment}
                     onChange={(e) =>
-                      updateForm({ environment: e.target.value as FormState["environment"] })
+                      updateForm({
+                        environment: e.target.value as FormState["environment"],
+                      })
                     }
                     className="w-full bg-transparent border border-[#303030] text-white p-2 font-mono text-sm h-9"
                   >
@@ -473,7 +506,11 @@ export function AgentSecretsPanel({ characterId, characterName }: AgentSecretsPa
                 <button
                   type="button"
                   onClick={handleCreateSubmit}
-                  disabled={operationState.creating || !formState.name.trim() || !formState.value.trim()}
+                  disabled={
+                    operationState.creating ||
+                    !formState.name.trim() ||
+                    !formState.value.trim()
+                  }
                   className="px-3 py-2 bg-[#e1e1e1] hover:bg-white transition-colors disabled:opacity-50 text-black font-mono text-sm flex items-center gap-2"
                 >
                   {operationState.creating ? (
@@ -499,10 +536,14 @@ export function AgentSecretsPanel({ characterId, characterName }: AgentSecretsPa
 
             <div className="relative z-10 space-y-4">
               <div className="flex items-center justify-between">
-                <h3 className="text-base font-mono text-white uppercase">Edit Secret</h3>
+                <h3 className="text-base font-mono text-white uppercase">
+                  Edit Secret
+                </h3>
                 <button
                   type="button"
-                  onClick={() => updateModal({ showEditModal: false, selectedSecret: null })}
+                  onClick={() =>
+                    updateModal({ showEditModal: false, selectedSecret: null })
+                  }
                   className="text-white/60 hover:text-white transition-colors"
                 >
                   <X className="h-4 w-4" />
@@ -520,7 +561,9 @@ export function AgentSecretsPanel({ characterId, characterName }: AgentSecretsPa
                 </div>
 
                 <div className="space-y-1">
-                  <Label className="text-white font-mono text-xs">New Value (optional)</Label>
+                  <Label className="text-white font-mono text-xs">
+                    New Value (optional)
+                  </Label>
                   <Textarea
                     value={formState.value}
                     onChange={(e) => updateForm({ value: e.target.value })}
@@ -530,10 +573,14 @@ export function AgentSecretsPanel({ characterId, characterName }: AgentSecretsPa
                 </div>
 
                 <div className="space-y-1">
-                  <Label className="text-white font-mono text-xs">Description</Label>
+                  <Label className="text-white font-mono text-xs">
+                    Description
+                  </Label>
                   <Input
                     value={formState.description}
-                    onChange={(e) => updateForm({ description: e.target.value })}
+                    onChange={(e) =>
+                      updateForm({ description: e.target.value })
+                    }
                     placeholder="Update description..."
                     className="bg-transparent border-[#303030] text-white text-sm h-9"
                   />
@@ -543,7 +590,9 @@ export function AgentSecretsPanel({ characterId, characterName }: AgentSecretsPa
               <div className="flex gap-3 justify-end pt-2">
                 <button
                   type="button"
-                  onClick={() => updateModal({ showEditModal: false, selectedSecret: null })}
+                  onClick={() =>
+                    updateModal({ showEditModal: false, selectedSecret: null })
+                  }
                   className="px-3 py-2 border border-[#303030] text-white hover:bg-white/5 transition-colors text-sm font-mono"
                   disabled={operationState.updating}
                 >
@@ -571,65 +620,74 @@ export function AgentSecretsPanel({ characterId, characterName }: AgentSecretsPa
       )}
 
       {/* Reveal Value Modal */}
-      {modalState.showValueModal && modalState.selectedSecret && modalState.revealedValue && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="relative bg-[#0a0a0a] border border-brand-surface p-4 w-full max-w-lg my-auto max-h-[90vh] overflow-y-auto">
-            <CornerBrackets size="sm" className="opacity-50" />
+      {modalState.showValueModal &&
+        modalState.selectedSecret &&
+        modalState.revealedValue && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto">
+            <div className="relative bg-[#0a0a0a] border border-brand-surface p-4 w-full max-w-lg my-auto max-h-[90vh] overflow-y-auto">
+              <CornerBrackets size="sm" className="opacity-50" />
 
-            <div className="relative z-10 space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-base font-mono text-white uppercase">
-                  {modalState.selectedSecret.name}
-                </h3>
-                <button
-                  type="button"
-                  onClick={() =>
-                    updateModal({ showValueModal: false, selectedSecret: null, revealedValue: null })
-                  }
-                  className="text-white/60 hover:text-white transition-colors"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
+              <div className="relative z-10 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-base font-mono text-white uppercase">
+                    {modalState.selectedSecret.name}
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      updateModal({
+                        showValueModal: false,
+                        selectedSecret: null,
+                        revealedValue: null,
+                      })
+                    }
+                    className="text-white/60 hover:text-white transition-colors"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
 
-              <div className="bg-[rgba(255,88,0,0.1)] border border-[#FF5800] p-3">
-                <p className="text-xs text-[#FF5800] font-mono">
-                  ⚠️ This secret is now visible. Don&apos;t share it.
-                </p>
-              </div>
-
-              <div className="flex gap-2">
-                <div className="flex-1 bg-[rgba(10,10,10,0.75)] border border-brand-surface p-3">
-                  <p className="text-xs text-white/80 font-mono break-all">
-                    {modalState.revealedValue}
+                <div className="bg-[rgba(255,88,0,0.1)] border border-[#FF5800] p-3">
+                  <p className="text-xs text-[#FF5800] font-mono">
+                    ⚠️ This secret is now visible. Don&apos;t share it.
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={handleCopyValue}
-                  className="px-3 py-2 bg-[#e1e1e1] hover:bg-white transition-colors"
-                  title="Copy"
-                >
-                  <Copy className="h-4 w-4 text-black" />
-                </button>
-              </div>
 
-              <div className="flex justify-end">
-                <button
-                  type="button"
-                  onClick={() =>
-                    updateModal({ showValueModal: false, selectedSecret: null, revealedValue: null })
-                  }
-                  className="px-4 py-2 bg-[#e1e1e1] hover:bg-white transition-colors text-black font-mono text-sm"
-                >
-                  Done
-                </button>
+                <div className="flex gap-2">
+                  <div className="flex-1 bg-[rgba(10,10,10,0.75)] border border-brand-surface p-3">
+                    <p className="text-xs text-white/80 font-mono break-all">
+                      {modalState.revealedValue}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleCopyValue}
+                    className="px-3 py-2 bg-[#e1e1e1] hover:bg-white transition-colors"
+                    title="Copy"
+                  >
+                    <Copy className="h-4 w-4 text-black" />
+                  </button>
+                </div>
+
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      updateModal({
+                        showValueModal: false,
+                        selectedSecret: null,
+                        revealedValue: null,
+                      })
+                    }
+                    className="px-4 py-2 bg-[#e1e1e1] hover:bg-white transition-colors text-black font-mono text-sm"
+                  >
+                    Done
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
     </div>
   );
 }
-

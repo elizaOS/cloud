@@ -1,6 +1,6 @@
 /**
  * Standard ERC20 ABI
- * 
+ *
  * Minimal ABI for token operations (transfer, balanceOf, approve, etc.)
  * Used for elizaOS token payouts and USDC payments.
  */
@@ -106,4 +106,3 @@ export const ERC20_ABI = [
 ] as const;
 
 export type ERC20ABI = typeof ERC20_ABI;
-

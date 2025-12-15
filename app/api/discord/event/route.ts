@@ -31,17 +31,22 @@ export async function POST(request: NextRequest) {
   const connectionId = request.headers.get("x-discord-connection-id");
 
   if (!organizationId) {
-    return NextResponse.json({ error: "Missing organization ID" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Missing organization ID" },
+      { status: 400 },
+    );
   }
 
   const body = await request.json();
 
   const parsed = DiscordEventSchema.safeParse(body);
   if (!parsed.success) {
-    logger.warn("[Discord Event] Invalid payload", { errors: parsed.error.issues });
+    logger.warn("[Discord Event] Invalid payload", {
+      errors: parsed.error.issues,
+    });
     return NextResponse.json(
       { error: "Invalid payload", details: parsed.error.issues },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -56,8 +61,14 @@ export async function POST(request: NextRequest) {
 
   // Only process MESSAGE_CREATE events for now
   if (event.event_type !== "MESSAGE_CREATE") {
-    logger.debug("[Discord Event] Skipping non-message event", { eventType: event.event_type });
-    return NextResponse.json({ success: true, processed: false, reason: "Not a message event" });
+    logger.debug("[Discord Event] Skipping non-message event", {
+      eventType: event.event_type,
+    });
+    return NextResponse.json({
+      success: true,
+      processed: false,
+      reason: "Not a message event",
+    });
   }
 
   const data = event.data;
@@ -67,11 +78,19 @@ export async function POST(request: NextRequest) {
 
   // Skip bot messages
   if (authorBot) {
-    return NextResponse.json({ success: true, processed: false, reason: "Bot message" });
+    return NextResponse.json({
+      success: true,
+      processed: false,
+      reason: "Bot message",
+    });
   }
 
   if (!content || !event.channel_id) {
-    return NextResponse.json({ success: true, processed: false, reason: "No content or channel" });
+    return NextResponse.json({
+      success: true,
+      processed: false,
+      reason: "No content or channel",
+    });
   }
 
   // Create a room ID based on the Discord channel
@@ -91,7 +110,7 @@ export async function POST(request: NextRequest) {
         channel_id: event.channel_id,
         message_id: data.id as string,
       },
-    }
+    },
   );
 
   // Send response back to Discord
@@ -101,11 +120,14 @@ export async function POST(request: NextRequest) {
       : result.message.content?.text;
 
   if (responseText && event.channel_id) {
-    const sendResult = await discordMessageSender.sendMessage(event.connection_id, {
-      channelId: event.channel_id,
-      content: responseText,
-      replyTo: data.id as string | undefined,
-    });
+    const sendResult = await discordMessageSender.sendMessage(
+      event.connection_id,
+      {
+        channelId: event.channel_id,
+        content: responseText,
+        replyTo: data.id as string | undefined,
+      },
+    );
 
     if (!sendResult.success) {
       logger.error("[Discord Event] Failed to send response", {

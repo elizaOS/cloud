@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { referralsService, REWARDS } from "@/lib/services/referrals";
-import { addCorsHeaders, validateOrigin, createPreflightResponse } from "@/lib/middleware/cors-apps";
+import {
+  addCorsHeaders,
+  validateOrigin,
+  createPreflightResponse,
+} from "@/lib/middleware/cors-apps";
 import { logger } from "@/lib/utils/logger";
 
 /**
@@ -35,7 +39,8 @@ export async function GET(request: NextRequest) {
 
     // Build share URL - use Origin header for app context, fallback to cloud URL
     const origin = request.headers.get("origin");
-    const baseUrl = origin || process.env.NEXT_PUBLIC_APP_URL || "https://app.eliza.ai";
+    const baseUrl =
+      origin || process.env.NEXT_PUBLIC_APP_URL || "https://app.eliza.ai";
     const shareUrl = `${baseUrl}?ref=${referralCode.code}`;
 
     const response = NextResponse.json({
@@ -63,13 +68,21 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     logger.error("[App Referral] Error getting referral info", { error });
 
-    const status = error instanceof Error && error.message.includes("Unauthorized") ? 401 : 500;
+    const status =
+      error instanceof Error && error.message.includes("Unauthorized")
+        ? 401
+        : 500;
     const response = NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : "Failed to get referral info" },
-      { status }
+      {
+        success: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to get referral info",
+      },
+      { status },
     );
 
     return addCorsHeaders(response, corsResult.origin);
   }
 }
-

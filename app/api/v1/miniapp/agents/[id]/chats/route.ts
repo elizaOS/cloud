@@ -176,13 +176,14 @@ export async function GET(
           createdAt: room.createdAt,
           // Use last message time as updatedAt if available, otherwise use createdAt
           updatedAt: lastMessage?.createdAt || room.createdAt,
-          lastMessage: lastMessage && lastMessageContent
-            ? {
-                content: lastMessageContent.text || "",
-                role: lastMessage.entityId === agentId ? "assistant" : "user",
-                createdAt: lastMessage.createdAt,
-              }
-            : null,
+          lastMessage:
+            lastMessage && lastMessageContent
+              ? {
+                  content: lastMessageContent.text || "",
+                  role: lastMessage.entityId === agentId ? "assistant" : "user",
+                  createdAt: lastMessage.createdAt,
+                }
+              : null,
           messageCount: messageCount.length,
         };
       }),

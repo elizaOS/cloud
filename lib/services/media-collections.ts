@@ -49,11 +49,11 @@ class MediaCollectionsService {
 
   async listByOrganization(
     organizationId: string,
-    options?: { userId?: string; limit?: number; offset?: number }
+    options?: { userId?: string; limit?: number; offset?: number },
   ): Promise<MediaCollection[]> {
     return await mediaCollectionsRepository.listByOrganization(
       organizationId,
-      options
+      options,
     );
   }
 
@@ -79,7 +79,7 @@ class MediaCollectionsService {
 
   async update(
     id: string,
-    input: UpdateCollectionInput
+    input: UpdateCollectionInput,
   ): Promise<MediaCollection | undefined> {
     logger.info("[MediaCollections] Updating collection", { id });
 
@@ -98,14 +98,17 @@ class MediaCollectionsService {
 
   async addItems(
     collectionId: string,
-    items: Array<{ sourceType: "generation" | "upload"; sourceId: string }>
+    items: Array<{ sourceType: "generation" | "upload"; sourceId: string }>,
   ): Promise<number> {
     logger.info("[MediaCollections] Adding items to collection", {
       collectionId,
       itemCount: items.length,
     });
 
-    const added = await mediaCollectionsRepository.addItems(collectionId, items);
+    const added = await mediaCollectionsRepository.addItems(
+      collectionId,
+      items,
+    );
     return added.length;
   }
 
@@ -132,14 +135,14 @@ class MediaCollectionsService {
 
   async setCoverImage(
     collectionId: string,
-    generationId: string
+    generationId: string,
   ): Promise<MediaCollection | undefined> {
     return await this.update(collectionId, { coverImageId: generationId });
   }
 
   async validateOwnership(
     collectionId: string,
-    organizationId: string
+    organizationId: string,
   ): Promise<boolean> {
     const collection = await this.getById(collectionId);
     return collection?.organization_id === organizationId;

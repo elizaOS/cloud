@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
 
   const collections = await mediaCollectionsService.listByOrganization(
     user.organization_id!,
-    { limit, offset }
+    { limit, offset },
   );
 
   return NextResponse.json({
@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) {
     return NextResponse.json(
       { error: "Invalid request", details: parsed.error.flatten() },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -80,7 +80,6 @@ export async function POST(request: NextRequest) {
       description: collection.description,
       createdAt: collection.created_at.toISOString(),
     },
-    { status: 201 }
+    { status: 201 },
   );
 }
-

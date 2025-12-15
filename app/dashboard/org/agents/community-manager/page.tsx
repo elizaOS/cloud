@@ -25,7 +25,7 @@ export default async function CommunityManagerSettingsPage() {
   // Get the community manager instance and config
   const instance = await agentLifecycleService.getInstance(
     user.organization_id,
-    "community-manager"
+    "community-manager",
   );
 
   let config = null;
@@ -52,10 +52,11 @@ export default async function CommunityManagerSettingsPage() {
           enabled: s.enabled,
         })),
       };
-    })
+    }),
   );
 
-  const settings: CommunityModerationSettings = (config?.community_settings as CommunityModerationSettings) ?? {};
+  const settings: CommunityModerationSettings =
+    (config?.community_settings as CommunityModerationSettings) ?? {};
 
   return (
     <div className="container max-w-4xl py-8">
@@ -80,5 +81,3 @@ function LoadingSkeleton() {
     </div>
   );
 }
-
-

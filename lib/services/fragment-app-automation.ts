@@ -1,6 +1,6 @@
 /**
  * Fragment App Automation Service
- * 
+ *
  * Automates app creation from fragments by:
  * 1. Analyzing fragment code for storage/API needs
  * 2. Auto-creating storage collections
@@ -13,7 +13,10 @@ import type { FragmentSchema } from "@/lib/fragments/schema";
 import { appsService } from "./apps";
 import { appStorageService } from "./app-storage";
 import { logger } from "@/lib/utils/logger";
-import type { CollectionSchema, CollectionIndex } from "@/db/schemas/app-storage";
+import type {
+  CollectionSchema,
+  CollectionIndex,
+} from "@/db/schemas/app-storage";
 
 interface StorageCollection {
   name: string;
@@ -51,8 +54,14 @@ export class FragmentAnalyzer {
 
     // Detect common storage patterns
     const storagePatterns = [
-      { pattern: /localstorage|localstorage\.(get|set|remove)/i, name: "localStorage" },
-      { pattern: /database|db\.(query|insert|update|delete)/i, name: "database" },
+      {
+        pattern: /localstorage|localstorage\.(get|set|remove)/i,
+        name: "localStorage",
+      },
+      {
+        pattern: /database|db\.(query|insert|update|delete)/i,
+        name: "database",
+      },
       { pattern: /collection|documents|items|records/i, name: "items" },
       { pattern: /users|profiles|accounts/i, name: "users" },
       { pattern: /todos|tasks|notes/i, name: "todos" },
@@ -98,12 +107,23 @@ export class FragmentAnalyzer {
     return dependencies;
   }
 
-  private inferSchema(code: string, collectionName: string): CollectionSchema | null {
+  private inferSchema(
+    code: string,
+    collectionName: string,
+  ): CollectionSchema | null {
     // Basic schema inference - can be enhanced with AI
     const properties: Record<string, any> = {
       id: { type: "string", description: "Document ID" },
-      createdAt: { type: "string", format: "date-time", description: "Creation timestamp" },
-      updatedAt: { type: "string", format: "date-time", description: "Update timestamp" },
+      createdAt: {
+        type: "string",
+        format: "date-time",
+        description: "Creation timestamp",
+      },
+      updatedAt: {
+        type: "string",
+        format: "date-time",
+        description: "Update timestamp",
+      },
     };
 
     // Try to infer fields from code
@@ -127,7 +147,10 @@ export class FragmentAnalyzer {
     };
   }
 
-  private inferIndexes(code: string, collectionName: string): CollectionIndex[] {
+  private inferIndexes(
+    code: string,
+    collectionName: string,
+  ): CollectionIndex[] {
     const indexes: CollectionIndex[] = [];
 
     // Common indexed fields
@@ -153,14 +176,16 @@ export class CodeInjector {
     code: string,
     appId: string,
     apiKey: string,
-    dependencies: APIDependency[]
+    dependencies: APIDependency[],
   ): string {
     const imports: string[] = [];
     const helpers: string[] = [];
 
     // Inject storage helpers if needed
     if (dependencies.some((d) => d.type === "storage")) {
-      imports.push(`import { createCollection, insertDocument, queryDocuments, updateDocument, deleteDocument } from '@/lib/storage';`);
+      imports.push(
+        `import { createCollection, insertDocument, queryDocuments, updateDocument, deleteDocument } from '@/lib/storage';`,
+      );
       helpers.push(`
 // App Storage Helpers
 // Collections are automatically created - use them directly:
@@ -171,7 +196,9 @@ export class CodeInjector {
 
     // Inject API helpers if needed
     if (dependencies.some((d) => d.type === "agents" || d.type === "chat")) {
-      imports.push(`import { listAgents, getAgent, createAgent, updateAgent, deleteAgent, listChats, createChat, getChat, sendMessage } from '@/lib/cloud-api';`);
+      imports.push(
+        `import { listAgents, getAgent, createAgent, updateAgent, deleteAgent, listChats, createChat, getChat, sendMessage } from '@/lib/cloud-api';`,
+      );
       helpers.push(`
 // App API Helpers
 // Access agents, chat, and other APIs:
@@ -184,7 +211,9 @@ export class CodeInjector {
 
     // Inject billing helpers if needed
     if (dependencies.some((d) => d.type === "billing")) {
-      imports.push(`import { getBilling, getCreditPacks, createCheckoutSession } from '@/lib/cloud-api';`);
+      imports.push(
+        `import { getBilling, getCreditPacks, createCheckoutSession } from '@/lib/cloud-api';`,
+      );
       helpers.push(`
 // App Billing Helpers
 // Access billing and credits:
@@ -428,7 +457,7 @@ export class FragmentAppAutomation {
       projectDescription?: string;
       autoDeploy?: boolean; // Auto-deploy to hosting
       appUrl?: string; // Optional, auto-generated if not provided
-    }
+    },
   ): Promise<DeploymentResult> {
     // 1. Analyze fragment
     const storageNeeds = this.analyzer.analyzeStorageNeeds(fragment);
@@ -440,12 +469,16 @@ export class FragmentAppAutomation {
     });
 
     // 2. Generate deployment URL if not provided
-    const deploymentUrl = options.appUrl || this.generateDeploymentUrl(fragment, options.projectName);
+    const deploymentUrl =
+      options.appUrl ||
+      this.generateDeploymentUrl(fragment, options.projectName);
 
     // 3. Create app + API key
     const { app, apiKey } = await appsService.create({
       name: options.projectName,
-      description: options.projectDescription || `Auto-deployed from fragment: ${fragment.title}`,
+      description:
+        options.projectDescription ||
+        `Auto-deployed from fragment: ${fragment.title}`,
       organization_id: options.organizationId,
       created_by_user_id: options.userId,
       app_url: deploymentUrl,
@@ -495,7 +528,7 @@ export class FragmentAppAutomation {
       fragment.code,
       app.id,
       apiKey,
-      apiDependencies
+      apiDependencies,
     );
 
     // 6. Generate proxy route handler
@@ -516,9 +549,12 @@ export class FragmentAppAutomation {
     };
   }
 
-  private generateDeploymentUrl(fragment: FragmentSchema, projectName: string): string {
+  private generateDeploymentUrl(
+    fragment: FragmentSchema,
+    projectName: string,
+  ): string {
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-    
+
     // For now, use fragment preview URL
     // In future, could auto-deploy to Vercel/Netlify
     const slug = projectName
@@ -526,10 +562,9 @@ export class FragmentAppAutomation {
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-+|-+$/g, "")
       .substring(0, 50);
-    
+
     return `${baseUrl}/fragments/preview/${slug}`;
   }
 }
 
 export const fragmentAppAutomation = new FragmentAppAutomation();
-

@@ -162,7 +162,9 @@ export async function POST(request: NextRequest) {
 
       case "user.deleted": {
         // Handle user deletion if needed
-        logger.info("User deletion event received", { privyUserId: payload.user.userId });
+        logger.info("User deletion event received", {
+          privyUserId: payload.user.userId,
+        });
         // For now, we'll keep the user in our database but could mark as inactive
         break;
       }

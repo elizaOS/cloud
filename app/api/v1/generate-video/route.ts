@@ -61,18 +61,20 @@ const VALID_MODELS = Object.keys(INTERNAL_MODELS);
  * Resolves a user-provided model to internal API format.
  * Accepts both user-friendly IDs (veo3) and legacy format (fal-ai/veo3).
  */
-function resolveModelId(model: string): { userModel: string; internalModel: string } | null {
+function resolveModelId(
+  model: string,
+): { userModel: string; internalModel: string } | null {
   // Direct match with user-friendly ID
   if (INTERNAL_MODELS[model]) {
     return { userModel: model, internalModel: INTERNAL_MODELS[model] };
   }
-  
+
   // Legacy format: strip prefix and check
   const stripped = stripProviderPrefix(model);
   if (INTERNAL_MODELS[stripped]) {
     return { userModel: stripped, internalModel: INTERNAL_MODELS[stripped] };
   }
-  
+
   return null;
 }
 
@@ -91,7 +93,9 @@ async function handlePOST(request: NextRequest) {
       await requireAuthOrApiKeyWithOrg(request);
 
     if (!process.env.FAL_KEY) {
-      logger.error("[VIDEO GENERATION] Video generation service not configured");
+      logger.error(
+        "[VIDEO GENERATION] Video generation service not configured",
+      );
       return NextResponse.json(
         { error: "Video generation service is not configured" },
         { status: 503 },
@@ -136,7 +140,10 @@ async function handlePOST(request: NextRequest) {
 
     generationId = generation.id;
 
-    logger.info("[VIDEO GENERATION] Starting generation", { userId: user.id, model: userModel });
+    logger.info("[VIDEO GENERATION] Starting generation", {
+      userId: user.id,
+      model: userModel,
+    });
 
     const result = await fal.subscribe(internalModel, {
       input: {
@@ -148,7 +155,9 @@ async function handlePOST(request: NextRequest) {
           const logMessages = update.logs
             ?.map((log: { message: string }) => log.message)
             .join(", ");
-          logger.debug("[VIDEO GENERATION] Progress", { status: logMessages || "Processing..." });
+          logger.debug("[VIDEO GENERATION] Progress", {
+            status: logMessages || "Processing...",
+          });
         }
       },
     });
@@ -163,7 +172,10 @@ async function handlePOST(request: NextRequest) {
       );
     }
 
-    logger.info("[VIDEO GENERATION] Success", { userId: user.id, requestId: result.requestId });
+    logger.info("[VIDEO GENERATION] Success", {
+      userId: user.id,
+      requestId: result.requestId,
+    });
 
     // Upload video to our storage (required - we don't expose external provider URLs)
     let blobUrl: string;
@@ -190,9 +202,14 @@ async function handlePOST(request: NextRequest) {
       blobUrl = uploadResult.url;
       blobFileSize = BigInt(uploadResult.size);
 
-      logger.info("[VIDEO GENERATION] Uploaded to storage", { sizeBytes: blobFileSize.toString() });
+      logger.info("[VIDEO GENERATION] Uploaded to storage", {
+        sizeBytes: blobFileSize.toString(),
+      });
     } catch (blobError) {
-      logger.error("[VIDEO GENERATION] Failed to upload to storage:", blobError);
+      logger.error(
+        "[VIDEO GENERATION] Failed to upload to storage:",
+        blobError,
+      );
       return NextResponse.json(
         { error: "Failed to store video. Please try again." },
         { status: 500 },
@@ -208,11 +225,14 @@ async function handlePOST(request: NextRequest) {
     });
 
     if (!deductionResult.success) {
-      logger.error("[VIDEO GENERATION] Failed to deduct credits - insufficient balance", {
-        organizationId: user.organization_id!!,
-        cost: String(VIDEO_GENERATION_COST),
-        balance: deductionResult.newBalance,
-      });
+      logger.error(
+        "[VIDEO GENERATION] Failed to deduct credits - insufficient balance",
+        {
+          organizationId: user.organization_id!!,
+          cost: String(VIDEO_GENERATION_COST),
+          balance: deductionResult.newBalance,
+        },
+      );
 
       return NextResponse.json(
         {
@@ -265,7 +285,10 @@ async function handlePOST(request: NextRequest) {
       });
     }
 
-    logger.info("[VIDEO GENERATION] Cost deducted", { cost: VIDEO_GENERATION_COST.toFixed(2), newBalance: deductionResult.newBalance.toFixed(2) });
+    logger.info("[VIDEO GENERATION] Cost deducted", {
+      cost: VIDEO_GENERATION_COST.toFixed(2),
+      newBalance: deductionResult.newBalance.toFixed(2),
+    });
 
     return NextResponse.json(
       {
@@ -309,7 +332,9 @@ async function handlePOST(request: NextRequest) {
       });
 
       if (!fallbackDeduction.success) {
-        logger.error("[VIDEO GENERATION] Failed to deduct fallback credits - insufficient balance");
+        logger.error(
+          "[VIDEO GENERATION] Failed to deduct fallback credits - insufficient balance",
+        );
       }
 
       const fallbackUsageRecord = await usageService.create({
@@ -349,12 +374,15 @@ async function handlePOST(request: NextRequest) {
         });
       }
 
-      logger.info("[VIDEO GENERATION] Fallback cost deducted", { 
-        cost: VIDEO_GENERATION_FALLBACK_COST.toFixed(2), 
-        newBalance: fallbackDeduction.newBalance.toFixed(2) 
+      logger.info("[VIDEO GENERATION] Fallback cost deducted", {
+        cost: VIDEO_GENERATION_FALLBACK_COST.toFixed(2),
+        newBalance: fallbackDeduction.newBalance.toFixed(2),
       });
     } catch (authError) {
-      logger.error("[VIDEO GENERATION] Auth error during fallback logging:", authError);
+      logger.error(
+        "[VIDEO GENERATION] Auth error during fallback logging:",
+        authError,
+      );
     }
 
     return NextResponse.json(

@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 /**
  * GET /api/marketplace/characters/[id]/stats
- * 
+ *
  * @deprecated Use /api/my-agents/characters/[id]/stats instead.
  * This endpoint is maintained for backwards compatibility.
  */
@@ -20,7 +20,10 @@ export async function GET(
 
   logger.debug("[Marketplace API] Getting stats for character:", id);
 
-  const character = await characterMarketplaceService.getCharacterById(id, true);
+  const character = await characterMarketplaceService.getCharacterById(
+    id,
+    true,
+  );
 
   if (!character) {
     return NextResponse.json(

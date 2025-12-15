@@ -1,7 +1,26 @@
-import { randomString, randomIntBetween } from "https://jslib.k6.io/k6-utils/1.4.0/index.js";
+import {
+  randomString,
+  randomIntBetween,
+} from "https://jslib.k6.io/k6-utils/1.4.0/index.js";
 
-const AGENT_NAMES = ["Atlas", "Nova", "Echo", "Sage", "Aria", "Cipher", "Luna", "Nexus", "Phoenix", "Vega"];
-const AGENT_BIOS = ["Helpful assistant", "Data analyst", "Creative writer", "Tech support"];
+const AGENT_NAMES = [
+  "Atlas",
+  "Nova",
+  "Echo",
+  "Sage",
+  "Aria",
+  "Cipher",
+  "Luna",
+  "Nexus",
+  "Phoenix",
+  "Vega",
+];
+const AGENT_BIOS = [
+  "Helpful assistant",
+  "Data analyst",
+  "Creative writer",
+  "Tech support",
+];
 
 export function generateAgentName() {
   return `LoadTest-${AGENT_NAMES[randomIntBetween(0, AGENT_NAMES.length - 1)]}-${randomString(4)}`;
@@ -17,7 +36,12 @@ export function generateAgentPayload() {
 }
 
 export function generateChatMessage() {
-  const msgs = ["Hello", "What can you help with?", "Tell me a fact", "Say 'test' only"];
+  const msgs = [
+    "Hello",
+    "What can you help with?",
+    "Tell me a fact",
+    "Say 'test' only",
+  ];
   return msgs[randomIntBetween(0, msgs.length - 1)];
 }
 
@@ -38,5 +62,9 @@ export function generateMemoryContent() {
 }
 
 export function generateTestFile() {
-  return { content: `Test file: ${randomString(200)}`, name: `loadtest-${randomString(8)}.txt`, mimeType: "text/plain" };
+  return {
+    content: `Test file: ${randomString(200)}`,
+    name: `loadtest-${randomString(8)}.txt`,
+    mimeType: "text/plain",
+  };
 }

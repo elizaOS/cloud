@@ -1,12 +1,30 @@
-import { Client, GatewayIntentBits, Events, Message, type ClientOptions } from "discord.js";
+import {
+  Client,
+  GatewayIntentBits,
+  Events,
+  Message,
+  type ClientOptions,
+} from "discord.js";
 import { Redis } from "@upstash/redis";
 import { logger } from "./logger";
 
-const metric = (name: string, type: string, help: string, pod: string, value: number): string =>
+const metric = (
+  name: string,
+  type: string,
+  help: string,
+  pod: string,
+  value: number,
+): string =>
   `# HELP ${name} ${help}\n# TYPE ${name} ${type}\n${name}{pod="${pod}"} ${value}`;
 
-const FAILOVER_CHECK_INTERVAL_MS = parseInt(process.env.FAILOVER_CHECK_INTERVAL_MS ?? "60000", 10);
-const DEAD_POD_THRESHOLD_MS = parseInt(process.env.DEAD_POD_THRESHOLD_MS ?? "120000", 10);
+const FAILOVER_CHECK_INTERVAL_MS = parseInt(
+  process.env.FAILOVER_CHECK_INTERVAL_MS ?? "60000",
+  10,
+);
+const DEAD_POD_THRESHOLD_MS = parseInt(
+  process.env.DEAD_POD_THRESHOLD_MS ?? "120000",
+  10,
+);
 
 interface GatewayConfig {
   podName: string;
@@ -53,7 +71,10 @@ export class GatewayManager {
     this.config = config;
 
     if (config.redisUrl && config.redisToken) {
-      this.redis = new Redis({ url: config.redisUrl, token: config.redisToken });
+      this.redis = new Redis({
+        url: config.redisUrl,
+        token: config.redisToken,
+      });
     } else if (config.redisUrl) {
       this.redis = Redis.fromEnv();
     }
@@ -71,8 +92,13 @@ export class GatewayManager {
 
     // Start failover check (claim orphaned connections from dead pods)
     if (this.redis) {
-      this.failoverInterval = setInterval(() => this.checkForDeadPods(), FAILOVER_CHECK_INTERVAL_MS);
-      logger.info("Failover monitoring enabled", { intervalMs: FAILOVER_CHECK_INTERVAL_MS });
+      this.failoverInterval = setInterval(
+        () => this.checkForDeadPods(),
+        FAILOVER_CHECK_INTERVAL_MS,
+      );
+      logger.info("Failover monitoring enabled", {
+        intervalMs: FAILOVER_CHECK_INTERVAL_MS,
+      });
     }
 
     logger.info("Gateway manager started");
@@ -109,15 +135,17 @@ export class GatewayManager {
         headers: {
           "X-Internal-API-Key": this.config.internalApiKey,
         },
-      }
+      },
     );
 
     if (!response.ok) {
-      logger.warn("Failed to poll for bot assignments", { status: response.status });
+      logger.warn("Failed to poll for bot assignments", {
+        status: response.status,
+      });
       return;
     }
 
-    const data = await response.json() as {
+    const data = (await response.json()) as {
       assignments: Array<{
         connectionId: string;
         organizationId: string;
@@ -205,11 +233,13 @@ export class GatewayManager {
         guild_id: newMessage.guildId,
         content: newMessage.content,
         edited_timestamp: newMessage.editedAt?.toISOString(),
-        author: newMessage.author ? {
-          id: newMessage.author.id,
-          username: newMessage.author.username,
-          bot: newMessage.author.bot,
-        } : undefined,
+        author: newMessage.author
+          ? {
+              id: newMessage.author.id,
+              username: newMessage.author.username,
+              bot: newMessage.author.bot,
+            }
+          : undefined,
       });
     });
 
@@ -224,79 +254,119 @@ export class GatewayManager {
 
     client.on(Events.MessageReactionAdd, async (reaction, user) => {
       conn.eventsReceived++;
-      await this.forwardEvent(assignment.connectionId, conn, "MESSAGE_REACTION_ADD", {
-        message_id: reaction.message.id,
-        channel_id: reaction.message.channelId,
-        guild_id: reaction.message.guildId,
-        emoji: { name: reaction.emoji.name, id: reaction.emoji.id },
-        user_id: user.id,
-      });
+      await this.forwardEvent(
+        assignment.connectionId,
+        conn,
+        "MESSAGE_REACTION_ADD",
+        {
+          message_id: reaction.message.id,
+          channel_id: reaction.message.channelId,
+          guild_id: reaction.message.guildId,
+          emoji: { name: reaction.emoji.name, id: reaction.emoji.id },
+          user_id: user.id,
+        },
+      );
     });
 
     client.on(Events.GuildMemberAdd, async (member) => {
       conn.eventsReceived++;
-      await this.forwardEvent(assignment.connectionId, conn, "GUILD_MEMBER_ADD", {
-        guild_id: member.guild.id,
-        user: {
-          id: member.user.id,
-          username: member.user.username,
-          discriminator: member.user.discriminator,
-          avatar: member.user.avatar,
-          bot: member.user.bot,
+      await this.forwardEvent(
+        assignment.connectionId,
+        conn,
+        "GUILD_MEMBER_ADD",
+        {
+          guild_id: member.guild.id,
+          user: {
+            id: member.user.id,
+            username: member.user.username,
+            discriminator: member.user.discriminator,
+            avatar: member.user.avatar,
+            bot: member.user.bot,
+          },
+          nick: member.nickname,
+          roles: member.roles.cache.map((r) => r.id),
+          joined_at: member.joinedAt?.toISOString(),
         },
-        nick: member.nickname,
-        roles: member.roles.cache.map((r) => r.id),
-        joined_at: member.joinedAt?.toISOString(),
-      });
+      );
     });
 
     client.on(Events.GuildMemberRemove, async (member) => {
       conn.eventsReceived++;
-      await this.forwardEvent(assignment.connectionId, conn, "GUILD_MEMBER_REMOVE", {
-        guild_id: member.guild.id,
-        user: {
-          id: member.user.id,
-          username: member.user.username,
-          bot: member.user.bot,
+      await this.forwardEvent(
+        assignment.connectionId,
+        conn,
+        "GUILD_MEMBER_REMOVE",
+        {
+          guild_id: member.guild.id,
+          user: {
+            id: member.user.id,
+            username: member.user.username,
+            bot: member.user.bot,
+          },
         },
-      });
+      );
     });
 
     client.on(Events.InteractionCreate, async (interaction) => {
       conn.eventsReceived++;
-      await this.forwardEvent(assignment.connectionId, conn, "INTERACTION_CREATE", {
-        id: interaction.id,
-        type: interaction.type,
-        channel_id: interaction.channelId,
-        guild_id: interaction.guildId,
-        user: {
-          id: interaction.user.id,
-          username: interaction.user.username,
-          bot: interaction.user.bot,
+      await this.forwardEvent(
+        assignment.connectionId,
+        conn,
+        "INTERACTION_CREATE",
+        {
+          id: interaction.id,
+          type: interaction.type,
+          channel_id: interaction.channelId,
+          guild_id: interaction.guildId,
+          user: {
+            id: interaction.user.id,
+            username: interaction.user.username,
+            bot: interaction.user.bot,
+          },
+          data:
+            "commandName" in interaction
+              ? {
+                  name: interaction.commandName,
+                  options:
+                    "options" in interaction
+                      ? interaction.options.data
+                      : undefined,
+                }
+              : undefined,
         },
-        data: "commandName" in interaction ? {
-          name: interaction.commandName,
-          options: "options" in interaction ? interaction.options.data : undefined,
-        } : undefined,
-      });
+      );
     });
 
     client.on(Events.Error, async (error) => {
       conn.status = "error";
       conn.error = error.message;
-      logger.error("Bot error", { connectionId: assignment.connectionId, error: error.message });
-      await this.updateConnectionStatus(assignment.connectionId, "error", error.message);
+      logger.error("Bot error", {
+        connectionId: assignment.connectionId,
+        error: error.message,
+      });
+      await this.updateConnectionStatus(
+        assignment.connectionId,
+        "error",
+        error.message,
+      );
     });
 
     client.on(Events.ShardDisconnect, async () => {
       conn.status = "disconnected";
-      logger.warn("Bot disconnected", { connectionId: assignment.connectionId });
-      await this.updateConnectionStatus(assignment.connectionId, "disconnected");
+      logger.warn("Bot disconnected", {
+        connectionId: assignment.connectionId,
+      });
+      await this.updateConnectionStatus(
+        assignment.connectionId,
+        "disconnected",
+      );
     });
 
     client.on(Events.ShardReconnecting, () => {
       conn.status = "connecting";
-      logger.info("Bot reconnecting", { connectionId: assignment.connectionId });
+      logger.info("Bot reconnecting", {
+        connectionId: assignment.connectionId,
+      });
     });
 
     await client.login(assignment.botToken);
@@ -313,7 +383,10 @@ export class GatewayManager {
     await this.updateConnectionStatus(connectionId, "disconnected");
   }
 
-  private async handleMessage(connectionId: string, message: Message): Promise<void> {
+  private async handleMessage(
+    connectionId: string,
+    message: Message,
+  ): Promise<void> {
     if (message.author.bot) return;
 
     const conn = this.connections.get(connectionId);
@@ -332,7 +405,10 @@ export class GatewayManager {
         global_name: message.author.globalName,
       },
       member: message.member
-        ? { nick: message.member.nickname, roles: message.member.roles.cache.map((r) => r.id) }
+        ? {
+            nick: message.member.nickname,
+            roles: message.member.roles.cache.map((r) => r.id),
+          }
         : undefined,
       content: message.content,
       timestamp: message.createdAt.toISOString(),
@@ -349,8 +425,14 @@ export class GatewayManager {
         url: e.url,
         color: e.color,
       })),
-      mentions: message.mentions.users.map((u) => ({ id: u.id, username: u.username, bot: u.bot })),
-      referenced_message: message.reference ? { id: message.reference.messageId } : undefined,
+      mentions: message.mentions.users.map((u) => ({
+        id: u.id,
+        username: u.username,
+        bot: u.bot,
+      })),
+      referenced_message: message.reference
+        ? { id: message.reference.messageId }
+        : undefined,
     });
   }
 
@@ -358,7 +440,7 @@ export class GatewayManager {
     connectionId: string,
     conn: BotConnection,
     eventType: string,
-    data: Record<string, unknown>
+    data: Record<string, unknown>,
   ): Promise<void> {
     const payload = {
       connection_id: connectionId,
@@ -372,26 +454,33 @@ export class GatewayManager {
       timestamp: new Date().toISOString(),
     };
 
-    const response = await fetch(`${this.config.elizaCloudUrl}/api/internal/discord/events`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Internal-API-Key": this.config.internalApiKey,
+    const response = await fetch(
+      `${this.config.elizaCloudUrl}/api/internal/discord/events`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Internal-API-Key": this.config.internalApiKey,
+        },
+        body: JSON.stringify(payload),
       },
-      body: JSON.stringify(payload),
-    });
+    );
 
     if (response.ok) {
       conn.eventsRouted++;
     } else {
-      logger.warn("Failed to forward event", { connectionId, eventType, status: response.status });
+      logger.warn("Failed to forward event", {
+        connectionId,
+        eventType,
+        status: response.status,
+      });
     }
   }
 
   private async updateConnectionStatus(
     connectionId: string,
     status: string,
-    errorMessage?: string
+    errorMessage?: string,
   ): Promise<void> {
     await fetch(
       `${this.config.elizaCloudUrl}/api/internal/discord/gateway/status`,
@@ -407,11 +496,14 @@ export class GatewayManager {
           status,
           error_message: errorMessage,
         }),
-      }
+      },
     );
   }
 
-  private async saveSessionState(connectionId: string, conn: BotConnection): Promise<void> {
+  private async saveSessionState(
+    connectionId: string,
+    conn: BotConnection,
+  ): Promise<void> {
     if (!this.redis) return;
 
     const state = {
@@ -425,7 +517,11 @@ export class GatewayManager {
       savedAt: Date.now(),
     };
 
-    await this.redis.setex(`discord:session:${connectionId}`, 3600, JSON.stringify(state));
+    await this.redis.setex(
+      `discord:session:${connectionId}`,
+      3600,
+      JSON.stringify(state),
+    );
   }
 
   private async sendHeartbeat(): Promise<void> {
@@ -439,7 +535,11 @@ export class GatewayManager {
         connections: Array.from(this.connections.keys()),
         lastHeartbeat: Date.now(),
       };
-      await this.redis.setex(`discord:pod:${this.config.podName}`, 300, JSON.stringify(podState));
+      await this.redis.setex(
+        `discord:pod:${this.config.podName}`,
+        300,
+        JSON.stringify(podState),
+      );
       await this.redis.sadd("discord:active_pods", this.config.podName);
     }
   }
@@ -460,7 +560,8 @@ export class GatewayManager {
         continue;
       }
 
-      const state = typeof podState === "string" ? JSON.parse(podState) : podState;
+      const state =
+        typeof podState === "string" ? JSON.parse(podState) : podState;
       const timeSinceHeartbeat = Date.now() - state.lastHeartbeat;
 
       if (timeSinceHeartbeat > DEAD_POD_THRESHOLD_MS) {
@@ -488,14 +589,20 @@ export class GatewayManager {
           claiming_pod: this.config.podName,
           dead_pod: deadPodId,
         }),
-      }
+      },
     );
 
     if (response.ok) {
-      const data = await response.json() as { claimed: number };
-      logger.info("Claimed orphaned connections", { deadPodId, claimed: data.claimed });
+      const data = (await response.json()) as { claimed: number };
+      logger.info("Claimed orphaned connections", {
+        deadPodId,
+        claimed: data.claimed,
+      });
     } else {
-      logger.error("Failed to claim orphaned connections", { deadPodId, status: response.status });
+      logger.error("Failed to claim orphaned connections", {
+        deadPodId,
+        status: response.status,
+      });
     }
 
     // Clean up dead pod's Redis state
@@ -511,8 +618,11 @@ export class GatewayManager {
     const totalGuilds = bots.reduce((sum, c) => sum + c.guildCount, 0);
 
     const status: HealthStatus["status"] =
-      totalBots > 0 && connectedBots === 0 ? "unhealthy" :
-      disconnectedBots > 0 ? "degraded" : "healthy";
+      totalBots > 0 && connectedBots === 0
+        ? "unhealthy"
+        : disconnectedBots > 0
+          ? "degraded"
+          : "healthy";
 
     return {
       status,
@@ -530,15 +640,43 @@ export class GatewayManager {
     const pod = this.config.podName;
 
     const metrics = [
-      metric("discord_gateway_bots_total", "gauge", "Total bots managed", pod, h.totalBots),
-      metric("discord_gateway_bots_connected", "gauge", "Connected bots", pod, h.connectedBots),
-      metric("discord_gateway_guilds_total", "gauge", "Total guilds", pod, h.totalGuilds),
-      metric("discord_gateway_uptime_seconds", "gauge", "Uptime in seconds", pod, Math.floor(h.uptime / 1000)),
+      metric(
+        "discord_gateway_bots_total",
+        "gauge",
+        "Total bots managed",
+        pod,
+        h.totalBots,
+      ),
+      metric(
+        "discord_gateway_bots_connected",
+        "gauge",
+        "Connected bots",
+        pod,
+        h.connectedBots,
+      ),
+      metric(
+        "discord_gateway_guilds_total",
+        "gauge",
+        "Total guilds",
+        pod,
+        h.totalGuilds,
+      ),
+      metric(
+        "discord_gateway_uptime_seconds",
+        "gauge",
+        "Uptime in seconds",
+        pod,
+        Math.floor(h.uptime / 1000),
+      ),
     ];
 
     for (const [id, conn] of this.connections) {
-      metrics.push(`discord_gateway_events_received{connection="${id}"} ${conn.eventsReceived}`);
-      metrics.push(`discord_gateway_events_routed{connection="${id}"} ${conn.eventsRouted}`);
+      metrics.push(
+        `discord_gateway_events_received{connection="${id}"} ${conn.eventsReceived}`,
+      );
+      metrics.push(
+        `discord_gateway_events_routed{connection="${id}"} ${conn.eventsRouted}`,
+      );
     }
 
     return metrics.join("\n");
@@ -564,4 +702,3 @@ export class GatewayManager {
     };
   }
 }
-

@@ -10,12 +10,22 @@ import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { platformCredentialsService } from "@/lib/services/platform-credentials";
 import { logger } from "@/lib/utils/logger";
 
-export async function GET(request: NextRequest, { params }: { params: Promise<{ credentialId: string }> }) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ credentialId: string }> },
+) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { credentialId } = await params;
 
-  const result = await platformCredentialsService.getCredentialWithTokens(credentialId, user.organization_id);
-  if (!result) return NextResponse.json({ error: "Credential not found" }, { status: 404 });
+  const result = await platformCredentialsService.getCredentialWithTokens(
+    credentialId,
+    user.organization_id,
+  );
+  if (!result)
+    return NextResponse.json(
+      { error: "Credential not found" },
+      { status: 404 },
+    );
 
   const { credential } = result;
   return NextResponse.json({
@@ -36,11 +46,17 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   });
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: Promise<{ credentialId: string }> }) {
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ credentialId: string }> },
+) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { credentialId } = await params;
 
-  await platformCredentialsService.revokeCredential(credentialId, user.organization_id);
+  await platformCredentialsService.revokeCredential(
+    credentialId,
+    user.organization_id,
+  );
   logger.info("[Credentials API] Revoked", { credentialId, userId: user.id });
   return NextResponse.json({ success: true });
 }

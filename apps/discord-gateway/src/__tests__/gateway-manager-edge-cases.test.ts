@@ -16,7 +16,10 @@ describe("GatewayManager Edge Cases", () => {
 
     globalThis.fetch = mock((url: string, options?: RequestInit) => {
       fetchCalls.push({ url, options: options ?? {} });
-      const response = mockResponseQueue.shift() ?? { ok: true, json: () => Promise.resolve({ assignments: [] }) };
+      const response = mockResponseQueue.shift() ?? {
+        ok: true,
+        json: () => Promise.resolve({ assignments: [] }),
+      };
       return Promise.resolve(response as Response);
     }) as unknown as typeof fetch;
   });
@@ -95,7 +98,9 @@ describe("GatewayManager Edge Cases", () => {
       expect(lines.some((l) => l.startsWith("# TYPE"))).toBe(true);
 
       // Verify metric lines have proper format: name{labels} value
-      const metricLines = lines.filter((l) => !l.startsWith("#") && l.length > 0);
+      const metricLines = lines.filter(
+        (l) => !l.startsWith("#") && l.length > 0,
+      );
       metricLines.forEach((line) => {
         expect(line).toMatch(/^[a-z_]+\{.*\}\s+\d+$/);
       });
@@ -224,13 +229,21 @@ describe("GatewayManager Edge Cases", () => {
 
 describe("GatewayManager API Interaction", () => {
   const originalFetch = globalThis.fetch;
-  let fetchCalls: Array<{ url: string; body?: string; headers?: Record<string, string> }> = [];
+  let fetchCalls: Array<{
+    url: string;
+    body?: string;
+    headers?: Record<string, string>;
+  }> = [];
 
   beforeEach(() => {
     fetchCalls = [];
 
     globalThis.fetch = mock(async (url: string, options?: RequestInit) => {
-      const call: { url: string; body?: string; headers?: Record<string, string> } = { url };
+      const call: {
+        url: string;
+        body?: string;
+        headers?: Record<string, string>;
+      } = { url };
       if (options?.body) {
         call.body = options.body as string;
       }
@@ -241,10 +254,16 @@ describe("GatewayManager API Interaction", () => {
 
       // Simulate different responses based on URL
       if (url.includes("/assignments")) {
-        return { ok: true, json: () => Promise.resolve({ assignments: [] }) } as Response;
+        return {
+          ok: true,
+          json: () => Promise.resolve({ assignments: [] }),
+        } as Response;
       }
       if (url.includes("/events")) {
-        return { ok: true, json: () => Promise.resolve({ success: true }) } as Response;
+        return {
+          ok: true,
+          json: () => Promise.resolve({ success: true }),
+        } as Response;
       }
       if (url.includes("/status")) {
         return { ok: true, json: () => Promise.resolve({}) } as Response;
@@ -268,9 +287,13 @@ describe("GatewayManager API Interaction", () => {
     await manager.shutdown();
 
     // Find the assignments call
-    const assignmentCall = fetchCalls.find((c) => c.url.includes("/assignments"));
+    const assignmentCall = fetchCalls.find((c) =>
+      c.url.includes("/assignments"),
+    );
     expect(assignmentCall).toBeDefined();
-    expect(assignmentCall?.headers?.["X-Internal-API-Key"]).toBe("secret-key-123");
+    expect(assignmentCall?.headers?.["X-Internal-API-Key"]).toBe(
+      "secret-key-123",
+    );
   });
 
   it("should construct correct assignment URL with pod name", async () => {
@@ -283,7 +306,9 @@ describe("GatewayManager API Interaction", () => {
     await manager.start();
     await manager.shutdown();
 
-    const assignmentCall = fetchCalls.find((c) => c.url.includes("/assignments"));
+    const assignmentCall = fetchCalls.find((c) =>
+      c.url.includes("/assignments"),
+    );
     expect(assignmentCall?.url).toContain("pod=my-pod-123");
   });
 

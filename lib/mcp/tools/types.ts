@@ -46,7 +46,9 @@ export function successResponse(data: unknown): ToolResponse {
 export function errorResponse(error: unknown): ToolResponse {
   const message = error instanceof Error ? error.message : "Unknown error";
   return {
-    content: [{ type: "text", text: JSON.stringify({ error: message }, null, 2) }],
+    content: [
+      { type: "text", text: JSON.stringify({ error: message }, null, 2) },
+    ],
     isError: true,
   };
 }

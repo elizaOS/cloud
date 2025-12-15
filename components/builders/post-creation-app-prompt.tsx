@@ -46,21 +46,25 @@ const ENTITY_CONFIG: Record<
     color: "#0B35F1",
     label: "Agent",
     description: "Your agent is ready! Create an app to give it a home.",
-    appSuggestion: "Build a chat interface, dashboard, or custom UI for your agent.",
+    appSuggestion:
+      "Build a chat interface, dashboard, or custom UI for your agent.",
   },
   workflow: {
     icon: Workflow,
     color: "#22C55E",
     label: "Workflow",
-    description: "Your workflow is ready! Create an app to visualize and control it.",
-    appSuggestion: "Build a dashboard to monitor, trigger, and manage your workflow.",
+    description:
+      "Your workflow is ready! Create an app to visualize and control it.",
+    appSuggestion:
+      "Build a dashboard to monitor, trigger, and manage your workflow.",
   },
   service: {
     icon: Puzzle,
     color: "#06B6D4",
     label: "Service",
     description: "Your service is ready! Create an app to showcase and use it.",
-    appSuggestion: "Build a demo app, documentation site, or integration hub for your service.",
+    appSuggestion:
+      "Build a demo app, documentation site, or integration hub for your service.",
   },
 };
 

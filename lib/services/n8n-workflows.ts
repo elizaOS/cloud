@@ -29,7 +29,11 @@ import {
 import { logger } from "@/lib/utils/logger";
 import { extractErrorMessage } from "@/lib/utils/error-handling";
 import { createHash, randomBytes } from "crypto";
-import { secretsService, loadWorkflowSecrets as loadSecretsHelper, isSecretsConfigured } from "@/lib/services/secrets";
+import {
+  secretsService,
+  loadWorkflowSecrets as loadSecretsHelper,
+  isSecretsConfigured,
+} from "@/lib/services/secrets";
 
 // =============================================================================
 // TYPES
@@ -96,11 +100,12 @@ class N8nWorkflowsService {
     name: string,
     endpoint: string,
     apiKey: string,
-    isDefault: boolean = false
+    isDefault: boolean = false,
   ): Promise<N8nInstance> {
     // If this is set as default, unset other defaults
     if (isDefault) {
-      const existingDefault = await n8nInstancesRepository.findDefaultByOrganization(organizationId);
+      const existingDefault =
+        await n8nInstancesRepository.findDefaultByOrganization(organizationId);
       if (existingDefault) {
         await n8nInstancesRepository.update(existingDefault.id, {
           is_default: false,
@@ -138,8 +143,11 @@ class N8nWorkflowsService {
   /**
    * Gets the default instance for an organization.
    */
-  async getDefaultInstance(organizationId: string): Promise<N8nInstance | null> {
-    const instance = await n8nInstancesRepository.findDefaultByOrganization(organizationId);
+  async getDefaultInstance(
+    organizationId: string,
+  ): Promise<N8nInstance | null> {
+    const instance =
+      await n8nInstancesRepository.findDefaultByOrganization(organizationId);
     return instance ?? null;
   }
 
@@ -168,7 +176,14 @@ class N8nWorkflowsService {
    * Creates a new workflow.
    */
   async createWorkflow(params: CreateWorkflowParams): Promise<N8nWorkflow> {
-    const { organizationId, userId, name, description, workflowData, tags = [] } = params;
+    const {
+      organizationId,
+      userId,
+      name,
+      description,
+      workflowData,
+      tags = [],
+    } = params;
 
     const workflow = await n8nWorkflowsRepository.create({
       organization_id: organizationId,
@@ -216,7 +231,7 @@ class N8nWorkflowsService {
       status?: "draft" | "active" | "archived";
       limit?: number;
       offset?: number;
-    } = {}
+    } = {},
   ): Promise<N8nWorkflow[]> {
     return n8nWorkflowsRepository.findByOrganization(organizationId, options);
   }
@@ -226,7 +241,7 @@ class N8nWorkflowsService {
    */
   async updateWorkflow(
     workflowId: string,
-    params: UpdateWorkflowParams
+    params: UpdateWorkflowParams,
   ): Promise<N8nWorkflow> {
     const existing = await n8nWorkflowsRepository.findById(workflowId);
     if (!existing) {
@@ -236,7 +251,8 @@ class N8nWorkflowsService {
     const updateData: Partial<typeof existing> = {};
 
     if (params.name !== undefined) updateData.name = params.name;
-    if (params.description !== undefined) updateData.description = params.description;
+    if (params.description !== undefined)
+      updateData.description = params.description;
     if (params.status !== undefined) updateData.status = params.status;
     if (params.tags !== undefined) updateData.tags = params.tags;
 
@@ -287,7 +303,7 @@ class N8nWorkflowsService {
    */
   async getWorkflowVersions(
     workflowId: string,
-    limit: number = 50
+    limit: number = 50,
   ): Promise<N8nWorkflowVersion[]> {
     return n8nWorkflowVersionsRepository.findByWorkflow(workflowId, limit);
   }
@@ -297,12 +313,13 @@ class N8nWorkflowsService {
    */
   async getWorkflowVersion(
     workflowId: string,
-    version: number
+    version: number,
   ): Promise<N8nWorkflowVersion | null> {
-    const versionRecord = await n8nWorkflowVersionsRepository.findByWorkflowAndVersion(
-      workflowId,
-      version
-    );
+    const versionRecord =
+      await n8nWorkflowVersionsRepository.findByWorkflowAndVersion(
+        workflowId,
+        version,
+      );
     return versionRecord ?? null;
   }
 
@@ -312,11 +329,13 @@ class N8nWorkflowsService {
   async revertWorkflowToVersion(
     workflowId: string,
     version: number,
-    userId: string
+    userId: string,
   ): Promise<N8nWorkflow> {
     const versionRecord = await this.getWorkflowVersion(workflowId, version);
     if (!versionRecord) {
-      throw new Error(`Version ${version} not found for workflow ${workflowId}`);
+      throw new Error(
+        `Version ${version} not found for workflow ${workflowId}`,
+      );
     }
 
     const workflow = await this.getWorkflow(workflowId);
@@ -335,17 +354,19 @@ class N8nWorkflowsService {
       throw new Error(`Failed to revert workflow ${workflowId}`);
     }
 
-      // Create version record for revert
-      await n8nWorkflowVersionsRepository.create({
-        workflow_id: workflowId,
-        organization_id: workflow.organization_id,
-        version: newVersion,
-        workflow_data: versionRecord.workflow_data,
-        change_description: `Reverted to version ${version}`,
-        created_by: userId,
-      });
+    // Create version record for revert
+    await n8nWorkflowVersionsRepository.create({
+      workflow_id: workflowId,
+      organization_id: workflow.organization_id,
+      version: newVersion,
+      workflow_data: versionRecord.workflow_data,
+      change_description: `Reverted to version ${version}`,
+      created_by: userId,
+    });
 
-    logger.info(`[N8N Workflows] Reverted workflow ${workflowId} to version ${version}`);
+    logger.info(
+      `[N8N Workflows] Reverted workflow ${workflowId} to version ${version}`,
+    );
 
     return updated;
   }
@@ -356,22 +377,34 @@ class N8nWorkflowsService {
 
   /**
    * Creates a workflow variable (global or per-workflow).
-   * 
+   *
    * For secret variables, the value is stored in the encrypted secrets vault
    * and a placeholder is stored in the variable record.
    */
-  async createVariable(params: CreateVariableParams & { createdBy?: string }): Promise<N8nWorkflowVariable> {
-    const { organizationId, workflowId, name, value, type = "string", isSecret = false, description, createdBy } = params;
+  async createVariable(
+    params: CreateVariableParams & { createdBy?: string },
+  ): Promise<N8nWorkflowVariable> {
+    const {
+      organizationId,
+      workflowId,
+      name,
+      value,
+      type = "string",
+      isSecret = false,
+      description,
+      createdBy,
+    } = params;
 
     // Check if variable already exists
-    const existing = await n8nWorkflowVariablesRepository.findByOrganizationAndName(
-      organizationId,
-      name,
-      workflowId
-    );
+    const existing =
+      await n8nWorkflowVariablesRepository.findByOrganizationAndName(
+        organizationId,
+        name,
+        workflowId,
+      );
     if (existing) {
       throw new Error(
-        `Variable '${name}' already exists${workflowId ? ` for workflow ${workflowId}` : " globally"}`
+        `Variable '${name}' already exists${workflowId ? ` for workflow ${workflowId}` : " globally"}`,
       );
     }
 
@@ -380,7 +413,7 @@ class N8nWorkflowsService {
     // For secrets, store encrypted value in secrets vault and use placeholder in variable
     if (isSecret && isSecretsConfigured()) {
       const secretName = `N8N_VAR_${name.toUpperCase()}`;
-      
+
       await secretsService.create(
         {
           organizationId,
@@ -396,7 +429,7 @@ class N8nWorkflowsService {
           actorType: "workflow",
           actorId: workflowId || organizationId,
           source: "n8n",
-        }
+        },
       );
 
       storedValue = `[ENCRYPTED:${secretName}]`;
@@ -418,14 +451,18 @@ class N8nWorkflowsService {
   /**
    * Gets global variables for an organization.
    */
-  async getGlobalVariables(organizationId: string): Promise<N8nWorkflowVariable[]> {
+  async getGlobalVariables(
+    organizationId: string,
+  ): Promise<N8nWorkflowVariable[]> {
     return n8nWorkflowVariablesRepository.findByOrganization(organizationId);
   }
 
   /**
    * Gets variables for a specific workflow.
    */
-  async getWorkflowVariables(workflowId: string): Promise<N8nWorkflowVariable[]> {
+  async getWorkflowVariables(
+    workflowId: string,
+  ): Promise<N8nWorkflowVariable[]> {
     return n8nWorkflowVariablesRepository.findByWorkflow(workflowId);
   }
 
@@ -435,7 +472,7 @@ class N8nWorkflowsService {
    */
   async getDecryptedVariables(
     organizationId: string,
-    workflowId?: string
+    workflowId?: string,
   ): Promise<Record<string, string>> {
     const result: Record<string, string> = {};
 
@@ -449,7 +486,11 @@ class N8nWorkflowsService {
     if (workflowId) {
       const workflowVars = await this.getWorkflowVariables(workflowId);
       for (const v of workflowVars) {
-        result[v.name] = await this.resolveVariableValue(v, organizationId, workflowId);
+        result[v.name] = await this.resolveVariableValue(
+          v,
+          organizationId,
+          workflowId,
+        );
       }
     }
 
@@ -459,7 +500,7 @@ class N8nWorkflowsService {
   private async resolveVariableValue(
     variable: N8nWorkflowVariable,
     organizationId: string,
-    workflowId?: string
+    workflowId?: string,
   ): Promise<string> {
     if (!variable.is_secret || !variable.value.startsWith("[ENCRYPTED:")) {
       return variable.value;
@@ -467,16 +508,22 @@ class N8nWorkflowsService {
 
     const secretName = variable.value.match(/\[ENCRYPTED:(.+?)\]/)?.[1];
     if (!secretName) return variable.value;
-    if (!isSecretsConfigured()) throw new Error("Secrets service not configured");
+    if (!isSecretsConfigured())
+      throw new Error("Secrets service not configured");
 
     const decryptedValue = await secretsService.get(
       organizationId,
       secretName,
       workflowId,
       undefined,
-      { actorType: "workflow", actorId: workflowId || organizationId, source: "n8n" }
+      {
+        actorType: "workflow",
+        actorId: workflowId || organizationId,
+        source: "n8n",
+      },
     );
-    if (decryptedValue === null) throw new Error(`Secret ${secretName} not found`);
+    if (decryptedValue === null)
+      throw new Error(`Secret ${secretName} not found`);
     return decryptedValue;
   }
 
@@ -487,7 +534,7 @@ class N8nWorkflowsService {
   async updateVariable(
     variableId: string,
     params: Partial<CreateVariableParams>,
-    organizationId?: string
+    organizationId?: string,
   ): Promise<N8nWorkflowVariable> {
     // Get existing variable to check if it's a secret
     const existing = await n8nWorkflowVariablesRepository.findById(variableId);
@@ -497,24 +544,29 @@ class N8nWorkflowsService {
 
     const updateData: Record<string, unknown> = {};
     if (params.type !== undefined) updateData.type = params.type;
-    if (params.description !== undefined) updateData.description = params.description;
+    if (params.description !== undefined)
+      updateData.description = params.description;
     if (params.isSecret !== undefined) updateData.is_secret = params.isSecret;
 
     // Handle value update for secrets
     if (params.value !== undefined) {
-      if (existing.is_secret && existing.value.startsWith("[ENCRYPTED:") && isSecretsConfigured()) {
+      if (
+        existing.is_secret &&
+        existing.value.startsWith("[ENCRYPTED:") &&
+        isSecretsConfigured()
+      ) {
         // Update the secret in the vault
         const secretName = existing.value.match(/\[ENCRYPTED:(.+?)\]/)?.[1];
         if (secretName && organizationId) {
           // Find and update the secret by name
           const secrets = await secretsService.list(organizationId);
-          const secret = secrets.find(s => s.name === secretName);
+          const secret = secrets.find((s) => s.name === secretName);
           if (secret) {
             await secretsService.update(
               secret.id,
               organizationId,
               { value: params.value },
-              { actorType: "workflow", actorId: variableId, source: "n8n" }
+              { actorType: "workflow", actorId: variableId, source: "n8n" },
             );
           }
         }
@@ -524,7 +576,10 @@ class N8nWorkflowsService {
       }
     }
 
-    const updated = await n8nWorkflowVariablesRepository.update(variableId, updateData);
+    const updated = await n8nWorkflowVariablesRepository.update(
+      variableId,
+      updateData,
+    );
     if (!updated) {
       throw new Error(`Variable ${variableId} not found`);
     }
@@ -536,22 +591,30 @@ class N8nWorkflowsService {
    * Deletes a variable.
    * For secret variables, also removes the encrypted value from the vault.
    */
-  async deleteVariable(variableId: string, organizationId?: string): Promise<void> {
+  async deleteVariable(
+    variableId: string,
+    organizationId?: string,
+  ): Promise<void> {
     // Get existing variable to check if it's a secret
     const existing = await n8nWorkflowVariablesRepository.findById(variableId);
-    
+
     // If it's a secret with encrypted placeholder, delete from vault
-    if (existing?.is_secret && existing.value.startsWith("[ENCRYPTED:") && organizationId && isSecretsConfigured()) {
+    if (
+      existing?.is_secret &&
+      existing.value.startsWith("[ENCRYPTED:") &&
+      organizationId &&
+      isSecretsConfigured()
+    ) {
       const secretName = existing.value.match(/\[ENCRYPTED:(.+?)\]/)?.[1];
       if (secretName) {
         const secrets = await secretsService.list(organizationId);
-        const secret = secrets.find(s => s.name === secretName);
+        const secret = secrets.find((s) => s.name === secretName);
         if (secret) {
-          await secretsService.delete(
-            secret.id,
-            organizationId,
-            { actorType: "workflow", actorId: variableId, source: "n8n" }
-          );
+          await secretsService.delete(secret.id, organizationId, {
+            actorType: "workflow",
+            actorId: variableId,
+            source: "n8n",
+          });
         }
       }
     }
@@ -602,12 +665,15 @@ class N8nWorkflowsService {
    * @param plaintextKey - The full plaintext API key (e.g., "n8n_abc123...")
    * @returns The API key record if valid, null otherwise
    */
-  async validateApiKey(plaintextKey: string): Promise<N8nWorkflowApiKey | null> {
+  async validateApiKey(
+    plaintextKey: string,
+  ): Promise<N8nWorkflowApiKey | null> {
     // Extract prefix from the plaintext key
     const keyPrefix = plaintextKey.substring(0, 12);
-    
+
     // Find by prefix first (fast lookup)
-    const apiKey = await n8nWorkflowApiKeysRepository.findByKeyPrefix(keyPrefix);
+    const apiKey =
+      await n8nWorkflowApiKeysRepository.findByKeyPrefix(keyPrefix);
     if (!apiKey) {
       return null;
     }
@@ -640,7 +706,7 @@ class N8nWorkflowsService {
    */
   async listApiKeys(
     organizationId: string,
-    workflowId?: string
+    workflowId?: string,
   ): Promise<N8nWorkflowApiKey[]> {
     if (workflowId) {
       return n8nWorkflowApiKeysRepository.findByWorkflow(workflowId);
@@ -675,18 +741,20 @@ class N8nWorkflowsService {
     if (!apiKey.scopes || apiKey.scopes.length === 0) {
       return true;
     }
-    
+
     // Check for exact scope match or wildcard
-    return apiKey.scopes.includes(requiredScope) || 
-           apiKey.scopes.includes("*") ||
-           apiKey.scopes.some(scope => {
-             // Support wildcard scopes like "workflows:*"
-             if (scope.endsWith(":*")) {
-               const prefix = scope.slice(0, -1);
-               return requiredScope.startsWith(prefix);
-             }
-             return false;
-           });
+    return (
+      apiKey.scopes.includes(requiredScope) ||
+      apiKey.scopes.includes("*") ||
+      apiKey.scopes.some((scope) => {
+        // Support wildcard scopes like "workflows:*"
+        if (scope.endsWith(":*")) {
+          const prefix = scope.slice(0, -1);
+          return requiredScope.startsWith(prefix);
+        }
+        return false;
+      })
+    );
   }
 
   /**
@@ -694,7 +762,7 @@ class N8nWorkflowsService {
    */
   async validateApiKeyWithScope(
     plaintextKey: string,
-    requiredScope: string
+    requiredScope: string,
   ): Promise<N8nWorkflowApiKey | null> {
     const apiKey = await this.validateApiKey(plaintextKey);
     if (!apiKey) {
@@ -719,14 +787,22 @@ class N8nWorkflowsService {
 
   /**
    * Tests a workflow execution.
-   * 
+   *
    * Loads and injects secrets from:
    * 1. Workflow-specific secrets (project scope)
    * 2. Organization-level secrets (org scope)
    * 3. Workflow variables marked as secrets
    */
-  async testWorkflow(params: TestWorkflowParams): Promise<N8nWorkflowExecution> {
-    const { workflowId, inputData = {}, userId, triggerId, executionType = "test" } = params;
+  async testWorkflow(
+    params: TestWorkflowParams,
+  ): Promise<N8nWorkflowExecution> {
+    const {
+      workflowId,
+      inputData = {},
+      userId,
+      triggerId,
+      executionType = "test",
+    } = params;
 
     const workflow = await this.getWorkflow(workflowId);
     if (!workflow) {
@@ -736,7 +812,7 @@ class N8nWorkflowsService {
     // Load secrets for this workflow
     const workflowSecrets = await this.loadWorkflowSecrets(
       workflow.organization_id,
-      workflowId
+      workflowId,
     );
 
     // Create execution record
@@ -761,7 +837,9 @@ class N8nWorkflowsService {
 
       // If workflow is deployed to n8n, execute via n8n API
       if (workflow.n8n_instance_id && workflow.n8n_workflow_id) {
-        const instance = await n8nInstancesRepository.findById(workflow.n8n_instance_id);
+        const instance = await n8nInstancesRepository.findById(
+          workflow.n8n_instance_id,
+        );
         if (instance) {
           try {
             // Execute workflow via n8n API
@@ -776,7 +854,7 @@ class N8nWorkflowsService {
                 body: JSON.stringify({
                   data: enrichedInputData,
                 }),
-              }
+              },
             );
 
             if (!response.ok) {
@@ -788,18 +866,24 @@ class N8nWorkflowsService {
             const duration = Date.now() - startTime;
 
             // Update execution as successful
-            const updated = await n8nWorkflowExecutionsRepository.update(execution.id, {
-              status: "success",
-              output_data: n8nResult.data || n8nResult,
-              duration_ms: duration,
-              n8n_execution_id: n8nResult.id || n8nResult.executionId,
-              finished_at: new Date(),
-            });
+            const updated = await n8nWorkflowExecutionsRepository.update(
+              execution.id,
+              {
+                status: "success",
+                output_data: n8nResult.data || n8nResult,
+                duration_ms: duration,
+                n8n_execution_id: n8nResult.id || n8nResult.executionId,
+                finished_at: new Date(),
+              },
+            );
 
             return updated ?? execution;
           } catch (n8nError) {
             // If n8n execution fails, fall back to simulation
-            logger.warn(`[N8N Workflows] n8n execution failed, using simulation:`, n8nError);
+            logger.warn(
+              `[N8N Workflows] n8n execution failed, using simulation:`,
+              n8nError,
+            );
           }
         }
       }
@@ -811,16 +895,21 @@ class N8nWorkflowsService {
       const duration = Date.now() - startTime;
 
       // Update execution as successful
-      const updated = await n8nWorkflowExecutionsRepository.update(execution.id, {
-        status: "success",
-        output_data: { 
-          message: "Workflow executed successfully",
-          note: workflow.n8n_instance_id ? "n8n execution unavailable, simulated" : "Simulated execution (not deployed to n8n)",
-          secretsLoaded: Object.keys(workflowSecrets).length,
+      const updated = await n8nWorkflowExecutionsRepository.update(
+        execution.id,
+        {
+          status: "success",
+          output_data: {
+            message: "Workflow executed successfully",
+            note: workflow.n8n_instance_id
+              ? "n8n execution unavailable, simulated"
+              : "Simulated execution (not deployed to n8n)",
+            secretsLoaded: Object.keys(workflowSecrets).length,
+          },
+          duration_ms: duration,
+          finished_at: new Date(),
         },
-        duration_ms: duration,
-        finished_at: new Date(),
-      });
+      );
 
       return updated ?? execution;
     } catch (error) {
@@ -841,7 +930,7 @@ class N8nWorkflowsService {
    */
   private async loadWorkflowSecrets(
     organizationId: string,
-    workflowId: string
+    workflowId: string,
   ): Promise<Record<string, string>> {
     if (!isSecretsConfigured()) {
       return {};
@@ -854,7 +943,7 @@ class N8nWorkflowsService {
    */
   async getWorkflowExecutions(
     workflowId: string,
-    limit: number = 50
+    limit: number = 50,
   ): Promise<N8nWorkflowExecution[]> {
     return n8nWorkflowExecutionsRepository.findByWorkflow(workflowId, limit);
   }
@@ -871,7 +960,7 @@ class N8nWorkflowsService {
     workflowId: string,
     triggerType: "cron" | "webhook" | "a2a" | "mcp",
     triggerKey: string | undefined,
-    config: Record<string, unknown>
+    config: Record<string, unknown>,
   ): Promise<N8nWorkflowTrigger> {
     const workflow = await n8nWorkflowsRepository.findById(workflowId);
     if (!workflow) {
@@ -886,15 +975,21 @@ class N8nWorkflowsService {
         finalTriggerKey = randomBytes(32).toString("hex");
       } else if (triggerType === "cron") {
         // Use cron expression as key (will be validated)
-        finalTriggerKey = (config.cronExpression as string) || `cron_${workflowId}_${Date.now()}`;
+        finalTriggerKey =
+          (config.cronExpression as string) ||
+          `cron_${workflowId}_${Date.now()}`;
       } else {
         // A2A/MCP: use skill/tool name from config
-        finalTriggerKey = (config.skillId as string) || (config.toolName as string) || `${triggerType}_${workflowId}_${Date.now()}`;
+        finalTriggerKey =
+          (config.skillId as string) ||
+          (config.toolName as string) ||
+          `${triggerType}_${workflowId}_${Date.now()}`;
       }
     }
 
     // Check for duplicate trigger key
-    const existing = await n8nWorkflowTriggersRepository.findByTriggerKey(finalTriggerKey);
+    const existing =
+      await n8nWorkflowTriggersRepository.findByTriggerKey(finalTriggerKey);
     if (existing) {
       throw new Error(`Trigger key '${finalTriggerKey}' already exists`);
     }
@@ -907,7 +1002,8 @@ class N8nWorkflowsService {
       // Set defaults for security options
       finalConfig.requireSignature = finalConfig.requireSignature ?? true;
       finalConfig.maxExecutionsPerDay = finalConfig.maxExecutionsPerDay ?? 1000;
-      finalConfig.includeOutputInResponse = finalConfig.includeOutputInResponse ?? false;
+      finalConfig.includeOutputInResponse =
+        finalConfig.includeOutputInResponse ?? false;
     }
 
     // Set default execution limits for all trigger types
@@ -951,7 +1047,7 @@ class N8nWorkflowsService {
 
   /**
    * Executes a workflow via trigger with security validation.
-   * 
+   *
    * Security checks:
    * - Trigger must be active
    * - Workflow must exist
@@ -961,7 +1057,7 @@ class N8nWorkflowsService {
    */
   async executeWorkflowTrigger(
     triggerId: string,
-    inputData?: Record<string, unknown>
+    inputData?: Record<string, unknown>,
   ): Promise<N8nWorkflowExecution> {
     const trigger = await n8nWorkflowTriggersRepository.findById(triggerId);
     if (!trigger) {
@@ -978,21 +1074,24 @@ class N8nWorkflowsService {
     }
 
     // SECURITY: Validate organization is active
-    const { organizationsRepository } = await import("@/db/repositories/organizations");
+    const { organizationsRepository } =
+      await import("@/db/repositories/organizations");
     const org = await organizationsRepository.findById(trigger.organization_id);
     if (!org) {
       throw new Error("Organization not found");
     }
-    
+
     // Check if org is inactive
     if (!org.is_active) {
       throw new Error("Organization is not active");
     }
 
     // SECURITY: Check daily execution limit
-    const maxExecutionsPerDay = (trigger.config.maxExecutionsPerDay as number) || 10000;
-    const todayExecutions = await n8nWorkflowTriggersRepository.getTodayExecutionCount(triggerId);
-    
+    const maxExecutionsPerDay =
+      (trigger.config.maxExecutionsPerDay as number) || 10000;
+    const todayExecutions =
+      await n8nWorkflowTriggersRepository.getTodayExecutionCount(triggerId);
+
     if (todayExecutions >= maxExecutionsPerDay) {
       logger.warn(`[N8N Workflows] Daily execution limit reached for trigger`, {
         triggerId,
@@ -1003,18 +1102,24 @@ class N8nWorkflowsService {
     }
 
     // SECURITY: Check credit balance if cost is configured
-    const estimatedCostPerExecution = (trigger.config.estimatedCostPerExecution as number) || 0;
+    const estimatedCostPerExecution =
+      (trigger.config.estimatedCostPerExecution as number) || 0;
     if (estimatedCostPerExecution > 0) {
       const { creditsService } = await import("@/lib/services/credits");
       const balance = Number(org.credit_balance);
-      
+
       if (balance < estimatedCostPerExecution) {
-        logger.warn(`[N8N Workflows] Insufficient credits for trigger execution`, {
-          triggerId,
-          required: estimatedCostPerExecution,
-          balance,
-        });
-        throw new Error(`Insufficient credits (required: ${estimatedCostPerExecution}, balance: ${balance})`);
+        logger.warn(
+          `[N8N Workflows] Insufficient credits for trigger execution`,
+          {
+            triggerId,
+            required: estimatedCostPerExecution,
+            balance,
+          },
+        );
+        throw new Error(
+          `Insufficient credits (required: ${estimatedCostPerExecution}, balance: ${balance})`,
+        );
       }
 
       // Deduct credits
@@ -1035,7 +1140,10 @@ class N8nWorkflowsService {
     }
 
     // Map trigger type to execution type
-    const executionTypeMap: Record<string, "scheduled" | "webhook" | "a2a" | "mcp"> = {
+    const executionTypeMap: Record<
+      string,
+      "scheduled" | "webhook" | "a2a" | "mcp"
+    > = {
       cron: "scheduled",
       webhook: "webhook",
       a2a: "a2a",
@@ -1073,8 +1181,11 @@ class N8nWorkflowsService {
   /**
    * Finds trigger by key (for webhook/A2A/MCP lookups).
    */
-  async findTriggerByKey(triggerKey: string): Promise<N8nWorkflowTrigger | null> {
-    const trigger = await n8nWorkflowTriggersRepository.findByTriggerKey(triggerKey);
+  async findTriggerByKey(
+    triggerKey: string,
+  ): Promise<N8nWorkflowTrigger | null> {
+    const trigger =
+      await n8nWorkflowTriggersRepository.findByTriggerKey(triggerKey);
     return trigger ?? null;
   }
 
@@ -1088,7 +1199,7 @@ class N8nWorkflowsService {
 
   /**
    * Updates a trigger (enable/disable, change config).
-   * 
+   *
    * @param triggerId - Trigger ID
    * @param organizationId - Organization ID (for authorization)
    * @param updates - Fields to update
@@ -1099,7 +1210,7 @@ class N8nWorkflowsService {
     updates: {
       isActive?: boolean;
       config?: Record<string, unknown>;
-    }
+    },
   ): Promise<N8nWorkflowTrigger> {
     const trigger = await n8nWorkflowTriggersRepository.findById(triggerId);
     if (!trigger) {
@@ -1108,15 +1219,17 @@ class N8nWorkflowsService {
 
     // SECURITY: Verify organization ownership
     if (trigger.organization_id !== organizationId) {
-      throw new Error("Unauthorized: Trigger belongs to different organization");
+      throw new Error(
+        "Unauthorized: Trigger belongs to different organization",
+      );
     }
 
     const updateData: Record<string, unknown> = {};
-    
+
     if (updates.isActive !== undefined) {
       updateData.is_active = updates.isActive;
     }
-    
+
     if (updates.config !== undefined) {
       // SECURITY: Preserve webhook secret - cannot be overwritten via update
       const existingSecret = trigger.config.webhookSecret;
@@ -1126,7 +1239,10 @@ class N8nWorkflowsService {
       };
     }
 
-    const updated = await n8nWorkflowTriggersRepository.update(triggerId, updateData);
+    const updated = await n8nWorkflowTriggersRepository.update(
+      triggerId,
+      updateData,
+    );
     if (!updated) {
       throw new Error(`Failed to update trigger ${triggerId}`);
     }
@@ -1142,11 +1258,14 @@ class N8nWorkflowsService {
 
   /**
    * Deletes a trigger.
-   * 
+   *
    * @param triggerId - Trigger ID
    * @param organizationId - Organization ID (for authorization)
    */
-  async deleteTrigger(triggerId: string, organizationId: string): Promise<void> {
+  async deleteTrigger(
+    triggerId: string,
+    organizationId: string,
+  ): Promise<void> {
     const trigger = await n8nWorkflowTriggersRepository.findById(triggerId);
     if (!trigger) {
       throw new Error(`Trigger ${triggerId} not found`);
@@ -1154,7 +1273,9 @@ class N8nWorkflowsService {
 
     // SECURITY: Verify organization ownership
     if (trigger.organization_id !== organizationId) {
-      throw new Error("Unauthorized: Trigger belongs to different organization");
+      throw new Error(
+        "Unauthorized: Trigger belongs to different organization",
+      );
     }
 
     await n8nWorkflowTriggersRepository.delete(triggerId);
@@ -1172,7 +1293,7 @@ class N8nWorkflowsService {
    */
   async regenerateWebhookSecret(
     triggerId: string,
-    organizationId: string
+    organizationId: string,
   ): Promise<{ webhookSecret: string }> {
     const trigger = await n8nWorkflowTriggersRepository.findById(triggerId);
     if (!trigger) {
@@ -1180,7 +1301,9 @@ class N8nWorkflowsService {
     }
 
     if (trigger.organization_id !== organizationId) {
-      throw new Error("Unauthorized: Trigger belongs to different organization");
+      throw new Error(
+        "Unauthorized: Trigger belongs to different organization",
+      );
     }
 
     if (trigger.trigger_type !== "webhook") {
@@ -1214,7 +1337,7 @@ class N8nWorkflowsService {
    */
   async deployWorkflowToN8n(
     workflowId: string,
-    instanceId: string
+    instanceId: string,
   ): Promise<{ n8nWorkflowId: string }> {
     const workflow = await this.getWorkflow(workflowId);
     if (!workflow) {
@@ -1243,9 +1366,14 @@ class N8nWorkflowsService {
         body: JSON.stringify({
           name: workflow.name,
           nodes: (workflow.workflow_data as { nodes?: unknown[] }).nodes || [],
-          connections: (workflow.workflow_data as { connections?: unknown }).connections || {},
-          settings: (workflow.workflow_data as { settings?: unknown }).settings || {},
-          staticData: (workflow.workflow_data as { staticData?: unknown }).staticData || {},
+          connections:
+            (workflow.workflow_data as { connections?: unknown }).connections ||
+            {},
+          settings:
+            (workflow.workflow_data as { settings?: unknown }).settings || {},
+          staticData:
+            (workflow.workflow_data as { staticData?: unknown }).staticData ||
+            {},
           tags: workflow.tags,
         }),
       });
@@ -1294,7 +1422,10 @@ class N8nWorkflowsService {
       errors.push("Workflow must have a 'nodes' array");
     }
 
-    if (!workflowData.connections || typeof workflowData.connections !== "object") {
+    if (
+      !workflowData.connections ||
+      typeof workflowData.connections !== "object"
+    ) {
       errors.push("Workflow must have a 'connections' object");
     }
 
@@ -1322,4 +1453,3 @@ class N8nWorkflowsService {
 }
 
 export const n8nWorkflowsService = new N8nWorkflowsService();
-

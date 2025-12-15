@@ -48,36 +48,44 @@ async function topupHandler(request: NextRequest): Promise<NextResponse> {
     // Permissionless mode: Extract payer address from x402 payment header
     const paymentHeader = request.headers.get("X-PAYMENT");
     if (!paymentHeader) {
-      logger.warn("[Credits TopUp] No payment header and no auth - payment NOT settled");
+      logger.warn(
+        "[Credits TopUp] No payment header and no auth - payment NOT settled",
+      );
       return NextResponse.json(
         { error: "Payment header required for permissionless topup" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
     // Extract payer address from payment header
     let payerAddress: string | null = null;
     try {
-      const decoded = JSON.parse(Buffer.from(paymentHeader, "base64").toString());
+      const decoded = JSON.parse(
+        Buffer.from(paymentHeader, "base64").toString(),
+      );
       payerAddress = decoded.payload?.authorization?.from || null;
     } catch {
       // Ignore decode errors
     }
 
     if (!payerAddress) {
-      logger.warn("[Credits TopUp] Could not extract payer address - payment NOT settled");
+      logger.warn(
+        "[Credits TopUp] Could not extract payer address - payment NOT settled",
+      );
       return NextResponse.json(
         { error: "Could not extract payer address from payment header" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
     // Find or create user/organization from wallet address
     const { usersService } = await import("@/lib/services/users");
     const { generateSlugFromWallet } = await import("@/lib/privy-sync");
-    
-    let user = await usersService.getByWalletAddressWithOrganization(payerAddress.toLowerCase());
-    
+
+    let user = await usersService.getByWalletAddressWithOrganization(
+      payerAddress.toLowerCase(),
+    );
+
     if (!user || !user.organization_id) {
       // Create organization from wallet address
       const orgSlug = generateSlugFromWallet(payerAddress);
@@ -127,7 +135,9 @@ async function topupHandler(request: NextRequest): Promise<NextResponse> {
     const paymentHeader = request.headers.get("X-PAYMENT");
     if (paymentHeader) {
       try {
-        const decoded = JSON.parse(Buffer.from(paymentHeader, "base64").toString());
+        const decoded = JSON.parse(
+          Buffer.from(paymentHeader, "base64").toString(),
+        );
         payerAddress = decoded.payload?.authorization?.from || "unknown";
       } catch {
         // Ignore decode errors
@@ -138,7 +148,9 @@ async function topupHandler(request: NextRequest): Promise<NextResponse> {
     const paymentHeader = request.headers.get("X-PAYMENT");
     if (paymentHeader) {
       try {
-        const decoded = JSON.parse(Buffer.from(paymentHeader, "base64").toString());
+        const decoded = JSON.parse(
+          Buffer.from(paymentHeader, "base64").toString(),
+        );
         payerAddress = decoded.payload?.authorization?.from || "unknown";
       } catch {
         // Ignore decode errors
@@ -159,7 +171,9 @@ async function topupHandler(request: NextRequest): Promise<NextResponse> {
       network: getDefaultNetwork(),
       permissionless: !authResult,
       // Store payment header hash for potential reconciliation
-      payment_header_hash: paymentHeader ? Buffer.from(paymentHeader).toString("base64").slice(0, 32) : null,
+      payment_header_hash: paymentHeader
+        ? Buffer.from(paymentHeader).toString("base64").slice(0, 32)
+        : null,
     },
   });
 
@@ -174,14 +188,18 @@ async function topupHandler(request: NextRequest): Promise<NextResponse> {
 
   // Track payment in agent reputation system (fire and forget)
   const agentIdentifier = `org:${organizationId}`;
-  agentReputationService.recordPayment({
-    agentIdentifier,
-    amountUsd: priceValue,
-    paymentType: "x402",
-    transactionId: result.transaction.id,
-  }).catch((err) => {
-    logger.error("[Credits TopUp] Failed to record payment for reputation", { error: err });
-  });
+  agentReputationService
+    .recordPayment({
+      agentIdentifier,
+      amountUsd: priceValue,
+      paymentType: "x402",
+      transactionId: result.transaction.id,
+    })
+    .catch((err) => {
+      logger.error("[Credits TopUp] Failed to record payment for reputation", {
+        error: err,
+      });
+    });
 
   const org = await organizationsService.getById(organizationId);
 
@@ -204,30 +222,41 @@ export const POST =
         topupHandler,
         X402_RECIPIENT_ADDRESS,
         { price: TOPUP_PRICE, network: getDefaultNetwork() },
-        getFacilitator()
+        getFacilitator(),
       )
     : async () => {
         return NextResponse.json(
           {
             error: "x402 payments not configured",
-            message: "Set X402_RECIPIENT_ADDRESS to your wallet address in .env.local",
+            message:
+              "Set X402_RECIPIENT_ADDRESS to your wallet address in .env.local",
             docs: "https://x402.org",
           },
-          { status: 501 }
+          { status: 501 },
         );
       };
 
 export async function GET(request: NextRequest) {
   // Return current balance and pricing info
-  const authResult = await requireAuthOrApiKeyWithOrg(request).catch(() => null);
+  const authResult = await requireAuthOrApiKeyWithOrg(request).catch(
+    () => null,
+  );
 
   if (!authResult) {
-    return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+    return NextResponse.json(
+      { error: "Authentication required" },
+      { status: 401 },
+    );
   }
 
-  const org = await organizationsService.getById(authResult.user.organization_id);
+  const org = await organizationsService.getById(
+    authResult.user.organization_id,
+  );
   if (!org) {
-    return NextResponse.json({ error: "Organization not found" }, { status: 404 });
+    return NextResponse.json(
+      { error: "Organization not found" },
+      { status: 404 },
+    );
   }
 
   return NextResponse.json({
@@ -248,7 +277,8 @@ export async function OPTIONS() {
     headers: {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, Authorization, X-API-Key, X-PAYMENT",
+      "Access-Control-Allow-Headers":
+        "Content-Type, Authorization, X-API-Key, X-PAYMENT",
     },
   });
 }

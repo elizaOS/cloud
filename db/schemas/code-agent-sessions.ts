@@ -167,12 +167,12 @@ export const codeAgentSessions = pgTable(
     status_idx: index("code_agent_sessions_status_idx").on(table.status),
     runtime_idx: index("code_agent_sessions_runtime_idx").on(table.runtime_id),
     created_at_idx: index("code_agent_sessions_created_at_idx").on(
-      table.created_at
+      table.created_at,
     ),
     expires_at_idx: index("code_agent_sessions_expires_at_idx").on(
-      table.expires_at
+      table.expires_at,
     ),
-  })
+  }),
 );
 
 export const codeAgentSnapshots = pgTable(
@@ -224,12 +224,12 @@ export const codeAgentSnapshots = pgTable(
   (table) => ({
     session_idx: index("code_agent_snapshots_session_idx").on(table.session_id),
     created_at_idx: index("code_agent_snapshots_created_at_idx").on(
-      table.created_at
+      table.created_at,
     ),
     storage_key_idx: index("code_agent_snapshots_storage_key_idx").on(
-      table.storage_key
+      table.storage_key,
     ),
-  })
+  }),
 );
 
 export const codeAgentCommands = pgTable(
@@ -291,9 +291,9 @@ export const codeAgentCommands = pgTable(
     session_idx: index("code_agent_commands_session_idx").on(table.session_id),
     status_idx: index("code_agent_commands_status_idx").on(table.status),
     created_at_idx: index("code_agent_commands_created_at_idx").on(
-      table.created_at
+      table.created_at,
     ),
-  })
+  }),
 );
 
 export const interpreterExecutions = pgTable(
@@ -339,12 +339,12 @@ export const interpreterExecutions = pgTable(
     org_idx: index("interpreter_executions_org_idx").on(table.organization_id),
     user_idx: index("interpreter_executions_user_idx").on(table.user_id),
     language_idx: index("interpreter_executions_language_idx").on(
-      table.language
+      table.language,
     ),
     created_at_idx: index("interpreter_executions_created_at_idx").on(
-      table.created_at
+      table.created_at,
     ),
-  })
+  }),
 );
 
 export type CodeAgentSession = InferSelectModel<typeof codeAgentSessions>;
@@ -356,6 +356,9 @@ export type NewCodeAgentSnapshot = InferInsertModel<typeof codeAgentSnapshots>;
 export type CodeAgentCommand = InferSelectModel<typeof codeAgentCommands>;
 export type NewCodeAgentCommand = InferInsertModel<typeof codeAgentCommands>;
 
-export type InterpreterExecution = InferSelectModel<typeof interpreterExecutions>;
-export type NewInterpreterExecution = InferInsertModel<typeof interpreterExecutions>;
-
+export type InterpreterExecution = InferSelectModel<
+  typeof interpreterExecutions
+>;
+export type NewInterpreterExecution = InferInsertModel<
+  typeof interpreterExecutions
+>;

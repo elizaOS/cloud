@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { n8nWorkflowsService } from "@/lib/services/n8n-workflows";
-import { CreateVariableSchema, formatVariable, ErrorResponses } from "@/lib/n8n/schemas";
+import {
+  CreateVariableSchema,
+  formatVariable,
+  ErrorResponses,
+} from "@/lib/n8n/schemas";
 
 export async function GET(
   request: NextRequest,
-  ctx: { params: Promise<{ id: string }> }
+  ctx: { params: Promise<{ id: string }> },
 ) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { id } = await ctx.params;
@@ -16,12 +20,15 @@ export async function GET(
   }
 
   const variables = await n8nWorkflowsService.getWorkflowVariables(id);
-  return NextResponse.json({ success: true, variables: variables.map(formatVariable) });
+  return NextResponse.json({
+    success: true,
+    variables: variables.map(formatVariable),
+  });
 }
 
 export async function POST(
   request: NextRequest,
-  ctx: { params: Promise<{ id: string }> }
+  ctx: { params: Promise<{ id: string }> },
 ) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { id } = await ctx.params;
@@ -34,7 +41,10 @@ export async function POST(
   const body = await request.json();
   const validation = CreateVariableSchema.safeParse(body);
   if (!validation.success) {
-    return NextResponse.json(ErrorResponses.invalidRequest(validation.error.format()), { status: 400 });
+    return NextResponse.json(
+      ErrorResponses.invalidRequest(validation.error.format()),
+      { status: 400 },
+    );
   }
 
   const { name, value, type, isSecret, description } = validation.data;
@@ -48,7 +58,8 @@ export async function POST(
     description,
   });
 
-  return NextResponse.json({ success: true, variable: formatVariable(variable) });
+  return NextResponse.json({
+    success: true,
+    variable: formatVariable(variable),
+  });
 }
-
-

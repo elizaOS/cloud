@@ -10,7 +10,10 @@ import { z } from "zod";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { botsService } from "@/lib/services/bots";
 
-export async function GET(request: NextRequest, { params }: { params: Promise<{ botId: string; serverId: string }> }) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ botId: string; serverId: string }> },
+) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { botId, serverId } = await params;
 
@@ -42,11 +45,16 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 const UpdateSchema = z.object({
   enabled: z.boolean().optional(),
   enabledAgents: z.array(z.string()).optional(),
-  agentSettings: z.record(z.string(), z.record(z.string(), z.unknown())).optional(),
+  agentSettings: z
+    .record(z.string(), z.record(z.string(), z.unknown()))
+    .optional(),
   channelMappings: z.record(z.string(), z.string()).optional(),
 });
 
-export async function PATCH(request: NextRequest, { params }: { params: Promise<{ botId: string; serverId: string }> }) {
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ botId: string; serverId: string }> },
+) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { botId, serverId } = await params;
 
@@ -57,10 +65,12 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
   const body = await request.json();
   const parsed = UpdateSchema.safeParse(body);
-  if (!parsed.success) return NextResponse.json({ error: "Invalid request" }, { status: 400 });
+  if (!parsed.success)
+    return NextResponse.json({ error: "Invalid request" }, { status: 400 });
 
   const server = await botsService.updateServer(serverId, parsed.data);
-  if (!server) return NextResponse.json({ error: "Server not found" }, { status: 404 });
+  if (!server)
+    return NextResponse.json({ error: "Server not found" }, { status: 404 });
 
   return NextResponse.json({
     server: {
@@ -72,4 +82,3 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     },
   });
 }
-

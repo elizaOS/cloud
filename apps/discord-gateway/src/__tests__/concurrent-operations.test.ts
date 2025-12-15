@@ -23,7 +23,10 @@ describe("Concurrent Operations", () => {
       }
 
       if (url.includes("/assignments")) {
-        return { ok: true, json: () => Promise.resolve({ assignments: [] }) } as Response;
+        return {
+          ok: true,
+          json: () => Promise.resolve({ assignments: [] }),
+        } as Response;
       }
       return { ok: true, json: () => Promise.resolve({}) } as Response;
     }) as unknown as typeof fetch;
@@ -43,7 +46,7 @@ describe("Concurrent Operations", () => {
 
       // Call getHealth many times concurrently
       const healthPromises = Array.from({ length: 100 }, () =>
-        Promise.resolve(manager.getHealth())
+        Promise.resolve(manager.getHealth()),
       );
 
       const results = await Promise.all(healthPromises);
@@ -63,7 +66,7 @@ describe("Concurrent Operations", () => {
       });
 
       const metricsPromises = Array.from({ length: 50 }, () =>
-        Promise.resolve(manager.getMetrics())
+        Promise.resolve(manager.getMetrics()),
       );
 
       const results = await Promise.all(metricsPromises);
@@ -81,7 +84,7 @@ describe("Concurrent Operations", () => {
       });
 
       const statusPromises = Array.from({ length: 50 }, () =>
-        Promise.resolve(manager.getStatus())
+        Promise.resolve(manager.getStatus()),
       );
 
       const results = await Promise.all(statusPromises);
@@ -158,7 +161,7 @@ describe("Concurrent Operations", () => {
 
       // Simulate load
       await Promise.all(
-        Array.from({ length: 100 }, () => Promise.resolve(manager.getHealth()))
+        Array.from({ length: 100 }, () => Promise.resolve(manager.getHealth())),
       );
 
       await new Promise((r) => setTimeout(r, 100));
@@ -233,7 +236,10 @@ describe("Error Propagation", () => {
       if (shouldThrow) {
         throw new Error(errorMessage);
       }
-      return { ok: true, json: () => Promise.resolve({ assignments: [] }) } as Response;
+      return {
+        ok: true,
+        json: () => Promise.resolve({ assignments: [] }),
+      } as Response;
     }) as unknown as typeof fetch;
   });
 
@@ -255,7 +261,10 @@ describe("Error Propagation", () => {
       if (callCount === 2) {
         throw new Error("Transient failure");
       }
-      return { ok: true, json: () => Promise.resolve({ assignments: [] }) } as Response;
+      return {
+        ok: true,
+        json: () => Promise.resolve({ assignments: [] }),
+      } as Response;
     }) as unknown as typeof fetch;
 
     await manager.start();
@@ -326,7 +335,7 @@ describe("Memory and Resource Management", () => {
           podName: `manager-${i}`,
           elizaCloudUrl: "https://test.elizacloud.ai",
           internalApiKey: "test-key",
-        })
+        }),
       );
     }
 
@@ -342,7 +351,10 @@ describe("Memory and Resource Management", () => {
     const originalFetch = globalThis.fetch;
 
     globalThis.fetch = mock(async () => {
-      return { ok: true, json: () => Promise.resolve({ assignments: [] }) } as Response;
+      return {
+        ok: true,
+        json: () => Promise.resolve({ assignments: [] }),
+      } as Response;
     }) as unknown as typeof fetch;
 
     const manager = new GatewayManager({

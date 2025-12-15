@@ -1,9 +1,9 @@
 /**
  * MCP Tools Module
- * 
+ *
  * This module provides a modular structure for MCP tools.
  * Tools are organized by category for maintainability.
- * 
+ *
  * Categories:
  * - credits: Credit balance, transactions, billing
  * - ai-generation: Text, image, video, embeddings, TTS
@@ -20,11 +20,11 @@
  * - collections: Media collections for organizing generated/uploaded assets
  * - discord-gateway: Discord bot connections, event routing, queue management
  * - defi: DeFi services (Birdeye, Jupiter, CoinGecko, Helius, CMC, 0x, Defined)
- * 
+ *
  * Usage:
  * ```ts
  * import { registerAllTools } from "@/lib/mcp/tools";
- * 
+ *
  * const mcpHandler = createMcpHandler((server) => {
  *   registerAllTools(server, getAuthContext);
  * });

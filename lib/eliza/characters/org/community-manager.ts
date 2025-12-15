@@ -107,7 +107,9 @@ Always direct users to configure settings through the UI rather than trying to m
     [
       {
         name: "{{user}}",
-        content: { text: "🚨 FREE AIRDROP! Connect wallet: https://fake-airdrop.xyz 🚨" },
+        content: {
+          text: "🚨 FREE AIRDROP! Connect wallet: https://fake-airdrop.xyz 🚨",
+        },
       },
       {
         name: "Eli5",

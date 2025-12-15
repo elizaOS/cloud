@@ -49,30 +49,62 @@ interface TagsResponse {
 
 const TAG_CATEGORIES: Record<string, string[]> = {
   capabilities: [
-    "chat", "image-generation", "video-generation", "code-generation",
-    "text-to-speech", "speech-to-text", "embeddings", "translation",
-    "summarization", "question-answering", "tool-use", "function-calling",
-    "web-search", "file-processing", "data-analysis", "reasoning",
+    "chat",
+    "image-generation",
+    "video-generation",
+    "code-generation",
+    "text-to-speech",
+    "speech-to-text",
+    "embeddings",
+    "translation",
+    "summarization",
+    "question-answering",
+    "tool-use",
+    "function-calling",
+    "web-search",
+    "file-processing",
+    "data-analysis",
+    "reasoning",
   ],
   domains: [
-    "finance", "healthcare", "education", "entertainment", "gaming",
-    "productivity", "social", "creative", "research", "legal",
-    "marketing", "sales", "support", "engineering", "devops",
+    "finance",
+    "healthcare",
+    "education",
+    "entertainment",
+    "gaming",
+    "productivity",
+    "social",
+    "creative",
+    "research",
+    "legal",
+    "marketing",
+    "sales",
+    "support",
+    "engineering",
+    "devops",
   ],
   protocols: [
-    "mcp", "a2a", "openai", "anthropic", "rest", "graphql",
-    "websocket", "grpc", "x402", "oauth",
+    "mcp",
+    "a2a",
+    "openai",
+    "anthropic",
+    "rest",
+    "graphql",
+    "websocket",
+    "grpc",
+    "x402",
+    "oauth",
   ],
   trust: [
-    "verified", "staked", "tee-attested", "reputation-scored",
-    "crypto-economic", "audited",
+    "verified",
+    "staked",
+    "tee-attested",
+    "reputation-scored",
+    "crypto-economic",
+    "audited",
   ],
-  pricing: [
-    "free", "credits", "x402", "subscription", "pay-per-use",
-  ],
-  status: [
-    "active", "available", "online", "beta", "deprecated",
-  ],
+  pricing: ["free", "credits", "x402", "subscription", "pay-per-use"],
+  status: ["active", "available", "online", "beta", "deprecated"],
 };
 
 // ============================================================================
@@ -95,7 +127,7 @@ const querySchema = z.object({
 export async function GET(request: NextRequest) {
   try {
     logger.info("[Discovery/Tags] Request received");
-    
+
     const url = new URL(request.url);
     const rawParams = Object.fromEntries(url.searchParams);
 
@@ -103,171 +135,196 @@ export async function GET(request: NextRequest) {
     if (!parseResult.success) {
       return NextResponse.json(
         { error: "Invalid parameters", details: parseResult.error.issues },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     const params = parseResult.data;
     const cacheKey = `discovery:tags:${params.sources?.join(",") || "all"}:${params.category || "all"}`;
 
-  // Cache for 10 minutes (tags don't change frequently)
-  const cached = await cache.get<TagsResponse>(cacheKey);
-  if (cached) {
-    return NextResponse.json({ ...cached, cached: true });
-  }
+    // Cache for 10 minutes (tags don't change frequently)
+    const cached = await cache.get<TagsResponse>(cacheKey);
+    if (cached) {
+      return NextResponse.json({ ...cached, cached: true });
+    }
 
-  const tagCounts = new Map<string, { local: number; erc8004: number }>();
-  const sources = params.sources ?? ["local", "erc8004"];
+    const tagCounts = new Map<string, { local: number; erc8004: number }>();
+    const sources = params.sources ?? ["local", "erc8004"];
 
-  // ========================================================================
-  // Collect tags from local sources
-  // ========================================================================
-  if (sources.includes("local")) {
-    try {
-      // Get character tags
-      const charactersResult = await characterMarketplaceService.searchCharactersPublic({
-        filters: {},
-        sortOptions: { field: "popularity_score", direction: "desc" },
-        pagination: { limit: 500, page: 1 },
-        includeStats: false,
-      });
+    // ========================================================================
+    // Collect tags from local sources
+    // ========================================================================
+    if (sources.includes("local")) {
+      try {
+        // Get character tags
+        const charactersResult =
+          await characterMarketplaceService.searchCharactersPublic({
+            filters: {},
+            sortOptions: { field: "popularity_score", direction: "desc" },
+            pagination: { limit: 500, page: 1 },
+            includeStats: false,
+          });
 
-      for (const char of charactersResult.characters) {
-        for (const tag of char.tags ?? []) {
-          const normalizedTag = tag.toLowerCase().trim();
-          const existing = tagCounts.get(normalizedTag) ?? { local: 0, erc8004: 0 };
-          existing.local++;
-          tagCounts.set(normalizedTag, existing);
+        for (const char of charactersResult.characters) {
+          for (const tag of char.tags ?? []) {
+            const normalizedTag = tag.toLowerCase().trim();
+            const existing = tagCounts.get(normalizedTag) ?? {
+              local: 0,
+              erc8004: 0,
+            };
+            existing.local++;
+            tagCounts.set(normalizedTag, existing);
+          }
         }
+
+        // Get MCP tags
+        const mcps = await userMcpsService.listPublic({ limit: 500 });
+
+        for (const mcp of mcps) {
+          for (const tag of mcp.tags ?? []) {
+            const normalizedTag = tag.toLowerCase().trim();
+            const existing = tagCounts.get(normalizedTag) ?? {
+              local: 0,
+              erc8004: 0,
+            };
+            existing.local++;
+            tagCounts.set(normalizedTag, existing);
+          }
+        }
+      } catch (dbError) {
+        logger.warn(
+          "[Discovery/Tags] Database unavailable, skipping local sources",
+          {
+            error: dbError instanceof Error ? dbError.message : String(dbError),
+          },
+        );
+      }
+    }
+
+    // ========================================================================
+    // Collect tags from ERC-8004 registry
+    // ========================================================================
+    if (sources.includes("erc8004")) {
+      try {
+        const agents = await agent0Service.searchAgentsCached({ active: true });
+        logger.info("[Discovery/Tags] Fetched ERC-8004 agents", {
+          count: agents.length,
+        });
+
+        for (const agent of agents) {
+          // Extract tags from agent metadata
+          // Include actual tags array, mcpTools, and a2aSkills
+          const agentTags = [
+            ...(agent.tags ?? []),
+            ...(agent.mcpTools ?? []),
+            ...(agent.a2aSkills ?? []),
+          ];
+
+          for (const tag of agentTags) {
+            const normalizedTag = tag.toLowerCase().trim();
+            if (!normalizedTag) continue;
+            const existing = tagCounts.get(normalizedTag) ?? {
+              local: 0,
+              erc8004: 0,
+            };
+            existing.erc8004++;
+            tagCounts.set(normalizedTag, existing);
+          }
+        }
+      } catch (erc8004Error) {
+        logger.warn("[Discovery/Tags] ERC-8004 query failed", {
+          error:
+            erc8004Error instanceof Error
+              ? erc8004Error.message
+              : String(erc8004Error),
+        });
+      }
+    }
+
+    // ========================================================================
+    // Build response
+    // ========================================================================
+    const tags: TagInfo[] = [];
+
+    for (const [tag, counts] of tagCounts.entries()) {
+      // Determine source
+      let source: "local" | "erc8004" | "both";
+      if (counts.local > 0 && counts.erc8004 > 0) {
+        source = "both";
+      } else if (counts.local > 0) {
+        source = "local";
+      } else {
+        source = "erc8004";
       }
 
-      // Get MCP tags
-      const mcps = await userMcpsService.listPublic({ limit: 500 });
+      // Find categories this tag belongs to
+      const tagCategories = Object.entries(TAG_CATEGORIES)
+        .filter(([_, categoryTags]) => categoryTags.includes(tag))
+        .map(([category]) => category);
 
-      for (const mcp of mcps) {
-        for (const tag of mcp.tags ?? []) {
-          const normalizedTag = tag.toLowerCase().trim();
-          const existing = tagCounts.get(normalizedTag) ?? { local: 0, erc8004: 0 };
-          existing.local++;
-          tagCounts.set(normalizedTag, existing);
-        }
-      }
-    } catch (dbError) {
-      logger.warn("[Discovery/Tags] Database unavailable, skipping local sources", { 
-        error: dbError instanceof Error ? dbError.message : String(dbError) 
+      tags.push({
+        tag,
+        count: counts.local + counts.erc8004,
+        source,
+        categories: tagCategories.length > 0 ? tagCategories : undefined,
       });
     }
-  }
 
-  // ========================================================================
-  // Collect tags from ERC-8004 registry
-  // ========================================================================
-  if (sources.includes("erc8004")) {
-    try {
-      const agents = await agent0Service.searchAgentsCached({ active: true });
-      logger.info("[Discovery/Tags] Fetched ERC-8004 agents", { count: agents.length });
+    // Sort by count descending
+    tags.sort((a, b) => b.count - a.count);
 
-      for (const agent of agents) {
-        // Extract tags from agent metadata
-        // Include actual tags array, mcpTools, and a2aSkills
-        const agentTags = [
-          ...(agent.tags ?? []),
-          ...(agent.mcpTools ?? []),
-          ...(agent.a2aSkills ?? []),
-        ];
+    // Apply limit
+    const limitedTags = tags.slice(0, params.limit);
 
-        for (const tag of agentTags) {
-          const normalizedTag = tag.toLowerCase().trim();
-          if (!normalizedTag) continue;
-          const existing = tagCounts.get(normalizedTag) ?? { local: 0, erc8004: 0 };
-          existing.erc8004++;
-          tagCounts.set(normalizedTag, existing);
-        }
+    // Build category summary
+    const categoryMap = new Map<string, { tags: Set<string>; count: number }>();
+
+    for (const tagInfo of limitedTags) {
+      for (const category of tagInfo.categories ?? []) {
+        const existing = categoryMap.get(category) ?? {
+          tags: new Set(),
+          count: 0,
+        };
+        existing.tags.add(tagInfo.tag);
+        existing.count += tagInfo.count;
+        categoryMap.set(category, existing);
       }
-    } catch (erc8004Error) {
-      logger.warn("[Discovery/Tags] ERC-8004 query failed", {
-        error: erc8004Error instanceof Error ? erc8004Error.message : String(erc8004Error),
-      });
-    }
-  }
-
-  // ========================================================================
-  // Build response
-  // ========================================================================
-  const tags: TagInfo[] = [];
-
-  for (const [tag, counts] of tagCounts.entries()) {
-    // Determine source
-    let source: "local" | "erc8004" | "both";
-    if (counts.local > 0 && counts.erc8004 > 0) {
-      source = "both";
-    } else if (counts.local > 0) {
-      source = "local";
-    } else {
-      source = "erc8004";
     }
 
-    // Find categories this tag belongs to
-    const tagCategories = Object.entries(TAG_CATEGORIES)
-      .filter(([_, categoryTags]) => categoryTags.includes(tag))
-      .map(([category]) => category);
+    const categories = Array.from(categoryMap.entries())
+      .map(([category, data]) => ({
+        category,
+        tags: Array.from(data.tags),
+        count: data.count,
+      }))
+      .sort((a, b) => b.count - a.count);
 
-    tags.push({
-      tag,
-      count: counts.local + counts.erc8004,
-      source,
-      categories: tagCategories.length > 0 ? tagCategories : undefined,
-    });
-  }
+    // Recommended tags (most popular from key categories)
+    const recommended = tags
+      .filter((t) =>
+        t.categories?.some((c) => ["capabilities", "domains"].includes(c)),
+      )
+      .slice(0, 20)
+      .map((t) => t.tag);
 
-  // Sort by count descending
-  tags.sort((a, b) => b.count - a.count);
+    const response: TagsResponse = {
+      tags: limitedTags,
+      total: tags.length,
+      categories,
+      recommended,
+    };
 
-  // Apply limit
-  const limitedTags = tags.slice(0, params.limit);
+    await cache.set(cacheKey, response, CacheTTL.erc8004.discovery);
 
-  // Build category summary
-  const categoryMap = new Map<string, { tags: Set<string>; count: number }>();
-
-  for (const tagInfo of limitedTags) {
-    for (const category of tagInfo.categories ?? []) {
-      const existing = categoryMap.get(category) ?? { tags: new Set(), count: 0 };
-      existing.tags.add(tagInfo.tag);
-      existing.count += tagInfo.count;
-      categoryMap.set(category, existing);
-    }
-  }
-
-  const categories = Array.from(categoryMap.entries())
-    .map(([category, data]) => ({
-      category,
-      tags: Array.from(data.tags),
-      count: data.count,
-    }))
-    .sort((a, b) => b.count - a.count);
-
-  // Recommended tags (most popular from key categories)
-  const recommended = tags
-    .filter((t) => t.categories?.some((c) => ["capabilities", "domains"].includes(c)))
-    .slice(0, 20)
-    .map((t) => t.tag);
-
-  const response: TagsResponse = {
-    tags: limitedTags,
-    total: tags.length,
-    categories,
-    recommended,
-  };
-
-  await cache.set(cacheKey, response, CacheTTL.erc8004.discovery);
-
-  return NextResponse.json(response);
+    return NextResponse.json(response);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    logger.error("[Discovery/Tags] Error fetching tags", { error: errorMessage });
+    logger.error("[Discovery/Tags] Error fetching tags", {
+      error: errorMessage,
+    });
     return NextResponse.json(
       { error: "Internal server error", message: errorMessage },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -277,4 +334,3 @@ export async function GET(request: NextRequest) {
 // ============================================================================
 
 export const WELL_KNOWN_TAGS = TAG_CATEGORIES;
-

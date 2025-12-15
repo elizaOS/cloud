@@ -57,16 +57,22 @@ test.describe("Referrals & Rewards API", () => {
       request,
     }) => {
       // Get our own code
-      const codeResponse = await request.get(`${CLOUD_URL}/api/v1/app/referral`, {
-        headers: authHeaders(),
-      });
+      const codeResponse = await request.get(
+        `${CLOUD_URL}/api/v1/app/referral`,
+        {
+          headers: authHeaders(),
+        },
+      );
       const { referral } = await codeResponse.json();
 
       // Try to apply our own code
-      const response = await request.post(`${CLOUD_URL}/api/v1/app/referral/apply`, {
-        headers: authHeaders(),
-        data: { code: referral.code },
-      });
+      const response = await request.post(
+        `${CLOUD_URL}/api/v1/app/referral/apply`,
+        {
+          headers: authHeaders(),
+          data: { code: referral.code },
+        },
+      );
 
       expect(response.status()).toBe(400);
       const data = await response.json();
@@ -77,10 +83,13 @@ test.describe("Referrals & Rewards API", () => {
     test("POST /api/v1/app/referral/apply - should reject invalid code", async ({
       request,
     }) => {
-      const response = await request.post(`${CLOUD_URL}/api/v1/app/referral/apply`, {
-        headers: authHeaders(),
-        data: { code: "INVALID-123456" },
-      });
+      const response = await request.post(
+        `${CLOUD_URL}/api/v1/app/referral/apply`,
+        {
+          headers: authHeaders(),
+          data: { code: "INVALID-123456" },
+        },
+      );
 
       expect(response.status()).toBe(400);
       const data = await response.json();
@@ -91,10 +100,13 @@ test.describe("Referrals & Rewards API", () => {
     test("POST /api/v1/app/referral/apply - should reject empty code", async ({
       request,
     }) => {
-      const response = await request.post(`${CLOUD_URL}/api/v1/app/referral/apply`, {
-        headers: authHeaders(),
-        data: { code: "" },
-      });
+      const response = await request.post(
+        `${CLOUD_URL}/api/v1/app/referral/apply`,
+        {
+          headers: authHeaders(),
+          data: { code: "" },
+        },
+      );
 
       expect(response.status()).toBe(400);
     });
@@ -103,9 +115,12 @@ test.describe("Referrals & Rewards API", () => {
       request,
     }) => {
       // Call the qualify endpoint - it should work even if user wasn't referred
-      const response = await request.post(`${CLOUD_URL}/api/v1/app/referral/qualify`, {
-        headers: authHeaders(),
-      });
+      const response = await request.post(
+        `${CLOUD_URL}/api/v1/app/referral/qualify`,
+        {
+          headers: authHeaders(),
+        },
+      );
 
       expect(response.status()).toBe(200);
       const data = await response.json();
@@ -118,7 +133,9 @@ test.describe("Referrals & Rewards API", () => {
     test("POST /api/v1/app/referral/qualify - should require authentication", async ({
       request,
     }) => {
-      const response = await request.post(`${CLOUD_URL}/api/v1/app/referral/qualify`);
+      const response = await request.post(
+        `${CLOUD_URL}/api/v1/app/referral/qualify`,
+      );
       expect(response.status()).toBe(401);
     });
   });
@@ -141,7 +158,9 @@ test.describe("Referrals & Rewards API", () => {
       expect(data.rewards.sharing.status.x).toBeDefined();
       expect(data.rewards.sharing.status.farcaster).toBeDefined();
       expect(data.rewards.referrals).toBeDefined();
-      expect(data.rewards.referrals.qualifiedEarnings).toBeGreaterThanOrEqual(0);
+      expect(data.rewards.referrals.qualifiedEarnings).toBeGreaterThanOrEqual(
+        0,
+      );
       expect(data.rewards.rewardRates).toBeDefined();
       expect(data.rewards.rewardRates.shareX).toBeGreaterThan(0);
       expect(data.rewards.rewardRates.shareFarcaster).toBeGreaterThan(0);
@@ -151,14 +170,17 @@ test.describe("Referrals & Rewards API", () => {
     test("POST /api/v1/app/rewards/share - should claim X share reward", async ({
       request,
     }) => {
-      const response = await request.post(`${CLOUD_URL}/api/v1/app/rewards/share`, {
-        headers: authHeaders(),
-        data: {
-          platform: "x",
-          shareType: "app_share",
-          shareUrl: "https://twitter.com/test/status/123",
+      const response = await request.post(
+        `${CLOUD_URL}/api/v1/app/rewards/share`,
+        {
+          headers: authHeaders(),
+          data: {
+            platform: "x",
+            shareType: "app_share",
+            shareUrl: "https://twitter.com/test/status/123",
+          },
         },
-      });
+      );
 
       expect(response.status()).toBe(200);
       const data = await response.json();
@@ -186,13 +208,16 @@ test.describe("Referrals & Rewards API", () => {
       });
 
       // Second claim same day should fail with alreadyAwarded flag
-      const response = await request.post(`${CLOUD_URL}/api/v1/app/rewards/share`, {
-        headers: authHeaders(),
-        data: {
-          platform: "farcaster",
-          shareType: "app_share",
+      const response = await request.post(
+        `${CLOUD_URL}/api/v1/app/rewards/share`,
+        {
+          headers: authHeaders(),
+          data: {
+            platform: "farcaster",
+            shareType: "app_share",
+          },
         },
-      });
+      );
 
       expect(response.status()).toBe(400);
       const data = await response.json();
@@ -204,13 +229,16 @@ test.describe("Referrals & Rewards API", () => {
     test("POST /api/v1/app/rewards/share - should reject invalid platform", async ({
       request,
     }) => {
-      const response = await request.post(`${CLOUD_URL}/api/v1/app/rewards/share`, {
-        headers: authHeaders(),
-        data: {
-          platform: "invalid_platform",
-          shareType: "app_share",
+      const response = await request.post(
+        `${CLOUD_URL}/api/v1/app/rewards/share`,
+        {
+          headers: authHeaders(),
+          data: {
+            platform: "invalid_platform",
+            shareType: "app_share",
+          },
         },
-      });
+      );
 
       expect(response.status()).toBe(400);
     });
@@ -218,13 +246,16 @@ test.describe("Referrals & Rewards API", () => {
     test("POST /api/v1/app/rewards/share - should reject invalid share type", async ({
       request,
     }) => {
-      const response = await request.post(`${CLOUD_URL}/api/v1/app/rewards/share`, {
-        headers: authHeaders(),
-        data: {
-          platform: "x",
-          shareType: "invalid_type",
+      const response = await request.post(
+        `${CLOUD_URL}/api/v1/app/rewards/share`,
+        {
+          headers: authHeaders(),
+          data: {
+            platform: "x",
+            shareType: "invalid_type",
+          },
         },
-      });
+      );
 
       expect(response.status()).toBe(400);
     });
@@ -240,7 +271,7 @@ test.describe("Referrals & Rewards API", () => {
             platform: "telegram",
             shareType: "app_share",
           },
-        })
+        }),
       );
 
       const responses = await Promise.all(promises);
@@ -248,7 +279,9 @@ test.describe("Referrals & Rewards API", () => {
 
       // Count successful claims
       const successCount = results.filter((r) => r.success === true).length;
-      const alreadyAwardedCount = results.filter((r) => r.alreadyAwarded === true).length;
+      const alreadyAwardedCount = results.filter(
+        (r) => r.alreadyAwarded === true,
+      ).length;
 
       // At most ONE should succeed, rest should be rejected as already awarded
       // (Unless already claimed from a previous test run, then 0 succeed)
@@ -256,11 +289,13 @@ test.describe("Referrals & Rewards API", () => {
 
       // All responses should either be success or already awarded
       for (const result of results) {
-        expect(result.success === true || result.alreadyAwarded === true).toBe(true);
+        expect(result.success === true || result.alreadyAwarded === true).toBe(
+          true,
+        );
       }
 
       console.log(
-        `✅ Race condition test: ${successCount} success, ${alreadyAwardedCount} already awarded`
+        `✅ Race condition test: ${successCount} success, ${alreadyAwardedCount} already awarded`,
       );
     });
 
@@ -286,7 +321,7 @@ test.describe("Referrals & Rewards API", () => {
 
       // Discord should show as claimed
       expect(data.rewards.sharing.status.discord.claimed).toBe(true);
-      
+
       console.log("✅ Rewards status correctly reflects claimed share");
     });
   });
@@ -309,14 +344,16 @@ test.describe("Referrals & Rewards API", () => {
     test("POST /api/v1/app/rewards/share - should require authentication", async ({
       request,
     }) => {
-      const response = await request.post(`${CLOUD_URL}/api/v1/app/rewards/share`, {
-        data: {
-          platform: "x",
-          shareType: "app_share",
+      const response = await request.post(
+        `${CLOUD_URL}/api/v1/app/rewards/share`,
+        {
+          data: {
+            platform: "x",
+            shareType: "app_share",
+          },
         },
-      });
+      );
       expect(response.status()).toBe(401);
     });
   });
 });
-

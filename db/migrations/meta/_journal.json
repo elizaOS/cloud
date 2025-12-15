@@ -176,6 +176,13 @@
       "when": 1764940817940,
       "tag": "0002_chemical_dragon_lord",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1765763987750,
+      "tag": "0003_little_sunspot",
+      "breakpoints": true
     }
   ]
 }

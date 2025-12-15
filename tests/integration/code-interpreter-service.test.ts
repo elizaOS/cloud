@@ -11,7 +11,9 @@ import { requireDatabase, skipIfNoDb, requireSchema } from "../test-utils";
 describe("Code Interpreter Service - Integration", () => {
   let testOrgId: string;
   let testUserId: string;
-  let interpreterService: Awaited<typeof import("@/lib/services/code-agent")>["interpreterService"];
+  let interpreterService: Awaited<
+    typeof import("@/lib/services/code-agent")
+  >["interpreterService"];
 
   beforeAll(async () => {
     const dbAvailable = await requireDatabase();
@@ -36,8 +38,13 @@ describe("Code Interpreter Service - Integration", () => {
   const mockCredits = async () => {
     const creditsModule = await import("@/lib/services/credits");
     const original = creditsModule.creditsService.deductCredits;
-    creditsModule.creditsService.deductCredits = async () => ({ success: true, newBalance: 99 });
-    return () => { creditsModule.creditsService.deductCredits = original; };
+    creditsModule.creditsService.deductCredits = async () => ({
+      success: true,
+      newBalance: 99,
+    });
+    return () => {
+      creditsModule.creditsService.deductCredits = original;
+    };
   };
 
   describe("JavaScript Execution", () => {
@@ -184,7 +191,7 @@ describe("Code Interpreter Service - Integration", () => {
           userId: fakeUserId,
           language: "javascript",
           code: 'console.log("test")',
-        })
+        }),
       ).rejects.toThrow();
     });
   });
@@ -205,7 +212,7 @@ describe("Code Interpreter Service - Integration", () => {
             userId: testUserId,
             language: "ruby" as "python",
             code: 'puts "hello"',
-          })
+          }),
         ).rejects.toThrow("Unsupported language");
       } finally {
         restore();

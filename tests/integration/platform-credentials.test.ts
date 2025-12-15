@@ -182,7 +182,7 @@ describe("Security", () => {
   test("credentials should require organization ownership", () => {
     const verifyOwnership = (
       credentialOrgId: string,
-      requestOrgId: string
+      requestOrgId: string,
     ): boolean => {
       return credentialOrgId === requestOrgId;
     };
@@ -212,22 +212,18 @@ describe("API Endpoints Structure", () => {
   });
 
   test("should have token retrieval endpoint", () => {
-    const tokenEndpoint = endpoints.find((e) =>
-      e.path.includes("/token")
-    );
+    const tokenEndpoint = endpoints.find((e) => e.path.includes("/token"));
     expect(tokenEndpoint?.methods).toContain("GET");
   });
 
   test("should have session status endpoint", () => {
-    const sessionEndpoint = endpoints.find((e) =>
-      e.path.includes("/session/")
-    );
+    const sessionEndpoint = endpoints.find((e) => e.path.includes("/session/"));
     expect(sessionEndpoint).toBeDefined();
   });
 
   test("should have OAuth callback endpoint", () => {
     const callbackEndpoint = endpoints.find((e) =>
-      e.path.includes("/platform-callback/")
+      e.path.includes("/platform-callback/"),
     );
     expect(callbackEndpoint).toBeDefined();
   });
@@ -281,4 +277,3 @@ describe("Platform Profile Normalization", () => {
     expect(normalized.username).toBe("testhandle");
   });
 });
-

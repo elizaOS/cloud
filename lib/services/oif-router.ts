@@ -1,6 +1,6 @@
 /**
  * OIF Cross-Chain Payment Router
- * 
+ *
  * Routes payments and payouts across chains via the Open Intents Framework.
  */
 
@@ -37,7 +37,13 @@ export interface CreateIntentRequest {
 
 export interface Intent extends CreateIntentRequest {
   id: string;
-  status: "pending" | "matched" | "filling" | "filled" | "expired" | "cancelled";
+  status:
+    | "pending"
+    | "matched"
+    | "filling"
+    | "filled"
+    | "expired"
+    | "cancelled";
   createdAt: number;
   matchedAt?: number;
   filledAt?: number;
@@ -87,17 +93,17 @@ export interface PayoutRoutingResult {
 const CHAIN_IDS: Record<X402Network, number> = {
   "jeju-localnet": 1337,
   "jeju-testnet": 420690,
-  "jeju": 420691,
+  jeju: 420691,
   "base-sepolia": 84532,
-  "base": 8453,
+  base: 8453,
 };
 
 const CHAIN_CONFIRM_TIMES: Record<X402Network, number> = {
   "jeju-localnet": 2,
   "jeju-testnet": 6,
-  "jeju": 6,
+  jeju: 6,
   "base-sepolia": 4,
-  "base": 4,
+  base: 4,
 };
 
 const ERC20_BALANCE_ABI = [
@@ -113,30 +119,37 @@ const ERC20_BALANCE_ABI = [
 const VIEM_CHAINS: Record<X402Network, typeof jeju> = {
   "jeju-localnet": jejuLocalnet,
   "jeju-testnet": jejuTestnet,
-  "jeju": jeju,
+  jeju: jeju,
   "base-sepolia": baseSepolia,
-  "base": base,
+  base: base,
 };
 
 function getHotWalletAddress(): Address | null {
-  const address = process.env.EVM_PAYOUT_WALLET_ADDRESS || process.env.X402_RECIPIENT_ADDRESS;
-  if (!address || address === "0x0000000000000000000000000000000000000000") return null;
+  const address =
+    process.env.EVM_PAYOUT_WALLET_ADDRESS || process.env.X402_RECIPIENT_ADDRESS;
+  if (!address || address === "0x0000000000000000000000000000000000000000")
+    return null;
   return address as Address;
 }
 
 function getTokenAddress(chain: X402Network, token: string): Address | null {
   if (token.toLowerCase() === "usdc") return USDC_ADDRESSES[chain];
-  
+
   if (token.toLowerCase() === "elizaos" || token.toLowerCase() === "eliza") {
     const evmTokens = ELIZA_TOKEN_ADDRESSES.evm;
-    const tokenKey = chain === "jeju" ? "jeju" 
-      : chain === "jeju-testnet" ? "jeju-testnet"
-      : chain === "base" ? "base"
-      : chain === "base-sepolia" ? "base"
-      : null;
+    const tokenKey =
+      chain === "jeju"
+        ? "jeju"
+        : chain === "jeju-testnet"
+          ? "jeju-testnet"
+          : chain === "base"
+            ? "base"
+            : chain === "base-sepolia"
+              ? "base"
+              : null;
     if (tokenKey && evmTokens[tokenKey]) return evmTokens[tokenKey] as Address;
   }
-  
+
   return null;
 }
 
@@ -160,7 +173,7 @@ class OIFRouterService {
     destinationChainId: number,
     inputToken: Address,
     outputToken: Address,
-    inputAmount: string
+    inputAmount: string,
   ): Promise<RouteQuote | null> {
     if (!this.isAvailable()) {
       logger.warn("[OIF] Cross-chain routing not available");
@@ -207,7 +220,7 @@ class OIFRouterService {
     }
 
     const intent = await response.json();
-    logger.info("[OIF] Intent created", { 
+    logger.info("[OIF] Intent created", {
       intentId: intent.id,
       source: request.sourceChainId,
       dest: request.destinationChainId,
@@ -217,7 +230,9 @@ class OIFRouterService {
   }
 
   async getIntent(intentId: string): Promise<Intent | null> {
-    const response = await fetch(`${this.aggregatorUrl}/api/intents/${intentId}`);
+    const response = await fetch(
+      `${this.aggregatorUrl}/api/intents/${intentId}`,
+    );
 
     if (!response.ok) {
       return null;
@@ -226,15 +241,18 @@ class OIFRouterService {
     return response.json();
   }
 
-  async waitForFill(intentId: string, timeoutMs = 300000): Promise<Intent | null> {
+  async waitForFill(
+    intentId: string,
+    timeoutMs = 300000,
+  ): Promise<Intent | null> {
     const startTime = Date.now();
     const pollInterval = 2000;
 
     while (Date.now() - startTime < timeoutMs) {
       const intent = await this.getIntent(intentId);
-      
+
       if (!intent) {
-        await new Promise(resolve => setTimeout(resolve, pollInterval));
+        await new Promise((resolve) => setTimeout(resolve, pollInterval));
         continue;
       }
 
@@ -243,21 +261,23 @@ class OIFRouterService {
       }
 
       if (intent.status === "expired" || intent.status === "cancelled") {
-        logger.warn("[OIF] Intent failed", { 
-          intentId, 
-          status: intent.status 
+        logger.warn("[OIF] Intent failed", {
+          intentId,
+          status: intent.status,
         });
         return intent;
       }
 
-      await new Promise(resolve => setTimeout(resolve, pollInterval));
+      await new Promise((resolve) => setTimeout(resolve, pollInterval));
     }
 
     logger.warn("[OIF] Intent fill timeout", { intentId, timeoutMs });
     return null;
   }
 
-  async getPayoutRoute(request: PayoutRoutingRequest): Promise<PayoutRoutingResult> {
+  async getPayoutRoute(
+    request: PayoutRoutingRequest,
+  ): Promise<PayoutRoutingResult> {
     const { preferredChain, allowFallback = true } = request;
 
     // If cross-chain not enabled, return settlement chain
@@ -286,7 +306,10 @@ class OIFRouterService {
 
     // Try primary settlement chain (Jeju)
     const primaryChain = getSettlementChain();
-    const primaryRoute = await this.checkChainAvailability(primaryChain, request);
+    const primaryRoute = await this.checkChainAvailability(
+      primaryChain,
+      request,
+    );
     if (primaryRoute) {
       return { success: true, route: primaryRoute };
     }
@@ -294,7 +317,10 @@ class OIFRouterService {
     // Try fallback chain (Base)
     if (allowFallback) {
       const fallbackChain = getSettlementFallbackChain();
-      const fallbackRoute = await this.checkChainAvailability(fallbackChain, request);
+      const fallbackRoute = await this.checkChainAvailability(
+        fallbackChain,
+        request,
+      );
       if (fallbackRoute) {
         return { success: true, route: fallbackRoute };
       }
@@ -308,31 +334,37 @@ class OIFRouterService {
 
   private async checkChainAvailability(
     chain: X402Network,
-    request: PayoutRoutingRequest
+    request: PayoutRoutingRequest,
   ): Promise<PayoutRoutingResult["route"] | null> {
     const chainId = CHAIN_IDS[chain];
     const networkConfig = getNetworkConfig(chain);
     const viemChain = VIEM_CHAINS[chain];
-    
+
     const tokenAddress = getTokenAddress(chain, request.token);
-    if (!tokenAddress || tokenAddress === "0x0000000000000000000000000000000000000000") {
-      logger.debug("[OIF] Token not configured on chain", { chain, token: request.token });
+    if (
+      !tokenAddress ||
+      tokenAddress === "0x0000000000000000000000000000000000000000"
+    ) {
+      logger.debug("[OIF] Token not configured on chain", {
+        chain,
+        token: request.token,
+      });
       return null;
     }
-    
+
     // Get hot wallet address
     const hotWallet = getHotWalletAddress();
     if (!hotWallet) {
       logger.debug("[OIF] No hot wallet configured");
       return null;
     }
-    
+
     try {
       const publicClient = createPublicClient({
         chain: viemChain,
         transport: http(networkConfig.rpcUrl),
       });
-      
+
       // Check token balance
       const tokenBalance = await publicClient.readContract({
         address: tokenAddress,
@@ -340,10 +372,10 @@ class OIFRouterService {
         functionName: "balanceOf",
         args: [hotWallet],
       });
-      
+
       // Convert request amount to token units (assuming 9 decimals for elizaOS)
       const requiredAmount = BigInt(Math.floor(request.amountUsd * 1e9));
-      
+
       if (tokenBalance < requiredAmount) {
         logger.debug("[OIF] Insufficient token balance", {
           chain,
@@ -352,11 +384,11 @@ class OIFRouterService {
         });
         return null;
       }
-      
+
       // Check ETH balance for gas
       const ethBalance = await publicClient.getBalance({ address: hotWallet });
       const minGasBalance = BigInt(1e16); // 0.01 ETH minimum
-      
+
       if (ethBalance < minGasBalance) {
         logger.debug("[OIF] Insufficient ETH for gas", {
           chain,
@@ -364,22 +396,22 @@ class OIFRouterService {
         });
         return null;
       }
-      
+
       // Estimate gas for transfer
       const gasPrice = await publicClient.getGasPrice();
       const estimatedGas = 65000n; // Typical ERC20 transfer
       const gasCost = gasPrice * estimatedGas;
-      
+
       // Estimate time based on chain
       const estimatedTime = CHAIN_CONFIRM_TIMES[chain];
-      
+
       logger.debug("[OIF] Chain available for payout", {
         chain,
         tokenBalance: formatUnits(tokenBalance, 9),
         ethBalance: formatUnits(ethBalance, 18),
         gasCost: formatUnits(gasCost, 18),
       });
-      
+
       return {
         chain,
         chainId,
@@ -410,7 +442,7 @@ export function canAcceptCrossChainPayment(sourceChainId: number): boolean {
 
 export async function getOptimalPayoutChain(
   recipient: Address,
-  preferredChain?: X402Network
+  preferredChain?: X402Network,
 ): Promise<X402Network> {
   const result = await oifRouter.getPayoutRoute({
     amountUsd: 0,
@@ -440,10 +472,11 @@ export interface CrossChainPayoutResult {
 }
 
 export async function executeCrossChainPayout(
-  request: CrossChainPayoutRequest
+  request: CrossChainPayoutRequest,
 ): Promise<CrossChainPayoutResult> {
-  const { sourceChain, destinationChain, token, amount, recipient, deadline } = request;
-  
+  const { sourceChain, destinationChain, token, amount, recipient, deadline } =
+    request;
+
   // If same chain, no cross-chain needed
   if (sourceChain === destinationChain) {
     return {
@@ -452,26 +485,29 @@ export async function executeCrossChainPayout(
       crossChain: false,
     };
   }
-  
+
   // Check if cross-chain is available
   if (!oifRouter.isAvailable()) {
-    logger.warn("[OIF] Cross-chain not available, falling back to source chain", {
-      sourceChain,
-      requestedChain: destinationChain,
-    });
+    logger.warn(
+      "[OIF] Cross-chain not available, falling back to source chain",
+      {
+        sourceChain,
+        requestedChain: destinationChain,
+      },
+    );
     return {
       success: true,
       chain: sourceChain, // Fall back to source chain
       crossChain: false,
     };
   }
-  
+
   // Get token addresses
   const sourceChainId = CHAIN_IDS[sourceChain];
   const destChainId = CHAIN_IDS[destinationChain];
   const inputToken = getTokenAddress(sourceChain, token);
   const outputToken = getTokenAddress(destinationChain, token);
-  
+
   if (!inputToken || !outputToken) {
     return {
       success: false,
@@ -480,14 +516,17 @@ export async function executeCrossChainPayout(
       error: `Token ${token} not configured on ${!inputToken ? sourceChain : destinationChain}`,
     };
   }
-  
+
   // Create intent for cross-chain transfer
   const intentDeadline = deadline || Math.floor(Date.now() / 1000) + 3600; // 1 hour default
-  
-  const senderAddress = (process.env.EVM_PAYOUT_WALLET_ADDRESS || 
-                         process.env.X402_RECIPIENT_ADDRESS) as Address;
-  
-  if (!senderAddress || senderAddress === "0x0000000000000000000000000000000000000000") {
+
+  const senderAddress = (process.env.EVM_PAYOUT_WALLET_ADDRESS ||
+    process.env.X402_RECIPIENT_ADDRESS) as Address;
+
+  if (
+    !senderAddress ||
+    senderAddress === "0x0000000000000000000000000000000000000000"
+  ) {
     return {
       success: false,
       chain: sourceChain,
@@ -495,7 +534,7 @@ export async function executeCrossChainPayout(
       error: "No payout wallet configured",
     };
   }
-  
+
   const intent = await oifRouter.createIntent({
     sourceChainId,
     destinationChainId: destChainId,
@@ -507,7 +546,7 @@ export async function executeCrossChainPayout(
     recipient,
     deadline: intentDeadline,
   });
-  
+
   if (!intent) {
     logger.error("[OIF] Failed to create cross-chain intent", {
       sourceChain,
@@ -521,7 +560,7 @@ export async function executeCrossChainPayout(
       error: "Failed to create cross-chain intent",
     };
   }
-  
+
   logger.info("[OIF] Cross-chain payout intent created", {
     intentId: intent.id,
     sourceChain,
@@ -529,7 +568,7 @@ export async function executeCrossChainPayout(
     amount,
     recipient,
   });
-  
+
   return {
     success: true,
     intentId: intent.id,
@@ -543,12 +582,15 @@ export async function resolvePayoutChain(
   fallbackChain: X402Network,
   token: string,
   amount: string,
-  recipient: Address
+  recipient: Address,
 ): Promise<{ chain: X402Network; crossChain: boolean }> {
   // Check if token is available on preferred chain
   const preferredToken = getTokenAddress(preferredChain, token);
-  
-  if (preferredToken && preferredToken !== "0x0000000000000000000000000000000000000000") {
+
+  if (
+    preferredToken &&
+    preferredToken !== "0x0000000000000000000000000000000000000000"
+  ) {
     // Token available on preferred chain
     const route = await oifRouter.getPayoutRoute({
       amountUsd: 0,
@@ -557,22 +599,24 @@ export async function resolvePayoutChain(
       preferredChain,
       allowFallback: false,
     });
-    
+
     if (route.success && route.route?.chain === preferredChain) {
       return { chain: preferredChain, crossChain: false };
     }
   }
-  
+
   // Try cross-chain to preferred if we have it on fallback
   if (oifRouter.isAvailable()) {
     const fallbackToken = getTokenAddress(fallbackChain, token);
-    if (fallbackToken && fallbackToken !== "0x0000000000000000000000000000000000000000") {
+    if (
+      fallbackToken &&
+      fallbackToken !== "0x0000000000000000000000000000000000000000"
+    ) {
       // Can do cross-chain from fallback to preferred
       return { chain: preferredChain, crossChain: true };
     }
   }
-  
+
   // Use fallback chain directly
   return { chain: fallbackChain, crossChain: false };
 }
-

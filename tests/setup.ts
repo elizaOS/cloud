@@ -32,7 +32,10 @@ for (const [key, value] of Object.entries(preservedEnvVars)) {
 }
 
 console.log("[Test Setup] Environment loaded");
-console.log("[Test Setup] DATABASE_URL:", process.env.DATABASE_URL?.slice(0, 40) + "...");
+console.log(
+  "[Test Setup] DATABASE_URL:",
+  process.env.DATABASE_URL?.slice(0, 40) + "...",
+);
 console.log("[Test Setup] TEST_API_URL:", process.env.TEST_API_URL);
 
 // Server availability cache

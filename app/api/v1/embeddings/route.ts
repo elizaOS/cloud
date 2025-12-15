@@ -16,7 +16,11 @@ import type {
 } from "@/lib/providers/types";
 import { logger } from "@/lib/utils/logger";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
-import { hasX402Payment, createX402RequirementResponse, verifyX402PaymentFromRequest } from "@/lib/middleware/x402-route";
+import {
+  hasX402Payment,
+  createX402RequirementResponse,
+  verifyX402PaymentFromRequest,
+} from "@/lib/middleware/x402-route";
 import type { Address } from "viem";
 import type { NextRequest } from "next/server";
 
@@ -126,11 +130,11 @@ async function handlePOST(req: NextRequest) {
     if (!creditCheck.sufficient) {
       if (hasX402Payment(req)) {
         const requirement = {
-          scheme: 'exact' as const,
-          network: 'jeju-testnet',
+          scheme: "exact" as const,
+          network: "jeju-testnet",
           maxAmountRequired: requiredCredits.toString(),
-          payTo: '0x0000000000000000000000000000000000000000' as Address,
-          asset: '0x0000000000000000000000000000000000000000' as Address,
+          payTo: "0x0000000000000000000000000000000000000000" as Address,
+          asset: "0x0000000000000000000000000000000000000000" as Address,
           resource: `/api/v1/embeddings`,
         };
         const paymentCtx = await verifyX402PaymentFromRequest(req, requirement);
@@ -144,7 +148,10 @@ async function handlePOST(req: NextRequest) {
           logger.warn("[OpenAI Proxy] Invalid x402 payment for embeddings", {
             organizationId: user.organization_id!!,
           });
-          return createX402RequirementResponse(requiredCredits, `/api/v1/embeddings`);
+          return createX402RequirementResponse(
+            requiredCredits,
+            `/api/v1/embeddings`,
+          );
         }
       } else {
         logger.warn("[OpenAI Proxy] Insufficient credits for embeddings", {
@@ -153,7 +160,10 @@ async function handlePOST(req: NextRequest) {
           balance: creditCheck.balance,
         });
 
-        return createX402RequirementResponse(requiredCredits, `/api/v1/embeddings`);
+        return createX402RequirementResponse(
+          requiredCredits,
+          `/api/v1/embeddings`,
+        );
       }
     }
 

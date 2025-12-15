@@ -114,7 +114,11 @@ interface DecentralizedFacilitator {
   type: "decentralized";
   network: X402Network;
   contractAddress: string;
-  verify: (payment: string, resource: string, price: string) => Promise<boolean>;
+  verify: (
+    payment: string,
+    resource: string,
+    price: string,
+  ) => Promise<boolean>;
   settle: (payment: string) => Promise<{ txHash: string }>;
 }
 
@@ -138,10 +142,14 @@ function parseX402Payment(paymentHeader: string): X402PaymentPayload {
  */
 function getViemChain(network: X402Network) {
   switch (network) {
-    case "jeju-localnet": return jejuLocalnet;
-    case "jeju-testnet": return jejuTestnet;
-    case "jeju": return jeju;
-    default: return jejuTestnet;
+    case "jeju-localnet":
+      return jejuLocalnet;
+    case "jeju-testnet":
+      return jejuTestnet;
+    case "jeju":
+      return jeju;
+    default:
+      return jejuTestnet;
   }
 }
 
@@ -160,24 +168,26 @@ function parsePriceToUnits(price: string): bigint {
 
 /**
  * Create a decentralized facilitator for Jeju networks
- * 
+ *
  * This facilitator verifies and settles payments via the Jeju chain
  * without requiring Coinbase CDP credentials. It implements:
- * 
+ *
  * 1. **Verification**: Validates EIP-3009 TransferWithAuthorization signature
  * 2. **Settlement**: Calls transferWithAuthorization on USDC contract
  */
-function createDecentralizedFacilitator(network: X402Network): DecentralizedFacilitator {
+function createDecentralizedFacilitator(
+  network: X402Network,
+): DecentralizedFacilitator {
   const config = getFacilitatorConfig(network);
   const networkConfig = getNetworkConfig(network);
   const chainId = CHAIN_IDS[network];
   const usdcAddress = USDC_ADDRESSES[network];
   const chain = getViemChain(network);
-  
+
   if (!decentralizedFacilitatorLogged) {
     decentralizedFacilitatorLogged = true;
-    logger.info("[x402] Using Jeju decentralized facilitator", { 
-      network, 
+    logger.info("[x402] Using Jeju decentralized facilitator", {
+      network,
       chainId,
       usdc: usdcAddress,
     });
@@ -186,40 +196,45 @@ function createDecentralizedFacilitator(network: X402Network): DecentralizedFaci
   return {
     type: "decentralized",
     network,
-    contractAddress: config.contractAddress || "0x0000000000000000000000000000000000000000",
-    
+    contractAddress:
+      config.contractAddress || "0x0000000000000000000000000000000000000000",
+
     /**
      * Verify x402 payment authorization
-     * 
+     *
      * Validates that:
      * 1. The payment signature is valid (EIP-3009)
      * 2. The authorization hasn't expired
      * 3. The amount is sufficient for the price
      */
-    verify: async (paymentHeader: string, _resource: string, price: string): Promise<boolean> => {
+    verify: async (
+      paymentHeader: string,
+      _resource: string,
+      price: string,
+    ): Promise<boolean> => {
       try {
         const payment = parseX402Payment(paymentHeader);
         const { authorization, signature } = payment.payload;
-        
+
         // Check expiry
         const now = Math.floor(Date.now() / 1000);
         const validAfter = parseInt(authorization.validAfter, 10);
         const validBefore = parseInt(authorization.validBefore, 10);
-        
+
         if (now < validAfter) {
           logger.warn("[x402] Payment not yet valid", { now, validAfter });
           return false;
         }
-        
+
         if (now >= validBefore) {
           logger.warn("[x402] Payment expired", { now, validBefore });
           return false;
         }
-        
+
         // Check amount
         const requiredAmount = parsePriceToUnits(price);
         const paymentAmount = BigInt(authorization.value);
-        
+
         if (paymentAmount < requiredAmount) {
           logger.warn("[x402] Insufficient payment amount", {
             required: requiredAmount.toString(),
@@ -227,7 +242,7 @@ function createDecentralizedFacilitator(network: X402Network): DecentralizedFaci
           });
           return false;
         }
-        
+
         // Verify signature using EIP-712 typed data
         const isValid = await verifyTypedData({
           address: authorization.from,
@@ -244,69 +259,69 @@ function createDecentralizedFacilitator(network: X402Network): DecentralizedFaci
           },
           signature,
         });
-        
-        logger.debug("[x402] Decentralized verification", { 
-          network, 
+
+        logger.debug("[x402] Decentralized verification", {
+          network,
           from: authorization.from,
           amount: authorization.value,
           valid: isValid,
         });
-        
+
         return isValid;
       } catch (error) {
-        logger.error("[x402] Verification error", { 
-          error: extractErrorMessage(error) 
+        logger.error("[x402] Verification error", {
+          error: extractErrorMessage(error),
         });
         return false;
       }
     },
-    
+
     /**
      * Settle x402 payment on-chain
-     * 
+     *
      * Calls transferWithAuthorization on USDC contract to execute
      * the pre-authorized token transfer.
      */
     settle: async (paymentHeader: string): Promise<{ txHash: string }> => {
       const privateKey = process.env.AGENT0_PRIVATE_KEY as Hex | undefined;
-      
+
       if (!privateKey) {
         throw new Error(
           "AGENT0_PRIVATE_KEY required for decentralized x402 settlement. " +
-          "This key is used to submit settlement transactions."
+            "This key is used to submit settlement transactions.",
         );
       }
-      
+
       const payment = parseX402Payment(paymentHeader);
       const { authorization, signature } = payment.payload;
-      
+
       // Parse signature into v, r, s
       const sigBytes = signature.slice(2); // Remove 0x prefix
       const r = `0x${sigBytes.slice(0, 64)}` as Hex;
       const s = `0x${sigBytes.slice(64, 128)}` as Hex;
       const v = parseInt(sigBytes.slice(128, 130), 16);
-      
+
       // Create clients
       const account = privateKeyToAccount(privateKey);
-      
+
       const publicClient = createPublicClient({
         chain,
         transport: http(networkConfig.rpcUrl),
       });
-      
+
       const walletClient = createWalletClient({
         account,
         chain,
         transport: http(networkConfig.rpcUrl),
       });
-      
+
       logger.info("[x402] Settling payment on-chain", {
         network,
         from: authorization.from,
         to: authorization.to,
         value: authorization.value,
       });
-      
+
       // Simulate first to catch errors
       await publicClient.simulateContract({
         address: usdcAddress,
@@ -325,7 +340,7 @@ function createDecentralizedFacilitator(network: X402Network): DecentralizedFaci
         ],
         account,
       });
-      
+
       // Execute the transfer
       const txHash = await walletClient.writeContract({
         address: usdcAddress,
@@ -343,12 +358,12 @@ function createDecentralizedFacilitator(network: X402Network): DecentralizedFaci
           s,
         ],
       });
-      
+
       logger.info("[x402] Payment settled", { txHash, network });
-      
+
       // Wait for confirmation
       await publicClient.waitForTransactionReceipt({ hash: txHash });
-      
+
       return { txHash };
     },
   };
@@ -370,7 +385,7 @@ function createCDPFacilitator(): CDPFacilitator | undefined {
 
 /**
  * Get appropriate facilitator based on network
- * 
+ *
  * - Jeju networks: Decentralized facilitator
  * - Base networks: CDP facilitator (or public fallback)
  */
@@ -392,17 +407,17 @@ export function getFacilitator(network?: X402Network): Facilitator {
   // Log warning for public facilitator usage
   if (!facilitatorWarningLogged) {
     facilitatorWarningLogged = true;
-    
+
     if (process.env.NODE_ENV === "production") {
       logger.warn(
         "[x402] PRODUCTION WARNING: Using public facilitator for Base payments. " +
-        "This has rate limits. Set CDP_API_KEY_ID and CDP_API_KEY_SECRET. " +
-        "Or use Jeju network for decentralized facilitator (no credentials needed)."
+          "This has rate limits. Set CDP_API_KEY_ID and CDP_API_KEY_SECRET. " +
+          "Or use Jeju network for decentralized facilitator (no credentials needed).",
       );
     } else {
       logger.info(
         "[x402] Using public facilitator for Base (no CDP credentials). " +
-        "For Jeju networks, no credentials are required."
+          "For Jeju networks, no credentials are required.",
       );
     }
   }
@@ -440,27 +455,33 @@ export function isDecentralizedFacilitator(network?: X402Network): boolean {
  * Get x402 configuration status for health checks
  */
 export function getX402Status() {
-  const { 
-    X402_ENABLED, 
-    X402_RECIPIENT_ADDRESS, 
-    isX402Configured, 
+  const {
+    X402_ENABLED,
+    X402_RECIPIENT_ADDRESS,
+    isX402Configured,
     getDefaultNetwork: getNetwork,
     getNetworkEcosystem: getEcosystem,
   } = require("@/lib/config/x402");
-  
+
   const network = getNetwork();
   const ecosystem = getEcosystem(network);
   const isDecentralized = isDecentralizedFacilitator(network);
-  
+
   return {
     enabled: X402_ENABLED,
     configured: isX402Configured(),
-    recipientConfigured: X402_RECIPIENT_ADDRESS !== "0x0000000000000000000000000000000000000000",
+    recipientConfigured:
+      X402_RECIPIENT_ADDRESS !== "0x0000000000000000000000000000000000000000",
     facilitatorConfigured: isFacilitatorConfigured(network),
     network,
     ecosystem,
-    facilitatorType: isDecentralized ? "decentralized" : (isFacilitatorConfigured(network) ? "cdp" : "public"),
-    usingPublicFacilitator: !isDecentralized && !isFacilitatorConfigured(network),
+    facilitatorType: isDecentralized
+      ? "decentralized"
+      : isFacilitatorConfigured(network)
+        ? "cdp"
+        : "public",
+    usingPublicFacilitator:
+      !isDecentralized && !isFacilitatorConfigured(network),
     supportedNetworks: {
       jeju: ["jeju-localnet", "jeju-testnet", "jeju"],
       base: ["base-sepolia", "base"],

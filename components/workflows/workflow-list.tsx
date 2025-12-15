@@ -81,7 +81,10 @@ export function WorkflowList({ onSelect, onTest }: WorkflowListProps) {
     }
   }
 
-  async function handleStatusChange(workflow: Workflow, status: "active" | "archived") {
+  async function handleStatusChange(
+    workflow: Workflow,
+    status: "active" | "archived",
+  ) {
     try {
       const response = await fetch(`/api/v1/n8n/workflows/${workflow.id}`, {
         method: "PATCH",
@@ -94,11 +97,11 @@ export function WorkflowList({ onSelect, onTest }: WorkflowListProps) {
       }
 
       setWorkflows(
-        workflows.map((w) =>
-          w.id === workflow.id ? { ...w, status } : w
-        )
+        workflows.map((w) => (w.id === workflow.id ? { ...w, status } : w)),
       );
-      toast.success(`Workflow ${status === "active" ? "activated" : "archived"}`);
+      toast.success(
+        `Workflow ${status === "active" ? "activated" : "archived"}`,
+      );
     } catch (error) {
       toast.error("Failed to update workflow");
     }
@@ -114,7 +117,6 @@ export function WorkflowList({ onSelect, onTest }: WorkflowListProps) {
         return <AlertCircle className="h-4 w-4 text-yellow-400" />;
     }
   }
-
 
   if (isLoading) {
     return (
@@ -132,7 +134,9 @@ export function WorkflowList({ onSelect, onTest }: WorkflowListProps) {
           <div className="mx-auto w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
             <Clock className="h-8 w-8 text-white/40" />
           </div>
-          <h3 className="text-lg font-semibold text-white mb-2">No workflows yet</h3>
+          <h3 className="text-lg font-semibold text-white mb-2">
+            No workflows yet
+          </h3>
           <p className="text-sm text-white/60 mb-6">
             Generate your first workflow using the AI generator above
           </p>
@@ -152,7 +156,9 @@ export function WorkflowList({ onSelect, onTest }: WorkflowListProps) {
           disabled={isRefreshing}
           className="text-white/60 hover:text-white"
         >
-          <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
+          <RefreshCw
+            className={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`}
+          />
           Refresh
         </Button>
       </div>
@@ -160,7 +166,10 @@ export function WorkflowList({ onSelect, onTest }: WorkflowListProps) {
       <div className="grid gap-4">
         {workflows.map((workflow) => (
           <BrandCard key={workflow.id} className="group">
-            <CornerBrackets size="sm" className="opacity-10 group-hover:opacity-20 transition-opacity" />
+            <CornerBrackets
+              size="sm"
+              className="opacity-10 group-hover:opacity-20 transition-opacity"
+            />
             <div className="relative z-10 p-4">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1 min-w-0">
@@ -175,7 +184,9 @@ export function WorkflowList({ onSelect, onTest }: WorkflowListProps) {
                     >
                       {workflow.status}
                     </Badge>
-                    <span className="text-xs text-white/40">v{workflow.version}</span>
+                    <span className="text-xs text-white/40">
+                      v{workflow.version}
+                    </span>
                   </div>
 
                   {workflow.description && (
@@ -186,12 +197,11 @@ export function WorkflowList({ onSelect, onTest }: WorkflowListProps) {
 
                   <div className="flex items-center gap-4 text-xs text-white/40">
                     <span>
-                      Updated {formatDistanceToNow(new Date(workflow.updatedAt))} ago
+                      Updated{" "}
+                      {formatDistanceToNow(new Date(workflow.updatedAt))} ago
                     </span>
                     {workflow.isActiveInN8n && (
-                      <span className="text-green-400">
-                        Active in n8n
-                      </span>
+                      <span className="text-green-400">Active in n8n</span>
                     )}
                   </div>
 
@@ -238,7 +248,10 @@ export function WorkflowList({ onSelect, onTest }: WorkflowListProps) {
                         <MoreVertical className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="bg-[#1A1A1A] border-white/10">
+                    <DropdownMenuContent
+                      align="end"
+                      className="bg-[#1A1A1A] border-white/10"
+                    >
                       <DropdownMenuItem
                         onClick={() => onSelect?.(workflow)}
                         className="text-white/80 hover:text-white focus:text-white"
@@ -255,7 +268,9 @@ export function WorkflowList({ onSelect, onTest }: WorkflowListProps) {
                       </DropdownMenuItem>
                       {workflow.status === "active" ? (
                         <DropdownMenuItem
-                          onClick={() => handleStatusChange(workflow, "archived")}
+                          onClick={() =>
+                            handleStatusChange(workflow, "archived")
+                          }
                           className="text-white/80 hover:text-white focus:text-white"
                         >
                           <Pause className="h-4 w-4 mr-2" />
@@ -288,4 +303,3 @@ export function WorkflowList({ onSelect, onTest }: WorkflowListProps) {
     </div>
   );
 }
-

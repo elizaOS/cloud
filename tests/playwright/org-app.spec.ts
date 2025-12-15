@@ -26,7 +26,9 @@ test.beforeAll(async ({ request }) => {
   // Check cloud
   const cloudResponse = await request.get(CLOUD_URL).catch(() => null);
   if (!cloudResponse?.ok()) {
-    console.log(`⚠️ Cloud not available at ${CLOUD_URL}. Start with: bun run dev`);
+    console.log(
+      `⚠️ Cloud not available at ${CLOUD_URL}. Start with: bun run dev`,
+    );
   }
 
   // Check org-app
@@ -35,7 +37,7 @@ test.beforeAll(async ({ request }) => {
 
   if (!orgAppAvailable) {
     console.log(
-      `⚠️ Org App not available at ${ORG_APP_URL}. Start with: cd apps/org-app && bun run dev`
+      `⚠️ Org App not available at ${ORG_APP_URL}. Start with: cd apps/org-app && bun run dev`,
     );
   }
 });
@@ -68,7 +70,9 @@ test.describe("Org App Landing Page", () => {
     await page.goto(ORG_APP_URL);
 
     // Look for feature cards
-    await expect(page.getByText(/Multi-Platform/i)).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText(/Multi-Platform/i)).toBeVisible({
+      timeout: 10000,
+    });
     await expect(page.getByText(/Smart Check-ins/i)).toBeVisible();
     await expect(page.getByText(/Team Insights/i)).toBeVisible();
   });
@@ -95,17 +99,21 @@ test.describe("Org App Landing Page", () => {
     await page.goto(ORG_APP_URL);
 
     // Look for sign in button
-    const signInButton = page.getByRole("button", { name: /Get Started|Sign In/i });
+    const signInButton = page.getByRole("button", {
+      name: /Get Started|Sign In/i,
+    });
     await expect(signInButton).toBeVisible({ timeout: 10000 });
   });
 });
 
 // ============================================================================
-// Authentication Tests  
+// Authentication Tests
 // ============================================================================
 
 test.describe("Pass-Through Auth Flow", () => {
-  test("POST /api/auth/app-session creates session for org-app", async ({ request }) => {
+  test("POST /api/auth/app-session creates session for org-app", async ({
+    request,
+  }) => {
     const response = await request.post(`${CLOUD_URL}/api/auth/app-session`, {
       data: {
         callbackUrl: `${ORG_APP_URL}/auth/callback`,
@@ -124,17 +132,20 @@ test.describe("Pass-Through Auth Flow", () => {
 
   test("GET /api/auth/app-session/:id returns status", async ({ request }) => {
     // First create a session
-    const createResponse = await request.post(`${CLOUD_URL}/api/auth/app-session`, {
-      data: {
-        callbackUrl: `${ORG_APP_URL}/auth/callback`,
-        appId: "org-app",
+    const createResponse = await request.post(
+      `${CLOUD_URL}/api/auth/app-session`,
+      {
+        data: {
+          callbackUrl: `${ORG_APP_URL}/auth/callback`,
+          appId: "org-app",
+        },
       },
-    });
+    );
     const { sessionId } = await createResponse.json();
 
     // Then check status
     const statusResponse = await request.get(
-      `${CLOUD_URL}/api/auth/app-session/${sessionId}`
+      `${CLOUD_URL}/api/auth/app-session/${sessionId}`,
     );
 
     expect(statusResponse.status()).toBe(200);
@@ -143,7 +154,9 @@ test.describe("Pass-Through Auth Flow", () => {
     expect(data.status).toBe("pending");
   });
 
-  test("auth callback page exists and handles missing session", async ({ page }) => {
+  test("auth callback page exists and handles missing session", async ({
+    page,
+  }) => {
     if (!orgAppAvailable) {
       test.skip();
       return;
@@ -307,7 +320,9 @@ test.describe("Org MCP Endpoint", () => {
     expect(data.serverInfo.version).toBe("1.0.0");
   });
 
-  test("POST tools/list returns org tools (requires auth)", async ({ request }) => {
+  test("POST tools/list returns org tools (requires auth)", async ({
+    request,
+  }) => {
     const response = await request.post(`${CLOUD_URL}/api/mcp/org/sse`, {
       data: {
         jsonrpc: "2.0",
@@ -344,7 +359,9 @@ test.describe("MCP Registry", () => {
     expect(response.status()).toBe(200);
 
     const data = await response.json();
-    const orgTools = data.registry.find((entry: { id: string }) => entry.id === "org-tools");
+    const orgTools = data.registry.find(
+      (entry: { id: string }) => entry.id === "org-tools",
+    );
 
     expect(orgTools).toBeDefined();
     expect(orgTools.name).toBe("Organization Tools");
@@ -372,7 +389,10 @@ test.describe("UI Components", () => {
     await expect(html).toHaveClass(/dark/);
 
     // Check gradient background
-    const hero = page.locator("div").filter({ hasText: /The Org/ }).first();
+    const hero = page
+      .locator("div")
+      .filter({ hasText: /The Org/ })
+      .first();
     await expect(hero).toBeVisible({ timeout: 10000 });
   });
 
@@ -420,4 +440,3 @@ test.describe("Mobile Responsiveness", () => {
     await expect(signIn).toBeVisible();
   });
 });
-

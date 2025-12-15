@@ -1,8 +1,16 @@
-import { managedDomainsRepository, type ManagedDomain, type DnsRecord } from "@/db/repositories/managed-domains";
+import {
+  managedDomainsRepository,
+  type ManagedDomain,
+  type DnsRecord,
+} from "@/db/repositories/managed-domains";
 import { logger } from "@/lib/utils/logger";
 import { vercelApiRequest } from "@/lib/utils/vercel-api";
 import { domainModerationService } from "./domain-moderation";
-import { normalizeDomain, isApexDomain, extractErrorMessage } from "@/lib/types/domains";
+import {
+  normalizeDomain,
+  isApexDomain,
+  extractErrorMessage,
+} from "@/lib/types/domains";
 
 const VERCEL_TOKEN = process.env.VERCEL_TOKEN;
 const VERCEL_TEAM_ID = process.env.VERCEL_TEAM_ID;
@@ -72,29 +80,43 @@ export interface VercelDomainResponse {
   orderedAt?: number;
 }
 
-interface VercelDomainCheckResponse { name: string; available: boolean }
-interface VercelDomainPriceResponse { price: number; period: number }
+interface VercelDomainCheckResponse {
+  name: string;
+  available: boolean;
+}
+interface VercelDomainPriceResponse {
+  price: number;
+  period: number;
+}
 
 async function vercelFetch<T>(
   path: string,
   options: RequestInit = {},
-  includeTeam = true
+  includeTeam = true,
 ): Promise<T> {
   if (!VERCEL_TOKEN) {
     throw new Error("VERCEL_TOKEN is not configured");
   }
 
-  return vercelApiRequest<T>(path, VERCEL_TOKEN, options, includeTeam ? VERCEL_TEAM_ID : undefined);
+  return vercelApiRequest<T>(
+    path,
+    VERCEL_TOKEN,
+    options,
+    includeTeam ? VERCEL_TEAM_ID : undefined,
+  );
 }
 
 class DomainManagementService {
   async checkAvailability(domain: string): Promise<DomainSearchResult> {
     const normalized = normalizeDomain(domain);
 
-    logger.info("[DomainManagement] Checking availability", { domain: normalized });
+    logger.info("[DomainManagement] Checking availability", {
+      domain: normalized,
+    });
 
     // First check moderation
-    const moderation = await domainModerationService.validateDomainName(normalized);
+    const moderation =
+      await domainModerationService.validateDomainName(normalized);
     if (!moderation.allowed) {
       return {
         domain: normalized,
@@ -114,7 +136,7 @@ class DomainManagementService {
     // Check with Vercel
     const response = await vercelFetch<VercelDomainCheckResponse>(
       `/v5/domains/status?name=${encodeURIComponent(normalized)}`,
-      { method: "GET" }
+      { method: "GET" },
     );
 
     const result: DomainSearchResult = {
@@ -140,7 +162,7 @@ class DomainManagementService {
     try {
       const response = await vercelFetch<VercelDomainPriceResponse>(
         `/v4/domains/price?name=${encodeURIComponent(normalized)}`,
-        { method: "GET" }
+        { method: "GET" },
       );
 
       return {
@@ -158,24 +180,33 @@ class DomainManagementService {
     }
   }
 
-  async searchDomains(query: string, tlds?: string[]): Promise<DomainSearchResult[]> {
+  async searchDomains(
+    query: string,
+    tlds?: string[],
+  ): Promise<DomainSearchResult[]> {
     const normalized = query.toLowerCase().trim();
     const targetTlds = tlds || ["com", "ai", "io", "co", "app", "dev"];
     const results: DomainSearchResult[] = [];
 
     // Check moderation first
-    const moderation = await domainModerationService.validateDomainName(normalized);
+    const moderation =
+      await domainModerationService.validateDomainName(normalized);
     if (!moderation.allowed) {
       return results;
     }
 
     // Check each TLD in parallel
     const checkPromises = targetTlds.map(async (tld) => {
-      const domain = normalized.includes(".") ? normalized : `${normalized}.${tld}`;
+      const domain = normalized.includes(".")
+        ? normalized
+        : `${normalized}.${tld}`;
       try {
         return await this.checkAvailability(domain);
       } catch (error) {
-        logger.debug("[DomainManagement] TLD check failed", { domain, error: extractErrorMessage(error) });
+        logger.debug("[DomainManagement] TLD check failed", {
+          domain,
+          error: extractErrorMessage(error),
+        });
         return null;
       }
     });
@@ -184,7 +215,9 @@ class DomainManagementService {
     return checkResults.filter((r): r is DomainSearchResult => r !== null);
   }
 
-  async purchaseDomain(params: DomainPurchaseParams): Promise<DomainPurchaseResult> {
+  async purchaseDomain(
+    params: DomainPurchaseParams,
+  ): Promise<DomainPurchaseResult> {
     const {
       domain,
       organizationId,
@@ -203,7 +236,8 @@ class DomainManagementService {
     });
 
     // Validate domain name
-    const moderation = await domainModerationService.validateDomainName(normalized);
+    const moderation =
+      await domainModerationService.validateDomainName(normalized);
     if (!moderation.allowed) {
       return {
         success: false,
@@ -230,7 +264,7 @@ class DomainManagementService {
             name: normalized,
             expectedPrice: availability.price?.price,
           }),
-        }
+        },
       );
 
       // Create managed domain record
@@ -251,7 +285,9 @@ class DomainManagementService {
         nameserverMode: "vercel",
         verified: true,
         verifiedAt: new Date(),
-        moderationStatus: moderation.requiresReview ? "pending_review" : "clean",
+        moderationStatus: moderation.requiresReview
+          ? "pending_review"
+          : "clean",
         moderationFlags: moderation.flags,
         purchasePrice: availability.price?.price.toString(),
         renewalPrice: availability.price?.renewalPrice.toString(),
@@ -294,7 +330,7 @@ class DomainManagementService {
   async registerExternalDomain(
     domain: string,
     organizationId: string,
-    nameserverMode: "vercel" | "external" = "external"
+    nameserverMode: "vercel" | "external" = "external",
   ): Promise<DomainConfigResult> {
     const normalized = normalizeDomain(domain);
 
@@ -305,7 +341,8 @@ class DomainManagementService {
     });
 
     // Validate domain name
-    const moderation = await domainModerationService.validateDomainName(normalized);
+    const moderation =
+      await domainModerationService.validateDomainName(normalized);
     if (!moderation.allowed) {
       return {
         success: false,
@@ -342,7 +379,7 @@ class DomainManagementService {
     const dnsInstructions = this.generateDnsInstructions(
       normalized,
       verificationToken,
-      nameserverMode
+      nameserverMode,
     );
 
     return {
@@ -355,7 +392,7 @@ class DomainManagementService {
   generateDnsInstructions(
     domain: string,
     verificationToken: string,
-    nameserverMode: "vercel" | "external"
+    nameserverMode: "vercel" | "external",
   ): DnsInstruction[] {
     const instructions: DnsInstruction[] = [];
     const isApex = isApexDomain(domain);
@@ -405,7 +442,9 @@ class DomainManagementService {
     return instructions;
   }
 
-  async verifyDomain(domainId: string): Promise<{ verified: boolean; error?: string }> {
+  async verifyDomain(
+    domainId: string,
+  ): Promise<{ verified: boolean; error?: string }> {
     const domain = await managedDomainsRepository.findById(domainId);
     if (!domain) {
       return { verified: false, error: "Domain not found" };
@@ -419,21 +458,28 @@ class DomainManagementService {
       return { verified: false, error: "No verification token set" };
     }
 
-    logger.info("[DomainManagement] Verifying domain", { domain: domain.domain });
+    logger.info("[DomainManagement] Verifying domain", {
+      domain: domain.domain,
+    });
 
     try {
       const { Resolver } = await import("node:dns").then((m) => m.promises);
       const resolver = new Resolver();
-      
+
       let txtRecords: string[][] = [];
       try {
-        txtRecords = await resolver.resolveTxt(`_eliza-verification.${domain.domain}`);
+        txtRecords = await resolver.resolveTxt(
+          `_eliza-verification.${domain.domain}`,
+        );
       } catch (dnsError) {
-        logger.debug("[DomainManagement] DNS lookup failed", { domain: domain.domain, error: extractErrorMessage(dnsError) });
+        logger.debug("[DomainManagement] DNS lookup failed", {
+          domain: domain.domain,
+          error: extractErrorMessage(dnsError),
+        });
       }
 
       const verified = txtRecords.some((records) =>
-        records.includes(domain.verificationToken!)
+        records.includes(domain.verificationToken!),
       );
 
       if (verified) {
@@ -449,7 +495,9 @@ class DomainManagementService {
           actionTaken: "verified",
         });
 
-        logger.info("[DomainManagement] Domain verified", { domain: domain.domain });
+        logger.info("[DomainManagement] Domain verified", {
+          domain: domain.domain,
+        });
         return { verified: true };
       }
 
@@ -470,22 +518,26 @@ class DomainManagementService {
     domainId: string,
     resourceType: "app" | "container" | "agent" | "mcp",
     resourceId: string,
-    organizationId: string
+    organizationId: string,
   ): Promise<ManagedDomain | null> {
-    const domain = await managedDomainsRepository.findByIdAndOrg(domainId, organizationId);
+    const domain = await managedDomainsRepository.findByIdAndOrg(
+      domainId,
+      organizationId,
+    );
     if (!domain) return null;
     if (!domain.verified && domain.registrar === "external") return null;
 
     const assignFn = {
       app: () => managedDomainsRepository.assignToApp(domainId, resourceId),
-      container: () => managedDomainsRepository.assignToContainer(domainId, resourceId),
+      container: () =>
+        managedDomainsRepository.assignToContainer(domainId, resourceId),
       agent: () => managedDomainsRepository.assignToAgent(domainId, resourceId),
       mcp: () => managedDomainsRepository.assignToMcp(domainId, resourceId),
     }[resourceType];
 
     const updated = await assignFn();
     if (!updated) return null;
-    
+
     await managedDomainsRepository.createEvent({
       domainId,
       eventType: "assignment_change",
@@ -510,11 +562,11 @@ class DomainManagementService {
 
   async unassignDomain(
     domainId: string,
-    organizationId: string
+    organizationId: string,
   ): Promise<ManagedDomain | null> {
     const domain = await managedDomainsRepository.findByIdAndOrg(
       domainId,
-      organizationId
+      organizationId,
     );
     if (!domain) return null;
 
@@ -542,14 +594,17 @@ class DomainManagementService {
       try {
         const response = await vercelFetch<{ records: DnsRecord[] }>(
           `/v4/domains/${encodeURIComponent(domain.domain)}/records`,
-          { method: "GET" }
+          { method: "GET" },
         );
         return response.records ?? [];
       } catch (error) {
-        logger.warn("[DomainManagement] Failed to fetch DNS records from Vercel", { 
-          domain: domain.domain, 
-          error: extractErrorMessage(error) 
-        });
+        logger.warn(
+          "[DomainManagement] Failed to fetch DNS records from Vercel",
+          {
+            domain: domain.domain,
+            error: extractErrorMessage(error),
+          },
+        );
         return domain.dnsRecords ?? [];
       }
     }
@@ -559,7 +614,7 @@ class DomainManagementService {
 
   async addDnsRecord(
     domainId: string,
-    record: Omit<DnsRecord, "id" | "createdAt">
+    record: Omit<DnsRecord, "id" | "createdAt">,
   ): Promise<{ success: boolean; record?: DnsRecord; error?: string }> {
     const domain = await managedDomainsRepository.findById(domainId);
     if (!domain) {
@@ -579,7 +634,7 @@ class DomainManagementService {
         {
           method: "POST",
           body: JSON.stringify(record),
-        }
+        },
       );
 
       // Update local cache
@@ -608,7 +663,7 @@ class DomainManagementService {
 
   async deleteDnsRecord(
     domainId: string,
-    recordId: string
+    recordId: string,
   ): Promise<{ success: boolean; error?: string }> {
     const domain = await managedDomainsRepository.findById(domainId);
     if (!domain) {
@@ -625,14 +680,14 @@ class DomainManagementService {
     try {
       await vercelFetch(
         `/v4/domains/${encodeURIComponent(domain.domain)}/records/${recordId}`,
-        { method: "DELETE" }
+        { method: "DELETE" },
       );
 
       // Update local cache
       const currentRecords = domain.dnsRecords || [];
       await managedDomainsRepository.updateDnsRecords(
         domainId,
-        currentRecords.filter((r) => r.id !== recordId)
+        currentRecords.filter((r) => r.id !== recordId),
       );
 
       await managedDomainsRepository.createEvent({
@@ -652,25 +707,38 @@ class DomainManagementService {
     }
   }
 
-  async getDomain(domainId: string, organizationId: string): Promise<ManagedDomain | null> {
-    return (await managedDomainsRepository.findByIdAndOrg(domainId, organizationId)) ?? null;
+  async getDomain(
+    domainId: string,
+    organizationId: string,
+  ): Promise<ManagedDomain | null> {
+    return (
+      (await managedDomainsRepository.findByIdAndOrg(
+        domainId,
+        organizationId,
+      )) ?? null
+    );
   }
 
   async getDomainByName(domain: string): Promise<ManagedDomain | null> {
-    return (await managedDomainsRepository.findByDomain(normalizeDomain(domain))) ?? null;
+    return (
+      (await managedDomainsRepository.findByDomain(normalizeDomain(domain))) ??
+      null
+    );
   }
 
-  listDomains = (orgId: string) => managedDomainsRepository.listByOrganization(orgId);
-  listUnassignedDomains = (orgId: string) => managedDomainsRepository.listUnassigned(orgId);
+  listDomains = (orgId: string) =>
+    managedDomainsRepository.listByOrganization(orgId);
+  listUnassignedDomains = (orgId: string) =>
+    managedDomainsRepository.listUnassigned(orgId);
   getStats = (orgId: string) => managedDomainsRepository.getStats(orgId);
 
   async deleteDomain(
     domainId: string,
-    organizationId: string
+    organizationId: string,
   ): Promise<{ success: boolean; error?: string }> {
     const domain = await managedDomainsRepository.findByIdAndOrg(
       domainId,
-      organizationId
+      organizationId,
     );
     if (!domain) {
       return { success: false, error: "Domain not found" };
@@ -687,11 +755,13 @@ class DomainManagementService {
 
     const deleted = await managedDomainsRepository.deleteByOrg(
       domainId,
-      organizationId
+      organizationId,
     );
 
     if (deleted) {
-      logger.info("[DomainManagement] Domain removed", { domain: domain.domain });
+      logger.info("[DomainManagement] Domain removed", {
+        domain: domain.domain,
+      });
     }
 
     return { success: deleted };
@@ -699,4 +769,3 @@ class DomainManagementService {
 }
 
 export const domainManagementService = new DomainManagementService();
-

@@ -1,13 +1,13 @@
 /**
  * Moderation Test Endpoint
- * 
+ *
  * Developer-friendly endpoint to test moderation without affecting real data.
  * Only available in development or with admin access.
- * 
+ *
  * Usage:
  *   POST /api/v1/moderation/test
  *   { "type": "text", "content": "test content" }
- * 
+ *
  *   POST /api/v1/moderation/test
  *   { "type": "image", "url": "https://example.com/image.jpg" }
  */
@@ -17,7 +17,8 @@ import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
 import { MODERATION_CONFIG } from "@/lib/services/moderation";
 
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY || process.env.AI_GATEWAY_API_KEY;
+const OPENAI_API_KEY =
+  process.env.OPENAI_API_KEY || process.env.AI_GATEWAY_API_KEY;
 const THRESHOLDS = MODERATION_CONFIG.THRESHOLDS;
 
 const TestTextSchema = z.object({
@@ -51,7 +52,10 @@ function analyzeScores(scores: Record<string, number>): ModerationResult {
     const score = scores[category];
     if (score !== undefined && score >= config.threshold) {
       flaggedCategories.push(category);
-      if (severityOrder.indexOf(config.severity) > severityOrder.indexOf(maxSeverity)) {
+      if (
+        severityOrder.indexOf(config.severity) >
+        severityOrder.indexOf(maxSeverity)
+      ) {
         maxSeverity = config.severity;
       }
     }
@@ -66,7 +70,7 @@ function analyzeScores(scores: Record<string, number>): ModerationResult {
 
   return {
     flagged: flaggedCategories.length > 0,
-    categories: Object.fromEntries(flaggedCategories.map(c => [c, true])),
+    categories: Object.fromEntries(flaggedCategories.map((c) => [c, true])),
     categoryScores: scores,
     flaggedCategories,
     severity: maxSeverity as ModerationResult["severity"],
@@ -78,18 +82,21 @@ export async function POST(request: NextRequest) {
   // Only allow in development or with special header
   const isDev = process.env.NODE_ENV === "development";
   const hasTestHeader = request.headers.get("X-Moderation-Test") === "true";
-  
+
   if (!isDev && !hasTestHeader) {
     return NextResponse.json(
-      { error: "Test endpoint only available in development or with X-Moderation-Test header" },
-      { status: 403 }
+      {
+        error:
+          "Test endpoint only available in development or with X-Moderation-Test header",
+      },
+      { status: 403 },
     );
   }
 
   if (!OPENAI_API_KEY) {
     return NextResponse.json(
       { error: "OPENAI_API_KEY not configured" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 
@@ -98,8 +105,8 @@ export async function POST(request: NextRequest) {
 
   if (!parsed.success) {
     return NextResponse.json(
-      { 
-        error: "Invalid request", 
+      {
+        error: "Invalid request",
         details: parsed.error.issues,
         usage: {
           text: { type: "text", content: "string to moderate" },
@@ -107,7 +114,7 @@ export async function POST(request: NextRequest) {
           imageBase64: { type: "image", base64: "base64 encoded image data" },
         },
       },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -120,13 +127,18 @@ export async function POST(request: NextRequest) {
     if (!input.url && !input.base64) {
       return NextResponse.json(
         { error: "Image requires url or base64" },
-        { status: 400 }
+        { status: 400 },
       );
     }
     if (input.url) {
       inputPayload = [{ type: "image_url", image_url: { url: input.url } }];
     } else {
-      inputPayload = [{ type: "image_url", image_url: { url: `data:image/jpeg;base64,${input.base64}` } }];
+      inputPayload = [
+        {
+          type: "image_url",
+          image_url: { url: `data:image/jpeg;base64,${input.base64}` },
+        },
+      ];
     }
   }
 
@@ -136,12 +148,12 @@ export async function POST(request: NextRequest) {
 
   const res = await fetch("https://api.openai.com/v1/moderations", {
     method: "POST",
-    headers: { 
-      Authorization: `Bearer ${OPENAI_API_KEY}`, 
+    headers: {
+      Authorization: `Bearer ${OPENAI_API_KEY}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ 
-      model: "omni-moderation-latest", 
+    body: JSON.stringify({
+      model: "omni-moderation-latest",
       input: inputPayload,
     }),
   });
@@ -152,7 +164,7 @@ export async function POST(request: NextRequest) {
     const error = await res.text();
     return NextResponse.json(
       { error: "OpenAI API error", status: res.status, details: error },
-      { status: 502 }
+      { status: 502 },
     );
   }
 
@@ -162,7 +174,7 @@ export async function POST(request: NextRequest) {
   if (!result) {
     return NextResponse.json(
       { error: "No results from OpenAI" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 
@@ -188,7 +200,8 @@ export async function POST(request: NextRequest) {
         low: "Minor issues (not actionable)",
         medium: "Moderate issues - user gets warning",
         high: "Serious issues - content deleted",
-        critical: "Critical issues (CSAM, etc) - content deleted, user may be banned",
+        critical:
+          "Critical issues (CSAM, etc) - content deleted, user may be banned",
       },
       categories: {
         "sexual/minors": "CSAM - threshold 0.1 (very strict)",
@@ -232,11 +245,10 @@ export async function GET() {
     categories: [
       "sexual/minors (CSAM) - CRITICAL",
       "self-harm/instructions - HIGH",
-      "self-harm/intent - HIGH", 
+      "self-harm/intent - HIGH",
       "self-harm - MEDIUM",
       "violence/graphic - MEDIUM",
       "illicit/violent - HIGH",
     ],
   });
 }
-

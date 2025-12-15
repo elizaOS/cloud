@@ -1,6 +1,6 @@
 /**
  * Admin Content Moderation API
- * 
+ *
  * Endpoints for reviewing flagged content, viewing user risk profiles,
  * and managing content moderation across all content types.
  */
@@ -46,7 +46,8 @@ export async function GET(request: NextRequest) {
   switch (view) {
     case "stats": {
       const stats = await contentModerationService.getStats();
-      const usersWithStrikes = await contentModerationService.getUsersWithStrikes(10);
+      const usersWithStrikes =
+        await contentModerationService.getUsersWithStrikes(10);
       return NextResponse.json({ stats, topRiskUsers: usersWithStrikes });
     }
 
@@ -104,18 +105,21 @@ export async function POST(request: NextRequest) {
   if (action === "review") {
     const parsed = ReviewSchema.safeParse(body);
     if (!parsed.success) {
-      return NextResponse.json({ error: "Invalid request", details: parsed.error.issues }, { status: 400 });
+      return NextResponse.json(
+        { error: "Invalid request", details: parsed.error.issues },
+        { status: 400 },
+      );
     }
 
     await contentModerationService.reviewItem(
       parsed.data.itemId,
       auth.user!.id,
       parsed.data.decision,
-      parsed.data.notes
+      parsed.data.notes,
     );
 
-    logger.info("[Admin] Content reviewed", { 
-      itemId: parsed.data.itemId, 
+    logger.info("[Admin] Content reviewed", {
+      itemId: parsed.data.itemId,
       decision: parsed.data.decision,
       reviewer: auth.user!.id,
     });
@@ -126,7 +130,10 @@ export async function POST(request: NextRequest) {
   if (action === "scan") {
     const parsed = ScanSchema.safeParse(body);
     if (!parsed.success) {
-      return NextResponse.json({ error: "Invalid request", details: parsed.error.issues }, { status: 400 });
+      return NextResponse.json(
+        { error: "Invalid request", details: parsed.error.issues },
+        { status: 400 },
+      );
     }
 
     const result = await contentModerationService.scan({
@@ -152,9 +159,8 @@ export async function HEAD(request: NextRequest) {
   if (auth.error) {
     return new NextResponse(null, { status: auth.status });
   }
-  return new NextResponse(null, { 
-    status: 200, 
+  return new NextResponse(null, {
+    status: 200,
     headers: { "X-Admin-Role": auth.role || "unknown" },
   });
 }
-

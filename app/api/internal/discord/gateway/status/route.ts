@@ -16,7 +16,13 @@ export const dynamic = "force-dynamic";
 const StatusUpdateSchema = z.object({
   connection_id: z.string().uuid(),
   pod_name: z.string(),
-  status: z.enum(["connecting", "connected", "disconnected", "reconnecting", "error"]),
+  status: z.enum([
+    "connecting",
+    "connected",
+    "disconnected",
+    "reconnecting",
+    "error",
+  ]),
   error_message: z.string().optional(),
   guild_count: z.number().optional(),
   session_id: z.string().optional(),
@@ -42,11 +48,20 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) {
     return NextResponse.json(
       { error: "Invalid payload", details: parsed.error.issues },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
-  const { connection_id, pod_name, status, error_message, guild_count, session_id, resume_gateway_url, sequence_number } = parsed.data;
+  const {
+    connection_id,
+    pod_name,
+    status,
+    error_message,
+    guild_count,
+    session_id,
+    resume_gateway_url,
+    sequence_number,
+  } = parsed.data;
 
   logger.info("[Gateway Status] Status update received", {
     connectionId: connection_id,
@@ -76,7 +91,9 @@ export async function POST(request: NextRequest) {
 
 // Maps gateway pod status to database enum values
 // DB enum: ["connected", "disconnected", "reconnecting", "error", "starting"]
-function mapStatus(status: string): "connected" | "disconnected" | "reconnecting" | "error" | "starting" {
+function mapStatus(
+  status: string,
+): "connected" | "disconnected" | "reconnecting" | "error" | "starting" {
   switch (status) {
     case "connecting":
       return "starting";

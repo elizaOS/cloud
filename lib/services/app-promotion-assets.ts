@@ -46,7 +46,7 @@ const AdCopyVariantsSchema = z.object({
 class AppPromotionAssetsService {
   async generateSocialCard(
     app: App,
-    size: AdSize = "twitter_card"
+    size: AdSize = "twitter_card",
   ): Promise<GeneratedAsset | null> {
     const dimensions = AD_SIZES[size];
     const prompt = this.buildImagePrompt(app, size);
@@ -88,7 +88,7 @@ class AppPromotionAssetsService {
       {
         access: "public",
         contentType: "image/png",
-      }
+      },
     );
 
     return {
@@ -100,12 +100,15 @@ class AppPromotionAssetsService {
     };
   }
 
-  async generateAdBanners(app: App, sizes: AdSize[]): Promise<GeneratedAsset[]> {
+  async generateAdBanners(
+    app: App,
+    sizes: AdSize[],
+  ): Promise<GeneratedAsset[]> {
     const results = await Promise.all(
       sizes.map(async (size) => {
         const asset = await this.generateSocialCard(app, size);
         return asset ? { ...asset, type: "banner" as const } : null;
-      })
+      }),
     );
     return results.filter((a): a is GeneratedAsset => a !== null);
   }
@@ -113,7 +116,11 @@ class AppPromotionAssetsService {
   async generateAdCopy(
     app: App,
     targetAudience?: string,
-    tone: "professional" | "casual" | "exciting" | "informative" = "professional"
+    tone:
+      | "professional"
+      | "casual"
+      | "exciting"
+      | "informative" = "professional",
   ): Promise<AdCopyVariants> {
     const prompt = `Generate advertising copy for this app:
 
@@ -167,7 +174,7 @@ Return ONLY valid JSON, no markdown.`;
       includeAdBanners?: boolean;
       includeCopy?: boolean;
       targetAudience?: string;
-    } = {}
+    } = {},
   ): Promise<{
     assets: GeneratedAsset[];
     copy?: AdCopyVariants;
@@ -179,10 +186,16 @@ Return ONLY valid JSON, no markdown.`;
 
     // Generate social cards
     if (options.includeSocialCards !== false) {
-      const socialSizes: AdSize[] = ["twitter_card", "facebook_feed", "linkedin_post"];
+      const socialSizes: AdSize[] = [
+        "twitter_card",
+        "facebook_feed",
+        "linkedin_post",
+      ];
       for (const size of socialSizes) {
         const asset = await this.generateSocialCard(app, size).catch((err) => {
-          errors.push(`Failed to generate ${size}: ${extractErrorMessage(err)}`);
+          errors.push(
+            `Failed to generate ${size}: ${extractErrorMessage(err)}`,
+          );
           return null;
         });
         if (asset) assets.push(asset);
@@ -196,19 +209,25 @@ Return ONLY valid JSON, no markdown.`;
         "instagram_story",
         "google_display_medium",
       ];
-      const banners = await this.generateAdBanners(app, adSizes).catch((err) => {
-        errors.push(`Failed to generate ad banners: ${extractErrorMessage(err)}`);
-        return [];
-      });
+      const banners = await this.generateAdBanners(app, adSizes).catch(
+        (err) => {
+          errors.push(
+            `Failed to generate ad banners: ${extractErrorMessage(err)}`,
+          );
+          return [];
+        },
+      );
       assets.push(...banners);
     }
 
     // Generate copy
     if (options.includeCopy !== false) {
-      copy = await this.generateAdCopy(app, options.targetAudience).catch((err) => {
-        errors.push(`Failed to generate copy: ${extractErrorMessage(err)}`);
-        return undefined;
-      });
+      copy = await this.generateAdCopy(app, options.targetAudience).catch(
+        (err) => {
+          errors.push(`Failed to generate copy: ${extractErrorMessage(err)}`);
+          return undefined;
+        },
+      );
     }
 
     logger.info("[PromotionAssets] Asset bundle generated", {
@@ -249,10 +268,21 @@ Requirements:
 - No explicit text in the image (text will be added separately)`;
   }
 
-  getRecommendedSizes(platform: "meta" | "google" | "twitter" | "linkedin"): AdSize[] {
+  getRecommendedSizes(
+    platform: "meta" | "google" | "twitter" | "linkedin",
+  ): AdSize[] {
     const recommendations: Record<string, AdSize[]> = {
-      meta: ["facebook_feed", "facebook_story", "instagram_square", "instagram_story"],
-      google: ["google_display_leaderboard", "google_display_medium", "google_display_large"],
+      meta: [
+        "facebook_feed",
+        "facebook_story",
+        "instagram_square",
+        "instagram_story",
+      ],
+      google: [
+        "google_display_leaderboard",
+        "google_display_medium",
+        "google_display_large",
+      ],
       twitter: ["twitter_card"],
       linkedin: ["linkedin_post"],
     };
@@ -262,4 +292,3 @@ Requirements:
 }
 
 export const appPromotionAssetsService = new AppPromotionAssetsService();
-

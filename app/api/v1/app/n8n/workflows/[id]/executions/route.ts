@@ -13,7 +13,8 @@ import { logger } from "@/lib/utils/logger";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-App-Token, X-Api-Key",
+  "Access-Control-Allow-Headers":
+    "Content-Type, Authorization, X-App-Token, X-Api-Key",
 };
 
 export async function OPTIONS() {
@@ -26,7 +27,7 @@ export async function OPTIONS() {
  */
 export async function GET(
   request: NextRequest,
-  ctx: { params: Promise<{ id: string }> }
+  ctx: { params: Promise<{ id: string }> },
 ) {
   try {
     const user = await requireAppAuth(request);
@@ -36,7 +37,7 @@ export async function GET(
     if (apps.length === 0) {
       return NextResponse.json(
         { success: false, error: "No app found" },
-        { status: 404, headers: corsHeaders }
+        { status: 404, headers: corsHeaders },
       );
     }
 
@@ -44,15 +45,18 @@ export async function GET(
     if (!workflow || workflow.organization_id !== user.organization_id) {
       return NextResponse.json(
         { success: false, error: "Workflow not found" },
-        { status: 404, headers: corsHeaders }
+        { status: 404, headers: corsHeaders },
       );
     }
 
     const limit = Number.parseInt(
-      request.nextUrl.searchParams.get("limit") || "50"
+      request.nextUrl.searchParams.get("limit") || "50",
     );
 
-    const executions = await n8nWorkflowsService.getWorkflowExecutions(id, limit);
+    const executions = await n8nWorkflowsService.getWorkflowExecutions(
+      id,
+      limit,
+    );
 
     return NextResponse.json(
       {
@@ -72,17 +76,17 @@ export async function GET(
         })),
         count: executions.length,
       },
-      { headers: corsHeaders }
+      { headers: corsHeaders },
     );
   } catch (error) {
     logger.error("[App N8N Executions] Error listing executions:", error);
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "Failed to list executions",
+        error:
+          error instanceof Error ? error.message : "Failed to list executions",
       },
-      { status: 500, headers: corsHeaders }
+      { status: 500, headers: corsHeaders },
     );
   }
 }
-

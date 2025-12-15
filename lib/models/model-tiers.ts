@@ -43,7 +43,8 @@ function extractProvider(modelId: string): string {
   if (modelId.startsWith("gemini-")) return "google";
   if (modelId.startsWith("grok-")) return "xai";
   if (modelId.startsWith("command-")) return "cohere";
-  if (modelId.startsWith("jamba-") || modelId.startsWith("jurassic-")) return "ai21";
+  if (modelId.startsWith("jamba-") || modelId.startsWith("jurassic-"))
+    return "ai21";
   if (modelId.startsWith("deepseek-")) return "deepseek";
   if (modelId.startsWith("llama")) return "meta";
   if (modelId.startsWith("qwen-")) return "alibaba";
@@ -172,19 +173,28 @@ export function estimateTierCost(
   outputTokens: number,
 ): number {
   const { pricing } = MODEL_TIERS[tier];
-  return Math.ceil(
-    ((inputTokens / 1000) * pricing.inputPer1k +
-      (outputTokens / 1000) * pricing.outputPer1k) *
-      100,
-  ) / 100;
+  return (
+    Math.ceil(
+      ((inputTokens / 1000) * pricing.inputPer1k +
+        (outputTokens / 1000) * pricing.outputPer1k) *
+        100,
+    ) / 100
+  );
 }
 
-export function tierHasCapability(tier: ModelTier, capability: ModelCapability): boolean {
+export function tierHasCapability(
+  tier: ModelTier,
+  capability: ModelCapability,
+): boolean {
   return MODEL_TIERS[tier].capabilities.includes(capability);
 }
 
-export function getTiersWithCapability(capability: ModelCapability): ModelTier[] {
-  return MODEL_TIER_LIST.filter((c) => c.capabilities.includes(capability)).map((c) => c.id);
+export function getTiersWithCapability(
+  capability: ModelCapability,
+): ModelTier[] {
+  return MODEL_TIER_LIST.filter((c) => c.capabilities.includes(capability)).map(
+    (c) => c.id,
+  );
 }
 
 export function getTierDisplayInfo(tier: ModelTier) {
@@ -193,7 +203,8 @@ export function getTierDisplayInfo(tier: ModelTier) {
     name: config.name,
     modelId: config.modelId,
     description: config.description,
-    priceIndicator: tier === "fast" ? "$" : tier === "pro" ? "$$" : "$$$" as const,
+    priceIndicator:
+      tier === "fast" ? "$" : tier === "pro" ? "$$" : ("$$$" as const),
   };
 }
 

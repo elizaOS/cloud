@@ -1,6 +1,6 @@
 /**
  * App Deploy Service
- * 
+ *
  * Handles deploying fragments/apps as serverless apps:
  * 1. Builds fragment into static bundle
  * 2. Uploads to Vercel Blob storage
@@ -11,7 +11,10 @@
 import { put } from "@vercel/blob";
 import { db } from "@/db";
 import { appBundles, type AppRuntimeConfig } from "@/db/schemas/app-bundles";
-import { appDomains, type DomainVerificationRecord } from "@/db/schemas/app-domains";
+import {
+  appDomains,
+  type DomainVerificationRecord,
+} from "@/db/schemas/app-domains";
 import { apps } from "@/db/schemas/apps";
 import { eq, and, desc } from "drizzle-orm";
 import { logger } from "@/lib/utils/logger";
@@ -54,19 +57,22 @@ function generateSubdomain(name: string): string {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "")
     .slice(0, 30);
-  
+
   // If base is reserved or empty, use a random prefix
   if (!base || vercelDomainsService.isReservedSubdomain(base)) {
     base = `app-${nanoid(4)}`;
   }
-  
+
   return `${base}-${nanoid(6)}`;
 }
 
 /**
  * Validate a requested subdomain
  */
-function validateRequestedSubdomain(subdomain: string): { valid: boolean; error?: string } {
+function validateRequestedSubdomain(subdomain: string): {
+  valid: boolean;
+  error?: string;
+} {
   return vercelDomainsService.validateSubdomain(subdomain);
 }
 
@@ -78,19 +84,22 @@ async function buildFragmentBundle(fragment: FragmentSchema): Promise<{
   hash: string;
 }> {
   const hash = nanoid(12);
-  
+
   // For React/Next.js templates, create a client-side rendered page
-  if (fragment.template.includes("react") || fragment.template.includes("nextjs")) {
+  if (
+    fragment.template.includes("react") ||
+    fragment.template.includes("nextjs")
+  ) {
     const html = buildReactBundle(fragment, hash);
     return { html, hash };
   }
-  
+
   // For Vue templates
   if (fragment.template.includes("vue")) {
     const html = buildVueBundle(fragment, hash);
     return { html, hash };
   }
-  
+
   // For vanilla JS or unknown
   const html = buildVanillaBundle(fragment, hash);
   return { html, hash };
@@ -204,7 +213,9 @@ function buildVanillaBundle(fragment: FragmentSchema, hash: string): string {
 /**
  * Deploy a fragment as a serverless app
  */
-export async function deployApp(options: DeployAppOptions): Promise<DeployResult> {
+export async function deployApp(
+  options: DeployAppOptions,
+): Promise<DeployResult> {
   const {
     projectId,
     fragment,
@@ -221,7 +232,7 @@ export async function deployApp(options: DeployAppOptions): Promise<DeployResult
 
   // 1. Generate or validate subdomain
   let subdomain: string;
-  
+
   if (requestedSubdomain) {
     // Validate requested subdomain
     const validation = validateRequestedSubdomain(requestedSubdomain);
@@ -232,19 +243,19 @@ export async function deployApp(options: DeployAppOptions): Promise<DeployResult
   } else {
     subdomain = generateSubdomain(name);
   }
-  
+
   // Check subdomain availability
   const existingDomain = await db.query.appDomains.findFirst({
     where: eq(appDomains.subdomain, subdomain),
   });
-  
+
   if (existingDomain) {
     throw new Error(`Subdomain "${subdomain}" is already taken`);
   }
 
   // 2. Build fragment into bundle
   const bundle = await buildFragmentBundle(fragment);
-  
+
   // 3. Upload to Vercel Blob
   const blobPath = `apps/${organizationId}/${subdomain}/${bundle.hash}/index.html`;
   const blob = await put(blobPath, bundle.html, {
@@ -252,35 +263,41 @@ export async function deployApp(options: DeployAppOptions): Promise<DeployResult
     contentType: "text/html",
     addRandomSuffix: false,
   });
-  
-  logger.info("[App Deploy] Bundle uploaded", { url: blob.url, size: bundle.html.length });
+
+  logger.info("[App Deploy] Bundle uploaded", {
+    url: blob.url,
+    size: bundle.html.length,
+  });
 
   // 4. Create or find app
   let app = await db.query.apps.findFirst({
     where: and(
       eq(apps.slug, subdomain),
-      eq(apps.organization_id, organizationId)
+      eq(apps.organization_id, organizationId),
     ),
   });
-  
+
   if (!app) {
-    const [newApp] = await db.insert(apps).values({
-      name,
-      description,
-      slug: subdomain,
-      organization_id: organizationId,
-      created_by_user_id: userId,
-      app_url: `https://${subdomain}.${APP_DOMAIN}`,
-      is_active: true,
-      features_enabled: {
-        chat: true,
-        image: false,
-        video: false,
-        voice: false,
-        agents: false,
-        embedding: false,
-      },
-    }).returning();
+    const [newApp] = await db
+      .insert(apps)
+      .values({
+        name,
+        description,
+        slug: subdomain,
+        organization_id: organizationId,
+        created_by_user_id: userId,
+        app_url: `https://${subdomain}.${APP_DOMAIN}`,
+        is_active: true,
+        features_enabled: {
+          chat: true,
+          image: false,
+          video: false,
+          voice: false,
+          agents: false,
+          embedding: false,
+        },
+      })
+      .returning();
     app = newApp;
   }
 
@@ -292,34 +309,41 @@ export async function deployApp(options: DeployAppOptions): Promise<DeployResult
   const nextVersion = (latestBundle?.version || 0) + 1;
 
   // 6. Deactivate previous bundles
-  await db.update(appBundles)
+  await db
+    .update(appBundles)
     .set({ is_active: false })
     .where(eq(appBundles.app_id, app.id));
 
   // 7. Create bundle record
-  const [bundleRecord] = await db.insert(appBundles).values({
-    app_id: app.id,
-    version: nextVersion,
-    bundle_url: blob.url.replace("/index.html", ""),
-    entry_file: "index.html",
-    framework: detectFramework(fragment.template),
-    build_hash: bundle.hash,
-    bundle_size: bundle.html.length,
-    source_project_id: projectId,
-    source_type: "fragment",
-    runtime_config: runtimeConfig,
-    is_active: true,
-    status: "active",
-    deployed_at: new Date(),
-  }).returning();
+  const [bundleRecord] = await db
+    .insert(appBundles)
+    .values({
+      app_id: app.id,
+      version: nextVersion,
+      bundle_url: blob.url.replace("/index.html", ""),
+      entry_file: "index.html",
+      framework: detectFramework(fragment.template),
+      build_hash: bundle.hash,
+      bundle_size: bundle.html.length,
+      source_project_id: projectId,
+      source_type: "fragment",
+      runtime_config: runtimeConfig,
+      is_active: true,
+      status: "active",
+      deployed_at: new Date(),
+    })
+    .returning();
 
   // 8. Create domain record
-  const [domainRecord] = await db.insert(appDomains).values({
-    app_id: app.id,
-    subdomain,
-    ssl_status: "active", // Wildcard SSL covers subdomains
-    is_primary: true,
-  }).returning();
+  const [domainRecord] = await db
+    .insert(appDomains)
+    .values({
+      app_id: app.id,
+      subdomain,
+      ssl_status: "active", // Wildcard SSL covers subdomains
+      is_primary: true,
+    })
+    .returning();
 
   logger.info("[App Deploy] Deployment complete", {
     appId: app.id,
@@ -342,25 +366,29 @@ export async function deployApp(options: DeployAppOptions): Promise<DeployResult
   }
 
   // 10. Create promotional media collection for the app
-  await mediaCollectionsService.create({
-    organizationId,
-    userId,
-    name: `${name} - Promotional Assets`,
-    description: `Media assets for promoting ${name}`,
-    purpose: "advertising",
-    tags: ["app-promotion", subdomain],
-  }).catch((err) => {
-    // Non-critical: log but don't fail deployment
-    logger.warn("[App Deploy] Failed to create media collection", {
-      appId: app.id,
-      error: err.message,
+  await mediaCollectionsService
+    .create({
+      organizationId,
+      userId,
+      name: `${name} - Promotional Assets`,
+      description: `Media assets for promoting ${name}`,
+      purpose: "advertising",
+      tags: ["app-promotion", subdomain],
+    })
+    .catch((err) => {
+      // Non-critical: log but don't fail deployment
+      logger.warn("[App Deploy] Failed to create media collection", {
+        appId: app.id,
+        error: err.message,
+      });
     });
-  });
 
   return result;
 }
 
-function detectFramework(template: string): "react" | "vue" | "vanilla" | "nextjs" {
+function detectFramework(
+  template: string,
+): "react" | "vue" | "vanilla" | "nextjs" {
   if (template.includes("nextjs") || template.includes("react")) return "react";
   if (template.includes("vue") || template.includes("nuxt")) return "vue";
   return "vanilla";
@@ -371,10 +399,15 @@ function detectFramework(template: string): "react" | "vue" | "vanilla" | "nextj
  */
 async function setupCustomDomain(
   appId: string,
-  domain: string
-): Promise<{ verified: boolean; verificationRecords: DomainVerificationRecord[] }> {
+  domain: string,
+): Promise<{
+  verified: boolean;
+  verificationRecords: DomainVerificationRecord[];
+}> {
   if (!VERCEL_TOKEN || !VERCEL_PROJECT_ID) {
-    logger.warn("[App Deploy] Vercel API not configured, skipping custom domain setup");
+    logger.warn(
+      "[App Deploy] Vercel API not configured, skipping custom domain setup",
+    );
     return { verified: false, verificationRecords: [] };
   }
 
@@ -387,27 +420,30 @@ async function setupCustomDomain(
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ name: domain }),
-    }
+    },
   );
 
   if (!response.ok) {
     const error = await response.json();
     logger.error("[App Deploy] Vercel domain setup failed", { error });
-    throw new Error(`Failed to setup custom domain: ${error.error?.message || "Unknown error"}`);
+    throw new Error(
+      `Failed to setup custom domain: ${error.error?.message || "Unknown error"}`,
+    );
   }
 
   const result = await response.json();
-  
-  const verificationRecords: DomainVerificationRecord[] = (result.verification || []).map(
-    (v: { type: string; domain: string; value: string }) => ({
-      type: v.type as "TXT" | "CNAME" | "A",
-      name: v.domain,
-      value: v.value,
-    })
-  );
+
+  const verificationRecords: DomainVerificationRecord[] = (
+    result.verification || []
+  ).map((v: { type: string; domain: string; value: string }) => ({
+    type: v.type as "TXT" | "CNAME" | "A",
+    name: v.domain,
+    value: v.value,
+  }));
 
   // Update domain record
-  await db.update(appDomains)
+  await db
+    .update(appDomains)
     .set({
       custom_domain: domain,
       custom_domain_verified: result.verified || false,
@@ -428,10 +464,7 @@ async function setupCustomDomain(
  */
 export async function getActiveBundle(appId: string) {
   return db.query.appBundles.findFirst({
-    where: and(
-      eq(appBundles.app_id, appId),
-      eq(appBundles.is_active, true)
-    ),
+    where: and(eq(appBundles.app_id, appId), eq(appBundles.is_active, true)),
   });
 }
 
@@ -464,14 +497,14 @@ export async function listApps(organizationId: string) {
       bundle: appBundles,
     })
     .from(apps)
-    .leftJoin(appDomains, and(
-      eq(appDomains.app_id, apps.id),
-      eq(appDomains.is_primary, true)
-    ))
-    .leftJoin(appBundles, and(
-      eq(appBundles.app_id, apps.id),
-      eq(appBundles.is_active, true)
-    ))
+    .leftJoin(
+      appDomains,
+      and(eq(appDomains.app_id, apps.id), eq(appDomains.is_primary, true)),
+    )
+    .leftJoin(
+      appBundles,
+      and(eq(appBundles.app_id, apps.id), eq(appBundles.is_active, true)),
+    )
     .where(eq(apps.organization_id, organizationId));
 
   return apps.map(({ app, domain, bundle }) => ({
@@ -494,5 +527,3 @@ export const appDeployService = {
   getDomainByCustomDomain,
   listApps,
 };
-
-

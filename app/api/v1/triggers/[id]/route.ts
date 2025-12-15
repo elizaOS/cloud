@@ -1,6 +1,6 @@
 /**
  * Individual Application Trigger API
- * 
+ *
  * GET /api/v1/triggers/:id - Get trigger details
  * PATCH /api/v1/triggers/:id - Update trigger
  * DELETE /api/v1/triggers/:id - Delete trigger
@@ -19,21 +19,25 @@ const UpdateTriggerSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   description: z.string().max(500).optional(),
   isActive: z.boolean().optional(),
-  config: z.object({
-    cronExpression: z.string().optional(),
-    timezone: z.string().optional(),
-    eventTypes: z.array(z.string()).optional(),
-    maxExecutionsPerDay: z.number().positive().optional(),
-    timeout: z.number().positive().optional(),
-    requireSignature: z.boolean().optional(),
-    allowedIps: z.array(z.string()).optional(),
-  }).optional(),
-  actionConfig: z.object({
-    endpoint: z.string().optional(),
-    method: z.enum(["GET", "POST", "PUT", "DELETE"]).optional(),
-    workflowId: z.string().uuid().optional(),
-    notificationChannels: z.array(z.string()).optional(),
-  }).optional(),
+  config: z
+    .object({
+      cronExpression: z.string().optional(),
+      timezone: z.string().optional(),
+      eventTypes: z.array(z.string()).optional(),
+      maxExecutionsPerDay: z.number().positive().optional(),
+      timeout: z.number().positive().optional(),
+      requireSignature: z.boolean().optional(),
+      allowedIps: z.array(z.string()).optional(),
+    })
+    .optional(),
+  actionConfig: z
+    .object({
+      endpoint: z.string().optional(),
+      method: z.enum(["GET", "POST", "PUT", "DELETE"]).optional(),
+      workflowId: z.string().uuid().optional(),
+      notificationChannels: z.array(z.string()).optional(),
+    })
+    .optional(),
 });
 
 // =============================================================================
@@ -42,7 +46,7 @@ const UpdateTriggerSchema = z.object({
 
 export async function GET(
   request: NextRequest,
-  ctx: { params: Promise<{ id: string }> }
+  ctx: { params: Promise<{ id: string }> },
 ) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { id } = await ctx.params;
@@ -52,14 +56,14 @@ export async function GET(
   if (!trigger) {
     return NextResponse.json(
       { success: false, error: "Trigger not found" },
-      { status: 404 }
+      { status: 404 },
     );
   }
 
   if (trigger.organization_id !== user.organization_id) {
     return NextResponse.json(
       { success: false, error: "Unauthorized" },
-      { status: 403 }
+      { status: 403 },
     );
   }
 
@@ -73,9 +77,10 @@ export async function GET(
       targetType: trigger.target_type,
       targetId: trigger.target_id,
       triggerType: trigger.trigger_type,
-      triggerKey: trigger.trigger_type === "webhook" 
-        ? trigger.trigger_key.slice(0, 8) + "..."
-        : trigger.trigger_key,
+      triggerKey:
+        trigger.trigger_type === "webhook"
+          ? trigger.trigger_key.slice(0, 8) + "..."
+          : trigger.trigger_key,
       name: trigger.name,
       description: trigger.description,
       config: {
@@ -94,7 +99,7 @@ export async function GET(
       createdAt: trigger.created_at.toISOString(),
       updatedAt: trigger.updated_at.toISOString(),
     },
-    recentExecutions: executions.map(e => ({
+    recentExecutions: executions.map((e) => ({
       id: e.id,
       executionType: e.execution_type,
       status: e.status,
@@ -102,9 +107,10 @@ export async function GET(
       error: e.error_message,
       createdAt: e.created_at.toISOString(),
     })),
-    webhookUrl: trigger.trigger_type === "webhook"
-      ? `${process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai"}/api/v1/triggers/webhooks/${trigger.trigger_key}`
-      : undefined,
+    webhookUrl:
+      trigger.trigger_type === "webhook"
+        ? `${process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai"}/api/v1/triggers/webhooks/${trigger.trigger_key}`
+        : undefined,
   });
 }
 
@@ -114,7 +120,7 @@ export async function GET(
 
 export async function PATCH(
   request: NextRequest,
-  ctx: { params: Promise<{ id: string }> }
+  ctx: { params: Promise<{ id: string }> },
 ) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { id } = await ctx.params;
@@ -124,14 +130,14 @@ export async function PATCH(
   if (!trigger) {
     return NextResponse.json(
       { success: false, error: "Trigger not found" },
-      { status: 404 }
+      { status: 404 },
     );
   }
 
   if (trigger.organization_id !== user.organization_id) {
     return NextResponse.json(
       { success: false, error: "Unauthorized" },
-      { status: 403 }
+      { status: 403 },
     );
   }
 
@@ -140,8 +146,12 @@ export async function PATCH(
 
   if (!validation.success) {
     return NextResponse.json(
-      { success: false, error: "Invalid request", details: validation.error.format() },
-      { status: 400 }
+      {
+        success: false,
+        error: "Invalid request",
+        details: validation.error.format(),
+      },
+      { status: 400 },
     );
   }
 
@@ -184,7 +194,7 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  ctx: { params: Promise<{ id: string }> }
+  ctx: { params: Promise<{ id: string }> },
 ) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { id } = await ctx.params;
@@ -194,14 +204,14 @@ export async function DELETE(
   if (!trigger) {
     return NextResponse.json(
       { success: false, error: "Trigger not found" },
-      { status: 404 }
+      { status: 404 },
     );
   }
 
   if (trigger.organization_id !== user.organization_id) {
     return NextResponse.json(
       { success: false, error: "Unauthorized" },
-      { status: 403 }
+      { status: 403 },
     );
   }
 
@@ -212,4 +222,3 @@ export async function DELETE(
     message: "Trigger deleted",
   });
 }
-

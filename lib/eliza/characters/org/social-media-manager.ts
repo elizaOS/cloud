@@ -96,7 +96,9 @@ Laura uses org-tools MCP for:
     [
       {
         name: "{{user}}",
-        content: { text: "The dev team wants to highlight our staking rewards." },
+        content: {
+          text: "The dev team wants to highlight our staking rewards.",
+        },
       },
       {
         name: "Laura",
@@ -108,7 +110,9 @@ Laura uses org-tools MCP for:
     [
       {
         name: "{{user}}",
-        content: { text: "Our competitors are making big promises about gains." },
+        content: {
+          text: "Our competitors are making big promises about gains.",
+        },
       },
       {
         name: "Laura",
@@ -173,4 +177,3 @@ Laura uses org-tools MCP for:
 };
 
 export default socialMediaManagerCharacter;
-

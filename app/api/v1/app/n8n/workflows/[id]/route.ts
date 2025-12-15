@@ -12,7 +12,7 @@ export const OPTIONS = corsOptions;
 
 export function GET(
   request: NextRequest,
-  ctx: { params: Promise<{ id: string }> }
+  ctx: { params: Promise<{ id: string }> },
 ) {
   return withCors(async () => {
     const user = await requireAppAuth(request);
@@ -22,7 +22,7 @@ export function GET(
     if (!workflow || workflow.organization_id !== user.organization_id) {
       return NextResponse.json(
         { success: false, error: "Workflow not found" },
-        { status: 404, headers: APP_CORS_HEADERS }
+        { status: 404, headers: APP_CORS_HEADERS },
       );
     }
 
@@ -43,14 +43,14 @@ export function GET(
           updatedAt: workflow.updated_at,
         },
       },
-      { headers: APP_CORS_HEADERS }
+      { headers: APP_CORS_HEADERS },
     );
   });
 }
 
 export function PUT(
   request: NextRequest,
-  ctx: { params: Promise<{ id: string }> }
+  ctx: { params: Promise<{ id: string }> },
 ) {
   return withCors(async () => {
     const user = await requireAppAuth(request);
@@ -58,10 +58,13 @@ export function PUT(
 
     // Verify ownership before allowing update
     const existingWorkflow = await n8nWorkflowsService.getWorkflow(id);
-    if (!existingWorkflow || existingWorkflow.organization_id !== user.organization_id) {
+    if (
+      !existingWorkflow ||
+      existingWorkflow.organization_id !== user.organization_id
+    ) {
       return NextResponse.json(
         { success: false, error: "Workflow not found" },
-        { status: 404, headers: APP_CORS_HEADERS }
+        { status: 404, headers: APP_CORS_HEADERS },
       );
     }
 
@@ -70,22 +73,35 @@ export function PUT(
 
     if (!validation.success) {
       return NextResponse.json(
-        { success: false, error: "Invalid request", details: validation.error.format() },
-        { status: 400, headers: APP_CORS_HEADERS }
+        {
+          success: false,
+          error: "Invalid request",
+          details: validation.error.format(),
+        },
+        { status: 400, headers: APP_CORS_HEADERS },
       );
     }
 
     if (validation.data.workflowData) {
-      const validationResult = await n8nWorkflowsService.validateWorkflow(validation.data.workflowData);
+      const validationResult = await n8nWorkflowsService.validateWorkflow(
+        validation.data.workflowData,
+      );
       if (!validationResult.valid) {
         return NextResponse.json(
-          { success: false, error: "Invalid workflow structure", errors: validationResult.errors },
-          { status: 400, headers: APP_CORS_HEADERS }
+          {
+            success: false,
+            error: "Invalid workflow structure",
+            errors: validationResult.errors,
+          },
+          { status: 400, headers: APP_CORS_HEADERS },
         );
       }
     }
 
-    const workflow = await n8nWorkflowsService.updateWorkflow(id, validation.data);
+    const workflow = await n8nWorkflowsService.updateWorkflow(
+      id,
+      validation.data,
+    );
 
     return NextResponse.json(
       {
@@ -100,14 +116,14 @@ export function PUT(
           updatedAt: workflow.updated_at,
         },
       },
-      { headers: APP_CORS_HEADERS }
+      { headers: APP_CORS_HEADERS },
     );
   });
 }
 
 export function DELETE(
   request: NextRequest,
-  ctx: { params: Promise<{ id: string }> }
+  ctx: { params: Promise<{ id: string }> },
 ) {
   return withCors(async () => {
     const user = await requireAppAuth(request);
@@ -117,7 +133,7 @@ export function DELETE(
     if (!workflow || workflow.organization_id !== user.organization_id) {
       return NextResponse.json(
         { success: false, error: "Workflow not found" },
-        { status: 404, headers: APP_CORS_HEADERS }
+        { status: 404, headers: APP_CORS_HEADERS },
       );
     }
 
@@ -125,4 +141,3 @@ export function DELETE(
     return NextResponse.json({ success: true }, { headers: APP_CORS_HEADERS });
   });
 }
-

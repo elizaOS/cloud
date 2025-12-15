@@ -28,13 +28,21 @@ const mockRepository = {
   markVerified: mock(() => Promise.resolve({})),
   updateDnsRecords: mock(() => Promise.resolve({})),
   createEvent: mock(() => Promise.resolve({})),
-  getStats: mock(() => Promise.resolve({ total: 0, active: 0, pending: 0, suspended: 0, expiringSoon: 0 })),
+  getStats: mock(() =>
+    Promise.resolve({
+      total: 0,
+      active: 0,
+      pending: 0,
+      suspended: 0,
+      expiringSoon: 0,
+    }),
+  ),
   listUnassigned: mock(() => Promise.resolve([])),
 };
 
 const mockModerationService = {
   validateDomainName: mock(() =>
-    Promise.resolve({ allowed: true, flags: [], requiresReview: false })
+    Promise.resolve({ allowed: true, flags: [], requiresReview: false }),
   ),
 };
 
@@ -54,7 +62,8 @@ mock.module("@/lib/utils/logger", () => ({
 const originalFetch = globalThis.fetch;
 let mockFetch: typeof fetch;
 
-const { domainManagementService } = await import("@/lib/services/domain-management");
+const { domainManagementService } =
+  await import("@/lib/services/domain-management");
 
 describe("Domain Availability Check", () => {
   beforeEach(() => {
@@ -70,8 +79,8 @@ describe("Domain Availability Check", () => {
 
     mockFetch = mock(() =>
       Promise.resolve(
-        new Response(JSON.stringify({ available: true }), { status: 200 })
-      )
+        new Response(JSON.stringify({ available: true }), { status: 200 }),
+      ),
     );
     globalThis.fetch = mockFetch;
   });
@@ -87,7 +96,8 @@ describe("Domain Availability Check", () => {
       requiresReview: false,
     });
 
-    const result = await domainManagementService.checkAvailability("bad-domain.com");
+    const result =
+      await domainManagementService.checkAvailability("bad-domain.com");
     expect(result.available).toBe(false);
   });
 
@@ -97,7 +107,8 @@ describe("Domain Availability Check", () => {
       domain: "existing.com",
     });
 
-    const result = await domainManagementService.checkAvailability("existing.com");
+    const result =
+      await domainManagementService.checkAvailability("existing.com");
     expect(result.available).toBe(false);
   });
 
@@ -114,7 +125,8 @@ describe("Domain Availability Check", () => {
   it("checks with Vercel API when domain passes initial checks", async () => {
     mockRepository.findByDomain.mockResolvedValue(null);
 
-    const result = await domainManagementService.checkAvailability("available.com");
+    const result =
+      await domainManagementService.checkAvailability("available.com");
 
     expect(result.available).toBe(true);
     expect(mockFetch).toHaveBeenCalled();
@@ -135,8 +147,8 @@ describe("Domain Search", () => {
 
     mockFetch = mock(() =>
       Promise.resolve(
-        new Response(JSON.stringify({ available: true }), { status: 200 })
-      )
+        new Response(JSON.stringify({ available: true }), { status: 200 }),
+      ),
     );
     globalThis.fetch = mockFetch;
   });
@@ -153,8 +165,12 @@ describe("Domain Search", () => {
 
     // Should have made calls for myapp.xyz and myapp.tech
     const fetchCalls = (mockFetch as ReturnType<typeof mock>).mock.calls;
-    expect(fetchCalls.some((c: string[]) => c[0]?.includes("myapp.xyz"))).toBe(true);
-    expect(fetchCalls.some((c: string[]) => c[0]?.includes("myapp.tech"))).toBe(true);
+    expect(fetchCalls.some((c: string[]) => c[0]?.includes("myapp.xyz"))).toBe(
+      true,
+    );
+    expect(fetchCalls.some((c: string[]) => c[0]?.includes("myapp.tech"))).toBe(
+      true,
+    );
   });
 
   it("returns empty when query fails moderation", async () => {
@@ -191,7 +207,7 @@ describe("External Domain Registration", () => {
     const result = await domainManagementService.registerExternalDomain(
       "custom.com",
       "org-123",
-      "external"
+      "external",
     );
 
     expect(result.success).toBe(true);
@@ -200,7 +216,7 @@ describe("External Domain Registration", () => {
         domain: "custom.com",
         organizationId: "org-123",
         registrar: "external",
-      })
+      }),
     );
   });
 
@@ -214,7 +230,7 @@ describe("External Domain Registration", () => {
     const result = await domainManagementService.registerExternalDomain(
       "custom.com",
       "org-123",
-      "external"
+      "external",
     );
 
     expect(result.success).toBe(true);
@@ -231,7 +247,7 @@ describe("External Domain Registration", () => {
     const result = await domainManagementService.registerExternalDomain(
       "existing.com",
       "org-123",
-      "external"
+      "external",
     );
 
     expect(result.success).toBe(false);
@@ -248,7 +264,7 @@ describe("External Domain Registration", () => {
     const result = await domainManagementService.registerExternalDomain(
       "bad.com",
       "org-123",
-      "external"
+      "external",
     );
 
     // Should fail registration for moderation-blocked domains
@@ -278,11 +294,14 @@ describe("Domain Assignment", () => {
     const result = await domainManagementService.assignToApp(
       "domain-1",
       "app-1",
-      "org-123"
+      "org-123",
     );
 
     // Returns updated domain or null
-    expect(mockRepository.assignToApp).toHaveBeenCalledWith("domain-1", "app-1");
+    expect(mockRepository.assignToApp).toHaveBeenCalledWith(
+      "domain-1",
+      "app-1",
+    );
   });
 
   it("assigns domain to container", async () => {
@@ -295,10 +314,13 @@ describe("Domain Assignment", () => {
     const result = await domainManagementService.assignToContainer(
       "domain-1",
       "container-1",
-      "org-123"
+      "org-123",
     );
 
-    expect(mockRepository.assignToContainer).toHaveBeenCalledWith("domain-1", "container-1");
+    expect(mockRepository.assignToContainer).toHaveBeenCalledWith(
+      "domain-1",
+      "container-1",
+    );
   });
 
   it("assigns domain to agent", async () => {
@@ -311,10 +333,13 @@ describe("Domain Assignment", () => {
     const result = await domainManagementService.assignToAgent(
       "domain-1",
       "agent-1",
-      "org-123"
+      "org-123",
     );
 
-    expect(mockRepository.assignToAgent).toHaveBeenCalledWith("domain-1", "agent-1");
+    expect(mockRepository.assignToAgent).toHaveBeenCalledWith(
+      "domain-1",
+      "agent-1",
+    );
   });
 
   it("assigns domain to MCP", async () => {
@@ -327,10 +352,13 @@ describe("Domain Assignment", () => {
     const result = await domainManagementService.assignToMcp(
       "domain-1",
       "mcp-1",
-      "org-123"
+      "org-123",
     );
 
-    expect(mockRepository.assignToMcp).toHaveBeenCalledWith("domain-1", "mcp-1");
+    expect(mockRepository.assignToMcp).toHaveBeenCalledWith(
+      "domain-1",
+      "mcp-1",
+    );
   });
 
   it("returns null when domain not found for assignment", async () => {
@@ -339,7 +367,7 @@ describe("Domain Assignment", () => {
     const result = await domainManagementService.assignToApp(
       "non-existent",
       "app-1",
-      "org-123"
+      "org-123",
     );
 
     expect(result).toBeNull();
@@ -366,7 +394,10 @@ describe("Domain Unassignment", () => {
       appId: null,
     });
 
-    const result = await domainManagementService.unassignDomain("domain-1", "org-123");
+    const result = await domainManagementService.unassignDomain(
+      "domain-1",
+      "org-123",
+    );
 
     // Returns updated domain or null
     expect(mockRepository.unassign).toHaveBeenCalledWith("domain-1");
@@ -387,7 +418,7 @@ describe("Domain Unassignment", () => {
       expect.objectContaining({
         domainId: "domain-1",
         eventType: "assignment_change",
-      })
+      }),
     );
   });
 });
@@ -400,8 +431,8 @@ describe("Domain Verification", () => {
 
     mockFetch = mock(() =>
       Promise.resolve(
-        new Response(JSON.stringify({ verified: true }), { status: 200 })
-      )
+        new Response(JSON.stringify({ verified: true }), { status: 200 }),
+      ),
     );
     globalThis.fetch = mockFetch;
   });
@@ -469,15 +500,21 @@ describe("DNS Record Management", () => {
     });
 
     mockFetch = mock(() =>
-      Promise.resolve(new Response(JSON.stringify({ uid: "rec-1" }), { status: 200 }))
+      Promise.resolve(
+        new Response(JSON.stringify({ uid: "rec-1" }), { status: 200 }),
+      ),
     );
     globalThis.fetch = mockFetch;
 
-    const result = await domainManagementService.addDnsRecord("domain-1", "org-123", {
-      type: "A",
-      name: "@",
-      value: "1.2.3.4",
-    });
+    const result = await domainManagementService.addDnsRecord(
+      "domain-1",
+      "org-123",
+      {
+        type: "A",
+        name: "@",
+        value: "1.2.3.4",
+      },
+    );
 
     expect(result).toBeDefined();
     expect(typeof result.success).toBe("boolean");
@@ -489,11 +526,15 @@ describe("DNS Record Management", () => {
       domain: "example.com",
     });
 
-    const result = await domainManagementService.addDnsRecord("domain-1", "org-123", {
-      type: "INVALID" as "A",
-      name: "@",
-      value: "1.2.3.4",
-    });
+    const result = await domainManagementService.addDnsRecord(
+      "domain-1",
+      "org-123",
+      {
+        type: "INVALID" as "A",
+        name: "@",
+        value: "1.2.3.4",
+      },
+    );
 
     // Should either fail or throw
     expect(result).toBeDefined();
@@ -515,16 +556,25 @@ describe("Domain Deletion", () => {
     });
     mockRepository.deleteByOrg.mockResolvedValue(true);
 
-    const result = await domainManagementService.deleteDomain("domain-1", "org-123");
+    const result = await domainManagementService.deleteDomain(
+      "domain-1",
+      "org-123",
+    );
 
     expect(result.success).toBe(true);
-    expect(mockRepository.deleteByOrg).toHaveBeenCalledWith("domain-1", "org-123");
+    expect(mockRepository.deleteByOrg).toHaveBeenCalledWith(
+      "domain-1",
+      "org-123",
+    );
   });
 
   it("fails when domain not found", async () => {
     mockRepository.findByIdAndOrg.mockResolvedValue(null);
 
-    const result = await domainManagementService.deleteDomain("non-existent", "org-123");
+    const result = await domainManagementService.deleteDomain(
+      "non-existent",
+      "org-123",
+    );
 
     expect(result.success).toBe(false);
     expect(result.error).toContain("not found");
@@ -540,15 +590,23 @@ describe("Domain Deletion", () => {
     mockRepository.deleteByOrg.mockResolvedValue(true);
 
     mockFetch = mock(() =>
-      Promise.resolve(new Response(JSON.stringify({ success: true }), { status: 200 }))
+      Promise.resolve(
+        new Response(JSON.stringify({ success: true }), { status: 200 }),
+      ),
     );
     globalThis.fetch = mockFetch;
 
-    const result = await domainManagementService.deleteDomain("domain-1", "org-123");
+    const result = await domainManagementService.deleteDomain(
+      "domain-1",
+      "org-123",
+    );
 
     // Vercel purchased domains should attempt removal from Vercel
     expect(result.success).toBe(true);
-    expect(mockRepository.deleteByOrg).toHaveBeenCalledWith("domain-1", "org-123");
+    expect(mockRepository.deleteByOrg).toHaveBeenCalledWith(
+      "domain-1",
+      "org-123",
+    );
   });
 });
 
@@ -569,8 +627,8 @@ describe("Edge Cases", () => {
 
     mockFetch = mock(() =>
       Promise.resolve(
-        new Response(JSON.stringify({ available: true }), { status: 200 })
-      )
+        new Response(JSON.stringify({ available: true }), { status: 200 }),
+      ),
     );
     globalThis.fetch = mockFetch;
 
@@ -594,10 +652,17 @@ describe("Edge Cases", () => {
     });
 
     // Simulate timeout
-    mockFetch = mock(() => new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 100)));
+    mockFetch = mock(
+      () =>
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("timeout")), 100),
+        ),
+    );
     globalThis.fetch = mockFetch;
 
-    await expect(domainManagementService.checkAvailability("test.com")).rejects.toThrow();
+    await expect(
+      domainManagementService.checkAvailability("test.com"),
+    ).rejects.toThrow();
   });
 
   it("handles Vercel API error response", async () => {
@@ -610,12 +675,15 @@ describe("Edge Cases", () => {
 
     mockFetch = mock(() =>
       Promise.resolve(
-        new Response(JSON.stringify({ error: { message: "Rate limited" } }), { status: 429 })
-      )
+        new Response(JSON.stringify({ error: { message: "Rate limited" } }), {
+          status: 429,
+        }),
+      ),
     );
     globalThis.fetch = mockFetch;
 
-    await expect(domainManagementService.checkAvailability("test.com")).rejects.toThrow("Rate limited");
+    await expect(
+      domainManagementService.checkAvailability("test.com"),
+    ).rejects.toThrow("Rate limited");
   });
 });
-

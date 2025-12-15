@@ -22,10 +22,20 @@ const mockDomainService = {
   listDomains: mock(() => Promise.resolve([])),
   listUnassignedDomains: mock(() => Promise.resolve([])),
   getStats: mock(() =>
-    Promise.resolve({ total: 0, active: 0, pending: 0, suspended: 0, expiringSoon: 0 })
+    Promise.resolve({
+      total: 0,
+      active: 0,
+      pending: 0,
+      suspended: 0,
+      expiringSoon: 0,
+    }),
   ),
-  checkAvailability: mock(() => Promise.resolve({ available: true, domain: "test.com" })),
-  getDomainPrice: mock(() => Promise.resolve({ price: 1500, period: 1, currency: "USD" })),
+  checkAvailability: mock(() =>
+    Promise.resolve({ available: true, domain: "test.com" }),
+  ),
+  getDomainPrice: mock(() =>
+    Promise.resolve({ price: 1500, period: 1, currency: "USD" }),
+  ),
   searchDomains: mock(() => Promise.resolve([])),
   getDomain: mock(() => Promise.resolve(null)),
   registerExternalDomain: mock(() => Promise.resolve({ success: true })),
@@ -51,7 +61,7 @@ mock.module("@/lib/services/domain-management", () => ({
 // Mock moderation service
 const mockModerationService = {
   validateDomainName: mock(() =>
-    Promise.resolve({ allowed: true, flags: [], requiresReview: false })
+    Promise.resolve({ allowed: true, flags: [], requiresReview: false }),
   ),
 };
 
@@ -98,8 +108,15 @@ const resetMocks = () => {
     suspended: 0,
     expiringSoon: 0,
   });
-  mockDomainService.checkAvailability.mockResolvedValue({ available: true, domain: "test.com" });
-  mockDomainService.getDomainPrice.mockResolvedValue({ price: 1500, period: 1, currency: "USD" });
+  mockDomainService.checkAvailability.mockResolvedValue({
+    available: true,
+    domain: "test.com",
+  });
+  mockDomainService.getDomainPrice.mockResolvedValue({
+    price: 1500,
+    period: 1,
+    currency: "USD",
+  });
   mockDomainService.searchDomains.mockResolvedValue([]);
   mockDomainService.getDomain.mockResolvedValue(null);
   mockDomainService.registerExternalDomain.mockResolvedValue({ success: true });
@@ -115,13 +132,13 @@ const resetMocks = () => {
   mockDomainService.addDnsRecord.mockResolvedValue({ success: true });
   mockDomainService.deleteDnsRecord.mockResolvedValue({ success: true });
   mockDomainService.generateDnsInstructions.mockReturnValue([]);
-  
+
   mockModerationService.validateDomainName.mockResolvedValue({
     allowed: true,
     flags: [],
     requiresReview: false,
   });
-  
+
   mockRepository.listEvents.mockResolvedValue([]);
   mockRepository.updateByOrg.mockResolvedValue({});
 };
@@ -172,7 +189,9 @@ describe("GET /api/v1/domains", () => {
     const data = await response.json();
 
     expect(response.status).toBe(200);
-    expect(mockDomainService.listUnassignedDomains).toHaveBeenCalledWith("org-123");
+    expect(mockDomainService.listUnassignedDomains).toHaveBeenCalledWith(
+      "org-123",
+    );
   });
 });
 
@@ -331,13 +350,18 @@ describe("GET /api/v1/domains/search", () => {
 
     const { GET } = await import("@/app/api/v1/domains/search/route");
 
-    const url = new URL("http://localhost/api/v1/domains/search?q=test&tlds=com,io");
+    const url = new URL(
+      "http://localhost/api/v1/domains/search?q=test&tlds=com,io",
+    );
     const request = new Request(url, { method: "GET" });
     (request as Request & { nextUrl: URL }).nextUrl = url;
 
     await GET(request as never);
 
-    expect(mockDomainService.searchDomains).toHaveBeenCalledWith("test", ["com", "io"]);
+    expect(mockDomainService.searchDomains).toHaveBeenCalledWith("test", [
+      "com",
+      "io",
+    ]);
   });
 });
 
@@ -353,7 +377,9 @@ describe("GET /api/v1/domains/check", () => {
 
     const { GET } = await import("@/app/api/v1/domains/check/route");
 
-    const url = new URL("http://localhost/api/v1/domains/check?domain=available.com");
+    const url = new URL(
+      "http://localhost/api/v1/domains/check?domain=available.com",
+    );
     const request = new Request(url, { method: "GET" });
     (request as Request & { nextUrl: URL }).nextUrl = url;
 
@@ -372,13 +398,21 @@ describe("GET /api/v1/domains/check", () => {
     });
     mockModerationService.validateDomainName.mockResolvedValue({
       allowed: true,
-      flags: [{ type: "trademark", severity: "medium", reason: "Contains brand name" }],
+      flags: [
+        {
+          type: "trademark",
+          severity: "medium",
+          reason: "Contains brand name",
+        },
+      ],
       requiresReview: true,
     });
 
     const { GET } = await import("@/app/api/v1/domains/check/route");
 
-    const url = new URL("http://localhost/api/v1/domains/check?domain=flagged.com");
+    const url = new URL(
+      "http://localhost/api/v1/domains/check?domain=flagged.com",
+    );
     const request = new Request(url, { method: "GET" });
     (request as Request & { nextUrl: URL }).nextUrl = url;
 
@@ -426,9 +460,12 @@ describe("GET /api/v1/domains/:id", () => {
 
     const { GET } = await import("@/app/api/v1/domains/[id]/route");
 
-    const request = new Request("http://localhost/api/v1/domains/non-existent", {
-      method: "GET",
-    });
+    const request = new Request(
+      "http://localhost/api/v1/domains/non-existent",
+      {
+        method: "GET",
+      },
+    );
 
     const response = await GET(request as never, {
       params: Promise.resolve({ id: "non-existent" }),
@@ -470,15 +507,28 @@ describe("POST /api/v1/domains/:id/verify", () => {
   it("triggers domain verification", async () => {
     // getDomain called twice in route: once for initial check, once after verification
     mockDomainService.getDomain
-      .mockResolvedValueOnce({ id: "domain-1", domain: "example.com", verified: false, nameserverMode: "vercel" })
-      .mockResolvedValueOnce({ id: "domain-1", domain: "example.com", verified: true, nameserverMode: "vercel" });
+      .mockResolvedValueOnce({
+        id: "domain-1",
+        domain: "example.com",
+        verified: false,
+        nameserverMode: "vercel",
+      })
+      .mockResolvedValueOnce({
+        id: "domain-1",
+        domain: "example.com",
+        verified: true,
+        nameserverMode: "vercel",
+      });
     mockDomainService.verifyDomain.mockResolvedValue({ verified: true });
 
     const { POST } = await import("@/app/api/v1/domains/[id]/verify/route");
 
-    const request = new Request("http://localhost/api/v1/domains/domain-1/verify", {
-      method: "POST",
-    });
+    const request = new Request(
+      "http://localhost/api/v1/domains/domain-1/verify",
+      {
+        method: "POST",
+      },
+    );
 
     const response = await POST(request as never, {
       params: Promise.resolve({ id: "domain-1" }),
@@ -494,19 +544,30 @@ describe("POST /api/v1/domains/:id/assign", () => {
   beforeEach(resetMocks);
 
   it("assigns domain to app", async () => {
-    mockDomainService.getDomain.mockResolvedValue({ id: "domain-1", domain: "test.com", verified: true });
-    mockDomainService.assignToResource.mockResolvedValue({ id: "domain-1", resourceType: "app", appId: "app-1" });
+    mockDomainService.getDomain.mockResolvedValue({
+      id: "domain-1",
+      domain: "test.com",
+      verified: true,
+    });
+    mockDomainService.assignToResource.mockResolvedValue({
+      id: "domain-1",
+      resourceType: "app",
+      appId: "app-1",
+    });
 
     const { POST } = await import("@/app/api/v1/domains/[id]/assign/route");
 
-    const request = new Request("http://localhost/api/v1/domains/domain-1/assign", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        resourceType: "app",
-        resourceId: "550e8400-e29b-41d4-a716-446655440000",
-      }),
-    });
+    const request = new Request(
+      "http://localhost/api/v1/domains/domain-1/assign",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          resourceType: "app",
+          resourceId: "550e8400-e29b-41d4-a716-446655440000",
+        }),
+      },
+    );
 
     const response = await POST(request as never, {
       params: Promise.resolve({ id: "domain-1" }),
@@ -518,17 +579,24 @@ describe("POST /api/v1/domains/:id/assign", () => {
   });
 
   it("validates resource type", async () => {
-    mockDomainService.getDomain.mockResolvedValue({ id: "domain-1", domain: "test.com", verified: true });
+    mockDomainService.getDomain.mockResolvedValue({
+      id: "domain-1",
+      domain: "test.com",
+      verified: true,
+    });
     const { POST } = await import("@/app/api/v1/domains/[id]/assign/route");
 
-    const request = new Request("http://localhost/api/v1/domains/domain-1/assign", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        resourceType: "invalid",
-        resourceId: "550e8400-e29b-41d4-a716-446655440000",
-      }),
-    });
+    const request = new Request(
+      "http://localhost/api/v1/domains/domain-1/assign",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          resourceType: "invalid",
+          resourceId: "550e8400-e29b-41d4-a716-446655440000",
+        }),
+      },
+    );
 
     const response = await POST(request as never, {
       params: Promise.resolve({ id: "domain-1" }),
@@ -538,17 +606,24 @@ describe("POST /api/v1/domains/:id/assign", () => {
   });
 
   it("validates UUID format for resourceId", async () => {
-    mockDomainService.getDomain.mockResolvedValue({ id: "domain-1", domain: "test.com", verified: true });
+    mockDomainService.getDomain.mockResolvedValue({
+      id: "domain-1",
+      domain: "test.com",
+      verified: true,
+    });
     const { POST } = await import("@/app/api/v1/domains/[id]/assign/route");
 
-    const request = new Request("http://localhost/api/v1/domains/domain-1/assign", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        resourceType: "app",
-        resourceId: "not-a-uuid",
-      }),
-    });
+    const request = new Request(
+      "http://localhost/api/v1/domains/domain-1/assign",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          resourceType: "app",
+          resourceId: "not-a-uuid",
+        }),
+      },
+    );
 
     const response = await POST(request as never, {
       params: Promise.resolve({ id: "domain-1" }),
@@ -563,14 +638,25 @@ describe("DELETE /api/v1/domains/:id/assign", () => {
 
   it("unassigns domain from resource", async () => {
     // Must return domain with resourceType for getDomain check
-    mockDomainService.getDomain.mockResolvedValue({ id: "domain-1", domain: "test.com", resourceType: "app", appId: "app-1" });
-    mockDomainService.unassignDomain.mockResolvedValue({ id: "domain-1", resourceType: null });
+    mockDomainService.getDomain.mockResolvedValue({
+      id: "domain-1",
+      domain: "test.com",
+      resourceType: "app",
+      appId: "app-1",
+    });
+    mockDomainService.unassignDomain.mockResolvedValue({
+      id: "domain-1",
+      resourceType: null,
+    });
 
     const { DELETE } = await import("@/app/api/v1/domains/[id]/assign/route");
 
-    const request = new Request("http://localhost/api/v1/domains/domain-1/assign", {
-      method: "DELETE",
-    });
+    const request = new Request(
+      "http://localhost/api/v1/domains/domain-1/assign",
+      {
+        method: "DELETE",
+      },
+    );
 
     const response = await DELETE(request as never, {
       params: Promise.resolve({ id: "domain-1" }),
@@ -597,9 +683,12 @@ describe("GET /api/v1/domains/:id/dns", () => {
 
     const { GET } = await import("@/app/api/v1/domains/[id]/dns/route");
 
-    const request = new Request("http://localhost/api/v1/domains/domain-1/dns", {
-      method: "GET",
-    });
+    const request = new Request(
+      "http://localhost/api/v1/domains/domain-1/dns",
+      {
+        method: "GET",
+      },
+    );
 
     const response = await GET(request as never, {
       params: Promise.resolve({ id: "domain-1" }),
@@ -626,16 +715,19 @@ describe("POST /api/v1/domains/:id/dns", () => {
 
     const { POST } = await import("@/app/api/v1/domains/[id]/dns/route");
 
-    const request = new Request("http://localhost/api/v1/domains/domain-1/dns", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        type: "A",
-        name: "@",
-        value: "1.2.3.4",
-        ttl: 3600,
-      }),
-    });
+    const request = new Request(
+      "http://localhost/api/v1/domains/domain-1/dns",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "A",
+          name: "@",
+          value: "1.2.3.4",
+          ttl: 3600,
+        }),
+      },
+    );
 
     const response = await POST(request as never, {
       params: Promise.resolve({ id: "domain-1" }),
@@ -651,15 +743,18 @@ describe("POST /api/v1/domains/:id/dns", () => {
     // Domain not found returns 404, validation error returns 400
     const { POST } = await import("@/app/api/v1/domains/[id]/dns/route");
 
-    const request = new Request("http://localhost/api/v1/domains/domain-1/dns", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        type: "INVALID",
-        name: "@",
-        value: "1.2.3.4",
-      }),
-    });
+    const request = new Request(
+      "http://localhost/api/v1/domains/domain-1/dns",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "INVALID",
+          name: "@",
+          value: "1.2.3.4",
+        }),
+      },
+    );
 
     const response = await POST(request as never, {
       params: Promise.resolve({ id: "domain-1" }),
@@ -672,15 +767,18 @@ describe("POST /api/v1/domains/:id/dns", () => {
   it("returns error for MX records without priority", async () => {
     const { POST } = await import("@/app/api/v1/domains/[id]/dns/route");
 
-    const request = new Request("http://localhost/api/v1/domains/domain-1/dns", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        type: "MX",
-        name: "@",
-        value: "mail.example.com",
-      }),
-    });
+    const request = new Request(
+      "http://localhost/api/v1/domains/domain-1/dns",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "MX",
+          name: "@",
+          value: "mail.example.com",
+        }),
+      },
+    );
 
     const response = await POST(request as never, {
       params: Promise.resolve({ id: "domain-1" }),
@@ -690,4 +788,3 @@ describe("POST /api/v1/domains/:id/dns", () => {
     expect([400, 404]).toContain(response.status);
   });
 });
-

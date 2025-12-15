@@ -30,7 +30,7 @@ export interface CampaignAttribution {
 }
 
 export function parseUTMParams(
-  urlOrParams: string | URLSearchParams | Record<string, string>
+  urlOrParams: string | URLSearchParams | Record<string, string>,
 ): UTMParams {
   let params: URLSearchParams;
 
@@ -62,7 +62,7 @@ export function generateCampaignUrl(
     medium?: string;
     content?: string;
     term?: string;
-  }
+  },
 ): string {
   const url = new URL(baseUrl);
 
@@ -106,13 +106,14 @@ class ConversionTrackingService {
         .where(
           and(
             eq(appUsers.app_id, event.appId),
-            eq(appUsers.user_id, event.userId)
-          )
+            eq(appUsers.user_id, event.userId),
+          ),
         )
         .limit(1);
 
       if (existing) {
-        const currentMetadata = (existing.metadata as Record<string, unknown>) || {};
+        const currentMetadata =
+          (existing.metadata as Record<string, unknown>) || {};
         await db
           .update(appUsers)
           .set({
@@ -129,7 +130,11 @@ class ConversionTrackingService {
     }
   }
 
-  async trackSignupFromUTM(userId: string, appId: string, utmParams: UTMParams): Promise<void> {
+  async trackSignupFromUTM(
+    userId: string,
+    appId: string,
+    utmParams: UTMParams,
+  ): Promise<void> {
     if (!utmParams.utm_campaign) return;
     const [campaign] = await db
       .select()
@@ -155,7 +160,7 @@ class ConversionTrackingService {
 
   async getCampaignAttribution(
     organizationId: string,
-    options?: { campaignId?: string }
+    options?: { campaignId?: string },
   ): Promise<CampaignAttribution[]> {
     const conditions = [eq(adCampaigns.organization_id, organizationId)];
 
@@ -181,7 +186,7 @@ class ConversionTrackingService {
 
   async getUserAttribution(
     userId: string,
-    appId: string
+    appId: string,
   ): Promise<{
     campaignId?: string;
     campaignName?: string;
@@ -192,9 +197,7 @@ class ConversionTrackingService {
     const [appUser] = await db
       .select()
       .from(appUsers)
-      .where(
-        and(eq(appUsers.app_id, appId), eq(appUsers.user_id, userId))
-      )
+      .where(and(eq(appUsers.app_id, appId), eq(appUsers.user_id, userId)))
       .limit(1);
 
     if (!appUser?.metadata) {
@@ -227,16 +230,17 @@ class ConversionTrackingService {
     campaignId: string,
     platform: string,
     destinationUrl: string,
-    creativeIds: string[]
+    creativeIds: string[],
   ): Record<string, string> {
     return Object.fromEntries(
       creativeIds.map((id) => [
         id,
-        generateCampaignUrl(destinationUrl, campaignId, platform, { content: id }),
-      ])
+        generateCampaignUrl(destinationUrl, campaignId, platform, {
+          content: id,
+        }),
+      ]),
     );
   }
 }
 
 export const conversionTrackingService = new ConversionTrackingService();
-

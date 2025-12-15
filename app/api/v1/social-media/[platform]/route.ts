@@ -11,7 +11,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { socialMediaService } from "@/lib/services/social-media";
-import type { SocialPlatform, PostContent, PlatformPostOptions } from "@/lib/types/social-media";
+import type {
+  SocialPlatform,
+  PostContent,
+  PlatformPostOptions,
+} from "@/lib/types/social-media";
 
 type RouteContext = { params: Promise<{ platform: string }> };
 
@@ -55,7 +59,10 @@ export async function POST(request: NextRequest, ctx: RouteContext) {
 
   // Validate platform
   if (!socialMediaService.isPlatformSupported(platform as SocialPlatform)) {
-    return NextResponse.json({ error: `Unsupported platform: ${platform}` }, { status: 400 });
+    return NextResponse.json(
+      { error: `Unsupported platform: ${platform}` },
+      { status: 400 },
+    );
   }
 
   const body = await request.json();
@@ -88,10 +95,14 @@ export async function POST(request: NextRequest, ctx: RouteContext) {
 export async function GET(request: NextRequest, ctx: RouteContext) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { platform } = await ctx.params;
-  const credentialId = request.nextUrl.searchParams.get("credentialId") ?? undefined;
+  const credentialId =
+    request.nextUrl.searchParams.get("credentialId") ?? undefined;
 
   if (!socialMediaService.isPlatformSupported(platform as SocialPlatform)) {
-    return NextResponse.json({ error: `Unsupported platform: ${platform}` }, { status: 400 });
+    return NextResponse.json(
+      { error: `Unsupported platform: ${platform}` },
+      { status: 400 },
+    );
   }
 
   const analytics = await socialMediaService.getAccountAnalytics({
@@ -102,4 +113,3 @@ export async function GET(request: NextRequest, ctx: RouteContext) {
 
   return NextResponse.json({ analytics });
 }
-

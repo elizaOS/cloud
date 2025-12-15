@@ -28,7 +28,7 @@ describeWithRedis("redis slow query integration", () => {
       const queryHash = hashQuery(uniqueSql);
 
       await recordSlowQuery(uniqueSql, 150);
-      
+
       // Poll for value (fire-and-forget write may take variable time)
       let fromRedis = null;
       for (let i = 0; i < 10; i++) {
@@ -48,7 +48,7 @@ describeWithRedis("redis slow query integration", () => {
 
       await recordSlowQuery(uniqueSql, 100);
       await recordSlowQuery(uniqueSql, 200);
-      
+
       // Poll for updated value
       let fromRedis = null;
       for (let i = 0; i < 10; i++) {
@@ -76,7 +76,7 @@ describeWithRedis("redis slow query integration", () => {
       const queryHash = hashQuery(uniqueSql);
 
       await recordSlowQuery(uniqueSql, 100);
-      
+
       // Poll for specific key to appear (avoids scanning all keys)
       let found = null;
       for (let i = 0; i < 10; i++) {
@@ -97,7 +97,7 @@ describeWithRedis("redis slow query integration", () => {
       const before = new Date();
 
       await recordSlowQuery(uniqueSql, 100);
-      
+
       // Poll for value
       let fromRedis = null;
       for (let i = 0; i < 10; i++) {
@@ -109,7 +109,9 @@ describeWithRedis("redis slow query integration", () => {
       expect(fromRedis).not.toBeNull();
       expect(fromRedis!.firstSeenAt).toBeInstanceOf(Date);
       expect(fromRedis!.lastSeenAt).toBeInstanceOf(Date);
-      expect(fromRedis!.firstSeenAt.getTime()).toBeGreaterThanOrEqual(before.getTime());
+      expect(fromRedis!.firstSeenAt.getTime()).toBeGreaterThanOrEqual(
+        before.getTime(),
+      );
     });
   });
 });
@@ -133,4 +135,3 @@ describe("redis availability", () => {
     }
   });
 });
-

@@ -1,6 +1,6 @@
 /**
  * Fragment Projects Repository
- * 
+ *
  * Database operations for fragment projects
  */
 
@@ -25,7 +25,7 @@ export class FragmentProjectsRepository {
 
   async listByOrganization(
     organizationId: string,
-    filters?: { status?: string; userId?: string }
+    filters?: { status?: string; userId?: string },
   ): Promise<FragmentProject[]> {
     const conditions = [eq(fragmentProjects.organization_id, organizationId)];
 
@@ -55,7 +55,7 @@ export class FragmentProjectsRepository {
 
   async update(
     id: string,
-    data: Partial<NewFragmentProject>
+    data: Partial<NewFragmentProject>,
   ): Promise<FragmentProject | undefined> {
     const [project] = await db
       .update(fragmentProjects)
@@ -82,4 +82,3 @@ export class FragmentProjectsRepository {
 }
 
 export const fragmentProjectsRepository = new FragmentProjectsRepository();
-

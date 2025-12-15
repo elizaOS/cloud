@@ -104,7 +104,9 @@ export function AdvertisingPageClient() {
   // Connect account dialog state
   const [showConnectDialog, setShowConnectDialog] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
-  const [connectPlatform, setConnectPlatform] = useState<"meta" | "google" | "tiktok">("meta");
+  const [connectPlatform, setConnectPlatform] = useState<
+    "meta" | "google" | "tiktok"
+  >("meta");
   const [connectAccessToken, setConnectAccessToken] = useState("");
   const [connectAccountId, setConnectAccountId] = useState("");
   const [connectAccountName, setConnectAccountName] = useState("");
@@ -139,14 +141,16 @@ export function AdvertisingPageClient() {
         setIsLoadingStats(false);
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const handleStartCampaign = async (campaignId: string) => {
     setActionLoading(campaignId);
     const response = await fetch(
       `/api/v1/advertising/campaigns/${campaignId}/start`,
-      { method: "POST" }
+      { method: "POST" },
     );
     if (response.ok) {
       toast.success("Campaign started");
@@ -162,7 +166,7 @@ export function AdvertisingPageClient() {
     setActionLoading(campaignId);
     const response = await fetch(
       `/api/v1/advertising/campaigns/${campaignId}/pause`,
-      { method: "POST" }
+      { method: "POST" },
     );
     if (response.ok) {
       toast.success("Campaign paused");
@@ -178,7 +182,7 @@ export function AdvertisingPageClient() {
     setIsDeleting(true);
     const response = await fetch(
       `/api/v1/advertising/campaigns/${campaignId}`,
-      { method: "DELETE" }
+      { method: "DELETE" },
     );
     if (response.ok) {
       toast.success("Campaign deleted");
@@ -239,7 +243,9 @@ export function AdvertisingPageClient() {
         platform: connectPlatform,
         accessToken: connectAccessToken,
         externalAccountId: connectAccountId || undefined,
-        accountName: connectAccountName || `${connectPlatform.charAt(0).toUpperCase() + connectPlatform.slice(1)} Account`,
+        accountName:
+          connectAccountName ||
+          `${connectPlatform.charAt(0).toUpperCase() + connectPlatform.slice(1)} Account`,
       }),
     });
 
@@ -366,7 +372,8 @@ export function AdvertisingPageClient() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="text-white/60">
-            {accounts.length} connected account{accounts.length !== 1 ? "s" : ""}
+            {accounts.length} connected account
+            {accounts.length !== 1 ? "s" : ""}
           </span>
           {accounts.length === 0 && (
             <span className="text-xs text-amber-400">
@@ -375,11 +382,7 @@ export function AdvertisingPageClient() {
           )}
         </div>
         <div className="flex gap-2">
-          <BrandButton
-            variant="outline"
-            size="sm"
-            onClick={handleRefresh}
-          >
+          <BrandButton variant="outline" size="sm" onClick={handleRefresh}>
             <RefreshCw className="w-4 h-4 mr-2" />
             Refresh
           </BrandButton>
@@ -430,7 +433,10 @@ export function AdvertisingPageClient() {
               : "Create your first advertising campaign to promote your apps"}
           </p>
           {accounts.length === 0 ? (
-            <BrandButton variant="primary" onClick={() => setShowConnectDialog(true)}>
+            <BrandButton
+              variant="primary"
+              onClick={() => setShowConnectDialog(true)}
+            >
               <Link2 className="w-4 h-4 mr-2" />
               Connect Account
             </BrandButton>
@@ -461,7 +467,7 @@ export function AdvertisingPageClient() {
                     </h3>
                     <span
                       className={`px-2 py-0.5 text-xs font-medium border ${getStatusColor(
-                        campaign.status
+                        campaign.status,
                       )}`}
                     >
                       {campaign.status}
@@ -473,8 +479,8 @@ export function AdvertisingPageClient() {
                     <span className="capitalize">{campaign.objective}</span>
                     <span>•</span>
                     <span>
-                      {campaign.budgetType === "daily" ? "Daily" : "Lifetime"}{" "}
-                      ${parseFloat(campaign.budgetAmount).toFixed(2)}
+                      {campaign.budgetType === "daily" ? "Daily" : "Lifetime"} $
+                      {parseFloat(campaign.budgetAmount).toFixed(2)}
                     </span>
                   </div>
                 </div>
@@ -598,7 +604,8 @@ export function AdvertisingPageClient() {
           <DialogHeader>
             <DialogTitle>Connect Ad Account</DialogTitle>
             <DialogDescription>
-              Connect an advertising platform account to create and manage campaigns.
+              Connect an advertising platform account to create and manage
+              campaigns.
             </DialogDescription>
           </DialogHeader>
 
@@ -607,7 +614,9 @@ export function AdvertisingPageClient() {
               <label className="text-sm font-medium text-white">Platform</label>
               <Select
                 value={connectPlatform}
-                onValueChange={(v) => setConnectPlatform(v as "meta" | "google" | "tiktok")}
+                onValueChange={(v) =>
+                  setConnectPlatform(v as "meta" | "google" | "tiktok")
+                }
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -637,7 +646,8 @@ export function AdvertisingPageClient() {
                 onChange={(e) => setConnectAccessToken(e.target.value)}
               />
               <p className="text-xs text-white/50">
-                Get your access token from the Meta Business Suite or Marketing API.
+                Get your access token from the Meta Business Suite or Marketing
+                API.
               </p>
             </div>
 

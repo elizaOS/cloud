@@ -19,7 +19,10 @@ import {
 import { isFeatureConfigured } from "@/lib/config/env-validator";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { z } from "zod";
-import { loadContainerSecrets, isSecretsConfigured } from "@/lib/services/secrets";
+import {
+  loadContainerSecrets,
+  isSecretsConfigured,
+} from "@/lib/services/secrets";
 
 export const dynamic = "force-dynamic";
 // Set max duration to handle CloudFormation deployments
@@ -188,7 +191,9 @@ async function handleCreateContainer(request: NextRequest) {
     } catch (error) {
       logger.error("Failed to verify ECR image:", error);
       // Log but don't block deployment - image might exist but verification failed
-      logger.warn("Proceeding with deployment despite image verification failure");
+      logger.warn(
+        "Proceeding with deployment despite image verification failure",
+      );
     }
 
     // Check if a container with this project_name already exists for this user
@@ -615,7 +620,9 @@ async function initiateCloudFormationStack(
 
   // Priority: secrets (highest) > user env vars > platform defaults
   const environmentVars: Record<string, string> = {
-    ...(process.env.OPENAI_API_KEY && { OPENAI_API_KEY: process.env.OPENAI_API_KEY }),
+    ...(process.env.OPENAI_API_KEY && {
+      OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+    }),
     ...(config.environment_vars || {}),
     ...encryptedSecrets,
   };
@@ -653,9 +660,12 @@ async function initiateCloudFormationStack(
     stackId = await cloudFormationService.createUserStack(stackConfig);
   }
 
-  logger.info("[initiateCloudFormationStack] CloudFormation API call successful", {
-    stackId,
-  });
+  logger.info(
+    "[initiateCloudFormationStack] CloudFormation API call successful",
+    {
+      stackId,
+    },
+  );
 
   // Get the stack name for storage
   const stackName = cloudFormationService.getStackName(

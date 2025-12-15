@@ -29,12 +29,12 @@ export async function GET(request: NextRequest) {
   if (!user.organization_id) {
     return NextResponse.json(
       { success: false, error: "Organization required" },
-      { status: 403 }
+      { status: 403 },
     );
   }
 
   const instances = await agentLifecycleService.listInstances(
-    user.organization_id
+    user.organization_id,
   );
 
   // Map instances to response format
@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
   if (!user.organization_id) {
     return NextResponse.json(
       { success: false, error: "Organization required" },
-      { status: 403 }
+      { status: 403 },
     );
   }
 
@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
     ORG_AGENT_TYPES.map(async (agentType) => {
       const existing = await agentLifecycleService.getInstance(
         user.organization_id,
-        agentType
+        agentType,
       );
 
       if (existing) {
@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
       });
 
       return { agentType, status: "created", instance };
-    })
+    }),
   );
 
   return NextResponse.json({

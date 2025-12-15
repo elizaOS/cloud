@@ -4,10 +4,7 @@
  * Type definitions for the advertising service and ad platform integrations.
  */
 
-import type {
-  AdPlatform,
-  AdAccountStatus,
-} from "@/db/schemas/ad-accounts";
+import type { AdPlatform, AdAccountStatus } from "@/db/schemas/ad-accounts";
 import type {
   CampaignStatus,
   CampaignObjective,
@@ -183,7 +180,7 @@ export interface AdProvider {
    * Validates ad account credentials.
    */
   validateCredentials(
-    credentials: AdAccountCredentials
+    credentials: AdAccountCredentials,
   ): Promise<AdProviderValidationResult>;
 
   /**
@@ -199,7 +196,7 @@ export interface AdProvider {
    * Lists available ad accounts for the authenticated user.
    */
   listAdAccounts(
-    credentials: AdAccountCredentials
+    credentials: AdAccountCredentials,
   ): Promise<Array<{ id: string; name: string }>>;
 
   /**
@@ -208,7 +205,7 @@ export interface AdProvider {
   createCampaign(
     credentials: AdAccountCredentials,
     accountId: string,
-    input: CreateCampaignInput
+    input: CreateCampaignInput,
   ): Promise<AdProviderCampaignResult>;
 
   /**
@@ -217,7 +214,7 @@ export interface AdProvider {
   updateCampaign(
     credentials: AdAccountCredentials,
     externalCampaignId: string,
-    input: UpdateCampaignInput
+    input: UpdateCampaignInput,
   ): Promise<AdProviderCampaignResult>;
 
   /**
@@ -225,7 +222,7 @@ export interface AdProvider {
    */
   pauseCampaign(
     credentials: AdAccountCredentials,
-    externalCampaignId: string
+    externalCampaignId: string,
   ): Promise<AdProviderCampaignResult>;
 
   /**
@@ -233,7 +230,7 @@ export interface AdProvider {
    */
   activateCampaign(
     credentials: AdAccountCredentials,
-    externalCampaignId: string
+    externalCampaignId: string,
   ): Promise<AdProviderCampaignResult>;
 
   /**
@@ -241,7 +238,7 @@ export interface AdProvider {
    */
   deleteCampaign(
     credentials: AdAccountCredentials,
-    externalCampaignId: string
+    externalCampaignId: string,
   ): Promise<{ success: boolean; error?: string }>;
 
   /**
@@ -251,7 +248,7 @@ export interface AdProvider {
     credentials: AdAccountCredentials,
     accountId: string,
     externalCampaignId: string,
-    input: CreateCreativeInput
+    input: CreateCreativeInput,
   ): Promise<AdProviderCreativeResult>;
 
   /**
@@ -260,7 +257,7 @@ export interface AdProvider {
   getCampaignMetrics(
     credentials: AdAccountCredentials,
     externalCampaignId: string,
-    dateRange?: { start: Date; end: Date }
+    dateRange?: { start: Date; end: Date },
   ): Promise<AdProviderMetricsResult>;
 }
 
@@ -272,21 +269,21 @@ export const AD_CREDIT_RATES = {
   // Campaign management operations
   createCampaign: 0.5,
   createCreative: 0.25,
-  
+
   // Ad spend markup (multiplier on actual spend)
   spendMarkup: {
     meta: 1.1,
     google: 1.1,
     tiktok: 1.1,
   },
-  
+
   // Analytics/reports
   detailedAnalytics: 0.1,
 } as const;
 
 export function calculateSpendCredits(
   platform: AdPlatform,
-  amount: number
+  amount: number,
 ): number {
   const markup = AD_CREDIT_RATES.spendMarkup[platform] || 1.1;
   return amount * markup;

@@ -97,18 +97,22 @@ export const secrets = pgTable(
     version: integer("version").default(1).notNull(),
     last_rotated_at: timestamp("last_rotated_at"),
     expires_at: timestamp("expires_at"),
-    created_by: uuid("created_by").notNull().references(() => users.id),
+    created_by: uuid("created_by")
+      .notNull()
+      .references(() => users.id),
     last_accessed_at: timestamp("last_accessed_at"),
     access_count: integer("access_count").default(0).notNull(),
     created_at: timestamp("created_at").notNull().defaultNow(),
     updated_at: timestamp("updated_at").notNull().defaultNow(),
   },
   (table) => ({
-    org_name_project_env_idx: uniqueIndex("secrets_org_name_project_env_idx").on(
+    org_name_project_env_idx: uniqueIndex(
+      "secrets_org_name_project_env_idx",
+    ).on(
       table.organization_id,
       table.name,
       table.project_id,
-      table.environment
+      table.environment,
     ),
     org_idx: index("secrets_org_idx").on(table.organization_id),
     project_idx: index("secrets_project_idx").on(table.project_id),
@@ -117,7 +121,7 @@ export const secrets = pgTable(
     name_idx: index("secrets_name_idx").on(table.name),
     expires_idx: index("secrets_expires_idx").on(table.expires_at),
     provider_idx: index("secrets_provider_idx").on(table.provider),
-  })
+  }),
 );
 
 /**
@@ -145,15 +149,15 @@ export const secretBindings = pgTable(
     secret_project_idx: uniqueIndex("secret_bindings_secret_project_idx").on(
       table.secret_id,
       table.project_id,
-      table.project_type
+      table.project_type,
     ),
     org_idx: index("secret_bindings_org_idx").on(table.organization_id),
     project_idx: index("secret_bindings_project_idx").on(
       table.project_id,
-      table.project_type
+      table.project_type,
     ),
     secret_idx: index("secret_bindings_secret_idx").on(table.secret_id),
-  })
+  }),
 );
 
 /**
@@ -178,11 +182,13 @@ export const appSecretRequirements = pgTable(
   (table) => ({
     app_secret_idx: uniqueIndex("app_secret_requirements_app_secret_idx").on(
       table.app_id,
-      table.secret_name
+      table.secret_name,
     ),
     app_idx: index("app_secret_requirements_app_idx").on(table.app_id),
-    approved_idx: index("app_secret_requirements_approved_idx").on(table.approved),
-  })
+    approved_idx: index("app_secret_requirements_approved_idx").on(
+      table.approved,
+    ),
+  }),
 );
 
 export const oauthSessions = pgTable(
@@ -192,7 +198,9 @@ export const oauthSessions = pgTable(
     organization_id: uuid("organization_id")
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
-    user_id: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
+    user_id: uuid("user_id").references(() => users.id, {
+      onDelete: "cascade",
+    }),
     provider: text("provider").notNull(),
     provider_account_id: text("provider_account_id"),
     encrypted_access_token: text("encrypted_access_token").notNull(),
@@ -224,18 +232,18 @@ export const oauthSessions = pgTable(
     org_provider_idx: uniqueIndex("oauth_sessions_org_provider_idx").on(
       table.organization_id,
       table.provider,
-      table.user_id
+      table.user_id,
     ),
     user_provider_idx: index("oauth_sessions_user_provider_idx").on(
       table.user_id,
-      table.provider
+      table.provider,
     ),
     provider_idx: index("oauth_sessions_provider_idx").on(table.provider),
     expires_idx: index("oauth_sessions_expires_idx").on(
-      table.access_token_expires_at
+      table.access_token_expires_at,
     ),
     valid_idx: index("oauth_sessions_valid_idx").on(table.is_valid),
-  })
+  }),
 );
 
 export const secretAuditLog = pgTable(
@@ -255,7 +263,10 @@ export const secretAuditLog = pgTable(
     source: text("source"),
     request_id: text("request_id"),
     endpoint: text("endpoint"),
-    metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}).notNull(),
+    metadata: jsonb("metadata")
+      .$type<Record<string, unknown>>()
+      .default({})
+      .notNull(),
     created_at: timestamp("created_at").notNull().defaultNow(),
   },
   (table) => ({
@@ -265,15 +276,17 @@ export const secretAuditLog = pgTable(
     action_idx: index("secret_audit_log_action_idx").on(table.action),
     actor_idx: index("secret_audit_log_actor_idx").on(
       table.actor_type,
-      table.actor_id
+      table.actor_id,
     ),
-    created_at_idx: index("secret_audit_log_created_at_idx").on(table.created_at),
+    created_at_idx: index("secret_audit_log_created_at_idx").on(
+      table.created_at,
+    ),
     org_action_time_idx: index("secret_audit_log_org_action_time_idx").on(
       table.organization_id,
       table.action,
-      table.created_at
+      table.created_at,
     ),
-  })
+  }),
 );
 
 export type Secret = InferSelectModel<typeof secrets>;
@@ -288,13 +301,45 @@ export type NewSecretAuditLog = InferInsertModel<typeof secretAuditLog>;
 export type SecretBinding = InferSelectModel<typeof secretBindings>;
 export type NewSecretBinding = InferInsertModel<typeof secretBindings>;
 
-export type AppSecretRequirement = InferSelectModel<typeof appSecretRequirements>;
-export type NewAppSecretRequirement = InferInsertModel<typeof appSecretRequirements>;
+export type AppSecretRequirement = InferSelectModel<
+  typeof appSecretRequirements
+>;
+export type NewAppSecretRequirement = InferInsertModel<
+  typeof appSecretRequirements
+>;
 
 export type SecretScope = "organization" | "project" | "environment";
 export type SecretEnvironment = "development" | "preview" | "production";
-export type SecretAuditAction = "created" | "read" | "updated" | "deleted" | "rotated";
-export type SecretActorType = "user" | "api_key" | "system" | "deployment" | "workflow";
-export type SecretProvider = "openai" | "anthropic" | "google" | "elevenlabs" | "fal" | "stripe" | "discord" | "telegram" | "twitter" | "github" | "slack" | "aws" | "vercel" | "custom";
-export type SecretProjectType = "character" | "app" | "workflow" | "container" | "mcp";
-
+export type SecretAuditAction =
+  | "created"
+  | "read"
+  | "updated"
+  | "deleted"
+  | "rotated";
+export type SecretActorType =
+  | "user"
+  | "api_key"
+  | "system"
+  | "deployment"
+  | "workflow";
+export type SecretProvider =
+  | "openai"
+  | "anthropic"
+  | "google"
+  | "elevenlabs"
+  | "fal"
+  | "stripe"
+  | "discord"
+  | "telegram"
+  | "twitter"
+  | "github"
+  | "slack"
+  | "aws"
+  | "vercel"
+  | "custom";
+export type SecretProjectType =
+  | "character"
+  | "app"
+  | "workflow"
+  | "container"
+  | "mcp";

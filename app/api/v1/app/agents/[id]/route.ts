@@ -60,10 +60,7 @@ export async function GET(
   const { id } = await params;
 
   // Rate limiting
-  const rateLimitResult = await checkAppRateLimit(
-    request,
-    APP_RATE_LIMITS,
-  );
+  const rateLimitResult = await checkAppRateLimit(request, APP_RATE_LIMITS);
   if (!rateLimitResult.allowed) {
     return createRateLimitErrorResponse(
       rateLimitResult,
@@ -215,10 +212,7 @@ async function updateAgent(
   const { id } = await params;
 
   // Rate limiting (stricter for write operations)
-  const rateLimitResult = await checkAppRateLimit(
-    request,
-    APP_WRITE_LIMITS,
-  );
+  const rateLimitResult = await checkAppRateLimit(request, APP_WRITE_LIMITS);
   if (!rateLimitResult.allowed) {
     return createRateLimitErrorResponse(
       rateLimitResult,
@@ -368,10 +362,7 @@ export async function DELETE(
   const { id } = await params;
 
   // Rate limiting (stricter for write operations)
-  const rateLimitResult = await checkAppRateLimit(
-    request,
-    APP_WRITE_LIMITS,
-  );
+  const rateLimitResult = await checkAppRateLimit(request, APP_WRITE_LIMITS);
   if (!rateLimitResult.allowed) {
     return createRateLimitErrorResponse(
       rateLimitResult,

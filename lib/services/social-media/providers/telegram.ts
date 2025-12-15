@@ -38,11 +38,15 @@ interface TelegramMessage {
 
 // Use shared telegramBotApiRequest from @/lib/utils/telegram-api
 // Wrapped with retry logic for social media provider
-async function telegramApiRequest<T>(token: string, method: string, params?: Record<string, unknown>): Promise<T> {
+async function telegramApiRequest<T>(
+  token: string,
+  method: string,
+  params?: Record<string, unknown>,
+): Promise<T> {
   return withRetry<T>(
     () => telegramBotApiRequest<T>(token, method, params),
     async (data) => data,
-    { platform: "telegram", maxRetries: 3 }
+    { platform: "telegram", maxRetries: 3 },
   );
 }
 
@@ -50,7 +54,7 @@ async function sendMediaGroup(
   token: string,
   chatId: string | number,
   media: MediaAttachment[],
-  caption?: string
+  caption?: string,
 ): Promise<TelegramMessage[]> {
   const mediaItems = media.map((m, i) => ({
     type: m.type === "video" ? "video" : "photo",
@@ -65,7 +69,6 @@ async function sendMediaGroup(
   });
 }
 
-
 export const telegramProvider: SocialMediaProvider = {
   platform: "telegram",
 
@@ -77,7 +80,7 @@ export const telegramProvider: SocialMediaProvider = {
     try {
       const user = await telegramApiRequest<TelegramUser>(
         credentials.botToken,
-        "getMe"
+        "getMe",
       );
 
       return {
@@ -97,15 +100,23 @@ export const telegramProvider: SocialMediaProvider = {
   async createPost(
     credentials: SocialCredentials,
     content: PostContent,
-    options?: PlatformPostOptions
+    options?: PlatformPostOptions,
   ): Promise<PostResult> {
     if (!credentials.botToken) {
-      return { platform: "telegram", success: false, error: "Bot token required" };
+      return {
+        platform: "telegram",
+        success: false,
+        error: "Bot token required",
+      };
     }
 
     const chatId = options?.telegram?.chatId;
     if (!chatId) {
-      return { platform: "telegram", success: false, error: "Chat ID required" };
+      return {
+        platform: "telegram",
+        success: false,
+        error: "Chat ID required",
+      };
     }
 
     try {
@@ -131,7 +142,7 @@ export const telegramProvider: SocialMediaProvider = {
                 parse_mode: options?.telegram?.parseMode || "HTML",
                 reply_to_message_id: options?.telegram?.replyToMessageId,
                 disable_notification: options?.telegram?.disableNotification,
-              }
+              },
             );
           } else {
             message = await telegramApiRequest<TelegramMessage>(
@@ -144,7 +155,7 @@ export const telegramProvider: SocialMediaProvider = {
                 parse_mode: options?.telegram?.parseMode || "HTML",
                 reply_to_message_id: options?.telegram?.replyToMessageId,
                 disable_notification: options?.telegram?.disableNotification,
-              }
+              },
             );
           }
         } else {
@@ -153,7 +164,7 @@ export const telegramProvider: SocialMediaProvider = {
             credentials.botToken,
             chatId,
             content.media,
-            content.text
+            content.text,
           );
           message = messages[0];
         }
@@ -178,7 +189,7 @@ export const telegramProvider: SocialMediaProvider = {
         message = await telegramApiRequest<TelegramMessage>(
           credentials.botToken,
           "sendMessage",
-          params
+          params,
         );
       }
 
@@ -209,7 +220,10 @@ export const telegramProvider: SocialMediaProvider = {
       : [null, postId];
 
     if (!chatId) {
-      return { success: false, error: "Post ID must be in format chatId/messageId" };
+      return {
+        success: false,
+        error: "Post ID must be in format chatId/messageId",
+      };
     }
 
     try {
@@ -231,7 +245,7 @@ export const telegramProvider: SocialMediaProvider = {
     credentials: SocialCredentials,
     postId: string,
     content: PostContent,
-    options?: PlatformPostOptions
+    options?: PlatformPostOptions,
   ): Promise<PostResult> {
     // postId should be in format "chatId/messageId"
     const [chatId, messageId] = postId.includes("/")
@@ -266,4 +280,3 @@ export const telegramProvider: SocialMediaProvider = {
     throw new Error("Only URL-based media is supported for Telegram");
   },
 };
-

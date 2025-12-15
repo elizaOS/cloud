@@ -12,13 +12,22 @@ export async function GET(request: NextRequest) {
   await requireAuthOrApiKeyWithOrg(request);
 
   const url = new URL(request.url);
-  const parsed = DomainSearchSchema.safeParse({ q: url.searchParams.get("q"), tlds: url.searchParams.get("tlds") });
+  const parsed = DomainSearchSchema.safeParse({
+    q: url.searchParams.get("q"),
+    tlds: url.searchParams.get("tlds"),
+  });
   if (!parsed.success) return validationError(parsed.error.issues);
 
   const tlds = parsed.data.tlds?.split(",").filter(Boolean);
-  logger.info("[Domains API] Searching domains", { query: parsed.data.q, tlds });
+  logger.info("[Domains API] Searching domains", {
+    query: parsed.data.q,
+    tlds,
+  });
 
-  const results = await domainManagementService.searchDomains(parsed.data.q, tlds);
+  const results = await domainManagementService.searchDomains(
+    parsed.data.q,
+    tlds,
+  );
 
   return NextResponse.json({
     success: true,
@@ -27,4 +36,3 @@ export async function GET(request: NextRequest) {
     availableCount: results.filter((r) => r.available).length,
   });
 }
-

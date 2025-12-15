@@ -41,8 +41,7 @@ async function ensureUserHasApiKey(
   }
 
   // Check if user already has an API key
-  const existingKeys =
-    await apiKeysService.listByOrganization(organizationId);
+  const existingKeys = await apiKeysService.listByOrganization(organizationId);
   const userHasKey = existingKeys.some((key) => key.user_id === userId);
 
   if (userHasKey) {
@@ -69,16 +68,25 @@ export type AuthResult = {
  * Get the current authenticated user from Privy token
  *
  * Flow:
- * 1. Verify Privy token from cookies
- * 2. Look up user in database by Privy ID
- * 3. If not found, fetch full user data from Privy API (just-in-time sync)
- * 4. Create user and organization in database
- * 5. Create or get user session for tracking
+ * 1. Check Redis cache for session data (fast path)
+ * 2. If cache miss, verify Privy token from cookies
+ * 3. Look up user in database by Privy ID
+ * 4. If not found, fetch full user data from Privy API (just-in-time sync)
+ * 5. Create user and organization in database
+ * 6. Cache the session data in Redis for subsequent requests
  *
  * This handles the race condition where webhooks haven't fired yet.
  */
 export const getCurrentUser = cache(
   async (): Promise<UserWithOrganization | null> => {
+    // Import session cache utilities
+    const {
+      getCachedSessionUser,
+      cacheSessionUser,
+      getCachedSessionValidation,
+      cacheSessionValidation,
+    } = await import("@/lib/auth/session-cache");
+
     try {
       // Get the auth token from cookies
       const cookieStore = await cookies();
@@ -88,24 +96,50 @@ export const getCurrentUser = cache(
         return null;
       }
 
-      // Verify the token with Privy
-      const verifiedClaims = await privyClient.verifyAuthToken(authToken.value);
+      // FAST PATH: Check Redis cache for already-validated session + user data
+      const cachedUser = await getCachedSessionUser(authToken.value);
+      if (cachedUser) {
+        logger.debug("[AUTH] Using cached user data", { userId: cachedUser.id });
+        return cachedUser;
+      }
 
-      if (!verifiedClaims) {
-        return null;
+      // Check if we have cached session validation (Privy ID)
+      const cachedSession = await getCachedSessionValidation(authToken.value);
+      let privyUserId: string | null = null;
+
+      if (cachedSession?.isValid) {
+        // Use cached Privy validation result
+        privyUserId = cachedSession.privyId;
+        logger.debug("[AUTH] Using cached session validation", {
+          privyId: privyUserId,
+        });
+      } else {
+        // SLOW PATH: Verify the token with Privy (network call)
+        const verifiedClaims = await privyClient.verifyAuthToken(
+          authToken.value,
+        );
+
+        if (!verifiedClaims) {
+          return null;
+        }
+
+        privyUserId = verifiedClaims.userId;
       }
 
       // Get user from database by Privy ID
-      let user = await usersService.getByPrivyId(verifiedClaims.userId);
+      let user = await usersService.getByPrivyId(privyUserId);
 
       // Just-in-time sync: If user doesn't exist, fetch from Privy and create
       // This handles race conditions where webhooks haven't fired yet
       if (!user) {
-        logger.debug("[AUTH] User not in DB, starting JIT sync for:", verifiedClaims.userId);
-        
+        logger.debug(
+          "[AUTH] User not in DB, starting JIT sync for:",
+          privyUserId,
+        );
+
         try {
           let privyUser = null;
-          
+
           // Try efficient method first: use privy-id-token to avoid rate limits
           const idToken = cookieStore.get("privy-id-token");
           if (idToken?.value) {
@@ -113,24 +147,32 @@ export const getCurrentUser = cache(
             try {
               privyUser = await privyClient.getUser({ idToken: idToken.value });
             } catch {
-              logger.debug("[AUTH] privy-id-token method failed, will fallback to userId");
+              logger.debug(
+                "[AUTH] privy-id-token method failed, will fallback to userId",
+              );
             }
           }
-          
+
           // Fallback: use userId directly (counts against rate limits)
           if (!privyUser) {
             logger.debug("[AUTH] Using userId for user lookup (fallback)");
-            privyUser = await privyClient.getUser(verifiedClaims.userId);
+            privyUser = await privyClient.getUser(privyUserId);
           }
-          
+
           if (privyUser) {
             user = await syncUserFromPrivy(privyUser);
-            logger.info("[AUTH] JIT sync complete", { userId: user.id, orgId: user.organization_id });
+            logger.info("[AUTH] JIT sync complete", {
+              userId: user.id,
+              orgId: user.organization_id,
+            });
           } else {
             logger.error("[AUTH] Privy returned null for user");
           }
         } catch (privyError) {
-          logger.error("[AUTH] Failed to fetch user from Privy:", privyError instanceof Error ? privyError.message : privyError);
+          logger.error(
+            "[AUTH] Failed to fetch user from Privy:",
+            privyError instanceof Error ? privyError.message : privyError,
+          );
         }
       }
 
@@ -145,13 +187,22 @@ export const getCurrentUser = cache(
         // Ensure user has an API key for agent runtime (fire-and-forget)
         // This handles existing users who registered before API key auto-generation
         void ensureUserHasApiKey(user.id, user.organization_id);
+
+        // Cache session data in Redis for subsequent requests (fire-and-forget)
+        void Promise.all([
+          cacheSessionValidation(authToken.value, user.id, privyUserId),
+          cacheSessionUser(authToken.value, user),
+        ]);
       } else if (user && !user.organization_id) {
         logger.error("[AUTH] User missing organization_id:", user.id);
       }
 
       return user ?? null;
     } catch (error) {
-      logger.error("[AUTH] Error:", error instanceof Error ? error.message : error);
+      logger.error(
+        "[AUTH] Error:",
+        error instanceof Error ? error.message : error,
+      );
       return null;
     }
   },
@@ -272,8 +323,7 @@ export async function requireAuthOrApiKey(
   if (appToken) {
     const { appAuthSessionsService } =
       await import("@/lib/services/app-auth-sessions");
-    const tokenData =
-      await appAuthSessionsService.verifyToken(appToken);
+    const tokenData = await appAuthSessionsService.verifyToken(appToken);
 
     if (!tokenData) {
       throw new Error("Unauthorized: Invalid or expired app token");
@@ -453,7 +503,7 @@ export interface AdminAuthResult {
 }
 
 export async function requireAdmin(
-  request: NextRequest
+  request: NextRequest,
 ): Promise<AdminAuthResult> {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
 
@@ -461,16 +511,17 @@ export async function requireAdmin(
     throw new Error("Wallet connection required for admin access");
   }
 
-  const isAdmin = await adminService.isAdmin(user.wallet_address);
+  // Single cached call instead of two separate DB queries
+  const { isAdmin, role } = await adminService.getAdminStatus(
+    user.wallet_address,
+  );
+
   if (!isAdmin) {
     throw new Error("Admin access required");
   }
 
-  const role = await adminService.getAdminRole(user.wallet_address);
-
   return { user, isAdmin: true, role };
 }
-
 
 // Re-export app authentication utilities
 export { requireAppAuth, verifyAppToken } from "./middleware/app-auth";

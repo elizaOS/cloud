@@ -113,6 +113,21 @@ export class GenerationsService {
       endDate,
     );
   }
+
+  /**
+   * Gets gallery statistics for completed generations with storage URLs.
+   * Uses efficient SQL aggregation.
+   */
+  async getGalleryStats(
+    organizationId: string,
+    userId?: string,
+  ): Promise<{
+    totalImages: number;
+    totalVideos: number;
+    totalSize: bigint;
+  }> {
+    return await generationsRepository.getGalleryStats(organizationId, userId);
+  }
 }
 
 // Export singleton instance

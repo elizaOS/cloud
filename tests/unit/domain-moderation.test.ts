@@ -24,7 +24,8 @@ mock.module("@/lib/utils/logger", () => ({
 }));
 
 // Import after mocks
-const { domainModerationService } = await import("@/lib/services/domain-moderation");
+const { domainModerationService } =
+  await import("@/lib/services/domain-moderation");
 
 describe("Domain Name Validation", () => {
   beforeEach(() => {
@@ -62,16 +63,20 @@ describe("Domain Name Validation", () => {
       "terrorattack-news.io",
     ];
 
-    it.each(restrictedDomains)("blocks restricted term in: %s", async (domain) => {
-      const result = await domainModerationService.validateDomainName(domain);
-      expect(result.allowed).toBe(false);
-      expect(result.suggestedAction).toBe("block");
-      expect(result.flags.some((f) => f.type === "restricted")).toBe(true);
-      expect(result.flags.some((f) => f.severity === "critical")).toBe(true);
-    });
+    it.each(restrictedDomains)(
+      "blocks restricted term in: %s",
+      async (domain) => {
+        const result = await domainModerationService.validateDomainName(domain);
+        expect(result.allowed).toBe(false);
+        expect(result.suggestedAction).toBe("block");
+        expect(result.flags.some((f) => f.type === "restricted")).toBe(true);
+        expect(result.flags.some((f) => f.severity === "critical")).toBe(true);
+      },
+    );
 
     it("blocks domains with childporn term", async () => {
-      const result = await domainModerationService.validateDomainName("childporn.com");
+      const result =
+        await domainModerationService.validateDomainName("childporn.com");
       expect(result.allowed).toBe(false);
       expect(result.flags.some((f) => f.type === "restricted")).toBe(true);
     });
@@ -93,7 +98,8 @@ describe("Domain Name Validation", () => {
     });
 
     it("allows domains with non-expletive substrings", async () => {
-      const result = await domainModerationService.validateDomainName("class-action.com");
+      const result =
+        await domainModerationService.validateDomainName("class-action.com");
       expect(result.allowed).toBe(true);
     });
   });
@@ -107,15 +113,21 @@ describe("Domain Name Validation", () => {
       "bcdfghjklm.io", // consonant cluster
     ];
 
-    it.each(suspiciousDomains)("flags suspicious pattern: %s", async (domain) => {
-      const result = await domainModerationService.validateDomainName(domain);
-      expect(result.flags.some((f) => f.type === "suspicious")).toBe(true);
-    });
+    it.each(suspiciousDomains)(
+      "flags suspicious pattern: %s",
+      async (domain) => {
+        const result = await domainModerationService.validateDomainName(domain);
+        expect(result.flags.some((f) => f.type === "suspicious")).toBe(true);
+      },
+    );
 
     it("allows legitimate short domains", async () => {
-      const result = await domainModerationService.validateDomainName("abc.com");
+      const result =
+        await domainModerationService.validateDomainName("abc.com");
       expect(result.allowed).toBe(true);
-      expect(result.flags.filter((f) => f.type === "suspicious")).toHaveLength(0);
+      expect(result.flags.filter((f) => f.type === "suspicious")).toHaveLength(
+        0,
+      );
     });
   });
 
@@ -140,14 +152,17 @@ describe("Domain Name Validation", () => {
   describe("High Entropy Detection", () => {
     it("flags very random-looking domains with high entropy", async () => {
       // Entropy check only triggers for domains >= 8 chars with entropy > 3.5
-      const result = await domainModerationService.validateDomainName("xkqjzpfmwvnbcd.com");
+      const result =
+        await domainModerationService.validateDomainName("xkqjzpfmwvnbcd.com");
       // May or may not flag depending on entropy threshold - just verify it runs
       expect(result).toBeDefined();
       expect(typeof result.allowed).toBe("boolean");
     });
 
     it("allows structured domains even if long", async () => {
-      const result = await domainModerationService.validateDomainName("my-business-name.com");
+      const result = await domainModerationService.validateDomainName(
+        "my-business-name.com",
+      );
       expect(result.allowed).toBe(true);
     });
   });
@@ -164,37 +179,46 @@ describe("Domain Name Validation", () => {
     });
 
     it("normalizes case correctly", async () => {
-      const result1 = await domainModerationService.validateDomainName("EXAMPLE.COM");
-      const result2 = await domainModerationService.validateDomainName("example.com");
+      const result1 =
+        await domainModerationService.validateDomainName("EXAMPLE.COM");
+      const result2 =
+        await domainModerationService.validateDomainName("example.com");
       expect(result1.allowed).toBe(result2.allowed);
     });
 
     it("handles unicode domains", async () => {
-      const result = await domainModerationService.validateDomainName("例え.jp");
+      const result =
+        await domainModerationService.validateDomainName("例え.jp");
       expect(result).toBeDefined();
     });
 
     it("handles domains with many subdomains", async () => {
-      const result = await domainModerationService.validateDomainName("a.b.c.d.e.example.com");
+      const result = await domainModerationService.validateDomainName(
+        "a.b.c.d.e.example.com",
+      );
       expect(result).toBeDefined();
     });
   });
 
   describe("Severity Ordering", () => {
     it("critical severity blocks immediately", async () => {
-      const result = await domainModerationService.validateDomainName("childporn.com");
+      const result =
+        await domainModerationService.validateDomainName("childporn.com");
       expect(result.allowed).toBe(false);
       expect(result.requiresReview).toBe(false); // Critical = auto-block, no review needed
     });
 
     it("high severity requires review", async () => {
-      const result = await domainModerationService.validateDomainName("fuck.com");
+      const result =
+        await domainModerationService.validateDomainName("fuck.com");
       expect(result.allowed).toBe(false);
       expect(result.requiresReview).toBe(true);
     });
 
     it("medium severity allows with review", async () => {
-      const result = await domainModerationService.validateDomainName("google-alternative.com");
+      const result = await domainModerationService.validateDomainName(
+        "google-alternative.com",
+      );
       expect(result.allowed).toBe(true);
       expect(result.requiresReview).toBe(true);
     });
@@ -203,18 +227,22 @@ describe("Domain Name Validation", () => {
 
 describe("Domain Health Check", () => {
   it("returns isLive=false for non-existent domains", async () => {
-    const result = await domainModerationService.checkDomainHealth("this-domain-does-not-exist-12345.com");
+    const result = await domainModerationService.checkDomainHealth(
+      "this-domain-does-not-exist-12345.com",
+    );
     expect(result.isLive).toBe(false);
     expect(result.error).toBeDefined();
   });
 
   it("includes SSL status in result", async () => {
-    const result = await domainModerationService.checkDomainHealth("example.com");
+    const result =
+      await domainModerationService.checkDomainHealth("example.com");
     expect(typeof result.sslValid).toBe("boolean");
   });
 
   it("measures response time", async () => {
-    const result = await domainModerationService.checkDomainHealth("example.com");
+    const result =
+      await domainModerationService.checkDomainHealth("example.com");
     if (result.isLive) {
       expect(typeof result.responseTimeMs).toBe("number");
       expect(result.responseTimeMs).toBeGreaterThan(0);
@@ -231,7 +259,10 @@ describe("Flag/Unflag Operations", () => {
 
   it("returns false when domain not found", async () => {
     mockRepository.findById.mockResolvedValue(null);
-    const result = await domainModerationService.flagDomain("non-existent-id", "test reason");
+    const result = await domainModerationService.flagDomain(
+      "non-existent-id",
+      "test reason",
+    );
     expect(result).toBe(false);
   });
 
@@ -244,14 +275,18 @@ describe("Flag/Unflag Operations", () => {
     });
     mockRepository.addModerationFlag = mock(() => Promise.resolve({}));
 
-    await domainModerationService.flagDomain("domain-1", "test reason", "medium");
+    await domainModerationService.flagDomain(
+      "domain-1",
+      "test reason",
+      "medium",
+    );
 
     expect(mockRepository.createEvent).toHaveBeenCalledWith(
       expect.objectContaining({
         domainId: "domain-1",
         eventType: "auto_flag",
         severity: "medium",
-      })
+      }),
     );
   });
 
@@ -264,7 +299,11 @@ describe("Flag/Unflag Operations", () => {
     mockRepository.addModerationFlag = mock(() => Promise.resolve({}));
     mockRepository.update = mock(() => Promise.resolve({}));
 
-    await domainModerationService.flagDomain("domain-1", "critical issue", "critical");
+    await domainModerationService.flagDomain(
+      "domain-1",
+      "critical issue",
+      "critical",
+    );
 
     expect(mockRepository.update).toHaveBeenCalledWith("domain-1", {
       moderationStatus: "suspended",
@@ -272,4 +311,3 @@ describe("Flag/Unflag Operations", () => {
     });
   });
 });
-

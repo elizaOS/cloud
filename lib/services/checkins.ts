@@ -161,7 +161,9 @@ class CheckinsService {
   /**
    * Create a new check-in schedule
    */
-  async createSchedule(params: CreateScheduleParams): Promise<OrgCheckinSchedule> {
+  async createSchedule(
+    params: CreateScheduleParams,
+  ): Promise<OrgCheckinSchedule> {
     logger.info("[OrgCheckins] Creating schedule", {
       organizationId: params.organizationId,
       serverId: params.serverId,
@@ -175,7 +177,7 @@ class CheckinsService {
     const nextRunAt = this.calculateNextRun(
       params.timeUtc,
       params.frequency || "weekdays",
-      params.timezone || "UTC"
+      params.timezone || "UTC",
     );
 
     const [schedule] = await db
@@ -204,7 +206,7 @@ class CheckinsService {
    */
   async getSchedule(
     scheduleId: string,
-    organizationId: string
+    organizationId: string,
   ): Promise<OrgCheckinSchedule | null> {
     const [schedule] = await db
       .select()
@@ -212,8 +214,8 @@ class CheckinsService {
       .where(
         and(
           eq(orgCheckinSchedules.id, scheduleId),
-          eq(orgCheckinSchedules.organization_id, organizationId)
-        )
+          eq(orgCheckinSchedules.organization_id, organizationId),
+        ),
       )
       .limit(1);
 
@@ -226,22 +228,25 @@ class CheckinsService {
   async updateSchedule(
     scheduleId: string,
     organizationId: string,
-    updates: UpdateScheduleParams
+    updates: UpdateScheduleParams,
   ): Promise<OrgCheckinSchedule> {
     const updateData: Record<string, unknown> = {
       updated_at: new Date(),
     };
 
     if (updates.name !== undefined) updateData.name = updates.name;
-    if (updates.checkinType !== undefined) updateData.checkin_type = updates.checkinType;
-    if (updates.frequency !== undefined) updateData.frequency = updates.frequency;
+    if (updates.checkinType !== undefined)
+      updateData.checkin_type = updates.checkinType;
+    if (updates.frequency !== undefined)
+      updateData.frequency = updates.frequency;
     if (updates.timeUtc !== undefined) updateData.time_utc = updates.timeUtc;
     if (updates.timezone !== undefined) updateData.timezone = updates.timezone;
     if (updates.checkinChannelId !== undefined)
       updateData.checkin_channel_id = updates.checkinChannelId;
     if (updates.reportChannelId !== undefined)
       updateData.report_channel_id = updates.reportChannelId;
-    if (updates.questions !== undefined) updateData.questions = updates.questions;
+    if (updates.questions !== undefined)
+      updateData.questions = updates.questions;
     if (updates.enabled !== undefined) updateData.enabled = updates.enabled;
 
     // Recalculate next run if time/frequency changed
@@ -251,7 +256,7 @@ class CheckinsService {
         updateData.next_run_at = this.calculateNextRun(
           updates.timeUtc || current.time_utc,
           updates.frequency || current.frequency,
-          updates.timezone || current.timezone || "UTC"
+          updates.timezone || current.timezone || "UTC",
         );
       }
     }
@@ -262,8 +267,8 @@ class CheckinsService {
       .where(
         and(
           eq(orgCheckinSchedules.id, scheduleId),
-          eq(orgCheckinSchedules.organization_id, organizationId)
-        )
+          eq(orgCheckinSchedules.organization_id, organizationId),
+        ),
       )
       .returning();
 
@@ -277,14 +282,17 @@ class CheckinsService {
   /**
    * Delete a schedule
    */
-  async deleteSchedule(scheduleId: string, organizationId: string): Promise<void> {
+  async deleteSchedule(
+    scheduleId: string,
+    organizationId: string,
+  ): Promise<void> {
     await db
       .delete(orgCheckinSchedules)
       .where(
         and(
           eq(orgCheckinSchedules.id, scheduleId),
-          eq(orgCheckinSchedules.organization_id, organizationId)
-        )
+          eq(orgCheckinSchedules.organization_id, organizationId),
+        ),
       );
   }
 
@@ -322,8 +330,8 @@ class CheckinsService {
       .where(
         and(
           eq(orgCheckinSchedules.enabled, true),
-          lte(orgCheckinSchedules.next_run_at, now)
-        )
+          lte(orgCheckinSchedules.next_run_at, now),
+        ),
       );
   }
 
@@ -342,7 +350,7 @@ class CheckinsService {
     const nextRunAt = this.calculateNextRun(
       schedule.time_utc,
       schedule.frequency,
-      schedule.timezone || "UTC"
+      schedule.timezone || "UTC",
     );
 
     await db
@@ -362,7 +370,9 @@ class CheckinsService {
   /**
    * Record a check-in response
    */
-  async recordResponse(params: RecordResponseParams): Promise<OrgCheckinResponse> {
+  async recordResponse(
+    params: RecordResponseParams,
+  ): Promise<OrgCheckinResponse> {
     logger.info("[OrgCheckins] Recording response", {
       scheduleId: params.scheduleId,
       responder: params.responderPlatformId,
@@ -370,7 +380,14 @@ class CheckinsService {
 
     // Detect blockers in answers
     const blockers: string[] = [];
-    const blockerKeywords = ["blocker", "blocked", "stuck", "issue", "problem", "help"];
+    const blockerKeywords = [
+      "blocker",
+      "blocked",
+      "stuck",
+      "issue",
+      "problem",
+      "help",
+    ];
 
     for (const [question, answer] of Object.entries(params.answers)) {
       const lowerAnswer = answer.toLowerCase();
@@ -401,7 +418,7 @@ class CheckinsService {
     await this.updateMemberCheckinStats(
       params.organizationId,
       params.responderPlatformId,
-      params.responderPlatform
+      params.responderPlatform,
     );
 
     return response;
@@ -416,7 +433,7 @@ class CheckinsService {
       startDate?: Date;
       endDate?: Date;
       limit?: number;
-    }
+    },
   ): Promise<OrgCheckinResponse[]> {
     const conditions = [eq(orgCheckinResponses.schedule_id, scheduleId)];
 
@@ -447,7 +464,7 @@ class CheckinsService {
     organizationId: string,
     platformId: string,
     platform: "discord" | "telegram",
-    limit = 30
+    limit = 30,
   ): Promise<OrgCheckinResponse[]> {
     return db
       .select()
@@ -456,8 +473,8 @@ class CheckinsService {
         and(
           eq(orgCheckinResponses.organization_id, organizationId),
           eq(orgCheckinResponses.responder_platform_id, platformId),
-          eq(orgCheckinResponses.responder_platform, platform)
-        )
+          eq(orgCheckinResponses.responder_platform, platform),
+        ),
       )
       .orderBy(desc(orgCheckinResponses.submitted_at))
       .limit(limit);
@@ -478,8 +495,8 @@ class CheckinsService {
         and(
           eq(orgTeamMembers.server_id, params.serverId),
           eq(orgTeamMembers.platform_user_id, params.platformUserId),
-          eq(orgTeamMembers.platform, params.platform)
-        )
+          eq(orgTeamMembers.platform, params.platform),
+        ),
       )
       .limit(1);
 
@@ -528,8 +545,8 @@ class CheckinsService {
       .where(
         and(
           eq(orgTeamMembers.server_id, serverId),
-          eq(orgTeamMembers.is_active, true)
-        )
+          eq(orgTeamMembers.is_active, true),
+        ),
       )
       .orderBy(orgTeamMembers.display_name);
   }
@@ -540,7 +557,7 @@ class CheckinsService {
   async updateTeamMember(
     memberId: string,
     organizationId: string,
-    updates: Partial<NewOrgTeamMember>
+    updates: Partial<NewOrgTeamMember>,
   ): Promise<OrgTeamMember> {
     const [updated] = await db
       .update(orgTeamMembers)
@@ -551,8 +568,8 @@ class CheckinsService {
       .where(
         and(
           eq(orgTeamMembers.id, memberId),
-          eq(orgTeamMembers.organization_id, organizationId)
-        )
+          eq(orgTeamMembers.organization_id, organizationId),
+        ),
       )
       .returning();
 
@@ -569,7 +586,7 @@ class CheckinsService {
   private async updateMemberCheckinStats(
     organizationId: string,
     platformId: string,
-    platform: "discord" | "telegram"
+    platform: "discord" | "telegram",
   ): Promise<void> {
     await db
       .update(orgTeamMembers)
@@ -582,8 +599,8 @@ class CheckinsService {
         and(
           eq(orgTeamMembers.organization_id, organizationId),
           eq(orgTeamMembers.platform_user_id, platformId),
-          eq(orgTeamMembers.platform, platform)
-        )
+          eq(orgTeamMembers.platform, platform),
+        ),
       );
   }
 
@@ -597,7 +614,7 @@ class CheckinsService {
   async generateReport(
     scheduleId: string,
     organizationId: string,
-    dateRange: { start: Date; end: Date }
+    dateRange: { start: Date; end: Date },
   ): Promise<TeamReport> {
     const schedule = await this.getSchedule(scheduleId, organizationId);
     if (!schedule) {
@@ -647,14 +664,17 @@ class CheckinsService {
 
     // Calculate member stats
     const members = Array.from(memberMap.values()).map((m) => {
-      const blockerCount = m.responses.filter((r) => r.blockers_detected).length;
+      const blockerCount = m.responses.filter(
+        (r) => r.blockers_detected,
+      ).length;
       const lastResponse = m.responses[0]?.submitted_at;
 
       // Calculate streak (simplified - consecutive days)
       let streak = 0;
       const sortedResponses = [...m.responses].sort(
         (a, b) =>
-          new Date(b.checkin_date).getTime() - new Date(a.checkin_date).getTime()
+          new Date(b.checkin_date).getTime() -
+          new Date(a.checkin_date).getTime(),
       );
 
       if (sortedResponses.length > 0) {
@@ -663,7 +683,7 @@ class CheckinsService {
           const prev = new Date(sortedResponses[i - 1].checkin_date);
           const curr = new Date(sortedResponses[i].checkin_date);
           const diffDays = Math.floor(
-            (prev.getTime() - curr.getTime()) / (1000 * 60 * 60 * 24)
+            (prev.getTime() - curr.getTime()) / (1000 * 60 * 60 * 24),
           );
           if (diffDays <= 1) {
             streak++;
@@ -701,7 +721,8 @@ class CheckinsService {
 
     // Calculate participation rate
     const totalPossibleResponses =
-      teamMembers.length * this.getWorkdaysInRange(dateRange.start, dateRange.end);
+      teamMembers.length *
+      this.getWorkdaysInRange(dateRange.start, dateRange.end);
     const participationRate =
       totalPossibleResponses > 0
         ? (responses.length / totalPossibleResponses) * 100
@@ -729,7 +750,7 @@ class CheckinsService {
   private calculateNextRun(
     timeUtc: string,
     frequency: CheckinFrequency,
-    _timezone: string
+    _timezone: string,
   ): Date {
     const [hours, minutes] = timeUtc.split(":").map(Number);
     const now = new Date();
@@ -761,7 +782,9 @@ class CheckinsService {
           next.setDate(next.getDate() + 1);
         }
         // Check if we should skip this week (simplified logic)
-        const weekNumber = Math.floor(next.getTime() / (7 * 24 * 60 * 60 * 1000));
+        const weekNumber = Math.floor(
+          next.getTime() / (7 * 24 * 60 * 60 * 1000),
+        );
         if (weekNumber % 2 === 1) {
           next.setDate(next.getDate() + 7);
         }
@@ -800,4 +823,3 @@ class CheckinsService {
 // =============================================================================
 
 export const checkinsService = new CheckinsService();
-

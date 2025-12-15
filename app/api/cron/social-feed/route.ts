@@ -49,7 +49,9 @@ export async function POST(request: NextRequest) {
   };
 
   if (pollResult.errors.length > 0) {
-    logger.warn("[Social Feed Cron] Polling errors", { errors: pollResult.errors.slice(0, 5) });
+    logger.warn("[Social Feed Cron] Polling errors", {
+      errors: pollResult.errors.slice(0, 5),
+    });
   }
 
   // Step 2: Send notifications for unnotified events

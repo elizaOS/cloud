@@ -13,9 +13,11 @@ export const TWITTER_UPLOAD_BASE = "https://upload.twitter.com/1.1";
 export async function twitterApiRequest<T>(
   endpoint: string,
   accessToken: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
 ): Promise<T> {
-  const url = endpoint.startsWith("http") ? endpoint : `${TWITTER_API_BASE}${endpoint}`;
+  const url = endpoint.startsWith("http")
+    ? endpoint
+    : `${TWITTER_API_BASE}${endpoint}`;
 
   const response = await fetch(url, {
     ...options,
@@ -28,10 +30,12 @@ export async function twitterApiRequest<T>(
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
-    const errorMessage = error.errors?.[0]?.detail || error.errors?.[0]?.message || `Twitter API error: ${response.status}`;
+    const errorMessage =
+      error.errors?.[0]?.detail ||
+      error.errors?.[0]?.message ||
+      `Twitter API error: ${response.status}`;
     throw new Error(errorMessage);
   }
 
   return response.json();
 }
-

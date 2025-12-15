@@ -19,7 +19,11 @@ export type AdPlatform = "meta" | "google" | "tiktok";
 /**
  * Ad account status.
  */
-export type AdAccountStatus = "active" | "suspended" | "disconnected" | "pending";
+export type AdAccountStatus =
+  | "active"
+  | "suspended"
+  | "disconnected"
+  | "pending";
 
 /**
  * Ad accounts table schema.
@@ -49,11 +53,11 @@ export const adAccounts = pgTable(
     // Encrypted tokens stored in secrets table
     access_token_secret_id: uuid("access_token_secret_id").references(
       () => secrets.id,
-      { onDelete: "set null" }
+      { onDelete: "set null" },
     ),
     refresh_token_secret_id: uuid("refresh_token_secret_id").references(
       () => secrets.id,
-      { onDelete: "set null" }
+      { onDelete: "set null" },
     ),
 
     // Token expiration tracking
@@ -86,18 +90,18 @@ export const adAccounts = pgTable(
   },
   (table) => ({
     organization_idx: index("ad_accounts_organization_idx").on(
-      table.organization_id
+      table.organization_id,
     ),
     platform_idx: index("ad_accounts_platform_idx").on(table.platform),
     org_platform_idx: index("ad_accounts_org_platform_idx").on(
       table.organization_id,
-      table.platform
+      table.platform,
     ),
     external_id_idx: index("ad_accounts_external_id_idx").on(
-      table.external_account_id
+      table.external_account_id,
     ),
     status_idx: index("ad_accounts_status_idx").on(table.status),
-  })
+  }),
 );
 
 export type AdAccount = InferSelectModel<typeof adAccounts>;

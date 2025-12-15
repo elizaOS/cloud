@@ -69,4 +69,7 @@ export const CLI_ACTIONS: QuickActionConfig[] = [
   },
 ];
 
-export const ALL_ACTIONS: QuickActionConfig[] = [...CHAT_ACTIONS, ...CLI_ACTIONS];
+export const ALL_ACTIONS: QuickActionConfig[] = [
+  ...CHAT_ACTIONS,
+  ...CLI_ACTIONS,
+];

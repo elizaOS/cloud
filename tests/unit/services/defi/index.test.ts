@@ -130,8 +130,20 @@ describe("Type Definitions", () => {
 
   test("SwapQuote type has required fields", async () => {
     const quote: import("@/lib/services/defi").SwapQuote = {
-      inputToken: { address: "A", symbol: "A", name: "A", decimals: 18, chainId: "ethereum" },
-      outputToken: { address: "B", symbol: "B", name: "B", decimals: 18, chainId: "ethereum" },
+      inputToken: {
+        address: "A",
+        symbol: "A",
+        name: "A",
+        decimals: 18,
+        chainId: "ethereum",
+      },
+      outputToken: {
+        address: "B",
+        symbol: "B",
+        name: "B",
+        decimals: 18,
+        chainId: "ethereum",
+      },
       inputAmount: "1000",
       outputAmount: "900",
       priceImpactPercent: 0.1,

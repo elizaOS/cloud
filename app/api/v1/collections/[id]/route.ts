@@ -32,13 +32,13 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
   const isOwner = await mediaCollectionsService.validateOwnership(
     id,
-    user.organization_id!
+    user.organization_id!,
   );
 
   if (!isOwner) {
     return NextResponse.json(
       { error: "Collection not found" },
-      { status: 404 }
+      { status: 404 },
     );
   }
 
@@ -47,7 +47,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   if (!collection) {
     return NextResponse.json(
       { error: "Collection not found" },
-      { status: 404 }
+      { status: 404 },
     );
   }
 
@@ -87,13 +87,13 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
   const isOwner = await mediaCollectionsService.validateOwnership(
     id,
-    user.organization_id!
+    user.organization_id!,
   );
 
   if (!isOwner) {
     return NextResponse.json(
       { error: "Collection not found" },
-      { status: 404 }
+      { status: 404 },
     );
   }
 
@@ -103,7 +103,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   if (!parsed.success) {
     return NextResponse.json(
       { error: "Invalid request", details: parsed.error.flatten() },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -112,7 +112,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   if (!updated) {
     return NextResponse.json(
       { error: "Collection not found" },
-      { status: 404 }
+      { status: 404 },
     );
   }
 
@@ -138,13 +138,13 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
 
   const isOwner = await mediaCollectionsService.validateOwnership(
     id,
-    user.organization_id!
+    user.organization_id!,
   );
 
   if (!isOwner) {
     return NextResponse.json(
       { error: "Collection not found" },
-      { status: 404 }
+      { status: 404 },
     );
   }
 

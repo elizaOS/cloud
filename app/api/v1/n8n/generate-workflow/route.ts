@@ -11,7 +11,11 @@ import { gateway } from "@ai-sdk/gateway";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { creditsService } from "@/lib/services/credits";
 import { usageService } from "@/lib/services/usage";
-import { calculateCost, getProviderFromModel, estimateRequestCost } from "@/lib/pricing";
+import {
+  calculateCost,
+  getProviderFromModel,
+  estimateRequestCost,
+} from "@/lib/pricing";
 import { endpointDiscoveryService } from "@/lib/services/endpoint-discovery";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
@@ -19,16 +23,35 @@ import { z } from "zod";
 const WORKFLOW_GENERATION_MODEL = "anthropic/claude-opus-4.1";
 
 const GenerateWorkflowRequestSchema = z.object({
-  prompt: z.string().min(1).describe("Natural language description of the workflow"),
+  prompt: z
+    .string()
+    .min(1)
+    .describe("Natural language description of the workflow"),
   context: z
     .object({
-      availableNodes: z.array(z.unknown()).optional().describe("Available n8n nodes"),
-      existingWorkflows: z.array(z.unknown()).optional().describe("Existing workflows for reference"),
-      variables: z.record(z.string()).optional().describe("Available variables"),
+      availableNodes: z
+        .array(z.unknown())
+        .optional()
+        .describe("Available n8n nodes"),
+      existingWorkflows: z
+        .array(z.unknown())
+        .optional()
+        .describe("Existing workflows for reference"),
+      variables: z
+        .record(z.string())
+        .optional()
+        .describe("Available variables"),
     })
     .optional(),
-  autoSave: z.boolean().optional().default(false).describe("Automatically save the generated workflow"),
-  workflowName: z.string().optional().describe("Name for the workflow (required if autoSave is true)"),
+  autoSave: z
+    .boolean()
+    .optional()
+    .default(false)
+    .describe("Automatically save the generated workflow"),
+  workflowName: z
+    .string()
+    .optional()
+    .describe("Name for the workflow (required if autoSave is true)"),
   tags: z.array(z.string()).optional().describe("Tags for the workflow"),
 });
 
@@ -48,15 +71,16 @@ export async function POST(request: NextRequest) {
           error: "Invalid request",
           details: validation.error.format(),
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     const { prompt, context, autoSave, workflowName, tags } = validation.data;
 
     // Discover available endpoints for node generation
-    const availableEndpoints = await endpointDiscoveryService.discoverAllEndpoints();
-    const endpointNodes = availableEndpoints.map(e => ({
+    const availableEndpoints =
+      await endpointDiscoveryService.discoverAllEndpoints();
+    const endpointNodes = availableEndpoints.map((e) => ({
       id: e.id,
       name: e.name,
       description: e.description,
@@ -79,15 +103,19 @@ export async function POST(request: NextRequest) {
     ];
 
     const provider = getProviderFromModel(WORKFLOW_GENERATION_MODEL);
-    const estimatedCost = await estimateRequestCost(WORKFLOW_GENERATION_MODEL, messages);
+    const estimatedCost = await estimateRequestCost(
+      WORKFLOW_GENERATION_MODEL,
+      messages,
+    );
 
     // Check balance
-    const { organizationsService } = await import("@/lib/services/organizations");
+    const { organizationsService } =
+      await import("@/lib/services/organizations");
     const org = await organizationsService.getById(user.organization_id);
     if (!org) {
       return NextResponse.json(
         { error: "Organization not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -98,7 +126,7 @@ export async function POST(request: NextRequest) {
           required: estimatedCost,
           available: Number(org.credit_balance),
         },
-        { status: 402 }
+        { status: 402 },
       );
     }
 
@@ -116,7 +144,7 @@ export async function POST(request: NextRequest) {
     if (!deduction.success) {
       return NextResponse.json(
         { error: "Failed to deduct credits" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -147,7 +175,7 @@ export async function POST(request: NextRequest) {
       WORKFLOW_GENERATION_MODEL,
       provider,
       usage?.inputTokens || 0,
-      usage?.outputTokens || 0
+      usage?.outputTokens || 0,
     );
 
     // Adjust credits based on actual cost
@@ -196,7 +224,8 @@ export async function POST(request: NextRequest) {
       }
     } catch (parseError) {
       logger.error("[N8N Workflow Generation] Failed to parse workflow JSON", {
-        error: parseError instanceof Error ? parseError.message : String(parseError),
+        error:
+          parseError instanceof Error ? parseError.message : String(parseError),
         response: fullText.substring(0, 500),
       });
 
@@ -205,7 +234,7 @@ export async function POST(request: NextRequest) {
           error: "Failed to parse generated workflow",
           rawResponse: fullText,
         },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -216,18 +245,23 @@ export async function POST(request: NextRequest) {
           error: "Generated workflow is missing required 'nodes' array",
           workflowData,
         },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
     // Validate workflow using service
-    const { n8nWorkflowsService } = await import("@/lib/services/n8n-workflows");
-    const validationResult = await n8nWorkflowsService.validateWorkflow(workflowData);
-    
+    const { n8nWorkflowsService } =
+      await import("@/lib/services/n8n-workflows");
+    const validationResult =
+      await n8nWorkflowsService.validateWorkflow(workflowData);
+
     if (!validationResult.valid) {
-      logger.warn("[N8N Workflow Generation] Generated workflow has validation issues", {
-        errors: validationResult.errors,
-      });
+      logger.warn(
+        "[N8N Workflow Generation] Generated workflow has validation issues",
+        {
+          errors: validationResult.errors,
+        },
+      );
     }
 
     // Auto-save workflow if requested
@@ -236,7 +270,7 @@ export async function POST(request: NextRequest) {
       if (!workflowName) {
         return NextResponse.json(
           { error: "workflowName is required when autoSave is true" },
-          { status: 400 }
+          { status: 400 },
         );
       }
 
@@ -257,7 +291,9 @@ export async function POST(request: NextRequest) {
 
     logger.info("[N8N Workflow Generation] Success", {
       userId: user.id,
-      workflowNodeCount: Array.isArray(workflowData.nodes) ? workflowData.nodes.length : 0,
+      workflowNodeCount: Array.isArray(workflowData.nodes)
+        ? workflowData.nodes.length
+        : 0,
       cost: totalCost,
       autoSaved: autoSave && savedWorkflow !== null,
     });
@@ -265,12 +301,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       workflow: workflowData,
-      savedWorkflow: savedWorkflow ? {
-        id: savedWorkflow.id,
-        name: savedWorkflow.name,
-        status: savedWorkflow.status,
-        version: savedWorkflow.version,
-      } : null,
+      savedWorkflow: savedWorkflow
+        ? {
+            id: savedWorkflow.id,
+            name: savedWorkflow.name,
+            status: savedWorkflow.status,
+            version: savedWorkflow.version,
+          }
+        : null,
       validation: {
         valid: validationResult.valid,
         errors: validationResult.errors || [],
@@ -295,7 +333,7 @@ export async function POST(request: NextRequest) {
         error: "Failed to generate workflow",
         message: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -317,7 +355,7 @@ function buildSystemPrompt(
     category: string;
     endpoint: string;
     method?: string;
-  }>
+  }>,
 ): string {
   let prompt = `You are an expert n8n workflow generator. Your task is to generate valid n8n workflow JSON based on natural language descriptions.
 
@@ -386,4 +424,3 @@ Important rules:
 
   return prompt;
 }
-

@@ -22,7 +22,9 @@ export function checkJsonRpc(res: K6Response, name: string): boolean {
 }
 
 export function parseMcpResult(res: K6Response): Record<string, unknown> {
-  const body = parseBody<{ result?: { content?: Array<{ text: string }> } }>(res);
+  const body = parseBody<{ result?: { content?: Array<{ text: string }> } }>(
+    res,
+  );
   const text = body.result?.content?.[0]?.text;
   return text ? JSON.parse(text) : {};
 }

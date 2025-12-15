@@ -11,7 +11,7 @@ import { platformCredentialsService } from "@/lib/services/platform-credentials"
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ sessionId: string }> }
+  { params }: { params: Promise<{ sessionId: string }> },
 ) {
   const { sessionId } = await params;
 
@@ -19,4 +19,3 @@ export async function GET(
 
   return NextResponse.json(status);
 }
-

@@ -1,19 +1,18 @@
 /**
  * Fragment A2A & MCP End-to-End Integration Tests
- * 
+ *
  * Tests the COMPLETE frontend builder flow through A2A and MCP:
  * - Generate code with real LLM calls
  * - Create and manage projects
  * - Deploy to app/container
  * - Verify deployment works
- * 
+ *
  * NO MOCKS. REAL TESTS. REAL LLM CALLS.
- * 
+ *
  * Run with: TEST_API_KEY=xxx bun test tests/integration/fragment-a2a-e2e.test.ts
  */
 
 import { describe, test, expect, beforeAll, afterAll } from "bun:test";
-
 
 const SERVER_URL = process.env.TEST_SERVER_URL || "http://localhost:3000";
 const API_KEY = process.env.TEST_API_KEY;
@@ -71,21 +70,35 @@ function authHeaders(): HeadersInit {
   };
 }
 
-function jsonRpc(method: string, params: Record<string, unknown> = {}, id: string | number = 1) {
+function jsonRpc(
+  method: string,
+  params: Record<string, unknown> = {},
+  id: string | number = 1,
+) {
   return { jsonrpc: "2.0", method, params, id };
 }
 
-function skillMessage(skill: string, text?: string, extraData?: Record<string, unknown>) {
-  const parts: Array<{ type: string; text?: string; data?: Record<string, unknown> }> = [];
+function skillMessage(
+  skill: string,
+  text?: string,
+  extraData?: Record<string, unknown>,
+) {
+  const parts: Array<{
+    type: string;
+    text?: string;
+    data?: Record<string, unknown>;
+  }> = [];
   if (text) parts.push({ type: "text", text });
   parts.push({ type: "data", data: { skill, ...extraData } });
-  
+
   return jsonRpc("message/send", {
     message: { role: "user", parts },
   });
 }
 
-async function a2aPost(body: object): Promise<{ status: number; data: Record<string, unknown> }> {
+async function a2aPost(
+  body: object,
+): Promise<{ status: number; data: Record<string, unknown> }> {
   const response = await fetch(`${SERVER_URL}/api/a2a`, {
     method: "POST",
     headers: authHeaders(),
@@ -95,7 +108,9 @@ async function a2aPost(body: object): Promise<{ status: number; data: Record<str
   return { status: response.status, data: await response.json() };
 }
 
-async function mcpPost(body: object): Promise<{ status: number; data: Record<string, unknown> }> {
+async function mcpPost(
+  body: object,
+): Promise<{ status: number; data: Record<string, unknown> }> {
   const response = await fetch(`${SERVER_URL}/api/mcp`, {
     method: "POST",
     headers: authHeaders(),
@@ -119,7 +134,7 @@ async function checkServerHealth(): Promise<boolean> {
 
 async function checkApiKey(): Promise<boolean> {
   if (!API_KEY) return false;
-  
+
   try {
     const response = await fetch(`${SERVER_URL}/api/v1/api-keys`, {
       headers: authHeaders(),
@@ -138,25 +153,36 @@ interface A2ATask {
     state: string;
     message?: {
       role: string;
-      parts: Array<{ type: string; text?: string; data?: Record<string, unknown> }>;
+      parts: Array<{
+        type: string;
+        text?: string;
+        data?: Record<string, unknown>;
+      }>;
     };
   };
   history?: Array<{
     role: string;
-    parts: Array<{ type: string; text?: string; data?: Record<string, unknown> }>;
+    parts: Array<{
+      type: string;
+      text?: string;
+      data?: Record<string, unknown>;
+    }>;
   }>;
 }
 
-function extractTaskResult(response: { status: number; data: Record<string, unknown> }): A2ATask | null {
+function extractTaskResult(response: {
+  status: number;
+  data: Record<string, unknown>;
+}): A2ATask | null {
   if (response.status !== 200) return null;
   return response.data.result as A2ATask;
 }
 
 function extractDataFromTask(task: A2ATask): Record<string, unknown> | null {
-  const agentMessage = task.history?.find(m => m.role === "agent");
+  const agentMessage = task.history?.find((m) => m.role === "agent");
   if (!agentMessage) return null;
-  
-  const dataPart = agentMessage.parts.find(p => p.type === "data");
+
+  const dataPart = agentMessage.parts.find((p) => p.type === "data");
   return dataPart?.data || null;
 }
 
@@ -167,20 +193,22 @@ function extractDataFromTask(task: A2ATask): Record<string, unknown> | null {
 beforeAll(async () => {
   console.log("[Test Setup] Environment loaded");
   console.log(`[Test Setup] Server URL: ${SERVER_URL}`);
-  console.log(`[Test Setup] API Key: ${API_KEY ? "***" + API_KEY.slice(-8) : "NOT SET"}`);
+  console.log(
+    `[Test Setup] API Key: ${API_KEY ? "***" + API_KEY.slice(-8) : "NOT SET"}`,
+  );
 
   console.log("🔍 Checking server availability...");
   serverAvailable = await checkServerHealth();
-  
+
   if (!serverAvailable) {
     console.log("⚠️ Server not available - tests will be skipped");
     return;
   }
   console.log("✅ Server is available");
-  
+
   console.log("🔍 Checking API key...");
   apiKeyValid = await checkApiKey();
-  
+
   if (!apiKeyValid) {
     console.log("⚠️ API key not valid - tests will be skipped");
   } else {
@@ -190,17 +218,21 @@ beforeAll(async () => {
 
 afterAll(async () => {
   console.log("🧹 Cleaning up test resources...");
-  
+
   // Clean up projects
   for (const projectId of createdResources.projects) {
     try {
-      await a2aPost(skillMessage("delete_fragment_project", undefined, { projectId }));
+      await a2aPost(
+        skillMessage("delete_fragment_project", undefined, { projectId }),
+      );
     } catch {
       // Ignore cleanup errors
     }
   }
-  
-  console.log(`✅ Cleanup complete (${createdResources.projects.length} projects)`);
+
+  console.log(
+    `✅ Cleanup complete (${createdResources.projects.length} projects)`,
+  );
 });
 
 // ============================================================================
@@ -217,13 +249,13 @@ describe("A2A Fragment Skills Discovery", () => {
     const response = await fetch(`${SERVER_URL}/api/a2a`, {
       signal: AbortSignal.timeout(5000),
     });
-    
+
     expect(response.status).toBe(200);
     const data = await response.json();
-    
+
     // Check fragment skills are listed
     const skillNames = data.skills?.map((s: { id: string }) => s.id) || [];
-    
+
     expect(skillNames).toContain("generate_fragment");
     expect(skillNames).toContain("execute_fragment");
     expect(skillNames).toContain("list_fragment_projects");
@@ -232,8 +264,10 @@ describe("A2A Fragment Skills Discovery", () => {
     expect(skillNames).toContain("update_fragment_project");
     expect(skillNames).toContain("delete_fragment_project");
     expect(skillNames).toContain("deploy_fragment_project");
-    
-    console.log(`✅ Found ${skillNames.filter((n: string) => n.includes("fragment")).length} fragment skills`);
+
+    console.log(
+      `✅ Found ${skillNames.filter((n: string) => n.includes("fragment")).length} fragment skills`,
+    );
   });
 });
 
@@ -244,129 +278,159 @@ describe("A2A Fragment Skills Discovery", () => {
 describe("A2A Fragment Project CRUD", () => {
   let createdProjectId: string;
 
-  test("create_fragment_project creates a project", async () => {
-    if (!serverAvailable || !apiKeyValid) {
-      console.log("⚠️ Skipping - server or API key not available");
-      return;
-    }
+  test(
+    "create_fragment_project creates a project",
+    async () => {
+      if (!serverAvailable || !apiKeyValid) {
+        console.log("⚠️ Skipping - server or API key not available");
+        return;
+      }
 
-    const response = await a2aPost(skillMessage("create_fragment_project", undefined, {
-      name: "A2A Test Project",
-      description: "Created via A2A integration test",
-      fragment: SAMPLE_FRAGMENT,
-    }));
+      const response = await a2aPost(
+        skillMessage("create_fragment_project", undefined, {
+          name: "A2A Test Project",
+          description: "Created via A2A integration test",
+          fragment: SAMPLE_FRAGMENT,
+        }),
+      );
 
-    expect(response.status).toBe(200);
-    const task = extractTaskResult(response);
-    expect(task?.status.state).toBe("completed");
-    
-    const data = extractDataFromTask(task!);
-    expect(data?.project).toBeDefined();
-    
-    const project = data?.project as { id: string; name: string };
-    expect(project.id).toBeDefined();
-    expect(project.name).toBe("A2A Test Project");
-    
-    createdProjectId = project.id;
-    createdResources.projects.push(createdProjectId);
-    
-    console.log(`✅ Created project via A2A: ${createdProjectId}`);
-  }, TIMEOUT);
+      expect(response.status).toBe(200);
+      const task = extractTaskResult(response);
+      expect(task?.status.state).toBe("completed");
 
-  test("get_fragment_project retrieves the project", async () => {
-    if (!apiKeyValid || !createdProjectId) {
-      console.log("⚠️ Skipping - no project created");
-      return;
-    }
+      const data = extractDataFromTask(task!);
+      expect(data?.project).toBeDefined();
 
-    const response = await a2aPost(skillMessage("get_fragment_project", undefined, {
-      projectId: createdProjectId,
-    }));
+      const project = data?.project as { id: string; name: string };
+      expect(project.id).toBeDefined();
+      expect(project.name).toBe("A2A Test Project");
 
-    expect(response.status).toBe(200);
-    const task = extractTaskResult(response);
-    expect(task?.status.state).toBe("completed");
-    
-    const data = extractDataFromTask(task!);
-    const project = data?.project as { id: string; name: string };
-    expect(project.id).toBe(createdProjectId);
-    
-    console.log(`✅ Retrieved project via A2A: ${createdProjectId}`);
-  }, TIMEOUT);
+      createdProjectId = project.id;
+      createdResources.projects.push(createdProjectId);
 
-  test("list_fragment_projects includes the project", async () => {
-    if (!apiKeyValid || !createdProjectId) {
-      console.log("⚠️ Skipping - no project created");
-      return;
-    }
+      console.log(`✅ Created project via A2A: ${createdProjectId}`);
+    },
+    TIMEOUT,
+  );
 
-    const response = await a2aPost(skillMessage("list_fragment_projects"));
+  test(
+    "get_fragment_project retrieves the project",
+    async () => {
+      if (!apiKeyValid || !createdProjectId) {
+        console.log("⚠️ Skipping - no project created");
+        return;
+      }
 
-    expect(response.status).toBe(200);
-    const task = extractTaskResult(response);
-    expect(task?.status.state).toBe("completed");
-    
-    const data = extractDataFromTask(task!);
-    const projects = data?.projects as Array<{ id: string }>;
-    expect(Array.isArray(projects)).toBe(true);
-    
-    const found = projects.find(p => p.id === createdProjectId);
-    expect(found).toBeDefined();
-    
-    console.log(`✅ Listed ${projects.length} projects via A2A`);
-  }, TIMEOUT);
+      const response = await a2aPost(
+        skillMessage("get_fragment_project", undefined, {
+          projectId: createdProjectId,
+        }),
+      );
 
-  test("update_fragment_project updates the project", async () => {
-    if (!apiKeyValid || !createdProjectId) {
-      console.log("⚠️ Skipping - no project created");
-      return;
-    }
+      expect(response.status).toBe(200);
+      const task = extractTaskResult(response);
+      expect(task?.status.state).toBe("completed");
 
-    const newName = "A2A Updated Project";
-    const response = await a2aPost(skillMessage("update_fragment_project", undefined, {
-      projectId: createdProjectId,
-      name: newName,
-    }));
+      const data = extractDataFromTask(task!);
+      const project = data?.project as { id: string; name: string };
+      expect(project.id).toBe(createdProjectId);
 
-    expect(response.status).toBe(200);
-    const task = extractTaskResult(response);
-    expect(task?.status.state).toBe("completed");
-    
-    const data = extractDataFromTask(task!);
-    const project = data?.project as { name: string };
-    expect(project.name).toBe(newName);
-    
-    console.log(`✅ Updated project via A2A`);
-  }, TIMEOUT);
+      console.log(`✅ Retrieved project via A2A: ${createdProjectId}`);
+    },
+    TIMEOUT,
+  );
 
-  test("delete_fragment_project deletes the project", async () => {
-    if (!apiKeyValid || !createdProjectId) {
-      console.log("⚠️ Skipping - no project created");
-      return;
-    }
+  test(
+    "list_fragment_projects includes the project",
+    async () => {
+      if (!apiKeyValid || !createdProjectId) {
+        console.log("⚠️ Skipping - no project created");
+        return;
+      }
 
-    const response = await a2aPost(skillMessage("delete_fragment_project", undefined, {
-      projectId: createdProjectId,
-    }));
+      const response = await a2aPost(skillMessage("list_fragment_projects"));
 
-    expect(response.status).toBe(200);
-    const task = extractTaskResult(response);
-    expect(task?.status.state).toBe("completed");
-    
-    // Remove from cleanup list
-    const idx = createdResources.projects.indexOf(createdProjectId);
-    if (idx > -1) createdResources.projects.splice(idx, 1);
-    
-    // Verify deletion
-    const getResponse = await a2aPost(skillMessage("get_fragment_project", undefined, {
-      projectId: createdProjectId,
-    }));
-    // Should fail or return error
-    const getTask = extractTaskResult(getResponse);
-    expect(getTask?.status.state).toBe("failed");
-    
-    console.log(`✅ Deleted project via A2A`);
-  }, TIMEOUT);
+      expect(response.status).toBe(200);
+      const task = extractTaskResult(response);
+      expect(task?.status.state).toBe("completed");
+
+      const data = extractDataFromTask(task!);
+      const projects = data?.projects as Array<{ id: string }>;
+      expect(Array.isArray(projects)).toBe(true);
+
+      const found = projects.find((p) => p.id === createdProjectId);
+      expect(found).toBeDefined();
+
+      console.log(`✅ Listed ${projects.length} projects via A2A`);
+    },
+    TIMEOUT,
+  );
+
+  test(
+    "update_fragment_project updates the project",
+    async () => {
+      if (!apiKeyValid || !createdProjectId) {
+        console.log("⚠️ Skipping - no project created");
+        return;
+      }
+
+      const newName = "A2A Updated Project";
+      const response = await a2aPost(
+        skillMessage("update_fragment_project", undefined, {
+          projectId: createdProjectId,
+          name: newName,
+        }),
+      );
+
+      expect(response.status).toBe(200);
+      const task = extractTaskResult(response);
+      expect(task?.status.state).toBe("completed");
+
+      const data = extractDataFromTask(task!);
+      const project = data?.project as { name: string };
+      expect(project.name).toBe(newName);
+
+      console.log(`✅ Updated project via A2A`);
+    },
+    TIMEOUT,
+  );
+
+  test(
+    "delete_fragment_project deletes the project",
+    async () => {
+      if (!apiKeyValid || !createdProjectId) {
+        console.log("⚠️ Skipping - no project created");
+        return;
+      }
+
+      const response = await a2aPost(
+        skillMessage("delete_fragment_project", undefined, {
+          projectId: createdProjectId,
+        }),
+      );
+
+      expect(response.status).toBe(200);
+      const task = extractTaskResult(response);
+      expect(task?.status.state).toBe("completed");
+
+      // Remove from cleanup list
+      const idx = createdResources.projects.indexOf(createdProjectId);
+      if (idx > -1) createdResources.projects.splice(idx, 1);
+
+      // Verify deletion
+      const getResponse = await a2aPost(
+        skillMessage("get_fragment_project", undefined, {
+          projectId: createdProjectId,
+        }),
+      );
+      // Should fail or return error
+      const getTask = extractTaskResult(getResponse);
+      expect(getTask?.status.state).toBe("failed");
+
+      console.log(`✅ Deleted project via A2A`);
+    },
+    TIMEOUT,
+  );
 });
 
 // ============================================================================
@@ -374,31 +438,37 @@ describe("A2A Fragment Project CRUD", () => {
 // ============================================================================
 
 describe("A2A Fragment Execution", () => {
-  test("execute_fragment executes a fragment in sandbox", async () => {
-    if (!serverAvailable || !apiKeyValid) {
-      console.log("⚠️ Skipping - server or API key not available");
-      return;
-    }
+  test(
+    "execute_fragment executes a fragment in sandbox",
+    async () => {
+      if (!serverAvailable || !apiKeyValid) {
+        console.log("⚠️ Skipping - server or API key not available");
+        return;
+      }
 
-    const response = await a2aPost(skillMessage("execute_fragment", undefined, {
-      fragment: SAMPLE_FRAGMENT,
-    }));
+      const response = await a2aPost(
+        skillMessage("execute_fragment", undefined, {
+          fragment: SAMPLE_FRAGMENT,
+        }),
+      );
 
-    expect(response.status).toBe(200);
-    const task = extractTaskResult(response);
-    expect(task?.status.state).toBe("completed");
-    
-    const data = extractDataFromTask(task!);
-    expect(data?.containerId).toBeDefined();
-    expect(data?.template).toBe("nextjs-developer");
-    expect(data?.url).toBeDefined();
-    
-    const containerId = data?.containerId as string;
-    createdResources.containers.push(containerId);
-    
-    console.log(`✅ Executed fragment via A2A: ${containerId}`);
-    console.log(`   Preview URL: ${data?.url}`);
-  }, TIMEOUT);
+      expect(response.status).toBe(200);
+      const task = extractTaskResult(response);
+      expect(task?.status.state).toBe("completed");
+
+      const data = extractDataFromTask(task!);
+      expect(data?.containerId).toBeDefined();
+      expect(data?.template).toBe("nextjs-developer");
+      expect(data?.url).toBeDefined();
+
+      const containerId = data?.containerId as string;
+      createdResources.containers.push(containerId);
+
+      console.log(`✅ Executed fragment via A2A: ${containerId}`);
+      console.log(`   Preview URL: ${data?.url}`);
+    },
+    TIMEOUT,
+  );
 });
 
 // ============================================================================
@@ -408,185 +478,231 @@ describe("A2A Fragment Execution", () => {
 describe("A2A Full E2E Flow", () => {
   let generatedFragment: Record<string, unknown>;
   let projectId: string;
-  
-  test("Step 1: generate_fragment with real LLM call", async () => {
-    if (!serverAvailable || !apiKeyValid) {
-      console.log("⚠️ Skipping - server or API key not available");
-      return;
-    }
 
-    console.log("🤖 Step 1: Generating fragment with real LLM...");
-    
-    const response = await a2aPost(skillMessage("generate_fragment", undefined, {
-      prompt: "Create a simple todo list app with add and delete functionality",
-      template: "nextjs-developer",
-      model: "gpt-4o-mini",
-    }));
-
-    expect(response.status).toBe(200);
-    const task = extractTaskResult(response);
-    
-    // Generation might take a while
-    if (task?.status.state === "completed") {
-      const data = extractDataFromTask(task);
-      expect(data?.fragment).toBeDefined();
-      
-      generatedFragment = data?.fragment as Record<string, unknown>;
-      expect(generatedFragment.code).toBeDefined();
-      expect(generatedFragment.template).toBeDefined();
-      
-      console.log(`   ✅ Generated fragment: ${(generatedFragment.code as string).length} chars`);
-    } else if (task?.status.state === "failed") {
-      // Generation might fail due to rate limits - use sample fragment
-      console.log("   ⚠️ Generation failed (likely rate limited), using sample fragment");
-      generatedFragment = SAMPLE_FRAGMENT;
-    }
-  }, LONG_TIMEOUT);
-
-  test("Step 2: create_fragment_project from generated fragment", async () => {
-    if (!apiKeyValid || !generatedFragment) {
-      console.log("⚠️ Skipping - no fragment generated");
-      return;
-    }
-
-    console.log("📦 Step 2: Creating project from fragment...");
-    
-    const response = await a2aPost(skillMessage("create_fragment_project", undefined, {
-      name: "A2A E2E Todo App",
-      description: "Generated and created via A2A E2E test",
-      fragment: generatedFragment,
-    }));
-
-    expect(response.status).toBe(200);
-    const task = extractTaskResult(response);
-    expect(task?.status.state).toBe("completed");
-    
-    const data = extractDataFromTask(task!);
-    const project = data?.project as { id: string };
-    expect(project.id).toBeDefined();
-    
-    projectId = project.id;
-    createdResources.projects.push(projectId);
-    
-    console.log(`   ✅ Created project: ${projectId}`);
-  }, TIMEOUT);
-
-  test("Step 3: execute_fragment in sandbox", async () => {
-    if (!apiKeyValid || !generatedFragment) {
-      console.log("⚠️ Skipping - no fragment available");
-      return;
-    }
-
-    console.log("🏗️ Step 3: Executing fragment in sandbox...");
-    
-    const response = await a2aPost(skillMessage("execute_fragment", undefined, {
-      fragment: generatedFragment,
-    }));
-
-    expect(response.status).toBe(200);
-    const task = extractTaskResult(response);
-    expect(task?.status.state).toBe("completed");
-    
-    const data = extractDataFromTask(task!);
-    expect(data?.containerId).toBeDefined();
-    expect(data?.url).toBeDefined();
-    
-    const containerId = data?.containerId as string;
-    createdResources.containers.push(containerId);
-    
-    console.log(`   ✅ Sandbox created: ${containerId}`);
-    console.log(`   Preview URL: ${data?.url}`);
-  }, TIMEOUT);
-
-  test("Step 4: Verify preview loads HTML", async () => {
-    if (!apiKeyValid || !generatedFragment) {
-      console.log("⚠️ Skipping - no sandbox created");
-      return;
-    }
-
-    console.log("👀 Step 4: Verifying preview...");
-    
-    // Execute again to get fresh URL
-    const execResponse = await a2aPost(skillMessage("execute_fragment", undefined, {
-      fragment: generatedFragment,
-    }));
-    
-    const task = extractTaskResult(execResponse);
-    const data = extractDataFromTask(task!);
-    const previewUrl = data?.url as string;
-    
-    if (previewUrl) {
-      // Load preview
-      const previewResponse = await fetch(previewUrl, {
-        signal: AbortSignal.timeout(TIMEOUT),
-      });
-      
-      expect(previewResponse.ok).toBe(true);
-      expect(previewResponse.headers.get("content-type")).toContain("text/html");
-      
-      const html = await previewResponse.text();
-      expect(html).toContain("<!DOCTYPE html>");
-      
-      console.log(`   ✅ Preview loaded: ${html.length} bytes`);
-    } else {
-      console.log("   ⚠️ No preview URL available");
-    }
-  }, TIMEOUT);
-
-  test("Step 5: deploy_fragment_project as app", async () => {
-    if (!apiKeyValid || !projectId) {
-      console.log("⚠️ Skipping - no project created");
-      return;
-    }
-
-    console.log("🚀 Step 5: Deploying project as app...");
-    
-    const response = await a2aPost(skillMessage("deploy_fragment_project", undefined, {
-      projectId,
-      type: "app",
-      autoStorage: true,
-      autoInject: true,
-    }));
-
-    expect(response.status).toBe(200);
-    const task = extractTaskResult(response);
-    
-    if (task?.status.state === "completed") {
-      const data = extractDataFromTask(task);
-      expect(data?.deployment).toBeDefined();
-      
-      const deployment = data?.deployment as { type: string; app?: { id: string } };
-      expect(deployment.type).toBe("app");
-      
-      if (deployment.app?.id) {
-        createdResources.apps.push(deployment.app.id);
+  test(
+    "Step 1: generate_fragment with real LLM call",
+    async () => {
+      if (!serverAvailable || !apiKeyValid) {
+        console.log("⚠️ Skipping - server or API key not available");
+        return;
       }
-      
-      console.log(`   ✅ Deployed as app`);
-    } else {
-      console.log(`   ⚠️ Deployment state: ${task?.status.state}`);
-    }
-  }, LONG_TIMEOUT);
 
-  test("Step 6: Cleanup", async () => {
-    if (!apiKeyValid || !projectId) {
-      console.log("⚠️ Skipping cleanup - no project");
-      return;
-    }
+      console.log("🤖 Step 1: Generating fragment with real LLM...");
 
-    console.log("🧹 Step 6: Cleaning up...");
-    
-    const response = await a2aPost(skillMessage("delete_fragment_project", undefined, {
-      projectId,
-    }));
-    
-    const task = extractTaskResult(response);
-    if (task?.status.state === "completed") {
-      const idx = createdResources.projects.indexOf(projectId);
-      if (idx > -1) createdResources.projects.splice(idx, 1);
-      console.log("   ✅ Project deleted");
-    }
-  }, TIMEOUT);
+      const response = await a2aPost(
+        skillMessage("generate_fragment", undefined, {
+          prompt:
+            "Create a simple todo list app with add and delete functionality",
+          template: "nextjs-developer",
+          model: "gpt-4o-mini",
+        }),
+      );
+
+      expect(response.status).toBe(200);
+      const task = extractTaskResult(response);
+
+      // Generation might take a while
+      if (task?.status.state === "completed") {
+        const data = extractDataFromTask(task);
+        expect(data?.fragment).toBeDefined();
+
+        generatedFragment = data?.fragment as Record<string, unknown>;
+        expect(generatedFragment.code).toBeDefined();
+        expect(generatedFragment.template).toBeDefined();
+
+        console.log(
+          `   ✅ Generated fragment: ${(generatedFragment.code as string).length} chars`,
+        );
+      } else if (task?.status.state === "failed") {
+        // Generation might fail due to rate limits - use sample fragment
+        console.log(
+          "   ⚠️ Generation failed (likely rate limited), using sample fragment",
+        );
+        generatedFragment = SAMPLE_FRAGMENT;
+      }
+    },
+    LONG_TIMEOUT,
+  );
+
+  test(
+    "Step 2: create_fragment_project from generated fragment",
+    async () => {
+      if (!apiKeyValid || !generatedFragment) {
+        console.log("⚠️ Skipping - no fragment generated");
+        return;
+      }
+
+      console.log("📦 Step 2: Creating project from fragment...");
+
+      const response = await a2aPost(
+        skillMessage("create_fragment_project", undefined, {
+          name: "A2A E2E Todo App",
+          description: "Generated and created via A2A E2E test",
+          fragment: generatedFragment,
+        }),
+      );
+
+      expect(response.status).toBe(200);
+      const task = extractTaskResult(response);
+      expect(task?.status.state).toBe("completed");
+
+      const data = extractDataFromTask(task!);
+      const project = data?.project as { id: string };
+      expect(project.id).toBeDefined();
+
+      projectId = project.id;
+      createdResources.projects.push(projectId);
+
+      console.log(`   ✅ Created project: ${projectId}`);
+    },
+    TIMEOUT,
+  );
+
+  test(
+    "Step 3: execute_fragment in sandbox",
+    async () => {
+      if (!apiKeyValid || !generatedFragment) {
+        console.log("⚠️ Skipping - no fragment available");
+        return;
+      }
+
+      console.log("🏗️ Step 3: Executing fragment in sandbox...");
+
+      const response = await a2aPost(
+        skillMessage("execute_fragment", undefined, {
+          fragment: generatedFragment,
+        }),
+      );
+
+      expect(response.status).toBe(200);
+      const task = extractTaskResult(response);
+      expect(task?.status.state).toBe("completed");
+
+      const data = extractDataFromTask(task!);
+      expect(data?.containerId).toBeDefined();
+      expect(data?.url).toBeDefined();
+
+      const containerId = data?.containerId as string;
+      createdResources.containers.push(containerId);
+
+      console.log(`   ✅ Sandbox created: ${containerId}`);
+      console.log(`   Preview URL: ${data?.url}`);
+    },
+    TIMEOUT,
+  );
+
+  test(
+    "Step 4: Verify preview loads HTML",
+    async () => {
+      if (!apiKeyValid || !generatedFragment) {
+        console.log("⚠️ Skipping - no sandbox created");
+        return;
+      }
+
+      console.log("👀 Step 4: Verifying preview...");
+
+      // Execute again to get fresh URL
+      const execResponse = await a2aPost(
+        skillMessage("execute_fragment", undefined, {
+          fragment: generatedFragment,
+        }),
+      );
+
+      const task = extractTaskResult(execResponse);
+      const data = extractDataFromTask(task!);
+      const previewUrl = data?.url as string;
+
+      if (previewUrl) {
+        // Load preview
+        const previewResponse = await fetch(previewUrl, {
+          signal: AbortSignal.timeout(TIMEOUT),
+        });
+
+        expect(previewResponse.ok).toBe(true);
+        expect(previewResponse.headers.get("content-type")).toContain(
+          "text/html",
+        );
+
+        const html = await previewResponse.text();
+        expect(html).toContain("<!DOCTYPE html>");
+
+        console.log(`   ✅ Preview loaded: ${html.length} bytes`);
+      } else {
+        console.log("   ⚠️ No preview URL available");
+      }
+    },
+    TIMEOUT,
+  );
+
+  test(
+    "Step 5: deploy_fragment_project as app",
+    async () => {
+      if (!apiKeyValid || !projectId) {
+        console.log("⚠️ Skipping - no project created");
+        return;
+      }
+
+      console.log("🚀 Step 5: Deploying project as app...");
+
+      const response = await a2aPost(
+        skillMessage("deploy_fragment_project", undefined, {
+          projectId,
+          type: "app",
+          autoStorage: true,
+          autoInject: true,
+        }),
+      );
+
+      expect(response.status).toBe(200);
+      const task = extractTaskResult(response);
+
+      if (task?.status.state === "completed") {
+        const data = extractDataFromTask(task);
+        expect(data?.deployment).toBeDefined();
+
+        const deployment = data?.deployment as {
+          type: string;
+          app?: { id: string };
+        };
+        expect(deployment.type).toBe("app");
+
+        if (deployment.app?.id) {
+          createdResources.apps.push(deployment.app.id);
+        }
+
+        console.log(`   ✅ Deployed as app`);
+      } else {
+        console.log(`   ⚠️ Deployment state: ${task?.status.state}`);
+      }
+    },
+    LONG_TIMEOUT,
+  );
+
+  test(
+    "Step 6: Cleanup",
+    async () => {
+      if (!apiKeyValid || !projectId) {
+        console.log("⚠️ Skipping cleanup - no project");
+        return;
+      }
+
+      console.log("🧹 Step 6: Cleaning up...");
+
+      const response = await a2aPost(
+        skillMessage("delete_fragment_project", undefined, {
+          projectId,
+        }),
+      );
+
+      const task = extractTaskResult(response);
+      if (task?.status.state === "completed") {
+        const idx = createdResources.projects.indexOf(projectId);
+        if (idx > -1) createdResources.projects.splice(idx, 1);
+        console.log("   ✅ Project deleted");
+      }
+    },
+    TIMEOUT,
+  );
 });
 
 // ============================================================================
@@ -594,132 +710,154 @@ describe("A2A Full E2E Flow", () => {
 // ============================================================================
 
 describe("MCP Fragment Tools", () => {
-  test("fragments_generate tool works", async () => {
-    if (!serverAvailable || !apiKeyValid) {
-      console.log("⚠️ Skipping - server or API key not available");
-      return;
-    }
-
-    const response = await mcpPost({
-      jsonrpc: "2.0",
-      id: 1,
-      method: "tools/call",
-      params: {
-        name: "fragments_generate",
-        arguments: {
-          prompt: "Create a simple button that alerts when clicked",
-          template: "nextjs-developer",
-        },
-      },
-    });
-
-    expect(response.status).toBe(200);
-    
-    // MCP might return result or streaming info
-    if (response.data.result) {
-      const result = response.data.result as { content?: Array<{ text?: string }> };
-      expect(result.content).toBeDefined();
-    }
-    
-    console.log("✅ MCP fragments_generate tool works");
-  }, LONG_TIMEOUT);
-
-  test("fragments_execute tool works", async () => {
-    if (!serverAvailable || !apiKeyValid) {
-      console.log("⚠️ Skipping - server or API key not available");
-      return;
-    }
-
-    const response = await mcpPost({
-      jsonrpc: "2.0",
-      id: 2,
-      method: "tools/call",
-      params: {
-        name: "fragments_execute",
-        arguments: {
-          fragment: SAMPLE_FRAGMENT,
-        },
-      },
-    });
-
-    expect(response.status).toBe(200);
-    
-    if (response.data.result) {
-      const result = response.data.result as { content?: Array<{ text?: string }> };
-      expect(result.content).toBeDefined();
-      
-      // Parse the content to check for containerId
-      const textContent = result.content?.find(c => c.text);
-      if (textContent?.text) {
-        const parsed = JSON.parse(textContent.text);
-        expect(parsed.containerId).toBeDefined();
+  test(
+    "fragments_generate tool works",
+    async () => {
+      if (!serverAvailable || !apiKeyValid) {
+        console.log("⚠️ Skipping - server or API key not available");
+        return;
       }
-    }
-    
-    console.log("✅ MCP fragments_execute tool works");
-  }, TIMEOUT);
 
-  test("fragments_list_projects tool works", async () => {
-    if (!serverAvailable || !apiKeyValid) {
-      console.log("⚠️ Skipping - server or API key not available");
-      return;
-    }
-
-    const response = await mcpPost({
-      jsonrpc: "2.0",
-      id: 3,
-      method: "tools/call",
-      params: {
-        name: "fragments_list_projects",
-        arguments: {},
-      },
-    });
-
-    expect(response.status).toBe(200);
-    
-    console.log("✅ MCP fragments_list_projects tool works");
-  }, TIMEOUT);
-
-  test("fragments_create_project tool works", async () => {
-    if (!serverAvailable || !apiKeyValid) {
-      console.log("⚠️ Skipping - server or API key not available");
-      return;
-    }
-
-    const response = await mcpPost({
-      jsonrpc: "2.0",
-      id: 4,
-      method: "tools/call",
-      params: {
-        name: "fragments_create_project",
-        arguments: {
-          name: "MCP Test Project",
-          description: "Created via MCP test",
-          fragment: SAMPLE_FRAGMENT,
+      const response = await mcpPost({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/call",
+        params: {
+          name: "fragments_generate",
+          arguments: {
+            prompt: "Create a simple button that alerts when clicked",
+            template: "nextjs-developer",
+          },
         },
-      },
-    });
+      });
 
-    expect(response.status).toBe(200);
-    
-    // Parse result to get project ID for cleanup
-    if (response.data.result) {
-      const result = response.data.result as { content?: Array<{ text?: string }> };
-      const textContent = result.content?.find(c => c.text);
-      if (textContent?.text) {
-        try {
+      expect(response.status).toBe(200);
+
+      // MCP might return result or streaming info
+      if (response.data.result) {
+        const result = response.data.result as {
+          content?: Array<{ text?: string }>;
+        };
+        expect(result.content).toBeDefined();
+      }
+
+      console.log("✅ MCP fragments_generate tool works");
+    },
+    LONG_TIMEOUT,
+  );
+
+  test(
+    "fragments_execute tool works",
+    async () => {
+      if (!serverAvailable || !apiKeyValid) {
+        console.log("⚠️ Skipping - server or API key not available");
+        return;
+      }
+
+      const response = await mcpPost({
+        jsonrpc: "2.0",
+        id: 2,
+        method: "tools/call",
+        params: {
+          name: "fragments_execute",
+          arguments: {
+            fragment: SAMPLE_FRAGMENT,
+          },
+        },
+      });
+
+      expect(response.status).toBe(200);
+
+      if (response.data.result) {
+        const result = response.data.result as {
+          content?: Array<{ text?: string }>;
+        };
+        expect(result.content).toBeDefined();
+
+        // Parse the content to check for containerId
+        const textContent = result.content?.find((c) => c.text);
+        if (textContent?.text) {
           const parsed = JSON.parse(textContent.text);
-          if (parsed.project?.id) {
-            createdResources.projects.push(parsed.project.id);
-          }
-        } catch {
-          // Ignore parse errors
+          expect(parsed.containerId).toBeDefined();
         }
       }
-    }
-    
-    console.log("✅ MCP fragments_create_project tool works");
-  }, TIMEOUT);
+
+      console.log("✅ MCP fragments_execute tool works");
+    },
+    TIMEOUT,
+  );
+
+  test(
+    "fragments_list_projects tool works",
+    async () => {
+      if (!serverAvailable || !apiKeyValid) {
+        console.log("⚠️ Skipping - server or API key not available");
+        return;
+      }
+
+      const response = await mcpPost({
+        jsonrpc: "2.0",
+        id: 3,
+        method: "tools/call",
+        params: {
+          name: "fragments_list_projects",
+          arguments: {},
+        },
+      });
+
+      expect(response.status).toBe(200);
+
+      console.log("✅ MCP fragments_list_projects tool works");
+    },
+    TIMEOUT,
+  );
+
+  test(
+    "fragments_create_project tool works",
+    async () => {
+      if (!serverAvailable || !apiKeyValid) {
+        console.log("⚠️ Skipping - server or API key not available");
+        return;
+      }
+
+      const response = await mcpPost({
+        jsonrpc: "2.0",
+        id: 4,
+        method: "tools/call",
+        params: {
+          name: "fragments_create_project",
+          arguments: {
+            name: "MCP Test Project",
+            description: "Created via MCP test",
+            fragment: SAMPLE_FRAGMENT,
+          },
+        },
+      });
+
+      expect(response.status).toBe(200);
+
+      // Parse result to get project ID for cleanup
+      if (response.data.result) {
+        const result = response.data.result as {
+          content?: Array<{ text?: string }>;
+        };
+        const textContent = result.content?.find((c) => c.text);
+        if (textContent?.text) {
+          try {
+            const parsed = JSON.parse(textContent.text);
+            if (parsed.project?.id) {
+              createdResources.projects.push(parsed.project.id);
+            }
+          } catch {
+            // Ignore parse errors
+          }
+        }
+      }
+
+      console.log("✅ MCP fragments_create_project tool works");
+    },
+    TIMEOUT,
+  );
 });
 
 // ============================================================================
@@ -761,5 +899,3 @@ describe("Fragment A2A/MCP E2E Test Summary", () => {
     expect(true).toBe(true);
   });
 });
-
-

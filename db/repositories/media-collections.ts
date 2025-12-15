@@ -45,8 +45,10 @@ export class MediaCollectionsRepository {
   }
 
   async findByIdWithItems(
-    id: string
-  ): Promise<{ collection: MediaCollection; items: MediaItemWithSource[] } | undefined> {
+    id: string,
+  ): Promise<
+    { collection: MediaCollection; items: MediaItemWithSource[] } | undefined
+  > {
     const collection = await this.findById(id);
     if (!collection) return undefined;
 
@@ -56,7 +58,7 @@ export class MediaCollectionsRepository {
 
   async listByOrganization(
     organizationId: string,
-    options?: { userId?: string; limit?: number; offset?: number }
+    options?: { userId?: string; limit?: number; offset?: number },
   ): Promise<MediaCollection[]> {
     const conditions = [eq(mediaCollections.organization_id, organizationId)];
 
@@ -82,7 +84,7 @@ export class MediaCollectionsRepository {
 
   async update(
     id: string,
-    data: Partial<NewMediaCollection>
+    data: Partial<NewMediaCollection>,
   ): Promise<MediaCollection | undefined> {
     const [updated] = await db
       .update(mediaCollections)
@@ -174,10 +176,12 @@ export class MediaCollectionsRepository {
   async addItem(
     collectionId: string,
     sourceType: "generation" | "upload",
-    sourceId: string
+    sourceId: string,
   ): Promise<MediaCollectionItem> {
     const [maxOrder] = await db
-      .select({ maxIndex: sql<number>`COALESCE(MAX(${mediaCollectionItems.order_index}), -1)` })
+      .select({
+        maxIndex: sql<number>`COALESCE(MAX(${mediaCollectionItems.order_index}), -1)`,
+      })
       .from(mediaCollectionItems)
       .where(eq(mediaCollectionItems.collection_id, collectionId));
 
@@ -201,12 +205,14 @@ export class MediaCollectionsRepository {
 
   async addItems(
     collectionId: string,
-    items: Array<{ sourceType: "generation" | "upload"; sourceId: string }>
+    items: Array<{ sourceType: "generation" | "upload"; sourceId: string }>,
   ): Promise<MediaCollectionItem[]> {
     if (items.length === 0) return [];
 
     const [maxOrder] = await db
-      .select({ maxIndex: sql<number>`COALESCE(MAX(${mediaCollectionItems.order_index}), -1)` })
+      .select({
+        maxIndex: sql<number>`COALESCE(MAX(${mediaCollectionItems.order_index}), -1)`,
+      })
       .from(mediaCollectionItems)
       .where(eq(mediaCollectionItems.collection_id, collectionId));
 
@@ -250,17 +256,14 @@ export class MediaCollectionsRepository {
       .where(
         and(
           eq(mediaCollectionItems.collection_id, collectionId),
-          sql`${mediaCollectionItems.id} = ANY(${itemIds})`
-        )
+          sql`${mediaCollectionItems.id} = ANY(${itemIds})`,
+        ),
       );
 
     await this.updateItemCount(collectionId);
   }
 
-  async reorderItems(
-    collectionId: string,
-    itemIds: string[]
-  ): Promise<void> {
+  async reorderItems(collectionId: string, itemIds: string[]): Promise<void> {
     await db.transaction(async (tx) => {
       for (let i = 0; i < itemIds.length; i++) {
         await tx
@@ -269,8 +272,8 @@ export class MediaCollectionsRepository {
           .where(
             and(
               eq(mediaCollectionItems.id, itemIds[i]),
-              eq(mediaCollectionItems.collection_id, collectionId)
-            )
+              eq(mediaCollectionItems.collection_id, collectionId),
+            ),
           );
       }
     });

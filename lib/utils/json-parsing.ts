@@ -12,7 +12,7 @@ import { extractErrorMessage } from "./error-handling";
  * Use when parsing error responses where JSON might be malformed
  */
 export async function safeJsonParse<T = Record<string, unknown>>(
-  response: Response
+  response: Response,
 ): Promise<T> {
   try {
     const text = await response.text();
@@ -34,7 +34,8 @@ export function parseJson<T>(text: string, context?: string): T {
     return JSON.parse(text) as T;
   } catch (error) {
     const contextMsg = context ? ` (${context})` : "";
-    throw new Error(`Failed to parse JSON${contextMsg}: ${extractErrorMessage(error)}`);
+    throw new Error(
+      `Failed to parse JSON${contextMsg}: ${extractErrorMessage(error)}`,
+    );
   }
 }
-

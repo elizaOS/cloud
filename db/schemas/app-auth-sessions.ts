@@ -1,6 +1,6 @@
 /**
  * App auth sessions schema.
- * 
+ *
  * Manages authentication sessions for the app pass-through auth flow.
  * Similar to CLI auth sessions but for web-based apps that can't use Privy directly.
  */

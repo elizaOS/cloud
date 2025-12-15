@@ -1,6 +1,6 @@
 /**
  * Org Tools Integration Tests
- * 
+ *
  * Verifies that A2A skills, MCP tools, and REST APIs are properly mirrored
  * and work correctly together.
  */
@@ -18,20 +18,56 @@ beforeAll(() => {
 
 const A2A_ORG_SKILLS = {
   // Task management
-  create_task: { aliases: ["create_todo", "add_task"], description: "Create a new task" },
-  list_tasks: { aliases: ["list_todos", "get_tasks"], description: "List tasks with optional filters" },
-  update_task: { aliases: ["update_todo", "modify_task"], description: "Update an existing task" },
-  complete_task: { aliases: ["complete_todo", "finish_task"], description: "Mark a task as completed" },
-  get_task_stats: { aliases: ["task_stats", "todo_stats"], description: "Get task statistics" },
+  create_task: {
+    aliases: ["create_todo", "add_task"],
+    description: "Create a new task",
+  },
+  list_tasks: {
+    aliases: ["list_todos", "get_tasks"],
+    description: "List tasks with optional filters",
+  },
+  update_task: {
+    aliases: ["update_todo", "modify_task"],
+    description: "Update an existing task",
+  },
+  complete_task: {
+    aliases: ["complete_todo", "finish_task"],
+    description: "Mark a task as completed",
+  },
+  get_task_stats: {
+    aliases: ["task_stats", "todo_stats"],
+    description: "Get task statistics",
+  },
   // Check-in management
-  create_checkin_schedule: { aliases: ["create_checkin", "schedule_standup"], description: "Create a team check-in schedule" },
-  list_checkin_schedules: { aliases: ["list_checkins", "get_schedules"], description: "List check-in schedules" },
-  record_checkin_response: { aliases: ["record_checkin", "submit_checkin"], description: "Record a check-in response" },
-  generate_checkin_report: { aliases: ["checkin_report", "standup_report"], description: "Generate a check-in report" },
+  create_checkin_schedule: {
+    aliases: ["create_checkin", "schedule_standup"],
+    description: "Create a team check-in schedule",
+  },
+  list_checkin_schedules: {
+    aliases: ["list_checkins", "get_schedules"],
+    description: "List check-in schedules",
+  },
+  record_checkin_response: {
+    aliases: ["record_checkin", "submit_checkin"],
+    description: "Record a check-in response",
+  },
+  generate_checkin_report: {
+    aliases: ["checkin_report", "standup_report"],
+    description: "Generate a check-in report",
+  },
   // Team management
-  add_team_member: { aliases: ["add_member", "register_member"], description: "Add a team member to a server" },
-  list_team_members: { aliases: ["get_team", "list_members"], description: "List team members" },
-  get_platform_status: { aliases: ["platform_status", "bot_status"], description: "Get platform connection status" },
+  add_team_member: {
+    aliases: ["add_member", "register_member"],
+    description: "Add a team member to a server",
+  },
+  list_team_members: {
+    aliases: ["get_team", "list_members"],
+    description: "List team members",
+  },
+  get_platform_status: {
+    aliases: ["platform_status", "bot_status"],
+    description: "Get platform connection status",
+  },
 };
 
 // =============================================================================
@@ -101,16 +137,28 @@ describe("Org Tools - A2A and MCP Mirror Verification", () => {
     });
 
     test("check-in management skills should have proper aliases", () => {
-      expect(A2A_ORG_SKILLS.create_checkin_schedule.aliases).toContain("create_checkin");
-      expect(A2A_ORG_SKILLS.list_checkin_schedules.aliases).toContain("list_checkins");
-      expect(A2A_ORG_SKILLS.record_checkin_response.aliases).toContain("record_checkin");
-      expect(A2A_ORG_SKILLS.generate_checkin_report.aliases).toContain("checkin_report");
+      expect(A2A_ORG_SKILLS.create_checkin_schedule.aliases).toContain(
+        "create_checkin",
+      );
+      expect(A2A_ORG_SKILLS.list_checkin_schedules.aliases).toContain(
+        "list_checkins",
+      );
+      expect(A2A_ORG_SKILLS.record_checkin_response.aliases).toContain(
+        "record_checkin",
+      );
+      expect(A2A_ORG_SKILLS.generate_checkin_report.aliases).toContain(
+        "checkin_report",
+      );
     });
 
     test("team management skills should have proper aliases", () => {
       expect(A2A_ORG_SKILLS.add_team_member.aliases).toContain("add_member");
-      expect(A2A_ORG_SKILLS.list_team_members.aliases).toContain("list_members");
-      expect(A2A_ORG_SKILLS.get_platform_status.aliases).toContain("platform_status");
+      expect(A2A_ORG_SKILLS.list_team_members.aliases).toContain(
+        "list_members",
+      );
+      expect(A2A_ORG_SKILLS.get_platform_status.aliases).toContain(
+        "platform_status",
+      );
     });
   });
 
@@ -189,9 +237,15 @@ describe("Org Tools - A2A and MCP Mirror Verification", () => {
     test("checkins REST endpoints should cover all operations", () => {
       expect(REST_ENDPOINTS.checkins.list).toBe("GET /api/v1/checkins");
       expect(REST_ENDPOINTS.checkins.create).toBe("POST /api/v1/checkins");
-      expect(REST_ENDPOINTS.checkins.responses).toBe("GET /api/v1/checkins/:scheduleId/responses");
-      expect(REST_ENDPOINTS.checkins.recordResponse).toBe("POST /api/v1/checkins/:scheduleId/responses");
-      expect(REST_ENDPOINTS.checkins.report).toBe("POST /api/v1/checkins/:scheduleId/report");
+      expect(REST_ENDPOINTS.checkins.responses).toBe(
+        "GET /api/v1/checkins/:scheduleId/responses",
+      );
+      expect(REST_ENDPOINTS.checkins.recordResponse).toBe(
+        "POST /api/v1/checkins/:scheduleId/responses",
+      );
+      expect(REST_ENDPOINTS.checkins.report).toBe(
+        "POST /api/v1/checkins/:scheduleId/report",
+      );
     });
   });
 });
@@ -226,39 +280,46 @@ describe("Org Tools - Skill Implementation Verification", () => {
 
   describe("Check-in Skill Implementations", () => {
     test("executeSkillCreateCheckinSchedule should be exported", async () => {
-      const { executeSkillCreateCheckinSchedule } = await import("@/lib/api/a2a/skills");
+      const { executeSkillCreateCheckinSchedule } =
+        await import("@/lib/api/a2a/skills");
       expect(typeof executeSkillCreateCheckinSchedule).toBe("function");
     });
 
     test("executeSkillListCheckinSchedules should be exported", async () => {
-      const { executeSkillListCheckinSchedules } = await import("@/lib/api/a2a/skills");
+      const { executeSkillListCheckinSchedules } =
+        await import("@/lib/api/a2a/skills");
       expect(typeof executeSkillListCheckinSchedules).toBe("function");
     });
 
     test("executeSkillRecordCheckinResponse should be exported", async () => {
-      const { executeSkillRecordCheckinResponse } = await import("@/lib/api/a2a/skills");
+      const { executeSkillRecordCheckinResponse } =
+        await import("@/lib/api/a2a/skills");
       expect(typeof executeSkillRecordCheckinResponse).toBe("function");
     });
 
     test("executeSkillGenerateCheckinReport should be exported", async () => {
-      const { executeSkillGenerateCheckinReport } = await import("@/lib/api/a2a/skills");
+      const { executeSkillGenerateCheckinReport } =
+        await import("@/lib/api/a2a/skills");
       expect(typeof executeSkillGenerateCheckinReport).toBe("function");
     });
   });
 
   describe("Team Skill Implementations", () => {
     test("executeSkillAddTeamMember should be exported", async () => {
-      const { executeSkillAddTeamMember } = await import("@/lib/api/a2a/skills");
+      const { executeSkillAddTeamMember } =
+        await import("@/lib/api/a2a/skills");
       expect(typeof executeSkillAddTeamMember).toBe("function");
     });
 
     test("executeSkillListTeamMembers should be exported", async () => {
-      const { executeSkillListTeamMembers } = await import("@/lib/api/a2a/skills");
+      const { executeSkillListTeamMembers } =
+        await import("@/lib/api/a2a/skills");
       expect(typeof executeSkillListTeamMembers).toBe("function");
     });
 
     test("executeSkillGetPlatformStatus should be exported", async () => {
-      const { executeSkillGetPlatformStatus } = await import("@/lib/api/a2a/skills");
+      const { executeSkillGetPlatformStatus } =
+        await import("@/lib/api/a2a/skills");
       expect(typeof executeSkillGetPlatformStatus).toBe("function");
     });
   });
@@ -268,11 +329,11 @@ describe("Org Tools - A2A Handler Registration", () => {
   test("all org skills should be registered in SKILL_REGISTRY", async () => {
     const handlersModule = await import("@/lib/api/a2a/handlers");
     const { AVAILABLE_SKILLS } = handlersModule;
-    
+
     // Check that org skills are available
     const orgSkillIds = [
       "create_task",
-      "list_tasks", 
+      "list_tasks",
       "update_task",
       "complete_task",
       "get_task_stats",
@@ -286,7 +347,9 @@ describe("Org Tools - A2A Handler Registration", () => {
     ];
 
     for (const skillId of orgSkillIds) {
-      const skill = AVAILABLE_SKILLS.find((s: { id: string }) => s.id === skillId);
+      const skill = AVAILABLE_SKILLS.find(
+        (s: { id: string }) => s.id === skillId,
+      );
       expect(skill).toBeDefined();
       expect(skill?.description).toBeTruthy();
     }
@@ -298,13 +361,15 @@ describe("Org Tools - A2A Handler Registration", () => {
     // what's expected to be in the registry
     expect(A2A_ORG_SKILLS.create_task.aliases).toContain("create_todo");
     expect(A2A_ORG_SKILLS.create_task.aliases).toContain("add_task");
-    
+
     // The handler module exports skills without aliases in AVAILABLE_SKILLS
     // but the aliases are used internally for routing
     const handlersModule = await import("@/lib/api/a2a/handlers");
     const { AVAILABLE_SKILLS } = handlersModule;
-    
-    const createTaskSkill = AVAILABLE_SKILLS.find((s: { id: string }) => s.id === "create_task");
+
+    const createTaskSkill = AVAILABLE_SKILLS.find(
+      (s: { id: string }) => s.id === "create_task",
+    );
     expect(createTaskSkill).toBeDefined();
     expect(createTaskSkill?.description).toBe("Create a new task");
   });
@@ -371,4 +436,3 @@ describe("Org Tools - MCP Registry Integration", () => {
     expect(orgToolsEntry.status).toBe("live");
   });
 });
-

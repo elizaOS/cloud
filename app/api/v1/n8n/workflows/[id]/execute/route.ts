@@ -6,7 +6,7 @@ import { ExecuteWorkflowSchema, ErrorResponses } from "@/lib/n8n/schemas";
 
 export async function POST(
   request: NextRequest,
-  ctx: { params: Promise<{ id: string }> }
+  ctx: { params: Promise<{ id: string }> },
 ) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
   const { id } = await ctx.params;
@@ -17,10 +17,14 @@ export async function POST(
   }
 
   const contentLength = request.headers.get("content-length");
-  const body = contentLength === "0" || !contentLength ? {} : await request.json();
+  const body =
+    contentLength === "0" || !contentLength ? {} : await request.json();
   const validation = ExecuteWorkflowSchema.safeParse(body);
   if (!validation.success) {
-    return NextResponse.json(ErrorResponses.invalidRequest(validation.error.format()), { status: 400 });
+    return NextResponse.json(
+      ErrorResponses.invalidRequest(validation.error.format()),
+      { status: 400 },
+    );
   }
 
   const { inputData, triggerType } = validation.data;
@@ -51,5 +55,3 @@ export async function POST(
     },
   });
 }
-
-

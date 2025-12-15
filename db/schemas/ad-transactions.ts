@@ -43,7 +43,7 @@ export const adTransactions = pgTable(
     // Link to credit transaction for unified tracking
     credit_transaction_id: uuid("credit_transaction_id").references(
       () => creditTransactions.id,
-      { onDelete: "set null" }
+      { onDelete: "set null" },
     ),
 
     type: text("type").$type<AdTransactionType>().notNull(),
@@ -53,8 +53,10 @@ export const adTransactions = pgTable(
     currency: text("currency").notNull().default("USD"),
 
     // Credits used (includes markup)
-    credits_amount: numeric("credits_amount", { precision: 12, scale: 4 })
-      .notNull(),
+    credits_amount: numeric("credits_amount", {
+      precision: 12,
+      scale: 4,
+    }).notNull(),
 
     description: text("description").notNull(),
 
@@ -74,21 +76,21 @@ export const adTransactions = pgTable(
   },
   (table) => ({
     organization_idx: index("ad_transactions_organization_idx").on(
-      table.organization_id
+      table.organization_id,
     ),
     campaign_idx: index("ad_transactions_campaign_idx").on(table.campaign_id),
     credit_tx_idx: index("ad_transactions_credit_tx_idx").on(
-      table.credit_transaction_id
+      table.credit_transaction_id,
     ),
     type_idx: index("ad_transactions_type_idx").on(table.type),
     created_at_idx: index("ad_transactions_created_at_idx").on(
-      table.created_at
+      table.created_at,
     ),
     org_type_idx: index("ad_transactions_org_type_idx").on(
       table.organization_id,
-      table.type
+      table.type,
     ),
-  })
+  }),
 );
 
 export type AdTransaction = InferSelectModel<typeof adTransactions>;

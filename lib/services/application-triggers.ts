@@ -1,6 +1,6 @@
 /**
  * Application Triggers Service
- * 
+ *
  * Manages triggers for all deployable components:
  * - Fragment Projects (Apps)
  * - Containers (Agents)
@@ -31,7 +31,11 @@ import { generateWebhookSecret } from "@/lib/utils/webhook-signature";
 // TYPES
 // =============================================================================
 
-type TargetType = "fragment_project" | "container" | "user_mcp" | "code_agent_session";
+type TargetType =
+  | "fragment_project"
+  | "container"
+  | "user_mcp"
+  | "code_agent_session";
 type TriggerType = "cron" | "webhook" | "event";
 
 interface CreateTriggerParams {
@@ -63,7 +67,9 @@ class ApplicationTriggersService {
   // CREATE TRIGGER
   // ===========================================================================
 
-  async createTrigger(params: CreateTriggerParams): Promise<ApplicationTrigger> {
+  async createTrigger(
+    params: CreateTriggerParams,
+  ): Promise<ApplicationTrigger> {
     const {
       organizationId,
       createdBy,
@@ -99,7 +105,10 @@ class ApplicationTriggersService {
     }
 
     // For events, validate event types
-    if (triggerType === "event" && (!config.eventTypes || config.eventTypes.length === 0)) {
+    if (
+      triggerType === "event" &&
+      (!config.eventTypes || config.eventTypes.length === 0)
+    ) {
       throw new Error("eventTypes is required for event triggers");
     }
 
@@ -145,7 +154,9 @@ class ApplicationTriggersService {
     return trigger ?? null;
   }
 
-  async findTriggerByKey(triggerKey: string): Promise<ApplicationTrigger | null> {
+  async findTriggerByKey(
+    triggerKey: string,
+  ): Promise<ApplicationTrigger | null> {
     const [trigger] = await db
       .select()
       .from(applicationTriggers)
@@ -157,7 +168,7 @@ class ApplicationTriggersService {
 
   async listTriggersByTarget(
     targetType: TargetType,
-    targetId: string
+    targetId: string,
   ): Promise<ApplicationTrigger[]> {
     return db
       .select()
@@ -165,23 +176,31 @@ class ApplicationTriggersService {
       .where(
         and(
           eq(applicationTriggers.target_type, targetType),
-          eq(applicationTriggers.target_id, targetId)
-        )
+          eq(applicationTriggers.target_id, targetId),
+        ),
       )
       .orderBy(desc(applicationTriggers.created_at));
   }
 
   async listTriggersByOrganization(
     organizationId: string,
-    options?: { targetType?: TargetType; triggerType?: TriggerType; isActive?: boolean }
+    options?: {
+      targetType?: TargetType;
+      triggerType?: TriggerType;
+      isActive?: boolean;
+    },
   ): Promise<ApplicationTrigger[]> {
-    const conditions = [eq(applicationTriggers.organization_id, organizationId)];
+    const conditions = [
+      eq(applicationTriggers.organization_id, organizationId),
+    ];
 
     if (options?.targetType) {
       conditions.push(eq(applicationTriggers.target_type, options.targetType));
     }
     if (options?.triggerType) {
-      conditions.push(eq(applicationTriggers.trigger_type, options.triggerType));
+      conditions.push(
+        eq(applicationTriggers.trigger_type, options.triggerType),
+      );
     }
     if (options?.isActive !== undefined) {
       conditions.push(eq(applicationTriggers.is_active, options.isActive));
@@ -201,8 +220,8 @@ class ApplicationTriggersService {
       .where(
         and(
           eq(applicationTriggers.trigger_type, "cron"),
-          eq(applicationTriggers.is_active, true)
-        )
+          eq(applicationTriggers.is_active, true),
+        ),
       );
   }
 
@@ -212,7 +231,12 @@ class ApplicationTriggersService {
 
   async updateTrigger(
     triggerId: string,
-    updates: Partial<Pick<ApplicationTrigger, "name" | "description" | "config" | "action_config" | "is_active">>
+    updates: Partial<
+      Pick<
+        ApplicationTrigger,
+        "name" | "description" | "config" | "action_config" | "is_active"
+      >
+    >,
   ): Promise<ApplicationTrigger> {
     const [updated] = await db
       .update(applicationTriggers)
@@ -262,7 +286,9 @@ class ApplicationTriggersService {
   // ===========================================================================
 
   async deleteTrigger(triggerId: string): Promise<void> {
-    await db.delete(applicationTriggers).where(eq(applicationTriggers.id, triggerId));
+    await db
+      .delete(applicationTriggers)
+      .where(eq(applicationTriggers.id, triggerId));
   }
 
   // ===========================================================================
@@ -273,7 +299,11 @@ class ApplicationTriggersService {
     triggerId: string,
     inputData?: Record<string, unknown>,
     executionType: "scheduled" | "webhook" | "event" | "manual" = "manual",
-    requestMetadata?: { ip?: string; userAgent?: string; headers?: Record<string, string> }
+    requestMetadata?: {
+      ip?: string;
+      userAgent?: string;
+      headers?: Record<string, string>;
+    },
   ): Promise<ExecuteTriggerResult> {
     const trigger = await this.getTrigger(triggerId);
     if (!trigger) {
@@ -288,7 +318,9 @@ class ApplicationTriggersService {
     if (trigger.config.maxExecutionsPerDay) {
       const todayCount = await this.getTodayExecutionCount(triggerId);
       if (todayCount >= trigger.config.maxExecutionsPerDay) {
-        throw new Error(`Daily execution limit exceeded (${trigger.config.maxExecutionsPerDay})`);
+        throw new Error(
+          `Daily execution limit exceeded (${trigger.config.maxExecutionsPerDay})`,
+        );
       }
     }
 
@@ -347,7 +379,8 @@ class ApplicationTriggersService {
         output: result,
       };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Execution failed";
+      const errorMessage =
+        error instanceof Error ? error.message : "Execution failed";
 
       // Update execution with error
       await db
@@ -384,7 +417,7 @@ class ApplicationTriggersService {
 
   async getExecutions(
     triggerId: string,
-    limit: number = 50
+    limit: number = 50,
   ): Promise<ApplicationTriggerExecution[]> {
     return db
       .select()
@@ -404,8 +437,8 @@ class ApplicationTriggersService {
       .where(
         and(
           eq(applicationTriggerExecutions.trigger_id, triggerId),
-          sql`${applicationTriggerExecutions.created_at} >= ${today}`
-        )
+          sql`${applicationTriggerExecutions.created_at} >= ${today}`,
+        ),
       );
 
     return result?.count ?? 0;
@@ -418,7 +451,7 @@ class ApplicationTriggersService {
   private async verifyTarget(
     targetType: TargetType,
     targetId: string,
-    organizationId: string
+    organizationId: string,
   ): Promise<void> {
     let target;
 
@@ -430,8 +463,8 @@ class ApplicationTriggersService {
           .where(
             and(
               eq(fragmentProjects.id, targetId),
-              eq(fragmentProjects.organization_id, organizationId)
-            )
+              eq(fragmentProjects.organization_id, organizationId),
+            ),
           )
           .limit(1);
         break;
@@ -443,8 +476,8 @@ class ApplicationTriggersService {
           .where(
             and(
               eq(containers.id, targetId),
-              eq(containers.organization_id, organizationId)
-            )
+              eq(containers.organization_id, organizationId),
+            ),
           )
           .limit(1);
         break;
@@ -456,8 +489,8 @@ class ApplicationTriggersService {
           .where(
             and(
               eq(userMcps.id, targetId),
-              eq(userMcps.organization_id, organizationId)
-            )
+              eq(userMcps.organization_id, organizationId),
+            ),
           )
           .limit(1);
         break;
@@ -469,27 +502,34 @@ class ApplicationTriggersService {
           .where(
             and(
               eq(codeAgentSessions.id, targetId),
-              eq(codeAgentSessions.organization_id, organizationId)
-            )
+              eq(codeAgentSessions.organization_id, organizationId),
+            ),
           )
           .limit(1);
         break;
     }
 
     if (!target) {
-      throw new Error(`${targetType} not found or does not belong to organization`);
+      throw new Error(
+        `${targetType} not found or does not belong to organization`,
+      );
     }
   }
 
   private async performAction(
     trigger: ApplicationTrigger,
-    inputData?: Record<string, unknown>
+    inputData?: Record<string, unknown>,
   ): Promise<Record<string, unknown>> {
     const { action_type, action_config, target_type, target_id } = trigger;
 
     switch (action_type) {
       case "call_endpoint":
-        return this.callTargetEndpoint(target_type, target_id, trigger, inputData);
+        return this.callTargetEndpoint(
+          target_type,
+          target_id,
+          trigger,
+          inputData,
+        );
 
       case "restart":
         return this.restartTarget(target_type, target_id);
@@ -498,7 +538,10 @@ class ApplicationTriggersService {
         if (!action_config?.workflowId) {
           throw new Error("workflowId required for execute_workflow action");
         }
-        return this.executeN8nWorkflow(action_config.workflowId as string, inputData);
+        return this.executeN8nWorkflow(
+          action_config.workflowId as string,
+          inputData,
+        );
 
       case "notify":
         return this.sendNotification(trigger, inputData);
@@ -512,7 +555,7 @@ class ApplicationTriggersService {
     targetType: TargetType,
     targetId: string,
     trigger: ApplicationTrigger,
-    inputData?: Record<string, unknown>
+    inputData?: Record<string, unknown>,
   ): Promise<Record<string, unknown>> {
     let endpoint: string | undefined;
 
@@ -568,7 +611,8 @@ class ApplicationTriggersService {
           .limit(1);
 
         if (project?.sandbox_url) {
-          const path = (trigger.action_config?.endpoint as string) || "/api/trigger";
+          const path =
+            (trigger.action_config?.endpoint as string) || "/api/trigger";
           endpoint = `${project.sandbox_url}${path}`;
         } else {
           throw new Error("Fragment project does not have a sandbox URL");
@@ -601,7 +645,9 @@ class ApplicationTriggersService {
       const responseData = await safeJsonParse<{ error?: string }>(response);
 
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${responseData.error || response.statusText}`);
+        throw new Error(
+          `HTTP ${response.status}: ${responseData.error || response.statusText}`,
+        );
       }
 
       return responseData;
@@ -612,7 +658,7 @@ class ApplicationTriggersService {
 
   private async restartTarget(
     targetType: TargetType,
-    targetId: string
+    targetId: string,
   ): Promise<Record<string, unknown>> {
     if (targetType !== "container") {
       throw new Error("Restart action only supported for containers");
@@ -626,9 +672,10 @@ class ApplicationTriggersService {
 
   private async executeN8nWorkflow(
     workflowId: string,
-    inputData?: Record<string, unknown>
+    inputData?: Record<string, unknown>,
   ): Promise<Record<string, unknown>> {
-    const { n8nWorkflowsService } = await import("@/lib/services/n8n-workflows");
+    const { n8nWorkflowsService } =
+      await import("@/lib/services/n8n-workflows");
 
     const workflow = await n8nWorkflowsService.getWorkflow(workflowId);
     if (!workflow) {
@@ -649,10 +696,12 @@ class ApplicationTriggersService {
 
   private async sendNotification(
     trigger: ApplicationTrigger,
-    inputData?: Record<string, unknown>
+    inputData?: Record<string, unknown>,
   ): Promise<Record<string, unknown>> {
-    const channels = trigger.action_config?.notificationChannels as string[] | undefined;
-    
+    const channels = trigger.action_config?.notificationChannels as
+      | string[]
+      | undefined;
+
     logger.info("[Application Triggers] Processing notification", {
       triggerId: trigger.id,
       channels,
@@ -663,11 +712,14 @@ class ApplicationTriggersService {
     // Notification channels can be configured per-trigger in action_config.notificationChannels
     // Supported: "slack", "email", "webhook"
     // Future: "discord", "telegram", "sms"
-    
+
     if (!channels || channels.length === 0) {
-      logger.warn("[Application Triggers] No notification channels configured", {
-        triggerId: trigger.id,
-      });
+      logger.warn(
+        "[Application Triggers] No notification channels configured",
+        {
+          triggerId: trigger.id,
+        },
+      );
       return { notified: false, reason: "No channels configured" };
     }
 
@@ -677,7 +729,11 @@ class ApplicationTriggersService {
           // Slack notifications require SLACK_WEBHOOK_URL
           const webhookUrl = process.env.SLACK_WEBHOOK_URL;
           if (webhookUrl) {
-            const sent = await this.sendSlackNotification(webhookUrl, trigger, inputData);
+            const sent = await this.sendSlackNotification(
+              webhookUrl,
+              trigger,
+              inputData,
+            );
             results.slack = sent;
           } else {
             logger.debug("[Application Triggers] Slack webhook not configured");
@@ -687,9 +743,15 @@ class ApplicationTriggersService {
         }
         case "webhook": {
           // Custom webhook URL from action_config.webhookUrl
-          const webhookUrl = trigger.action_config?.webhookUrl as string | undefined;
+          const webhookUrl = trigger.action_config?.webhookUrl as
+            | string
+            | undefined;
           if (webhookUrl) {
-            const sent = await this.sendWebhookNotification(webhookUrl, trigger, inputData);
+            const sent = await this.sendWebhookNotification(
+              webhookUrl,
+              trigger,
+              inputData,
+            );
             results.webhook = sent;
           } else {
             results.webhook = false;
@@ -698,17 +760,21 @@ class ApplicationTriggersService {
         }
         case "email":
           // Email notifications require future integration with email service
-          logger.info("[Application Triggers] Email notifications not yet implemented");
+          logger.info(
+            "[Application Triggers] Email notifications not yet implemented",
+          );
           results.email = false;
           break;
         default:
-          logger.warn("[Application Triggers] Unknown notification channel", { channel });
+          logger.warn("[Application Triggers] Unknown notification channel", {
+            channel,
+          });
           results[channel] = false;
       }
     }
 
-    return { 
-      notified: Object.values(results).some(r => r), 
+    return {
+      notified: Object.values(results).some((r) => r),
       channels: results,
     };
   }
@@ -716,7 +782,7 @@ class ApplicationTriggersService {
   private async sendSlackNotification(
     webhookUrl: string,
     trigger: ApplicationTrigger,
-    inputData?: Record<string, unknown>
+    inputData?: Record<string, unknown>,
   ): Promise<boolean> {
     const payload = {
       text: `🔔 Trigger Notification: ${trigger.name}`,
@@ -726,11 +792,13 @@ class ApplicationTriggersService {
           title: trigger.name,
           text: trigger.description || "Trigger executed",
           fields: inputData
-            ? Object.entries(inputData).slice(0, 5).map(([key, value]) => ({
-                title: key,
-                value: String(value).slice(0, 100),
-                short: true,
-              }))
+            ? Object.entries(inputData)
+                .slice(0, 5)
+                .map(([key, value]) => ({
+                  title: key,
+                  value: String(value).slice(0, 100),
+                  short: true,
+                }))
             : [],
           ts: Math.floor(Date.now() / 1000),
         },
@@ -757,7 +825,7 @@ class ApplicationTriggersService {
   private async sendWebhookNotification(
     webhookUrl: string,
     trigger: ApplicationTrigger,
-    inputData?: Record<string, unknown>
+    inputData?: Record<string, unknown>,
   ): Promise<boolean> {
     const payload = {
       triggerId: trigger.id,
@@ -791,4 +859,3 @@ class ApplicationTriggersService {
 // =============================================================================
 
 export const applicationTriggersService = new ApplicationTriggersService();
-
