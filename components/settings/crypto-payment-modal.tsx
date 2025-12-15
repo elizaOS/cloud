@@ -143,8 +143,9 @@ export function CryptoPaymentModal({
 
   const evmWallet = wallets.find((w) => {
     if (w.walletClientType === "solana") return false;
+    if (w.walletClientType === "privy") return false;
     return true;
-  });
+  }) || wallets.find((w) => w.walletClientType !== "solana" && w.walletClientType !== "privy");
 
   const hasWallet = walletsReady && !!evmWallet;
 
