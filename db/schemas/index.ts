@@ -42,4 +42,3 @@ export * from "./agent-reputation";
 export * from "./agent-budgets";
 export * from "./crypto-payments";
 export * from "./app-sandboxes";
-export * from "./crypto-payments";

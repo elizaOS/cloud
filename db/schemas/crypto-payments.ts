@@ -4,6 +4,7 @@ import {
   pgTable,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
@@ -62,12 +63,16 @@ export const cryptoPayments = pgTable(
       table.payment_address
     ),
     status_idx: index("crypto_payments_status_idx").on(table.status),
-    tx_hash_idx: index("crypto_payments_transaction_hash_idx").on(
+    // Unique constraint to prevent duplicate transaction processing
+    tx_hash_unique_idx: uniqueIndex("crypto_payments_transaction_hash_unique_idx").on(
       table.transaction_hash
     ),
     network_idx: index("crypto_payments_network_idx").on(table.network),
     created_idx: index("crypto_payments_created_at_idx").on(table.created_at),
     expires_idx: index("crypto_payments_expires_at_idx").on(table.expires_at),
+    // GIN index for efficient JSONB queries on oxapay_track_id
+    metadata_gin_idx: index("crypto_payments_metadata_gin_idx")
+      .using("gin", table.metadata),
   })
 );
 
