@@ -233,12 +233,25 @@ class OxaPayService {
     }
   }
 
+  /**
+   * Check if payment is confirmed and safe to deliver goods/credits.
+   * Per OxaPay docs:
+   * - "Paid" = Payment confirmed by network (for invoice/white_label payments)
+   * - "Confirmed" = Payout confirmed (for payout transactions)
+   */
   isPaymentConfirmed(status: string): boolean {
     return status === "Paid" || status === "Confirmed";
   }
 
+  /**
+   * Check if payment is pending (awaiting blockchain confirmation).
+   * Per OxaPay docs:
+   * - "Waiting" = Waiting for payer to send payment
+   * - "Paying" = Payer sent payment, awaiting blockchain confirmation
+   * - "Confirming" = Transaction confirming (for payouts)
+   */
   isPaymentPending(status: string): boolean {
-    return status === "Waiting" || status === "Confirming";
+    return status === "Waiting" || status === "Paying" || status === "Confirming";
   }
 
   isPaymentExpired(status: string): boolean {

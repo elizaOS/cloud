@@ -58,23 +58,36 @@ function isIpAllowed(ip: string, allowedIps: string[]): boolean {
   return allowedIps.includes(ip);
 }
 
+/**
+ * Get the HMAC secret for webhook signature verification.
+ *
+ * Per OxaPay documentation: "OxaPay uses your MERCHANT_API_KEY as the HMAC
+ * shared secret key to generate an HMAC (sha512) signature of the raw POST data."
+ *
+ * We use OXAPAY_MERCHANT_API_KEY by default (as per official docs).
+ * OXAPAY_WEBHOOK_SECRET can be set as an override for testing/flexibility.
+ */
+function getWebhookHmacSecret(): string | null {
+  return process.env.OXAPAY_WEBHOOK_SECRET || process.env.OXAPAY_MERCHANT_API_KEY || null;
+}
+
 function verifyOxaPaySignature(
   payload: string,
   signature: string | null,
   ip: string
 ): boolean {
-  const secret = process.env.OXAPAY_WEBHOOK_SECRET;
+  const secret = getWebhookHmacSecret();
 
   if (!secret) {
     logger.error(
-      "[Crypto Webhook] Webhook secret not configured - rejecting request",
+      "[Crypto Webhook] HMAC secret not configured - OXAPAY_MERCHANT_API_KEY is required for webhook verification",
       { ip: redact.ip(ip) }
     );
     return false;
   }
 
   if (!signature) {
-    logger.warn("[Crypto Webhook] No signature provided", {
+    logger.warn("[Crypto Webhook] No HMAC signature header provided", {
       ip: redact.ip(ip),
     });
     return false;
@@ -277,19 +290,26 @@ async function handleWebhook(req: NextRequest) {
       ip: redact.ip(ip),
       track_id: redact.trackId(payload.track_id),
       success: result.success,
+      message: result.message,
       eventId,
     });
 
-    return NextResponse.json(result);
+    // OxaPay requires exactly "ok" response with HTTP 200 for successful delivery
+    // Per docs: "Merchant's callback_url must return an HTTP 200 response with content 'ok'"
+    return new Response("ok", {
+      status: 200,
+      headers: { "Content-Type": "text/plain" },
+    });
   } catch (error) {
     logger.error("[Crypto Webhook] Error processing webhook", {
       ip: redact.ip(ip),
       error: error instanceof Error ? error.message : "Unknown error",
     });
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    // Return 500 so OxaPay will retry the webhook
+    return new Response("error", {
+      status: 500,
+      headers: { "Content-Type": "text/plain" },
+    });
   }
 }
 
