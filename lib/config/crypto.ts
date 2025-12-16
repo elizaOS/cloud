@@ -76,12 +76,14 @@ export type OxaPayNetwork =
   | "SOL"
   | "BASE"
   | "ARB"
-  | "OP";
+  | "OP"
+  | "AUTO";
 
 export interface NetworkConfig {
   id: OxaPayNetwork;
   name: string;
   confirmations: number;
+  /** Percentage tolerance for amount validation (e.g., 0.5 = 0.5%, 2.0 = 2%) */
   tolerancePercent: number;
   minAmount: Decimal;
   maxAmount: Decimal;
@@ -177,6 +179,14 @@ export const NETWORK_CONFIGS: Record<OxaPayNetwork, NetworkConfig> = {
     name: "Optimism",
     confirmations: 10,
     tolerancePercent: 0.5,
+    minAmount: MIN_PAYMENT_AMOUNT,
+    maxAmount: MAX_PAYMENT_AMOUNT,
+  },
+  AUTO: {
+    id: "AUTO",
+    name: "Auto-selected Network",
+    confirmations: 1,
+    tolerancePercent: 2.0, // Higher tolerance for auto-selected payments due to potential fee variations
     minAmount: MIN_PAYMENT_AMOUNT,
     maxAmount: MAX_PAYMENT_AMOUNT,
   },

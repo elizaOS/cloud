@@ -241,9 +241,11 @@ class OxaPayService {
    * Per OxaPay docs:
    * - "Paid" = Payment confirmed by network (for invoice/white_label payments)
    * - "Confirmed" = Payout confirmed (for payout transactions)
+   * Note: OxaPay API returns lowercase status values, so we normalize to lowercase.
    */
   isPaymentConfirmed(status: string): boolean {
-    return status === "Paid" || status === "Confirmed";
+    const normalized = status.toLowerCase();
+    return normalized === "paid" || normalized === "confirmed";
   }
 
   /**
@@ -254,15 +256,17 @@ class OxaPayService {
    * - "Confirming" = Transaction confirming (for payouts)
    */
   isPaymentPending(status: string): boolean {
-    return status === "Waiting" || status === "Paying" || status === "Confirming";
+    const normalized = status.toLowerCase();
+    return normalized === "waiting" || normalized === "paying" || normalized === "confirming";
   }
 
   isPaymentExpired(status: string): boolean {
-    return status === "Expired";
+    return status.toLowerCase() === "expired";
   }
 
   isPaymentFailed(status: string): boolean {
-    return status === "Failed" || status === "Refunded";
+    const normalized = status.toLowerCase();
+    return normalized === "failed" || normalized === "refunded";
   }
 }
 
