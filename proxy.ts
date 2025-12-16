@@ -12,6 +12,7 @@ const privyClient = new PrivyClient(
 const publicPaths = [
   "/",
   "/marketplace",
+  "/payment/success", // Payment callback from external providers (OxaPay)
   "/dashboard/chat", // FREE MODE: Allow anonymous access to Chat
   "/chat", // Public chat routes for anonymous users
   "/api/eliza", // Allow anonymous access to Eliza API routes

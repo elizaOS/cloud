@@ -143,7 +143,7 @@ class CryptoPaymentsService {
 
     const returnUrl =
       process.env.OXAPAY_RETURN_URL ||
-      `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/settings?tab=billing&payment=success`;
+      `${process.env.NEXT_PUBLIC_APP_URL}/payment/success`;
 
     const orderId = `${organizationId.replace(/-/g, "").slice(0, 12)}_${Date.now()}`;
 
