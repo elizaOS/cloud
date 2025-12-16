@@ -80,7 +80,7 @@ async function main() {
       console.log(`   - TxHash: ${tx.txHash}`);
       console.log(`     Amount: ${tx.amount} ${tx.currency}`);
       console.log(`     Network: ${tx.network}`);
-      console.log(`     Confirmations: ${tx.confirmations}`);
+      console.log(`     Status: ${tx.status}`);
     }
   }
 

@@ -110,7 +110,7 @@ const mockOxaPayCreateInvoice = mock(() =>
 const mockOxaPayGetStatus = mock(() =>
   Promise.resolve({
     status: "Paid",
-    transactions: [{ txHash: "0xabc123", amount: 100, confirmations: 3 }],
+    transactions: [{ txHash: "0xabc123", amount: 100 }],
   })
 );
 
@@ -185,10 +185,13 @@ mock.module("@/lib/utils/logger", () => ({
 }));
 
 // Mock crypto config
+// OXAPAY_FEE_MULTIPLIER is 0.985 (1 - 1.5% fee)
+// When passed to Decimal.dividedBy(), it should work as a number
 mock.module("@/lib/config/crypto", () => ({
   PAYMENT_EXPIRATION_SECONDS: 3600,
   MIN_PAYMENT_AMOUNT: { toNumber: () => 5 },
   MAX_PAYMENT_AMOUNT: { toNumber: () => 10000 },
+  OXAPAY_FEE_MULTIPLIER: 0.985,
   validatePaymentAmount: (amount: { toNumber: () => number }) => {
     const value = amount.toNumber();
     if (value < 5) return { valid: false, error: "Minimum payment is $5.00" };
@@ -249,7 +252,7 @@ describe("CryptoPaymentsService", () => {
       expect(result.payment).toBeDefined();
       expect(result.payLink).toBeDefined();
       expect(result.trackId).toBe(TEST_TRACK_ID);
-      expect(result.creditsToAdd).toBe("100.00");
+      expect(result.creditsToAdd).toBe("100.000"); // toFixed(3) precision
       expect(mockOxaPayCreateInvoice).toHaveBeenCalled();
       expect(mockCreate).toHaveBeenCalled();
     });
@@ -449,7 +452,7 @@ describe("CryptoPaymentsService", () => {
       mockOxaPayGetStatus.mockImplementationOnce(() =>
         Promise.resolve({
           status: "Paid",
-          transactions: [{ txHash, amount: 100, confirmations: 3 }],
+          transactions: [{ txHash, amount: 100 }],
         })
       );
 
@@ -497,9 +500,7 @@ describe("CryptoPaymentsService", () => {
       mockOxaPayGetStatus.mockImplementationOnce(() =>
         Promise.resolve({
           status: "Paid",
-          transactions: [
-            { txHash: "0xconfirmed123456789", amount: 100, confirmations: 1 },
-          ],
+          transactions: [{ txHash: "0xconfirmed123456789", amount: 100 }],
         })
       );
 
