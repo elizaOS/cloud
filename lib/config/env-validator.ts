@@ -105,8 +105,9 @@ const ENV_VARS = {
 
   // Cron Jobs
   CRON_SECRET: {
-    required: false,
-    description: "Secret for authenticating cron job requests",
+    required: true,
+    description:
+      "Secret for authenticating cron job requests (required for production security)",
     validate: (value: string) => value.length >= 32,
     errorMessage: "Must be at least 32 characters for security",
   },
