@@ -133,7 +133,11 @@ mock.module("@/lib/services/oxapay", () => ({
     },
     isPaymentPending: (status: string) => {
       const normalized = status.toLowerCase();
-      return normalized === "waiting" || normalized === "paying" || normalized === "confirming";
+      return (
+        normalized === "waiting" ||
+        normalized === "paying" ||
+        normalized === "confirming"
+      );
     },
   },
   isOxaPayConfigured: () => true,
@@ -194,7 +198,7 @@ mock.module("@/lib/config/crypto", () => ({
   },
   validateReceivedAmount: (
     received: { greaterThanOrEqualTo: (threshold: unknown) => boolean },
-    expected: { mul: (n: number) => { minus: (n: unknown) => unknown } },
+    expected: { mul: (n: number) => { minus: (n: unknown) => unknown } }
   ) => {
     // Simple mock: accept if received >= 98% of expected (2% tolerance for AUTO network)
     const threshold = expected.mul(0.98);
@@ -233,9 +237,8 @@ describe("CryptoPaymentsService", () => {
 
   describe("Payment Creation Flow", () => {
     it("should create a payment with valid parameters", async () => {
-      const { cryptoPaymentsService } = await import(
-        "@/lib/services/crypto-payments"
-      );
+      const { cryptoPaymentsService } =
+        await import("@/lib/services/crypto-payments");
 
       const result = await cryptoPaymentsService.createPayment({
         organizationId: TEST_ORG_ID,
@@ -253,9 +256,8 @@ describe("CryptoPaymentsService", () => {
     });
 
     it("should reject payment with invalid organization ID", async () => {
-      const { cryptoPaymentsService } = await import(
-        "@/lib/services/crypto-payments"
-      );
+      const { cryptoPaymentsService } =
+        await import("@/lib/services/crypto-payments");
 
       await expect(
         cryptoPaymentsService.createPayment({
@@ -266,9 +268,8 @@ describe("CryptoPaymentsService", () => {
     });
 
     it("should reject payment below minimum amount", async () => {
-      const { cryptoPaymentsService } = await import(
-        "@/lib/services/crypto-payments"
-      );
+      const { cryptoPaymentsService } =
+        await import("@/lib/services/crypto-payments");
 
       await expect(
         cryptoPaymentsService.createPayment({
@@ -279,9 +280,8 @@ describe("CryptoPaymentsService", () => {
     });
 
     it("should reject payment above maximum amount", async () => {
-      const { cryptoPaymentsService } = await import(
-        "@/lib/services/crypto-payments"
-      );
+      const { cryptoPaymentsService } =
+        await import("@/lib/services/crypto-payments");
 
       await expect(
         cryptoPaymentsService.createPayment({
@@ -292,9 +292,8 @@ describe("CryptoPaymentsService", () => {
     });
 
     it("should include payLink in payment response", async () => {
-      const { cryptoPaymentsService } = await import(
-        "@/lib/services/crypto-payments"
-      );
+      const { cryptoPaymentsService } =
+        await import("@/lib/services/crypto-payments");
 
       const result = await cryptoPaymentsService.createPayment({
         organizationId: TEST_ORG_ID,
@@ -315,7 +314,9 @@ describe("CryptoPaymentsService", () => {
         status: "Confirmed",
       });
 
-      const signature = createHmac("sha512", secret).update(payload).digest("hex");
+      const signature = createHmac("sha512", secret)
+        .update(payload)
+        .digest("hex");
 
       // Verify the signature matches expected format
       expect(signature).toHaveLength(128); // SHA512 hex is 128 chars
@@ -408,9 +409,8 @@ describe("CryptoPaymentsService", () => {
     it("should use row-level locking for payment confirmation", async () => {
       // The confirmPayment method uses SELECT ... FOR UPDATE
       // which prevents concurrent modifications
-      const { cryptoPaymentsService } = await import(
-        "@/lib/services/crypto-payments"
-      );
+      const { cryptoPaymentsService } =
+        await import("@/lib/services/crypto-payments");
 
       // This test verifies the transaction structure exists
       // The actual locking is handled by the database
@@ -431,13 +431,11 @@ describe("CryptoPaymentsService", () => {
         })
       );
 
-      const { cryptoPaymentsService } = await import(
-        "@/lib/services/crypto-payments"
-      );
+      const { cryptoPaymentsService } =
+        await import("@/lib/services/crypto-payments");
 
-      const result = await cryptoPaymentsService.checkAndConfirmPayment(
-        TEST_PAYMENT_ID
-      );
+      const result =
+        await cryptoPaymentsService.checkAndConfirmPayment(TEST_PAYMENT_ID);
 
       expect(result.confirmed).toBe(true);
       // Credits should NOT be added again
@@ -456,9 +454,8 @@ describe("CryptoPaymentsService", () => {
         })
       );
 
-      const { cryptoPaymentsService } = await import(
-        "@/lib/services/crypto-payments"
-      );
+      const { cryptoPaymentsService } =
+        await import("@/lib/services/crypto-payments");
 
       // Note: The duplicate tx hash check happens inside the database transaction
       // The actual rejection message is "Transaction already processed for another payment"
@@ -501,17 +498,17 @@ describe("CryptoPaymentsService", () => {
       mockOxaPayGetStatus.mockImplementationOnce(() =>
         Promise.resolve({
           status: "Paid",
-          transactions: [{ txHash: "0xconfirmed123456789", amount: 100, confirmations: 1 }],
+          transactions: [
+            { txHash: "0xconfirmed123456789", amount: 100, confirmations: 1 },
+          ],
         })
       );
 
-      const { cryptoPaymentsService } = await import(
-        "@/lib/services/crypto-payments"
-      );
+      const { cryptoPaymentsService } =
+        await import("@/lib/services/crypto-payments");
 
-      const result = await cryptoPaymentsService.checkAndConfirmPayment(
-        TEST_PAYMENT_ID
-      );
+      const result =
+        await cryptoPaymentsService.checkAndConfirmPayment(TEST_PAYMENT_ID);
 
       expect(result).toBeDefined();
       expect(result.confirmed).toBe(true);
@@ -531,13 +528,11 @@ describe("CryptoPaymentsService", () => {
         })
       );
 
-      const { cryptoPaymentsService } = await import(
-        "@/lib/services/crypto-payments"
-      );
+      const { cryptoPaymentsService } =
+        await import("@/lib/services/crypto-payments");
 
-      const result = await cryptoPaymentsService.checkAndConfirmPayment(
-        TEST_PAYMENT_ID
-      );
+      const result =
+        await cryptoPaymentsService.checkAndConfirmPayment(TEST_PAYMENT_ID);
 
       expect(result.confirmed).toBe(false);
       expect(result.payment.status).toBe("expired");
@@ -555,9 +550,8 @@ describe("CryptoPaymentsService", () => {
         })
       );
 
-      const { cryptoPaymentsService } = await import(
-        "@/lib/services/crypto-payments"
-      );
+      const { cryptoPaymentsService } =
+        await import("@/lib/services/crypto-payments");
 
       const result = await cryptoPaymentsService.handleWebhook({
         track_id: TEST_TRACK_ID,
@@ -585,9 +579,8 @@ describe("CryptoPaymentsService", () => {
         })
       );
 
-      const { cryptoPaymentsService } = await import(
-        "@/lib/services/crypto-payments"
-      );
+      const { cryptoPaymentsService } =
+        await import("@/lib/services/crypto-payments");
 
       const result = await cryptoPaymentsService.handleWebhook({
         track_id: TEST_TRACK_ID,
@@ -603,9 +596,8 @@ describe("CryptoPaymentsService", () => {
     it("should reject webhook for non-existent payment", async () => {
       mockFindByTrackId.mockImplementationOnce(() => Promise.resolve(null));
 
-      const { cryptoPaymentsService } = await import(
-        "@/lib/services/crypto-payments"
-      );
+      const { cryptoPaymentsService } =
+        await import("@/lib/services/crypto-payments");
 
       const result = await cryptoPaymentsService.handleWebhook({
         track_id: "non-existent-track",
@@ -627,9 +619,8 @@ describe("CryptoPaymentsService", () => {
         })
       );
 
-      const { cryptoPaymentsService } = await import(
-        "@/lib/services/crypto-payments"
-      );
+      const { cryptoPaymentsService } =
+        await import("@/lib/services/crypto-payments");
 
       const result = await cryptoPaymentsService.handleWebhook({
         track_id: TEST_TRACK_ID,
@@ -641,9 +632,8 @@ describe("CryptoPaymentsService", () => {
     });
 
     it("should validate required webhook fields", async () => {
-      const { cryptoPaymentsService } = await import(
-        "@/lib/services/crypto-payments"
-      );
+      const { cryptoPaymentsService } =
+        await import("@/lib/services/crypto-payments");
 
       // Missing track_id
       await expect(
@@ -756,7 +746,9 @@ describe("Crypto Payment Modal Integration", () => {
     it("should correctly parse token amounts with decimals", () => {
       const parseTokenAmount = (amount: string, decimals = 18): bigint => {
         const [whole, fraction = ""] = amount.split(".");
-        const paddedFraction = fraction.padEnd(decimals, "0").slice(0, decimals);
+        const paddedFraction = fraction
+          .padEnd(decimals, "0")
+          .slice(0, decimals);
         return BigInt(whole + paddedFraction);
       };
 
@@ -776,7 +768,9 @@ describe("Crypto Payment Modal Integration", () => {
     it("should handle edge cases in amount parsing", () => {
       const parseTokenAmount = (amount: string, decimals = 18): bigint => {
         const [whole, fraction = ""] = amount.split(".");
-        const paddedFraction = fraction.padEnd(decimals, "0").slice(0, decimals);
+        const paddedFraction = fraction
+          .padEnd(decimals, "0")
+          .slice(0, decimals);
         return BigInt(whole + paddedFraction);
       };
 
@@ -793,4 +787,3 @@ describe("Crypto Payment Modal Integration", () => {
     });
   });
 });
-
