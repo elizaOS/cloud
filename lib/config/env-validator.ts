@@ -102,12 +102,6 @@ const ENV_VARS = {
     validate: (value: string) => value.length >= 32,
     errorMessage: "Must be at least 32 characters",
   },
-  OXAPAY_WEBHOOK_SECRET: {
-    required: false,
-    description: "OxaPay webhook secret for payment notifications",
-    validate: (value: string) => value.length >= 16,
-    errorMessage: "Must be at least 16 characters for security",
-  },
 
   // Cron Jobs
   CRON_SECRET: {
@@ -208,7 +202,7 @@ export function requireValidEnvironment(): void {
     }
     console.error("");
     console.error(
-      "Please check your .env.local file and set the required variables.",
+      "Please check your .env.local file and set the required variables."
     );
     console.error("See example.env.local for reference.");
     throw new Error("Invalid environment configuration");
@@ -217,7 +211,7 @@ export function requireValidEnvironment(): void {
   logger.info("✅ Environment validation passed");
   if (result.warnings.length > 0) {
     logger.info(
-      `⚠️  ${result.warnings.length} optional variable(s) not set - some features may be unavailable`,
+      `⚠️  ${result.warnings.length} optional variable(s) not set - some features may be unavailable`
     );
   }
   logger.info("");
@@ -245,9 +239,7 @@ export function isFeatureConfigured(feature: string): boolean {
         process.env.STRIPE_SECRET_KEY && process.env.STRIPE_WEBHOOK_SECRET
       );
     case "crypto":
-      return !!(
-        process.env.OXAPAY_MERCHANT_API_KEY && process.env.OXAPAY_WEBHOOK_SECRET
-      );
+      return !!process.env.OXAPAY_MERCHANT_API_KEY;
     case "cron":
       return !!process.env.CRON_SECRET;
     case "blob":

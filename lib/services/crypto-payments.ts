@@ -185,6 +185,8 @@ class CryptoPaymentsService {
       );
     }
 
+    // OXAPAY_CALLBACK_URL: Override for local development with ngrok.
+    // In production, falls back to NEXT_PUBLIC_APP_URL which points to the live domain.
     const callbackUrl =
       process.env.OXAPAY_CALLBACK_URL ||
       `${process.env.NEXT_PUBLIC_APP_URL}/api/crypto/webhook`;

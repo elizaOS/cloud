@@ -64,12 +64,9 @@ function isIpAllowed(ip: string, allowedIps: string[]): boolean {
  *
  * Per OxaPay documentation: "OxaPay uses your MERCHANT_API_KEY as the HMAC
  * shared secret key to generate an HMAC (sha512) signature of the raw POST data."
- *
- * We use OXAPAY_MERCHANT_API_KEY by default (as per official docs).
- * OXAPAY_WEBHOOK_SECRET can be set as an override for testing/flexibility.
  */
 function getWebhookHmacSecret(): string | null {
-  return process.env.OXAPAY_WEBHOOK_SECRET || process.env.OXAPAY_MERCHANT_API_KEY || null;
+  return process.env.OXAPAY_MERCHANT_API_KEY || null;
 }
 
 function verifyOxaPaySignature(

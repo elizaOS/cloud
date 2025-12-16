@@ -4,15 +4,12 @@
 import Decimal from "decimal.js";
 
 /**
- * OxaPay merchant fee percentage.
+ * OxaPay merchant fee percentage (1.5%).
  * OxaPay deducts this fee from payments before reporting to merchant.
  * So: receivedAmount = userPaid * (1 - fee%)
  * To get what user paid: userPaid = receivedAmount / (1 - fee%)
- * Default: 1.5%
  */
-export const OXAPAY_FEE_PERCENT = new Decimal(
-  process.env.OXAPAY_FEE_PERCENT || "1.5"
-);
+export const OXAPAY_FEE_PERCENT = new Decimal("1.5");
 
 /**
  * Multiplier to convert received amount to what user actually paid.
@@ -109,10 +106,9 @@ export interface NetworkConfig {
 }
 
 /**
- * Payment expiration time in milliseconds (30 minutes)
+ * Payment expiration time (30 minutes).
  */
-export const PAYMENT_EXPIRATION_MS =
-  Number(process.env.CRYPTO_PAYMENT_EXPIRATION_MINUTES || 30) * 60 * 1000;
+export const PAYMENT_EXPIRATION_MS = 30 * 60 * 1000;
 
 /**
  * Payment expiration time in seconds for OxaPay API
@@ -120,18 +116,14 @@ export const PAYMENT_EXPIRATION_MS =
 export const PAYMENT_EXPIRATION_SECONDS = PAYMENT_EXPIRATION_MS / 1000;
 
 /**
- * Minimum payment amount in USD
+ * Minimum payment amount in USD ($1).
  */
-export const MIN_PAYMENT_AMOUNT = new Decimal(
-  process.env.CRYPTO_MIN_PAYMENT_AMOUNT || "1"
-);
+export const MIN_PAYMENT_AMOUNT = new Decimal("1");
 
 /**
- * Maximum payment amount in USD
+ * Maximum payment amount in USD ($10,000).
  */
-export const MAX_PAYMENT_AMOUNT = new Decimal(
-  process.env.CRYPTO_MAX_PAYMENT_AMOUNT || "10000"
-);
+export const MAX_PAYMENT_AMOUNT = new Decimal("10000");
 
 /**
  * Network-specific configurations
