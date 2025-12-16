@@ -8,10 +8,36 @@ const CreateAppSchema = z.object({
   name: z.string().min(1).max(100),
   description: z.string().optional(),
   app_url: z.string().url(),
-  website_url: z.string().url().optional(),
-  contact_email: z.string().email().optional(),
+  website_url: z
+    .string()
+    .url()
+    .optional()
+    .or(z.literal(""))
+    .transform((val) => (val === "" ? undefined : val)),
+  contact_email: z
+    .string()
+    .email()
+    .optional()
+    .or(z.literal(""))
+    .transform((val) => (val === "" ? undefined : val)),
   allowed_origins: z.array(z.string()).optional(),
-  logo_url: z.string().url().optional(),
+  logo_url: z
+    .string()
+    .url()
+    .optional()
+    .or(z.literal(""))
+    .transform((val) => (val === "" ? undefined : val)),
+  features_enabled: z
+    .object({
+      chat: z.boolean().optional(),
+      image: z.boolean().optional(),
+      video: z.boolean().optional(),
+      voice: z.boolean().optional(),
+      agents: z.boolean().optional(),
+      embedding: z.boolean().optional(),
+    })
+    .optional(),
+  generate_affiliate_code: z.boolean().optional(),
 });
 
 /**
@@ -76,6 +102,7 @@ export async function POST(request: NextRequest) {
       contact_email: data.contact_email,
       allowed_origins: data.allowed_origins,
       logo_url: data.logo_url,
+      features_enabled: data.features_enabled,
     });
 
     logger.info(`Created app: ${result.app.name}`, {

@@ -23,6 +23,8 @@ import {
   Key,
   Copy,
   Check,
+  Pin,
+  PinOff,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -34,18 +36,50 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { formatDistanceToNow } from "date-fns";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 interface AppsTableProps {
   apps: App[];
 }
 
 export function AppsTable({ apps }: AppsTableProps) {
+  const router = useRouter();
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [pinningId, setPinningId] = useState<string | null>(null);
 
   const copyToClipboard = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const togglePin = async (appId: string, currentPinned: boolean) => {
+    setPinningId(appId);
+    try {
+      const response = await fetch(`/api/v1/apps/${appId}/pin`, {
+        method: "POST",
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Failed to update pin status");
+      }
+
+      toast.success(currentPinned ? "App unpinned" : "App pinned", {
+        description: currentPinned
+          ? "App removed from pinned section"
+          : "App will appear first in your list",
+      });
+      router.refresh();
+    } catch (error) {
+      toast.error("Failed to update pin status", {
+        description:
+          error instanceof Error ? error.message : "Please try again",
+      });
+    } finally {
+      setPinningId(null);
+    }
   };
 
   if (apps.length === 0) {
@@ -92,6 +126,9 @@ export function AppsTable({ apps }: AppsTableProps) {
             {/* App Info */}
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1">
+                {app.is_pinned && (
+                  <Pin className="h-3.5 w-3.5 text-[#FF5800] flex-shrink-0" />
+                )}
                 <Link
                   href={`/dashboard/apps/${app.id}`}
                   className="text-white font-semibold hover:text-[#FF5800] transition-colors truncate"
@@ -198,6 +235,22 @@ export function AppsTable({ apps }: AppsTableProps) {
                     <Key className="h-4 w-4 mr-2" />
                     View API Key
                   </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => togglePin(app.id, app.is_pinned)}
+                  disabled={pinningId === app.id}
+                >
+                  {app.is_pinned ? (
+                    <>
+                      <PinOff className="h-4 w-4 mr-2" />
+                      Unpin App
+                    </>
+                  ) : (
+                    <>
+                      <Pin className="h-4 w-4 mr-2" />
+                      Pin App
+                    </>
+                  )}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem className="text-red-400 focus:text-red-400">

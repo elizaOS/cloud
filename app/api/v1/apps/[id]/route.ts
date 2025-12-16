@@ -13,6 +13,7 @@ const UpdateAppSchema = z.object({
   allowed_origins: z.array(z.string()).optional(),
   logo_url: z.string().url().optional(),
   is_active: z.boolean().optional(),
+  is_pinned: z.boolean().optional(),
 });
 
 /**

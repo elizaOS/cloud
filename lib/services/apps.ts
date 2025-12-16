@@ -58,6 +58,14 @@ export class AppsService {
     logo_url?: string;
     website_url?: string;
     contact_email?: string;
+    features_enabled?: {
+      chat?: boolean;
+      image?: boolean;
+      video?: boolean;
+      voice?: boolean;
+      agents?: boolean;
+      embedding?: boolean;
+    };
   }): Promise<{ app: App; apiKey: string }> {
     let slug = this.generateSlug(data.name);
     let slugAttempts = 0;
@@ -94,6 +102,7 @@ export class AppsService {
       logo_url: data.logo_url,
       website_url: data.website_url,
       contact_email: data.contact_email,
+      features_enabled: data.features_enabled,
     });
 
     logger.info(`Created app: ${app.name} (${app.id})`, {
@@ -182,6 +191,28 @@ export class AppsService {
       }
       return allowed === origin;
     });
+  }
+
+  async togglePinned(appId: string): Promise<App | undefined> {
+    const app = await appsRepository.togglePinned(appId);
+    if (app) {
+      logger.info(`Toggled pin status for app: ${app.name} (${appId})`, {
+        appId,
+        isPinned: app.is_pinned,
+      });
+    }
+    return app;
+  }
+
+  async setPinned(appId: string, isPinned: boolean): Promise<App | undefined> {
+    const app = await appsRepository.setPinned(appId, isPinned);
+    if (app) {
+      logger.info(`Set pin status for app: ${app.name} (${appId})`, {
+        appId,
+        isPinned,
+      });
+    }
+    return app;
   }
 
   async regenerateApiKey(appId: string): Promise<string> {

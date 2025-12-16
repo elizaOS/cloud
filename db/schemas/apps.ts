@@ -141,6 +141,7 @@ export const apps = pgTable(
     // Status
     is_active: boolean("is_active").default(true).notNull(),
     is_approved: boolean("is_approved").default(true).notNull(), // For app review process
+    is_pinned: boolean("is_pinned").default(false).notNull(), // User can pin apps for priority display
 
     // Timestamps
     created_at: timestamp("created_at").notNull().defaultNow(),
@@ -155,6 +156,7 @@ export const apps = pgTable(
       table.affiliate_code,
     ),
     is_active_idx: index("apps_is_active_idx").on(table.is_active),
+    is_pinned_idx: index("apps_is_pinned_idx").on(table.is_pinned),
     created_at_idx: index("apps_created_at_idx").on(table.created_at),
   }),
 );

@@ -10,7 +10,7 @@ import {
   type AppAnalytics,
   type NewAppAnalytics,
 } from "../schemas";
-import { eq, and, gte, lte, desc, sql } from "drizzle-orm";
+import { eq, and, gte, lte, desc, asc, sql } from "drizzle-orm";
 
 export type { App, NewApp, AppUser, NewAppUser, AppAnalytics, NewAppAnalytics };
 
@@ -50,13 +50,79 @@ export class AppsRepository {
   }
 
   /**
-   * Lists all apps for an organization, ordered by creation date.
+   * Lists all apps for an organization with smart ordering.
+   * Priority: 1) Pinned apps, 2) Recently used (7 days), 3) Active by usage, 4) Other active, 5) Inactive
+   * Within each priority level, apps are sorted by last_used_at or created_at.
    */
   async listByOrganization(organizationId: string): Promise<App[]> {
-    return await db.query.apps.findMany({
+    const allApps = await db.query.apps.findMany({
       where: eq(apps.organization_id, organizationId),
-      orderBy: [desc(apps.created_at)],
     });
+
+    return this.sortAppsByPriority(allApps);
+  }
+
+  /**
+   * Sorts apps by priority for dashboard display.
+   * Priority order:
+   * 1. Pinned apps (sorted by last_used_at DESC, then created_at DESC)
+   * 2. Recently used apps (within 7 days, sorted by last_used_at DESC)
+   * 3. Active apps with high usage (>10 requests, sorted by total_requests DESC)
+   * 4. Other active apps (sorted by created_at DESC)
+   * 5. Inactive apps (sorted by created_at DESC)
+   */
+  private sortAppsByPriority(allApps: App[]): App[] {
+    const now = new Date();
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+    const pinnedApps: App[] = [];
+    const recentlyUsedApps: App[] = [];
+    const activeHighUsageApps: App[] = [];
+    const activeOtherApps: App[] = [];
+    const inactiveApps: App[] = [];
+
+    for (const app of allApps) {
+      if (app.is_pinned) {
+        pinnedApps.push(app);
+      } else if (!app.is_active) {
+        inactiveApps.push(app);
+      } else if (app.last_used_at && new Date(app.last_used_at) > sevenDaysAgo) {
+        recentlyUsedApps.push(app);
+      } else if (app.total_requests > 10) {
+        activeHighUsageApps.push(app);
+      } else {
+        activeOtherApps.push(app);
+      }
+    }
+
+    const sortByLastUsedOrCreated = (a: App, b: App): number => {
+      const aDate = a.last_used_at ? new Date(a.last_used_at).getTime() : 0;
+      const bDate = b.last_used_at ? new Date(b.last_used_at).getTime() : 0;
+      if (aDate !== bDate) return bDate - aDate;
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    };
+
+    const sortByCreated = (a: App, b: App): number => {
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    };
+
+    const sortByUsage = (a: App, b: App): number => {
+      return b.total_requests - a.total_requests;
+    };
+
+    pinnedApps.sort(sortByLastUsedOrCreated);
+    recentlyUsedApps.sort(sortByLastUsedOrCreated);
+    activeHighUsageApps.sort(sortByUsage);
+    activeOtherApps.sort(sortByCreated);
+    inactiveApps.sort(sortByCreated);
+
+    return [
+      ...pinnedApps,
+      ...recentlyUsedApps,
+      ...activeHighUsageApps,
+      ...activeOtherApps,
+      ...inactiveApps,
+    ];
   }
 
   /**
@@ -110,6 +176,39 @@ export class AppsRepository {
    */
   async delete(id: string): Promise<void> {
     await db.delete(apps).where(eq(apps.id, id));
+  }
+
+  /**
+   * Toggles the pinned status of an app.
+   */
+  async togglePinned(id: string): Promise<App | undefined> {
+    const app = await this.findById(id);
+    if (!app) return undefined;
+
+    const [updated] = await db
+      .update(apps)
+      .set({
+        is_pinned: !app.is_pinned,
+        updated_at: new Date(),
+      })
+      .where(eq(apps.id, id))
+      .returning();
+    return updated;
+  }
+
+  /**
+   * Sets the pinned status of an app.
+   */
+  async setPinned(id: string, isPinned: boolean): Promise<App | undefined> {
+    const [updated] = await db
+      .update(apps)
+      .set({
+        is_pinned: isPinned,
+        updated_at: new Date(),
+      })
+      .where(eq(apps.id, id))
+      .returning();
+    return updated;
   }
 
   /**
