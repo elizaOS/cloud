@@ -137,7 +137,7 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                   id="name"
                   value={character.name || ""}
                   onChange={(e) => updateField("name", e.target.value)}
-                  placeholder="Character name"
+                  placeholder="Nova, Tech Advisor, MarketBot"
                   className="rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
                 />
               </div>
@@ -153,7 +153,7 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                   id="username"
                   value={character.username || ""}
                   onChange={(e) => updateField("username", e.target.value)}
-                  placeholder="@username"
+                  placeholder="@eliza"
                   className="rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
                 />
               </div>
@@ -170,7 +170,7 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                 id="bio"
                 value={bioText}
                 onChange={(e) => updateField("bio", e.target.value)}
-                placeholder="Describe the character's background and purpose..."
+                placeholder="A friendly AI assistant specializing in blockchain technology and DeFi protocols. Has a passion for educating newcomers and simplifying complex concepts..."
                 className="min-h-[120px] rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
               />
             </div>
@@ -186,7 +186,7 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                 id="system"
                 value={character.system || ""}
                 onChange={(e) => updateField("system", e.target.value)}
-                placeholder="System-level instructions for the agent..."
+                placeholder="You are a helpful AI assistant focused on providing accurate information. Always fact-check before responding and cite sources when possible..."
                 className="min-h-[80px] rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
               />
             </div>
@@ -249,7 +249,7 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                   <Input
                     value={newUserMessage}
                     onChange={(e) => setNewUserMessage(e.target.value)}
-                    placeholder="Example user message..."
+                    placeholder="What's the best way to start learning about crypto?"
                     className="rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
                   />
                 </div>
@@ -260,7 +260,7 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                   <Textarea
                     value={newAgentMessage}
                     onChange={(e) => setNewAgentMessage(e.target.value)}
-                    placeholder="Example agent response..."
+                    placeholder="Great question! I'd recommend starting with Bitcoin and Ethereum basics. Understanding blockchain fundamentals is key before diving into specific projects..."
                     className="min-h-[60px] rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
                   />
                 </div>
@@ -322,7 +322,7 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                 <Input
                   value={newTag}
                   onChange={(e) => setNewTag(e.target.value)}
-                  placeholder="Add an example post..."
+                  placeholder="Just discovered an amazing DeFi protocol! 🚀 Thread below..."
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
                       e.preventDefault();
@@ -383,7 +383,7 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                     all: e.target.value.split("\n").filter((s) => s.trim()),
                   })
                 }
-                placeholder="One guideline per line..."
+                placeholder="Be friendly and approachable&#10;Use clear, simple language&#10;Show enthusiasm with occasional emojis&#10;Stay professional but conversational"
                 className="min-h-[80px] rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
               />
             </div>
@@ -410,7 +410,7 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                     chat: e.target.value.split("\n").filter((s) => s.trim()),
                   })
                 }
-                placeholder="One guideline per line..."
+                placeholder="Keep responses concise and focused&#10;Ask follow-up questions to understand better&#10;Use examples to explain complex topics&#10;Be patient and encouraging"
                 className="min-h-[80px] rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
               />
             </div>
@@ -437,7 +437,7 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                     post: e.target.value.split("\n").filter((s) => s.trim()),
                   })
                 }
-                placeholder="One guideline per line..."
+                placeholder="Start with an engaging hook&#10;Keep posts under 280 characters when possible&#10;Include relevant hashtags sparingly&#10;End with a call-to-action or question"
                 className="min-h-[80px] rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
               />
             </div>
