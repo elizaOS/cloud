@@ -37,6 +37,7 @@ const publicPaths = [
   "/api/v1/models",
   "/api/v1/credits/topup", // x402 credit top-up (uses x402 or API key auth)
   "/api/stripe/webhook",
+  "/api/crypto/webhook", // OxaPay crypto payment webhook
   "/api/privy/webhook", // Privy webhook endpoint
   "/api/cron", // Cron endpoints (protected by CRON_SECRET)
   "/api/v1/cron", // V1 Cron endpoints (protected by CRON_SECRET)
