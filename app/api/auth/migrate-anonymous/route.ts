@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
 
     const migrationResult = await migrateAnonymousSession(
       anonSession.user_id,
-      user.privy_user_id
+      user.privy_user_id,
     );
 
     logger.info("[Migrate Anonymous] Migration completed", migrationResult);

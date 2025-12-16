@@ -34,7 +34,9 @@ test.describe("Local Dev - Wallet Login", () => {
         success = true;
       } catch (error) {
         if (attempts >= maxAttempts) {
-          console.log("ℹ️ Page navigation failed after max attempts - skipping");
+          console.log(
+            "ℹ️ Page navigation failed after max attempts - skipping",
+          );
           return;
         }
         await page.waitForTimeout(2000);
@@ -46,13 +48,17 @@ test.describe("Local Dev - Wallet Login", () => {
 
     // Verify wallet connect button is visible
     const walletButton = page.locator('button:has-text("Connect Wallet")');
-    const isVisible = await walletButton.isVisible({ timeout: 30000 }).catch(() => false);
-    
+    const isVisible = await walletButton
+      .isVisible({ timeout: 30000 })
+      .catch(() => false);
+
     if (isVisible) {
       await expect(walletButton).toBeEnabled();
       console.log("✅ Wallet connect button is visible and enabled");
     } else {
-      console.log("ℹ️ Wallet connect button not visible - login page may have different layout");
+      console.log(
+        "ℹ️ Wallet connect button not visible - login page may have different layout",
+      );
     }
   });
 
@@ -77,7 +83,7 @@ test.describe("Local Dev - Wallet Login", () => {
         await page.waitForTimeout(2000);
       }
     }
-    
+
     await page.waitForLoadState("domcontentloaded");
 
     // Wait for wallet button to appear
@@ -108,13 +114,15 @@ test.describe("Local Dev - Wallet Login", () => {
         success = true;
       } catch (error) {
         if (attempts >= maxAttempts) {
-          console.log("ℹ️ Page navigation failed after max attempts - skipping");
+          console.log(
+            "ℹ️ Page navigation failed after max attempts - skipping",
+          );
           return;
         }
         await page.waitForTimeout(2000);
       }
     }
-    
+
     await page.waitForLoadState("networkidle").catch(() => {});
 
     // Check all login methods are present
@@ -126,11 +134,21 @@ test.describe("Local Dev - Wallet Login", () => {
     const githubButton = page.locator('button:has-text("GitHub")');
     const walletButton = page.locator('button:has-text("Connect Wallet")');
 
-    const emailVisible = await emailInput.isVisible({ timeout: 30000 }).catch(() => false);
-    const googleVisible = await googleButton.isVisible({ timeout: 5000 }).catch(() => false);
-    const discordVisible = await discordButton.isVisible({ timeout: 5000 }).catch(() => false);
-    const githubVisible = await githubButton.isVisible({ timeout: 5000 }).catch(() => false);
-    const walletVisible = await walletButton.isVisible({ timeout: 5000 }).catch(() => false);
+    const emailVisible = await emailInput
+      .isVisible({ timeout: 30000 })
+      .catch(() => false);
+    const googleVisible = await googleButton
+      .isVisible({ timeout: 5000 })
+      .catch(() => false);
+    const discordVisible = await discordButton
+      .isVisible({ timeout: 5000 })
+      .catch(() => false);
+    const githubVisible = await githubButton
+      .isVisible({ timeout: 5000 })
+      .catch(() => false);
+    const walletVisible = await walletButton
+      .isVisible({ timeout: 5000 })
+      .catch(() => false);
 
     console.log("✅ Login options visibility check:");
     console.log(`   - Email input: ${emailVisible}`);
@@ -138,9 +156,14 @@ test.describe("Local Dev - Wallet Login", () => {
     console.log(`   - Discord OAuth: ${discordVisible}`);
     console.log(`   - GitHub OAuth: ${githubVisible}`);
     console.log(`   - Wallet Connect: ${walletVisible}`);
-    
+
     // At least some login options should be visible
-    const anyVisible = emailVisible || googleVisible || discordVisible || githubVisible || walletVisible;
+    const anyVisible =
+      emailVisible ||
+      googleVisible ||
+      discordVisible ||
+      githubVisible ||
+      walletVisible;
     expect(anyVisible).toBe(true);
   });
 

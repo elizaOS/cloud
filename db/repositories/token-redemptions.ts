@@ -50,12 +50,12 @@ export class TokenRedemptionsRepository {
    */
   async findByIdAndUser(
     id: string,
-    userId: string
+    userId: string,
   ): Promise<TokenRedemption | undefined> {
     return await db.query.tokenRedemptions.findFirst({
       where: and(
         eq(tokenRedemptions.id, id),
-        eq(tokenRedemptions.user_id, userId)
+        eq(tokenRedemptions.user_id, userId),
       ),
     });
   }
@@ -78,7 +78,7 @@ export class TokenRedemptionsRepository {
     const pending = await db.query.tokenRedemptions.findFirst({
       where: and(
         eq(tokenRedemptions.user_id, userId),
-        eq(tokenRedemptions.status, "pending")
+        eq(tokenRedemptions.status, "pending"),
       ),
     });
     return !!pending;
@@ -91,7 +91,7 @@ export class TokenRedemptionsRepository {
   async getApprovedForProcessing(
     batchSize: number,
     lockTimeoutMs: number,
-    maxRetries: number
+    maxRetries: number,
   ): Promise<TokenRedemption[]> {
     const lockThreshold = new Date(Date.now() - lockTimeoutMs);
 
@@ -103,10 +103,10 @@ export class TokenRedemptionsRepository {
           eq(tokenRedemptions.status, "approved"),
           or(
             isNull(tokenRedemptions.processing_started_at),
-            lt(tokenRedemptions.processing_started_at, lockThreshold)
+            lt(tokenRedemptions.processing_started_at, lockThreshold),
           ),
-          lt(sql`CAST(${tokenRedemptions.retry_count} AS INTEGER)`, maxRetries)
-        )
+          lt(sql`CAST(${tokenRedemptions.retry_count} AS INTEGER)`, maxRetries),
+        ),
       )
       .limit(batchSize);
   }
@@ -117,7 +117,7 @@ export class TokenRedemptionsRepository {
    */
   async acquireProcessingLock(
     redemptionId: string,
-    workerId: string
+    workerId: string,
   ): Promise<boolean> {
     const [updated] = await db
       .update(tokenRedemptions)
@@ -130,8 +130,8 @@ export class TokenRedemptionsRepository {
       .where(
         and(
           eq(tokenRedemptions.id, redemptionId),
-          eq(tokenRedemptions.status, "approved")
-        )
+          eq(tokenRedemptions.status, "approved"),
+        ),
       )
       .returning();
 
@@ -160,7 +160,7 @@ export class TokenRedemptionsRepository {
   async markFailed(
     redemptionId: string,
     reason: string,
-    retryable: boolean
+    retryable: boolean,
   ): Promise<void> {
     if (retryable) {
       await db
@@ -192,7 +192,7 @@ export class TokenRedemptionsRepository {
   async approve(
     redemptionId: string,
     reviewerId: string,
-    notes?: string
+    notes?: string,
   ): Promise<boolean> {
     const [updated] = await db
       .update(tokenRedemptions)
@@ -206,8 +206,8 @@ export class TokenRedemptionsRepository {
       .where(
         and(
           eq(tokenRedemptions.id, redemptionId),
-          eq(tokenRedemptions.status, "pending")
-        )
+          eq(tokenRedemptions.status, "pending"),
+        ),
       )
       .returning();
 
@@ -220,7 +220,7 @@ export class TokenRedemptionsRepository {
   async reject(
     redemptionId: string,
     reviewerId: string,
-    reason: string
+    reason: string,
   ): Promise<boolean> {
     const [updated] = await db
       .update(tokenRedemptions)
@@ -235,8 +235,8 @@ export class TokenRedemptionsRepository {
       .where(
         and(
           eq(tokenRedemptions.id, redemptionId),
-          eq(tokenRedemptions.status, "pending")
-        )
+          eq(tokenRedemptions.status, "pending"),
+        ),
       )
       .returning();
 
@@ -250,7 +250,7 @@ export class TokenRedemptionsRepository {
     return await db.query.tokenRedemptions.findMany({
       where: and(
         eq(tokenRedemptions.status, "pending"),
-        eq(tokenRedemptions.requires_review, true)
+        eq(tokenRedemptions.requires_review, true),
       ),
       orderBy: [desc(tokenRedemptions.created_at)],
       limit,
@@ -272,7 +272,7 @@ export class RedemptionLimitsRepository {
     const existing = await db.query.redemptionLimits.findFirst({
       where: and(
         eq(redemptionLimits.user_id, userId),
-        gte(redemptionLimits.date, today)
+        gte(redemptionLimits.date, today),
       ),
     });
 
@@ -294,7 +294,7 @@ export class RedemptionLimitsRepository {
       const refetched = await db.query.redemptionLimits.findFirst({
         where: and(
           eq(redemptionLimits.user_id, userId),
-          gte(redemptionLimits.date, today)
+          gte(redemptionLimits.date, today),
         ),
       });
       if (!refetched) {
@@ -341,14 +341,14 @@ export class ElizaTokenPricesRepository {
    */
   async getLatest(
     network: string,
-    maxAgeMs: number
+    maxAgeMs: number,
   ): Promise<ElizaTokenPrice | undefined> {
     const minFetchedAt = new Date(Date.now() - maxAgeMs);
 
     return await db.query.elizaTokenPrices.findFirst({
       where: and(
         eq(elizaTokenPrices.network, network),
-        gte(elizaTokenPrices.fetched_at, minFetchedAt)
+        gte(elizaTokenPrices.fetched_at, minFetchedAt),
       ),
       orderBy: [desc(elizaTokenPrices.fetched_at)],
     });
@@ -358,10 +358,7 @@ export class ElizaTokenPricesRepository {
    * Caches a new price.
    */
   async cache(data: NewElizaTokenPrice): Promise<ElizaTokenPrice> {
-    const [price] = await db
-      .insert(elizaTokenPrices)
-      .values(data)
-      .returning();
+    const [price] = await db.insert(elizaTokenPrices).values(data).returning();
     return price;
   }
 
@@ -372,7 +369,7 @@ export class ElizaTokenPricesRepository {
     const result = await db
       .delete(elizaTokenPrices)
       .where(lt(elizaTokenPrices.expires_at, new Date()));
-    
+
     return result.rowCount ?? 0;
   }
 }
@@ -381,4 +378,3 @@ export class ElizaTokenPricesRepository {
 export const tokenRedemptionsRepository = new TokenRedemptionsRepository();
 export const redemptionLimitsRepository = new RedemptionLimitsRepository();
 export const elizaTokenPricesRepository = new ElizaTokenPricesRepository();
-

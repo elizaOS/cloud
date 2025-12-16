@@ -133,16 +133,18 @@ export const affiliateContextProvider: Provider = {
   description: "Affiliate character vibe and behavioral instructions",
 
   get: async (runtime: IAgentRuntime, _message: Memory, _state?: State) => {
-    const affiliate = runtime.character.settings?.affiliateData as {
-      vibe?: string;
-      backstory?: string;
-      source?: string;
-      affiliateId?: string;
-      instagram?: string;
-      twitter?: string;
-      imageUrls?: string[];
-      [key: string]: unknown;
-    } | undefined;
+    const affiliate = runtime.character.settings?.affiliateData as
+      | {
+          vibe?: string;
+          backstory?: string;
+          source?: string;
+          affiliateId?: string;
+          instagram?: string;
+          twitter?: string;
+          imageUrls?: string[];
+          [key: string]: unknown;
+        }
+      | undefined;
     if (!affiliate) {
       return { values: { affiliateContext: "" }, data: {}, text: "" };
     }
@@ -160,15 +162,21 @@ export const affiliateContextProvider: Provider = {
     // Vibe personality
     if (vibe && VIBE_PERSONALITIES[vibe]) {
       const vibeConfig = VIBE_PERSONALITIES[vibe];
-      contextLines.push(`[VIBE: ${vibe.toUpperCase()}] ${vibeConfig.description}`);
-      contextLines.push(`Style: ${vibeConfig.behaviors.slice(0, 3).join("; ")}`);
+      contextLines.push(
+        `[VIBE: ${vibe.toUpperCase()}] ${vibeConfig.description}`,
+      );
+      contextLines.push(
+        `Style: ${vibeConfig.behaviors.slice(0, 3).join("; ")}`,
+      );
       contextLines.push("");
     }
 
     // Backstory (truncated)
     if (backstory?.trim()) {
       const short = backstory.trim().slice(0, 200);
-      contextLines.push(`[Backstory] ${short}${backstory.length > 200 ? "..." : ""}`);
+      contextLines.push(
+        `[Backstory] ${short}${backstory.length > 200 ? "..." : ""}`,
+      );
       contextLines.push("");
     }
 
@@ -180,7 +188,7 @@ export const affiliateContextProvider: Provider = {
         "- Talk TO the user, not AT them. Real conversation, not monologue.",
         "- Ask questions, show curiosity, respond to what they said.",
         "- Be warm, engaging, human. Natural conversational flow.",
-        ""
+        "",
       );
     }
 
@@ -188,18 +196,27 @@ export const affiliateContextProvider: Provider = {
     let instagramHandle = instagram;
     let twitterHandle = twitter;
     if (!instagramHandle || !twitterHandle) {
-      const bioText = Array.isArray(runtime.character.bio) ? runtime.character.bio.join(" ") : runtime.character.bio || "";
+      const bioText = Array.isArray(runtime.character.bio)
+        ? runtime.character.bio.join(" ")
+        : runtime.character.bio || "";
       if (!instagramHandle) {
-        const match = bioText.match(/Instagram[:\s]*\(@?([a-zA-Z0-9._]+)\)/i) || bioText.match(/Instagram:\s*@?([a-zA-Z0-9._]+)/i);
+        const match =
+          bioText.match(/Instagram[:\s]*\(@?([a-zA-Z0-9._]+)\)/i) ||
+          bioText.match(/Instagram:\s*@?([a-zA-Z0-9._]+)/i);
         if (match) instagramHandle = match[1];
       }
       if (!twitterHandle) {
-        const match = bioText.match(/Twitter[:\s]*\(@?([a-zA-Z0-9._]+)\)/i) || bioText.match(/Twitter:\s*@?([a-zA-Z0-9._]+)/i);
+        const match =
+          bioText.match(/Twitter[:\s]*\(@?([a-zA-Z0-9._]+)\)/i) ||
+          bioText.match(/Twitter:\s*@?([a-zA-Z0-9._]+)/i);
         if (match) twitterHandle = match[1];
       }
     }
     if (instagramHandle || twitterHandle) {
-      const handles = [instagramHandle && `IG: @${instagramHandle}`, twitterHandle && `X: @${twitterHandle}`].filter(Boolean);
+      const handles = [
+        instagramHandle && `IG: @${instagramHandle}`,
+        twitterHandle && `X: @${twitterHandle}`,
+      ].filter(Boolean);
       contextLines.push(`[Social] ${handles.join(" | ")}`);
     }
 
@@ -210,7 +227,17 @@ export const affiliateContextProvider: Provider = {
     const contextText = contextLines.join("\n");
     return {
       values: { affiliateContext: contextText },
-      data: { affiliate, vibe, source, affiliateId, isAffiliateCharacter, instagram: instagramHandle, twitter: twitterHandle, imageUrls, hasImages: imageUrls.length > 0 },
+      data: {
+        affiliate,
+        vibe,
+        source,
+        affiliateId,
+        isAffiliateCharacter,
+        instagram: instagramHandle,
+        twitter: twitterHandle,
+        imageUrls,
+        hasImages: imageUrls.length > 0,
+      },
       text: contextText,
     };
   },

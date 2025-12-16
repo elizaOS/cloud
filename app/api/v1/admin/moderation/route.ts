@@ -23,7 +23,7 @@ import { z } from "zod";
  */
 async function requireAdmin(request: NextRequest) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
-  
+
   if (!user.wallet_address) {
     return {
       error: "Wallet connection required for admin access",
@@ -73,17 +73,22 @@ export async function GET(request: NextRequest) {
 
   const url = new URL(request.url);
   const view = url.searchParams.get("view") || "overview";
-  const limit = Math.min(parseInt(url.searchParams.get("limit") || "100"), 1000);
+  const limit = Math.min(
+    parseInt(url.searchParams.get("limit") || "100"),
+    1000,
+  );
   const userId = url.searchParams.get("userId");
 
   switch (view) {
     case "overview": {
-      const [violations, flaggedUsers, bannedUsers, admins] = await Promise.all([
-        adminService.getRecentViolations(10),
-        adminService.getUsersFlaggedForReview(),
-        adminService.getBannedUsers(),
-        adminService.listAdmins(),
-      ]);
+      const [violations, flaggedUsers, bannedUsers, admins] = await Promise.all(
+        [
+          adminService.getRecentViolations(10),
+          adminService.getUsersFlaggedForReview(),
+          adminService.getBannedUsers(),
+          adminService.listAdmins(),
+        ],
+      );
 
       return NextResponse.json({
         recentViolations: violations.map((v) => ({
@@ -106,7 +111,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         violations: violations.map((v) => ({
           ...v,
-          messageText: v.messageText.slice(0, 200) + (v.messageText.length > 200 ? "..." : ""),
+          messageText:
+            v.messageText.slice(0, 200) +
+            (v.messageText.length > 200 ? "..." : ""),
         })),
         total: violations.length,
       });
@@ -137,7 +144,7 @@ export async function GET(request: NextRequest) {
       if (!userId) {
         return NextResponse.json(
           { error: "userId required for user-detail view" },
-          { status: 400 }
+          { status: 400 },
         );
       }
 
@@ -147,8 +154,11 @@ export async function GET(request: NextRequest) {
 
     default:
       return NextResponse.json(
-        { error: "Invalid view. Must be: overview, violations, users, admins, user-detail" },
-        { status: 400 }
+        {
+          error:
+            "Invalid view. Must be: overview, violations, users, admins, user-detail",
+        },
+        { status: 400 },
       );
   }
 }
@@ -194,17 +204,20 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) {
     return NextResponse.json(
       { error: "Invalid request", details: parsed.error.format() },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
   const { action, userId, walletAddress, role, reason, notes } = parsed.data;
 
   // Check permissions for admin management
-  if ((action === "add_admin" || action === "revoke_admin") && auth.role !== "super_admin") {
+  if (
+    (action === "add_admin" || action === "revoke_admin") &&
+    auth.role !== "super_admin"
+  ) {
     return NextResponse.json(
       { error: "Only super_admin can manage other admins" },
-      { status: 403 }
+      { status: 403 },
     );
   }
 
@@ -222,7 +235,10 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "userId required" }, { status: 400 });
       }
       if (!reason) {
-        return NextResponse.json({ error: "reason required for ban" }, { status: 400 });
+        return NextResponse.json(
+          { error: "reason required for ban" },
+          { status: 400 },
+        );
       }
       await adminService.banUser({
         userId,
@@ -250,7 +266,10 @@ export async function POST(request: NextRequest) {
         adminUserId: auth.user!.id,
         reason,
       });
-      return NextResponse.json({ success: true, message: "User marked as spammer" });
+      return NextResponse.json({
+        success: true,
+        message: "User marked as spammer",
+      });
     }
 
     case "mark_scammer": {
@@ -263,7 +282,10 @@ export async function POST(request: NextRequest) {
         adminUserId: auth.user!.id,
         reason,
       });
-      return NextResponse.json({ success: true, message: "User marked as scammer" });
+      return NextResponse.json({
+        success: true,
+        message: "User marked as scammer",
+      });
     }
 
     case "clear_status": {
@@ -271,12 +293,18 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "userId required" }, { status: 400 });
       }
       await adminService.unbanUser(userId, auth.user!.id);
-      return NextResponse.json({ success: true, message: "User status cleared" });
+      return NextResponse.json({
+        success: true,
+        message: "User status cleared",
+      });
     }
 
     case "add_admin": {
       if (!walletAddress) {
-        return NextResponse.json({ error: "walletAddress required" }, { status: 400 });
+        return NextResponse.json(
+          { error: "walletAddress required" },
+          { status: 400 },
+        );
       }
       const admin = await adminService.promoteToAdmin({
         walletAddress,
@@ -297,19 +325,27 @@ export async function POST(request: NextRequest) {
 
     case "revoke_admin": {
       if (!walletAddress) {
-        return NextResponse.json({ error: "walletAddress required" }, { status: 400 });
-      }
-      
-      // Can't revoke yourself
-      if (walletAddress.toLowerCase() === auth.user?.wallet_address?.toLowerCase()) {
         return NextResponse.json(
-          { error: "Cannot revoke your own admin privileges" },
-          { status: 400 }
+          { error: "walletAddress required" },
+          { status: 400 },
         );
       }
-      
+
+      // Can't revoke yourself
+      if (
+        walletAddress.toLowerCase() === auth.user?.wallet_address?.toLowerCase()
+      ) {
+        return NextResponse.json(
+          { error: "Cannot revoke your own admin privileges" },
+          { status: 400 },
+        );
+      }
+
       await adminService.revokeAdmin(walletAddress, auth.user?.wallet_address);
-      return NextResponse.json({ success: true, message: "Admin privileges revoked" });
+      return NextResponse.json({
+        success: true,
+        message: "Admin privileges revoked",
+      });
     }
 
     default:

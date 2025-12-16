@@ -1,6 +1,6 @@
 /**
  * ElizaOS schema exports.
- * 
+ *
  * Re-exports ElizaOS plugin-sql schema tables for integration with Drizzle migrations.
  * Provides database access to ElizaOS tables.
  */

@@ -11,15 +11,15 @@ import {
 
 /**
  * Room Title Generator Evaluator
- * 
+ *
  * Automatically generates concise room titles from the first user message.
  * Runs in background to avoid blocking message processing.
  * Matches behavior of Claude and other AI chat apps.
- * 
+ *
  * Pattern: Similar to reflection evaluator but focused on title generation
  */
 
-const roomTitleTemplate = `# Task: Generate Room Title
+export const roomTitleTemplate = `# Task: Generate Room Title
 
 You are a title generator. Extract the CORE TOPIC from the conversation and create a 4-6 word Title Case summary.
 
@@ -33,8 +33,7 @@ You are a title generator. Extract the CORE TOPIC from the conversation and crea
 6. Just state the topic directly
 </instructions>
 
-# Recent Conversation:
-{{conversationLogWithAgentThoughts}}
+{{conversationLog}}
 
 # Examples:
 - "Can you help me write a Python script?" → Python Script Development
@@ -66,7 +65,7 @@ async function handler(runtime: IAgentRuntime, message: Memory) {
   try {
     // Check if room already has a title
     const existingRoom = await runtime.getRoom(roomId as UUID);
-    
+
     if (!existingRoom) {
       logger.debug(`[RoomTitle] Room not found: ${roomId}`);
       return;
@@ -94,9 +93,7 @@ async function handler(runtime: IAgentRuntime, message: Memory) {
     }
 
     // Compose state with conversation context
-    const state = await runtime.composeState(message, [
-      "RECENT_MESSAGES",
-    ]);
+    const state = await runtime.composeState(message, ["RECENT_MESSAGES"]);
 
     // Generate prompt
     const prompt = composePromptFromState({
@@ -163,7 +160,10 @@ async function handler(runtime: IAgentRuntime, message: Memory) {
 export const roomTitleEvaluator: Evaluator = {
   name: "ROOM_TITLE",
   similes: ["GENERATE_ROOM_TITLE", "CONVERSATION_TITLE"],
-  validate: async (runtime: IAgentRuntime, message: Memory): Promise<boolean> => {
+  validate: async (
+    runtime: IAgentRuntime,
+    message: Memory,
+  ): Promise<boolean> => {
     if (!message.roomId || !message.entityId) {
       return false;
     }
@@ -177,17 +177,22 @@ export const roomTitleEvaluator: Evaluator = {
       return false;
     }
 
-    // Get messages from this specific user (entityId) to check if this is their first message
+    // Get messages from this specific user (entityId) to cheeck if this is their first message
     // We only need to check the last 2 messages from this user
     const userMessages = await runtime.getMemories({
       tableName: "messages",
       roomId: message.roomId,
       entityId: message.entityId, // Filter by user who sent the message
-      count: 2,
+      count: 3,
       unique: false,
     });
 
-    const result = userMessages.length === 1;
+    // Filter messages by entityId since DB filter might not work properly
+    const filteredUserMessages = userMessages.filter(
+      (msg) => msg.entityId === message.entityId,
+    );
+
+    const result = filteredUserMessages.length === 1;
     return result;
   },
   description:
@@ -195,4 +200,3 @@ export const roomTitleEvaluator: Evaluator = {
   handler,
   examples: [],
 };
-

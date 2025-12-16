@@ -72,7 +72,7 @@ export class UserSessionsRepository {
 
   /**
    * Atomically gets or creates a session using Drizzle's onConflictDoUpdate.
-   * 
+   *
    * Prevents race conditions by handling conflicts at the database level.
    * If session_token already exists, updates last_activity_at and returns existing session.
    */
@@ -187,7 +187,7 @@ export class UserSessionsRepository {
 
   /**
    * Ends all active sessions for a user.
-   * 
+   *
    * @returns Number of sessions ended.
    */
   async endAllUserSessions(userId: string): Promise<number> {
@@ -206,7 +206,7 @@ export class UserSessionsRepository {
 
   /**
    * Deletes sessions that ended more than specified days ago.
-   * 
+   *
    * @param daysOld - Minimum age in days for sessions to be deleted (default: 30).
    * @returns Number of sessions deleted.
    */
@@ -223,7 +223,7 @@ export class UserSessionsRepository {
 
   /**
    * Gets aggregated stats across all active sessions for a user.
-   * 
+   *
    * @returns Aggregated stats or null if no active sessions.
    */
   async getCurrentSessionStats(userId: string): Promise<{

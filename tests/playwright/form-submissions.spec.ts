@@ -22,7 +22,7 @@ const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000";
 
 test.describe("Character Creator Form", () => {
   test("character creator form accepts all fields", async ({ page }) => {
-    await page.goto(`${BASE_URL}/dashboard/character-creator`);
+    await page.goto(`${BASE_URL}/dashboard/build`);
     await page.waitForLoadState("networkidle");
     await page.waitForTimeout(2000);
 
@@ -33,7 +33,9 @@ test.describe("Character Creator Form", () => {
     }
 
     // Fill name field
-    const nameInput = page.locator('input[name="name"], input[placeholder*="name" i]').first();
+    const nameInput = page
+      .locator('input[name="name"], input[placeholder*="name" i]')
+      .first();
     if (await nameInput.isVisible().catch(() => false)) {
       await nameInput.fill("E2E Test Character");
       const nameValue = await nameInput.inputValue();
@@ -42,9 +44,13 @@ test.describe("Character Creator Form", () => {
     }
 
     // Fill bio field
-    const bioInput = page.locator('textarea[name="bio"], textarea[placeholder*="bio" i]').first();
+    const bioInput = page
+      .locator('textarea[name="bio"], textarea[placeholder*="bio" i]')
+      .first();
     if (await bioInput.isVisible().catch(() => false)) {
-      await bioInput.fill("This is a test character bio for E2E testing purposes.");
+      await bioInput.fill(
+        "This is a test character bio for E2E testing purposes.",
+      );
       const bioValue = await bioInput.inputValue();
       expect(bioValue).toContain("E2E testing");
       console.log("✅ Bio field accepts input");
@@ -52,7 +58,9 @@ test.describe("Character Creator Form", () => {
 
     // Fill personality field
     const personalityInput = page
-      .locator('textarea[name="personality"], textarea[placeholder*="personality" i]')
+      .locator(
+        'textarea[name="personality"], textarea[placeholder*="personality" i]',
+      )
       .first();
     if (await personalityInput.isVisible().catch(() => false)) {
       await personalityInput.fill("Friendly, helpful, and curious");
@@ -61,7 +69,9 @@ test.describe("Character Creator Form", () => {
 
     // Check for topics/tags input
     const topicsInput = page
-      .locator('input[name="topics"], input[placeholder*="topics" i], input[placeholder*="tags" i]')
+      .locator(
+        'input[name="topics"], input[placeholder*="topics" i], input[placeholder*="tags" i]',
+      )
       .first();
     if (await topicsInput.isVisible().catch(() => false)) {
       await topicsInput.fill("testing, automation");
@@ -70,14 +80,16 @@ test.describe("Character Creator Form", () => {
 
     // Check for create/save button
     const submitButton = page
-      .locator('button[type="submit"], button:has-text("Create"), button:has-text("Save")')
+      .locator(
+        'button[type="submit"], button:has-text("Create"), button:has-text("Save")',
+      )
       .first();
     const hasSubmit = await submitButton.isVisible().catch(() => false);
     console.log(`✅ Submit button visible: ${hasSubmit}`);
   });
 
   test("character creator validates required fields", async ({ page }) => {
-    await page.goto(`${BASE_URL}/dashboard/character-creator`);
+    await page.goto(`${BASE_URL}/dashboard/build`);
     await page.waitForLoadState("networkidle");
     await page.waitForTimeout(2000);
 
@@ -88,7 +100,9 @@ test.describe("Character Creator Form", () => {
 
     // Try to submit without filling required fields
     const submitButton = page
-      .locator('button[type="submit"], button:has-text("Create"), button:has-text("Save")')
+      .locator(
+        'button[type="submit"], button:has-text("Create"), button:has-text("Save")',
+      )
       .first();
 
     if (await submitButton.isVisible().catch(() => false)) {
@@ -97,7 +111,7 @@ test.describe("Character Creator Form", () => {
 
       // Check for validation errors
       const errorMessages = page.locator(
-        '[class*="error"], [role="alert"], text=/required|please|invalid/i'
+        '[class*="error"], [role="alert"], text=/required|please|invalid/i',
       );
       const errorCount = await errorMessages.count();
 
@@ -119,7 +133,7 @@ test.describe("Settings Form", () => {
     }
 
     // Check for theme settings
-    const themeSection = page.locator('text=/theme|appearance|dark.*mode/i');
+    const themeSection = page.locator("text=/theme|appearance|dark.*mode/i");
     const hasTheme = await themeSection.isVisible().catch(() => false);
     console.log(`✅ Theme settings visible: ${hasTheme}`);
 
@@ -129,7 +143,9 @@ test.describe("Settings Form", () => {
     console.log(`✅ Found ${toggleCount} toggle switches`);
 
     // Check for save button
-    const saveButton = page.locator('button:has-text("Save"), button:has-text("Update")');
+    const saveButton = page.locator(
+      'button:has-text("Save"), button:has-text("Update")',
+    );
     const hasSave = await saveButton.isVisible().catch(() => false);
     console.log(`✅ Save button visible: ${hasSave}`);
   });
@@ -144,7 +160,9 @@ test.describe("Settings Form", () => {
       return;
     }
 
-    const themeToggle = page.locator('[role="switch"], input[type="checkbox"]').first();
+    const themeToggle = page
+      .locator('[role="switch"], input[type="checkbox"]')
+      .first();
     if (await themeToggle.isVisible().catch(() => false)) {
       const initialState = await themeToggle.isChecked().catch(() => false);
       await themeToggle.click();
@@ -169,7 +187,9 @@ test.describe("Account Profile Form", () => {
     }
 
     // Check for name input
-    const nameInput = page.locator('input[name="name"], input[placeholder*="name" i]').first();
+    const nameInput = page
+      .locator('input[name="name"], input[placeholder*="name" i]')
+      .first();
     if (await nameInput.isVisible().catch(() => false)) {
       const currentValue = await nameInput.inputValue();
       await nameInput.fill("E2E Test User");
@@ -184,7 +204,9 @@ test.describe("Account Profile Form", () => {
     console.log(`✅ Email field visible: ${hasEmail}`);
 
     // Check for avatar section
-    const avatarSection = page.locator('[class*="avatar"], img[alt*="avatar" i]');
+    const avatarSection = page.locator(
+      '[class*="avatar"], img[alt*="avatar" i]',
+    );
     const hasAvatar = await avatarSection.isVisible().catch(() => false);
     console.log(`✅ Avatar section visible: ${hasAvatar}`);
   });
@@ -200,7 +222,7 @@ test.describe("Account Profile Form", () => {
     }
 
     const uploadButton = page.locator(
-      'input[type="file"], button:has-text("Upload"), button:has-text("Change")'
+      'input[type="file"], button:has-text("Upload"), button:has-text("Change")',
     );
     const hasUpload = await uploadButton.isVisible().catch(() => false);
     console.log(`✅ Avatar upload button visible: ${hasUpload}`);
@@ -221,7 +243,9 @@ test.describe("API Key Creation Form", () => {
 
     // Click create button
     const createButton = page
-      .locator('button:has-text("Create"), button:has-text("New"), button:has-text("Generate")')
+      .locator(
+        'button:has-text("Create"), button:has-text("New"), button:has-text("Generate")',
+      )
       .first();
 
     if (await createButton.isVisible().catch(() => false)) {
@@ -230,20 +254,22 @@ test.describe("API Key Creation Form", () => {
 
       // Check for name input in dialog
       const nameInput = page.locator(
-        'input[name="name"], input[placeholder*="name" i], input[placeholder*="key" i]'
+        'input[name="name"], input[placeholder*="name" i], input[placeholder*="key" i]',
       );
       const hasName = await nameInput.isVisible().catch(() => false);
       console.log(`✅ Key name input visible: ${hasName}`);
 
       // Check for description input
       const descInput = page.locator(
-        'input[name="description"], textarea[name="description"], input[placeholder*="description" i]'
+        'input[name="description"], textarea[name="description"], input[placeholder*="description" i]',
       );
       const hasDesc = await descInput.isVisible().catch(() => false);
       console.log(`✅ Description input visible: ${hasDesc}`);
 
       // Close dialog
-      const cancelButton = page.locator('button:has-text("Cancel"), button[aria-label="Close"]');
+      const cancelButton = page.locator(
+        'button:has-text("Cancel"), button[aria-label="Close"]',
+      );
       if (await cancelButton.isVisible().catch(() => false)) {
         await cancelButton.click();
       }
@@ -272,24 +298,30 @@ test.describe("App Creation Form", () => {
       await page.waitForTimeout(1000);
 
       // Check for name input
-      const nameInput = page.locator('input[name="name"], input[placeholder*="name" i]');
+      const nameInput = page.locator(
+        'input[name="name"], input[placeholder*="name" i]',
+      );
       const hasName = await nameInput.isVisible().catch(() => false);
       console.log(`✅ App name input visible: ${hasName}`);
 
       // Check for URL input
-      const urlInput = page.locator('input[name="url"], input[placeholder*="url" i]');
+      const urlInput = page.locator(
+        'input[name="url"], input[placeholder*="url" i]',
+      );
       const hasUrl = await urlInput.isVisible().catch(() => false);
       console.log(`✅ App URL input visible: ${hasUrl}`);
 
       // Check for description
       const descInput = page.locator(
-        'textarea[name="description"], input[placeholder*="description" i]'
+        'textarea[name="description"], input[placeholder*="description" i]',
       );
       const hasDesc = await descInput.isVisible().catch(() => false);
       console.log(`✅ Description input visible: ${hasDesc}`);
 
       // Close dialog
-      const cancelButton = page.locator('button:has-text("Cancel"), button[aria-label="Close"]');
+      const cancelButton = page.locator(
+        'button:has-text("Cancel"), button[aria-label="Close"]',
+      );
       if (await cancelButton.isVisible().catch(() => false)) {
         await cancelButton.click();
       }
@@ -299,7 +331,9 @@ test.describe("App Creation Form", () => {
 
 test.describe("Container Creation Form", () => {
   test("container creation form has all fields", async ({ page }) => {
-    const response = await page.goto(`${BASE_URL}/dashboard/containers`).catch(() => null);
+    const response = await page
+      .goto(`${BASE_URL}/dashboard/containers`)
+      .catch(() => null);
     if (!response) {
       console.log("ℹ️ Page navigation failed - skipping");
       return;
@@ -314,7 +348,9 @@ test.describe("Container Creation Form", () => {
     }
 
     const createButton = page
-      .locator('button:has-text("Create"), button:has-text("New Container"), button:has-text("Deploy")')
+      .locator(
+        'button:has-text("Create"), button:has-text("New Container"), button:has-text("Deploy")',
+      )
       .first();
 
     if (await createButton.isVisible().catch(() => false)) {
@@ -322,17 +358,23 @@ test.describe("Container Creation Form", () => {
       await page.waitForTimeout(1000);
 
       // Check for name input
-      const nameInput = page.locator('input[name="name"], input[placeholder*="name" i]');
+      const nameInput = page.locator(
+        'input[name="name"], input[placeholder*="name" i]',
+      );
       const hasName = await nameInput.isVisible().catch(() => false);
       console.log(`✅ Container name input visible: ${hasName}`);
 
       // Check for image input
-      const imageInput = page.locator('input[name="image"], input[placeholder*="image" i]');
+      const imageInput = page.locator(
+        'input[name="image"], input[placeholder*="image" i]',
+      );
       const hasImage = await imageInput.isVisible().catch(() => false);
       console.log(`✅ Image input visible: ${hasImage}`);
 
       // Close dialog
-      const cancelButton = page.locator('button:has-text("Cancel"), button[aria-label="Close"]');
+      const cancelButton = page.locator(
+        'button:has-text("Cancel"), button[aria-label="Close"]',
+      );
       if (await cancelButton.isVisible().catch(() => false)) {
         await cancelButton.click();
       }
@@ -342,7 +384,9 @@ test.describe("Container Creation Form", () => {
 
 test.describe("Knowledge Upload Form", () => {
   test("knowledge page has upload functionality", async ({ page }) => {
-    const response = await page.goto(`${BASE_URL}/dashboard/knowledge`).catch(() => null);
+    const response = await page
+      .goto(`${BASE_URL}/dashboard/knowledge`)
+      .catch(() => null);
     if (!response) {
       console.log("ℹ️ Page navigation failed - skipping");
       return;
@@ -363,7 +407,7 @@ test.describe("Knowledge Upload Form", () => {
 
     // Check for upload button
     const uploadButton = page.locator(
-      'button:has-text("Upload"), button:has-text("Add Document")'
+      'button:has-text("Upload"), button:has-text("Add Document")',
     );
     const hasButton = await uploadButton.isVisible().catch(() => false);
     console.log(`✅ Upload button visible: ${hasButton}`);
@@ -372,7 +416,9 @@ test.describe("Knowledge Upload Form", () => {
 
 test.describe("Image Generation Form", () => {
   test("image generation has prompt input", async ({ page }) => {
-    const response = await page.goto(`${BASE_URL}/dashboard/image`).catch(() => null);
+    const response = await page
+      .goto(`${BASE_URL}/dashboard/image`)
+      .catch(() => null);
     if (!response) {
       console.log("ℹ️ Page navigation failed - skipping");
       return;
@@ -387,7 +433,9 @@ test.describe("Image Generation Form", () => {
     }
 
     // Check for prompt input
-    const promptInput = page.locator('textarea, input[placeholder*="prompt" i]').first();
+    const promptInput = page
+      .locator('textarea, input[placeholder*="prompt" i]')
+      .first();
     if (await promptInput.isVisible().catch(() => false)) {
       await promptInput.fill("A beautiful mountain landscape at sunset");
       const value = await promptInput.inputValue();
@@ -401,12 +449,16 @@ test.describe("Image Generation Form", () => {
     console.log(`✅ Model selector visible: ${hasModel}`);
 
     // Check for generate button
-    const generateButton = page.locator('button:has-text("Generate"), button:has-text("Create")');
+    const generateButton = page.locator(
+      'button:has-text("Generate"), button:has-text("Create")',
+    );
     const hasGenerate = await generateButton.isVisible().catch(() => false);
     console.log(`✅ Generate button visible: ${hasGenerate}`);
 
     // Check for settings
-    const settingsSliders = page.locator('input[type="range"], [role="slider"]');
+    const settingsSliders = page.locator(
+      'input[type="range"], [role="slider"]',
+    );
     const sliderCount = await settingsSliders.count();
     console.log(`✅ Settings sliders: ${sliderCount}`);
   });
@@ -414,7 +466,9 @@ test.describe("Image Generation Form", () => {
 
 test.describe("Video Generation Form", () => {
   test("video generation has prompt input", async ({ page }) => {
-    const response = await page.goto(`${BASE_URL}/dashboard/video`).catch(() => null);
+    const response = await page
+      .goto(`${BASE_URL}/dashboard/video`)
+      .catch(() => null);
     if (!response) {
       console.log("ℹ️ Page navigation failed - skipping");
       return;
@@ -429,7 +483,7 @@ test.describe("Video Generation Form", () => {
     }
 
     // Check for prompt input
-    const promptInput = page.locator('textarea').first();
+    const promptInput = page.locator("textarea").first();
     if (await promptInput.isVisible().catch(() => false)) {
       await promptInput.fill("A cinematic drone shot over a city at night");
       const value = await promptInput.inputValue();
@@ -443,7 +497,9 @@ test.describe("Video Generation Form", () => {
     console.log(`✅ Model selector visible: ${hasModel}`);
 
     // Check for generate button
-    const generateButton = page.locator('button:has-text("Generate"), button:has-text("Create")');
+    const generateButton = page.locator(
+      'button:has-text("Generate"), button:has-text("Create")',
+    );
     const hasGenerate = await generateButton.isVisible().catch(() => false);
     console.log(`✅ Generate button visible: ${hasGenerate}`);
   });
@@ -451,7 +507,9 @@ test.describe("Video Generation Form", () => {
 
 test.describe("Billing Auto Top-up Form", () => {
   test("auto top-up settings form", async ({ page }) => {
-    const response = await page.goto(`${BASE_URL}/dashboard/billing`).catch(() => null);
+    const response = await page
+      .goto(`${BASE_URL}/dashboard/billing`)
+      .catch(() => null);
     if (!response) {
       console.log("ℹ️ Page navigation failed - skipping");
       return;
@@ -472,14 +530,14 @@ test.describe("Billing Auto Top-up Form", () => {
 
     // Check for amount input
     const amountInput = page.locator(
-      'input[type="number"], input[name*="amount"], input[placeholder*="amount" i]'
+      'input[type="number"], input[name*="amount"], input[placeholder*="amount" i]',
     );
     const hasAmount = (await amountInput.count()) > 0;
     console.log(`✅ Amount input visible: ${hasAmount}`);
 
     // Check for threshold input
     const thresholdInput = page.locator(
-      'input[name*="threshold"], input[placeholder*="threshold" i]'
+      'input[name*="threshold"], input[placeholder*="threshold" i]',
     );
     const hasThreshold = (await thresholdInput.count()) > 0;
     console.log(`✅ Threshold input visible: ${hasThreshold}`);
@@ -488,7 +546,9 @@ test.describe("Billing Auto Top-up Form", () => {
 
 test.describe("Organization Invite Form", () => {
   test("invite member form", async ({ page }) => {
-    const response = await page.goto(`${BASE_URL}/dashboard/account`).catch(() => null);
+    const response = await page
+      .goto(`${BASE_URL}/dashboard/account`)
+      .catch(() => null);
     if (!response) {
       console.log("ℹ️ Page navigation failed - skipping");
       return;
@@ -503,14 +563,18 @@ test.describe("Organization Invite Form", () => {
     }
 
     // Click invite button
-    const inviteButton = page.locator('button:has-text("Invite"), button:has-text("Add Member")');
+    const inviteButton = page.locator(
+      'button:has-text("Invite"), button:has-text("Add Member")',
+    );
 
     if (await inviteButton.isVisible().catch(() => false)) {
       await inviteButton.click();
       await page.waitForTimeout(1000);
 
       // Check for email input
-      const emailInput = page.locator('input[type="email"], input[placeholder*="email" i]');
+      const emailInput = page.locator(
+        'input[type="email"], input[placeholder*="email" i]',
+      );
       const hasEmail = await emailInput.isVisible().catch(() => false);
       console.log(`✅ Email input visible: ${hasEmail}`);
 
@@ -520,11 +584,12 @@ test.describe("Organization Invite Form", () => {
       console.log(`✅ Role selector visible: ${hasRole}`);
 
       // Close dialog
-      const cancelButton = page.locator('button:has-text("Cancel"), button[aria-label="Close"]');
+      const cancelButton = page.locator(
+        'button:has-text("Cancel"), button[aria-label="Close"]',
+      );
       if (await cancelButton.isVisible().catch(() => false)) {
         await cancelButton.click();
       }
     }
   });
 });
-

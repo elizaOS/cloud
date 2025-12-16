@@ -66,6 +66,11 @@ class MiniappAuthSessionsService {
     const authToken = `miniapp_${randomBytes(32).toString("hex")}`;
     const authTokenHash = createHash("sha256").update(authToken).digest("hex");
 
+    // Token expiry is 30 days from now
+    const tokenExpiresAt = new Date(
+      Date.now() + TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000,
+    );
+
     logger.info("[Miniapp Auth] Completing authentication", {
       sessionId: sessionId.slice(0, 8),
       userId,
@@ -78,16 +83,12 @@ class MiniappAuthSessionsService {
       organizationId,
       authToken,
       authTokenHash,
+      tokenExpiresAt,
     );
 
     if (!session) {
       throw new Error("Invalid or expired session");
     }
-
-    // Update expiry for the token (30 days from now)
-    const tokenExpiresAt = new Date(
-      Date.now() + TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000,
-    );
 
     return {
       callbackUrl: session.callback_url,

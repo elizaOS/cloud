@@ -1,6 +1,6 @@
 /**
  * In-App Purchase Hook
- * 
+ *
  * Provides a React hook for handling in-app purchases in the Tauri mobile app.
  * Handles communication with the native IAP layer (iOS StoreKit 2 / Android Billing).
  */
@@ -11,8 +11,8 @@ import { useState, useCallback, useEffect } from "react";
 import { usePrivy } from "@privy-io/react-auth";
 import { toast } from "sonner";
 import { isMobileApp, isIOS, isAndroid } from "@/lib/api/mobile-client";
-import { 
-  IAP_PRODUCTS, 
+import {
+  IAP_PRODUCTS,
   type IAPProduct,
   getProductIds,
   formatCredits,
@@ -73,21 +73,23 @@ interface UseIAPReturn {
 /**
  * Check if Tauri invoke is available
  */
-async function getTauriInvoke(): Promise<((cmd: string, args?: Record<string, unknown>) => Promise<unknown>) | null> {
+async function getTauriInvoke(): Promise<
+  ((cmd: string, args?: Record<string, unknown>) => Promise<unknown>) | null
+> {
   if (typeof window === "undefined") return null;
-  
+
   // @ts-expect-error - Tauri types not available at compile time
   if (window.__TAURI__?.core?.invoke) {
     // @ts-expect-error - Tauri types
     return window.__TAURI__.core.invoke;
   }
-  
+
   // @ts-expect-error - Tauri types
   if (window.__TAURI_INTERNALS__?.invoke) {
     // @ts-expect-error - Tauri types
     return window.__TAURI_INTERNALS__.invoke;
   }
-  
+
   return null;
 }
 
@@ -100,17 +102,24 @@ export function useIAP(): UseIAPReturn {
   const [isPurchasing, setIsPurchasing] = useState(false);
   const [storeProducts, setStoreProducts] = useState<StoreProduct[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [invoke, setInvoke] = useState<((cmd: string, args?: Record<string, unknown>) => Promise<unknown>) | null>(null);
-  
+  const [invoke, setInvoke] = useState<
+    ((cmd: string, args?: Record<string, unknown>) => Promise<unknown>) | null
+  >(null);
+
   // Determine platform
-  const platform: "ios" | "android" | "web" = isIOS() ? "ios" : isAndroid() ? "android" : "web";
-  const isAvailable = isMobileApp() && (platform === "ios" || platform === "android");
-  
+  const platform: "ios" | "android" | "web" = isIOS()
+    ? "ios"
+    : isAndroid()
+      ? "android"
+      : "web";
+  const isAvailable =
+    isMobileApp() && (platform === "ios" || platform === "android");
+
   // Initialize Tauri invoke
   useEffect(() => {
     getTauriInvoke().then(setInvoke);
   }, []);
-  
+
   // Merge store products with our product definitions
   const products: IAPProduct[] = IAP_PRODUCTS.map((product) => {
     const storeProduct = storeProducts.find((sp) => sp.id === product.id);
@@ -123,7 +132,7 @@ export function useIAP(): UseIAPReturn {
     }
     return product;
   });
-  
+
   /**
    * Load products from the native store
    */
@@ -131,80 +140,87 @@ export function useIAP(): UseIAPReturn {
     if (!isAvailable || !invoke) {
       return;
     }
-    
+
     setIsLoading(true);
     setError(null);
-    
+
     const productIds = getProductIds();
-    const result = await invoke("get_products", { productIds }) as StoreProduct[];
+    const result = (await invoke("get_products", {
+      productIds,
+    })) as StoreProduct[];
     setStoreProducts(result);
     setIsLoading(false);
   }, [isAvailable, invoke]);
-  
+
   /**
    * Purchase a product
    */
-  const purchase = useCallback(async (productId: string): Promise<boolean> => {
-    if (!isAvailable || !invoke) {
-      toast.error("In-app purchases are not available on this platform");
-      return false;
-    }
-    
-    setIsPurchasing(true);
-    setError(null);
-    
-    const product = IAP_PRODUCTS.find((p) => p.id === productId);
-    if (!product) {
-      setError("Product not found");
-      setIsPurchasing(false);
-      return false;
-    }
-    
-    // Initiate native purchase
-    const result = await invoke("purchase_product", { productId }) as PurchaseResult;
-    
-    if (!result.success) {
-      if (result.errorCode !== "USER_CANCELLED") {
-        setError(result.error || "Purchase failed");
-        toast.error(result.error || "Purchase failed");
+  const purchase = useCallback(
+    async (productId: string): Promise<boolean> => {
+      if (!isAvailable || !invoke) {
+        toast.error("In-app purchases are not available on this platform");
+        return false;
       }
-      setIsPurchasing(false);
-      return false;
-    }
-    
-    // Verify receipt with backend
-    const token = await getAccessToken();
-    
-    const verifyResponse = await fetch("/api/v1/iap/verify", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(token && { Authorization: `Bearer ${token}` }),
-      },
-      body: JSON.stringify({
-        platform,
+
+      setIsPurchasing(true);
+      setError(null);
+
+      const product = IAP_PRODUCTS.find((p) => p.id === productId);
+      if (!product) {
+        setError("Product not found");
+        setIsPurchasing(false);
+        return false;
+      }
+
+      // Initiate native purchase
+      const result = (await invoke("purchase_product", {
         productId,
-        transactionId: result.transactionId,
-        receipt: result.receipt,
-        purchaseToken: result.purchaseToken,
-      }),
-    });
-    
-    const verifyData = await verifyResponse.json();
-    
-    if (!verifyResponse.ok || !verifyData.success) {
-      setError(verifyData.error || "Failed to verify purchase");
-      toast.error("Purchase verification failed. Please contact support.");
+      })) as PurchaseResult;
+
+      if (!result.success) {
+        if (result.errorCode !== "USER_CANCELLED") {
+          setError(result.error || "Purchase failed");
+          toast.error(result.error || "Purchase failed");
+        }
+        setIsPurchasing(false);
+        return false;
+      }
+
+      // Verify receipt with backend
+      const token = await getAccessToken();
+
+      const verifyResponse = await fetch("/api/v1/iap/verify", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+        body: JSON.stringify({
+          platform,
+          productId,
+          transactionId: result.transactionId,
+          receipt: result.receipt,
+          purchaseToken: result.purchaseToken,
+        }),
+      });
+
+      const verifyData = await verifyResponse.json();
+
+      if (!verifyResponse.ok || !verifyData.success) {
+        setError(verifyData.error || "Failed to verify purchase");
+        toast.error("Purchase verification failed. Please contact support.");
+        setIsPurchasing(false);
+        return false;
+      }
+
+      // Success!
+      toast.success(`Added ${formatCredits(product.credits)} credits!`);
       setIsPurchasing(false);
-      return false;
-    }
-    
-    // Success!
-    toast.success(`Added ${formatCredits(product.credits)} credits!`);
-    setIsPurchasing(false);
-    return true;
-  }, [isAvailable, invoke, platform, getAccessToken]);
-  
+      return true;
+    },
+    [isAvailable, invoke, platform, getAccessToken],
+  );
+
   /**
    * Restore previous purchases
    */
@@ -213,19 +229,19 @@ export function useIAP(): UseIAPReturn {
       toast.error("Restore is not available on this platform");
       return;
     }
-    
+
     setIsLoading(true);
     setError(null);
-    
-    const results = await invoke("restore_purchases") as PurchaseResult[];
-    
+
+    const results = (await invoke("restore_purchases")) as PurchaseResult[];
+
     if (results.length === 0) {
       toast.info("No previous purchases found");
     } else {
       // Verify each restored purchase
       const token = await getAccessToken();
       let restored = 0;
-      
+
       for (const result of results) {
         if (result.success && result.transactionId && result.receipt) {
           const verifyResponse = await fetch("/api/v1/iap/verify", {
@@ -242,23 +258,23 @@ export function useIAP(): UseIAPReturn {
               purchaseToken: result.purchaseToken,
             }),
           });
-          
+
           if (verifyResponse.ok) {
             restored++;
           }
         }
       }
-      
+
       if (restored > 0) {
         toast.success(`Restored ${restored} purchase(s)`);
       } else {
         toast.info("All purchases already applied");
       }
     }
-    
+
     setIsLoading(false);
   }, [isAvailable, invoke, platform, getAccessToken]);
-  
+
   // Load products on mount if available
   useEffect(() => {
     if (isAvailable && invoke) {
@@ -268,7 +284,7 @@ export function useIAP(): UseIAPReturn {
       });
     }
   }, [isAvailable, invoke, loadProducts]);
-  
+
   return {
     isAvailable,
     isLoading,
@@ -284,4 +300,3 @@ export function useIAP(): UseIAPReturn {
 }
 
 export type { StoreProduct, PurchaseResult, UseIAPReturn };
-

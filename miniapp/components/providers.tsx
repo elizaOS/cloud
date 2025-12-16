@@ -7,7 +7,7 @@ import { DevProvider } from "@/lib/dev/dev-provider";
 
 /**
  * Providers for the miniapp
- * 
+ *
  * Note: We don't use Privy directly in the miniapp.
  * Instead, we use token-based auth via pass-through to Eliza Cloud.
  * This avoids needing to register miniapp domains with Privy.

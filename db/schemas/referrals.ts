@@ -34,7 +34,7 @@ export const shareTypeEnum = pgEnum("share_type", [
 
 /**
  * Referral codes table schema.
- * 
+ *
  * Stores user referral codes with earnings tracking.
  */
 export const referralCodes = pgTable(
@@ -70,12 +70,12 @@ export const referralCodes = pgTable(
   (table) => ({
     user_idx: uniqueIndex("referral_codes_user_idx").on(table.user_id),
     code_idx: index("referral_codes_code_idx").on(table.code),
-  })
+  }),
 );
 
 /**
  * Referral signups table schema.
- * 
+ *
  * Tracks referral signups and associated bonuses and commissions.
  */
 export const referralSignups = pgTable(
@@ -117,18 +117,18 @@ export const referralSignups = pgTable(
   },
   (table) => ({
     referred_user_unique: uniqueIndex("referral_signups_referred_user_idx").on(
-      table.referred_user_id
+      table.referred_user_id,
     ),
     referrer_idx: index("referral_signups_referrer_idx").on(
-      table.referrer_user_id
+      table.referrer_user_id,
     ),
     code_idx: index("referral_signups_code_idx").on(table.referral_code_id),
-  })
+  }),
 );
 
 /**
  * Social share rewards table schema.
- * 
+ *
  * Tracks social media shares and associated credit rewards.
  */
 export const socialShareRewards = pgTable(
@@ -155,12 +155,10 @@ export const socialShareRewards = pgTable(
   (table) => ({
     user_idx: index("social_share_rewards_user_idx").on(table.user_id),
     platform_idx: index("social_share_rewards_platform_idx").on(table.platform),
-    user_platform_date_idx: index("social_share_rewards_user_platform_date_idx").on(
-      table.user_id,
-      table.platform,
-      table.created_at
-    ),
-  })
+    user_platform_date_idx: index(
+      "social_share_rewards_user_platform_date_idx",
+    ).on(table.user_id, table.platform, table.created_at),
+  }),
 );
 
 export type ReferralCode = InferSelectModel<typeof referralCodes>;
@@ -169,4 +167,3 @@ export type ReferralSignup = InferSelectModel<typeof referralSignups>;
 export type NewReferralSignup = InferInsertModel<typeof referralSignups>;
 export type SocialShareReward = InferSelectModel<typeof socialShareRewards>;
 export type NewSocialShareReward = InferInsertModel<typeof socialShareRewards>;
-

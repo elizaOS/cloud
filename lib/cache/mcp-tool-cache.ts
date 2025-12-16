@@ -196,10 +196,7 @@ function hashParams(params: unknown): string {
   const jsonString = JSON.stringify(sortedParams);
 
   // Use SHA-256 but only take first 16 chars for brevity
-  return createHash("sha256")
-    .update(jsonString)
-    .digest("hex")
-    .substring(0, 16);
+  return createHash("sha256").update(jsonString).digest("hex").substring(0, 16);
 }
 
 /**

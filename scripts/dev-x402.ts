@@ -64,7 +64,10 @@ async function ensureConfiguration(): Promise<Record<string, string>> {
 
   // Check recipient address
   const recipient = env.X402_RECIPIENT_ADDRESS;
-  if (!recipient || recipient === "0x0000000000000000000000000000000000000000") {
+  if (
+    !recipient ||
+    recipient === "0x0000000000000000000000000000000000000000"
+  ) {
     console.log("\n   ⚠️  X402_RECIPIENT_ADDRESS not set!");
     console.log("   Set this to your wallet address to receive payments.");
     console.log("\n   Add to .env.local:");
@@ -72,7 +75,9 @@ async function ensureConfiguration(): Promise<Record<string, string>> {
     process.exit(1);
   }
 
-  console.log(`   Recipient: ${recipient.slice(0, 10)}...${recipient.slice(-8)}`);
+  console.log(
+    `   Recipient: ${recipient.slice(0, 10)}...${recipient.slice(-8)}`,
+  );
 
   return env;
 }
@@ -81,7 +86,9 @@ async function ensureConfiguration(): Promise<Record<string, string>> {
 // ERC-8004 Auto-Registration
 // ============================================================================
 
-async function ensureERC8004Registered(env: Record<string, string>): Promise<boolean> {
+async function ensureERC8004Registered(
+  env: Record<string, string>,
+): Promise<boolean> {
   console.log("\n🤖 ERC-8004 Agent");
   console.log("=================");
 
@@ -91,7 +98,9 @@ async function ensureERC8004Registered(env: Record<string, string>): Promise<boo
   // Check if already registered
   const existingId = env[envKey] || ELIZA_CLOUD_AGENT_ID[network];
   if (existingId) {
-    console.log(`   ✅ Registered - Agent ID: ${CHAIN_IDS[network]}:${existingId}`);
+    console.log(
+      `   ✅ Registered - Agent ID: ${CHAIN_IDS[network]}:${existingId}`,
+    );
     return true;
   }
 
@@ -113,7 +122,9 @@ async function ensureERC8004Registered(env: Record<string, string>): Promise<boo
   const balance = await publicClient.getBalance({ address: account.address });
   if (balance === 0n) {
     console.log(`   ⚠️  Wallet ${account.address.slice(0, 10)}... has no ETH`);
-    console.log("   Get test ETH: https://www.coinbase.com/faucets/base-ethereum-goerli-faucet");
+    console.log(
+      "   Get test ETH: https://www.coinbase.com/faucets/base-ethereum-goerli-faucet",
+    );
     return false;
   }
 
@@ -134,14 +145,17 @@ async function ensureERC8004Registered(env: Record<string, string>): Promise<boo
   const agent = sdk.createAgent(
     "Eliza Cloud",
     "AI agent infrastructure with x402 payments. Supports REST, MCP, A2A protocols.",
-    `${baseUrl}/logo.png`
+    `${baseUrl}/logo.png`,
   );
 
   await agent.setMCP(`${baseUrl}/api/mcp`);
   await agent.setA2A(`${baseUrl}/.well-known/agent-card.json`);
 
   const walletAddress = env.X402_RECIPIENT_ADDRESS || SERVICE_WALLET_ADDRESS;
-  if (walletAddress && walletAddress !== "0x0000000000000000000000000000000000000000") {
+  if (
+    walletAddress &&
+    walletAddress !== "0x0000000000000000000000000000000000000000"
+  ) {
     agent.setAgentWallet(walletAddress as `0x${string}`, CHAIN_IDS[network]);
   }
 
@@ -154,7 +168,9 @@ async function ensureERC8004Registered(env: Record<string, string>): Promise<boo
     const result = await agent.registerIPFS();
     agentId = result.agentId;
   } else {
-    await agent.registerHTTP(`${baseUrl}/.well-known/erc8004-registration.json`);
+    await agent.registerHTTP(
+      `${baseUrl}/.well-known/erc8004-registration.json`,
+    );
     agentId = `${CHAIN_IDS[network]}:1`;
   }
 

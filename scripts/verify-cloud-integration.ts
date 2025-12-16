@@ -1,8 +1,8 @@
 /**
  * Cloud Integration Verification Script
- * 
+ *
  * Verifies that the payout system is fully integrated with the cloud application.
- * 
+ *
  * Run: bun run scripts/verify-cloud-integration.ts
  */
 
@@ -23,7 +23,8 @@ async function runChecks(): Promise<CheckResult[]> {
   const results: CheckResult[] = [];
 
   // 1. Check environment variables
-  const evmKey = process.env.EVM_PAYOUT_PRIVATE_KEY || process.env.EVM_PRIVATE_KEY;
+  const evmKey =
+    process.env.EVM_PAYOUT_PRIVATE_KEY || process.env.EVM_PRIVATE_KEY;
   const solanaKey = process.env.SOLANA_PAYOUT_PRIVATE_KEY;
   const cronSecret = process.env.CRON_SECRET;
   const dbUrl = process.env.DATABASE_URL;
@@ -61,43 +62,55 @@ async function runChecks(): Promise<CheckResult[]> {
   });
 
   // 3. Check price oracle (use direct DexScreener fetch to bypass DB cache)
-  const priceResult = await elizaTokenPriceService.fetchFromDexScreener("base").catch(e => ({ error: e.message }));
+  const priceResult = await elizaTokenPriceService
+    .fetchFromDexScreener("base")
+    .catch((e) => ({ error: e.message }));
   results.push({
     name: "Price Oracle (Base)",
     status: "priceUsd" in priceResult ? "✅ PASS" : "❌ FAIL",
-    details: "priceUsd" in priceResult
-      ? `$${priceResult.priceUsd.toFixed(6)} from DexScreener`
-      : `Error: ${(priceResult as { error: string }).error}`,
+    details:
+      "priceUsd" in priceResult
+        ? `$${priceResult.priceUsd.toFixed(6)} from DexScreener`
+        : `Error: ${(priceResult as { error: string }).error}`,
   });
 
   // 4. Check TWAP oracle system health
-  const twapHealth = await twapPriceOracle.getSystemHealth().catch(e => ({ error: e.message }));
+  const twapHealth = await twapPriceOracle
+    .getSystemHealth()
+    .catch((e) => ({ error: e.message }));
   results.push({
     name: "TWAP Oracle Health",
     status: twapHealth.canProcessRedemptions !== false ? "✅ PASS" : "⚠️ WARN",
-    details: twapHealth.canProcessRedemptions !== false
-      ? `Total samples: ${twapHealth.totalSamples24h || 0}, Can process: Yes`
-      : `Paused: ${twapHealth.pauseReason || "Unknown"}`,
+    details:
+      twapHealth.canProcessRedemptions !== false
+        ? `Total samples: ${twapHealth.totalSamples24h || 0}, Can process: Yes`
+        : `Paused: ${twapHealth.pauseReason || "Unknown"}`,
   });
 
   // 5. Check services are initialized
   results.push({
     name: "Services Initialized",
-    status: secureTokenRedemptionService && payoutProcessorService ? "✅ PASS" : "❌ FAIL",
+    status:
+      secureTokenRedemptionService && payoutProcessorService
+        ? "✅ PASS"
+        : "❌ FAIL",
     details: "All core services loaded",
   });
 
   // 6. Check hot wallet balances
-  const balances = await payoutProcessorService.checkHotWalletBalances().catch(() => null);
+  const balances = await payoutProcessorService
+    .checkHotWalletBalances()
+    .catch(() => null);
   if (balances && balances.evm.configured) {
     const networks = Object.entries(balances.evm.balances);
     const fundedNetworks = networks.filter(([, bal]) => parseFloat(bal) > 0);
     results.push({
       name: "Hot Wallet Balances",
       status: fundedNetworks.length > 0 ? "✅ PASS" : "⚠️ WARN",
-      details: fundedNetworks.length > 0
-        ? `${fundedNetworks.length} funded networks: ${fundedNetworks.map(([n, b]) => `${n}: ${b}`).join(", ")}`
-        : "No funded wallets",
+      details:
+        fundedNetworks.length > 0
+          ? `${fundedNetworks.length} funded networks: ${fundedNetworks.map(([n, b]) => `${n}: ${b}`).join(", ")}`
+          : "No funded wallets",
     });
   }
 
@@ -130,23 +143,29 @@ async function main() {
   console.log("-".repeat(70));
 
   for (const result of results) {
-    console.log(`${result.status} ${result.name.padEnd(25)} | ${result.details}`);
+    console.log(
+      `${result.status} ${result.name.padEnd(25)} | ${result.details}`,
+    );
   }
 
   console.log("");
   console.log("═".repeat(70));
 
-  const passed = results.filter(r => r.status === "✅ PASS").length;
-  const warned = results.filter(r => r.status === "⚠️ WARN").length;
-  const failed = results.filter(r => r.status === "❌ FAIL").length;
+  const passed = results.filter((r) => r.status === "✅ PASS").length;
+  const warned = results.filter((r) => r.status === "⚠️ WARN").length;
+  const failed = results.filter((r) => r.status === "❌ FAIL").length;
 
-  console.log(`Results: ${passed} passed, ${warned} warnings, ${failed} failed`);
+  console.log(
+    `Results: ${passed} passed, ${warned} warnings, ${failed} failed`,
+  );
   console.log("");
 
   if (failed === 0) {
     console.log("✅ CLOUD INTEGRATION VERIFIED");
     console.log("");
-    console.log("The payout system is properly integrated and ready for production.");
+    console.log(
+      "The payout system is properly integrated and ready for production.",
+    );
     console.log("");
     console.log("API Endpoints:");
     console.log("  - POST /api/v1/redemptions          Create redemption");
@@ -169,8 +188,7 @@ async function main() {
   console.log("═".repeat(70));
 }
 
-main().catch(e => {
+main().catch((e) => {
   logger.error("Verification failed", e);
   process.exit(1);
 });
-

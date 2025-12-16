@@ -17,21 +17,21 @@ import { users } from "./users";
  * Moderation action enum
  */
 export const moderationActionEnum = pgEnum("moderation_action", [
-  "refused",        // Message was refused (first offense)
-  "warned",         // User was warned (2+ offenses)
+  "refused", // Message was refused (first offense)
+  "warned", // User was warned (2+ offenses)
   "flagged_for_ban", // User flagged for admin review (5+ offenses)
-  "banned",         // User was banned by admin
+  "banned", // User was banned by admin
 ]);
 
 /**
  * User status enum for moderation
  */
 export const userModerationStatusEnum = pgEnum("user_mod_status", [
-  "clean",          // No issues
-  "warned",         // Has violations but not banned
-  "spammer",        // Marked as spammer
-  "scammer",        // Marked as scammer
-  "banned",         // Banned from platform
+  "clean", // No issues
+  "warned", // Has violations but not banned
+  "spammer", // Marked as spammer
+  "scammer", // Marked as scammer
+  "banned", // Banned from platform
 ]);
 
 /**
@@ -45,7 +45,9 @@ export const moderationViolations = pgTable(
     id: uuid("id").defaultRandom().primaryKey(),
 
     // User who violated
-    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
 
     // Context
     roomId: text("room_id"),
@@ -67,9 +69,11 @@ export const moderationViolations = pgTable(
   (table) => ({
     userIdIdx: index("moderation_violations_user_id_idx").on(table.userId),
     actionIdx: index("moderation_violations_action_idx").on(table.action),
-    createdAtIdx: index("moderation_violations_created_at_idx").on(table.createdAt),
+    createdAtIdx: index("moderation_violations_created_at_idx").on(
+      table.createdAt,
+    ),
     roomIdIdx: index("moderation_violations_room_id_idx").on(table.roomId),
-  })
+  }),
 );
 
 /**
@@ -82,7 +86,10 @@ export const userModerationStatus = pgTable(
   {
     id: uuid("id").defaultRandom().primaryKey(),
 
-    userId: uuid("user_id").notNull().unique().references(() => users.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .unique()
+      .references(() => users.id, { onDelete: "cascade" }),
 
     // Status
     status: userModerationStatusEnum("status").notNull().default("clean"),
@@ -110,14 +117,23 @@ export const userModerationStatus = pgTable(
   (table) => ({
     userIdIdx: index("user_moderation_status_user_id_idx").on(table.userId),
     statusIdx: index("user_moderation_status_status_idx").on(table.status),
-    riskScoreIdx: index("user_moderation_status_risk_score_idx").on(table.riskScore),
-    totalViolationsIdx: index("user_moderation_status_total_violations_idx").on(table.totalViolations),
-  })
+    riskScoreIdx: index("user_moderation_status_risk_score_idx").on(
+      table.riskScore,
+    ),
+    totalViolationsIdx: index("user_moderation_status_total_violations_idx").on(
+      table.totalViolations,
+    ),
+  }),
 );
 
 export type ModerationViolation = InferSelectModel<typeof moderationViolations>;
-export type NewModerationViolation = InferInsertModel<typeof moderationViolations>;
+export type NewModerationViolation = InferInsertModel<
+  typeof moderationViolations
+>;
 
-export type UserModerationStatus = InferSelectModel<typeof userModerationStatus>;
-export type NewUserModerationStatus = InferInsertModel<typeof userModerationStatus>;
-
+export type UserModerationStatus = InferSelectModel<
+  typeof userModerationStatus
+>;
+export type NewUserModerationStatus = InferInsertModel<
+  typeof userModerationStatus
+>;

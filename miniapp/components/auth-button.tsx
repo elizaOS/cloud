@@ -1,6 +1,16 @@
 "use client";
 
-import { Bot, ChevronDown, Coins, Loader2, LogIn, LogOut, Settings, User, Wallet } from "lucide-react";
+import {
+  Bot,
+  ChevronDown,
+  Coins,
+  Loader2,
+  LogIn,
+  LogOut,
+  Settings,
+  User,
+  Wallet,
+} from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
@@ -16,7 +26,10 @@ export function AuthButton() {
   // Close dropdown when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
         setIsOpen(false);
       }
     }
@@ -28,7 +41,7 @@ export function AuthButton() {
   // Fetch credits when authenticated
   useEffect(() => {
     let cancelled = false;
-    
+
     if (authenticated) {
       getBilling()
         .then(({ billing }) => {
@@ -38,7 +51,7 @@ export function AuthButton() {
           if (!cancelled) setCredits(null);
         });
     }
-    
+
     return () => {
       cancelled = true;
       // Clear credits on cleanup (when auth changes or component unmounts)
@@ -73,7 +86,7 @@ export function AuthButton() {
     return (
       <button
         onClick={login}
-        className="flex items-center gap-2 rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-600"
+        className="bg-brand hover:bg-brand-600 flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors"
       >
         <LogIn className="h-4 w-4" />
         <span>Sign In</span>
@@ -99,22 +112,26 @@ export function AuthButton() {
             </span>
           </div>
         )}
-        
-        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-brand to-accent-brand-600">
+
+        <div className="from-brand to-accent-brand-600 flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br">
           <User className="h-4 w-4 text-white" />
         </div>
         <span className="hidden max-w-[120px] truncate text-sm text-white/80 sm:inline">
           {displayName}
         </span>
-        <ChevronDown className={`h-4 w-4 text-white/50 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+        <ChevronDown
+          className={`h-4 w-4 text-white/50 transition-transform ${isOpen ? "rotate-180" : ""}`}
+        />
       </button>
 
       {/* Dropdown Menu */}
       {isOpen && (
-        <div className="absolute right-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-xl border border-white/10 bg-[#0a0512] shadow-xl shadow-black/50">
+        <div className="absolute top-full right-0 z-50 mt-2 w-56 overflow-hidden rounded-xl border border-white/10 bg-[#0a0512] shadow-xl shadow-black/50">
           {/* User Info */}
           <div className="border-b border-white/10 px-4 py-3">
-            <p className="truncate text-sm font-medium text-white">{displayName}</p>
+            <p className="truncate text-sm font-medium text-white">
+              {displayName}
+            </p>
             {credits && (
               <p className="mt-1 flex items-center gap-1 text-xs text-emerald-400">
                 <Coins className="h-3 w-3" />
@@ -130,7 +147,7 @@ export function AuthButton() {
               onClick={() => setIsOpen(false)}
               className="flex items-center gap-3 px-4 py-2.5 text-sm text-white/80 transition-colors hover:bg-white/5 hover:text-white"
             >
-              <Bot className="h-4 w-4 text-brand-400" />
+              <Bot className="text-brand-400 h-4 w-4" />
               My Characters
             </Link>
             <Link

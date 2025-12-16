@@ -12,7 +12,7 @@ import { organizations } from "./organizations";
 
 /**
  * Usage quotas table schema.
- * 
+ *
  * Defines usage limits for organizations, supporting both global and model-specific quotas.
  */
 export const usageQuotas = pgTable(

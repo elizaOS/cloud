@@ -16,8 +16,250 @@ import {
 import { v4 } from "uuid";
 import type { ParsedResponse, ParsedPlan } from "./parsers";
 
+/**
+ * Default Eliza agent ID - used to detect creator mode
+ */
+export const DEFAULT_ELIZA_ID = "b850bc30-45f8-0041-a00a-83df46d8555d";
+
+/**
+ * Check if runtime is in creator mode (chatting with default Eliza to create new character)
+ * vs build mode (editing existing character)
+ */
+export function isCreatorMode(runtime: IAgentRuntime): boolean {
+  const characterId = runtime.character.id;
+  return !characterId || characterId === DEFAULT_ELIZA_ID;
+}
+
 export const MAX_RESPONSE_RETRIES = 3;
 export const EVALUATOR_TIMEOUT_MS = 30000;
+
+// =============================================================================
+// Response Post-Processing Utilities
+// =============================================================================
+
+/**
+ * Patterns that indicate AI-speak that should be avoided
+ */
+const AI_SPEAK_PATTERNS = [
+  /\bAs an AI\b/gi,
+  /\bI'm an AI\b/gi,
+  /\bI am an AI\b/gi,
+  /\bAs a language model\b/gi,
+  /\bAs an artificial intelligence\b/gi,
+  /\bI don't have feelings\b/gi,
+  /\bI cannot feel\b/gi,
+  /\bI'm just a program\b/gi,
+  /\bI'm programmed to\b/gi,
+  /\bMy programming\b/gi,
+  /\bI was trained\b/gi,
+  /\bMy training data\b/gi,
+];
+
+/**
+ * Repetitive greeting patterns to detect
+ */
+const REPETITIVE_GREETINGS = [
+  /^Hey!?\s*$/i,
+  /^Hello!?\s*$/i,
+  /^Hi!?\s*$/i,
+  /^Hi there!?\s*$/i,
+  /^Hey there!?\s*$/i,
+  /^Hello there!?\s*$/i,
+  /^Greetings!?\s*$/i,
+];
+
+/**
+ * Check if response contains AI-speak patterns
+ */
+export function containsAISpeak(text: string): boolean {
+  return AI_SPEAK_PATTERNS.some((pattern) => pattern.test(text));
+}
+
+/**
+ * Remove AI-speak patterns from response
+ * Returns cleaned text
+ */
+export function removeAISpeak(text: string): string {
+  let cleaned = text;
+
+  // Remove sentences containing AI-speak
+  AI_SPEAK_PATTERNS.forEach((pattern) => {
+    // Find and remove sentences containing the pattern
+    const sentencePattern = new RegExp(
+      `[^.!?]*${pattern.source}[^.!?]*[.!?]?\\s*`,
+      pattern.flags,
+    );
+    cleaned = cleaned.replace(sentencePattern, "");
+  });
+
+  return cleaned.trim();
+}
+
+/**
+ * Check if the opening is a repetitive/generic greeting
+ */
+export function isRepetitiveGreeting(text: string): boolean {
+  const firstLine = text.split("\n")[0].trim();
+  const firstSentence = text.split(/[.!?]/)[0].trim();
+
+  return REPETITIVE_GREETINGS.some(
+    (pattern) => pattern.test(firstLine) || pattern.test(firstSentence),
+  );
+}
+
+/**
+ * Track recent response openings to detect repetition
+ */
+const recentOpenings = new Map<string, string[]>();
+const MAX_TRACKED_OPENINGS = 5;
+
+/**
+ * Get the opening of a response (first ~50 chars or first sentence)
+ */
+function getResponseOpening(text: string): string {
+  const firstSentence = text.split(/[.!?]/)[0].trim();
+  return firstSentence.substring(0, 50).toLowerCase();
+}
+
+/**
+ * Check if this opening was used recently in this room
+ */
+export function isRepeatedOpening(roomId: string, text: string): boolean {
+  const opening = getResponseOpening(text);
+  const recent = recentOpenings.get(roomId) || [];
+  return recent.includes(opening);
+}
+
+/**
+ * Track an opening for a room
+ */
+export function trackOpening(roomId: string, text: string): void {
+  const opening = getResponseOpening(text);
+  const recent = recentOpenings.get(roomId) || [];
+
+  // Add new opening and keep only recent ones
+  recent.push(opening);
+  if (recent.length > MAX_TRACKED_OPENINGS) {
+    recent.shift();
+  }
+
+  recentOpenings.set(roomId, recent);
+}
+
+/**
+ * Clear tracked openings for a room
+ */
+export function clearTrackedOpenings(roomId: string): void {
+  recentOpenings.delete(roomId);
+}
+
+/**
+ * Post-process a response to ensure quality
+ * - Removes AI-speak
+ * - Flags repetitive openings
+ * - Returns processing metadata
+ */
+export interface ProcessedResponse {
+  text: string;
+  wasModified: boolean;
+  hadAISpeak: boolean;
+  isRepetitive: boolean;
+  warnings: string[];
+}
+
+export function postProcessResponse(
+  text: string,
+  roomId?: string,
+): ProcessedResponse {
+  const warnings: string[] = [];
+  let processed = text;
+  let wasModified = false;
+
+  // Check for AI-speak
+  const hadAISpeak = containsAISpeak(text);
+  if (hadAISpeak) {
+    processed = removeAISpeak(processed);
+    wasModified = true;
+    warnings.push("Removed AI-speak patterns");
+    logger.warn("[Response Post-Process] Removed AI-speak from response");
+  }
+
+  // Check for repetitive greeting
+  const isRepetitive =
+    isRepetitiveGreeting(processed) ||
+    (roomId ? isRepeatedOpening(roomId, processed) : false);
+
+  if (isRepetitive) {
+    warnings.push("Response starts with repetitive greeting");
+    logger.warn("[Response Post-Process] Detected repetitive opening");
+  }
+
+  // Track this opening if room provided
+  if (roomId && processed.trim()) {
+    trackOpening(roomId, processed);
+  }
+
+  return {
+    text: processed,
+    wasModified,
+    hadAISpeak,
+    isRepetitive,
+    warnings,
+  };
+}
+
+/**
+ * Suggest alternative openings for variety
+ */
+export function getAlternativeOpenings(context: {
+  isFlirty?: boolean;
+  hasSharedContent?: boolean;
+  isFollowUp?: boolean;
+}): string[] {
+  const { isFlirty, hasSharedContent, isFollowUp } = context;
+
+  if (isFlirty) {
+    return [
+      "okay but...",
+      "so I was thinking...",
+      "you're not gonna believe this",
+      "miss me? 😏",
+      "guess who",
+      "quick question",
+      "be honest with me...",
+    ];
+  }
+
+  if (hasSharedContent) {
+    return [
+      "Check this out!",
+      "Here you go!",
+      "Took this for you",
+      "What do you think?",
+      "I think you'll like this",
+    ];
+  }
+
+  if (isFollowUp) {
+    return [
+      "Oh, that reminds me...",
+      "Speaking of which...",
+      "Actually,",
+      "So about that...",
+      "Interesting you say that...",
+    ];
+  }
+
+  return [
+    "So...",
+    "Okay so",
+    "Actually,",
+    "You know what,",
+    "Wait,",
+    "Honestly,",
+    "Here's the thing,",
+  ];
+}
 
 /**
  * Cached attachment from action results.
@@ -44,7 +286,9 @@ function isBase64DataUrl(url: string): boolean {
   return url.startsWith("data:");
 }
 
-export function getAndClearCachedAttachments(roomId: string): CachedAttachment[] {
+export function getAndClearCachedAttachments(
+  roomId: string,
+): CachedAttachment[] {
   const attachments = actionAttachmentCache.get(roomId) || [];
   actionAttachmentCache.delete(roomId);
   return attachments;
@@ -67,6 +311,7 @@ export function cleanPrompt(prompt: string): string {
 interface Attachment {
   url?: string;
   id?: string;
+  title?: string;
   contentType?: string;
   [key: string]: unknown;
 }
@@ -75,13 +320,20 @@ interface ActionResult {
   data?: { attachments?: Attachment[] };
 }
 
-export function extractAttachments(actionResults: ActionResult[]): Attachment[] {
+export function extractAttachments(
+  actionResults: ActionResult[],
+): Attachment[] {
   return actionResults
     .flatMap((result) => result.data?.attachments ?? [])
     .filter((att): att is Attachment => {
       if (!att?.url) return false;
       if (isBase64DataUrl(att.url)) return false;
-      if (att.url.startsWith("[") || att.url === "" || !att.url.startsWith("http")) return false;
+      if (
+        att.url.startsWith("[") ||
+        att.url === "" ||
+        !att.url.startsWith("http")
+      )
+        return false;
       return true;
     });
 }
@@ -94,7 +346,10 @@ export async function executeProviders(
 ): Promise<State> {
   if (plannedProviders.length === 0) return currentState;
 
-  const providerState = await runtime.composeState(message, [...plannedProviders, "CHARACTER"]);
+  const providerState = await runtime.composeState(message, [
+    ...plannedProviders,
+    "CHARACTER",
+  ]);
   return { ...currentState, ...providerState };
 }
 
@@ -114,7 +369,11 @@ export async function executeActions(
     agentId: runtime.agentId,
     roomId: message.roomId,
     worldId: message.worldId,
-    content: { text: plan?.thought || "Executing actions", actions: plannedActions, source: "agent" },
+    content: {
+      text: plan?.thought || "Executing actions",
+      actions: plannedActions,
+      source: "agent",
+    },
   };
 
   actionAttachmentCache.set(message.roomId as string, []);
@@ -126,11 +385,18 @@ export async function executeActions(
     }
 
     if (content.attachments?.length) {
-      const existing = actionAttachmentCache.get(message.roomId as string) || [];
+      const existing =
+        actionAttachmentCache.get(message.roomId as string) || [];
       for (const att of content.attachments) {
         const a = att as Attachment;
         if (a.url?.startsWith("http")) {
-          existing.push({ id: a.id, url: a.url, title: a.title as string, contentType: a.contentType });
+
+          existing.push({
+            id: a.id,
+            url: a.url,
+            title: a.title,
+            contentType: a.contentType,
+          });
         }
       }
       actionAttachmentCache.set(message.roomId as string, existing);
@@ -139,8 +405,15 @@ export async function executeActions(
     return callback ? callback(content) : [];
   };
 
-  await runtime.processActions(message, [actionResponse], currentState, wrappedCallback);
-  const actionState = await runtime.composeState(message, ["CURRENT_RUN_CONTEXT"]);
+  await runtime.processActions(
+    message,
+    [actionResponse],
+    currentState,
+    wrappedCallback,
+  );
+  const actionState = await runtime.composeState(message, [
+    "CURRENT_RUN_CONTEXT",
+  ]);
   return { ...currentState, ...actionState };
 }
 
@@ -148,13 +421,60 @@ export async function generateResponseWithRetry(
   runtime: IAgentRuntime,
   prompt: string,
 ): Promise<{ text: string; thought: string }> {
+  let lastRawResponse = "";
+  let lastError: Error | null = null;
+
   for (let i = 0; i < MAX_RESPONSE_RETRIES; i++) {
-    const response = await runtime.useModel(ModelType.TEXT_LARGE, { prompt });
-    const parsed = parseKeyValueXml(response) as ParsedResponse | null;
-    if (parsed?.text) {
-      return { text: parsed.text, thought: parsed.thought || "" };
+    try {
+      const response = await runtime.useModel(ModelType.TEXT_LARGE, { prompt });
+
+      if (
+        !response ||
+        (typeof response === "string" && response.trim() === "")
+      ) {
+        logger.warn(
+          `[generateResponseWithRetry] Attempt ${i + 1}: Empty response from model`,
+        );
+        continue;
+      }
+
+      lastRawResponse =
+        typeof response === "string" ? response : JSON.stringify(response);
+      const parsed = parseKeyValueXml(response) as ParsedResponse | null;
+
+      if (parsed?.text) {
+        return { text: parsed.text, thought: parsed.thought || "" };
+      }
+
+      logger.warn(
+        `[generateResponseWithRetry] Attempt ${i + 1}: Failed to parse XML, raw: "${lastRawResponse.substring(0, 100)}..."`,
+      );
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      logger.error(
+        `[generateResponseWithRetry] Attempt ${i + 1} failed:`,
+        lastError.message,
+      );
     }
   }
+
+  if (lastRawResponse && lastRawResponse.length > 10) {
+    const cleanedResponse = lastRawResponse
+      .replace(/<[^>]+>/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+
+    if (cleanedResponse.length > 20) {
+      logger.info(
+        `[generateResponseWithRetry] Using cleaned raw response as fallback`,
+      );
+      return { text: cleanedResponse, thought: "" };
+    }
+  }
+
+  logger.error(
+    `[generateResponseWithRetry] All ${MAX_RESPONSE_RETRIES} attempts failed. Last error: ${lastError?.message || "Unknown"}`,
+  );
   return { text: "", thought: "" };
 }
 
@@ -168,7 +488,21 @@ export async function runEvaluatorsWithTimeout(
   if (typeof runtime.evaluate !== "function") return;
 
   await Promise.race([
-    runtime.evaluate(message, { ...state }, true, (content) => callback?.(content) ?? [], [responseMemory]),
-    new Promise<void>((_, reject) => setTimeout(() => reject(new Error("Evaluators timeout")), EVALUATOR_TIMEOUT_MS)),
+    runtime.evaluate(
+      message,
+      { ...state },
+      true,
+      async (content) => {
+        const result = await callback?.(content);
+        return result ?? [];
+      },
+      [responseMemory],
+    ),
+    new Promise<void>((_, reject) =>
+      setTimeout(
+        () => reject(new Error("Evaluators timeout")),
+        EVALUATOR_TIMEOUT_MS,
+      ),
+    ),
   ]);
 }

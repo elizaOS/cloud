@@ -51,7 +51,7 @@ export interface AgentCreditsState {
 const OPERATION_COSTS = {
   chat: 0.01,
   image: 0.05,
-  video: 0.50,
+  video: 0.5,
   mcp: 0.02,
   a2a: 0.03,
 };
@@ -75,8 +75,10 @@ export const agentCreditsProvider: Provider = {
     if (!budget) {
       // No dedicated budget - agent uses org credits directly
       // Try to get org credits from runtime settings
-      const orgId = runtime.character.settings?.organizationId as string | undefined;
-      
+      const orgId = runtime.character.settings?.organizationId as
+        | string
+        | undefined;
+
       let orgBalance = 0;
       if (orgId) {
         const org = await organizationsService.getById(orgId);
@@ -98,9 +100,10 @@ export const agentCreditsProvider: Provider = {
         canAffordVideo: orgBalance >= OPERATION_COSTS.video,
         canAffordMcp: orgBalance >= OPERATION_COSTS.mcp,
         statusText: `Using organization credits: $${orgBalance.toFixed(2)} available`,
-        budgetWarning: orgBalance < 1 
-          ? "⚠️ Low organization credits - consider topping up" 
-          : null,
+        budgetWarning:
+          orgBalance < 1
+            ? "⚠️ Low organization credits - consider topping up"
+            : null,
       };
     } else {
       const allocated = Number(budget.allocated_budget);
@@ -111,9 +114,10 @@ export const agentCreditsProvider: Provider = {
       const dailyRemaining = dailyLimit ? dailyLimit - dailySpent : null;
 
       // Determine effective available (minimum of budget and daily remaining)
-      const effectiveAvailable = dailyRemaining !== null
-        ? Math.min(available, dailyRemaining)
-        : available;
+      const effectiveAvailable =
+        dailyRemaining !== null
+          ? Math.min(available, dailyRemaining)
+          : available;
 
       creditsState = {
         hasBudget: true,
@@ -125,14 +129,22 @@ export const agentCreditsProvider: Provider = {
         dailyRemaining,
         isPaused: budget.is_paused,
         pauseReason: budget.pause_reason,
-        canAffordChat: !budget.is_paused && effectiveAvailable >= OPERATION_COSTS.chat,
-        canAffordImage: !budget.is_paused && effectiveAvailable >= OPERATION_COSTS.image,
-        canAffordVideo: !budget.is_paused && effectiveAvailable >= OPERATION_COSTS.video,
-        canAffordMcp: !budget.is_paused && effectiveAvailable >= OPERATION_COSTS.mcp,
+        canAffordChat:
+          !budget.is_paused && effectiveAvailable >= OPERATION_COSTS.chat,
+        canAffordImage:
+          !budget.is_paused && effectiveAvailable >= OPERATION_COSTS.image,
+        canAffordVideo:
+          !budget.is_paused && effectiveAvailable >= OPERATION_COSTS.video,
+        canAffordMcp:
+          !budget.is_paused && effectiveAvailable >= OPERATION_COSTS.mcp,
         statusText: budget.is_paused
           ? `⚠️ Budget paused: ${budget.pause_reason || "Unknown reason"}`
           : `Budget: $${available.toFixed(2)} available (${dailyRemaining !== null ? `$${dailyRemaining.toFixed(2)} daily remaining` : "no daily limit"})`,
-        budgetWarning: getBudgetWarning(available, dailyRemaining, budget.is_paused),
+        budgetWarning: getBudgetWarning(
+          available,
+          dailyRemaining,
+          budget.is_paused,
+        ),
       };
     }
 
@@ -156,7 +168,7 @@ export const agentCreditsProvider: Provider = {
 function getBudgetWarning(
   available: number,
   dailyRemaining: number | null,
-  isPaused: boolean
+  isPaused: boolean,
 ): string | null {
   if (isPaused) {
     return "⚠️ Your budget is paused. Contact your administrator to resume operations.";
@@ -166,11 +178,11 @@ function getBudgetWarning(
     return "🚫 No budget available. You cannot perform operations requiring credits.";
   }
 
-  if (available < 0.50) {
+  if (available < 0.5) {
     return `⚠️ Very low budget: $${available.toFixed(2)}. Some operations may fail.`;
   }
 
-  if (dailyRemaining !== null && dailyRemaining < 0.10) {
+  if (dailyRemaining !== null && dailyRemaining < 0.1) {
     return `⚠️ Daily limit nearly reached: $${dailyRemaining.toFixed(2)} remaining today.`;
   }
 
@@ -191,7 +203,7 @@ export function getCreditsPromptSection(credits: AgentCreditsState): string {
   }
 
   const lines: string[] = [];
-  
+
   lines.push("## Your Budget Status");
   lines.push("");
   lines.push(credits.statusText);
@@ -210,17 +222,23 @@ export function getCreditsPromptSection(credits: AgentCreditsState): string {
 
   if (!credits.canAffordImage) {
     lines.push("");
-    lines.push("⚠️ You cannot afford image generation. If asked, politely decline.");
+    lines.push(
+      "⚠️ You cannot afford image generation. If asked, politely decline.",
+    );
   }
 
   if (!credits.canAffordVideo) {
     lines.push("");
-    lines.push("⚠️ You cannot afford video generation. If asked, politely decline.");
+    lines.push(
+      "⚠️ You cannot afford video generation. If asked, politely decline.",
+    );
   }
 
   if (credits.isPaused) {
     lines.push("");
-    lines.push("🛑 Your budget is PAUSED. You can only provide basic text responses.");
+    lines.push(
+      "🛑 Your budget is PAUSED. You can only provide basic text responses.",
+    );
     lines.push("Politely inform users that you're temporarily limited.");
   }
 
@@ -237,7 +255,7 @@ export function getCreditsPromptSection(credits: AgentCreditsState): string {
  */
 export async function canAgentAfford(
   agentId: string,
-  operation: keyof typeof OPERATION_COSTS
+  operation: keyof typeof OPERATION_COSTS,
 ): Promise<{
   canAfford: boolean;
   available: number;
@@ -263,7 +281,7 @@ export async function deductAgentBudget(
   agentId: string,
   amount: number,
   operation: string,
-  metadata?: Record<string, unknown>
+  metadata?: Record<string, unknown>,
 ): Promise<{
   success: boolean;
   newBalance: number;
@@ -285,4 +303,3 @@ export async function deductAgentBudget(
 }
 
 export default agentCreditsProvider;
-

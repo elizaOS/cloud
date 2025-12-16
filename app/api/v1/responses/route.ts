@@ -246,7 +246,8 @@ function transformOpenAIToAISdk(openAIResponse: OpenAIChatResponse): object {
         }
       : undefined,
     // Preserve any provider metadata
-    ...("provider_metadata" in openAIResponse && openAIResponse.provider_metadata
+    ...("provider_metadata" in openAIResponse &&
+    openAIResponse.provider_metadata
       ? { provider_metadata: openAIResponse.provider_metadata }
       : {}),
   };
@@ -303,15 +304,13 @@ async function handlePOST(req: NextRequest) {
     const systemMessages = request.messages.filter(
       (msg) => msg.role === "system",
     );
-    const userMessages = request.messages.filter(
-      (msg) => msg.role === "user",
-    );
+    const userMessages = request.messages.filter((msg) => msg.role === "user");
     const assistantMessages = request.messages.filter(
       (msg) => msg.role === "assistant",
     );
 
     // Helper to get content as string for logging
-    const getContentString = (content: OpenAIChatMessage["content"]): string => 
+    const getContentString = (content: OpenAIChatMessage["content"]): string =>
       typeof content === "string" ? content : JSON.stringify(content);
 
     logger.info("[Responses API] 📝 PROMPT BREAKDOWN", {
@@ -378,8 +377,14 @@ async function handlePOST(req: NextRequest) {
     // Validate and clean message content
     // Filter out empty system messages (characters may not have system prompts configured)
     request.messages = request.messages.filter((msg, i) => {
-      if (msg.role === "system" && (!msg.content || (typeof msg.content === "string" && msg.content.trim() === ""))) {
-        logger.debug("[Responses API] Filtering out empty system message", { messageIndex: i });
+      if (
+        msg.role === "system" &&
+        (!msg.content ||
+          (typeof msg.content === "string" && msg.content.trim() === ""))
+      ) {
+        logger.debug("[Responses API] Filtering out empty system message", {
+          messageIndex: i,
+        });
         return false;
       }
       return true;
@@ -463,7 +468,8 @@ async function handlePOST(req: NextRequest) {
       return Response.json(
         {
           error: {
-            message: "Your account has been suspended due to policy violations. Please contact support.",
+            message:
+              "Your account has been suspended due to policy violations. Please contact support.",
             type: "account_suspended",
             code: "moderation_violation",
           },
@@ -473,12 +479,15 @@ async function handlePOST(req: NextRequest) {
     }
 
     // Start async content moderation (runs in background, doesn't block)
-    const lastUserMessage = [...request.messages].reverse().find(m => m.role === "user");
+    const lastUserMessage = [...request.messages]
+      .reverse()
+      .find((m) => m.role === "user");
     if (lastUserMessage?.content) {
-      const messageText = typeof lastUserMessage.content === "string" 
-        ? lastUserMessage.content 
-        : lastUserMessage.content.find(c => c.type === "text")?.text || "";
-      
+      const messageText =
+        typeof lastUserMessage.content === "string"
+          ? lastUserMessage.content
+          : lastUserMessage.content.find((c) => c.type === "text")?.text || "";
+
       if (messageText) {
         contentModerationService.moderateInBackground(
           messageText,
@@ -490,7 +499,7 @@ async function handlePOST(req: NextRequest) {
               categories: result.flaggedCategories,
               action: result.action,
             });
-          }
+          },
         );
       }
     }

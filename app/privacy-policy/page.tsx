@@ -10,7 +10,7 @@ export const metadata: Metadata = generatePageMetadata({
   description:
     "Privacy Policy for elizaOS Platform - Learn how we collect, use, and protect your data.",
   path: "/privacy-policy",
-  keywords: ["privacy policy", "data protection", "GDPR", "privacy", "elizaOS"  ],
+  keywords: ["privacy policy", "data protection", "GDPR", "privacy", "elizaOS"],
 });
 
 /**

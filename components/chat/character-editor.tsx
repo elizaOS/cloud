@@ -1,6 +1,6 @@
 /**
  * Character editor component with tabbed interface for editing character properties.
- * Supports form-based editing, JSON editing, plugins management, and stats display.
+ * Supports form-based editing, JSON editing, plugins management, and knowledge uploads.
  *
  * @param props - Character editor configuration
  * @param props.character - Character data to edit
@@ -17,22 +17,13 @@ import { PluginsTab } from "@/components/chat/plugins-tab";
 import { UploadsTab } from "@/components/chat/uploads-tab";
 import type { ElizaCharacter } from "@/lib/types";
 import { Button } from "@/components/ui/button";
-import {
-  Download,
-  Save,
-  Zap,
-  BookOpen,
-  Sparkles,
-  Puzzle,
-  BarChart3,
-} from "lucide-react";
+import { Download, Save, Zap, BookOpen, Sparkles, Puzzle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   BrandTabsResponsive,
   type TabItem,
 } from "@/components/brand/brand-tabs-responsive";
 import { usePathname, useSearchParams } from "next/navigation";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 interface CharacterEditorProps {
   character: ElizaCharacter;
@@ -40,7 +31,7 @@ interface CharacterEditorProps {
   onSave: () => Promise<void>;
 }
 
-type MainTab = "character" | "plugins" | "stats" | "knowledge";
+type MainTab = "character" | "plugins" | "files";
 
 export function CharacterEditor({
   character,
@@ -50,9 +41,9 @@ export function CharacterEditor({
   const searchParams = useSearchParams();
   const initialTab = searchParams.get("tab") as MainTab | null;
   const [activeTab, setActiveTab] = useState<MainTab>(
-    initialTab && ["character", "plugins", "stats", "knowledge"].includes(initialTab)
+    initialTab && ["character", "plugins", "files"].includes(initialTab)
       ? initialTab
-      : "character"
+      : "character",
   );
   const [showJson, setShowJson] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -60,8 +51,10 @@ export function CharacterEditor({
   // Update tab when URL changes
   useEffect(() => {
     const tab = searchParams.get("tab") as MainTab | null;
-    if (tab && ["character", "plugins", "stats", "knowledge"].includes(tab)) {
-      setActiveTab(tab);
+    if (tab && ["character", "plugins", "files"].includes(tab)) {
+      // Schedule state update to avoid synchronous setState in effect
+      const rafId = requestAnimationFrame(() => setActiveTab(tab));
+      return () => cancelAnimationFrame(rafId);
     }
   }, [searchParams]);
 
@@ -77,13 +70,8 @@ export function CharacterEditor({
       icon: <Puzzle className="h-4 w-4" />,
     },
     {
-      value: "stats",
-      label: "Stats",
-      icon: <BarChart3 className="h-4 w-4" />,
-    },
-    {
-      value: "knowledge",
-      label: "Knowledge",
+      value: "files",
+      label: "Files",
       icon: <BookOpen className="h-4 w-4" />,
     },
   ];
@@ -116,12 +104,7 @@ export function CharacterEditor({
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
             <h2 className="text-xl font-bold text-white">Agent Builder</h2>
-            <Zap
-              className={cn([
-                mode === "chat" ? "text-[#FF5800]" : "text-[#E500FF]",
-                "h-5 w-5",
-              ])}
-            />
+            <Zap className="text-[#FF5800] h-5 w-5" />
           </div>
           <div className="flex items-center gap-2">
             <Button
@@ -137,19 +120,9 @@ export function CharacterEditor({
               size="sm"
               onClick={handleSave}
               disabled={isSaving}
-              className={cn([
-                mode === "chat"
-                  ? "text-white hover:bg-[#FF5800]/90 bg-[#FF5800]"
-                  : "hover:bg-[#E500FF] bg-[#E500FF] text-white",
-                "rounded-none",
-              ])}
+              className="text-white hover:bg-[#FF5800]/90 bg-[#FF5800] rounded-none"
             >
-              <Save
-                className={cn([
-                  mode === "chat" ? "text-[#FF5800]" : "text-white",
-                  "mr-2 h-4 w-4",
-                ])}
-              />
+              <Save className="mr-2 h-4 w-4" />
               {isSaving ? "Saving..." : "Save"}
             </Button>
           </div>
@@ -185,13 +158,13 @@ export function CharacterEditor({
               onClick={() => setShowJson(!showJson)}
               className={cn(
                 "relative inline-flex h-5 w-9 items-center rounded-full transition-colors",
-                showJson ? "bg-[#E500FF]" : "bg-white/20"
+                showJson ? "bg-[#FF5800]" : "bg-white/20",
               )}
             >
               <span
                 className={cn(
                   "inline-block h-3 w-3 transform rounded-full bg-white transition-transform",
-                  showJson ? "translate-x-5" : "translate-x-1"
+                  showJson ? "translate-x-5" : "translate-x-1",
                 )}
               />
             </button>
@@ -219,60 +192,7 @@ export function CharacterEditor({
                 onSave={onSave}
               />
             )}
-            {activeTab === "stats" && (
-              <div className="flex h-full flex-col">
-                <Tabs
-                  defaultValue="model-calls"
-                  className="flex flex-col h-full"
-                >
-                  <div className="flex-shrink-0 px-6 pt-4">
-                    <TabsList className="bg-white/5 border border-white/10 rounded-lg p-1">
-                      <TabsTrigger
-                        value="model-calls"
-                        className="data-[state=active]:bg-[#FF5800] data-[state=active]:text-white text-white/60 rounded-md px-4 py-1.5 text-sm"
-                      >
-                        <Zap className="h-3.5 w-3.5 mr-2" />
-                        Model Calls
-                      </TabsTrigger>
-                      <TabsTrigger
-                        value="memories"
-                        className="data-[state=active]:bg-[#FF5800] data-[state=active]:text-white text-white/60 rounded-md px-4 py-1.5 text-sm"
-                      >
-                        <BookOpen className="h-3.5 w-3.5 mr-2" />
-                        Memories
-                      </TabsTrigger>
-                    </TabsList>
-                  </div>
-                  <TabsContent value="model-calls" className="flex-1 m-0">
-                    <div className="flex h-full items-center justify-center p-6">
-                      <div className="text-center">
-                        <Zap className="h-12 w-12 text-white/40 mx-auto mb-4" />
-                        <h3 className="text-lg font-semibold text-white mb-2">
-                          Model Calls
-                        </h3>
-                        <p className="text-sm text-white/60">
-                          Configure model settings and API calls
-                        </p>
-                      </div>
-                    </div>
-                  </TabsContent>
-                  <TabsContent value="memories" className="flex-1 m-0">
-                    <div className="flex h-full items-center justify-center p-6">
-                      <div className="text-center">
-                        <BookOpen className="h-12 w-12 text-white/40 mx-auto mb-4" />
-                        <h3 className="text-lg font-semibold text-white mb-2">
-                          Memories
-                        </h3>
-                        <p className="text-sm text-white/60">
-                          View and manage agent memories
-                        </p>
-                      </div>
-                    </div>
-                  </TabsContent>
-                </Tabs>
-              </div>
-            )}
-            {activeTab === "knowledge" && (
+            {activeTab === "files" && (
               <UploadsTab characterId={character.id || null} />
             )}
           </>

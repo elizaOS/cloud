@@ -146,7 +146,10 @@ class AgentBudgetService {
    * Check if agent has sufficient budget for an operation
    * This is a pre-flight check - does not lock or modify anything
    */
-  async checkBudget(agentId: string, estimatedCost: number): Promise<BudgetCheckResult> {
+  async checkBudget(
+    agentId: string,
+    estimatedCost: number,
+  ): Promise<BudgetCheckResult> {
     const budget = await this.getOrCreateBudget(agentId);
 
     if (!budget) {
@@ -163,7 +166,8 @@ class AgentBudgetService {
     if (budget.is_paused) {
       return {
         canProceed: false,
-        availableBudget: Number(budget.allocated_budget) - Number(budget.spent_budget),
+        availableBudget:
+          Number(budget.allocated_budget) - Number(budget.spent_budget),
         dailyRemaining: budget.daily_limit
           ? Number(budget.daily_limit) - Number(budget.daily_spent)
           : null,
@@ -221,10 +225,23 @@ class AgentBudgetService {
    * Deduct from agent's budget atomically
    */
   async deductBudget(params: DeductBudgetParams): Promise<DeductBudgetResult> {
-    const { agentId, amount, description, operationType, model, tokensUsed, metadata } = params;
+    const {
+      agentId,
+      amount,
+      description,
+      operationType,
+      model,
+      tokensUsed,
+      metadata,
+    } = params;
 
     if (amount <= 0) {
-      return { success: false, newBalance: 0, dailySpent: 0, error: "Amount must be positive" };
+      return {
+        success: false,
+        newBalance: 0,
+        dailySpent: 0,
+        error: "Amount must be positive",
+      };
     }
 
     return await db.transaction(async (tx) => {
@@ -247,7 +264,8 @@ class AgentBudgetService {
       if (budget.is_paused) {
         return {
           success: false,
-          newBalance: Number(budget.allocated_budget) - Number(budget.spent_budget),
+          newBalance:
+            Number(budget.allocated_budget) - Number(budget.spent_budget),
           dailySpent: Number(budget.daily_spent),
           error: budget.pause_reason || "Agent budget is paused",
         };
@@ -395,7 +413,11 @@ class AgentBudgetService {
     const { agentId, amount, fromOrgCredits = true, description } = params;
 
     if (amount <= 0) {
-      return { success: false, newBalance: 0, error: "Amount must be positive" };
+      return {
+        success: false,
+        newBalance: 0,
+        error: "Amount must be positive",
+      };
     }
 
     const budget = await this.getOrCreateBudget(agentId);
@@ -423,7 +445,9 @@ class AgentBudgetService {
         if (!deductResult.success) {
           return {
             success: false,
-            newBalance: Number(lockedBudget.allocated_budget) - Number(lockedBudget.spent_budget),
+            newBalance:
+              Number(lockedBudget.allocated_budget) -
+              Number(lockedBudget.spent_budget),
             error: "Insufficient organization credits",
           };
         }
@@ -440,12 +464,15 @@ class AgentBudgetService {
         .set({
           allocated_budget: newAllocated.toFixed(4),
           // Unpause if was paused due to depletion
-          is_paused: lockedBudget.is_paused && lockedBudget.pause_reason === "Budget depleted" 
-            ? false 
-            : lockedBudget.is_paused,
-          pause_reason: lockedBudget.pause_reason === "Budget depleted" 
-            ? null 
-            : lockedBudget.pause_reason,
+          is_paused:
+            lockedBudget.is_paused &&
+            lockedBudget.pause_reason === "Budget depleted"
+              ? false
+              : lockedBudget.is_paused,
+          pause_reason:
+            lockedBudget.pause_reason === "Budget depleted"
+              ? null
+              : lockedBudget.pause_reason,
           low_budget_alert_sent: false, // Reset alert flag
           updated_at: new Date(),
         })
@@ -507,7 +534,9 @@ class AgentBudgetService {
     if (budget.last_refill_at) {
       const hourAgo = new Date(Date.now() - 60 * 60 * 1000);
       if (budget.last_refill_at > hourAgo) {
-        logger.debug("[AgentBudgets] Auto-refill skipped (cooldown)", { agentId });
+        logger.debug("[AgentBudgets] Auto-refill skipped (cooldown)", {
+          agentId,
+        });
         return false;
       }
     }
@@ -580,7 +609,7 @@ class AgentBudgetService {
    */
   async updateSettings(
     agentId: string,
-    settings: UpdateBudgetSettingsParams
+    settings: UpdateBudgetSettingsParams,
   ): Promise<{ success: boolean; error?: string }> {
     const budget = await this.getBudget(agentId);
     if (!budget) {
@@ -633,7 +662,7 @@ class AgentBudgetService {
    */
   async getTransactions(
     agentId: string,
-    limit = 50
+    limit = 50,
   ): Promise<AgentBudgetTransaction[]> {
     const budget = await this.getBudget(agentId);
     if (!budget) {
@@ -658,11 +687,15 @@ class AgentBudgetService {
 
   /**
    * Process all auto-refills (for cron job)
-   * 
+   *
    * Note: Errors are collected rather than thrown to allow batch processing
    * to continue. All errors are logged with full context.
    */
-  async processAutoRefills(): Promise<{ processed: number; errors: number; failedAgents: string[] }> {
+  async processAutoRefills(): Promise<{
+    processed: number;
+    errors: number;
+    failedAgents: string[];
+  }> {
     // Find all budgets that need refilling
     const budgetsToRefill = await db
       .select()
@@ -670,8 +703,8 @@ class AgentBudgetService {
       .where(
         and(
           eq(agentBudgets.auto_refill_enabled, true),
-          eq(agentBudgets.is_paused, false)
-        )
+          eq(agentBudgets.is_paused, false),
+        ),
       );
 
     let processed = 0;
@@ -679,7 +712,7 @@ class AgentBudgetService {
 
     for (const budget of budgetsToRefill) {
       const available = new Decimal(budget.allocated_budget).minus(
-        budget.spent_budget
+        budget.spent_budget,
       );
       const threshold = budget.auto_refill_threshold
         ? new Decimal(budget.auto_refill_threshold)
@@ -738,7 +771,10 @@ class AgentBudgetService {
     }
   }
 
-  private async sendLowBudgetAlert(agentId: string, balance: number): Promise<boolean> {
+  private async sendLowBudgetAlert(
+    agentId: string,
+    balance: number,
+  ): Promise<boolean> {
     // Mark alert as sent
     await db
       .update(agentBudgets)
@@ -757,7 +793,9 @@ class AgentBudgetService {
       .limit(1);
 
     if (!agentInfo?.organizationId) {
-      logger.warn("[AgentBudgets] Cannot send alert - no organization found", { agentId });
+      logger.warn("[AgentBudgets] Cannot send alert - no organization found", {
+        agentId,
+      });
       return false;
     }
 
@@ -784,7 +822,9 @@ class AgentBudgetService {
     }
 
     if (!recipientEmail) {
-      logger.warn("[AgentBudgets] Cannot send alert - no email found", { agentId });
+      logger.warn("[AgentBudgets] Cannot send alert - no email found", {
+        agentId,
+      });
       return false;
     }
 
@@ -793,15 +833,15 @@ class AgentBudgetService {
       email: recipientEmail,
       organizationName: orgInfo?.orgName ?? "Your Organization",
       currentBalance: balance,
-      threshold: 5.00, // Standard low budget threshold
+      threshold: 5.0, // Standard low budget threshold
       topUpUrl: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/billing`,
     });
 
-    logger.info("[AgentBudgets] Low budget alert sent", { 
-      agentId, 
+    logger.info("[AgentBudgets] Low budget alert sent", {
+      agentId,
       agentName: agentInfo.agentName,
       balance,
-      email: recipientEmail 
+      email: recipientEmail,
     });
     return true;
   }
@@ -809,4 +849,3 @@ class AgentBudgetService {
 
 // Export singleton
 export const agentBudgetService = new AgentBudgetService();
-

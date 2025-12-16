@@ -79,14 +79,6 @@ const FloatingNode = ({
               className={
                 data.type === "agent" ? "object-cover" : "object-contain p-1"
               }
-              style={
-                data.type === "agent"
-                  ? {
-                      filter:
-                        "sepia(100%) saturate(400%) hue-rotate(-10deg) brightness(0.7) contrast(1.2)",
-                    }
-                  : undefined
-              }
             />
           </div>
         ) : null}
@@ -167,9 +159,9 @@ export default function MicropaymentNetwork() {
         id: "agent1",
         data: {
           label: "Agent 1",
-          color: "#FF580080",
+          color: "#",
           type: "agent",
-          image: "/avatars/luna.png",
+          image: "/otaku.png",
         },
         position: { x: 172, y: 93 },
         type: "floating",
@@ -178,15 +170,15 @@ export default function MicropaymentNetwork() {
         id: "agent2",
         data: {
           label: "Agent 2",
-          color: "#FF580080",
+          color: "#",
           type: "agent",
-          image: "/avatars/amara.png",
+          image: "/spartan.png",
         },
         position: { x: 403, y: 141 },
         type: "floating",
       },
     ],
-    [],
+    []
   );
 
   const initialEdges: Edge[] = useMemo(
@@ -234,7 +226,7 @@ export default function MicropaymentNetwork() {
         style: { stroke: "#FF580040", strokeWidth: 1.5 },
       },
     ],
-    [],
+    []
   );
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
@@ -247,8 +239,8 @@ export default function MicropaymentNetwork() {
         acc[node.id] = { x: node.position.x, y: node.position.y };
         return acc;
       },
-      {} as Record<string, { x: number; y: number }>,
-    ),
+      {} as Record<string, { x: number; y: number }>
+    )
   );
 
   // Subtle hovering animation effect
@@ -270,7 +262,7 @@ export default function MicropaymentNetwork() {
               y: basePos.y + offset,
             },
           };
-        }),
+        })
       );
     }, 16); // ~60fps
 

@@ -85,7 +85,7 @@ export function AppEarningsDashboard({ appId }: AppEarningsDashboardProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const testDataParam = searchParams.get("testData") === "true";
-  
+
   const [isLoading, setIsLoading] = useState(true);
   const [isTestData, setIsTestData] = useState(false);
   const [period, setPeriod] = useState<"7" | "30" | "90">("30");
@@ -103,15 +103,18 @@ export function AppEarningsDashboard({ appId }: AppEarningsDashboardProps) {
   const fetchEarnings = async () => {
     setIsLoading(true);
     setError(null);
-    
-    const url = new URL(`/api/v1/apps/${appId}/earnings`, window.location.origin);
+
+    const url = new URL(
+      `/api/v1/apps/${appId}/earnings`,
+      window.location.origin,
+    );
     url.searchParams.set("days", period);
-    
+
     // Pass testData param to API if present in the page URL
     if (testDataParam) {
       url.searchParams.set("testData", "true");
     }
-    
+
     const response = await fetch(url.toString());
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -149,7 +152,9 @@ export function AppEarningsDashboard({ appId }: AppEarningsDashboardProps) {
         <CornerBrackets className="opacity-20" />
         <div className="relative z-10 text-center py-12">
           <AlertCircle className="h-12 w-12 mx-auto mb-4 text-red-400" />
-          <h3 className="text-lg font-semibold text-white mb-2">Error loading earnings</h3>
+          <h3 className="text-lg font-semibold text-white mb-2">
+            Error loading earnings
+          </h3>
           <p className="text-white/60 mb-4">{error}</p>
           <Button
             onClick={fetchEarnings}
@@ -180,13 +185,19 @@ export function AppEarningsDashboard({ appId }: AppEarningsDashboardProps) {
     switch (type) {
       case "inference_markup":
         return (
-          <Badge variant="secondary" className="bg-purple-500/20 text-purple-400">
+          <Badge
+            variant="secondary"
+            className="bg-purple-500/20 text-purple-400"
+          >
             Inference
           </Badge>
         );
       case "purchase_share":
         return (
-          <Badge variant="secondary" className="bg-yellow-500/20 text-yellow-400">
+          <Badge
+            variant="secondary"
+            className="bg-yellow-500/20 text-yellow-400"
+          >
             Purchase
           </Badge>
         );
@@ -213,9 +224,12 @@ export function AppEarningsDashboard({ appId }: AppEarningsDashboardProps) {
           <p className="text-sm text-amber-400">Test Data Mode</p>
         </div>
       )}
-      
+
       <div className="flex justify-end">
-        <Select value={period} onValueChange={(v) => setPeriod(v as typeof period)}>
+        <Select
+          value={period}
+          onValueChange={(v) => setPeriod(v as typeof period)}
+        >
           <SelectTrigger className="w-[180px]">
             <SelectValue />
           </SelectTrigger>
@@ -232,7 +246,9 @@ export function AppEarningsDashboard({ appId }: AppEarningsDashboardProps) {
           <CornerBrackets className="opacity-20" />
           <div className="relative z-10 text-center py-12">
             <TrendingUp className="h-16 w-16 mx-auto mb-4 text-white/20" />
-            <h3 className="text-lg font-semibold text-white mb-2">No earnings yet</h3>
+            <h3 className="text-lg font-semibold text-white mb-2">
+              No earnings yet
+            </h3>
             <p className="text-white/60 mb-4">
               Enable monetization to start earning from your app
             </p>
@@ -399,51 +415,53 @@ export function AppEarningsDashboard({ appId }: AppEarningsDashboardProps) {
         </div>
       </BrandCard>
 
-      {summary && (summary.totalInferenceEarnings > 0 || summary.totalPurchaseEarnings > 0) && (
-        <div className="grid gap-4 md:grid-cols-2">
-          <BrandCard>
-            <CornerBrackets className="opacity-20" />
-            <div className="relative z-10">
-              <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                <Zap className="h-5 w-5 text-purple-500" />
-                Inference Earnings
-              </h3>
-              <div className="text-3xl font-bold text-purple-400">
-                ${summary.totalInferenceEarnings.toFixed(2)}
+      {summary &&
+        (summary.totalInferenceEarnings > 0 ||
+          summary.totalPurchaseEarnings > 0) && (
+          <div className="grid gap-4 md:grid-cols-2">
+            <BrandCard>
+              <CornerBrackets className="opacity-20" />
+              <div className="relative z-10">
+                <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                  <Zap className="h-5 w-5 text-purple-500" />
+                  Inference Earnings
+                </h3>
+                <div className="text-3xl font-bold text-purple-400">
+                  ${summary.totalInferenceEarnings.toFixed(2)}
+                </div>
+                <div className="mt-4 h-2 bg-white/10 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-purple-500"
+                    style={{
+                      width: `${(summary.totalInferenceEarnings / summary.totalLifetimeEarnings) * 100 || 0}%`,
+                    }}
+                  />
+                </div>
               </div>
-              <div className="mt-4 h-2 bg-white/10 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-purple-500"
-                  style={{
-                    width: `${(summary.totalInferenceEarnings / summary.totalLifetimeEarnings) * 100 || 0}%`,
-                  }}
-                />
-              </div>
-            </div>
-          </BrandCard>
+            </BrandCard>
 
-          <BrandCard>
-            <CornerBrackets className="opacity-20" />
-            <div className="relative z-10">
-              <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                <Coins className="h-5 w-5 text-yellow-500" />
-                Purchase Earnings
-              </h3>
-              <div className="text-3xl font-bold text-yellow-400">
-                ${summary.totalPurchaseEarnings.toFixed(2)}
+            <BrandCard>
+              <CornerBrackets className="opacity-20" />
+              <div className="relative z-10">
+                <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                  <Coins className="h-5 w-5 text-yellow-500" />
+                  Purchase Earnings
+                </h3>
+                <div className="text-3xl font-bold text-yellow-400">
+                  ${summary.totalPurchaseEarnings.toFixed(2)}
+                </div>
+                <div className="mt-4 h-2 bg-white/10 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-yellow-500"
+                    style={{
+                      width: `${(summary.totalPurchaseEarnings / summary.totalLifetimeEarnings) * 100 || 0}%`,
+                    }}
+                  />
+                </div>
               </div>
-              <div className="mt-4 h-2 bg-white/10 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-yellow-500"
-                  style={{
-                    width: `${(summary.totalPurchaseEarnings / summary.totalLifetimeEarnings) * 100 || 0}%`,
-                  }}
-                />
-              </div>
-            </div>
-          </BrandCard>
-        </div>
-      )}
+            </BrandCard>
+          </div>
+        )}
 
       <BrandCard>
         <CornerBrackets className="opacity-20" />
@@ -497,8 +515,6 @@ export function AppEarningsDashboard({ appId }: AppEarningsDashboardProps) {
           )}
         </div>
       </BrandCard>
-
     </div>
   );
 }
-

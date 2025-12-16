@@ -140,10 +140,7 @@ export async function GET(request: NextRequest) {
         const app = await appsService.getById(appId);
 
         if (app && app.monetization_enabled) {
-          const appBalance = await appCreditsService.getBalance(
-            appId,
-            user.id,
-          );
+          const appBalance = await appCreditsService.getBalance(appId, user.id);
           const monetizationSettings =
             await appCreditsService.getMonetizationSettings(appId);
 

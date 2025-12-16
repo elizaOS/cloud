@@ -88,24 +88,26 @@ async function handlePOST(req: NextRequest) {
 
     return NextResponse.json({
       query,
-      results: limitedResults.map((item): QueryResult => ({
-        id: item.id,
-        content: item.content.text,
-        similarity: (() => {
-          if (
-            typeof item === "object" &&
-            item !== null &&
-            "similarity" in item
-          ) {
-            const similarity = (item as { similarity: unknown }).similarity;
-            if (typeof similarity === "number") {
-              return similarity;
+      results: limitedResults.map(
+        (item): QueryResult => ({
+          id: item.id,
+          content: item.content.text,
+          similarity: (() => {
+            if (
+              typeof item === "object" &&
+              item !== null &&
+              "similarity" in item
+            ) {
+              const similarity = (item as { similarity: unknown }).similarity;
+              if (typeof similarity === "number") {
+                return similarity;
+              }
             }
-          }
-          return 0;
-        })(),
-        metadata: item.metadata,
-      })),
+            return 0;
+          })(),
+          metadata: item.metadata,
+        }),
+      ),
       count: limitedResults.length,
     });
   } catch (error) {

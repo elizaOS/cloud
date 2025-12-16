@@ -22,13 +22,18 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg, type AuthResult } from "@/lib/auth";
-import { X402_ENABLED, isX402Configured, getDefaultNetwork, X402_RECIPIENT_ADDRESS } from "@/lib/config/x402";
+import {
+  X402_ENABLED,
+  isX402Configured,
+  getDefaultNetwork,
+  X402_RECIPIENT_ADDRESS,
+} from "@/lib/config/x402";
 import { creditsService } from "@/lib/services/credits";
 import { logger } from "@/lib/utils/logger";
 
 /**
  * Payment context returned by credits auth
- * 
+ *
  * NOTE: x402 direct payment is handled by the `withX402` wrapper from 'x402-next'.
  * This module only deals with credit-based authentication.
  * The "x402" payment method type is kept for compatibility but is not used here.
@@ -56,17 +61,18 @@ export function hasX402Payment(request: NextRequest): boolean {
 export function getX402Price(model: string): string {
   // Pricing based on model tier
   const modelLower = model.toLowerCase();
-  
+
   // Premium models
-  if (modelLower.includes("gpt-4o") && !modelLower.includes("mini")) return "$0.05";
+  if (modelLower.includes("gpt-4o") && !modelLower.includes("mini"))
+    return "$0.05";
   if (modelLower.includes("claude-3-5-sonnet")) return "$0.05";
   if (modelLower.includes("claude-3-opus")) return "$0.10";
-  
+
   // Standard models
   if (modelLower.includes("gpt-4o-mini")) return "$0.02";
   if (modelLower.includes("claude-3-haiku")) return "$0.01";
   if (modelLower.includes("gemini")) return "$0.02";
-  
+
   // Default for unknown models
   return "$0.03";
 }
@@ -77,7 +83,7 @@ export function getX402Price(model: string): string {
 export function generate402Response(
   price: string,
   description: string,
-  request: NextRequest
+  request: NextRequest,
 ): NextResponse {
   const network = getDefaultNetwork();
   const accepts = {
@@ -109,7 +115,7 @@ export function generate402Response(
         "X-Payment-Requirement": JSON.stringify(accepts),
         "Access-Control-Expose-Headers": "X-Payment-Requirement",
       },
-    }
+    },
   );
 }
 
@@ -134,7 +140,7 @@ export function generate402Response(
 export async function requireCreditsWithX402Fallback(
   request: NextRequest,
   estimatedCost: number,
-  description: string
+  description: string,
 ): Promise<PaymentContext> {
   // Require standard auth
   const auth = await requireAuthOrApiKeyWithOrg(request);
@@ -153,12 +159,12 @@ export async function requireCreditsWithX402Fallback(
     if (X402_ENABLED && isX402Configured()) {
       throw new Error(
         `Insufficient credits ($${deductResult.newBalance.toFixed(2)} available). ` +
-        `Top up via x402 at /api/v1/credits/topup with $${Math.max(1, estimatedCost).toFixed(2)} USDC.`
+          `Top up via x402 at /api/v1/credits/topup with $${Math.max(1, estimatedCost).toFixed(2)} USDC.`,
       );
     }
     throw new Error(
       `Insufficient credits. Required: $${estimatedCost.toFixed(4)}, ` +
-      `Available: $${deductResult.newBalance.toFixed(2)}`
+        `Available: $${deductResult.newBalance.toFixed(2)}`,
     );
   }
 
@@ -175,7 +181,7 @@ export async function requireCreditsWithX402Fallback(
 export async function refundIfCredits(
   ctx: PaymentContext,
   amount: number,
-  description: string
+  description: string,
 ): Promise<void> {
   if (ctx.paymentMethod === "credits" && ctx.auth) {
     await creditsService.refundCredits({
@@ -194,7 +200,7 @@ export async function refundIfCredits(
 export async function chargeAdditionalIfCredits(
   ctx: PaymentContext,
   additionalAmount: number,
-  description: string
+  description: string,
 ): Promise<void> {
   if (ctx.paymentMethod === "credits" && ctx.auth && additionalAmount > 0) {
     await creditsService.deductCredits({
@@ -206,4 +212,3 @@ export async function chargeAdditionalIfCredits(
   }
   // x402 already paid fixed price
 }
-

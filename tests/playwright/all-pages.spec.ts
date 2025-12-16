@@ -62,7 +62,10 @@ test.describe("Public Pages", () => {
     await page.waitForLoadState("domcontentloaded").catch(() => {});
 
     // Should have main heading or hero content
-    const hasContent = await page.locator("body").textContent().catch(() => "");
+    const hasContent = await page
+      .locator("body")
+      .textContent()
+      .catch(() => "");
     expect(hasContent?.length).toBeGreaterThan(50);
 
     console.log("✅ Home page (/) loads successfully");
@@ -82,17 +85,26 @@ test.describe("Public Pages", () => {
       'input[type="email"], input[placeholder*="example.com"]',
     );
     const walletButton = page.locator('button:has-text("Connect Wallet")');
-    const anyButton = page.locator('button').first();
-    const pageContent = await page.locator("body").textContent().catch(() => "");
-    
-    const emailVisible = await emailInput.isVisible({ timeout: 10000 }).catch(() => false);
-    const walletVisible = await walletButton.isVisible({ timeout: 5000 }).catch(() => false);
+    const anyButton = page.locator("button").first();
+    const pageContent = await page
+      .locator("body")
+      .textContent()
+      .catch(() => "");
+
+    const emailVisible = await emailInput
+      .isVisible({ timeout: 10000 })
+      .catch(() => false);
+    const walletVisible = await walletButton
+      .isVisible({ timeout: 5000 })
+      .catch(() => false);
     const hasContent = pageContent && pageContent.length > 100;
 
     // Login page loaded successfully if we have content or any login element
     const pageLoaded = emailVisible || walletVisible || hasContent;
 
-    console.log(`✅ Login page loads - Email: ${emailVisible}, Wallet: ${walletVisible}, Content: ${hasContent}`);
+    console.log(
+      `✅ Login page loads - Email: ${emailVisible}, Wallet: ${walletVisible}, Content: ${hasContent}`,
+    );
     expect(pageLoaded).toBe(true);
   });
 
@@ -161,7 +173,7 @@ test.describe("Dashboard Pages (Auth Protected)", () => {
     { path: "/dashboard/api-explorer", name: "API Explorer" },
     { path: "/dashboard/api-keys", name: "API Keys" },
     { path: "/dashboard/billing", name: "Billing" },
-    { path: "/dashboard/character-creator", name: "Character Creator" },
+    { path: "/dashboard/build", name: "Build" },
     { path: "/dashboard/containers", name: "Containers" },
     { path: "/dashboard/gallery", name: "Gallery" },
     { path: "/dashboard/image", name: "Image Generation" },
@@ -372,7 +384,10 @@ test.describe("Page Navigation Smoke Test", () => {
 
       const currentUrl = page.url();
       // Accept any of: base URL, base URL with slash, or staying on login (if link doesn't work)
-      const navigated = currentUrl === BASE_URL || currentUrl === `${BASE_URL}/` || currentUrl.includes("/login");
+      const navigated =
+        currentUrl === BASE_URL ||
+        currentUrl === `${BASE_URL}/` ||
+        currentUrl.includes("/login");
       expect(navigated).toBe(true);
       console.log(`✅ Navigation result: ${currentUrl}`);
     } else {

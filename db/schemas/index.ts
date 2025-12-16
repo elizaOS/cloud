@@ -1,6 +1,6 @@
 /**
  * Schema exports index.
- * 
+ *
  * Central export point for all database table schemas.
  */
 export * from "./organizations";
@@ -40,3 +40,4 @@ export * from "./admin-users";
 export * from "./moderation-violations";
 export * from "./agent-reputation";
 export * from "./agent-budgets";
+export * from "./app-sandboxes";

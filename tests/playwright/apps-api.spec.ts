@@ -76,7 +76,7 @@ test.describe("Apps API - CRUD Operations", () => {
     expect(data.apps.length).toBeGreaterThan(0);
 
     const foundApp = data.apps.find(
-      (app: { id: string }) => app.id === createdAppId
+      (app: { id: string }) => app.id === createdAppId,
     );
     expect(foundApp).toBeTruthy();
   });
@@ -95,7 +95,7 @@ test.describe("Apps API - CRUD Operations", () => {
       `${CLOUD_URL}/api/v1/apps/${createdAppId}`,
       {
         headers: authHeaders(),
-      }
+      },
     );
 
     expect(response.status()).toBe(200);
@@ -127,7 +127,7 @@ test.describe("Apps API - CRUD Operations", () => {
           name: "Updated App Name",
           description: "Updated description",
         },
-      }
+      },
     );
 
     expect(response.status()).toBe(200);
@@ -151,7 +151,7 @@ test.describe("Apps API - CRUD Operations", () => {
       `${CLOUD_URL}/api/v1/apps/${createdApp.id}`,
       {
         headers: authHeaders(),
-      }
+      },
     );
 
     expect(response.status()).toBe(200);
@@ -164,7 +164,7 @@ test.describe("Apps API - CRUD Operations", () => {
       `${CLOUD_URL}/api/v1/apps/${createdApp.id}`,
       {
         headers: authHeaders(),
-      }
+      },
     );
     expect(getResponse.status()).toBe(404);
 
@@ -201,7 +201,7 @@ test.describe("Apps API - Monetization Settings", () => {
       `${CLOUD_URL}/api/v1/apps/${testAppId}/monetization`,
       {
         headers: authHeaders(),
-      }
+      },
     );
 
     expect(response.status()).toBe(200);
@@ -227,7 +227,7 @@ test.describe("Apps API - Monetization Settings", () => {
           inferenceMarkupPercentage: 25,
           purchaseSharePercentage: 15,
         },
-      }
+      },
     );
 
     expect(response.status()).toBe(200);
@@ -242,43 +242,71 @@ test.describe("Apps API - Monetization Settings", () => {
   test("PUT /apps/:id/monetization validates markup range (0-1000%)", async ({
     request,
   }) => {
-    const response0 = await request.put(`${CLOUD_URL}/api/v1/apps/${testAppId}/monetization`, {
-      headers: authHeaders(), data: { inferenceMarkupPercentage: 0 },
-    });
+    const response0 = await request.put(
+      `${CLOUD_URL}/api/v1/apps/${testAppId}/monetization`,
+      {
+        headers: authHeaders(),
+        data: { inferenceMarkupPercentage: 0 },
+      },
+    );
     expect(response0.status()).toBe(200);
 
-    const response1000 = await request.put(`${CLOUD_URL}/api/v1/apps/${testAppId}/monetization`, {
-      headers: authHeaders(), data: { inferenceMarkupPercentage: 1000 },
-    });
+    const response1000 = await request.put(
+      `${CLOUD_URL}/api/v1/apps/${testAppId}/monetization`,
+      {
+        headers: authHeaders(),
+        data: { inferenceMarkupPercentage: 1000 },
+      },
+    );
     expect(response1000.status()).toBe(200);
 
-    const responseNegative = await request.put(`${CLOUD_URL}/api/v1/apps/${testAppId}/monetization`, {
-      headers: authHeaders(), data: { inferenceMarkupPercentage: -10 },
-    });
+    const responseNegative = await request.put(
+      `${CLOUD_URL}/api/v1/apps/${testAppId}/monetization`,
+      {
+        headers: authHeaders(),
+        data: { inferenceMarkupPercentage: -10 },
+      },
+    );
     expect(responseNegative.status()).toBe(400);
 
-    const responseTooHigh = await request.put(`${CLOUD_URL}/api/v1/apps/${testAppId}/monetization`, {
-      headers: authHeaders(), data: { inferenceMarkupPercentage: 1001 },
-    });
+    const responseTooHigh = await request.put(
+      `${CLOUD_URL}/api/v1/apps/${testAppId}/monetization`,
+      {
+        headers: authHeaders(),
+        data: { inferenceMarkupPercentage: 1001 },
+      },
+    );
     expect(responseTooHigh.status()).toBe(400);
   });
 
   test("PUT /apps/:id/monetization validates purchase share (0-100%)", async ({
     request,
   }) => {
-    const response0 = await request.put(`${CLOUD_URL}/api/v1/apps/${testAppId}/monetization`, {
-      headers: authHeaders(), data: { purchaseSharePercentage: 0 },
-    });
+    const response0 = await request.put(
+      `${CLOUD_URL}/api/v1/apps/${testAppId}/monetization`,
+      {
+        headers: authHeaders(),
+        data: { purchaseSharePercentage: 0 },
+      },
+    );
     expect(response0.status()).toBe(200);
 
-    const response100 = await request.put(`${CLOUD_URL}/api/v1/apps/${testAppId}/monetization`, {
-      headers: authHeaders(), data: { purchaseSharePercentage: 100 },
-    });
+    const response100 = await request.put(
+      `${CLOUD_URL}/api/v1/apps/${testAppId}/monetization`,
+      {
+        headers: authHeaders(),
+        data: { purchaseSharePercentage: 100 },
+      },
+    );
     expect(response100.status()).toBe(200);
 
-    const responseTooHigh = await request.put(`${CLOUD_URL}/api/v1/apps/${testAppId}/monetization`, {
-      headers: authHeaders(), data: { purchaseSharePercentage: 101 },
-    });
+    const responseTooHigh = await request.put(
+      `${CLOUD_URL}/api/v1/apps/${testAppId}/monetization`,
+      {
+        headers: authHeaders(),
+        data: { purchaseSharePercentage: 101 },
+      },
+    );
     expect(responseTooHigh.status()).toBe(400);
   });
 
@@ -292,7 +320,7 @@ test.describe("Apps API - Monetization Settings", () => {
         data: {
           monetizationEnabled: false,
         },
-      }
+      },
     );
 
     expect(response.status()).toBe(200);
@@ -337,7 +365,7 @@ test.describe("Apps API - Earnings", () => {
       `${CLOUD_URL}/api/v1/apps/${testAppId}/earnings`,
       {
         headers: authHeaders(),
-      }
+      },
     );
 
     expect(response.status()).toBe(200);
@@ -363,13 +391,22 @@ test.describe("Apps API - Earnings", () => {
   test("GET /apps/:id/earnings supports days query parameter", async ({
     request,
   }) => {
-    const response7 = await request.get(`${CLOUD_URL}/api/v1/apps/${testAppId}/earnings?days=7`, { headers: authHeaders() });
+    const response7 = await request.get(
+      `${CLOUD_URL}/api/v1/apps/${testAppId}/earnings?days=7`,
+      { headers: authHeaders() },
+    );
     expect(response7.status()).toBe(200);
 
-    const response30 = await request.get(`${CLOUD_URL}/api/v1/apps/${testAppId}/earnings?days=30`, { headers: authHeaders() });
+    const response30 = await request.get(
+      `${CLOUD_URL}/api/v1/apps/${testAppId}/earnings?days=30`,
+      { headers: authHeaders() },
+    );
     expect(response30.status()).toBe(200);
 
-    const response90 = await request.get(`${CLOUD_URL}/api/v1/apps/${testAppId}/earnings?days=90`, { headers: authHeaders() });
+    const response90 = await request.get(
+      `${CLOUD_URL}/api/v1/apps/${testAppId}/earnings?days=90`,
+      { headers: authHeaders() },
+    );
     expect(response90.status()).toBe(200);
   });
 
@@ -380,7 +417,7 @@ test.describe("Apps API - Earnings", () => {
       `${CLOUD_URL}/api/v1/apps/${testAppId}/earnings/history`,
       {
         headers: authHeaders(),
-      }
+      },
     );
 
     expect(response.status()).toBe(200);
@@ -399,7 +436,7 @@ test.describe("Apps API - Earnings", () => {
       `${CLOUD_URL}/api/v1/apps/${testAppId}/earnings/history?limit=10&offset=0`,
       {
         headers: authHeaders(),
-      }
+      },
     );
 
     expect(response.status()).toBe(200);
@@ -415,13 +452,13 @@ test.describe("Apps API - Earnings", () => {
   }) => {
     const responseInference = await request.get(
       `${CLOUD_URL}/api/v1/apps/${testAppId}/earnings/history?type=inference_markup`,
-      { headers: authHeaders() }
+      { headers: authHeaders() },
     );
     expect(responseInference.status()).toBe(200);
 
     const responsePurchase = await request.get(
       `${CLOUD_URL}/api/v1/apps/${testAppId}/earnings/history?type=purchase_share`,
-      { headers: authHeaders() }
+      { headers: authHeaders() },
     );
     expect(responsePurchase.status()).toBe(200);
   });
@@ -454,7 +491,7 @@ test.describe("Apps API - App Users", () => {
       `${CLOUD_URL}/api/v1/apps/${testAppId}/users`,
       {
         headers: authHeaders(),
-      }
+      },
     );
 
     expect(response.status()).toBe(200);
@@ -495,7 +532,7 @@ test.describe("Apps API - App Analytics", () => {
       `${CLOUD_URL}/api/v1/apps/${testAppId}/analytics`,
       {
         headers: authHeaders(),
-      }
+      },
     );
 
     expect(response.status()).toBe(200);
@@ -510,13 +547,13 @@ test.describe("Apps API - App Analytics", () => {
   }) => {
     const responseDaily = await request.get(
       `${CLOUD_URL}/api/v1/apps/${testAppId}/analytics?period=daily`,
-      { headers: authHeaders() }
+      { headers: authHeaders() },
     );
     expect(responseDaily.status()).toBe(200);
 
     const responseHourly = await request.get(
       `${CLOUD_URL}/api/v1/apps/${testAppId}/analytics?period=hourly`,
-      { headers: authHeaders() }
+      { headers: authHeaders() },
     );
     expect(responseHourly.status()).toBe(200);
   });
@@ -588,7 +625,7 @@ test.describe("Apps API - Error Handling", () => {
       `${CLOUD_URL}/api/v1/apps/${fakeId}`,
       {
         headers: authHeaders(),
-      }
+      },
     );
 
     expect(response.status()).toBe(404);
@@ -633,46 +670,81 @@ test.describe("Apps API - Full Lifecycle", () => {
     expect(apiKey).toBeTruthy();
 
     try {
-      const getResponse = await request.get(`${CLOUD_URL}/api/v1/apps/${app.id}`, { headers: authHeaders() });
+      const getResponse = await request.get(
+        `${CLOUD_URL}/api/v1/apps/${app.id}`,
+        { headers: authHeaders() },
+      );
       expect(getResponse.status()).toBe(200);
 
-      const monetizationResponse = await request.put(`${CLOUD_URL}/api/v1/apps/${app.id}/monetization`, {
-        headers: authHeaders(),
-        data: { monetizationEnabled: true, inferenceMarkupPercentage: 50, purchaseSharePercentage: 20 },
-      });
+      const monetizationResponse = await request.put(
+        `${CLOUD_URL}/api/v1/apps/${app.id}/monetization`,
+        {
+          headers: authHeaders(),
+          data: {
+            monetizationEnabled: true,
+            inferenceMarkupPercentage: 50,
+            purchaseSharePercentage: 20,
+          },
+        },
+      );
       expect(monetizationResponse.status()).toBe(200);
 
       const monetizationData = await monetizationResponse.json();
       expect(monetizationData.monetization.monetizationEnabled).toBe(true);
       expect(monetizationData.monetization.inferenceMarkupPercentage).toBe(50);
 
-      const earningsResponse = await request.get(`${CLOUD_URL}/api/v1/apps/${app.id}/earnings`, { headers: authHeaders() });
+      const earningsResponse = await request.get(
+        `${CLOUD_URL}/api/v1/apps/${app.id}/earnings`,
+        { headers: authHeaders() },
+      );
       expect(earningsResponse.status()).toBe(200);
       expect((await earningsResponse.json()).monetization.enabled).toBe(true);
 
-      const updateResponse = await request.put(`${CLOUD_URL}/api/v1/apps/${app.id}`, {
-        headers: authHeaders(), data: { name: "Updated Lifecycle App" },
-      });
+      const updateResponse = await request.put(
+        `${CLOUD_URL}/api/v1/apps/${app.id}`,
+        {
+          headers: authHeaders(),
+          data: { name: "Updated Lifecycle App" },
+        },
+      );
       expect(updateResponse.status()).toBe(200);
 
-      const analyticsResponse = await request.get(`${CLOUD_URL}/api/v1/apps/${app.id}/analytics`, { headers: authHeaders() });
+      const analyticsResponse = await request.get(
+        `${CLOUD_URL}/api/v1/apps/${app.id}/analytics`,
+        { headers: authHeaders() },
+      );
       expect(analyticsResponse.status()).toBe(200);
 
-      const usersResponse = await request.get(`${CLOUD_URL}/api/v1/apps/${app.id}/users`, { headers: authHeaders() });
+      const usersResponse = await request.get(
+        `${CLOUD_URL}/api/v1/apps/${app.id}/users`,
+        { headers: authHeaders() },
+      );
       expect(usersResponse.status()).toBe(200);
 
-      const disableResponse = await request.put(`${CLOUD_URL}/api/v1/apps/${app.id}/monetization`, {
-        headers: authHeaders(), data: { monetizationEnabled: false },
-      });
+      const disableResponse = await request.put(
+        `${CLOUD_URL}/api/v1/apps/${app.id}/monetization`,
+        {
+          headers: authHeaders(),
+          data: { monetizationEnabled: false },
+        },
+      );
       expect(disableResponse.status()).toBe(200);
 
-      const deleteResponse = await request.delete(`${CLOUD_URL}/api/v1/apps/${app.id}`, { headers: authHeaders() });
+      const deleteResponse = await request.delete(
+        `${CLOUD_URL}/api/v1/apps/${app.id}`,
+        { headers: authHeaders() },
+      );
       expect(deleteResponse.status()).toBe(200);
 
-      const verifyResponse = await request.get(`${CLOUD_URL}/api/v1/apps/${app.id}`, { headers: authHeaders() });
+      const verifyResponse = await request.get(
+        `${CLOUD_URL}/api/v1/apps/${app.id}`,
+        { headers: authHeaders() },
+      );
       expect(verifyResponse.status()).toBe(404);
     } catch (error) {
-      await request.delete(`${CLOUD_URL}/api/v1/apps/${app.id}`, { headers: authHeaders() });
+      await request.delete(`${CLOUD_URL}/api/v1/apps/${app.id}`, {
+        headers: authHeaders(),
+      });
       throw error;
     }
   });
@@ -688,12 +760,13 @@ test.describe("Apps API - API Key Regeneration", () => {
       headers: authHeaders(),
       data: { ...testAppData, name: "API Key Regen Test" },
     });
-    const { app: createdApp, apiKey: originalApiKey } = await createResponse.json();
+    const { app: createdApp, apiKey: originalApiKey } =
+      await createResponse.json();
 
     try {
       const regenResponse = await request.post(
         `${CLOUD_URL}/api/v1/apps/${createdApp.id}/regenerate-api-key`,
-        { headers: authHeaders() }
+        { headers: authHeaders() },
       );
       expect(regenResponse.status()).toBe(200);
 
@@ -702,8 +775,9 @@ test.describe("Apps API - API Key Regeneration", () => {
       expect(regenData.apiKey).toBeTruthy();
       expect(regenData.apiKey).not.toBe(originalApiKey);
     } finally {
-      await request.delete(`${CLOUD_URL}/api/v1/apps/${createdApp.id}`, { headers: authHeaders() });
+      await request.delete(`${CLOUD_URL}/api/v1/apps/${createdApp.id}`, {
+        headers: authHeaders(),
+      });
     }
   });
 });
-

@@ -23,7 +23,10 @@ export async function GET(
 
     logger.debug("[Marketplace API] Getting stats for character:", id);
 
-    const character = await characterMarketplaceService.getCharacterById(id, true);
+    const character = await characterMarketplaceService.getCharacterById(
+      id,
+      true,
+    );
 
     if (!character) {
       return NextResponse.json(

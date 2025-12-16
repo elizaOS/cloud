@@ -1,6 +1,6 @@
 /**
  * Platform Detection Utilities
- * 
+ *
  * Provides utilities for detecting the current platform and adjusting
  * behavior accordingly for web, iOS, Android, and desktop Tauri builds.
  */
@@ -22,7 +22,7 @@ export function isBrowser(): boolean {
  */
 export function isTauri(): boolean {
   if (!isBrowser()) return false;
-  
+
   return (
     "__TAURI__" in window ||
     "__TAURI_INTERNALS__" in window ||
@@ -35,7 +35,7 @@ export function isTauri(): boolean {
  */
 export function isMobileApp(): boolean {
   if (!isBrowser()) return false;
-  
+
   return (
     process.env.NEXT_PUBLIC_IS_MOBILE_APP === "true" ||
     (isTauri() && (isIOS() || isAndroid()))
@@ -47,7 +47,7 @@ export function isMobileApp(): boolean {
  */
 export function isIOS(): boolean {
   if (!isBrowser()) return false;
-  
+
   const userAgent = navigator.userAgent || navigator.vendor;
   return /iPad|iPhone|iPod/.test(userAgent);
 }
@@ -57,7 +57,7 @@ export function isIOS(): boolean {
  */
 export function isAndroid(): boolean {
   if (!isBrowser()) return false;
-  
+
   const userAgent = navigator.userAgent || navigator.vendor;
   return /Android/.test(userAgent);
 }
@@ -67,7 +67,7 @@ export function isAndroid(): boolean {
  */
 export function isDesktop(): boolean {
   if (!isBrowser()) return false;
-  
+
   return isTauri() && !isIOS() && !isAndroid();
 }
 
@@ -76,9 +76,9 @@ export function isDesktop(): boolean {
  */
 export function isWebView(): boolean {
   if (!isBrowser()) return false;
-  
+
   const userAgent = navigator.userAgent.toLowerCase();
-  
+
   // Common WebView indicators
   return (
     userAgent.includes("wv") || // Android WebView
@@ -93,11 +93,11 @@ export function isWebView(): boolean {
  */
 export function getPlatform(): Platform {
   if (!isBrowser()) return "unknown";
-  
+
   if (isIOS()) return "ios";
   if (isAndroid()) return "android";
   if (isDesktop()) return "desktop";
-  
+
   return "web";
 }
 
@@ -106,11 +106,8 @@ export function getPlatform(): Platform {
  */
 export function isTouchDevice(): boolean {
   if (!isBrowser()) return false;
-  
-  return (
-    "ontouchstart" in window ||
-    navigator.maxTouchPoints > 0
-  );
+
+  return "ontouchstart" in window || navigator.maxTouchPoints > 0;
 }
 
 /**
@@ -125,9 +122,9 @@ export function getSafeAreaInsets(): {
   if (!isBrowser()) {
     return { top: 0, right: 0, bottom: 0, left: 0 };
   }
-  
+
   const computedStyle = getComputedStyle(document.documentElement);
-  
+
   return {
     top: parseInt(computedStyle.getPropertyValue("--sat") || "0", 10),
     right: parseInt(computedStyle.getPropertyValue("--sar") || "0", 10),
@@ -150,7 +147,7 @@ export function getPlatformConfig(): {
 } {
   const platform = getPlatform();
   const isMobile = platform === "ios" || platform === "android";
-  
+
   return {
     platform,
     isMobile,
@@ -169,7 +166,7 @@ export function getUserAgentInfo(): Record<string, unknown> {
   if (!isBrowser()) {
     return { environment: "server" };
   }
-  
+
   return {
     userAgent: navigator.userAgent,
     platform: navigator.platform,
@@ -187,4 +184,3 @@ export function getUserAgentInfo(): Record<string, unknown> {
     },
   };
 }
-

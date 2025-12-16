@@ -204,7 +204,9 @@ export interface JSONRPCErrorResponse {
   id: string | number | null;
 }
 
-export type JSONRPCResponse<T = unknown> = JSONRPCSuccessResponse<T> | JSONRPCErrorResponse;
+export type JSONRPCResponse<T = unknown> =
+  | JSONRPCSuccessResponse<T>
+  | JSONRPCErrorResponse;
 
 // ===== A2A Error Codes =====
 
@@ -230,22 +232,32 @@ export const A2AErrorCodes = {
 
 // ===== Helper Functions =====
 
-export function createTextPart(text: string, metadata?: Record<string, unknown>): TextPart {
+export function createTextPart(
+  text: string,
+  metadata?: Record<string, unknown>,
+): TextPart {
   return { type: "text", text, metadata };
 }
 
-export function createDataPart(data: Record<string, unknown>, metadata?: Record<string, unknown>): DataPart {
+export function createDataPart(
+  data: Record<string, unknown>,
+  metadata?: Record<string, unknown>,
+): DataPart {
   return { type: "data", data, metadata };
 }
 
 export function createFilePart(
   file: FileWithBytes | FileWithUri,
-  metadata?: Record<string, unknown>
+  metadata?: Record<string, unknown>,
 ): FilePart {
   return { type: "file", file, metadata };
 }
 
-export function createMessage(role: Role, parts: Part[], metadata?: Record<string, unknown>): Message {
+export function createMessage(
+  role: Role,
+  parts: Part[],
+  metadata?: Record<string, unknown>,
+): Message {
   return { role, parts, metadata };
 }
 
@@ -254,7 +266,7 @@ export function createTask(
   state: TaskState,
   message?: Message,
   contextId?: string,
-  metadata?: Record<string, unknown>
+  metadata?: Record<string, unknown>,
 ): Task {
   return {
     id,
@@ -268,7 +280,10 @@ export function createTask(
   };
 }
 
-export function createTaskStatus(state: TaskState, message?: Message): TaskStatus {
+export function createTaskStatus(
+  state: TaskState,
+  message?: Message,
+): TaskStatus {
   return {
     state,
     message,
@@ -281,12 +296,15 @@ export function createArtifact(
   name?: string,
   description?: string,
   index?: number,
-  metadata?: Record<string, unknown>
+  metadata?: Record<string, unknown>,
 ): Artifact {
   return { parts, name, description, index, metadata };
 }
 
-export function jsonRpcSuccess<T>(result: T, id: string | number | null): JSONRPCSuccessResponse<T> {
+export function jsonRpcSuccess<T>(
+  result: T,
+  id: string | number | null,
+): JSONRPCSuccessResponse<T> {
   return { jsonrpc: "2.0", result, id };
 }
 
@@ -294,7 +312,7 @@ export function jsonRpcError(
   code: number,
   message: string,
   id: string | number | null,
-  data?: Record<string, unknown>
+  data?: Record<string, unknown>,
 ): JSONRPCErrorResponse {
   return { jsonrpc: "2.0", error: { code, message, data }, id };
 }
@@ -323,4 +341,3 @@ export type A2AMethodParams = {
   "tasks/pushNotificationConfig/delete": DeleteTaskPushNotificationParams;
   "agent/getAuthenticatedExtendedCard": Record<string, never>;
 };
-

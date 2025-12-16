@@ -30,7 +30,7 @@ const QuerySchema = z.object({
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
@@ -55,7 +55,7 @@ export async function GET(
           error: "Invalid query parameters",
           details: queryResult.error.format(),
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -70,7 +70,7 @@ export async function GET(
           success: false,
           error: "App not found",
         },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -80,7 +80,7 @@ export async function GET(
           success: false,
           error: "Access denied",
         },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -110,8 +110,7 @@ export async function GET(
             ? error.message
             : "Failed to get earnings history",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
-

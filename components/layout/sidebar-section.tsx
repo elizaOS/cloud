@@ -26,7 +26,10 @@ import { isFeatureEnabled } from "@/lib/config/feature-flags";
 const ANVIL_DEFAULT_WALLET = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
 
 function isDevnet(): boolean {
-  return process.env.NODE_ENV === "development" || process.env.NEXT_PUBLIC_DEVNET === "true";
+  return (
+    process.env.NODE_ENV === "development" ||
+    process.env.NEXT_PUBLIC_DEVNET === "true"
+  );
 }
 
 interface SidebarNavigationSectionProps {
@@ -71,16 +74,19 @@ export function SidebarNavigationSection({
       }
 
       // In devnet, anvil wallet is always admin
-      if (isDevnet() && connectedWallet.toLowerCase() === ANVIL_DEFAULT_WALLET.toLowerCase()) {
+      if (
+        isDevnet() &&
+        connectedWallet.toLowerCase() === ANVIL_DEFAULT_WALLET.toLowerCase()
+      ) {
         return true;
       }
 
       // Check admin status via API (async)
-      const res = await fetch("/api/v1/admin/moderation", { 
+      const res = await fetch("/api/v1/admin/moderation", {
         method: "HEAD",
         signal: abortController.signal,
       }).catch(() => null);
-      
+
       return res?.ok ?? false;
     };
 
@@ -136,6 +142,8 @@ export function SidebarNavigationSection({
         return "#FF5800"; // Orange - Creative/Generation
       case "infrastructure":
         return "#22C55E"; // Green - System/Infrastructure
+      case "monetization":
+        return "#FFD700"; // Gold - Monetization/Earnings
       case "admin":
         return "#EF4444"; // Red - Admin/Moderation
       default:

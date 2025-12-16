@@ -96,7 +96,9 @@ class Agent0Service {
     }
 
     this.initPromise = (async () => {
-      const privateKey = process.env.AGENT0_PRIVATE_KEY as `0x${string}` | undefined;
+      const privateKey = process.env.AGENT0_PRIVATE_KEY as
+        | `0x${string}`
+        | undefined;
 
       const SDKClass = await getSDKModule();
       this.sdk = new SDKClass({
@@ -136,7 +138,9 @@ class Agent0Service {
   /**
    * Search for agents on the network
    */
-  async searchAgents(filters: Agent0SearchFilters = {}): Promise<Agent0Agent[]> {
+  async searchAgents(
+    filters: Agent0SearchFilters = {},
+  ): Promise<Agent0Agent[]> {
     const sdk = await this.ensureSDK();
 
     const searchParams: SearchParams = {
@@ -227,7 +231,10 @@ class Agent0Service {
    */
   private hashFilters(filters: Agent0SearchFilters): string {
     const sortedFilters = JSON.stringify(filters, Object.keys(filters).sort());
-    return createHash("md5").update(sortedFilters).digest("hex").substring(0, 12);
+    return createHash("md5")
+      .update(sortedFilters)
+      .digest("hex")
+      .substring(0, 12);
   }
 
   /**
@@ -237,7 +244,7 @@ class Agent0Service {
    * Falls back to direct search if cache is unavailable.
    */
   async searchAgentsCached(
-    filters: Agent0SearchFilters = {}
+    filters: Agent0SearchFilters = {},
   ): Promise<Agent0Agent[]> {
     const filterHash = this.hashFilters(filters);
     const cacheKey = CacheKeys.erc8004.search(this.network, filterHash);
@@ -251,7 +258,7 @@ class Agent0Service {
           filters,
         });
         return this.searchAgents(filters);
-      }
+      },
     );
 
     return result ?? [];
@@ -325,4 +332,3 @@ class Agent0Service {
 // ============================================================================
 
 export const agent0Service = new Agent0Service();
-

@@ -44,7 +44,7 @@ const updateMcpSchema = z.object({
         description: z.string().min(1).max(500),
         inputSchema: z.record(z.unknown()).optional(),
         cost: z.string().max(20).optional(),
-      })
+      }),
     )
     .max(50)
     .optional(),
@@ -72,7 +72,7 @@ const updateMcpSchema = z.object({
  */
 export async function GET(
   request: NextRequest,
-  ctx: { params: Promise<{ mcpId: string }> }
+  ctx: { params: Promise<{ mcpId: string }> },
 ) {
   const authResult = await requireAuthOrApiKeyWithOrg(request);
   const { mcpId } = await ctx.params;
@@ -98,8 +98,7 @@ export async function GET(
   }
 
   // Get endpoint URL
-  const baseUrl =
-    process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
   const endpointUrl = userMcpsService.getEndpointUrl(mcp, baseUrl);
 
   return NextResponse.json({
@@ -118,7 +117,7 @@ export async function GET(
  */
 export async function PUT(
   request: NextRequest,
-  ctx: { params: Promise<{ mcpId: string }> }
+  ctx: { params: Promise<{ mcpId: string }> },
 ) {
   const authResult = await requireAuthOrApiKeyWithOrg(request);
   const { mcpId } = await ctx.params;
@@ -135,14 +134,14 @@ export async function PUT(
           message: i.message,
         })),
       },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
   const mcp = await userMcpsService.update(
     mcpId,
     authResult.user.organization_id,
-    validation.data
+    validation.data,
   );
 
   logger.info("[API] Updated user MCP", {
@@ -159,7 +158,7 @@ export async function PUT(
  */
 export async function DELETE(
   request: NextRequest,
-  ctx: { params: Promise<{ mcpId: string }> }
+  ctx: { params: Promise<{ mcpId: string }> },
 ) {
   const authResult = await requireAuthOrApiKeyWithOrg(request);
   const { mcpId } = await ctx.params;
@@ -187,4 +186,3 @@ export async function OPTIONS() {
     },
   });
 }
-

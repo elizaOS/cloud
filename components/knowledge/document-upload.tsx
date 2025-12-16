@@ -72,19 +72,33 @@ export function DocumentUpload({
   // File upload state
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
 
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length > 0 && !uploading) {
+      setError(null);
+      setSuccess(null);
+      handleFileUpload(files);
+    }
+  };
+
   // Text upload state
   const [textContent, setTextContent] = useState("");
   const [filename, setFilename] = useState("");
 
-  const handleFileUpload = async (e: React.FormEvent) => {
-    e.preventDefault();
-
+  const handleFileUpload = async (files: File[]) => {
     console.log(
-      "[DocumentUpload] handleFileUpload triggered, selectedFiles:",
-      selectedFiles.length,
+      "[DocumentUpload] handleFileUpload triggered, files:",
+      files.length,
     );
 
-    if (selectedFiles.length === 0) {
+    if (files.length === 0) {
       setError("Please select at least one file");
       return;
     }
@@ -92,6 +106,7 @@ export function DocumentUpload({
     setUploading(true);
     setError(null);
     setSuccess(null);
+    setSelectedFiles(files);
 
     const formData = new FormData();
 
@@ -101,7 +116,7 @@ export function DocumentUpload({
     }
 
     // Append files with corrected MIME types (matching plugin pattern)
-    for (const file of selectedFiles) {
+    for (const file of files) {
       const correctedMimeType = getCorrectMimeType(file);
       const blob = new Blob([file], { type: correctedMimeType });
       formData.append("files", blob, file.name);
@@ -134,14 +149,12 @@ export function DocumentUpload({
     const data = await response.json();
     console.log("[DocumentUpload] Upload successful:", data);
     setSuccess(
-      data.message || `Successfully uploaded ${selectedFiles.length} file(s)`,
+      data.message || `Successfully uploaded ${files.length} file(s)`,
     );
     setSelectedFiles([]);
 
     // Reset file input
-    const fileInput = document.getElementById(
-      "file-input",
-    ) as HTMLInputElement;
+    const fileInput = document.getElementById("file-input") as HTMLInputElement;
     if (fileInput) {
       fileInput.value = "";
     }
@@ -224,9 +237,12 @@ export function DocumentUpload({
         </TabsList>
 
         <TabsContent value="file" className="space-y-4">
-          <form onSubmit={handleFileUpload} className="space-y-4">
-            <div>
-              <Label htmlFor="file-input">Select Files</Label>
+          <div className="space-y-4">
+            <div
+              onDragOver={handleDragOver}
+              onDrop={handleDrop}
+              className="relative border-2 border-dashed border-border rounded-lg hover:border-primary/50 transition-colors"
+            >
               <Input
                 id="file-input"
                 type="file"
@@ -234,21 +250,54 @@ export function DocumentUpload({
                 accept=".pdf,.txt,.md,.doc,.docx,.json,.xml,.yaml,.yml,.csv,.html,.js,.ts,.tsx,.jsx,.py,.java,.c,.cpp,.go,.rs"
                 onChange={(e) => {
                   const files = e.target.files;
-                  if (files) {
-                    setSelectedFiles(Array.from(files));
+                  if (files && files.length > 0) {
                     setError(null);
                     setSuccess(null);
+                    handleFileUpload(Array.from(files));
                   }
                 }}
                 disabled={uploading}
+                className="hidden"
               />
-              <p className="text-sm text-muted-foreground mt-2">
-                Supported: PDF, TXT, MD, DOC, DOCX, JSON, and code files
-              </p>
+              <div
+                onClick={() => {
+                  if (!uploading) {
+                    document.getElementById("file-input")?.click();
+                  }
+                }}
+                className={`p-8 text-center cursor-pointer ${uploading ? "opacity-50" : ""}`}
+              >
+                {uploading ? (
+                  <div className="flex flex-col items-center gap-3">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    <p className="text-sm text-foreground font-medium">Uploading files...</p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="p-3 rounded-full bg-muted">
+                      <Upload className="h-6 w-6 text-muted-foreground" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-foreground font-medium mb-1">
+                        Drop files here or{" "}
+                        <span className="text-primary">browse</span>
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        PDF, TXT, MD, DOC, DOCX, JSON, and code files
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
+
+            <p className="text-xs text-muted-foreground text-center">
+              Files upload automatically after selection
+            </p>
 
             {selectedFiles.length > 0 && (
               <div className="space-y-2">
+                <p className="text-sm font-medium">Uploading {selectedFiles.length} file(s)...</p>
                 {selectedFiles.map((file, index) => (
                   <div
                     key={index}
@@ -261,34 +310,12 @@ export function DocumentUpload({
                         {(file.size / 1024).toFixed(2)} KB
                       </p>
                     </div>
+                    <Loader2 className="h-4 w-4 animate-spin text-primary" />
                   </div>
                 ))}
               </div>
             )}
-
-            <Button
-              type="submit"
-              disabled={selectedFiles.length === 0 || uploading}
-              onClick={(e) => {
-                console.log("[DocumentUpload] Upload button clicked!");
-              }}
-            >
-              {uploading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Uploading...
-                </>
-              ) : (
-                <>
-                  <Upload className="mr-2 h-4 w-4" />
-                  Upload{" "}
-                  {selectedFiles.length > 0
-                    ? `${selectedFiles.length} File(s)`
-                    : "Files"}
-                </>
-              )}
-            </Button>
-          </form>
+          </div>
         </TabsContent>
 
         <TabsContent value="text" className="space-y-4">

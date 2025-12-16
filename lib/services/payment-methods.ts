@@ -280,8 +280,7 @@ export class PaymentMethodsService {
       return null;
     }
 
-    const paymentMethod =
-      await stripe.paymentMethods.retrieve(paymentMethodId);
+    const paymentMethod = await stripe.paymentMethods.retrieve(paymentMethodId);
 
     // Verify it belongs to this customer
     if (paymentMethod.customer !== org.stripe_customer_id) {

@@ -133,7 +133,7 @@ class AgentRegistryService {
     if (!privateKey) {
       throw new Error(
         "AGENT0_PRIVATE_KEY required for agent registration. " +
-          "This key is used to pay gas for minting agent NFTs."
+          "This key is used to pay gas for minting agent NFTs.",
       );
     }
 
@@ -146,7 +146,7 @@ class AgentRegistryService {
     if (identityAddress === ZERO_ADDRESS) {
       throw new Error(
         `ERC-8004 Identity Registry not deployed on ${network}. ` +
-          `Cannot register agents until contracts are available.`
+          `Cannot register agents until contracts are available.`,
       );
     }
 
@@ -181,7 +181,7 @@ class AgentRegistryService {
    * Eliza Cloud pays the gas fees for registration.
    */
   async registerAgent(
-    params: AgentRegistrationParams
+    params: AgentRegistrationParams,
   ): Promise<AgentRegistrationResult> {
     const { character, enableMonetization = false } = params;
     const network = params.network || getDefaultNetwork();
@@ -193,8 +193,7 @@ class AgentRegistryService {
     });
 
     const sdk = await this.ensureSDK(network);
-    const baseUrl =
-      process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
 
     // Create agent in SDK
     const bioText = Array.isArray(character.bio)
@@ -204,7 +203,7 @@ class AgentRegistryService {
     const agent = sdk.createAgent(
       character.name,
       bioText,
-      character.avatar_url || `${baseUrl}/default-avatar.png`
+      character.avatar_url || `${baseUrl}/default-avatar.png`,
     );
 
     // Set endpoints
@@ -302,7 +301,7 @@ class AgentRegistryService {
    * Eliza Cloud pays the gas fees for registration.
    */
   async registerMCP(
-    params: MCPRegistrationParams
+    params: MCPRegistrationParams,
   ): Promise<MCPRegistrationResult> {
     const { mcp } = params;
     const network = params.network || getDefaultNetwork();
@@ -314,8 +313,7 @@ class AgentRegistryService {
     });
 
     const sdk = await this.ensureSDK(network);
-    const baseUrl =
-      process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
 
     // Construct MCP endpoint
     const mcpEndpoint =
@@ -327,7 +325,7 @@ class AgentRegistryService {
     const agent = sdk.createAgent(
       mcp.name,
       mcp.description,
-      `${baseUrl}/api/mcp/${mcp.slug}/icon` // Default icon endpoint
+      `${baseUrl}/api/mcp/${mcp.slug}/icon`, // Default icon endpoint
     );
 
     // Set MCP endpoint (no A2A for pure MCP servers)
@@ -413,10 +411,7 @@ class AgentRegistryService {
   /**
    * Generate A2A Agent Card for a character
    */
-  generateAgentCard(
-    character: UserCharacter,
-    baseUrl: string
-  ): AgentCardData {
+  generateAgentCard(character: UserCharacter, baseUrl: string): AgentCardData {
     const bioText = Array.isArray(character.bio)
       ? character.bio.join("\n")
       : character.bio;
@@ -554,4 +549,3 @@ class AgentRegistryService {
 // ============================================================================
 
 export const agentRegistryService = new AgentRegistryService();
-

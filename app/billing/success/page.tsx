@@ -108,7 +108,7 @@ async function verifyAndProcessSession(sessionId: string): Promise<{
 
   // Add credits (with built-in idempotency)
   logger.debug(
-    `[BillingSuccess] Adding ${credits} credits to org ${organizationId}`
+    `[BillingSuccess] Adding ${credits} credits to org ${organizationId}`,
   );
 
   await creditsService.addCredits({
@@ -126,12 +126,12 @@ async function verifyAndProcessSession(sessionId: string): Promise<{
   });
 
   logger.info(
-    `[BillingSuccess] Credits added for session ${sessionId} (fallback)`
+    `[BillingSuccess] Credits added for session ${sessionId} (fallback)`,
   );
 
   // Create invoice record
   const existingInvoice = await invoicesService.getByStripeInvoiceId(
-    `cs_${sessionId}`
+    `cs_${sessionId}`,
   );
 
   if (!existingInvoice) {
@@ -161,9 +161,7 @@ async function verifyAndProcessSession(sessionId: string): Promise<{
       paid_at: new Date(),
     });
 
-    logger.debug(
-      `[BillingSuccess] Invoice created for session ${sessionId}`
-    );
+    logger.debug(`[BillingSuccess] Invoice created for session ${sessionId}`);
   }
 
   return {
@@ -223,7 +221,7 @@ export default async function BillingSuccessPage({
               session ID.
             </p>
             {sessionId && (
-              <p className="text-xs text-muted-foreground font-mono bg-muted p-2 rounded">
+              <p className="text-xs text-muted-foreground bg-muted p-2 rounded">
                 Session: {sessionId.substring(0, 20)}...
               </p>
             )}

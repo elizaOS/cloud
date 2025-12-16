@@ -11,6 +11,7 @@ import { Copy, Check, Terminal, Rocket, Code2, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { HUDContainer, BrandButton } from "@/components/brand";
 import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
 
 const TopHero = () => {
   const [activeOS, setActiveOS] = useState<"unix" | "windows">("unix");
@@ -67,31 +68,40 @@ const TopHero = () => {
       <div className="container mx-auto px-4 md:px-6 relative z-10">
         <div className="mx-auto max-w-5xl text-center">
           {/* Headline */}
-          <h1
+          <motion.h1
             className="mb-6 text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-normal tracking-tight relative z-10"
             style={{ textShadow: "0 2px 10px rgba(0,0,0,0.5)" }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{
+              duration: 1,
+              ease: [0.25, 0.1, 0.25, 1],
+              delay: 0.2,
+            }}
           >
             <span className="inline-flex items-center justify-center gap-3 md:gap-4">
-              <span
-                className="inline-block w-2 h-2 md:w-2.5 md:h-2.5 rounded-full flex-shrink-0"
-                style={{ backgroundColor: "#FF5800" }}
-              />
               <span>
                 Ship <span className="font-bold">agents</span>,
               </span>
             </span>
-            <br />
-            <span className="text-white/60">not infrastructure</span>
-          </h1>
+            <span className="text-white/60"> not infrastructure</span>
+          </motion.h1>
 
           {/* Subhead */}
-          <p
-            className="mb-10 md:mb-12 text-base sm:text-lg md:text-xl lg:text-2xl text-white/70 mx-auto relative z-10 px-4 max-w-3xl"
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{
+              duration: 1,
+              ease: [0.25, 0.1, 0.25, 1],
+              delay: 0.2,
+            }}
+            className="mb-10 md:mb-12 text-base sm:text-lg md:text-xl lg:text-2xl text-white/70 mx-auto relative z-10 px-4 max-w-4xl"
             style={{ textShadow: "0 1px 8px rgba(0,0,0,0.4)" }}
           >
-            Create and deploy an agent in one command. Open source. Zero
+            Create and deploy AI agents in one command. Open source. Zero
             lock-in.
-          </p>
+          </motion.p>
 
           {/* Terminal Display */}
           <div className="relative mx-auto max-w-3xl mb-10 md:mb-12">
@@ -158,7 +168,16 @@ const TopHero = () => {
           </div>
 
           {/* CTAs */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16 md:mb-20">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{
+              duration: 1,
+              ease: [0.25, 0.1, 0.25, 1],
+              delay: 0.2,
+            }}
+            className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16 md:mb-20"
+          >
             <BrandButton
               variant="primary"
               size="lg"
@@ -182,7 +201,7 @@ const TopHero = () => {
                 Docs
               </a>
             </Button>
-          </div>
+          </motion.div>
 
           {/* Journey Steps */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 max-w-4xl mx-auto">

@@ -78,7 +78,9 @@ async function loadKnowledgePlugin() {
  * different @elizaos/core versions, causing structural type mismatches
  * even though the Plugin interface is identical.
  */
-function asPlugin<T extends { name: string; description: string }>(plugin: T): Plugin {
+function asPlugin<T extends { name: string; description: string }>(
+  plugin: T,
+): Plugin {
   return plugin as Plugin;
 }
 
@@ -100,7 +102,11 @@ export class AgentLoader {
   async loadCharacter(
     characterId: string,
     agentMode: AgentMode,
-  ): Promise<{ character: Character; plugins: Plugin[]; modeResolution: ModeResolution }> {
+  ): Promise<{
+    character: Character;
+    plugins: Plugin[];
+    modeResolution: ModeResolution;
+  }> {
     const dbCharacter = await charactersService.getById(characterId);
     if (!dbCharacter) {
       throw new Error(`Character not found: ${characterId}`);
@@ -116,22 +122,31 @@ export class AgentLoader {
       elizaCharacter.plugins || [],
     );
 
-    const plugins = await this.resolvePlugins(modeResolution.mode, elizaCharacter.plugins || []);
+    const plugins = await this.resolvePlugins(
+      modeResolution.mode,
+      elizaCharacter.plugins || [],
+    );
     return { character, plugins, modeResolution };
   }
 
-  async getDefaultCharacter(
-    agentMode: AgentMode,
-  ): Promise<{ character: Character; plugins: Plugin[]; modeResolution: ModeResolution }> {
+  async getDefaultCharacter(agentMode: AgentMode): Promise<{
+    character: Character;
+    plugins: Plugin[];
+    modeResolution: ModeResolution;
+  }> {
     // Default character has no capabilities that require mode upgrade
-    const modeResolution: ModeResolution = { mode: agentMode, upgradeReason: "none" };
+    const modeResolution: ModeResolution = {
+      mode: agentMode,
+      upgradeReason: "none",
+    };
     const plugins = await this.resolvePlugins(agentMode, []);
     return { character: defaultAgent.character, plugins, modeResolution };
   }
 
   /** Build Character with merged settings (env + character config) */
   private buildCharacter(elizaCharacter: ElizaCharacter): Character {
-    const characterId = elizaCharacter.id || "b850bc30-45f8-0041-a00a-83df46d8555d";
+    const characterId =
+      elizaCharacter.id || "b850bc30-45f8-0041-a00a-83df46d8555d";
     const charSettings = elizaCharacter.settings || {};
     const getSetting = (key: string, fallback: string) =>
       (charSettings[key] as string) || process.env[key] || fallback;
@@ -142,23 +157,61 @@ export class AgentLoader {
       DATABASE_URL: process.env.DATABASE_URL!,
       ELIZAOS_CLOUD_BASE_URL: getElizaCloudApiUrl(),
       ELEVENLABS_API_KEY: process.env.ELEVENLABS_API_KEY!,
-      ELEVENLABS_VOICE_ID: getSetting("ELEVENLABS_VOICE_ID", "EXAVITQu4vr4xnSDxMaL"),
-      ELEVENLABS_MODEL_ID: getSetting("ELEVENLABS_MODEL_ID", "eleven_multilingual_v2"),
-      ELEVENLABS_VOICE_STABILITY: getSetting("ELEVENLABS_VOICE_STABILITY", "0.5"),
-      ELEVENLABS_VOICE_SIMILARITY_BOOST: getSetting("ELEVENLABS_VOICE_SIMILARITY_BOOST", "0.75"),
+      ELEVENLABS_VOICE_ID: getSetting(
+        "ELEVENLABS_VOICE_ID",
+        "EXAVITQu4vr4xnSDxMaL",
+      ),
+      ELEVENLABS_MODEL_ID: getSetting(
+        "ELEVENLABS_MODEL_ID",
+        "eleven_multilingual_v2",
+      ),
+      ELEVENLABS_VOICE_STABILITY: getSetting(
+        "ELEVENLABS_VOICE_STABILITY",
+        "0.5",
+      ),
+      ELEVENLABS_VOICE_SIMILARITY_BOOST: getSetting(
+        "ELEVENLABS_VOICE_SIMILARITY_BOOST",
+        "0.75",
+      ),
       ELEVENLABS_VOICE_STYLE: getSetting("ELEVENLABS_VOICE_STYLE", "0"),
-      ELEVENLABS_VOICE_USE_SPEAKER_BOOST: getSetting("ELEVENLABS_VOICE_USE_SPEAKER_BOOST", "true"),
-      ELEVENLABS_OPTIMIZE_STREAMING_LATENCY: getSetting("ELEVENLABS_OPTIMIZE_STREAMING_LATENCY", "0"),
-      ELEVENLABS_OUTPUT_FORMAT: getSetting("ELEVENLABS_OUTPUT_FORMAT", "mp3_44100_128"),
+      ELEVENLABS_VOICE_USE_SPEAKER_BOOST: getSetting(
+        "ELEVENLABS_VOICE_USE_SPEAKER_BOOST",
+        "true",
+      ),
+      ELEVENLABS_OPTIMIZE_STREAMING_LATENCY: getSetting(
+        "ELEVENLABS_OPTIMIZE_STREAMING_LATENCY",
+        "0",
+      ),
+      ELEVENLABS_OUTPUT_FORMAT: getSetting(
+        "ELEVENLABS_OUTPUT_FORMAT",
+        "mp3_44100_128",
+      ),
       ELEVENLABS_LANGUAGE_CODE: getSetting("ELEVENLABS_LANGUAGE_CODE", "en"),
-      ELEVENLABS_STT_MODEL_ID: getSetting("ELEVENLABS_STT_MODEL_ID", "scribe_v1"),
-      ELEVENLABS_STT_LANGUAGE_CODE: getSetting("ELEVENLABS_STT_LANGUAGE_CODE", "en"),
-      ELEVENLABS_STT_TIMESTAMPS_GRANULARITY: getSetting("ELEVENLABS_STT_TIMESTAMPS_GRANULARITY", "word"),
+      ELEVENLABS_STT_MODEL_ID: getSetting(
+        "ELEVENLABS_STT_MODEL_ID",
+        "scribe_v1",
+      ),
+      ELEVENLABS_STT_LANGUAGE_CODE: getSetting(
+        "ELEVENLABS_STT_LANGUAGE_CODE",
+        "en",
+      ),
+      ELEVENLABS_STT_TIMESTAMPS_GRANULARITY: getSetting(
+        "ELEVENLABS_STT_TIMESTAMPS_GRANULARITY",
+        "word",
+      ),
       ELEVENLABS_STT_DIARIZE: getSetting("ELEVENLABS_STT_DIARIZE", "false"),
-      ...(charSettings.ELEVENLABS_STT_NUM_SPEAKERS || process.env.ELEVENLABS_STT_NUM_SPEAKERS
-        ? { ELEVENLABS_STT_NUM_SPEAKERS: charSettings.ELEVENLABS_STT_NUM_SPEAKERS || process.env.ELEVENLABS_STT_NUM_SPEAKERS }
+      ...(charSettings.ELEVENLABS_STT_NUM_SPEAKERS ||
+      process.env.ELEVENLABS_STT_NUM_SPEAKERS
+        ? {
+            ELEVENLABS_STT_NUM_SPEAKERS:
+              charSettings.ELEVENLABS_STT_NUM_SPEAKERS ||
+              process.env.ELEVENLABS_STT_NUM_SPEAKERS,
+          }
         : {}),
-      ELEVENLABS_STT_TAG_AUDIO_EVENTS: getSetting("ELEVENLABS_STT_TAG_AUDIO_EVENTS", "false"),
+      ELEVENLABS_STT_TAG_AUDIO_EVENTS: getSetting(
+        "ELEVENLABS_STT_TAG_AUDIO_EVENTS",
+        "false",
+      ),
       avatarUrl: elizaCharacter.avatarUrl || elizaCharacter.avatar_url,
     };
 
@@ -181,9 +234,15 @@ export class AgentLoader {
   }
 
   /** Resolve plugins based on mode + character-specific additions */
-  private async resolvePlugins(agentMode: AgentMode, characterPlugins: string[]): Promise<Plugin[]> {
+  private async resolvePlugins(
+    agentMode: AgentMode,
+    characterPlugins: string[],
+  ): Promise<Plugin[]> {
     const plugins: Plugin[] = [];
-    const allPluginNames = [...AGENT_MODE_PLUGINS[agentMode], ...characterPlugins];
+    const allPluginNames = [
+      ...AGENT_MODE_PLUGINS[agentMode],
+      ...characterPlugins,
+    ];
 
     for (const pluginName of allPluginNames) {
       // Knowledge plugin lazy-loaded (SSR compatibility)
@@ -202,7 +261,10 @@ export class AgentLoader {
     return plugins;
   }
 
-  getProvidersAndActions(plugins: Plugin[]): { providers: Provider[]; actions: Action[] } {
+  getProvidersAndActions(plugins: Plugin[]): {
+    providers: Provider[];
+    actions: Action[];
+  } {
     return {
       providers: plugins.flatMap((p) => p.providers || []).filter(Boolean),
       actions: plugins.flatMap((p) => p.actions || []).filter(Boolean),

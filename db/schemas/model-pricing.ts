@@ -12,7 +12,7 @@ import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
 
 /**
  * Model pricing table schema.
- * 
+ *
  * Stores pricing information for AI models by provider, used for cost calculation.
  */
 export const modelPricing = pgTable(

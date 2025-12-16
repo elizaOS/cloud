@@ -76,12 +76,14 @@ export async function uploadToBlob(
  *
  * @param base64Data - Base64 data URI (e.g., "data:image/png;base64,...").
  * @param options - Upload options (contentType is extracted from base64 data).
+ * @param maxSizeMB - Maximum allowed size in MB (default: 10MB, avatars typically use 5MB).
  * @returns Upload result with URL and metadata.
- * @throws Error if base64 data format is invalid.
+ * @throws Error if base64 data format is invalid or file is too large.
  */
 export async function uploadBase64Image(
   base64Data: string,
   options: Omit<BlobUploadOptions, "contentType">,
+  maxSizeMB: number = 10,
 ): Promise<BlobUploadResult> {
   // Extract the base64 data and mime type
   const matches = base64Data.match(/^data:([^;]+);base64,(.+)$/);
@@ -91,6 +93,34 @@ export async function uploadBase64Image(
 
   const mimeType = matches[1];
   const base64Content = matches[2];
+
+  // Validate file size before converting to buffer
+  const MAX_IMAGE_SIZE = maxSizeMB * 1024 * 1024;
+  // Account for base64 padding characters when calculating size
+  const paddingCount = (base64Content.match(/=/g) || []).length;
+  const estimatedSize =
+    Math.ceil((base64Content.length * 3) / 4) - paddingCount;
+
+  if (estimatedSize > MAX_IMAGE_SIZE) {
+    throw new Error(
+      `Image too large (max ${maxSizeMB}MB). Got ${(estimatedSize / 1024 / 1024).toFixed(2)}MB`,
+    );
+  }
+
+  // Validate MIME type - only allow images
+  const validImageTypes = [
+    "image/jpeg",
+    "image/jpg",
+    "image/png",
+    "image/gif",
+    "image/webp",
+  ];
+  if (!validImageTypes.includes(mimeType.toLowerCase())) {
+    throw new Error(
+      `Invalid image type: ${mimeType}. Allowed: ${validImageTypes.join(", ")}`,
+    );
+  }
+
   const buffer = Buffer.from(base64Content, "base64");
 
   return uploadToBlob(buffer, {

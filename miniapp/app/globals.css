@@ -260,7 +260,9 @@
 
 /* Custom thinking/typing animations */
 @keyframes thinking-bounce {
-  0%, 60%, 100% {
+  0%,
+  60%,
+  100% {
     transform: translateY(0);
     opacity: 0.4;
   }
@@ -286,10 +288,12 @@
 
 /* Typing cursor blink */
 @keyframes cursor-blink {
-  0%, 50% {
+  0%,
+  50% {
     opacity: 1;
   }
-  51%, 100% {
+  51%,
+  100% {
     opacity: 0;
   }
 }
