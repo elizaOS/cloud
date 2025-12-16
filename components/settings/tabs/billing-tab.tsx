@@ -16,7 +16,6 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import type { CryptoStatusResponse } from "@/app/api/crypto/status/route";
-import { CryptoPaymentModal } from "@/components/settings/crypto-payment-modal";
 
 interface BillingTabProps {
   user: UserWithOrganization;
@@ -24,7 +23,6 @@ interface BillingTabProps {
 
 import type { Invoice } from "@/db/schemas/invoices";
 
-// Display type for Invoice with formatted fields
 interface InvoiceDisplay {
   id: string;
   stripeInvoiceId?: string;
@@ -44,18 +42,6 @@ const AMOUNT_LIMITS = {
 
 type PaymentMethod = "card" | "crypto";
 
-interface CryptoPaymentData {
-  paymentId: string;
-  trackId: string;
-  paymentAddress: string;
-  payAmount: string;
-  payCurrency: string;
-  network: string;
-  qrCode?: string;
-  creditsToAdd: string;
-  expiresAt: string;
-}
-
 export function BillingTab({ user }: BillingTabProps) {
   const router = useRouter();
   const [invoices, setInvoices] = useState<InvoiceDisplay[]>([]);
@@ -64,10 +50,8 @@ export function BillingTab({ user }: BillingTabProps) {
   const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("card");
   const [cryptoStatus, setCryptoStatus] = useState<CryptoStatusResponse | null>(null);
-  const [cryptoPayment, setCryptoPayment] = useState<CryptoPaymentData | null>(null);
   const [selectedNetwork, setSelectedNetwork] = useState<string>("TRC20");
   const [selectedCurrency, setSelectedCurrency] = useState<string>("USDT");
-  const [cryptoAmount, setCryptoAmount] = useState("");
 
   const [balance, setBalance] = useState(
     Number(user.organization?.credit_balance || 0),
@@ -98,7 +82,6 @@ export function BillingTab({ user }: BillingTabProps) {
     if (response.ok) {
       const data: CryptoStatusResponse = await response.json();
       setCryptoStatus(data);
-      // Set default selected currency to first supported token
       if (data.supportedTokens.length > 0 && !selectedCurrency) {
         setSelectedCurrency(data.supportedTokens[0]);
       }
@@ -148,18 +131,15 @@ export function BillingTab({ user }: BillingTabProps) {
         }
 
         const data = await response.json();
-        setCryptoPayment({
-          paymentId: data.paymentId,
-          trackId: data.trackId,
-          paymentAddress: data.paymentAddress,
-          payAmount: String(data.payAmount),
-          payCurrency: data.payCurrency,
-          network: data.network,
-          qrCode: data.qrCode,
-          creditsToAdd: String(data.creditsToAdd),
-          expiresAt: data.expiresAt,
-        });
-        setIsProcessingCheckout(false);
+
+        if (!data.payLink) {
+          toast.error("No payment link returned");
+          setIsProcessingCheckout(false);
+          return;
+        }
+
+        toast.success("Redirecting to payment page...");
+        window.location.href = data.payLink;
       } catch (error) {
         console.error("Failed to create crypto payment:", error);
         toast.error("Failed to create crypto payment");
@@ -194,13 +174,6 @@ export function BillingTab({ user }: BillingTabProps) {
     }
 
     window.location.href = url;
-  };
-
-  const handleCryptoPaymentSuccess = () => {
-    setCryptoPayment(null);
-    setPurchaseAmount("");
-    fetchBalance();
-    fetchInvoices();
   };
 
   const handleViewInvoice = (invoice: InvoiceDisplay) => {
@@ -358,7 +331,7 @@ export function BillingTab({ user }: BillingTabProps) {
                       <>
                         <Loader2 className="h-4 w-4 animate-spin text-black relative z-10" />
                         <span className="relative z-10 text-black font-mono font-medium text-base whitespace-nowrap">
-                          {paymentMethod === "crypto" ? "Creating..." : "Redirecting..."}
+                          Redirecting...
                         </span>
                       </>
                     ) : (
@@ -394,8 +367,6 @@ export function BillingTab({ user }: BillingTabProps) {
           </div>
         </div>
       </BrandCard>
-
-      {/* Crypto Payment Card */}
 
       {/* Invoices Card */}
       <BrandCard className="relative">
@@ -487,22 +458,6 @@ export function BillingTab({ user }: BillingTabProps) {
           </div>
         </div>
       </BrandCard>
-
-      {cryptoPayment && (
-        <CryptoPaymentModal
-          paymentId={cryptoPayment.paymentId}
-          trackId={cryptoPayment.trackId}
-          paymentAddress={cryptoPayment.paymentAddress}
-          payAmount={cryptoPayment.payAmount}
-          payCurrency={cryptoPayment.payCurrency}
-          network={cryptoPayment.network}
-          qrCode={cryptoPayment.qrCode}
-          creditsToAdd={cryptoPayment.creditsToAdd}
-          expiresAt={cryptoPayment.expiresAt}
-          onClose={() => setCryptoPayment(null)}
-          onSuccess={handleCryptoPaymentSuccess}
-        />
-      )}
     </div>
   );
 }

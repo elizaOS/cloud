@@ -38,13 +38,12 @@ export interface PaymentStatus {
   id: string;
   trackId: string;
   status: string;
-  paymentAddress: string;
   expectedAmount: string;
   receivedAmount?: string;
   creditsToAdd: string;
   network: string;
   token: string;
-  qrCode?: string;
+  payLink?: string;
   transactionHash?: string;
   expiresAt: Date;
   createdAt: Date;
@@ -53,8 +52,7 @@ export interface PaymentStatus {
 
 const paymentMetadataSchema = z.object({
   oxapay_track_id: z.string().optional(),
-  qr_code: z.string().optional(),
-  rate: z.number().optional(),
+  pay_link: z.string().optional(),
   fiat_currency: z.string().optional(),
   fiat_amount: z.number().optional(),
 }).passthrough();
@@ -102,27 +100,28 @@ function validateUuid(id: string, fieldName: string): void {
 }
 
 class CryptoPaymentsService {
+  /**
+   * Create a crypto payment invoice using OxaPay's redirect flow.
+   * Returns a payLink that redirects users to OxaPay's hosted payment page.
+   */
   async createPayment(params: CreatePaymentParams): Promise<{
     payment: CryptoPayment;
-    paymentAddress: string;
-    payAmount: number;
-    payCurrency: string;
-    network: string;
-    qrCode: string;
+    payLink: string;
     expiresAt: Date;
     trackId: string;
+    creditsToAdd: string;
   }> {
     const {
       organizationId,
       userId,
       amount,
       currency = "USD",
-      payCurrency = "USDT",
+      payCurrency,
       network,
     } = params;
 
     validateUuid(organizationId, "organization ID");
-    
+
     if (userId) {
       validateUuid(userId, "user ID");
     }
@@ -133,7 +132,7 @@ class CryptoPaymentsService {
 
     const amountDecimal = new Decimal(amount);
     const validation = validatePaymentAmount(amountDecimal);
-    
+
     if (!validation.valid) {
       throw new Error(validation.error);
     }
@@ -142,9 +141,13 @@ class CryptoPaymentsService {
       process.env.OXAPAY_CALLBACK_URL ||
       `${process.env.NEXT_PUBLIC_APP_URL}/api/crypto/webhook`;
 
+    const returnUrl =
+      process.env.OXAPAY_RETURN_URL ||
+      `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/settings?tab=billing&payment=success`;
+
     const orderId = `${organizationId.replace(/-/g, "").slice(0, 12)}_${Date.now()}`;
 
-    const oxaPayment = await oxaPayService.createPayment({
+    const oxaInvoice = await oxaPayService.createInvoice({
       amount,
       currency,
       payCurrency,
@@ -152,47 +155,42 @@ class CryptoPaymentsService {
       orderId,
       description: `Credit purchase - $${amount}`,
       callbackUrl,
+      returnUrl,
       lifetime: PAYMENT_EXPIRATION_SECONDS,
     });
 
     const payment = await cryptoPaymentsRepository.create({
       organization_id: organizationId,
       user_id: userId,
-      payment_address: oxaPayment.address,
-      expected_amount: oxaPayment.payAmount.toString(),
+      payment_address: oxaInvoice.trackId,
+      expected_amount: amountDecimal.toFixed(2),
       credits_to_add: amountDecimal.toFixed(2),
-      network: oxaPayment.network,
-      token: oxaPayment.payCurrency,
+      network: network || "AUTO",
+      token: payCurrency || "AUTO",
       token_address: null,
       status: "pending",
-      expires_at: oxaPayment.expiresAt,
+      expires_at: oxaInvoice.expiresAt,
       metadata: {
-        oxapay_track_id: oxaPayment.trackId,
-        qr_code: oxaPayment.qrCode,
-        rate: oxaPayment.rate,
+        oxapay_track_id: oxaInvoice.trackId,
+        pay_link: oxaInvoice.payLink,
         fiat_currency: currency,
         fiat_amount: amount,
       },
     });
 
-    logger.info("[Crypto Payments] Payment created via OxaPay", {
+    logger.info("[Crypto Payments] Invoice created via OxaPay", {
       paymentId: redact.paymentId(payment.id),
-      trackId: redact.trackId(oxaPayment.trackId),
+      trackId: redact.trackId(oxaInvoice.trackId),
       organizationId: redact.orgId(organizationId),
       amount,
-      payCurrency,
-      network: oxaPayment.network,
     });
 
     return {
       payment,
-      paymentAddress: oxaPayment.address,
-      payAmount: oxaPayment.payAmount,
-      payCurrency: oxaPayment.payCurrency,
-      network: oxaPayment.network,
-      qrCode: oxaPayment.qrCode,
-      expiresAt: oxaPayment.expiresAt,
-      trackId: oxaPayment.trackId,
+      payLink: oxaInvoice.payLink,
+      expiresAt: oxaInvoice.expiresAt,
+      trackId: oxaInvoice.trackId,
+      creditsToAdd: amountDecimal.toFixed(2),
     };
   }
 
@@ -796,21 +794,20 @@ class CryptoPaymentsService {
 
   private formatPaymentStatus(payment: CryptoPayment): PaymentStatus {
     const metadata = extractMetadata(payment.metadata);
-    
+
     return {
       id: payment.id,
       trackId: (typeof metadata.oxapay_track_id === "string"
         ? metadata.oxapay_track_id
         : ""),
       status: payment.status,
-      paymentAddress: payment.payment_address,
       expectedAmount: payment.expected_amount,
       receivedAmount: payment.received_amount || undefined,
       creditsToAdd: payment.credits_to_add,
       network: payment.network,
       token: payment.token,
-      qrCode: (typeof metadata.qr_code === "string"
-        ? metadata.qr_code
+      payLink: (typeof metadata.pay_link === "string"
+        ? metadata.pay_link
         : undefined),
       transactionHash: payment.transaction_hash || undefined,
       expiresAt: payment.expires_at,

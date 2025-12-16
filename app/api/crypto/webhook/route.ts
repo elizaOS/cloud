@@ -7,6 +7,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { webhookEventsRepository } from "@/db/repositories/webhook-events";
 import {
   type OxaPayWebhookPayload,
+  normalizeWebhookPayload,
   extractWebhookTimestamp,
   validateWebhookTimestamp,
 } from "@/lib/config/crypto";
@@ -207,12 +208,14 @@ async function handleWebhook(req: NextRequest) {
       return NextResponse.json({ error: "Invalid request" }, { status: 400 });
     }
 
-    if (!payload.track_id || !payload.status) {
+    const normalizedPayload = normalizeWebhookPayload(payload);
+
+    if (!normalizedPayload.trackId || !normalizedPayload.status) {
       logger.warn("[Crypto Webhook] Missing required fields", {
         ip: redact.ip(ip),
         payloadHash,
-        hasTrackId: !!payload.track_id,
-        hasStatus: !!payload.status,
+        hasTrackId: !!normalizedPayload.trackId,
+        hasStatus: !!normalizedPayload.status,
       });
       return NextResponse.json(
         { error: "Missing required fields" },
@@ -232,7 +235,7 @@ async function handleWebhook(req: NextRequest) {
         {
           ip: redact.ip(ip),
           payloadHash,
-          track_id: redact.trackId(payload.track_id),
+          trackId: redact.trackId(normalizedPayload.trackId),
           error: timestampValidation.error,
         }
       );
@@ -244,8 +247,8 @@ async function handleWebhook(req: NextRequest) {
 
     // Generate unique event ID for deduplication
     const eventId = generateWebhookEventId(
-      payload.track_id,
-      payload.status,
+      normalizedPayload.trackId,
+      normalizedPayload.status,
       payloadHash
     );
 
@@ -255,7 +258,7 @@ async function handleWebhook(req: NextRequest) {
     const insertResult = await webhookEventsRepository.tryCreate({
       event_id: eventId,
       provider: "oxapay",
-      event_type: payload.status,
+      event_type: normalizedPayload.status,
       payload_hash: payloadHash,
       source_ip: ip,
       event_timestamp: timestampValidation.timestamp,
@@ -266,8 +269,8 @@ async function handleWebhook(req: NextRequest) {
       logger.warn("[Crypto Webhook] Duplicate webhook detected - ignoring", {
         ip: redact.ip(ip),
         payloadHash,
-        track_id: redact.trackId(payload.track_id),
-        status: payload.status,
+        trackId: redact.trackId(normalizedPayload.trackId),
+        status: normalizedPayload.status,
         eventId,
       });
       return NextResponse.json({
@@ -278,17 +281,23 @@ async function handleWebhook(req: NextRequest) {
 
     logger.info("[Crypto Webhook] Valid webhook received", {
       ip: redact.ip(ip),
-      track_id: redact.trackId(payload.track_id),
-      status: payload.status,
+      trackId: redact.trackId(normalizedPayload.trackId),
+      status: normalizedPayload.status,
       payloadHash,
       eventId,
     });
 
-    const result = await cryptoPaymentsService.handleWebhook(payload);
+    const result = await cryptoPaymentsService.handleWebhook({
+      track_id: normalizedPayload.trackId,
+      status: normalizedPayload.status,
+      amount: normalizedPayload.amount,
+      pay_amount: normalizedPayload.payAmount,
+      txID: normalizedPayload.txID,
+    });
 
     logger.info("[Crypto Webhook] Webhook processed successfully", {
       ip: redact.ip(ip),
-      track_id: redact.trackId(payload.track_id),
+      trackId: redact.trackId(normalizedPayload.trackId),
       success: result.success,
       message: result.message,
       eventId,

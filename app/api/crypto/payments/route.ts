@@ -64,13 +64,9 @@ async function handleCreatePayment(req: NextRequest) {
     return NextResponse.json({
       paymentId: result.payment.id,
       trackId: result.trackId,
-      paymentAddress: result.paymentAddress,
-      payAmount: result.payAmount,
-      payCurrency: result.payCurrency,
-      network: result.network,
-      qrCode: result.qrCode,
+      payLink: result.payLink,
       expiresAt: result.expiresAt.toISOString(),
-      creditsToAdd: amount,
+      creditsToAdd: result.creditsToAdd,
     });
   } catch (error) {
     logger.error("[Crypto Payments API] Create payment error:", error);

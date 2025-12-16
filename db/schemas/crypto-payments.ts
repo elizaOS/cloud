@@ -51,7 +51,7 @@ export const cryptoPayments = pgTable(
     confirmed_at: timestamp("confirmed_at"),
     expires_at: timestamp("expires_at").notNull(),
 
-    // Stores OxaPay-specific data: oxapay_track_id, qr_code, rate, fiat_currency, fiat_amount
+    // Stores OxaPay-specific data: oxapay_track_id, pay_link, fiat_currency, fiat_amount
     metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}),
   },
   (table) => ({

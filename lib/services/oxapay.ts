@@ -1,8 +1,4 @@
-import oxapay from "oxapay";
 import { logger } from "@/lib/utils/logger";
-
-const PaymentClient = oxapay.v1.payment;
-const CommonClient = oxapay.v1.common;
 
 export type OxaPayNetwork =
   | "ERC20"
@@ -14,17 +10,12 @@ export type OxaPayNetwork =
   | "ARB"
   | "OP";
 
-export interface OxaPayPaymentResult {
+export interface OxaPayInvoiceResult {
   trackId: string;
-  address: string;
+  payLink: string;
   amount: number;
   currency: string;
-  payAmount: number;
-  payCurrency: string;
-  network: string;
-  qrCode: string;
   expiresAt: Date;
-  rate: number;
 }
 
 export interface OxaPayPaymentStatus {
@@ -43,30 +34,14 @@ export interface OxaPayPaymentStatus {
   }>;
 }
 
-let paymentClientInstance: InstanceType<typeof PaymentClient> | null = null;
-let commonClientInstance: InstanceType<typeof CommonClient> | null = null;
+const OXAPAY_API_BASE = "https://api.oxapay.com";
 
-function getPaymentClient(): InstanceType<typeof PaymentClient> {
-  if (paymentClientInstance) {
-    return paymentClientInstance;
-  }
-
+function getMerchantApiKey(): string {
   const apiKey = process.env.OXAPAY_MERCHANT_API_KEY;
   if (!apiKey) {
     throw new Error("OXAPAY_MERCHANT_API_KEY not configured");
   }
-
-  paymentClientInstance = new PaymentClient(apiKey);
-  return paymentClientInstance;
-}
-
-function getCommonClient(): InstanceType<typeof CommonClient> {
-  if (commonClientInstance) {
-    return commonClientInstance;
-  }
-
-  commonClientInstance = new CommonClient();
-  return commonClientInstance;
+  return apiKey;
 }
 
 export function isOxaPayConfigured(): boolean {
@@ -74,7 +49,11 @@ export function isOxaPayConfigured(): boolean {
 }
 
 class OxaPayService {
-  async createPayment(params: {
+  /**
+   * Create an invoice payment using OxaPay's merchant request API.
+   * This returns a payLink that redirects users to OxaPay's hosted payment page.
+   */
+  async createInvoice(params: {
     amount: number;
     currency?: string;
     payCurrency?: string;
@@ -82,24 +61,26 @@ class OxaPayService {
     orderId?: string;
     description?: string;
     callbackUrl?: string;
+    returnUrl?: string;
     email?: string;
     lifetime?: number;
-  }): Promise<OxaPayPaymentResult> {
-    const client = getPaymentClient();
+  }): Promise<OxaPayInvoiceResult> {
+    const merchantKey = getMerchantApiKey();
 
     const {
       amount,
       currency = "USD",
-      payCurrency = "USDT",
+      payCurrency,
       network,
       orderId,
       description,
       callbackUrl,
+      returnUrl,
       email,
       lifetime = 1800,
     } = params;
 
-    logger.info("[OxaPay] Creating payment", {
+    logger.info("[OxaPay] Creating invoice", {
       amount,
       currency,
       payCurrency,
@@ -107,82 +88,95 @@ class OxaPayService {
       orderId,
     });
 
-    const response = await client.generateWhiteLabel({
+    const requestBody: Record<string, unknown> = {
+      merchant: merchantKey,
       amount,
       currency,
-      pay_currency: payCurrency,
-      network,
-      order_id: orderId,
-      description,
-      callback_url: callbackUrl,
-      email,
-      lifetime,
-      fee_paid_by_payer: 0,
+      lifeTime: lifetime / 60,
+      feePaidByPayer: 0,
+      underPaidCover: 2.5,
+    };
+
+    if (payCurrency) requestBody.payCurrency = payCurrency;
+    if (network) requestBody.network = network;
+    if (orderId) requestBody.orderId = orderId;
+    if (description) requestBody.description = description;
+    if (callbackUrl) requestBody.callbackUrl = callbackUrl;
+    if (returnUrl) requestBody.returnUrl = returnUrl;
+    if (email) requestBody.email = email;
+
+    const response = await fetch(`${OXAPAY_API_BASE}/merchants/request`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(requestBody),
     });
 
-    const hasError = response.error && Object.keys(response.error).length > 0;
-    if (response.status !== 200 || hasError) {
-      logger.error("[OxaPay] Payment creation failed", {
-        error: response.error,
-        message: response.message,
+    const data = await response.json();
+
+    if (data.result !== 100) {
+      logger.error("[OxaPay] Invoice creation failed", {
+        result: data.result,
+        message: data.message,
       });
-      throw new Error(response.error?.message || response.message || "Payment creation failed");
+      throw new Error(data.message || "Invoice creation failed");
     }
 
-    const data = response.data;
-
-    logger.info("[OxaPay] Payment created", {
-      trackId: data.track_id,
-      address: data.address,
-      payAmount: data.pay_amount,
+    logger.info("[OxaPay] Invoice created", {
+      trackId: data.trackId,
+      hasPayLink: !!data.payLink,
     });
 
     return {
-      trackId: data.track_id,
-      address: data.address,
-      amount: data.amount,
-      currency: data.currency,
-      payAmount: data.pay_amount,
-      payCurrency: data.pay_currency,
-      network: data.network,
-      qrCode: data.qr_code,
-      expiresAt: new Date(data.expired_at * 1000),
-      rate: data.rate,
+      trackId: data.trackId,
+      payLink: data.payLink,
+      amount,
+      currency,
+      expiresAt: new Date(Date.now() + lifetime * 1000),
     };
   }
 
   async getPaymentStatus(trackId: string): Promise<OxaPayPaymentStatus> {
-    const client = getPaymentClient();
+    const merchantKey = getMerchantApiKey();
 
     logger.info("[OxaPay] Checking payment status", { trackId });
 
-    const response = await client.paymentInfo({ track_id: trackId });
+    const response = await fetch(`${OXAPAY_API_BASE}/merchants/inquiry`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        merchant: merchantKey,
+        trackId,
+      }),
+    });
 
-    const hasError = response.error && Object.keys(response.error).length > 0;
-    if (response.status !== 200 || hasError) {
+    const data = await response.json();
+
+    if (data.result !== 100) {
       logger.error("[OxaPay] Payment status check failed", {
-        error: response.error,
-        message: response.message,
+        result: data.result,
+        message: data.message,
       });
-      throw new Error(response.error?.message || response.message || "Payment status check failed");
+      throw new Error(data.message || "Payment status check failed");
     }
 
-    const data = response.data;
-
     return {
-      trackId: data.track_id,
+      trackId: data.trackId,
       status: data.status,
-      amount: data.amount,
+      amount: parseFloat(data.amount) || 0,
       currency: data.currency,
-      transactions: (data.txs || []).map((tx) => ({
-        txHash: tx.tx_hash,
-        amount: tx.amount,
-        currency: tx.currency,
-        network: tx.network,
-        address: tx.address,
-        status: tx.status,
-        confirmations: tx.confirmations,
-      })),
+      transactions: data.txID ? [{
+        txHash: data.txID,
+        amount: parseFloat(data.payAmount) || 0,
+        currency: data.payCurrency || "",
+        network: data.network || "",
+        address: data.address || "",
+        status: data.status,
+        confirmations: 1,
+      }] : [],
     };
   }
 
@@ -198,20 +192,25 @@ class OxaPayService {
       }>;
     }>
   > {
-    const client = getCommonClient();
+    const response = await fetch(`${OXAPAY_API_BASE}/api/currencies`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
 
-    const response = await client.supportedCurrencies();
+    const data = await response.json();
 
-    if (response.status !== 200) {
+    if (!data || typeof data !== "object") {
       throw new Error("Failed to fetch supported currencies");
     }
 
-    const currencies = Object.entries(response.data)
-      .filter(([_, info]) => info.status)
-      .map(([symbol, info]) => ({
+    const currencies = Object.entries(data)
+      .filter(([_, info]: [string, any]) => info.status)
+      .map(([_, info]: [string, any]) => ({
         symbol: info.symbol,
         name: info.name,
-        networks: Object.entries(info.networks || {}).map(([_, netInfo]) => ({
+        networks: Object.entries(info.networks || {}).map(([_, netInfo]: [string, any]) => ({
           network: netInfo.network,
           name: netInfo.name,
           depositMin: netInfo.deposit_min,
@@ -223,11 +222,15 @@ class OxaPayService {
   }
 
   async getSystemStatus(): Promise<boolean> {
-    const client = getCommonClient();
-
     try {
-      const response = await client.systemStatus();
-      return response.status === 200 && response.data?.status === true;
+      const response = await fetch(`${OXAPAY_API_BASE}/api/status`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+      const data = await response.json();
+      return data?.status === true;
     } catch {
       return false;
     }

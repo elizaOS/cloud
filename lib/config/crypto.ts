@@ -32,16 +32,40 @@ export const WEBHOOK_CONFIG = {
 
 /**
  * OxaPay webhook payload structure.
+ * Supports both camelCase (invoice API) and snake_case (white-label API) formats.
  */
 export interface OxaPayWebhookPayload {
-  track_id: string;
+  track_id?: string;
+  trackId?: string;
   status: string;
   amount?: number;
   pay_amount?: number;
+  payAmount?: number;
   address?: string;
   txID?: string;
   date?: number | string;
   timestamp?: number | string;
+  payCurrency?: string;
+  network?: string;
+}
+
+/**
+ * Normalize webhook payload to consistent format.
+ */
+export function normalizeWebhookPayload(payload: OxaPayWebhookPayload): {
+  trackId: string;
+  status: string;
+  amount?: number;
+  payAmount?: number;
+  txID?: string;
+} {
+  return {
+    trackId: payload.trackId || payload.track_id || "",
+    status: payload.status,
+    amount: payload.amount,
+    payAmount: payload.payAmount || payload.pay_amount,
+    txID: payload.txID,
+  };
 }
 
 export type OxaPayNetwork =
