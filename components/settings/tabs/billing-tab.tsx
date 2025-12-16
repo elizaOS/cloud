@@ -10,7 +10,13 @@
 
 import { BrandCard, CornerBrackets } from "@/components/brand";
 import type { UserWithOrganization } from "@/lib/types";
-import { Loader2, AlertCircle, CheckCircle, Wallet, CreditCard } from "lucide-react";
+import {
+  Loader2,
+  AlertCircle,
+  CheckCircle,
+  Wallet,
+  CreditCard,
+} from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -49,10 +55,12 @@ export function BillingTab({ user }: BillingTabProps) {
   const [purchaseAmount, setPurchaseAmount] = useState("");
   const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("card");
-  const [cryptoStatus, setCryptoStatus] = useState<CryptoStatusResponse | null>(null);
+  const [cryptoStatus, setCryptoStatus] = useState<CryptoStatusResponse | null>(
+    null
+  );
 
   const [balance, setBalance] = useState(
-    Number(user.organization?.credit_balance || 0),
+    Number(user.organization?.credit_balance || 0)
   );
 
   const fetchBalance = useCallback(async () => {
@@ -290,7 +298,9 @@ export function BillingTab({ user }: BillingTabProps) {
                       </>
                     ) : (
                       <span className="relative z-10 text-black font-mono font-medium text-base whitespace-nowrap">
-                        {paymentMethod === "crypto" ? "Pay with Crypto" : "Buy credits"}
+                        {paymentMethod === "crypto"
+                          ? "Pay with Crypto"
+                          : "Buy credits"}
                       </span>
                     )}
                   </button>

@@ -94,7 +94,7 @@ class OxaPayService {
       currency,
       lifeTime: lifetime / 60,
       feePaidByPayer: 0,
-      underPaidCover: 2.5,
+      underPaidCover: 0, // Reject underpayments - user must pay full amount
     };
 
     if (payCurrency) requestBody.payCurrency = payCurrency;
@@ -168,15 +168,19 @@ class OxaPayService {
       status: data.status,
       amount: parseFloat(data.amount) || 0,
       currency: data.currency,
-      transactions: data.txID ? [{
-        txHash: data.txID,
-        amount: parseFloat(data.payAmount) || 0,
-        currency: data.payCurrency || "",
-        network: data.network || "",
-        address: data.address || "",
-        status: data.status,
-        confirmations: 1,
-      }] : [],
+      transactions: data.txID
+        ? [
+            {
+              txHash: data.txID,
+              amount: parseFloat(data.payAmount) || 0,
+              currency: data.payCurrency || "",
+              network: data.network || "",
+              address: data.address || "",
+              status: data.status,
+              confirmations: 1,
+            },
+          ]
+        : [],
     };
   }
 
@@ -210,12 +214,14 @@ class OxaPayService {
       .map(([_, info]: [string, any]) => ({
         symbol: info.symbol,
         name: info.name,
-        networks: Object.entries(info.networks || {}).map(([_, netInfo]: [string, any]) => ({
-          network: netInfo.network,
-          name: netInfo.name,
-          depositMin: netInfo.deposit_min,
-          withdrawFee: netInfo.withdraw_fee,
-        })),
+        networks: Object.entries(info.networks || {}).map(
+          ([_, netInfo]: [string, any]) => ({
+            network: netInfo.network,
+            name: netInfo.name,
+            depositMin: netInfo.deposit_min,
+            withdrawFee: netInfo.withdraw_fee,
+          })
+        ),
       }));
 
     return currencies;
@@ -257,7 +263,11 @@ class OxaPayService {
    */
   isPaymentPending(status: string): boolean {
     const normalized = status.toLowerCase();
-    return normalized === "waiting" || normalized === "paying" || normalized === "confirming";
+    return (
+      normalized === "waiting" ||
+      normalized === "paying" ||
+      normalized === "confirming"
+    );
   }
 
   isPaymentExpired(status: string): boolean {

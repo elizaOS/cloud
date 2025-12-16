@@ -198,13 +198,12 @@ mock.module("@/lib/config/crypto", () => ({
   },
   validateReceivedAmount: (
     received: { greaterThanOrEqualTo: (threshold: unknown) => boolean },
-    expected: { mul: (n: number) => { minus: (n: unknown) => unknown } }
+    expected: unknown
   ) => {
-    // Simple mock: accept if received >= 98% of expected (2% tolerance for AUTO network)
-    const threshold = expected.mul(0.98);
+    // No tolerance - received must be >= expected (exact or overpayment only)
     return {
-      valid: received.greaterThanOrEqualTo(threshold),
-      threshold,
+      valid: received.greaterThanOrEqualTo(expected),
+      threshold: expected,
     };
   },
   OxaPayNetwork: {},

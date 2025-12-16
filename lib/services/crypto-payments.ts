@@ -7,15 +7,18 @@ import { cryptoPayments } from "@/db/schemas/crypto-payments";
 import { eq } from "drizzle-orm";
 import { creditsService } from "./credits";
 import { invoicesService } from "./invoices";
-import { oxaPayService, isOxaPayConfigured, type OxaPayNetwork } from "./oxapay";
+import {
+  oxaPayService,
+  isOxaPayConfigured,
+  type OxaPayNetwork,
+} from "./oxapay";
 import { logger, redact } from "@/lib/utils/logger";
 import {
   PAYMENT_EXPIRATION_SECONDS,
   MIN_PAYMENT_AMOUNT,
   MAX_PAYMENT_AMOUNT,
+  OXAPAY_FEE_MULTIPLIER,
   validatePaymentAmount,
-  validateReceivedAmount,
-  type OxaPayNetwork as ConfigOxaPayNetwork,
 } from "@/lib/config/crypto";
 import {
   createCryptoInvoiceId,
@@ -50,12 +53,14 @@ export interface PaymentStatus {
   confirmedAt?: Date;
 }
 
-const paymentMetadataSchema = z.object({
-  oxapay_track_id: z.string().optional(),
-  pay_link: z.string().optional(),
-  fiat_currency: z.string().optional(),
-  fiat_amount: z.number().optional(),
-}).passthrough();
+const paymentMetadataSchema = z
+  .object({
+    oxapay_track_id: z.string().optional(),
+    pay_link: z.string().optional(),
+    fiat_currency: z.string().optional(),
+    fiat_amount: z.number().optional(),
+  })
+  .passthrough();
 
 type PaymentMetadata = z.infer<typeof paymentMetadataSchema>;
 
@@ -66,13 +71,15 @@ function extractMetadata(metadata: unknown): PaymentMetadata {
   if (!metadata || typeof metadata !== "object") {
     return {};
   }
-  
+
   const result = paymentMetadataSchema.safeParse(metadata);
   if (!result.success) {
-    logger.warn("[Crypto Payments] Invalid metadata format", { error: result.error });
+    logger.warn("[Crypto Payments] Invalid metadata format", {
+      error: result.error,
+    });
     return {};
   }
-  
+
   return result.data;
 }
 
@@ -82,11 +89,11 @@ function extractMetadata(metadata: unknown): PaymentMetadata {
 function getTrackId(metadata: unknown): string {
   const meta = extractMetadata(metadata);
   const trackId = meta.oxapay_track_id;
-  
+
   if (typeof trackId !== "string" || !trackId) {
     throw new Error("Missing or invalid OxaPay track ID");
   }
-  
+
   return trackId;
 }
 
@@ -163,8 +170,8 @@ class CryptoPaymentsService {
       organization_id: organizationId,
       user_id: userId,
       payment_address: oxaInvoice.trackId,
-      expected_amount: amountDecimal.toFixed(2),
-      credits_to_add: amountDecimal.toFixed(2),
+      expected_amount: amountDecimal.toFixed(3),
+      credits_to_add: amountDecimal.toFixed(3),
       network: network || "AUTO",
       token: payCurrency || "AUTO",
       token_address: null,
@@ -190,13 +197,13 @@ class CryptoPaymentsService {
       payLink: oxaInvoice.payLink,
       expiresAt: oxaInvoice.expiresAt,
       trackId: oxaInvoice.trackId,
-      creditsToAdd: amountDecimal.toFixed(2),
+      creditsToAdd: amountDecimal.toFixed(3),
     };
   }
 
   async getPaymentStatus(paymentId: string): Promise<PaymentStatus | null> {
     validateUuid(paymentId, "payment ID");
-    
+
     const payment = await cryptoPaymentsRepository.findById(paymentId);
     if (!payment) return null;
 
@@ -208,7 +215,7 @@ class CryptoPaymentsService {
     payment: PaymentStatus;
   }> {
     validateUuid(paymentId, "payment ID");
-    
+
     const payment = await cryptoPaymentsRepository.findById(paymentId);
     if (!payment) {
       throw new Error("Payment not found");
@@ -236,42 +243,36 @@ class CryptoPaymentsService {
       if (oxaPayService.isPaymentConfirmed(oxaStatus.status)) {
         const tx = oxaStatus.transactions[0];
         if (!tx) {
-          logger.error("[Crypto Payments] Payment confirmed but no transactions found", {
-            paymentId: redact.paymentId(paymentId),
-            trackId: redact.trackId(trackId),
-          });
-          throw new Error("Payment confirmed but no transaction data available");
-        }
-
-        const expectedAmount = new Decimal(payment.expected_amount);
-        const receivedAmount = new Decimal(tx.amount);
-        const networkKey = payment.network as ConfigOxaPayNetwork;
-        const amountValidation = validateReceivedAmount(receivedAmount, expectedAmount, networkKey);
-
-        if (!amountValidation.valid) {
-          logger.error("[Crypto Payments] Received amount below threshold", {
-            paymentId: redact.paymentId(paymentId),
-            expected: expectedAmount.toString(),
-            received: receivedAmount.toString(),
-            threshold: amountValidation.threshold.toString(),
-            network: payment.network,
-          });
-          await cryptoPaymentsRepository.markAsFailed(
-            payment.id,
-            `Underpayment: received ${receivedAmount} < threshold ${amountValidation.threshold}`
+          logger.error(
+            "[Crypto Payments] Payment confirmed but no transactions found",
+            {
+              paymentId: redact.paymentId(paymentId),
+              trackId: redact.trackId(trackId),
+            }
           );
-          throw new Error(`Insufficient payment: received ${receivedAmount}, minimum required ${amountValidation.threshold}`);
+          throw new Error(
+            "Payment confirmed but no transaction data available"
+          );
         }
+
+        const receivedAmount = new Decimal(tx.amount);
+        // Credit user whatever USD value they paid (no underpayment validation)
+        logger.info("[Crypto Payments] Payment received", {
+          paymentId: redact.paymentId(paymentId),
+          expectedAmount: payment.expected_amount,
+          receivedAmount: receivedAmount.toString(),
+          network: payment.network,
+        });
 
         await this.confirmPayment(
           payment.id,
           tx.txHash,
           tx.confirmations?.toString() || "0",
-          receivedAmount.toString(),
+          receivedAmount.toString()
         );
 
         const confirmedPayment = await cryptoPaymentsRepository.findById(
-          payment.id,
+          payment.id
         );
         if (!confirmedPayment) {
           throw new Error("Failed to retrieve confirmed payment");
@@ -286,12 +287,12 @@ class CryptoPaymentsService {
       if (oxaPayService.isPaymentExpired(oxaStatus.status)) {
         await cryptoPaymentsRepository.markAsExpired(payment.id);
         const expiredPayment = await cryptoPaymentsRepository.findById(
-          payment.id,
+          payment.id
         );
         if (!expiredPayment) {
           throw new Error("Failed to retrieve expired payment");
         }
-        
+
         return {
           confirmed: false,
           payment: this.formatPaymentStatus(expiredPayment),
@@ -299,12 +300,17 @@ class CryptoPaymentsService {
       }
 
       if (oxaPayService.isPaymentFailed(oxaStatus.status)) {
-        await cryptoPaymentsRepository.markAsFailed(payment.id, oxaStatus.status);
-        const failedPayment = await cryptoPaymentsRepository.findById(payment.id);
+        await cryptoPaymentsRepository.markAsFailed(
+          payment.id,
+          oxaStatus.status
+        );
+        const failedPayment = await cryptoPaymentsRepository.findById(
+          payment.id
+        );
         if (!failedPayment) {
           throw new Error("Failed to retrieve failed payment");
         }
-        
+
         return {
           confirmed: false,
           payment: this.formatPaymentStatus(failedPayment),
@@ -333,7 +339,7 @@ class CryptoPaymentsService {
     paymentId: string,
     txHash: string,
     blockNumber: string,
-    receivedAmount: string,
+    receivedAmount: string
   ): Promise<void> {
     validateUuid(paymentId, "payment ID");
 
@@ -380,6 +386,12 @@ class CryptoPaymentsService {
         throw new Error("Transaction already processed for another payment");
       }
 
+      // OxaPay reports amount AFTER their 1.5% fee
+      // Reverse the fee to get what user actually paid: userPaid = received / 0.985
+      const receivedDecimal = new Decimal(receivedAmount);
+      const actualUserPaid = receivedDecimal.dividedBy(OXAPAY_FEE_MULTIPLIER);
+      const creditsToAdd = actualUserPaid.toFixed(3);
+
       await tx
         .update(cryptoPayments)
         .set({
@@ -387,21 +399,22 @@ class CryptoPaymentsService {
           transaction_hash: txHash,
           block_number: blockNumber,
           received_amount: receivedAmount,
+          credits_to_add: creditsToAdd,
           confirmed_at: new Date(),
         })
         .where(eq(cryptoPayments.id, paymentId));
 
-      const creditsDecimal = new Decimal(payment.credits_to_add);
       await creditsService.addCredits({
         organizationId: payment.organization_id,
-        amount: creditsDecimal.toNumber(),
+        amount: actualUserPaid.toNumber(),
         description: `Crypto payment (${payment.token} on ${payment.network})`,
         metadata: {
           crypto_payment_id: payment.id,
           transaction_hash: txHash,
           network: payment.network,
           token: payment.token,
-          received_amount: receivedAmount,
+          received_after_fee: receivedAmount,
+          user_paid_amount: creditsToAdd,
           oxapay_track_id: getTrackId(payment.metadata),
         },
       });
@@ -413,18 +426,19 @@ class CryptoPaymentsService {
         stripe_invoice_id: createCryptoInvoiceId(payment.id),
         stripe_customer_id: createCryptoCustomerId(payment.organization_id),
         stripe_payment_intent_id: txHash,
-        amount_due: payment.credits_to_add,
-        amount_paid: receivedAmount,
+        amount_due: payment.expected_amount,
+        amount_paid: creditsToAdd, // User's actual payment (before OxaPay fee)
         currency: payment.token.toLowerCase(),
         status: "paid",
         invoice_type: "crypto_payment",
-        credits_added: payment.credits_to_add,
+        credits_added: creditsToAdd,
         metadata: {
           payment_method: "crypto",
           provider: "oxapay",
           network: payment.network,
           token: payment.token,
           transaction_hash: txHash,
+          received_after_fee: receivedAmount,
           oxapay_track_id: getTrackId(payment.metadata),
         },
       });
@@ -432,7 +446,9 @@ class CryptoPaymentsService {
       logger.info("[Crypto Payments] Payment confirmed and credits added", {
         paymentId: redact.paymentId(paymentId),
         txHash: redact.txHash(txHash),
-        creditsAdded: creditsDecimal.toString(),
+        creditsAdded: creditsToAdd,
+        expectedAmount: payment.expected_amount,
+        receivedAmount,
         organizationId: redact.orgId(payment.organization_id),
       });
     });
@@ -441,7 +457,7 @@ class CryptoPaymentsService {
   /**
    * Verify and confirm a payment using a provided transaction hash.
    * This allows users to manually confirm payments by providing their transaction hash.
-   * 
+   *
    * SECURITY: This method performs on-chain verification via OxaPay API to ensure:
    * - The transaction hash exists and is associated with this payment
    * - The transaction has sufficient confirmations
@@ -450,7 +466,7 @@ class CryptoPaymentsService {
    */
   async verifyAndConfirmByTxHash(
     paymentId: string,
-    txHash: string,
+    txHash: string
   ): Promise<{ success: boolean; message: string }> {
     validateUuid(paymentId, "payment ID");
 
@@ -488,26 +504,35 @@ class CryptoPaymentsService {
         try {
           trackId = getTrackId(payment.metadata);
         } catch {
-          logger.error("[Crypto Payments] Missing track ID for on-chain verification", {
-            paymentId: redact.paymentId(paymentId),
-            txHash: redact.txHash(txHash),
-          });
-          return { success: false, message: "Payment configuration error - missing track ID" };
+          logger.error(
+            "[Crypto Payments] Missing track ID for on-chain verification",
+            {
+              paymentId: redact.paymentId(paymentId),
+              txHash: redact.txHash(txHash),
+            }
+          );
+          return {
+            success: false,
+            message: "Payment configuration error - missing track ID",
+          };
         }
 
         // Verify the transaction on-chain via OxaPay API
         const oxaStatus = await oxaPayService.getPaymentStatus(trackId);
-        
+
         // Check if the payment is confirmed on OxaPay's side
         if (!oxaPayService.isPaymentConfirmed(oxaStatus.status)) {
-          logger.warn("[Crypto Payments] On-chain verification failed - payment not confirmed", {
-            paymentId: redact.paymentId(paymentId),
-            txHash: redact.txHash(txHash),
-            trackId: redact.trackId(trackId),
-            oxaPayStatus: oxaStatus.status,
-          });
-          return { 
-            success: false, 
+          logger.warn(
+            "[Crypto Payments] On-chain verification failed - payment not confirmed",
+            {
+              paymentId: redact.paymentId(paymentId),
+              txHash: redact.txHash(txHash),
+              trackId: redact.trackId(trackId),
+              oxaPayStatus: oxaStatus.status,
+            }
+          );
+          return {
+            success: false,
             message: `Payment not yet confirmed by blockchain. Current status: ${oxaStatus.status}`,
           };
         }
@@ -519,49 +544,52 @@ class CryptoPaymentsService {
 
         if (!matchingTx) {
           // List the valid transaction hashes for debugging (redacted)
-          const validHashes = oxaStatus.transactions.map(txn => redact.txHash(txn.txHash));
-          logger.warn("[Crypto Payments] Transaction hash not found in OxaPay records", {
-            paymentId: redact.paymentId(paymentId),
-            providedTxHash: redact.txHash(txHash),
-            trackId: redact.trackId(trackId),
-            validTransactions: validHashes,
-          });
+          const validHashes = oxaStatus.transactions.map((txn) =>
+            redact.txHash(txn.txHash)
+          );
+          logger.warn(
+            "[Crypto Payments] Transaction hash not found in OxaPay records",
+            {
+              paymentId: redact.paymentId(paymentId),
+              providedTxHash: redact.txHash(txHash),
+              trackId: redact.trackId(trackId),
+              validTransactions: validHashes,
+            }
+          );
           return {
             success: false,
-            message: "Transaction hash not found in payment records. Please ensure you submitted the correct transaction hash.",
+            message:
+              "Transaction hash not found in payment records. Please ensure you submitted the correct transaction hash.",
           };
         }
 
         // Verify the transaction has enough confirmations (at least 1 for confirmed status)
         if (matchingTx.confirmations < 1) {
-          logger.warn("[Crypto Payments] Transaction has insufficient confirmations", {
-            paymentId: redact.paymentId(paymentId),
-            txHash: redact.txHash(txHash),
-            confirmations: matchingTx.confirmations,
-          });
+          logger.warn(
+            "[Crypto Payments] Transaction has insufficient confirmations",
+            {
+              paymentId: redact.paymentId(paymentId),
+              txHash: redact.txHash(txHash),
+              confirmations: matchingTx.confirmations,
+            }
+          );
           return {
             success: false,
             message: `Transaction needs more confirmations. Current: ${matchingTx.confirmations}`,
           };
         }
 
-        // Verify the amount is correct (with tolerance for minor differences)
-        const expectedAmount = new Decimal(payment.expected_amount);
+        // Credit user whatever USD value they paid (no underpayment validation)
         const receivedAmount = new Decimal(matchingTx.amount);
-        const tolerance = expectedAmount.mul(0.01); // 1% tolerance for fees
-        
-        if (receivedAmount.lt(expectedAmount.minus(tolerance))) {
-          logger.warn("[Crypto Payments] Received amount less than expected", {
+        logger.info(
+          "[Crypto Payments] Manual verification - payment received",
+          {
             paymentId: redact.paymentId(paymentId),
             txHash: redact.txHash(txHash),
-            expected: expectedAmount.toString(),
-            received: receivedAmount.toString(),
-          });
-          return {
-            success: false,
-            message: `Received amount (${receivedAmount}) is less than expected (${expectedAmount})`,
-          };
-        }
+            expectedAmount: payment.expected_amount,
+            receivedAmount: receivedAmount.toString(),
+          }
+        );
 
         // Check if this transaction hash is already used by another payment
         const existingTxResult = await tx
@@ -570,7 +598,10 @@ class CryptoPaymentsService {
           .where(eq(cryptoPayments.transaction_hash, txHash))
           .for("update");
 
-        if (existingTxResult.length > 0 && existingTxResult[0].id !== paymentId) {
+        if (
+          existingTxResult.length > 0 &&
+          existingTxResult[0].id !== paymentId
+        ) {
           logger.error("[Crypto Payments] Double-spend attempt detected", {
             paymentId: redact.paymentId(paymentId),
             txHash: redact.txHash(txHash),
@@ -582,12 +613,18 @@ class CryptoPaymentsService {
           };
         }
 
+        // OxaPay reports amount AFTER their 1.5% fee
+        // Reverse the fee to get what user actually paid
+        const actualUserPaid = receivedAmount.dividedBy(OXAPAY_FEE_MULTIPLIER);
+        const creditsToAdd = actualUserPaid.toFixed(3);
+
         logger.info("[Crypto Payments] On-chain verification successful", {
           paymentId: redact.paymentId(paymentId),
           txHash: redact.txHash(txHash),
           trackId: redact.trackId(trackId),
           confirmations: matchingTx.confirmations,
           receivedAmount: matchingTx.amount,
+          creditsToAdd,
         });
 
         // Update the payment record
@@ -598,22 +635,23 @@ class CryptoPaymentsService {
             transaction_hash: txHash,
             block_number: "0",
             received_amount: matchingTx.amount.toString(),
+            credits_to_add: creditsToAdd,
             confirmed_at: new Date(),
           })
           .where(eq(cryptoPayments.id, paymentId));
 
-        // Add credits
-        const creditsDecimal = new Decimal(payment.credits_to_add);
+        // Add credits based on what user actually paid (fee reversed)
         await creditsService.addCredits({
           organizationId: payment.organization_id,
-          amount: creditsDecimal.toNumber(),
+          amount: actualUserPaid.toNumber(),
           description: `Crypto payment (${payment.token} on ${payment.network})`,
           metadata: {
             crypto_payment_id: payment.id,
             transaction_hash: txHash,
             network: payment.network,
             token: payment.token,
-            received_amount: matchingTx.amount.toString(),
+            received_after_fee: matchingTx.amount.toString(),
+            user_paid_amount: creditsToAdd,
             oxapay_track_id: trackId,
           },
         });
@@ -625,18 +663,19 @@ class CryptoPaymentsService {
           stripe_invoice_id: createCryptoInvoiceId(payment.id),
           stripe_customer_id: createCryptoCustomerId(payment.organization_id),
           stripe_payment_intent_id: txHash,
-          amount_due: payment.credits_to_add,
-          amount_paid: matchingTx.amount.toString(),
+          amount_due: payment.expected_amount,
+          amount_paid: creditsToAdd, // User's actual payment (before OxaPay fee)
           currency: payment.token.toLowerCase(),
           status: "paid",
           invoice_type: "crypto_payment",
-          credits_added: payment.credits_to_add,
+          credits_added: creditsToAdd,
           metadata: {
             payment_method: "crypto",
             provider: "oxapay",
             network: payment.network,
             token: payment.token,
             transaction_hash: txHash,
+            received_after_fee: matchingTx.amount.toString(),
             oxapay_track_id: trackId,
           },
         });
@@ -644,7 +683,7 @@ class CryptoPaymentsService {
         logger.info("[Crypto Payments] Manual confirmation successful", {
           paymentId: redact.paymentId(paymentId),
           txHash: redact.txHash(txHash),
-          creditsAdded: creditsDecimal.toString(),
+          creditsAdded: creditsToAdd,
           organizationId: redact.orgId(payment.organization_id),
         });
 
@@ -681,7 +720,10 @@ class CryptoPaymentsService {
       throw new Error("Invalid webhook payload");
     }
 
-    logger.info("[Crypto Payments] Webhook received", { track_id: redact.trackId(track_id), status });
+    logger.info("[Crypto Payments] Webhook received", {
+      track_id: redact.trackId(track_id),
+      status,
+    });
 
     const payment = await cryptoPaymentsRepository.findByTrackId(track_id);
 
@@ -705,47 +747,45 @@ class CryptoPaymentsService {
         const oxaStatus = await oxaPayService.getPaymentStatus(track_id);
 
         if (!oxaPayService.isPaymentConfirmed(oxaStatus.status)) {
-          logger.warn("[Crypto Payments] Webhook status mismatch - OxaPay API disagrees", {
-            track_id: redact.trackId(track_id),
-            webhookStatus: status,
-            apiStatus: oxaStatus.status,
-          });
-          return { success: false, message: "Payment status verification failed" };
+          logger.warn(
+            "[Crypto Payments] Webhook status mismatch - OxaPay API disagrees",
+            {
+              track_id: redact.trackId(track_id),
+              webhookStatus: status,
+              apiStatus: oxaStatus.status,
+            }
+          );
+          return {
+            success: false,
+            message: "Payment status verification failed",
+          };
         }
 
         const tx = oxaStatus.transactions[0];
         if (!tx) {
-          logger.error("[Crypto Payments] Webhook confirmed but no transaction data from API", {
-            track_id: redact.trackId(track_id),
-          });
+          logger.error(
+            "[Crypto Payments] Webhook confirmed but no transaction data from API",
+            {
+              track_id: redact.trackId(track_id),
+            }
+          );
           return { success: false, message: "No transaction data available" };
         }
 
-        const expectedAmount = new Decimal(payment.expected_amount);
+        // Credit user whatever USD value they paid (no underpayment validation)
         const receivedAmount = new Decimal(tx.amount);
-        const networkKey = payment.network as ConfigOxaPayNetwork;
-        const amountValidation = validateReceivedAmount(receivedAmount, expectedAmount, networkKey);
-
-        if (!amountValidation.valid) {
-          logger.error("[Crypto Payments] Webhook: Received amount below threshold", {
-            track_id: redact.trackId(track_id),
-            expected: expectedAmount.toString(),
-            received: receivedAmount.toString(),
-            threshold: amountValidation.threshold.toString(),
-            network: payment.network,
-          });
-          await cryptoPaymentsRepository.markAsFailed(
-            payment.id,
-            `Underpayment: received ${receivedAmount} < threshold ${amountValidation.threshold}`
-          );
-          return { success: false, message: "Insufficient payment amount" };
-        }
+        logger.info("[Crypto Payments] Webhook - payment received", {
+          track_id: redact.trackId(track_id),
+          expectedAmount: payment.expected_amount,
+          receivedAmount: receivedAmount.toString(),
+          network: payment.network,
+        });
 
         await this.confirmPayment(
           payment.id,
           tx.txHash || txID || track_id,
           tx.confirmations?.toString() || "0",
-          receivedAmount.toString(),
+          receivedAmount.toString()
         );
         return { success: true, message: "Payment confirmed" };
       }
@@ -771,10 +811,10 @@ class CryptoPaymentsService {
   }
 
   async listPaymentsByOrganization(
-    organizationId: string,
+    organizationId: string
   ): Promise<PaymentStatus[]> {
     validateUuid(organizationId, "organization ID");
-    
+
     const payments =
       await cryptoPaymentsRepository.listByOrganization(organizationId);
     return payments.map((p) => this.formatPaymentStatus(p));
@@ -797,18 +837,18 @@ class CryptoPaymentsService {
 
     return {
       id: payment.id,
-      trackId: (typeof metadata.oxapay_track_id === "string"
-        ? metadata.oxapay_track_id
-        : ""),
+      trackId:
+        typeof metadata.oxapay_track_id === "string"
+          ? metadata.oxapay_track_id
+          : "",
       status: payment.status,
       expectedAmount: payment.expected_amount,
       receivedAmount: payment.received_amount || undefined,
       creditsToAdd: payment.credits_to_add,
       network: payment.network,
       token: payment.token,
-      payLink: (typeof metadata.pay_link === "string"
-        ? metadata.pay_link
-        : undefined),
+      payLink:
+        typeof metadata.pay_link === "string" ? metadata.pay_link : undefined,
       transactionHash: payment.transaction_hash || undefined,
       expiresAt: payment.expires_at,
       createdAt: payment.created_at,

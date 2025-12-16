@@ -4,6 +4,25 @@
 import Decimal from "decimal.js";
 
 /**
+ * OxaPay merchant fee percentage.
+ * OxaPay deducts this fee from payments before reporting to merchant.
+ * So: receivedAmount = userPaid * (1 - fee%)
+ * To get what user paid: userPaid = receivedAmount / (1 - fee%)
+ * Default: 1.5%
+ */
+export const OXAPAY_FEE_PERCENT = new Decimal(
+  process.env.OXAPAY_FEE_PERCENT || "1.5"
+);
+
+/**
+ * Multiplier to convert received amount to what user actually paid.
+ * userPaidAmount = receivedAmount / OXAPAY_FEE_MULTIPLIER
+ */
+export const OXAPAY_FEE_MULTIPLIER = new Decimal(1).minus(
+  OXAPAY_FEE_PERCENT.dividedBy(100)
+);
+
+/**
  * Supported payment currencies for OxaPay.
  */
 export const SUPPORTED_PAY_CURRENCIES = [
@@ -23,7 +42,7 @@ export type OxaPayCurrency = (typeof SUPPORTED_PAY_CURRENCIES)[number];
  */
 export const WEBHOOK_CONFIG = {
   /** Maximum age of a webhook before rejection (seconds) */
-  MAX_AGE_SECONDS: 300,
+  MAX_AGE_SECONDS: 1800, // 30 minutes - matches OxaPay's webhook retry window
   /** Tolerance for clock skew (seconds into the future) */
   CLOCK_SKEW_TOLERANCE_SECONDS: 30,
   /** Retention period for processed webhook events (days) */
@@ -232,17 +251,19 @@ export function validatePaymentAmount(amount: Decimal): {
 }
 
 /**
- * Validate that received amount meets the expected amount within tolerance.
+ * Validate that received amount meets the expected amount.
+ * Underpayment is NOT accepted - user must pay at least the full expected amount.
+ * Overpayment is accepted - user will receive credits for the full amount paid.
  */
 export function validateReceivedAmount(
   received: Decimal,
   expected: Decimal,
-  network: OxaPayNetwork
+  _network: OxaPayNetwork
 ): { valid: boolean; threshold: Decimal } {
-  const threshold = calculateTolerance(expected, network);
+  // No tolerance - received must be >= expected (exact or overpayment only)
   return {
-    valid: received.greaterThanOrEqualTo(threshold),
-    threshold,
+    valid: received.greaterThanOrEqualTo(expected),
+    threshold: expected,
   };
 }
 
