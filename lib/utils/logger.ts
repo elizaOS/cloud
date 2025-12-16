@@ -1,9 +1,154 @@
 /**
- * Conditional logging utility
- * Only logs in development environment to reduce noise in production
+ * Conditional logging utility with sensitive data redaction
+ * Only logs debug/info in development environment to reduce noise in production
+ * Provides utilities to redact sensitive data like transaction hashes and IDs
  */
 
 const isDev = process.env.NODE_ENV === "development";
+
+/**
+ * Redaction utilities for sensitive data in logs
+ * Use these to prevent exposing full transaction hashes, IDs, and other sensitive info
+ */
+export const redact = {
+  /**
+   * Truncates a transaction hash for safe logging.
+   * Shows first 10 characters + "..." (e.g., "0x1234abcd...")
+   * In development, shows more detail for debugging.
+   */
+  txHash: (hash: string | null | undefined): string => {
+    if (!hash) return "[no-hash]";
+    if (isDev) return hash.slice(0, 18) + "...";
+    return hash.slice(0, 10) + "...";
+  },
+
+  /**
+   * Truncates a UUID/ID for safe logging.
+   * Shows first 8 characters + "..." (e.g., "a1b2c3d4...")
+   */
+  id: (id: string | null | undefined): string => {
+    if (!id) return "[no-id]";
+    if (isDev) return id.slice(0, 12) + "...";
+    return id.slice(0, 8) + "...";
+  },
+
+  /**
+   * Truncates an organization ID for safe logging.
+   * Alias for id() with semantic meaning.
+   */
+  orgId: (id: string | null | undefined): string => redact.id(id),
+
+  /**
+   * Truncates a user ID for safe logging.
+   * Alias for id() with semantic meaning.
+   */
+  userId: (id: string | null | undefined): string => redact.id(id),
+
+  /**
+   * Truncates a payment ID for safe logging.
+   * Alias for id() with semantic meaning.
+   */
+  paymentId: (id: string | null | undefined): string => redact.id(id),
+
+  /**
+   * Truncates a track ID (e.g., OxaPay track ID) for safe logging.
+   */
+  trackId: (id: string | null | undefined): string => {
+    if (!id) return "[no-trackid]";
+    if (isDev) return id.slice(0, 16) + "...";
+    return id.slice(0, 10) + "...";
+  },
+
+  /**
+   * Masks an IP address for safe logging.
+   * Shows first two octets for IPv4 (e.g., "192.168.xxx.xxx")
+   * For IPv6, shows first segment.
+   */
+  ip: (ip: string | null | undefined): string => {
+    if (!ip || ip === "unknown") return "[no-ip]";
+    if (isDev) return ip; // Full IP in dev for debugging
+    // IPv4: mask last two octets
+    if (ip.includes(".")) {
+      const parts = ip.split(".");
+      if (parts.length === 4) {
+        return `${parts[0]}.${parts[1]}.xxx.xxx`;
+      }
+    }
+    // IPv6: show first segment only
+    if (ip.includes(":")) {
+      const firstSegment = ip.split(":")[0];
+      return `${firstSegment}:xxxx::`;
+    }
+    return "[masked-ip]";
+  },
+
+  /**
+   * Truncates a wallet address for safe logging.
+   * Shows first 6 and last 4 characters (e.g., "0x1234...abcd")
+   */
+  address: (addr: string | null | undefined): string => {
+    if (!addr) return "[no-address]";
+    if (addr.length < 12) return addr;
+    return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+  },
+
+  /**
+   * Creates a redacted version of a log context object.
+   * Automatically redacts known sensitive fields.
+   */
+  context: (ctx: Record<string, unknown>): Record<string, unknown> => {
+    const redacted: Record<string, unknown> = {};
+
+    for (const [key, value] of Object.entries(ctx)) {
+      if (typeof value !== "string") {
+        redacted[key] = value;
+        continue;
+      }
+
+      // Auto-redact based on field name patterns
+      const lowerKey = key.toLowerCase();
+      if (
+        lowerKey.includes("txhash") ||
+        lowerKey.includes("transaction_hash")
+      ) {
+        redacted[key] = redact.txHash(value);
+      } else if (
+        lowerKey === "ip" ||
+        lowerKey.includes("sourceip") ||
+        lowerKey.includes("source_ip")
+      ) {
+        redacted[key] = redact.ip(value);
+      } else if (
+        lowerKey.includes("paymentid") ||
+        lowerKey.includes("payment_id")
+      ) {
+        redacted[key] = redact.paymentId(value);
+      } else if (
+        lowerKey.includes("organizationid") ||
+        lowerKey.includes("organization_id") ||
+        lowerKey.includes("orgid")
+      ) {
+        redacted[key] = redact.orgId(value);
+      } else if (lowerKey.includes("userid") || lowerKey.includes("user_id")) {
+        redacted[key] = redact.userId(value);
+      } else if (
+        lowerKey.includes("trackid") ||
+        lowerKey.includes("track_id")
+      ) {
+        redacted[key] = redact.trackId(value);
+      } else if (
+        lowerKey.includes("address") &&
+        (value.startsWith("0x") || value.length > 30)
+      ) {
+        redacted[key] = redact.address(value);
+      } else {
+        redacted[key] = value;
+      }
+    }
+
+    return redacted;
+  },
+};
 
 export const logger = {
   /**
@@ -37,4 +182,10 @@ export const logger = {
   warn: (...args: unknown[]) => {
     console.warn(...args);
   },
+
+  /**
+   * Redaction utilities - use these to sanitize sensitive data before logging.
+   * Example: logger.info("Payment", { txHash: redact.txHash(hash) })
+   */
+  redact,
 };

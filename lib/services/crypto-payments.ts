@@ -8,7 +8,7 @@ import { eq } from "drizzle-orm";
 import { creditsService } from "./credits";
 import { invoicesService } from "./invoices";
 import { oxaPayService, isOxaPayConfigured, type OxaPayNetwork } from "./oxapay";
-import { logger } from "@/lib/utils/logger";
+import { logger, redact } from "@/lib/utils/logger";
 import {
   PAYMENT_EXPIRATION_SECONDS,
   MIN_PAYMENT_AMOUNT,
@@ -175,9 +175,9 @@ class CryptoPaymentsService {
     });
 
     logger.info("[Crypto Payments] Payment created via OxaPay", {
-      paymentId: payment.id,
-      trackId: oxaPayment.trackId,
-      organizationId,
+      paymentId: redact.paymentId(payment.id),
+      trackId: redact.trackId(oxaPayment.trackId),
+      organizationId: redact.orgId(organizationId),
       amount,
       payCurrency,
       network: oxaPayment.network,
@@ -285,8 +285,8 @@ class CryptoPaymentsService {
       }
     } catch (error) {
       logger.error("[Crypto Payments] Failed to check OxaPay status", {
-        paymentId,
-        trackId,
+        paymentId: redact.paymentId(paymentId),
+        trackId: redact.trackId(trackId),
         error,
       });
       throw error;
@@ -325,14 +325,14 @@ class CryptoPaymentsService {
 
       if (payment.status === "confirmed") {
         logger.info("[Crypto Payments] Payment already confirmed", {
-          paymentId,
+          paymentId: redact.paymentId(paymentId),
         });
         return;
       }
 
       if (payment.expires_at < new Date()) {
         logger.error("[Crypto Payments] Cannot confirm expired payment", {
-          paymentId,
+          paymentId: redact.paymentId(paymentId),
           expiresAt: payment.expires_at,
         });
         throw new Error("Payment has expired");
@@ -346,9 +346,9 @@ class CryptoPaymentsService {
 
       if (existingTx.length > 0 && existingTx[0].id !== paymentId) {
         logger.error("[Crypto Payments] Double-spend attempt detected", {
-          paymentId,
-          txHash,
-          existingPaymentId: existingTx[0].id,
+          paymentId: redact.paymentId(paymentId),
+          txHash: redact.txHash(txHash),
+          existingPaymentId: redact.paymentId(existingTx[0].id),
         });
         throw new Error("Transaction already processed for another payment");
       }
@@ -403,10 +403,10 @@ class CryptoPaymentsService {
       });
 
       logger.info("[Crypto Payments] Payment confirmed and credits added", {
-        paymentId,
-        txHash,
+        paymentId: redact.paymentId(paymentId),
+        txHash: redact.txHash(txHash),
         creditsAdded: creditsDecimal.toString(),
-        organizationId: payment.organization_id,
+        organizationId: redact.orgId(payment.organization_id),
       });
     });
   }
@@ -462,8 +462,8 @@ class CryptoPaymentsService {
           trackId = getTrackId(payment.metadata);
         } catch {
           logger.error("[Crypto Payments] Missing track ID for on-chain verification", {
-            paymentId,
-            txHash,
+            paymentId: redact.paymentId(paymentId),
+            txHash: redact.txHash(txHash),
           });
           return { success: false, message: "Payment configuration error - missing track ID" };
         }
@@ -474,9 +474,9 @@ class CryptoPaymentsService {
         // Check if the payment is confirmed on OxaPay's side
         if (!oxaPayService.isPaymentConfirmed(oxaStatus.status)) {
           logger.warn("[Crypto Payments] On-chain verification failed - payment not confirmed", {
-            paymentId,
-            txHash,
-            trackId,
+            paymentId: redact.paymentId(paymentId),
+            txHash: redact.txHash(txHash),
+            trackId: redact.trackId(trackId),
             oxaPayStatus: oxaStatus.status,
           });
           return { 
@@ -491,12 +491,12 @@ class CryptoPaymentsService {
         );
 
         if (!matchingTx) {
-          // List the valid transaction hashes for debugging
-          const validHashes = oxaStatus.transactions.map(txn => txn.txHash);
+          // List the valid transaction hashes for debugging (redacted)
+          const validHashes = oxaStatus.transactions.map(txn => redact.txHash(txn.txHash));
           logger.warn("[Crypto Payments] Transaction hash not found in OxaPay records", {
-            paymentId,
-            providedTxHash: txHash,
-            trackId,
+            paymentId: redact.paymentId(paymentId),
+            providedTxHash: redact.txHash(txHash),
+            trackId: redact.trackId(trackId),
             validTransactions: validHashes,
           });
           return {
@@ -508,8 +508,8 @@ class CryptoPaymentsService {
         // Verify the transaction has enough confirmations (at least 1 for confirmed status)
         if (matchingTx.confirmations < 1) {
           logger.warn("[Crypto Payments] Transaction has insufficient confirmations", {
-            paymentId,
-            txHash,
+            paymentId: redact.paymentId(paymentId),
+            txHash: redact.txHash(txHash),
             confirmations: matchingTx.confirmations,
           });
           return {
@@ -525,8 +525,8 @@ class CryptoPaymentsService {
         
         if (receivedAmount.lt(expectedAmount.minus(tolerance))) {
           logger.warn("[Crypto Payments] Received amount less than expected", {
-            paymentId,
-            txHash,
+            paymentId: redact.paymentId(paymentId),
+            txHash: redact.txHash(txHash),
             expected: expectedAmount.toString(),
             received: receivedAmount.toString(),
           });
@@ -545,9 +545,9 @@ class CryptoPaymentsService {
 
         if (existingTxResult.length > 0 && existingTxResult[0].id !== paymentId) {
           logger.error("[Crypto Payments] Double-spend attempt detected", {
-            paymentId,
-            txHash,
-            existingPaymentId: existingTxResult[0].id,
+            paymentId: redact.paymentId(paymentId),
+            txHash: redact.txHash(txHash),
+            existingPaymentId: redact.paymentId(existingTxResult[0].id),
           });
           return {
             success: false,
@@ -556,9 +556,9 @@ class CryptoPaymentsService {
         }
 
         logger.info("[Crypto Payments] On-chain verification successful", {
-          paymentId,
-          txHash,
-          trackId,
+          paymentId: redact.paymentId(paymentId),
+          txHash: redact.txHash(txHash),
+          trackId: redact.trackId(trackId),
           confirmations: matchingTx.confirmations,
           receivedAmount: matchingTx.amount,
         });
@@ -615,10 +615,10 @@ class CryptoPaymentsService {
         });
 
         logger.info("[Crypto Payments] Manual confirmation successful", {
-          paymentId,
-          txHash,
+          paymentId: redact.paymentId(paymentId),
+          txHash: redact.txHash(txHash),
           creditsAdded: creditsDecimal.toString(),
-          organizationId: payment.organization_id,
+          organizationId: redact.orgId(payment.organization_id),
         });
 
         return {
@@ -628,8 +628,8 @@ class CryptoPaymentsService {
       });
     } catch (error) {
       logger.error("[Crypto Payments] Manual confirmation failed", {
-        paymentId,
-        txHash,
+        paymentId: redact.paymentId(paymentId),
+        txHash: redact.txHash(txHash),
         error,
       });
 
@@ -654,20 +654,20 @@ class CryptoPaymentsService {
       throw new Error("Invalid webhook payload");
     }
 
-    logger.info("[Crypto Payments] Webhook received", { track_id, status });
+    logger.info("[Crypto Payments] Webhook received", { track_id: redact.trackId(track_id), status });
 
     const payment = await cryptoPaymentsRepository.findByTrackId(track_id);
 
     if (!payment) {
       logger.warn("[Crypto Payments] Payment not found for webhook", {
-        track_id,
+        track_id: redact.trackId(track_id),
       });
       return { success: false, message: "Payment not found" };
     }
 
     if (payment.status !== "pending") {
       logger.info("[Crypto Payments] Payment already processed", {
-        track_id,
+        track_id: redact.trackId(track_id),
         status: payment.status,
       });
       return { success: true, message: "Payment already processed" };
@@ -697,7 +697,7 @@ class CryptoPaymentsService {
       return { success: true, message: "Webhook processed" };
     } catch (error) {
       logger.error("[Crypto Payments] Webhook processing error", {
-        track_id,
+        track_id: redact.trackId(track_id),
         error,
       });
       throw error;

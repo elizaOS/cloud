@@ -41,10 +41,41 @@ export class WebhookEventsRepository {
   }
 
   /**
+   * Atomically try to create a webhook event record.
+   * Returns { created: true, event } if successful, { created: false } if duplicate.
+   * This eliminates race conditions by using the database's unique constraint.
+   */
+  async tryCreate(
+    data: NewWebhookEvent
+  ): Promise<{ created: true; event: WebhookEvent } | { created: false }> {
+    try {
+      const [event] = await db
+        .insert(webhookEvents)
+        .values({
+          ...data,
+          processed_at: new Date(),
+        })
+        .onConflictDoNothing({ target: webhookEvents.event_id })
+        .returning();
+
+      // If no row returned, it means conflict (duplicate)
+      if (!event) {
+        return { created: false };
+      }
+
+      return { created: true, event };
+    } catch {
+      // Fallback for databases that don't support onConflictDoNothing well
+      // or if there's a race condition with unique constraint
+      return { created: false };
+    }
+  }
+
+  /**
    * Delete old webhook events to prevent table growth.
    * Keeps events from the last `retentionDays` days.
    */
-  async cleanupOldEvents(retentionDays: number = 30): Promise<number> {
+  async cleanupOldEvents(retentionDays = 30): Promise<number> {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
 
@@ -61,7 +92,7 @@ export class WebhookEventsRepository {
    */
   async cleanupOldEventsForProvider(
     provider: string,
-    retentionDays: number = 30
+    retentionDays = 30
   ): Promise<number> {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
@@ -81,4 +112,3 @@ export class WebhookEventsRepository {
 }
 
 export const webhookEventsRepository = new WebhookEventsRepository();
-

@@ -5,6 +5,7 @@ import { isOxaPayConfigured } from "@/lib/services/oxapay";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { z } from "zod";
 import { logger } from "@/lib/utils/logger";
+import { SUPPORTED_PAY_CURRENCIES } from "@/lib/config/crypto";
 
 const createPaymentSchema = z.object({
   amount: z
@@ -12,7 +13,7 @@ const createPaymentSchema = z.object({
     .min(1, "Minimum amount is $1")
     .max(10000, "Maximum amount is $10,000"),
   currency: z.string().default("USD"),
-  payCurrency: z.string().default("USDT"),
+  payCurrency: z.enum(SUPPORTED_PAY_CURRENCIES).default("USDT"),
   network: z
     .enum(["ERC20", "TRC20", "BEP20", "POLYGON", "SOL", "BASE", "ARB", "OP"])
     .optional(),
@@ -25,14 +26,14 @@ async function handleCreatePayment(req: NextRequest) {
     if (!user.organization_id) {
       return NextResponse.json(
         { error: "Organization not found" },
-        { status: 404 },
+        { status: 404 }
       );
     }
 
     if (!isOxaPayConfigured()) {
       return NextResponse.json(
         { error: "Crypto payments not available" },
-        { status: 503 },
+        { status: 503 }
       );
     }
 
@@ -45,7 +46,7 @@ async function handleCreatePayment(req: NextRequest) {
           error: "Validation failed",
           details: validation.error.flatten().fieldErrors,
         },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -73,30 +74,45 @@ async function handleCreatePayment(req: NextRequest) {
     });
   } catch (error) {
     logger.error("[Crypto Payments API] Create payment error:", error);
-    
+
     if (error instanceof Error) {
       const errorMessage = error.message.toLowerCase();
-      
+
       if (errorMessage.includes("invalid") && errorMessage.includes("uuid")) {
-        return NextResponse.json({ error: "Invalid request format" }, { status: 400 });
+        return NextResponse.json(
+          { error: "Invalid request format" },
+          { status: 400 }
+        );
       }
-      
+
       if (errorMessage.includes("amount must be at least")) {
-        return NextResponse.json({ error: "Amount too small" }, { status: 400 });
+        return NextResponse.json(
+          { error: "Amount too small" },
+          { status: 400 }
+        );
       }
-      
+
       if (errorMessage.includes("amount must not exceed")) {
-        return NextResponse.json({ error: "Amount too large" }, { status: 400 });
+        return NextResponse.json(
+          { error: "Amount too large" },
+          { status: 400 }
+        );
       }
-      
-      if (errorMessage.includes("not configured") || errorMessage.includes("service not")) {
-        return NextResponse.json({ error: "Service temporarily unavailable" }, { status: 503 });
+
+      if (
+        errorMessage.includes("not configured") ||
+        errorMessage.includes("service not")
+      ) {
+        return NextResponse.json(
+          { error: "Service temporarily unavailable" },
+          { status: 503 }
+        );
       }
     }
-    
+
     return NextResponse.json(
       { error: "Failed to process payment request" },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }
@@ -108,29 +124,32 @@ async function handleListPayments(req: NextRequest) {
     if (!user.organization_id) {
       return NextResponse.json(
         { error: "Organization not found" },
-        { status: 404 },
+        { status: 404 }
       );
     }
 
     const payments = await cryptoPaymentsService.listPaymentsByOrganization(
-      user.organization_id,
+      user.organization_id
     );
 
     return NextResponse.json({ payments });
   } catch (error) {
     logger.error("[Crypto Payments API] List payments error:", error);
-    
+
     if (error instanceof Error) {
       const errorMessage = error.message.toLowerCase();
-      
+
       if (errorMessage.includes("invalid") && errorMessage.includes("uuid")) {
-        return NextResponse.json({ error: "Invalid request format" }, { status: 400 });
+        return NextResponse.json(
+          { error: "Invalid request format" },
+          { status: 400 }
+        );
       }
     }
-    
+
     return NextResponse.json(
       { error: "Failed to retrieve payments" },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }

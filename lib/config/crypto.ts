@@ -3,6 +3,47 @@
  */
 import Decimal from "decimal.js";
 
+/**
+ * Supported payment currencies for OxaPay.
+ */
+export const SUPPORTED_PAY_CURRENCIES = [
+  "USDT",
+  "USDC",
+  "BTC",
+  "ETH",
+  "BNB",
+  "TRX",
+  "SOL",
+] as const;
+
+export type OxaPayCurrency = (typeof SUPPORTED_PAY_CURRENCIES)[number];
+
+/**
+ * Webhook security configuration.
+ */
+export const WEBHOOK_CONFIG = {
+  /** Maximum age of a webhook before rejection (seconds) */
+  MAX_AGE_SECONDS: 300,
+  /** Tolerance for clock skew (seconds into the future) */
+  CLOCK_SKEW_TOLERANCE_SECONDS: 30,
+  /** Retention period for processed webhook events (days) */
+  RETENTION_DAYS: 30,
+} as const;
+
+/**
+ * OxaPay webhook payload structure.
+ */
+export interface OxaPayWebhookPayload {
+  track_id: string;
+  status: string;
+  amount?: number;
+  pay_amount?: number;
+  address?: string;
+  txID?: string;
+  date?: number | string;
+  timestamp?: number | string;
+}
+
 export type OxaPayNetwork =
   | "ERC20"
   | "TRC20"
@@ -187,4 +228,80 @@ export function getNetworkConfig(network: OxaPayNetwork): NetworkConfig {
  */
 export function getSupportedNetworks(): OxaPayNetwork[] {
   return Object.keys(NETWORK_CONFIGS) as OxaPayNetwork[];
+}
+
+/**
+ * Parses a timestamp value that could be in seconds or milliseconds.
+ * Converts to milliseconds for consistency.
+ */
+function parseTimestamp(value: number | string): number | undefined {
+  const parsed = typeof value === "number" ? value : Number.parseInt(value, 10);
+  if (Number.isNaN(parsed)) return undefined;
+  // If it looks like seconds (before year 2100), convert to milliseconds
+  return parsed < 10000000000 ? parsed * 1000 : parsed;
+}
+
+/**
+ * Extracts timestamp from webhook header or payload.
+ * Returns undefined if no valid timestamp found.
+ */
+export function extractWebhookTimestamp(
+  header: string | null,
+  payload: OxaPayWebhookPayload
+): number | undefined {
+  // Try header first
+  if (header) {
+    const parsed = parseTimestamp(header);
+    if (parsed !== undefined) return parsed;
+  }
+
+  // Try payload.date
+  if (payload.date !== undefined) {
+    const parsed = parseTimestamp(payload.date);
+    if (parsed !== undefined) return parsed;
+  }
+
+  // Try payload.timestamp
+  if (payload.timestamp !== undefined) {
+    const parsed = parseTimestamp(payload.timestamp);
+    if (parsed !== undefined) return parsed;
+  }
+
+  return undefined;
+}
+
+/**
+ * Validates a webhook timestamp against max age and clock skew tolerance.
+ */
+export function validateWebhookTimestamp(timestampMs: number | undefined): {
+  isValid: boolean;
+  timestamp?: Date;
+  error?: string;
+} {
+  if (timestampMs === undefined) {
+    // No timestamp - graceful degradation, rely on deduplication
+    return { isValid: true, timestamp: undefined };
+  }
+
+  const now = Date.now();
+  const webhookDate = new Date(timestampMs);
+  const ageSeconds = (now - timestampMs) / 1000;
+
+  if (ageSeconds > WEBHOOK_CONFIG.MAX_AGE_SECONDS) {
+    return {
+      isValid: false,
+      timestamp: webhookDate,
+      error: `Webhook is too old (${Math.round(ageSeconds)} seconds). Maximum age: ${WEBHOOK_CONFIG.MAX_AGE_SECONDS} seconds`,
+    };
+  }
+
+  if (ageSeconds < -WEBHOOK_CONFIG.CLOCK_SKEW_TOLERANCE_SECONDS) {
+    return {
+      isValid: false,
+      timestamp: webhookDate,
+      error: `Webhook timestamp is ${Math.abs(Math.round(ageSeconds))} seconds in the future`,
+    };
+  }
+
+  return { isValid: true, timestamp: webhookDate };
 }
