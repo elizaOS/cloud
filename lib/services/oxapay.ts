@@ -30,16 +30,63 @@ export interface OxaPayPaymentStatus {
     network: string;
     address: string;
     status: string;
-    confirmations: number;
   }>;
 }
 
 const OXAPAY_API_BASE = "https://api.oxapay.com";
 
+/**
+ * Custom error for OxaPay API failures.
+ */
+export class OxaPayApiError extends Error {
+  constructor(
+    message: string,
+    public readonly statusCode?: number,
+    public readonly apiResult?: number
+  ) {
+    super(message);
+    this.name = "OxaPayApiError";
+  }
+}
+
+/**
+ * Helper to make OxaPay API requests with proper error handling.
+ */
+async function oxaPayFetch<T>(url: string, options: RequestInit): Promise<T> {
+  let response: Response;
+
+  try {
+    response = await fetch(url, options);
+  } catch (error) {
+    logger.error("[OxaPay] Network error", { url, error });
+    throw new OxaPayApiError(
+      `Network error connecting to OxaPay: ${error instanceof Error ? error.message : "Unknown error"}`
+    );
+  }
+
+  if (!response.ok) {
+    logger.error("[OxaPay] HTTP error", { url, status: response.status });
+    throw new OxaPayApiError(
+      `OxaPay API returned HTTP ${response.status}`,
+      response.status
+    );
+  }
+
+  let data: T;
+  try {
+    data = await response.json();
+  } catch (error) {
+    logger.error("[OxaPay] Invalid JSON response", { url, error });
+    throw new OxaPayApiError("OxaPay returned invalid JSON response");
+  }
+
+  return data;
+}
+
 function getMerchantApiKey(): string {
   const apiKey = process.env.OXAPAY_MERCHANT_API_KEY;
   if (!apiKey) {
-    throw new Error("OXAPAY_MERCHANT_API_KEY not configured");
+    throw new OxaPayApiError("OXAPAY_MERCHANT_API_KEY not configured");
   }
   return apiKey;
 }
@@ -105,22 +152,27 @@ class OxaPayService {
     if (returnUrl) requestBody.returnUrl = returnUrl;
     if (email) requestBody.email = email;
 
-    const response = await fetch(`${OXAPAY_API_BASE}/merchants/request`, {
+    const data = await oxaPayFetch<{
+      result: number;
+      message?: string;
+      trackId: string;
+      payLink: string;
+    }>(`${OXAPAY_API_BASE}/merchants/request`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(requestBody),
     });
-
-    const data = await response.json();
 
     if (data.result !== 100) {
       logger.error("[OxaPay] Invoice creation failed", {
         result: data.result,
         message: data.message,
       });
-      throw new Error(data.message || "Invoice creation failed");
+      throw new OxaPayApiError(
+        data.message || "Invoice creation failed",
+        undefined,
+        data.result
+      );
     }
 
     logger.info("[OxaPay] Invoice created", {
@@ -142,42 +194,55 @@ class OxaPayService {
 
     logger.info("[OxaPay] Checking payment status", { trackId });
 
-    const response = await fetch(`${OXAPAY_API_BASE}/merchants/inquiry`, {
+    const data = await oxaPayFetch<{
+      result: number;
+      message?: string;
+      trackId: string;
+      status: string;
+      amount: string;
+      currency: string;
+      txID?: string;
+      payAmount?: string;
+      payCurrency?: string;
+      network?: string;
+      address?: string;
+    }>(`${OXAPAY_API_BASE}/merchants/inquiry`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         merchant: merchantKey,
         trackId,
       }),
     });
 
-    const data = await response.json();
-
     if (data.result !== 100) {
       logger.error("[OxaPay] Payment status check failed", {
         result: data.result,
         message: data.message,
       });
-      throw new Error(data.message || "Payment status check failed");
+      throw new OxaPayApiError(
+        data.message || "Payment status check failed",
+        undefined,
+        data.result
+      );
     }
 
+    // Note: OxaPay doesn't provide blockchain confirmation counts.
+    // Confirmation is determined by status ("paid" = confirmed by network).
     return {
       trackId: data.trackId,
       status: data.status,
-      amount: parseFloat(data.amount) || 0,
+      amount: Number.parseFloat(data.amount) || 0,
       currency: data.currency,
       transactions: data.txID
         ? [
             {
               txHash: data.txID,
-              amount: parseFloat(data.payAmount) || 0,
+              amount: Number.parseFloat(data.payAmount || "0"),
               currency: data.payCurrency || "",
               network: data.network || "",
               address: data.address || "",
               status: data.status,
-              confirmations: 1,
             },
           ]
         : [],
@@ -196,46 +261,62 @@ class OxaPayService {
       }>;
     }>
   > {
-    const response = await fetch(`${OXAPAY_API_BASE}/api/currencies`, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
-
-    const data = await response.json();
+    const data = await oxaPayFetch<Record<string, unknown>>(
+      `${OXAPAY_API_BASE}/api/currencies`,
+      {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+      }
+    );
 
     if (!data || typeof data !== "object") {
-      throw new Error("Failed to fetch supported currencies");
+      throw new OxaPayApiError("Failed to fetch supported currencies");
     }
 
     const currencies = Object.entries(data)
-      .filter(([_, info]: [string, any]) => info.status)
-      .map(([_, info]: [string, any]) => ({
-        symbol: info.symbol,
-        name: info.name,
-        networks: Object.entries(info.networks || {}).map(
-          ([_, netInfo]: [string, any]) => ({
-            network: netInfo.network,
-            name: netInfo.name,
-            depositMin: netInfo.deposit_min,
-            withdrawFee: netInfo.withdraw_fee,
-          })
-        ),
-      }));
+      .filter(
+        ([_, info]: [string, unknown]) => (info as { status?: boolean })?.status
+      )
+      .map(([_, info]: [string, unknown]) => {
+        const currency = info as {
+          symbol: string;
+          name: string;
+          networks?: Record<string, unknown>;
+        };
+        return {
+          symbol: currency.symbol,
+          name: currency.name,
+          networks: Object.entries(currency.networks || {}).map(
+            ([_, netInfo]: [string, unknown]) => {
+              const network = netInfo as {
+                network: string;
+                name: string;
+                deposit_min: number;
+                withdraw_fee: number;
+              };
+              return {
+                network: network.network,
+                name: network.name,
+                depositMin: network.deposit_min,
+                withdrawFee: network.withdraw_fee,
+              };
+            }
+          ),
+        };
+      });
 
     return currencies;
   }
 
   async getSystemStatus(): Promise<boolean> {
     try {
-      const response = await fetch(`${OXAPAY_API_BASE}/api/status`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-      const data = await response.json();
+      const data = await oxaPayFetch<{ status?: boolean }>(
+        `${OXAPAY_API_BASE}/api/status`,
+        {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+        }
+      );
       return data?.status === true;
     } catch {
       return false;
