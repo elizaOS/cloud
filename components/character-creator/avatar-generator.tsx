@@ -24,6 +24,7 @@ import {
   ensureAvatarUrl,
 } from "@/lib/utils/default-avatar";
 import Image from "next/image";
+import { AvatarUpload } from "../character-builder";
 
 interface AvatarGeneratorProps {
   characterName: string;
@@ -50,7 +51,7 @@ export function AvatarGenerator({
 
   const handleRandomize = () => {
     onAvatarChange(
-      generateDefaultAvatarUrl(characterName || `char-${Date.now()}`),
+      generateDefaultAvatarUrl(characterName || `char-${Date.now()}`)
     );
     toast.success("Random avatar selected");
   };
@@ -91,7 +92,7 @@ export function AvatarGenerator({
     } catch (error) {
       console.error("Error generating AI avatar:", error);
       toast.error(
-        error instanceof Error ? error.message : "Failed to generate AI avatar",
+        error instanceof Error ? error.message : "Failed to generate AI avatar"
       );
     } finally {
       setIsGeneratingAI(false);
@@ -104,17 +105,12 @@ export function AvatarGenerator({
     <div className={cn("flex flex-col gap-4", className)}>
       {/* Current Avatar Preview */}
       <div className="flex items-center gap-4">
-        <div className="relative w-20 h-20 rounded-lg border border-white/10 bg-black/40 overflow-hidden">
-          <Image
-            src={resolvedCurrentAvatar}
-            alt={characterName || "Avatar"}
-            fill
-            className="object-cover"
-            sizes="80px"
-            unoptimized={!isBuiltInAvatar(currentAvatarUrl)}
-            draggable={false}
-          />
-        </div>
+        <AvatarUpload
+          value={currentAvatarUrl}
+          onChange={onAvatarChange}
+          name={characterName}
+          size="sm"
+        />
 
         <div className="flex flex-col gap-2">
           <p className="text-sm text-white/60">Current avatar</p>
@@ -150,8 +146,9 @@ export function AvatarGenerator({
       {/* Avatar Selection Grid */}
       <div className="space-y-2">
         <p className="text-sm text-white/60">
-          Or choose from built-in avatars:
+          Choose from the built-in avatars:
         </p>
+
         <div className="grid grid-cols-5 gap-2 max-w-[360px]">
           {availableAvatars.map((avatar) => {
             const isSelected = currentAvatarUrl === avatar.url;
@@ -163,7 +160,7 @@ export function AvatarGenerator({
                   "relative w-full max-w-16 max-h-16 aspect-square rounded-lg overflow-hidden border-2 transition-all",
                   isSelected
                     ? "border-[#FF5800] ring-2 ring-[#FF5800]/30"
-                    : "border-white/10 hover:border-white/30",
+                    : "border-white/10 hover:border-white/30"
                 )}
                 title={avatar.name}
               >

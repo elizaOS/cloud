@@ -65,7 +65,7 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
       : [];
     updateField(
       type,
-      currentArray.filter((_, i) => i !== index),
+      currentArray.filter((_, i) => i !== index)
     );
   };
 
@@ -90,7 +90,7 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
     const currentExamples = character.messageExamples || [];
     updateField(
       "messageExamples",
-      currentExamples.filter((_, i) => i !== index),
+      currentExamples.filter((_, i) => i !== index)
     );
   };
 
@@ -208,26 +208,6 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                 currentAvatarUrl={character.avatarUrl || character.avatar_url}
                 onAvatarChange={(url) => updateField("avatarUrl", url)}
               />
-
-              {/* Divider */}
-              <div className="flex items-center gap-4 py-2">
-                <div className="flex-1 h-px bg-white/10" />
-                <span className="text-xs text-white/40">or upload custom</span>
-                <div className="flex-1 h-px bg-white/10" />
-              </div>
-
-              {/* Manual Upload */}
-              <div className="flex flex-col items-center space-y-2">
-                <AvatarUpload
-                  value={character.avatarUrl || character.avatar_url}
-                  onChange={(url) => updateField("avatarUrl", url)}
-                  name={character.name || "Character"}
-                  size="sm"
-                />
-                <p className="text-xs text-white/40 text-center max-w-xs">
-                  Upload a custom image (max 5MB)
-                </p>
-              </div>
             </div>
           </BrandTabsContent>
 
@@ -298,7 +278,8 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                     {conversation.map((message, msgIndex) => (
                       <div key={msgIndex} className="space-y-1">
                         <span className="text-xs font-medium text-[#FF5800]">
-                          {message.name === "user" || message.name === "{{user1}}"
+                          {message.name === "user" ||
+                          message.name === "{{user1}}"
                             ? "User"
                             : message.name || "Agent"}
                           :
