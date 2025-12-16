@@ -13,6 +13,10 @@ import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { BuildModeAssistant } from "@/components/chat/build-mode-assistant";
 import { CharacterEditor } from "@/components/chat/character-editor";
 import { useAgentOnboarding } from "@/components/onboarding/agent-onboarding-provider";
+import {
+  dispatchOnboardingComplete,
+  ONBOARDING_STEP_IDS,
+} from "@/components/onboarding/onboarding-events";
 import { toast } from "sonner";
 import {
   createCharacter,
@@ -108,6 +112,12 @@ export function CharacterBuildMode({
         // Update existing character
         await updateCharacter(selectedCharacterId, character);
         toast.success("Character updated successfully!");
+
+        // Dispatch onboarding event for "Edit & Customize" step
+        dispatchOnboardingComplete(
+          ONBOARDING_STEP_IDS.EDIT_CUSTOMIZE,
+          selectedCharacterId,
+        );
       } else {
         // Create new character (creator mode)
         const saved = await createCharacter(character);

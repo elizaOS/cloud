@@ -17,6 +17,10 @@ import { useState, useEffect, useCallback } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  dispatchOnboardingComplete,
+  ONBOARDING_STEP_IDS,
+} from "@/components/onboarding/onboarding-events";
 
 interface ApisTabProps {
   user: UserWithOrganization;
@@ -131,6 +135,9 @@ export function ApisTab({ user }: ApisTabProps) {
 
     toast.success("API key created successfully");
     updateOperation({ creating: false });
+
+    // Dispatch onboarding event for "Configure API Keys" step
+    dispatchOnboardingComplete(ONBOARDING_STEP_IDS.CONFIGURE_API_KEYS);
   };
 
   const handleCopyKey = async (keyPrefix: string) => {

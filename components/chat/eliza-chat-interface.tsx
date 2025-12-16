@@ -58,6 +58,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useRenderTracker } from "@/lib/debug/render-tracker";
 import { usePrivy } from "@privy-io/react-auth";
+import {
+  dispatchOnboardingComplete,
+  ONBOARDING_STEP_IDS,
+} from "@/components/onboarding/onboarding-events";
 
 interface Message {
   id: string;
@@ -456,6 +460,13 @@ export function ElizaChatInterface({
             // Notify parent that a message was sent successfully (for anonymous message counting)
             if (onMessageSent) {
               onMessageSent();
+            }
+            // Dispatch onboarding event for "Test Your Agent" step
+            if (selectedCharacterId) {
+              dispatchOnboardingComplete(
+                ONBOARDING_STEP_IDS.TEST_AGENT,
+                selectedCharacterId,
+              );
             }
           },
         });

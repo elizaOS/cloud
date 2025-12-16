@@ -30,6 +30,7 @@ interface AgentOnboardingContextValue extends OnboardingState {
     avatarUrl?: string;
   }) => void;
   setMinimized: (minimized: boolean) => void;
+  markStepComplete: (stepId: string) => void;
   toggleStepComplete: (stepId: string) => void;
   dismissChecklist: () => void;
   resetChecklist: () => void;
@@ -126,6 +127,18 @@ export function AgentOnboardingProvider({ children }: { children: ReactNode }) {
     setState((prev) => ({ ...prev, isMinimized: minimized }));
   }, []);
 
+  const markStepComplete = useCallback((stepId: string) => {
+    setState((prev) => {
+      if (prev.completedSteps.includes(stepId)) {
+        return prev;
+      }
+      return {
+        ...prev,
+        completedSteps: [...prev.completedSteps, stepId],
+      };
+    });
+  }, []);
+
   const toggleStepComplete = useCallback((stepId: string) => {
     setState((prev) => {
       const isCompleted = prev.completedSteps.includes(stepId);
@@ -158,6 +171,7 @@ export function AgentOnboardingProvider({ children }: { children: ReactNode }) {
       ...state,
       showChecklist,
       setMinimized,
+      markStepComplete,
       toggleStepComplete,
       dismissChecklist,
       resetChecklist,
@@ -166,6 +180,7 @@ export function AgentOnboardingProvider({ children }: { children: ReactNode }) {
       state,
       showChecklist,
       setMinimized,
+      markStepComplete,
       toggleStepComplete,
       dismissChecklist,
       resetChecklist,

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect } from "react";
-import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import {
   MessageSquare,
   FileText,
@@ -17,6 +17,7 @@ import {
 import { cn } from "@/lib/utils";
 import { ElizaAvatar } from "@/components/chat/eliza-avatar";
 import { useAgentOnboarding } from "@/components/onboarding/agent-onboarding-provider";
+import { subscribeToOnboardingEvents } from "@/components/onboarding/onboarding-events";
 
 interface OnboardingStep {
   id: string;
@@ -24,11 +25,6 @@ interface OnboardingStep {
   description: string;
   icon: React.ReactNode;
   getHref: (agentId: string) => string;
-  checkMatch?: (info: {
-    pathname: string;
-    characterIdParam: string | null;
-    agentId: string;
-  }) => boolean;
 }
 
 const ONBOARDING_STEPS: OnboardingStep[] = [
@@ -38,9 +34,6 @@ const ONBOARDING_STEPS: OnboardingStep[] = [
     description: "Verify personality and responses",
     icon: <MessageSquare className="h-4 w-4" />,
     getHref: (agentId) => `/dashboard/chat?characterId=${agentId}`,
-    checkMatch: ({ pathname, characterIdParam, agentId }) =>
-      pathname.startsWith("/dashboard/chat") &&
-      characterIdParam === agentId,
   },
   {
     id: "knowledge",
@@ -48,7 +41,6 @@ const ONBOARDING_STEPS: OnboardingStep[] = [
     description: "Upload documents for context",
     icon: <FileText className="h-4 w-4" />,
     getHref: () => "/dashboard/knowledge",
-    checkMatch: ({ pathname }) => pathname.startsWith("/dashboard/knowledge"),
   },
   {
     id: "api-keys",
@@ -56,7 +48,6 @@ const ONBOARDING_STEPS: OnboardingStep[] = [
     description: "Connect your LLM provider",
     icon: <Key className="h-4 w-4" />,
     getHref: () => "/dashboard/api-keys",
-    checkMatch: ({ pathname }) => pathname.startsWith("/dashboard/api-keys"),
   },
   {
     id: "deploy",
@@ -64,7 +55,6 @@ const ONBOARDING_STEPS: OnboardingStep[] = [
     description: "Make accessible 24/7",
     icon: <Rocket className="h-4 w-4" />,
     getHref: () => "/dashboard/containers",
-    checkMatch: ({ pathname }) => pathname.startsWith("/dashboard/containers"),
   },
   {
     id: "edit",
@@ -72,17 +62,11 @@ const ONBOARDING_STEPS: OnboardingStep[] = [
     description: "Fine-tune settings",
     icon: <Edit className="h-4 w-4" />,
     getHref: (agentId) => `/dashboard/build?characterId=${agentId}`,
-    checkMatch: ({ pathname, characterIdParam, agentId }) =>
-      pathname.startsWith("/dashboard/build") &&
-      characterIdParam === agentId,
   },
 ];
 
 export function AgentOnboardingChecklist() {
   const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const characterIdParam = searchParams.get("characterId");
 
   const {
     isVisible,
@@ -92,6 +76,7 @@ export function AgentOnboardingChecklist() {
     agentAvatarUrl,
     completedSteps,
     setMinimized,
+    markStepComplete,
     toggleStepComplete,
     dismissChecklist,
   } = useAgentOnboarding();
@@ -99,21 +84,14 @@ export function AgentOnboardingChecklist() {
   useEffect(() => {
     if (!isVisible || !agentId) return;
 
-    ONBOARDING_STEPS.forEach((step) => {
-      if (
-        step.checkMatch &&
-        step.checkMatch({
-          pathname: pathname || "",
-          characterIdParam,
-          agentId,
-        })
-      ) {
-        if (!completedSteps.includes(step.id)) {
-          toggleStepComplete(step.id);
-        }
+    const unsubscribe = subscribeToOnboardingEvents((detail) => {
+      if (!detail.agentId || detail.agentId === agentId) {
+        markStepComplete(detail.stepId);
       }
     });
-  }, [pathname, characterIdParam, agentId, isVisible, completedSteps, toggleStepComplete]);
+
+    return unsubscribe;
+  }, [isVisible, agentId, markStepComplete]);
 
   const handleStepClick = useCallback(
     (step: OnboardingStep) => {

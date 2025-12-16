@@ -17,6 +17,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, Upload, FileText, CheckCircle2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  dispatchOnboardingComplete,
+  ONBOARDING_STEP_IDS,
+} from "@/components/onboarding/onboarding-events";
 
 interface DocumentUploadProps {
   onUploadSuccess: () => void;
@@ -162,6 +166,9 @@ export function DocumentUpload({
     // Notify parent
     onUploadSuccess();
     setUploading(false);
+
+    // Dispatch onboarding event for "Add Knowledge" step
+    dispatchOnboardingComplete(ONBOARDING_STEP_IDS.ADD_KNOWLEDGE, characterId || undefined);
   };
 
   const handleTextUpload = async (e: React.FormEvent) => {
@@ -211,6 +218,9 @@ export function DocumentUpload({
     // Notify parent
     onUploadSuccess();
     setUploading(false);
+
+    // Dispatch onboarding event for "Add Knowledge" step
+    dispatchOnboardingComplete(ONBOARDING_STEP_IDS.ADD_KNOWLEDGE, characterId || undefined);
   };
 
   return (
