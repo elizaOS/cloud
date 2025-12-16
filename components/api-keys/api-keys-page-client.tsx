@@ -37,6 +37,10 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { BrandButton } from "@/components/brand";
+import {
+  dispatchOnboardingComplete,
+  ONBOARDING_STEP_IDS,
+} from "@/components/onboarding/onboarding-events";
 
 interface ApiKeysPageClientProps {
   keys: ApiKeyDisplay[];
@@ -145,6 +149,8 @@ export function ApiKeysPageClient({ keys, summary }: ApiKeysPageClientProps) {
     });
     router.refresh();
     setIsCreating(false);
+
+    dispatchOnboardingComplete(ONBOARDING_STEP_IDS.CONFIGURE_API_KEYS);
   };
 
   const handleCopyKey = (plainKey: string) => {
