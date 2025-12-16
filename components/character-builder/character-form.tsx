@@ -12,7 +12,7 @@
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { X, Plus } from "lucide-react";
+import { X, Plus, HelpCircle } from "lucide-react";
 import type { ElizaCharacter } from "@/lib/types";
 import { AvatarUpload } from "@/components/character-builder/avatar-upload";
 import { AvatarGenerator } from "@/components/character-creator/avatar-generator";
@@ -25,6 +25,11 @@ import {
   BrandButton,
   CornerBrackets,
 } from "@/components/brand";
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from "@/components/ui/tooltip";
 
 interface CharacterFormProps {
   character: ElizaCharacter;
@@ -116,10 +121,40 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
               Basics
             </BrandTabsTrigger>
             <BrandTabsTrigger value="personality" className="flex-1">
-              Personality
+              <span className="flex items-center gap-1.5">
+                Personality
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="inline-flex">
+                      <HelpCircle className="h-3 w-3 text-white/30 hover:text-white/50" />
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent
+                    side="bottom"
+                    className="max-w-[200px] text-xs bg-zinc-900 text-white/80 border border-white/10"
+                  >
+                    Teach your agent how to respond with example conversations and posts.
+                  </TooltipContent>
+                </Tooltip>
+              </span>
             </BrandTabsTrigger>
             <BrandTabsTrigger value="style" className="flex-1">
-              Style
+              <span className="flex items-center gap-1.5">
+                Style
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="inline-flex">
+                      <HelpCircle className="h-3 w-3 text-white/30 hover:text-white/50" />
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent
+                    side="bottom"
+                    className="max-w-[200px] text-xs bg-zinc-900 text-white/80 border border-white/10"
+                  >
+                    Control how your agent writes — its tone, voice, and formatting rules.
+                  </TooltipContent>
+                </Tooltip>
+              </span>
             </BrandTabsTrigger>
           </BrandTabsList>
 
