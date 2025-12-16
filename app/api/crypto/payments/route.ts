@@ -1,6 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { requireAuthWithOrg } from "@/lib/auth";
-import { cryptoPaymentsService } from "@/lib/services/crypto-payments";
+import {
+  cryptoPaymentsService,
+  CryptoPaymentError,
+} from "@/lib/services/crypto-payments";
 import { isOxaPayConfigured } from "@/lib/services/oxapay";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { z } from "zod";
@@ -71,39 +74,25 @@ async function handleCreatePayment(req: NextRequest) {
   } catch (error) {
     logger.error("[Crypto Payments API] Create payment error:", error);
 
-    if (error instanceof Error) {
-      const errorMessage = error.message.toLowerCase();
+    if (error instanceof CryptoPaymentError) {
+      const statusMap: Record<string, { status: number; message: string }> = {
+        INVALID_UUID: { status: 400, message: "Invalid request format" },
+        AMOUNT_TOO_SMALL: { status: 400, message: "Amount too small" },
+        AMOUNT_TOO_LARGE: { status: 400, message: "Amount too large" },
+        SERVICE_NOT_CONFIGURED: {
+          status: 503,
+          message: "Service temporarily unavailable",
+        },
+      };
 
-      if (errorMessage.includes("invalid") && errorMessage.includes("uuid")) {
-        return NextResponse.json(
-          { error: "Invalid request format" },
-          { status: 400 }
-        );
-      }
-
-      if (errorMessage.includes("amount must be at least")) {
-        return NextResponse.json(
-          { error: "Amount too small" },
-          { status: 400 }
-        );
-      }
-
-      if (errorMessage.includes("amount must not exceed")) {
-        return NextResponse.json(
-          { error: "Amount too large" },
-          { status: 400 }
-        );
-      }
-
-      if (
-        errorMessage.includes("not configured") ||
-        errorMessage.includes("service not")
-      ) {
-        return NextResponse.json(
-          { error: "Service temporarily unavailable" },
-          { status: 503 }
-        );
-      }
+      const response = statusMap[error.code] || {
+        status: 500,
+        message: error.message,
+      };
+      return NextResponse.json(
+        { error: response.message },
+        { status: response.status }
+      );
     }
 
     return NextResponse.json(
@@ -132,10 +121,8 @@ async function handleListPayments(req: NextRequest) {
   } catch (error) {
     logger.error("[Crypto Payments API] List payments error:", error);
 
-    if (error instanceof Error) {
-      const errorMessage = error.message.toLowerCase();
-
-      if (errorMessage.includes("invalid") && errorMessage.includes("uuid")) {
+    if (error instanceof CryptoPaymentError) {
+      if (error.code === "INVALID_UUID") {
         return NextResponse.json(
           { error: "Invalid request format" },
           { status: 400 }

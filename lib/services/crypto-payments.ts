@@ -28,6 +28,35 @@ import Decimal from "decimal.js";
 import { validate as uuidValidate } from "uuid";
 import { z } from "zod";
 
+/**
+ * Typed error codes for crypto payment operations.
+ */
+export type CryptoPaymentErrorCode =
+  | "INVALID_UUID"
+  | "AMOUNT_TOO_SMALL"
+  | "AMOUNT_TOO_LARGE"
+  | "SERVICE_NOT_CONFIGURED"
+  | "PAYMENT_NOT_FOUND"
+  | "PAYMENT_ALREADY_CONFIRMED"
+  | "INSUFFICIENT_PAYMENT"
+  | "DOUBLE_SPEND_DETECTED"
+  | "WEBHOOK_INVALID"
+  | "UNKNOWN_ERROR";
+
+/**
+ * Custom error class for crypto payment operations.
+ * Provides typed error codes for clean API error handling.
+ */
+export class CryptoPaymentError extends Error {
+  constructor(
+    public readonly code: CryptoPaymentErrorCode,
+    message: string
+  ) {
+    super(message);
+    this.name = "CryptoPaymentError";
+  }
+}
+
 export interface CreatePaymentParams {
   organizationId: string;
   userId?: string;
@@ -102,7 +131,10 @@ function getTrackId(metadata: unknown): string {
  */
 function validateUuid(id: string, fieldName: string): void {
   if (!uuidValidate(id)) {
-    throw new Error(`Invalid ${fieldName}: must be a valid UUID`);
+    throw new CryptoPaymentError(
+      "INVALID_UUID",
+      `Invalid ${fieldName}: must be a valid UUID`
+    );
   }
 }
 
@@ -134,14 +166,23 @@ class CryptoPaymentsService {
     }
 
     if (!isOxaPayConfigured()) {
-      throw new Error("Payment service not configured");
+      throw new CryptoPaymentError(
+        "SERVICE_NOT_CONFIGURED",
+        "Payment service not configured"
+      );
     }
 
     const amountDecimal = new Decimal(amount);
     const validation = validatePaymentAmount(amountDecimal);
 
     if (!validation.valid) {
-      throw new Error(validation.error);
+      const errorCode = validation.error?.includes("at least")
+        ? "AMOUNT_TOO_SMALL"
+        : "AMOUNT_TOO_LARGE";
+      throw new CryptoPaymentError(
+        errorCode,
+        validation.error || "Invalid amount"
+      );
     }
 
     const callbackUrl =
@@ -152,7 +193,9 @@ class CryptoPaymentsService {
       process.env.OXAPAY_RETURN_URL ||
       `${process.env.NEXT_PUBLIC_APP_URL}/payment/success`;
 
-    const orderId = `${organizationId.replace(/-/g, "").slice(0, 12)}_${Date.now()}`;
+    // Add random suffix to prevent collision if two payments created in same millisecond
+    const randomSuffix = Math.random().toString(36).slice(2, 6);
+    const orderId = `${organizationId.replace(/-/g, "").slice(0, 12)}_${Date.now()}_${randomSuffix}`;
 
     const oxaInvoice = await oxaPayService.createInvoice({
       amount,
@@ -267,7 +310,6 @@ class CryptoPaymentsService {
         await this.confirmPayment(
           payment.id,
           tx.txHash,
-          tx.confirmations?.toString() || "0",
           receivedAmount.toString()
         );
 
@@ -338,7 +380,6 @@ class CryptoPaymentsService {
   async confirmPayment(
     paymentId: string,
     txHash: string,
-    blockNumber: string,
     receivedAmount: string
   ): Promise<void> {
     validateUuid(paymentId, "payment ID");
@@ -397,7 +438,6 @@ class CryptoPaymentsService {
         .set({
           status: "confirmed",
           transaction_hash: txHash,
-          block_number: blockNumber,
           received_amount: receivedAmount,
           credits_to_add: creditsToAdd,
           confirmed_at: new Date(),
@@ -458,10 +498,9 @@ class CryptoPaymentsService {
    * Verify and confirm a payment using a provided transaction hash.
    * This allows users to manually confirm payments by providing their transaction hash.
    *
-   * SECURITY: This method performs on-chain verification via OxaPay API to ensure:
+   * SECURITY: This method performs verification via OxaPay API to ensure:
    * - The transaction hash exists and is associated with this payment
-   * - The transaction has sufficient confirmations
-   * - The amount received matches the expected amount
+   * - OxaPay confirms the payment status (status-based confirmation)
    * - Uses database transaction with row-level locking to prevent race conditions
    */
   async verifyAndConfirmByTxHash(
@@ -563,22 +602,6 @@ class CryptoPaymentsService {
           };
         }
 
-        // Verify the transaction has enough confirmations (at least 1 for confirmed status)
-        if (matchingTx.confirmations < 1) {
-          logger.warn(
-            "[Crypto Payments] Transaction has insufficient confirmations",
-            {
-              paymentId: redact.paymentId(paymentId),
-              txHash: redact.txHash(txHash),
-              confirmations: matchingTx.confirmations,
-            }
-          );
-          return {
-            success: false,
-            message: `Transaction needs more confirmations. Current: ${matchingTx.confirmations}`,
-          };
-        }
-
         // Credit user whatever USD value they paid (no underpayment validation)
         const receivedAmount = new Decimal(matchingTx.amount);
         logger.info(
@@ -622,7 +645,6 @@ class CryptoPaymentsService {
           paymentId: redact.paymentId(paymentId),
           txHash: redact.txHash(txHash),
           trackId: redact.trackId(trackId),
-          confirmations: matchingTx.confirmations,
           receivedAmount: matchingTx.amount,
           creditsToAdd,
         });
@@ -633,7 +655,6 @@ class CryptoPaymentsService {
           .set({
             status: "confirmed",
             transaction_hash: txHash,
-            block_number: "0",
             received_amount: matchingTx.amount.toString(),
             credits_to_add: creditsToAdd,
             confirmed_at: new Date(),
@@ -784,7 +805,6 @@ class CryptoPaymentsService {
         await this.confirmPayment(
           payment.id,
           tx.txHash || txID || track_id,
-          tx.confirmations?.toString() || "0",
           receivedAmount.toString()
         );
         return { success: true, message: "Payment confirmed" };
