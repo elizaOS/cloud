@@ -185,10 +185,6 @@ export function AvatarGenerator({
           })}
         </div>
       </div>
-
-      <p className="text-xs text-white/40">
-        Built-in avatars are free. AI avatars cost $0.01 for a unique image.
-      </p>
     </div>
   );
 }
