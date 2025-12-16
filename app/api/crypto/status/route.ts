@@ -1,67 +1,40 @@
 import { NextResponse } from "next/server";
-import { X402_ENABLED, getDefaultNetwork, getNetworkConfig } from "@/lib/config/x402";
-
-/**
- * Supported tokens for crypto payments
- * These are the tokens that can be used to purchase credits
- */
-const SUPPORTED_TOKENS = [
-  {
-    symbol: "USDC",
-    name: "USD Coin",
-    networks: ["base", "base-sepolia"],
-    enabled: true,
-  },
-  {
-    symbol: "USDT",
-    name: "Tether USD",
-    networks: ["base"],
-    enabled: false, // Not yet supported
-  },
-  {
-    symbol: "ETH",
-    name: "Ethereum",
-    networks: ["base", "base-sepolia"],
-    enabled: false, // Not yet supported
-  },
-] as const;
+import { isOxaPayConfigured } from "@/lib/services/oxapay";
+import {
+  SUPPORTED_PAY_CURRENCIES,
+  NETWORK_CONFIGS,
+  getSupportedNetworks,
+} from "@/lib/config/crypto";
 
 export interface CryptoStatusResponse {
   enabled: boolean;
   supportedTokens: string[];
-  allTokens: Array<{
-    symbol: string;
+  networks: Array<{
+    id: string;
     name: string;
-    networks: readonly string[];
-    enabled: boolean;
   }>;
-  network: string;
-  networkName: string;
   isTestnet: boolean;
 }
 
 /**
  * GET /api/crypto/status
- * Returns the status of crypto payments and the list of supported tokens.
- *
- * @returns Crypto payment configuration including supported tokens.
+ * Returns the status of crypto payments and the list of supported tokens/networks.
  */
 export async function GET(): Promise<NextResponse<CryptoStatusResponse>> {
-  const network = getDefaultNetwork();
-  const networkConfig = getNetworkConfig(network);
+  const enabled = isOxaPayConfigured();
 
-  // Filter to only enabled tokens that support the current network
-  const enabledTokens = SUPPORTED_TOKENS.filter(
-    (token) => token.enabled && token.networks.includes(network)
-  );
+  const networks = getSupportedNetworks().map((networkId) => {
+    const config = NETWORK_CONFIGS[networkId];
+    return {
+      id: config.id,
+      name: config.name,
+    };
+  });
 
   return NextResponse.json({
-    enabled: X402_ENABLED,
-    supportedTokens: enabledTokens.map((t) => t.symbol),
-    allTokens: [...SUPPORTED_TOKENS],
-    network,
-    networkName: networkConfig.name,
-    isTestnet: networkConfig.isTestnet,
+    enabled,
+    supportedTokens: [...SUPPORTED_PAY_CURRENCIES],
+    networks,
+    isTestnet: process.env.NODE_ENV !== "production",
   });
 }
-

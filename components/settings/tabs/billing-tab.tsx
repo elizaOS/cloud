@@ -416,7 +416,7 @@ export function BillingTab({ user }: BillingTabProps) {
 
             <div className="flex flex-col gap-4">
               <p className="text-sm text-white/60">
-                Add credits using cryptocurrency on {cryptoStatus.networkName}.
+                Add credits using cryptocurrency. Select your preferred network above.
               </p>
 
               {/* Currency Selection - Dynamic from API */}
