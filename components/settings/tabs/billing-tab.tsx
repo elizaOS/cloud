@@ -50,8 +50,6 @@ export function BillingTab({ user }: BillingTabProps) {
   const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("card");
   const [cryptoStatus, setCryptoStatus] = useState<CryptoStatusResponse | null>(null);
-  const [selectedNetwork, setSelectedNetwork] = useState<string>("TRC20");
-  const [selectedCurrency, setSelectedCurrency] = useState<string>("USDT");
 
   const [balance, setBalance] = useState(
     Number(user.organization?.credit_balance || 0),
@@ -82,11 +80,8 @@ export function BillingTab({ user }: BillingTabProps) {
     if (response.ok) {
       const data: CryptoStatusResponse = await response.json();
       setCryptoStatus(data);
-      if (data.supportedTokens.length > 0 && !selectedCurrency) {
-        setSelectedCurrency(data.supportedTokens[0]);
-      }
     }
-  }, [selectedCurrency]);
+  }, []);
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -116,11 +111,7 @@ export function BillingTab({ user }: BillingTabProps) {
         const response = await fetch("/api/crypto/payments", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            amount,
-            payCurrency: selectedCurrency,
-            network: selectedNetwork,
-          }),
+          body: JSON.stringify({ amount }),
         });
 
         if (!response.ok) {
@@ -255,43 +246,6 @@ export function BillingTab({ user }: BillingTabProps) {
                   </div>
                 )}
 
-                {paymentMethod === "crypto" && cryptoStatus?.networks && (
-                  <div className="space-y-3">
-                    <div className="flex flex-wrap gap-2">
-                      {cryptoStatus.supportedTokens.map((currency) => (
-                        <button
-                          key={currency}
-                          type="button"
-                          onClick={() => setSelectedCurrency(currency)}
-                          className={`px-3 py-1.5 font-mono text-xs border transition-colors ${
-                            selectedCurrency === currency
-                              ? "bg-[#FF5800] border-[#FF5800] text-white"
-                              : "bg-transparent border-[rgba(255,255,255,0.15)] text-white/50 hover:border-[rgba(255,255,255,0.3)]"
-                          }`}
-                        >
-                          {currency}
-                        </button>
-                      ))}
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {cryptoStatus.networks.map((network) => (
-                        <button
-                          key={network.id}
-                          type="button"
-                          onClick={() => setSelectedNetwork(network.id)}
-                          className={`px-3 py-1.5 font-mono text-xs border transition-colors ${
-                            selectedNetwork === network.id
-                              ? "bg-white/10 border-white/40 text-white"
-                              : "bg-transparent border-[rgba(255,255,255,0.15)] text-white/50 hover:border-[rgba(255,255,255,0.3)]"
-                          }`}
-                        >
-                          {network.name}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
                 {/* Amount Input and Buy Button */}
                 <div className="flex flex-col sm:flex-row items-stretch gap-4">
                   {/* Amount Input */}
@@ -336,7 +290,7 @@ export function BillingTab({ user }: BillingTabProps) {
                       </>
                     ) : (
                       <span className="relative z-10 text-black font-mono font-medium text-base whitespace-nowrap">
-                        {paymentMethod === "crypto" ? `Pay with ${selectedCurrency}` : "Buy credits"}
+                        {paymentMethod === "crypto" ? "Pay with Crypto" : "Buy credits"}
                       </span>
                     )}
                   </button>
