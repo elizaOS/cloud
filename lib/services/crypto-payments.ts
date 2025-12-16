@@ -14,6 +14,7 @@ import {
   MIN_PAYMENT_AMOUNT,
   MAX_PAYMENT_AMOUNT,
   validatePaymentAmount,
+  validateReceivedAmount,
   type OxaPayNetwork as ConfigOxaPayNetwork,
 } from "@/lib/config/crypto";
 import {
@@ -236,11 +237,39 @@ class CryptoPaymentsService {
 
       if (oxaPayService.isPaymentConfirmed(oxaStatus.status)) {
         const tx = oxaStatus.transactions[0];
+        if (!tx) {
+          logger.error("[Crypto Payments] Payment confirmed but no transactions found", {
+            paymentId: redact.paymentId(paymentId),
+            trackId: redact.trackId(trackId),
+          });
+          throw new Error("Payment confirmed but no transaction data available");
+        }
+
+        const expectedAmount = new Decimal(payment.expected_amount);
+        const receivedAmount = new Decimal(tx.amount);
+        const networkKey = payment.network as ConfigOxaPayNetwork;
+        const amountValidation = validateReceivedAmount(receivedAmount, expectedAmount, networkKey);
+
+        if (!amountValidation.valid) {
+          logger.error("[Crypto Payments] Received amount below threshold", {
+            paymentId: redact.paymentId(paymentId),
+            expected: expectedAmount.toString(),
+            received: receivedAmount.toString(),
+            threshold: amountValidation.threshold.toString(),
+            network: payment.network,
+          });
+          await cryptoPaymentsRepository.markAsFailed(
+            payment.id,
+            `Underpayment: received ${receivedAmount} < threshold ${amountValidation.threshold}`
+          );
+          throw new Error(`Insufficient payment: received ${receivedAmount}, minimum required ${amountValidation.threshold}`);
+        }
+
         await this.confirmPayment(
           payment.id,
-          tx?.txHash || trackId,
-          "0",
-          payment.expected_amount,
+          tx.txHash,
+          tx.confirmations?.toString() || "0",
+          receivedAmount.toString(),
         );
 
         const confirmedPayment = await cryptoPaymentsRepository.findById(
@@ -249,7 +278,7 @@ class CryptoPaymentsService {
         if (!confirmedPayment) {
           throw new Error("Failed to retrieve confirmed payment");
         }
-        
+
         return {
           confirmed: true,
           payment: this.formatPaymentStatus(confirmedPayment),
@@ -675,11 +704,50 @@ class CryptoPaymentsService {
 
     try {
       if (oxaPayService.isPaymentConfirmed(status)) {
+        const oxaStatus = await oxaPayService.getPaymentStatus(track_id);
+
+        if (!oxaPayService.isPaymentConfirmed(oxaStatus.status)) {
+          logger.warn("[Crypto Payments] Webhook status mismatch - OxaPay API disagrees", {
+            track_id: redact.trackId(track_id),
+            webhookStatus: status,
+            apiStatus: oxaStatus.status,
+          });
+          return { success: false, message: "Payment status verification failed" };
+        }
+
+        const tx = oxaStatus.transactions[0];
+        if (!tx) {
+          logger.error("[Crypto Payments] Webhook confirmed but no transaction data from API", {
+            track_id: redact.trackId(track_id),
+          });
+          return { success: false, message: "No transaction data available" };
+        }
+
+        const expectedAmount = new Decimal(payment.expected_amount);
+        const receivedAmount = new Decimal(tx.amount);
+        const networkKey = payment.network as ConfigOxaPayNetwork;
+        const amountValidation = validateReceivedAmount(receivedAmount, expectedAmount, networkKey);
+
+        if (!amountValidation.valid) {
+          logger.error("[Crypto Payments] Webhook: Received amount below threshold", {
+            track_id: redact.trackId(track_id),
+            expected: expectedAmount.toString(),
+            received: receivedAmount.toString(),
+            threshold: amountValidation.threshold.toString(),
+            network: payment.network,
+          });
+          await cryptoPaymentsRepository.markAsFailed(
+            payment.id,
+            `Underpayment: received ${receivedAmount} < threshold ${amountValidation.threshold}`
+          );
+          return { success: false, message: "Insufficient payment amount" };
+        }
+
         await this.confirmPayment(
           payment.id,
-          txID || track_id,
-          "0",
-          payment.expected_amount,
+          tx.txHash || txID || track_id,
+          tx.confirmations?.toString() || "0",
+          receivedAmount.toString(),
         );
         return { success: true, message: "Payment confirmed" };
       }

@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import type { CryptoStatusResponse } from "@/app/api/crypto/status/route";
+import { CryptoPaymentModal } from "@/components/settings/crypto-payment-modal";
 
 interface BillingTabProps {
   user: UserWithOrganization;
