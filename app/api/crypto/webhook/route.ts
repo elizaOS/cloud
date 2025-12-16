@@ -322,7 +322,8 @@ async function handleWebhook(req: NextRequest) {
   }
 }
 
-export const POST = withRateLimit(handleWebhook, RateLimitPresets.AGGRESSIVE);
+// Use STANDARD rate limit for webhooks to allow OxaPay retries
+export const POST = withRateLimit(handleWebhook, RateLimitPresets.STANDARD);
 
 export async function GET() {
   return NextResponse.json({
