@@ -12,6 +12,7 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { BuildModeAssistant } from "@/components/chat/build-mode-assistant";
 import { CharacterEditor } from "@/components/chat/character-editor";
+import { useAgentOnboarding } from "@/components/onboarding/agent-onboarding-provider";
 import { toast } from "sonner";
 import {
   createCharacter,
@@ -45,6 +46,7 @@ export function CharacterBuildMode({
   const { user } = usePrivy();
   const userId = user?.id || "";
   const router = useRouter();
+  const { showChecklist } = useAgentOnboarding();
 
   // Ref to get the builder room ID from BuildModeAssistant
   const builderRoomIdRef = useRef<string | null>(null);
@@ -128,11 +130,17 @@ export function CharacterBuildMode({
             });
           }
 
-          toast.success("Character created! Redirecting to chat...", {
+          // Show floating onboarding checklist and redirect to chat
+          showChecklist({
+            id: saved.id,
+            name: saved.name || "New Agent",
+            avatarUrl: saved.avatarUrl || saved.avatar_url,
+          });
+
+          toast.success("Agent created! Redirecting to chat...", {
             duration: 2000,
           });
 
-          // Redirect to chat with the new agent
           router.push(`/dashboard/chat?characterId=${saved.id}`);
         }
       }
@@ -147,7 +155,7 @@ export function CharacterBuildMode({
 
     // Mark changes as saved after successful save
     onUnsavedChanges?.(false);
-  }, [character, selectedCharacterId, onUnsavedChanges, router]);
+  }, [character, selectedCharacterId, onUnsavedChanges, router, showChecklist]);
 
   const handleCharacterRefresh = useCallback(async () => {
     if (!character.id) {

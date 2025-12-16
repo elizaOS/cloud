@@ -7,6 +7,8 @@ import NextTopLoader from "nextjs-toploader";
 import PrivyProvider from "@/lib/providers/PrivyProvider";
 import { CreditsProvider } from "@/lib/providers/CreditsProvider";
 import DebugProvider from "@/components/debug/debug-provider";
+import { AgentOnboardingProvider } from "@/components/onboarding/agent-onboarding-provider";
+import { AgentOnboardingChecklist } from "@/components/onboarding/agent-onboarding-checklist";
 import localFont from "next/font/local";
 
 const sfPro = localFont({
@@ -154,7 +156,10 @@ export default function RootLayout({
               disableTransitionOnChange
             >
               <NextTopLoader showSpinner={false} color="#FF5800" />
-              <DebugProvider>{children}</DebugProvider>
+              <AgentOnboardingProvider>
+                <DebugProvider>{children}</DebugProvider>
+                <AgentOnboardingChecklist />
+              </AgentOnboardingProvider>
               <Toaster
                 richColors
                 theme="dark"
