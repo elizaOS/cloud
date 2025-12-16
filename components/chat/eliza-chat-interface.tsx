@@ -58,6 +58,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useRenderTracker } from "@/lib/debug/render-tracker";
 import { usePrivy } from "@privy-io/react-auth";
+import { useKnowledgeProcessingStatus } from "@/components/chat/hooks/use-knowledge-processing-status";
 
 interface Message {
   id: string;
@@ -233,6 +234,9 @@ export function ElizaChatInterface({
     setTier,
     isLoading: isLoadingModels,
   } = useModelTier();
+
+  // Poll knowledge processing status and show toast when complete
+  useKnowledgeProcessingStatus(selectedCharacterId || null);
 
   const loadMessages = useCallback(async (targetRoomId: string) => {
     setLoadingState((prev) => ({ ...prev, isLoadingMessages: true }));

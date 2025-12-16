@@ -31,6 +31,7 @@ import Image from "next/image";
 import { usePrivy } from "@privy-io/react-auth";
 import { createDefaultCharacter } from "@/lib/utils/character-names";
 import { useRouter } from "next/navigation";
+import type { PreUploadedFile } from "@/lib/types/knowledge";
 
 interface CharacterBuildModeProps {
   initialCharacters: ElizaCharacter[];
@@ -70,6 +71,7 @@ export function CharacterBuildMode({
   const isCreatorMode = !selectedCharacterId;
 
   const [character, setCharacter] = useState<ElizaCharacter>(initialCharacter);
+  const [preUploadedFiles, setPreUploadedFiles] = useState<PreUploadedFile[]>([]);
 
   // Track unsaved changes
   useEffect(() => {
@@ -111,6 +113,53 @@ export function CharacterBuildMode({
         const saved = await createCharacter(character);
 
         if (saved.id) {
+          // Queue pre-uploaded files for background processing
+          if (preUploadedFiles.length > 0) {
+            try {
+              // Step 1: Queue the files
+              const queueResponse = await fetch("/api/v1/knowledge/queue", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  characterId: saved.id,
+                  files: preUploadedFiles.map((f) => ({
+                    blobUrl: f.blobUrl,
+                    filename: f.filename,
+                    contentType: f.contentType,
+                    size: f.size,
+                  })),
+                }),
+              });
+
+              if (queueResponse.ok) {
+                toast.success("Character created!", {
+                  description: `Processing ${preUploadedFiles.length} file(s) for RAG knowledge base in background...`,
+                  duration: 4000,
+                });
+
+                // Step 2: Immediately trigger processing (fire and forget)
+                // This starts processing in the background without blocking the redirect
+                fetch("/api/v1/knowledge/process-queue", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                }).catch((err) => {
+                  console.error("Failed to trigger queue processing:", err);
+                  // Don't show error to user - cron will pick it up
+                });
+              } else {
+                toast.warning("Character created", {
+                  description: "Failed to queue knowledge files - you can upload them later",
+                  duration: 5000,
+                });
+              }
+            } catch (error) {
+              console.error("Error queuing knowledge files:", error);
+              toast.warning("Character created, knowledge files will be retried",
+                { duration: 4000 }
+              );
+            }
+          }
+
           // Lock the builder room if we have one
           const roomId = builderRoomIdRef.current;
           if (roomId) {
@@ -147,7 +196,7 @@ export function CharacterBuildMode({
 
     // Mark changes as saved after successful save
     onUnsavedChanges?.(false);
-  }, [character, selectedCharacterId, onUnsavedChanges, router]);
+  }, [character, selectedCharacterId, preUploadedFiles, onUnsavedChanges, router]);
 
   const handleCharacterRefresh = useCallback(async () => {
     if (!character.id) {
@@ -166,15 +215,20 @@ export function CharacterBuildMode({
     builderRoomIdRef.current = roomId;
   }, []);
 
+  // Callback to receive pre-uploaded files from UploadsTab
+  const handlePreUploadedFilesChange = useCallback((files: PreUploadedFile[]) => {
+    setPreUploadedFiles(files);
+  }, []);
+
   return (
-    <div className="flex h-full w-full min-h-0 overflow-hidden flex-col">
-      <Image
-        className="z-20 pointer-events-none absolute top-0 right-0 left-0"
-        fill
-        sizes="100vw"
-        src="/elipse.svg"
-        alt="background-elipse-builder-mode"
-      />
+      <div className="flex h-full w-full min-h-0 overflow-hidden flex-col">
+        <Image
+          className="z-20 pointer-events-none absolute top-0 right-0 left-0"
+          fill
+          sizes="100vw"
+          src="/elipse.svg"
+          alt="background-elipse-builder-mode"
+        />
 
       {/* Mobile Toggle Bar */}
       <div className="lg:hidden flex border-b border-[#353535] bg-[#0A0A0A] shrink-0">
@@ -223,6 +277,7 @@ export function CharacterBuildMode({
               character={character}
               onChange={setCharacter}
               onSave={handleSave}
+              onPreUploadedFilesChange={handlePreUploadedFilesChange}
             />
           </div>
         )}
@@ -258,6 +313,7 @@ export function CharacterBuildMode({
                 character={character}
                 onChange={setCharacter}
                 onSave={handleSave}
+                onPreUploadedFilesChange={handlePreUploadedFilesChange}
               />
             </div>
           </ResizablePanel>

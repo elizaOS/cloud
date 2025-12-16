@@ -1,0 +1,293 @@
+import { jobsRepository } from "@/db/repositories/jobs";
+import type { Job } from "@/db/schemas/jobs";
+import { logger } from "@/lib/utils/logger";
+import { getKnowledgeService } from "@/lib/eliza/knowledge-service";
+import type { UUID } from "@elizaos/core";
+import { userContextService } from "@/lib/eliza/user-context";
+import { RuntimeFactory } from "@/lib/eliza/runtime-factory";
+import { AgentMode } from "@/lib/eliza/agent-mode-types";
+import type { UserWithOrganization, ApiKey } from "@/lib/types";
+
+interface FileToQueue {
+  blobUrl: string;
+  filename: string;
+  contentType: string;
+  size: number;
+}
+
+interface QueueFilesParams {
+  characterId: string;
+  files: FileToQueue[];
+  user: UserWithOrganization;
+}
+
+interface ProcessJobParams {
+  user: UserWithOrganization;
+  apiKey?: ApiKey;
+}
+
+interface JobStatus {
+  isProcessing: boolean;
+  totalFiles: number;
+  processedFiles: number;
+  pendingCount: number;
+  processingCount: number;
+  completedCount: number;
+  failedCount: number;
+  jobs: Array<{
+    id: string;
+    filename: string;
+    status: string;
+    error: string | null;
+    createdAt: Date;
+    completedAt: Date | null;
+  }>;
+}
+
+/**
+ * Service for managing knowledge file processing background jobs.
+ * Handles queuing, processing, and status tracking of knowledge files.
+ * Uses the generic jobs repository for database operations.
+ */
+export class KnowledgeProcessingService {
+  private readonly JOB_TYPE = "knowledge_processing";
+  private readonly MAX_ATTEMPTS = 3;
+
+  /**
+   * Queues multiple files for background processing.
+   *
+   * @param params - Parameters including characterId, files, and user.
+   * @returns Array of created job IDs.
+   */
+  async queueFiles(params: QueueFilesParams): Promise<string[]> {
+    const { characterId, files, user } = params;
+
+    if (!user.organization_id) {
+      throw new Error("User must have an organization to queue knowledge files");
+    }
+
+    const jobIds: string[] = [];
+
+    for (const file of files) {
+      const job = await jobsRepository.create({
+        type: this.JOB_TYPE,
+        status: "pending",
+        data: {
+          characterId,
+          file,
+        },
+        organization_id: user.organization_id,
+        user_id: user.id,
+        max_attempts: this.MAX_ATTEMPTS,
+        scheduled_for: new Date(),
+      });
+
+      jobIds.push(job.id);
+
+      logger.info("[KnowledgeProcessing] Queued file for processing", {
+        jobId: job.id,
+        characterId,
+        filename: file.filename,
+      });
+    }
+
+    return jobIds;
+  }
+
+  /**
+   * Gets processing status for a character's knowledge files.
+   *
+   * @param characterId - Character ID to check.
+   * @param organizationId - Organization ID for security.
+   * @returns Job status summary.
+   */
+  async getStatus(characterId: string, organizationId: string): Promise<JobStatus> {
+    const jobs = await jobsRepository.findByDataField({
+      type: this.JOB_TYPE,
+      organizationId,
+      dataField: "characterId",
+      dataValue: characterId,
+      orderBy: "desc",
+    });
+
+    const pending = jobs.filter((j: Job) => j.status === "pending");
+    const processing = jobs.filter((j: Job) => j.status === "in_progress");
+    const completed = jobs.filter((j: Job) => j.status === "completed");
+    const failed = jobs.filter((j: Job) => j.status === "failed");
+
+    const totalFiles = jobs.length;
+    const processedFiles = completed.length + failed.length;
+    const isProcessing = pending.length > 0 || processing.length > 0;
+
+    return {
+      isProcessing,
+      totalFiles,
+      processedFiles,
+      pendingCount: pending.length,
+      processingCount: processing.length,
+      completedCount: completed.length,
+      failedCount: failed.length,
+      jobs: jobs.map((job: Job) => ({
+        id: job.id,
+        filename:
+          (job.data as { file?: { filename?: string } }).file?.filename || "Unknown",
+        status: job.status,
+        error: job.error,
+        createdAt: job.created_at,
+        completedAt: job.completed_at,
+      })),
+    };
+  }
+
+  /**
+   * Processes pending jobs from the queue.
+   * Processes up to 5 jobs per invocation.
+   *
+   * @param params - User and API key for authentication.
+   * @returns Processing results.
+   */
+  async processQueue(
+    params: ProcessJobParams,
+  ): Promise<{ successCount: number; failureCount: number; totalProcessed: number }> {
+    const { user, apiKey } = params;
+
+    if (!user.organization_id) {
+      throw new Error("User must have an organization to process knowledge files");
+    }
+
+    const pendingJobs = await jobsRepository.findByFilters({
+      type: this.JOB_TYPE,
+      status: "pending",
+      organizationId: user.organization_id,
+      limit: 5,
+      orderBy: "asc",
+    });
+
+    if (pendingJobs.length === 0) {
+      return { successCount: 0, failureCount: 0, totalProcessed: 0 };
+    }
+
+    logger.info(`[KnowledgeProcessing] Processing ${pendingJobs.length} jobs`);
+
+    let successCount = 0;
+    let failureCount = 0;
+
+    for (const job of pendingJobs) {
+      const success = await this.processJob(job, user, apiKey);
+      if (success) {
+        successCount++;
+      } else {
+        failureCount++;
+      }
+    }
+
+    return { successCount, failureCount, totalProcessed: pendingJobs.length };
+  }
+
+  /**
+   * Processes a single job.
+   *
+   * @param job - Job to process.
+   * @param user - User context.
+   * @param apiKey - Optional API key.
+   * @returns True if successful, false otherwise.
+   */
+  private async processJob(job: Job, user: UserWithOrganization, apiKey?: ApiKey): Promise<boolean> {
+    await jobsRepository.updateStatus(job.id, "in_progress");
+
+    const jobData = job.data as {
+      characterId: string;
+      file: {
+        blobUrl: string;
+        filename: string;
+        contentType: string;
+        size: number;
+      };
+    };
+
+    // Build user context
+    const userContext = await userContextService.buildContext({
+      user,
+      apiKey,
+      isAnonymous: false,
+      agentMode: AgentMode.ASSISTANT,
+    });
+
+    userContext.characterId = jobData.characterId;
+
+    // Create runtime
+    const runtimeFactory = RuntimeFactory.getInstance();
+    const runtime = await runtimeFactory.createRuntimeForUser(userContext);
+
+    const knowledgeService = await getKnowledgeService(runtime);
+
+    if (!knowledgeService) {
+      const error = "Knowledge service not available";
+      await jobsRepository.incrementAttempt(
+        job.id,
+        error,
+        job.max_attempts || this.MAX_ATTEMPTS,
+      );
+      logger.error(`[KnowledgeProcessing] ${error}`, { jobId: job.id });
+      return false;
+    }
+
+    // Fetch file from blob
+    const response = await fetch(jobData.file.blobUrl);
+    if (!response.ok) {
+      const error = `Failed to fetch blob: ${response.status}`;
+      await jobsRepository.incrementAttempt(
+        job.id,
+        error,
+        job.max_attempts || this.MAX_ATTEMPTS,
+      );
+      logger.error(`[KnowledgeProcessing] ${error}`, { jobId: job.id });
+      return false;
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const base64Content = buffer.toString("base64");
+
+    // Process through knowledge service
+    const result = await knowledgeService.addKnowledge({
+      agentId: runtime.agentId,
+      clientDocumentId: "" as UUID,
+      content: base64Content,
+      contentType: jobData.file.contentType,
+      originalFilename: jobData.file.filename,
+      worldId: runtime.agentId,
+      roomId: runtime.agentId,
+      entityId: runtime.agentId,
+      metadata: {
+        uploadedBy: user.id,
+        uploadedAt: Date.now(),
+        organizationId: user.organization_id,
+        fileSize: jobData.file.size,
+        fileName: jobData.file.filename,
+        filename: jobData.file.filename,
+        blobUrl: jobData.file.blobUrl,
+        jobId: job.id,
+      },
+    });
+
+    // Mark as completed
+    await jobsRepository.updateStatus(job.id, "completed", {
+      result: {
+        fragmentCount: result.fragmentCount,
+        documentId: result.clientDocumentId,
+      },
+    });
+
+    logger.info("[KnowledgeProcessing] Job completed successfully", {
+      jobId: job.id,
+      filename: jobData.file.filename,
+      fragmentCount: result.fragmentCount,
+    });
+
+    return true;
+  }
+}
+
+// Singleton instance
+export const knowledgeProcessingService = new KnowledgeProcessingService();

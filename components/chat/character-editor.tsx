@@ -24,11 +24,13 @@ import {
   type TabItem,
 } from "@/components/brand/brand-tabs-responsive";
 import { usePathname, useSearchParams } from "next/navigation";
+import type { PreUploadedFile } from "@/lib/types/knowledge";
 
 interface CharacterEditorProps {
   character: ElizaCharacter;
   onChange: (character: ElizaCharacter) => void;
   onSave: () => Promise<void>;
+  onPreUploadedFilesChange?: (files: PreUploadedFile[]) => void;
 }
 
 type MainTab = "character" | "plugins" | "files";
@@ -37,6 +39,7 @@ export function CharacterEditor({
   character,
   onChange,
   onSave,
+  onPreUploadedFilesChange,
 }: CharacterEditorProps) {
   const searchParams = useSearchParams();
   const initialTab = searchParams.get("tab") as MainTab | null;
@@ -193,7 +196,10 @@ export function CharacterEditor({
               />
             )}
             {activeTab === "files" && (
-              <UploadsTab characterId={character.id || null} />
+              <UploadsTab
+                characterId={character.id || null}
+                onPreUploadedFilesChange={onPreUploadedFilesChange}
+              />
             )}
           </>
         )}

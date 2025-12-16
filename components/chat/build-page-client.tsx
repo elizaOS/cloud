@@ -64,10 +64,9 @@ export function BuildPageClient({
 
     setAvailableCharacters(characters);
 
-    // Set selected character from URL if provided
-    if (initialCharacterId) {
-      setSelectedCharacterId(initialCharacterId);
-    }
+    // Set selected character from URL if provided, otherwise clear it (creator mode)
+    // This ensures "Agent Creator" link always opens in creator mode (no character selected)
+    setSelectedCharacterId(initialCharacterId || null);
   }, [
     initialCharacters,
     initialCharacterId,

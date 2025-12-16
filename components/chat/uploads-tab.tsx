@@ -13,17 +13,19 @@ import {
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
-import type { KnowledgeDocument } from "@/lib/types/knowledge";
+import type { KnowledgeDocument, PreUploadedFile } from "@/lib/types/knowledge";
 
 interface UploadsTabProps {
   characterId: string | null;
+  onPreUploadedFilesChange?: (files: PreUploadedFile[]) => void;
 }
 
-export function UploadsTab({ characterId }: UploadsTabProps) {
+export function UploadsTab({ characterId, onPreUploadedFilesChange }: UploadsTabProps) {
   const [documents, setDocuments] = useState<KnowledgeDocument[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [preUploadedFiles, setPreUploadedFiles] = useState<PreUploadedFile[]>([]);
 
   const fetchDocuments = useCallback(async () => {
     if (!characterId) return;
@@ -51,14 +53,52 @@ export function UploadsTab({ characterId }: UploadsTabProps) {
   }, [characterId, fetchDocuments]);
 
   const handleUpload = async (files: File[]) => {
-    if (!characterId || files.length === 0) return;
+    if (files.length === 0) return;
 
     setUploading(true);
     setSelectedFiles(files);
     
     const formData = new FormData();
-    formData.append("characterId", characterId);
+    
+    // Pre-upload mode: upload to blob storage only (no characterId yet)
+    if (!characterId) {
+      for (const file of files) {
+        formData.append("files", file, file.name);
+      }
 
+      const response = await fetch("/api/v1/knowledge/pre-upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const newFiles = data.files as PreUploadedFile[];
+        
+        setPreUploadedFiles((prev) => [...prev, ...newFiles]);
+        onPreUploadedFilesChange?.([...preUploadedFiles, ...newFiles]);
+        
+        toast.success("Files uploaded successfully", {
+          description: `${data.successCount} file(s) uploaded. They will be processed when you save the character.`,
+        });
+        setSelectedFiles([]);
+        const fileInput = document.getElementById(
+          "uploads-tab-file-input",
+        ) as HTMLInputElement;
+        if (fileInput) fileInput.value = "";
+      } else {
+        const data = await response.json();
+        toast.error("Upload failed", {
+          description: data.error || "Failed to upload files",
+        });
+        setSelectedFiles([]);
+      }
+      setUploading(false);
+      return;
+    }
+
+    // Normal mode: process files through knowledge service
+    formData.append("characterId", characterId);
     for (const file of files) {
       formData.append("files", file, file.name);
     }
@@ -121,6 +161,13 @@ export function UploadsTab({ characterId }: UploadsTabProps) {
     }
   };
 
+  const handleDeletePreUpload = (fileId: string) => {
+    const updatedFiles = preUploadedFiles.filter((f) => f.id !== fileId);
+    setPreUploadedFiles(updatedFiles);
+    onPreUploadedFilesChange?.(updatedFiles);
+    toast.success("File removed");
+  };
+
   const getDocumentName = (doc: KnowledgeDocument): string => {
     return (
       doc.metadata?.fileName ||
@@ -134,21 +181,10 @@ export function UploadsTab({ characterId }: UploadsTabProps) {
     return formatDistanceToNow(new Date(timestamp), { addSuffix: true });
   };
 
-  if (!characterId) {
-    return (
-      <div className="flex h-full items-center justify-center p-6">
-        <div className="text-center">
-          <AlertCircle className="h-12 w-12 text-white/40 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-white mb-2">
-            Save Character First
-          </h3>
-          <p className="text-sm text-white/60">
-            Please save your character before uploading knowledge documents.
-          </p>
-        </div>
-      </div>
-    );
-  }
+  // Show pre-upload mode when no characterId
+  const isPreUploadMode = !characterId;
+  const displayFiles = isPreUploadMode ? preUploadedFiles : documents;
+  const displayCount = displayFiles.length;
 
   return (
     <div className="p-6 space-y-6">
@@ -224,9 +260,10 @@ export function UploadsTab({ characterId }: UploadsTabProps) {
       <div className="border-t border-white/10 pt-6">
         <div className="flex items-center justify-between mb-4">
           <span className="text-sm text-white/60">
-            {documents.length} document{documents.length !== 1 ? "s" : ""}{" "}
-            uploaded
+            {displayCount} {isPreUploadMode ? "file" : "document"}{displayCount !== 1 ? "s" : ""}{" "}
+            {isPreUploadMode ? "ready to process" : "uploaded"}
           </span>
+          {!isPreUploadMode && (
           <Button
             variant="ghost"
             size="sm"
@@ -239,23 +276,57 @@ export function UploadsTab({ characterId }: UploadsTabProps) {
             />
             Refresh
           </Button>
+          )}
         </div>
 
         {loading ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-white/40" />
           </div>
-        ) : documents.length === 0 ? (
+        ) : displayCount === 0 ? (
           <div className="text-center py-12 border border-dashed border-white/10 rounded-lg">
             <FileText className="h-12 w-12 text-white/20 mx-auto mb-3" />
             <p className="text-white/40 mb-1">No files uploaded yet</p>
             <p className="text-xs text-white/30">
-              Upload files to give your agent context
+              {isPreUploadMode
+                ? "Upload files now - they'll be processed when you save the character"
+                : "Upload files to give your agent context"}
             </p>
           </div>
         ) : (
           <div className="space-y-2">
-            {documents.map((doc) => (
+            {isPreUploadMode
+              ? preUploadedFiles.map((file) => (
+                  <div
+                    key={file.id}
+                    className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg group hover:border-white/20 transition-colors"
+                  >
+                    <div className="flex items-center gap-4 min-w-0">
+                      <div className="p-2 bg-white/5 rounded-lg">
+                        <FileText className="h-5 w-5 text-white/40" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-white/90 truncate">
+                          {file.filename}
+                        </p>
+                        <p className="text-xs text-white/40">
+                          {formatDistanceToNow(new Date(file.uploadedAt), {
+                            addSuffix: true,
+                          })}
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDeletePreUpload(file.id)}
+                      className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-300 hover:bg-red-400/10 transition-all"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))
+              : documents.map((doc) => (
               <div
                 key={doc.id}
                 className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg group hover:border-white/20 transition-colors"
