@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { usePrivy } from "@privy-io/react-auth";
 import { Loader2, CheckCircle } from "lucide-react";
@@ -17,7 +17,7 @@ import { Loader2, CheckCircle } from "lucide-react";
  * 3. If authenticated, redirects to /dashboard/settings?tab=billing&payment=success
  * 4. If not authenticated, redirects to login with return URL
  */
-export default function PaymentSuccessPage() {
+function PaymentSuccessContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { ready, authenticated } = usePrivy();
@@ -58,5 +58,19 @@ export default function PaymentSuccessPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function PaymentSuccessPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex h-screen w-full items-center justify-center bg-[#0A0A0A]">
+          <Loader2 className="h-8 w-8 animate-spin text-white/60" />
+        </div>
+      }
+    >
+      <PaymentSuccessContent />
+    </Suspense>
   );
 }
