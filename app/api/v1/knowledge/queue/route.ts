@@ -29,10 +29,15 @@ interface FileToQueue {
   size: number;
 }
 
-function isValidUrl(url: string): boolean {
+const TRUSTED_BLOB_HOSTS = [
+  "blob.vercel-storage.com",
+  "public.blob.vercel-storage.com",
+];
+
+function isValidBlobUrl(url: string): boolean {
   try {
-    new URL(url);
-    return true;
+    const parsedUrl = new URL(url);
+    return TRUSTED_BLOB_HOSTS.some((host) => parsedUrl.hostname.endsWith(host));
   } catch {
     return false;
   }
@@ -95,9 +100,9 @@ async function handlePOST(req: NextRequest) {
 
   // Validate each file
   for (const file of files) {
-    if (!file.blobUrl || !isValidUrl(file.blobUrl)) {
+    if (!file.blobUrl || !isValidBlobUrl(file.blobUrl)) {
       return NextResponse.json(
-        { error: `Invalid blobUrl for file: ${file.filename || "unknown"}` },
+        { error: `Invalid or untrusted blobUrl for file: ${file.filename || "unknown"}` },
         { status: 400 },
       );
     }

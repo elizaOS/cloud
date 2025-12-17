@@ -23,19 +23,29 @@ async function handlePOST(req: NextRequest) {
     apiKey: authResult.apiKey,
   });
 
-  if (result.totalProcessed === 0) {
+  if (result.totalProcessed === 0 && result.recoveredCount === 0) {
     return NextResponse.json({
       message: "No pending jobs to process",
       processed: 0,
+      recoveredCount: 0,
     });
+  }
+
+  const messages = [];
+  if (result.totalProcessed > 0) {
+    messages.push(`Processed ${result.totalProcessed} job(s)`);
+  }
+  if (result.recoveredCount > 0) {
+    messages.push(`Recovered ${result.recoveredCount} stale job(s)`);
   }
 
   return NextResponse.json({
     success: true,
-    message: `Processed ${result.totalProcessed} job(s)`,
+    message: messages.join(", "),
     successCount: result.successCount,
     failureCount: result.failureCount,
     totalProcessed: result.totalProcessed,
+    recoveredCount: result.recoveredCount,
   });
 }
 

@@ -11,6 +11,20 @@ import { userCharactersRepository } from "@/db/repositories/characters";
 
 export const maxDuration = 60;
 
+const TRUSTED_BLOB_HOSTS = [
+  "blob.vercel-storage.com",
+  "public.blob.vercel-storage.com",
+];
+
+function isValidBlobUrl(url: string): boolean {
+  try {
+    const parsedUrl = new URL(url);
+    return TRUSTED_BLOB_HOSTS.some((host) => parsedUrl.hostname.endsWith(host));
+  } catch {
+    return false;
+  }
+}
+
 interface BlobFileToProcess {
   blobUrl: string;
   filename: string;
@@ -106,6 +120,11 @@ async function handlePOST(req: NextRequest) {
 
   for (const file of files) {
     try {
+      // Validate blob URL against trusted domains to prevent SSRF
+      if (!isValidBlobUrl(file.blobUrl)) {
+        throw new Error("Invalid or untrusted blob URL");
+      }
+
       // Fetch the file from blob storage
       const response = await fetch(file.blobUrl);
       if (!response.ok) {

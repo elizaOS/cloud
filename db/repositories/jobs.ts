@@ -1,7 +1,7 @@
 import { db } from "../client";
 import { jobs } from "../schemas/jobs";
 import type { Job, NewJob } from "../schemas/jobs";
-import { eq, and, sql, desc } from "drizzle-orm";
+import { eq, and, sql, desc, lt } from "drizzle-orm";
 
 export type { Job, NewJob };
 
@@ -74,6 +74,75 @@ export class JobsRepository {
     return await (conditions.length > 0 ? query.where(and(...conditions)) : query)
       .limit(filters.limit || 1000)
       .orderBy(filters.orderBy === "desc" ? desc(jobs.created_at) : jobs.created_at);
+  }
+
+  /**
+   * Atomically claims pending jobs for processing using FOR UPDATE SKIP LOCKED.
+   * This prevents race conditions where multiple workers could grab the same jobs.
+   *
+   * @param filters - Filter criteria including type, organizationId, and limit.
+   * @returns Array of claimed jobs (status changed to in_progress).
+   */
+  async claimPendingJobs(filters: {
+    type: string;
+    organizationId: string;
+    limit: number;
+  }): Promise<Job[]> {
+    // Use raw SQL for FOR UPDATE SKIP LOCKED which Drizzle doesn't support directly
+    const result = await db.execute<Job>(sql`
+      UPDATE ${jobs}
+      SET 
+        status = 'in_progress',
+        started_at = NOW(),
+        updated_at = NOW()
+      WHERE id IN (
+        SELECT id FROM ${jobs}
+        WHERE type = ${filters.type}
+          AND status = 'pending'
+          AND organization_id = ${filters.organizationId}
+          AND scheduled_for <= NOW()
+        ORDER BY created_at ASC
+        LIMIT ${filters.limit}
+        FOR UPDATE SKIP LOCKED
+      )
+      RETURNING *
+    `);
+
+    return result.rows;
+  }
+
+  /**
+   * Recovers stale jobs that have been stuck in in_progress status.
+   * Jobs older than the threshold are reset to pending for retry.
+   *
+   * @param filters - Filter criteria including type, organizationId, and staleThresholdMs.
+   * @returns Number of jobs recovered.
+   */
+  async recoverStaleJobs(filters: {
+    type: string;
+    organizationId: string;
+    staleThresholdMs: number;
+  }): Promise<number> {
+    const staleThreshold = new Date(Date.now() - filters.staleThresholdMs);
+
+    const result = await db
+      .update(jobs)
+      .set({
+        status: "pending",
+        error: "Job timed out - recovered for retry",
+        updated_at: new Date(),
+      })
+      .where(
+        and(
+          eq(jobs.type, filters.type),
+          eq(jobs.organization_id, filters.organizationId),
+          eq(jobs.status, "in_progress"),
+          lt(jobs.started_at, staleThreshold),
+        ),
+      )
+      .returning();
+
+    return result.length;
   }
 
   /**

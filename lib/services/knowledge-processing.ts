@@ -44,6 +44,20 @@ interface JobStatus {
   }>;
 }
 
+const TRUSTED_BLOB_HOSTS = [
+  "blob.vercel-storage.com",
+  "public.blob.vercel-storage.com",
+];
+
+function isValidBlobUrl(url: string): boolean {
+  try {
+    const parsedUrl = new URL(url);
+    return TRUSTED_BLOB_HOSTS.some((host) => parsedUrl.hostname.endsWith(host));
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Service for managing knowledge file processing background jobs.
  * Handles queuing, processing, and status tracking of knowledge files.
@@ -52,6 +66,7 @@ interface JobStatus {
 export class KnowledgeProcessingService {
   private readonly JOB_TYPE = "knowledge_processing";
   private readonly MAX_ATTEMPTS = 3;
+  private readonly STALE_JOB_THRESHOLD_MS = 10 * 60 * 1000; // 10 minutes
 
   /**
    * Queues multiple files for background processing.
@@ -142,37 +157,50 @@ export class KnowledgeProcessingService {
   /**
    * Processes pending jobs from the queue.
    * Processes up to 5 jobs per invocation.
+   * Uses FOR UPDATE SKIP LOCKED to prevent race conditions.
    *
    * @param params - User and API key for authentication.
    * @returns Processing results.
    */
   async processQueue(
     params: ProcessJobParams,
-  ): Promise<{ successCount: number; failureCount: number; totalProcessed: number }> {
+  ): Promise<{ successCount: number; failureCount: number; totalProcessed: number; recoveredCount: number }> {
     const { user, apiKey } = params;
 
     if (!user.organization_id) {
       throw new Error("User must have an organization to process knowledge files");
     }
 
-    const pendingJobs = await jobsRepository.findByFilters({
+    // First, recover any stale jobs that have been stuck in in_progress for too long
+    const recoveredCount = await jobsRepository.recoverStaleJobs({
       type: this.JOB_TYPE,
-      status: "pending",
       organizationId: user.organization_id,
-      limit: 5,
-      orderBy: "asc",
+      staleThresholdMs: this.STALE_JOB_THRESHOLD_MS,
     });
 
-    if (pendingJobs.length === 0) {
-      return { successCount: 0, failureCount: 0, totalProcessed: 0 };
+    if (recoveredCount > 0) {
+      logger.info(`[KnowledgeProcessing] Recovered ${recoveredCount} stale jobs`);
     }
 
-    logger.info(`[KnowledgeProcessing] Processing ${pendingJobs.length} jobs`);
+    // Atomically claim pending jobs using FOR UPDATE SKIP LOCKED
+    // This prevents race conditions where multiple workers grab the same jobs
+    const claimedJobs = await jobsRepository.claimPendingJobs({
+      type: this.JOB_TYPE,
+      organizationId: user.organization_id,
+      limit: 5,
+    });
+
+    if (claimedJobs.length === 0) {
+      return { successCount: 0, failureCount: 0, totalProcessed: 0, recoveredCount };
+    }
+
+    logger.info(`[KnowledgeProcessing] Claimed ${claimedJobs.length} jobs for processing`);
 
     let successCount = 0;
     let failureCount = 0;
 
-    for (const job of pendingJobs) {
+    for (const job of claimedJobs) {
+      // Job is already marked as in_progress by claimPendingJobs
       const success = await this.processJob(job, user, apiKey);
       if (success) {
         successCount++;
@@ -181,7 +209,7 @@ export class KnowledgeProcessingService {
       }
     }
 
-    return { successCount, failureCount, totalProcessed: pendingJobs.length };
+    return { successCount, failureCount, totalProcessed: claimedJobs.length, recoveredCount };
   }
 
   /**
@@ -204,7 +232,7 @@ export class KnowledgeProcessingService {
     };
 
     try {
-      await jobsRepository.updateStatus(job.id, "in_progress");
+      // Note: Job status is already set to in_progress by claimPendingJobs
 
       // Build user context
       const userContext = await userContextService.buildContext({
@@ -224,6 +252,18 @@ export class KnowledgeProcessingService {
 
       if (!knowledgeService) {
         const error = "Knowledge service not available";
+        await jobsRepository.incrementAttempt(
+          job.id,
+          error,
+          job.max_attempts || this.MAX_ATTEMPTS,
+        );
+        logger.error(`[KnowledgeProcessing] ${error}`, { jobId: job.id });
+        return false;
+      }
+
+      // Validate blob URL against trusted domains to prevent SSRF
+      if (!isValidBlobUrl(jobData.file.blobUrl)) {
+        const error = "Invalid or untrusted blob URL";
         await jobsRepository.incrementAttempt(
           job.id,
           error,

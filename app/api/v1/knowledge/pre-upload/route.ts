@@ -3,6 +3,7 @@ import { requireAuthOrApiKey } from "@/lib/auth";
 import { logger } from "@/lib/utils/logger";
 import { uploadToBlob } from "@/lib/blob";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
+import type { PreUploadedFile } from "@/lib/types/knowledge";
 
 const MAX_FILES_PER_REQUEST = 10;
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
@@ -21,15 +22,6 @@ const ALLOWED_CONTENT_TYPES = [
   "text/csv",
   "application/octet-stream",
 ];
-
-interface PreUploadedFile {
-  id: string;
-  filename: string;
-  blobUrl: string;
-  contentType: string;
-  size: number;
-  uploadedAt: number;
-}
 
 function getFileExtension(filename: string): string {
   const lastDot = filename.lastIndexOf(".");
