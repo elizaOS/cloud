@@ -761,7 +761,7 @@ export function BuildModeAssistant({
                         )}
                         {/* Message Text */}
                         {content && (
-                        <div className="py-3 px-4 bg-white/[0.03] border border-white/[0.06] rounded-lg transition-colors hover:bg-white/[0.05] hover:border-white/[0.08] overflow-hidden">
+                        <div className="py-3 px-4 bg-none border border-none rounded-lg transition-colors hover:bg-white/[0.05] hover:border-white/[0.08] overflow-hidden">
                           <style jsx>{`
                             .build-mode-content :global(pre) {
                               background: rgba(0, 0, 0, 0.4) !important;
