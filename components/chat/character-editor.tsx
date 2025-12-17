@@ -121,6 +121,7 @@ export function CharacterEditor({
               onClick={handleSave}
               disabled={isSaving}
               className="text-white hover:bg-[#FF5800]/90 bg-[#FF5800] rounded-none"
+              data-onboarding="build-save"
             >
               <Save className="mr-2 h-4 w-4" />
               {isSaving ? "Saving..." : "Save"}

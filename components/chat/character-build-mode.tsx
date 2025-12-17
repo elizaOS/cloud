@@ -233,7 +233,10 @@ export function CharacterBuildMode({
         <ResizablePanelGroup direction="horizontal" className="flex-1">
           {/* Left Panel - AI Assistant Chat */}
           <ResizablePanel defaultSize={50} minSize={30} maxSize={70}>
-            <div className="flex h-full flex-col overflow-hidden">
+            <div
+              className="flex h-full flex-col overflow-hidden"
+              data-onboarding="build-assistant"
+            >
               <BuildModeAssistant
                 character={character}
                 onCharacterUpdate={handleCharacterUpdate}
@@ -253,6 +256,7 @@ export function CharacterBuildMode({
             <div
               className="flex h-full flex-col overflow-hidden border-l"
               style={{ borderColor: "#353535" }}
+              data-onboarding="build-editor"
             >
               <CharacterEditor
                 character={character}
