@@ -23,6 +23,7 @@ import { EmptyStates } from "./empty-states";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2 } from "lucide-react";
 import type { ExtendedCharacter } from "@/lib/types/my-agents";
+import Link from "next/link";
 
 interface CharacterGridProps {
   characters: ExtendedCharacter[];
@@ -62,7 +63,7 @@ export function CharacterGrid({
           onLoadMore();
         }
       },
-      { threshold: 0.1 },
+      { threshold: 0.1 }
     );
 
     const trigger = loadMoreTriggerRef.current;
@@ -120,14 +121,19 @@ export function CharacterGrid({
             }
           >
             {characters.map((character) => (
-              <CharacterCard
+              <Link
+                href={`/dashboard/chat?characterId=${character.id}`}
                 key={character.id}
-                character={character}
-                view={view}
-                onStartChat={onStartChat}
-                onClone={onCloneCharacter}
-                onViewDetails={onViewDetails}
-              />
+              >
+                <CharacterCard
+                  key={character.id}
+                  character={character}
+                  view={view}
+                  onStartChat={onStartChat}
+                  onClone={onCloneCharacter}
+                  onViewDetails={onViewDetails}
+                />
+              </Link>
             ))}
           </div>
 

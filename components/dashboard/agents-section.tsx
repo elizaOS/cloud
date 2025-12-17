@@ -271,9 +271,6 @@ function AgentCard({ agent }: { agent: Agent }) {
       className="block h-full"
     >
       <div className="group relative h-full overflow-hidden border border-white/10 bg-black/40 transition-all duration-300 hover:border-[#FF5800]/50 hover:shadow-lg hover:shadow-[#FF5800]/10 hover:-translate-y-1">
-        <div className="pointer-events-none absolute inset-0 z-10">
-          <CornerBrackets size="md" color="#E1E1E1" hoverColor="#FF5800" />
-        </div>
         {/* Avatar Section - Large prominent image */}
         <div className={cn("relative h-36 w-full overflow-hidden")}>
           <Skeleton className="absolute inset-0 w-full h-full" />
@@ -316,23 +313,6 @@ function AgentCard({ agent }: { agent: Agent }) {
           <p className="text-xs text-white/50 line-clamp-2 leading-relaxed min-h-[2rem]">
             {bioText || "No description yet"}
           </p>
-
-          {/* Stats */}
-          <div className="flex items-center gap-3 pt-2 border-t border-white/5 text-[11px] text-white/40">
-            {agent.stats?.lastActiveAt && (
-              <span className="flex items-center gap-1 truncate">
-                <Clock className="h-3 w-3 flex-shrink-0" />
-                {formatDistanceToNow(new Date(agent.stats.lastActiveAt), {
-                  addSuffix: true,
-                })}
-              </span>
-            )}
-            {agent.category && (
-              <span className="ml-auto text-white/30 truncate">
-                {agent.category}
-              </span>
-            )}
-          </div>
         </div>
       </div>
     </Link>

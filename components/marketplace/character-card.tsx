@@ -34,6 +34,7 @@ import {
 } from "@/lib/constants/character-categories";
 import { formatDistanceToNow } from "date-fns";
 import { isBuiltInAvatar, ensureAvatarUrl } from "@/lib/utils/default-avatar";
+import { CornerBrackets } from "../brand";
 
 interface CharacterCardProps {
   character: ExtendedCharacter;
@@ -148,7 +149,7 @@ export function CharacterCard({
 
   // Grid view - card layout
   return (
-    <Card className="rounded-none group overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1 p-0 gap-0 h-full">
+    <Card className="transition-all duration-300 hover:border-[#FF5800]/50 hover:shadow-lg hover:shadow-[#FF5800]/10 hover:-translate-y-1 rounded-none border border-white/10 bg-black/40 group overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1 p-0 gap-0 h-full">
       <CardContent className="p-0 h-full flex flex-col">
         {/* Character Avatar/Header */}
         <div className="relative h-48 flex-shrink-0 bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center overflow-hidden">
@@ -237,55 +238,6 @@ export function CharacterCard({
                 +{character.topics.length - 2}
               </Badge>
             )}
-          </div>
-
-          {/* Stats */}
-          {character.stats && (
-            <div className="flex items-center gap-4 text-xs text-muted-foreground pt-3 mt-3 border-t">
-              <span className="flex items-center gap-1">
-                <MessageSquare className="h-3 w-3" />
-                {(character.stats.roomCount ?? 0) > 1000
-                  ? `${((character.stats.roomCount ?? 0) / 1000).toFixed(1)}k`
-                  : (character.stats.roomCount ?? 0)}{" "}
-                chats
-              </span>
-              {character.stats.lastActiveAt && (
-                <span className="flex items-center gap-1">
-                  <Clock className="h-3 w-3" />
-                  {formatDistanceToNow(new Date(character.stats.lastActiveAt), {
-                    addSuffix: true,
-                  })}
-                </span>
-              )}
-            </div>
-          )}
-
-          {/* Actions - Always at bottom */}
-          <div className="flex gap-2 pt-3 mt-auto">
-            <Button
-              className="flex-1"
-              size="sm"
-              onClick={() => onStartChat(character)}
-            >
-              <MessageSquare className="h-4 w-4 mr-2" />
-              Chat
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onClone(character)}
-              title="Clone character"
-            >
-              <Copy className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onViewDetails(character)}
-              title="View details"
-            >
-              <Info className="h-4 w-4" />
-            </Button>
           </div>
         </div>
       </CardContent>
