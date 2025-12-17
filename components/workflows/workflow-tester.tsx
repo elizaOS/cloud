@@ -1,10 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { BrandCard, CornerBrackets, BrandButton } from "@/components/brand";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
 import {
   Loader2,
   Play,
@@ -18,6 +16,7 @@ import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import type { Workflow, TestResult } from "./types";
 import { getStatusColor } from "./types";
+import { MonacoJsonEditor } from "@/components/chat/monaco-json-editor";
 
 interface WorkflowTesterProps {
   workflow: Workflow;
@@ -25,9 +24,37 @@ interface WorkflowTesterProps {
 }
 
 export function WorkflowTester({ workflow, onBack }: WorkflowTesterProps) {
-  const [testInput, setTestInput] = useState("{}");
+  const [testInput, setTestInput] = useState(`{
+  "message": "Hello, world!",
+  "data": {
+    "key": "value",
+    "items": ["item1", "item2"]
+  },
+  "options": {
+    "debug": false,
+    "timeout": 30000
+  }
+}`);
   const [isTesting, setIsTesting] = useState(false);
   const [testResult, setTestResult] = useState<TestResult | null>(null);
+  const [isValidJson, setIsValidJson] = useState(true);
+
+  // Calculate editor height based on content (lineHeight: 20px + padding: 32px)
+  const editorHeight = useMemo(() => {
+    const lineCount = testInput.split("\n").length;
+    const height = lineCount * 20 + 32;
+    return Math.max(height, 80); // Minimum 80px
+  }, [testInput]);
+
+  function handleInputChange(value: string) {
+    setTestInput(value);
+    try {
+      JSON.parse(value);
+      setIsValidJson(true);
+    } catch {
+      setIsValidJson(false);
+    }
+  }
 
   async function handleTest() {
     setIsTesting(true);
@@ -85,78 +112,79 @@ export function WorkflowTester({ workflow, onBack }: WorkflowTesterProps) {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4">
+    <div className="space-y-4">
+      <div className="flex items-center gap-2">
         <Button
           variant="ghost"
-          size="sm"
+          size="icon"
           onClick={onBack}
-          className="text-white/60 hover:text-white"
+          className="h-7 w-7 text-white/60 hover:text-white"
         >
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back
+          <ArrowLeft className="h-4 w-4" />
         </Button>
-        <div>
-          <h2 className="text-xl font-semibold text-white">{workflow.name}</h2>
-          <p className="text-sm text-white/60">
-            Test your workflow with sample input
-          </p>
-        </div>
+        <h2 className="text-lg font-semibold text-white">{workflow.name}</h2>
+        <span className="text-xs text-white/40">• Test</span>
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-6">
-        <BrandCard>
-          <CornerBrackets size="sm" className="opacity-20" />
-          <div className="relative z-10 p-6 space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-[#FF5800]/20">
-                <Play className="h-5 w-5 text-[#FF5800]" />
+      <BrandCard>
+        <CornerBrackets size="sm" className="opacity-20" />
+        <div className="relative z-10 p-6 space-y-6">
+          {/* Test Input Section */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-[#FF5800]/20">
+                  <Play className="h-5 w-5 text-[#FF5800]" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-white">Test Input</h3>
+                  <p className="text-sm text-white/60">
+                    Provide JSON input for the workflow
+                  </p>
+                </div>
               </div>
-              <div>
-                <h3 className="text-lg font-semibold text-white">Test Input</h3>
-                <p className="text-sm text-white/60">
-                  Provide JSON input for the workflow
-                </p>
-              </div>
+              <BrandButton
+                variant="primary"
+                onClick={handleTest}
+                disabled={isTesting || !isValidJson}
+              >
+                {isTesting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Running Test...
+                  </>
+                ) : (
+                  <>
+                    <Play className="h-4 w-4 mr-2" />
+                    Run Test
+                  </>
+                )}
+              </BrandButton>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="test-input" className="text-white/80">
-                Input JSON
-              </Label>
-              <Textarea
-                id="test-input"
-                value={testInput}
-                onChange={(e) => setTestInput(e.target.value)}
-                placeholder='{"key": "value"}'
-                className="min-h-[200px] font-mono text-sm bg-black/30 border-white/10 text-white placeholder:text-white/40"
-              />
-            </div>
-
-            <BrandButton
-              variant="primary"
-              onClick={handleTest}
-              disabled={isTesting}
-              className="w-full"
-            >
-              {isTesting ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Running Test...
-                </>
-              ) : (
-                <>
-                  <Play className="h-4 w-4 mr-2" />
-                  Run Test
-                </>
+            <div>
+              <div 
+                className="rounded-lg overflow-hidden border border-white/10 bg-black/30"
+                style={{ height: `${editorHeight}px` }}
+              >
+                <MonacoJsonEditor
+                  value={testInput}
+                  onChange={handleInputChange}
+                  isValid={isValidJson}
+                  height={`${editorHeight}px`}
+                />
+              </div>
+              {!isValidJson && (
+                <p className="text-xs text-red-400">Invalid JSON syntax</p>
               )}
-            </BrandButton>
+            </div>
           </div>
-        </BrandCard>
 
-        <BrandCard>
-          <CornerBrackets size="sm" className="opacity-20" />
-          <div className="relative z-10 p-6 space-y-4">
+          {/* Divider */}
+          <div className="border-t border-white/10" />
+
+          {/* Test Result Section */}
+          <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 {testResult ? (
@@ -283,13 +311,13 @@ export function WorkflowTester({ workflow, onBack }: WorkflowTesterProps) {
             )}
 
             {!testResult && (
-              <div className="flex items-center justify-center py-12 text-white/40">
+              <div className="flex items-center justify-center py-8 text-white/40">
                 <p>No test results yet</p>
               </div>
             )}
           </div>
-        </BrandCard>
-      </div>
+        </div>
+      </BrandCard>
     </div>
   );
 }

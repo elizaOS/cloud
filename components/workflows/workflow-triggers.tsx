@@ -39,6 +39,13 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import type { Trigger, TriggerType } from "./types";
+
+function safeFormatDistanceToNow(dateValue: string | undefined | null): string {
+  if (!dateValue) return "Unknown";
+  const date = new Date(dateValue);
+  if (isNaN(date.getTime())) return "Unknown";
+  return formatDistanceToNow(date);
+}
 import { STATUS_COLORS } from "./types";
 
 interface WorkflowTriggersProps {
@@ -200,6 +207,13 @@ export function WorkflowTriggers({
   };
 
   const handleToggle = async (trigger: Trigger, active: boolean) => {
+    // Optimistically update UI first to prevent stale state issues
+    setTriggers((prev) =>
+      prev.map((t) =>
+        t.id === trigger.id ? { ...t, isActive: active } : t,
+      ),
+    );
+
     const response = await fetch(`/api/v1/n8n/triggers/${trigger.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -207,15 +221,16 @@ export function WorkflowTriggers({
     });
 
     if (!response.ok) {
+      // Revert on failure
+      setTriggers((prev) =>
+        prev.map((t) =>
+          t.id === trigger.id ? { ...t, isActive: !active } : t,
+        ),
+      );
       toast.error("Failed to update trigger");
       return;
     }
 
-    setTriggers(
-      triggers.map((t) =>
-        t.id === trigger.id ? { ...t, isActive: active } : t,
-      ),
-    );
     toast.success(active ? "Trigger enabled" : "Trigger disabled");
   };
 
@@ -231,7 +246,7 @@ export function WorkflowTriggers({
       return;
     }
 
-    setTriggers(triggers.filter((t) => t.id !== trigger.id));
+    setTriggers((prev) => prev.filter((t) => t.id !== trigger.id));
     toast.success("Trigger deleted");
   };
 
@@ -386,11 +401,7 @@ export function WorkflowTriggers({
                           )}
                           {trigger.lastExecutedAt && (
                             <span>
-                              Last run{" "}
-                              {formatDistanceToNow(
-                                new Date(trigger.lastExecutedAt),
-                              )}{" "}
-                              ago
+                              Last run {safeFormatDistanceToNow(trigger.lastExecutedAt)} ago
                             </span>
                           )}
                         </div>

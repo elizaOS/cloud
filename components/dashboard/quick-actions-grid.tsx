@@ -67,19 +67,7 @@ export function QuickActionsGrid() {
   };
 
   return (
-    <section className="space-y-6">
-      <div className="flex items-center gap-3">
-        <div className="p-2 rounded-lg bg-[#FF5800]/10 border border-[#FF5800]/20">
-          <Zap className="h-5 w-5 text-[#FF5800]" />
-        </div>
-        <div>
-          <h2 className="text-xl font-semibold text-white">Quick Actions</h2>
-          <p className="text-sm text-white/50">
-            Create, deploy, monetize, and publicize
-          </p>
-        </div>
-      </div>
-
+    <section className="space-y-4">
       <div className="grid gap-4 md:grid-cols-3">
         {CHAT_ACTIONS.map((action) => (
           <ActionCard key={action.id} action={action} />
@@ -224,15 +212,7 @@ function ActionCard({
 
 export function QuickActionsGridSkeleton() {
   return (
-    <section className="space-y-6">
-      <div className="flex items-center gap-3">
-        <div className="h-10 w-10 rounded-lg bg-white/10 animate-pulse" />
-        <div className="space-y-2">
-          <div className="h-5 w-32 bg-white/10 animate-pulse rounded" />
-          <div className="h-4 w-48 bg-white/10 animate-pulse rounded" />
-        </div>
-      </div>
-
+    <section className="space-y-4">
       {[0, 1].map((row) => (
         <div key={row} className="grid gap-4 md:grid-cols-3">
           {[0, 1, 2].map((i) => (

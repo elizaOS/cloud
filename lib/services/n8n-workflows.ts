@@ -29,6 +29,8 @@ import {
 import { logger } from "@/lib/utils/logger";
 import { extractErrorMessage } from "@/lib/utils/error-handling";
 import { createHash, randomBytes } from "crypto";
+import { cache } from "@/lib/cache/client";
+import { CacheKeys, CacheTTL } from "@/lib/cache/keys";
 import {
   secretsService,
   loadWorkflowSecrets as loadSecretsHelper,
@@ -211,6 +213,9 @@ class N8nWorkflowsService {
       workflowId: workflow.id,
     });
 
+    // Invalidate cache for this organization
+    void this.invalidateWorkflowCache(organizationId);
+
     return workflow;
   }
 
@@ -224,6 +229,7 @@ class N8nWorkflowsService {
 
   /**
    * Lists workflows for an organization.
+   * Uses Redis cache with SWR pattern for performance.
    */
   async listWorkflows(
     organizationId: string,
@@ -233,7 +239,30 @@ class N8nWorkflowsService {
       offset?: number;
     } = {},
   ): Promise<N8nWorkflow[]> {
-    return n8nWorkflowsRepository.findByOrganization(organizationId, options);
+    // Create a hash of the options for cache key
+    const optionsHash = createHash("md5")
+      .update(JSON.stringify(options))
+      .digest("hex")
+      .substring(0, 8);
+    const cacheKey = CacheKeys.n8nWorkflows.list(organizationId, optionsHash);
+
+    const workflows = await cache.getWithSWR<N8nWorkflow[]>(
+      cacheKey,
+      CacheTTL.n8nWorkflows.list,
+      async () => {
+        return n8nWorkflowsRepository.findByOrganization(organizationId, options);
+      },
+    );
+
+    return workflows ?? [];
+  }
+
+  /**
+   * Invalidates workflow cache for an organization.
+   * Call this after create, update, or delete operations.
+   */
+  private async invalidateWorkflowCache(organizationId: string): Promise<void> {
+    await cache.delPattern(CacheKeys.n8nWorkflows.orgPattern(organizationId));
   }
 
   /**
@@ -283,6 +312,9 @@ class N8nWorkflowsService {
       newVersion: updated.version,
     });
 
+    // Invalidate cache for this organization
+    void this.invalidateWorkflowCache(existing.organization_id);
+
     return updated;
   }
 
@@ -290,8 +322,17 @@ class N8nWorkflowsService {
    * Deletes a workflow.
    */
   async deleteWorkflow(workflowId: string): Promise<void> {
+    // Get workflow first to get org ID for cache invalidation
+    const workflow = await n8nWorkflowsRepository.findById(workflowId);
+    const orgId = workflow?.organization_id;
+
     await n8nWorkflowsRepository.delete(workflowId);
     logger.info(`[N8N Workflows] Deleted workflow: ${workflowId}`);
+
+    // Invalidate cache for this organization
+    if (orgId) {
+      void this.invalidateWorkflowCache(orgId);
+    }
   }
 
   // ===========================================================================

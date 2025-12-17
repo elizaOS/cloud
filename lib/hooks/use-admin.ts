@@ -85,6 +85,18 @@ async function fetchAdminStatus(
         method: "HEAD",
         signal,
       });
+
+      // Handle non-200 responses gracefully - treat as not admin
+      if (!res.ok) {
+        // Cache the negative result to prevent repeated requests
+        adminCache = {
+          isAdmin: false,
+          timestamp: Date.now(),
+          walletAddress,
+        };
+        return false;
+      }
+
       const isAdmin = res?.headers.get("X-Is-Admin") === "true";
 
       // Cache the result

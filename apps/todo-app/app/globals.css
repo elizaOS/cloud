@@ -87,3 +87,38 @@
 .streak-flame {
   animation: flame 0.5s ease-in-out infinite;
 }
+
+/* HUD Scanner animations for chat input */
+@keyframes visor-scan {
+  0% {
+    left: -20%;
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    left: 100%;
+    opacity: 0;
+  }
+}
+
+@keyframes visor-scan-delayed {
+  0% {
+    left: -15%;
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.6;
+  }
+  85% {
+    opacity: 0.6;
+  }
+  100% {
+    left: 100%;
+    opacity: 0;
+  }
+}

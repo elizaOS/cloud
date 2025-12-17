@@ -1,12 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { BrandCard, CornerBrackets, BrandButton } from "@/components/brand";
+import { MonacoJsonEditor } from "@/components/chat/monaco-json-editor";
 import { Loader2, Sparkles, Save, Wand2, FileCode } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -81,7 +80,6 @@ export function WorkflowGenerator({
 }: WorkflowGeneratorProps) {
   const [prompt, setPrompt] = useState("");
   const [workflowName, setWorkflowName] = useState("");
-  const [autoSave, setAutoSave] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedWorkflow, setGeneratedWorkflow] =
     useState<GeneratedWorkflow | null>(null);
@@ -92,8 +90,8 @@ export function WorkflowGenerator({
       return;
     }
 
-    if (autoSave && !workflowName.trim()) {
-      toast.error("Please enter a workflow name for auto-save");
+    if (!workflowName.trim()) {
+      toast.error("Please enter a workflow name");
       return;
     }
 
@@ -104,8 +102,8 @@ export function WorkflowGenerator({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           prompt,
-          autoSave,
-          workflowName: autoSave ? workflowName : undefined,
+          autoSave: true,
+          workflowName,
         }),
       });
 
@@ -197,35 +195,33 @@ export function WorkflowGenerator({
                 placeholder="Describe what you want your workflow to do, or select a template above...&#10;&#10;Example: Create a workflow that monitors a webhook for new orders, sends them to the chat API for processing, and stores the results in IPFS storage."
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handleGenerate();
+                  }
+                }}
                 className="min-h-[150px] bg-white/5 border-white/10 text-white placeholder:text-white/40 resize-none"
               />
             </div>
 
-            <div className="flex items-center gap-6">
-              <div className="flex items-center gap-3">
-                <Switch
-                  id="auto-save"
-                  checked={autoSave}
-                  onCheckedChange={setAutoSave}
-                />
-                <Label
-                  htmlFor="auto-save"
-                  className="text-white/80 cursor-pointer"
-                >
-                  Auto-save workflow
-                </Label>
-              </div>
-
-              {autoSave && (
-                <div className="flex-1">
-                  <Input
-                    placeholder="Workflow name"
-                    value={workflowName}
-                    onChange={(e) => setWorkflowName(e.target.value)}
-                    className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
-                  />
-                </div>
-              )}
+            <div className="space-y-2">
+              <Label htmlFor="workflow-name" className="text-white/80">
+                Workflow Name
+              </Label>
+              <Input
+                id="workflow-name"
+                placeholder="Enter workflow name"
+                value={workflowName}
+                onChange={(e) => setWorkflowName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handleGenerate();
+                  }
+                }}
+                className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
+              />
             </div>
 
             <BrandButton
@@ -274,10 +270,12 @@ export function WorkflowGenerator({
               </div>
             </div>
 
-            <div className="bg-black/30 rounded-lg p-4 overflow-auto max-h-[400px]">
-              <pre className="text-sm text-white/80 font-mono">
-                {JSON.stringify(generatedWorkflow.workflow, null, 2)}
-              </pre>
+            <div className="rounded-lg overflow-hidden bg-black/30">
+              <MonacoJsonEditor
+                value={JSON.stringify(generatedWorkflow.workflow, null, 2)}
+                readOnly
+                height="400px"
+              />
             </div>
 
             {generatedWorkflow.savedWorkflow && (

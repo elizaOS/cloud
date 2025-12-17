@@ -77,7 +77,8 @@ interface BalanceResponse {
 async function getBalanceHandler(request: NextRequest): Promise<Response> {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
 
-  // Get user's redeemable earnings record
+  try {
+    // Get user's redeemable earnings record
   const earningsRecord = await db.query.redeemableEarnings.findFirst({
     where: eq(redeemableEarnings.user_id, user.id),
   });
@@ -140,8 +141,14 @@ async function getBalanceHandler(request: NextRequest): Promise<Response> {
   });
 
   const cooldownMs = SUPPLY_SHOCK_PROTECTION.USER_COOLDOWN_MS;
-  const cooldownEndsAt = lastRedemption
-    ? new Date(lastRedemption.created_at.getTime() + cooldownMs)
+  // Handle created_at as either Date object or string (depends on DB driver)
+  const lastRedemptionTime = lastRedemption
+    ? lastRedemption.created_at instanceof Date
+      ? lastRedemption.created_at.getTime()
+      : new Date(lastRedemption.created_at).getTime()
+    : null;
+  const cooldownEndsAt = lastRedemptionTime
+    ? new Date(lastRedemptionTime + cooldownMs)
     : null;
   const isInCooldown = cooldownEndsAt && cooldownEndsAt > new Date();
 
@@ -199,14 +206,18 @@ async function getBalanceHandler(request: NextRequest): Promise<Response> {
     count: Number(e.count || 0),
   }));
 
-  // Format recent earnings
+  // Format recent earnings (handle createdAt as Date or string)
   const formattedRecentEarnings: RecentEarning[] = recentEarnings.map((e) => ({
     id: e.id,
     source: (e.source || "app") as "app" | "agent" | "mcp",
     sourceId: e.sourceId || "",
     amount: Number(e.amount),
     description: e.description || "",
-    createdAt: e.createdAt?.toISOString() || "",
+    createdAt: e.createdAt
+      ? e.createdAt instanceof Date
+        ? e.createdAt.toISOString()
+        : String(e.createdAt)
+      : "",
   }));
 
   return NextResponse.json({
@@ -233,6 +244,17 @@ async function getBalanceHandler(request: NextRequest): Promise<Response> {
       dailyLimitRemaining,
     },
   } satisfies BalanceResponse);
+  } catch (error) {
+    console.error("[Redemptions/Balance] Error fetching balance:", error);
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Failed to fetch balance",
+        message: error instanceof Error ? error.message : "Unknown error",
+      },
+      { status: 500 }
+    );
+  }
 }
 
 export const GET = withRateLimit(getBalanceHandler, RateLimitPresets.STANDARD);

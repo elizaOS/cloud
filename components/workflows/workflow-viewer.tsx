@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback } from "react";
 import { BrandCard, CornerBrackets, BrandButton } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TabsContent } from "@/components/ui/tabs";
+import { BrandTabsResponsive } from "@/components/brand/brand-tabs-responsive";
 import {
   Loader2,
   ArrowLeft,
@@ -19,10 +20,18 @@ import {
 } from "lucide-react";
 import { WorkflowChatEditor } from "./workflow-chat-editor";
 import { WorkflowTriggers } from "./workflow-triggers";
+import { MonacoJsonEditor } from "@/components/chat/monaco-json-editor";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import type { Workflow, WorkflowVersion, WorkflowExecution } from "./types";
 import { getStatusColor } from "./types";
+
+function safeFormatDistanceToNow(dateValue: string | undefined | null): string {
+  if (!dateValue) return "Unknown";
+  const date = new Date(dateValue);
+  if (isNaN(date.getTime())) return "Unknown";
+  return formatDistanceToNow(date);
+}
 
 interface WorkflowViewerProps {
   workflowId: string;
@@ -134,36 +143,33 @@ export function WorkflowViewer({
 
   return (
     <div className="space-y-6">
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={onBack}
+        className="h-6 w-6 text-white/40 hover:text-white"
+      >
+        <ArrowLeft className="h-3 w-3" />
+      </Button>
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onBack}
-            className="text-white/60 hover:text-white"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back
-          </Button>
-          <div>
-            <div className="flex items-center gap-3">
-              <h2 className="text-xl font-semibold text-white">
-                {workflow.name}
-              </h2>
-              <Badge
-                variant="outline"
-                className={`text-xs ${getStatusColor(workflow.status)}`}
-              >
-                {workflow.status}
-              </Badge>
-              <span className="text-xs text-white/40">v{workflow.version}</span>
-            </div>
-            {workflow.description && (
-              <p className="text-sm text-white/60 mt-1">
-                {workflow.description}
-              </p>
-            )}
+        <div>
+          <div className="flex items-center gap-3">
+            <h2 className="text-xl font-semibold text-white">
+              {workflow.name}
+            </h2>
+            <Badge
+              variant="outline"
+              className={`text-xs ${getStatusColor(workflow.status)}`}
+            >
+              {workflow.status}
+            </Badge>
+            <span className="text-xs text-white/40">v{workflow.version}</span>
           </div>
+          {workflow.description && (
+            <p className="text-sm text-white/60 mt-1">
+              {workflow.description}
+            </p>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
@@ -181,44 +187,38 @@ export function WorkflowViewer({
         </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="bg-white/5 border border-white/10">
-          <TabsTrigger
-            value="overview"
-            className="data-[state=active]:bg-[#FF5800]"
-          >
-            <Settings className="h-4 w-4 mr-2" />
-            Overview
-          </TabsTrigger>
-          <TabsTrigger
-            value="triggers"
-            className="data-[state=active]:bg-[#FF5800]"
-          >
-            <Zap className="h-4 w-4 mr-2" />
-            Triggers
-          </TabsTrigger>
-          <TabsTrigger
-            value="code"
-            className="data-[state=active]:bg-[#FF5800]"
-          >
-            <Code className="h-4 w-4 mr-2" />
-            JSON
-          </TabsTrigger>
-          <TabsTrigger
-            value="versions"
-            className="data-[state=active]:bg-[#FF5800]"
-          >
-            <History className="h-4 w-4 mr-2" />
-            Versions
-          </TabsTrigger>
-          <TabsTrigger
-            value="executions"
-            className="data-[state=active]:bg-[#FF5800]"
-          >
-            <Activity className="h-4 w-4 mr-2" />
-            Executions
-          </TabsTrigger>
-        </TabsList>
+      <BrandTabsResponsive
+        id="workflow-viewer-tabs"
+        tabs={[
+          {
+            value: "overview",
+            label: "Overview",
+            icon: <Settings className="h-4 w-4" />,
+          },
+          {
+            value: "triggers",
+            label: "Triggers",
+            icon: <Zap className="h-4 w-4" />,
+          },
+          {
+            value: "code",
+            label: "JSON",
+            icon: <Code className="h-4 w-4" />,
+          },
+          {
+            value: "versions",
+            label: "Versions",
+            icon: <History className="h-4 w-4" />,
+          },
+          {
+            value: "executions",
+            label: "Executions",
+            icon: <Activity className="h-4 w-4" />,
+          },
+        ]}
+        value={activeTab}
+        onValueChange={setActiveTab}
+      >
 
         <TabsContent value="overview" className="mt-6">
           <div className="grid md:grid-cols-2 gap-6">
@@ -232,13 +232,13 @@ export function WorkflowViewer({
                   <div className="flex justify-between text-sm">
                     <span className="text-white/40">Created</span>
                     <span className="text-white/80">
-                      {formatDistanceToNow(new Date(workflow.createdAt))} ago
+                      {safeFormatDistanceToNow(workflow.createdAt)} ago
                     </span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-white/40">Last Updated</span>
                     <span className="text-white/80">
-                      {formatDistanceToNow(new Date(workflow.updatedAt))} ago
+                      {safeFormatDistanceToNow(workflow.updatedAt)} ago
                     </span>
                   </div>
                   <div className="flex justify-between text-sm">
@@ -310,10 +310,12 @@ export function WorkflowViewer({
                   Copy
                 </Button>
               </div>
-              <div className="bg-black/30 rounded-lg p-4 overflow-auto max-h-[500px]">
-                <pre className="text-sm text-white/80 font-mono">
-                  {JSON.stringify(workflow.workflowData, null, 2)}
-                </pre>
+              <div className="rounded-lg overflow-hidden bg-black/30">
+                <MonacoJsonEditor
+                  value={JSON.stringify(workflow.workflowData, null, 2)}
+                  readOnly
+                  height="500px"
+                />
               </div>
             </div>
           </BrandCard>
@@ -344,8 +346,7 @@ export function WorkflowViewer({
                             {version.changes_summary || "No summary"}
                           </p>
                           <p className="text-xs text-white/40">
-                            {formatDistanceToNow(new Date(version.created_at))}{" "}
-                            ago
+                            {safeFormatDistanceToNow(version.created_at)} ago
                           </p>
                         </div>
                       </div>
@@ -391,18 +392,15 @@ export function WorkflowViewer({
                               execution.status.slice(1)}
                           </p>
                           <p className="text-xs text-white/40">
-                            {formatDistanceToNow(
-                              new Date(execution.started_at),
-                            )}{" "}
-                            ago
-                            {execution.duration_ms &&
-                              ` • ${execution.duration_ms}ms`}
+                            {safeFormatDistanceToNow(execution.startedAt)} ago
+                            {execution.durationMs &&
+                              ` • ${execution.durationMs}ms`}
                           </p>
                         </div>
                       </div>
-                      {execution.error && (
+                      {execution.errorMessage && (
                         <span className="text-xs text-red-400 truncate max-w-[200px]">
-                          {execution.error}
+                          {execution.errorMessage}
                         </span>
                       )}
                     </div>
@@ -416,7 +414,7 @@ export function WorkflowViewer({
             </div>
           </BrandCard>
         </TabsContent>
-      </Tabs>
+      </BrandTabsResponsive>
     </div>
   );
 }

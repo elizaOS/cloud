@@ -66,81 +66,89 @@ const INDEXER_URL = process.env.INDEXER_URL || "http://localhost:4000/graphql";
 async function fetchFromIndexer(
   filters: Agent0SearchFilters,
 ): Promise<Agent0Agent[]> {
-  const whereConditions: string[] = [];
-  if (filters.active !== false) whereConditions.push(`active_eq: true`);
-  if (filters.x402Support) whereConditions.push(`x402Support_eq: true`);
-  if (filters.name)
-    whereConditions.push(`name_containsInsensitive: "${filters.name}"`);
+  try {
+    const whereConditions: string[] = [];
+    if (filters.active !== false) whereConditions.push(`active_eq: true`);
+    if (filters.x402Support) whereConditions.push(`x402Support_eq: true`);
+    if (filters.name)
+      whereConditions.push(`name_containsInsensitive: "${filters.name}"`);
 
-  const whereClause =
-    whereConditions.length > 0
-      ? `where: { ${whereConditions.join(", ")} }`
-      : "";
+    const whereClause =
+      whereConditions.length > 0
+        ? `where: { ${whereConditions.join(", ")} }`
+        : "";
 
-  const query = `
-    query {
-      registeredAgents(limit: ${filters.limit || 50}, orderBy: agentId_DESC${whereClause ? ", " + whereClause : ""}) {
-        agentId
-        name
-        description
-        a2aEndpoint
-        mcpEndpoint
-        serviceType
-        category
-        x402Support
-        mcpTools
-        a2aSkills
-        image
-        tags
-        active
+    const query = `
+      query {
+        registeredAgents(limit: ${filters.limit || 50}, orderBy: agentId_DESC${whereClause ? ", " + whereClause : ""}) {
+          agentId
+          name
+          description
+          a2aEndpoint
+          mcpEndpoint
+          serviceType
+          category
+          x402Support
+          mcpTools
+          a2aSkills
+          image
+          tags
+          active
+        }
       }
+    `;
+
+    const response = await fetch(INDEXER_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query }),
+    });
+
+    const result = await response.json();
+
+    if (result.errors) {
+      logger.warn("[Agent0/Indexer] GraphQL errors", { errors: result.errors });
+      return [];
     }
-  `;
 
-  const response = await fetch(INDEXER_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ query }),
-  });
-
-  const result = await response.json();
-
-  if (result.errors) {
-    logger.warn("[Agent0/Indexer] GraphQL errors", { errors: result.errors });
+    return (result.data?.registeredAgents || []).map(
+      (agent: {
+        agentId: string;
+        name: string;
+        description?: string;
+        a2aEndpoint?: string;
+        mcpEndpoint?: string;
+        serviceType?: string;
+        category?: string;
+        x402Support?: boolean;
+        mcpTools?: string[];
+        a2aSkills?: string[];
+        image?: string;
+        tags?: string[];
+        active?: boolean;
+      }): Agent0Agent => ({
+        agentId: agent.agentId,
+        name: agent.name,
+        description: agent.description,
+        image: agent.image,
+        mcpEndpoint: agent.mcpEndpoint,
+        a2aEndpoint: agent.a2aEndpoint,
+        mcpTools: agent.mcpTools || [],
+        a2aSkills: agent.a2aSkills || [],
+        tags: agent.tags || [],
+        active: agent.active ?? true,
+        x402Support: agent.x402Support ?? false,
+        network: getDefaultNetwork(),
+        ecosystem: getNetworkEcosystem(getDefaultNetwork()),
+      }),
+    );
+  } catch (error) {
+    logger.warn("[Agent0/Indexer] Indexer unavailable, returning empty results", {
+      url: INDEXER_URL,
+      error: extractErrorMessage(error),
+    });
     return [];
   }
-
-  return (result.data?.registeredAgents || []).map(
-    (agent: {
-      agentId: string;
-      name: string;
-      description?: string;
-      a2aEndpoint?: string;
-      mcpEndpoint?: string;
-      serviceType?: string;
-      category?: string;
-      x402Support?: boolean;
-      mcpTools?: string[];
-      a2aSkills?: string[];
-      image?: string;
-      tags?: string[];
-      active?: boolean;
-    }): Agent0Agent => ({
-      agentId: agent.agentId,
-      name: agent.name,
-      description: agent.description,
-      image: agent.image,
-      mcpEndpoint: agent.mcpEndpoint,
-      a2aEndpoint: agent.a2aEndpoint,
-      mcpTools: agent.mcpTools || [],
-      a2aSkills: agent.a2aSkills || [],
-      tags: agent.tags || [],
-      active: agent.active ?? true,
-      x402Support: agent.x402Support ?? false,
-      network: getDefaultNetwork(),
-      ecosystem: getNetworkEcosystem(getDefaultNetwork()),
-    }),
-  );
 }
 
 // Type imports from agent0-sdk
