@@ -43,6 +43,8 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
     (a) => a.id === selectedCharacterId
   );
 
+  const existingAgent = selectedAgent !== undefined;
+
   const handleAgentChange = (characterId: string) => {
     const charId = characterId || null;
     setSelectedCharacterId(charId);
@@ -229,7 +231,9 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
             )}
           >
             <Wrench className="h-4 w-4" />
-            <span className="hidden md:inline">Build</span>
+            <span className="hidden md:inline">
+              {existingAgent ? "Edit" : "Build"}
+            </span>
           </button>
         </div>
       </div>

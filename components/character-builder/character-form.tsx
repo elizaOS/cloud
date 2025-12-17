@@ -12,7 +12,7 @@
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { X, Plus } from "lucide-react";
+import { X, Plus, Info } from "lucide-react";
 import type { ElizaCharacter } from "@/lib/types";
 import { AvatarUpload } from "@/components/character-builder/avatar-upload";
 import { AvatarGenerator } from "@/components/character-creator/avatar-generator";
@@ -25,6 +25,11 @@ import {
   BrandButton,
   CornerBrackets,
 } from "@/components/brand";
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from "@/components/ui/tooltip";
 
 interface CharacterFormProps {
   character: ElizaCharacter;
@@ -215,9 +220,29 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
           <BrandTabsContent value="personality" className="space-y-4">
             {/* Message Examples */}
             <div className="space-y-3">
-              <label className="text-xs font-medium text-white/70 uppercase tracking-wide">
-                Conversation Examples
-              </label>
+              <div className="flex items-center gap-2">
+                <label className="text-xs font-medium text-white/70 uppercase tracking-wide">
+                  Conversation Examples
+                </label>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-3.5 w-3.5 text-white/40 hover:text-white/70 transition-colors cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent
+                    side="right"
+                    className="max-w-xs bg-black/95 border border-white/10 text-white"
+                  >
+                    <p className="font-medium mb-1">
+                      Teach your agent's conversation style
+                    </p>
+                    <p className="text-white/70">
+                      Add realistic user-agent exchanges that demonstrate tone,
+                      vocabulary, and response patterns. Example: User: "How are
+                      you?" → Agent: "I'm doing great, thanks for asking!"
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
               <p className="text-xs text-white/50">
                 Add example conversations to teach your agent how to respond
               </p>
@@ -296,9 +321,27 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
 
             {/* Post Examples */}
             <div className="space-y-2">
-              <label className="text-xs font-medium text-white/70 uppercase tracking-wide">
-                Post Examples
-              </label>
+              <div className="flex items-center gap-2">
+                <label className="text-xs font-medium text-white/70 uppercase tracking-wide">
+                  Post Examples
+                </label>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-3.5 w-3.5 text-white/40 hover:text-white/70 transition-colors cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent
+                    side="right"
+                    className="max-w-xs bg-black/95 border border-white/10 text-white"
+                  >
+                    <p className="font-medium mb-1">Sample social media posts</p>
+                    <p className="text-white/70">
+                      Add examples of posts your agent might create on social
+                      platforms like Twitter/X. Example: "Just shipped a new
+                      feature! 🚀 Check it out at example.com"
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
               <div className="flex gap-2">
                 <Input
                   value={newTag}
@@ -343,12 +386,32 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
           {/* Style Tab */}
           <BrandTabsContent value="style" className="space-y-4">
             <div className="space-y-2">
-              <label
-                htmlFor="style-all"
-                className="text-xs font-medium text-white/70 uppercase tracking-wide"
-              >
-                General Style Guidelines
-              </label>
+              <div className="flex items-center gap-2">
+                <label
+                  htmlFor="style-all"
+                  className="text-xs font-medium text-white/70 uppercase tracking-wide"
+                >
+                  General Style Guidelines
+                </label>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-3.5 w-3.5 text-white/40 hover:text-white/70 transition-colors cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent
+                    side="right"
+                    className="max-w-xs bg-black/95 border border-white/10 text-white"
+                  >
+                    <p className="font-medium mb-1">
+                      Universal style rules for all contexts
+                    </p>
+                    <p className="text-white/70">
+                      Define overarching style rules that apply everywhere (chats
+                      AND posts). Example: "Always use lowercase", "Be
+                      enthusiastic and friendly", "Avoid formal language"
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
               <Textarea
                 id="style-all"
                 value={
@@ -370,12 +433,32 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
             </div>
 
             <div className="space-y-2">
-              <label
-                htmlFor="style-chat"
-                className="text-xs font-medium text-white/70 uppercase tracking-wide"
-              >
-                Chat Style Guidelines
-              </label>
+              <div className="flex items-center gap-2">
+                <label
+                  htmlFor="style-chat"
+                  className="text-xs font-medium text-white/70 uppercase tracking-wide"
+                >
+                  Chat Style Guidelines
+                </label>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-3.5 w-3.5 text-white/40 hover:text-white/70 transition-colors cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent
+                    side="right"
+                    className="max-w-xs bg-black/95 border border-white/10 text-white"
+                  >
+                    <p className="font-medium mb-1">
+                      Style rules for conversations
+                    </p>
+                    <p className="text-white/70">
+                      Define how your agent behaves in one-on-one conversations
+                      and direct messages. Example: "Keep responses concise",
+                      "Ask follow-up questions", "Use emojis sparingly"
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
               <Textarea
                 id="style-chat"
                 value={
@@ -397,12 +480,32 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
             </div>
 
             <div className="space-y-2">
-              <label
-                htmlFor="style-post"
-                className="text-xs font-medium text-white/70 uppercase tracking-wide"
-              >
-                Post Style Guidelines
-              </label>
+              <div className="flex items-center gap-2">
+                <label
+                  htmlFor="style-post"
+                  className="text-xs font-medium text-white/70 uppercase tracking-wide"
+                >
+                  Post Style Guidelines
+                </label>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-3.5 w-3.5 text-white/40 hover:text-white/70 transition-colors cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent
+                    side="right"
+                    className="max-w-xs bg-black/95 border border-white/10 text-white"
+                  >
+                    <p className="font-medium mb-1">
+                      Style rules for social media posts
+                    </p>
+                    <p className="text-white/70">
+                      Define how your agent creates public posts on platforms
+                      like Twitter/X. Example: "Always include a call-to-action",
+                      "Use trending hashtags", "Keep posts under 280 characters"
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
               <Textarea
                 id="style-post"
                 value={
