@@ -296,28 +296,6 @@ function AgentCard({ agent }: { agent: Agent }) {
           {/* Gradient overlay at bottom */}
           <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-black/90 to-transparent" />
           {/* Three dots menu - TOP LEFT */}
-          <div className="absolute top-2 left-2 z-20">
-            <DropdownMenu>
-              <DropdownMenuTrigger className="flex items-center justify-center h-8 w-8 rounded-md bg-black/50 backdrop-blur-sm hover:bg-black/70 transition-colors">
-                <MoreHorizontal className="h-4 w-4 text-white" />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-40">
-                <Link
-                  href={`/dashboard/build?characterId=${agent.id}`}
-                  className="block h-full"
-                >
-                  <DropdownMenuItem className="cursor-pointer">
-                    <Pencil className="h-4 w-4 mr-2" />
-                    Edit
-                  </DropdownMenuItem>
-                </Link>
-                <DropdownMenuItem className="cursor-pointer text-red-600 focus:text-red-600">
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
 
           {/* Status badges */}
           <div className="absolute top-2 right-2 z-20 flex gap-1.5">
@@ -335,17 +313,40 @@ function AgentCard({ agent }: { agent: Agent }) {
           </div>
         </div>
 
-        {/* Content Section */}
-        <div className="p-4 space-y-2">
-          {/* Name */}
-          <h3 className="font-semibold text-white truncate group-hover:text-[#FF5800] transition-colors">
-            {agent.name}
-          </h3>
+        <div className="w-full">
+          <DropdownMenu>
+            <DropdownMenuTrigger className="absolute select-none right-0 m-2 flex items-center justify-center h-8 w-8 rounded-md bg-none backdrop-blur-sm hover:bg-black/70 transition-colors">
+              <MoreHorizontal className="h-4 w-4 text-white" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-40">
+              <Link
+                href={`/dashboard/build?characterId=${agent.id}`}
+                className="block h-full"
+              >
+                <DropdownMenuItem className="cursor-pointer">
+                  <Pencil className="h-4 w-4 mr-2" />
+                  Edit
+                </DropdownMenuItem>
+              </Link>
+              <DropdownMenuItem className="cursor-pointer text-red-600 focus:text-red-600">
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
-          {/* Bio */}
-          <p className="text-xs text-white/50 line-clamp-2 leading-relaxed min-h-[2rem]">
-            {bioText || "No description yet"}
-          </p>
+          {/* Content Section */}
+          <div className="p-4 space-y-2">
+            {/* Name */}
+            <h3 className="font-semibold text-white truncate group-hover:text-[#FF5800] transition-colors">
+              {agent.name}
+            </h3>
+
+            {/* Bio */}
+            <p className="text-xs text-white/50 line-clamp-2 leading-relaxed min-h-[2rem]">
+              {bioText || "No description yet"}
+            </p>
+          </div>
         </div>
       </div>
     </Link>
