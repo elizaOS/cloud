@@ -280,6 +280,7 @@ async function handleSetupWebhook(
     params.connectionId,
     ctx.organizationId,
     baseUrl,
+    ctx.userId,
   );
 
   return {

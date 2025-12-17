@@ -17,6 +17,8 @@ import {
   NewOrgPlatformServer,
 } from "@/db/schemas/org-platforms";
 import { secretsService, type AuditContext } from "./secrets";
+import { telegramService } from "./telegram";
+import { webhookService } from "./webhooks/webhook-service";
 import { logger } from "@/lib/utils/logger";
 import { extractErrorMessage } from "@/lib/utils/error-handling";
 import {
