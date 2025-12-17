@@ -199,10 +199,30 @@ export const getCurrentUser = cache(
 
       return user ?? null;
     } catch (error) {
-      logger.error(
-        "[AUTH] Error:",
-        error instanceof Error ? error.message : error,
-      );
+      // Log the full error for better debugging - Drizzle/Neon errors often have
+      // the SQL query in message but actual error in cause or other properties
+      if (error instanceof Error) {
+        logger.error("[AUTH] ✗ Error:", error.message);
+        // Log additional error properties that might contain the real database error
+        const dbError = error as Error & {
+          cause?: unknown;
+          code?: string;
+          detail?: string;
+          constraint?: string;
+        };
+        if (dbError.cause) {
+          logger.error("[AUTH] ✗ Cause:", dbError.cause);
+        }
+        if (dbError.code || dbError.detail) {
+          logger.error("[AUTH] ✗ DB Error:", {
+            code: dbError.code,
+            detail: dbError.detail,
+            constraint: dbError.constraint,
+          });
+        }
+      } else {
+        logger.error("[AUTH] ✗ Error:", error);
+      }
       return null;
     }
   },

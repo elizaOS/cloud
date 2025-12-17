@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { db } from "../client";
 import { users, type User, type NewUser } from "../schemas/users";
-import { type Organization } from "../schemas/organizations";
+import { organizations, type Organization } from "../schemas/organizations";
 
 export type { User, NewUser };
 
@@ -10,6 +10,24 @@ export type { User, NewUser };
  */
 export interface UserWithOrganization extends User {
   organization: Organization | null;
+}
+
+/**
+ * Helper to log database errors with full context
+ */
+function logDbError(operation: string, error: unknown): void {
+  const dbError = error as Error & {
+    cause?: unknown;
+    code?: string;
+    detail?: string;
+    constraint?: string;
+  };
+  console.error(`[UsersRepository] ${operation} failed:`, {
+    message: dbError.message,
+    code: dbError.code,
+    detail: dbError.detail,
+    cause: dbError.cause,
+  });
 }
 
 /**
@@ -36,50 +54,140 @@ export class UsersRepository {
 
   /**
    * Finds a user by Privy user ID with organization data.
+   * Uses a fallback query approach if the relational query fails.
    */
   async findByPrivyIdWithOrganization(
     privyUserId: string,
   ): Promise<UserWithOrganization | undefined> {
-    const user = await db.query.users.findFirst({
-      where: eq(users.privy_user_id, privyUserId),
-      with: {
-        organization: true,
-      },
-    });
+    try {
+      const user = await db.query.users.findFirst({
+        where: eq(users.privy_user_id, privyUserId),
+        with: {
+          organization: true,
+        },
+      });
 
-    return user as UserWithOrganization | undefined;
+      return user as UserWithOrganization | undefined;
+    } catch (error) {
+      // Log the error for debugging but don't throw - allows JIT sync to proceed
+      logDbError("findByPrivyIdWithOrganization (relational)", error);
+
+      // Fallback: try a simpler two-query approach if relational query fails
+      try {
+        const user = await db.query.users.findFirst({
+          where: eq(users.privy_user_id, privyUserId),
+        });
+
+        if (!user) {
+          return undefined;
+        }
+
+        // Fetch organization separately if user exists and has org_id
+        let org: Organization | null = null;
+        if (user.organization_id) {
+          const orgResult = await db.query.organizations.findFirst({
+            where: eq(organizations.id, user.organization_id),
+          });
+          org = orgResult ?? null;
+        }
+
+        return { ...user, organization: org };
+      } catch (fallbackError) {
+        logDbError("findByPrivyIdWithOrganization (fallback)", fallbackError);
+        // Return undefined to allow JIT sync to create the user
+        return undefined;
+      }
+    }
   }
 
   /**
    * Finds a user by ID with organization data.
+   * Uses a fallback query approach if the relational query fails.
    */
   async findWithOrganization(
     userId: string,
   ): Promise<UserWithOrganization | undefined> {
-    const user = await db.query.users.findFirst({
-      where: eq(users.id, userId),
-      with: {
-        organization: true,
-      },
-    });
+    try {
+      const user = await db.query.users.findFirst({
+        where: eq(users.id, userId),
+        with: {
+          organization: true,
+        },
+      });
 
-    return user as UserWithOrganization | undefined;
+      return user as UserWithOrganization | undefined;
+    } catch (error) {
+      logDbError("findWithOrganization (relational)", error);
+
+      // Fallback: try a simpler two-query approach
+      try {
+        const user = await db.query.users.findFirst({
+          where: eq(users.id, userId),
+        });
+
+        if (!user) {
+          return undefined;
+        }
+
+        let org: Organization | null = null;
+        if (user.organization_id) {
+          const orgResult = await db.query.organizations.findFirst({
+            where: eq(organizations.id, user.organization_id),
+          });
+          org = orgResult ?? null;
+        }
+
+        return { ...user, organization: org };
+      } catch (fallbackError) {
+        logDbError("findWithOrganization (fallback)", fallbackError);
+        return undefined;
+      }
+    }
   }
 
   /**
    * Finds a user by email with organization data.
+   * Uses a fallback query approach if the relational query fails.
    */
   async findByEmailWithOrganization(
     email: string,
   ): Promise<UserWithOrganization | undefined> {
-    const user = await db.query.users.findFirst({
-      where: eq(users.email, email),
-      with: {
-        organization: true,
-      },
-    });
+    try {
+      const user = await db.query.users.findFirst({
+        where: eq(users.email, email),
+        with: {
+          organization: true,
+        },
+      });
 
-    return user as UserWithOrganization | undefined;
+      return user as UserWithOrganization | undefined;
+    } catch (error) {
+      logDbError("findByEmailWithOrganization (relational)", error);
+
+      // Fallback: try a simpler two-query approach
+      try {
+        const user = await db.query.users.findFirst({
+          where: eq(users.email, email),
+        });
+
+        if (!user) {
+          return undefined;
+        }
+
+        let org: Organization | null = null;
+        if (user.organization_id) {
+          const orgResult = await db.query.organizations.findFirst({
+            where: eq(organizations.id, user.organization_id),
+          });
+          org = orgResult ?? null;
+        }
+
+        return { ...user, organization: org };
+      } catch (fallbackError) {
+        logDbError("findByEmailWithOrganization (fallback)", fallbackError);
+        return undefined;
+      }
+    }
   }
 
   /**
@@ -93,18 +201,47 @@ export class UsersRepository {
 
   /**
    * Finds a user by wallet address with organization data.
+   * Uses a fallback query approach if the relational query fails.
    */
   async findByWalletAddressWithOrganization(
     walletAddress: string,
   ): Promise<UserWithOrganization | undefined> {
-    const user = await db.query.users.findFirst({
-      where: eq(users.wallet_address, walletAddress.toLowerCase()),
-      with: {
-        organization: true,
-      },
-    });
+    try {
+      const user = await db.query.users.findFirst({
+        where: eq(users.wallet_address, walletAddress.toLowerCase()),
+        with: {
+          organization: true,
+        },
+      });
 
-    return user as UserWithOrganization | undefined;
+      return user as UserWithOrganization | undefined;
+    } catch (error) {
+      logDbError("findByWalletAddressWithOrganization (relational)", error);
+
+      // Fallback: try a simpler two-query approach
+      try {
+        const user = await db.query.users.findFirst({
+          where: eq(users.wallet_address, walletAddress.toLowerCase()),
+        });
+
+        if (!user) {
+          return undefined;
+        }
+
+        let org: Organization | null = null;
+        if (user.organization_id) {
+          const orgResult = await db.query.organizations.findFirst({
+            where: eq(organizations.id, user.organization_id),
+          });
+          org = orgResult ?? null;
+        }
+
+        return { ...user, organization: org };
+      } catch (fallbackError) {
+        logDbError("findByWalletAddressWithOrganization (fallback)", fallbackError);
+        return undefined;
+      }
+    }
   }
 
   /**
