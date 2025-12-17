@@ -24,6 +24,7 @@ export class DiscordMessageSender {
   async sendMessage(
     connectionId: string,
     request: SendMessageRequest,
+    options?: { generateTTS?: boolean },
   ): Promise<SendMessageResult> {
     const token = await discordGatewayService.getBotToken(connectionId);
     if (!token) {
@@ -47,10 +48,21 @@ export class DiscordMessageSender {
       return { success: false, error: "Rate limited" };
     }
 
+    let audioUrl = request.audioUrl;
+
+    if (
+      !audioUrl &&
+      options?.generateTTS &&
+      request.content &&
+      process.env.VOICE_MESSAGE_ENABLED !== "false"
+    ) {
+      audioUrl = await this.generateTTS(connectionId, request.content);
+    }
+
     // Build message payload
     const payload: Record<string, unknown> = {};
 
-    if (request.content) {
+    if (request.content && !audioUrl) {
       payload.content = request.content;
     }
 
@@ -73,14 +85,66 @@ export class DiscordMessageSender {
       };
     }
 
-    const response = await fetch(
-      `${DISCORD_API_BASE}/channels/${request.channelId}/messages`,
-      {
-        method: "POST",
-        headers: discordBotHeaders(token),
-        body: JSON.stringify(payload),
-      },
-    );
+    let response: Response;
+
+    if (audioUrl) {
+      const audioResponse = await fetch(audioUrl);
+      if (!audioResponse.ok) {
+        logger.error("[Discord Message Sender] Failed to fetch audio", {
+          connectionId,
+          audioUrl,
+          status: audioResponse.status,
+        });
+        return {
+          success: false,
+          error: `Failed to fetch audio: ${audioResponse.status}`,
+        };
+      }
+
+      const audioBuffer = await audioResponse.arrayBuffer();
+
+      if (audioBuffer.byteLength === 0) {
+        logger.error("[Discord Message Sender] Audio buffer is empty", {
+          connectionId,
+          audioUrl,
+        });
+        return {
+          success: false,
+          error: "Audio buffer is empty",
+        };
+      }
+
+      const contentType =
+        audioResponse.headers.get("content-type") || "audio/ogg";
+
+      const formData = new FormData();
+      formData.append(
+        "file",
+        new Blob([audioBuffer], { type: contentType }),
+        "voice.ogg",
+      );
+      formData.append("payload_json", JSON.stringify(payload));
+
+      response = await fetch(
+        `${DISCORD_API_BASE}/channels/${request.channelId}/messages`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bot ${token}`,
+          },
+          body: formData,
+        },
+      );
+    } else {
+      response = await fetch(
+        `${DISCORD_API_BASE}/channels/${request.channelId}/messages`,
+        {
+          method: "POST",
+          headers: discordBotHeaders(token),
+          body: JSON.stringify(payload),
+        },
+      );
+    }
 
     if (!response.ok) {
       const error = await response.text();
@@ -106,6 +170,71 @@ export class DiscordMessageSender {
       messageId: message.id,
       channelId: message.channel_id,
     };
+  }
+
+  /**
+   * Generate TTS audio for text content.
+   */
+  private async generateTTS(
+    connectionId: string,
+    text: string,
+  ): Promise<string | undefined> {
+    logger.info("[Discord Message Sender] Generating TTS for text response", {
+      connectionId,
+      textLength: text.length,
+    });
+
+    const baseUrl =
+      process.env.NEXTAUTH_URL ?? "https://elizacloud.ai";
+    const apiKey = process.env.INTERNAL_API_KEY;
+
+    if (!apiKey) {
+      logger.warn("[Discord Message Sender] INTERNAL_API_KEY not configured");
+      return undefined;
+    }
+
+    const ttsResponse = await fetch(`${baseUrl}/api/internal/discord/tts`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Internal-API-Key": apiKey,
+      },
+      body: JSON.stringify({
+        connection_id: connectionId,
+        text,
+      }),
+    });
+
+    if (!ttsResponse.ok) {
+      const errorText = await ttsResponse.text().catch(() => "Unknown error");
+      logger.warn("[Discord Message Sender] TTS generation failed", {
+        connectionId,
+        status: ttsResponse.status,
+        error: errorText,
+      });
+      return undefined;
+    }
+
+    const ttsData = (await ttsResponse.json()) as {
+      success?: boolean;
+      audio_url?: string;
+      error?: string;
+    };
+
+    if (!ttsData.success || !ttsData.audio_url) {
+      logger.warn("[Discord Message Sender] TTS response invalid", {
+        connectionId,
+        response: ttsData,
+      });
+      return undefined;
+    }
+
+    logger.info("[Discord Message Sender] TTS generated", {
+      connectionId,
+      audioUrl: ttsData.audio_url,
+    });
+
+    return ttsData.audio_url;
   }
 
   async editMessage(

@@ -32,6 +32,7 @@ import {
   orgCharacters,
 } from "@/lib/eliza/characters/org";
 import type { Character } from "@elizaos/core";
+import { eventEmitter } from "../events/event-emitter";
 
 // =============================================================================
 // TYPES
@@ -176,6 +177,17 @@ class AgentLifecycleService {
         );
       }
     }
+
+    await eventEmitter.emit({
+      eventType: "agent.created",
+      organizationId,
+      timestamp: new Date().toISOString(),
+      data: {
+        agentId: instance.id,
+        agentType: agentType,
+        displayName: instance.display_name,
+      },
+    });
 
     return instance;
   }
@@ -327,6 +339,42 @@ class AgentLifecycleService {
           params.platformConfigs,
         );
       }
+    }
+
+    if (params.status === "active" || params.enabled === true) {
+      await eventEmitter.emit({
+        eventType: "agent.deployed",
+        organizationId: instance.organization_id,
+        timestamp: new Date().toISOString(),
+        data: {
+          agentId: instanceId,
+          agentType: instance.agent_type,
+        },
+      });
+    }
+
+    if (params.status === "inactive" || params.enabled === false) {
+      await eventEmitter.emit({
+        eventType: "agent.stopped",
+        organizationId: instance.organization_id,
+        timestamp: new Date().toISOString(),
+        data: {
+          agentId: instanceId,
+          agentType: instance.agent_type,
+        },
+      });
+    }
+
+    if (params.status === "error") {
+      await eventEmitter.emit({
+        eventType: "agent.error",
+        organizationId: instance.organization_id,
+        timestamp: new Date().toISOString(),
+        data: {
+          agentId: instanceId,
+          agentType: instance.agent_type,
+        },
+      });
     }
 
     return updated;

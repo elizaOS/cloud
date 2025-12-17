@@ -140,6 +140,17 @@ export interface DiscordChannel {
 }
 
 /**
+ * Voice attachment metadata (processed voice messages).
+ */
+export interface VoiceAttachmentMetadata {
+  url: string;
+  expires_at: string;
+  size: number;
+  content_type: string;
+  filename: string;
+}
+
+/**
  * Discord message object.
  */
 export interface DiscordMessage {
@@ -156,6 +167,7 @@ export interface DiscordMessage {
   mentions: DiscordUser[];
   mention_roles: string[];
   attachments: DiscordAttachment[];
+  voice_attachments?: VoiceAttachmentMetadata[];
   embeds: DiscordEmbed[];
   reactions?: DiscordReaction[];
   pinned: boolean;
@@ -347,6 +359,7 @@ export interface SendMessageRequest {
   content?: string;
   embeds?: DiscordEmbed[];
   replyTo?: string;
+  audioUrl?: string;
   allowedMentions?: {
     parse?: ("roles" | "users" | "everyone")[];
     roles?: string[];
@@ -427,6 +440,13 @@ export interface A2ACallbackRequest {
           url: string;
           filename: string;
           content_type?: string;
+        }>;
+        voice_attachments?: Array<{
+          url: string;
+          filename: string;
+          content_type: string;
+          expires_at: string;
+          size: number;
         }>;
       };
     };

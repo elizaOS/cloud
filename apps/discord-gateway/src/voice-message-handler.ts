@@ -1,0 +1,358 @@
+/**
+ * Voice Message Handler
+ *
+ * Handles processing of Discord voice message attachments:
+ * - Downloads audio files from Discord
+ * - Uploads to blob storage
+ * - Generates pre-signed URLs for agents
+ * - Cleans up expired audio files
+ */
+
+import { MessageFlags, type Attachment } from "discord.js";
+import { put, del, list } from "@vercel/blob";
+import { logger } from "./logger";
+
+const VOICE_AUDIO_TTL_SECONDS = parseInt(
+  process.env.VOICE_AUDIO_TTL_SECONDS ?? "3600",
+  10,
+);
+
+const VOICE_STORAGE_PATH_PREFIX =
+  process.env.VOICE_STORAGE_PATH_PREFIX ?? "discord-voice";
+
+const CLEANUP_INTERVAL_MS = parseInt(
+  process.env.VOICE_CLEANUP_INTERVAL_MS ?? "900000",
+  10,
+); // 15 minutes
+
+const MAX_VOICE_FILE_SIZE = 25 * 1024 * 1024; // 25MB Discord limit
+
+export interface VoiceAttachmentResult {
+  audioUrl: string;
+  expiresAt: Date;
+  size: number;
+  contentType: string;
+}
+
+export interface VoiceAttachmentMetadata {
+  url: string;
+  expires_at: string;
+  size: number;
+  content_type: string;
+  filename: string;
+}
+
+/**
+ * Checks if an attachment is a voice message.
+ */
+function isVoiceAttachment(attachment: Attachment): boolean {
+  return (
+    attachment.contentType?.startsWith("audio/") ||
+    attachment.name?.endsWith(".ogg")
+  );
+}
+
+/**
+ * Checks if a message contains voice attachments.
+ */
+export function hasVoiceAttachments(
+  attachments: readonly Attachment[],
+  flags?: { bitfield: number } | null,
+): boolean {
+  if (
+    flags &&
+    (flags.bitfield & MessageFlags.IsVoiceMessage) !== 0
+  ) {
+    return true;
+  }
+
+  return attachments.length > 0 && attachments.some(isVoiceAttachment);
+}
+
+/**
+ * Voice Message Handler
+ */
+export class VoiceMessageHandler {
+  private cleanupInterval: NodeJS.Timeout | null = null;
+
+  /**
+   * Process a voice message attachment.
+   * Downloads the audio file, uploads to blob storage, and returns a pre-signed URL.
+   */
+  async processVoiceMessage(
+    attachment: Attachment,
+    connectionId: string,
+    messageId: string,
+  ): Promise<VoiceAttachmentResult> {
+    if (!isVoiceAttachment(attachment)) {
+      throw new Error("Attachment is not a voice message");
+    }
+
+    if (attachment.size > MAX_VOICE_FILE_SIZE) {
+      throw new Error(
+        `Voice attachment too large: ${attachment.size} bytes (max: ${MAX_VOICE_FILE_SIZE} bytes)`,
+      );
+    }
+
+    logger.info("Processing voice message", {
+      connectionId,
+      messageId,
+      attachmentId: attachment.id,
+      filename: attachment.name,
+      size: attachment.size,
+      contentType: attachment.contentType,
+    });
+
+    const downloadStart = Date.now();
+
+    const response = await fetch(attachment.url);
+    if (!response.ok) {
+      throw new Error(
+        `Failed to download voice attachment: ${response.status} ${response.statusText}`,
+      );
+    }
+
+    const audioBuffer = Buffer.from(await response.arrayBuffer());
+
+    if (audioBuffer.length === 0) {
+      throw new Error("Downloaded audio buffer is empty");
+    }
+
+    if (audioBuffer.length > MAX_VOICE_FILE_SIZE) {
+      throw new Error(
+        `Downloaded audio exceeds size limit: ${audioBuffer.length} bytes (max: ${MAX_VOICE_FILE_SIZE} bytes)`,
+      );
+    }
+
+    const downloadDuration = Date.now() - downloadStart;
+
+    logger.debug("Downloaded voice attachment", {
+      connectionId,
+      messageId,
+      attachmentId: attachment.id,
+      size: audioBuffer.length,
+      downloadDurationMs: downloadDuration,
+    });
+
+    if (!process.env.BLOB_READ_WRITE_TOKEN) {
+      throw new Error("BLOB_READ_WRITE_TOKEN is not configured");
+    }
+
+    const contentType =
+      attachment.contentType ?? "audio/ogg; codecs=opus";
+    const filename = attachment.name ?? `voice-${attachment.id}.ogg`;
+    const timestamp = Date.now();
+    const pathname = `${VOICE_STORAGE_PATH_PREFIX}/${connectionId}/${messageId}/${timestamp}-${filename}`;
+
+    const uploadStart = Date.now();
+    const blob = await put(pathname, audioBuffer, {
+      access: "public",
+      contentType,
+      addRandomSuffix: false,
+    });
+    const uploadDuration = Date.now() - uploadStart;
+
+    logger.info("Uploaded voice attachment to blob storage", {
+      connectionId,
+      messageId,
+      attachmentId: attachment.id,
+      url: blob.url,
+      size: audioBuffer.length,
+      uploadDurationMs: uploadDuration,
+    });
+
+    const expiresAt = new Date(Date.now() + VOICE_AUDIO_TTL_SECONDS * 1000);
+
+    return {
+      audioUrl: blob.url,
+      expiresAt,
+      size: audioBuffer.length,
+      contentType: blob.contentType || contentType,
+    };
+  }
+
+  /**
+   * Process multiple voice attachments in parallel.
+   */
+  async processVoiceAttachments(
+    attachments: readonly Attachment[],
+    connectionId: string,
+    messageId: string,
+    flags?: { bitfield: number } | null,
+  ): Promise<VoiceAttachmentMetadata[]> {
+    if (!hasVoiceAttachments(attachments, flags)) {
+      return [];
+    }
+
+    const voiceAttachments = attachments.filter(isVoiceAttachment);
+    if (voiceAttachments.length === 0) {
+      return [];
+    }
+
+    logger.info("Processing voice attachments", {
+      connectionId,
+      messageId,
+      count: voiceAttachments.length,
+    });
+
+    const results = await Promise.allSettled(
+      voiceAttachments.map((attachment) =>
+        this.processVoiceMessage(attachment, connectionId, messageId),
+      ),
+    );
+
+    const successful: VoiceAttachmentMetadata[] = [];
+    const failed: Array<{ attachmentId: string; error: string }> = [];
+
+    results.forEach((result, index) => {
+      if (result.status === "fulfilled") {
+        successful.push({
+          url: result.value.audioUrl,
+          expires_at: result.value.expiresAt.toISOString(),
+          size: result.value.size,
+          content_type: result.value.contentType,
+          filename:
+            voiceAttachments[index].name ??
+            `voice-${voiceAttachments[index].id}.ogg`,
+        });
+      } else {
+        const attachmentId = voiceAttachments[index].id;
+        const errorMessage =
+          result.reason instanceof Error
+            ? result.reason.message
+            : String(result.reason);
+        failed.push({ attachmentId, error: errorMessage });
+        logger.error("Failed to process voice attachment", {
+          connectionId,
+          messageId,
+          attachmentId,
+          error: errorMessage,
+        });
+      }
+    });
+
+    if (failed.length > 0) {
+      logger.warn("Some voice attachments failed to process", {
+        connectionId,
+        messageId,
+        successful: successful.length,
+        failed: failed.length,
+        errors: failed,
+      });
+    }
+
+    return successful;
+  }
+
+  /**
+   * Clean up expired audio files from blob storage.
+   * Returns the number of files deleted.
+   */
+  async cleanupExpiredAudio(): Promise<number> {
+    if (!process.env.BLOB_READ_WRITE_TOKEN) {
+      logger.warn("BLOB_READ_WRITE_TOKEN not configured, skipping cleanup");
+      return 0;
+    }
+
+    logger.info("Starting voice audio cleanup");
+
+    const blobs = await list({
+      prefix: `${VOICE_STORAGE_PATH_PREFIX}/`,
+      limit: 1000,
+    });
+
+    if (blobs.blobs.length === 0) {
+      logger.debug("No voice audio files to clean up");
+      return 0;
+    }
+
+    const now = Date.now();
+    const expiredBlobs = blobs.blobs.filter((blob) => {
+      const ageSeconds = (now - blob.uploadedAt.getTime()) / 1000;
+      return ageSeconds > VOICE_AUDIO_TTL_SECONDS;
+    });
+
+    const deleteResults = await Promise.allSettled(
+      expiredBlobs.map((blob) => del(blob.url)),
+    );
+
+    let deletedCount = 0;
+    const failed: Array<{ url: string; error: string }> = [];
+
+    deleteResults.forEach((result, index) => {
+      if (result.status === "fulfilled") {
+        deletedCount++;
+        const blob = expiredBlobs[index];
+        logger.debug("Deleted expired voice audio file", {
+          url: blob.url,
+          ageSeconds: Math.floor((now - blob.uploadedAt.getTime()) / 1000),
+        });
+      } else {
+        const blob = expiredBlobs[index];
+        const errorMessage =
+          result.reason instanceof Error
+            ? result.reason.message
+            : String(result.reason);
+        failed.push({ url: blob.url, error: errorMessage });
+        logger.error("Failed to delete expired voice audio file", {
+          url: blob.url,
+          error: errorMessage,
+        });
+      }
+    });
+
+    if (failed.length > 0) {
+      logger.warn("Some expired files failed to delete during cleanup", {
+        totalExpired: expiredBlobs.length,
+        deletedCount,
+        failedCount: failed.length,
+        errors: failed,
+      });
+    }
+
+    logger.info("Voice audio cleanup completed", {
+      totalFiles: blobs.blobs.length,
+      expiredCount: expiredBlobs.length,
+      deletedCount,
+      failedCount: failed.length,
+    });
+
+    return deletedCount;
+  }
+
+  /**
+   * Start the cleanup job that runs periodically.
+   */
+  startCleanupJob(): void {
+    if (this.cleanupInterval) {
+      logger.warn("Cleanup job already running");
+      return;
+    }
+
+    logger.info("Starting voice audio cleanup job", {
+      intervalMs: CLEANUP_INTERVAL_MS,
+      ttlSeconds: VOICE_AUDIO_TTL_SECONDS,
+    });
+
+    const runCleanup = () => {
+      this.cleanupExpiredAudio().catch((error) => {
+        logger.error("Error in voice audio cleanup job", { error });
+      });
+    };
+
+    this.cleanupInterval = setInterval(runCleanup, CLEANUP_INTERVAL_MS);
+    runCleanup();
+  }
+
+  /**
+   * Stop the cleanup job.
+   */
+  stopCleanupJob(): void {
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+      this.cleanupInterval = null;
+      logger.info("Stopped voice audio cleanup job");
+    }
+  }
+}
+

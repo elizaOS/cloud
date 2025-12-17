@@ -49,6 +49,7 @@ import {
 } from "@/lib/services/storage";
 import { ipfsService } from "@/lib/services/ipfs";
 import { seoService } from "@/lib/services/seo";
+import { webhookService } from "@/lib/services/webhooks/webhook-service";
 import { streamText } from "ai";
 import { gateway } from "@ai-sdk/gateway";
 import {
@@ -11928,6 +11929,406 @@ const mcpHandler = createMcpHandler(
             isError: true,
           };
         }
+      },
+    );
+
+    // =========================================================================
+    // WEBHOOK MANAGEMENT TOOLS
+    // =========================================================================
+
+    server.registerTool(
+      "webhook_create",
+      {
+        description:
+          "Create a new webhook for receiving events. " +
+          "Returns webhook details including the webhook URL and secret.",
+        inputSchema: {
+          name: z.string().min(1).max(200).describe("Webhook name"),
+          description: z.string().optional().describe("Webhook description"),
+          targetType: z
+            .enum(["url", "agent", "application", "workflow", "a2a", "mcp"])
+            .describe("Target type for the webhook"),
+          targetId: z
+            .string()
+            .uuid()
+            .optional()
+            .describe("Target ID (required for non-url types)"),
+          targetUrl: z
+            .string()
+            .url()
+            .optional()
+            .describe("Target URL (required for url type)"),
+          eventTypes: z
+            .array(z.string())
+            .optional()
+            .describe("Event types to subscribe to (empty = all events)"),
+          requireSignature: z
+            .boolean()
+            .optional()
+            .default(true)
+            .describe("Require HMAC signature verification"),
+        },
+      },
+      async ({
+        name,
+        description,
+        targetType,
+        targetId,
+        targetUrl,
+        eventTypes,
+        requireSignature,
+      }) => {
+        const { user } = getAuthContext();
+
+        const webhook = await webhookService.createWebhook({
+          organizationId: user.organization_id!,
+          createdBy: user.id,
+          name,
+          description,
+          targetType,
+          targetId,
+          targetUrl,
+          config: {
+            eventTypes,
+            requireSignature,
+          },
+        });
+
+        const baseUrl =
+          process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
+        const webhookUrl = `${baseUrl}/api/webhooks/${webhook.webhook_key}`;
+
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                {
+                  success: true,
+                  webhook: {
+                    id: webhook.id,
+                    name: webhook.name,
+                    webhookUrl,
+                    webhookKey: webhook.webhook_key,
+                    targetType: webhook.target_type,
+                    isActive: webhook.is_active,
+                  },
+                },
+                null,
+                2,
+              ),
+            },
+          ],
+        };
+      },
+    );
+
+    server.registerTool(
+      "webhook_list",
+      {
+        description: "List webhooks for your organization",
+        inputSchema: {
+          targetType: z
+            .enum(["url", "agent", "application", "workflow", "a2a", "mcp"])
+            .optional()
+            .describe("Filter by target type"),
+          isActive: z
+            .boolean()
+            .optional()
+            .describe("Filter by active status"),
+          limit: z
+            .number()
+            .int()
+            .min(1)
+            .max(100)
+            .optional()
+            .default(50)
+            .describe("Maximum number of webhooks to return"),
+        },
+      },
+      async ({ targetType, isActive, limit }) => {
+        const { user } = getAuthContext();
+
+        const webhooks = await webhookService.listWebhooks(
+          user.organization_id!,
+          {
+            targetType,
+            isActive,
+            limit,
+          },
+        );
+
+        const baseUrl =
+          process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
+
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                {
+                  success: true,
+                  webhooks: webhooks.map((w) => ({
+                    id: w.id,
+                    name: w.name,
+                    webhookUrl: `${baseUrl}/api/webhooks/${w.webhook_key}`,
+                    targetType: w.target_type,
+                    isActive: w.is_active,
+                    executionCount: w.execution_count,
+                    successCount: w.success_count,
+                    errorCount: w.error_count,
+                    lastTriggeredAt: w.last_triggered_at?.toISOString(),
+                  })),
+                  count: webhooks.length,
+                },
+                null,
+                2,
+              ),
+            },
+          ],
+        };
+      },
+    );
+
+    server.registerTool(
+      "webhook_get",
+      {
+        description: "Get webhook details by ID",
+        inputSchema: {
+          webhookId: z.string().uuid().describe("Webhook ID"),
+        },
+      },
+      async ({ webhookId }) => {
+        const { user } = getAuthContext();
+
+        const webhook = await webhookService.getWebhookById(
+          webhookId,
+          user.organization_id!,
+        );
+
+        if (!webhook) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  { error: "Webhook not found" },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        const baseUrl =
+          process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
+
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                {
+                  success: true,
+                  webhook: {
+                    id: webhook.id,
+                    name: webhook.name,
+                    description: webhook.description,
+                    webhookUrl: `${baseUrl}/api/webhooks/${webhook.webhook_key}`,
+                    targetType: webhook.target_type,
+                    targetId: webhook.target_id,
+                    targetUrl: webhook.target_url,
+                    isActive: webhook.is_active,
+                    config: webhook.config,
+                    executionCount: webhook.execution_count,
+                    successCount: webhook.success_count,
+                    errorCount: webhook.error_count,
+                    lastTriggeredAt: webhook.last_triggered_at?.toISOString(),
+                    lastSuccessAt: webhook.last_success_at?.toISOString(),
+                    lastErrorAt: webhook.last_error_at?.toISOString(),
+                    createdAt: webhook.created_at.toISOString(),
+                  },
+                },
+                null,
+                2,
+              ),
+            },
+          ],
+        };
+      },
+    );
+
+    server.registerTool(
+      "webhook_update",
+      {
+        description: "Update webhook configuration",
+        inputSchema: {
+          webhookId: z.string().uuid().describe("Webhook ID"),
+          name: z.string().min(1).max(200).optional().describe("New name"),
+          description: z.string().optional().describe("New description"),
+          targetUrl: z.string().url().optional().describe("New target URL"),
+          isActive: z.boolean().optional().describe("Active status"),
+          eventTypes: z
+            .array(z.string())
+            .optional()
+            .describe("Event types to subscribe to"),
+        },
+      },
+      async ({ webhookId, name, description, targetUrl, isActive, eventTypes }) => {
+        const { user } = getAuthContext();
+
+        const existing = await webhookService.getWebhookById(
+          webhookId,
+          user.organization_id!,
+        );
+
+        if (!existing) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  { error: "Webhook not found" },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        const config: any = { ...existing.config };
+        if (eventTypes !== undefined) {
+          config.eventTypes = eventTypes;
+        }
+
+        const webhook = await webhookService.updateWebhook(
+          webhookId,
+          user.organization_id!,
+          {
+            name,
+            description,
+            targetUrl,
+            isActive,
+            config,
+          },
+        );
+
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                {
+                  success: true,
+                  webhook: {
+                    id: webhook.id,
+                    name: webhook.name,
+                    isActive: webhook.is_active,
+                  },
+                },
+                null,
+                2,
+              ),
+            },
+          ],
+        };
+      },
+    );
+
+    server.registerTool(
+      "webhook_delete",
+      {
+        description: "Delete a webhook",
+        inputSchema: {
+          webhookId: z.string().uuid().describe("Webhook ID"),
+        },
+      },
+      async ({ webhookId }) => {
+        const { user } = getAuthContext();
+
+        await webhookService.deleteWebhook(webhookId, user.organization_id!);
+
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                { success: true, message: "Webhook deleted" },
+                null,
+                2,
+              ),
+            },
+          ],
+        };
+      },
+    );
+
+    server.registerTool(
+      "webhook_test",
+      {
+        description: "Manually trigger a webhook for testing",
+        inputSchema: {
+          webhookId: z.string().uuid().describe("Webhook ID"),
+          eventType: z.string().optional().describe("Event type"),
+          payload: z
+            .record(z.unknown())
+            .optional()
+            .describe("Test payload (default: empty object)"),
+        },
+      },
+      async ({ webhookId, eventType, payload }) => {
+        const { user } = getAuthContext();
+
+        const webhook = await webhookService.getWebhookById(
+          webhookId,
+          user.organization_id!,
+        );
+
+        if (!webhook) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  { error: "Webhook not found" },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        const result = await webhookService.executeWebhook({
+          webhookId,
+          eventType,
+          payload: payload || {},
+        });
+
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                {
+                  success: result.status === "success",
+                  executionId: result.executionId,
+                  status: result.status,
+                  responseStatus: result.responseStatus,
+                  durationMs: result.durationMs,
+                  error: result.error,
+                },
+                null,
+                2,
+              ),
+            },
+          ],
+        };
       },
     );
   },

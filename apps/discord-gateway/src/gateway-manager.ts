@@ -7,6 +7,10 @@ import {
 } from "discord.js";
 import { Redis } from "@upstash/redis";
 import { logger } from "./logger";
+import {
+  VoiceMessageHandler,
+  hasVoiceAttachments,
+} from "./voice-message-handler";
 
 const metric = (
   name: string,
@@ -66,9 +70,11 @@ export class GatewayManager {
   private pollInterval: NodeJS.Timeout | null = null;
   private heartbeatInterval: NodeJS.Timeout | null = null;
   private failoverInterval: NodeJS.Timeout | null = null;
+  private voiceHandler: VoiceMessageHandler;
 
   constructor(config: GatewayConfig) {
     this.config = config;
+    this.voiceHandler = new VoiceMessageHandler();
 
     if (config.redisUrl && config.redisToken) {
       this.redis = new Redis({
@@ -101,6 +107,14 @@ export class GatewayManager {
       });
     }
 
+    // Start voice message cleanup job
+    const voiceMessageEnabled =
+      process.env.VOICE_MESSAGE_ENABLED !== "false";
+    if (voiceMessageEnabled) {
+      this.voiceHandler.startCleanupJob();
+      logger.info("Voice message handling enabled");
+    }
+
     logger.info("Gateway manager started");
   }
 
@@ -110,6 +124,7 @@ export class GatewayManager {
     if (this.pollInterval) clearInterval(this.pollInterval);
     if (this.heartbeatInterval) clearInterval(this.heartbeatInterval);
     if (this.failoverInterval) clearInterval(this.failoverInterval);
+    this.voiceHandler.stopCleanupJob();
 
     // Save session state and disconnect all bots
     for (const [connectionId, conn] of this.connections) {
@@ -392,7 +407,7 @@ export class GatewayManager {
     const conn = this.connections.get(connectionId);
     if (!conn) return;
 
-    await this.forwardEvent(connectionId, conn, "MESSAGE_CREATE", {
+    const eventData: Record<string, unknown> = {
       id: message.id,
       channel_id: message.channelId,
       guild_id: message.guildId,
@@ -433,7 +448,37 @@ export class GatewayManager {
       referenced_message: message.reference
         ? { id: message.reference.messageId }
         : undefined,
-    });
+    };
+
+    if (
+      process.env.VOICE_MESSAGE_ENABLED !== "false" &&
+      hasVoiceAttachments(message.attachments, message.flags)
+    ) {
+      const voiceAttachments =
+        await this.voiceHandler.processVoiceAttachments(
+          message.attachments,
+          connectionId,
+          message.id,
+          message.flags,
+        );
+
+      if (voiceAttachments.length > 0) {
+        eventData.voice_attachments = voiceAttachments;
+        logger.info("Processed voice attachments", {
+          connectionId,
+          messageId: message.id,
+          count: voiceAttachments.length,
+        });
+      } else {
+        logger.warn("Voice attachments detected but none processed successfully", {
+          connectionId,
+          messageId: message.id,
+          attachmentCount: message.attachments.length,
+        });
+      }
+    }
+
+    await this.forwardEvent(connectionId, conn, "MESSAGE_CREATE", eventData);
   }
 
   private async forwardEvent(

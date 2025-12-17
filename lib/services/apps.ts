@@ -12,6 +12,7 @@ import {
 import { apiKeysService } from "./api-keys";
 import { logger } from "@/lib/utils/logger";
 import crypto from "crypto";
+import { eventEmitter } from "../events/event-emitter";
 
 /**
  * Service for app CRUD operations and app management.
@@ -113,11 +114,36 @@ export class AppsService {
       organizationId: app.organization_id,
     });
 
+    await eventEmitter.emit({
+      eventType: "app.deployed",
+      organizationId: app.organization_id,
+      timestamp: new Date().toISOString(),
+      data: {
+        appId: app.id,
+        appName: app.name,
+        slug: app.slug,
+      },
+    });
+
     return { app, apiKey: plainKey };
   }
 
   async update(id: string, data: Partial<NewApp>): Promise<App | undefined> {
-    return await appsRepository.update(id, data);
+    const app = await appsRepository.update(id, data);
+
+    if (app) {
+      await eventEmitter.emit({
+        eventType: "app.updated",
+        organizationId: app.organization_id,
+        timestamp: new Date().toISOString(),
+        data: {
+          appId: app.id,
+          appName: app.name,
+        },
+      });
+    }
+
+    return app;
   }
 
   async delete(id: string): Promise<void> {
@@ -128,6 +154,18 @@ export class AppsService {
     }
 
     await appsRepository.delete(id);
+
+    if (app) {
+      await eventEmitter.emit({
+        eventType: "app.stopped",
+        organizationId: app.organization_id,
+        timestamp: new Date().toISOString(),
+        data: {
+          appId: app.id,
+          appName: app.name,
+        },
+      });
+    }
 
     logger.info(`Deleted app: ${id}`);
   }

@@ -294,6 +294,32 @@ const SKILL_REGISTRY: Record<string, SkillEntry> = {
     description: "List app builder sessions",
     aliases: ["list_app_sessions"],
   },
+  // Webhook skills
+  webhook_create: {
+    handler: skills.executeSkillWebhookCreate,
+    description: "Create a new webhook",
+    aliases: ["create_webhook"],
+  },
+  webhook_list: {
+    handler: skills.executeSkillWebhookList,
+    description: "List webhooks",
+    aliases: ["list_webhooks"],
+  },
+  webhook_update: {
+    handler: skills.executeSkillWebhookUpdate,
+    description: "Update webhook configuration",
+    aliases: ["update_webhook"],
+  },
+  webhook_delete: {
+    handler: skills.executeSkillWebhookDelete,
+    description: "Delete a webhook",
+    aliases: ["delete_webhook"],
+  },
+  webhook_trigger: {
+    handler: skills.executeSkillWebhookTrigger,
+    description: "Manually trigger a webhook",
+    aliases: ["trigger_webhook", "test_webhook"],
+  },
   // Telegram skills
   telegram_send_message: {
     handler: skills.executeSkillTelegramSendMessage,

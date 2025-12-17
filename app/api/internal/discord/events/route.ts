@@ -186,6 +186,9 @@ function extractMessage(payload: EventPayload): DiscordMessage | undefined {
     mentions: (data.mentions as DiscordMessage["mentions"]) ?? [],
     mention_roles: (data.mention_roles as string[]) ?? [],
     attachments: (data.attachments as DiscordMessage["attachments"]) ?? [],
+    voice_attachments: (data.voice_attachments as
+      | DiscordMessage["voice_attachments"]
+      | undefined) ?? undefined,
     embeds: (data.embeds as DiscordMessage["embeds"]) ?? [],
     pinned: data.pinned as boolean,
     type: data.type as number,

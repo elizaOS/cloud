@@ -34,6 +34,8 @@ const SendMessageSchema = z.object({
     .max(10)
     .optional(),
   reply_to: z.string().optional(),
+  audio_url: z.string().url().optional(),
+  generate_tts: z.boolean().optional(),
 });
 
 const EditMessageSchema = z.object({
@@ -70,7 +72,15 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { connection_id, channel_id, content, embeds, reply_to } = parsed.data;
+  const {
+    connection_id,
+    channel_id,
+    content,
+    embeds,
+    reply_to,
+    audio_url,
+    generate_tts,
+  } = parsed.data;
 
   // Verify connection belongs to organization
   const connection = await discordGatewayService.getConnection(connection_id);
@@ -81,10 +91,13 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Require content or embeds
-  if (!content && (!embeds || embeds.length === 0)) {
+  // Require content, embeds, or audio_url
+  if (!content && (!embeds || embeds.length === 0) && !audio_url) {
     return NextResponse.json(
-      { success: false, error: "Message must have content or embeds" },
+      {
+        success: false,
+        error: "Message must have content, embeds, or audio_url",
+      },
       { status: 400 },
     );
   }
@@ -95,12 +108,17 @@ export async function POST(request: NextRequest) {
     channelId: channel_id,
   });
 
-  const result = await discordMessageSender.sendMessage(connection_id, {
-    channelId: channel_id,
-    content,
-    embeds,
-    replyTo: reply_to,
-  });
+  const result = await discordMessageSender.sendMessage(
+    connection_id,
+    {
+      channelId: channel_id,
+      content,
+      embeds,
+      replyTo: reply_to,
+      audioUrl: audio_url,
+    },
+    { generateTTS: generate_tts ?? false },
+  );
 
   if (!result.success) {
     return NextResponse.json(

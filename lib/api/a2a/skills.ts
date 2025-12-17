@@ -30,6 +30,7 @@ import {
 } from "@/lib/pricing";
 import { stripProviderPrefix } from "@/lib/utils/model-names";
 import { seoRequestTypeEnum } from "@/db/schemas/seo";
+import { webhookService } from "@/lib/services/webhooks/webhook-service";
 // Base URL for internal API calls
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
@@ -5827,5 +5828,202 @@ export async function executeSkillCodeInterpreter(
     exitCode: result.exitCode,
     durationMs: result.durationMs,
     costCents: result.costCents,
+  };
+}
+
+/**
+ * Webhook management skills
+ */
+
+export async function executeSkillWebhookCreate(
+  textContent: string,
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext,
+): Promise<{
+  success: boolean;
+  webhookId?: string;
+  webhookUrl?: string;
+  webhookKey?: string;
+  error?: string;
+}> {
+  const name = dataContent.name as string;
+  const description = dataContent.description as string | undefined;
+  const targetType = dataContent.targetType as
+    | "url"
+    | "agent"
+    | "application"
+    | "workflow"
+    | "a2a"
+    | "mcp";
+  const targetId = dataContent.targetId as string | undefined;
+  const targetUrl = dataContent.targetUrl as string | undefined;
+  const eventTypes = dataContent.eventTypes as string[] | undefined;
+  const requireSignature = (dataContent.requireSignature as boolean) ?? true;
+
+  if (!name) throw new Error("name is required");
+  if (!targetType) throw new Error("targetType is required");
+  if (targetType === "url" && !targetUrl) {
+    throw new Error("targetUrl is required for url target type");
+  }
+  if (targetType !== "url" && !targetId) {
+    throw new Error("targetId is required for non-url target types");
+  }
+
+  const webhook = await webhookService.createWebhook({
+    organizationId: ctx.user.organization_id,
+    createdBy: ctx.user.id,
+    name,
+    description,
+    targetType,
+    targetId,
+    targetUrl,
+    config: {
+      eventTypes,
+      requireSignature,
+    },
+  });
+
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
+  const webhookUrl = `${baseUrl}/api/webhooks/${webhook.webhook_key}`;
+
+  return {
+    success: true,
+    webhookId: webhook.id,
+    webhookUrl,
+    webhookKey: webhook.webhook_key,
+  };
+}
+
+export async function executeSkillWebhookList(
+  textContent: string,
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext,
+): Promise<{
+  success: boolean;
+  webhooks?: Array<{
+    id: string;
+    name: string;
+    webhookUrl: string;
+    targetType: string;
+    isActive: boolean;
+  }>;
+  count?: number;
+}> {
+  const targetType = dataContent.targetType as
+    | "url"
+    | "agent"
+    | "application"
+    | "workflow"
+    | "a2a"
+    | "mcp"
+    | undefined;
+  const isActive = dataContent.isActive as boolean | undefined;
+  const limit = (dataContent.limit as number) || 50;
+
+  const webhooks = await webhookService.listWebhooks(ctx.user.organization_id, {
+    targetType,
+    isActive,
+    limit,
+  });
+
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
+
+  return {
+    success: true,
+    webhooks: webhooks.map((w) => ({
+      id: w.id,
+      name: w.name,
+      webhookUrl: `${baseUrl}/api/webhooks/${w.webhook_key}`,
+      targetType: w.target_type,
+      isActive: w.is_active,
+    })),
+    count: webhooks.length,
+  };
+}
+
+export async function executeSkillWebhookUpdate(
+  textContent: string,
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext,
+): Promise<{
+  success: boolean;
+  webhookId?: string;
+  error?: string;
+}> {
+  const webhookId = dataContent.webhookId as string;
+  const name = dataContent.name as string | undefined;
+  const description = dataContent.description as string | undefined;
+  const targetUrl = dataContent.targetUrl as string | undefined;
+  const isActive = dataContent.isActive as boolean | undefined;
+  const eventTypes = dataContent.eventTypes as string[] | undefined;
+
+  if (!webhookId) throw new Error("webhookId is required");
+
+  const existing = await webhookService.getWebhookById(
+    webhookId,
+    ctx.user.organization_id,
+  );
+
+  if (!existing) {
+    return { success: false, error: "Webhook not found" };
+  }
+
+  const config: any = { ...existing.config };
+  if (eventTypes !== undefined) {
+    config.eventTypes = eventTypes;
+  }
+
+  await webhookService.updateWebhook(webhookId, ctx.user.organization_id, {
+    name,
+    description,
+    targetUrl,
+    isActive,
+    config,
+  });
+
+  return { success: true, webhookId };
+}
+
+export async function executeSkillWebhookDelete(
+  textContent: string,
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext,
+): Promise<{ success: boolean; error?: string }> {
+  const webhookId = dataContent.webhookId as string;
+
+  if (!webhookId) throw new Error("webhookId is required");
+
+  await webhookService.deleteWebhook(webhookId, ctx.user.organization_id);
+
+  return { success: true };
+}
+
+export async function executeSkillWebhookTrigger(
+  textContent: string,
+  dataContent: Record<string, unknown>,
+  ctx: A2AContext,
+): Promise<{
+  success: boolean;
+  executionId?: string;
+  status?: string;
+  error?: string;
+}> {
+  const webhookId = dataContent.webhookId as string;
+  const eventType = dataContent.eventType as string | undefined;
+  const payload = (dataContent.payload as Record<string, unknown>) || {};
+
+  if (!webhookId) throw new Error("webhookId is required");
+
+  const result = await webhookService.executeWebhook({
+    webhookId,
+    eventType,
+    payload,
+  });
+
+  return {
+    success: result.status === "success",
+    executionId: result.executionId,
+    status: result.status,
+    error: result.error,
   };
 }

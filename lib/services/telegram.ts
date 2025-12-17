@@ -9,6 +9,7 @@ import { logger } from "@/lib/utils/logger";
 import { telegramBotApiRequest } from "@/lib/utils/telegram-api";
 import { botsService } from "./bots";
 import { secretsService } from "./secrets";
+import { webhookService } from "./webhooks/webhook-service";
 import { db } from "@/db";
 import {
   orgPlatformConnections,
@@ -279,6 +280,7 @@ class TelegramService {
     connectionId: string,
     organizationId: string,
     baseUrl: string,
+    createdBy?: string,
   ): Promise<void> {
     const token = await botsService.getBotToken(connectionId, organizationId);
     const botInfo = await this.getMe(token);
@@ -295,6 +297,40 @@ class TelegramService {
         "edited_message",
       ],
     });
+
+    if (createdBy) {
+      const connection = await db
+        .select()
+        .from(orgPlatformConnections)
+        .where(eq(orgPlatformConnections.id, connectionId))
+        .limit(1)
+        .then((rows) => rows[0] || null);
+
+      if (connection) {
+        await webhookService.createWebhook({
+          organizationId,
+          createdBy,
+          name: `Telegram Bot: ${botInfo.username || botId}`,
+          description: `Telegram webhook for bot ${botId}`,
+          targetType: "agent",
+          targetId: connectionId,
+          config: {
+            eventTypes: [
+              "telegram.message_received",
+              "telegram.callback_query",
+              "telegram.inline_query",
+            ],
+            requireSignature: false,
+          },
+          metadata: {
+            platform: "telegram",
+            botId,
+            connectionId,
+            webhookUrl,
+          },
+        });
+      }
+    }
 
     logger.info("[Telegram] Webhook configured", {
       connectionId,
