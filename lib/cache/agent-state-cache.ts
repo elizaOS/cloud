@@ -293,7 +293,6 @@ export class AgentStateCache {
     const key = CacheKeys.agent.agentStats(agentId);
 
     await cacheClient.set(key, stats, CacheTTL.agent.agentStats);
-    logger.debug(`[Agent State Cache] Cached agent stats for ${agentId}`);
   }
 
   /**

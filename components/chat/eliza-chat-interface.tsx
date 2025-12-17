@@ -56,7 +56,6 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useRenderTracker } from "@/lib/debug/render-tracker";
 import { usePrivy } from "@privy-io/react-auth";
 
 interface Message {
@@ -116,9 +115,6 @@ export function ElizaChatInterface({
   onMessageSent,
   character,
 }: ElizaChatInterfaceProps) {
-  // Track renders in development
-  useRenderTracker("ElizaChatInterface");
-
   // Use chat store for room and character management
   const {
     roomId,
@@ -237,7 +233,9 @@ export function ElizaChatInterface({
   const loadMessages = useCallback(async (targetRoomId: string) => {
     setLoadingState((prev) => ({ ...prev, isLoadingMessages: true }));
     try {
-      const response = await fetch(`/api/eliza/rooms/${targetRoomId}`);
+      const response = await fetch(`/api/eliza/rooms/${targetRoomId}`, {
+        credentials: "include",
+      });
       if (response.ok) {
         const data = await response.json();
         setMessages(data.messages || []);

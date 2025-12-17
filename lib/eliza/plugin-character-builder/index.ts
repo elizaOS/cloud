@@ -8,7 +8,7 @@ import { actionsProvider } from "./providers/actions";
 import { assistantGuideProvider } from "./providers/assistant-guide";
 import { characterGuideProvider } from "./providers/character-guide";
 import { currentCharacterProvider } from "./providers/current-character";
-import { generateImageAction } from "./actions/image-generation";
+import { generateAvatarAction } from "./actions/avatar-generation";
 import { suggestChangesAction } from "./actions/suggest-changes";
 import { createCharacterAction } from "./actions/create-character";
 import { saveChangesAction } from "./actions/save-changes";
@@ -35,7 +35,7 @@ import { characterProvider, recentMessagesProvider } from "../shared/providers";
  * - SAVE_CHANGES: Save changes to existing character (build mode only)
  * - TEST_RESPONSE: Simulate character response (build mode only)
  * - BUILDER_CHAT: General conversation (both modes)
- * - GENERATE_IMAGE: Generate images for character
+ * - GENERATE_AVATAR: Generate character avatar portrait (both modes)
  */
 export const characterBuilderPlugin: Plugin = {
   name: "eliza-character-builder",
@@ -78,7 +78,7 @@ export const characterBuilderPlugin: Plugin = {
     // Shared actions (both modes)
     suggestChangesAction,
     builderChatAction,
-    generateImageAction,
+    generateAvatarAction,
   ],
   evaluators: [roomTitleEvaluator],
 };
