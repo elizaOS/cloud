@@ -7,6 +7,7 @@ import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { userContextService } from "@/lib/eliza/user-context";
 import { RuntimeFactory } from "@/lib/eliza/runtime-factory";
 import { AgentMode } from "@/lib/eliza/agent-mode-types";
+import { userCharactersRepository } from "@/db/repositories/characters";
 
 export const maxDuration = 60;
 
@@ -39,6 +40,13 @@ async function handlePOST(req: NextRequest) {
   const authResult = await requireAuthOrApiKey(req);
   const { user } = authResult;
 
+  if (!user.organization_id) {
+    return NextResponse.json(
+      { error: "Organization ID not found" },
+      { status: 400 },
+    );
+  }
+
   const body = await req.json();
   const { characterId, files } = body as {
     characterId: string;
@@ -49,6 +57,15 @@ async function handlePOST(req: NextRequest) {
     return NextResponse.json(
       { error: "characterId is required" },
       { status: 400 },
+    );
+  }
+
+  // Verify character belongs to user's organization
+  const character = await userCharactersRepository.findById(characterId);
+  if (!character || character.organization_id !== user.organization_id) {
+    return NextResponse.json(
+      { error: "Character not found or unauthorized" },
+      { status: 403 },
     );
   }
 
@@ -116,7 +133,6 @@ async function handlePOST(req: NextRequest) {
           uploadedAt: Date.now(),
           organizationId: user.organization_id,
           fileSize: file.size,
-          fileName: file.filename,
           filename: file.filename,
           blobUrl: file.blobUrl,
         },

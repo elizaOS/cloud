@@ -75,8 +75,11 @@ export function UploadsTab({ characterId, onPreUploadedFilesChange }: UploadsTab
         const data = await response.json();
         const newFiles = data.files as PreUploadedFile[];
         
-        setPreUploadedFiles((prev) => [...prev, ...newFiles]);
-        onPreUploadedFilesChange?.([...preUploadedFiles, ...newFiles]);
+        setPreUploadedFiles((prev) => {
+          const updated = [...prev, ...newFiles];
+          onPreUploadedFilesChange?.(updated);
+          return updated;
+        });
         
         toast.success("Files uploaded successfully", {
           description: `${data.successCount} file(s) uploaded. They will be processed when you save the character.`,

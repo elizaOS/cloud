@@ -193,8 +193,6 @@ export class KnowledgeProcessingService {
    * @returns True if successful, false otherwise.
    */
   private async processJob(job: Job, user: UserWithOrganization, apiKey?: ApiKey): Promise<boolean> {
-    await jobsRepository.updateStatus(job.id, "in_progress");
-
     const jobData = job.data as {
       characterId: string;
       file: {
@@ -205,87 +203,103 @@ export class KnowledgeProcessingService {
       };
     };
 
-    // Build user context
-    const userContext = await userContextService.buildContext({
-      user,
-      apiKey,
-      isAnonymous: false,
-      agentMode: AgentMode.ASSISTANT,
-    });
+    try {
+      await jobsRepository.updateStatus(job.id, "in_progress");
 
-    userContext.characterId = jobData.characterId;
+      // Build user context
+      const userContext = await userContextService.buildContext({
+        user,
+        apiKey,
+        isAnonymous: false,
+        agentMode: AgentMode.ASSISTANT,
+      });
 
-    // Create runtime
-    const runtimeFactory = RuntimeFactory.getInstance();
-    const runtime = await runtimeFactory.createRuntimeForUser(userContext);
+      userContext.characterId = jobData.characterId;
 
-    const knowledgeService = await getKnowledgeService(runtime);
+      // Create runtime
+      const runtimeFactory = RuntimeFactory.getInstance();
+      const runtime = await runtimeFactory.createRuntimeForUser(userContext);
 
-    if (!knowledgeService) {
-      const error = "Knowledge service not available";
-      await jobsRepository.incrementAttempt(
-        job.id,
-        error,
-        job.max_attempts || this.MAX_ATTEMPTS,
-      );
-      logger.error(`[KnowledgeProcessing] ${error}`, { jobId: job.id });
-      return false;
-    }
+      const knowledgeService = await getKnowledgeService(runtime);
 
-    // Fetch file from blob
-    const response = await fetch(jobData.file.blobUrl);
-    if (!response.ok) {
-      const error = `Failed to fetch blob: ${response.status}`;
-      await jobsRepository.incrementAttempt(
-        job.id,
-        error,
-        job.max_attempts || this.MAX_ATTEMPTS,
-      );
-      logger.error(`[KnowledgeProcessing] ${error}`, { jobId: job.id });
-      return false;
-    }
+      if (!knowledgeService) {
+        const error = "Knowledge service not available";
+        await jobsRepository.incrementAttempt(
+          job.id,
+          error,
+          job.max_attempts || this.MAX_ATTEMPTS,
+        );
+        logger.error(`[KnowledgeProcessing] ${error}`, { jobId: job.id });
+        return false;
+      }
 
-    const arrayBuffer = await response.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-    const base64Content = buffer.toString("base64");
+      // Fetch file from blob
+      const response = await fetch(jobData.file.blobUrl);
+      if (!response.ok) {
+        const error = `Failed to fetch blob: ${response.status}`;
+        await jobsRepository.incrementAttempt(
+          job.id,
+          error,
+          job.max_attempts || this.MAX_ATTEMPTS,
+        );
+        logger.error(`[KnowledgeProcessing] ${error}`, { jobId: job.id });
+        return false;
+      }
 
-    // Process through knowledge service
-    const result = await knowledgeService.addKnowledge({
-      agentId: runtime.agentId,
-      clientDocumentId: "" as UUID,
-      content: base64Content,
-      contentType: jobData.file.contentType,
-      originalFilename: jobData.file.filename,
-      worldId: runtime.agentId,
-      roomId: runtime.agentId,
-      entityId: runtime.agentId,
-      metadata: {
-        uploadedBy: user.id,
-        uploadedAt: Date.now(),
-        organizationId: user.organization_id,
-        fileSize: jobData.file.size,
-        fileName: jobData.file.filename,
-        filename: jobData.file.filename,
-        blobUrl: jobData.file.blobUrl,
+      const arrayBuffer = await response.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      const base64Content = buffer.toString("base64");
+
+      // Process through knowledge service
+      const result = await knowledgeService.addKnowledge({
+        agentId: runtime.agentId,
+        clientDocumentId: "" as UUID,
+        content: base64Content,
+        contentType: jobData.file.contentType,
+        originalFilename: jobData.file.filename,
+        worldId: runtime.agentId,
+        roomId: runtime.agentId,
+        entityId: runtime.agentId,
+        metadata: {
+          uploadedBy: user.id,
+          uploadedAt: Date.now(),
+          organizationId: user.organization_id,
+          fileSize: jobData.file.size,
+          filename: jobData.file.filename,
+          blobUrl: jobData.file.blobUrl,
+          jobId: job.id,
+        },
+      });
+
+      // Mark as completed
+      await jobsRepository.updateStatus(job.id, "completed", {
+        result: {
+          fragmentCount: result.fragmentCount,
+          documentId: result.clientDocumentId,
+        },
+      });
+
+      logger.info("[KnowledgeProcessing] Job completed successfully", {
         jobId: job.id,
-      },
-    });
-
-    // Mark as completed
-    await jobsRepository.updateStatus(job.id, "completed", {
-      result: {
+        filename: jobData.file.filename,
         fragmentCount: result.fragmentCount,
-        documentId: result.clientDocumentId,
-      },
-    });
+      });
 
-    logger.info("[KnowledgeProcessing] Job completed successfully", {
-      jobId: job.id,
-      filename: jobData.file.filename,
-      fragmentCount: result.fragmentCount,
-    });
-
-    return true;
+      return true;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      await jobsRepository.incrementAttempt(
+        job.id,
+        errorMessage,
+        job.max_attempts || this.MAX_ATTEMPTS,
+      );
+      logger.error(`[KnowledgeProcessing] Job failed`, {
+        jobId: job.id,
+        filename: jobData.file.filename,
+        error: errorMessage,
+      });
+      return false;
+    }
   }
 }
 

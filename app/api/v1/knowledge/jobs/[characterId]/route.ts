@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { knowledgeProcessingService } from "@/lib/services/knowledge-processing";
+import { userCharactersRepository } from "@/db/repositories/characters";
 
 /**
  * GET /api/v1/knowledge/jobs/[characterId]
@@ -29,6 +30,15 @@ async function handleGET(
     return NextResponse.json(
       { error: "Organization ID not found" },
       { status: 400 },
+    );
+  }
+
+  // Verify character belongs to user's organization
+  const character = await userCharactersRepository.findById(characterId);
+  if (!character || character.organization_id !== user.organization_id) {
+    return NextResponse.json(
+      { error: "Character not found or unauthorized" },
+      { status: 403 },
     );
   }
 

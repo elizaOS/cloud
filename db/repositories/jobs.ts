@@ -86,10 +86,16 @@ export class JobsRepository {
   async findByDataField(filters: {
     type: string;
     organizationId: string;
-    dataField: string;
+    dataField: "characterId";
     dataValue: string;
     orderBy?: "asc" | "desc";
   }): Promise<Job[]> {
+    // Only allow whitelisted data fields to prevent SQL injection
+    const allowedFields = ["characterId"] as const;
+    if (!allowedFields.includes(filters.dataField)) {
+      throw new Error(`Invalid data field: ${filters.dataField}`);
+    }
+
     return await db
       .select()
       .from(jobs)
@@ -97,7 +103,7 @@ export class JobsRepository {
         and(
           eq(jobs.type, filters.type),
           eq(jobs.organization_id, filters.organizationId),
-          sql`${jobs.data}->>'${sql.raw(filters.dataField)}' = ${filters.dataValue}`,
+          sql`${jobs.data}->>'characterId' = ${filters.dataValue}`,
         ),
       )
       .orderBy(
@@ -111,12 +117,15 @@ export class JobsRepository {
    *
    * @param id - Job ID to update.
    * @param updates - Partial job data to update.
+   * @returns Updated job record.
    */
-  async update(id: string, updates: Partial<Job>): Promise<void> {
-    await db
+  async update(id: string, updates: Partial<Job>): Promise<Job> {
+    const [updated] = await db
       .update(jobs)
       .set({ ...updates, updated_at: new Date() })
-      .where(eq(jobs.id, id));
+      .where(eq(jobs.id, id))
+      .returning();
+    return updated;
   }
 
   /**
@@ -150,31 +159,41 @@ export class JobsRepository {
   /**
    * Increments job attempt count and updates status.
    * Marks as failed if max attempts reached.
+   * Implements exponential backoff for retries.
    *
    * @param id - Job ID to update.
    * @param error - Error message.
    * @param maxAttempts - Maximum allowed attempts.
+   * @returns Updated job record or undefined if not found.
    */
   async incrementAttempt(
     id: string,
     error: string,
     maxAttempts: number,
-  ): Promise<void> {
+  ): Promise<Job | undefined> {
     const job = await this.findById(id);
-    if (!job) return;
+    if (!job) return undefined;
 
     const newAttempts = (job.attempts || 0) + 1;
     const isFailed = newAttempts >= maxAttempts;
 
-    await db
+    // Exponential backoff: 30s, 2min, 8min for attempts 1, 2, 3
+    const backoffMs = isFailed ? 0 : Math.pow(4, newAttempts) * 30 * 1000;
+    const scheduledFor = new Date(Date.now() + backoffMs);
+
+    const [updated] = await db
       .update(jobs)
       .set({
         status: isFailed ? "failed" : "pending",
         error,
         attempts: newAttempts,
         updated_at: new Date(),
+        scheduled_for: isFailed ? job.scheduled_for : scheduledFor,
       })
-      .where(eq(jobs.id, id));
+      .where(eq(jobs.id, id))
+      .returning();
+
+    return updated;
   }
 
   /**

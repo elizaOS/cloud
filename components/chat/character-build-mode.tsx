@@ -142,9 +142,8 @@ export function CharacterBuildMode({
                 fetch("/api/v1/knowledge/process-queue", {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
-                }).catch((err) => {
-                  console.error("Failed to trigger queue processing:", err);
-                  // Don't show error to user - cron will pick it up
+                }).catch(() => {
+                  // Silent failure - cron job will pick it up
                 });
               } else {
                 toast.warning("Character created", {
@@ -152,11 +151,10 @@ export function CharacterBuildMode({
                   duration: 5000,
                 });
               }
-            } catch (error) {
-              console.error("Error queuing knowledge files:", error);
-              toast.warning("Character created, knowledge files will be retried",
-                { duration: 4000 }
-              );
+            } catch {
+              toast.warning("Character created, knowledge files will be retried", {
+                duration: 4000,
+              });
             }
           }
 
@@ -186,7 +184,6 @@ export function CharacterBuildMode({
         }
       }
     } catch (error) {
-      console.error("Error saving character:", error);
       toast.error(
         error instanceof Error
           ? error.message

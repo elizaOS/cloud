@@ -4,6 +4,24 @@ import { logger } from "@/lib/utils/logger";
 import { uploadToBlob } from "@/lib/blob";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 
+const MAX_FILES_PER_REQUEST = 10;
+const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+const ALLOWED_EXTENSIONS = [".pdf", ".txt", ".md", ".doc", ".docx", ".json", ".xml", ".yaml", ".yml", ".csv"];
+const ALLOWED_CONTENT_TYPES = [
+  "application/pdf",
+  "text/plain",
+  "text/markdown",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/json",
+  "application/xml",
+  "text/xml",
+  "application/x-yaml",
+  "text/yaml",
+  "text/csv",
+  "application/octet-stream",
+];
+
 interface PreUploadedFile {
   id: string;
   filename: string;
@@ -11,6 +29,11 @@ interface PreUploadedFile {
   contentType: string;
   size: number;
   uploadedAt: number;
+}
+
+function getFileExtension(filename: string): string {
+  const lastDot = filename.lastIndexOf(".");
+  return lastDot !== -1 ? filename.slice(lastDot).toLowerCase() : "";
 }
 
 /**
@@ -37,6 +60,51 @@ async function handlePOST(req: NextRequest) {
       },
       { status: 400 },
     );
+  }
+
+  if (files.length > MAX_FILES_PER_REQUEST) {
+    return NextResponse.json(
+      {
+        error: "Too many files",
+        details: `Maximum ${MAX_FILES_PER_REQUEST} files per request`,
+      },
+      { status: 400 },
+    );
+  }
+
+  // Validate files before upload
+  for (const file of files) {
+    if (file.size > MAX_FILE_SIZE) {
+      return NextResponse.json(
+        {
+          error: "File too large",
+          details: `${file.name} exceeds ${MAX_FILE_SIZE / 1024 / 1024}MB limit`,
+        },
+        { status: 400 },
+      );
+    }
+
+    const ext = getFileExtension(file.name);
+    if (!ALLOWED_EXTENSIONS.includes(ext)) {
+      return NextResponse.json(
+        {
+          error: "Invalid file type",
+          details: `${file.name} has unsupported extension. Allowed: ${ALLOWED_EXTENSIONS.join(", ")}`,
+        },
+        { status: 400 },
+      );
+    }
+
+    const contentType = file.type || "application/octet-stream";
+    if (!ALLOWED_CONTENT_TYPES.includes(contentType)) {
+      return NextResponse.json(
+        {
+          error: "Invalid content type",
+          details: `${file.name} has unsupported content type: ${contentType}`,
+        },
+        { status: 400 },
+      );
+    }
   }
 
   const results: PreUploadedFile[] = [];

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 
 interface KnowledgeProcessingStatus {
@@ -23,22 +23,32 @@ interface KnowledgeProcessingStatus {
 export function useKnowledgeProcessingStatus(characterId: string | null) {
   const [status, setStatus] = useState<KnowledgeProcessingStatus | null>(null);
   const wasProcessingRef = useRef(false);
+  const isMountedRef = useRef(true);
 
-  const fetchStatus = useCallback(async () => {
+  // Initial fetch and polling
+  useEffect(() => {
     if (!characterId) {
       setStatus(null);
       return;
     }
 
-    const response = await fetch(`/api/v1/knowledge/jobs/${characterId}`);
+    isMountedRef.current = true;
 
-    if (response.ok) {
-      const data = await response.json();
+    const fetchStatus = async () => {
+      const response = await fetch(`/api/v1/knowledge/jobs/${characterId}`);
+
+      if (!isMountedRef.current) return;
+
+      if (!response.ok) {
+        toast.error("Failed to fetch knowledge processing status");
+        return;
+      }
+
+      const data = await response.json() as KnowledgeProcessingStatus;
       setStatus(data);
 
       // Check if processing just completed
       if (wasProcessingRef.current && !data.isProcessing && data.totalFiles > 0) {
-        // Processing just finished
         if (data.failedCount > 0) {
           toast.success("Knowledge files processed", {
             description: `${data.completedCount} succeeded, ${data.failedCount} failed`,
@@ -54,24 +64,21 @@ export function useKnowledgeProcessingStatus(characterId: string | null) {
       } else if (data.isProcessing) {
         wasProcessingRef.current = true;
       }
-    }
-  }, [characterId]);
+    };
 
-  // Initial fetch
-  useEffect(() => {
-    if (characterId) {
-      void fetchStatus();
-    }
-  }, [characterId, fetchStatus]);
+    // Initial fetch
+    void fetchStatus();
 
-  // Poll every 3 seconds while processing
-  useEffect(() => {
-    if (!characterId || !status?.isProcessing) return;
-
+    // Poll every 3 seconds
     const interval = setInterval(() => {
-      void fetchStatus();
+      if (wasProcessingRef.current || status?.isProcessing) {
+        void fetchStatus();
+      }
     }, 3000);
 
-    return () => clearInterval(interval);
-  }, [characterId, status?.isProcessing, fetchStatus]);
+    return () => {
+      isMountedRef.current = false;
+      clearInterval(interval);
+    };
+  }, [characterId, status?.isProcessing]);
 }
