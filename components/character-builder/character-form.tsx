@@ -70,7 +70,7 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
       : [];
     updateField(
       type,
-      currentArray.filter((_, i) => i !== index),
+      currentArray.filter((_, i) => i !== index)
     );
   };
 
@@ -95,7 +95,7 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
     const currentExamples = character.messageExamples || [];
     updateField(
       "messageExamples",
-      currentExamples.filter((_, i) => i !== index),
+      currentExamples.filter((_, i) => i !== index)
     );
   };
 
@@ -257,8 +257,9 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                     </p>
                     <p className="text-white/70">
                       Add realistic user-agent exchanges that demonstrate tone,
-                      vocabulary, and response patterns. Example: User: &quot;How are
-                      you?&quot; → Agent: &quot;I&apos;m doing great, thanks for asking!&quot;
+                      vocabulary, and response patterns. Example: User:
+                      &quot;How are you?&quot; → Agent: &quot;I&apos;m doing
+                      great, thanks for asking!&quot;
                     </p>
                   </TooltipContent>
                 </Tooltip>
@@ -323,7 +324,8 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                     {conversation.map((message, msgIndex) => (
                       <div key={msgIndex} className="space-y-1">
                         <span className="text-xs font-medium text-[#FF5800]">
-                          {message.name === "user" || message.name === "{{user1}}"
+                          {message.name === "user" ||
+                          message.name === "{{user1}}"
                             ? "User"
                             : message.name || "Agent"}
                           :
@@ -352,11 +354,13 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                     side="right"
                     className="max-w-xs bg-black/95 border border-white/10 text-white"
                   >
-                    <p className="font-medium mb-1">Sample social media posts</p>
+                    <p className="font-medium mb-1">
+                      Sample social media posts
+                    </p>
                     <p className="text-white/70">
                       Add examples of posts your agent might create on social
-                      platforms like Twitter/X. Example: &quot;Just shipped a new
-                      feature! 🚀 Check it out at example.com&quot;
+                      platforms like Twitter/X. Example: &quot;Just shipped a
+                      new feature! 🚀 Check it out at example.com&quot;
                     </p>
                   </TooltipContent>
                 </Tooltip>
@@ -424,9 +428,10 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                       Universal style rules for all contexts
                     </p>
                     <p className="text-white/70">
-                      Define overarching style rules that apply everywhere (chats
-                      AND posts). Example: &quot;Always use lowercase&quot;, &quot;Be
-                      enthusiastic and friendly&quot;, &quot;Avoid formal language&quot;
+                      Define overarching style rules that apply everywhere
+                      (chats AND posts). Example: &quot;Always use
+                      lowercase&quot;, &quot;Be enthusiastic and friendly&quot;,
+                      &quot;Avoid formal language&quot;
                     </p>
                   </TooltipContent>
                 </Tooltip>
@@ -472,8 +477,9 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                     </p>
                     <p className="text-white/70">
                       Define how your agent behaves in one-on-one conversations
-                      and direct messages. Example: &quot;Keep responses concise&quot;,
-                      &quot;Ask follow-up questions&quot;, &quot;Use emojis sparingly&quot;
+                      and direct messages. Example: &quot;Keep responses
+                      concise&quot;, &quot;Ask follow-up questions&quot;,
+                      &quot;Use emojis sparingly&quot;
                     </p>
                   </TooltipContent>
                 </Tooltip>
@@ -519,8 +525,9 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                     </p>
                     <p className="text-white/70">
                       Define how your agent creates public posts on platforms
-                      like Twitter/X. Example: &quot;Always include a call-to-action&quot;,
-                      &quot;Use trending hashtags&quot;, &quot;Keep posts under 280 characters&quot;
+                      like Twitter/X. Example: &quot;Always include a
+                      call-to-action&quot;, &quot;Use trending hashtags&quot;,
+                      &quot;Keep posts under 280 characters&quot;
                     </p>
                   </TooltipContent>
                 </Tooltip>
