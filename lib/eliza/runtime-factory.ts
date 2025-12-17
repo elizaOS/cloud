@@ -243,29 +243,13 @@ export class RuntimeFactory {
     };
   }
 
-  /** Initialize runtime, ensuring world/agent exist first */
+  /** Initialize runtime, ensuring agent/world exist */
   private async initializeRuntime(
     runtime: AgentRuntime,
     character: Character,
     agentId: UUID,
   ): Promise<void> {
-    // Ensure world exists before runtime.initialize() (FK constraint)
-    try {
-      await runtime.ensureWorldExists({
-        id: agentId,
-        name: `World for ${character.name}`,
-        agentId,
-        serverId: agentId,
-      } as Record<string, unknown>);
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      if (
-        !msg.toLowerCase().includes("duplicate") &&
-        !msg.toLowerCase().includes("unique constraint")
-      )
-        throw e;
-    }
-
+    // First initialize runtime (creates agent in agents table)
     try {
       await runtime.initialize({ skipMigrations: true });
     } catch (e) {
@@ -278,8 +262,26 @@ export class RuntimeFactory {
       if (!isDuplicate) throw e;
     }
 
+    // Ensure agent exists after initialize
     if (!(await runtime.getAgent(agentId))) {
       await this.ensureAgentExists(runtime, character, agentId);
+    }
+
+    // Now create world (FK constraint requires agent to exist first)
+    try {
+      await runtime.ensureWorldExists({
+        id: agentId,
+        name: `World for ${character.name}`,
+        agentId,
+        serverId: agentId,
+      } as World);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (
+        !msg.toLowerCase().includes("duplicate") &&
+        !msg.toLowerCase().includes("unique constraint")
+      )
+        throw e;
     }
   }
 

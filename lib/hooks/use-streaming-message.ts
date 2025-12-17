@@ -24,6 +24,15 @@ interface SSEErrorData {
 }
 
 /**
+ * Chunk data from streaming event.
+ */
+export interface StreamChunkData {
+  messageId: string;
+  chunk: string;
+  timestamp: number;
+}
+
+/**
  * Options for sending a streaming message.
  */
 interface SendMessageOptions {
@@ -37,6 +46,8 @@ interface SendMessageOptions {
   sessionToken?: string;
   /** Callback invoked for each streamed message chunk. */
   onMessage: (message: StreamingMessage) => void;
+  /** Callback invoked for each text chunk (real-time streaming). */
+  onChunk?: (chunk: StreamChunkData) => void;
   /** Optional error callback. */
   onError?: (error: string) => void;
   /** Optional completion callback. */
@@ -57,6 +68,7 @@ export async function sendStreamingMessage({
   model,
   sessionToken,
   onMessage,
+  onChunk,
   onError,
   onComplete,
 }: SendMessageOptions): Promise<void> {
@@ -127,7 +139,7 @@ export async function sendStreamingMessage({
       // Process any remaining data in buffer
       if (buffer.trim()) {
         try {
-          processSSEMessage(buffer.trim(), onMessage, onError, onComplete);
+          processSSEMessage(buffer.trim(), onMessage, onChunk, onError, onComplete);
         } catch (err) {
           console.error("[Stream] Error processing final buffer:", err);
           onError?.("Stream ended unexpectedly");
@@ -146,7 +158,7 @@ export async function sendStreamingMessage({
       if (!message.trim()) continue;
 
       try {
-        processSSEMessage(message.trim(), onMessage, onError, onComplete);
+        processSSEMessage(message.trim(), onMessage, onChunk, onError, onComplete);
       } catch (err) {
         console.error("[Stream] Error parsing SSE message:", err, message);
         // Continue processing other messages even if one fails
@@ -162,6 +174,7 @@ export async function sendStreamingMessage({
 function processSSEMessage(
   message: string,
   onMessage: (message: StreamingMessage) => void,
+  onChunk?: (chunk: StreamChunkData) => void,
   onError?: (error: string) => void,
   onComplete?: () => void,
 ): void {
@@ -208,6 +221,12 @@ function processSSEMessage(
         console.warn("[Stream] Invalid message format:", data);
       }
       break;
+    case "chunk":
+      // Real-time streaming chunk - call onChunk if provided
+      if (onChunk && isValidStreamChunkData(data as StreamChunkData)) {
+        onChunk(data as StreamChunkData);
+      }
+      break;
     case "error":
       const errorData = data as SSEErrorData;
       const errorMessage =
@@ -230,6 +249,18 @@ function processSSEMessage(
     default:
       console.debug(`[Stream] Unhandled event type: ${eventType}`, data);
   }
+}
+
+/**
+ * Type guard to validate StreamChunkData structure
+ */
+function isValidStreamChunkData(data: StreamChunkData): data is StreamChunkData {
+  if (!data || typeof data !== "object") return false;
+  return (
+    typeof data.messageId === "string" &&
+    typeof data.chunk === "string" &&
+    typeof data.timestamp === "number"
+  );
 }
 
 /**

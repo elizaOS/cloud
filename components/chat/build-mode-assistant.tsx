@@ -109,6 +109,10 @@ export function BuildModeAssistant({
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const roomInitKeyRef = useRef<string | null>(null); // Track which room key we've initialized
   const messagesLoadedRef = useRef<string | null>(null); // Track which room we've loaded messages for
+  // Track rendered message keys to prevent re-animation (avoids flash)
+  const renderedMessagesRef = useRef<Set<string>>(new Set());
+  // Track streaming text for real-time updates
+  const streamingTextRef = useRef<string>("");
   const [inputText, setInputText] = useState("");
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -391,6 +395,9 @@ export function BuildModeAssistant({
       let assistantMessage = "";
       let assistantMessageId = "";
 
+      // Reset streaming state
+      streamingTextRef.current = "";
+      
       if (reader) {
         let buffer = "";
         let detectedApplyAction = false;
@@ -398,6 +405,7 @@ export function BuildModeAssistant({
         let createdCharacterId: string | null = null;
         let proposedCharacterUpdate: Partial<ElizaCharacter> | null = null;
         let messageAttachments: MessageAttachment[] = [];
+        let currentStreamingId: string | null = null;
 
         while (true) {
           const { done, value } = await reader.read();
@@ -433,19 +441,12 @@ export function BuildModeAssistant({
                 ) {
                   // Skip action result messages from UI but process metadata
                   if (data.content?.metadata?.type === "action_result") {
-                    // Check for character creation in action results
                     if (data.content?.metadata?.characterId) {
                       detectedCharacterCreated = true;
                       createdCharacterId = data.content.metadata.characterId;
                     }
-                    // Check for SAVE_CHANGES action
-                    if (
-                      data.content?.actions &&
-                      Array.isArray(data.content.actions)
-                    ) {
-                      if (data.content.actions.includes("SAVE_CHANGES")) {
-                        detectedApplyAction = true;
-                      }
+                    if (data.content?.actions?.includes("SAVE_CHANGES")) {
+                      detectedApplyAction = true;
                     }
                     continue;
                   }
@@ -470,27 +471,18 @@ export function BuildModeAssistant({
                     );
                   }
 
-                  // Check for SAVE_CHANGES action
-                  if (
-                    data.content?.actions &&
-                    Array.isArray(data.content.actions)
-                  ) {
-                    if (data.content.actions.includes("SAVE_CHANGES")) {
-                      detectedApplyAction = true;
-                    }
+                  if (data.content?.actions?.includes("SAVE_CHANGES")) {
+                    detectedApplyAction = true;
                   }
 
-                  // Check for CREATE_CHARACTER metadata
                   if (
                     data.content?.metadata?.action === "CREATE_CHARACTER" &&
                     data.content?.metadata?.characterCreated
                   ) {
                     detectedCharacterCreated = true;
-                    createdCharacterId =
-                      data.content.metadata.characterId || null;
+                    createdCharacterId = data.content.metadata.characterId || null;
                   }
 
-                  // Check for SUGGEST_CHANGES with partial field updates
                   if (
                     data.content?.metadata?.action === "SUGGEST_CHANGES" &&
                     data.content?.metadata?.changes
@@ -513,26 +505,70 @@ export function BuildModeAssistant({
                   }
                 }
               } catch {
-                // Silently ignore parse errors during streaming
+                // Silently ignore parse errors
               }
             }
 
-            // Handle done event
+            // Handle chunk event - add/update streaming message in messages array
+            if (eventType === "chunk" && eventData) {
+              try {
+                const chunkData = JSON.parse(eventData);
+                if (chunkData.chunk && typeof chunkData.chunk === "string") {
+                  // Initialize streaming message ID
+                  if (!currentStreamingId && chunkData.messageId) {
+                    currentStreamingId = chunkData.messageId;
+                  }
+
+                  // Accumulate text
+                  streamingTextRef.current += chunkData.chunk;
+
+                  // Update or add streaming message in messages array
+                  const streamingId = `streaming-${currentStreamingId || Date.now()}`;
+                  setMessages((prev) => {
+                    const existingIndex = prev.findIndex((m) => m.id === streamingId);
+                    const streamingMsg: Message = {
+                      id: streamingId,
+                      role: "assistant",
+                      content: streamingTextRef.current,
+                      timestamp: Date.now(),
+                    };
+                    if (existingIndex >= 0) {
+                      const updated = [...prev];
+                      updated[existingIndex] = streamingMsg;
+                      return updated;
+                    }
+                    return [...prev, streamingMsg];
+                  });
+                }
+              } catch {
+                // Ignore chunk parse errors
+              }
+            }
+
+            // Handle done event - replace streaming message with final message
             if (eventType === "done") {
               if (assistantMessage || messageAttachments.length > 0) {
-                const newAssistantMessage: Message = {
-                  id: assistantMessageId || `assistant-${Date.now()}`,
-                  role: "assistant",
-                  content: assistantMessage,
-                  timestamp: Date.now(),
-                  attachments:
-                    messageAttachments.length > 0
-                      ? messageAttachments
-                      : undefined,
-                };
-                setMessages((prev) => [...prev, newAssistantMessage]);
+                const finalId = assistantMessageId || `assistant-${Date.now()}`;
+                const streamingId = `streaming-${currentStreamingId || finalId}`;
 
-                // Apply character updates to editor
+                // Replace streaming message with final message (same content, final ID)
+                setMessages((prev) => {
+                  const existingIndex = prev.findIndex((m) => m.id === streamingId);
+                  const finalMessage: Message = {
+                    id: finalId,
+                    role: "assistant",
+                    content: assistantMessage,
+                    timestamp: Date.now(),
+                    attachments: messageAttachments.length > 0 ? messageAttachments : undefined,
+                  };
+                  if (existingIndex >= 0) {
+                    const updated = [...prev];
+                    updated[existingIndex] = finalMessage;
+                    return updated;
+                  }
+                  return [...prev, finalMessage];
+                });
+
                 if (proposedCharacterUpdate) {
                   // Check for avatar saved flag and remove it before updating
                   const updateWithMeta = proposedCharacterUpdate as Record<
@@ -593,12 +629,13 @@ export function BuildModeAssistant({
                   );
                 }
 
-                // Refresh character data after apply action
                 if (detectedApplyAction && onCharacterRefresh) {
                   toast.success("Character saved!", { duration: 3000 });
                   await onCharacterRefresh();
                 }
               }
+              // Clear streaming state
+              streamingTextRef.current = "";
             }
           }
         }
@@ -612,6 +649,7 @@ export function BuildModeAssistant({
       );
     } finally {
       setIsLoading(false);
+      streamingTextRef.current = "";
     }
   }, [
     builderRoomId,
@@ -631,13 +669,9 @@ export function BuildModeAssistant({
         "[data-radix-scroll-area-viewport]"
       );
       if (viewport) {
-        // Use requestAnimationFrame to ensure DOM has updated
         requestAnimationFrame(() => {
           if (smooth) {
-            viewport.scrollTo({
-              top: viewport.scrollHeight,
-              behavior: "smooth",
-            });
+            viewport.scrollTo({ top: viewport.scrollHeight, behavior: "smooth" });
           } else {
             viewport.scrollTop = viewport.scrollHeight;
           }
@@ -835,14 +869,19 @@ export function BuildModeAssistant({
             {messages.map((message, index) => {
               const content = message.content;
               const isAgent = message.role === "assistant";
+              const isStreaming = message.id.startsWith("streaming-");
+              // Use stable key that doesn't change when streaming message becomes final
+              const stableKey = isStreaming ? message.id.replace("streaming-", "") : message.id;
+              // Only animate messages that haven't been rendered before
+              const wasAlreadyRendered = renderedMessagesRef.current.has(stableKey);
+              const shouldAnimate = !wasAlreadyRendered && !isStreaming;
+              renderedMessagesRef.current.add(stableKey);
 
               return (
                 <div
-                  key={message.id}
-                  className={`flex ${
-                    isAgent ? "justify-start" : "justify-end"
-                  } animate-in fade-in slide-in-from-bottom-4 duration-500`}
-                  style={{ animationDelay: `${index * 50}ms` }}
+                  key={stableKey}
+                  className={`flex ${isAgent ? "justify-start" : "justify-end"}${shouldAnimate ? " animate-in fade-in slide-in-from-bottom-4 duration-500" : ""}`}
+                  style={shouldAnimate ? { animationDelay: `${index * 50}ms` } : undefined}
                 >
                   {isAgent ? (
                     <div className="flex flex-col gap-1.5 max-w-[85%] sm:max-w-[75%] group/message">
@@ -1049,28 +1088,34 @@ export function BuildModeAssistant({
                               >
                                 {content}
                               </ReactMarkdown>
+                              {/* Blinking cursor for streaming messages */}
+                              {isStreaming && (
+                                <span className="inline-block w-2 h-4 bg-[#FF5800]/70 ml-0.5 animate-pulse" />
+                              )}
                             </div>
                           </div>
                         )}
-                        {/* Time and Actions */}
-                        <div className="flex items-center gap-2 pl-1 opacity-0 group-hover/message:opacity-100 transition-opacity">
-                          <span className="text-xs text-white/40">
-                            {formatTimestamp(message.timestamp)}
-                          </span>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-6 w-6 p-0 hover:bg-white/10 rounded transition-colors"
-                            onClick={() => copyToClipboard(content, message.id)}
-                            title="Copy message"
-                          >
-                            {copiedMessageId === message.id ? (
-                              <Check className="h-3.5 w-3.5 text-green-500" />
-                            ) : (
-                              <Copy className="h-3.5 w-3.5 text-white/50 hover:text-white/80" />
-                            )}
-                          </Button>
-                        </div>
+                        {/* Time and Actions - hide during streaming */}
+                        {!isStreaming && (
+                          <div className="flex items-center gap-2 pl-1 opacity-0 group-hover/message:opacity-100 transition-opacity">
+                            <span className="text-xs text-white/40">
+                              {formatTimestamp(message.timestamp)}
+                            </span>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-6 w-6 p-0 hover:bg-white/10 rounded transition-colors"
+                              onClick={() => copyToClipboard(content, message.id)}
+                              title="Copy message"
+                            >
+                              {copiedMessageId === message.id ? (
+                                <Check className="h-3.5 w-3.5 text-green-500" />
+                              ) : (
+                                <Copy className="h-3.5 w-3.5 text-white/50 hover:text-white/80" />
+                              )}
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ) : (
@@ -1106,7 +1151,8 @@ export function BuildModeAssistant({
               );
             })}
 
-            {isLoading && (
+            {/* Show thinking indicator only when loading and no streaming message yet */}
+            {isLoading && !messages.some((m) => m.id.startsWith("streaming-")) && (
               <div className="flex justify-start animate-in fade-in slide-in-from-bottom-4 duration-500">
                 <div className="flex flex-col gap-1.5 max-w-[85%] sm:max-w-[75%]">
                   <div className="flex items-center gap-2 pl-1">

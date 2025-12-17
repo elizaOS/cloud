@@ -174,23 +174,67 @@ function transformAISdkToOpenAI(aiSdkRequest: AISdkRequest): OpenAIChatRequest {
 
 /**
  * Transform OpenAI response format to AI SDK format
+ *
+ * AI SDK v5+ expects a specific response schema with required fields.
+ * This function transforms OpenAI chat completion responses to match.
  */
 function transformOpenAIToAISdk(openAIResponse: OpenAIChatResponse): object {
+  // Get the first choice's finish reason to determine status
+  const firstChoice = openAIResponse.choices[0];
+  const finishReason = firstChoice?.finish_reason || "stop";
+
+  // Map finish_reason to AI SDK status
+  const status = finishReason === "length" ? "incomplete" : "completed";
+
   return {
     id: openAIResponse.id,
-    created_at: openAIResponse.created, // OpenAI: "created" -> AI SDK: "created_at"
+    object: "response", // AI SDK expects "response" not "chat.completion"
+    created_at: openAIResponse.created,
     model: openAIResponse.model,
-    object: openAIResponse.object,
+    status, // AI SDK requires status field
+    // Required: incomplete_details must be object or null
+    incomplete_details: status === "incomplete" ? { reason: "max_output_tokens" } : null,
     output: openAIResponse.choices.map((choice) => {
       // Flatten the message object and transform content
       const message = choice.message;
-      const content = [
-        {
-          type: "output_text",
-          text: message.content ?? "",
-          annotations: [],
-        },
-      ];
+      const messageContent = message.content;
+      let content;
+
+      if (typeof messageContent === "string") {
+        // Simple string content
+        content = [
+          { type: "output_text", text: messageContent, annotations: [] },
+        ];
+      } else if (Array.isArray(messageContent)) {
+        // Already array (multimodal)
+        content = (messageContent as Array<unknown>).map((part: unknown) => {
+          if (typeof part === "string") {
+            return { type: "output_text", text: part, annotations: [] };
+          }
+          if (
+            typeof part === "object" &&
+            part !== null &&
+            "text" in part &&
+            typeof (part as { text: unknown }).text === "string"
+          ) {
+            return {
+              type: "output_text",
+              text: (part as { text: string }).text,
+              annotations: [],
+            };
+          }
+          return { type: "output_text", text: "", annotations: [] };
+        });
+      } else {
+        // null or other type
+        content = [
+          {
+            type: "output_text",
+            text: String(messageContent || ""),
+            annotations: [],
+          },
+        ];
+      }
 
       return {
         type: "message", // AI SDK requires "type": "message"
@@ -198,7 +242,7 @@ function transformOpenAIToAISdk(openAIResponse: OpenAIChatResponse): object {
         id: openAIResponse.id, // Use generation id
         role: message.role, // Flatten: message.role -> role
         content, // Transformed content
-        finish_reason: choice.finish_reason,
+        status: choice.finish_reason === "length" ? "incomplete" : "completed",
         // Include tool calls if present
         ...(message.tool_calls ? { tool_calls: message.tool_calls } : {}),
         // Include function call if present
@@ -209,11 +253,13 @@ function transformOpenAIToAISdk(openAIResponse: OpenAIChatResponse): object {
     }), // OpenAI: "choices" -> AI SDK: "output" with flattened structure
     usage: openAIResponse.usage
       ? {
-          input_tokens: openAIResponse.usage.prompt_tokens, // OpenAI: "prompt_tokens" -> AI SDK: "input_tokens"
-          output_tokens: openAIResponse.usage.completion_tokens, // OpenAI: "completion_tokens" -> AI SDK: "output_tokens"
+          input_tokens: openAIResponse.usage.prompt_tokens,
+          output_tokens: openAIResponse.usage.completion_tokens,
           total_tokens: openAIResponse.usage.total_tokens,
         }
-      : undefined,
+      : { input_tokens: 0, output_tokens: 0, total_tokens: 0 },
+    // Additional AI SDK expected fields
+    error: null,
     // Preserve any provider metadata
     ...("provider_metadata" in openAIResponse &&
     openAIResponse.provider_metadata
@@ -723,23 +769,7 @@ async function handleNonStreamingResponse(
   return Response.json(aiSdkResponse);
 }
 
-// Type for streaming response choices
-interface StreamingChoice {
-  index: number;
-  delta: {
-    role?: string;
-    content?: string;
-    tool_calls?: Array<{
-      id: string;
-      type: "function";
-      function: { name: string; arguments: string };
-    }>;
-    function_call?: { name: string; arguments: string };
-  };
-  finish_reason: string | null;
-}
-
-// Handle streaming response
+// Handle streaming response - transforms OpenAI SSE to AI SDK streaming protocol
 function handleStreamingResponse(
   providerResponse: Response,
   user: { organization_id: string | null; id: string },
@@ -754,17 +784,32 @@ function handleStreamingResponse(
   let outputTokens = 0;
   let fullContent = "";
 
-  // Create transform stream to track usage AND transform chunks
+  // Create transform stream to convert OpenAI format to AI SDK streaming protocol
   const { readable, writable } = new TransformStream();
   const writer = writable.getWriter();
   const decoder = new TextDecoder();
   const encoder = new TextEncoder();
+
+  // Helper to write AI SDK streaming events
+  // AI SDK expects just "data:" lines with type in the JSON payload, NOT "event:" lines
+  const writeEvent = (data: object) => {
+    const dataLine = `data: ${JSON.stringify(data)}\n\n`;
+    writer.write(encoder.encode(dataLine));
+  };
 
   // Process stream in background
   (async () => {
     try {
       const reader = providerResponse.body?.getReader();
       if (!reader) throw new Error("No response body");
+
+      let responseId = "";
+      let responseModel = model;
+      let createdAt = Math.floor(Date.now() / 1000);
+      let sentCreated = false;
+      let sentOutputItemAdded = false;
+      const itemId = `msg_${Date.now()}`;
+      let outputIndex = 0;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -773,27 +818,109 @@ function handleStreamingResponse(
         // Parse chunk to transform it AND extract usage info
         const chunk = decoder.decode(value);
         const lines = chunk.split("\n");
-        const transformedLines: string[] = [];
 
         for (const line of lines) {
           if (line.startsWith("data: ")) {
             const data = line.slice(6);
             if (data === "[DONE]") {
-              transformedLines.push(line); // Keep [DONE] as-is
+              // Send response.output_item.done event
+              writeEvent({
+                type: "response.output_item.done",
+                output_index: outputIndex,
+                item: {
+                  type: "message",
+                  id: itemId,
+                  role: "assistant",
+                  content: [{ type: "output_text", text: fullContent, annotations: [] }],
+                  status: "completed",
+                },
+              });
+
+              // Send response.completed event
+              writeEvent({
+                type: "response.completed",
+                response: {
+                  id: responseId,
+                  object: "response",
+                  created_at: createdAt,
+                  model: responseModel,
+                  status: "completed",
+                  incomplete_details: null,
+                  output: [{
+                    type: "message",
+                    id: itemId,
+                    role: "assistant",
+                    content: [{ type: "output_text", text: fullContent, annotations: [] }],
+                    status: "completed",
+                  }],
+                  usage: {
+                    input_tokens: inputTokens,
+                    output_tokens: outputTokens,
+                    total_tokens: totalTokens,
+                  },
+                  error: null,
+                },
+              });
               continue;
             }
-            if (!data.trim()) {
-              transformedLines.push(line); // Keep empty lines
-              continue;
-            }
+            if (!data.trim()) continue;
 
             try {
               const parsed = JSON.parse(data);
 
-              // Collect content for analytics
+              // Extract metadata from first chunk
+              if (!responseId && parsed.id) {
+                responseId = parsed.id;
+                responseModel = parsed.model || model;
+                createdAt = parsed.created || Math.floor(Date.now() / 1000);
+              }
+
+              // Send response.created event on first chunk
+              if (!sentCreated) {
+                sentCreated = true;
+                writeEvent({
+                  type: "response.created",
+                  response: {
+                    id: responseId,
+                    object: "response",
+                    created_at: createdAt,
+                    model: responseModel,
+                    status: "in_progress",
+                    incomplete_details: null,
+                    output: [],
+                    usage: null,
+                    error: null,
+                  },
+                });
+              }
+
+              // Send response.output_item.added on first content chunk
+              if (!sentOutputItemAdded) {
+                sentOutputItemAdded = true;
+                writeEvent({
+                  type: "response.output_item.added",
+                  output_index: outputIndex,
+                  item: {
+                    type: "message",
+                    id: itemId,
+                    role: "assistant",
+                    content: [],
+                    status: "in_progress",
+                  },
+                });
+              }
+
+              // Extract and emit text deltas
               const content = parsed.choices?.[0]?.delta?.content;
               if (content) {
                 fullContent += content;
+                writeEvent({
+                  type: "response.output_text.delta",
+                  item_id: itemId,
+                  output_index: outputIndex,
+                  content_index: 0,
+                  delta: content,
+                });
               }
 
               // Extract usage from final chunk (if available)
@@ -802,70 +929,12 @@ function handleStreamingResponse(
                 outputTokens = parsed.usage.completion_tokens || 0;
                 totalTokens = parsed.usage.total_tokens || 0;
               }
-
-              // Transform chunk from OpenAI format to AI SDK format
-              const transformedChunk = {
-                id: parsed.id,
-                created_at: parsed.created, // OpenAI: "created" -> AI SDK: "created_at"
-                model: parsed.model,
-                object: parsed.object,
-                output: parsed.choices
-                  ? parsed.choices.map((choice: StreamingChoice) => {
-                      // For streaming, delta contains the incremental content
-                      const delta = choice.delta || {};
-                      const content = delta.content
-                        ? [
-                            {
-                              type: "output_text",
-                              text: delta.content,
-                              annotations: [],
-                            },
-                          ]
-                        : undefined;
-
-                      return {
-                        type: "message", // AI SDK requires "type": "message"
-                        index: choice.index,
-                        id: parsed.id,
-                        // For streaming deltas, role might only be in first chunk
-                        ...(delta.role ? { role: delta.role } : {}),
-                        // Transform content to array format
-                        ...(content ? { content } : {}),
-                        finish_reason: choice.finish_reason,
-                        // Include tool calls if present
-                        ...(delta.tool_calls
-                          ? { tool_calls: delta.tool_calls }
-                          : {}),
-                        ...(delta.function_call
-                          ? { function_call: delta.function_call }
-                          : {}),
-                      };
-                    })
-                  : undefined, // OpenAI: "choices" -> AI SDK: "output" with flattened structure
-                usage: parsed.usage
-                  ? {
-                      input_tokens: parsed.usage.prompt_tokens,
-                      output_tokens: parsed.usage.completion_tokens,
-                      total_tokens: parsed.usage.total_tokens,
-                    }
-                  : undefined,
-              };
-
-              transformedLines.push(
-                `data: ${JSON.stringify(transformedChunk)}`,
-              );
             } catch {
-              // If parsing fails, keep original line
-              transformedLines.push(line);
+              // If parsing fails, skip this line
+              logger.debug("[Responses API] Failed to parse streaming chunk", { line });
             }
-          } else {
-            transformedLines.push(line);
           }
         }
-
-        // Write transformed chunk
-        const transformedChunk = transformedLines.join("\n");
-        writer.write(encoder.encode(transformedChunk));
       }
 
       writer.close();
