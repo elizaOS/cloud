@@ -40,7 +40,7 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
 
   // Find selected agent
   const selectedAgent = availableCharacters.find(
-    (a) => a.id === selectedCharacterId,
+    (a) => a.id === selectedCharacterId
   );
 
   const handleAgentChange = (characterId: string) => {
@@ -95,7 +95,7 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
                 "flex items-center gap-2 px-3 py-2 rounded-none",
                 "border border-white/10 bg-black/40",
                 "hover:bg-white/5 transition-colors",
-                "focus:outline-none focus:ring-2 focus:ring-[#FF5800]/50",
+                "focus:outline-none focus:ring-2 focus:ring-[#FF5800]/50"
               )}
             >
               {selectedAgent ? (
@@ -148,7 +148,7 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
               className={cn(
                 "flex items-center gap-2 px-3 py-2 cursor-pointer",
                 "hover:bg-white/5 focus:bg-white/5",
-                !selectedCharacterId && "bg-white/10",
+                !selectedCharacterId && "bg-white/10"
               )}
             >
               <ElizaAvatar
@@ -176,7 +176,7 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
                     className={cn(
                       "flex items-center gap-2 px-3 py-2 cursor-pointer",
                       "hover:bg-white/5 focus:bg-white/5",
-                      selectedCharacterId === character.id && "bg-white/10",
+                      selectedCharacterId === character.id && "bg-white/10"
                     )}
                   >
                     <ElizaAvatar
@@ -213,14 +213,8 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
               "flex items-center gap-2 px-3 py-1.5 rounded-none transition-colors border-0",
               mode === "chat"
                 ? "bg-[#471E08] text-[#FF5800]"
-                : "bg-[#1F1F1F] text-[#ADADAD] hover:text-white",
+                : "bg-[#1F1F1F] text-[#ADADAD] hover:text-white"
             )}
-            style={{
-              fontFamily: "'Roboto Mono', monospace",
-              fontWeight: 500,
-              fontSize: "14px",
-              lineHeight: "18px",
-            }}
           >
             <MessageSquare className="h-4 w-4" />
             <span className="hidden md:inline">Chat</span>
@@ -231,14 +225,8 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
               "flex items-center gap-2 px-3 py-1.5 rounded-none transition-colors border-0",
               mode === "build"
                 ? "bg-[#2D1505] text-[#FF5800]"
-                : "bg-[#1F1F1F] text-[#ADADAD] hover:text-white",
+                : "bg-[#1F1F1F] text-[#ADADAD] hover:text-white"
             )}
-            style={{
-              fontFamily: "'Roboto Mono', monospace",
-              fontWeight: 500,
-              fontSize: "14px",
-              lineHeight: "18px",
-            }}
           >
             <Wrench className="h-4 w-4" />
             <span className="hidden md:inline">Build</span>
