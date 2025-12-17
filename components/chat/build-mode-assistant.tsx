@@ -182,7 +182,9 @@ export function BuildModeAssistant({
     const loadMessages = async () => {
       setIsInitializing(true);
 
-      const response = await fetch(`/api/eliza/rooms/${builderRoomId}`);
+      const response = await fetch(`/api/eliza/rooms/${builderRoomId}`, {
+        credentials: "include",
+      });
 
       if (response.ok) {
         const data = await response.json();
@@ -292,6 +294,7 @@ export function BuildModeAssistant({
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          credentials: "include",
           body: JSON.stringify({
             text,
             agentMode: {

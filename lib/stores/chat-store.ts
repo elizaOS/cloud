@@ -111,7 +111,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
         headers["X-Anonymous-Session"] = anonymousSessionToken;
       }
 
-      const res = await fetch(`/api/eliza/rooms`, { headers });
+      const res = await fetch(`/api/eliza/rooms`, {
+        headers,
+        credentials: "include",
+      });
 
       if (res.ok) {
         const data = await res.json();
@@ -206,6 +209,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const response = await fetch("/api/eliza/rooms", {
       method: "POST",
       headers,
+      credentials: "include",
       body: JSON.stringify(requestBody),
     });
 
@@ -241,6 +245,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
     const response = await fetch(`/api/eliza/rooms/${roomIdToDelete}`, {
       method: "DELETE",
+      credentials: "include",
     });
 
     if (response.ok) {
