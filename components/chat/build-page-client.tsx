@@ -179,28 +179,35 @@ export function BuildPageClient({
   return (
     <div className="flex h-full flex-col overflow-hidden">
       {/* Navigation Warning Modal */}
-      {showWarning && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]">
-          <div className="bg-black border border-white/10 rounded-none p-6 flex flex-col items-center gap-4">
-            <TriangleAlert className="text-red-500 h-12 w-12" />
-            <h1 className="text-center">You have unsaved changes</h1>
-            <div className="flex gap-4 w-full justify-center">
-              <button
-                onClick={handleConfirmLeave}
-                className="px-4 py-2 border border-white/10 rounded-none bg-red-600/40 hover:bg-red-600/20"
-              >
-                Leave
-              </button>
-              <button
-                onClick={handleCancelLeave}
-                className="px-4 py-2 border border-white/10 rounded-none hover:bg-white/5"
-              >
-                Stay
-              </button>
-            </div>
+      {/* Navigation Warning Modal */}
+      <div
+        className={`fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] transition-opacity duration-200 ${
+          showWarning ? "opacity-100" : "opacity-0 pointer-events-none"
+        }`}
+      >
+        <div
+          className={`bg-black border border-white/10 rounded-none p-6 flex flex-col items-center gap-4 transition-all duration-200 ${
+            showWarning ? "scale-100 opacity-100" : "scale-95 opacity-0"
+          }`}
+        >
+          <TriangleAlert className="text-red-500 h-12 w-12" />
+          <h1 className="text-center">You have unsaved changes</h1>
+          <div className="flex gap-4 w-full justify-center">
+            <button
+              onClick={handleConfirmLeave}
+              className="px-4 py-2 border border-white/10 rounded-none bg-red-600/40 hover:bg-red-600/20"
+            >
+              Leave
+            </button>
+            <button
+              onClick={handleCancelLeave}
+              className="px-4 py-2 border border-white/10 rounded-none hover:bg-white/5"
+            >
+              Stay
+            </button>
           </div>
         </div>
-      )}
+      </div>
 
       {/* Signup prompt banner for anonymous users */}
       {!isAuthenticated && anonymousSession && (

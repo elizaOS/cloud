@@ -19,13 +19,13 @@ import { AgentSecretsPanel } from "@/components/my-agents";
 import type { ElizaCharacter } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import {
-  Download,
-  Save,
   Zap,
   BookOpen,
   Sparkles,
   Puzzle,
   Lock,
+  CloudUpload,
+  Upload,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -40,7 +40,7 @@ interface CharacterEditorProps {
   onSave: () => Promise<void>;
 }
 
-type MainTab = "character" | "plugins" | "knowledge" | "secrets";
+type MainTab = "character" | "plugins" | "files" | "secrets";
 
 export function CharacterEditor({
   character,
@@ -49,7 +49,7 @@ export function CharacterEditor({
 }: CharacterEditorProps) {
   const searchParams = useSearchParams();
   const initialTab = searchParams.get("tab") as MainTab | null;
-  const validTabs = ["character", "plugins", "knowledge", "secrets"];
+  const validTabs = ["character", "plugins", "files", "secrets"];
   const [activeTab, setActiveTab] = useState<MainTab>(
     initialTab && validTabs.includes(initialTab) ? initialTab : "character",
   );
@@ -82,8 +82,8 @@ export function CharacterEditor({
       icon: <Puzzle className="h-4 w-4" />,
     },
     {
-      value: "knowledge",
-      label: "Knowledge",
+      value: "files",
+      label: "Files",
       icon: <BookOpen className="h-4 w-4" />,
     },
     ...(hasSavedCharacter
@@ -130,7 +130,7 @@ export function CharacterEditor({
               onClick={handleExport}
               className="rounded-none border-white/10 bg-transparent text-white hover:bg-white/5"
             >
-              <Download className="mr-2 h-4 w-4" />
+              <Upload className="mr-2 h-4 w-4" />
               Export
             </Button>
             <Button
@@ -139,8 +139,8 @@ export function CharacterEditor({
               disabled={isSaving}
               className="text-white hover:bg-[#FF5800]/90 bg-[#FF5800] rounded-none"
             >
-              <Save className="mr-2 h-4 w-4" />
-              {isSaving ? "Saving..." : "Save"}
+              <CloudUpload className="mr-2 h-4 w-4" />
+              {isSaving ? "Saving..." : "Deploy"}
             </Button>
           </div>
         </div>
@@ -206,7 +206,7 @@ export function CharacterEditor({
                 onSave={onSave}
               />
             )}
-            {activeTab === "knowledge" && (
+            {activeTab === "files" && (
               <UploadsTab characterId={character.id || null} />
             )}
             {activeTab === "secrets" && hasSavedCharacter && (

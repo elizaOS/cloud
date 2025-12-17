@@ -197,7 +197,9 @@ export default function AdminPage() {
         method: "HEAD",
       });
 
-      setIsAdmin(response.ok);
+      // Check the X-Is-Admin header, not response.ok (HEAD always returns 200)
+      const isAdminHeader = response.headers.get("X-Is-Admin") === "true";
+      setIsAdmin(isAdminHeader);
       setAdminRole(response.headers.get("X-Admin-Role"));
       setLoading(false);
     }

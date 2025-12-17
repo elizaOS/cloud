@@ -102,9 +102,9 @@ export function DocumentList({
     return (
       <div className="text-center py-12">
         <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-        <h3 className="text-lg font-semibold mb-2">No documents yet</h3>
+        <h3 className="text-lg font-semibold mb-2">No files yet</h3>
         <p className="text-muted-foreground mb-4">
-          Upload your first document to get started with RAG.
+          Upload your first file to get started.
         </p>
       </div>
     );

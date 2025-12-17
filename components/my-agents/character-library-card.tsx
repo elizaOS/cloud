@@ -29,6 +29,7 @@ import {
   Trash2,
   MoreVertical,
   Bot,
+  Upload,
 } from "lucide-react";
 import { toast } from "sonner";
 import type { ElizaCharacter } from "@/lib/types";
@@ -184,7 +185,7 @@ export function CharacterLibraryCard({
                   Duplicate
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleExport}>
-                  <Download className="h-4 w-4 mr-2" />
+                  <Upload className="h-4 w-4 mr-2" />
                   Export JSON
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
@@ -234,7 +235,7 @@ export function CharacterLibraryCard({
                 Duplicate
               </DropdownMenuItem>
               <DropdownMenuItem onClick={handleExport}>
-                <Download className="h-4 w-4 mr-2" />
+                <Upload className="h-4 w-4 mr-2" />
                 Export JSON
               </DropdownMenuItem>
               <DropdownMenuSeparator />

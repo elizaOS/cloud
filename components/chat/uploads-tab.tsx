@@ -9,7 +9,6 @@ import {
   Trash2,
   Loader2,
   RefreshCw,
-  CheckCircle2,
   AlertCircle,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
@@ -48,14 +47,16 @@ export function UploadsTab({ characterId }: UploadsTabProps) {
     }
   }, [characterId, fetchDocuments]);
 
-  const handleUpload = async () => {
-    if (!characterId || selectedFiles.length === 0) return;
+  const handleUpload = async (files: File[]) => {
+    if (!characterId || files.length === 0) return;
 
     setUploading(true);
+    setSelectedFiles(files);
+    
     const formData = new FormData();
     formData.append("characterId", characterId);
 
-    for (const file of selectedFiles) {
+    for (const file of files) {
       formData.append("files", file, file.name);
     }
 
@@ -67,7 +68,7 @@ export function UploadsTab({ characterId }: UploadsTabProps) {
     if (response.ok) {
       const data = await response.json();
       toast.success("Files uploaded successfully", {
-        description: `${data.successCount} file(s) processed and added to knowledge base`,
+        description: `${data.successCount} file(s) processed and ready to use`,
       });
       setSelectedFiles([]);
       const fileInput = document.getElementById(
@@ -80,8 +81,23 @@ export function UploadsTab({ characterId }: UploadsTabProps) {
       toast.error("Upload failed", {
         description: data.error || "Failed to upload files",
       });
+      setSelectedFiles([]);
     }
     setUploading(false);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length > 0 && !uploading) {
+      handleUpload(files);
+    }
   };
 
   const handleDelete = async (documentId: string) => {
@@ -136,16 +152,20 @@ export function UploadsTab({ characterId }: UploadsTabProps) {
       {/* Header */}
       <div>
         <h3 className="text-lg font-semibold text-white mb-1">
-          Knowledge Base
+          Files
         </h3>
         <p className="text-sm text-white/60">
-          Upload documents to give your agent knowledge for RAG.
+          Upload documents to give your agent context and information.
         </p>
       </div>
 
       {/* Upload Section */}
-      <div className="space-y-3">
-        <div className="flex items-center gap-3">
+      <div className="space-y-4">
+        <div
+          onDragOver={handleDragOver}
+          onDrop={handleDrop}
+          className="relative border-2 border-dashed border-white/10 rounded-lg hover:border-white/20 transition-colors"
+        >
           <Input
             id="uploads-tab-file-input"
             type="file"
@@ -153,39 +173,47 @@ export function UploadsTab({ characterId }: UploadsTabProps) {
             accept=".pdf,.txt,.md,.doc,.docx,.json,.xml,.yaml,.yml,.csv"
             onChange={(e) => {
               const files = e.target.files;
-              if (files) setSelectedFiles(Array.from(files));
+              if (files && files.length > 0) {
+                handleUpload(Array.from(files));
+              }
             }}
             disabled={uploading}
-            className="flex-1 bg-black/40 border-white/10 text-white/80 file:bg-white/5 file:border-0 file:text-white/60 file:mr-3"
+            className="hidden"
           />
-          <Button
-            onClick={handleUpload}
-            disabled={selectedFiles.length === 0 || uploading}
-            className="bg-[#FF5800] hover:bg-[#FF5800]/90 text-white shrink-0"
+          <div
+            onClick={() => {
+              if (!uploading) {
+                document.getElementById("uploads-tab-file-input")?.click();
+              }
+            }}
+            className={`p-8 text-center cursor-pointer ${uploading ? "opacity-50" : ""}`}
           >
             {uploading ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Uploading...
-              </>
+              <div className="flex flex-col items-center gap-3">
+                <Loader2 className="h-8 w-8 animate-spin text-[#FF5800]" />
+                <p className="text-sm text-white/80 font-medium">Uploading files...</p>
+              </div>
             ) : (
-              <>
-                <Upload className="h-4 w-4 mr-2" />
-                Upload
-              </>
+              <div className="flex flex-col items-center gap-3">
+                <div className="p-3 rounded-full bg-white/5">
+                  <Upload className="h-6 w-6 text-white/60" />
+                </div>
+                <div>
+                  <p className="text-sm text-white/80 font-medium mb-1">
+                    Drop files here or{" "}
+                    <span className="text-[#FF5800]">browse</span>
+                  </p>
+                  <p className="text-xs text-white/40">
+                    PDF, TXT, MD, DOC, DOCX, JSON, XML, YAML, CSV
+                  </p>
+                </div>
+              </div>
             )}
-          </Button>
+          </div>
         </div>
 
-        {selectedFiles.length > 0 && (
-          <div className="flex items-center gap-2 text-sm text-white/60">
-            <CheckCircle2 className="h-4 w-4 text-green-400" />
-            {selectedFiles.length} file(s) selected
-          </div>
-        )}
-
-        <p className="text-xs text-white/40">
-          Supported: PDF, TXT, MD, DOC, DOCX, JSON, XML, YAML, CSV
+        <p className="text-xs text-white/40 text-center">
+          Files upload automatically after selection
         </p>
       </div>
 
@@ -217,9 +245,9 @@ export function UploadsTab({ characterId }: UploadsTabProps) {
         ) : documents.length === 0 ? (
           <div className="text-center py-12 border border-dashed border-white/10 rounded-lg">
             <FileText className="h-12 w-12 text-white/20 mx-auto mb-3" />
-            <p className="text-white/40 mb-1">No documents uploaded yet</p>
+            <p className="text-white/40 mb-1">No files uploaded yet</p>
             <p className="text-xs text-white/30">
-              Upload files to build your agent&apos;s knowledge base
+              Upload files to give your agent context
             </p>
           </div>
         ) : (

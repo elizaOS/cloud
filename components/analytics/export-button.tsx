@@ -14,7 +14,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Download } from "lucide-react";
+import { Download, Upload } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -63,7 +63,7 @@ export function ExportButton({
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="outline" size="sm">
-            <Download className="mr-2 h-4 w-4" />
+            <Upload className="mr-2 h-4 w-4" />
             Export data
             <ChevronDown className="ml-2 h-4 w-4" />
           </Button>

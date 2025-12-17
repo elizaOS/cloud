@@ -71,6 +71,7 @@ export async function sendStreamingMessage({
       // This ensures session tracking works even if the cookie race condition occurs
       ...(sessionToken && { "X-Anonymous-Session": sessionToken }),
     },
+    credentials: "include",
     body: JSON.stringify({
       text,
       ...(model && { model }), // Include model if provided

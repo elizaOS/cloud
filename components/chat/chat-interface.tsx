@@ -14,7 +14,6 @@ import { ElizaChatInterface } from "./eliza-chat-interface";
 import { useChatStore } from "@/lib/stores/chat-store";
 import type { AffiliateTheme } from "@/lib/config/affiliate-themes";
 import { getThemeCSSVariables } from "@/lib/config/affiliate-themes";
-import { useRenderTracker } from "@/lib/debug/render-tracker";
 
 /**
  * Chat interface component with dynamic theming and message limit enforcement.
@@ -60,9 +59,6 @@ export function ChatInterface({
   sessionTokenFromUrl,
   theme,
 }: ChatInterfaceProps) {
-  // Track renders in development
-  useRenderTracker("ChatInterface");
-
   const router = useRouter();
   const { login } = usePrivy();
   const [messageCount, setMessageCount] = useState(session?.messageCount || 0);

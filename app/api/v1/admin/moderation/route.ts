@@ -364,17 +364,32 @@ export async function POST(request: NextRequest) {
  * Optimized: Uses single cached getAdminStatus() call instead of separate isAdmin + getAdminRole.
  */
 export async function HEAD(request: NextRequest) {
-  try {
-    const { user } = await requireAuthOrApiKeyWithOrg(request);
+  // Helper to return not-admin response
+  const notAdminResponse = () =>
+    new NextResponse(null, {
+      status: 200,
+      headers: {
+        "X-Is-Admin": "false",
+        "X-Admin-Role": "",
+      },
+    });
 
-    if (!user.wallet_address) {
-      return new NextResponse(null, {
-        status: 200,
-        headers: {
-          "X-Is-Admin": "false",
-          "X-Admin-Role": "",
-        },
-      });
+  try {
+    // Use the less restrictive auth that doesn't require organization
+    // This allows checking admin status for users without full accounts
+    const { requireAuthOrApiKey } = await import("@/lib/auth");
+    let user;
+
+    try {
+      const result = await requireAuthOrApiKey(request);
+      user = result.user;
+    } catch {
+      // Not authenticated - return not-admin
+      return notAdminResponse();
+    }
+
+    if (!user?.wallet_address) {
+      return notAdminResponse();
     }
 
     // Single cached call instead of two separate DB queries
@@ -390,13 +405,7 @@ export async function HEAD(request: NextRequest) {
       },
     });
   } catch {
-    // Not authenticated - return 200 with not-admin status
-    return new NextResponse(null, {
-      status: 200,
-      headers: {
-        "X-Is-Admin": "false",
-        "X-Admin-Role": "",
-      },
-    });
+    // Any other error - return not-admin status
+    return notAdminResponse();
   }
 }

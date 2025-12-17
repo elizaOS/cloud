@@ -119,6 +119,7 @@ export function CharacterBuildMode({
             await fetch(`/api/eliza/rooms/${roomId}`, {
               method: "PATCH",
               headers: { "Content-Type": "application/json" },
+              credentials: "include",
               body: JSON.stringify({
                 metadata: {
                   locked: true,

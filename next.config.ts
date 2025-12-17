@@ -32,8 +32,13 @@ const nextConfig: NextConfig = {
         port: "",
         pathname: "/**",
       },
-      // Note: DiceBear removed - using local avatars from /public/avatars/
-      // Note: External provider URLs are proxied through our storage
+      {
+        protocol: "https",
+        hostname: "api.dicebear.com",
+        port: "",
+        pathname: "/**",
+      },
+      // Note: Fal.ai and other external provider URLs are proxied through our storage
     ],
   },
   // Increase body size limit for container image uploads (max 2GB)
@@ -174,7 +179,7 @@ const nextConfig: NextConfig = {
               // Styles - allow self, inline styles, and Monaco Editor CDN (required for many UI libraries)
               "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
               // Images - allow self, data URIs, blob URIs, Vercel storage, DiceBear avatars, Instagram CDN
-              // Note: External provider URLs are proxied through our storage
+              // Note: Fal.ai and other external provider URLs are proxied through our storage
               "img-src 'self' data: blob: https://*.public.blob.vercel-storage.com https://raw.githubusercontent.com https://*.fbcdn.net https://*.cdninstagram.com https://api.dicebear.com",
               // Fonts - allow self, data URIs (for inline fonts like Monaco's Codicon), and Monaco Editor CDN
               "font-src 'self' data: https://cdn.jsdelivr.net",
@@ -221,8 +226,8 @@ const nextConfig: NextConfig = {
               "worker-src 'self' blob:",
               // Manifest - allow self
               "manifest-src 'self'",
-              // Media - allow self, data URIs, and blob URIs
-              "media-src 'self' data: blob:",
+              // Media - allow self, data URIs, blob URIs, and video placeholder domain
+              "media-src 'self' data: blob: https://video-placeholder.eliza.ai",
             ]
               .join("; ")
               .replace(/\s+/g, " "),

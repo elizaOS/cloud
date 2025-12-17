@@ -13,9 +13,10 @@
  * - On route changes
  * - Before page unload
  *
- * Controlled by environment variables:
+ * ALL FEATURES ARE DISABLED BY DEFAULT. Enable with environment variables:
  * - NEXT_PUBLIC_ENABLE_DEBUG_LOGGING=true - Enable all performance summary logging
  * - NEXT_PUBLIC_ENABLE_RENDER_TRACKING=true - Enable React Profiler render tracking
+ * - NEXT_PUBLIC_ENABLE_API_TRACKING=true - Enable API call tracking (fetch patching)
  */
 
 import {
@@ -39,6 +40,10 @@ const isDebugLoggingEnabled =
 const isRenderTrackingEnabled =
   isDev && process.env.NEXT_PUBLIC_ENABLE_RENDER_TRACKING === "true";
 
+// API tracking controlled by env flag (default: false)
+const isApiTrackingEnabled =
+  isDev && process.env.NEXT_PUBLIC_ENABLE_API_TRACKING === "true";
+
 // Lazy load debug tools to avoid bundling in production
 let renderTracker: {
   logRenderSummary: () => void;
@@ -51,6 +56,7 @@ let renderTracker: {
 let apiTracker: {
   logApiSummary: () => void;
   shouldAutoLog: () => boolean;
+  API_TRACKING_ENABLED: boolean;
 } | null = null;
 
 if (isDev && typeof window !== "undefined") {
@@ -58,7 +64,10 @@ if (isDev && typeof window !== "undefined") {
   if (isRenderTrackingEnabled) {
     renderTracker = require("@/lib/debug/render-tracker");
   }
-  apiTracker = require("@/lib/debug/api-tracker");
+  // Only load api tracker if enabled
+  if (isApiTrackingEnabled) {
+    apiTracker = require("@/lib/debug/api-tracker");
+  }
 }
 
 // Track if we've logged initially
@@ -138,15 +147,28 @@ export function DebugProvider({ children }: { children?: ReactNode }) {
       };
       document.addEventListener("visibilitychange", handleVisibilityChange);
 
-      // Log startup message
+      // Log startup message with enabled features
+      const enabledFeatures: string[] = [];
+      if (isRenderTrackingEnabled) enabledFeatures.push("Render tracking");
+      if (isApiTrackingEnabled) enabledFeatures.push("API tracking");
+
       console.log(
         "%c🛠️ Debug Mode Active",
         "color: #10b981; font-weight: bold; font-size: 14px;",
-        "\n\nAuto-logging enabled. Manual commands:",
-        "\n  window.__logRenderSummary__() - Render stats",
-        "\n  window.__logApiSummary__() - API stats",
-        "\n  window.__resetRenderStats__() - Reset render tracking",
-        "\n  window.__resetApiStats__() - Reset API tracking",
+        `\n\nEnabled: ${enabledFeatures.length > 0 ? enabledFeatures.join(", ") : "Logging only"}`,
+        "\n\nManual commands:",
+        isRenderTrackingEnabled
+          ? "\n  window.__logRenderSummary__() - Render stats"
+          : "",
+        isRenderTrackingEnabled
+          ? "\n  window.__resetRenderStats__() - Reset render tracking"
+          : "",
+        isApiTrackingEnabled
+          ? "\n  window.__logApiSummary__() - API stats"
+          : "",
+        isApiTrackingEnabled
+          ? "\n  window.__resetApiStats__() - Reset API tracking"
+          : "",
       );
 
       return () => {
