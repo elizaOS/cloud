@@ -23,7 +23,6 @@ import {
   Plus,
   Sparkles,
   HelpCircle,
-  Clock,
   Rocket,
   Terminal,
   Copy,
@@ -31,13 +30,20 @@ import {
   Zap,
   BookOpen,
   ExternalLink,
+  Pencil,
+  Trash2,
+  MoreHorizontal,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
-import { formatDistanceToNow } from "date-fns";
 import { isBuiltInAvatar, ensureAvatarUrl } from "@/lib/utils/default-avatar";
-
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import type { DashboardAgentStats as AgentStats } from "@/lib/actions/dashboard";
 import { Skeleton } from "../ui/skeleton";
 
@@ -268,7 +274,6 @@ function AgentCard({ agent }: { agent: Agent }) {
   const bioText = Array.isArray(agent.bio) ? agent.bio[0] : agent.bio;
   const isDeployed = agent.stats?.deploymentStatus === "deployed";
   const isStopped = agent.stats?.deploymentStatus === "stopped";
-  const gradientColor = getAgentColor(agent.name);
 
   return (
     <Link
@@ -289,7 +294,30 @@ function AgentCard({ agent }: { agent: Agent }) {
           />
 
           {/* Gradient overlay at bottom */}
-          <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/80 to-transparent" />
+          <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-black/90 to-transparent" />
+          {/* Three dots menu - TOP LEFT */}
+          <div className="absolute top-2 left-2 z-20">
+            <DropdownMenu>
+              <DropdownMenuTrigger className="flex items-center justify-center h-8 w-8 rounded-md bg-black/50 backdrop-blur-sm hover:bg-black/70 transition-colors">
+                <MoreHorizontal className="h-4 w-4 text-white" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-40">
+                <Link
+                  href={`/dashboard/build?characterId=${agent.id}`}
+                  className="block h-full"
+                >
+                  <DropdownMenuItem className="cursor-pointer">
+                    <Pencil className="h-4 w-4 mr-2" />
+                    Edit
+                  </DropdownMenuItem>
+                </Link>
+                <DropdownMenuItem className="cursor-pointer text-red-600 focus:text-red-600">
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
 
           {/* Status badges */}
           <div className="absolute top-2 right-2 z-20 flex gap-1.5">
