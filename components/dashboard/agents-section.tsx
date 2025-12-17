@@ -71,7 +71,12 @@ export function AgentsSection({ agents, className }: AgentsSectionProps) {
       <div className="flex items-center justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-xl font-semibold text-white">My Agents</h2>
+            <Link
+              href="/dashboard/my-agents"
+              className="text-xl font-semibold text-white transition-colors duration-200 hover:text-orange-500"
+            >
+              My Agents
+            </Link>
             <span className="text-sm text-white/30">({agents.length})</span>
             <Tooltip>
               <TooltipTrigger asChild>
