@@ -17,7 +17,7 @@ import { PluginsTab } from "@/components/chat/plugins-tab";
 import { UploadsTab } from "@/components/chat/uploads-tab";
 import type { ElizaCharacter } from "@/lib/types";
 import { Button } from "@/components/ui/button";
-import { Download, Save, Zap, BookOpen, Sparkles, Puzzle } from "lucide-react";
+import { Download, Zap, BookOpen, Sparkles, Puzzle, CloudUpload, Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   BrandTabsResponsive,
@@ -113,7 +113,7 @@ export function CharacterEditor({
               onClick={handleExport}
               className="rounded-none border-white/10 bg-transparent text-white hover:bg-white/5"
             >
-              <Download className="mr-2 h-4 w-4" />
+              <Upload className="mr-2 h-4 w-4" />
               Export
             </Button>
             <Button
@@ -122,8 +122,8 @@ export function CharacterEditor({
               disabled={isSaving}
               className="text-white hover:bg-[#FF5800]/90 bg-[#FF5800] rounded-none"
             >
-              <Save className="mr-2 h-4 w-4" />
-              {isSaving ? "Saving..." : "Save"}
+              <CloudUpload className="mr-2 h-4 w-4" />
+              {isSaving ? "Saving..." : "Deploy"}
             </Button>
           </div>
         </div>

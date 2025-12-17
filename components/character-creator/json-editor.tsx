@@ -12,7 +12,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Download, Save, AlertCircle, CheckCircle } from "lucide-react";
+import { Download, Save, AlertCircle, CheckCircle, Upload } from "lucide-react";
 import { toast } from "sonner";
 import type { ElizaCharacter } from "@/lib/types";
 import { BrandButton } from "@/components/brand";
@@ -115,7 +115,7 @@ export function JsonEditor({
                 onClick={handleExport}
                 disabled={!editorState.isValid}
               >
-                <Download className="mr-2 h-4 w-4" />
+                <Upload className="mr-2 h-4 w-4" />
                 Export
               </BrandButton>
               <BrandButton
