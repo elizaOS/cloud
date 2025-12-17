@@ -358,6 +358,22 @@ class BotsService {
       })
       .returning();
 
+    // Automatically set up webhook
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
+    await telegramService
+      .setupWebhookForConnection(
+        connection.id,
+        organizationId,
+        baseUrl,
+        userId,
+      )
+      .catch((error) => {
+        logger.warn("[Bots] Failed to setup webhook automatically", {
+          connectionId: connection.id,
+          error: extractErrorMessage(error),
+        });
+      });
+
     return connection;
   }
 

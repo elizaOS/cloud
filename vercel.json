@@ -51,6 +51,10 @@
     {
       "path": "/api/cron/cleanup-code-sessions",
       "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/cron/webhook-triggers",
+      "schedule": "* * * * *"
     }
   ]
 }
