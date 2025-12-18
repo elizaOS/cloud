@@ -41,7 +41,8 @@ export function CharacterBuildMode({
   initialCharacters,
   onUnsavedChanges,
 }: CharacterBuildModeProps) {
-  const { selectedCharacterId } = useChatStore();
+  const { selectedCharacterId, setRoomId, setSelectedCharacterId } =
+    useChatStore();
   const { user } = usePrivy();
   const userId = user?.id || "";
   const router = useRouter();
@@ -133,6 +134,11 @@ export function CharacterBuildMode({
             duration: 2000,
           });
 
+          // Clear room and set new character BEFORE navigating
+          // This ensures chat page starts fresh with no stale room data
+          setRoomId(null);
+          setSelectedCharacterId(saved.id);
+
           // Redirect to chat with the new agent
           router.push(`/dashboard/chat?characterId=${saved.id}`);
         }
@@ -148,7 +154,7 @@ export function CharacterBuildMode({
 
     // Mark changes as saved after successful save
     onUnsavedChanges?.(false);
-  }, [character, selectedCharacterId, onUnsavedChanges, router]);
+  }, [character, selectedCharacterId, onUnsavedChanges, router, setRoomId, setSelectedCharacterId]);
 
   const handleCharacterRefresh = useCallback(async () => {
     if (!character.id) {
@@ -175,10 +181,15 @@ export function CharacterBuildMode({
 
       // Navigate to chat with the new agent after a short delay for UX
       setTimeout(() => {
+        // Clear room and set new character BEFORE navigating
+        // This ensures chat page starts fresh with no stale room data
+        setRoomId(null);
+        setSelectedCharacterId(characterId);
+
         router.push(`/dashboard/chat?characterId=${characterId}`);
       }, 1500);
     },
-    [onUnsavedChanges, router],
+    [onUnsavedChanges, router, setRoomId, setSelectedCharacterId],
   );
 
   return (
