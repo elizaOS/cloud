@@ -49,6 +49,10 @@ import {
   createConversationAction,
   listUserConversationsAction,
 } from "@/app/actions/conversations";
+import {
+  BUILD_MODE_TIER_LIST,
+  type ModelTier,
+} from "@/lib/models/model-tiers";
 import { ElizaAvatar } from "./eliza-avatar";
 import { DEFAULT_AVATAR } from "@/lib/utils/default-avatar";
 import Link from "next/link";
@@ -113,34 +117,10 @@ export function BuildModeAssistant({
   );
   const [isLoading, setIsLoading] = useState(false);
 
-  // Build mode specific model tiers (different from chat)
-  const buildModeTiers = [
-    {
-      id: "fast" as const,
-      name: "Fast",
-      modelId: "moonshotai/kimi-k2-0905",
-      recommended: false,
-    },
-    {
-      id: "pro" as const,
-      name: "Pro",
-      modelId: "google/gemini-3-flash",
-      recommended: true,
-    },
-    {
-      id: "ultra" as const,
-      name: "Ultra",
-      modelId: "anthropic/claude-sonnet-4.5",
-      recommended: false,
-    },
-  ];
-
-  const [selectedTier, setSelectedTier] = useState<"fast" | "pro" | "ultra">(
-    "pro",
-  );
+  const [selectedTier, setSelectedTier] = useState<ModelTier>("pro");
   const selectedModelId =
-    buildModeTiers.find((t) => t.id === selectedTier)?.modelId ??
-    "google/gemini-3-flash";
+    BUILD_MODE_TIER_LIST.find((t) => t.id === selectedTier)?.modelId ??
+    BUILD_MODE_TIER_LIST[1].modelId;
 
   const tierIcons: Record<string, React.ReactNode> = {
     fast: <Zap className="h-3.5 w-3.5" />,
@@ -1222,7 +1202,7 @@ export function BuildModeAssistant({
                   value={selectedTier}
                   onValueChange={(value) => {
                     setSelectedTier(value as "fast" | "pro" | "ultra");
-                    const tier = buildModeTiers.find((t) => t.id === value);
+                    const tier = BUILD_MODE_TIER_LIST.find((t) => t.id === value);
                     if (tier) {
                       toast.success(`Model: ${tier.name}`);
                     }
@@ -1232,13 +1212,13 @@ export function BuildModeAssistant({
                     <SelectValue placeholder="Select model">
                       <span className="flex items-center gap-2">
                         {tierIcons[selectedTier]}
-                        {buildModeTiers.find((t) => t.id === selectedTier)
+                        {BUILD_MODE_TIER_LIST.find((t) => t.id === selectedTier)
                           ?.name || "Pro"}
                       </span>
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent className="rounded-lg border-white/[0.08]">
-                    {buildModeTiers.map((tier) => (
+                    {BUILD_MODE_TIER_LIST.map((tier) => (
                       <SelectItem key={tier.id} value={tier.id}>
                         <div className="flex items-center gap-2">
                           {tierIcons[tier.id]}

@@ -179,15 +179,11 @@ export function CharacterBuildMode({
       // Clear unsaved changes since character was saved by the agent
       onUnsavedChanges?.(false);
 
-      // Navigate to chat with the new agent after a short delay for UX
-      setTimeout(() => {
-        // Clear room and set new character BEFORE navigating
-        // This ensures chat page starts fresh with no stale room data
-        setRoomId(null);
-        setSelectedCharacterId(characterId);
-
-        router.push(`/dashboard/chat?characterId=${characterId}`);
-      }, 1500);
+      // Update state synchronously then navigate
+      // No setTimeout to avoid race conditions - React batches these updates
+      setRoomId(null);
+      setSelectedCharacterId(characterId);
+      router.push(`/dashboard/chat?characterId=${characterId}`);
     },
     [onUnsavedChanges, router, setRoomId, setSelectedCharacterId],
   );
