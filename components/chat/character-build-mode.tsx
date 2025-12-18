@@ -50,6 +50,11 @@ export function CharacterBuildMode({
   // Ref to get the builder room ID from BuildModeAssistant
   const builderRoomIdRef = useRef<string | null>(null);
 
+  // Track pending navigation after character creation to avoid race conditions
+  const [pendingNavigation, setPendingNavigation] = useState<string | null>(
+    null,
+  );
+
   // Mobile view state: 'assistant' or 'editor'
   const [mobileView, setMobileView] = useState<"assistant" | "editor">(
     "assistant",
@@ -83,6 +88,15 @@ export function CharacterBuildMode({
   useEffect(() => {
     setCharacter(initialCharacter);
   }, [initialCharacter]);
+
+  // Handle navigation after state updates have been committed
+  // This avoids race conditions where router.push happens before state is applied
+  useEffect(() => {
+    if (pendingNavigation) {
+      router.push(`/dashboard/chat?characterId=${pendingNavigation}`);
+      setPendingNavigation(null);
+    }
+  }, [pendingNavigation, router]);
 
   const handleCharacterUpdate = useCallback(
     (updates: Partial<ElizaCharacter>) => {
@@ -179,13 +193,15 @@ export function CharacterBuildMode({
       // Clear unsaved changes since character was saved by the agent
       onUnsavedChanges?.(false);
 
-      // Update state synchronously then navigate
-      // No setTimeout to avoid race conditions - React batches these updates
+      // Update store state first
       setRoomId(null);
       setSelectedCharacterId(characterId);
-      router.push(`/dashboard/chat?characterId=${characterId}`);
+
+      // Trigger navigation via useEffect to ensure state updates are committed first
+      // This avoids race conditions where the next page renders with stale state
+      setPendingNavigation(characterId);
     },
-    [onUnsavedChanges, router, setRoomId, setSelectedCharacterId],
+    [onUnsavedChanges, setRoomId, setSelectedCharacterId],
   );
 
   return (

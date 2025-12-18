@@ -51,6 +51,8 @@ import {
 } from "@/app/actions/conversations";
 import {
   BUILD_MODE_TIER_LIST,
+  BUILD_MODE_TIERS,
+  DEFAULT_MODEL_TIER,
   type ModelTier,
 } from "@/lib/models/model-tiers";
 import { ElizaAvatar } from "./eliza-avatar";
@@ -117,10 +119,10 @@ export function BuildModeAssistant({
   );
   const [isLoading, setIsLoading] = useState(false);
 
-  const [selectedTier, setSelectedTier] = useState<ModelTier>("pro");
+  const [selectedTier, setSelectedTier] = useState<ModelTier>(DEFAULT_MODEL_TIER);
   const selectedModelId =
     BUILD_MODE_TIER_LIST.find((t) => t.id === selectedTier)?.modelId ??
-    BUILD_MODE_TIER_LIST[1].modelId;
+    BUILD_MODE_TIERS[DEFAULT_MODEL_TIER].modelId;
 
   const tierIcons: Record<string, React.ReactNode> = {
     fast: <Zap className="h-3.5 w-3.5" />,
