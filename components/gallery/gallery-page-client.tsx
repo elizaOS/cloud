@@ -10,12 +10,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { GalleryGrid, GalleryGridSkeleton } from "./gallery-grid";
 import { listUserMedia, getUserMediaStats } from "@/app/actions/gallery";
 import type { GalleryItem } from "@/app/actions/gallery";
-import { ImageIcon, VideoIcon, LayoutGridIcon } from "lucide-react";
+import { ImageIcon, VideoIcon, LayoutGridIcon, AlertCircle, RefreshCw } from "lucide-react";
 import { useSetPageHeader } from "@/components/layout/page-header-context";
 import {
   BrandTabsResponsive,
   BrandTabsContent,
   BrandCard,
+  BrandButton,
 } from "@/components/brand";
 import type { TabItem } from "@/components/brand";
 
@@ -40,6 +41,7 @@ export function GalleryPageClient() {
     totalVideos: number;
     totalSize: number;
   } | null>(null);
+  const [errorTabs, setErrorTabs] = useState<Set<TabType>>(new Set());
 
   const fetchingTabsRef = useRef<Set<TabType>>(new Set());
   const itemsCacheRef = useRef<ItemsCache>({});
@@ -77,8 +79,14 @@ export function GalleryPageClient() {
       const type = tab === "all" ? undefined : tab;
       const data = await listUserMedia({ type, limit: 100 });
       setItemsCache((prev) => ({ ...prev, [tab]: data }));
+      setErrorTabs((prev) => {
+        const next = new Set(prev);
+        next.delete(tab);
+        return next;
+      });
     } catch (error) {
       console.error(`Failed to load items for tab ${tab}:`, error);
+      setErrorTabs((prev) => new Set(prev).add(tab));
     } finally {
       fetchingTabsRef.current.delete(tab);
       setLoadingTabs((prev) => {
@@ -113,6 +121,16 @@ export function GalleryPageClient() {
 
   const currentItems = itemsCache[activeTab] ?? [];
   const isLoading = loadingTabs.has(activeTab) && itemsCache[activeTab] === undefined;
+  const hasError = errorTabs.has(activeTab) && itemsCache[activeTab] === undefined;
+
+  const handleRetry = useCallback(() => {
+    setErrorTabs((prev) => {
+      const next = new Set(prev);
+      next.delete(activeTab);
+      return next;
+    });
+    loadItemsForTab(activeTab, true);
+  }, [activeTab, loadItemsForTab]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -209,6 +227,22 @@ export function GalleryPageClient() {
         <BrandTabsContent value={activeTab} className="mt-6">
           {isLoading ? (
             <GalleryGridSkeleton />
+          ) : hasError ? (
+            <BrandCard corners={false} className="p-8">
+              <div className="flex flex-col items-center justify-center gap-4 text-center">
+                <div className="rounded-full bg-red-500/20 border border-red-500/40 p-3">
+                  <AlertCircle className="w-6 h-6 text-red-400" />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-lg font-medium text-white">Failed to load media</p>
+                  <p className="text-sm text-white/50">There was an error loading your gallery items.</p>
+                </div>
+                <BrandButton variant="outline" onClick={handleRetry} className="mt-2">
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Try Again
+                </BrandButton>
+              </div>
+            </BrandCard>
           ) : (
             <GalleryGrid items={currentItems} onItemDeleted={handleItemDeleted} />
           )}

@@ -4,6 +4,26 @@
  * Uses lazy initialization to allow the app to build without
  * STRIPE_SECRET_KEY set. The error is thrown only when Stripe
  * methods are actually invoked at runtime.
+ *
+ * @example
+ * // RECOMMENDED: Check configuration before using stripe
+ * import { stripe, isStripeConfigured } from "@/lib/stripe";
+ *
+ * if (!isStripeConfigured()) {
+ *   return { error: "Payment processing is not configured" };
+ * }
+ * const customer = await stripe.customers.create({ email });
+ *
+ * @example
+ * // Alternative: Use getStripe() for explicit error handling
+ * import { getStripe, isStripeConfigured } from "@/lib/stripe";
+ *
+ * try {
+ *   const stripe = getStripe();
+ *   await stripe.customers.create({ email });
+ * } catch (error) {
+ *   // Handle missing configuration
+ * }
  */
 
 import Stripe from "stripe";
@@ -67,6 +87,16 @@ function createDeferredErrorProxy(): unknown {
   });
 }
 
+/**
+ * Lazy-initialized Stripe client proxy.
+ *
+ * @warning This is a Proxy object, NOT a real Stripe instance at build time.
+ * TypeScript shows this as `Stripe`, but methods will throw at runtime if
+ * STRIPE_SECRET_KEY is not configured. Always check `isStripeConfigured()`
+ * before using this export in code paths where Stripe may not be set up.
+ *
+ * @throws {Error} When any method is invoked without STRIPE_SECRET_KEY configured
+ */
 export const stripe: Stripe = new Proxy({} as Stripe, {
   get(target, prop, receiver) {
     if (typeof prop === "symbol") {
