@@ -562,20 +562,13 @@ export function ImageGeneratorAdvanced() {
                           <Download className="h-3 md:h-4 w-3 md:w-4" />
                           <span className="text-xs font-mono">Save</span>
                         </button>
-                        <button
-                          type="button"
-                          className="px-3 py-2 border border-white/20 bg-transparent text-white hover:bg-white/5 transition-colors flex items-center justify-center gap-1 md:gap-2"
-                        >
-                          <Heart className="h-3 md:h-4 w-3 md:w-4" />
-                          <span className="text-xs font-mono">Like</span>
-                        </button>
-                        <button
+                        {/* <button
                           type="button"
                           className="px-3 py-2 border border-white/20 bg-transparent text-white hover:bg-white/5 transition-colors flex items-center justify-center gap-1 md:gap-2"
                         >
                           <Share2 className="h-3 md:h-4 w-3 md:w-4" />
                           <span className="text-xs font-mono">Share</span>
-                        </button>
+                        </button> */}
                         <button
                           type="button"
                           onClick={() =>
