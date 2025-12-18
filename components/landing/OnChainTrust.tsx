@@ -13,7 +13,6 @@ import Image from "next/image";
 import { ReactFlowProvider } from "@xyflow/react";
 import { motion } from "framer-motion";
 
-
 export default function OnChainTrust() {
   const mockCardData = [
     {
