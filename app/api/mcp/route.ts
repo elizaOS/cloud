@@ -40,7 +40,6 @@ import { redeemableEarningsService } from "@/lib/services/redeemable-earnings";
 import { agentBudgetService } from "@/lib/services/agent-budgets";
 import { analyticsService } from "@/lib/services/analytics";
 import { getElevenLabsService } from "@/lib/services/elevenlabs";
-import { characterMarketplaceService } from "@/lib/services/characters/marketplace";
 import { streamText } from "ai";
 import { gateway } from "@ai-sdk/gateway";
 import {
@@ -5577,11 +5576,21 @@ const mcpHandler = createMcpHandler(
           // Search local services
           if (searchSources.includes("local")) {
             if (searchTypes.includes("agent")) {
-              const chars = await characterMarketplaceService.searchPublic({
-                search: query,
-                category: categories?.[0],
-                limit: limit,
-              });
+              let chars = await charactersService.listPublic();
+              // Apply basic filtering
+              if (query) {
+                const q = query.toLowerCase();
+                chars = chars.filter(
+                  (c) =>
+                    c.name.toLowerCase().includes(q) ||
+                    (typeof c.bio === "string" && c.bio.toLowerCase().includes(q)) ||
+                    (Array.isArray(c.bio) && c.bio.some((b) => b.toLowerCase().includes(q)))
+                );
+              }
+              if (categories?.length) {
+                chars = chars.filter((c) => categories.includes(c.category ?? ""));
+              }
+              chars = chars.slice(0, limit ?? 20);
               for (const char of chars) {
                 services.push({
                   id: char.id,

@@ -1,7 +1,7 @@
 /**
  * ERC-8004 Discovery Types
  *
- * Types for the discovery API that combines local marketplace
+ * Types for the discovery API that combines local
  * services with ERC-8004 registered external services.
  */
 

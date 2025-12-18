@@ -98,7 +98,7 @@ export const FEATURE_ROUTE_MAP: Record<
   },
   gallery: {
     frontend: ["/dashboard/gallery"],
-    api: ["/api/v1/gallery", "/api/v1/marketplace"],
+    api: ["/api/v1/gallery"],
   },
   memories: {
     frontend: ["/dashboard/knowledge"],
