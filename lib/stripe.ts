@@ -6,24 +6,21 @@
  * methods are actually invoked at runtime.
  *
  * @example
- * // RECOMMENDED: Check configuration before using stripe
- * import { stripe, isStripeConfigured } from "@/lib/stripe";
+ * // RECOMMENDED: Use requireStripe() for type-safe access
+ * import { requireStripe } from "@/lib/stripe";
+ *
+ * const stripe = requireStripe(); // throws if not configured
+ * const customer = await stripe.customers.create({ email });
+ *
+ * @example
+ * // For graceful degradation, check first
+ * import { isStripeConfigured, requireStripe } from "@/lib/stripe";
  *
  * if (!isStripeConfigured()) {
  *   return { error: "Payment processing is not configured" };
  * }
+ * const stripe = requireStripe();
  * const customer = await stripe.customers.create({ email });
- *
- * @example
- * // Alternative: Use getStripe() for explicit error handling
- * import { getStripe, isStripeConfigured } from "@/lib/stripe";
- *
- * try {
- *   const stripe = getStripe();
- *   await stripe.customers.create({ email });
- * } catch (error) {
- *   // Handle missing configuration
- * }
  */
 
 import Stripe from "stripe";
@@ -61,6 +58,9 @@ function initStripe(): Stripe | null {
 /**
  * Get the Stripe client instance.
  * Throws an error if STRIPE_SECRET_KEY is not configured.
+ *
+ * @throws {Error} If STRIPE_SECRET_KEY is not configured
+ * @returns {Stripe} The initialized Stripe client
  */
 export function getStripe(): Stripe {
   const instance = initStripe();
@@ -71,6 +71,21 @@ export function getStripe(): Stripe {
     );
   }
   return instance;
+}
+
+/**
+ * Get a type-safe Stripe client instance.
+ * This is the RECOMMENDED way to access Stripe - it throws early if not configured.
+ *
+ * @throws {Error} If STRIPE_SECRET_KEY is not configured
+ * @returns {Stripe} The initialized Stripe client
+ *
+ * @example
+ * const stripe = requireStripe();
+ * await stripe.customers.create({ email: "test@example.com" });
+ */
+export function requireStripe(): Stripe {
+  return getStripe();
 }
 
 function createDeferredErrorProxy(): unknown {
@@ -90,10 +105,13 @@ function createDeferredErrorProxy(): unknown {
 /**
  * Lazy-initialized Stripe client proxy.
  *
+ * @deprecated Use `requireStripe()` instead for type-safe access.
+ * This proxy allows builds to succeed without STRIPE_SECRET_KEY but provides
+ * no TypeScript safety - calls will throw at runtime if not configured.
+ *
  * @warning This is a Proxy object, NOT a real Stripe instance at build time.
  * TypeScript shows this as `Stripe`, but methods will throw at runtime if
- * STRIPE_SECRET_KEY is not configured. Always check `isStripeConfigured()`
- * before using this export in code paths where Stripe may not be set up.
+ * STRIPE_SECRET_KEY is not configured.
  *
  * @throws {Error} When any method is invoked without STRIPE_SECRET_KEY configured
  */

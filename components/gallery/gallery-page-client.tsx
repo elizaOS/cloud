@@ -44,8 +44,10 @@ export function GalleryPageClient() {
     totalSize: number;
   } | null>(null);
   const [errorTabs, setErrorTabs] = useState<Set<TabType>>(new Set());
+  const [slowLoadingTabs, setSlowLoadingTabs] = useState<Set<TabType>>(new Set());
 
   const fetchingTabsRef = useRef<Set<TabType>>(new Set());
+  const loadingTimeoutRef = useRef<Map<TabType, NodeJS.Timeout>>(new Map());
   const itemsCacheRef = useRef<ItemsCache>({});
 
   itemsCacheRef.current = itemsCache;
@@ -77,6 +79,11 @@ export function GalleryPageClient() {
 
     setLoadingTabs((prev) => new Set(prev).add(tab));
 
+    const timeoutId = setTimeout(() => {
+      setSlowLoadingTabs((prev) => new Set(prev).add(tab));
+    }, 10000);
+    loadingTimeoutRef.current.set(tab, timeoutId);
+
     try {
       const type = tab === "all" ? undefined : tab;
       const data = await listUserMedia({ type, limit: GALLERY_ITEMS_LIMIT });
@@ -90,6 +97,16 @@ export function GalleryPageClient() {
       console.error(`Failed to load items for tab ${tab}:`, error);
       setErrorTabs((prev) => new Set(prev).add(tab));
     } finally {
+      const timeoutId = loadingTimeoutRef.current.get(tab);
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+        loadingTimeoutRef.current.delete(tab);
+      }
+      setSlowLoadingTabs((prev) => {
+        const next = new Set(prev);
+        next.delete(tab);
+        return next;
+      });
       fetchingTabsRef.current.delete(tab);
       setLoadingTabs((prev) => {
         const next = new Set(prev);
@@ -114,28 +131,34 @@ export function GalleryPageClient() {
     loadStats();
   }, [loadStats]);
 
-  const handleItemDeleted = useCallback((itemType: "image" | "video") => {
-    const tabsToInvalidate: TabType[] = ["all", itemType];
+  const handleItemDeleted = useCallback((itemId: string, itemType: "image" | "video") => {
+    const tabsAffected: TabType[] = ["all", itemType];
 
     setItemsCache((prev) => {
       const next = { ...prev };
-      for (const tab of tabsToInvalidate) {
-        delete next[tab];
+      for (const tab of tabsAffected) {
+        if (next[tab]) {
+          next[tab] = next[tab]!.filter((item) => item.id !== itemId);
+        }
       }
       return next;
     });
-    itemsCacheRef.current = { ...itemsCacheRef.current };
-    for (const tab of tabsToInvalidate) {
-      delete itemsCacheRef.current[tab];
+
+    for (const tab of tabsAffected) {
+      if (itemsCacheRef.current[tab]) {
+        itemsCacheRef.current[tab] = itemsCacheRef.current[tab]!.filter(
+          (item) => item.id !== itemId
+        );
+      }
     }
 
-    loadItemsForTab(activeTab, true);
     loadStats();
-  }, [activeTab, loadItemsForTab, loadStats]);
+  }, [loadStats]);
 
   const currentItems = itemsCache[activeTab] ?? [];
   const isLoading = loadingTabs.has(activeTab) && itemsCache[activeTab] === undefined;
   const hasError = errorTabs.has(activeTab) && itemsCache[activeTab] === undefined;
+  const isSlowLoading = slowLoadingTabs.has(activeTab) && isLoading;
 
   const handleRetry = useCallback(() => {
     setErrorTabs((prev) => {
@@ -240,7 +263,18 @@ export function GalleryPageClient() {
       >
         <BrandTabsContent value={activeTab} className="mt-6">
           {isLoading ? (
-            <GalleryGridSkeleton />
+            <>
+              <GalleryGridSkeleton />
+              {isSlowLoading && (
+                <div className="flex flex-col items-center justify-center mt-6 gap-3">
+                  <p className="text-sm text-white/60">Taking longer than expected...</p>
+                  <BrandButton variant="outline" size="sm" onClick={handleRetry}>
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    Retry
+                  </BrandButton>
+                </div>
+              )}
+            </>
           ) : hasError ? (
             <BrandCard corners={false} className="p-8">
               <div className="flex flex-col items-center justify-center gap-4 text-center">

@@ -128,9 +128,17 @@ jobs:
           fi
       - name: Clean invalid artifact characters
         run: |
-          # Remove files with colons in names (invalid for NTFS/GitHub artifacts)
-          find .next -name '*:*' -delete 2>/dev/null || true
-          echo "Cleaned files with invalid characters"
+          echo "Checking for files with invalid characters (colons)..."
+          INVALID_FILES=$(find .next -name '*:*' 2>/dev/null || true)
+          if [ -n "$INVALID_FILES" ]; then
+            echo "⚠️ Found files with invalid characters:"
+            echo "$INVALID_FILES"
+            echo "Removing these files..."
+            find .next -name '*:*' -delete 2>/dev/null || true
+            echo "✅ Cleaned files with invalid characters"
+          else
+            echo "✅ No invalid characters found"
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: nextjs-build
