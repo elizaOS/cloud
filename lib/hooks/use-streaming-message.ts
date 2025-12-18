@@ -38,6 +38,9 @@ export interface StreamChunkData {
 /** Default stream timeout in milliseconds (60 seconds) */
 const STREAM_TIMEOUT_MS = 60_000;
 
+/** Maximum buffer size to prevent memory exhaustion (1MB) */
+const MAX_BUFFER_SIZE = 1024 * 1024;
+
 interface SendMessageOptions {
   /** Room ID where the message is sent. */
   roomId: string;
@@ -173,6 +176,11 @@ export async function sendStreamingMessage({
       }
 
       buffer += decoder.decode(value, { stream: true });
+
+      // Prevent unbounded buffer growth (potential DoS vector)
+      if (buffer.length > MAX_BUFFER_SIZE) {
+        throw new Error("Stream buffer exceeded maximum size - possible malformed SSE data");
+      }
 
       // Process complete SSE messages (separated by double newline)
       const messages = buffer.split("\n\n");

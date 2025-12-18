@@ -18,6 +18,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import { useThrottledStreamingUpdate } from "@/lib/hooks/use-throttled-streaming";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Send,
@@ -111,8 +112,14 @@ export function BuildModeAssistant({
   const messagesLoadedRef = useRef<string | null>(null); // Track which room we've loaded messages for
   // Track rendered message keys to prevent re-animation (avoids flash)
   const renderedMessagesRef = useRef<Set<string>>(new Set());
-  // Track streaming text for real-time updates
-  const streamingTextRef = useRef<string>("");
+  // Throttled streaming updates (reduces re-renders from ~100/sec to ~60/sec)
+  const {
+    accumulateChunk,
+    getAccumulatedText,
+    clearAccumulatedText,
+    clearAll: clearAllStreaming,
+    scheduleUpdate,
+  } = useThrottledStreamingUpdate();
   const [inputText, setInputText] = useState("");
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -148,10 +155,10 @@ export function BuildModeAssistant({
   // Cleanup refs on unmount to prevent memory leaks
   useEffect(() => {
     return () => {
-      streamingTextRef.current = "";
       renderedMessagesRef.current.clear();
+      clearAllStreaming(); // Cancel pending rAF frames and clear text
     };
-  }, []);
+  }, [clearAllStreaming]);
 
   // Determine display info based on mode
   // In creator mode, always show Eliza (we're creating a new character)
@@ -404,7 +411,7 @@ export function BuildModeAssistant({
       let assistantMessageId = "";
 
       // Reset streaming state
-      streamingTextRef.current = "";
+      clearAllStreaming();
       
       if (reader) {
         let buffer = "";
@@ -527,25 +534,27 @@ export function BuildModeAssistant({
                     currentStreamingId = chunkData.messageId;
                   }
 
-                  // Accumulate text
-                  streamingTextRef.current += chunkData.chunk;
+                  // Accumulate text in ref (no re-render)
+                  accumulateChunk(currentStreamingId, chunkData.chunk);
 
-                  // Update or add streaming message in messages array
+                  // Schedule throttled UI update
                   const streamingId = `streaming-${currentStreamingId}`;
-                  setMessages((prev) => {
-                    const existingIndex = prev.findIndex((m) => m.id === streamingId);
-                    const streamingMsg: Message = {
-                      id: streamingId,
-                      role: "assistant",
-                      content: streamingTextRef.current,
-                      timestamp: Date.now(),
-                    };
-                    if (existingIndex >= 0) {
-                      const updated = [...prev];
-                      updated[existingIndex] = streamingMsg;
-                      return updated;
-                    }
-                    return [...prev, streamingMsg];
+                  scheduleUpdate(currentStreamingId, (text) => {
+                    setMessages((prev) => {
+                      const existingIndex = prev.findIndex((m) => m.id === streamingId);
+                      const streamingMsg: Message = {
+                        id: streamingId,
+                        role: "assistant",
+                        content: text,
+                        timestamp: Date.now(),
+                      };
+                      if (existingIndex >= 0) {
+                        const updated = [...prev];
+                        updated[existingIndex] = streamingMsg;
+                        return updated;
+                      }
+                      return [...prev, streamingMsg];
+                    });
                   });
                 }
               } catch {
@@ -632,7 +641,7 @@ export function BuildModeAssistant({
                 }
               }
               // Clear streaming state
-              streamingTextRef.current = "";
+              clearAllStreaming();
             }
           }
         }
@@ -646,11 +655,12 @@ export function BuildModeAssistant({
       );
     } finally {
       setIsLoading(false);
-      streamingTextRef.current = "";
+      clearAllStreaming();
     }
   }, [
     builderRoomId,
     character,
+    clearAllStreaming,
     isCreatorMode,
     onCharacterCreated,
     onCharacterRefresh,

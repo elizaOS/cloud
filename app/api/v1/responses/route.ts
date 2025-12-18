@@ -183,8 +183,24 @@ function transformOpenAIToAISdk(openAIResponse: OpenAIChatResponse): object {
   const firstChoice = openAIResponse.choices[0];
   const finishReason = firstChoice?.finish_reason || "stop";
 
-  // Map finish_reason to AI SDK status
-  const status = finishReason === "length" ? "incomplete" : "completed";
+  // Map OpenAI finish_reason to AI SDK status
+  // "length" = max tokens reached, "content_filter" = blocked, "stop" = normal completion
+  let status: "completed" | "incomplete" | "failed";
+  let incompleteReason: string | null = null;
+
+  switch (finishReason) {
+    case "length":
+      status = "incomplete";
+      incompleteReason = "max_output_tokens";
+      break;
+    case "content_filter":
+      status = "failed";
+      break;
+    case "stop":
+    default:
+      status = "completed";
+      break;
+  }
 
   return {
     id: openAIResponse.id,
@@ -193,7 +209,7 @@ function transformOpenAIToAISdk(openAIResponse: OpenAIChatResponse): object {
     model: openAIResponse.model,
     status, // AI SDK requires status field
     // Required: incomplete_details must be object or null
-    incomplete_details: status === "incomplete" ? { reason: "max_output_tokens" } : null,
+    incomplete_details: incompleteReason ? { reason: incompleteReason } : null,
     output: openAIResponse.choices.map((choice) => {
       // Flatten the message object and transform content
       const message = choice.message;
@@ -790,11 +806,12 @@ function handleStreamingResponse(
   const decoder = new TextDecoder();
   const encoder = new TextEncoder();
 
-  // Helper to write AI SDK streaming events
+  // Helper to write AI SDK streaming events with backpressure handling
   // AI SDK expects just "data:" lines with type in the JSON payload, NOT "event:" lines
-  const writeEvent = (data: object) => {
+  const writeEvent = async (data: object) => {
+    await writer.ready;
     const dataLine = `data: ${JSON.stringify(data)}\n\n`;
-    writer.write(encoder.encode(dataLine));
+    await writer.write(encoder.encode(dataLine));
   };
 
   // Process stream in background
@@ -824,7 +841,7 @@ function handleStreamingResponse(
             const data = line.slice(6);
             if (data === "[DONE]") {
               // Send response.output_item.done event
-              writeEvent({
+              await writeEvent({
                 type: "response.output_item.done",
                 output_index: outputIndex,
                 item: {
@@ -837,7 +854,7 @@ function handleStreamingResponse(
               });
 
               // Send response.completed event
-              writeEvent({
+              await writeEvent({
                 type: "response.completed",
                 response: {
                   id: responseId,
@@ -878,7 +895,7 @@ function handleStreamingResponse(
               // Send response.created event on first chunk
               if (!sentCreated) {
                 sentCreated = true;
-                writeEvent({
+                await writeEvent({
                   type: "response.created",
                   response: {
                     id: responseId,
@@ -897,7 +914,7 @@ function handleStreamingResponse(
               // Send response.output_item.added on first content chunk
               if (!sentOutputItemAdded) {
                 sentOutputItemAdded = true;
-                writeEvent({
+                await writeEvent({
                   type: "response.output_item.added",
                   output_index: outputIndex,
                   item: {
@@ -914,7 +931,7 @@ function handleStreamingResponse(
               const content = parsed.choices?.[0]?.delta?.content;
               if (content) {
                 fullContent += content;
-                writeEvent({
+                await writeEvent({
                   type: "response.output_text.delta",
                   item_id: itemId,
                   output_index: outputIndex,
@@ -929,9 +946,12 @@ function handleStreamingResponse(
                 outputTokens = parsed.usage.completion_tokens || 0;
                 totalTokens = parsed.usage.total_tokens || 0;
               }
-            } catch {
-              // If parsing fails, skip this line
-              logger.debug("[Responses API] Failed to parse streaming chunk", { line });
+            } catch (parseError) {
+              // Log parsing failures as warnings - silent failures are hard to debug
+              logger.warn("[Responses API] Failed to parse streaming chunk", {
+                line: line.substring(0, 200), // Truncate to avoid log spam
+                error: parseError instanceof Error ? parseError.message : String(parseError),
+              });
             }
           }
         }

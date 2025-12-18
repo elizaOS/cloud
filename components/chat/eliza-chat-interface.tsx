@@ -11,6 +11,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useThrottledStreamingUpdate } from "@/lib/hooks/use-throttled-streaming";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -173,8 +174,13 @@ export function ElizaChatInterface({
   const [error, setError] = useState<string | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const thinkingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  // Track streaming text by messageId for real-time updates
-  const streamingTextRef = useRef<Map<string, string>>(new Map());
+  // Throttled streaming updates (reduces re-renders from ~100/sec to ~60/sec)
+  const {
+    accumulateChunk,
+    getAccumulatedText,
+    clearAll: clearAllStreaming,
+    scheduleUpdate,
+  } = useThrottledStreamingUpdate();
   // Track rendered message keys to prevent re-animation
   const renderedMessagesRef = useRef<Set<string>>(new Set());
 
@@ -213,10 +219,10 @@ export function ElizaChatInterface({
         clearTimeout(thinkingTimeoutRef.current);
         thinkingTimeoutRef.current = null;
       }
-      streamingTextRef.current.clear();
+      clearAllStreaming();
       renderedMessagesRef.current.clear();
     };
-  }, []);
+  }, [clearAllStreaming]);
 
   const recorder = useAudioRecorder();
   const player = useAudioPlayer();
@@ -284,8 +290,8 @@ export function ElizaChatInterface({
     setMessages((prev) => {
       // Handle agent response - update streaming message in place to avoid flash
       if (messageData.type === "agent") {
-        // Clean up streaming ref
-        streamingTextRef.current.clear();
+        // Clean up streaming state
+        clearAllStreaming();
 
         // Clear thinking timeout
         if (thinkingTimeoutRef.current) {
@@ -359,55 +365,56 @@ export function ElizaChatInterface({
 
       return prev;
     });
-  }, []);
+  }, [clearAllStreaming]);
 
   // Handle real-time streaming chunks - updates message text incrementally
   const handleStreamChunk = useCallback((chunkData: StreamChunkData) => {
     const { messageId, chunk } = chunkData;
 
-    // Accumulate text in ref
-    const currentText = streamingTextRef.current.get(messageId) || "";
-    const newText = currentText + chunk;
-    streamingTextRef.current.set(messageId, newText);
+    // Accumulate text in hook (no re-render)
+    accumulateChunk(messageId, chunk);
 
-    setMessages((prev) => {
-      // Check if we already have a streaming message for this messageId
-      const streamingMsgIndex = prev.findIndex(
-        (m) => m.id === `streaming-${messageId}`
-      );
+    // Schedule throttled UI update
+    scheduleUpdate(messageId, (newText) => {
+      setMessages((prev) => {
+        // Check if we already have a streaming message for this messageId
+        const streamingMsgIndex = prev.findIndex(
+          (m) => m.id === `streaming-${messageId}`
+        );
 
-      if (streamingMsgIndex !== -1) {
-        // Update existing streaming message
-        const updated = [...prev];
-        updated[streamingMsgIndex] = {
-          ...updated[streamingMsgIndex],
-          content: { ...updated[streamingMsgIndex].content, text: newText },
+        if (streamingMsgIndex !== -1) {
+          // Update existing streaming message
+          const updated = [...prev];
+          updated[streamingMsgIndex] = {
+            ...updated[streamingMsgIndex],
+            content: { ...updated[streamingMsgIndex].content, text: newText },
+          };
+          return updated;
+        }
+
+        // First chunk - create a new streaming message and remove thinking indicator
+        const withoutThinking = prev.filter(
+          (m) => !m.id.startsWith("thinking-")
+        );
+
+        // Clear thinking timeout
+        if (thinkingTimeoutRef.current) {
+          clearTimeout(thinkingTimeoutRef.current);
+          thinkingTimeoutRef.current = null;
+        }
+
+        // Add new streaming message
+        const streamingMessage: Message = {
+          id: `streaming-${messageId}`,
+          content: { text: newText },
+          isAgent: true,
+          createdAt: Date.now(),
         };
-        return updated;
-      }
 
-      // First chunk - create a new streaming message and remove thinking indicator
-      const withoutThinking = prev.filter(
-        (m) => !m.id.startsWith("thinking-")
-      );
-
-      // Clear thinking timeout
-      if (thinkingTimeoutRef.current) {
-        clearTimeout(thinkingTimeoutRef.current);
-        thinkingTimeoutRef.current = null;
-      }
-
-      // Add new streaming message
-      const streamingMessage: Message = {
-        id: `streaming-${messageId}`,
-        content: { text: newText },
-        isAgent: true,
-        createdAt: Date.now(),
-      };
-
-      return [...withoutThinking, streamingMessage];
+        return [...withoutThinking, streamingMessage];
+      });
     });
-  }, []);
+  }, [accumulateChunk, scheduleUpdate]);
 
   const sendMessage = useCallback(
     async (textOverride?: string) => {
@@ -504,7 +511,7 @@ export function ElizaChatInterface({
             setError(errorMsg);
             toast.error(errorMsg);
             // Remove temp, thinking, and streaming messages on error
-            streamingTextRef.current.clear();
+            clearAllStreaming();
             setMessages((prev) =>
               prev.filter(
                 (msg) =>
@@ -533,7 +540,7 @@ export function ElizaChatInterface({
           err instanceof Error ? err.message : "Failed to send message",
         );
         // Remove temp, thinking, and streaming messages on error
-        streamingTextRef.current.clear();
+        clearAllStreaming();
         setMessages((prev) =>
           prev.filter(
             (msg) =>
