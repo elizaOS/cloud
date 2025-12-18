@@ -231,20 +231,6 @@ export function ContainersTable({ containers }: ContainersTableProps) {
     <TooltipProvider>
       <BrandCard className="relative shadow-lg shadow-black/50" cornerSize="sm">
         <div className="relative z-10 space-y-6">
-          {/* Header */}
-          <div className="flex items-center gap-2 pb-4 border-b border-white/10">
-            <span
-              className="inline-block w-2 h-2 rounded-full"
-              style={{ backgroundColor: "#FF5800" }}
-            />
-            <h2
-              className="text-xl font-normal text-white"
-              style={{ fontFamily: "var(--font-roboto-mono)" }}
-            >
-              Container List
-            </h2>
-          </div>
-
           {/* Search and Filters */}
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="relative flex-1">
