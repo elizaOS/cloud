@@ -77,6 +77,8 @@ export function GalleryPageClient() {
       const type = tab === "all" ? undefined : tab;
       const data = await listUserMedia({ type, limit: 100 });
       setItemsCache((prev) => ({ ...prev, [tab]: data }));
+    } catch (error) {
+      console.error(`Failed to load items for tab ${tab}:`, error);
     } finally {
       fetchingTabsRef.current.delete(tab);
       setLoadingTabs((prev) => {

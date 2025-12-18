@@ -311,6 +311,19 @@ jobs:
             sleep 2
           done
 
+          # Verify servers actually started
+          if ! curl -s http://localhost:3000 > /dev/null 2>&1; then
+            echo "❌ Main app failed to start"
+            kill $MAIN_PID $MINIAPP_PID 2>/dev/null || true
+            exit 1
+          fi
+          if ! curl -s http://localhost:3001 > /dev/null 2>&1; then
+            echo "❌ Miniapp failed to start"
+            kill $MAIN_PID $MINIAPP_PID 2>/dev/null || true
+            exit 1
+          fi
+          echo "✅ Both servers are running"
+
           # Run tests from root directory
           bun run test:playwright:miniapp || TEST_EXIT=$?
 
