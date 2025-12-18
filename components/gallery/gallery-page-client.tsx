@@ -48,9 +48,6 @@ export function GalleryPageClient() {
 
   const fetchingTabsRef = useRef<Set<TabType>>(new Set());
   const loadingTimeoutRef = useRef<Map<TabType, NodeJS.Timeout>>(new Map());
-  const itemsCacheRef = useRef<ItemsCache>({});
-
-  itemsCacheRef.current = itemsCache;
 
   const galleryTabs: TabItem[] = [
     {
@@ -71,7 +68,7 @@ export function GalleryPageClient() {
   ];
 
   const loadItemsForTab = useCallback(async (tab: TabType, force = false) => {
-    const hasCachedData = itemsCacheRef.current[tab] !== undefined;
+    const hasCachedData = itemsCache[tab] !== undefined;
     if (!force && hasCachedData) return;
 
     if (fetchingTabsRef.current.has(tab)) return;
@@ -114,7 +111,7 @@ export function GalleryPageClient() {
         return next;
       });
     }
-  }, []);
+  }, [itemsCache]);
 
   const loadStats = useCallback(async () => {
     setIsLoadingStats(true);
@@ -131,6 +128,14 @@ export function GalleryPageClient() {
     loadStats();
   }, [loadStats]);
 
+  useEffect(() => {
+    const timeoutRef = loadingTimeoutRef.current;
+    return () => {
+      timeoutRef.forEach((id) => clearTimeout(id));
+      timeoutRef.clear();
+    };
+  }, []);
+
   const handleItemDeleted = useCallback((itemId: string, itemType: "image" | "video") => {
     const tabsAffected: TabType[] = ["all", itemType];
 
@@ -143,14 +148,6 @@ export function GalleryPageClient() {
       }
       return next;
     });
-
-    for (const tab of tabsAffected) {
-      if (itemsCacheRef.current[tab]) {
-        itemsCacheRef.current[tab] = itemsCacheRef.current[tab]!.filter(
-          (item) => item.id !== itemId
-        );
-      }
-    }
 
     loadStats();
   }, [loadStats]);
