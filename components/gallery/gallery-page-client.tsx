@@ -22,6 +22,8 @@ import type { TabItem } from "@/components/brand";
 
 type TabType = "all" | "image" | "video";
 
+const GALLERY_ITEMS_LIMIT = 100;
+
 type ItemsCache = {
   [K in TabType]?: GalleryItem[];
 };
@@ -67,17 +69,17 @@ export function GalleryPageClient() {
   ];
 
   const loadItemsForTab = useCallback(async (tab: TabType, force = false) => {
-    if (fetchingTabsRef.current.has(tab)) return;
-
     const hasCachedData = itemsCacheRef.current[tab] !== undefined;
     if (!force && hasCachedData) return;
 
+    if (fetchingTabsRef.current.has(tab)) return;
     fetchingTabsRef.current.add(tab);
+
     setLoadingTabs((prev) => new Set(prev).add(tab));
 
     try {
       const type = tab === "all" ? undefined : tab;
-      const data = await listUserMedia({ type, limit: 100 });
+      const data = await listUserMedia({ type, limit: GALLERY_ITEMS_LIMIT });
       setItemsCache((prev) => ({ ...prev, [tab]: data }));
       setErrorTabs((prev) => {
         const next = new Set(prev);
@@ -112,9 +114,21 @@ export function GalleryPageClient() {
     loadStats();
   }, [loadStats]);
 
-  const handleItemDeleted = useCallback(() => {
-    itemsCacheRef.current = {};
-    setItemsCache({});
+  const handleItemDeleted = useCallback((itemType: "image" | "video") => {
+    const tabsToInvalidate: TabType[] = ["all", itemType];
+
+    setItemsCache((prev) => {
+      const next = { ...prev };
+      for (const tab of tabsToInvalidate) {
+        delete next[tab];
+      }
+      return next;
+    });
+    itemsCacheRef.current = { ...itemsCacheRef.current };
+    for (const tab of tabsToInvalidate) {
+      delete itemsCacheRef.current[tab];
+    }
+
     loadItemsForTab(activeTab, true);
     loadStats();
   }, [activeTab, loadItemsForTab, loadStats]);

@@ -116,9 +116,29 @@ export const stripe: Stripe = new Proxy({} as Stripe, {
 
 /**
  * Check if Stripe is configured (has secret key).
+ * Use this before accessing the `stripe` proxy to avoid runtime errors.
  */
 export function isStripeConfigured(): boolean {
   return !!process.env.STRIPE_SECRET_KEY;
+}
+
+/**
+ * Assert that Stripe is configured, throwing an error if not.
+ * Use this at the start of functions that require Stripe to be available.
+ *
+ * @throws {Error} If STRIPE_SECRET_KEY is not configured
+ *
+ * @example
+ * export async function createCustomer(email: string) {
+ *   assertStripeConfigured();
+ *   // Safe to use stripe after this point
+ *   return stripe.customers.create({ email });
+ * }
+ */
+export function assertStripeConfigured(): asserts stripe is Stripe {
+  if (!isStripeConfigured()) {
+    throw new Error("STRIPE_SECRET_KEY is not set in environment variables");
+  }
 }
 
 /**

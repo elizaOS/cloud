@@ -31,7 +31,7 @@ import { BrandCard, BrandButton } from "@/components/brand";
 
 interface GalleryGridProps {
   items: GalleryItem[];
-  onItemDeleted?: () => void;
+  onItemDeleted?: (itemType: "image" | "video") => void;
 }
 
 export function GalleryGrid({ items, onItemDeleted }: GalleryGridProps) {
@@ -45,7 +45,7 @@ export function GalleryGrid({ items, onItemDeleted }: GalleryGridProps) {
     await deleteMedia(item.id);
     toast.success("Media deleted successfully");
     setDeleteConfirmItem(null);
-    onItemDeleted?.();
+    onItemDeleted?.(item.type as "image" | "video");
     setIsDeleting(false);
   };
 
