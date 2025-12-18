@@ -473,6 +473,20 @@ export async function POST(
     // Step 6: Create runtime with user context (clean, no key fetching here!)
     const runtime = await runtimeFactory.createRuntimeForUser(userContext);
 
+    // Step 6.5: For BUILD mode, store client character state in runtime settings
+    // This allows the provider to use what the user currently sees on the frontend
+    if (
+      agentModeConfig.mode === AgentMode.BUILD &&
+      agentModeConfig.metadata?.clientCharacterState
+    ) {
+      runtime.character.settings = {
+        ...runtime.character.settings,
+        clientCharacterState: agentModeConfig.metadata.clientCharacterState,
+        isClientStateUnsaved: agentModeConfig.metadata.isUnsaved ?? true,
+      };
+      logger.info("[Stream] BUILD mode - Stored client character state in runtime settings");
+    }
+
     // Step 7: Create message handler
     const messageHandler = createMessageHandler(runtime, userContext);
 

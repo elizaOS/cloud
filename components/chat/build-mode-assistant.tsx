@@ -19,13 +19,30 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, Loader2, Copy, Check, MessageSquare, Lock } from "lucide-react";
+import {
+  Send,
+  Loader2,
+  Copy,
+  Check,
+  MessageSquare,
+  Lock,
+  Zap,
+  Sparkles,
+  Crown,
+} from "lucide-react";
 import type { ElizaCharacter } from "@/lib/types";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
 import "highlight.js/styles/github-dark.css";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 import { AgentMode } from "@/lib/eliza/agent-mode-types";
 import {
@@ -48,6 +65,7 @@ interface BuildModeAssistantProps {
   onCharacterUpdate: (updates: Partial<ElizaCharacter>) => void;
   onCharacterRefresh?: () => Promise<void>;
   onRoomIdChange?: (roomId: string) => void;
+  onCharacterCreated?: (characterId: string, characterName: string) => void;
   userId: string;
   isCreatorMode?: boolean;
 }
@@ -77,6 +95,7 @@ export function BuildModeAssistant({
   onCharacterUpdate,
   onCharacterRefresh,
   onRoomIdChange,
+  onCharacterCreated,
   userId,
   isCreatorMode = false,
 }: BuildModeAssistantProps) {
@@ -93,6 +112,41 @@ export function BuildModeAssistant({
     (state) => state.updateCharacterAvatar,
   );
   const [isLoading, setIsLoading] = useState(false);
+
+  // Build mode specific model tiers (different from chat)
+  const buildModeTiers = [
+    {
+      id: "fast" as const,
+      name: "Fast",
+      modelId: "moonshotai/kimi-k2-0905",
+      recommended: false,
+    },
+    {
+      id: "pro" as const,
+      name: "Pro",
+      modelId: "google/gemini-3-flash",
+      recommended: true,
+    },
+    {
+      id: "ultra" as const,
+      name: "Ultra",
+      modelId: "anthropic/claude-sonnet-4.5",
+      recommended: false,
+    },
+  ];
+
+  const [selectedTier, setSelectedTier] = useState<"fast" | "pro" | "ultra">(
+    "pro",
+  );
+  const selectedModelId =
+    buildModeTiers.find((t) => t.id === selectedTier)?.modelId ??
+    "google/gemini-3-flash";
+
+  const tierIcons: Record<string, React.ReactNode> = {
+    fast: <Zap className="h-3.5 w-3.5" />,
+    pro: <Sparkles className="h-3.5 w-3.5" />,
+    ultra: <Crown className="h-3.5 w-3.5" />,
+  };
   const [isInitializing, setIsInitializing] = useState(true); // Loading state for initial welcome
   const [builderRoomId, setBuilderRoomId] = useState<string>("");
   const [lockedRoom, setLockedRoom] = useState<LockedRoomInfo | null>(null); // Track if room is locked after character creation
@@ -289,9 +343,31 @@ export function BuildModeAssistant({
     setMessages((prev) => [...prev, userMessage]);
 
     // Build metadata based on mode
+    // Include current client-side character state so the agent knows what user sees
+    const clientCharacterState = character
+      ? {
+          name: character.name || "",
+          bio: character.bio || "",
+          system: character.system || "",
+          adjectives: character.adjectives || [],
+          topics: character.topics || [],
+          style: character.style || { all: [], chat: [], post: [] },
+          messageExamples: character.messageExamples || [],
+          avatarUrl: character.avatarUrl || character.avatar_url || "",
+        }
+      : null;
+
     const metadata: Record<string, unknown> = isCreatorMode
-      ? { isCreatorMode: true }
-      : { targetCharacterId: character?.id };
+      ? {
+          isCreatorMode: true,
+          clientCharacterState,
+          isUnsaved: true, // Creator mode is always unsaved
+        }
+      : {
+          targetCharacterId: character?.id,
+          clientCharacterState,
+          isUnsaved: !character?.id, // Unsaved if no ID yet
+        };
 
     try {
       const response = await fetch(
@@ -302,6 +378,7 @@ export function BuildModeAssistant({
           credentials: "include",
           body: JSON.stringify({
             text,
+            model: selectedModelId,
             agentMode: {
               mode: AgentMode.BUILD,
               metadata,
@@ -501,12 +578,20 @@ export function BuildModeAssistant({
                   detectedCharacterCreated &&
                   createdCharacterId
                 ) {
+                  const createdName =
+                    (proposedCharacterUpdate?.name as string) ||
+                    character?.name ||
+                    "your agent";
+
                   // Lock the room and show link to chat with the created agent
                   setLockedRoom({
                     characterId: createdCharacterId,
-                    characterName:
-                      (proposedCharacterUpdate?.name as string) || "your agent",
+                    characterName: createdName,
                   });
+
+                  // Notify parent that character was created (clears unsaved changes)
+                  onCharacterCreated?.(createdCharacterId, createdName);
+
                   toast.success(
                     "Character created! You can now chat with your agent.",
                     { duration: 4000 },
@@ -1063,72 +1148,121 @@ export function BuildModeAssistant({
           className="border-t border-white/[0.06] p-4"
         >
           <div className="max-w-3xl mx-auto px-4 sm:px-6">
-            {/* Input Container - Flexbox layout for proper alignment */}
-            <div className="relative flex items-end gap-2 rounded-xl border border-white/[0.08] bg-white/[0.02] p-2 transition-colors focus-within:border-white/[0.15] focus-within:bg-white/[0.03]">
-              {/* Robot Eye Visor Scanner - Only show when loading */}
-              {isLoading && (
-                <div className="absolute top-0 left-0 right-0 h-[2px] overflow-hidden pointer-events-none z-10 rounded-t-xl">
-                  <div
-                    className="absolute h-full w-24 bg-gradient-to-r from-transparent via-[#FF5800] to-transparent"
-                    style={{
-                      animation:
-                        "visor-scan 4.8s cubic-bezier(0.4, 0, 0.6, 1) infinite",
-                      boxShadow: "0 0 15px 3px rgba(255, 88, 0, 0.7)",
-                      filter: "blur(0.5px)",
-                    }}
-                  />
-                  <div
-                    className="absolute h-full w-16 bg-gradient-to-r from-transparent via-[#FF5800]/60 to-transparent"
-                    style={{
-                      animation:
-                        "visor-scan-delayed 6.2s cubic-bezier(0.3, 0.1, 0.7, 0.9) infinite 1.5s",
-                      boxShadow: "0 0 10px 2px rgba(255, 88, 0, 0.5)",
-                      filter: "blur(1px)",
-                    }}
-                  />
-                </div>
-              )}
-
-              {/* Textarea */}
-              <textarea
-                rows={1}
-                value={inputText}
-                onChange={(e) => setInputText(e.currentTarget.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    if (!isLoading) {
-                      handleSubmit(e);
-                    }
-                  }
-                }}
-                onInput={(e) => {
-                  const target = e.currentTarget;
-                  target.style.height = "40px";
-                  target.style.height =
-                    Math.min(target.scrollHeight, 120) + "px";
-                }}
-                placeholder="Describe your character or ask for help..."
-                className="flex-1 min-w-0 bg-transparent px-2 py-2 text-[15px] text-white placeholder:text-white/40 focus:outline-none resize-none leading-relaxed scrollbar-hide"
-                style={{
-                  height: "40px",
-                  maxHeight: "120px",
-                }}
-              />
-
-              {/* Send Button */}
-              <Button
-                type="submit"
-                disabled={isLoading || !inputText.trim()}
-                size="icon"
-                className="flex-shrink-0 h-10 w-10 rounded-lg bg-[#FF5800]/20 border border-[#FF5800]/30 hover:bg-[#FF5800]/30 disabled:opacity-40 transition-colors flex items-center justify-center"
-              >
-                {isLoading ? (
-                  <Loader2 className="h-4 w-4 animate-spin text-[#FF5800]" />
-                ) : (
-                  <Send className="h-4 w-4 text-[#FF5800]" />
+            <div className="space-y-3">
+              {/* Input Container */}
+              <div className="relative rounded-lg border border-white/[0.08] bg-white/[0.02] overflow-hidden transition-colors focus-within:border-white/[0.15] focus-within:bg-white/[0.03]">
+                {/* Robot Eye Visor Scanner - Only show when loading */}
+                {isLoading && (
+                  <div className="absolute top-0 left-0 right-0 h-[2px] overflow-hidden pointer-events-none z-10">
+                    <div
+                      className="absolute h-full w-24 bg-gradient-to-r from-transparent via-[#FF5800] to-transparent"
+                      style={{
+                        animation:
+                          "visor-scan 4.8s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+                        boxShadow: "0 0 15px 3px rgba(255, 88, 0, 0.7)",
+                        filter: "blur(0.5px)",
+                      }}
+                    />
+                    <div
+                      className="absolute h-full w-16 bg-gradient-to-r from-transparent via-[#FF5800]/60 to-transparent"
+                      style={{
+                        animation:
+                          "visor-scan-delayed 6.2s cubic-bezier(0.3, 0.1, 0.7, 0.9) infinite 1.5s",
+                        boxShadow: "0 0 10px 2px rgba(255, 88, 0, 0.5)",
+                        filter: "blur(1px)",
+                      }}
+                    />
+                  </div>
                 )}
-              </Button>
+
+                {/* Textarea */}
+                <textarea
+                  rows={1}
+                  value={inputText}
+                  onChange={(e) => setInputText(e.currentTarget.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      if (!isLoading) {
+                        handleSubmit(e);
+                      }
+                    }
+                  }}
+                  onInput={(e) => {
+                    const target = e.currentTarget;
+                    target.style.height = "44px";
+                    target.style.height =
+                      Math.min(target.scrollHeight, 140) + "px";
+                  }}
+                  placeholder="Describe your character or ask for help..."
+                  className="w-full bg-transparent px-4 py-3 text-[15px] text-white placeholder:text-white/40 focus:outline-none resize-none leading-relaxed"
+                  style={{
+                    minHeight: "44px",
+                    maxHeight: "140px",
+                  }}
+                />
+              </div>
+
+              {/* Bottom Row: Model Selector (left) and Send Button (right) */}
+              <div className="flex items-center justify-between">
+                {/* Model Tier Selector */}
+                <Select
+                  value={selectedTier}
+                  onValueChange={(value) => {
+                    setSelectedTier(value as "fast" | "pro" | "ultra");
+                    const tier = buildModeTiers.find((t) => t.id === value);
+                    if (tier) {
+                      toast.success(`Model: ${tier.name}`);
+                    }
+                  }}
+                >
+                  <SelectTrigger className="w-[120px] h-9 border-white/[0.08] bg-white/[0.02] rounded-lg text-sm hover:bg-white/[0.05] transition-colors">
+                    <SelectValue placeholder="Select model">
+                      <span className="flex items-center gap-2">
+                        {tierIcons[selectedTier]}
+                        {buildModeTiers.find((t) => t.id === selectedTier)
+                          ?.name || "Pro"}
+                      </span>
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent className="rounded-lg border-white/[0.08]">
+                    {buildModeTiers.map((tier) => (
+                      <SelectItem key={tier.id} value={tier.id}>
+                        <div className="flex items-center gap-2">
+                          {tierIcons[tier.id]}
+                          <div className="flex flex-col">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-medium">{tier.name}</span>
+                              {tier.recommended && (
+                                <span className="text-[10px] px-1 py-0.5 rounded bg-[#FF5800]/20 text-[#FF5800]">
+                                  recommended
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-[10px] text-white/40 font-mono">
+                              {tier.modelId}
+                            </span>
+                          </div>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                {/* Send Button */}
+                <Button
+                  type="submit"
+                  disabled={isLoading || !inputText.trim()}
+                  size="icon"
+                  className="h-9 w-9 rounded-lg bg-[#FF5800]/20 border border-[#FF5800]/30 hover:bg-[#FF5800]/30 disabled:opacity-40 transition-colors"
+                >
+                  {isLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin text-[#FF5800]" />
+                  ) : (
+                    <Send className="h-4 w-4 text-[#FF5800]" />
+                  )}
+                </Button>
+              </div>
             </div>
           </div>
         </form>

@@ -167,6 +167,20 @@ export function CharacterBuildMode({
     builderRoomIdRef.current = roomId;
   }, []);
 
+  // Callback when character is created via AI assistant (CREATE_CHARACTER action)
+  const handleCharacterCreated = useCallback(
+    (characterId: string, _characterName: string) => {
+      // Clear unsaved changes since character was saved by the agent
+      onUnsavedChanges?.(false);
+
+      // Navigate to chat with the new agent after a short delay for UX
+      setTimeout(() => {
+        router.push(`/dashboard/chat?characterId=${characterId}`);
+      }, 1500);
+    },
+    [onUnsavedChanges, router],
+  );
+
   return (
     <div className="flex h-full w-full min-h-0 overflow-hidden flex-col">
       <Image
@@ -214,6 +228,7 @@ export function CharacterBuildMode({
               onCharacterUpdate={handleCharacterUpdate}
               onCharacterRefresh={handleCharacterRefresh}
               onRoomIdChange={handleRoomIdChange}
+              onCharacterCreated={handleCharacterCreated}
               userId={userId}
               isCreatorMode={isCreatorMode}
             />
@@ -240,6 +255,7 @@ export function CharacterBuildMode({
                 onCharacterUpdate={handleCharacterUpdate}
                 onCharacterRefresh={handleCharacterRefresh}
                 onRoomIdChange={handleRoomIdChange}
+                onCharacterCreated={handleCharacterCreated}
                 userId={userId}
                 isCreatorMode={isCreatorMode}
               />

@@ -54,9 +54,9 @@ function extractProvider(modelId: string): string {
   return "openai";
 }
 
-const FAST_MODEL_ID = getEnvModelId("fast", "google/gemini-2.5-flash-lite");
-const PRO_MODEL_ID = getEnvModelId("pro", "anthropic/claude-sonnet-4.5");
-const ULTRA_MODEL_ID = getEnvModelId("ultra", "anthropic/claude-opus-4.1");
+const FAST_MODEL_ID = getEnvModelId("fast", "openai/gpt-oss-120b");
+const PRO_MODEL_ID = getEnvModelId("pro", "google/gemini-3-flash");
+const ULTRA_MODEL_ID = getEnvModelId("ultra", "anthropic/claude-sonnet-4.5");
 
 export const MODEL_TIERS: Record<ModelTier, ModelTierConfig> = {
   fast: {

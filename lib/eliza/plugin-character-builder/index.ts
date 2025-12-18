@@ -8,6 +8,7 @@ import { actionsProvider } from "./providers/actions";
 import { assistantGuideProvider } from "./providers/assistant-guide";
 import { characterGuideProvider } from "./providers/character-guide";
 import { currentCharacterProvider } from "./providers/current-character";
+import { modeContextProvider } from "./providers/mode-context";
 import { generateAvatarAction } from "./actions/avatar-generation";
 import { suggestChangesAction } from "./actions/suggest-changes";
 import { createCharacterAction } from "./actions/create-character";
@@ -65,6 +66,7 @@ export const characterBuilderPlugin: Plugin = {
     assistantGuideProvider,
     characterGuideProvider,
     currentCharacterProvider,
+    modeContextProvider,
     recentMessagesProvider,
     characterProvider,
   ],

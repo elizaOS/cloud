@@ -136,8 +136,10 @@ If updating messageExamples, use this exact format:
 - Agent messages use the actual character name`;
 
 const extractTemplate = `
-# Current Field Values:
+# Current Character State (from user's editor):
 {{currentCharacter}}
+
+Note: This reflects what the user currently sees on their form. Extract changes that should be saved to the database.
 
 {{conversationLogWithAgentThoughts}}
 `;
