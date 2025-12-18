@@ -61,7 +61,7 @@ export const sidebarSections: SidebarSection[] = [
       },
       {
         id: "agent-creator",
-        label: "Agent Creator",
+        label: "Agent Builder",
         href: "/dashboard/build",
         icon: UserCog,
         freeAllowed: true,
