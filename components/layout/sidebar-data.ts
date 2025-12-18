@@ -32,6 +32,7 @@ export interface SidebarItem {
   freeAllowed?: boolean;
   featureFlag?: FeatureFlag;
   adminOnly?: boolean; // Only show for admin users
+  comingSoon?: boolean; // Show as disabled with "soon" tag
 }
 
 export interface SidebarSection {
@@ -156,6 +157,14 @@ export const sidebarSections: SidebarSection[] = [
         icon: Server,
         freeAllowed: false,
         featureFlag: "containers",
+      },
+      {
+        id: "mcps",
+        label: "MCPs",
+        href: "/dashboard/mcps",
+        icon: Puzzle,
+        freeAllowed: false,
+        featureFlag: "mcp",
       },
     ],
   },

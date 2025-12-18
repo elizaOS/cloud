@@ -99,6 +99,11 @@ export function SidebarNavigationSection({
 
   const dotColor = getSectionColor();
 
+  // Check if this section is "coming soon" (disabled)
+  const isComingSoon =
+    section.title?.toLowerCase() === "monetization" ||
+    section.title?.toLowerCase() === "admin";
+
   // If there's no title, render without collapsible (e.g., Dashboard section)
   if (!section.title) {
     return (
@@ -107,6 +112,36 @@ export function SidebarNavigationSection({
           <SidebarNavigationItem key={item.id} item={item} />
         ))}
       </nav>
+    );
+  }
+
+  // Render collapsed "coming soon" sections
+  if (isComingSoon) {
+    return (
+      <div className="w-full mb-3 px-3 flex items-center gap-2 opacity-50 cursor-not-allowed">
+        <span
+          className="inline-block w-1.5 h-1.5 rounded-full flex-shrink-0"
+          style={{ backgroundColor: dotColor }}
+        />
+        <h3
+          className="flex-1 text-xs font-semibold uppercase tracking-wider text-white/50 text-left"
+          style={{
+            fontFamily: "var(--font-roboto-mono)",
+            fontWeight: 400,
+            letterSpacing: "-0.003em",
+          }}
+        >
+          {section.title}
+        </h3>
+        <span
+          className="text-[10px] font-medium uppercase tracking-wider text-white/40 bg-white/10 px-1.5 py-0.5 rounded"
+          style={{
+            fontFamily: "var(--font-roboto-mono)",
+          }}
+        >
+          soon
+        </span>
+      </div>
     );
   }
 

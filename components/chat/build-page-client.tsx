@@ -106,6 +106,11 @@ export function BuildPageClient({
         const url = new URL(anchor.href);
         const currentUrl = new URL(window.location.href);
 
+        // Skip blob URLs (used for file downloads like Export JSON)
+        if (url.protocol === "blob:") {
+          return;
+        }
+
         if (url.pathname !== currentUrl.pathname) {
           e.preventDefault();
           e.stopPropagation();

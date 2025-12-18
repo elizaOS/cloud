@@ -233,7 +233,7 @@ export default function TopHero() {
             <Button
               variant="outline"
               size="lg"
-              className="min-w-[180px] border-white/20 text-white hover:bg-white/5 rounded-none"
+              className="min-w-[180px] h-12 border-white/20 text-white hover:bg-white/5 hover:text-white rounded-none"
               asChild
             >
               <a

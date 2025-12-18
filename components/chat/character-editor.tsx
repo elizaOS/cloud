@@ -164,7 +164,7 @@ export function CharacterEditor({
           </div>
 
           {/* JSON Toggle Switch */}
-          <div className="flex mb-3 xl:mb-0 -mt-2 items-center gap-2 shrink-0 xl:ml-auto xl:pl-4">
+          <div className="flex items-center gap-2 shrink-0 xl:ml-auto xl:pl-4">
             <span className="text-xs text-white/60 whitespace-nowrap">
               JSON
             </span>
