@@ -586,7 +586,7 @@ export async function POST(
             type: "user",
           });
 
-          const responseMessageId = `agent-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+          const responseMessageId = `agent-${crypto.randomUUID()}`;
 
           // Send thinking indicator
           sendEvent("message", {

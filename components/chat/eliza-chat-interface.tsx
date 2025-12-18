@@ -67,8 +67,6 @@ interface Message {
   createdAt: number;
 }
 
-import type { AgentInfo } from "@/db/repositories/agents";
-
 /**
  * Display version of AgentInfo with UI-specific fields.
  * Used for chat interface display (simplified from full AgentInfo).
@@ -88,6 +86,8 @@ interface CharacterData {
     bio?: string | string[];
     personality?: string;
     description?: string;
+    avatarUrl?: string;
+    avatar_url?: string;
   };
 }
 
@@ -206,13 +206,15 @@ export function ElizaChatInterface({
     }
   }, [audioState.selectedVoiceId]);
 
-  // Cleanup thinkingTimeoutRef on unmount to prevent memory leaks
+  // Cleanup refs on unmount to prevent memory leaks
   useEffect(() => {
     return () => {
       if (thinkingTimeoutRef.current) {
         clearTimeout(thinkingTimeoutRef.current);
         thinkingTimeoutRef.current = null;
       }
+      streamingTextRef.current.clear();
+      renderedMessagesRef.current.clear();
     };
   }, []);
 
@@ -222,7 +224,6 @@ export function ElizaChatInterface({
   const {
     selectedTier,
     selectedModelId,
-    displayInfo,
     tiers,
     setTier,
     isLoading: isLoadingModels,
@@ -469,7 +470,7 @@ export function ElizaChatInterface({
         }
 
         // Add optimistic temp user message
-        const clientMessageId = `temp-${Date.now()}`;
+        const clientMessageId = `temp-${crypto.randomUUID()}`;
         const now = Date.now();
         const tempUserMessage: Message = {
           id: clientMessageId,

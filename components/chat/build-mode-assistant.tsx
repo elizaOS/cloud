@@ -404,6 +404,7 @@ export function BuildModeAssistant({
         let detectedCharacterCreated = false;
         let createdCharacterId: string | null = null;
         let proposedCharacterUpdate: Partial<ElizaCharacter> | null = null;
+        let avatarWasSaved = false;
         let messageAttachments: MessageAttachment[] = [];
         let currentStreamingId: string | null = null;
 
@@ -496,11 +497,9 @@ export function BuildModeAssistant({
                     data.content?.metadata?.changes?.avatarUrl
                   ) {
                     proposedCharacterUpdate = data.content.metadata.changes;
-                    // Track if avatar was auto-saved
+                    // Track if avatar was auto-saved (separate variable, no type cast needed)
                     if (data.content?.metadata?.avatarSaved) {
-                      (
-                        proposedCharacterUpdate as Record<string, unknown>
-                      ).__avatarSaved = true;
+                      avatarWasSaved = true;
                     }
                   }
                 }
@@ -570,24 +569,13 @@ export function BuildModeAssistant({
                 });
 
                 if (proposedCharacterUpdate) {
-                  // Check for avatar saved flag and remove it before updating
-                  const updateWithMeta = proposedCharacterUpdate as Record<
-                    string,
-                    unknown
-                  >;
-                  const avatarWasSaved = updateWithMeta.__avatarSaved;
-                  delete updateWithMeta.__avatarSaved;
-
                   onCharacterUpdate(proposedCharacterUpdate);
                   const isAvatarUpdate = "avatarUrl" in proposedCharacterUpdate;
 
                   if (isAvatarUpdate) {
                     // Update sidebar/dropdown avatar if saved in build mode (not creator mode)
-                    if (avatarWasSaved && !isCreatorMode && character?.id) {
-                      updateCharacterAvatar(
-                        character.id,
-                        updateWithMeta.avatarUrl as string,
-                      );
+                    if (avatarWasSaved && !isCreatorMode && character?.id && proposedCharacterUpdate.avatarUrl) {
+                      updateCharacterAvatar(character.id, proposedCharacterUpdate.avatarUrl);
                     }
 
                     toast.success(

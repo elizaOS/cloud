@@ -35,6 +35,9 @@ export interface StreamChunkData {
 /**
  * Options for sending a streaming message.
  */
+/** Default stream timeout in milliseconds (60 seconds) */
+const STREAM_TIMEOUT_MS = 60_000;
+
 interface SendMessageOptions {
   /** Room ID where the message is sent. */
   roomId: string;
@@ -52,6 +55,8 @@ interface SendMessageOptions {
   onError?: (error: string) => void;
   /** Optional completion callback. */
   onComplete?: () => void;
+  /** Optional timeout in ms (default: 60000) */
+  timeoutMs?: number;
 }
 
 /**
@@ -71,25 +76,42 @@ export async function sendStreamingMessage({
   onChunk,
   onError,
   onComplete,
+  timeoutMs = STREAM_TIMEOUT_MS,
 }: SendMessageOptions): Promise<void> {
-  const response = await fetch(`/api/eliza/rooms/${roomId}/messages/stream`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      // Include session token as header for anonymous users
-      // This ensures session tracking works even if the cookie race condition occurs
-      ...(sessionToken && { "X-Anonymous-Session": sessionToken }),
-    },
-    credentials: "include",
-    body: JSON.stringify({
-      text,
-      ...(model && { model }), // Include model if provided
-      // Also include in body as backup
-      ...(sessionToken && { sessionToken }),
-    }),
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => {
+    controller.abort();
+  }, timeoutMs);
+
+  let response: Response;
+  try {
+    response = await fetch(`/api/eliza/rooms/${roomId}/messages/stream`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        // Include session token as header for anonymous users
+        // This ensures session tracking works even if the cookie race condition occurs
+        ...(sessionToken && { "X-Anonymous-Session": sessionToken }),
+      },
+      credentials: "include",
+      signal: controller.signal,
+      body: JSON.stringify({
+        text,
+        ...(model && { model }), // Include model if provided
+        // Also include in body as backup
+        ...(sessionToken && { sessionToken }),
+      }),
+    });
+  } catch (error) {
+    clearTimeout(timeoutId);
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error("Stream timeout: Request took too long");
+    }
+    throw error;
+  }
 
   if (!response.ok) {
+    clearTimeout(timeoutId);
     let errorMessage = "Failed to send message";
     const contentType = response.headers.get("content-type");
 
@@ -125,6 +147,7 @@ export async function sendStreamingMessage({
   }
 
   if (!response.body) {
+    clearTimeout(timeoutId);
     throw new Error("No response body");
   }
 
@@ -132,38 +155,47 @@ export async function sendStreamingMessage({
   const decoder = new TextDecoder();
   let buffer = "";
 
-  while (true) {
-    const { done, value } = await reader.read();
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
 
-    if (done) {
-      // Process any remaining data in buffer
-      if (buffer.trim()) {
+      if (done) {
+        // Process any remaining data in buffer
+        if (buffer.trim()) {
+          try {
+            processSSEMessage(buffer.trim(), onMessage, onChunk, onError, onComplete);
+          } catch (err) {
+            console.error("[Stream] Error processing final buffer:", err);
+            onError?.("Stream ended unexpectedly");
+          }
+        }
+        break;
+      }
+
+      buffer += decoder.decode(value, { stream: true });
+
+      // Process complete SSE messages (separated by double newline)
+      const messages = buffer.split("\n\n");
+      buffer = messages.pop() || ""; // Keep incomplete message in buffer
+
+      for (const message of messages) {
+        if (!message.trim()) continue;
+
         try {
-          processSSEMessage(buffer.trim(), onMessage, onChunk, onError, onComplete);
+          processSSEMessage(message.trim(), onMessage, onChunk, onError, onComplete);
         } catch (err) {
-          console.error("[Stream] Error processing final buffer:", err);
-          onError?.("Stream ended unexpectedly");
+          console.error("[Stream] Error parsing SSE message:", err, message);
+          // Continue processing other messages even if one fails
         }
       }
-      break;
     }
-
-    buffer += decoder.decode(value, { stream: true });
-
-    // Process complete SSE messages (separated by double newline)
-    const messages = buffer.split("\n\n");
-    buffer = messages.pop() || ""; // Keep incomplete message in buffer
-
-    for (const message of messages) {
-      if (!message.trim()) continue;
-
-      try {
-        processSSEMessage(message.trim(), onMessage, onChunk, onError, onComplete);
-      } catch (err) {
-        console.error("[Stream] Error parsing SSE message:", err, message);
-        // Continue processing other messages even if one fails
-      }
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      onError?.("Stream timeout: Connection took too long");
     }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 
