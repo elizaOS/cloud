@@ -23,7 +23,6 @@ import {
   BrandTabsContent,
   BrandCard,
   BrandButton,
-  CornerBrackets,
 } from "@/components/brand";
 import {
   Tooltip,
@@ -105,9 +104,7 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
       : character.bio?.join("\n\n") || "";
 
   return (
-    <BrandCard className="relative h-full overflow-auto">
-      <CornerBrackets size="sm" className="opacity-50" />
-
+    <BrandCard className="relative h-full overflow-auto" corners={false}>
       <div className="relative z-10 space-y-6">
         <h3 className="text-lg font-bold text-white">Agent Details</h3>
 
