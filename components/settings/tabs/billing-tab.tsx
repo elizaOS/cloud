@@ -176,7 +176,7 @@ export function BillingTab({ user }: BillingTabProps) {
                 <div className="flex flex-col sm:flex-row items-stretch gap-4">
                   {/* Amount Input */}
                   <div className="relative flex-1 max-w-xs">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#717171] font-mono">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#717171] font-mono z-10 pointer-events-none">
                       $
                     </span>
                     <Input
