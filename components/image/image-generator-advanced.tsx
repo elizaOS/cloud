@@ -90,7 +90,7 @@ export function ImageGeneratorAdvanced() {
 
   // Carousel API (external ref)
   const [carouselApi, setCarouselApi] = useState<CarouselApi | undefined>(
-    undefined,
+    undefined
   );
 
   // Consolidated request state
@@ -554,21 +554,14 @@ export function ImageGeneratorAdvanced() {
                             handleDownload(
                               imageState.currentImages[
                                 imageState.currentIndex
-                              ] ?? imageState.currentImage,
+                              ] ?? imageState.currentImage
                             )
                           }
                           className="px-3 py-2 border border-white/20 bg-transparent text-white hover:bg-white/5 transition-colors flex items-center justify-center gap-1 md:gap-2"
                         >
                           <Download className="h-3 md:h-4 w-3 md:w-4" />
-                          <span className="text-xs font-mono">Save</span>
+                          <span className="text-xs font-mono">Download</span>
                         </button>
-                        {/* <button
-                          type="button"
-                          className="px-3 py-2 border border-white/20 bg-transparent text-white hover:bg-white/5 transition-colors flex items-center justify-center gap-1 md:gap-2"
-                        >
-                          <Share2 className="h-3 md:h-4 w-3 md:w-4" />
-                          <span className="text-xs font-mono">Share</span>
-                        </button> */}
                         <button
                           type="button"
                           onClick={() =>
@@ -793,7 +786,7 @@ export function ImageGeneratorAdvanced() {
                         onClick={() =>
                           handleDownload(
                             imageState.currentImages[imageState.currentIndex] ??
-                              imageState.currentImage!,
+                              imageState.currentImage!
                           )
                         }
                       >
