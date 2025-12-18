@@ -145,6 +145,14 @@ export function BuildModeAssistant({
   const [builderRoomId, setBuilderRoomId] = useState<string>("");
   const [lockedRoom, setLockedRoom] = useState<LockedRoomInfo | null>(null); // Track if room is locked after character creation
 
+  // Cleanup refs on unmount to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      streamingTextRef.current = "";
+      renderedMessagesRef.current.clear();
+    };
+  }, []);
+
   // Determine display info based on mode
   // In creator mode, always show Eliza (we're creating a new character)
   // In build mode, show the character being edited (even if not fully saved yet)
@@ -406,7 +414,8 @@ export function BuildModeAssistant({
         let proposedCharacterUpdate: Partial<ElizaCharacter> | null = null;
         let avatarWasSaved = false;
         let messageAttachments: MessageAttachment[] = [];
-        let currentStreamingId: string | null = null;
+        // Initialize with stable fallback ID to avoid inconsistent IDs if first chunk lacks messageId
+        let currentStreamingId: string = `build-${Date.now()}`;
 
         while (true) {
           const { done, value } = await reader.read();
@@ -513,8 +522,8 @@ export function BuildModeAssistant({
               try {
                 const chunkData = JSON.parse(eventData);
                 if (chunkData.chunk && typeof chunkData.chunk === "string") {
-                  // Initialize streaming message ID
-                  if (!currentStreamingId && chunkData.messageId) {
+                  // Update streaming ID if server provides one (prefer server ID)
+                  if (chunkData.messageId) {
                     currentStreamingId = chunkData.messageId;
                   }
 
@@ -522,7 +531,7 @@ export function BuildModeAssistant({
                   streamingTextRef.current += chunkData.chunk;
 
                   // Update or add streaming message in messages array
-                  const streamingId = `streaming-${currentStreamingId || Date.now()}`;
+                  const streamingId = `streaming-${currentStreamingId}`;
                   setMessages((prev) => {
                     const existingIndex = prev.findIndex((m) => m.id === streamingId);
                     const streamingMsg: Message = {
@@ -548,7 +557,7 @@ export function BuildModeAssistant({
             if (eventType === "done") {
               if (assistantMessage || messageAttachments.length > 0) {
                 const finalId = assistantMessageId || `assistant-${Date.now()}`;
-                const streamingId = `streaming-${currentStreamingId || finalId}`;
+                const streamingId = `streaming-${currentStreamingId}`;
 
                 // Replace streaming message with final message (same content, final ID)
                 setMessages((prev) => {
