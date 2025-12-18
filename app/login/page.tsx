@@ -166,31 +166,12 @@ function LoginPageContent() {
   };
 
   // Show loading state while checking authentication
-  // Uses the same visual style as authenticated state to prevent flash
   if (!ready) {
     return (
-      <div className="relative flex min-h-screen w-full flex-col overflow-hidden">
-        <LandingHeader />
-        <video
-          src="/videos/Hero Cloud_x3 Slower_1_Scale 5.mp4"
-          autoPlay
-          loop
-          muted
-          playsInline
-          className="absolute inset-0 w-full h-full object-cover"
-          style={{
-            filter: "brightness(0.4) blur(2px)",
-          }}
-        />
-        <div className="absolute inset-0 bg-gradient-to-br from-black/60 via-black/40 to-black/60" />
-        <div className="relative z-10 flex flex-1 items-center justify-center p-4">
-          <BrandCard className="w-full max-w-md backdrop-blur-sm bg-black/60">
-            <CornerBrackets size="md" className="opacity-50" />
-            <div className="relative z-10 flex flex-col items-center gap-6 py-8">
-              <Loader2 className="h-12 w-12 animate-spin text-[#FF5800]" />
-              <p className="text-sm text-white/60">Loading...</p>
-            </div>
-          </BrandCard>
+      <div className="flex min-h-screen w-full items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-sm text-muted-foreground">Loading...</p>
         </div>
       </div>
     );
@@ -512,34 +493,13 @@ function LoginPageContent() {
   );
 }
 
-/**
- * Loading fallback component for Suspense boundary.
- * Matches the authenticated loading state to prevent visual flash.
- */
+// Loading fallback component
 function LoginPageFallback() {
   return (
-    <div className="relative flex min-h-screen w-full flex-col overflow-hidden">
-      <LandingHeader />
-      <video
-        src="/videos/Hero Cloud_x3 Slower_1_Scale 5.mp4"
-        autoPlay
-        loop
-        muted
-        playsInline
-        className="absolute inset-0 w-full h-full object-cover"
-        style={{
-          filter: "brightness(0.4) blur(2px)",
-        }}
-      />
-      <div className="absolute inset-0 bg-gradient-to-br from-black/60 via-black/40 to-black/60" />
-      <div className="relative z-10 flex flex-1 items-center justify-center p-4">
-        <BrandCard className="w-full max-w-md backdrop-blur-sm bg-black/60">
-          <CornerBrackets size="md" className="opacity-50" />
-          <div className="relative z-10 flex flex-col items-center gap-6 py-8">
-            <Loader2 className="h-12 w-12 animate-spin text-[#FF5800]" />
-            <p className="text-sm text-white/60">Loading...</p>
-          </div>
-        </BrandCard>
+    <div className="flex min-h-screen w-full items-center justify-center bg-background">
+      <div className="flex flex-col items-center gap-3">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-sm text-muted-foreground">Loading...</p>
       </div>
     </div>
   );

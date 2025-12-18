@@ -11,7 +11,6 @@ const privyClient = new PrivyClient(
 // Paths that don't require authentication
 const publicPaths = [
   "/",
-  "/login", // Login page (handled specially below for authenticated users)
   "/marketplace",
   "/dashboard/chat", // FREE MODE: Allow anonymous access to Chat
   "/chat", // Public chat routes for anonymous users
@@ -66,24 +65,6 @@ export async function proxy(request: NextRequest) {
   const isPublicPath = publicPaths.some(
     (path) => pathname === path || pathname.startsWith(`${path}/`),
   );
-
-  // Special handling for /login: redirect authenticated users to dashboard
-  // This prevents the login screen flash for already-authenticated users
-  if (pathname === "/login") {
-    const authToken = request.cookies.get("privy-token");
-    if (authToken?.value) {
-      try {
-        const user = await privyClient.verifyAuthToken(authToken.value);
-        if (user) {
-          const dashboardUrl = new URL("/dashboard", request.url);
-          return NextResponse.redirect(dashboardUrl);
-        }
-      } catch {
-        // Token invalid/expired - let them see login page
-      }
-    }
-    return NextResponse.next();
-  }
 
   if (isPublicPath) {
     return NextResponse.next();
