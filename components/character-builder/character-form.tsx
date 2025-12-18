@@ -116,9 +116,12 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
           defaultValue="basics"
           className="w-full"
         >
-          <BrandTabsList className="grid w-full grid-cols-3">
+          <BrandTabsList className="grid w-full grid-cols-4">
             <BrandTabsTrigger value="basics" className="flex-1">
               Basics
+            </BrandTabsTrigger>
+            <BrandTabsTrigger value="avatar" className="flex-1">
+              Avatar
             </BrandTabsTrigger>
             <BrandTabsTrigger value="personality" className="flex-1">
               Personality
@@ -195,44 +198,40 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                 className="min-h-[80px] rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
               />
             </div>
+          </BrandTabsContent>
 
-            {/* Avatar Section */}
-            <div className="space-y-4">
-              <label className="text-xs font-medium text-white/70 uppercase tracking-wide">
-                Avatar
-              </label>
+          {/* Avatar Tab */}
+          <BrandTabsContent value="avatar" className="space-y-4">
+            {/* Avatar Generator - Quick styles and AI generation */}
+            <AvatarGenerator
+              characterName={character.name || "Character"}
+              characterDescription={
+                typeof character.bio === "string"
+                  ? character.bio
+                  : character.bio?.join(" ") || ""
+              }
+              currentAvatarUrl={character.avatarUrl || character.avatar_url}
+              onAvatarChange={(url) => updateField("avatarUrl", url)}
+            />
 
-              {/* Avatar Generator - Quick styles and AI generation */}
-              <AvatarGenerator
-                characterName={character.name || "Character"}
-                characterDescription={
-                  typeof character.bio === "string"
-                    ? character.bio
-                    : character.bio?.join(" ") || ""
-                }
-                currentAvatarUrl={character.avatarUrl || character.avatar_url}
-                onAvatarChange={(url) => updateField("avatarUrl", url)}
+            {/* Divider */}
+            <div className="flex items-center gap-4">
+              <div className="flex-1 h-px bg-white/10" />
+              <span className="text-xs text-white/40">or upload custom</span>
+              <div className="flex-1 h-px bg-white/10" />
+            </div>
+
+            {/* Manual Upload */}
+            <div className="flex flex-col items-center space-y-2">
+              <AvatarUpload
+                value={character.avatarUrl || character.avatar_url}
+                onChange={(url) => updateField("avatarUrl", url)}
+                name={character.name || "Character"}
+                size="md"
               />
-
-              {/* Divider */}
-              <div className="flex items-center gap-4 py-2">
-                <div className="flex-1 h-px bg-white/10" />
-                <span className="text-xs text-white/40">or upload custom</span>
-                <div className="flex-1 h-px bg-white/10" />
-              </div>
-
-              {/* Manual Upload */}
-              <div className="flex flex-col items-center space-y-2">
-                <AvatarUpload
-                  value={character.avatarUrl || character.avatar_url}
-                  onChange={(url) => updateField("avatarUrl", url)}
-                  name={character.name || "Character"}
-                  size="sm"
-                />
-                <p className="text-xs text-white/40 text-center max-w-xs">
-                  Upload a custom image (max 5MB)
-                </p>
-              </div>
+              <p className="text-xs text-white/40 text-center">
+                Upload a custom image (max 5MB)
+              </p>
             </div>
           </BrandTabsContent>
 

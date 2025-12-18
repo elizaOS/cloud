@@ -1034,33 +1034,31 @@ export function BuildModeAssistant({
           className="border-t border-white/[0.06] p-4"
         >
           <div className="max-w-3xl mx-auto px-4 sm:px-6">
-            {/* Input Container with textarea and button side by side */}
-            <div className="relative rounded-lg border border-white/[0.08] bg-white/[0.02] overflow-hidden transition-colors focus-within:border-white/[0.15] focus-within:bg-white/[0.03]">
-              {/* Robot Eye Visor Scanner - Animated line on top edge with randomness - Only show when waiting for agent */}
+            {/* Input Container - Flexbox layout for proper alignment */}
+            <div className="relative flex items-end gap-2 rounded-xl border border-white/[0.08] bg-white/[0.02] p-2 transition-colors focus-within:border-white/[0.15] focus-within:bg-white/[0.03]">
+              {/* Robot Eye Visor Scanner - Only show when loading */}
               {isLoading && (
-                <div className="absolute top-0 left-0 right-0 h-[2px] overflow-hidden pointer-events-none z-10">
-                  {/* Primary scanner */}
+                <div className="absolute top-0 left-0 right-0 h-[2px] overflow-hidden pointer-events-none z-10 rounded-t-xl">
                   <div
                     className="absolute h-full w-24 bg-gradient-to-r from-transparent via-[#FF5800] to-transparent"
                     style={{
-                      animation:
-                        "visor-scan 4.8s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+                      animation: "visor-scan 4.8s cubic-bezier(0.4, 0, 0.6, 1) infinite",
                       boxShadow: "0 0 15px 3px rgba(255, 88, 0, 0.7)",
                       filter: "blur(0.5px)",
                     }}
                   />
-                  {/* Secondary scanner for organic feel */}
                   <div
                     className="absolute h-full w-16 bg-gradient-to-r from-transparent via-[#FF5800]/60 to-transparent"
                     style={{
-                      animation:
-                        "visor-scan-delayed 6.2s cubic-bezier(0.3, 0.1, 0.7, 0.9) infinite 1.5s",
+                      animation: "visor-scan-delayed 6.2s cubic-bezier(0.3, 0.1, 0.7, 0.9) infinite 1.5s",
                       boxShadow: "0 0 10px 2px rgba(255, 88, 0, 0.5)",
                       filter: "blur(1px)",
                     }}
                   />
                 </div>
               )}
+              
+              {/* Textarea */}
               <textarea
                 rows={1}
                 value={inputText}
@@ -1075,23 +1073,23 @@ export function BuildModeAssistant({
                 }}
                 onInput={(e) => {
                   const target = e.currentTarget;
-                  target.style.height = "52px";
-                  target.style.height =
-                    Math.min(target.scrollHeight, 140) + "px";
+                  target.style.height = "40px";
+                  target.style.height = Math.min(target.scrollHeight, 120) + "px";
                 }}
                 placeholder="Describe your character or ask for help..."
-                className="w-full bg-transparent pl-4 pr-14 py-3.5 text-[15px] text-white placeholder:text-white/40 focus:outline-none resize-none leading-relaxed"
+                className="flex-1 min-w-0 bg-transparent px-2 py-2 text-[15px] text-white placeholder:text-white/40 focus:outline-none resize-none leading-relaxed scrollbar-hide"
                 style={{
-                  minHeight: "52px",
-                  maxHeight: "140px",
+                  height: "40px",
+                  maxHeight: "120px",
                 }}
               />
-              {/* Send Button - Absolutely positioned bottom right */}
+              
+              {/* Send Button */}
               <Button
                 type="submit"
                 disabled={isLoading || !inputText.trim()}
                 size="icon"
-                className="absolute right-2 bottom-2 h-9 w-9 rounded-lg bg-[#FF5800]/20 border border-[#FF5800]/30 hover:bg-[#FF5800]/30 disabled:opacity-40 transition-colors"
+                className="flex-shrink-0 h-10 w-10 rounded-lg bg-[#FF5800]/20 border border-[#FF5800]/30 hover:bg-[#FF5800]/30 disabled:opacity-40 transition-colors flex items-center justify-center"
               >
                 {isLoading ? (
                   <Loader2 className="h-4 w-4 animate-spin text-[#FF5800]" />
