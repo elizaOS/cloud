@@ -1033,8 +1033,8 @@ export function BuildModeAssistant({
           onSubmit={handleSubmit}
           className="border-t border-white/[0.06] p-4"
         >
-          <div className="max-w-3xl mx-auto space-y-3 px-4 sm:px-6">
-            {/* Text Input Box - Prominent standalone */}
+          <div className="max-w-3xl mx-auto px-4 sm:px-6">
+            {/* Input Container with textarea and button side by side */}
             <div className="relative rounded-lg border border-white/[0.08] bg-white/[0.02] overflow-hidden transition-colors focus-within:border-white/[0.15] focus-within:bg-white/[0.03]">
               {/* Robot Eye Visor Scanner - Animated line on top edge with randomness - Only show when waiting for agent */}
               {isLoading && (
@@ -1075,26 +1075,23 @@ export function BuildModeAssistant({
                 }}
                 onInput={(e) => {
                   const target = e.currentTarget;
-                  target.style.height = "44px";
+                  target.style.height = "52px";
                   target.style.height =
                     Math.min(target.scrollHeight, 140) + "px";
                 }}
                 placeholder="Describe your character or ask for help..."
-                className="w-full bg-transparent px-4 py-3 text-[15px] text-white placeholder:text-white/40 focus:outline-none resize-none leading-relaxed"
+                className="w-full bg-transparent pl-4 pr-14 py-3.5 text-[15px] text-white placeholder:text-white/40 focus:outline-none resize-none leading-relaxed"
                 style={{
-                  minHeight: "44px",
+                  minHeight: "52px",
                   maxHeight: "140px",
                 }}
               />
-            </div>
-
-            {/* Bottom Row: Send Button */}
-            <div className="flex items-center justify-end">
+              {/* Send Button - Absolutely positioned bottom right */}
               <Button
                 type="submit"
                 disabled={isLoading || !inputText.trim()}
                 size="icon"
-                className="h-9 w-9 rounded-lg bg-[#FF5800]/20 border border-[#FF5800]/30 hover:bg-[#FF5800]/30 disabled:opacity-40 transition-colors"
+                className="absolute right-2 bottom-2 h-9 w-9 rounded-lg bg-[#FF5800]/20 border border-[#FF5800]/30 hover:bg-[#FF5800]/30 disabled:opacity-40 transition-colors"
               >
                 {isLoading ? (
                   <Loader2 className="h-4 w-4 animate-spin text-[#FF5800]" />
