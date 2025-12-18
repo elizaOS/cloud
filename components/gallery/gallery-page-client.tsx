@@ -5,7 +5,7 @@
  */
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { GalleryGrid, GalleryGridSkeleton } from "./gallery-grid";
 import { listUserMedia, getUserMediaStats } from "@/app/actions/gallery";
@@ -23,6 +23,7 @@ import type { TabItem } from "@/components/brand";
 type TabType = "all" | "image" | "video";
 
 const GALLERY_ITEMS_LIMIT = 100;
+const SLOW_LOADING_TIMEOUT_MS = 10000;
 
 type ItemsCache = {
   [K in TabType]?: GalleryItem[];
@@ -48,8 +49,10 @@ export function GalleryPageClient() {
 
   const fetchingTabsRef = useRef<Set<TabType>>(new Set());
   const loadingTimeoutRef = useRef<Map<TabType, NodeJS.Timeout>>(new Map());
+  const itemsCacheRef = useRef<ItemsCache>(itemsCache);
+  itemsCacheRef.current = itemsCache;
 
-  const galleryTabs: TabItem[] = [
+  const galleryTabs: TabItem[] = useMemo(() => [
     {
       value: "all",
       label: "All Media",
@@ -65,11 +68,10 @@ export function GalleryPageClient() {
       label: "Videos",
       icon: <VideoIcon className="h-4 w-4" />,
     },
-  ];
+  ], []);
 
   const loadItemsForTab = useCallback(async (tab: TabType, force = false) => {
-    const hasCachedData = itemsCache[tab] !== undefined;
-    if (!force && hasCachedData) return;
+    if (!force && itemsCacheRef.current[tab] !== undefined) return;
 
     if (fetchingTabsRef.current.has(tab)) return;
     fetchingTabsRef.current.add(tab);
@@ -78,7 +80,7 @@ export function GalleryPageClient() {
 
     const timeoutId = setTimeout(() => {
       setSlowLoadingTabs((prev) => new Set(prev).add(tab));
-    }, 10000);
+    }, SLOW_LOADING_TIMEOUT_MS);
     loadingTimeoutRef.current.set(tab, timeoutId);
 
     try {
@@ -111,7 +113,7 @@ export function GalleryPageClient() {
         return next;
       });
     }
-  }, [itemsCache]);
+  }, []);
 
   const loadStats = useCallback(async () => {
     setIsLoadingStats(true);
@@ -149,8 +151,15 @@ export function GalleryPageClient() {
       return next;
     });
 
-    loadStats();
-  }, [loadStats]);
+    setStats((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        totalImages: itemType === "image" ? prev.totalImages - 1 : prev.totalImages,
+        totalVideos: itemType === "video" ? prev.totalVideos - 1 : prev.totalVideos,
+      };
+    });
+  }, []);
 
   const currentItems = itemsCache[activeTab] ?? [];
   const isLoading = loadingTabs.has(activeTab) && itemsCache[activeTab] === undefined;

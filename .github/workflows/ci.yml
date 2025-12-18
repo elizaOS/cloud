@@ -348,10 +348,11 @@ jobs:
           fi
           echo "✅ Both servers are running"
 
-          # Run tests from root directory
-          bun run test:playwright:miniapp || TEST_EXIT=$?
+          # Run tests from root directory (default to failure, set success only on pass)
+          TEST_EXIT=1
+          bun run test:playwright:miniapp && TEST_EXIT=0 || true
 
-          exit ${TEST_EXIT:-0}
+          exit ${TEST_EXIT}
         env:
           CI: "true"
           NODE_ENV: production
