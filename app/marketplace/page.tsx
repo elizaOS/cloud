@@ -20,7 +20,8 @@ export const metadata: Metadata = generatePageMetadata({
   ogImage: generateOGImageUrl({ type: "marketplace" }),
 });
 
-export const dynamic = "force-dynamic";
+// No force-dynamic needed - this page only renders a client component
+// All data fetching happens client-side via useEffect
 
 /**
  * Public marketplace page displaying available AI agents and characters.

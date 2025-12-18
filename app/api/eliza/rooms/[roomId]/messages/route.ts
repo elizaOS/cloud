@@ -178,7 +178,7 @@ export async function POST(
         estimatedOutputTokens,
       );
 
-      if (!user.organization_id) {
+      if (!user.organization_id || !user.organization) {
         logger.error(
           "[Eliza Messages API] User has no organization - cannot proceed",
           { userId: user.id },
@@ -189,16 +189,8 @@ export async function POST(
         );
       }
 
-      // Check if user has sufficient credits
-      const org = await organizationsService.getById(user.organization_id);
-      if (!org) {
-        return NextResponse.json(
-          { error: "Organization not found" },
-          { status: 404 },
-        );
-      }
-
-      const creditBalance = Number.parseFloat(String(org.credit_balance));
+      // Use org data from auth (already fetched, avoids redundant DB call)
+      const creditBalance = Number.parseFloat(String(user.organization.credit_balance));
       if (creditBalance < estimatedCost) {
         return NextResponse.json(
           {

@@ -51,7 +51,8 @@ const PublicMarketplaceQuerySchema = z.object({
   includeStats: z.coerce.boolean().default(false),
 });
 
-export const dynamic = "force-dynamic";
+// Public marketplace data - cache for 5 minutes with SWR
+export const revalidate = 300;
 
 /**
  * GET /api/public/marketplace/characters
@@ -120,10 +121,18 @@ export async function GET(request: NextRequest) {
       includeStats: params.includeStats,
     });
 
-    return NextResponse.json({
-      success: true,
-      data: result,
-    });
+    return NextResponse.json(
+      {
+        success: true,
+        data: result,
+      },
+      {
+        headers: {
+          // Public data can be cached by CDN
+          "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",
+        },
+      }
+    );
   } catch (error) {
     logger.error("[Public Marketplace API] Error:", error);
 

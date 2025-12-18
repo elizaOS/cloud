@@ -200,6 +200,7 @@ export function ElizaChatInterface({
 
   const messageAudioUrls = useRef<Map<string, string>>(new Map());
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
+  const voicesFetchedRef = useRef(false);
 
   // Clear audio cache when voice changes (so messages regenerate with new voice)
   useEffect(() => {
@@ -618,6 +619,12 @@ export function ElizaChatInterface({
     if (!authenticated) {
       return;
     }
+
+    // Prevent duplicate fetches - only fetch once per component lifecycle
+    if (voicesFetchedRef.current) {
+      return;
+    }
+    voicesFetchedRef.current = true;
 
     const fetchCustomVoices = async () => {
       try {

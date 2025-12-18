@@ -9,39 +9,47 @@ import {
 } from "@/db/repositories";
 import { cache } from "@/lib/cache/client";
 import { CacheKeys, CacheTTL } from "@/lib/cache/keys";
+import { logger } from "@/lib/utils/logger";
 
 /**
  * Service for organization operations with caching support.
  */
 export class OrganizationsService {
+  /**
+   * Get organization by ID with full caching.
+   * Caches the entire organization object to avoid redundant DB calls.
+   */
   async getById(id: string): Promise<Organization | undefined> {
-    // Try cache first for org balance queries (used heavily in Eliza chat)
-    const cacheKey = CacheKeys.eliza.orgBalance(id);
-    const cached = await cache.get<{ balance: string; timestamp: number }>(
-      cacheKey,
-    );
-
+    const cacheKey = CacheKeys.org.data(id);
+    
+    // Try cache first - return immediately on hit (no DB call!)
+    const cached = await cache.get<Organization>(cacheKey);
     if (cached) {
-      // Return organization with cached balance
-      const org = await organizationsRepository.findById(id);
-      if (org) {
-        return { ...org, credit_balance: cached.balance };
-      }
+      logger.debug("[OrganizationsService] Cache hit for org:", id);
+      return cached;
     }
 
     // Cache miss - fetch from DB
     const org = await organizationsRepository.findById(id);
 
     if (org) {
-      // Cache the balance for quick subsequent lookups
-      await cache.set(
-        cacheKey,
-        { balance: org.credit_balance, timestamp: Date.now() },
-        CacheTTL.eliza.orgBalance,
-      );
+      // Cache the full organization object
+      await cache.set(cacheKey, org, CacheTTL.org.data);
+      logger.debug("[OrganizationsService] Cached org data:", id);
     }
 
     return org;
+  }
+
+  /**
+   * Invalidate organization cache (call after updates)
+   */
+  async invalidateCache(id: string): Promise<void> {
+    const cacheKey = CacheKeys.org.data(id);
+    await cache.del(cacheKey);
+    // Also invalidate the old balance-only cache key for backwards compat
+    await cache.del(CacheKeys.eliza.orgBalance(id));
+    logger.debug("[OrganizationsService] Invalidated cache for org:", id);
   }
 
   async getBySlug(slug: string): Promise<Organization | undefined> {
@@ -68,21 +76,29 @@ export class OrganizationsService {
     id: string,
     data: Partial<NewOrganization>,
   ): Promise<Organization | undefined> {
-    return await organizationsRepository.update(id, data);
+    const result = await organizationsRepository.update(id, data);
+    // Invalidate cache after update
+    await this.invalidateCache(id);
+    return result;
   }
 
   async updateCreditBalance(
     organizationId: string,
     amount: number,
   ): Promise<{ success: boolean; newBalance: number }> {
-    return await organizationsRepository.updateCreditBalance(
+    const result = await organizationsRepository.updateCreditBalance(
       organizationId,
       amount,
     );
+    // Invalidate cache after balance change
+    await this.invalidateCache(organizationId);
+    return result;
   }
 
   async delete(id: string): Promise<void> {
     await organizationsRepository.delete(id);
+    // Invalidate cache after delete
+    await this.invalidateCache(id);
   }
 }
 

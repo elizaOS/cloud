@@ -8,12 +8,14 @@ import { getProvider } from "@/lib/providers";
 import type { OpenAIModelsResponse } from "@/lib/providers/types";
 import type { NextRequest } from "next/server";
 
-export const dynamic = "force-dynamic";
+// Models list changes infrequently - use ISR with 1 hour revalidation
+export const revalidate = 3600;
 
 /**
  * GET /api/v1/models
  * Lists all available AI models in OpenAI-compatible format.
  * Supports both authenticated and anonymous users.
+ * Response is cached for 1 hour since model list rarely changes.
  *
  * @param request - The Next.js request object.
  * @returns OpenAI-compatible models list response.
@@ -36,8 +38,12 @@ export async function GET(request: NextRequest) {
     const response = await provider.listModels();
     const data: OpenAIModelsResponse = await response.json();
 
-    // Return OpenAI-compatible format
-    return Response.json(data);
+    // Return OpenAI-compatible format with cache headers
+    return Response.json(data, {
+      headers: {
+        "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=7200",
+      },
+    });
   } catch (error) {
     logger.error("Error fetching models:", error);
     return Response.json(
