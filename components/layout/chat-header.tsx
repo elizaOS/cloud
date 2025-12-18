@@ -43,6 +43,8 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
     (a) => a.id === selectedCharacterId,
   );
 
+  const existingAgent = selectedAgent !== undefined;
+
   const handleAgentChange = (characterId: string) => {
     const charId = characterId || null;
     setSelectedCharacterId(charId);
@@ -234,14 +236,15 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
                 : "bg-[#1F1F1F] text-[#ADADAD] hover:text-white",
             )}
             style={{
-              fontFamily: "'Roboto Mono', monospace",
               fontWeight: 500,
               fontSize: "14px",
               lineHeight: "18px",
             }}
           >
             <Wrench className="h-4 w-4" />
-            <span className="hidden md:inline">Build</span>
+            <span className="hidden md:inline">
+              {existingAgent ? "Edit" : "Build"}
+            </span>
           </button>
         </div>
       </div>

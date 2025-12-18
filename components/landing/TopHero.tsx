@@ -43,14 +43,17 @@ const TopHero = () => {
     {
       icon: <Terminal className="h-5 w-5" />,
       title: "Create",
+      color: "#FF5800", // Orange
     },
     {
       icon: <Code2 className="h-5 w-5" />,
       title: "Develop",
+      color: "#00D9FF", // Cyan
     },
     {
       icon: <Rocket className="h-5 w-5" />,
       title: "Deploy",
+      color: "#10B981", // Green
     },
   ];
 
@@ -190,7 +193,7 @@ const TopHero = () => {
             <Button
               variant="outline"
               size="lg"
-              className="min-w-[180px] border-white/20 text-white hover:bg-white/5 hover:text-white"
+              className="min-w-[180px] h-12 border-white/20 text-white hover:bg-white/5 hover:text-white"
               asChild
             >
               <a
@@ -216,11 +219,11 @@ const TopHero = () => {
                   <div
                     className="w-12 h-12 rounded-lg flex items-center justify-center mb-3 transition-colors"
                     style={{
-                      backgroundColor: "rgba(255, 88, 0, 0.1)",
-                      border: "1px solid rgba(255, 88, 0, 0.3)",
+                      backgroundColor: `${step.color}1A`, // 10% opacity
+                      border: `1px solid ${step.color}4D`, // 30% opacity
                     }}
                   >
-                    <div style={{ color: "#FF5800" }}>{step.icon}</div>
+                    <div style={{ color: step.color }}>{step.icon}</div>
                   </div>
                   <h3 className="text-lg font-semibold text-white">
                     {step.title}

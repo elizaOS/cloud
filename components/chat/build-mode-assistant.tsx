@@ -35,6 +35,7 @@ import {
 import { ElizaAvatar } from "./eliza-avatar";
 import { DEFAULT_AVATAR } from "@/lib/utils/default-avatar";
 import Link from "next/link";
+import { useChatStore } from "@/lib/stores/chat-store";
 
 // Default Eliza configuration for creator mode
 const DEFAULT_ELIZA = {
@@ -51,11 +52,19 @@ interface BuildModeAssistantProps {
   isCreatorMode?: boolean;
 }
 
+interface MessageAttachment {
+  id: string;
+  url: string;
+  title?: string;
+  contentType?: string;
+}
+
 interface Message {
   id: string;
   role: "user" | "assistant";
   content: string;
   timestamp: number;
+  attachments?: MessageAttachment[];
 }
 
 interface LockedRoomInfo {
@@ -78,6 +87,11 @@ export function BuildModeAssistant({
   const [inputText, setInputText] = useState("");
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
+
+  // Get store method to update character avatar in sidebar/dropdown
+  const updateCharacterAvatar = useChatStore(
+    (state) => state.updateCharacterAvatar,
+  );
   const [isLoading, setIsLoading] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true); // Loading state for initial welcome
   const [builderRoomId, setBuilderRoomId] = useState<string>("");
@@ -170,7 +184,9 @@ export function BuildModeAssistant({
     const loadMessages = async () => {
       setIsInitializing(true);
 
-      const response = await fetch(`/api/eliza/rooms/${builderRoomId}`);
+      const response = await fetch(`/api/eliza/rooms/${builderRoomId}`, {
+        credentials: "include",
+      });
 
       if (response.ok) {
         const data = await response.json();
@@ -200,12 +216,24 @@ export function BuildModeAssistant({
                 text?: string;
                 source?: string;
                 metadata?: { type?: string };
+                attachments?: Array<{
+                  id?: string;
+                  url: string;
+                  title?: string;
+                  contentType?: string;
+                }>;
               };
               createdAt: number;
               isAgent: boolean;
             }) => {
               const text = msg.content?.text;
-              if (!text || typeof text !== "string") {
+              const attachments = msg.content?.attachments;
+
+              // Allow messages with text OR attachments
+              if (
+                (!text || typeof text !== "string") &&
+                (!attachments || attachments.length === 0)
+              ) {
                 return null;
               }
 
@@ -223,8 +251,14 @@ export function BuildModeAssistant({
                 role: isAgentMessage
                   ? ("assistant" as const)
                   : ("user" as const),
-                content: text,
+                content: text || "",
                 timestamp: msg.createdAt,
+                attachments: attachments?.map((att) => ({
+                  id: att.id || `att-${msg.id}`,
+                  url: att.url,
+                  title: att.title,
+                  contentType: att.contentType,
+                })),
               };
             },
           )
@@ -265,6 +299,7 @@ export function BuildModeAssistant({
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          credentials: "include",
           body: JSON.stringify({
             text,
             agentMode: {
@@ -290,6 +325,7 @@ export function BuildModeAssistant({
         let detectedCharacterCreated = false;
         let createdCharacterId: string | null = null;
         let proposedCharacterUpdate: Partial<ElizaCharacter> | null = null;
+        let messageAttachments: MessageAttachment[] = [];
 
         while (true) {
           const { done, value } = await reader.read();
@@ -319,7 +355,10 @@ export function BuildModeAssistant({
               try {
                 const data = JSON.parse(eventData);
 
-                if (data.type === "agent" && data.content?.text) {
+                if (
+                  data.type === "agent" &&
+                  (data.content?.text || data.content?.attachments?.length)
+                ) {
                   // Skip action result messages from UI but process metadata
                   if (data.content?.metadata?.type === "action_result") {
                     // Check for character creation in action results
@@ -339,8 +378,25 @@ export function BuildModeAssistant({
                     continue;
                   }
 
-                  assistantMessage = data.content.text;
+                  assistantMessage = data.content.text || "";
                   assistantMessageId = data.id;
+
+                  // Capture attachments (images, etc.)
+                  if (data.content?.attachments?.length) {
+                    messageAttachments = data.content.attachments.map(
+                      (att: {
+                        id?: string;
+                        url: string;
+                        title?: string;
+                        contentType?: string;
+                      }) => ({
+                        id: att.id || `att-${Date.now()}`,
+                        url: att.url,
+                        title: att.title,
+                        contentType: att.contentType,
+                      }),
+                    );
+                  }
 
                   // Check for SAVE_CHANGES action
                   if (
@@ -369,6 +425,20 @@ export function BuildModeAssistant({
                   ) {
                     proposedCharacterUpdate = data.content.metadata.changes;
                   }
+
+                  // Check for GENERATE_AVATAR with avatar URL
+                  if (
+                    data.content?.metadata?.action === "GENERATE_AVATAR" &&
+                    data.content?.metadata?.changes?.avatarUrl
+                  ) {
+                    proposedCharacterUpdate = data.content.metadata.changes;
+                    // Track if avatar was auto-saved
+                    if (data.content?.metadata?.avatarSaved) {
+                      (
+                        proposedCharacterUpdate as Record<string, unknown>
+                      ).__avatarSaved = true;
+                    }
+                  }
                 }
               } catch {
                 // Silently ignore parse errors during streaming
@@ -377,21 +447,52 @@ export function BuildModeAssistant({
 
             // Handle done event
             if (eventType === "done") {
-              if (assistantMessage) {
+              if (assistantMessage || messageAttachments.length > 0) {
                 const newAssistantMessage: Message = {
                   id: assistantMessageId || `assistant-${Date.now()}`,
                   role: "assistant",
                   content: assistantMessage,
                   timestamp: Date.now(),
+                  attachments:
+                    messageAttachments.length > 0
+                      ? messageAttachments
+                      : undefined,
                 };
                 setMessages((prev) => [...prev, newAssistantMessage]);
 
                 // Apply character updates to editor
                 if (proposedCharacterUpdate) {
+                  // Check for avatar saved flag and remove it before updating
+                  const updateWithMeta = proposedCharacterUpdate as Record<
+                    string,
+                    unknown
+                  >;
+                  const avatarWasSaved = updateWithMeta.__avatarSaved;
+                  delete updateWithMeta.__avatarSaved;
+
                   onCharacterUpdate(proposedCharacterUpdate);
-                  toast.success("Character preview updated!", {
-                    duration: 4000,
-                  });
+                  const isAvatarUpdate = "avatarUrl" in proposedCharacterUpdate;
+
+                  if (isAvatarUpdate) {
+                    // Update sidebar/dropdown avatar if saved in build mode (not creator mode)
+                    if (avatarWasSaved && !isCreatorMode && character?.id) {
+                      updateCharacterAvatar(
+                        character.id,
+                        updateWithMeta.avatarUrl as string,
+                      );
+                    }
+
+                    toast.success(
+                      avatarWasSaved
+                        ? "Avatar generated and saved!"
+                        : "Avatar preview updated!",
+                      { duration: 4000 },
+                    );
+                  } else {
+                    toast.success("Character preview updated!", {
+                      duration: 4000,
+                    });
+                  }
                 }
 
                 // Handle character creation in creator mode - lock the room
@@ -668,159 +769,180 @@ export function BuildModeAssistant({
                       </div>
 
                       <div className="flex flex-col gap-1.5">
+                        {/* Message Attachments (Images) */}
+                        {message.attachments &&
+                          message.attachments.length > 0 && (
+                            <div className="flex flex-wrap gap-2">
+                              {message.attachments.map((attachment) => (
+                                <div
+                                  key={attachment.id}
+                                  className="relative rounded-lg overflow-hidden border border-white/[0.08] bg-white/[0.02]"
+                                >
+                                  <img
+                                    src={attachment.url}
+                                    alt={attachment.title || "Generated image"}
+                                    className="max-w-[280px] max-h-[280px] object-cover"
+                                    loading="lazy"
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         {/* Message Text */}
-                        <div className="py-3 px-4 bg-white/[0.03] border border-white/[0.06] rounded-lg transition-colors hover:bg-white/[0.05] hover:border-white/[0.08] overflow-hidden">
-                          <style jsx>{`
-                            .build-mode-content :global(pre) {
-                              background: rgba(0, 0, 0, 0.4) !important;
-                              padding: 12px !important;
-                              border-radius: 8px !important;
-                              overflow-x: auto !important;
-                              margin: 8px 0 !important;
-                            }
-                            .build-mode-content
-                              :global(pre)::-webkit-scrollbar {
-                              height: 8px;
-                            }
-                            .build-mode-content
-                              :global(pre)::-webkit-scrollbar-track {
-                              background: rgba(0, 0, 0, 0.2);
-                            }
-                            .build-mode-content
-                              :global(pre)::-webkit-scrollbar-thumb {
-                              background: rgba(255, 88, 0, 0.4);
-                              border-radius: 4px;
-                            }
-                            .build-mode-content
-                              :global(pre)::-webkit-scrollbar-thumb:hover {
-                              background: rgba(255, 88, 0, 0.6);
-                            }
-                            .build-mode-content :global(pre code) {
-                              font-family:
-                                "Monaco", "Menlo", "Ubuntu Mono", "Consolas",
-                                monospace !important;
-                              font-size: 13px !important;
-                              white-space: pre-wrap !important;
-                              word-break: break-word !important;
-                            }
-                            .build-mode-content :global(code) {
-                              font-family:
-                                "Monaco", "Menlo", "Ubuntu Mono", "Consolas",
-                                monospace !important;
-                              font-size: 13px !important;
-                            }
-                            /* JSON property keys */
-                            .build-mode-content :global(.token.property),
-                            .build-mode-content :global(.token.key) {
-                              color: #fe9f6d !important;
-                            }
-                            /* JSON punctuation (brackets, braces, commas, colons) */
-                            .build-mode-content :global(.token.punctuation) {
-                              color: #e434bb !important;
-                            }
-                            /* JSON string values */
-                            .build-mode-content :global(.token.string) {
-                              color: #d4d4d4 !important;
-                            }
-                            /* JSON numbers */
-                            .build-mode-content :global(.token.number) {
-                              color: #d4d4d4 !important;
-                            }
-                            /* JSON booleans and null */
-                            .build-mode-content :global(.token.boolean),
-                            .build-mode-content :global(.token.null) {
-                              color: #d4d4d4 !important;
-                            }
-                            /* Remove prose margins for tighter spacing */
-                            .build-mode-content :global(p) {
-                              margin: 0 !important;
-                              word-break: break-word !important;
-                            }
-                            .build-mode-content :global(p + p) {
-                              margin-top: 8px !important;
-                            }
-                            .build-mode-content :global(ul),
-                            .build-mode-content :global(ol) {
-                              margin: 8px 0 !important;
-                              padding-left: 20px !important;
-                            }
-                            .build-mode-content :global(li) {
-                              margin: 2px 0 !important;
-                            }
-                            .build-mode-content :global(h1),
-                            .build-mode-content :global(h2),
-                            .build-mode-content :global(h3),
-                            .build-mode-content :global(h4) {
-                              margin: 12px 0 4px 0 !important;
-                              font-weight: 600 !important;
-                            }
-                            .build-mode-content :global(h1) {
-                              font-size: 18px !important;
-                            }
-                            .build-mode-content :global(h2) {
-                              font-size: 16px !important;
-                            }
-                            .build-mode-content :global(h3),
-                            .build-mode-content :global(h4) {
-                              font-size: 14px !important;
-                            }
-                          `}</style>
-                          <div className="text-[15px] leading-relaxed text-white/90 build-mode-content break-words">
-                            <ReactMarkdown
-                              remarkPlugins={[remarkGfm]}
-                              rehypePlugins={[rehypeHighlight]}
-                              components={{
-                                code: ({ className, children, ...props }) => {
-                                  const isInline = !className;
-                                  return isInline ? (
-                                    <code
-                                      className="bg-white/10 px-1.5 py-0.5 rounded text-xs break-all"
-                                      {...props}
+                        {content && (
+                          <div className="py-3 px-4 bg-white/[0.03] border border-white/[0.06] rounded-lg transition-colors hover:bg-white/[0.05] hover:border-white/[0.08] overflow-hidden">
+                            <style jsx>{`
+                              .build-mode-content :global(pre) {
+                                background: rgba(0, 0, 0, 0.4) !important;
+                                padding: 12px !important;
+                                border-radius: 8px !important;
+                                overflow-x: auto !important;
+                                margin: 8px 0 !important;
+                              }
+                              .build-mode-content
+                                :global(pre)::-webkit-scrollbar {
+                                height: 8px;
+                              }
+                              .build-mode-content
+                                :global(pre)::-webkit-scrollbar-track {
+                                background: rgba(0, 0, 0, 0.2);
+                              }
+                              .build-mode-content
+                                :global(pre)::-webkit-scrollbar-thumb {
+                                background: rgba(255, 88, 0, 0.4);
+                                border-radius: 4px;
+                              }
+                              .build-mode-content
+                                :global(pre)::-webkit-scrollbar-thumb:hover {
+                                background: rgba(255, 88, 0, 0.6);
+                              }
+                              .build-mode-content :global(pre code) {
+                                font-family:
+                                  "Monaco", "Menlo", "Ubuntu Mono", "Consolas",
+                                  monospace !important;
+                                font-size: 13px !important;
+                                white-space: pre-wrap !important;
+                                word-break: break-word !important;
+                              }
+                              .build-mode-content :global(code) {
+                                font-family:
+                                  "Monaco", "Menlo", "Ubuntu Mono", "Consolas",
+                                  monospace !important;
+                                font-size: 13px !important;
+                              }
+                              /* JSON property keys */
+                              .build-mode-content :global(.token.property),
+                              .build-mode-content :global(.token.key) {
+                                color: #fe9f6d !important;
+                              }
+                              /* JSON punctuation (brackets, braces, commas, colons) */
+                              .build-mode-content :global(.token.punctuation) {
+                                color: #e434bb !important;
+                              }
+                              /* JSON string values */
+                              .build-mode-content :global(.token.string) {
+                                color: #d4d4d4 !important;
+                              }
+                              /* JSON numbers */
+                              .build-mode-content :global(.token.number) {
+                                color: #d4d4d4 !important;
+                              }
+                              /* JSON booleans and null */
+                              .build-mode-content :global(.token.boolean),
+                              .build-mode-content :global(.token.null) {
+                                color: #d4d4d4 !important;
+                              }
+                              /* Remove prose margins for tighter spacing */
+                              .build-mode-content :global(p) {
+                                margin: 0 !important;
+                                word-break: break-word !important;
+                              }
+                              .build-mode-content :global(p + p) {
+                                margin-top: 8px !important;
+                              }
+                              .build-mode-content :global(ul),
+                              .build-mode-content :global(ol) {
+                                margin: 8px 0 !important;
+                                padding-left: 20px !important;
+                              }
+                              .build-mode-content :global(li) {
+                                margin: 2px 0 !important;
+                              }
+                              .build-mode-content :global(h1),
+                              .build-mode-content :global(h2),
+                              .build-mode-content :global(h3),
+                              .build-mode-content :global(h4) {
+                                margin: 12px 0 4px 0 !important;
+                                font-weight: 600 !important;
+                              }
+                              .build-mode-content :global(h1) {
+                                font-size: 18px !important;
+                              }
+                              .build-mode-content :global(h2) {
+                                font-size: 16px !important;
+                              }
+                              .build-mode-content :global(h3),
+                              .build-mode-content :global(h4) {
+                                font-size: 14px !important;
+                              }
+                            `}</style>
+                            <div className="text-[15px] leading-relaxed text-white/90 build-mode-content break-words">
+                              <ReactMarkdown
+                                remarkPlugins={[remarkGfm]}
+                                rehypePlugins={[rehypeHighlight]}
+                                components={{
+                                  code: ({ className, children, ...props }) => {
+                                    const isInline = !className;
+                                    return isInline ? (
+                                      <code
+                                        className="bg-white/10 px-1.5 py-0.5 rounded text-xs break-all"
+                                        {...props}
+                                      >
+                                        {children}
+                                      </code>
+                                    ) : (
+                                      <code className={className} {...props}>
+                                        {children}
+                                      </code>
+                                    );
+                                  },
+                                  pre: ({ children }) => (
+                                    <pre className="bg-black/40 border border-white/10 rounded-lg p-3 overflow-x-auto my-2">
+                                      {children}
+                                    </pre>
+                                  ),
+                                  a: ({ href, children }) => (
+                                    <a
+                                      href={href}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-[#FF5800] hover:text-[#FF5800]/80 underline break-all"
                                     >
                                       {children}
-                                    </code>
-                                  ) : (
-                                    <code className={className} {...props}>
+                                    </a>
+                                  ),
+                                  ul: ({ children }) => (
+                                    <ul className="list-disc list-inside my-2">
                                       {children}
-                                    </code>
-                                  );
-                                },
-                                pre: ({ children }) => (
-                                  <pre className="bg-black/40 border border-white/10 rounded-lg p-3 overflow-x-auto my-2">
-                                    {children}
-                                  </pre>
-                                ),
-                                a: ({ href, children }) => (
-                                  <a
-                                    href={href}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-[#FF5800] hover:text-[#FF5800]/80 underline break-all"
-                                  >
-                                    {children}
-                                  </a>
-                                ),
-                                ul: ({ children }) => (
-                                  <ul className="list-disc list-inside my-2">
-                                    {children}
-                                  </ul>
-                                ),
-                                ol: ({ children }) => (
-                                  <ol className="list-decimal list-inside my-2">
-                                    {children}
-                                  </ol>
-                                ),
-                                p: ({ children }) => (
-                                  <p className="my-2 first:mt-0 last:mb-0">
-                                    {children}
-                                  </p>
-                                ),
-                              }}
-                            >
-                              {content}
-                            </ReactMarkdown>
+                                    </ul>
+                                  ),
+                                  ol: ({ children }) => (
+                                    <ol className="list-decimal list-inside my-2">
+                                      {children}
+                                    </ol>
+                                  ),
+                                  p: ({ children }) => (
+                                    <p className="my-2 first:mt-0 last:mb-0">
+                                      {children}
+                                    </p>
+                                  ),
+                                }}
+                              >
+                                {content}
+                              </ReactMarkdown>
+                            </div>
                           </div>
-                        </div>
+                        )}
                         {/* Time and Actions */}
                         <div className="flex items-center gap-2 pl-1 opacity-0 group-hover/message:opacity-100 transition-opacity">
                           <span className="text-xs text-white/40">
@@ -940,13 +1062,12 @@ export function BuildModeAssistant({
           onSubmit={handleSubmit}
           className="border-t border-white/[0.06] p-4"
         >
-          <div className="max-w-3xl mx-auto space-y-3 px-4 sm:px-6">
-            {/* Text Input Box - Prominent standalone */}
-            <div className="relative rounded-lg border border-white/[0.08] bg-white/[0.02] overflow-hidden transition-colors focus-within:border-white/[0.15] focus-within:bg-white/[0.03]">
-              {/* Robot Eye Visor Scanner - Animated line on top edge with randomness - Only show when waiting for agent */}
+          <div className="max-w-3xl mx-auto px-4 sm:px-6">
+            {/* Input Container - Flexbox layout for proper alignment */}
+            <div className="relative flex items-end gap-2 rounded-xl border border-white/[0.08] bg-white/[0.02] p-2 transition-colors focus-within:border-white/[0.15] focus-within:bg-white/[0.03]">
+              {/* Robot Eye Visor Scanner - Only show when loading */}
               {isLoading && (
-                <div className="absolute top-0 left-0 right-0 h-[2px] overflow-hidden pointer-events-none z-10">
-                  {/* Primary scanner */}
+                <div className="absolute top-0 left-0 right-0 h-[2px] overflow-hidden pointer-events-none z-10 rounded-t-xl">
                   <div
                     className="absolute h-full w-24 bg-gradient-to-r from-transparent via-[#FF5800] to-transparent"
                     style={{
@@ -956,7 +1077,6 @@ export function BuildModeAssistant({
                       filter: "blur(0.5px)",
                     }}
                   />
-                  {/* Secondary scanner for organic feel */}
                   <div
                     className="absolute h-full w-16 bg-gradient-to-r from-transparent via-[#FF5800]/60 to-transparent"
                     style={{
@@ -968,6 +1088,8 @@ export function BuildModeAssistant({
                   />
                 </div>
               )}
+
+              {/* Textarea */}
               <textarea
                 rows={1}
                 value={inputText}
@@ -982,26 +1104,24 @@ export function BuildModeAssistant({
                 }}
                 onInput={(e) => {
                   const target = e.currentTarget;
-                  target.style.height = "44px";
+                  target.style.height = "40px";
                   target.style.height =
-                    Math.min(target.scrollHeight, 140) + "px";
+                    Math.min(target.scrollHeight, 120) + "px";
                 }}
                 placeholder="Describe your character or ask for help..."
-                className="w-full bg-transparent px-4 py-3 text-[15px] text-white placeholder:text-white/40 focus:outline-none resize-none leading-relaxed"
+                className="flex-1 min-w-0 bg-transparent px-2 py-2 text-[15px] text-white placeholder:text-white/40 focus:outline-none resize-none leading-relaxed scrollbar-hide"
                 style={{
-                  minHeight: "44px",
-                  maxHeight: "140px",
+                  height: "40px",
+                  maxHeight: "120px",
                 }}
               />
-            </div>
 
-            {/* Bottom Row: Send Button */}
-            <div className="flex items-center justify-end">
+              {/* Send Button */}
               <Button
                 type="submit"
                 disabled={isLoading || !inputText.trim()}
                 size="icon"
-                className="h-9 w-9 rounded-lg bg-[#FF5800]/20 border border-[#FF5800]/30 hover:bg-[#FF5800]/30 disabled:opacity-40 transition-colors"
+                className="flex-shrink-0 h-10 w-10 rounded-lg bg-[#FF5800]/20 border border-[#FF5800]/30 hover:bg-[#FF5800]/30 disabled:opacity-40 transition-colors flex items-center justify-center"
               >
                 {isLoading ? (
                   <Loader2 className="h-4 w-4 animate-spin text-[#FF5800]" />

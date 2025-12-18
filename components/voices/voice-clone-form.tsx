@@ -13,15 +13,6 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Switch } from "@/components/ui/switch";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
 import { Slider } from "@/components/ui/slider";
 import {
   Upload,
@@ -31,9 +22,7 @@ import {
   AlertCircle,
   Mic,
   Square,
-  Clock,
   CheckCircle,
-  Info,
   Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -353,32 +342,29 @@ export function VoiceCloneForm({
     <BrandCard className="relative flex flex-col h-auto lg:h-full lg:max-h-full lg:overflow-hidden">
       <CornerBrackets size="sm" className="opacity-50" />
 
-      <div className="relative z-10 shrink-0 space-y-3 md:space-y-4 pb-3 md:pb-4">
-        <div className="flex items-start sm:items-center justify-between gap-2">
+      <div className="relative z-10 shrink-0 pb-3">
+        <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-[#FF5800]" />
-            <h3 className="text-base md:text-lg lg:text-xl font-mono font-semibold text-[#e1e1e1] uppercase">
+            <h3 className="text-sm md:text-base font-mono font-semibold text-[#e1e1e1] uppercase">
               Create Voice Clone
             </h3>
           </div>
-          <span className="border border-white/20 bg-transparent px-2 py-1 text-xs font-mono font-medium text-white/80 whitespace-nowrap">
+          <span className="border border-white/20 bg-transparent px-2 py-0.5 text-xs font-mono font-medium text-white/80 whitespace-nowrap">
             ${Number(creditBalance).toFixed(2)}
           </span>
         </div>
-        <p className="text-xs md:text-sm font-mono text-[#858585]">
-          Upload audio or record your voice to create a custom AI voice
-        </p>
       </div>
-      <div className="relative z-10 flex-1 lg:overflow-y-auto lg:min-h-0">
-        <form
-          onSubmit={handleSubmit}
-          className="space-y-4 md:space-y-6 pb-4 lg:pb-6"
-        >
+      <form
+        onSubmit={handleSubmit}
+        className="relative z-10 flex flex-col flex-1 lg:min-h-0"
+      >
+        <div className="flex-1 lg:overflow-y-auto lg:min-h-0 space-y-3 pb-3">
           {/* Voice Name */}
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <label
               htmlFor="name"
-              className="text-xs font-mono font-medium text-white/70 uppercase tracking-wide"
+              className="text-[10px] font-mono font-medium text-white/70 uppercase tracking-wide"
             >
               Voice Name <span className="text-rose-400">*</span>
             </label>
@@ -391,21 +377,21 @@ export function VoiceCloneForm({
               }
               disabled={isUploading}
               required
-              className="border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
+              className="h-9 border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
             />
           </div>
 
           {/* Description */}
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <label
               htmlFor="description"
-              className="text-xs font-mono font-medium text-white/70 uppercase tracking-wide"
+              className="text-[10px] font-mono font-medium text-white/70 uppercase tracking-wide"
             >
-              Description (optional)
+              Description <span className="text-white/40">(optional)</span>
             </label>
-            <Textarea
+            <Input
               id="description"
-              placeholder="A clone of my voice for content creation"
+              placeholder="Voice description"
               value={formData.description}
               onChange={(e) =>
                 setFormData((prev) => ({
@@ -414,22 +400,16 @@ export function VoiceCloneForm({
                 }))
               }
               disabled={isUploading}
-              rows={3}
-              className="border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
+              className="h-9 border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
             />
           </div>
 
-          {/* Clone Type */}
-          <div className="space-y-3">
-            <div>
-              <label className="text-xs font-mono font-medium text-white/70 uppercase tracking-wide">
-                Clone Type
-              </label>
-              <p className="text-xs font-mono text-white/50 mt-1">
-                Choose between instant or professional quality cloning
-              </p>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {/* Clone Type - Compact inline selector */}
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-mono font-medium text-white/70 uppercase tracking-wide">
+              Clone Type
+            </label>
+            <div className="flex gap-2">
               <button
                 type="button"
                 onClick={() =>
@@ -437,33 +417,29 @@ export function VoiceCloneForm({
                 }
                 disabled={isUploading}
                 className={cn(
-                  "relative border p-3 text-left transition-all",
+                  "flex-1 border px-3 py-2 text-left transition-all",
                   formData.cloneType === "instant"
                     ? "border-[#FF5800] bg-[#FF580010]"
                     : "border-white/10 hover:border-white/30 hover:bg-white/5",
                 )}
               >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1 min-w-0 space-y-1.5">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="font-mono font-semibold text-xs md:text-sm text-white">
-                        Instant Clone
-                      </p>
-                      <span className="bg-green-500/20 text-green-400 border border-green-500/40 px-1.5 py-0.5 text-[10px] font-mono font-bold uppercase tracking-wide flex-shrink-0">
-                        Recommended
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2 md:gap-3 text-[10px] font-mono text-white/50 flex-wrap">
-                      <span className="whitespace-nowrap">⏱️ ~30s</span>
-                      <span className="whitespace-nowrap">🎤 1-3 min</span>
-                      <span className="text-green-400 whitespace-nowrap">
-                        ✓ Unlimited
-                      </span>
-                    </div>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono font-semibold text-xs text-white">
+                      Instant
+                    </span>
+                    <span className="bg-green-500/20 text-green-400 border border-green-500/40 px-1 py-0.5 text-[9px] font-mono font-bold uppercase">
+                      Rec
+                    </span>
                   </div>
-                  <span className="shrink-0 font-mono font-semibold text-xs md:text-sm border border-white/20 bg-white/10 px-2 py-1 text-white whitespace-nowrap">
+                  <span className="font-mono font-semibold text-xs text-white/80">
                     ${VOICE_CLONE_INSTANT_COST.toFixed(2)}
                   </span>
+                </div>
+                <div className="flex items-center gap-2 text-[9px] font-mono text-white/50 mt-1">
+                  <span>~30s</span>
+                  <span>•</span>
+                  <span>1-3 min audio</span>
                 </div>
               </button>
 
@@ -477,92 +453,68 @@ export function VoiceCloneForm({
                 }
                 disabled={isUploading}
                 className={cn(
-                  "relative border p-3 text-left transition-all",
+                  "flex-1 border px-3 py-2 text-left transition-all",
                   formData.cloneType === "professional"
                     ? "border-[#FF5800] bg-[#FF580010]"
                     : "border-white/10 hover:border-white/30 hover:bg-white/5",
                 )}
               >
-                <div className="space-y-2">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1 min-w-0 space-y-1.5">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className="font-mono font-semibold text-xs md:text-sm text-white">
-                          Professional
-                        </p>
-                        {professionalVoiceCount !== null && (
-                          <span
-                            className={cn(
-                              "text-[10px] font-mono border px-1.5 py-0.5 font-bold uppercase tracking-wide flex-shrink-0",
-                              professionalVoiceCount >= 1
-                                ? "border-amber-500/40 bg-amber-500/10 text-amber-300"
-                                : "border-white/20 bg-white/10 text-white",
-                            )}
-                          >
-                            {professionalVoiceCount}/1 slots
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2 md:gap-3 text-[10px] font-mono text-white/50 flex-wrap">
-                        <span className="whitespace-nowrap">⏱️ 30-60 min</span>
-                        <span className="whitespace-nowrap">🎤 30+ min</span>
-                        <span className="text-amber-300 whitespace-nowrap">
-                          ⚠ Limited
-                        </span>
-                      </div>
-                    </div>
-                    <span className="shrink-0 font-mono font-semibold text-xs md:text-sm border border-white/20 bg-white/10 px-2 py-1 text-white whitespace-nowrap">
-                      ${VOICE_CLONE_PROFESSIONAL_COST.toFixed(2)}
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono font-semibold text-xs text-white">
+                      Professional
                     </span>
+                    {professionalVoiceCount !== null &&
+                      professionalVoiceCount >= 1 && (
+                        <span className="border-amber-500/40 bg-amber-500/10 text-amber-300 border px-1 py-0.5 text-[9px] font-mono font-bold uppercase">
+                          Full
+                        </span>
+                      )}
                   </div>
-                  {professionalVoiceCount !== null &&
-                    professionalVoiceCount >= 1 && (
-                      <div className="pt-2 border-t border-amber-500/20">
-                        <p className="text-[10px] font-mono text-amber-300 flex items-start gap-1">
-                          <span className="shrink-0">⚠</span>
-                          <span>Slot full - delete existing to create new</span>
-                        </p>
-                      </div>
-                    )}
+                  <span className="font-mono font-semibold text-xs text-white/80">
+                    ${VOICE_CLONE_PROFESSIONAL_COST.toFixed(2)}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 text-[9px] font-mono text-white/50 mt-1">
+                  <span>30-60 min</span>
+                  <span>•</span>
+                  <span>30+ min audio</span>
                 </div>
               </button>
             </div>
           </div>
 
-          {/* Audio Source - Tabs for Upload or Record */}
-          <div className="space-y-3">
-            <div>
-              <label className="text-xs font-mono font-medium text-white/70 uppercase tracking-wide">
-                Audio Samples <span className="text-rose-400">*</span>
-              </label>
-              <p className="text-xs font-mono text-white/50 mt-1">
-                Upload files or record directly in your browser
-              </p>
-            </div>
+          {/* Audio Source - Compact tabs for Upload or Record */}
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-mono font-medium text-white/70 uppercase tracking-wide">
+              Audio Samples <span className="text-rose-400">*</span>
+            </label>
 
             <BrandTabs
               id="voice-upload-tabs"
               defaultValue="upload"
               className="w-full"
             >
-              <BrandTabsList className="w-full">
-                <BrandTabsTrigger value="upload" className="flex-1">
-                  <span className="text-xs md:text-sm">Upload Files</span>
+              <BrandTabsList className="w-full h-8">
+                <BrandTabsTrigger value="upload" className="flex-1 h-7">
+                  <Upload className="h-3 w-3 mr-1.5" />
+                  <span className="text-xs">Upload</span>
                 </BrandTabsTrigger>
-                <BrandTabsTrigger value="record" className="flex-1">
-                  <span className="text-xs md:text-sm">Record Voice</span>
+                <BrandTabsTrigger value="record" className="flex-1 h-7">
+                  <Mic className="h-3 w-3 mr-1.5" />
+                  <span className="text-xs">Record</span>
                 </BrandTabsTrigger>
               </BrandTabsList>
 
-              {/* Upload Tab */}
-              <BrandTabsContent value="upload" className="space-y-4">
+              {/* Upload Tab - Compact dropzone */}
+              <BrandTabsContent value="upload" className="space-y-2 mt-2">
                 <button
                   type="button"
                   onDragOver={handleDragOver}
                   onDragLeave={handleDragLeave}
                   onDrop={handleDrop}
                   className={cn(
-                    "border-2 border-dashed p-6 md:p-8 text-center transition-colors cursor-pointer w-full",
+                    "border border-dashed p-4 text-center transition-colors cursor-pointer w-full",
                     isDragging
                       ? "border-[#FF5800] bg-[#FF5800]/5"
                       : "border-white/20 hover:border-white/40 bg-black/20",
@@ -579,303 +531,259 @@ export function VoiceCloneForm({
                     className="hidden"
                     disabled={isUploading}
                   />
-                  <Upload className="h-8 md:h-10 w-8 md:w-10 mx-auto text-white/40 mb-3" />
-                  <p className="text-xs md:text-sm font-mono font-medium text-white mb-1">
-                    Drag & drop audio files here, or click to browse
-                  </p>
-                  <p className="text-xs font-mono text-white/50">
-                    Supported: MP3, WAV, WebM, OGG (max 10MB each)
-                  </p>
+                  <div className="flex items-center justify-center gap-3">
+                    <Upload className="h-5 w-5 text-white/40 shrink-0" />
+                    <div className="text-left">
+                      <p className="text-xs font-mono font-medium text-white">
+                        Drop audio files or click to browse
+                      </p>
+                      <p className="text-[10px] font-mono text-white/50">
+                        MP3, WAV, WebM, OGG • Max 10MB each
+                      </p>
+                    </div>
+                  </div>
                 </button>
               </BrandTabsContent>
 
-              {/* Record Tab */}
-              <BrandTabsContent value="record" className="space-y-4">
-                {/* Recording Instructions */}
-                <Alert>
-                  <Info className="h-4 w-4" />
-                  <AlertDescription className="text-xs">
-                    <strong>Tips:</strong> Record 1-3+ min in a quiet space,
-                    speak naturally and clearly with varied sentences.
-                  </AlertDescription>
-                </Alert>
-
-                {/* Recording Controls */}
-                <div className="flex flex-col items-center gap-4 p-4 md:p-6 border-2 border-white/20 bg-black/20">
+              {/* Record Tab - Compact recording UI */}
+              <BrandTabsContent value="record" className="space-y-2 mt-2">
+                <div className="border border-white/20 bg-black/20 p-3">
                   {!recorder.isRecording && !recorder.audioBlob && (
-                    <>
-                      <div className="text-center">
-                        <Mic className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
-                        <p className="text-sm font-medium">Ready to record</p>
-                        <p className="text-xs text-muted-foreground">
-                          Click the button below to start
-                        </p>
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <Mic className="h-5 w-5 text-muted-foreground" />
+                        <div>
+                          <p className="text-xs font-medium text-white">
+                            Ready to record
+                          </p>
+                          <p className="text-[10px] text-white/50">
+                            Speak clearly in a quiet space
+                          </p>
+                        </div>
                       </div>
                       <BrandButton
                         type="button"
                         onClick={recorder.startRecording}
                         variant="primary"
-                        size="lg"
+                        size="sm"
                         disabled={isUploading}
+                        className="h-8"
                       >
-                        <Mic className="mr-2 h-4 w-4" />
-                        Start Recording
+                        <Mic className="mr-1.5 h-3 w-3" />
+                        Record
                       </BrandButton>
-                    </>
+                    </div>
                   )}
 
                   {recorder.isRecording && (
-                    <>
-                      <div className="text-center">
-                        <div className="relative mb-4">
-                          <div className="absolute inset-0 animate-ping">
-                            <div className="h-16 w-16 rounded-full bg-destructive/20 mx-auto" />
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className="relative">
+                          <div className="absolute inset-0 animate-ping opacity-50">
+                            <div className="h-8 w-8 rounded-full bg-destructive/30" />
                           </div>
-                          <Mic className="h-16 w-16 mx-auto text-destructive relative z-10" />
+                          <Mic className="h-8 w-8 text-destructive relative z-10" />
                         </div>
-                        <div className="flex items-center justify-center gap-2 mb-2">
-                          <Clock className="h-4 w-4 text-muted-foreground" />
-                          <p className="text-2xl font-mono font-semibold">
+                        <div>
+                          <p className="text-lg font-mono font-semibold text-white">
                             {formatRecordingTime(recorder.recordingTime)}
                           </p>
+                          <p className="text-[10px] text-white/50">
+                            Recording...
+                          </p>
                         </div>
-                        <p className="text-sm text-muted-foreground">
-                          Recording in progress...
-                        </p>
                       </div>
                       <BrandButton
                         type="button"
                         onClick={recorder.stopRecording}
                         variant="primary"
-                        size="lg"
-                        className="animate-pulse"
+                        size="sm"
+                        className="h-8 animate-pulse"
                       >
-                        <Square className="mr-2 h-4 w-4" fill="currentColor" />
-                        Stop Recording
+                        <Square
+                          className="mr-1.5 h-3 w-3"
+                          fill="currentColor"
+                        />
+                        Stop
                       </BrandButton>
-                    </>
+                    </div>
                   )}
 
                   {recorder.audioBlob && !recorder.isRecording && (
-                    <div className="w-full space-y-3">
-                      <div className="flex items-center justify-center gap-2 text-sm">
-                        <CheckCircle className="h-5 w-5 text-green-500" />
-                        <span className="font-medium">
-                          Recording complete (
-                          {formatRecordingTime(recorder.recordingTime)})
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle className="h-4 w-4 text-green-500 shrink-0" />
+                        <span className="text-xs font-medium text-white">
+                          {formatRecordingTime(recorder.recordingTime)} recorded
                         </span>
                       </div>
-
-                      {/* Recording Name Input */}
-                      <div className="space-y-2">
-                        <label
-                          htmlFor="recording-name"
-                          className="text-xs font-medium text-white/70 uppercase tracking-wide"
-                        >
-                          Recording Name (optional)
-                        </label>
+                      <div className="flex items-center gap-2">
                         <Input
                           id="recording-name"
                           placeholder={`Recording ${recordings.length + 1}`}
                           value={recordingName}
                           onChange={(e) => setRecordingName(e.target.value)}
-                          className="text-sm"
+                          className="h-8 text-xs flex-1"
                         />
-                      </div>
-
-                      {/* Audio Preview */}
-                      <audio
-                        controls
-                        src={URL.createObjectURL(recorder.audioBlob)}
-                        className="w-full"
-                      >
-                        <track kind="captions" />
-                      </audio>
-
-                      <div className="flex gap-2">
                         <BrandButton
                           type="button"
                           onClick={handleSaveRecording}
                           variant="primary"
-                          className="flex-1"
+                          size="sm"
+                          className="h-8 px-3"
                         >
-                          <CheckCircle className="mr-2 h-4 w-4" />
-                          Save Recording
+                          Save
                         </BrandButton>
                         <BrandButton
                           type="button"
                           onClick={recorder.clearRecording}
-                          variant="outline"
-                          className="flex-1"
-                        >
-                          <X className="mr-2 h-4 w-4" />
-                          Discard
-                        </BrandButton>
-                      </div>
-                    </div>
-                  )}
-
-                  {recorder.error && (
-                    <Alert variant="destructive" className="w-full">
-                      <AlertCircle className="h-4 w-4" />
-                      <AlertDescription className="text-xs">
-                        {recorder.error}
-                      </AlertDescription>
-                    </Alert>
-                  )}
-                </div>
-
-                {/* Saved Recordings List */}
-                {recordings.length > 0 && (
-                  <div className="space-y-2">
-                    <label className="text-xs text-white/50 uppercase tracking-wide">
-                      Saved Recordings ({recordings.length})
-                    </label>
-                    {recordings.map((rec, index) => (
-                      <div
-                        key={rec.id}
-                        className="flex items-center gap-3 p-3 border border-white/10 bg-black/40"
-                      >
-                        <Mic className="h-5 w-5 text-muted-foreground shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium">
-                            Recording {index + 1}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            Duration: {formatRecordingTime(rec.duration)}
-                          </p>
-                        </div>
-                        <BrandButton
-                          type="button"
                           variant="ghost"
-                          size="icon"
-                          onClick={() => removeRecording(rec.id)}
-                          disabled={isUploading}
-                          className="shrink-0 text-rose-400 hover:bg-rose-500/10"
+                          size="sm"
+                          className="h-8 px-2 text-rose-400"
                         >
                           <X className="h-4 w-4" />
                         </BrandButton>
                       </div>
-                    ))}
-                  </div>
-                )}
+                      <audio
+                        controls
+                        src={URL.createObjectURL(recorder.audioBlob)}
+                        className="w-full h-8"
+                      >
+                        <track kind="captions" />
+                      </audio>
+                    </div>
+                  )}
+
+                  {recorder.error && (
+                    <div className="flex items-center gap-2 text-destructive text-xs mt-2">
+                      <AlertCircle className="h-3 w-3" />
+                      {recorder.error}
+                    </div>
+                  )}
+                </div>
               </BrandTabsContent>
             </BrandTabs>
 
-            {/* Combined File List (Uploads + Recordings) */}
+            {/* Compact File List - Horizontal chips when few files, compact list otherwise */}
             {files.length > 0 && (
-              <div className="space-y-2 mt-4">
-                <label className="text-xs text-white/50 uppercase tracking-wide">
-                  Total Audio Files ({files.length})
-                </label>
-                {files.map((f) => (
-                  <div
-                    key={f.id}
-                    className="flex items-center gap-3 p-3 border border-white/10 bg-black/40"
-                  >
-                    <FileAudio className="h-5 w-5 text-muted-foreground shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">
-                        {f.file.name}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {formatFileSize(f.file.size)}
-                      </p>
-                    </div>
-                    <BrandButton
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => removeFile(f.id)}
-                      disabled={isUploading}
-                      className="shrink-0 text-rose-400 hover:bg-rose-500/10"
+              <div className="space-y-1.5 pt-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] text-white/50 uppercase tracking-wide">
+                    {files.length} file{files.length !== 1 ? "s" : ""} selected
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {files.map((f) => (
+                    <div
+                      key={f.id}
+                      className="inline-flex items-center gap-1.5 px-2 py-1 border border-white/10 bg-black/40 max-w-[200px]"
                     >
-                      <X className="h-4 w-4" />
-                    </BrandButton>
-                  </div>
-                ))}
+                      <FileAudio className="h-3 w-3 text-muted-foreground shrink-0" />
+                      <span className="text-[10px] font-mono text-white truncate">
+                        {f.file.name}
+                      </span>
+                      <span className="text-[9px] text-white/40 shrink-0">
+                        {formatFileSize(f.file.size)}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => removeFile(f.id)}
+                        disabled={isUploading}
+                        className="shrink-0 text-rose-400 hover:text-rose-300 ml-0.5"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>
 
-          {/* Advanced Settings */}
-          <Accordion type="single" collapsible>
-            <AccordionItem value="advanced">
-              <AccordionTrigger className="text-sm">
-                Advanced Settings
-              </AccordionTrigger>
-              <AccordionContent className="space-y-3 pt-3">
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-medium text-white/70 uppercase tracking-wide">
-                      Stability: {settings.stability.toFixed(2)}
-                    </label>
-                  </div>
-                  <Slider
-                    value={[settings.stability]}
-                    min={0}
-                    max={1}
-                    step={0.01}
-                    onValueChange={(v) =>
-                      setSettings((prev) => ({ ...prev, stability: v[0] }))
-                    }
-                    disabled={isUploading}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Higher values make the voice more stable but less expressive
-                  </p>
+          {/* Voice Settings */}
+          <div className="space-y-2 border-t border-white/10 pt-3">
+            <label className="text-[10px] font-mono font-medium text-white/70 uppercase tracking-wide">
+              Voice Settings
+            </label>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-medium text-white/60 uppercase">
+                    Stability
+                  </span>
+                  <span className="text-[10px] font-mono text-white/80">
+                    {settings.stability.toFixed(2)}
+                  </span>
                 </div>
-
-                <div className="space-y-2">
-                  <label className="text-xs font-medium text-white/70 uppercase tracking-wide">
-                    Similarity Boost: {settings.similarityBoost.toFixed(2)}
-                  </label>
-                  <Slider
-                    value={[settings.similarityBoost]}
-                    min={0}
-                    max={1}
-                    step={0.01}
-                    onValueChange={(v) =>
-                      setSettings((prev) => ({
-                        ...prev,
-                        similarityBoost: v[0],
-                      }))
-                    }
-                    disabled={isUploading}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Higher values make the voice more similar to the original
-                  </p>
+                <Slider
+                  value={[settings.stability]}
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  onValueChange={(v) =>
+                    setSettings((prev) => ({ ...prev, stability: v[0] }))
+                  }
+                  disabled={isUploading}
+                  className="h-4"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-medium text-white/60 uppercase">
+                    Similarity
+                  </span>
+                  <span className="text-[10px] font-mono text-white/80">
+                    {settings.similarityBoost.toFixed(2)}
+                  </span>
                 </div>
-
-                <div className="space-y-2">
-                  <label className="text-xs font-medium text-white/70 uppercase tracking-wide">
-                    Style: {settings.style.toFixed(2)}
-                  </label>
-                  <Slider
-                    value={[settings.style]}
-                    min={0}
-                    max={1}
-                    step={0.01}
-                    onValueChange={(v) =>
-                      setSettings((prev) => ({ ...prev, style: v[0] }))
-                    }
-                    disabled={isUploading}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Controls expressiveness and emotion in the voice
-                  </p>
+                <Slider
+                  value={[settings.similarityBoost]}
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  onValueChange={(v) =>
+                    setSettings((prev) => ({
+                      ...prev,
+                      similarityBoost: v[0],
+                    }))
+                  }
+                  disabled={isUploading}
+                  className="h-4"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-medium text-white/60 uppercase">
+                    Style
+                  </span>
+                  <span className="text-[10px] font-mono text-white/80">
+                    {settings.style.toFixed(2)}
+                  </span>
                 </div>
-              </AccordionContent>
-            </AccordionItem>
-          </Accordion>
+                <Slider
+                  value={[settings.style]}
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  onValueChange={(v) =>
+                    setSettings((prev) => ({ ...prev, style: v[0] }))
+                  }
+                  disabled={isUploading}
+                  className="h-4"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
 
-          {/* Error Message */}
+        {/* Footer - Fixed at bottom */}
+        <div className="shrink-0 pt-3 border-t border-white/10 space-y-2">
+          {/* Error Message - Compact */}
           {error && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
+            <div className="flex items-start gap-2 p-2 border border-destructive/50 bg-destructive/10 text-destructive text-xs">
+              <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+              <span>{error}</span>
+            </div>
           )}
 
           {/* Submit Button */}
@@ -883,22 +791,30 @@ export function VoiceCloneForm({
             type="submit"
             variant="primary"
             disabled={isUploading || !hasEnoughCredits || files.length === 0}
-            className="w-full font-semibold h-11"
+            className="w-full font-semibold h-10"
           >
             {isUploading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Creating Voice Clone...
+                Creating...
               </>
             ) : (
               <>
                 <Sparkles className="mr-2 h-4 w-4" />
-                Create Voice Clone (${cost.toFixed(2)})
+                Create Voice (${cost.toFixed(2)})
               </>
             )}
           </BrandButton>
-        </form>
-      </div>
+
+          {/* Credit warning if insufficient */}
+          {!hasEnoughCredits && (
+            <p className="text-[10px] text-center text-amber-400 font-mono">
+              Insufficient credits. Need ${cost.toFixed(2)}, have $
+              {Number(creditBalance).toFixed(2)}
+            </p>
+          )}
+        </div>
+      </form>
     </BrandCard>
   );
 }
