@@ -23,7 +23,6 @@ import {
   BrandTabsContent,
   BrandCard,
   BrandButton,
-  CornerBrackets,
 } from "@/components/brand";
 import {
   Tooltip,
@@ -105,9 +104,7 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
       : character.bio?.join("\n\n") || "";
 
   return (
-    <BrandCard className="relative h-full overflow-auto">
-      <CornerBrackets size="sm" className="opacity-50" />
-
+    <BrandCard className="relative h-full overflow-auto" corners={false}>
       <div className="relative z-10 space-y-6">
         <h3 className="text-lg font-bold text-white">Agent Details</h3>
 
@@ -116,9 +113,12 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
           defaultValue="basics"
           className="w-full"
         >
-          <BrandTabsList className="grid w-full grid-cols-3">
+          <BrandTabsList className="grid w-full grid-cols-4">
             <BrandTabsTrigger value="basics" className="flex-1">
               Basics
+            </BrandTabsTrigger>
+            <BrandTabsTrigger value="avatar" className="flex-1">
+              Avatar
             </BrandTabsTrigger>
             <BrandTabsTrigger value="personality" className="flex-1">
               Personality
@@ -195,51 +195,47 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                 className="min-h-[80px] rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
               />
             </div>
+          </BrandTabsContent>
 
-            {/* Avatar Section */}
-            <div className="space-y-4">
-              <label className="text-xs font-medium text-white/70 uppercase tracking-wide">
-                Avatar
-              </label>
+          {/* Avatar Tab */}
+          <BrandTabsContent value="avatar" className="space-y-4">
+            {/* Avatar Generator - Quick styles and AI generation */}
+            <AvatarGenerator
+              characterName={character.name || "Character"}
+              characterDescription={
+                typeof character.bio === "string"
+                  ? character.bio
+                  : character.bio?.join(" ") || ""
+              }
+              currentAvatarUrl={character.avatarUrl || character.avatar_url}
+              onAvatarChange={(url) => updateField("avatarUrl", url)}
+            />
 
-              {/* Avatar Generator - Quick styles and AI generation */}
-              <AvatarGenerator
-                characterName={character.name || "Character"}
-                characterDescription={
-                  typeof character.bio === "string"
-                    ? character.bio
-                    : character.bio?.join(" ") || ""
-                }
-                currentAvatarUrl={character.avatarUrl || character.avatar_url}
-                onAvatarChange={(url) => updateField("avatarUrl", url)}
+            {/* Divider */}
+            <div className="flex items-center gap-4">
+              <div className="flex-1 h-px bg-white/10" />
+              <span className="text-xs text-white/40">or upload custom</span>
+              <div className="flex-1 h-px bg-white/10" />
+            </div>
+
+            {/* Manual Upload */}
+            <div className="flex flex-col items-center space-y-2">
+              <AvatarUpload
+                value={character.avatarUrl || character.avatar_url}
+                onChange={(url) => updateField("avatarUrl", url)}
+                name={character.name || "Character"}
+                size="md"
               />
-
-              {/* Divider */}
-              <div className="flex items-center gap-4 py-2">
-                <div className="flex-1 h-px bg-white/10" />
-                <span className="text-xs text-white/40">or upload custom</span>
-                <div className="flex-1 h-px bg-white/10" />
-              </div>
-
-              {/* Manual Upload */}
-              <div className="flex flex-col items-center space-y-2">
-                <AvatarUpload
-                  value={character.avatarUrl || character.avatar_url}
-                  onChange={(url) => updateField("avatarUrl", url)}
-                  name={character.name || "Character"}
-                  size="sm"
-                />
-                <p className="text-xs text-white/40 text-center max-w-xs">
-                  Upload a custom image (max 5MB)
-                </p>
-              </div>
+              <p className="text-xs text-white/40 text-center">
+                Upload a custom image (max 5MB)
+              </p>
             </div>
           </BrandTabsContent>
 
           {/* Personality Tab */}
           <BrandTabsContent value="personality" className="space-y-4">
             {/* Message Examples */}
-            <div className="space-y-3">
+            <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <label className="text-xs font-medium text-white/70 uppercase tracking-wide">
                   Conversation Examples
@@ -263,9 +259,6 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                   </TooltipContent>
                 </Tooltip>
               </div>
-              <p className="text-xs text-white/50">
-                Add example conversations to teach your agent how to respond
-              </p>
 
               {/* Add new conversation example */}
               <div className="space-y-2 rounded-none border border-white/10 bg-black/20 p-3">
@@ -303,39 +296,44 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
               </div>
 
               {/* Existing conversation examples */}
-              <div className="space-y-2">
-                {character.messageExamples?.map((conversation, index) => (
-                  <div
-                    key={index}
-                    className="rounded-none bg-black/40 border border-white/10 p-3 space-y-2"
-                  >
-                    <div className="flex items-start justify-between">
-                      <span className="text-xs text-white/50">
-                        Example {index + 1}
-                      </span>
-                      <button
-                        onClick={() => removeMessageExample(index)}
-                        className="hover:text-rose-400 transition-colors"
+              {character.messageExamples &&
+                character.messageExamples.length > 0 && (
+                  <div className="space-y-2 pt-2">
+                    {character.messageExamples.map((conversation, index) => (
+                      <div
+                        key={index}
+                        className="rounded-none bg-black/20 border border-white/10 p-2"
                       >
-                        <X className="h-4 w-4 text-white/70" />
-                      </button>
-                    </div>
-                    {conversation.map((message, msgIndex) => (
-                      <div key={msgIndex} className="space-y-1">
-                        <span className="text-xs font-medium text-[#FF5800]">
-                          {message.name === "user" || message.name === "{{user1}}"
-                            ? "User"
-                            : message.name || "Agent"}
-                          :
-                        </span>
-                        <p className="text-sm text-white pl-2 border-l border-white/10">
-                          {message.content.text}
-                        </p>
+                        <div className="flex items-start justify-between mb-1">
+                          <span className="text-xs text-white/40">
+                            #{index + 1}
+                          </span>
+                          <button
+                            onClick={() => removeMessageExample(index)}
+                            className="hover:text-rose-400 transition-colors"
+                          >
+                            <X className="h-3.5 w-3.5 text-white/50" />
+                          </button>
+                        </div>
+                        <div className="space-y-1">
+                          {conversation.map((message, msgIndex) => (
+                            <div key={msgIndex} className="flex gap-2 text-sm">
+                              <span className="text-[#FF5800] shrink-0">
+                                {message.name === "user" ||
+                                message.name === "{{user1}}"
+                                  ? "U:"
+                                  : "A:"}
+                              </span>
+                              <span className="text-white/80">
+                                {message.content.text}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     ))}
                   </div>
-                ))}
-              </div>
+                )}
             </div>
 
             {/* Post Examples */}
@@ -352,7 +350,9 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                     side="right"
                     className="max-w-xs bg-black/95 border border-white/10 text-white"
                   >
-                    <p className="font-medium mb-1">Sample social media posts</p>
+                    <p className="font-medium mb-1">
+                      Sample social media posts
+                    </p>
                     <p className="text-white/70">
                       Add examples of posts your agent might create on social
                       platforms like Twitter/X. Example: "Just shipped a new
@@ -424,8 +424,8 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                       Universal style rules for all contexts
                     </p>
                     <p className="text-white/70">
-                      Define overarching style rules that apply everywhere (chats
-                      AND posts). Example: "Always use lowercase", "Be
+                      Define overarching style rules that apply everywhere
+                      (chats AND posts). Example: "Always use lowercase", "Be
                       enthusiastic and friendly", "Avoid formal language"
                     </p>
                   </TooltipContent>
@@ -519,8 +519,9 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                     </p>
                     <p className="text-white/70">
                       Define how your agent creates public posts on platforms
-                      like Twitter/X. Example: "Always include a call-to-action",
-                      "Use trending hashtags", "Keep posts under 280 characters"
+                      like Twitter/X. Example: "Always include a
+                      call-to-action", "Use trending hashtags", "Keep posts
+                      under 280 characters"
                     </p>
                   </TooltipContent>
                 </Tooltip>

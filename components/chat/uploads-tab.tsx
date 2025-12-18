@@ -55,7 +55,7 @@ export function UploadsTab({ characterId }: UploadsTabProps) {
 
     setUploading(true);
     setSelectedFiles(files);
-    
+
     const formData = new FormData();
     formData.append("characterId", characterId);
 
@@ -154,9 +154,7 @@ export function UploadsTab({ characterId }: UploadsTabProps) {
     <div className="p-6 space-y-6">
       {/* Header */}
       <div>
-        <h3 className="text-lg font-semibold text-white mb-1">
-          Files
-        </h3>
+        <h3 className="text-lg font-semibold text-white mb-1">Files</h3>
         <p className="text-sm text-white/60">
           Upload documents to give your agent context and information.
         </p>
@@ -194,7 +192,9 @@ export function UploadsTab({ characterId }: UploadsTabProps) {
             {uploading ? (
               <div className="flex flex-col items-center gap-3">
                 <Loader2 className="h-8 w-8 animate-spin text-[#FF5800]" />
-                <p className="text-sm text-white/80 font-medium">Uploading files...</p>
+                <p className="text-sm text-white/80 font-medium">
+                  Uploading files...
+                </p>
               </div>
             ) : (
               <div className="flex flex-col items-center gap-3">

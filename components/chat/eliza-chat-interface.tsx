@@ -147,12 +147,12 @@ export function ElizaChatInterface({
   // Get character name from prop (preferred), store, or agentInfo (memoized)
   const selectedCharacter = useMemo(
     () => availableCharacters.find((char) => char.id === selectedCharacterId),
-    [availableCharacters, selectedCharacterId]
+    [availableCharacters, selectedCharacterId],
   );
   const characterName = useMemo(
     () =>
       character?.name || selectedCharacter?.name || agentInfo?.name || "Agent",
-    [character?.name, selectedCharacter?.name, agentInfo?.name]
+    [character?.name, selectedCharacter?.name, agentInfo?.name],
   );
 
   // Get avatar URL from prop (preferred), store, or agentInfo
@@ -167,7 +167,7 @@ export function ElizaChatInterface({
       character?.avatar_url,
       selectedCharacter?.avatarUrl,
       agentInfo?.avatarUrl,
-    ]
+    ],
   );
 
   // Consolidated loading states
@@ -278,7 +278,7 @@ export function ElizaChatInterface({
       // New rooms are empty - skip loading to avoid race with optimistic messages
       return newRoomId;
     },
-    [createRoomInStore, selectedCharacterId]
+    [createRoomInStore, selectedCharacterId],
   );
 
   const handleStreamMessage = useCallback((messageData: StreamingMessage) => {
@@ -286,7 +286,7 @@ export function ElizaChatInterface({
       // Handle agent response - remove thinking indicator
       if (messageData.type === "agent") {
         const withoutThinking = prev.filter(
-          (m) => !m.id.startsWith("thinking-")
+          (m) => !m.id.startsWith("thinking-"),
         );
 
         // Clear thinking timeout
@@ -302,7 +302,7 @@ export function ElizaChatInterface({
 
         // Remove temp messages
         const filtered = withoutThinking.filter(
-          (m) => !m.id.startsWith("temp-")
+          (m) => !m.id.startsWith("temp-"),
         );
 
         return [...filtered, messageData];
@@ -311,7 +311,7 @@ export function ElizaChatInterface({
       // Handle thinking indicator
       if (messageData.type === "thinking") {
         const withoutThinking = prev.filter(
-          (m) => !m.id.startsWith("thinking-")
+          (m) => !m.id.startsWith("thinking-"),
         );
         return [...withoutThinking, messageData];
       }
@@ -322,7 +322,7 @@ export function ElizaChatInterface({
         const tempIndex = prev.findIndex(
           (m) =>
             m.id.startsWith("temp-") &&
-            m.content.text === messageData.content.text
+            m.content.text === messageData.content.text,
         );
 
         if (tempIndex !== -1) {
@@ -363,7 +363,7 @@ export function ElizaChatInterface({
           // If room creation is already in progress, await the existing promise
           if (isCreatingRoomRef.current && roomCreationPromiseRef.current) {
             console.log(
-              "[ElizaChat] Room creation already in progress, awaiting..."
+              "[ElizaChat] Room creation already in progress, awaiting...",
             );
             const existingRoomId = await roomCreationPromiseRef.current;
             if (!existingRoomId) {
@@ -374,7 +374,7 @@ export function ElizaChatInterface({
             currentRoomId = existingRoomId;
             console.log(
               "[ElizaChat] Got room from existing creation:",
-              currentRoomId
+              currentRoomId,
             );
           } else {
             // Start new room creation and store the promise
@@ -419,10 +419,10 @@ export function ElizaChatInterface({
         // Safety timeout: remove thinking indicator after 30 seconds if no response
         thinkingTimeoutRef.current = setTimeout(() => {
           setMessages((prev) =>
-            prev.filter((m) => !m.id.startsWith("thinking-"))
+            prev.filter((m) => !m.id.startsWith("thinking-")),
           );
           console.warn(
-            "[Chat] Thinking indicator timeout - agent took too long to respond"
+            "[Chat] Thinking indicator timeout - agent took too long to respond",
           );
         }, 30000);
 
@@ -441,8 +441,8 @@ export function ElizaChatInterface({
               prev.filter(
                 (msg) =>
                   msg.id !== tempUserMessage.id &&
-                  !msg.id.startsWith("thinking-")
-              )
+                  !msg.id.startsWith("thinking-"),
+              ),
             );
             if (thinkingTimeoutRef.current) {
               clearTimeout(thinkingTimeoutRef.current);
@@ -461,14 +461,14 @@ export function ElizaChatInterface({
         setError(err instanceof Error ? err.message : "Failed to send message");
         console.error("Error sending message:", err);
         toast.error(
-          err instanceof Error ? err.message : "Failed to send message"
+          err instanceof Error ? err.message : "Failed to send message",
         );
         // Remove temp and thinking messages on error
         setMessages((prev) =>
           prev.filter(
             (msg) =>
-              !msg.id.startsWith("temp-") && !msg.id.startsWith("thinking-")
-          )
+              !msg.id.startsWith("temp-") && !msg.id.startsWith("thinking-"),
+          ),
         );
         if (thinkingTimeoutRef.current) {
           clearTimeout(thinkingTimeoutRef.current);
@@ -488,7 +488,7 @@ export function ElizaChatInterface({
       handleStreamMessage,
       loadRooms,
       onMessageSent,
-    ]
+    ],
   );
 
   // Handle pending message from landing page
@@ -505,7 +505,7 @@ export function ElizaChatInterface({
     // If no roomId exists, create one first
     if (!roomId) {
       console.log(
-        "[ElizaChat] Pending message found but no room - creating room first"
+        "[ElizaChat] Pending message found but no room - creating room first",
       );
       isPendingMessageProcessingRef.current = true;
 
@@ -523,7 +523,7 @@ export function ElizaChatInterface({
         .catch((err) => {
           console.error(
             "[ElizaChat] Failed to create room for pending message:",
-            err
+            err,
           );
           isPendingMessageProcessingRef.current = false;
         });
@@ -608,7 +608,7 @@ export function ElizaChatInterface({
         throw error;
       }
     },
-    [player] // Only player is needed, audioState values accessed via refs
+    [player], // Only player is needed, audioState values accessed via refs
   );
 
   // Load custom voices on mount (only for authenticated users)
@@ -647,37 +647,40 @@ export function ElizaChatInterface({
     }
   }, [recorder]);
 
-  const handleFileUpload = useCallback(async (files: File[]) => {
-    if (!selectedCharacterId || files.length === 0) return;
+  const handleFileUpload = useCallback(
+    async (files: File[]) => {
+      if (!selectedCharacterId || files.length === 0) return;
 
-    setIsUploadingFiles(true);
-    
-    const formData = new FormData();
-    formData.append("characterId", selectedCharacterId);
+      setIsUploadingFiles(true);
 
-    for (const file of files) {
-      formData.append("files", file, file.name);
-    }
+      const formData = new FormData();
+      formData.append("characterId", selectedCharacterId);
 
-    const response = await fetch("/api/v1/knowledge/upload-file", {
-      method: "POST",
-      body: formData,
-    });
+      for (const file of files) {
+        formData.append("files", file, file.name);
+      }
 
-    if (response.ok) {
-      const data = await response.json();
-      toast.success(`${files.length} file(s) uploaded`, {
-        description: "Files are now searchable",
+      const response = await fetch("/api/v1/knowledge/upload-file", {
+        method: "POST",
+        body: formData,
       });
-    } else {
-      const data = await response.json();
-      toast.error("Upload failed", {
-        description: data.error || "Failed to upload files",
-      });
-    }
-    
-    setIsUploadingFiles(false);
-  }, [selectedCharacterId]);
+
+      if (response.ok) {
+        const data = await response.json();
+        toast.success(`${files.length} file(s) uploaded`, {
+          description: "Files are now searchable",
+        });
+      } else {
+        const data = await response.json();
+        toast.error("Upload failed", {
+          description: data.error || "Failed to upload files",
+        });
+      }
+
+      setIsUploadingFiles(false);
+    },
+    [selectedCharacterId],
+  );
 
   // Process audio blob when it becomes available after recording stops
   useEffect(() => {
@@ -741,7 +744,7 @@ export function ElizaChatInterface({
       (msg) =>
         msg.isAgent &&
         !msg.id.startsWith("thinking-") &&
-        !messageAudioUrls.current.has(msg.id)
+        !messageAudioUrls.current.has(msg.id),
     );
 
     newAgentMessages.forEach((msg) => {
@@ -758,7 +761,7 @@ export function ElizaChatInterface({
     if (scrollAreaRef.current) {
       // ScrollArea wraps content in a viewport div with data-radix-scroll-area-viewport
       const viewport = scrollAreaRef.current.querySelector(
-        "[data-radix-scroll-area-viewport]"
+        "[data-radix-scroll-area-viewport]",
       );
       if (viewport) {
         // Use requestAnimationFrame to ensure DOM has updated
@@ -813,14 +816,14 @@ export function ElizaChatInterface({
       url: string;
       title?: string;
       contentType: string;
-    }>
+    }>,
   ) => {
     // Check if there are image attachments
     const imageAttachment = attachments?.find(
       (att) =>
         att.contentType === "IMAGE" ||
         att.contentType === "image" ||
-        att.contentType.startsWith("image/")
+        att.contentType.startsWith("image/"),
     );
 
     if (imageAttachment) {
@@ -940,13 +943,13 @@ export function ElizaChatInterface({
                           const personalityLine = bioArray.find(
                             (line) =>
                               typeof line === "string" &&
-                              line.toLowerCase().includes("personality")
+                              line.toLowerCase().includes("personality"),
                           );
                           if (personalityLine) {
                             // Remove "Personality traits: " prefix for cleaner display
                             return personalityLine.replace(
                               /^personality traits?:\s*/i,
-                              ""
+                              "",
                             );
                           }
                           return bioArray[0];
@@ -1095,7 +1098,7 @@ export function ElizaChatInterface({
                                             );
                                           }
                                           return null;
-                                        }
+                                        },
                                       )}
                                     </div>
                                   )}
@@ -1113,7 +1116,7 @@ export function ElizaChatInterface({
                                       copyToClipboard(
                                         message.content.text,
                                         message.id,
-                                        message.content.attachments
+                                        message.content.attachments,
                                       )
                                     }
                                     title="Copy message"
@@ -1132,7 +1135,7 @@ export function ElizaChatInterface({
                                       onClick={() => {
                                         const url =
                                           messageAudioUrls.current.get(
-                                            message.id
+                                            message.id,
                                           );
                                         if (url) {
                                           if (
@@ -1189,7 +1192,7 @@ export function ElizaChatInterface({
                                 copyToClipboard(
                                   message.content.text,
                                   message.id,
-                                  message.content.attachments
+                                  message.content.attachments,
                                 )
                               }
                               title="Copy message"
@@ -1418,11 +1421,11 @@ export function ElizaChatInterface({
                                     if (newVoiceId) {
                                       localStorage.setItem(
                                         "eliza-selected-voice-id",
-                                        newVoiceId
+                                        newVoiceId,
                                       );
                                     } else {
                                       localStorage.removeItem(
-                                        "eliza-selected-voice-id"
+                                        "eliza-selected-voice-id",
                                       );
                                     }
                                   }
@@ -1430,7 +1433,7 @@ export function ElizaChatInterface({
                                   const voiceName = newVoiceId
                                     ? audioState.customVoices.find(
                                         (v) =>
-                                          v.elevenlabsVoiceId === newVoiceId
+                                          v.elevenlabsVoiceId === newVoiceId,
                                       )?.name || "Custom"
                                     : "Default";
 
