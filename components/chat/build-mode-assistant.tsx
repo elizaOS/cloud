@@ -948,10 +948,19 @@ export function BuildModeAssistant({
                               .build-mode-content :global(ul),
                               .build-mode-content :global(ol) {
                                 margin: 8px 0 !important;
-                                padding-left: 20px !important;
+                                padding-left: 24px !important;
+                                list-style-position: outside !important;
                               }
                               .build-mode-content :global(li) {
-                                margin: 2px 0 !important;
+                                margin: 6px 0 !important;
+                                padding-left: 4px !important;
+                              }
+                              .build-mode-content :global(li > p) {
+                                display: inline !important;
+                                margin: 0 !important;
+                              }
+                              .build-mode-content :global(li > p:first-child) {
+                                display: inline !important;
                               }
                               .build-mode-content :global(h1),
                               .build-mode-content :global(h2),
@@ -1007,14 +1016,17 @@ export function BuildModeAssistant({
                                     </a>
                                   ),
                                   ul: ({ children }) => (
-                                    <ul className="list-disc list-inside my-2">
+                                    <ul className="list-disc my-2 pl-6">
                                       {children}
                                     </ul>
                                   ),
                                   ol: ({ children }) => (
-                                    <ol className="list-decimal list-inside my-2">
+                                    <ol className="list-decimal my-2 pl-6">
                                       {children}
                                     </ol>
+                                  ),
+                                  li: ({ children }) => (
+                                    <li className="my-1.5 pl-1">{children}</li>
                                   ),
                                   p: ({ children }) => (
                                     <p className="my-2 first:mt-0 last:mb-0">
