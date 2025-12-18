@@ -53,36 +53,28 @@ export function getStripe(): Stripe {
   return instance;
 }
 
-/**
- * Stripe client instance configured with the secret key.
- * Uses a Proxy for fully lazy initialization - only throws
- * when methods are actually called, not during module load or build.
- */
+function createDeferredErrorProxy(): unknown {
+  return new Proxy(() => {}, {
+    get() {
+      return createDeferredErrorProxy();
+    },
+    apply() {
+      throw (
+        stripeInitError ||
+        new Error("STRIPE_SECRET_KEY is not set in environment variables")
+      );
+    },
+  });
+}
+
 export const stripe: Stripe = new Proxy({} as Stripe, {
   get(target, prop, receiver) {
-    // Return undefined for symbol properties (used by bundlers/debuggers)
     if (typeof prop === "symbol") {
       return undefined;
     }
-    // Return a function that throws for any property access
-    // This defers the error until the method is actually called
     const instance = initStripe();
     if (!instance) {
-      // Return a proxy that throws when invoked
-      return new Proxy(() => {}, {
-        get() {
-          throw (
-            stripeInitError ||
-            new Error("STRIPE_SECRET_KEY is not set in environment variables")
-          );
-        },
-        apply() {
-          throw (
-            stripeInitError ||
-            new Error("STRIPE_SECRET_KEY is not set in environment variables")
-          );
-        },
-      });
+      return createDeferredErrorProxy();
     }
     const value = Reflect.get(instance, prop, receiver);
     if (typeof value === "function") {
