@@ -140,7 +140,7 @@ export function KnowledgePageClient({
   if (!pageState.serviceAvailable && !pageState.loading) {
     return (
       <div className="container mx-auto py-8 space-y-4">
-      <h1 className="text-2xl font-bold">File Management</h1>
+        <h1 className="text-2xl font-bold">File Management</h1>
         <Alert variant="destructive">
           <InfoIcon className="h-4 w-4" />
           <AlertDescription>
@@ -160,7 +160,8 @@ export function KnowledgePageClient({
         <div>
           <h1 className="text-3xl font-bold">File Management</h1>
           <p className="text-muted-foreground mt-2">
-            Upload and manage documents for your agents. These files provide context and information for enhanced AI responses.
+            Upload and manage documents for your agents. These files provide
+            context and information for enhanced AI responses.
           </p>
         </div>
 

@@ -56,7 +56,6 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useRenderTracker } from "@/lib/debug/render-tracker";
 import { usePrivy } from "@privy-io/react-auth";
 
 interface Message {
@@ -116,9 +115,6 @@ export function ElizaChatInterface({
   onMessageSent,
   character,
 }: ElizaChatInterfaceProps) {
-  // Track renders in development
-  useRenderTracker("ElizaChatInterface");
-
   // Use chat store for room and character management
   const {
     roomId,
@@ -237,7 +233,9 @@ export function ElizaChatInterface({
   const loadMessages = useCallback(async (targetRoomId: string) => {
     setLoadingState((prev) => ({ ...prev, isLoadingMessages: true }));
     try {
-      const response = await fetch(`/api/eliza/rooms/${targetRoomId}`);
+      const response = await fetch(`/api/eliza/rooms/${targetRoomId}`, {
+        credentials: "include",
+      });
       if (response.ok) {
         const data = await response.json();
         setMessages(data.messages || []);
@@ -649,37 +647,40 @@ export function ElizaChatInterface({
     }
   }, [recorder]);
 
-  const handleFileUpload = useCallback(async (files: File[]) => {
-    if (!selectedCharacterId || files.length === 0) return;
+  const handleFileUpload = useCallback(
+    async (files: File[]) => {
+      if (!selectedCharacterId || files.length === 0) return;
 
-    setIsUploadingFiles(true);
-    
-    const formData = new FormData();
-    formData.append("characterId", selectedCharacterId);
+      setIsUploadingFiles(true);
 
-    for (const file of files) {
-      formData.append("files", file, file.name);
-    }
+      const formData = new FormData();
+      formData.append("characterId", selectedCharacterId);
 
-    const response = await fetch("/api/v1/knowledge/upload-file", {
-      method: "POST",
-      body: formData,
-    });
+      for (const file of files) {
+        formData.append("files", file, file.name);
+      }
 
-    if (response.ok) {
-      const data = await response.json();
-      toast.success(`${files.length} file(s) uploaded`, {
-        description: "Files are now searchable",
+      const response = await fetch("/api/v1/knowledge/upload-file", {
+        method: "POST",
+        body: formData,
       });
-    } else {
-      const data = await response.json();
-      toast.error("Upload failed", {
-        description: data.error || "Failed to upload files",
-      });
-    }
-    
-    setIsUploadingFiles(false);
-  }, [selectedCharacterId]);
+
+      if (response.ok) {
+        const data = await response.json();
+        toast.success(`${files.length} file(s) uploaded`, {
+          description: "Files are now searchable",
+        });
+      } else {
+        const data = await response.json();
+        toast.error("Upload failed", {
+          description: data.error || "Failed to upload files",
+        });
+      }
+
+      setIsUploadingFiles(false);
+    },
+    [selectedCharacterId],
+  );
 
   // Process audio blob when it becomes available after recording stops
   useEffect(() => {
@@ -1003,7 +1004,7 @@ export function ElizaChatInterface({
                             ) : (
                               <>
                                 {/* Message Text */}
-                                <div className="py-3 px-4 bg-white/[0.03] border border-white/[0.06] rounded-lg transition-colors hover:bg-white/[0.05] hover:border-white/[0.08] overflow-hidden">
+                                <div className="py-3 px-4 bg-none border border-none rounded-lg transition-colors hover:bg-none hover:border-none overflow-hidden">
                                   <div className="text-[15px] leading-relaxed text-white/90 prose prose-invert prose-sm max-w-none prose-p:my-2 prose-ul:my-2 prose-ol:my-2 prose-li:my-1 prose-headings:my-3 prose-pre:my-2 break-words [&_pre]:overflow-x-auto [&_pre_code]:whitespace-pre-wrap [&_pre_code]:break-words">
                                     <ReactMarkdown
                                       remarkPlugins={[remarkGfm]}

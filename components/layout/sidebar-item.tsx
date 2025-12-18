@@ -26,6 +26,36 @@ export function SidebarNavigationItem({ item }: SidebarNavigationItemProps) {
   const isActive = pathname === item.href;
   const Icon = item.icon;
 
+  // Check if this item is coming soon (disabled)
+  if (item.comingSoon) {
+    return (
+      <div
+        className={cn(
+          "relative flex items-center gap-3 rounded-none px-3 py-2.5",
+          "text-white/40 border-l-2 border-transparent cursor-not-allowed opacity-50",
+        )}
+        style={{
+          fontFamily: "var(--font-roboto-mono)",
+          fontWeight: 400,
+          fontSize: "14px",
+          lineHeight: "18px",
+          letterSpacing: "-0.003em",
+        }}
+      >
+        <Icon className="h-4 w-4" />
+        <span className="flex-1">{item.label}</span>
+        <span
+          className="text-[10px] font-medium uppercase tracking-wider text-white/40 bg-white/10 px-1.5 py-0.5 rounded"
+          style={{
+            fontFamily: "var(--font-roboto-mono)",
+          }}
+        >
+          soon
+        </span>
+      </div>
+    );
+  }
+
   // Check if this item is locked for anonymous users
   const isLocked = !authenticated && item.freeAllowed === false;
 

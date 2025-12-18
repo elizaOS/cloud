@@ -29,6 +29,7 @@ export interface SidebarItem {
   freeAllowed?: boolean;
   featureFlag?: FeatureFlag;
   adminOnly?: boolean; // Only show for admin users
+  comingSoon?: boolean; // Show as disabled with "soon" tag
 }
 
 export interface SidebarSection {
@@ -113,13 +114,6 @@ export const sidebarSections: SidebarSection[] = [
     title: "Infrastructure",
     items: [
       {
-        id: "apps",
-        label: "Apps",
-        href: "/dashboard/apps",
-        icon: Grid3x3,
-        freeAllowed: false, // Requires signup
-      },
-      {
         id: "containers",
         label: "Containers",
         href: "/dashboard/containers",
@@ -134,6 +128,14 @@ export const sidebarSections: SidebarSection[] = [
         icon: Puzzle,
         freeAllowed: false,
         featureFlag: "mcp",
+      },
+      {
+        id: "apps",
+        label: "Apps",
+        href: "/dashboard/apps",
+        icon: Grid3x3,
+        freeAllowed: false, // Requires signup
+        comingSoon: true,
       },
     ],
   },
