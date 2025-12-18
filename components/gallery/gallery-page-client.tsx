@@ -1,16 +1,16 @@
 /**
  * Gallery page client component displaying user's AI-generated media.
  * Supports filtering by type (all, image, video) and displays stats and grid view.
+ * Uses per-tab caching to prevent unnecessary refetches on tab switch.
  */
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { GalleryGrid, GalleryGridSkeleton } from "./gallery-grid";
 import { listUserMedia, getUserMediaStats } from "@/app/actions/gallery";
 import type { GalleryItem } from "@/app/actions/gallery";
 import { ImageIcon, VideoIcon, LayoutGridIcon } from "lucide-react";
-import { toast } from "sonner";
 import { useSetPageHeader } from "@/components/layout/page-header-context";
 import {
   BrandTabsResponsive,
@@ -19,13 +19,32 @@ import {
 } from "@/components/brand";
 import type { TabItem } from "@/components/brand";
 
+type TabType = "all" | "image" | "video";
+
+type ItemsCache = {
+  [K in TabType]?: GalleryItem[];
+};
+
 export function GalleryPageClient() {
   useSetPageHeader({
     title: "Gallery",
     description: "View and manage your AI-generated images and videos",
   });
 
-  const [activeTab, setActiveTab] = useState<"all" | "image" | "video">("all");
+  const [activeTab, setActiveTab] = useState<TabType>("all");
+  const [itemsCache, setItemsCache] = useState<ItemsCache>({});
+  const [loadingTabs, setLoadingTabs] = useState<Set<TabType>>(new Set(["all"]));
+  const [isLoadingStats, setIsLoadingStats] = useState(true);
+  const [stats, setStats] = useState<{
+    totalImages: number;
+    totalVideos: number;
+    totalSize: number;
+  } | null>(null);
+
+  const fetchingTabsRef = useRef<Set<TabType>>(new Set());
+  const itemsCacheRef = useRef<ItemsCache>({});
+
+  itemsCacheRef.current = itemsCache;
 
   const galleryTabs: TabItem[] = [
     {
@@ -44,22 +63,29 @@ export function GalleryPageClient() {
       icon: <VideoIcon className="h-4 w-4" />,
     },
   ];
-  const [items, setItems] = useState<GalleryItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isLoadingStats, setIsLoadingStats] = useState(true);
-  const [stats, setStats] = useState<{
-    totalImages: number;
-    totalVideos: number;
-    totalSize: number;
-  } | null>(null);
 
-  const loadItems = useCallback(async () => {
-    setIsLoading(true);
-    const type = activeTab === "all" ? undefined : activeTab;
-    const data = await listUserMedia({ type, limit: 100 });
-    setItems(data);
-    setIsLoading(false);
-  }, [activeTab]);
+  const loadItemsForTab = useCallback(async (tab: TabType, force = false) => {
+    if (fetchingTabsRef.current.has(tab)) return;
+
+    const hasCachedData = itemsCacheRef.current[tab] !== undefined;
+    if (!force && hasCachedData) return;
+
+    fetchingTabsRef.current.add(tab);
+    setLoadingTabs((prev) => new Set(prev).add(tab));
+
+    try {
+      const type = tab === "all" ? undefined : tab;
+      const data = await listUserMedia({ type, limit: 100 });
+      setItemsCache((prev) => ({ ...prev, [tab]: data }));
+    } finally {
+      fetchingTabsRef.current.delete(tab);
+      setLoadingTabs((prev) => {
+        const next = new Set(prev);
+        next.delete(tab);
+        return next;
+      });
+    }
+  }, []);
 
   const loadStats = useCallback(async () => {
     setIsLoadingStats(true);
@@ -69,18 +95,22 @@ export function GalleryPageClient() {
   }, []);
 
   useEffect(() => {
-    loadItems();
-  }, [loadItems]);
+    loadItemsForTab(activeTab);
+  }, [activeTab, loadItemsForTab]);
 
   useEffect(() => {
     loadStats();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [loadStats]);
 
-  const handleItemDeleted = () => {
-    loadItems();
+  const handleItemDeleted = useCallback(() => {
+    itemsCacheRef.current = {};
+    setItemsCache({});
+    loadItemsForTab(activeTab, true);
     loadStats();
-  };
+  }, [activeTab, loadItemsForTab, loadStats]);
+
+  const currentItems = itemsCache[activeTab] ?? [];
+  const isLoading = loadingTabs.has(activeTab) && itemsCache[activeTab] === undefined;
 
   return (
     <div className="flex flex-col gap-6">
@@ -178,7 +208,7 @@ export function GalleryPageClient() {
           {isLoading ? (
             <GalleryGridSkeleton />
           ) : (
-            <GalleryGrid items={items} onItemDeleted={handleItemDeleted} />
+            <GalleryGrid items={currentItems} onItemDeleted={handleItemDeleted} />
           )}
         </BrandTabsContent>
       </BrandTabsResponsive>
