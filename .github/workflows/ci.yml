@@ -110,12 +110,59 @@ jobs:
           key: bun-${{ hashFiles('bun.lockb') }}
           restore-keys: bun-
       - uses: actions/cache@v4
+        id: nextjs-cache
         with:
           path: .next/cache
           key: nextjs-${{ hashFiles('bun.lockb') }}-${{ hashFiles('app/**', 'components/**', 'lib/**') }}
           restore-keys: nextjs-${{ hashFiles('bun.lockb') }}-
       - run: bun install --frozen-lockfile
-      - run: bun run build
+      - name: Pre-build state
+        run: |
+          echo "=== Working directory ==="
+          pwd
+          echo "=== GITHUB_WORKSPACE ==="
+          echo "$GITHUB_WORKSPACE"
+          echo "=== Pre-build directory state ==="
+          ls -la
+          echo "=== Checking for existing .next ==="
+          ls -la .next 2>/dev/null || echo ".next does not exist yet"
+      - name: Build Next.js
+        run: |
+          set -e
+          echo "=== Starting build in directory: $(pwd) ==="
+          bun run build
+          echo "=== Build completed successfully ==="
+          echo "=== Post-build directory state ==="
+          ls -la
+          echo "=== Checking .next directory ==="
+          if [ ! -d ".next" ]; then
+            echo "ERROR: .next directory was not created!"
+            echo "=== Searching for .next anywhere ==="
+            find . -maxdepth 3 -type d -name ".next" 2>/dev/null || echo "No .next directories found"
+            echo "=== Checking if build created files elsewhere ==="
+            find . -maxdepth 2 -name "BUILD_ID" 2>/dev/null || echo "No BUILD_ID found"
+            exit 1
+          fi
+          echo "=== .next directory contents ==="
+          ls -la .next/
+          echo "=== Verifying critical files exist ==="
+          test -f .next/BUILD_ID || { echo "BUILD_ID missing"; exit 1; }
+          test -f .next/build-manifest.json || { echo "build-manifest.json missing"; exit 1; }
+          test -d .next/server || { echo "server/ missing"; exit 1; }
+          echo "All critical files exist"
+          sync
+          echo "=== Final verification ==="
+          ls -la .next/BUILD_ID
+      - name: Verify build output
+        run: |
+          echo "=== Verifying .next exists before upload ==="
+          if [ ! -d ".next" ]; then
+            echo "ERROR: .next directory disappeared!"
+            ls -la
+            exit 1
+          fi
+          ls -la .next/ | head -20
+          du -sh .next/
       - uses: actions/upload-artifact@v4
         with:
           name: nextjs-build
