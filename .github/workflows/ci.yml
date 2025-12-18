@@ -123,11 +123,11 @@ jobs:
           test -d .next || { echo "ERROR: .next not created"; exit 1; }
           test -f .next/BUILD_ID || { echo "ERROR: BUILD_ID missing"; exit 1; }
           echo "Build successful: $(du -sh .next/ | cut -f1)"
+          tar -cf nextjs-build.tar .next
       - uses: actions/upload-artifact@v4
         with:
           name: nextjs-build
-          path: .next
-          include-hidden-files: true
+          path: nextjs-build.tar
           retention-days: 1
           if-no-files-found: error
 
@@ -150,7 +150,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: nextjs-build
-          path: .next
+      - run: tar -xf nextjs-build.tar
       - uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
@@ -188,7 +188,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: nextjs-build
-          path: .next
+      - run: tar -xf nextjs-build.tar
       - uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
@@ -226,7 +226,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: nextjs-build
-          path: .next
+      - run: tar -xf nextjs-build.tar
       - uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
@@ -263,7 +263,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: nextjs-build
-          path: .next
+      - run: tar -xf nextjs-build.tar
       - uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
