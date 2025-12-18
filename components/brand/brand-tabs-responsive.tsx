@@ -92,8 +92,8 @@ export function BrandTabsResponsive({
         <Select value={value || defaultValue} onValueChange={onValueChange}>
           <SelectTrigger
             className={cn(
-              "w-full h-12 rounded-sm border border-white/10 bg-black/50 backdrop-blur-sm",
-              "text-white px-4 py-3",
+              "w-full h-9 rounded-sm border border-white/10 bg-black/50 backdrop-blur-sm",
+              "text-white px-4 py-1.5",
               "hover:bg-[#252527] transition-colors",
             )}
           >
@@ -130,7 +130,7 @@ export function BrandTabsResponsive({
           breakpoint === "sm" && "sm:inline-flex",
           breakpoint === "md" && "md:inline-flex",
           breakpoint === "lg" && "lg:inline-flex",
-          "h-12 items-center justify-center rounded-none bg-black/50 border border-white/10 p-0 backdrop-blur-sm",
+          "h-9 items-center justify-center rounded-none bg-black/50 border border-white/10 p-0 backdrop-blur-sm",
         )}
       >
         {tabs.map((tab) => (
@@ -139,7 +139,7 @@ export function BrandTabsResponsive({
             value={tab.value}
             disabled={tab.disabled}
             className={cn(
-              "inline-flex items-center gap-2 rounded-none px-4 sm:px-6 py-3 text-sm font-medium transition-all whitespace-nowrap",
+              "inline-flex items-center gap-2 rounded-none px-4 sm:px-6 py-1.5 text-sm font-medium transition-all whitespace-nowrap",
               "border-b-2 border-transparent",
               "text-white/70 hover:text-white/90",
               "data-[state=active]:border-white data-[state=active]:bg-[#252527] data-[state=active]:text-white",
