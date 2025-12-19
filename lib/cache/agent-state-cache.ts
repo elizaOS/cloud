@@ -312,6 +312,8 @@ export class AgentStateCache {
       AgentStats & { lastActiveAt: string | null }
     >(keys);
 
+    const staleKeys: string[] = [];
+
     for (let i = 0; i < agentIds.length; i++) {
       const agentId = agentIds[i];
       const cached = cachedValues[i];
@@ -323,6 +325,10 @@ export class AgentStateCache {
 
       // Validate cache schema (v2 has roomCount)
       if (typeof cached.roomCount !== "number") {
+        logger.debug(
+          `[Agent State Cache] Stale cache data for ${agentId} (missing roomCount), treating as miss`,
+        );
+        staleKeys.push(keys[i]);
         result.set(agentId, null);
         continue;
       }
@@ -334,6 +340,11 @@ export class AgentStateCache {
           : null,
       };
       result.set(agentId, stats);
+    }
+
+    // Clean up stale cache entries in parallel
+    if (staleKeys.length > 0) {
+      await Promise.all(staleKeys.map((key) => cacheClient.del(key)));
     }
 
     return result;

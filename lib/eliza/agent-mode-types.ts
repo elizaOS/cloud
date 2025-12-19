@@ -129,24 +129,53 @@ export const SETTINGS_PLUGIN_MAP = {
 } as const satisfies Record<keyof ConditionalPluginSettings, string>;
 
 /**
- * Get plugins that should be injected based on character settings
+ * Validates that conditional plugin settings have actual configuration.
+ * Prevents injecting plugins when settings exist but are empty (e.g., { mcp: { servers: {} } }).
+ */
+function hasValidConfiguration(
+  key: keyof typeof SETTINGS_PLUGIN_MAP,
+  settings: Record<string, unknown>,
+): boolean {
+  const value = settings[key];
+  if (value == null) return false;
+
+  switch (key) {
+    case "mcp": {
+      const mcpSettings = value as ConditionalPluginSettings["mcp"];
+      return (
+        mcpSettings?.servers != null &&
+        Object.keys(mcpSettings.servers).length > 0
+      );
+    }
+    // Future: case "webSearch": { ... }
+    default:
+      return false;
+  }
+}
+
+/**
+ * Get plugins that should be injected based on character settings.
+ * Only returns plugins when settings contain actual configuration.
  */
 export function getConditionalPlugins(
   settings: Record<string, unknown>,
 ): string[] {
   return Object.entries(SETTINGS_PLUGIN_MAP)
-    .filter(([key]) => key in settings && settings[key] != null)
+    .filter(([key]) =>
+      hasValidConfiguration(key as keyof typeof SETTINGS_PLUGIN_MAP, settings),
+    )
     .map(([, pluginName]) => pluginName);
 }
 
 /**
- * Check if character settings require ASSISTANT mode upgrade
+ * Check if character settings require ASSISTANT mode upgrade.
+ * Only returns a key when settings contain actual configuration.
  */
 export function requiresAssistantMode(
   settings: Record<string, unknown>,
 ): keyof typeof SETTINGS_PLUGIN_MAP | null {
   for (const key of Object.keys(SETTINGS_PLUGIN_MAP)) {
-    if (key in settings && settings[key] != null) {
+    if (hasValidConfiguration(key as keyof typeof SETTINGS_PLUGIN_MAP, settings)) {
       return key as keyof typeof SETTINGS_PLUGIN_MAP;
     }
   }
