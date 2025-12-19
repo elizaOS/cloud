@@ -139,6 +139,15 @@ jobs:
           else
             echo "✅ No invalid characters found"
           fi
+
+      - name: Sanitize build artifacts
+        run: |
+          # Remove any potential sensitive files from build output
+          find .next -name ".env*" -type f -delete 2>/dev/null || true
+          find .next -name "*.pem" -type f -delete 2>/dev/null || true
+          find .next -name "*.key" -type f -delete 2>/dev/null || true
+          echo "✅ Build artifacts sanitized"
+
       - uses: actions/upload-artifact@v4
         with:
           name: nextjs-build

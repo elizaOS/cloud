@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { stripe } from "@/lib/stripe";
+import { requireStripe } from "@/lib/stripe";
 import { creditsService } from "@/lib/services/credits";
 import { invoicesService } from "@/lib/services/invoices";
 import { appCreditsService } from "@/lib/services/app-credits";
@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
   let event: Stripe.Event;
 
   try {
-    event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
+    event = requireStripe().webhooks.constructEvent(body, signature, webhookSecret);
   } catch (err) {
     logger.error("[Stripe Webhook] Signature verification failed");
     return NextResponse.json(
@@ -409,7 +409,7 @@ export async function POST(req: NextRequest) {
               await invoicesService.getByStripeInvoiceId(invoiceId);
 
             if (!existingInvoice) {
-              const stripeInvoice = await stripe.invoices.retrieve(invoiceId);
+              const stripeInvoice = await requireStripe().invoices.retrieve(invoiceId);
 
               await invoicesService.create({
                 organization_id: organizationId,

@@ -93,21 +93,6 @@ export function assertStripeConfigured(): asserts process is {
 }
 
 /**
- * @deprecated Use `requireStripe()` instead for type-safe access.
- *
- * Stripe client proxy that defers initialization until first use.
- * This allows the build to succeed even without STRIPE_SECRET_KEY.
- *
- * ⚠️ WARNING: Using this export directly can lead to runtime errors that TypeScript won't catch.
- * Prefer using `requireStripe()` which provides better type safety and error messages.
- */
-export const stripe: Stripe = new Proxy({} as Stripe, {
-  get(_target, prop) {
-    return getStripe()[prop as keyof Stripe];
-  },
-});
-
-/**
  * Default currency for Stripe transactions.
  */
 export const STRIPE_CURRENCY = "usd";

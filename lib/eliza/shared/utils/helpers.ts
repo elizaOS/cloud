@@ -390,7 +390,6 @@ export async function executeActions(
       for (const att of content.attachments) {
         const a = att as Attachment;
         if (a.url?.startsWith("http")) {
-
           existing.push({
             id: a.id,
             url: a.url,

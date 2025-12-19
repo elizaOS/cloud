@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/card";
 import { CheckCircle, XCircle, ArrowRight } from "lucide-react";
 import { CreditBalanceDisplay } from "@/components/billing/success-client";
-import { stripe } from "@/lib/stripe";
+import { requireStripe } from "@/lib/stripe";
 import { creditsService } from "@/lib/services/credits";
 import { invoicesService } from "@/lib/services/invoices";
 
@@ -42,7 +42,7 @@ async function verifyAndProcessSession(sessionId: string): Promise<{
   console.log(`[BillingSuccess] Verifying session: ${sessionId}`);
 
   // Fetch the session from Stripe
-  const session = await stripe.checkout.sessions.retrieve(sessionId);
+  const session = await requireStripe().checkout.sessions.retrieve(sessionId);
 
   if (session.payment_status !== "paid") {
     console.warn(
