@@ -20,6 +20,7 @@ import { z } from "zod";
 
 /**
  * Middleware to check admin access
+ * Optimized: Uses single cached getAdminStatus() call instead of separate isAdmin + getAdminRole.
  */
 async function requireAdmin(request: NextRequest) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
@@ -34,7 +35,11 @@ async function requireAdmin(request: NextRequest) {
     };
   }
 
-  const isAdmin = await adminService.isAdmin(user.wallet_address);
+  // Single cached call instead of two separate DB queries
+  const { isAdmin, role } = await adminService.getAdminStatus(
+    user.wallet_address,
+  );
+
   if (!isAdmin) {
     return {
       error: "Admin access required",
@@ -44,8 +49,6 @@ async function requireAdmin(request: NextRequest) {
       role: null,
     };
   }
-
-  const role = await adminService.getAdminRole(user.wallet_address);
 
   return {
     error: null,
@@ -356,15 +359,53 @@ export async function POST(request: NextRequest) {
 /**
  * HEAD /api/v1/admin/moderation
  * Quick check if current user is an admin.
+ * Returns 200 with X-Is-Admin header for status checks (not 403 for non-admins).
+ *
+ * Optimized: Uses single cached getAdminStatus() call instead of separate isAdmin + getAdminRole.
  */
 export async function HEAD(request: NextRequest) {
-  const auth = await requireAdmin(request);
+  // Helper to return not-admin response
+  const notAdminResponse = () =>
+    new NextResponse(null, {
+      status: 200,
+      headers: {
+        "X-Is-Admin": "false",
+        "X-Admin-Role": "",
+      },
+    });
 
-  return new NextResponse(null, {
-    status: auth.isAdmin ? 200 : 403,
-    headers: {
-      "X-Is-Admin": String(auth.isAdmin),
-      "X-Admin-Role": auth.role || "",
-    },
-  });
+  try {
+    // Use the less restrictive auth that doesn't require organization
+    // This allows checking admin status for users without full accounts
+    const { requireAuthOrApiKey } = await import("@/lib/auth");
+    let user;
+
+    try {
+      const result = await requireAuthOrApiKey(request);
+      user = result.user;
+    } catch {
+      // Not authenticated - return not-admin
+      return notAdminResponse();
+    }
+
+    if (!user?.wallet_address) {
+      return notAdminResponse();
+    }
+
+    // Single cached call instead of two separate DB queries
+    const { isAdmin, role } = await adminService.getAdminStatus(
+      user.wallet_address,
+    );
+
+    return new NextResponse(null, {
+      status: 200,
+      headers: {
+        "X-Is-Admin": String(isAdmin),
+        "X-Admin-Role": role || "",
+      },
+    });
+  } catch {
+    // Any other error - return not-admin status
+    return notAdminResponse();
+  }
 }

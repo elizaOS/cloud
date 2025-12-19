@@ -12,11 +12,24 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Download, Save, AlertCircle, CheckCircle } from "lucide-react";
+import { Download, Save, AlertCircle, CheckCircle, Upload } from "lucide-react";
 import { toast } from "sonner";
+import dynamic from "next/dynamic";
 import type { ElizaCharacter } from "@/lib/types";
 import { BrandButton } from "@/components/brand";
-import { MonacoJsonEditor } from "@/components/chat/monaco-json-editor";
+import { MonacoEditorSkeleton } from "@/components/chat/monaco-editor-skeleton";
+
+// Dynamic import Monaco editor to reduce initial bundle size (~500KB savings)
+const MonacoJsonEditor = dynamic(
+  () =>
+    import("@/components/chat/monaco-json-editor").then(
+      (mod) => mod.MonacoJsonEditor,
+    ),
+  {
+    ssr: false,
+    loading: () => <MonacoEditorSkeleton />,
+  },
+);
 
 interface JsonEditorProps {
   character: ElizaCharacter;
@@ -115,7 +128,7 @@ export function JsonEditor({
                 onClick={handleExport}
                 disabled={!editorState.isValid}
               >
-                <Download className="mr-2 h-4 w-4" />
+                <Upload className="mr-2 h-4 w-4" />
                 Export
               </BrandButton>
               <BrandButton
