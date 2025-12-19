@@ -93,11 +93,6 @@ export function DocumentUpload({
   const [filename, setFilename] = useState("");
 
   const handleFileUpload = async (files: File[]) => {
-    console.log(
-      "[DocumentUpload] handleFileUpload triggered, files:",
-      files.length,
-    );
-
     if (files.length === 0) {
       setError("Please select at least one file");
       return;
@@ -120,34 +115,20 @@ export function DocumentUpload({
       const correctedMimeType = getCorrectMimeType(file);
       const blob = new Blob([file], { type: correctedMimeType });
       formData.append("files", blob, file.name);
-      console.log(
-        "[DocumentUpload] Added file:",
-        file.name,
-        "type:",
-        correctedMimeType,
-      );
     }
-
-    console.log(
-      "[DocumentUpload] Making API call to /api/v1/knowledge/upload-file",
-    );
 
     const response = await fetch("/api/v1/knowledge/upload-file", {
       method: "POST",
       body: formData,
     });
 
-    console.log("[DocumentUpload] Response status:", response.status);
-
     if (!response.ok) {
       const data = await response.json();
-      console.error("[DocumentUpload] Upload failed:", data);
       setUploading(false);
       throw new Error(data.error || "Failed to upload files");
     }
 
     const data = await response.json();
-    console.log("[DocumentUpload] Upload successful:", data);
     setSuccess(data.message || `Successfully uploaded ${files.length} file(s)`);
     setSelectedFiles([]);
 
@@ -165,8 +146,6 @@ export function DocumentUpload({
   const handleTextUpload = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    console.log("[DocumentUpload] handleTextUpload triggered");
-
     if (!textContent.trim()) {
       setError("Please enter some text content");
       return;
@@ -175,8 +154,6 @@ export function DocumentUpload({
     setUploading(true);
     setError(null);
     setSuccess(null);
-
-    console.log("[DocumentUpload] Making API call to /api/v1/knowledge");
 
     const response = await fetch("/api/v1/knowledge", {
       method: "POST",
@@ -191,17 +168,13 @@ export function DocumentUpload({
       }),
     });
 
-    console.log("[DocumentUpload] Response status:", response.status);
-
     if (!response.ok) {
       const data = await response.json();
-      console.error("[DocumentUpload] Upload failed:", data);
       setUploading(false);
       throw new Error(data.error || "Failed to upload text");
     }
 
     const data = await response.json();
-    console.log("[DocumentUpload] Upload successful:", data);
     setSuccess(data.message);
     setTextContent("");
     setFilename("");
@@ -350,9 +323,6 @@ export function DocumentUpload({
             <Button
               type="submit"
               disabled={!textContent.trim() || uploading}
-              onClick={(e) => {
-                console.log("[DocumentUpload] Text upload button clicked!");
-              }}
             >
               {uploading ? (
                 <>

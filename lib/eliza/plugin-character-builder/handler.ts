@@ -108,7 +108,10 @@ export async function handleMessage({
       composePromptFromState({ state, template: buildModePlanningTemplate }),
     );
 
-    logger.debug("####### handleMessage planning system prompt", runtime.character.system);
+    logger.debug(
+      "####### handleMessage planning system prompt",
+      runtime.character.system,
+    );
     logger.debug("####### handleMessage planning prompt", planningPrompt);
 
     const planningResponse = await runtime.useModel(ModelType.TEXT_LARGE, {
@@ -121,7 +124,10 @@ export async function handleMessage({
     const selectedAction =
       parsePlannedItems(plan?.actions)[0] || "BUILDER_CHAT";
 
-    logger.debug("####### handleMessage planning response", JSON.stringify(plan, null, 2));
+    logger.debug(
+      "####### handleMessage planning response",
+      JSON.stringify(plan, null, 2),
+    );
 
     // Create action response with thought and mode context
     const actionResponse: Memory = {

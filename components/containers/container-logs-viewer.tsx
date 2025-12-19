@@ -147,7 +147,6 @@ export function ContainerLogsViewer({
     );
 
     eventSource.onopen = () => {
-      console.log("Log stream connected");
       updateStreaming({ isStreaming: true });
       updateLogs({ error: null });
     };
@@ -187,7 +186,6 @@ export function ContainerLogsViewer({
 
       // Fallback to polling
       if (streamingState.useStreaming) {
-        console.log("Streaming failed, falling back to polling");
         updateStreaming({ useStreaming: false, autoRefresh: true });
       }
     };

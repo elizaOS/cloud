@@ -1,6 +1,40 @@
 import { put, del, list } from "@vercel/blob";
 
 /**
+ * Trusted blob storage hosts for URL validation.
+ * Used to prevent SSRF attacks by ensuring URLs point to our storage.
+ */
+export const TRUSTED_BLOB_HOSTS = [
+  "blob.vercel-storage.com",
+  "public.blob.vercel-storage.com",
+];
+
+/**
+ * Validates that a URL points to a trusted blob storage host.
+ * Prevents SSRF attacks by ensuring we only fetch from our storage.
+ *
+ * @param url - URL to validate.
+ * @returns True if the URL is from a trusted blob host with https protocol.
+ */
+export function isValidBlobUrl(url: string): boolean {
+  try {
+    const parsedUrl = new URL(url);
+    // Require HTTPS protocol to prevent protocol-based attacks
+    if (parsedUrl.protocol !== "https:") {
+      return false;
+    }
+    // Vercel Blob URLs have random subdomain prefixes (e.g., l5fpqchmvmrcwa0k.public.blob.vercel-storage.com)
+    // Using endsWith is safe because Vercel controls all subdomains of blob.vercel-storage.com
+    return TRUSTED_BLOB_HOSTS.some(
+      (host) =>
+        parsedUrl.hostname === host || parsedUrl.hostname.endsWith(`.${host}`),
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Options for uploading a file to blob storage.
  */
 export interface BlobUploadOptions {

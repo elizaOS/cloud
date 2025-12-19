@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/card";
 import { CheckCircle, XCircle, ArrowRight } from "lucide-react";
 import { CreditBalanceDisplay } from "@/components/billing/success-client";
-import { stripe } from "@/lib/stripe";
+import { requireStripe } from "@/lib/stripe";
 import { creditsService } from "@/lib/services/credits";
 import { invoicesService } from "@/lib/services/invoices";
 
@@ -39,10 +39,8 @@ async function verifyAndProcessSession(sessionId: string): Promise<{
   credits?: number;
   alreadyProcessed?: boolean;
 }> {
-  console.log(`[BillingSuccess] Verifying session: ${sessionId}`);
-
   // Fetch the session from Stripe
-  const session = await stripe.checkout.sessions.retrieve(sessionId);
+  const session = await requireStripe().checkout.sessions.retrieve(sessionId);
 
   if (session.payment_status !== "paid") {
     console.warn(
@@ -85,18 +83,12 @@ async function verifyAndProcessSession(sessionId: string): Promise<{
     await creditsService.getTransactionByStripePaymentIntent(paymentIntentId);
 
   if (existingTransaction) {
-    console.log("[BillingSuccess] Session already processed via webhook");
     return {
       success: true,
       credits,
       alreadyProcessed: true,
     };
   }
-
-  // Add credits (with built-in idempotency)
-  console.log(
-    `[BillingSuccess] Adding ${credits} credits to org ${organizationId}`,
-  );
 
   await creditsService.addCredits({
     organizationId,
@@ -111,10 +103,6 @@ async function verifyAndProcessSession(sessionId: string): Promise<{
     },
     stripePaymentIntentId: paymentIntentId,
   });
-
-  console.log(
-    `[BillingSuccess] ✓ Credits added for session ${sessionId} (fallback)`,
-  );
 
   // Create invoice record
   try {
@@ -148,10 +136,6 @@ async function verifyAndProcessSession(sessionId: string): Promise<{
         },
         paid_at: new Date(),
       });
-
-      console.log(
-        `[BillingSuccess] ✓ Invoice created for session ${sessionId}`,
-      );
     }
   } catch (invoiceError) {
     // Non-critical - credits were added successfully
@@ -160,22 +144,6 @@ async function verifyAndProcessSession(sessionId: string): Promise<{
       invoiceError,
     );
   }
-
-  if (existingTransaction) {
-    console.log(
-      `[BillingSuccess] Session already processed via webhook (transaction: ${existingTransaction.id})`,
-    );
-    return {
-      success: true,
-      credits,
-      alreadyProcessed: true,
-    };
-  }
-
-  // Add credits (with built-in idempotency)
-  console.log(
-    `[BillingSuccess] Adding ${credits} credits to org ${organizationId}`,
-  );
 
   await creditsService.addCredits({
     organizationId,
@@ -190,10 +158,6 @@ async function verifyAndProcessSession(sessionId: string): Promise<{
     },
     stripePaymentIntentId: paymentIntentId,
   });
-
-  console.log(
-    `[BillingSuccess] ✓ Credits added for session ${sessionId} (fallback)`,
-  );
 
   // Create invoice record
   const existingInvoice = await invoicesService.getByStripeInvoiceId(
@@ -226,8 +190,6 @@ async function verifyAndProcessSession(sessionId: string): Promise<{
       },
       paid_at: new Date(),
     });
-
-    console.log(`[BillingSuccess] ✓ Invoice created for session ${sessionId}`);
   }
 
   return {

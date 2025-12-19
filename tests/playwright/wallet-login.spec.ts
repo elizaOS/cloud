@@ -1,4 +1,4 @@
-import { test, expect } from "../fixtures/test-fixtures";
+import { test, expect } from "./fixtures/test-fixtures";
 import {
   goToLogin,
   waitForDashboardRedirect,
@@ -7,7 +7,7 @@ import {
   LoginSelectors,
   DashboardSelectors,
   waitForPageLoad,
-} from "../fixtures/test-fixtures";
+} from "./fixtures/test-fixtures";
 
 /**
  * E2E Tests: Wallet Login Flow
@@ -39,7 +39,7 @@ test.describe("Wallet Login", () => {
     // Verify the login page is rendered
     const loginCard = page.locator(LoginSelectors.loginCard);
     const isVisible = await loginCard
-      .isVisible({ timeout: 30000 })
+      .isVisible({ timeout: 5000 })
       .catch(() => false);
     if (!isVisible) {
       console.log("ℹ️ Login card not visible - skipping");
@@ -71,7 +71,7 @@ test.describe("Wallet Login", () => {
     // Click the wallet connect button
     const walletButton = page.locator(LoginSelectors.walletButton);
     const isVisible = await walletButton
-      .isVisible({ timeout: 30000 })
+      .isVisible({ timeout: 5000 })
       .catch(() => false);
     if (!isVisible) {
       console.log("ℹ️ Wallet button not visible - skipping");
@@ -117,7 +117,7 @@ test.describe("Wallet Login", () => {
     // Click the wallet connect button to initiate login
     const walletButton = page.locator(LoginSelectors.walletButton);
     const isVisible = await walletButton
-      .isVisible({ timeout: 30000 })
+      .isVisible({ timeout: 5000 })
       .catch(() => false);
     if (!isVisible) {
       console.log("ℹ️ Wallet button not visible - skipping");
@@ -147,7 +147,7 @@ test.describe("Wallet Login", () => {
     // Verify dashboard content is visible (optional - may not have data-testid)
     const dashboardTitle = page.locator(DashboardSelectors.dashboardTitle);
     const titleVisible = await dashboardTitle
-      .isVisible({ timeout: 30000 })
+      .isVisible({ timeout: 5000 })
       .catch(() => false);
     console.log(`✅ Dashboard title visible: ${titleVisible}`);
   });
@@ -165,7 +165,7 @@ test.describe("Wallet Login", () => {
     // Click the wallet connect button
     const walletButton = page.locator(LoginSelectors.walletButton);
     const isVisible = await walletButton
-      .isVisible({ timeout: 30000 })
+      .isVisible({ timeout: 5000 })
       .catch(() => false);
     if (!isVisible) {
       console.log("ℹ️ Wallet button not visible - skipping");
@@ -206,7 +206,7 @@ test.describe("Wallet Login", () => {
     // Click the wallet connect button
     const walletButton = page.locator(LoginSelectors.walletButton);
     const isVisible = await walletButton
-      .isVisible({ timeout: 30000 })
+      .isVisible({ timeout: 5000 })
       .catch(() => false);
     if (!isVisible) {
       console.log("ℹ️ Wallet button not visible - skipping");
@@ -242,7 +242,7 @@ test.describe("Wallet Login", () => {
     // Complete wallet login
     const walletButton = page.locator(LoginSelectors.walletButton);
     const isVisible = await walletButton
-      .isVisible({ timeout: 30000 })
+      .isVisible({ timeout: 5000 })
       .catch(() => false);
     if (!isVisible) {
       console.log("ℹ️ Wallet button not visible - skipping");
