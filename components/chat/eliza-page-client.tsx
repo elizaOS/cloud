@@ -70,9 +70,15 @@ export function ElizaPageClient({
 
   // Sync URL params with store on mount (only once)
   useEffect(() => {
-    if (initialRoomId) {
+    // If we have a characterId from URL but no roomId, clear the stored roomId
+    // This ensures a fresh room is created for the new character
+    // (e.g., after creating a character in build mode and redirecting to chat)
+    if (initialCharacterId && !initialRoomId) {
+      setRoomId(null);
+    } else if (initialRoomId) {
       setRoomId(initialRoomId);
     }
+
     if (initialCharacterId) {
       setSelectedCharacterId(initialCharacterId);
     }

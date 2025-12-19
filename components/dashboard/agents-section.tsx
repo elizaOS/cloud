@@ -466,16 +466,7 @@ function AgentsEmptyState() {
               className="h-8 text-xs"
             >
               <Plus className="h-3.5 w-3.5" />
-              Create
-            </BrandButton>
-            <BrandButton
-              onClick={() => (window.location.href = "/marketplace")}
-              variant="outline"
-              size="sm"
-              className="h-8 text-xs"
-            >
-              <Sparkles className="h-3.5 w-3.5" />
-              Browse
+              Create Agent
             </BrandButton>
           </div>
         </div>

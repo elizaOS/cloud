@@ -62,6 +62,12 @@ CRITICAL: Select exactly ONE action. Your reasoning will be passed to the select
 export const buildModePlanningTemplate = `
 {{actionsWithDescriptions}}
 
+## Current Character State in UI:
+{{currentCharacter}}
+
+Note: If the character has a name and fields populated, CREATE_CHARACTER can be used when user confirms.
+If the character is empty or has no name, use SUGGEST_CHANGES to build it first.
+
 {{conversationLog}}
 
 {{receivedMessageHeader}}

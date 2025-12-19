@@ -64,10 +64,9 @@ export function BuildPageClient({
 
     setAvailableCharacters(characters);
 
-    // Set selected character from URL if provided
-    if (initialCharacterId) {
-      setSelectedCharacterId(initialCharacterId);
-    }
+    // Set selected character from URL, or reset to null for creator mode (Eliza)
+    // This ensures navigating to /dashboard/build always starts in creator mode
+    setSelectedCharacterId(initialCharacterId || null);
   }, [
     initialCharacters,
     initialCharacterId,
@@ -103,6 +102,11 @@ export function BuildPageClient({
       if (anchor && anchor.href) {
         const url = new URL(anchor.href);
         const currentUrl = new URL(window.location.href);
+
+        // Skip blob URLs (used for file downloads like Export JSON)
+        if (url.protocol === "blob:") {
+          return;
+        }
 
         if (url.pathname !== currentUrl.pathname) {
           e.preventDefault();
