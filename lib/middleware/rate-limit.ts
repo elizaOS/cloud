@@ -263,6 +263,14 @@ export const RateLimitPresets = {
     windowMs: 1000, // 1 second
     maxRequests: isDevelopment ? 1000 : 10, // Dev: 1000/sec, Prod: 10/sec
   },
+
+  // Aggressive limits for webhook endpoints (external services calling us)
+  // Webhooks are server-to-server and should be rate limited per IP
+  // 100/min is reasonable for payment provider callbacks
+  AGGRESSIVE: {
+    windowMs: 60000, // 1 minute
+    maxRequests: isDevelopment ? 10000 : 100, // Dev: virtually unlimited, Prod: 100/min
+  },
 } as const;
 
 /**

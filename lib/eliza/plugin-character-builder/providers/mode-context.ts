@@ -49,7 +49,8 @@ const EDIT_MODE_CONTEXT = `## Mode: EDIT MODE
 
 export const modeContextProvider: Provider = {
   name: "MODE_CONTEXT",
-  description: "Provides mode-aware context (Creator vs Edit mode) for build prompts",
+  description:
+    "Provides mode-aware context (Creator vs Edit mode) for build prompts",
   get: async (runtime: IAgentRuntime, _message: Memory, _state: State) => {
     const creatorMode = isCreatorMode(runtime);
     const modeLabel = creatorMode ? "Creator" : "Edit";

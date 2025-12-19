@@ -6,7 +6,6 @@ import { Toaster } from "sonner";
 import NextTopLoader from "nextjs-toploader";
 import PrivyProvider from "@/lib/providers/PrivyProvider";
 import { CreditsProvider } from "@/lib/providers/CreditsProvider";
-import DebugProvider from "@/components/debug/debug-provider";
 import localFont from "next/font/local";
 
 // Performance optimization: Load only essential font weights (reduced from 7 to 4)
@@ -141,7 +140,7 @@ export default function RootLayout({
               disableTransitionOnChange
             >
               <NextTopLoader showSpinner={false} color="#FF5800" />
-              <DebugProvider>{children}</DebugProvider>
+              {children}
               <Toaster
                 richColors
                 theme="dark"

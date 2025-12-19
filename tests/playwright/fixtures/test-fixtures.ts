@@ -1,4 +1,9 @@
-import { test as base, expect, type Page, type TestInfo } from "@playwright/test";
+import {
+  test as base,
+  expect,
+  type Page,
+  type TestInfo,
+} from "@playwright/test";
 import { metaMaskFixtures, MetaMask } from "@synthetixio/synpress/playwright";
 import walletSetup from "../wallet-setup/wallet.setup";
 

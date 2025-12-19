@@ -74,7 +74,7 @@ export function MyAgentsClient() {
               description: data.claimed
                 .map((c: { name: string }) => c.name)
                 .join(", "),
-            }
+            },
           );
           fetchCharacters();
 
@@ -132,7 +132,7 @@ export function MyAgentsClient() {
         </BrandButton>
       ),
     },
-    [characters.length, handleCreateNew]
+    [characters.length, handleCreateNew],
   );
 
   if (isLoading) {

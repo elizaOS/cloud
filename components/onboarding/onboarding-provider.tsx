@@ -174,12 +174,12 @@ export function OnboardingProvider({
 
   const isTourCompleted = useCallback(
     (tourId: string) => state.completedTours.includes(tourId),
-    [state.completedTours]
+    [state.completedTours],
   );
 
   const isTourSkipped = useCallback(
     (tourId: string) => state.skippedTours.includes(tourId),
-    [state.skippedTours]
+    [state.skippedTours],
   );
 
   const resetOnboarding = useCallback(() => {
@@ -214,7 +214,7 @@ export function OnboardingProvider({
       isTourCompleted,
       isTourSkipped,
       resetOnboarding,
-    ]
+    ],
   );
 
   return (

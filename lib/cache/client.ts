@@ -33,15 +33,6 @@ export class CacheClient {
   private readonly MAX_REVALIDATION_QUEUE_SIZE = 100;
   private readonly REVALIDATION_TIMEOUT_MS = 30000; // 30 seconds
 
-  // SLOW LOG CONFIG: Upstash HTTP has ~200ms baseline latency
-  // Only log warnings for operations significantly slower than expected
-  private readonly SLOW_THRESHOLD_MS = 500;
-  // Rate-limit slow operation logs to avoid console spam
-  private slowLogCount = 0;
-  private slowLogResetTime = 0;
-  private readonly SLOW_LOG_WINDOW_MS = 10000; // 10 second window
-  private readonly SLOW_LOG_MAX_PER_WINDOW = 5; // Max 5 slow logs per window
-
   private initialize(): void {
     if (this.initialized) return;
     this.initialized = true;
@@ -461,38 +452,12 @@ export class CacheClient {
   }
 
   private logMetric(
-    key: string,
-    operation: "hit" | "miss" | "set" | "del" | "del_pattern" | "stale",
-    durationMs: number,
-    metadata?: Record<string, unknown>,
+    _key: string,
+    _operation: "hit" | "miss" | "set" | "del" | "del_pattern" | "stale",
+    _durationMs: number,
+    _metadata?: Record<string, unknown>,
   ): void {
-    // Only log if significantly slow (Upstash HTTP baseline is ~200ms)
-    if (durationMs <= this.SLOW_THRESHOLD_MS) return;
-
-    // Rate-limit slow logs to prevent console spam
-    const now = Date.now();
-    if (now - this.slowLogResetTime > this.SLOW_LOG_WINDOW_MS) {
-      this.slowLogCount = 0;
-      this.slowLogResetTime = now;
-    }
-
-    if (this.slowLogCount >= this.SLOW_LOG_MAX_PER_WINDOW) {
-      // Silently skip - already logged enough this window
-      return;
-    }
-
-    this.slowLogCount++;
-    const remaining = this.SLOW_LOG_MAX_PER_WINDOW - this.slowLogCount;
-
-    logger.warn(
-      `[Cache] Slow ${operation}: ${key} (${durationMs}ms)${remaining === 0 ? " [rate-limiting further logs]" : ""}`,
-      {
-        operation,
-        durationMs,
-        timestamp: new Date().toISOString(),
-        ...metadata,
-      },
-    );
+    // Metrics logging disabled to reduce console noise
   }
 }
 

@@ -356,13 +356,8 @@ export function ElizaChatInterface({
         // If no room exists, create one first
         let currentRoomId = roomId;
         if (!currentRoomId) {
-          console.log("[ElizaChat] No room selected, creating new room...");
-
           // If room creation is already in progress, await the existing promise
           if (isCreatingRoomRef.current && roomCreationPromiseRef.current) {
-            console.log(
-              "[ElizaChat] Room creation already in progress, awaiting...",
-            );
             const existingRoomId = await roomCreationPromiseRef.current;
             if (!existingRoomId) {
               setError("Room creation failed");
@@ -370,10 +365,6 @@ export function ElizaChatInterface({
               return;
             }
             currentRoomId = existingRoomId;
-            console.log(
-              "[ElizaChat] Got room from existing creation:",
-              currentRoomId,
-            );
           } else {
             // Start new room creation and store the promise
             isCreatingRoomRef.current = true;
@@ -397,7 +388,6 @@ export function ElizaChatInterface({
               return;
             }
             currentRoomId = newRoomId;
-            console.log("[ElizaChat] Created new room:", newRoomId);
           }
         }
 
@@ -502,9 +492,6 @@ export function ElizaChatInterface({
 
     // If no roomId exists, create one first
     if (!roomId) {
-      console.log(
-        "[ElizaChat] Pending message found but no room - creating room first",
-      );
       isPendingMessageProcessingRef.current = true;
 
       // Store the message in ref so we can send it after room is created
@@ -516,13 +503,8 @@ export function ElizaChatInterface({
       createRoom()
         .then(() => {
           // Room creation will update roomId, which will trigger sending logic
-          console.log("[ElizaChat] Room created for pending message");
         })
-        .catch((err) => {
-          console.error(
-            "[ElizaChat] Failed to create room for pending message:",
-            err,
-          );
+        .catch(() => {
           isPendingMessageProcessingRef.current = false;
         });
       return;
@@ -535,7 +517,6 @@ export function ElizaChatInterface({
       !loadingState.isLoadingMessages
     ) {
       const messageToSend = pendingMessageToSendRef.current;
-      console.log("[ElizaChat] Auto-sending pending message:", messageToSend);
 
       // Clear the ref
       pendingMessageToSendRef.current = null;

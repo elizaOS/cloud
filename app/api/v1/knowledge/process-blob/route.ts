@@ -8,7 +8,11 @@ import { userContextService } from "@/lib/eliza/user-context";
 import { RuntimeFactory } from "@/lib/eliza/runtime-factory";
 import { AgentMode } from "@/lib/eliza/agent-mode-types";
 import { userCharactersRepository } from "@/db/repositories/characters";
-import { KNOWLEDGE_CONSTANTS, ALLOWED_CONTENT_TYPES, isValidFilename } from "@/lib/constants/knowledge";
+import {
+  KNOWLEDGE_CONSTANTS,
+  ALLOWED_CONTENT_TYPES,
+  isValidFilename,
+} from "@/lib/constants/knowledge";
 import { isValidBlobUrl } from "@/lib/blob";
 
 export const maxDuration = 60;
@@ -85,7 +89,9 @@ async function handlePOST(req: NextRequest) {
 
   if (files.length > KNOWLEDGE_CONSTANTS.MAX_FILES_PER_REQUEST) {
     return NextResponse.json(
-      { error: `Maximum ${KNOWLEDGE_CONSTANTS.MAX_FILES_PER_REQUEST} files per request` },
+      {
+        error: `Maximum ${KNOWLEDGE_CONSTANTS.MAX_FILES_PER_REQUEST} files per request`,
+      },
       { status: 400 },
     );
   }
@@ -94,35 +100,56 @@ async function handlePOST(req: NextRequest) {
   for (const file of files) {
     if (!file.blobUrl || !isValidBlobUrl(file.blobUrl)) {
       return NextResponse.json(
-        { error: `Invalid or untrusted blobUrl for file: ${file.filename || "unknown"}` },
+        {
+          error: `Invalid or untrusted blobUrl for file: ${file.filename || "unknown"}`,
+        },
         { status: 400 },
       );
     }
 
-    if (!file.filename || typeof file.filename !== "string" || file.filename.length > MAX_FILENAME_LENGTH) {
+    if (
+      !file.filename ||
+      typeof file.filename !== "string" ||
+      file.filename.length > MAX_FILENAME_LENGTH
+    ) {
       return NextResponse.json(
-        { error: `Invalid filename: must be a string under ${MAX_FILENAME_LENGTH} characters` },
+        {
+          error: `Invalid filename: must be a string under ${MAX_FILENAME_LENGTH} characters`,
+        },
         { status: 400 },
       );
     }
 
     if (!isValidFilename(file.filename)) {
       return NextResponse.json(
-        { error: `Invalid filename: ${file.filename} contains path-unsafe characters` },
+        {
+          error: `Invalid filename: ${file.filename} contains path-unsafe characters`,
+        },
         { status: 400 },
       );
     }
 
-    if (!file.contentType || !ALLOWED_CONTENT_TYPES.includes(file.contentType as typeof ALLOWED_CONTENT_TYPES[number])) {
+    if (
+      !file.contentType ||
+      !ALLOWED_CONTENT_TYPES.includes(
+        file.contentType as (typeof ALLOWED_CONTENT_TYPES)[number],
+      )
+    ) {
       return NextResponse.json(
         { error: `Invalid content type: ${file.contentType}` },
         { status: 400 },
       );
     }
 
-    if (typeof file.size !== "number" || file.size <= 0 || file.size > KNOWLEDGE_CONSTANTS.MAX_FILE_SIZE) {
+    if (
+      typeof file.size !== "number" ||
+      file.size <= 0 ||
+      file.size > KNOWLEDGE_CONSTANTS.MAX_FILE_SIZE
+    ) {
       return NextResponse.json(
-        { error: `Invalid file size for ${file.filename}: must be between 1 byte and ${KNOWLEDGE_CONSTANTS.MAX_FILE_SIZE / 1024 / 1024}MB` },
+        {
+          error: `Invalid file size for ${file.filename}: must be between 1 byte and ${KNOWLEDGE_CONSTANTS.MAX_FILE_SIZE / 1024 / 1024}MB`,
+        },
         { status: 400 },
       );
     }

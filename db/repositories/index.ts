@@ -94,3 +94,8 @@ export * from "./user-mcps";
 // Token Redemptions (elizaOS payouts)
 // ============================================
 export * from "./token-redemptions";
+
+// ============================================
+// Crypto Payments (CDP wallet payments)
+// ============================================
+export * from "./crypto-payments";

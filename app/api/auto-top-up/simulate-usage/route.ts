@@ -28,10 +28,6 @@ async function handleSimulateUsage(req: NextRequest) {
       );
     }
 
-    console.log(
-      `[SimulateUsage] Deducting $${amount.toFixed(2)} from org ${organizationId}`,
-    );
-
     const result = await creditsService.deductCredits({
       organizationId,
       amount,

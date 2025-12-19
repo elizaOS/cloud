@@ -65,7 +65,7 @@ export function CharacterBuildMode({
   // Store the default character in a ref to prevent it from changing between renders
   // This prevents pre-uploaded files from being cleared unexpectedly in creator mode
   const defaultCharacterRef = useRef<ElizaCharacter | null>(null);
-  
+
   // Clear default character ref when switching to an existing character
   // This is done in a separate effect to avoid side effects in useMemo
   useEffect(() => {
@@ -73,7 +73,7 @@ export function CharacterBuildMode({
       defaultCharacterRef.current = null;
     }
   }, [selectedCharacterId]);
-  
+
   // Derive character from selectedCharacterId - avoid setState in effect
   const initialCharacter = useMemo(() => {
     if (selectedCharacterId) {
@@ -94,15 +94,22 @@ export function CharacterBuildMode({
   const isCreatorMode = !selectedCharacterId;
 
   const [character, setCharacter] = useState<ElizaCharacter>(initialCharacter);
-  const [preUploadedFiles, setPreUploadedFiles] = useState<PreUploadedFile[]>([]);
-  
+  const [preUploadedFiles, setPreUploadedFiles] = useState<PreUploadedFile[]>(
+    [],
+  );
+
   // Track the character ID to detect actual character switches vs reference changes
-  const previousCharacterIdRef = useRef<string | undefined>(initialCharacter.id);
+  const previousCharacterIdRef = useRef<string | undefined>(
+    initialCharacter.id,
+  );
 
   // Use functional updates to avoid stale closure issues with concurrent operations
-  const handlePreUploadedFilesAdd = useCallback((newFiles: PreUploadedFile[]) => {
-    setPreUploadedFiles((prev) => [...prev, ...newFiles]);
-  }, []);
+  const handlePreUploadedFilesAdd = useCallback(
+    (newFiles: PreUploadedFile[]) => {
+      setPreUploadedFiles((prev) => [...prev, ...newFiles]);
+    },
+    [],
+  );
 
   const handlePreUploadedFileRemove = useCallback((fileId: string) => {
     setPreUploadedFiles((prev) => prev.filter((f) => f.id !== fileId));
@@ -119,7 +126,8 @@ export function CharacterBuildMode({
   // Update local state only when switching to a DIFFERENT character (by ID)
   // This prevents data loss when parent re-renders with new array reference but same content
   useEffect(() => {
-    const characterIdChanged = initialCharacter.id !== previousCharacterIdRef.current;
+    const characterIdChanged =
+      initialCharacter.id !== previousCharacterIdRef.current;
     if (characterIdChanged) {
       setCharacter(initialCharacter);
       setPreUploadedFiles([]);
@@ -236,7 +244,6 @@ export function CharacterBuildMode({
 
           // Queue pre-uploaded files for background processing
           if (filesToQueue.length > 0) {
-
             try {
               const queueResponse = await fetch("/api/v1/knowledge/queue", {
                 method: "POST",
@@ -375,14 +382,14 @@ export function CharacterBuildMode({
   );
 
   return (
-      <div className="flex h-full w-full min-h-0 overflow-hidden flex-col">
-        <Image
-          className="z-20 pointer-events-none absolute top-0 right-0 left-0"
-          fill
-          sizes="100vw"
-          src="/elipse.svg"
-          alt="background-elipse-builder-mode"
-        />
+    <div className="flex h-full w-full min-h-0 overflow-hidden flex-col">
+      <Image
+        className="z-20 pointer-events-none absolute top-0 right-0 left-0"
+        fill
+        sizes="100vw"
+        src="/elipse.svg"
+        alt="background-elipse-builder-mode"
+      />
 
       {/* Mobile Toggle Bar */}
       <div className="lg:hidden flex border-b border-[#353535] bg-[#0A0A0A] shrink-0">

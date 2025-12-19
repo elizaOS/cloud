@@ -38,21 +38,24 @@ function initStripe(): Stripe | null {
 
   if (!process.env.STRIPE_SECRET_KEY) {
     stripeInitError = new Error(
-      "STRIPE_SECRET_KEY is not set in environment variables",
+      "STRIPE_SECRET_KEY is not set in environment variables"
     );
     return null;
   }
 
-  try {
-    stripeInstance = new Stripe(process.env.STRIPE_SECRET_KEY, {
-      apiVersion: "2025-11-17.clover",
-      typescript: true,
-    });
-    return stripeInstance;
-  } catch (error) {
-    stripeInitError = error instanceof Error ? error : new Error(String(error));
+  if (!process.env.STRIPE_SECRET_KEY.startsWith("sk_")) {
+    stripeInitError = new Error(
+      "STRIPE_SECRET_KEY appears invalid (should start with 'sk_'). " +
+        "Please verify your Stripe configuration."
+    );
     return null;
   }
+
+  stripeInstance = new Stripe(process.env.STRIPE_SECRET_KEY, {
+    apiVersion: "2025-11-17.clover",
+    typescript: true,
+  });
+  return stripeInstance;
 }
 
 /**
