@@ -84,12 +84,13 @@ export function CharacterBuildMode({
     setPreUploadedFiles(files);
   }, []);
 
-  // Track unsaved changes
+  // Track unsaved changes (includes both character edits and pre-uploaded files)
   useEffect(() => {
-    const hasChanges =
+    const hasCharacterChanges =
       JSON.stringify(character) !== JSON.stringify(initialCharacter);
-    onUnsavedChanges?.(hasChanges);
-  }, [character, initialCharacter, onUnsavedChanges]);
+    const hasFileChanges = preUploadedFiles.length > 0;
+    onUnsavedChanges?.(hasCharacterChanges || hasFileChanges);
+  }, [character, initialCharacter, preUploadedFiles.length, onUnsavedChanges]);
 
   // Update local state when derived character changes
   useEffect(() => {
@@ -175,8 +176,9 @@ export function CharacterBuildMode({
                 });
               }
             } catch {
-              toast.warning("Character created, knowledge files will be retried", {
-                duration: 4000,
+              toast.warning("Character created", {
+                description: "Failed to queue knowledge files - you can upload them later from the Files tab",
+                duration: 5000,
               });
             }
           }

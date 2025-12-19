@@ -160,9 +160,25 @@ export function UploadsTab({ characterId, preUploadedFiles = [], onPreUploadedFi
     }
   };
 
-  const handleDeletePreUpload = (fileId: string) => {
+  const handleDeletePreUpload = async (fileId: string) => {
+    const fileToDelete = preUploadedFiles.find((f) => f.id === fileId);
+    if (!fileToDelete) return;
+
+    // Optimistically update UI
     const updatedFiles = preUploadedFiles.filter((f) => f.id !== fileId);
     onPreUploadedFilesChange?.(updatedFiles);
+
+    // Delete blob from storage in background
+    try {
+      await fetch("/api/v1/knowledge/pre-upload", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ blobUrl: fileToDelete.blobUrl }),
+      });
+    } catch {
+      // Silent failure - blob will be orphaned but UI is already updated
+    }
+
     toast.success("File removed");
   };
 

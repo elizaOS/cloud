@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { logger } from "@/lib/utils/logger";
-import { uploadToBlob } from "@/lib/blob";
+import { uploadToBlob, deleteBlob } from "@/lib/blob";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import type { PreUploadedFile } from "@/lib/types/knowledge";
 import {
@@ -10,6 +10,20 @@ import {
   ALLOWED_CONTENT_TYPES,
   TEXT_EXTENSIONS_FOR_OCTET_STREAM,
 } from "@/lib/constants/knowledge";
+
+const TRUSTED_BLOB_HOSTS = [
+  "blob.vercel-storage.com",
+  "public.blob.vercel-storage.com",
+];
+
+function isValidBlobUrl(url: string): boolean {
+  try {
+    const parsedUrl = new URL(url);
+    return TRUSTED_BLOB_HOSTS.some((host) => parsedUrl.hostname.endsWith(host));
+  } catch {
+    return false;
+  }
+}
 
 function getFileExtension(filename: string): string {
   const lastDot = filename.lastIndexOf(".");
@@ -159,4 +173,48 @@ async function handlePOST(req: NextRequest) {
   });
 }
 
+/**
+ * DELETE /api/v1/knowledge/pre-upload
+ * Deletes a pre-uploaded file from Vercel Blob storage.
+ * Used when users remove files from the pre-upload list before saving a character.
+ *
+ * @param req - JSON body with blobUrl to delete.
+ * @returns Success or error response.
+ */
+async function handleDELETE(req: NextRequest) {
+  await requireAuthOrApiKey(req);
+
+  const body = await req.json();
+  const { blobUrl } = body as { blobUrl: string };
+
+  if (!blobUrl) {
+    return NextResponse.json(
+      { error: "blobUrl is required" },
+      { status: 400 },
+    );
+  }
+
+  if (!isValidBlobUrl(blobUrl)) {
+    return NextResponse.json(
+      { error: "Invalid or untrusted blob URL" },
+      { status: 400 },
+    );
+  }
+
+  try {
+    await deleteBlob(blobUrl);
+
+    logger.info("[PreUpload] File deleted from blob", { blobUrl });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    logger.error("[PreUpload] Error deleting blob:", error);
+    return NextResponse.json(
+      { error: "Failed to delete file" },
+      { status: 500 },
+    );
+  }
+}
+
 export const POST = withRateLimit(handlePOST, RateLimitPresets.STANDARD);
+export const DELETE = withRateLimit(handleDELETE, RateLimitPresets.STANDARD);
