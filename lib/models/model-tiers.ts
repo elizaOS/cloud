@@ -54,9 +54,9 @@ function extractProvider(modelId: string): string {
   return "openai";
 }
 
-const FAST_MODEL_ID = getEnvModelId("fast", "google/gemini-2.5-flash-lite");
-const PRO_MODEL_ID = getEnvModelId("pro", "anthropic/claude-sonnet-4.5");
-const ULTRA_MODEL_ID = getEnvModelId("ultra", "anthropic/claude-opus-4.1");
+const FAST_MODEL_ID = getEnvModelId("fast", "openai/gpt-oss-120b");
+const PRO_MODEL_ID = getEnvModelId("pro", "google/gemini-3-flash");
+const ULTRA_MODEL_ID = getEnvModelId("ultra", "anthropic/claude-sonnet-4.5");
 
 export const MODEL_TIERS: Record<ModelTier, ModelTierConfig> = {
   fast: {
@@ -125,6 +125,30 @@ export const MODEL_TIER_LIST: ModelTierConfig[] = [
   MODEL_TIERS.fast,
   MODEL_TIERS.pro,
   MODEL_TIERS.ultra,
+];
+
+/**
+ * Build mode tiers - uses more capable models for character building tasks.
+ * The fast tier uses a better model since gpt-oss can't handle complex build instructions.
+ */
+export const BUILD_MODE_TIERS: Record<ModelTier, ModelTierConfig> = {
+  fast: {
+    ...MODEL_TIERS.fast,
+    modelId: "moonshotai/kimi-k2-0905",
+    provider: "moonshotai",
+    description: "Fast responses for build mode",
+  },
+  pro: {
+    ...MODEL_TIERS.pro,
+    recommended: true,
+  },
+  ultra: MODEL_TIERS.ultra,
+};
+
+export const BUILD_MODE_TIER_LIST: ModelTierConfig[] = [
+  BUILD_MODE_TIERS.fast,
+  BUILD_MODE_TIERS.pro,
+  BUILD_MODE_TIERS.ultra,
 ];
 
 export const DEFAULT_MODEL_TIER: ModelTier = "pro";
