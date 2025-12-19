@@ -3,48 +3,16 @@ import { requireAuthOrApiKey } from "@/lib/auth";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { knowledgeProcessingService } from "@/lib/services/knowledge-processing";
 import { userCharactersRepository } from "@/db/repositories/characters";
+import { isValidBlobUrl } from "@/lib/blob";
+import { KNOWLEDGE_CONSTANTS, ALLOWED_CONTENT_TYPES } from "@/lib/constants/knowledge";
 
-const MAX_FILES_PER_REQUEST = 10;
 const MAX_FILENAME_LENGTH = 255;
-const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
-const ALLOWED_CONTENT_TYPES = [
-  "application/pdf",
-  "text/plain",
-  "text/markdown",
-  "application/msword",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "application/json",
-  "application/xml",
-  "text/xml",
-  "application/x-yaml",
-  "text/yaml",
-  "text/csv",
-  "application/octet-stream",
-];
 
 interface FileToQueue {
   blobUrl: string;
   filename: string;
   contentType: string;
   size: number;
-}
-
-const TRUSTED_BLOB_HOSTS = [
-  "blob.vercel-storage.com",
-  "public.blob.vercel-storage.com",
-];
-
-function isValidBlobUrl(url: string): boolean {
-  try {
-    const parsedUrl = new URL(url);
-    // Vercel Blob URLs have random subdomain prefixes (e.g., l5fpqchmvmrcwa0k.public.blob.vercel-storage.com)
-    // Using endsWith is safe because Vercel controls all subdomains of blob.vercel-storage.com
-    return TRUSTED_BLOB_HOSTS.some((host) => 
-      parsedUrl.hostname === host || parsedUrl.hostname.endsWith(`.${host}`)
-    );
-  } catch {
-    return false;
-  }
 }
 
 /**
@@ -95,9 +63,9 @@ async function handlePOST(req: NextRequest) {
     );
   }
 
-  if (files.length > MAX_FILES_PER_REQUEST) {
+  if (files.length > KNOWLEDGE_CONSTANTS.MAX_FILES_PER_REQUEST) {
     return NextResponse.json(
-      { error: `Maximum ${MAX_FILES_PER_REQUEST} files per request` },
+      { error: `Maximum ${KNOWLEDGE_CONSTANTS.MAX_FILES_PER_REQUEST} files per request` },
       { status: 400 },
     );
   }
@@ -118,16 +86,16 @@ async function handlePOST(req: NextRequest) {
       );
     }
 
-    if (!file.contentType || !ALLOWED_CONTENT_TYPES.includes(file.contentType)) {
+    if (!file.contentType || !ALLOWED_CONTENT_TYPES.includes(file.contentType as typeof ALLOWED_CONTENT_TYPES[number])) {
       return NextResponse.json(
         { error: `Invalid content type: ${file.contentType}` },
         { status: 400 },
       );
     }
 
-    if (typeof file.size !== "number" || file.size <= 0 || file.size > MAX_FILE_SIZE) {
+    if (typeof file.size !== "number" || file.size <= 0 || file.size > KNOWLEDGE_CONSTANTS.MAX_FILE_SIZE) {
       return NextResponse.json(
-        { error: `Invalid file size for ${file.filename}: must be between 1 byte and ${MAX_FILE_SIZE / 1024 / 1024}MB` },
+        { error: `Invalid file size for ${file.filename}: must be between 1 byte and ${KNOWLEDGE_CONSTANTS.MAX_FILE_SIZE / 1024 / 1024}MB` },
         { status: 400 },
       );
     }

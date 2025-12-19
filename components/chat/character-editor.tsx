@@ -18,7 +18,6 @@ import { UploadsTab } from "@/components/chat/uploads-tab";
 import type { ElizaCharacter } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import {
-  Download,
   Zap,
   BookOpen,
   Sparkles,
@@ -31,7 +30,7 @@ import {
   BrandTabsResponsive,
   type TabItem,
 } from "@/components/brand/brand-tabs-responsive";
-import { usePathname, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import type { PreUploadedFile } from "@/lib/types/knowledge";
 
 interface CharacterEditorProps {
@@ -39,7 +38,8 @@ interface CharacterEditorProps {
   onChange: (character: ElizaCharacter) => void;
   onSave: () => Promise<void>;
   preUploadedFiles?: PreUploadedFile[];
-  onPreUploadedFilesChange?: (files: PreUploadedFile[]) => void;
+  onPreUploadedFilesAdd?: (files: PreUploadedFile[]) => void;
+  onPreUploadedFileRemove?: (fileId: string) => void;
 }
 
 type MainTab = "character" | "plugins" | "files";
@@ -49,7 +49,8 @@ export function CharacterEditor({
   onChange,
   onSave,
   preUploadedFiles,
-  onPreUploadedFilesChange,
+  onPreUploadedFilesAdd,
+  onPreUploadedFileRemove,
 }: CharacterEditorProps) {
   const searchParams = useSearchParams();
   const initialTab = searchParams.get("tab") as MainTab | null;
@@ -91,8 +92,11 @@ export function CharacterEditor({
 
   const handleSave = async () => {
     setIsSaving(true);
-    await onSave();
-    setIsSaving(false);
+    try {
+      await onSave();
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleExport = () => {
@@ -107,8 +111,6 @@ export function CharacterEditor({
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
-  const pathname = usePathname();
-  const mode = pathname.includes("/build") ? "build" : "chat";
 
   return (
     <div className="flex h-full flex-col bg-black/40">
@@ -209,7 +211,8 @@ export function CharacterEditor({
               <UploadsTab
                 characterId={character.id || null}
                 preUploadedFiles={preUploadedFiles}
-                onPreUploadedFilesChange={onPreUploadedFilesChange}
+                onPreUploadedFilesAdd={onPreUploadedFilesAdd}
+                onPreUploadedFileRemove={onPreUploadedFileRemove}
               />
             )}
           </>

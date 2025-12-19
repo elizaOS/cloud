@@ -62,6 +62,18 @@ export function CharacterBuildMode({
     "assistant",
   );
 
+  // Store the default character in a ref to prevent it from changing between renders
+  // This prevents pre-uploaded files from being cleared unexpectedly in creator mode
+  const defaultCharacterRef = useRef<ElizaCharacter | null>(null);
+  
+  // Clear default character ref when switching to an existing character
+  // This is done in a separate effect to avoid side effects in useMemo
+  useEffect(() => {
+    if (selectedCharacterId) {
+      defaultCharacterRef.current = null;
+    }
+  }, [selectedCharacterId]);
+  
   // Derive character from selectedCharacterId - avoid setState in effect
   const initialCharacter = useMemo(() => {
     if (selectedCharacterId) {
@@ -70,7 +82,11 @@ export function CharacterBuildMode({
         return char;
       }
     }
-    return createDefaultCharacter();
+    // In creator mode, use a stable reference for the default character
+    if (!defaultCharacterRef.current) {
+      defaultCharacterRef.current = createDefaultCharacter();
+    }
+    return defaultCharacterRef.current;
   }, [selectedCharacterId, initialCharacters]);
 
   // Creator mode: no selected character from database (creating new)
@@ -80,8 +96,13 @@ export function CharacterBuildMode({
   const [character, setCharacter] = useState<ElizaCharacter>(initialCharacter);
   const [preUploadedFiles, setPreUploadedFiles] = useState<PreUploadedFile[]>([]);
 
-  const handlePreUploadedFilesChange = useCallback((files: PreUploadedFile[]) => {
-    setPreUploadedFiles(files);
+  // Use functional updates to avoid stale closure issues with concurrent operations
+  const handlePreUploadedFilesAdd = useCallback((newFiles: PreUploadedFile[]) => {
+    setPreUploadedFiles((prev) => [...prev, ...newFiles]);
+  }, []);
+
+  const handlePreUploadedFileRemove = useCallback((fileId: string) => {
+    setPreUploadedFiles((prev) => prev.filter((f) => f.id !== fileId));
   }, []);
 
   // Track unsaved changes (includes both character edits and pre-uploaded files)
@@ -90,7 +111,7 @@ export function CharacterBuildMode({
       JSON.stringify(character) !== JSON.stringify(initialCharacter);
     const hasFileChanges = preUploadedFiles.length > 0;
     onUnsavedChanges?.(hasCharacterChanges || hasFileChanges);
-  }, [character, initialCharacter, preUploadedFiles.length, onUnsavedChanges]);
+  }, [character, initialCharacter, preUploadedFiles, onUnsavedChanges]);
 
   // Update local state when derived character changes
   // Also clear pre-uploaded files since they only apply to the previous character context
@@ -127,25 +148,95 @@ export function CharacterBuildMode({
     }
 
     try {
-      if (selectedCharacterId && character.id) {
+      // Use character.id to detect if character exists (covers both database characters
+      // and characters just created but not yet in initialCharacters)
+      if (character.id) {
         // Update existing character
-        await updateCharacter(selectedCharacterId, character);
-        toast.success("Character updated successfully!");
+        await updateCharacter(character.id, character);
+
+        // Handle any pending pre-uploaded files (can happen after failed queueing on create)
+        if (preUploadedFiles.length > 0) {
+          // Capture file IDs before async operation to only clear these specific files
+          // This preserves any files added during the fetch request
+          const filesToQueue = preUploadedFiles;
+          const queuedFileIds = new Set(filesToQueue.map((f) => f.id));
+
+          let fileQueuingSucceeded = true;
+          try {
+            const queueResponse = await fetch("/api/v1/knowledge/queue", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              credentials: "include",
+              body: JSON.stringify({
+                characterId: character.id,
+                files: filesToQueue.map((f) => ({
+                  blobUrl: f.blobUrl,
+                  filename: f.filename,
+                  contentType: f.contentType,
+                  size: f.size,
+                })),
+              }),
+            });
+
+            if (queueResponse.ok) {
+              markKnowledgeProcessingPending(character.id);
+              // Only remove the files that were queued, preserve any newly added files
+              setPreUploadedFiles((prev) =>
+                prev.filter((f) => !queuedFileIds.has(f.id)),
+              );
+              toast.success("Character updated!", {
+                description: `Processing ${filesToQueue.length} file(s) for RAG knowledge base...`,
+                duration: 4000,
+              });
+              fetch("/api/v1/knowledge/process-queue", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+              }).catch(() => {});
+            } else {
+              fileQueuingSucceeded = false;
+            }
+          } catch {
+            fileQueuingSucceeded = false;
+          }
+
+          if (!fileQueuingSucceeded) {
+            toast.warning("Character updated, but file queueing failed", {
+              description: "You can retry by clicking Save again.",
+              duration: 6000,
+            });
+            // Character was saved - mark as such, even though files failed
+            onUnsavedChanges?.(false);
+            return;
+          }
+        } else {
+          toast.success("Character updated successfully!");
+        }
+
+        onUnsavedChanges?.(false);
       } else {
         // Create new character (creator mode)
         const saved = await createCharacter(character);
 
         if (saved.id) {
+          // Track if file queueing succeeds (only relevant if we have files)
+          let fileQueuingSucceeded = true;
+
           // Queue pre-uploaded files for background processing
           if (preUploadedFiles.length > 0) {
+            // Capture file IDs before async operation to only clear these specific files
+            // This preserves any files added during the fetch request
+            const filesToQueue = preUploadedFiles;
+            const queuedFileIds = new Set(filesToQueue.map((f) => f.id));
+
             try {
-              // Step 1: Queue the files
               const queueResponse = await fetch("/api/v1/knowledge/queue", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
+                credentials: "include",
                 body: JSON.stringify({
                   characterId: saved.id,
-                  files: preUploadedFiles.map((f) => ({
+                  files: filesToQueue.map((f) => ({
                     blobUrl: f.blobUrl,
                     filename: f.filename,
                     contentType: f.contentType,
@@ -155,33 +246,41 @@ export function CharacterBuildMode({
               });
 
               if (queueResponse.ok) {
-                // Mark as pending so the polling hook shows completion toast
                 markKnowledgeProcessingPending(saved.id);
+                // Only remove the files that were queued, preserve any newly added files
+                setPreUploadedFiles((prev) =>
+                  prev.filter((f) => !queuedFileIds.has(f.id)),
+                );
 
                 toast.success("Character created!", {
-                  description: `Processing ${preUploadedFiles.length} file(s) for RAG knowledge base in background...`,
+                  description: `Processing ${filesToQueue.length} file(s) for RAG knowledge base in background...`,
                   duration: 4000,
                 });
 
-                // Step 2: Immediately trigger processing (fire and forget)
-                // This starts processing in the background without blocking the redirect
+                // Trigger processing in background (fire and forget)
                 fetch("/api/v1/knowledge/process-queue", {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
-                }).catch(() => {
-                  // Silent failure - cron job will pick it up
-                });
+                  credentials: "include",
+                }).catch(() => {});
               } else {
-                toast.warning("Character created", {
-                  description: "Failed to queue knowledge files - you can upload them later",
-                  duration: 5000,
-                });
+                fileQueuingSucceeded = false;
               }
             } catch {
-              toast.warning("Character created", {
-                description: "Failed to queue knowledge files - you can upload them later from the Files tab",
-                duration: 5000,
+              fileQueuingSucceeded = false;
+            }
+
+            // If queueing failed, notify user but still navigate to chat
+            // Character was created successfully - files can be uploaded from Files tab
+            if (!fileQueuingSucceeded) {
+              toast.warning("Character created! File queueing failed", {
+                description: "You can upload files from the Files tab in chat.",
+                duration: 6000,
               });
+              // Clear only the files we attempted to queue, preserve any newly added files
+              setPreUploadedFiles((prev) =>
+                prev.filter((f) => !queuedFileIds.has(f.id)),
+              );
             }
           }
 
@@ -205,18 +304,19 @@ export function CharacterBuildMode({
 
           // Only show redirect toast if no files were queued (avoids duplicate success toasts)
           if (preUploadedFiles.length === 0) {
-          toast.success("Character created! Redirecting to chat...", {
-            duration: 2000,
-          });
+            toast.success("Character created! Redirecting to chat...", {
+              duration: 2000,
+            });
           }
 
-          // Clear room and set new character BEFORE navigating
-          // This ensures chat page starts fresh with no stale room data
-          setRoomId(null);
-          setSelectedCharacterId(saved.id);
+          // Mark changes as saved after successful creation
+          onUnsavedChanges?.(false);
 
-          // Redirect to chat with the new agent
-          router.push(`/dashboard/chat?characterId=${saved.id}`);
+          // Clear room before navigating - chat page starts fresh with no stale room data
+          setRoomId(null);
+
+          // Use pendingNavigation pattern to defer navigation until state is committed
+          setPendingNavigation(saved.id);
         }
       }
     } catch (error) {
@@ -226,10 +326,7 @@ export function CharacterBuildMode({
           : "Failed to save character. Please try again.",
       );
     }
-
-    // Mark changes as saved after successful save
-    onUnsavedChanges?.(false);
-  }, [character, selectedCharacterId, onUnsavedChanges, router, setRoomId, setSelectedCharacterId, preUploadedFiles]);
+  }, [character, onUnsavedChanges, setRoomId, preUploadedFiles]);
 
   const handleCharacterRefresh = useCallback(async () => {
     if (!character.id) {
@@ -324,7 +421,8 @@ export function CharacterBuildMode({
               onChange={setCharacter}
               onSave={handleSave}
               preUploadedFiles={preUploadedFiles}
-              onPreUploadedFilesChange={handlePreUploadedFilesChange}
+              onPreUploadedFilesAdd={handlePreUploadedFilesAdd}
+              onPreUploadedFileRemove={handlePreUploadedFileRemove}
             />
           </div>
         )}
@@ -362,7 +460,8 @@ export function CharacterBuildMode({
                 onChange={setCharacter}
                 onSave={handleSave}
                 preUploadedFiles={preUploadedFiles}
-                onPreUploadedFilesChange={handlePreUploadedFilesChange}
+                onPreUploadedFilesAdd={handlePreUploadedFilesAdd}
+                onPreUploadedFileRemove={handlePreUploadedFileRemove}
               />
             </div>
           </ResizablePanel>

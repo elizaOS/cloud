@@ -80,6 +80,9 @@ export class JobsRepository {
    * Atomically claims pending jobs for processing using FOR UPDATE SKIP LOCKED.
    * This prevents race conditions where multiple workers could grab the same jobs.
    *
+   * Uses a CTE (WITH clause) because FOR UPDATE SKIP LOCKED only works correctly
+   * on the outermost SELECT - it's ignored when placed in a subquery within WHERE IN.
+   *
    * @param filters - Filter criteria including type, organizationId, and limit.
    * @returns Array of claimed jobs (status changed to in_progress).
    */
@@ -88,14 +91,10 @@ export class JobsRepository {
     organizationId: string;
     limit: number;
   }): Promise<Job[]> {
-    // Use raw SQL for FOR UPDATE SKIP LOCKED which Drizzle doesn't support directly
+    // Use CTE with FOR UPDATE SKIP LOCKED for proper row-level locking
+    // The CTE locks the rows first, then the UPDATE operates on locked rows
     const result = await db.execute<Job>(sql`
-      UPDATE ${jobs}
-      SET 
-        status = 'in_progress',
-        started_at = NOW(),
-        updated_at = NOW()
-      WHERE id IN (
+      WITH claimed AS (
         SELECT id FROM ${jobs}
         WHERE type = ${filters.type}
           AND status = 'pending'
@@ -105,6 +104,12 @@ export class JobsRepository {
         LIMIT ${filters.limit}
         FOR UPDATE SKIP LOCKED
       )
+      UPDATE ${jobs}
+      SET 
+        status = 'in_progress',
+        started_at = NOW(),
+        updated_at = NOW()
+      WHERE id IN (SELECT id FROM claimed)
       RETURNING *
     `);
 

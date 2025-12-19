@@ -8,6 +8,7 @@ import { RuntimeFactory } from "@/lib/eliza/runtime-factory";
 import { AgentMode } from "@/lib/eliza/agent-mode-types";
 import type { UserWithOrganization, ApiKey } from "@/lib/types";
 import { KNOWLEDGE_CONSTANTS } from "@/lib/constants/knowledge";
+import { isValidBlobUrl, deleteBlob } from "@/lib/blob";
 
 interface FileToQueue {
   blobUrl: string;
@@ -43,24 +44,6 @@ interface JobStatus {
     createdAt: Date;
     completedAt: Date | null;
   }>;
-}
-
-const TRUSTED_BLOB_HOSTS = [
-  "blob.vercel-storage.com",
-  "public.blob.vercel-storage.com",
-];
-
-function isValidBlobUrl(url: string): boolean {
-  try {
-    const parsedUrl = new URL(url);
-    // Vercel Blob URLs have random subdomain prefixes (e.g., l5fpqchmvmrcwa0k.public.blob.vercel-storage.com)
-    // Using endsWith is safe because Vercel controls all subdomains of blob.vercel-storage.com
-    return TRUSTED_BLOB_HOSTS.some((host) => 
-      parsedUrl.hostname === host || parsedUrl.hostname.endsWith(`.${host}`)
-    );
-  } catch {
-    return false;
-  }
 }
 
 /**
@@ -263,6 +246,21 @@ export class KnowledgeProcessingService {
       return true;
     }
 
+    // Validate blob URL FIRST before any processing or cleanup attempts.
+    // This prevents SSRF attacks and ensures we only attempt cleanup for trusted URLs.
+    const blobUrlIsValid = isValidBlobUrl(jobData.file.blobUrl);
+    if (!blobUrlIsValid) {
+      const error = "Invalid or untrusted blob URL";
+      await jobsRepository.incrementAttempt(
+        job.id,
+        error,
+        job.max_attempts || this.MAX_ATTEMPTS,
+      );
+      // Do NOT attempt cleanup for untrusted URLs - this would be a security risk
+      logger.error(`[KnowledgeProcessing] ${error}`, { jobId: job.id });
+      return false;
+    }
+
     try {
       // Note: Job status is already set to in_progress by claimPendingJobs
 
@@ -284,36 +282,30 @@ export class KnowledgeProcessingService {
 
       if (!knowledgeService) {
         const error = "Knowledge service not available";
-        await jobsRepository.incrementAttempt(
+        const updatedJob = await jobsRepository.incrementAttempt(
           job.id,
           error,
           job.max_attempts || this.MAX_ATTEMPTS,
         );
+        if (updatedJob?.status === "failed") {
+          await this.cleanupBlob(jobData.file.blobUrl, job.id);
+        }
         logger.error(`[KnowledgeProcessing] ${error}`, { jobId: job.id });
         return false;
       }
 
-      // Validate blob URL against trusted domains to prevent SSRF
-      if (!isValidBlobUrl(jobData.file.blobUrl)) {
-        const error = "Invalid or untrusted blob URL";
-        await jobsRepository.incrementAttempt(
-          job.id,
-          error,
-          job.max_attempts || this.MAX_ATTEMPTS,
-        );
-        logger.error(`[KnowledgeProcessing] ${error}`, { jobId: job.id });
-        return false;
-      }
-
-      // Fetch file from blob
+      // Fetch file from blob (URL already validated above)
       const response = await fetch(jobData.file.blobUrl);
       if (!response.ok) {
         const error = `Failed to fetch blob: ${response.status}`;
-        await jobsRepository.incrementAttempt(
+        const updatedJob = await jobsRepository.incrementAttempt(
           job.id,
           error,
           job.max_attempts || this.MAX_ATTEMPTS,
         );
+        if (updatedJob?.status === "failed") {
+          await this.cleanupBlob(jobData.file.blobUrl, job.id);
+        }
         logger.error(`[KnowledgeProcessing] ${error}`, { jobId: job.id });
         return false;
       }
@@ -365,17 +357,49 @@ export class KnowledgeProcessingService {
       return true;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
-      await jobsRepository.incrementAttempt(
+      const updatedJob = await jobsRepository.incrementAttempt(
         job.id,
         errorMessage,
         job.max_attempts || this.MAX_ATTEMPTS,
       );
+      
+      // Clean up blob if job has permanently failed (max attempts reached)
+      // Safe to cleanup because URL was validated before entering try block
+      if (updatedJob?.status === "failed") {
+        await this.cleanupBlob(jobData.file.blobUrl, job.id);
+      }
+      
       logger.error(`[KnowledgeProcessing] Job failed`, {
         jobId: job.id,
         filename: jobData.file.filename,
         error: errorMessage,
+        permanentlyFailed: updatedJob?.status === "failed",
       });
       return false;
+    }
+  }
+
+  /**
+   * Cleans up a blob file from storage.
+   * Called when a job permanently fails to prevent storage leaks.
+   *
+   * @param blobUrl - URL of the blob to delete.
+   * @param jobId - Job ID for logging.
+   */
+  private async cleanupBlob(blobUrl: string, jobId: string): Promise<void> {
+    try {
+      await deleteBlob(blobUrl);
+      logger.info("[KnowledgeProcessing] Cleaned up blob after job failure", {
+        jobId,
+        blobUrl,
+      });
+    } catch (cleanupError) {
+      // Log but don't throw - cleanup failure shouldn't affect job status
+      logger.error("[KnowledgeProcessing] Failed to cleanup blob", {
+        jobId,
+        blobUrl,
+        error: cleanupError instanceof Error ? cleanupError.message : "Unknown error",
+      });
     }
   }
 }

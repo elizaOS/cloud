@@ -18,10 +18,11 @@ import type { KnowledgeDocument, PreUploadedFile } from "@/lib/types/knowledge";
 interface UploadsTabProps {
   characterId: string | null;
   preUploadedFiles?: PreUploadedFile[];
-  onPreUploadedFilesChange?: (files: PreUploadedFile[]) => void;
+  onPreUploadedFilesAdd?: (files: PreUploadedFile[]) => void;
+  onPreUploadedFileRemove?: (fileId: string) => void;
 }
 
-export function UploadsTab({ characterId, preUploadedFiles = [], onPreUploadedFilesChange }: UploadsTabProps) {
+export function UploadsTab({ characterId, preUploadedFiles = [], onPreUploadedFilesAdd, onPreUploadedFileRemove }: UploadsTabProps) {
   const [documents, setDocuments] = useState<KnowledgeDocument[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -34,7 +35,7 @@ export function UploadsTab({ characterId, preUploadedFiles = [], onPreUploadedFi
     const url = new URL("/api/v1/knowledge", window.location.origin);
     url.searchParams.set("characterId", characterId);
 
-    const response = await fetch(url.toString());
+    const response = await fetch(url.toString(), { credentials: "include" });
     if (response.ok) {
       const data = await response.json();
       setDocuments(data.documents || []);
@@ -58,74 +59,87 @@ export function UploadsTab({ characterId, preUploadedFiles = [], onPreUploadedFi
     setUploading(true);
     setSelectedFiles(files);
 
-    const formData = new FormData();
-    
-    // Pre-upload mode: upload to blob storage only (no characterId yet)
-    if (!characterId) {
+    try {
+      const formData = new FormData();
+      
+      // Pre-upload mode: upload to blob storage only (no characterId yet)
+      if (!characterId) {
+        // Fail fast if callbacks aren't provided - files would be uploaded but not tracked
+        if (!onPreUploadedFilesAdd) {
+          toast.error("Cannot upload files", {
+            description: "File tracking is not configured for this view",
+          });
+          return;
+        }
+
+        for (const file of files) {
+          formData.append("files", file, file.name);
+        }
+
+        const response = await fetch("/api/v1/knowledge/pre-upload", {
+          method: "POST",
+          credentials: "include",
+          body: formData,
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          const newFiles = data.files as PreUploadedFile[];
+          
+          // Use add callback - parent uses functional update to avoid stale closure issues
+          onPreUploadedFilesAdd(newFiles);
+          
+          toast.success("Files uploaded successfully", {
+            description: `${data.successCount} file(s) uploaded. They will be processed when you save the character.`,
+          });
+          setSelectedFiles([]);
+          const fileInput = document.getElementById(
+            "uploads-tab-file-input",
+          ) as HTMLInputElement;
+          if (fileInput) fileInput.value = "";
+        } else {
+          const data = await response.json().catch(() => ({}));
+          toast.error("Upload failed", {
+            description: data.error || "Failed to upload files",
+          });
+          setSelectedFiles([]);
+        }
+        return;
+      }
+
+      // Normal mode: process files through knowledge service
+      formData.append("characterId", characterId);
       for (const file of files) {
         formData.append("files", file, file.name);
       }
 
-      const response = await fetch("/api/v1/knowledge/pre-upload", {
+      const response = await fetch("/api/v1/knowledge/upload-file", {
         method: "POST",
+        credentials: "include",
         body: formData,
       });
 
       if (response.ok) {
         const data = await response.json();
-        const newFiles = data.files as PreUploadedFile[];
-        
-        onPreUploadedFilesChange?.([...preUploadedFiles, ...newFiles]);
-        
         toast.success("Files uploaded successfully", {
-          description: `${data.successCount} file(s) uploaded. They will be processed when you save the character.`,
+          description: `${data.successCount} file(s) processed and ready to use`,
         });
         setSelectedFiles([]);
         const fileInput = document.getElementById(
           "uploads-tab-file-input",
         ) as HTMLInputElement;
         if (fileInput) fileInput.value = "";
+        fetchDocuments();
       } else {
-        const data = await response.json();
+        const data = await response.json().catch(() => ({}));
         toast.error("Upload failed", {
           description: data.error || "Failed to upload files",
         });
         setSelectedFiles([]);
       }
+    } finally {
       setUploading(false);
-      return;
     }
-
-    // Normal mode: process files through knowledge service
-    formData.append("characterId", characterId);
-    for (const file of files) {
-      formData.append("files", file, file.name);
-    }
-
-    const response = await fetch("/api/v1/knowledge/upload-file", {
-      method: "POST",
-      body: formData,
-    });
-
-    if (response.ok) {
-      const data = await response.json();
-      toast.success("Files uploaded successfully", {
-        description: `${data.successCount} file(s) processed and ready to use`,
-      });
-      setSelectedFiles([]);
-      const fileInput = document.getElementById(
-        "uploads-tab-file-input",
-      ) as HTMLInputElement;
-      if (fileInput) fileInput.value = "";
-      fetchDocuments();
-    } else {
-      const data = await response.json();
-      toast.error("Upload failed", {
-        description: data.error || "Failed to upload files",
-      });
-      setSelectedFiles([]);
-    }
-    setUploading(false);
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -151,7 +165,7 @@ export function UploadsTab({ characterId, preUploadedFiles = [], onPreUploadedFi
     );
     url.searchParams.set("characterId", characterId);
 
-    const response = await fetch(url.toString(), { method: "DELETE" });
+    const response = await fetch(url.toString(), { method: "DELETE", credentials: "include" });
     if (response.ok) {
       toast.success("Document deleted");
       fetchDocuments();
@@ -164,22 +178,39 @@ export function UploadsTab({ characterId, preUploadedFiles = [], onPreUploadedFi
     const fileToDelete = preUploadedFiles.find((f) => f.id === fileId);
     if (!fileToDelete) return;
 
-    // Optimistically update UI
-    const updatedFiles = preUploadedFiles.filter((f) => f.id !== fileId);
-    onPreUploadedFilesChange?.(updatedFiles);
-
-    // Delete blob from storage in background
-    try {
-      await fetch("/api/v1/knowledge/pre-upload", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ blobUrl: fileToDelete.blobUrl }),
+    // Fail fast if callbacks aren't provided - deletion would work but UI state wouldn't update
+    if (!onPreUploadedFileRemove || !onPreUploadedFilesAdd) {
+      toast.error("Cannot delete file", {
+        description: "File tracking is not configured for this view",
       });
-    } catch {
-      // Silent failure - blob will be orphaned but UI is already updated
+      return;
     }
 
-    toast.success("File removed");
+    // Optimistically update UI - parent uses functional update to avoid stale closure issues
+    onPreUploadedFileRemove(fileId);
+
+    // Delete blob from storage
+    try {
+      const response = await fetch("/api/v1/knowledge/pre-upload", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ blobUrl: fileToDelete.blobUrl }),
+      });
+
+      if (!response.ok) {
+        // Restore the file since deletion failed
+        onPreUploadedFilesAdd([fileToDelete]);
+        toast.error("Failed to delete file");
+        return;
+      }
+
+      toast.success("File removed");
+    } catch {
+      // Restore the file on network error
+      onPreUploadedFilesAdd([fileToDelete]);
+      toast.error("Failed to delete file");
+    }
   };
 
   const getDocumentName = (doc: KnowledgeDocument): string => {

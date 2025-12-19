@@ -9,28 +9,11 @@ import { RuntimeFactory } from "@/lib/eliza/runtime-factory";
 import { AgentMode } from "@/lib/eliza/agent-mode-types";
 import { userCharactersRepository } from "@/db/repositories/characters";
 import { KNOWLEDGE_CONSTANTS, ALLOWED_CONTENT_TYPES } from "@/lib/constants/knowledge";
+import { isValidBlobUrl } from "@/lib/blob";
 
 export const maxDuration = 60;
 
 const MAX_FILENAME_LENGTH = 255;
-
-const TRUSTED_BLOB_HOSTS = [
-  "blob.vercel-storage.com",
-  "public.blob.vercel-storage.com",
-];
-
-function isValidBlobUrl(url: string): boolean {
-  try {
-    const parsedUrl = new URL(url);
-    // Vercel Blob URLs have random subdomain prefixes (e.g., l5fpqchmvmrcwa0k.public.blob.vercel-storage.com)
-    // Using endsWith is safe because Vercel controls all subdomains of blob.vercel-storage.com
-    return TRUSTED_BLOB_HOSTS.some((host) => 
-      parsedUrl.hostname === host || parsedUrl.hostname.endsWith(`.${host}`)
-    );
-  } catch {
-    return false;
-  }
-}
 
 interface BlobFileToProcess {
   blobUrl: string;

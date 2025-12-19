@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { logger } from "@/lib/utils/logger";
-import { uploadToBlob, deleteBlob } from "@/lib/blob";
+import { uploadToBlob, deleteBlob, isValidBlobUrl } from "@/lib/blob";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import type { PreUploadedFile } from "@/lib/types/knowledge";
 import {
@@ -10,24 +10,7 @@ import {
   ALLOWED_CONTENT_TYPES,
   TEXT_EXTENSIONS_FOR_OCTET_STREAM,
 } from "@/lib/constants/knowledge";
-
-const TRUSTED_BLOB_HOSTS = [
-  "blob.vercel-storage.com",
-  "public.blob.vercel-storage.com",
-];
-
-function isValidBlobUrl(url: string): boolean {
-  try {
-    const parsedUrl = new URL(url);
-    // Vercel Blob URLs have random subdomain prefixes (e.g., l5fpqchmvmrcwa0k.public.blob.vercel-storage.com)
-    // Using endsWith is safe because Vercel controls all subdomains of blob.vercel-storage.com
-    return TRUSTED_BLOB_HOSTS.some((host) => 
-      parsedUrl.hostname === host || parsedUrl.hostname.endsWith(`.${host}`)
-    );
-  } catch {
-    return false;
-  }
-}
+import { fileTypeFromBuffer } from "file-type";
 
 /**
  * Extracts the user ID from a pre-upload blob URL path.
@@ -145,11 +128,47 @@ async function handlePOST(req: NextRequest) {
     try {
       const arrayBuffer = await file.arrayBuffer();
       const buffer = Buffer.from(arrayBuffer);
+      
+      // Content inspection for application/octet-stream files
+      // Verifies actual file content matches the claimed extension
+      const declaredContentType = file.type || "application/octet-stream";
+      let finalContentType = declaredContentType;
+      
+      if (declaredContentType === "application/octet-stream") {
+        const ext = getFileExtension(file.name);
+        const detectedType = await fileTypeFromBuffer(buffer);
+        
+        if (detectedType) {
+          // Binary file detected - verify it matches expected type for extension
+          // This prevents uploading malicious binaries with text extensions
+          const isTextExtension = TEXT_EXTENSIONS_FOR_OCTET_STREAM.includes(
+            ext as typeof TEXT_EXTENSIONS_FOR_OCTET_STREAM[number]
+          );
+          
+          if (isTextExtension) {
+            // Expected text file but detected as binary - reject
+            throw new Error(
+              `Content mismatch: ${file.name} appears to be a binary file (${detectedType.mime}) but has a text extension`
+            );
+          }
+          
+          // Use detected content type for binary files
+          finalContentType = detectedType.mime;
+          
+          // Verify detected type is allowed
+          if (!ALLOWED_CONTENT_TYPES.includes(finalContentType as typeof ALLOWED_CONTENT_TYPES[number])) {
+            throw new Error(
+              `Detected content type ${finalContentType} is not allowed for ${file.name}`
+            );
+          }
+        }
+        // If no type detected and it's a text extension, keep as octet-stream (text files)
+      }
 
       // Upload to Vercel Blob
       const blobResult = await uploadToBlob(buffer, {
         filename: file.name,
-        contentType: file.type || "application/octet-stream",
+        contentType: finalContentType,
         folder: "knowledge-pre-upload",
         userId: user.id,
       });
@@ -167,6 +186,7 @@ async function handlePOST(req: NextRequest) {
         filename: file.name,
         blobUrl: blobResult.url,
         size: blobResult.size,
+        detectedContentType: finalContentType !== declaredContentType ? finalContentType : undefined,
       });
     } catch (error) {
       logger.error(`[PreUpload] Error uploading file ${file.name}:`, error);

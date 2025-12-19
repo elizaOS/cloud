@@ -26,6 +26,7 @@ const PENDING_EXPIRY_MS = 5 * 60 * 1000; // 5 minutes - processing should comple
  * Called after queuing files for processing.
  */
 export function markKnowledgeProcessingPending(characterId: string): void {
+  if (typeof window === "undefined") return;
   localStorage.setItem(
     `${PENDING_KNOWLEDGE_KEY_PREFIX}${characterId}`,
     Date.now().toString()
@@ -37,6 +38,8 @@ export function markKnowledgeProcessingPending(characterId: string): void {
  * Returns true if marked pending within the expiry window.
  */
 function hasPendingKnowledgeProcessing(characterId: string): boolean {
+  if (typeof window === "undefined") return false;
+  
   const timestamp = localStorage.getItem(`${PENDING_KNOWLEDGE_KEY_PREFIX}${characterId}`);
   if (!timestamp) return false;
 
@@ -54,6 +57,7 @@ function hasPendingKnowledgeProcessing(characterId: string): boolean {
  * Clears the pending knowledge processing marker for a character.
  */
 function clearPendingKnowledgeProcessing(characterId: string): void {
+  if (typeof window === "undefined") return;
   localStorage.removeItem(`${PENDING_KNOWLEDGE_KEY_PREFIX}${characterId}`);
 }
 
@@ -96,38 +100,46 @@ export function useKnowledgeProcessingStatus(characterId: string | null) {
     let isCurrentEffect = true;
 
     const fetchStatus = async (currentCharacterId: string) => {
-      const response = await fetch(`/api/v1/knowledge/jobs/${currentCharacterId}`);
+      try {
+        const response = await fetch(`/api/v1/knowledge/jobs/${currentCharacterId}`, {
+          credentials: "include",
+        });
 
-      if (!isCurrentEffect) return;
+        if (!isCurrentEffect) return;
 
-      if (!response.ok) {
-        wasProcessingRef.current = false;
-        return;
-      }
-
-      const data = await response.json() as KnowledgeProcessingStatus;
-      setStatusData({ characterId: currentCharacterId, status: data });
-
-      if (wasProcessingRef.current && !data.isProcessing) {
-        if (data.totalFiles > 0) {
-        if (data.failedCount > 0) {
-          toast.success("Knowledge files processed", {
-            description: `${data.completedCount} succeeded, ${data.failedCount} failed`,
-            duration: 5000,
-          });
-        } else {
-          toast.success("Knowledge base ready!", {
-            description: `Successfully processed ${data.completedCount} file(s)`,
-            duration: 4000,
-          });
+        if (!response.ok) {
+          wasProcessingRef.current = false;
+          return;
         }
+
+        const data = await response.json() as KnowledgeProcessingStatus;
+        setStatusData({ characterId: currentCharacterId, status: data });
+
+        if (wasProcessingRef.current && !data.isProcessing) {
+          // Only show completion toast if there were actual files processed
+          // This prevents misleading toasts when localStorage has a pending marker but API returns no jobs
+          if (data.totalFiles > 0) {
+            if (data.failedCount > 0) {
+              toast.success("Knowledge files processed", {
+                description: `${data.completedCount} succeeded, ${data.failedCount} failed`,
+                duration: 5000,
+              });
+            } else {
+              toast.success("Knowledge base ready!", {
+                description: `Successfully processed ${data.completedCount} file(s)`,
+                duration: 4000,
+              });
+            }
+          }
+          // Clear pending state regardless of totalFiles to stop polling
+          wasProcessingRef.current = false;
+          clearPendingKnowledgeProcessing(currentCharacterId);
+        } else if (data.isProcessing) {
+          wasProcessingRef.current = true;
         }
-        // Clear pending state regardless of totalFiles to stop polling
-        // This handles the case where localStorage has a pending marker but API returns no jobs
-        wasProcessingRef.current = false;
-        clearPendingKnowledgeProcessing(currentCharacterId);
-      } else if (data.isProcessing) {
-        wasProcessingRef.current = true;
+      } catch {
+        // Silently handle fetch/parse errors - polling will retry
+        if (!isCurrentEffect) return;
       }
     };
 
