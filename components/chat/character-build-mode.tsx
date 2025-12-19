@@ -32,6 +32,7 @@ import { usePrivy } from "@privy-io/react-auth";
 import { createDefaultCharacter } from "@/lib/utils/character-names";
 import { useRouter } from "next/navigation";
 import type { PreUploadedFile } from "@/lib/types/knowledge";
+import { markKnowledgeProcessingPending } from "@/components/chat/hooks/use-knowledge-processing-status";
 
 interface CharacterBuildModeProps {
   initialCharacters: ElizaCharacter[];
@@ -151,6 +152,9 @@ export function CharacterBuildMode({
               });
 
               if (queueResponse.ok) {
+                // Mark as pending so the polling hook shows completion toast
+                markKnowledgeProcessingPending(saved.id);
+
                 toast.success("Character created!", {
                   description: `Processing ${preUploadedFiles.length} file(s) for RAG knowledge base in background...`,
                   duration: 4000,

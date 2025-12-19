@@ -18,19 +18,60 @@ interface StatusWithCharacter {
   status: KnowledgeProcessingStatus;
 }
 
+const PENDING_KNOWLEDGE_KEY_PREFIX = "pendingKnowledge_";
+const PENDING_EXPIRY_MS = 5 * 60 * 1000; // 5 minutes - processing should complete within this time
+
+/**
+ * Marks a character as having pending knowledge processing.
+ * Called after queuing files for processing.
+ */
+export function markKnowledgeProcessingPending(characterId: string): void {
+  localStorage.setItem(
+    `${PENDING_KNOWLEDGE_KEY_PREFIX}${characterId}`,
+    Date.now().toString()
+  );
+}
+
+/**
+ * Checks if a character has pending knowledge processing that we should track.
+ * Returns true if marked pending within the expiry window.
+ */
+function hasPendingKnowledgeProcessing(characterId: string): boolean {
+  const timestamp = localStorage.getItem(`${PENDING_KNOWLEDGE_KEY_PREFIX}${characterId}`);
+  if (!timestamp) return false;
+
+  const pendingTime = parseInt(timestamp, 10);
+  const isValid = Date.now() - pendingTime < PENDING_EXPIRY_MS;
+
+  if (!isValid) {
+    localStorage.removeItem(`${PENDING_KNOWLEDGE_KEY_PREFIX}${characterId}`);
+  }
+
+  return isValid;
+}
+
+/**
+ * Clears the pending knowledge processing marker for a character.
+ */
+function clearPendingKnowledgeProcessing(characterId: string): void {
+  localStorage.removeItem(`${PENDING_KNOWLEDGE_KEY_PREFIX}${characterId}`);
+}
+
 /**
  * Hook to poll knowledge processing status for a character.
  * Polls every 3 seconds while files are processing.
  * Shows a toast notification when processing completes.
  *
+ * Uses localStorage to track pending processing state across navigation,
+ * ensuring completion toasts are shown even if processing finishes
+ * before this hook mounts.
+ *
  * @param characterId - The character ID to check processing status for.
  */
 export function useKnowledgeProcessingStatus(characterId: string | null) {
-  // Store status with its associated characterId to properly invalidate on character change
   const [statusData, setStatusData] = useState<StatusWithCharacter | null>(null);
   const wasProcessingRef = useRef(false);
 
-  // Derive the actual status - return null if characterId doesn't match or is null
   const status = useMemo(() => {
     if (!characterId || statusData?.characterId !== characterId) {
       return null;
@@ -38,35 +79,35 @@ export function useKnowledgeProcessingStatus(characterId: string | null) {
     return statusData.status;
   }, [characterId, statusData]);
 
-  // Initial fetch and polling
   useEffect(() => {
     if (!characterId) {
       return;
     }
 
-    // Reset processing ref when character changes to prevent false completion toasts
     wasProcessingRef.current = false;
 
-    // Local variable scoped to this effect run to prevent race conditions
-    // when characterId changes. Each effect run gets its own isCurrentEffect.
+    // Check if we have pending processing from a recent character creation.
+    // This handles the case where processing completes before this hook mounts.
+    const hadPendingProcessing = hasPendingKnowledgeProcessing(characterId);
+    if (hadPendingProcessing) {
+      wasProcessingRef.current = true;
+    }
+
     let isCurrentEffect = true;
 
     const fetchStatus = async (currentCharacterId: string) => {
       const response = await fetch(`/api/v1/knowledge/jobs/${currentCharacterId}`);
 
-      // Check local variable - prevents stale responses from updating state
-      // after characterId has changed during the fetch
       if (!isCurrentEffect) return;
 
       if (!response.ok) {
-        toast.error("Failed to fetch knowledge processing status");
+        wasProcessingRef.current = false;
         return;
       }
 
       const data = await response.json() as KnowledgeProcessingStatus;
       setStatusData({ characterId: currentCharacterId, status: data });
 
-      // Check if processing just completed
       if (wasProcessingRef.current && !data.isProcessing && data.totalFiles > 0) {
         if (data.failedCount > 0) {
           toast.success("Knowledge files processed", {
@@ -80,16 +121,14 @@ export function useKnowledgeProcessingStatus(characterId: string | null) {
           });
         }
         wasProcessingRef.current = false;
+        clearPendingKnowledgeProcessing(currentCharacterId);
       } else if (data.isProcessing) {
         wasProcessingRef.current = true;
       }
     };
 
-    // Initial fetch - pass characterId as argument to capture current value
     void fetchStatus(characterId);
 
-    // Poll every 3 seconds while processing
-    // Capture characterId in closure for interval callback
     const capturedCharacterId = characterId;
     const interval = setInterval(() => {
       if (wasProcessingRef.current) {
