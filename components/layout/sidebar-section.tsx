@@ -121,9 +121,7 @@ export function SidebarNavigationSection({
           className="inline-block w-1.5 h-1.5 rounded-full flex-shrink-0"
           style={{ backgroundColor: dotColor }}
         />
-        <h3
-          className="flex-1 text-xs font-normal uppercase tracking-wider text-white/50 text-left"
-        >
+        <h3 className="flex-1 text-xs font-normal uppercase tracking-wider text-white/50 text-left">
           {section.title}
         </h3>
         <span

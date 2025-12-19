@@ -20,7 +20,9 @@ test.describe("Landing Page Interactions", () => {
     console.log(`Found ${buttonCount} visible buttons on home page`);
 
     if (buttonCount === 0) {
-      console.log("ℹ️ No buttons found on home page - page may not be fully loaded");
+      console.log(
+        "ℹ️ No buttons found on home page - page may not be fully loaded",
+      );
       return;
     }
 
@@ -50,7 +52,9 @@ test.describe("Landing Page Interactions", () => {
     console.log(`Found ${linkCount} navigation links`);
 
     if (linkCount === 0) {
-      console.log("ℹ️ No navigation links found - page may not be fully loaded");
+      console.log(
+        "ℹ️ No navigation links found - page may not be fully loaded",
+      );
       return;
     }
 
@@ -111,9 +115,13 @@ test.describe("Login Page Interactions", () => {
     );
 
     // Check if auth UI is available (Privy may not be configured in CI)
-    const isVisible = await emailInput.isVisible({ timeout: 10000 }).catch(() => false);
+    const isVisible = await emailInput
+      .isVisible({ timeout: 10000 })
+      .catch(() => false);
     if (!isVisible) {
-      console.log("ℹ️ Email input not visible (Privy may not be configured in CI)");
+      console.log(
+        "ℹ️ Email input not visible (Privy may not be configured in CI)",
+      );
       return;
     }
 
@@ -133,14 +141,20 @@ test.describe("Login Page Interactions", () => {
     );
 
     // Check if auth UI is available (Privy may not be configured in CI)
-    const isVisible = await emailInput.isVisible({ timeout: 10000 }).catch(() => false);
+    const isVisible = await emailInput
+      .isVisible({ timeout: 10000 })
+      .catch(() => false);
     if (!isVisible) {
-      console.log("ℹ️ Email input not visible (Privy may not be configured in CI)");
+      console.log(
+        "ℹ️ Email input not visible (Privy may not be configured in CI)",
+      );
       return;
     }
 
     // Check if button exists
-    const buttonVisible = await sendCodeButton.isVisible({ timeout: 5000 }).catch(() => false);
+    const buttonVisible = await sendCodeButton
+      .isVisible({ timeout: 5000 })
+      .catch(() => false);
     if (!buttonVisible) {
       console.log("ℹ️ Send code button not visible");
       return;
@@ -164,7 +178,9 @@ test.describe("Login Page Interactions", () => {
     let foundAny = false;
     for (const { name, selector } of oauthButtons) {
       const button = page.locator(selector);
-      const isVisible = await button.isVisible({ timeout: 5000 }).catch(() => false);
+      const isVisible = await button
+        .isVisible({ timeout: 5000 })
+        .catch(() => false);
       if (isVisible) {
         foundAny = true;
         const isEnabled = await button.isEnabled().catch(() => false);
@@ -173,16 +189,22 @@ test.describe("Login Page Interactions", () => {
     }
 
     if (!foundAny) {
-      console.log("ℹ️ No OAuth buttons visible (Privy may not be configured in CI)");
+      console.log(
+        "ℹ️ No OAuth buttons visible (Privy may not be configured in CI)",
+      );
     }
   });
 
   test("wallet connect button is clickable", async ({ page }) => {
     const walletButton = page.locator('button:has-text("Connect Wallet")');
-    const isVisible = await walletButton.isVisible({ timeout: 10000 }).catch(() => false);
+    const isVisible = await walletButton
+      .isVisible({ timeout: 10000 })
+      .catch(() => false);
 
     if (!isVisible) {
-      console.log("ℹ️ Wallet connect button not visible (Privy may not be configured in CI)");
+      console.log(
+        "ℹ️ Wallet connect button not visible (Privy may not be configured in CI)",
+      );
       return;
     }
 
@@ -199,8 +221,12 @@ test.describe("Login Page Interactions", () => {
     const termsLink = page.locator('a[href="/terms-of-service"]');
     const privacyLink = page.locator('a[href="/privacy-policy"]');
 
-    const termsVisible = await termsLink.isVisible({ timeout: 10000 }).catch(() => false);
-    const privacyVisible = await privacyLink.isVisible({ timeout: 5000 }).catch(() => false);
+    const termsVisible = await termsLink
+      .isVisible({ timeout: 10000 })
+      .catch(() => false);
+    const privacyVisible = await privacyLink
+      .isVisible({ timeout: 5000 })
+      .catch(() => false);
 
     if (!termsVisible && !privacyVisible) {
       console.log("ℹ️ Terms/Privacy links not visible on login page");
@@ -249,7 +275,9 @@ test.describe("Marketplace Interactions", () => {
 
     // Should have some interactive content
     if (cardCount + buttonCount === 0) {
-      console.log("ℹ️ No interactive elements found on marketplace - page may not be fully loaded");
+      console.log(
+        "ℹ️ No interactive elements found on marketplace - page may not be fully loaded",
+      );
       return;
     }
     expect(cardCount + buttonCount).toBeGreaterThan(0);
@@ -384,7 +412,9 @@ test.describe("Header and Footer Interactions", () => {
 
     // Find header
     const header = page.locator("header, nav").first();
-    const headerVisible = await header.isVisible({ timeout: 5000 }).catch(() => false);
+    const headerVisible = await header
+      .isVisible({ timeout: 5000 })
+      .catch(() => false);
     if (!headerVisible) {
       console.log("ℹ️ Header not visible - skipping");
       return;
@@ -396,7 +426,9 @@ test.describe("Header and Footer Interactions", () => {
 
     console.log(`✅ Header has ${linkCount} navigation links`);
     if (linkCount === 0) {
-      console.log("ℹ️ No header links found - page may not be fully configured");
+      console.log(
+        "ℹ️ No header links found - page may not be fully configured",
+      );
       return;
     }
     expect(linkCount).toBeGreaterThan(0);
@@ -461,7 +493,9 @@ test.describe("Responsive Design", () => {
     const emailInput = page.locator(
       'input[type="email"], input[placeholder*="example.com"]',
     );
-    const emailVisible = await emailInput.isVisible({ timeout: 5000 }).catch(() => false);
+    const emailVisible = await emailInput
+      .isVisible({ timeout: 5000 })
+      .catch(() => false);
     if (!emailVisible) {
       console.log("ℹ️ Email input not visible on mobile - skipping");
       return;
@@ -469,7 +503,9 @@ test.describe("Responsive Design", () => {
 
     // OAuth buttons should be visible
     const googleButton = page.locator('button:has-text("Google")');
-    const googleVisible = await googleButton.isVisible({ timeout: 5000 }).catch(() => false);
+    const googleVisible = await googleButton
+      .isVisible({ timeout: 5000 })
+      .catch(() => false);
     if (!googleVisible) {
       console.log("ℹ️ Google button not visible on mobile - skipping");
       return;
@@ -488,7 +524,9 @@ test.describe("Accessibility", () => {
     const emailInput = page.locator(
       'input[type="email"], input[placeholder*="example.com"]',
     );
-    const emailVisible = await emailInput.isVisible({ timeout: 5000 }).catch(() => false);
+    const emailVisible = await emailInput
+      .isVisible({ timeout: 5000 })
+      .catch(() => false);
     if (!emailVisible) {
       console.log("ℹ️ Email input not visible - skipping accessibility check");
       return;
@@ -512,7 +550,9 @@ test.describe("Accessibility", () => {
     const buttonCount = await buttons.count();
 
     if (buttonCount === 0) {
-      console.log("ℹ️ No buttons visible on login page - Privy may not be configured");
+      console.log(
+        "ℹ️ No buttons visible on login page - Privy may not be configured",
+      );
       return;
     }
 

@@ -76,7 +76,9 @@ const SIZE_PRESETS = [
   { label: "Wide", width: 1280, height: 768 },
 ];
 
-export function ImageGeneratorAdvanced({ initialHistory = [] }: ImageGeneratorAdvancedProps) {
+export function ImageGeneratorAdvanced({
+  initialHistory = [],
+}: ImageGeneratorAdvancedProps) {
   // Convert initial history to GeneratedImage format
   const convertedHistory: GeneratedImage[] = initialHistory.map((item) => ({
     id: item.id,
@@ -116,7 +118,7 @@ export function ImageGeneratorAdvanced({ initialHistory = [] }: ImageGeneratorAd
 
   // Carousel API (external ref)
   const [carouselApi, setCarouselApi] = useState<CarouselApi | undefined>(
-    undefined
+    undefined,
   );
 
   // Consolidated request state
@@ -580,7 +582,7 @@ export function ImageGeneratorAdvanced({ initialHistory = [] }: ImageGeneratorAd
                             handleDownload(
                               imageState.currentImages[
                                 imageState.currentIndex
-                              ] ?? imageState.currentImage
+                              ] ?? imageState.currentImage,
                             )
                           }
                           className="px-3 py-2 border border-white/20 bg-transparent text-white hover:bg-white/5 transition-colors flex items-center justify-center gap-1 md:gap-2"
@@ -812,7 +814,7 @@ export function ImageGeneratorAdvanced({ initialHistory = [] }: ImageGeneratorAd
                         onClick={() =>
                           handleDownload(
                             imageState.currentImages[imageState.currentIndex] ??
-                              imageState.currentImage!
+                              imageState.currentImage!,
                           )
                         }
                       >

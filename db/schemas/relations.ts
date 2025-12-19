@@ -14,6 +14,7 @@ import { apiKeys } from "./api-keys";
 import { appCreditBalances } from "./app-credit-balances";
 import { appEarnings, appEarningsTransactions } from "./app-earnings";
 import { tokenRedemptions, redemptionLimits } from "./token-redemptions";
+import { cryptoPayments } from "./crypto-payments";
 
 /**
  * Organizations table relations.
@@ -228,3 +229,17 @@ export const redemptionLimitsRelations = relations(
     }),
   }),
 );
+
+/**
+ * Crypto payments table relations.
+ */
+export const cryptoPaymentsRelations = relations(cryptoPayments, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [cryptoPayments.organization_id],
+    references: [organizations.id],
+  }),
+  user: one(users, {
+    fields: [cryptoPayments.user_id],
+    references: [users.id],
+  }),
+}));

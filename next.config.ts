@@ -29,6 +29,12 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: "https",
+        hostname: "api.qrserver.com",
+        port: "",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
         hostname: "api.dicebear.com",
         port: "",
         pathname: "/**",
@@ -86,6 +92,8 @@ const nextConfig: NextConfig = {
     "ipfs-utils",
     "electron-fetch",
     "electron",
+    // oxapay uses __dirname + fs.readFile for method info JSON
+    "oxapay",
   ],
 
   webpack: (config, { isServer }) => {

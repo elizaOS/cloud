@@ -497,7 +497,6 @@ async function handlePOST(req: NextRequest) {
           { status: 402 },
         );
       }
-
     } // End of non-anonymous credit check block
 
     // Log for anonymous users

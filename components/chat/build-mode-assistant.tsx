@@ -122,7 +122,10 @@ export function BuildModeAssistant({
   const [selectedTier, setSelectedTier] = useState<ModelTier>(() => {
     if (typeof window !== "undefined") {
       const stored = localStorage.getItem("build-mode-model-tier");
-      if (stored && (stored === "fast" || stored === "pro" || stored === "ultra")) {
+      if (
+        stored &&
+        (stored === "fast" || stored === "pro" || stored === "ultra")
+      ) {
         return stored as ModelTier;
       }
     }
@@ -185,10 +188,10 @@ export function BuildModeAssistant({
           const existingRoom = conversations.find(
             (conv) =>
               conv.title.startsWith(
-                `[BUILD] ${character?.name || "Character"}`
+                `[BUILD] ${character?.name || "Character"}`,
               ) &&
               character?.id &&
-              conv.title.includes(`(${character.id})`)
+              conv.title.includes(`(${character.id})`),
           );
 
           if (existingRoom) {
@@ -304,7 +307,7 @@ export function BuildModeAssistant({
                   contentType: att.contentType,
                 })),
               };
-            }
+            },
           )
           .filter((msg: Message | null): msg is Message => msg !== null);
 
@@ -323,121 +326,154 @@ export function BuildModeAssistant({
   }, [selectedTier]);
 
   // Send message to ElizaOS stream endpoint with BUILD workflow
-  const sendElizaMessage = useCallback(async (text: string) => {
-    if (!text.trim() || !builderRoomId) return;
+  const sendElizaMessage = useCallback(
+    async (text: string) => {
+      if (!text.trim() || !builderRoomId) return;
 
-    setIsLoading(true);
+      setIsLoading(true);
 
-    // Add user message to UI immediately
-    const userMessage: Message = {
-      id: `user-${Date.now()}`,
-      role: "user",
-      content: text,
-      timestamp: Date.now(),
-    };
-    setMessages((prev) => [...prev, userMessage]);
+      // Add user message to UI immediately
+      const userMessage: Message = {
+        id: `user-${Date.now()}`,
+        role: "user",
+        content: text,
+        timestamp: Date.now(),
+      };
+      setMessages((prev) => [...prev, userMessage]);
 
-    // Build metadata based on mode
-    // Include current client-side character state so the agent knows what user sees
-    const clientCharacterState = character
-      ? {
-          name: character.name || "",
-          bio: character.bio || "",
-          system: character.system || "",
-          adjectives: character.adjectives || [],
-          topics: character.topics || [],
-          style: character.style || { all: [], chat: [], post: [] },
-          messageExamples: character.messageExamples || [],
-          avatarUrl: character.avatarUrl || character.avatar_url || "",
+      // Build metadata based on mode
+      // Include current client-side character state so the agent knows what user sees
+      const clientCharacterState = character
+        ? {
+            name: character.name || "",
+            bio: character.bio || "",
+            system: character.system || "",
+            adjectives: character.adjectives || [],
+            topics: character.topics || [],
+            style: character.style || { all: [], chat: [], post: [] },
+            messageExamples: character.messageExamples || [],
+            avatarUrl: character.avatarUrl || character.avatar_url || "",
+          }
+        : null;
+
+      const metadata: Record<string, unknown> = isCreatorMode
+        ? {
+            isCreatorMode: true,
+            clientCharacterState,
+            isUnsaved: true, // Creator mode is always unsaved
+          }
+        : {
+            targetCharacterId: character?.id,
+            clientCharacterState,
+            isUnsaved: !character?.id, // Unsaved if no ID yet
+          };
+
+      try {
+        const response = await fetch(
+          `/api/eliza/rooms/${builderRoomId}/messages/stream`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({
+              text,
+              model: selectedModelId,
+              agentMode: {
+                mode: AgentMode.BUILD,
+                metadata,
+              },
+            }),
+          },
+        );
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
         }
-      : null;
 
-    const metadata: Record<string, unknown> = isCreatorMode
-      ? {
-          isCreatorMode: true,
-          clientCharacterState,
-          isUnsaved: true, // Creator mode is always unsaved
-        }
-      : {
-          targetCharacterId: character?.id,
-          clientCharacterState,
-          isUnsaved: !character?.id, // Unsaved if no ID yet
-        };
+        const reader = response.body?.getReader();
+        const decoder = new TextDecoder();
+        let assistantMessage = "";
+        let assistantMessageId = "";
 
-    try {
-      const response = await fetch(
-        `/api/eliza/rooms/${builderRoomId}/messages/stream`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({
-            text,
-            model: selectedModelId,
-            agentMode: {
-              mode: AgentMode.BUILD,
-              metadata,
-            },
-          }),
-        }
-      );
+        if (reader) {
+          let buffer = "";
+          let detectedApplyAction = false;
+          let detectedCharacterCreated = false;
+          let createdCharacterId: string | null = null;
+          let proposedCharacterUpdate: Partial<ElizaCharacter> | null = null;
+          let messageAttachments: MessageAttachment[] = [];
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
 
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
-      let assistantMessage = "";
-      let assistantMessageId = "";
+            buffer += decoder.decode(value, { stream: true });
 
-      if (reader) {
-        let buffer = "";
-        let detectedApplyAction = false;
-        let detectedCharacterCreated = false;
-        let createdCharacterId: string | null = null;
-        let proposedCharacterUpdate: Partial<ElizaCharacter> | null = null;
-        let messageAttachments: MessageAttachment[] = [];
+            const events = buffer.split("\n\n");
+            buffer = events.pop() || "";
 
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
+            for (const eventBlock of events) {
+              if (!eventBlock.trim()) continue;
 
-          buffer += decoder.decode(value, { stream: true });
+              const lines = eventBlock.split("\n");
+              let eventType = "";
+              let eventData = "";
 
-          const events = buffer.split("\n\n");
-          buffer = events.pop() || "";
-
-          for (const eventBlock of events) {
-            if (!eventBlock.trim()) continue;
-
-            const lines = eventBlock.split("\n");
-            let eventType = "";
-            let eventData = "";
-
-            for (const line of lines) {
-              if (line.startsWith("event: ")) {
-                eventType = line.slice(7).trim();
-              } else if (line.startsWith("data: ")) {
-                eventData = line.slice(6);
+              for (const line of lines) {
+                if (line.startsWith("event: ")) {
+                  eventType = line.slice(7).trim();
+                } else if (line.startsWith("data: ")) {
+                  eventData = line.slice(6);
+                }
               }
-            }
 
-            if (eventData) {
-              try {
-                const data = JSON.parse(eventData);
+              if (eventData) {
+                try {
+                  const data = JSON.parse(eventData);
 
-                if (
-                  data.type === "agent" &&
-                  (data.content?.text || data.content?.attachments?.length)
-                ) {
-                  // Skip action result messages from UI but process metadata
-                  if (data.content?.metadata?.type === "action_result") {
-                    // Check for character creation in action results
-                    if (data.content?.metadata?.characterId) {
-                      detectedCharacterCreated = true;
-                      createdCharacterId = data.content.metadata.characterId;
+                  if (
+                    data.type === "agent" &&
+                    (data.content?.text || data.content?.attachments?.length)
+                  ) {
+                    // Skip action result messages from UI but process metadata
+                    if (data.content?.metadata?.type === "action_result") {
+                      // Check for character creation in action results
+                      if (data.content?.metadata?.characterId) {
+                        detectedCharacterCreated = true;
+                        createdCharacterId = data.content.metadata.characterId;
+                      }
+                      // Check for SAVE_CHANGES action
+                      if (
+                        data.content?.actions &&
+                        Array.isArray(data.content.actions)
+                      ) {
+                        if (data.content.actions.includes("SAVE_CHANGES")) {
+                          detectedApplyAction = true;
+                        }
+                      }
+                      continue;
                     }
+
+                    assistantMessage = data.content.text || "";
+                    assistantMessageId = data.id;
+
+                    // Capture attachments (images, etc.)
+                    if (data.content?.attachments?.length) {
+                      messageAttachments = data.content.attachments.map(
+                        (att: {
+                          id?: string;
+                          url: string;
+                          title?: string;
+                          contentType?: string;
+                        }) => ({
+                          id: att.id || `att-${Date.now()}`,
+                          url: att.url,
+                          title: att.title,
+                          contentType: att.contentType,
+                        }),
+                      );
+                    }
+
                     // Check for SAVE_CHANGES action
                     if (
                       data.content?.actions &&
@@ -447,188 +483,159 @@ export function BuildModeAssistant({
                         detectedApplyAction = true;
                       }
                     }
-                    continue;
-                  }
 
-                  assistantMessage = data.content.text || "";
-                  assistantMessageId = data.id;
+                    // Check for CREATE_CHARACTER metadata
+                    if (
+                      data.content?.metadata?.action === "CREATE_CHARACTER" &&
+                      data.content?.metadata?.characterCreated
+                    ) {
+                      detectedCharacterCreated = true;
+                      createdCharacterId =
+                        data.content.metadata.characterId || null;
+                    }
 
-                  // Capture attachments (images, etc.)
-                  if (data.content?.attachments?.length) {
-                    messageAttachments = data.content.attachments.map(
-                      (att: {
-                        id?: string;
-                        url: string;
-                        title?: string;
-                        contentType?: string;
-                      }) => ({
-                        id: att.id || `att-${Date.now()}`,
-                        url: att.url,
-                        title: att.title,
-                        contentType: att.contentType,
-                      }),
-                    );
-                  }
+                    // Check for SUGGEST_CHANGES with partial field updates
+                    if (
+                      data.content?.metadata?.action === "SUGGEST_CHANGES" &&
+                      data.content?.metadata?.changes
+                    ) {
+                      proposedCharacterUpdate = data.content.metadata.changes;
+                    }
 
-                  // Check for SAVE_CHANGES action
-                  if (
-                    data.content?.actions &&
-                    Array.isArray(data.content.actions)
-                  ) {
-                    if (data.content.actions.includes("SAVE_CHANGES")) {
-                      detectedApplyAction = true;
+                    // Check for GENERATE_AVATAR with avatar URL
+                    if (
+                      data.content?.metadata?.action === "GENERATE_AVATAR" &&
+                      data.content?.metadata?.changes?.avatarUrl
+                    ) {
+                      proposedCharacterUpdate = data.content.metadata.changes;
+                      // Track if avatar was auto-saved
+                      if (data.content?.metadata?.avatarSaved) {
+                        (
+                          proposedCharacterUpdate as Record<string, unknown>
+                        ).__avatarSaved = true;
+                      }
                     }
                   }
-
-                  // Check for CREATE_CHARACTER metadata
-                  if (
-                    data.content?.metadata?.action === "CREATE_CHARACTER" &&
-                    data.content?.metadata?.characterCreated
-                  ) {
-                    detectedCharacterCreated = true;
-                    createdCharacterId =
-                      data.content.metadata.characterId || null;
-                  }
-
-                  // Check for SUGGEST_CHANGES with partial field updates
-                  if (
-                    data.content?.metadata?.action === "SUGGEST_CHANGES" &&
-                    data.content?.metadata?.changes
-                  ) {
-                    proposedCharacterUpdate = data.content.metadata.changes;
-                  }
-
-                  // Check for GENERATE_AVATAR with avatar URL
-                  if (
-                    data.content?.metadata?.action === "GENERATE_AVATAR" &&
-                    data.content?.metadata?.changes?.avatarUrl
-                  ) {
-                    proposedCharacterUpdate = data.content.metadata.changes;
-                    // Track if avatar was auto-saved
-                    if (data.content?.metadata?.avatarSaved) {
-                      (
-                        proposedCharacterUpdate as Record<string, unknown>
-                      ).__avatarSaved = true;
-                    }
-                  }
+                } catch {
+                  // Silently ignore parse errors during streaming
                 }
-              } catch {
-                // Silently ignore parse errors during streaming
               }
-            }
 
-            // Handle done event
-            if (eventType === "done") {
-              if (assistantMessage || messageAttachments.length > 0) {
-                const newAssistantMessage: Message = {
-                  id: assistantMessageId || `assistant-${Date.now()}`,
-                  role: "assistant",
-                  content: assistantMessage,
-                  timestamp: Date.now(),
-                  attachments:
-                    messageAttachments.length > 0
-                      ? messageAttachments
-                      : undefined,
-                };
-                setMessages((prev) => [...prev, newAssistantMessage]);
+              // Handle done event
+              if (eventType === "done") {
+                if (assistantMessage || messageAttachments.length > 0) {
+                  const newAssistantMessage: Message = {
+                    id: assistantMessageId || `assistant-${Date.now()}`,
+                    role: "assistant",
+                    content: assistantMessage,
+                    timestamp: Date.now(),
+                    attachments:
+                      messageAttachments.length > 0
+                        ? messageAttachments
+                        : undefined,
+                  };
+                  setMessages((prev) => [...prev, newAssistantMessage]);
 
-                // Apply character updates to editor
-                if (proposedCharacterUpdate) {
-                  // Check for avatar saved flag and remove it before updating
-                  const updateWithMeta = proposedCharacterUpdate as Record<
-                    string,
-                    unknown
-                  >;
-                  const avatarWasSaved = updateWithMeta.__avatarSaved;
-                  delete updateWithMeta.__avatarSaved;
+                  // Apply character updates to editor
+                  if (proposedCharacterUpdate) {
+                    // Check for avatar saved flag and remove it before updating
+                    const updateWithMeta = proposedCharacterUpdate as Record<
+                      string,
+                      unknown
+                    >;
+                    const avatarWasSaved = updateWithMeta.__avatarSaved;
+                    delete updateWithMeta.__avatarSaved;
 
-                  onCharacterUpdate(proposedCharacterUpdate);
-                  const isAvatarUpdate = "avatarUrl" in proposedCharacterUpdate;
+                    onCharacterUpdate(proposedCharacterUpdate);
+                    const isAvatarUpdate =
+                      "avatarUrl" in proposedCharacterUpdate;
 
-                  if (isAvatarUpdate) {
-                    // Update sidebar/dropdown avatar if saved in build mode (not creator mode)
-                    if (avatarWasSaved && !isCreatorMode && character?.id) {
-                      updateCharacterAvatar(
-                        character.id,
-                        updateWithMeta.avatarUrl as string,
+                    if (isAvatarUpdate) {
+                      // Update sidebar/dropdown avatar if saved in build mode (not creator mode)
+                      if (avatarWasSaved && !isCreatorMode && character?.id) {
+                        updateCharacterAvatar(
+                          character.id,
+                          updateWithMeta.avatarUrl as string,
+                        );
+                      }
+
+                      toast.success(
+                        avatarWasSaved
+                          ? "Avatar generated and saved!"
+                          : "Avatar preview updated!",
+                        { duration: 4000 },
                       );
+                    } else {
+                      toast.success("Character preview updated!", {
+                        duration: 4000,
+                      });
                     }
+                  }
+
+                  // Handle character creation in creator mode - lock the room
+                  if (
+                    isCreatorMode &&
+                    detectedCharacterCreated &&
+                    createdCharacterId
+                  ) {
+                    const createdName =
+                      (proposedCharacterUpdate?.name as string) ||
+                      character?.name ||
+                      "your agent";
+
+                    // Lock the room and show link to chat with the created agent
+                    setLockedRoom({
+                      characterId: createdCharacterId,
+                      characterName: createdName,
+                    });
+
+                    // Notify parent that character was created (clears unsaved changes)
+                    onCharacterCreated?.(createdCharacterId, createdName);
 
                     toast.success(
-                      avatarWasSaved
-                        ? "Avatar generated and saved!"
-                        : "Avatar preview updated!",
+                      "Character created! You can now chat with your agent.",
                       { duration: 4000 },
                     );
-                  } else {
-                    toast.success("Character preview updated!", {
-                      duration: 4000,
-                    });
                   }
-                }
 
-                // Handle character creation in creator mode - lock the room
-                if (
-                  isCreatorMode &&
-                  detectedCharacterCreated &&
-                  createdCharacterId
-                ) {
-                  const createdName =
-                    (proposedCharacterUpdate?.name as string) ||
-                    character?.name ||
-                    "your agent";
-
-                  // Lock the room and show link to chat with the created agent
-                  setLockedRoom({
-                    characterId: createdCharacterId,
-                    characterName: createdName,
-                  });
-
-                  // Notify parent that character was created (clears unsaved changes)
-                  onCharacterCreated?.(createdCharacterId, createdName);
-
-                  toast.success(
-                    "Character created! You can now chat with your agent.",
-                    { duration: 4000 }
-                  );
-                }
-
-                // Refresh character data after apply action
-                if (detectedApplyAction && onCharacterRefresh) {
-                  toast.success("Character saved!", { duration: 3000 });
-                  await onCharacterRefresh();
+                  // Refresh character data after apply action
+                  if (detectedApplyAction && onCharacterRefresh) {
+                    toast.success("Character saved!", { duration: 3000 });
+                    await onCharacterRefresh();
+                  }
                 }
               }
             }
           }
         }
+      } catch (error) {
+        console.error("[BuildMode] Error sending message:", error);
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : "Failed to send message. Please try again.",
+        );
+      } finally {
+        setIsLoading(false);
       }
-    } catch (error) {
-      console.error("[BuildMode] Error sending message:", error);
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Failed to send message. Please try again."
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  }, [
-    builderRoomId,
-    character,
-    isCreatorMode,
-    onCharacterCreated,
-    onCharacterRefresh,
-    onCharacterUpdate,
-    selectedModelId,
-    updateCharacterAvatar,
-  ]);
+    },
+    [
+      builderRoomId,
+      character,
+      isCreatorMode,
+      onCharacterCreated,
+      onCharacterRefresh,
+      onCharacterUpdate,
+      selectedModelId,
+      updateCharacterAvatar,
+    ],
+  );
 
   // Robust scroll to bottom function
   const scrollToBottom = useCallback((smooth = false) => {
     if (scrollAreaRef.current) {
       const viewport = scrollAreaRef.current.querySelector(
-        "[data-radix-scroll-area-viewport]"
+        "[data-radix-scroll-area-viewport]",
       );
       if (viewport) {
         // Use requestAnimationFrame to ensure DOM has updated
@@ -680,7 +687,7 @@ export function BuildModeAssistant({
         } catch {
           try {
             const fieldMatches = jsonText.matchAll(
-              /"(\w+)":\s*("(?:[^"\\]|\\.)*"|true|false|null|\d+(?:\.\d+)?|\[[^\]]*\])/g
+              /"(\w+)":\s*("(?:[^"\\]|\\.)*"|true|false|null|\d+(?:\.\d+)?|\[[^\]]*\])/g,
             );
             const partialUpdates: Record<string, unknown> = {};
 
@@ -1234,7 +1241,9 @@ export function BuildModeAssistant({
                   value={selectedTier}
                   onValueChange={(value) => {
                     setSelectedTier(value as "fast" | "pro" | "ultra");
-                    const tier = BUILD_MODE_TIER_LIST.find((t) => t.id === value);
+                    const tier = BUILD_MODE_TIER_LIST.find(
+                      (t) => t.id === value,
+                    );
                     if (tier) {
                       toast.success(`Model: ${tier.name}`);
                     }

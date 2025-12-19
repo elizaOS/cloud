@@ -224,7 +224,9 @@ This is your main tool for understanding what the user wants before taking actio
     [
       {
         name: "{{user1}}",
-        content: { text: "Why aren't you responding like the character I'm building?" },
+        content: {
+          text: "Why aren't you responding like the character I'm building?",
+        },
       },
       {
         name: "{{agentName}}",

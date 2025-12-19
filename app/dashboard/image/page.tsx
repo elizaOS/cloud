@@ -19,12 +19,12 @@ export const metadata: Metadata = generatePageMetadata({
  */
 export default async function ImagePage() {
   let initialHistory: GalleryItem[] = [];
-  
+
   try {
     initialHistory = await listUserMedia({ type: "image", limit: 12 });
   } catch {
     // Silent fail for anonymous users
   }
-  
+
   return <ImagePageClient initialHistory={initialHistory} />;
 }
