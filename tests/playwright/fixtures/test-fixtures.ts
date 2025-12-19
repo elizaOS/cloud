@@ -1,4 +1,9 @@
-import { test as base, expect, type Page } from "@playwright/test";
+import {
+  test as base,
+  expect,
+  type Page,
+  type TestInfo,
+} from "@playwright/test";
 import { metaMaskFixtures, MetaMask } from "@synthetixio/synpress/playwright";
 import walletSetup from "../wallet-setup/wallet.setup";
 
@@ -160,6 +165,20 @@ export const LoginSelectors = {
   signingInMessage: "text=Signing you in",
   redirectingMessage: "text=Taking you to your dashboard",
 } as const;
+
+/**
+ * Skip test with a reason (for conditional skipping in test body).
+ * Use this instead of early return for explicit test skipping.
+ *
+ * @example
+ * const success = await goToLogin(page);
+ * skipIf(!success, "Page navigation failed");
+ */
+export function skipIf(condition: boolean, reason: string): void {
+  if (condition) {
+    base.skip(true, reason);
+  }
+}
 
 /**
  * Dashboard selectors

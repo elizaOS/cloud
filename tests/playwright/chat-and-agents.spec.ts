@@ -607,7 +607,9 @@ test.describe("Interactive Elements Summary", () => {
     `);
 
     if (total === 0) {
-      console.log("ℹ️ No interactive elements found - Privy may not be configured in CI");
+      console.log(
+        "ℹ️ No interactive elements found - Privy may not be configured in CI",
+      );
       return;
     }
     expect(total).toBeGreaterThan(0);

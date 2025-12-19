@@ -135,7 +135,9 @@ test.describe("Pass-Through Auth Flow", () => {
       expect(data).toHaveProperty("expiresAt");
       expect(data.loginUrl).toContain("/auth/miniapp-login");
     } else {
-      console.log(`ℹ️ Miniapp session creation returned ${response.status()} (expected in CI)`);
+      console.log(
+        `ℹ️ Miniapp session creation returned ${response.status()} (expected in CI)`,
+      );
     }
   });
 
@@ -153,7 +155,9 @@ test.describe("Pass-Through Auth Flow", () => {
     );
 
     if (createResponse.status() !== 201) {
-      console.log(`ℹ️ Session creation returned ${createResponse.status()}, skipping status check`);
+      console.log(
+        `ℹ️ Session creation returned ${createResponse.status()}, skipping status check`,
+      );
       return;
     }
 
@@ -193,7 +197,9 @@ test.describe("Pass-Through Auth Flow", () => {
     );
 
     if (createResponse.status() !== 201) {
-      console.log(`ℹ️ Session creation returned ${createResponse.status()}, skipping login page test`);
+      console.log(
+        `ℹ️ Session creation returned ${createResponse.status()}, skipping login page test`,
+      );
       return;
     }
 
@@ -418,7 +424,9 @@ test.describe("Authentication Flow Integration", () => {
 
     // Find and click sign in button
     const signInButton = page.getByRole("button", { name: /sign in/i });
-    const buttonVisible = await signInButton.isVisible({ timeout: 10000 }).catch(() => false);
+    const buttonVisible = await signInButton
+      .isVisible({ timeout: 10000 })
+      .catch(() => false);
 
     if (!buttonVisible) {
       console.log("ℹ️ Sign in button not found, skipping auth flow test");
@@ -438,7 +446,9 @@ test.describe("Authentication Flow Integration", () => {
       // Verify some navigation happened
       expect(newUrl.length).toBeGreaterThan(0);
     } catch (e) {
-      console.log("ℹ️ Auth navigation timeout (expected in CI without full auth setup)");
+      console.log(
+        "ℹ️ Auth navigation timeout (expected in CI without full auth setup)",
+      );
     }
   });
 });

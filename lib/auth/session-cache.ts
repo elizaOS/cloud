@@ -1,13 +1,10 @@
 /**
  * Session Token Caching
  *
- * Caches session validation results to reduce load on Privy and the database.
- * Uses Redis with short TTLs to balance performance with security.
+ * Re-exports session caching utilities from privy-client.ts for backwards compatibility.
+ * All new code should import directly from @/lib/auth/privy-client.
  *
- * Security considerations:
- * - Short TTL (5 minutes) limits exposure if a token is revoked
- * - Token hash is used as cache key (not the raw token)
- * - Cache is invalidated on logout
+ * @deprecated Use @/lib/auth/privy-client instead
  */
 
 import { cache } from "@/lib/cache/client";
@@ -16,15 +13,11 @@ import { createHash } from "crypto";
 import type { UserWithOrganization } from "@/lib/types";
 import { logger } from "@/lib/utils/logger";
 
-/**
- * Cached session data
- */
-interface CachedSession {
-  userId: string;
-  privyId: string;
-  isValid: boolean;
-  cachedAt: number;
-}
+// Re-export from privy-client for backwards compatibility
+export {
+  invalidatePrivyTokenCache as invalidateSessionCache,
+  invalidateAllPrivyTokenCaches as clearAllSessionCaches,
+} from "./privy-client";
 
 /**
  * Cached user data (after session validation)
@@ -40,50 +33,6 @@ interface CachedUserData {
  */
 function hashToken(token: string): string {
   return createHash("sha256").update(token).digest("hex").substring(0, 32);
-}
-
-/**
- * Cache a validated session token
- */
-export async function cacheSessionValidation(
-  token: string,
-  userId: string,
-  privyId: string,
-): Promise<void> {
-  const tokenHash = hashToken(token);
-  const key = CacheKeys.session.privy(tokenHash);
-
-  const data: CachedSession = {
-    userId,
-    privyId,
-    isValid: true,
-    cachedAt: Date.now(),
-  };
-
-  await cache.set(key, data, CacheTTL.session.privy);
-  logger.debug("[SessionCache] Cached session validation", {
-    tokenHash: tokenHash.substring(0, 8),
-  });
-}
-
-/**
- * Get cached session validation result
- */
-export async function getCachedSessionValidation(
-  token: string,
-): Promise<CachedSession | null> {
-  const tokenHash = hashToken(token);
-  const key = CacheKeys.session.privy(tokenHash);
-
-  const cached = await cache.get<CachedSession>(key);
-
-  if (cached) {
-    logger.debug("[SessionCache] Cache hit for session validation", {
-      tokenHash: tokenHash.substring(0, 8),
-    });
-  }
-
-  return cached;
 }
 
 /**
@@ -128,28 +77,4 @@ export async function getCachedSessionUser(
   }
 
   return null;
-}
-
-/**
- * Invalidate session cache (call on logout)
- */
-export async function invalidateSessionCache(token: string): Promise<void> {
-  const tokenHash = hashToken(token);
-
-  await Promise.all([
-    cache.del(CacheKeys.session.privy(tokenHash)),
-    cache.del(CacheKeys.session.user(tokenHash)),
-  ]);
-
-  logger.debug("[SessionCache] Invalidated session cache", {
-    tokenHash: tokenHash.substring(0, 8),
-  });
-}
-
-/**
- * Clear all session caches (admin operation)
- */
-export async function clearAllSessionCaches(): Promise<void> {
-  await cache.delPattern(CacheKeys.session.pattern());
-  logger.info("[SessionCache] Cleared all session caches");
 }

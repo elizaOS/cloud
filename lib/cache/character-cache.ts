@@ -6,7 +6,6 @@ import { cache } from "@/lib/cache/client";
 import { CacheKeys } from "@/lib/cache/keys";
 import { logger } from "@/lib/utils/logger";
 import { agentStateCache } from "@/lib/cache/agent-state-cache";
-import { marketplaceCache } from "@/lib/cache/marketplace-cache";
 
 /**
  * Invalidates all character-related caches.
@@ -25,9 +24,6 @@ export async function invalidateCharacterCache(
   await Promise.all([
     // Invalidate agent character data cache
     agentStateCache.invalidateCharacterData(characterId),
-
-    // Invalidate marketplace character cache
-    marketplaceCache.invalidateCharacter(characterId),
 
     // Invalidate room-character mappings (rooms using this character)
     // Note: We can't easily know all rooms for a character without a DB query,

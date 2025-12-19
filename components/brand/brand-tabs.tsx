@@ -25,7 +25,7 @@ const BrandTabsList = React.forwardRef<
   <TabsPrimitive.List
     ref={ref}
     className={cn(
-      "inline-flex h-12 items-center justify-center rounded-none bg-black/50 border border-white/10 p-0 backdrop-blur-sm",
+      "inline-flex h-9 items-center justify-center rounded-none bg-black/50 border border-white/10 p-0 backdrop-blur-sm",
       className,
     )}
     {...props}
@@ -40,7 +40,7 @@ const BrandTabsTrigger = React.forwardRef<
   <TabsPrimitive.Trigger
     ref={ref}
     className={cn(
-      "inline-flex items-center gap-2 rounded-none px-6 py-3 text-sm font-medium transition-all whitespace-nowrap",
+      "inline-flex items-center gap-2 rounded-none px-6 py-1.5 text-sm font-medium transition-all whitespace-nowrap",
       "border-b-2 border-transparent",
       "text-white/70 hover:text-white/90",
       "data-[state=active]:border-white data-[state=active]:bg-[#252527] data-[state=active]:text-white",

@@ -1,47 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
-import { characterMarketplaceService as myAgentsService } from "@/lib/services/characters/marketplace";
+import { requireAuthWithOrg } from "@/lib/auth";
 import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
 
 /**
  * POST /api/my-agents/characters/[id]/track-interaction
- * Tracks an interaction event for a user's character.
- *
- * @param request - The Next.js request object.
- * @param params - Route parameters containing the character ID.
- * @returns Updated interaction count.
+ * Tracks an interaction with a character.
+ * Note: This is a no-op after marketplace removal.
  */
 export async function POST(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    await requireAuth();
+    await requireAuthWithOrg();
     const { id } = await params;
 
-    logger.debug("[My Agents API] Tracking interaction for character:", id);
+    logger.debug("[My Agents API] Track interaction:", { characterId: id });
 
-    const result = await myAgentsService.trackInteraction(id);
-
+    // No-op - interaction tracking was part of marketplace service
     return NextResponse.json({
-      success: result.success,
-      data: {
-        interactionCount: result.count,
-      },
+      success: true,
+      data: { message: "Interaction tracked" },
     });
   } catch (error) {
-    logger.error("[My Agents API] Error tracking interaction:", error);
-
     return NextResponse.json(
-      {
-        success: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to track interaction",
-      },
+      { success: false, error: "Failed to track interaction" },
       { status: 500 },
     );
   }

@@ -23,7 +23,6 @@ import {
   BrandTabsContent,
   BrandCard,
   BrandButton,
-  CornerBrackets,
 } from "@/components/brand";
 import {
   Tooltip,
@@ -105,9 +104,7 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
       : character.bio?.join("\n\n") || "";
 
   return (
-    <BrandCard className="relative h-full overflow-auto">
-      <CornerBrackets size="sm" className="opacity-50" />
-
+    <BrandCard className="relative h-full overflow-auto" corners={false}>
       <div className="relative z-10 space-y-6">
         <h3 className="text-lg font-bold text-white">Agent Details</h3>
 
@@ -116,9 +113,12 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
           defaultValue="basics"
           className="w-full"
         >
-          <BrandTabsList className="grid w-full grid-cols-3">
+          <BrandTabsList className="grid w-full grid-cols-4">
             <BrandTabsTrigger value="basics" className="flex-1">
               Basics
+            </BrandTabsTrigger>
+            <BrandTabsTrigger value="avatar" className="flex-1">
+              Avatar
             </BrandTabsTrigger>
             <BrandTabsTrigger value="personality" className="flex-1">
               Personality
@@ -142,7 +142,7 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                   id="name"
                   value={character.name || ""}
                   onChange={(e) => updateField("name", e.target.value)}
-                  placeholder="Character name"
+                  placeholder="Agent name"
                   className="rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
                 />
               </div>
@@ -158,7 +158,7 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                   id="username"
                   value={character.username || ""}
                   onChange={(e) => updateField("username", e.target.value)}
-                  placeholder="@username"
+                  placeholder="@eliza"
                   className="rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
                 />
               </div>
@@ -175,7 +175,7 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                 id="bio"
                 value={bioText}
                 onChange={(e) => updateField("bio", e.target.value)}
-                placeholder="Describe the character's background and purpose..."
+                placeholder="Describe the agent's background and purpose..."
                 className="min-h-[120px] rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
               />
             </div>
@@ -191,55 +191,51 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                 id="system"
                 value={character.system || ""}
                 onChange={(e) => updateField("system", e.target.value)}
-                placeholder="System-level instructions for the agent..."
+                placeholder="You are a helpful AI assistant focused on providing accurate information. Always fact-check before responding and cite sources when possible..."
                 className="min-h-[80px] rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
               />
             </div>
+          </BrandTabsContent>
 
-            {/* Avatar Section */}
-            <div className="space-y-4">
-              <label className="text-xs font-medium text-white/70 uppercase tracking-wide">
-                Avatar
-              </label>
+          {/* Avatar Tab */}
+          <BrandTabsContent value="avatar" className="space-y-4">
+            {/* Avatar Generator - Quick styles and AI generation */}
+            <AvatarGenerator
+              characterName={character.name || "Character"}
+              characterDescription={
+                typeof character.bio === "string"
+                  ? character.bio
+                  : character.bio?.join(" ") || ""
+              }
+              currentAvatarUrl={character.avatarUrl || character.avatar_url}
+              onAvatarChange={(url) => updateField("avatarUrl", url)}
+            />
 
-              {/* Avatar Generator - Quick styles and AI generation */}
-              <AvatarGenerator
-                characterName={character.name || "Character"}
-                characterDescription={
-                  typeof character.bio === "string"
-                    ? character.bio
-                    : character.bio?.join(" ") || ""
-                }
-                currentAvatarUrl={character.avatarUrl || character.avatar_url}
-                onAvatarChange={(url) => updateField("avatarUrl", url)}
+            {/* Divider */}
+            <div className="flex items-center gap-4">
+              <div className="flex-1 h-px bg-white/10" />
+              <span className="text-xs text-white/40">or upload custom</span>
+              <div className="flex-1 h-px bg-white/10" />
+            </div>
+
+            {/* Manual Upload */}
+            <div className="flex flex-col items-center space-y-2">
+              <AvatarUpload
+                value={character.avatarUrl || character.avatar_url}
+                onChange={(url) => updateField("avatarUrl", url)}
+                name={character.name || "Character"}
+                size="md"
               />
-
-              {/* Divider */}
-              <div className="flex items-center gap-4 py-2">
-                <div className="flex-1 h-px bg-white/10" />
-                <span className="text-xs text-white/40">or upload custom</span>
-                <div className="flex-1 h-px bg-white/10" />
-              </div>
-
-              {/* Manual Upload */}
-              <div className="flex flex-col items-center space-y-2">
-                <AvatarUpload
-                  value={character.avatarUrl || character.avatar_url}
-                  onChange={(url) => updateField("avatarUrl", url)}
-                  name={character.name || "Character"}
-                  size="sm"
-                />
-                <p className="text-xs text-white/40 text-center max-w-xs">
-                  Upload a custom image (max 5MB)
-                </p>
-              </div>
+              <p className="text-xs text-white/40 text-center">
+                Upload a custom image (max 5MB)
+              </p>
             </div>
           </BrandTabsContent>
 
           {/* Personality Tab */}
           <BrandTabsContent value="personality" className="space-y-4">
             {/* Message Examples */}
-            <div className="space-y-3">
+            <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <label className="text-xs font-medium text-white/70 uppercase tracking-wide">
                   Conversation Examples
@@ -264,9 +260,6 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                   </TooltipContent>
                 </Tooltip>
               </div>
-              <p className="text-xs text-white/50">
-                Add example conversations to teach your agent how to respond
-              </p>
 
               {/* Add new conversation example */}
               <div className="space-y-2 rounded-none border border-white/10 bg-black/20 p-3">
@@ -275,7 +268,7 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                   <Input
                     value={newUserMessage}
                     onChange={(e) => setNewUserMessage(e.target.value)}
-                    placeholder="Example user message..."
+                    placeholder="What's the best way to start learning about crypto?"
                     className="rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
                   />
                 </div>
@@ -286,7 +279,7 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                   <Textarea
                     value={newAgentMessage}
                     onChange={(e) => setNewAgentMessage(e.target.value)}
-                    placeholder="Example agent response..."
+                    placeholder="Great question! I'd recommend starting with Bitcoin and Ethereum basics. Understanding blockchain fundamentals is key before diving into specific projects..."
                     className="min-h-[60px] rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
                   />
                 </div>
@@ -304,40 +297,44 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
               </div>
 
               {/* Existing conversation examples */}
-              <div className="space-y-2">
-                {character.messageExamples?.map((conversation, index) => (
-                  <div
-                    key={index}
-                    className="rounded-none bg-black/40 border border-white/10 p-3 space-y-2"
-                  >
-                    <div className="flex items-start justify-between">
-                      <span className="text-xs text-white/50">
-                        Example {index + 1}
-                      </span>
-                      <button
-                        onClick={() => removeMessageExample(index)}
-                        className="hover:text-rose-400 transition-colors"
+              {character.messageExamples &&
+                character.messageExamples.length > 0 && (
+                  <div className="space-y-2 pt-2">
+                    {character.messageExamples.map((conversation, index) => (
+                      <div
+                        key={index}
+                        className="rounded-none bg-black/20 border border-white/10 p-2"
                       >
-                        <X className="h-4 w-4 text-white/70" />
-                      </button>
-                    </div>
-                    {conversation.map((message, msgIndex) => (
-                      <div key={msgIndex} className="space-y-1">
-                        <span className="text-xs font-medium text-[#FF5800]">
-                          {message.name === "user" ||
-                          message.name === "{{user1}}"
-                            ? "User"
-                            : message.name || "Agent"}
-                          :
-                        </span>
-                        <p className="text-sm text-white pl-2 border-l border-white/10">
-                          {message.content.text}
-                        </p>
+                        <div className="flex items-start justify-between mb-1">
+                          <span className="text-xs text-white/40">
+                            #{index + 1}
+                          </span>
+                          <button
+                            onClick={() => removeMessageExample(index)}
+                            className="hover:text-rose-400 transition-colors"
+                          >
+                            <X className="h-3.5 w-3.5 text-white/50" />
+                          </button>
+                        </div>
+                        <div className="space-y-1">
+                          {conversation.map((message, msgIndex) => (
+                            <div key={msgIndex} className="flex gap-2 text-sm">
+                              <span className="text-[#FF5800] shrink-0">
+                                {message.name === "user" ||
+                                message.name === "{{user1}}"
+                                  ? "U:"
+                                  : "A:"}
+                              </span>
+                              <span className="text-white/80">
+                                {message.content.text}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     ))}
                   </div>
-                ))}
-              </div>
+                )}
             </div>
 
             {/* Post Examples */}
@@ -369,7 +366,7 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                 <Input
                   value={newTag}
                   onChange={(e) => setNewTag(e.target.value)}
-                  placeholder="Add an example post..."
+                  placeholder="Just discovered an amazing DeFi protocol! 🚀 Thread below..."
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
                       e.preventDefault();
@@ -451,7 +448,9 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                     all: e.target.value.split("\n").filter((s) => s.trim()),
                   })
                 }
-                placeholder="One guideline per line..."
+                placeholder={
+                  "Be friendly and approachable\nUse clear, simple language\nShow enthusiasm with occasional emojis\nStay professional but conversational"
+                }
                 className="min-h-[80px] rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
               />
             </div>
@@ -499,7 +498,9 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                     chat: e.target.value.split("\n").filter((s) => s.trim()),
                   })
                 }
-                placeholder="One guideline per line..."
+                placeholder={
+                  "Keep responses concise and focused\nAsk follow-up questions to understand better\nUse examples to explain complex topics\nBe patient and encouraging"
+                }
                 className="min-h-[80px] rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
               />
             </div>
@@ -547,7 +548,9 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                     post: e.target.value.split("\n").filter((s) => s.trim()),
                   })
                 }
-                placeholder="One guideline per line..."
+                placeholder={
+                  "Start with an engaging hook\nKeep posts under 280 characters when possible\nInclude relevant hashtags sparingly\nEnd with a call-to-action or question"
+                }
                 className="min-h-[80px] rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
               />
             </div>

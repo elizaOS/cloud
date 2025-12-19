@@ -27,6 +27,15 @@ import {
 import { BrandCard, CornerBrackets } from "@/components/brand";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useSetPageHeader } from "@/components/layout/page-header-context";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerDescription,
+  DrawerClose,
+} from "@/components/ui/drawer";
 
 import type { McpRegistryEntry } from "@/app/api/mcp/registry/route";
 
@@ -49,6 +58,11 @@ export function MCPsPageClient({ servers }: MCPsPageClientProps) {
   const [testingServer, setTestingServer] = useState<string | null>(null);
   const [testResult, setTestResult] = useState<string | null>(null);
   const [filter, setFilter] = useState<string>("all");
+
+  useSetPageHeader({
+    title: "MCP Servers",
+    description: "Browse and connect to Model Context Protocol servers",
+  });
 
   const categories = ["all", ...new Set(servers.map((s) => s.category))];
 
@@ -252,24 +266,16 @@ export function MCPsPageClient({ servers }: MCPsPageClientProps) {
         </AnimatePresence>
       </div>
 
-      {/* Server Detail Panel */}
-      <AnimatePresence>
-        {selectedServer && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.3 }}
-          >
-            <BrandCard className="relative shadow-lg shadow-black/50">
-              <CornerBrackets
-                size="md"
-                color={selectedServer.color}
-                className="opacity-50"
-              />
-
-              <div className="relative z-10 space-y-6">
-                {/* Header */}
+      {/* Server Detail Drawer */}
+      <Drawer
+        open={!!selectedServer}
+        onOpenChange={(open) => !open && setSelectedServer(null)}
+      >
+        <DrawerContent className="bg-black/95 border-white/10 max-h-[85vh]">
+          {selectedServer && (
+            <div className="overflow-y-auto px-4 pb-6 md:px-6">
+              {/* Drawer Header */}
+              <DrawerHeader className="px-0 pt-2 pb-4">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-4">
                     <div
@@ -289,26 +295,25 @@ export function MCPsPageClient({ servers }: MCPsPageClientProps) {
                         );
                       })()}
                     </div>
-                    <div>
-                      <h2
+                    <div className="text-left">
+                      <DrawerTitle
                         className="text-2xl font-normal text-white"
                         style={{ fontFamily: "var(--font-roboto-mono)" }}
                       >
                         {selectedServer.name}
-                      </h2>
-                      <p className="text-sm text-white/60 mt-1">
+                      </DrawerTitle>
+                      <DrawerDescription className="text-sm text-white/60 mt-1">
                         {selectedServer.description}
-                      </p>
+                      </DrawerDescription>
                     </div>
                   </div>
-                  <button
-                    onClick={() => setSelectedServer(null)}
-                    className="p-2 hover:bg-white/10 transition-colors"
-                  >
+                  <DrawerClose className="p-2 hover:bg-white/10 transition-colors rounded-sm">
                     <X className="h-5 w-5 text-white/60" />
-                  </button>
+                  </DrawerClose>
                 </div>
+              </DrawerHeader>
 
+              <div className="space-y-6">
                 {/* Connection Info */}
                 <div className="grid gap-4 md:grid-cols-2">
                   {/* Endpoint */}
@@ -437,14 +442,14 @@ export function MCPsPageClient({ servers }: MCPsPageClientProps) {
                 )}
 
                 {/* Features List */}
-                <div className="space-y-2">
+                <div className="space-y-2 pb-4">
                   <label
                     className="text-xs text-white/50 uppercase tracking-wider"
                     style={{ fontFamily: "var(--font-roboto-mono)" }}
                   >
                     Available Tools ({selectedServer.toolCount})
                   </label>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-2 pb-2">
                     {selectedServer.features.map((feature) => (
                       <span
                         key={feature}
@@ -483,10 +488,10 @@ export function MCPsPageClient({ servers }: MCPsPageClientProps) {
                   </div>
                 )}
               </div>
-            </BrandCard>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            </div>
+          )}
+        </DrawerContent>
+      </Drawer>
     </div>
   );
 }

@@ -128,9 +128,17 @@ jobs:
           fi
       - name: Clean invalid artifact characters
         run: |
-          # Remove files with colons in names (invalid for NTFS/GitHub artifacts)
-          find .next -name '*:*' -delete 2>/dev/null || true
-          echo "Cleaned files with invalid characters"
+          echo "Checking for files with invalid characters (colons)..."
+          INVALID_FILES=$(find .next -name '*:*' 2>/dev/null || true)
+          if [ -n "$INVALID_FILES" ]; then
+            echo "⚠️ Found files with invalid characters:"
+            echo "$INVALID_FILES"
+            echo "Removing these files..."
+            find .next -name '*:*' -delete 2>/dev/null || true
+            echo "✅ Cleaned files with invalid characters"
+          else
+            echo "✅ No invalid characters found"
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: nextjs-build
@@ -285,6 +293,24 @@ jobs:
       - run: bunx playwright install chromium --with-deps
       - name: Start servers and run tests
         run: |
+          # Initialize PIDs
+          MAIN_PID=""
+          MINIAPP_PID=""
+
+          # Cleanup function for trap handler
+          cleanup() {
+            echo "Cleaning up server processes..."
+            if [ -n "$MAIN_PID" ] && kill -0 $MAIN_PID 2>/dev/null; then
+              kill $MAIN_PID 2>/dev/null || true
+            fi
+            if [ -n "$MINIAPP_PID" ] && kill -0 $MINIAPP_PID 2>/dev/null; then
+              kill $MINIAPP_PID 2>/dev/null || true
+            fi
+          }
+
+          # Set trap for cleanup on EXIT, INT, TERM
+          trap cleanup EXIT INT TERM
+
           # Start main app on port 3000
           bun run start &
           MAIN_PID=$!
@@ -311,13 +337,22 @@ jobs:
             sleep 2
           done
 
-          # Run tests from root directory
-          bun run test:playwright:miniapp || TEST_EXIT=$?
+          # Verify servers actually started
+          if ! curl -s http://localhost:3000 > /dev/null 2>&1; then
+            echo "❌ Main app failed to start"
+            exit 1
+          fi
+          if ! curl -s http://localhost:3001 > /dev/null 2>&1; then
+            echo "❌ Miniapp failed to start"
+            exit 1
+          fi
+          echo "✅ Both servers are running"
 
-          # Cleanup
-          kill $MAIN_PID $MINIAPP_PID 2>/dev/null || true
+          # Run tests from root directory (default to failure, set success only on pass)
+          TEST_EXIT=1
+          bun run test:playwright:miniapp && TEST_EXIT=0 || true
 
-          exit ${TEST_EXIT:-0}
+          exit ${TEST_EXIT}
         env:
           CI: "true"
           NODE_ENV: production

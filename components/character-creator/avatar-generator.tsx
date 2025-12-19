@@ -24,6 +24,7 @@ import {
   ensureAvatarUrl,
 } from "@/lib/utils/default-avatar";
 import Image from "next/image";
+import { AvatarUpload } from "../character-builder";
 
 interface AvatarGeneratorProps {
   characterName: string;
@@ -104,17 +105,12 @@ export function AvatarGenerator({
     <div className={cn("flex flex-col gap-4", className)}>
       {/* Current Avatar Preview */}
       <div className="flex items-center gap-4">
-        <div className="relative w-20 h-20 rounded-lg border border-white/10 bg-black/40 overflow-hidden">
-          <Image
-            src={resolvedCurrentAvatar}
-            alt={characterName || "Avatar"}
-            fill
-            className="object-cover"
-            sizes="80px"
-            unoptimized={!isBuiltInAvatar(currentAvatarUrl)}
-            draggable={false}
-          />
-        </div>
+        <AvatarUpload
+          value={currentAvatarUrl}
+          onChange={onAvatarChange}
+          name={characterName}
+          size="sm"
+        />
 
         <div className="flex flex-col gap-2">
           <p className="text-sm text-white/60">Current avatar</p>
@@ -150,8 +146,9 @@ export function AvatarGenerator({
       {/* Avatar Selection Grid */}
       <div className="space-y-2">
         <p className="text-sm text-white/60">
-          Or choose from built-in avatars:
+          Choose from the built-in avatars:
         </p>
+
         <div className="grid grid-cols-5 gap-2 max-w-[360px]">
           {availableAvatars.map((avatar) => {
             const isSelected = currentAvatarUrl === avatar.url;
@@ -185,10 +182,6 @@ export function AvatarGenerator({
           })}
         </div>
       </div>
-
-      <p className="text-xs text-white/40">
-        Built-in avatars are free. AI avatars cost $0.01 for a unique image.
-      </p>
     </div>
   );
 }

@@ -17,18 +17,29 @@ import { PluginsTab } from "@/components/chat/plugins-tab";
 import { UploadsTab } from "@/components/chat/uploads-tab";
 import type { ElizaCharacter } from "@/lib/types";
 import { Button } from "@/components/ui/button";
-import { Download, Zap, BookOpen, Sparkles, Puzzle, CloudUpload, Upload } from "lucide-react";
+import {
+  Zap,
+  BookOpen,
+  Sparkles,
+  Puzzle,
+  CloudUpload,
+  Upload,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   BrandTabsResponsive,
   type TabItem,
 } from "@/components/brand/brand-tabs-responsive";
-import { usePathname, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
+import type { PreUploadedFile } from "@/lib/types/knowledge";
 
 interface CharacterEditorProps {
   character: ElizaCharacter;
   onChange: (character: ElizaCharacter) => void;
   onSave: () => Promise<void>;
+  preUploadedFiles?: PreUploadedFile[];
+  onPreUploadedFilesAdd?: (files: PreUploadedFile[]) => void;
+  onPreUploadedFileRemove?: (fileId: string) => void;
 }
 
 type MainTab = "character" | "plugins" | "files";
@@ -37,6 +48,9 @@ export function CharacterEditor({
   character,
   onChange,
   onSave,
+  preUploadedFiles,
+  onPreUploadedFilesAdd,
+  onPreUploadedFileRemove,
 }: CharacterEditorProps) {
   const searchParams = useSearchParams();
   const initialTab = searchParams.get("tab") as MainTab | null;
@@ -78,8 +92,11 @@ export function CharacterEditor({
 
   const handleSave = async () => {
     setIsSaving(true);
-    await onSave();
-    setIsSaving(false);
+    try {
+      await onSave();
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleExport = () => {
@@ -94,8 +111,6 @@ export function CharacterEditor({
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
-  const pathname = usePathname();
-  const mode = pathname.includes("/build") ? "build" : "chat";
 
   return (
     <div className="flex h-full flex-col bg-black/40">
@@ -121,6 +136,7 @@ export function CharacterEditor({
               onClick={handleSave}
               disabled={isSaving}
               className="text-white hover:bg-[#FF5800]/90 bg-[#FF5800] rounded-none"
+              data-onboarding="build-save"
             >
               <CloudUpload className="mr-2 h-4 w-4" />
               {isSaving ? "Saving..." : "Deploy"}
@@ -150,7 +166,7 @@ export function CharacterEditor({
           </div>
 
           {/* JSON Toggle Switch */}
-          <div className="flex mb-3 xl:mb-0 -mt-2 items-center gap-2 shrink-0 xl:ml-auto xl:pl-4">
+          <div className="flex items-center gap-2 shrink-0 xl:ml-auto xl:pl-4">
             <span className="text-xs text-white/60 whitespace-nowrap">
               JSON
             </span>
@@ -193,7 +209,12 @@ export function CharacterEditor({
               />
             )}
             {activeTab === "files" && (
-              <UploadsTab characterId={character.id || null} />
+              <UploadsTab
+                characterId={character.id || null}
+                preUploadedFiles={preUploadedFiles}
+                onPreUploadedFilesAdd={onPreUploadedFilesAdd}
+                onPreUploadedFileRemove={onPreUploadedFileRemove}
+              />
             )}
           </>
         )}

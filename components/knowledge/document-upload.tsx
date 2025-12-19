@@ -148,9 +148,7 @@ export function DocumentUpload({
 
     const data = await response.json();
     console.log("[DocumentUpload] Upload successful:", data);
-    setSuccess(
-      data.message || `Successfully uploaded ${files.length} file(s)`,
-    );
+    setSuccess(data.message || `Successfully uploaded ${files.length} file(s)`);
     setSelectedFiles([]);
 
     // Reset file input
@@ -270,7 +268,9 @@ export function DocumentUpload({
                 {uploading ? (
                   <div className="flex flex-col items-center gap-3">
                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                    <p className="text-sm text-foreground font-medium">Uploading files...</p>
+                    <p className="text-sm text-foreground font-medium">
+                      Uploading files...
+                    </p>
                   </div>
                 ) : (
                   <div className="flex flex-col items-center gap-3">
@@ -297,7 +297,9 @@ export function DocumentUpload({
 
             {selectedFiles.length > 0 && (
               <div className="space-y-2">
-                <p className="text-sm font-medium">Uploading {selectedFiles.length} file(s)...</p>
+                <p className="text-sm font-medium">
+                  Uploading {selectedFiles.length} file(s)...
+                </p>
                 {selectedFiles.map((file, index) => (
                   <div
                     key={index}
