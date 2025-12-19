@@ -14,6 +14,7 @@ import { getElizaCloudApiUrl } from "./config";
 import {
   AgentMode,
   AGENT_MODE_PLUGINS,
+  SETTINGS_PLUGIN_MAP,
   getConditionalPlugins,
   requiresAssistantMode,
 } from "./agent-mode-types";
@@ -22,11 +23,24 @@ import {
  * Reasons why mode was upgraded to ASSISTANT.
  * Used for logging and debugging.
  */
-export type ModeUpgradeReason = "settings_plugin" | "has_knowledge" | "none";
+export type ModeUpgradeReason =
+  | "settings_plugin"
+  | "explicit_plugin"
+  | "has_knowledge"
+  | "none";
 
 export interface ModeResolution {
   mode: AgentMode;
   upgradeReason: ModeUpgradeReason;
+}
+
+/**
+ * Checks if any settings-based plugins are explicitly listed in character plugins.
+ * Used to upgrade mode when MCP or similar plugins are in the plugins array.
+ */
+function hasExplicitSettingsPlugin(characterPlugins: string[]): boolean {
+  const settingsPluginNames: string[] = Object.values(SETTINGS_PLUGIN_MAP);
+  return characterPlugins.some((p) => settingsPluginNames.includes(p));
 }
 
 /**
@@ -36,12 +50,14 @@ export interface ModeResolution {
  * @param requestedMode - The mode originally requested
  * @param characterId - The character ID to check capabilities for
  * @param characterSettings - Settings configured on the character
+ * @param characterPlugins - Plugins explicitly listed on the character
  * @returns The effective mode and reason for any upgrade
  */
 async function resolveEffectiveMode(
   requestedMode: AgentMode,
   characterId: string,
   characterSettings: Record<string, unknown>,
+  characterPlugins: string[],
 ): Promise<ModeResolution> {
   // BUILD mode is never upgraded - it's a specific workflow
   if (requestedMode === AgentMode.BUILD) {
@@ -58,7 +74,13 @@ async function resolveEffectiveMode(
     return { mode: AgentMode.ASSISTANT, upgradeReason: "settings_plugin" };
   }
 
-  // Check 2: Knowledge documents require ASSISTANT mode for RAG
+  // Check 2: Explicit settings-based plugins in character plugins require ASSISTANT mode
+  // MCP plugin requires ASSISTANT mode for tool execution even when explicitly listed
+  if (hasExplicitSettingsPlugin(characterPlugins)) {
+    return { mode: AgentMode.ASSISTANT, upgradeReason: "explicit_plugin" };
+  }
+
+  // Check 3: Knowledge documents require ASSISTANT mode for RAG
   const documentCount = await memoriesRepository.countByType(
     characterId,
     "documents",
@@ -120,17 +142,19 @@ export class AgentLoader {
     const elizaCharacter = charactersService.toElizaCharacter(dbCharacter);
     const character = this.buildCharacter(elizaCharacter);
     const characterSettings = (elizaCharacter.settings ?? {}) as Record<string, unknown>;
+    const characterPlugins = elizaCharacter.plugins || [];
 
     // Resolve effective mode based on character capabilities
     const modeResolution = await resolveEffectiveMode(
       agentMode,
       characterId,
       characterSettings,
+      characterPlugins,
     );
 
     const plugins = await this.resolvePlugins(
       modeResolution.mode,
-      elizaCharacter.plugins || [],
+      characterPlugins,
       characterSettings,
     );
     return { character, plugins, modeResolution };
