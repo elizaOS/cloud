@@ -8,8 +8,8 @@ import { getProvider } from "@/lib/providers";
 import type { OpenAIModelsResponse } from "@/lib/providers/types";
 import type { NextRequest } from "next/server";
 
-// Models list changes infrequently - use ISR with 1 hour revalidation
-export const revalidate = 3600;
+// This route uses cookies for auth, so it must be dynamic
+export const dynamic = "force-dynamic";
 
 /**
  * GET /api/v1/models
