@@ -58,10 +58,9 @@ test.describe("Login Page", () => {
 
   test("email form works", async ({ page }) => {
     const emailInput = page.locator('input[type="email"]');
-    const inputVisible = await emailInput.isVisible({ timeout: 5000 }).catch(() => false);
-
-    if (!inputVisible) {
-      console.log("ℹ️ Email input not visible (Privy not configured in CI) - skipping");
+    const isVisible = await emailInput.isVisible({ timeout: 5000 }).catch(() => false);
+    if (!isVisible) {
+      console.log("ℹ️ Email input not visible - skipping");
       return;
     }
 
@@ -103,11 +102,7 @@ test.describe("Marketplace", () => {
     await page.waitForTimeout(2000);
 
     const content = await page.locator("body").textContent();
-    if ((content?.length || 0) <= 100) {
-      console.log(`⚠️ Marketplace content too short (${content?.length} chars)`);
-      console.log("ℹ️ Skipping content length check (likely missing configuration)");
-      return;
-    }
+    expect(content?.length).toBeGreaterThan(100);
 
     await countButtons(page, "Marketplace");
   });
@@ -229,11 +224,7 @@ test.describe("Responsive", () => {
     await page.waitForLoadState("networkidle");
 
     const content = await page.locator("body").textContent();
-    if ((content?.length || 0) <= 100) {
-      console.log(`⚠️ Mobile layout content too short (${content?.length} chars)`);
-      console.log("ℹ️ Skipping content length check (likely missing configuration)");
-      return;
-    }
+    expect(content?.length).toBeGreaterThan(100);
     console.log("✅ Mobile layout works");
   });
 });
@@ -259,6 +250,7 @@ test.describe("Error Handling", () => {
     await page.waitForLoadState("networkidle");
 
     const content = await page.locator("body").textContent();
+    expect(content?.length).toBeGreaterThan(0);
     console.log("✅ 404 handled gracefully");
   });
 });

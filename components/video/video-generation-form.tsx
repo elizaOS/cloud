@@ -101,7 +101,7 @@ export function VideoGenerationForm({
           ) : null}
         </div>
 
-        <div className="flex-1 space-y-4 md:space-y-5 overflow-y-auto">
+        <div className="space-y-4 md:space-y-5">
           <div className="space-y-2">
             <label
               htmlFor="video-prompt"

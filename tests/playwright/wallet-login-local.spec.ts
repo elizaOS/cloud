@@ -89,12 +89,10 @@ test.describe("Local Dev - Wallet Login", () => {
     // Wait for wallet button to appear
     const walletButton = page.locator('button:has-text("Connect Wallet")');
     const isVisible = await walletButton.isVisible({ timeout: 5000 }).catch(() => false);
-
     if (!isVisible) {
-      console.log("ℹ️ Wallet connect button not visible (Privy not configured in CI) - skipping");
+      console.log("ℹ️ Wallet button not visible - skipping");
       return;
     }
-
     await expect(walletButton).toBeEnabled();
 
     // Verify button text
@@ -170,13 +168,10 @@ test.describe("Local Dev - Wallet Login", () => {
       discordVisible ||
       githubVisible ||
       walletVisible;
-
     if (!anyVisible) {
-      console.log("⚠️ No login options visible (Privy not configured in CI)");
-      console.log("ℹ️ Skipping login options test");
+      console.log("ℹ️ No login options visible - Privy may not be configured in CI");
       return;
     }
-
     expect(anyVisible).toBe(true);
   });
 

@@ -57,7 +57,10 @@ export default async function AppsPage() {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div
+        className="grid gap-4 md:grid-cols-2 lg:grid-cols-4"
+        data-onboarding="apps-stats"
+      >
         <BrandCard>
           <CornerBrackets size="sm" className="opacity-20" />
           <div className="relative z-10 flex items-center justify-between">
@@ -120,7 +123,7 @@ export default async function AppsPage() {
       </div>
 
       {/* Apps Table */}
-      <BrandCard>
+      <BrandCard data-onboarding="apps-table">
         <CornerBrackets className="opacity-20" />
         <div className="relative z-10">
           <div className="flex items-center justify-between mb-6">

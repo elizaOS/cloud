@@ -1,100 +1,164 @@
 /**
- * Stripe integration for payment processing with lazy initialization.
- * Allows builds to succeed without STRIPE_SECRET_KEY, with runtime checks.
+ * Stripe integration for payment processing.
+ *
+ * Uses lazy initialization to allow the app to build without
+ * STRIPE_SECRET_KEY set. The error is thrown only when Stripe
+ * methods are actually invoked at runtime.
+ *
+ * @example
+ * // RECOMMENDED: Use requireStripe() for type-safe access
+ * import { requireStripe } from "@/lib/stripe";
+ *
+ * const stripe = requireStripe(); // throws if not configured
+ * const customer = await stripe.customers.create({ email });
+ *
+ * @example
+ * // For graceful degradation, check first
+ * import { isStripeConfigured, requireStripe } from "@/lib/stripe";
+ *
+ * if (!isStripeConfigured()) {
+ *   return { error: "Payment processing is not configured" };
+ * }
+ * const stripe = requireStripe();
+ * const customer = await stripe.customers.create({ email });
  */
 
 import Stripe from "stripe";
 
 let stripeInstance: Stripe | null = null;
+let stripeInitError: Error | null = null;
 
 /**
- * Lazily initializes and returns the Stripe client instance.
+ * Get the Stripe client instance (lazy initialization).
+ * Returns null if STRIPE_SECRET_KEY is not configured.
+ */
+function initStripe(): Stripe | null {
+  if (stripeInstance) return stripeInstance;
+  if (stripeInitError) return null;
+
+  if (!process.env.STRIPE_SECRET_KEY) {
+    stripeInitError = new Error(
+      "STRIPE_SECRET_KEY is not set in environment variables",
+    );
+    return null;
+  }
+
+  if (!process.env.STRIPE_SECRET_KEY.startsWith("sk_")) {
+    stripeInitError = new Error(
+      "STRIPE_SECRET_KEY appears invalid (should start with 'sk_'). " +
+        "Please verify your Stripe configuration.",
+    );
+    return null;
+  }
+
+  stripeInstance = new Stripe(process.env.STRIPE_SECRET_KEY, {
+    apiVersion: "2025-11-17.clover",
+    typescript: true,
+  });
+  return stripeInstance;
+}
+
+/**
+ * Get the Stripe client instance.
  * Throws an error if STRIPE_SECRET_KEY is not configured.
  *
- * @returns Stripe client instance.
- * @throws Error if STRIPE_SECRET_KEY is not set.
+ * @throws {Error} If STRIPE_SECRET_KEY is not configured
+ * @returns {Stripe} The initialized Stripe client
  */
-function getStripe(): Stripe {
-  if (!stripeInstance) {
-    const secretKey = process.env.STRIPE_SECRET_KEY;
-    if (!secretKey) {
-      throw new Error(
-        "STRIPE_SECRET_KEY is not set in environment variables. " +
-          "Please configure Stripe to use payment features."
-      );
-    }
-    if (!secretKey.startsWith("sk_")) {
-      throw new Error(
-        "STRIPE_SECRET_KEY appears invalid (should start with 'sk_'). " +
-          "Please verify your Stripe configuration."
-      );
-    }
-    stripeInstance = new Stripe(secretKey, {
-      apiVersion: "2025-11-17.clover",
-      typescript: true,
-    });
+export function getStripe(): Stripe {
+  const instance = initStripe();
+  if (!instance) {
+    throw (
+      stripeInitError ||
+      new Error("STRIPE_SECRET_KEY is not set in environment variables")
+    );
   }
-  return stripeInstance;
+  return instance;
 }
 
 /**
  * Get a type-safe Stripe client instance.
  * This is the RECOMMENDED way to access Stripe - it throws early if not configured.
  *
- * @example
- * ```typescript
- * const stripe = requireStripe();
- * const session = await stripe.checkout.sessions.create({...});
- * ```
+ * @throws {Error} If STRIPE_SECRET_KEY is not configured
+ * @returns {Stripe} The initialized Stripe client
  *
- * @returns Stripe client instance.
- * @throws Error if STRIPE_SECRET_KEY is not configured.
+ * @example
+ * const stripe = requireStripe();
+ * await stripe.customers.create({ email: "test@example.com" });
  */
 export function requireStripe(): Stripe {
   return getStripe();
 }
 
+function createDeferredErrorProxy(): unknown {
+  return new Proxy(() => {}, {
+    get() {
+      return createDeferredErrorProxy();
+    },
+    apply() {
+      throw (
+        stripeInitError ||
+        new Error("STRIPE_SECRET_KEY is not set in environment variables")
+      );
+    },
+  });
+}
+
 /**
- * Check if Stripe is configured without throwing an error.
- * Useful for conditional feature enablement.
+ * Lazy-initialized Stripe client proxy.
  *
- * @example
- * ```typescript
- * if (isStripeConfigured()) {
- *   // Show payment UI
- * } else {
- *   // Show "payment not configured" message
- * }
- * ```
+ * @deprecated Use `requireStripe()` instead for type-safe access.
+ * This proxy allows builds to succeed without STRIPE_SECRET_KEY but provides
+ * no TypeScript safety - calls will throw at runtime if not configured.
  *
- * @returns True if Stripe is configured, false otherwise.
+ * @warning This is a Proxy object, NOT a real Stripe instance at build time.
+ * TypeScript shows this as `Stripe`, but methods will throw at runtime if
+ * STRIPE_SECRET_KEY is not configured.
+ *
+ * @throws {Error} When any method is invoked without STRIPE_SECRET_KEY configured
+ */
+export const stripe: Stripe = new Proxy({} as Stripe, {
+  get(target, prop, receiver) {
+    if (typeof prop === "symbol") {
+      return undefined;
+    }
+    const instance = initStripe();
+    if (!instance) {
+      return createDeferredErrorProxy();
+    }
+    const value = Reflect.get(instance, prop, receiver);
+    if (typeof value === "function") {
+      return value.bind(instance);
+    }
+    return value;
+  },
+});
+
+/**
+ * Check if Stripe is configured (has secret key).
+ * Use this before accessing the `stripe` proxy to avoid runtime errors.
  */
 export function isStripeConfigured(): boolean {
   return !!process.env.STRIPE_SECRET_KEY;
 }
 
 /**
- * TypeScript assertion function that narrows the type after checking Stripe configuration.
- * Useful when you need to ensure Stripe is configured before proceeding.
+ * Assert that Stripe is configured, throwing an error if not.
+ * Use this at the start of functions that require Stripe to be available.
+ *
+ * @throws {Error} If STRIPE_SECRET_KEY is not configured
  *
  * @example
- * ```typescript
- * function processPayment() {
+ * export async function createCustomer(email: string) {
  *   assertStripeConfigured();
- *   // TypeScript now knows Stripe is configured
- *   const stripe = requireStripe();
+ *   // Safe to use stripe after this point
+ *   return stripe.customers.create({ email });
  * }
- * ```
- *
- * @throws Error if Stripe is not configured.
  */
-export function assertStripeConfigured(): asserts process is {
-  env: { STRIPE_SECRET_KEY: string };
-} {
+export function assertStripeConfigured(): asserts stripe is Stripe {
   if (!isStripeConfigured()) {
-    throw new Error(
-      "Stripe is not configured. Please set STRIPE_SECRET_KEY environment variable."
-    );
+    throw new Error("STRIPE_SECRET_KEY is not set in environment variables");
   }
 }
 

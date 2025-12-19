@@ -8,7 +8,7 @@ on:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'push' }}
 
 env:
   BUN_VERSION: "1.2"
@@ -139,15 +139,6 @@ jobs:
           else
             echo "✅ No invalid characters found"
           fi
-
-      - name: Sanitize build artifacts
-        run: |
-          # Remove any potential sensitive files from build output
-          find .next -name ".env*" -type f -delete 2>/dev/null || true
-          find .next -name "*.pem" -type f -delete 2>/dev/null || true
-          find .next -name "*.key" -type f -delete 2>/dev/null || true
-          echo "✅ Build artifacts sanitized"
-
       - uses: actions/upload-artifact@v4
         with:
           name: nextjs-build
@@ -358,10 +349,8 @@ jobs:
           echo "✅ Both servers are running"
 
           # Run tests from root directory (default to failure, set success only on pass)
-          # Set PLAYWRIGHT_SKIP_WEBSERVER to prevent Playwright from starting its own server
-          # since we manually started both servers above
           TEST_EXIT=1
-          PLAYWRIGHT_SKIP_WEBSERVER=1 bun run test:playwright:miniapp && TEST_EXIT=0 || true
+          bun run test:playwright:miniapp && TEST_EXIT=0 || true
 
           exit ${TEST_EXIT}
         env:
