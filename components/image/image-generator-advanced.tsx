@@ -57,6 +57,18 @@ interface GeneratedImage {
   settings: ImageGenerationSettings;
 }
 
+interface GalleryItem {
+  id: string;
+  url: string;
+  prompt: string;
+  createdAt: Date;
+  dimensions?: { width?: number; height?: number };
+}
+
+interface ImageGeneratorAdvancedProps {
+  initialHistory?: GalleryItem[];
+}
+
 const SIZE_PRESETS = [
   { label: "Square", width: 1024, height: 1024 },
   { label: "Portrait", width: 768, height: 1024 },
@@ -64,7 +76,21 @@ const SIZE_PRESETS = [
   { label: "Wide", width: 1280, height: 768 },
 ];
 
-export function ImageGeneratorAdvanced() {
+export function ImageGeneratorAdvanced({ initialHistory = [] }: ImageGeneratorAdvancedProps) {
+  // Convert initial history to GeneratedImage format
+  const convertedHistory: GeneratedImage[] = initialHistory.map((item) => ({
+    id: item.id,
+    url: item.url,
+    prompt: item.prompt,
+    timestamp: new Date(item.createdAt),
+    settings: {
+      width: item.dimensions?.width || 1024,
+      height: item.dimensions?.height || 1024,
+      steps: 30,
+      guidanceScale: 7.5,
+    },
+  }));
+
   // Form state
   const [prompt, setPrompt] = useState("");
   const [settings, setSettings] = useState<ImageGenerationSettings>({
@@ -75,7 +101,7 @@ export function ImageGeneratorAdvanced() {
   });
   const [numImages, setNumImages] = useState<number>(1);
 
-  // Consolidated image state - current batch and selection
+  // Consolidated image state - current batch and selection (initialized with server history)
   const [imageState, setImageState] = useState<{
     currentImage: GeneratedImage | null;
     currentImages: GeneratedImage[];
@@ -85,12 +111,12 @@ export function ImageGeneratorAdvanced() {
     currentImage: null,
     currentImages: [],
     currentIndex: 0,
-    history: [],
+    history: convertedHistory,
   });
 
   // Carousel API (external ref)
   const [carouselApi, setCarouselApi] = useState<CarouselApi | undefined>(
-    undefined,
+    undefined
   );
 
   // Consolidated request state
@@ -554,27 +580,13 @@ export function ImageGeneratorAdvanced() {
                             handleDownload(
                               imageState.currentImages[
                                 imageState.currentIndex
-                              ] ?? imageState.currentImage,
+                              ] ?? imageState.currentImage
                             )
                           }
                           className="px-3 py-2 border border-white/20 bg-transparent text-white hover:bg-white/5 transition-colors flex items-center justify-center gap-1 md:gap-2"
                         >
                           <Download className="h-3 md:h-4 w-3 md:w-4" />
-                          <span className="text-xs font-mono">Save</span>
-                        </button>
-                        <button
-                          type="button"
-                          className="px-3 py-2 border border-white/20 bg-transparent text-white hover:bg-white/5 transition-colors flex items-center justify-center gap-1 md:gap-2"
-                        >
-                          <Heart className="h-3 md:h-4 w-3 md:w-4" />
-                          <span className="text-xs font-mono">Like</span>
-                        </button>
-                        <button
-                          type="button"
-                          className="px-3 py-2 border border-white/20 bg-transparent text-white hover:bg-white/5 transition-colors flex items-center justify-center gap-1 md:gap-2"
-                        >
-                          <Share2 className="h-3 md:h-4 w-3 md:w-4" />
-                          <span className="text-xs font-mono">Share</span>
+                          <span className="text-xs font-mono">Download</span>
                         </button>
                         <button
                           type="button"
@@ -800,7 +812,7 @@ export function ImageGeneratorAdvanced() {
                         onClick={() =>
                           handleDownload(
                             imageState.currentImages[imageState.currentIndex] ??
-                              imageState.currentImage!,
+                              imageState.currentImage!
                           )
                         }
                       >

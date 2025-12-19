@@ -1,4 +1,3 @@
-import { PrivyClient } from "@privy-io/server-auth";
 import { usersService } from "@/lib/services/users";
 import { apiKeysService } from "@/lib/services/api-keys";
 import { userSessionsService } from "@/lib/services/user-sessions";
@@ -8,15 +7,55 @@ import type { Organization } from "@/db/schemas/organizations";
 import { cache } from "react";
 import { cookies } from "next/headers";
 import type { NextRequest } from "next/server";
+import crypto from "crypto";
+import { cache as redisCache } from "@/lib/cache/client";
+import { CacheKeys, CacheTTL } from "@/lib/cache/keys";
+import { logger } from "@/lib/utils/logger";
+import {
+  verifyAuthTokenCached,
+  invalidatePrivyTokenCache,
+  getUserFromIdToken,
+  getUserById,
+} from "./auth/privy-client";
 
 // Re-export Organization type for convenience
 export type { Organization };
 
-// Initialize Privy client
-const privyClient = new PrivyClient(
-  process.env.NEXT_PUBLIC_PRIVY_APP_ID!,
-  process.env.PRIVY_APP_SECRET!,
-);
+/**
+ * Hash a token for use as cache key (never store raw tokens)
+ */
+function hashToken(token: string): string {
+  return crypto
+    .createHash("sha256")
+    .update(token)
+    .digest("hex")
+    .substring(0, 32);
+}
+
+/**
+ * Invalidate user session cache (call when user/org data changes)
+ * @param sessionToken - The session token to invalidate cache for
+ */
+export async function invalidateUserSessionCache(
+  sessionToken: string,
+): Promise<void> {
+  const tokenHash = hashToken(sessionToken);
+  const cacheKey = CacheKeys.session.user(tokenHash);
+  await redisCache.del(cacheKey);
+  logger.debug("[AUTH] Invalidated user session cache");
+}
+
+/**
+ * Invalidate all caches for a session token (Privy + user data)
+ * Call this on logout to ensure immediate invalidation
+ * @param sessionToken - The Privy auth token to invalidate
+ */
+export async function invalidateSessionCaches(
+  sessionToken: string,
+): Promise<void> {
+  await invalidatePrivyTokenCache(sessionToken);
+  logger.debug("[AUTH] Invalidated all session caches (Privy + user)");
+}
 
 /**
  * Ensure user has a default API key for programmatic access
@@ -66,12 +105,17 @@ export type AuthResult = {
 /**
  * Get the current authenticated user from Privy token
  *
- * Flow:
+ * Performance optimized with Redis caching:
+ * 1. Check Redis cache first (avoids Privy API call AND DB call)
+ * 2. On cache miss: verify with Privy, fetch from DB, cache result
+ * 3. Session tracking is non-blocking to not slow down the response
+ *
+ * Flow (on cache miss):
  * 1. Verify Privy token from cookies
  * 2. Look up user in database by Privy ID
  * 3. If not found, fetch full user data from Privy API (just-in-time sync)
- * 4. Create user and organization in database
- * 5. Create or get user session for tracking
+ * 4. Cache the user data in Redis
+ * 5. Update session tracking (non-blocking)
  *
  * This handles the race condition where webhooks haven't fired yet.
  */
@@ -86,8 +130,31 @@ export const getCurrentUser = cache(
         return null;
       }
 
-      // Verify the token with Privy
-      const verifiedClaims = await privyClient.verifyAuthToken(authToken.value);
+      const tokenHash = hashToken(authToken.value);
+      const cacheKey = CacheKeys.session.user(tokenHash);
+
+      // Check Redis cache first - avoids both Privy API AND DB calls
+      const cachedUser = await redisCache.get<UserWithOrganization>(cacheKey);
+      if (cachedUser) {
+        logger.debug("[AUTH] Cache hit for user session");
+
+        // Update session tracking in background (non-blocking)
+        if (cachedUser.organization_id) {
+          void trackSessionActivity(
+            cachedUser.id,
+            cachedUser.organization_id,
+            authToken.value,
+          );
+        }
+
+        return cachedUser;
+      }
+
+      logger.debug("[AUTH] Cache miss, verifying with Privy (cached)");
+
+      // Verify the token with Privy using cached verification
+      // This caches the Privy API response to avoid repeated network calls
+      const verifiedClaims = await verifyAuthTokenCached(authToken.value);
 
       if (!verifiedClaims) {
         return null;
@@ -99,7 +166,7 @@ export const getCurrentUser = cache(
       // Just-in-time sync: If user doesn't exist, fetch from Privy and create
       // This handles race conditions where webhooks haven't fired yet
       if (!user) {
-        console.log(
+        logger.info(
           "[AUTH] User not in DB, starting JIT sync for:",
           verifiedClaims.userId,
         );
@@ -110,11 +177,11 @@ export const getCurrentUser = cache(
           // Try efficient method first: use privy-id-token to avoid rate limits
           const idToken = cookieStore.get("privy-id-token");
           if (idToken?.value) {
-            console.log("[AUTH] Using privy-id-token for user lookup");
+            logger.debug("[AUTH] Using privy-id-token for user lookup");
             try {
-              privyUser = await privyClient.getUser({ idToken: idToken.value });
+              privyUser = await getUserFromIdToken(idToken.value);
             } catch (idTokenError) {
-              console.warn(
+              logger.warn(
                 "[AUTH] privy-id-token method failed, will fallback to userId",
               );
             }
@@ -122,45 +189,50 @@ export const getCurrentUser = cache(
 
           // Fallback: use userId directly (counts against rate limits)
           if (!privyUser) {
-            console.log("[AUTH] Using userId for user lookup (fallback)");
-            privyUser = await privyClient.getUser(verifiedClaims.userId);
+            logger.debug("[AUTH] Using userId for user lookup (fallback)");
+            privyUser = await getUserById(verifiedClaims.userId);
           }
 
           if (privyUser) {
             user = await syncUserFromPrivy(privyUser);
-            console.log("[AUTH] ✓ JIT sync complete:", {
+            logger.info("[AUTH] ✓ JIT sync complete:", {
               userId: user.id,
               orgId: user.organization_id,
             });
           } else {
-            console.error("[AUTH] ✗ Privy returned null for user");
+            logger.error("[AUTH] ✗ Privy returned null for user");
           }
         } catch (privyError) {
-          console.error(
+          logger.error(
             "[AUTH] ✗ Failed to fetch user from Privy:",
             privyError instanceof Error ? privyError.message : privyError,
           );
         }
       }
 
-      // Create or get user session for authenticated users with organizations
-      if (user && user.organization_id) {
-        await userSessionsService.getOrCreateSession({
-          user_id: user.id,
-          organization_id: user.organization_id,
-          session_token: authToken.value,
-        });
-
-        // Ensure user has an API key for agent runtime (fire-and-forget)
-        // This handles existing users who registered before API key auto-generation
-        void ensureUserHasApiKey(user.id, user.organization_id);
-      } else if (user && !user.organization_id) {
-        console.error("[AUTH] ✗ User missing organization_id:", user.id);
+      if (!user) {
+        return null;
       }
 
-      return user ?? null;
+      // Cache the user data in Redis (5 min TTL)
+      await redisCache.set(cacheKey, user, CacheTTL.session.user);
+      logger.debug("[AUTH] Cached user session data");
+
+      // Handle session tracking and API key in background (non-blocking)
+      if (user.organization_id) {
+        void trackSessionActivity(
+          user.id,
+          user.organization_id,
+          authToken.value,
+        );
+        void ensureUserHasApiKey(user.id, user.organization_id);
+      } else {
+        logger.error("[AUTH] ✗ User missing organization_id:", user.id);
+      }
+
+      return user;
     } catch (error) {
-      console.error(
+      logger.error(
         "[AUTH] ✗ Error:",
         error instanceof Error ? error.message : error,
       );
@@ -168,6 +240,44 @@ export const getCurrentUser = cache(
     }
   },
 );
+
+/**
+ * Track session activity in background (non-blocking, debounced)
+ * Uses Redis to debounce writes - only writes to DB every 60 seconds per session
+ */
+async function trackSessionActivity(
+  userId: string,
+  organizationId: string,
+  sessionToken: string,
+): Promise<void> {
+  try {
+    const tokenHash = hashToken(sessionToken);
+    const debounceKey = `session:debounce:${tokenHash}`;
+
+    // Check if we've tracked this session recently (within 60 seconds)
+    const recentlyTracked = await redisCache.get<boolean>(debounceKey);
+    if (recentlyTracked) {
+      // Skip DB write - already tracked recently
+      return;
+    }
+
+    // Mark as tracked for next 60 seconds
+    await redisCache.set(debounceKey, true, 60);
+
+    // Now do the actual DB upsert
+    await userSessionsService.getOrCreateSession({
+      user_id: userId,
+      organization_id: organizationId,
+      session_token: sessionToken,
+    });
+  } catch (error) {
+    // Don't let session tracking failures affect the main request
+    logger.warn(
+      "[AUTH] Session tracking failed:",
+      error instanceof Error ? error.message : error,
+    );
+  }
+}
 
 /**
  * Require authentication - throws error if not authenticated
@@ -411,10 +521,10 @@ export async function requireAuthOrApiKeyWithOrg(request: NextRequest): Promise<
 
 /**
  * Verify a Privy auth token directly (for API routes)
+ * Uses cached verification to avoid repeated Privy API calls
  */
 export async function verifyPrivyToken(token: string) {
-  const user = await privyClient.verifyAuthToken(token);
-  return user;
+  return verifyAuthTokenCached(token);
 }
 
 /**
@@ -482,3 +592,11 @@ export async function requireAdmin(
 
   return { user, isAdmin: true, role };
 }
+
+// Re-export Privy client utilities for advanced use cases
+export {
+  verifyAuthTokenCached,
+  invalidatePrivyTokenCache,
+  invalidateAllPrivyTokenCaches,
+  getPrivyClient,
+} from "./auth/privy-client";

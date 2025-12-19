@@ -64,10 +64,9 @@ export function BuildPageClient({
 
     setAvailableCharacters(characters);
 
-    // Set selected character from URL if provided
-    if (initialCharacterId) {
-      setSelectedCharacterId(initialCharacterId);
-    }
+    // Set selected character from URL, or reset to null for creator mode (Eliza)
+    // This ensures navigating to /dashboard/build always starts in creator mode
+    setSelectedCharacterId(initialCharacterId || null);
   }, [
     initialCharacters,
     initialCharacterId,

@@ -52,6 +52,7 @@ import {
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import Link from "next/link";
+import { useSetPageHeader } from "@/components/layout/page-header-context";
 
 import type { Container } from "@/db/repositories/containers";
 
@@ -103,6 +104,11 @@ export function ContainersTable({ containers }: ContainersTableProps) {
 
   // Consolidated filter and sort state
   const [filters, setFilters] = useState<TableFilters>(DEFAULT_FILTERS);
+
+  useSetPageHeader({
+    title: "Containers",
+    description: "Deploy and manage your containerized ElizaOS applications",
+  });
 
   const getStatusColor = (status: string): string => {
     return STATUS_COLORS[status as keyof typeof STATUS_COLORS] || "bg-gray-500";
