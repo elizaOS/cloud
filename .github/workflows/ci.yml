@@ -349,8 +349,10 @@ jobs:
           echo "✅ Both servers are running"
 
           # Run tests from root directory (default to failure, set success only on pass)
+          # Set PLAYWRIGHT_SKIP_WEBSERVER to prevent Playwright from starting its own server
+          # since we manually started both servers above
           TEST_EXIT=1
-          bun run test:playwright:miniapp && TEST_EXIT=0 || true
+          PLAYWRIGHT_SKIP_WEBSERVER=1 bun run test:playwright:miniapp && TEST_EXIT=0 || true
 
           exit ${TEST_EXIT}
         env:
