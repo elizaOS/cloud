@@ -142,7 +142,7 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                   id="name"
                   value={character.name || ""}
                   onChange={(e) => updateField("name", e.target.value)}
-                  placeholder="Character name"
+                  placeholder="Agent name"
                   className="rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
                 />
               </div>
@@ -175,7 +175,7 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                 id="bio"
                 value={bioText}
                 onChange={(e) => updateField("bio", e.target.value)}
-                placeholder="Describe the character's background and purpose..."
+                placeholder="Describe the agent's background and purpose..."
                 className="min-h-[120px] rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
               />
             </div>

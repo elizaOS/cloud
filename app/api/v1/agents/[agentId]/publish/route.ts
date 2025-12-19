@@ -1,7 +1,7 @@
 /**
  * Agent Publish API
  *
- * Publishes an agent to the marketplace and registers it on ERC-8004.
+ * Publishes an agent (makes it public) and registers it on ERC-8004.
  * Eliza Cloud pays the gas fees for registration.
  *
  * POST /api/v1/agents/[agentId]/publish - Publish agent (make public + ERC-8004)
@@ -36,7 +36,7 @@ const PublishSchema = z.object({
 
 /**
  * POST /api/v1/agents/[agentId]/publish
- * Publishes an agent to the marketplace.
+ * Publishes an agent (makes it public).
  *
  * This will:
  * 1. Make the agent public (is_public = true)

@@ -11,7 +11,6 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -19,16 +18,12 @@ import {
   Send,
   Mic,
   Square,
-  Volume2,
   Plus,
-  Copy,
-  Check,
   Zap,
   Sparkles,
   Crown,
   Paperclip,
 } from "lucide-react";
-import Link from "next/link";
 import { ElizaAvatar } from "./eliza-avatar";
 import { useAudioRecorder } from "./hooks/use-audio-recorder";
 import { useAudioPlayer } from "./hooks/use-audio-player";
@@ -47,9 +42,7 @@ import {
 } from "@/components/ui/select";
 import { ensureAudioFormat } from "@/lib/utils/audio";
 import { useChatStore } from "@/lib/stores/chat-store";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import rehypeHighlight from "rehype-highlight";
+import { MemoizedChatMessage } from "./memoized-chat-message";
 import "highlight.js/styles/github-dark.css";
 import {
   DropdownMenu,
@@ -200,6 +193,7 @@ export function ElizaChatInterface({
 
   const messageAudioUrls = useRef<Map<string, string>>(new Map());
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
+  const voicesFetchedRef = useRef(false);
 
   // Clear audio cache when voice changes (so messages regenerate with new voice)
   useEffect(() => {
@@ -619,6 +613,12 @@ export function ElizaChatInterface({
       return;
     }
 
+    // Prevent duplicate fetches - only fetch once per component lifecycle
+    if (voicesFetchedRef.current) {
+      return;
+    }
+    voicesFetchedRef.current = true;
+
     const fetchCustomVoices = async () => {
       try {
         const response = await fetch("/api/elevenlabs/voices/user");
@@ -967,248 +967,43 @@ export function ElizaChatInterface({
                 )}
 
               {!loadingState.isLoadingMessages &&
-                messages.map((message, index) => {
-                  const isThinking = message.id.startsWith("thinking-");
-                  return (
-                    <div
-                      key={message.id}
-                      className={`flex ${
-                        message.isAgent ? "justify-start" : "justify-end"
-                      } animate-in fade-in slide-in-from-bottom-4 duration-500`}
-                      style={{ animationDelay: `${index * 50}ms` }}
-                    >
-                      {message.isAgent ? (
-                        <div className="flex flex-col gap-1.5 max-w-[85%] sm:max-w-[75%] group/message">
-                          {/* Agent Name Row with Avatar */}
-                          <div className="flex items-center gap-2 pl-1">
-                            <ElizaAvatar
-                              avatarUrl={characterAvatarUrl}
-                              name={characterName}
-                              className="flex-shrink-0 w-5 h-5"
-                              iconClassName="h-3 w-3"
-                              animate={isThinking}
-                            />
-                            <span className="text-xs font-medium text-white/50">
-                              {characterName}
-                            </span>
-                          </div>
-
-                          <div className="flex flex-col gap-1.5">
-                            {isThinking ? (
-                              <div className="flex items-center gap-2 py-3 px-4 bg-white/[0.03] border border-white/[0.06] rounded-lg">
-                                <Loader2 className="h-4 w-4 animate-spin text-white/40" />
-                                <span className="text-sm text-white/40">
-                                  thinking...
-                                </span>
-                              </div>
-                            ) : (
-                              <>
-                                {/* Message Text */}
-                                <div className="py-3 px-4 bg-none border border-none rounded-lg transition-colors hover:bg-none hover:border-none overflow-hidden">
-                                  <div className="text-[15px] leading-relaxed text-white/90 prose prose-invert prose-sm max-w-none prose-p:my-2 prose-ul:my-2 prose-ol:my-2 prose-li:my-1 prose-headings:my-3 prose-pre:my-2 break-words [&_pre]:overflow-x-auto [&_pre_code]:whitespace-pre-wrap [&_pre_code]:break-words">
-                                    <ReactMarkdown
-                                      remarkPlugins={[remarkGfm]}
-                                      rehypePlugins={[rehypeHighlight]}
-                                      components={{
-                                        code: ({
-                                          className,
-                                          children,
-                                          ...props
-                                        }) => {
-                                          const isInline = !className;
-                                          return isInline ? (
-                                            <code
-                                              className="bg-white/10 px-1.5 py-0.5 rounded text-xs break-all"
-                                              {...props}
-                                            >
-                                              {children}
-                                            </code>
-                                          ) : (
-                                            <code
-                                              className={className}
-                                              {...props}
-                                            >
-                                              {children}
-                                            </code>
-                                          );
-                                        },
-                                        pre: ({ children }) => (
-                                          <pre className="bg-black/40 border border-white/10 rounded-lg p-3 overflow-x-auto [&>code]:whitespace-pre-wrap [&>code]:break-words">
-                                            {children}
-                                          </pre>
-                                        ),
-                                        a: ({ href, children }) => (
-                                          <a
-                                            href={href}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="text-[#FF5800] hover:text-[#FF5800]/80 underline break-all"
-                                          >
-                                            {children}
-                                          </a>
-                                        ),
-                                        ul: ({ children }) => (
-                                          <ul className="list-disc list-inside">
-                                            {children}
-                                          </ul>
-                                        ),
-                                        ol: ({ children }) => (
-                                          <ol className="list-decimal list-inside">
-                                            {children}
-                                          </ol>
-                                        ),
-                                      }}
-                                    >
-                                      {message.content.text}
-                                    </ReactMarkdown>
-                                  </div>
-                                </div>
-
-                                {/* Image Attachments */}
-                                {message.content.attachments &&
-                                  message.content.attachments.length > 0 && (
-                                    <div className="mt-2 space-y-2">
-                                      {message.content.attachments.map(
-                                        (attachment) => {
-                                          if (
-                                            attachment.contentType ===
-                                              "IMAGE" ||
-                                            attachment.contentType === "image"
-                                          ) {
-                                            return (
-                                              <div
-                                                key={attachment.id}
-                                                className="inline-block rounded-lg overflow-hidden border border-white/10 max-w-md"
-                                              >
-                                                <Image
-                                                  src={attachment.url}
-                                                  alt={
-                                                    attachment.title ||
-                                                    "Generated image"
-                                                  }
-                                                  width={512}
-                                                  height={512}
-                                                  className="w-full h-auto"
-                                                  style={{ display: "block" }}
-                                                  onLoad={() =>
-                                                    scrollToBottom()
-                                                  }
-                                                />
-                                              </div>
-                                            );
-                                          }
-                                          return null;
-                                        },
-                                      )}
-                                    </div>
-                                  )}
-
-                                {/* Time and Actions */}
-                                <div className="flex items-center gap-2 pl-1 opacity-0 group-hover/message:opacity-100 transition-opacity">
-                                  <span className="text-xs text-white/40">
-                                    {formatTimestamp(message.createdAt)}
-                                  </span>
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    className="h-6 w-6 p-0 hover:bg-white/10 rounded transition-colors"
-                                    onClick={() =>
-                                      copyToClipboard(
-                                        message.content.text,
-                                        message.id,
-                                        message.content.attachments,
-                                      )
-                                    }
-                                    title="Copy message"
-                                  >
-                                    {copiedMessageId === message.id ? (
-                                      <Check className="h-3.5 w-3.5 text-green-500" />
-                                    ) : (
-                                      <Copy className="h-3.5 w-3.5 text-white/50 hover:text-white/80" />
-                                    )}
-                                  </Button>
-                                  {messageAudioUrls.current.has(message.id) && (
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      className="h-6 w-6 p-0 hover:bg-white/10 rounded transition-colors"
-                                      onClick={() => {
-                                        const url =
-                                          messageAudioUrls.current.get(
-                                            message.id,
-                                          );
-                                        if (url) {
-                                          if (
-                                            audioState.currentPlayingId ===
-                                              message.id &&
-                                            player.isPlaying
-                                          ) {
-                                            player.stopAudio();
-                                            setAudioState((prev) => ({
-                                              ...prev,
-                                              currentPlayingId: null,
-                                            }));
-                                          } else {
-                                            setAudioState((prev) => ({
-                                              ...prev,
-                                              currentPlayingId: message.id,
-                                            }));
-                                            player.playAudio(url);
-                                          }
-                                        }
-                                      }}
-                                    >
-                                      {audioState.currentPlayingId ===
-                                        message.id && player.isPlaying ? (
-                                        <Square className="h-3.5 w-3.5 text-white/50" />
-                                      ) : (
-                                        <Volume2 className="h-3.5 w-3.5 text-white/50 hover:text-white/80" />
-                                      )}
-                                    </Button>
-                                  )}
-                                </div>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="flex flex-col gap-1.5 max-w-[85%] sm:max-w-[75%] group/message">
-                          {/* User Message */}
-                          <div className="py-3 px-4 bg-[#FF5800]/10 border border-[#FF5800]/20 rounded-lg transition-colors hover:bg-[#FF5800]/15 hover:border-[#FF5800]/30">
-                            <div className="whitespace-pre-wrap text-[15px] leading-relaxed text-white/95">
-                              {message.content.text}
-                            </div>
-                          </div>
-                          {/* Time and Actions */}
-                          <div className="flex items-center gap-2 justify-end pr-1 opacity-0 group-hover/message:opacity-100 transition-opacity">
-                            <span className="text-xs text-white/40">
-                              {formatTimestamp(message.createdAt)}
-                            </span>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-6 w-6 p-0 hover:bg-white/10 rounded transition-colors"
-                              onClick={() =>
-                                copyToClipboard(
-                                  message.content.text,
-                                  message.id,
-                                  message.content.attachments,
-                                )
-                              }
-                              title="Copy message"
-                            >
-                              {copiedMessageId === message.id ? (
-                                <Check className="h-3.5 w-3.5 text-green-500" />
-                              ) : (
-                                <Copy className="h-3.5 w-3.5 text-white/50 hover:text-white/80" />
-                              )}
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+                messages.map((message, index) => (
+                  <MemoizedChatMessage
+                    key={message.id}
+                    message={message}
+                    index={index}
+                    characterName={characterName}
+                    characterAvatarUrl={characterAvatarUrl}
+                    copiedMessageId={copiedMessageId}
+                    currentPlayingId={audioState.currentPlayingId}
+                    isPlaying={player.isPlaying}
+                    hasAudioUrl={messageAudioUrls.current.has(message.id)}
+                    formatTimestamp={formatTimestamp}
+                    onCopy={copyToClipboard}
+                    onPlayAudio={(messageId) => {
+                      const url = messageAudioUrls.current.get(messageId);
+                      if (url) {
+                        if (
+                          audioState.currentPlayingId === messageId &&
+                          player.isPlaying
+                        ) {
+                          player.stopAudio();
+                          setAudioState((prev) => ({
+                            ...prev,
+                            currentPlayingId: null,
+                          }));
+                        } else {
+                          setAudioState((prev) => ({
+                            ...prev,
+                            currentPlayingId: messageId,
+                          }));
+                          player.playAudio(url);
+                        }
+                      }
+                    }}
+                    onImageLoad={scrollToBottom}
+                  />
+                ))}
             </div>
           </ScrollArea>
         </div>

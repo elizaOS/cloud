@@ -1188,7 +1188,7 @@ export function BuildModeAssistant({
                     target.style.height =
                       Math.min(target.scrollHeight, 140) + "px";
                   }}
-                  placeholder="Describe your character or ask for help..."
+                  placeholder="Describe your agent or ask for help..."
                   className="w-full bg-transparent px-4 py-3 text-[15px] text-white placeholder:text-white/40 focus:outline-none resize-none leading-relaxed"
                   style={{
                     minHeight: "44px",
