@@ -27,6 +27,7 @@ import {
 import { BrandCard, CornerBrackets } from "@/components/brand";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useSetPageHeader } from "@/components/layout/page-header-context";
 
 import type { McpRegistryEntry } from "@/app/api/mcp/registry/route";
 
@@ -49,6 +50,11 @@ export function MCPsPageClient({ servers }: MCPsPageClientProps) {
   const [testingServer, setTestingServer] = useState<string | null>(null);
   const [testResult, setTestResult] = useState<string | null>(null);
   const [filter, setFilter] = useState<string>("all");
+
+  useSetPageHeader({
+    title: "MCP Servers",
+    description: "Browse and connect to Model Context Protocol servers",
+  });
 
   const categories = ["all", ...new Set(servers.map((s) => s.category))];
 
