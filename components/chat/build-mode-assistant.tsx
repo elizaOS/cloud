@@ -115,8 +115,6 @@ export function BuildModeAssistant({
   // Throttled streaming updates (reduces re-renders from ~100/sec to ~60/sec)
   const {
     accumulateChunk,
-    getAccumulatedText,
-    clearAccumulatedText,
     clearAll: clearAllStreaming,
     scheduleUpdate,
   } = useThrottledStreamingUpdate();

@@ -177,7 +177,6 @@ export function ElizaChatInterface({
   // Throttled streaming updates (reduces re-renders from ~100/sec to ~60/sec)
   const {
     accumulateChunk,
-    getAccumulatedText,
     clearAll: clearAllStreaming,
     scheduleUpdate,
   } = useThrottledStreamingUpdate();
