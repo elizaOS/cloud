@@ -33,7 +33,21 @@ export const CacheKeys = {
   },
   apiKey: {
     validation: (keyHash: string) => `apikey:validation:${keyHash}:v1`,
+    /** Cache app lookup by API key ID */
+    appMapping: (apiKeyId: string) => `apikey:app:${apiKeyId}:v1`,
     pattern: () => `apikey:*`,
+  },
+  /**
+   * App cache keys
+   * Used for caching app lookups to reduce DB load on high-traffic app auth
+   */
+  app: {
+    /** Cache app by ID */
+    byId: (appId: string) => `app:${appId}:v1`,
+    /** Cache app by API key ID (for fast auth lookups) */
+    byApiKeyId: (apiKeyId: string) => `app:apikey:${apiKeyId}:v1`,
+    /** Pattern for invalidating all app cache */
+    pattern: () => `app:*`,
   },
   session: {
     /** Cache session token validation results */
@@ -181,6 +195,15 @@ export const CacheTTL = {
   },
   apiKey: {
     validation: 600, // 10 minutes (was 300s)
+    appMapping: 600, // 10 minutes - app-to-API-key mapping rarely changes
+  },
+  /**
+   * App cache TTLs
+   * Moderate TTLs since apps change infrequently
+   */
+  app: {
+    byId: 600, // 10 minutes - app details
+    byApiKeyId: 600, // 10 minutes - app lookup by API key
   },
   session: {
     privy: 300, // 5 minutes - Privy token validation

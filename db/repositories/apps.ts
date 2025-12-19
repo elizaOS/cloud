@@ -50,6 +50,16 @@ export class AppsRepository {
   }
 
   /**
+   * Finds an app by its associated API key ID.
+   * This is a direct lookup instead of fetching all org apps.
+   */
+  async findByApiKeyId(apiKeyId: string): Promise<App | undefined> {
+    return await db.query.apps.findFirst({
+      where: eq(apps.api_key_id, apiKeyId),
+    });
+  }
+
+  /**
    * Lists all apps for an organization, ordered by creation date.
    */
   async listByOrganization(organizationId: string): Promise<App[]> {

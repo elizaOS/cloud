@@ -1,4 +1,3 @@
-import { PrivyClient } from "@privy-io/server-auth";
 import { usersService } from "@/lib/services/users";
 import { apiKeysService } from "@/lib/services/api-keys";
 import { userSessionsService } from "@/lib/services/user-sessions";
@@ -12,9 +11,26 @@ import type { NextRequest } from "next/server";
 import crypto from "crypto";
 import { cache as redisCache } from "@/lib/cache/client";
 import { CacheKeys, CacheTTL } from "@/lib/cache/keys";
+import {
+  verifyAuthTokenCached,
+  invalidatePrivyTokenCache,
+  getUserFromIdToken,
+  getUserById,
+} from "./auth/privy-client";
 
 // Re-export Organization type for convenience
 export type { Organization };
+
+/**
+ * Hash a token for use as cache key (never store raw tokens)
+ */
+function hashToken(token: string): string {
+  return crypto
+    .createHash("sha256")
+    .update(token)
+    .digest("hex")
+    .substring(0, 32);
+}
 
 /**
  * Invalidate user session cache (call when user/org data changes)
@@ -29,21 +45,16 @@ export async function invalidateUserSessionCache(
   logger.debug("[AUTH] Invalidated user session cache");
 }
 
-// Initialize Privy client
-const privyClient = new PrivyClient(
-  process.env.NEXT_PUBLIC_PRIVY_APP_ID!,
-  process.env.PRIVY_APP_SECRET!,
-);
-
 /**
- * Hash a token for use as cache key (never store raw tokens)
+ * Invalidate all caches for a session token (Privy + user data)
+ * Call this on logout to ensure immediate invalidation
+ * @param sessionToken - The Privy auth token to invalidate
  */
-function hashToken(token: string): string {
-  return crypto
-    .createHash("sha256")
-    .update(token)
-    .digest("hex")
-    .substring(0, 32);
+export async function invalidateSessionCaches(
+  sessionToken: string,
+): Promise<void> {
+  await invalidatePrivyTokenCache(sessionToken);
+  logger.debug("[AUTH] Invalidated all session caches (Privy + user)");
 }
 
 /**
@@ -139,10 +150,11 @@ export const getCurrentUser = cache(
         return cachedUser;
       }
 
-      logger.debug("[AUTH] Cache miss, verifying with Privy");
+      logger.debug("[AUTH] Cache miss, verifying with Privy (cached)");
 
-      // Verify the token with Privy (this is the expensive network call)
-      const verifiedClaims = await privyClient.verifyAuthToken(authToken.value);
+      // Verify the token with Privy using cached verification
+      // This caches the Privy API response to avoid repeated network calls
+      const verifiedClaims = await verifyAuthTokenCached(authToken.value);
 
       if (!verifiedClaims) {
         return null;
@@ -167,8 +179,8 @@ export const getCurrentUser = cache(
           if (idToken?.value) {
             logger.debug("[AUTH] Using privy-id-token for user lookup");
             try {
-              privyUser = await privyClient.getUser({ idToken: idToken.value });
-            } catch {
+              privyUser = await getUserFromIdToken(idToken.value);
+            } catch (idTokenError) {
               logger.warn(
                 "[AUTH] privy-id-token method failed, will fallback to userId",
               );
@@ -178,7 +190,7 @@ export const getCurrentUser = cache(
           // Fallback: use userId directly (counts against rate limits)
           if (!privyUser) {
             logger.debug("[AUTH] Using userId for user lookup (fallback)");
-            privyUser = await privyClient.getUser(verifiedClaims.userId);
+            privyUser = await getUserById(verifiedClaims.userId);
           }
 
           if (privyUser) {
@@ -508,10 +520,10 @@ export async function requireAuthOrApiKeyWithOrg(request: NextRequest): Promise<
 
 /**
  * Verify a Privy auth token directly (for API routes)
+ * Uses cached verification to avoid repeated Privy API calls
  */
 export async function verifyPrivyToken(token: string) {
-  const user = await privyClient.verifyAuthToken(token);
-  return user;
+  return verifyAuthTokenCached(token);
 }
 
 /**
@@ -584,3 +596,11 @@ export async function requireAdmin(
 
 // Re-export app authentication utilities
 export { requireAppAuth, verifyAppToken } from "./middleware/app-auth";
+
+// Re-export Privy client utilities for advanced use cases
+export {
+  verifyAuthTokenCached,
+  invalidatePrivyTokenCache,
+  invalidateAllPrivyTokenCaches,
+  getPrivyClient,
+} from "./auth/privy-client";
