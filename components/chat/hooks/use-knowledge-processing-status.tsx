@@ -29,7 +29,7 @@ export function markKnowledgeProcessingPending(characterId: string): void {
   if (typeof window === "undefined") return;
   localStorage.setItem(
     `${PENDING_KNOWLEDGE_KEY_PREFIX}${characterId}`,
-    Date.now().toString()
+    Date.now().toString(),
   );
 }
 
@@ -39,8 +39,10 @@ export function markKnowledgeProcessingPending(characterId: string): void {
  */
 function hasPendingKnowledgeProcessing(characterId: string): boolean {
   if (typeof window === "undefined") return false;
-  
-  const timestamp = localStorage.getItem(`${PENDING_KNOWLEDGE_KEY_PREFIX}${characterId}`);
+
+  const timestamp = localStorage.getItem(
+    `${PENDING_KNOWLEDGE_KEY_PREFIX}${characterId}`,
+  );
   if (!timestamp) return false;
 
   const pendingTime = parseInt(timestamp, 10);
@@ -73,7 +75,9 @@ function clearPendingKnowledgeProcessing(characterId: string): void {
  * @param characterId - The character ID to check processing status for.
  */
 export function useKnowledgeProcessingStatus(characterId: string | null) {
-  const [statusData, setStatusData] = useState<StatusWithCharacter | null>(null);
+  const [statusData, setStatusData] = useState<StatusWithCharacter | null>(
+    null,
+  );
   const wasProcessingRef = useRef(false);
 
   const status = useMemo(() => {
@@ -101,9 +105,12 @@ export function useKnowledgeProcessingStatus(characterId: string | null) {
 
     const fetchStatus = async (currentCharacterId: string) => {
       try {
-        const response = await fetch(`/api/v1/knowledge/jobs/${currentCharacterId}`, {
-          credentials: "include",
-        });
+        const response = await fetch(
+          `/api/v1/knowledge/jobs/${currentCharacterId}`,
+          {
+            credentials: "include",
+          },
+        );
 
         if (!isCurrentEffect) return;
 
@@ -112,7 +119,7 @@ export function useKnowledgeProcessingStatus(characterId: string | null) {
           return;
         }
 
-        const data = await response.json() as KnowledgeProcessingStatus;
+        const data = (await response.json()) as KnowledgeProcessingStatus;
         setStatusData({ characterId: currentCharacterId, status: data });
 
         if (wasProcessingRef.current && !data.isProcessing) {
@@ -148,14 +155,14 @@ export function useKnowledgeProcessingStatus(characterId: string | null) {
     const capturedCharacterId = characterId;
     let pollCount = 0;
     const MAX_POLLS = 100; // 5 minutes max at 3s intervals
-    
+
     const interval = setInterval(() => {
       if (!wasProcessingRef.current) {
         // Processing completed - stop polling
         clearInterval(interval);
         return;
       }
-      
+
       if (pollCount < MAX_POLLS) {
         pollCount++;
         void fetchStatus(capturedCharacterId);

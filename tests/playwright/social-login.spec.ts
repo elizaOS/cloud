@@ -40,7 +40,10 @@ test.describe("Social Login", () => {
       .catch(() => false);
 
     // If first button not visible, Privy likely not configured - skip remaining checks
-    skipIf(!googleVisible, "OAuth buttons not visible (Privy not configured in CI)");
+    skipIf(
+      !googleVisible,
+      "OAuth buttons not visible (Privy not configured in CI)",
+    );
 
     const discordVisible = await discordBtn
       .isVisible({ timeout: 2000 })
@@ -59,7 +62,9 @@ test.describe("Social Login", () => {
       await expect(githubBtn).toBeEnabled();
     }
 
-    console.log(`✅ OAuth buttons found: Google=${googleVisible}, Discord=${discordVisible}, GitHub=${githubVisible}`);
+    console.log(
+      `✅ OAuth buttons found: Google=${googleVisible}, Discord=${discordVisible}, GitHub=${githubVisible}`,
+    );
   });
 
   test("should initiate Google OAuth flow", async ({ page, context }) => {

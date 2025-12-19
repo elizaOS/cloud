@@ -10,7 +10,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { GalleryGrid, GalleryGridSkeleton } from "./gallery-grid";
 import { listUserMedia, getUserMediaStats } from "@/app/actions/gallery";
 import type { GalleryItem } from "@/app/actions/gallery";
-import { ImageIcon, VideoIcon, LayoutGridIcon, AlertCircle, RefreshCw } from "lucide-react";
+import {
+  ImageIcon,
+  VideoIcon,
+  LayoutGridIcon,
+  AlertCircle,
+  RefreshCw,
+} from "lucide-react";
 import { useSetPageHeader } from "@/components/layout/page-header-context";
 import {
   BrandTabsResponsive,
@@ -37,7 +43,9 @@ export function GalleryPageClient() {
 
   const [activeTab, setActiveTab] = useState<TabType>("all");
   const [itemsCache, setItemsCache] = useState<ItemsCache>({});
-  const [loadingTabs, setLoadingTabs] = useState<Set<TabType>>(new Set(["all"]));
+  const [loadingTabs, setLoadingTabs] = useState<Set<TabType>>(
+    new Set(["all"]),
+  );
   const [isLoadingStats, setIsLoadingStats] = useState(true);
   const [stats, setStats] = useState<{
     totalImages: number;
@@ -45,30 +53,35 @@ export function GalleryPageClient() {
     totalSize: number;
   } | null>(null);
   const [errorTabs, setErrorTabs] = useState<Set<TabType>>(new Set());
-  const [slowLoadingTabs, setSlowLoadingTabs] = useState<Set<TabType>>(new Set());
+  const [slowLoadingTabs, setSlowLoadingTabs] = useState<Set<TabType>>(
+    new Set(),
+  );
 
   const fetchingTabsRef = useRef<Set<TabType>>(new Set());
   const loadingTimeoutRef = useRef<Map<TabType, NodeJS.Timeout>>(new Map());
   const itemsCacheRef = useRef<ItemsCache>(itemsCache);
   itemsCacheRef.current = itemsCache;
 
-  const galleryTabs: TabItem[] = useMemo(() => [
-    {
-      value: "all",
-      label: "All Media",
-      icon: <LayoutGridIcon className="h-4 w-4" />,
-    },
-    {
-      value: "image",
-      label: "Images",
-      icon: <ImageIcon className="h-4 w-4" />,
-    },
-    {
-      value: "video",
-      label: "Videos",
-      icon: <VideoIcon className="h-4 w-4" />,
-    },
-  ], []);
+  const galleryTabs: TabItem[] = useMemo(
+    () => [
+      {
+        value: "all",
+        label: "All Media",
+        icon: <LayoutGridIcon className="h-4 w-4" />,
+      },
+      {
+        value: "image",
+        label: "Images",
+        icon: <ImageIcon className="h-4 w-4" />,
+      },
+      {
+        value: "video",
+        label: "Videos",
+        icon: <VideoIcon className="h-4 w-4" />,
+      },
+    ],
+    [],
+  );
 
   const loadItemsForTab = useCallback(async (tab: TabType, force = false) => {
     if (!force && itemsCacheRef.current[tab] !== undefined) return;
@@ -138,32 +151,39 @@ export function GalleryPageClient() {
     };
   }, []);
 
-  const handleItemDeleted = useCallback((itemId: string, itemType: "image" | "video") => {
-    const tabsAffected: TabType[] = ["all", itemType];
+  const handleItemDeleted = useCallback(
+    (itemId: string, itemType: "image" | "video") => {
+      const tabsAffected: TabType[] = ["all", itemType];
 
-    setItemsCache((prev) => {
-      const next = { ...prev };
-      for (const tab of tabsAffected) {
-        if (next[tab]) {
-          next[tab] = next[tab]!.filter((item) => item.id !== itemId);
+      setItemsCache((prev) => {
+        const next = { ...prev };
+        for (const tab of tabsAffected) {
+          if (next[tab]) {
+            next[tab] = next[tab]!.filter((item) => item.id !== itemId);
+          }
         }
-      }
-      return next;
-    });
+        return next;
+      });
 
-    setStats((prev) => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        totalImages: itemType === "image" ? prev.totalImages - 1 : prev.totalImages,
-        totalVideos: itemType === "video" ? prev.totalVideos - 1 : prev.totalVideos,
-      };
-    });
-  }, []);
+      setStats((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          totalImages:
+            itemType === "image" ? prev.totalImages - 1 : prev.totalImages,
+          totalVideos:
+            itemType === "video" ? prev.totalVideos - 1 : prev.totalVideos,
+        };
+      });
+    },
+    [],
+  );
 
   const currentItems = itemsCache[activeTab] ?? [];
-  const isLoading = loadingTabs.has(activeTab) && itemsCache[activeTab] === undefined;
-  const hasError = errorTabs.has(activeTab) && itemsCache[activeTab] === undefined;
+  const isLoading =
+    loadingTabs.has(activeTab) && itemsCache[activeTab] === undefined;
+  const hasError =
+    errorTabs.has(activeTab) && itemsCache[activeTab] === undefined;
   const isSlowLoading = slowLoadingTabs.has(activeTab) && isLoading;
 
   const handleRetry = useCallback(() => {
@@ -273,8 +293,14 @@ export function GalleryPageClient() {
               <GalleryGridSkeleton />
               {isSlowLoading && (
                 <div className="flex flex-col items-center justify-center mt-6 gap-3">
-                  <p className="text-sm text-white/60">Taking longer than expected...</p>
-                  <BrandButton variant="outline" size="sm" onClick={handleRetry}>
+                  <p className="text-sm text-white/60">
+                    Taking longer than expected...
+                  </p>
+                  <BrandButton
+                    variant="outline"
+                    size="sm"
+                    onClick={handleRetry}
+                  >
                     <RefreshCw className="w-4 h-4 mr-2" />
                     Retry
                   </BrandButton>
@@ -288,17 +314,28 @@ export function GalleryPageClient() {
                   <AlertCircle className="w-6 h-6 text-red-400" />
                 </div>
                 <div className="space-y-1">
-                  <p className="text-lg font-medium text-white">Failed to load media</p>
-                  <p className="text-sm text-white/50">There was an error loading your gallery items.</p>
+                  <p className="text-lg font-medium text-white">
+                    Failed to load media
+                  </p>
+                  <p className="text-sm text-white/50">
+                    There was an error loading your gallery items.
+                  </p>
                 </div>
-                <BrandButton variant="outline" onClick={handleRetry} className="mt-2">
+                <BrandButton
+                  variant="outline"
+                  onClick={handleRetry}
+                  className="mt-2"
+                >
                   <RefreshCw className="w-4 h-4 mr-2" />
                   Try Again
                 </BrandButton>
               </div>
             </BrandCard>
           ) : (
-            <GalleryGrid items={currentItems} onItemDeleted={handleItemDeleted} />
+            <GalleryGrid
+              items={currentItems}
+              onItemDeleted={handleItemDeleted}
+            />
           )}
         </BrandTabsContent>
       </BrandTabsResponsive>

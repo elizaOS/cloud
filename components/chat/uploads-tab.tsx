@@ -22,12 +22,17 @@ interface UploadsTabProps {
   onPreUploadedFileRemove?: (fileId: string) => void;
 }
 
-export function UploadsTab({ characterId, preUploadedFiles = [], onPreUploadedFilesAdd, onPreUploadedFileRemove }: UploadsTabProps) {
+export function UploadsTab({
+  characterId,
+  preUploadedFiles = [],
+  onPreUploadedFilesAdd,
+  onPreUploadedFileRemove,
+}: UploadsTabProps) {
   const [documents, setDocuments] = useState<KnowledgeDocument[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  
+
   // Track concurrent uploads to prevent premature "uploading = false" state
   const activeUploadsRef = useRef(0);
 
@@ -74,7 +79,7 @@ export function UploadsTab({ characterId, preUploadedFiles = [], onPreUploadedFi
 
     try {
       const formData = new FormData();
-      
+
       // Pre-upload mode: upload to blob storage only (no characterId yet)
       if (!characterId) {
         for (const file of files) {
@@ -90,11 +95,11 @@ export function UploadsTab({ characterId, preUploadedFiles = [], onPreUploadedFi
         if (response.ok) {
           const data = await response.json();
           const newFiles = data.files as PreUploadedFile[];
-          
+
           // Use add callback - parent uses functional update to avoid stale closure issues
           // Non-null assertion safe: validated before entering upload state
           onPreUploadedFilesAdd!(newFiles);
-          
+
           toast.success("Files uploaded successfully", {
             description: `${data.successCount} file(s) uploaded. They will be processed when you save the character.`,
           });
@@ -175,7 +180,10 @@ export function UploadsTab({ characterId, preUploadedFiles = [], onPreUploadedFi
     );
     url.searchParams.set("characterId", characterId);
 
-    const response = await fetch(url.toString(), { method: "DELETE", credentials: "include" });
+    const response = await fetch(url.toString(), {
+      method: "DELETE",
+      credentials: "include",
+    });
     if (response.ok) {
       toast.success("Document deleted");
       fetchDocuments();
@@ -315,22 +323,23 @@ export function UploadsTab({ characterId, preUploadedFiles = [], onPreUploadedFi
       <div className="border-t border-white/10 pt-6">
         <div className="flex items-center justify-between mb-4">
           <span className="text-sm text-white/60">
-            {displayCount} {isPreUploadMode ? "file" : "document"}{displayCount !== 1 ? "s" : ""}{" "}
+            {displayCount} {isPreUploadMode ? "file" : "document"}
+            {displayCount !== 1 ? "s" : ""}{" "}
             {isPreUploadMode ? "ready to process" : "uploaded"}
           </span>
           {!isPreUploadMode && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={fetchDocuments}
-            disabled={loading}
-            className="text-white/50 hover:text-white hover:bg-white/5"
-          >
-            <RefreshCw
-              className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`}
-            />
-            Refresh
-          </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={fetchDocuments}
+              disabled={loading}
+              className="text-white/50 hover:text-white hover:bg-white/5"
+            >
+              <RefreshCw
+                className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`}
+              />
+              Refresh
+            </Button>
           )}
         </div>
 
@@ -382,33 +391,33 @@ export function UploadsTab({ characterId, preUploadedFiles = [], onPreUploadedFi
                   </div>
                 ))
               : documents.map((doc) => (
-              <div
-                key={doc.id}
-                className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg group hover:border-white/20 transition-colors"
-              >
-                <div className="flex items-center gap-4 min-w-0">
-                  <div className="p-2 bg-white/5 rounded-lg">
-                    <FileText className="h-5 w-5 text-white/40" />
+                  <div
+                    key={doc.id}
+                    className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg group hover:border-white/20 transition-colors"
+                  >
+                    <div className="flex items-center gap-4 min-w-0">
+                      <div className="p-2 bg-white/5 rounded-lg">
+                        <FileText className="h-5 w-5 text-white/40" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-white/90 truncate">
+                          {getDocumentName(doc)}
+                        </p>
+                        <p className="text-xs text-white/40">
+                          {getDocumentAge(doc)}
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDelete(doc.id)}
+                      className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-300 hover:bg-red-400/10 transition-all"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-white/90 truncate">
-                      {getDocumentName(doc)}
-                    </p>
-                    <p className="text-xs text-white/40">
-                      {getDocumentAge(doc)}
-                    </p>
-                  </div>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleDelete(doc.id)}
-                  className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-300 hover:bg-red-400/10 transition-all"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            ))}
+                ))}
           </div>
         )}
       </div>

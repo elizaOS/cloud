@@ -29,7 +29,7 @@ function getTooltipPosition(
   targetRect: TargetRect,
   placement: TooltipPlacement,
   tooltipWidth: number,
-  tooltipHeight: number
+  tooltipHeight: number,
 ): { top: number; left: number } {
   const viewportWidth = window.innerWidth;
   const viewportHeight = window.innerHeight;
@@ -94,7 +94,7 @@ export function OnboardingOverlay() {
     const element = document.querySelector(currentStep.target);
     if (!element) {
       console.warn(
-        `[Onboarding] Target element not found: ${currentStep.target}`
+        `[Onboarding] Target element not found: ${currentStep.target}`,
       );
       setTargetRect(null);
       return;
@@ -167,7 +167,7 @@ export function OnboardingOverlay() {
         targetRect,
         currentStep.placement,
         tooltipSize.width,
-        tooltipSize.height
+        tooltipSize.height,
       )
     : { top: 0, left: 0 };
 
@@ -240,7 +240,7 @@ export function OnboardingOverlay() {
                   key={i}
                   className={cn(
                     "w-2 h-2 rounded-full transition-colors",
-                    i === currentStepIndex ? "bg-[#FF5800]" : "bg-white/20"
+                    i === currentStepIndex ? "bg-[#FF5800]" : "bg-white/20",
                   )}
                 />
               ))}
@@ -275,6 +275,6 @@ export function OnboardingOverlay() {
         </div>
       )}
     </div>,
-    document.body
+    document.body,
   );
 }

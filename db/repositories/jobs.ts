@@ -8,7 +8,7 @@ export type { Job, NewJob };
 /**
  * Generic repository for background job database operations.
  * Handles CRUD operations for all types of background jobs.
- * 
+ *
  * Job types can include:
  * - knowledge_processing
  * - image_generation
@@ -66,14 +66,15 @@ export class JobsRepository {
     }
 
     // Build query in one chain to avoid TypeScript inference issues
-    const query = db
-      .select()
-      .from(jobs)
-      .$dynamic();
+    const query = db.select().from(jobs).$dynamic();
 
-    return await (conditions.length > 0 ? query.where(and(...conditions)) : query)
+    return await (
+      conditions.length > 0 ? query.where(and(...conditions)) : query
+    )
       .limit(filters.limit || 1000)
-      .orderBy(filters.orderBy === "desc" ? desc(jobs.created_at) : jobs.created_at);
+      .orderBy(
+        filters.orderBy === "desc" ? desc(jobs.created_at) : jobs.created_at,
+      );
   }
 
   /**
@@ -120,7 +121,7 @@ export class JobsRepository {
    * Recovers stale jobs that have been stuck in in_progress status.
    * Jobs older than the threshold are reset to pending for retry.
    * Only recovers jobs with a valid started_at timestamp.
-   * 
+   *
    * Increments attempts counter to prevent infinite retry loops.
    * Jobs exceeding maxAttempts are marked as failed instead of pending.
    *

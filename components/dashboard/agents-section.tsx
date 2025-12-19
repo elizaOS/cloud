@@ -374,7 +374,7 @@ function AgentCard({ agent }: { agent: Agent }) {
                   Edit
                 </DropdownMenuItem>
               </Link>
-              <DropdownMenuItem 
+              <DropdownMenuItem
                 onClick={handleDeleteClick}
                 className="cursor-pointer text-red-600 focus:text-red-600"
               >
@@ -386,11 +386,11 @@ function AgentCard({ agent }: { agent: Agent }) {
 
           {/* Delete Confirmation Dialog */}
           {showDeleteConfirm && (
-            <div 
+            <div
               className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm transition-opacity duration-200"
               onClick={handleCancelDelete}
             >
-              <div 
+              <div
                 className="bg-zinc-900 border border-white/10 rounded-lg p-4 m-4 transform transition-all duration-200 scale-100"
                 onClick={(e) => e.stopPropagation()}
               >

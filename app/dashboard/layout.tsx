@@ -13,10 +13,7 @@ import { Loader2 } from "lucide-react";
 import Sidebar from "@/components/layout/sidebar";
 import Header from "@/components/layout/header";
 import { PageHeaderProvider } from "@/components/layout/page-header-context";
-import {
-  OnboardingProvider,
-  OnboardingOverlay,
-} from "@/components/onboarding";
+import { OnboardingProvider, OnboardingOverlay } from "@/components/onboarding";
 
 // Import render tracker for profiling (dev only)
 let onRenderCallback: ProfilerOnRenderCallback | undefined;

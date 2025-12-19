@@ -91,7 +91,7 @@ export function ChatSidebar({
     if (!selectedCharacterId) {
       // Show rooms with no character assignment OR default Eliza ID
       return rooms.filter(
-        (room) => !room.characterId || room.characterId === DEFAULT_AGENT_ID
+        (room) => !room.characterId || room.characterId === DEFAULT_AGENT_ID,
       );
     }
     // Show rooms for the selected character
@@ -100,7 +100,7 @@ export function ChatSidebar({
 
   // Find selected character details
   const selectedCharacter = availableCharacters.find(
-    (c) => c.id === selectedCharacterId
+    (c) => c.id === selectedCharacterId,
   );
 
   useEffect(() => {
@@ -198,7 +198,7 @@ export function ChatSidebar({
           isMobile
             ? `fixed inset-y-0 left-0 z-50 w-64 ${isOpen ? "translate-x-0" : "-translate-x-full"}`
             : "w-64",
-          className
+          className,
         )}
       >
         {/* Header with Logo */}
@@ -300,7 +300,7 @@ export function ChatSidebar({
                       roomId === room.id &&
                         "bg-white/10 border-l-2 border-[#FF5800]",
                       (isDeleting || isLoading) &&
-                        "opacity-50 pointer-events-none"
+                        "opacity-50 pointer-events-none",
                     )}
                   >
                     <div className="relative overflow-hidden">
@@ -309,7 +309,7 @@ export function ChatSidebar({
                         disabled={isDeleting || isLoading}
                         className={cn(
                           "w-full text-left px-2.5 py-2 transition-transform duration-200",
-                          "group-hover:-translate-x-8"
+                          "group-hover:-translate-x-8",
                         )}
                       >
                         <div className="flex items-start gap-2">
@@ -341,7 +341,7 @@ export function ChatSidebar({
                         className={cn(
                           "absolute top-0 right-0 h-full w-8 flex items-center justify-center",
                           "opacity-0 group-hover:opacity-100 transition-opacity duration-200",
-                          "hover:bg-red-500/10 text-white/60 hover:text-red-400"
+                          "hover:bg-red-500/10 text-white/60 hover:text-red-400",
                         )}
                       >
                         {isDeleting ? (

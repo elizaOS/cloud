@@ -54,7 +54,8 @@ interface JobStatus {
 export class KnowledgeProcessingService {
   private readonly JOB_TYPE = "knowledge_processing";
   private readonly MAX_ATTEMPTS = KNOWLEDGE_CONSTANTS.MAX_ATTEMPTS;
-  private readonly STALE_JOB_THRESHOLD_MS = KNOWLEDGE_CONSTANTS.STALE_JOB_THRESHOLD_MS;
+  private readonly STALE_JOB_THRESHOLD_MS =
+    KNOWLEDGE_CONSTANTS.STALE_JOB_THRESHOLD_MS;
 
   /**
    * Queues multiple files for background processing.
@@ -66,7 +67,9 @@ export class KnowledgeProcessingService {
     const { characterId, files, user } = params;
 
     if (!user.organization_id) {
-      throw new Error("User must have an organization to queue knowledge files");
+      throw new Error(
+        "User must have an organization to queue knowledge files",
+      );
     }
 
     const jobIds: string[] = [];
@@ -104,7 +107,10 @@ export class KnowledgeProcessingService {
    * @param organizationId - Organization ID for security.
    * @returns Job status summary.
    */
-  async getStatus(characterId: string, organizationId: string): Promise<JobStatus> {
+  async getStatus(
+    characterId: string,
+    organizationId: string,
+  ): Promise<JobStatus> {
     const jobs = await jobsRepository.findByDataField({
       type: this.JOB_TYPE,
       organizationId,
@@ -133,7 +139,8 @@ export class KnowledgeProcessingService {
       jobs: jobs.map((job: Job) => ({
         id: job.id,
         filename:
-          (job.data as { file?: { filename?: string } }).file?.filename || "Unknown",
+          (job.data as { file?: { filename?: string } }).file?.filename ||
+          "Unknown",
         status: job.status,
         error: job.error,
         createdAt: job.created_at,
@@ -152,11 +159,18 @@ export class KnowledgeProcessingService {
    */
   async processQueue(
     params: ProcessJobParams,
-  ): Promise<{ successCount: number; failureCount: number; totalProcessed: number; recoveredCount: number }> {
+  ): Promise<{
+    successCount: number;
+    failureCount: number;
+    totalProcessed: number;
+    recoveredCount: number;
+  }> {
     const { user, apiKey } = params;
 
     if (!user.organization_id) {
-      throw new Error("User must have an organization to process knowledge files");
+      throw new Error(
+        "User must have an organization to process knowledge files",
+      );
     }
 
     // First, recover any stale jobs that have been stuck in in_progress for too long
@@ -169,7 +183,9 @@ export class KnowledgeProcessingService {
     });
 
     if (recoveredCount > 0) {
-      logger.info(`[KnowledgeProcessing] Recovered ${recoveredCount} stale jobs`);
+      logger.info(
+        `[KnowledgeProcessing] Recovered ${recoveredCount} stale jobs`,
+      );
     }
 
     // Atomically claim pending jobs using FOR UPDATE SKIP LOCKED
@@ -181,10 +197,17 @@ export class KnowledgeProcessingService {
     });
 
     if (claimedJobs.length === 0) {
-      return { successCount: 0, failureCount: 0, totalProcessed: 0, recoveredCount };
+      return {
+        successCount: 0,
+        failureCount: 0,
+        totalProcessed: 0,
+        recoveredCount,
+      };
     }
 
-    logger.info(`[KnowledgeProcessing] Claimed ${claimedJobs.length} jobs for processing`);
+    logger.info(
+      `[KnowledgeProcessing] Claimed ${claimedJobs.length} jobs for processing`,
+    );
 
     let successCount = 0;
     let failureCount = 0;
@@ -199,7 +222,12 @@ export class KnowledgeProcessingService {
       }
     }
 
-    return { successCount, failureCount, totalProcessed: claimedJobs.length, recoveredCount };
+    return {
+      successCount,
+      failureCount,
+      totalProcessed: claimedJobs.length,
+      recoveredCount,
+    };
   }
 
   /**
@@ -210,7 +238,11 @@ export class KnowledgeProcessingService {
    * @param apiKey - Optional API key.
    * @returns True if successful, false otherwise.
    */
-  private async processJob(job: Job, user: UserWithOrganization, apiKey?: ApiKey): Promise<boolean> {
+  private async processJob(
+    job: Job,
+    user: UserWithOrganization,
+    apiKey?: ApiKey,
+  ): Promise<boolean> {
     const jobData = job.data as {
       characterId: string;
       file: {
@@ -226,7 +258,9 @@ export class KnowledgeProcessingService {
     // even if status update failed afterward.
     const currentJob = await jobsRepository.findById(job.id);
     if (!currentJob) {
-      logger.warn("[KnowledgeProcessing] Job not found, skipping", { jobId: job.id });
+      logger.warn("[KnowledgeProcessing] Job not found, skipping", {
+        jobId: job.id,
+      });
       return true;
     }
     if (currentJob.status === "completed" || currentJob.result) {
@@ -359,19 +393,20 @@ export class KnowledgeProcessingService {
 
       return true;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
       const updatedJob = await jobsRepository.incrementAttempt(
         job.id,
         errorMessage,
         job.max_attempts || this.MAX_ATTEMPTS,
       );
-      
+
       // Clean up blob if job has permanently failed (max attempts reached)
       // Safe to cleanup because URL was validated before entering try block
       if (updatedJob?.status === "failed") {
         await this.cleanupBlob(jobData.file.blobUrl, job.id);
       }
-      
+
       logger.error(`[KnowledgeProcessing] Job failed`, {
         jobId: job.id,
         filename: jobData.file.filename,
@@ -401,7 +436,10 @@ export class KnowledgeProcessingService {
       logger.error("[KnowledgeProcessing] Failed to cleanup blob", {
         jobId,
         blobUrl,
-        error: cleanupError instanceof Error ? cleanupError.message : "Unknown error",
+        error:
+          cleanupError instanceof Error
+            ? cleanupError.message
+            : "Unknown error",
       });
     }
   }
