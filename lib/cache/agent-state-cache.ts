@@ -296,6 +296,50 @@ export class AgentStateCache {
   }
 
   /**
+   * Get cached agent statistics for multiple agents in a single batch operation
+   * Uses Redis MGET for efficiency instead of sequential calls
+   * @param agentIds - Array of agent IDs
+   * @returns Map of agentId to stats (null values for cache misses)
+   */
+  async getAgentStatsBatch(
+    agentIds: string[],
+  ): Promise<Map<string, AgentStats | null>> {
+    const result = new Map<string, AgentStats | null>();
+    if (agentIds.length === 0) return result;
+
+    const keys = agentIds.map((id) => CacheKeys.agent.agentStats(id));
+    const cachedValues = await cacheClient.mget<
+      AgentStats & { lastActiveAt: string | null }
+    >(keys);
+
+    for (let i = 0; i < agentIds.length; i++) {
+      const agentId = agentIds[i];
+      const cached = cachedValues[i];
+
+      if (!cached) {
+        result.set(agentId, null);
+        continue;
+      }
+
+      // Validate cache schema (v2 has roomCount)
+      if (typeof cached.roomCount !== "number") {
+        result.set(agentId, null);
+        continue;
+      }
+
+      const stats: AgentStats = {
+        ...cached,
+        lastActiveAt: cached.lastActiveAt
+          ? new Date(cached.lastActiveAt)
+          : null,
+      };
+      result.set(agentId, stats);
+    }
+
+    return result;
+  }
+
+  /**
    * Get cached agent list
    * @param orgId - Organization ID
    * @param filterHash - Hash of filter parameters
