@@ -328,10 +328,10 @@ jobs:
           (cd miniapp && bun run start -p 3001) &
           MINIAPP_PID=$!
 
-          # Wait for servers to be ready
+          # Wait for servers to be ready (using -sf to fail on HTTP errors)
           echo "Waiting for servers to start..."
           for i in {1..30}; do
-            if curl -s http://localhost:3000 > /dev/null 2>&1; then
+            if curl -sf http://localhost:3000 > /dev/null 2>&1; then
               echo "Main app is ready"
               break
             fi
@@ -339,20 +339,20 @@ jobs:
           done
 
           for i in {1..30}; do
-            if curl -s http://localhost:3001 > /dev/null 2>&1; then
+            if curl -sf http://localhost:3001 > /dev/null 2>&1; then
               echo "Miniapp is ready"
               break
             fi
             sleep 2
           done
 
-          # Verify servers actually started
-          if ! curl -s http://localhost:3000 > /dev/null 2>&1; then
-            echo "❌ Main app failed to start"
+          # Verify servers actually started and returning successful responses
+          if ! curl -sf http://localhost:3000 > /dev/null 2>&1; then
+            echo "❌ Main app failed to start or returning errors"
             exit 1
           fi
-          if ! curl -s http://localhost:3001 > /dev/null 2>&1; then
-            echo "❌ Miniapp failed to start"
+          if ! curl -sf http://localhost:3001 > /dev/null 2>&1; then
+            echo "❌ Miniapp failed to start or returning errors"
             exit 1
           fi
           echo "✅ Both servers are running"

@@ -23,6 +23,12 @@ function getStripe(): Stripe {
           "Please configure Stripe to use payment features."
       );
     }
+    if (!secretKey.startsWith("sk_")) {
+      throw new Error(
+        "STRIPE_SECRET_KEY appears invalid (should start with 'sk_'). " +
+          "Please verify your Stripe configuration."
+      );
+    }
     stripeInstance = new Stripe(secretKey, {
       apiVersion: "2025-11-17.clover",
       typescript: true,
