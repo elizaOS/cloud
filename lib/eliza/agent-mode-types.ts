@@ -86,7 +86,6 @@ export const AGENT_MODE_PLUGINS = {
     "@elizaos/plugin-elizacloud",
     "@eliza-cloud/plugin-chat-playground",
     "@elizaos/plugin-memory",
-    "@elizaos/plugin-mcp",
   ],
   [AgentMode.BUILD]: [
     "@elizaos/plugin-elizacloud",
@@ -98,6 +97,87 @@ export const AGENT_MODE_PLUGINS = {
     "@eliza-cloud/plugin-assistant",
     "@elizaos/plugin-memory",
     "@elizaos/plugin-knowledge",
-    "@elizaos/plugin-mcp",
   ],
 } as const;
+
+/**
+ * MCP server configuration
+ */
+interface McpServerConfig {
+  type: string;
+  url: string;
+}
+
+/**
+ * Settings-based plugin configuration types
+ * Used to detect which conditional plugins should be loaded
+ */
+export interface ConditionalPluginSettings {
+  mcp?: {
+    servers: Record<string, McpServerConfig>;
+  };
+  // Future: webSearch?: WebSearchSettings;
+}
+
+/**
+ * Maps settings keys to plugin names.
+ * When a key exists in character settings, the corresponding plugin is injected.
+ */
+export const SETTINGS_PLUGIN_MAP = {
+  mcp: "@elizaos/plugin-mcp",
+  // Future: webSearch: "@elizaos/plugin-web-search",
+} as const satisfies Record<keyof ConditionalPluginSettings, string>;
+
+/**
+ * Validates that conditional plugin settings have actual configuration.
+ * Prevents injecting plugins when settings exist but are empty (e.g., { mcp: { servers: {} } }).
+ */
+function hasValidConfiguration(
+  key: keyof typeof SETTINGS_PLUGIN_MAP,
+  settings: Record<string, unknown>,
+): boolean {
+  const value = settings[key];
+  if (value == null) return false;
+
+  switch (key) {
+    case "mcp": {
+      const mcpSettings = value as ConditionalPluginSettings["mcp"];
+      return (
+        mcpSettings?.servers != null &&
+        Object.keys(mcpSettings.servers).length > 0
+      );
+    }
+    // Future: case "webSearch": { ... }
+    default:
+      return false;
+  }
+}
+
+/**
+ * Get plugins that should be injected based on character settings.
+ * Only returns plugins when settings contain actual configuration.
+ */
+export function getConditionalPlugins(
+  settings: Record<string, unknown>,
+): string[] {
+  return Object.entries(SETTINGS_PLUGIN_MAP)
+    .filter(([key]) =>
+      hasValidConfiguration(key as keyof typeof SETTINGS_PLUGIN_MAP, settings),
+    )
+    .map(([, pluginName]) => pluginName);
+}
+
+/**
+ * Check if character settings require ASSISTANT mode upgrade.
+ * Only returns a key when settings contain actual configuration.
+ */
+export function requiresAssistantMode(
+  settings: Record<string, unknown>,
+): keyof typeof SETTINGS_PLUGIN_MAP | null {
+  for (const key of Object.keys(SETTINGS_PLUGIN_MAP)) {
+    if (hasValidConfiguration(key as keyof typeof SETTINGS_PLUGIN_MAP, settings)) {
+      return key as keyof typeof SETTINGS_PLUGIN_MAP;
+    }
+  }
+  return null;
+}
