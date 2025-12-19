@@ -18,6 +18,7 @@ export function AIAppBuilderButton() {
       <Button
         onClick={() => setIsOpen(true)}
         className="bg-gradient-to-r from-purple-600 to-[#FF5800] hover:from-purple-600/90 hover:to-[#FF5800]/90 text-white"
+        data-onboarding="apps-ai-builder"
       >
         <Sparkles className="h-4 w-4 mr-2" />
         Build with AI
