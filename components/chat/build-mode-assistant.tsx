@@ -119,7 +119,15 @@ export function BuildModeAssistant({
   );
   const [isLoading, setIsLoading] = useState(false);
 
-  const [selectedTier, setSelectedTier] = useState<ModelTier>(DEFAULT_MODEL_TIER);
+  const [selectedTier, setSelectedTier] = useState<ModelTier>(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("build-mode-model-tier");
+      if (stored && (stored === "fast" || stored === "pro" || stored === "ultra")) {
+        return stored as ModelTier;
+      }
+    }
+    return DEFAULT_MODEL_TIER;
+  });
   const selectedModelId =
     BUILD_MODE_TIER_LIST.find((t) => t.id === selectedTier)?.modelId ??
     BUILD_MODE_TIERS[DEFAULT_MODEL_TIER].modelId;
@@ -309,8 +317,13 @@ export function BuildModeAssistant({
     loadMessages();
   }, [builderRoomId]);
 
+  // Persist model tier to localStorage
+  useEffect(() => {
+    localStorage.setItem("build-mode-model-tier", selectedTier);
+  }, [selectedTier]);
+
   // Send message to ElizaOS stream endpoint with BUILD workflow
-  const sendElizaMessage = async (text: string) => {
+  const sendElizaMessage = useCallback(async (text: string) => {
     if (!text.trim() || !builderRoomId) return;
 
     setIsLoading(true);
@@ -600,7 +613,16 @@ export function BuildModeAssistant({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [
+    builderRoomId,
+    character,
+    isCreatorMode,
+    onCharacterCreated,
+    onCharacterRefresh,
+    onCharacterUpdate,
+    selectedModelId,
+    updateCharacterAvatar,
+  ]);
 
   // Robust scroll to bottom function
   const scrollToBottom = useCallback((smooth = false) => {
@@ -686,14 +708,17 @@ export function BuildModeAssistant({
     // Note: If onCharacterUpdate causes too many re-runs, wrap it in useCallback in the parent
   }, [messages, onCharacterUpdate]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inputText.trim() || isLoading) return;
+  const handleSubmit = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!inputText.trim() || isLoading) return;
 
-    const userMessage = inputText;
-    setInputText("");
-    await sendElizaMessage(userMessage);
-  };
+      const userMessage = inputText;
+      setInputText("");
+      await sendElizaMessage(userMessage);
+    },
+    [inputText, isLoading, sendElizaMessage],
+  );
 
   // Pre-prompts for quick start - different for creator vs build mode
   const quickPrompts = isCreatorMode
@@ -1007,8 +1032,13 @@ export function BuildModeAssistant({
                                       {children}
                                     </ol>
                                   ),
-                                  li: ({ children }) => (
-                                    <li className="my-1.5 pl-1">{children}</li>
+                                  li: ({
+                                    children,
+                                    ...props
+                                  }: React.HTMLProps<HTMLLIElement>) => (
+                                    <li className="my-1.5 pl-1" {...props}>
+                                      {children}
+                                    </li>
                                   ),
                                   p: ({ children }) => (
                                     <p className="my-2 first:mt-0 last:mb-0">
