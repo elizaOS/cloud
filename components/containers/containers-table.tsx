@@ -52,6 +52,7 @@ import {
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import Link from "next/link";
+import { useSetPageHeader } from "@/components/layout/page-header-context";
 
 import type { Container } from "@/db/repositories/containers";
 
@@ -103,6 +104,11 @@ export function ContainersTable({ containers }: ContainersTableProps) {
 
   // Consolidated filter and sort state
   const [filters, setFilters] = useState<TableFilters>(DEFAULT_FILTERS);
+
+  useSetPageHeader({
+    title: "Containers",
+    description: "Deploy and manage your containerized ElizaOS applications",
+  });
 
   const getStatusColor = (status: string): string => {
     return STATUS_COLORS[status as keyof typeof STATUS_COLORS] || "bg-gray-500";
@@ -231,20 +237,6 @@ export function ContainersTable({ containers }: ContainersTableProps) {
     <TooltipProvider>
       <BrandCard className="relative shadow-lg shadow-black/50" cornerSize="sm">
         <div className="relative z-10 space-y-6">
-          {/* Header */}
-          <div className="flex items-center gap-2 pb-4 border-b border-white/10">
-            <span
-              className="inline-block w-2 h-2 rounded-full"
-              style={{ backgroundColor: "#FF5800" }}
-            />
-            <h2
-              className="text-xl font-normal text-white"
-              style={{ fontFamily: "var(--font-roboto-mono)" }}
-            >
-              Container List
-            </h2>
-          </div>
-
           {/* Search and Filters */}
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="relative flex-1">

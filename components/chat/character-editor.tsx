@@ -17,7 +17,15 @@ import { PluginsTab } from "@/components/chat/plugins-tab";
 import { UploadsTab } from "@/components/chat/uploads-tab";
 import type { ElizaCharacter } from "@/lib/types";
 import { Button } from "@/components/ui/button";
-import { Download, Zap, BookOpen, Sparkles, Puzzle, CloudUpload, Upload } from "lucide-react";
+import {
+  Download,
+  Zap,
+  BookOpen,
+  Sparkles,
+  Puzzle,
+  CloudUpload,
+  Upload,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   BrandTabsResponsive,
@@ -153,7 +161,7 @@ export function CharacterEditor({
           </div>
 
           {/* JSON Toggle Switch */}
-          <div className="flex mb-3 xl:mb-0 -mt-2 items-center gap-2 shrink-0 xl:ml-auto xl:pl-4">
+          <div className="flex items-center gap-2 shrink-0 xl:ml-auto xl:pl-4">
             <span className="text-xs text-white/60 whitespace-nowrap">
               JSON
             </span>

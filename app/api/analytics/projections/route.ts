@@ -9,7 +9,6 @@ import {
   generateProjections,
   generateProjectionAlerts,
 } from "@/lib/analytics/projections";
-import { organizationsService } from "@/lib/services/organizations";
 
 export const maxDuration = 60;
 
@@ -52,21 +51,21 @@ export async function GET(req: NextRequest) {
         granularity = "day";
     }
 
-    const [historicalData, org] = await Promise.all([
-      getUsageTimeSeries(user.organization_id!, {
-        startDate,
-        endDate: now,
-        granularity,
-      }),
-      organizationsService.getById(user.organization_id!),
-    ]);
+    // Use org data from auth (already fetched, avoids redundant DB call)
+    const creditBalance = Number(user.organization.credit_balance || 0);
+
+    const historicalData = await getUsageTimeSeries(user.organization_id!, {
+      startDate,
+      endDate: now,
+      granularity,
+    });
 
     const projections = generateProjections(historicalData, periods);
 
     const alerts = generateProjectionAlerts(
       historicalData,
       projections,
-      Number(org?.credit_balance || 0),
+      creditBalance,
     );
 
     return NextResponse.json({
@@ -90,7 +89,7 @@ export async function GET(req: NextRequest) {
         metadata: {
           timeRange,
           periods,
-          creditBalance: Number(org?.credit_balance || 0),
+          creditBalance,
         },
       },
     });

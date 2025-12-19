@@ -11,7 +11,6 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -19,16 +18,12 @@ import {
   Send,
   Mic,
   Square,
-  Volume2,
   Plus,
-  Copy,
-  Check,
   Zap,
   Sparkles,
   Crown,
   Paperclip,
 } from "lucide-react";
-import Link from "next/link";
 import { ElizaAvatar } from "./eliza-avatar";
 import { useAudioRecorder } from "./hooks/use-audio-recorder";
 import { useAudioPlayer } from "./hooks/use-audio-player";
@@ -47,9 +42,7 @@ import {
 } from "@/components/ui/select";
 import { ensureAudioFormat } from "@/lib/utils/audio";
 import { useChatStore } from "@/lib/stores/chat-store";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import rehypeHighlight from "rehype-highlight";
+import { MemoizedChatMessage } from "./memoized-chat-message";
 import "highlight.js/styles/github-dark.css";
 import {
   DropdownMenu,
@@ -148,12 +141,12 @@ export function ElizaChatInterface({
   // Get character name from prop (preferred), store, or agentInfo (memoized)
   const selectedCharacter = useMemo(
     () => availableCharacters.find((char) => char.id === selectedCharacterId),
-    [availableCharacters, selectedCharacterId]
+    [availableCharacters, selectedCharacterId],
   );
   const characterName = useMemo(
     () =>
       character?.name || selectedCharacter?.name || agentInfo?.name || "Agent",
-    [character?.name, selectedCharacter?.name, agentInfo?.name]
+    [character?.name, selectedCharacter?.name, agentInfo?.name],
   );
 
   // Get avatar URL from prop (preferred), store, or agentInfo
@@ -168,7 +161,7 @@ export function ElizaChatInterface({
       character?.avatar_url,
       selectedCharacter?.avatarUrl,
       agentInfo?.avatarUrl,
-    ]
+    ],
   );
 
   // Consolidated loading states
@@ -201,6 +194,7 @@ export function ElizaChatInterface({
 
   const messageAudioUrls = useRef<Map<string, string>>(new Map());
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
+  const voicesFetchedRef = useRef(false);
 
   // Clear audio cache when voice changes (so messages regenerate with new voice)
   useEffect(() => {
@@ -282,7 +276,7 @@ export function ElizaChatInterface({
       // New rooms are empty - skip loading to avoid race with optimistic messages
       return newRoomId;
     },
-    [createRoomInStore, selectedCharacterId]
+    [createRoomInStore, selectedCharacterId],
   );
 
   const handleStreamMessage = useCallback((messageData: StreamingMessage) => {
@@ -290,7 +284,7 @@ export function ElizaChatInterface({
       // Handle agent response - remove thinking indicator
       if (messageData.type === "agent") {
         const withoutThinking = prev.filter(
-          (m) => !m.id.startsWith("thinking-")
+          (m) => !m.id.startsWith("thinking-"),
         );
 
         // Clear thinking timeout
@@ -306,7 +300,7 @@ export function ElizaChatInterface({
 
         // Remove temp messages
         const filtered = withoutThinking.filter(
-          (m) => !m.id.startsWith("temp-")
+          (m) => !m.id.startsWith("temp-"),
         );
 
         return [...filtered, messageData];
@@ -315,7 +309,7 @@ export function ElizaChatInterface({
       // Handle thinking indicator
       if (messageData.type === "thinking") {
         const withoutThinking = prev.filter(
-          (m) => !m.id.startsWith("thinking-")
+          (m) => !m.id.startsWith("thinking-"),
         );
         return [...withoutThinking, messageData];
       }
@@ -326,7 +320,7 @@ export function ElizaChatInterface({
         const tempIndex = prev.findIndex(
           (m) =>
             m.id.startsWith("temp-") &&
-            m.content.text === messageData.content.text
+            m.content.text === messageData.content.text,
         );
 
         if (tempIndex !== -1) {
@@ -367,7 +361,7 @@ export function ElizaChatInterface({
           // If room creation is already in progress, await the existing promise
           if (isCreatingRoomRef.current && roomCreationPromiseRef.current) {
             console.log(
-              "[ElizaChat] Room creation already in progress, awaiting..."
+              "[ElizaChat] Room creation already in progress, awaiting...",
             );
             const existingRoomId = await roomCreationPromiseRef.current;
             if (!existingRoomId) {
@@ -378,7 +372,7 @@ export function ElizaChatInterface({
             currentRoomId = existingRoomId;
             console.log(
               "[ElizaChat] Got room from existing creation:",
-              currentRoomId
+              currentRoomId,
             );
           } else {
             // Start new room creation and store the promise
@@ -423,10 +417,10 @@ export function ElizaChatInterface({
         // Safety timeout: remove thinking indicator after 30 seconds if no response
         thinkingTimeoutRef.current = setTimeout(() => {
           setMessages((prev) =>
-            prev.filter((m) => !m.id.startsWith("thinking-"))
+            prev.filter((m) => !m.id.startsWith("thinking-")),
           );
           console.warn(
-            "[Chat] Thinking indicator timeout - agent took too long to respond"
+            "[Chat] Thinking indicator timeout - agent took too long to respond",
           );
         }, 30000);
 
@@ -445,8 +439,8 @@ export function ElizaChatInterface({
               prev.filter(
                 (msg) =>
                   msg.id !== tempUserMessage.id &&
-                  !msg.id.startsWith("thinking-")
-              )
+                  !msg.id.startsWith("thinking-"),
+              ),
             );
             if (thinkingTimeoutRef.current) {
               clearTimeout(thinkingTimeoutRef.current);
@@ -465,14 +459,14 @@ export function ElizaChatInterface({
         setError(err instanceof Error ? err.message : "Failed to send message");
         console.error("Error sending message:", err);
         toast.error(
-          err instanceof Error ? err.message : "Failed to send message"
+          err instanceof Error ? err.message : "Failed to send message",
         );
         // Remove temp and thinking messages on error
         setMessages((prev) =>
           prev.filter(
             (msg) =>
-              !msg.id.startsWith("temp-") && !msg.id.startsWith("thinking-")
-          )
+              !msg.id.startsWith("temp-") && !msg.id.startsWith("thinking-"),
+          ),
         );
         if (thinkingTimeoutRef.current) {
           clearTimeout(thinkingTimeoutRef.current);
@@ -492,7 +486,7 @@ export function ElizaChatInterface({
       handleStreamMessage,
       loadRooms,
       onMessageSent,
-    ]
+    ],
   );
 
   // Handle pending message from landing page
@@ -509,7 +503,7 @@ export function ElizaChatInterface({
     // If no roomId exists, create one first
     if (!roomId) {
       console.log(
-        "[ElizaChat] Pending message found but no room - creating room first"
+        "[ElizaChat] Pending message found but no room - creating room first",
       );
       isPendingMessageProcessingRef.current = true;
 
@@ -527,7 +521,7 @@ export function ElizaChatInterface({
         .catch((err) => {
           console.error(
             "[ElizaChat] Failed to create room for pending message:",
-            err
+            err,
           );
           isPendingMessageProcessingRef.current = false;
         });
@@ -612,7 +606,7 @@ export function ElizaChatInterface({
         throw error;
       }
     },
-    [player] // Only player is needed, audioState values accessed via refs
+    [player], // Only player is needed, audioState values accessed via refs
   );
 
   // Load custom voices on mount (only for authenticated users)
@@ -622,6 +616,12 @@ export function ElizaChatInterface({
     if (!authenticated) {
       return;
     }
+
+    // Prevent duplicate fetches - only fetch once per component lifecycle
+    if (voicesFetchedRef.current) {
+      return;
+    }
+    voicesFetchedRef.current = true;
 
     const fetchCustomVoices = async () => {
       try {
@@ -651,37 +651,40 @@ export function ElizaChatInterface({
     }
   }, [recorder]);
 
-  const handleFileUpload = useCallback(async (files: File[]) => {
-    if (!selectedCharacterId || files.length === 0) return;
+  const handleFileUpload = useCallback(
+    async (files: File[]) => {
+      if (!selectedCharacterId || files.length === 0) return;
 
-    setIsUploadingFiles(true);
-    
-    const formData = new FormData();
-    formData.append("characterId", selectedCharacterId);
+      setIsUploadingFiles(true);
 
-    for (const file of files) {
-      formData.append("files", file, file.name);
-    }
+      const formData = new FormData();
+      formData.append("characterId", selectedCharacterId);
 
-    const response = await fetch("/api/v1/knowledge/upload-file", {
-      method: "POST",
-      body: formData,
-    });
+      for (const file of files) {
+        formData.append("files", file, file.name);
+      }
 
-    if (response.ok) {
-      const data = await response.json();
-      toast.success(`${files.length} file(s) uploaded`, {
-        description: "Files are now searchable",
+      const response = await fetch("/api/v1/knowledge/upload-file", {
+        method: "POST",
+        body: formData,
       });
-    } else {
-      const data = await response.json();
-      toast.error("Upload failed", {
-        description: data.error || "Failed to upload files",
-      });
-    }
-    
-    setIsUploadingFiles(false);
-  }, [selectedCharacterId]);
+
+      if (response.ok) {
+        const data = await response.json();
+        toast.success(`${files.length} file(s) uploaded`, {
+          description: "Files are now searchable",
+        });
+      } else {
+        const data = await response.json();
+        toast.error("Upload failed", {
+          description: data.error || "Failed to upload files",
+        });
+      }
+
+      setIsUploadingFiles(false);
+    },
+    [selectedCharacterId],
+  );
 
   // Process audio blob when it becomes available after recording stops
   useEffect(() => {
@@ -745,7 +748,7 @@ export function ElizaChatInterface({
       (msg) =>
         msg.isAgent &&
         !msg.id.startsWith("thinking-") &&
-        !messageAudioUrls.current.has(msg.id)
+        !messageAudioUrls.current.has(msg.id),
     );
 
     newAgentMessages.forEach((msg) => {
@@ -762,7 +765,7 @@ export function ElizaChatInterface({
     if (scrollAreaRef.current) {
       // ScrollArea wraps content in a viewport div with data-radix-scroll-area-viewport
       const viewport = scrollAreaRef.current.querySelector(
-        "[data-radix-scroll-area-viewport]"
+        "[data-radix-scroll-area-viewport]",
       );
       if (viewport) {
         // Use requestAnimationFrame to ensure DOM has updated
@@ -817,14 +820,14 @@ export function ElizaChatInterface({
       url: string;
       title?: string;
       contentType: string;
-    }>
+    }>,
   ) => {
     // Check if there are image attachments
     const imageAttachment = attachments?.find(
       (att) =>
         att.contentType === "IMAGE" ||
         att.contentType === "image" ||
-        att.contentType.startsWith("image/")
+        att.contentType.startsWith("image/"),
     );
 
     if (imageAttachment) {
@@ -944,13 +947,13 @@ export function ElizaChatInterface({
                           const personalityLine = bioArray.find(
                             (line) =>
                               typeof line === "string" &&
-                              line.toLowerCase().includes("personality")
+                              line.toLowerCase().includes("personality"),
                           );
                           if (personalityLine) {
                             // Remove "Personality traits: " prefix for cleaner display
                             return personalityLine.replace(
                               /^personality traits?:\s*/i,
-                              ""
+                              "",
                             );
                           }
                           return bioArray[0];
@@ -968,248 +971,43 @@ export function ElizaChatInterface({
                 )}
 
               {!loadingState.isLoadingMessages &&
-                messages.map((message, index) => {
-                  const isThinking = message.id.startsWith("thinking-");
-                  return (
-                    <div
-                      key={message.id}
-                      className={`flex ${
-                        message.isAgent ? "justify-start" : "justify-end"
-                      } animate-in fade-in slide-in-from-bottom-4 duration-500`}
-                      style={{ animationDelay: `${index * 50}ms` }}
-                    >
-                      {message.isAgent ? (
-                        <div className="flex flex-col gap-1.5 max-w-[85%] sm:max-w-[75%] group/message">
-                          {/* Agent Name Row with Avatar */}
-                          <div className="flex items-center gap-2 pl-1">
-                            <ElizaAvatar
-                              avatarUrl={characterAvatarUrl}
-                              name={characterName}
-                              className="flex-shrink-0 w-5 h-5"
-                              iconClassName="h-3 w-3"
-                              animate={isThinking}
-                            />
-                            <span className="text-xs font-medium text-white/50">
-                              {characterName}
-                            </span>
-                          </div>
-
-                          <div className="flex flex-col gap-1.5">
-                            {isThinking ? (
-                              <div className="flex items-center gap-2 py-3 px-4 bg-white/[0.03] border border-white/[0.06] rounded-lg">
-                                <Loader2 className="h-4 w-4 animate-spin text-white/40" />
-                                <span className="text-sm text-white/40">
-                                  thinking...
-                                </span>
-                              </div>
-                            ) : (
-                              <>
-                                {/* Message Text */}
-                                <div className="py-3 px-4 bg-none border border-none rounded-lg transition-colors hover:bg-none hover:border-none overflow-hidden">
-                                  <div className="text-[15px] leading-relaxed text-white/90 prose prose-invert prose-sm max-w-none prose-p:my-2 prose-ul:my-2 prose-ol:my-2 prose-li:my-1 prose-headings:my-3 prose-pre:my-2 break-words [&_pre]:overflow-x-auto [&_pre_code]:whitespace-pre-wrap [&_pre_code]:break-words">
-                                    <ReactMarkdown
-                                      remarkPlugins={[remarkGfm]}
-                                      rehypePlugins={[rehypeHighlight]}
-                                      components={{
-                                        code: ({
-                                          className,
-                                          children,
-                                          ...props
-                                        }) => {
-                                          const isInline = !className;
-                                          return isInline ? (
-                                            <code
-                                              className="bg-white/10 px-1.5 py-0.5 rounded text-xs break-all"
-                                              {...props}
-                                            >
-                                              {children}
-                                            </code>
-                                          ) : (
-                                            <code
-                                              className={className}
-                                              {...props}
-                                            >
-                                              {children}
-                                            </code>
-                                          );
-                                        },
-                                        pre: ({ children }) => (
-                                          <pre className="bg-black/40 border border-white/10 rounded-lg p-3 overflow-x-auto [&>code]:whitespace-pre-wrap [&>code]:break-words">
-                                            {children}
-                                          </pre>
-                                        ),
-                                        a: ({ href, children }) => (
-                                          <a
-                                            href={href}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="text-[#FF5800] hover:text-[#FF5800]/80 underline break-all"
-                                          >
-                                            {children}
-                                          </a>
-                                        ),
-                                        ul: ({ children }) => (
-                                          <ul className="list-disc list-inside">
-                                            {children}
-                                          </ul>
-                                        ),
-                                        ol: ({ children }) => (
-                                          <ol className="list-decimal list-inside">
-                                            {children}
-                                          </ol>
-                                        ),
-                                      }}
-                                    >
-                                      {message.content.text}
-                                    </ReactMarkdown>
-                                  </div>
-                                </div>
-
-                                {/* Image Attachments */}
-                                {message.content.attachments &&
-                                  message.content.attachments.length > 0 && (
-                                    <div className="mt-2 space-y-2">
-                                      {message.content.attachments.map(
-                                        (attachment) => {
-                                          if (
-                                            attachment.contentType ===
-                                              "IMAGE" ||
-                                            attachment.contentType === "image"
-                                          ) {
-                                            return (
-                                              <div
-                                                key={attachment.id}
-                                                className="inline-block rounded-lg overflow-hidden border border-white/10 max-w-md"
-                                              >
-                                                <Image
-                                                  src={attachment.url}
-                                                  alt={
-                                                    attachment.title ||
-                                                    "Generated image"
-                                                  }
-                                                  width={512}
-                                                  height={512}
-                                                  className="w-full h-auto"
-                                                  style={{ display: "block" }}
-                                                  onLoad={() =>
-                                                    scrollToBottom()
-                                                  }
-                                                />
-                                              </div>
-                                            );
-                                          }
-                                          return null;
-                                        }
-                                      )}
-                                    </div>
-                                  )}
-
-                                {/* Time and Actions */}
-                                <div className="flex items-center gap-2 pl-1 opacity-0 group-hover/message:opacity-100 transition-opacity">
-                                  <span className="text-xs text-white/40">
-                                    {formatTimestamp(message.createdAt)}
-                                  </span>
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    className="h-6 w-6 p-0 hover:bg-white/10 rounded transition-colors"
-                                    onClick={() =>
-                                      copyToClipboard(
-                                        message.content.text,
-                                        message.id,
-                                        message.content.attachments
-                                      )
-                                    }
-                                    title="Copy message"
-                                  >
-                                    {copiedMessageId === message.id ? (
-                                      <Check className="h-3.5 w-3.5 text-green-500" />
-                                    ) : (
-                                      <Copy className="h-3.5 w-3.5 text-white/50 hover:text-white/80" />
-                                    )}
-                                  </Button>
-                                  {messageAudioUrls.current.has(message.id) && (
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      className="h-6 w-6 p-0 hover:bg-white/10 rounded transition-colors"
-                                      onClick={() => {
-                                        const url =
-                                          messageAudioUrls.current.get(
-                                            message.id
-                                          );
-                                        if (url) {
-                                          if (
-                                            audioState.currentPlayingId ===
-                                              message.id &&
-                                            player.isPlaying
-                                          ) {
-                                            player.stopAudio();
-                                            setAudioState((prev) => ({
-                                              ...prev,
-                                              currentPlayingId: null,
-                                            }));
-                                          } else {
-                                            setAudioState((prev) => ({
-                                              ...prev,
-                                              currentPlayingId: message.id,
-                                            }));
-                                            player.playAudio(url);
-                                          }
-                                        }
-                                      }}
-                                    >
-                                      {audioState.currentPlayingId ===
-                                        message.id && player.isPlaying ? (
-                                        <Square className="h-3.5 w-3.5 text-white/50" />
-                                      ) : (
-                                        <Volume2 className="h-3.5 w-3.5 text-white/50 hover:text-white/80" />
-                                      )}
-                                    </Button>
-                                  )}
-                                </div>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="flex flex-col gap-1.5 max-w-[85%] sm:max-w-[75%] group/message">
-                          {/* User Message */}
-                          <div className="py-3 px-4 bg-[#FF5800]/10 border border-[#FF5800]/20 rounded-lg transition-colors hover:bg-[#FF5800]/15 hover:border-[#FF5800]/30">
-                            <div className="whitespace-pre-wrap text-[15px] leading-relaxed text-white/95">
-                              {message.content.text}
-                            </div>
-                          </div>
-                          {/* Time and Actions */}
-                          <div className="flex items-center gap-2 justify-end pr-1 opacity-0 group-hover/message:opacity-100 transition-opacity">
-                            <span className="text-xs text-white/40">
-                              {formatTimestamp(message.createdAt)}
-                            </span>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-6 w-6 p-0 hover:bg-white/10 rounded transition-colors"
-                              onClick={() =>
-                                copyToClipboard(
-                                  message.content.text,
-                                  message.id,
-                                  message.content.attachments
-                                )
-                              }
-                              title="Copy message"
-                            >
-                              {copiedMessageId === message.id ? (
-                                <Check className="h-3.5 w-3.5 text-green-500" />
-                              ) : (
-                                <Copy className="h-3.5 w-3.5 text-white/50 hover:text-white/80" />
-                              )}
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+                messages.map((message, index) => (
+                  <MemoizedChatMessage
+                    key={message.id}
+                    message={message}
+                    index={index}
+                    characterName={characterName}
+                    characterAvatarUrl={characterAvatarUrl}
+                    copiedMessageId={copiedMessageId}
+                    currentPlayingId={audioState.currentPlayingId}
+                    isPlaying={player.isPlaying}
+                    hasAudioUrl={messageAudioUrls.current.has(message.id)}
+                    formatTimestamp={formatTimestamp}
+                    onCopy={copyToClipboard}
+                    onPlayAudio={(messageId) => {
+                      const url = messageAudioUrls.current.get(messageId);
+                      if (url) {
+                        if (
+                          audioState.currentPlayingId === messageId &&
+                          player.isPlaying
+                        ) {
+                          player.stopAudio();
+                          setAudioState((prev) => ({
+                            ...prev,
+                            currentPlayingId: null,
+                          }));
+                        } else {
+                          setAudioState((prev) => ({
+                            ...prev,
+                            currentPlayingId: messageId,
+                          }));
+                          player.playAudio(url);
+                        }
+                      }
+                    }}
+                    onImageLoad={scrollToBottom}
+                  />
+                ))}
             </div>
           </ScrollArea>
         </div>
@@ -1422,11 +1220,11 @@ export function ElizaChatInterface({
                                     if (newVoiceId) {
                                       localStorage.setItem(
                                         "eliza-selected-voice-id",
-                                        newVoiceId
+                                        newVoiceId,
                                       );
                                     } else {
                                       localStorage.removeItem(
-                                        "eliza-selected-voice-id"
+                                        "eliza-selected-voice-id",
                                       );
                                     }
                                   }
@@ -1434,7 +1232,7 @@ export function ElizaChatInterface({
                                   const voiceName = newVoiceId
                                     ? audioState.customVoices.find(
                                         (v) =>
-                                          v.elevenlabsVoiceId === newVoiceId
+                                          v.elevenlabsVoiceId === newVoiceId,
                                       )?.name || "Custom"
                                     : "Default";
 

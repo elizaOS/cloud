@@ -42,13 +42,19 @@ export function CharacterBuildMode({
   initialCharacters,
   onUnsavedChanges,
 }: CharacterBuildModeProps) {
-  const { selectedCharacterId } = useChatStore();
+  const { selectedCharacterId, setRoomId, setSelectedCharacterId } =
+    useChatStore();
   const { user } = usePrivy();
   const userId = user?.id || "";
   const router = useRouter();
 
   // Ref to get the builder room ID from BuildModeAssistant
   const builderRoomIdRef = useRef<string | null>(null);
+
+  // Track pending navigation after character creation to avoid race conditions
+  const [pendingNavigation, setPendingNavigation] = useState<string | null>(
+    null,
+  );
 
   // Mobile view state: 'assistant' or 'editor'
   const [mobileView, setMobileView] = useState<"assistant" | "editor">(
@@ -73,6 +79,10 @@ export function CharacterBuildMode({
   const [character, setCharacter] = useState<ElizaCharacter>(initialCharacter);
   const [preUploadedFiles, setPreUploadedFiles] = useState<PreUploadedFile[]>([]);
 
+  const handlePreUploadedFilesChange = useCallback((files: PreUploadedFile[]) => {
+    setPreUploadedFiles(files);
+  }, []);
+
   // Track unsaved changes
   useEffect(() => {
     const hasChanges =
@@ -84,6 +94,15 @@ export function CharacterBuildMode({
   useEffect(() => {
     setCharacter(initialCharacter);
   }, [initialCharacter]);
+
+  // Handle navigation after state updates have been committed
+  // This avoids race conditions where router.push happens before state is applied
+  useEffect(() => {
+    if (pendingNavigation) {
+      router.push(`/dashboard/chat?characterId=${pendingNavigation}`);
+      setPendingNavigation(null);
+    }
+  }, [pendingNavigation, router]);
 
   const handleCharacterUpdate = useCallback(
     (updates: Partial<ElizaCharacter>) => {
@@ -180,6 +199,11 @@ export function CharacterBuildMode({
             duration: 2000,
           });
 
+          // Clear room and set new character BEFORE navigating
+          // This ensures chat page starts fresh with no stale room data
+          setRoomId(null);
+          setSelectedCharacterId(saved.id);
+
           // Redirect to chat with the new agent
           router.push(`/dashboard/chat?characterId=${saved.id}`);
         }
@@ -194,7 +218,7 @@ export function CharacterBuildMode({
 
     // Mark changes as saved after successful save
     onUnsavedChanges?.(false);
-  }, [character, selectedCharacterId, preUploadedFiles, onUnsavedChanges, router]);
+  }, [character, selectedCharacterId, onUnsavedChanges, router, setRoomId, setSelectedCharacterId]);
 
   const handleCharacterRefresh = useCallback(async () => {
     if (!character.id) {
@@ -213,10 +237,22 @@ export function CharacterBuildMode({
     builderRoomIdRef.current = roomId;
   }, []);
 
-  // Callback to receive pre-uploaded files from UploadsTab
-  const handlePreUploadedFilesChange = useCallback((files: PreUploadedFile[]) => {
-    setPreUploadedFiles(files);
-  }, []);
+  // Callback when character is created via AI assistant (CREATE_CHARACTER action)
+  const handleCharacterCreated = useCallback(
+    (characterId: string, _characterName: string) => {
+      // Clear unsaved changes since character was saved by the agent
+      onUnsavedChanges?.(false);
+
+      // Update store state first
+      setRoomId(null);
+      setSelectedCharacterId(characterId);
+
+      // Trigger navigation via useEffect to ensure state updates are committed first
+      // This avoids race conditions where the next page renders with stale state
+      setPendingNavigation(characterId);
+    },
+    [onUnsavedChanges, setRoomId, setSelectedCharacterId],
+  );
 
   return (
       <div className="flex h-full w-full min-h-0 overflow-hidden flex-col">
@@ -265,6 +301,7 @@ export function CharacterBuildMode({
               onCharacterUpdate={handleCharacterUpdate}
               onCharacterRefresh={handleCharacterRefresh}
               onRoomIdChange={handleRoomIdChange}
+              onCharacterCreated={handleCharacterCreated}
               userId={userId}
               isCreatorMode={isCreatorMode}
             />
@@ -292,6 +329,7 @@ export function CharacterBuildMode({
                 onCharacterUpdate={handleCharacterUpdate}
                 onCharacterRefresh={handleCharacterRefresh}
                 onRoomIdChange={handleRoomIdChange}
+                onCharacterCreated={handleCharacterCreated}
                 userId={userId}
                 isCreatorMode={isCreatorMode}
               />
