@@ -3,6 +3,9 @@
  *
  * Single source of truth for all session operations.
  * Handles both authenticated (Privy) and anonymous sessions.
+ *
+ * Performance: Uses cached getCurrentUser from auth.ts for authenticated users
+ * to avoid redundant Privy API calls.
  */
 
 import { nanoid } from "nanoid";
@@ -23,20 +26,13 @@ import { eq, and, sql } from "drizzle-orm";
 import { logger } from "@/lib/utils/logger";
 import { usersService } from "@/lib/services/users";
 import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
-import { userSessionsService } from "@/lib/services/user-sessions";
-import { syncUserFromPrivy } from "../privy-sync";
 import type { UserWithOrganization } from "@/lib/types";
-import { PrivyClient } from "@privy-io/server-auth";
+import { getCurrentUser } from "@/lib/auth";
 
 const ANON_SESSION_COOKIE = "eliza-anon-session";
 const ANON_SESSION_EXPIRY_DAYS = 7;
 const DEFAULT_MESSAGE_LIMIT = 10;
 const DEFAULT_HOURLY_LIMIT = 10;
-
-const privyClient = new PrivyClient(
-  process.env.NEXT_PUBLIC_PRIVY_APP_ID!,
-  process.env.PRIVY_APP_SECRET!,
-);
 
 export interface SessionUser {
   userId: string;
@@ -140,59 +136,33 @@ export async function getOrCreateSessionUser(
     createIfMissing,
   });
 
-  // Step 1: Try Privy authentication first
+  // Step 1: Try Privy authentication first using cached getCurrentUser
+  // This leverages Redis caching to avoid redundant Privy API calls
   try {
-    const cookieStore = await cookies();
-    const privyToken = cookieStore.get("privy-token")?.value;
-    const privyIdToken = cookieStore.get("privy-id-token")?.value;
+    const user = await getCurrentUser();
 
-    if (privyToken) {
-      logger.debug(`${logPrefix} Found Privy token, verifying...`);
-      const verifiedClaims = await privyClient.verifyAuthToken(privyToken);
+    if (user && user.organization_id) {
+      const cookieStore = await cookies();
+      const privyToken = cookieStore.get("privy-token")?.value;
 
-      if (verifiedClaims) {
-        let user = await usersService.getByPrivyId(verifiedClaims.userId);
+      logger.info(`${logPrefix} Authenticated user session (cached)`, {
+        userId: user.id,
+        orgId: user.organization_id,
+      });
 
-        if (!user && privyIdToken) {
-          logger.debug(
-            `${logPrefix} Privy user not in DB, triggering JIT sync...`,
-          );
-          // Use getUser({idToken}) to avoid rate limits (vs deprecated getUser(userId))
-          const privyUser = await privyClient.getUser({
-            idToken: privyIdToken,
-          });
-          if (privyUser) {
-            user = await syncUserFromPrivy(privyUser);
-          }
-        }
-
-        if (user && user.organization_id) {
-          await userSessionsService.getOrCreateSession({
-            user_id: user.id,
-            organization_id: user.organization_id,
-            session_token: privyToken,
-          });
-
-          logger.info(`${logPrefix} Authenticated user session`, {
-            userId: user.id,
-            orgId: user.organization_id,
-          });
-
-          return {
-            userId: user.id,
-            isAnonymous: false,
-            organizationId: user.organization_id,
-            sessionToken: privyToken,
-            messageCount: 0,
-            messagesLimit: Infinity,
-            messagesRemaining: Infinity,
-            metadata: {
-              createdAt: user.created_at,
-            },
-            user,
-          };
-        }
-      }
+      return {
+        userId: user.id,
+        isAnonymous: false,
+        organizationId: user.organization_id,
+        sessionToken: privyToken || null,
+        messageCount: 0,
+        messagesLimit: Infinity,
+        messagesRemaining: Infinity,
+        metadata: {
+          createdAt: user.created_at,
+        },
+        user,
+      };
     }
   } catch (error) {
     logger.debug(`${logPrefix} Privy auth failed:`, error);

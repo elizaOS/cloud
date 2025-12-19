@@ -1,10 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/utils/logger";
 import { requireAuthWithOrg } from "@/lib/auth";
-import {
-  organizationsRepository,
-  creditTransactionsRepository,
-} from "@/db/repositories";
 import { db } from "@/db/client";
 import { usageRecords } from "@/db/schemas/usage-records";
 import { creditTransactions } from "@/db/schemas/credit-transactions";
@@ -44,46 +40,40 @@ export async function GET(req: NextRequest) {
     const periodStart = new Date();
     periodStart.setDate(periodStart.getDate() - days);
 
-    const [org, transactionStats, usageStats, lastTransaction] =
-      await Promise.all([
-        organizationsRepository.findById(organizationId),
-        db
-          .select({
-            totalCredits: sql<string>`COALESCE(SUM(CASE WHEN ${creditTransactions.type} = 'credit' THEN ${creditTransactions.amount} ELSE 0 END), 0)`,
-            totalDebits: sql<string>`COALESCE(SUM(CASE WHEN ${creditTransactions.type} = 'debit' THEN ABS(${creditTransactions.amount}) ELSE 0 END), 0)`,
-            initialCredits: sql<string>`COALESCE(SUM(CASE WHEN ${creditTransactions.description} LIKE '%Initial%' OR ${creditTransactions.description} LIKE '%Welcome%' OR ${creditTransactions.description} LIKE '%Free%' THEN ${creditTransactions.amount} ELSE 0 END), 0)`,
-          })
-          .from(creditTransactions)
-          .where(eq(creditTransactions.organization_id, organizationId)),
-        db
-          .select({
-            totalRequests: sql<number>`COUNT(*)::int`,
-            successfulRequests: sql<number>`SUM(CASE WHEN ${usageRecords.is_successful} = true THEN 1 ELSE 0 END)::int`,
-            failedRequests: sql<number>`SUM(CASE WHEN ${usageRecords.is_successful} = false THEN 1 ELSE 0 END)::int`,
-            totalInputTokens: sql<number>`COALESCE(SUM(${usageRecords.input_tokens}), 0)::int`,
-            totalOutputTokens: sql<number>`COALESCE(SUM(${usageRecords.output_tokens}), 0)::int`,
-          })
-          .from(usageRecords)
-          .where(
-            and(
-              eq(usageRecords.organization_id, organizationId),
-              gte(usageRecords.created_at, periodStart),
-            ),
-          ),
-        db
-          .select({ created_at: creditTransactions.created_at })
-          .from(creditTransactions)
-          .where(eq(creditTransactions.organization_id, organizationId))
-          .orderBy(desc(creditTransactions.created_at))
-          .limit(1),
-      ]);
+    // Use org data from auth (already fetched, avoids redundant DB call)
+    const org = user.organization;
 
-    if (!org) {
-      return NextResponse.json(
-        { error: "Organization not found" },
-        { status: 404 },
-      );
-    }
+    const [transactionStats, usageStats, lastTransaction] = await Promise.all([
+      db
+        .select({
+          totalCredits: sql<string>`COALESCE(SUM(CASE WHEN ${creditTransactions.type} = 'credit' THEN ${creditTransactions.amount} ELSE 0 END), 0)`,
+          totalDebits: sql<string>`COALESCE(SUM(CASE WHEN ${creditTransactions.type} = 'debit' THEN ABS(${creditTransactions.amount}) ELSE 0 END), 0)`,
+          initialCredits: sql<string>`COALESCE(SUM(CASE WHEN ${creditTransactions.description} LIKE '%Initial%' OR ${creditTransactions.description} LIKE '%Welcome%' OR ${creditTransactions.description} LIKE '%Free%' THEN ${creditTransactions.amount} ELSE 0 END), 0)`,
+        })
+        .from(creditTransactions)
+        .where(eq(creditTransactions.organization_id, organizationId)),
+      db
+        .select({
+          totalRequests: sql<number>`COUNT(*)::int`,
+          successfulRequests: sql<number>`SUM(CASE WHEN ${usageRecords.is_successful} = true THEN 1 ELSE 0 END)::int`,
+          failedRequests: sql<number>`SUM(CASE WHEN ${usageRecords.is_successful} = false THEN 1 ELSE 0 END)::int`,
+          totalInputTokens: sql<number>`COALESCE(SUM(${usageRecords.input_tokens}), 0)::int`,
+          totalOutputTokens: sql<number>`COALESCE(SUM(${usageRecords.output_tokens}), 0)::int`,
+        })
+        .from(usageRecords)
+        .where(
+          and(
+            eq(usageRecords.organization_id, organizationId),
+            gte(usageRecords.created_at, periodStart),
+          ),
+        ),
+      db
+        .select({ created_at: creditTransactions.created_at })
+        .from(creditTransactions)
+        .where(eq(creditTransactions.organization_id, organizationId))
+        .orderBy(desc(creditTransactions.created_at))
+        .limit(1),
+    ]);
 
     const remaining = Number(org.credit_balance || 0);
     const totalDebits = Number(transactionStats[0]?.totalDebits || 0);
