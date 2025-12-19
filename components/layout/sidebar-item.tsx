@@ -32,7 +32,7 @@ export function SidebarNavigationItem({ item }: SidebarNavigationItemProps) {
       <div
         className={cn(
           "relative flex items-center gap-3 rounded-none px-3 py-2.5",
-          "text-white/40 border-l-2 border-transparent cursor-not-allowed opacity-50",
+          "text-white/40 border-l-2 border-transparent cursor-default select-none opacity-50",
         )}
         style={{
           fontFamily: "var(--font-roboto-mono)",
