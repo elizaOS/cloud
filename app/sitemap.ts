@@ -1,5 +1,8 @@
 import type { MetadataRoute } from "next";
 
+const BASE_URL =
+  process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
+
 /**
  * Generates the sitemap for search engines.
  * Includes static pages for the application.
@@ -7,82 +10,75 @@ import type { MetadataRoute } from "next";
  * @returns Sitemap configuration with URLs, priorities, and change frequencies.
  */
 export default function sitemap(): MetadataRoute.Sitemap {
-  // Get base URL with automatic Vercel URL detection as fallback
-  const baseUrl =
-    process.env.NEXT_PUBLIC_APP_URL ||
-    (process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}`
-      : "http://localhost:3000");
-
   return [
     {
-      url: baseUrl,
+      url: BASE_URL,
       lastModified: new Date(),
       changeFrequency: "daily",
       priority: 1.0,
     },
     {
-      url: `${baseUrl}/login`,
+      url: `${BASE_URL}/login`,
       lastModified: new Date(),
       changeFrequency: "monthly",
       priority: 0.8,
     },
     {
-      url: `${baseUrl}/privacy-policy`,
-      lastModified: new Date(),
-      changeFrequency: "monthly",
-      priority: 0.5,
-    },
-    {
-      url: `${baseUrl}/terms-of-service`,
+      url: `${BASE_URL}/privacy-policy`,
       lastModified: new Date(),
       changeFrequency: "monthly",
       priority: 0.5,
     },
     {
-      url: `${baseUrl}/dashboard`,
+      url: `${BASE_URL}/terms-of-service`,
+      lastModified: new Date(),
+      changeFrequency: "monthly",
+      priority: 0.5,
+    },
+    {
+      url: `${BASE_URL}/dashboard`,
       lastModified: new Date(),
       changeFrequency: "daily",
       priority: 0.8,
     },
     {
-      url: `${baseUrl}/dashboard/chat`,
+      url: `${BASE_URL}/dashboard/chat`,
       lastModified: new Date(),
       changeFrequency: "weekly",
       priority: 0.7,
     },
     {
-      url: `${baseUrl}/dashboard/image`,
+      url: `${BASE_URL}/dashboard/image`,
       lastModified: new Date(),
       changeFrequency: "weekly",
       priority: 0.7,
     },
     {
-      url: `${baseUrl}/dashboard/video`,
+      url: `${BASE_URL}/dashboard/video`,
       lastModified: new Date(),
       changeFrequency: "weekly",
       priority: 0.7,
     },
     {
-      url: `${baseUrl}/dashboard/voices`,
+      url: `${BASE_URL}/dashboard/voices`,
       lastModified: new Date(),
       changeFrequency: "weekly",
       priority: 0.7,
     },
     {
-      url: `${baseUrl}/dashboard/build`,
+      url: `${BASE_URL}/dashboard/build`,
       lastModified: new Date(),
       changeFrequency: "weekly",
       priority: 0.7,
     },
     {
-      url: `${baseUrl}/dashboard/my-agents`,
+      url: `${BASE_URL}/dashboard/my-agents`,
       lastModified: new Date(),
       changeFrequency: "daily",
       priority: 0.8,
     },
     {
-      url: `${baseUrl}/dashboard/api-explorer`,
+      url: `${BASE_URL}/dashboard/api-explorer`,
       lastModified: new Date(),
       changeFrequency: "weekly",
       priority: 0.6,
