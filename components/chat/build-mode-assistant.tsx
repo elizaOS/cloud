@@ -19,22 +19,46 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, Loader2, Copy, Check, MessageSquare, Lock } from "lucide-react";
+import {
+  Send,
+  Loader2,
+  Copy,
+  Check,
+  MessageSquare,
+  Lock,
+  Zap,
+  Sparkles,
+  Crown,
+} from "lucide-react";
 import type { ElizaCharacter } from "@/lib/types";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
 import "highlight.js/styles/github-dark.css";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 import { AgentMode } from "@/lib/eliza/agent-mode-types";
 import {
   createConversationAction,
   listUserConversationsAction,
 } from "@/app/actions/conversations";
+import {
+  BUILD_MODE_TIER_LIST,
+  BUILD_MODE_TIERS,
+  DEFAULT_MODEL_TIER,
+  type ModelTier,
+} from "@/lib/models/model-tiers";
 import { ElizaAvatar } from "./eliza-avatar";
 import { DEFAULT_AVATAR } from "@/lib/utils/default-avatar";
 import Link from "next/link";
+import { useChatStore } from "@/lib/stores/chat-store";
 
 // Default Eliza configuration for creator mode
 const DEFAULT_ELIZA = {
@@ -47,8 +71,16 @@ interface BuildModeAssistantProps {
   onCharacterUpdate: (updates: Partial<ElizaCharacter>) => void;
   onCharacterRefresh?: () => Promise<void>;
   onRoomIdChange?: (roomId: string) => void;
+  onCharacterCreated?: (characterId: string, characterName: string) => void;
   userId: string;
   isCreatorMode?: boolean;
+}
+
+interface MessageAttachment {
+  id: string;
+  url: string;
+  title?: string;
+  contentType?: string;
 }
 
 interface Message {
@@ -56,6 +88,7 @@ interface Message {
   role: "user" | "assistant";
   content: string;
   timestamp: number;
+  attachments?: MessageAttachment[];
 }
 
 interface LockedRoomInfo {
@@ -68,6 +101,7 @@ export function BuildModeAssistant({
   onCharacterUpdate,
   onCharacterRefresh,
   onRoomIdChange,
+  onCharacterCreated,
   userId,
   isCreatorMode = false,
 }: BuildModeAssistantProps) {
@@ -78,7 +112,31 @@ export function BuildModeAssistant({
   const [inputText, setInputText] = useState("");
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
+
+  // Get store method to update character avatar in sidebar/dropdown
+  const updateCharacterAvatar = useChatStore(
+    (state) => state.updateCharacterAvatar,
+  );
   const [isLoading, setIsLoading] = useState(false);
+
+  const [selectedTier, setSelectedTier] = useState<ModelTier>(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("build-mode-model-tier");
+      if (stored && (stored === "fast" || stored === "pro" || stored === "ultra")) {
+        return stored as ModelTier;
+      }
+    }
+    return DEFAULT_MODEL_TIER;
+  });
+  const selectedModelId =
+    BUILD_MODE_TIER_LIST.find((t) => t.id === selectedTier)?.modelId ??
+    BUILD_MODE_TIERS[DEFAULT_MODEL_TIER].modelId;
+
+  const tierIcons: Record<string, React.ReactNode> = {
+    fast: <Zap className="h-3.5 w-3.5" />,
+    pro: <Sparkles className="h-3.5 w-3.5" />,
+    ultra: <Crown className="h-3.5 w-3.5" />,
+  };
   const [isInitializing, setIsInitializing] = useState(true); // Loading state for initial welcome
   const [builderRoomId, setBuilderRoomId] = useState<string>("");
   const [lockedRoom, setLockedRoom] = useState<LockedRoomInfo | null>(null); // Track if room is locked after character creation
@@ -127,10 +185,10 @@ export function BuildModeAssistant({
           const existingRoom = conversations.find(
             (conv) =>
               conv.title.startsWith(
-                `[BUILD] ${character?.name || "Character"}`,
+                `[BUILD] ${character?.name || "Character"}`
               ) &&
               character?.id &&
-              conv.title.includes(`(${character.id})`),
+              conv.title.includes(`(${character.id})`)
           );
 
           if (existingRoom) {
@@ -170,7 +228,9 @@ export function BuildModeAssistant({
     const loadMessages = async () => {
       setIsInitializing(true);
 
-      const response = await fetch(`/api/eliza/rooms/${builderRoomId}`);
+      const response = await fetch(`/api/eliza/rooms/${builderRoomId}`, {
+        credentials: "include",
+      });
 
       if (response.ok) {
         const data = await response.json();
@@ -200,12 +260,24 @@ export function BuildModeAssistant({
                 text?: string;
                 source?: string;
                 metadata?: { type?: string };
+                attachments?: Array<{
+                  id?: string;
+                  url: string;
+                  title?: string;
+                  contentType?: string;
+                }>;
               };
               createdAt: number;
               isAgent: boolean;
             }) => {
               const text = msg.content?.text;
-              if (!text || typeof text !== "string") {
+              const attachments = msg.content?.attachments;
+
+              // Allow messages with text OR attachments
+              if (
+                (!text || typeof text !== "string") &&
+                (!attachments || attachments.length === 0)
+              ) {
                 return null;
               }
 
@@ -223,10 +295,16 @@ export function BuildModeAssistant({
                 role: isAgentMessage
                   ? ("assistant" as const)
                   : ("user" as const),
-                content: text,
+                content: text || "",
                 timestamp: msg.createdAt,
+                attachments: attachments?.map((att) => ({
+                  id: att.id || `att-${msg.id}`,
+                  url: att.url,
+                  title: att.title,
+                  contentType: att.contentType,
+                })),
               };
-            },
+            }
           )
           .filter((msg: Message | null): msg is Message => msg !== null);
 
@@ -239,8 +317,13 @@ export function BuildModeAssistant({
     loadMessages();
   }, [builderRoomId]);
 
+  // Persist model tier to localStorage
+  useEffect(() => {
+    localStorage.setItem("build-mode-model-tier", selectedTier);
+  }, [selectedTier]);
+
   // Send message to ElizaOS stream endpoint with BUILD workflow
-  const sendElizaMessage = async (text: string) => {
+  const sendElizaMessage = useCallback(async (text: string) => {
     if (!text.trim() || !builderRoomId) return;
 
     setIsLoading(true);
@@ -255,9 +338,31 @@ export function BuildModeAssistant({
     setMessages((prev) => [...prev, userMessage]);
 
     // Build metadata based on mode
+    // Include current client-side character state so the agent knows what user sees
+    const clientCharacterState = character
+      ? {
+          name: character.name || "",
+          bio: character.bio || "",
+          system: character.system || "",
+          adjectives: character.adjectives || [],
+          topics: character.topics || [],
+          style: character.style || { all: [], chat: [], post: [] },
+          messageExamples: character.messageExamples || [],
+          avatarUrl: character.avatarUrl || character.avatar_url || "",
+        }
+      : null;
+
     const metadata: Record<string, unknown> = isCreatorMode
-      ? { isCreatorMode: true }
-      : { targetCharacterId: character?.id };
+      ? {
+          isCreatorMode: true,
+          clientCharacterState,
+          isUnsaved: true, // Creator mode is always unsaved
+        }
+      : {
+          targetCharacterId: character?.id,
+          clientCharacterState,
+          isUnsaved: !character?.id, // Unsaved if no ID yet
+        };
 
     try {
       const response = await fetch(
@@ -265,14 +370,16 @@ export function BuildModeAssistant({
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          credentials: "include",
           body: JSON.stringify({
             text,
+            model: selectedModelId,
             agentMode: {
               mode: AgentMode.BUILD,
               metadata,
             },
           }),
-        },
+        }
       );
 
       if (!response.ok) {
@@ -290,6 +397,7 @@ export function BuildModeAssistant({
         let detectedCharacterCreated = false;
         let createdCharacterId: string | null = null;
         let proposedCharacterUpdate: Partial<ElizaCharacter> | null = null;
+        let messageAttachments: MessageAttachment[] = [];
 
         while (true) {
           const { done, value } = await reader.read();
@@ -319,7 +427,10 @@ export function BuildModeAssistant({
               try {
                 const data = JSON.parse(eventData);
 
-                if (data.type === "agent" && data.content?.text) {
+                if (
+                  data.type === "agent" &&
+                  (data.content?.text || data.content?.attachments?.length)
+                ) {
                   // Skip action result messages from UI but process metadata
                   if (data.content?.metadata?.type === "action_result") {
                     // Check for character creation in action results
@@ -339,8 +450,25 @@ export function BuildModeAssistant({
                     continue;
                   }
 
-                  assistantMessage = data.content.text;
+                  assistantMessage = data.content.text || "";
                   assistantMessageId = data.id;
+
+                  // Capture attachments (images, etc.)
+                  if (data.content?.attachments?.length) {
+                    messageAttachments = data.content.attachments.map(
+                      (att: {
+                        id?: string;
+                        url: string;
+                        title?: string;
+                        contentType?: string;
+                      }) => ({
+                        id: att.id || `att-${Date.now()}`,
+                        url: att.url,
+                        title: att.title,
+                        contentType: att.contentType,
+                      }),
+                    );
+                  }
 
                   // Check for SAVE_CHANGES action
                   if (
@@ -369,6 +497,20 @@ export function BuildModeAssistant({
                   ) {
                     proposedCharacterUpdate = data.content.metadata.changes;
                   }
+
+                  // Check for GENERATE_AVATAR with avatar URL
+                  if (
+                    data.content?.metadata?.action === "GENERATE_AVATAR" &&
+                    data.content?.metadata?.changes?.avatarUrl
+                  ) {
+                    proposedCharacterUpdate = data.content.metadata.changes;
+                    // Track if avatar was auto-saved
+                    if (data.content?.metadata?.avatarSaved) {
+                      (
+                        proposedCharacterUpdate as Record<string, unknown>
+                      ).__avatarSaved = true;
+                    }
+                  }
                 }
               } catch {
                 // Silently ignore parse errors during streaming
@@ -377,21 +519,52 @@ export function BuildModeAssistant({
 
             // Handle done event
             if (eventType === "done") {
-              if (assistantMessage) {
+              if (assistantMessage || messageAttachments.length > 0) {
                 const newAssistantMessage: Message = {
                   id: assistantMessageId || `assistant-${Date.now()}`,
                   role: "assistant",
                   content: assistantMessage,
                   timestamp: Date.now(),
+                  attachments:
+                    messageAttachments.length > 0
+                      ? messageAttachments
+                      : undefined,
                 };
                 setMessages((prev) => [...prev, newAssistantMessage]);
 
                 // Apply character updates to editor
                 if (proposedCharacterUpdate) {
+                  // Check for avatar saved flag and remove it before updating
+                  const updateWithMeta = proposedCharacterUpdate as Record<
+                    string,
+                    unknown
+                  >;
+                  const avatarWasSaved = updateWithMeta.__avatarSaved;
+                  delete updateWithMeta.__avatarSaved;
+
                   onCharacterUpdate(proposedCharacterUpdate);
-                  toast.success("Character preview updated!", {
-                    duration: 4000,
-                  });
+                  const isAvatarUpdate = "avatarUrl" in proposedCharacterUpdate;
+
+                  if (isAvatarUpdate) {
+                    // Update sidebar/dropdown avatar if saved in build mode (not creator mode)
+                    if (avatarWasSaved && !isCreatorMode && character?.id) {
+                      updateCharacterAvatar(
+                        character.id,
+                        updateWithMeta.avatarUrl as string,
+                      );
+                    }
+
+                    toast.success(
+                      avatarWasSaved
+                        ? "Avatar generated and saved!"
+                        : "Avatar preview updated!",
+                      { duration: 4000 },
+                    );
+                  } else {
+                    toast.success("Character preview updated!", {
+                      duration: 4000,
+                    });
+                  }
                 }
 
                 // Handle character creation in creator mode - lock the room
@@ -400,15 +573,23 @@ export function BuildModeAssistant({
                   detectedCharacterCreated &&
                   createdCharacterId
                 ) {
+                  const createdName =
+                    (proposedCharacterUpdate?.name as string) ||
+                    character?.name ||
+                    "your agent";
+
                   // Lock the room and show link to chat with the created agent
                   setLockedRoom({
                     characterId: createdCharacterId,
-                    characterName:
-                      (proposedCharacterUpdate?.name as string) || "your agent",
+                    characterName: createdName,
                   });
+
+                  // Notify parent that character was created (clears unsaved changes)
+                  onCharacterCreated?.(createdCharacterId, createdName);
+
                   toast.success(
                     "Character created! You can now chat with your agent.",
-                    { duration: 4000 },
+                    { duration: 4000 }
                   );
                 }
 
@@ -427,18 +608,27 @@ export function BuildModeAssistant({
       toast.error(
         error instanceof Error
           ? error.message
-          : "Failed to send message. Please try again.",
+          : "Failed to send message. Please try again."
       );
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [
+    builderRoomId,
+    character,
+    isCreatorMode,
+    onCharacterCreated,
+    onCharacterRefresh,
+    onCharacterUpdate,
+    selectedModelId,
+    updateCharacterAvatar,
+  ]);
 
   // Robust scroll to bottom function
   const scrollToBottom = useCallback((smooth = false) => {
     if (scrollAreaRef.current) {
       const viewport = scrollAreaRef.current.querySelector(
-        "[data-radix-scroll-area-viewport]",
+        "[data-radix-scroll-area-viewport]"
       );
       if (viewport) {
         // Use requestAnimationFrame to ensure DOM has updated
@@ -490,7 +680,7 @@ export function BuildModeAssistant({
         } catch {
           try {
             const fieldMatches = jsonText.matchAll(
-              /"(\w+)":\s*("(?:[^"\\]|\\.)*"|true|false|null|\d+(?:\.\d+)?|\[[^\]]*\])/g,
+              /"(\w+)":\s*("(?:[^"\\]|\\.)*"|true|false|null|\d+(?:\.\d+)?|\[[^\]]*\])/g
             );
             const partialUpdates: Record<string, unknown> = {};
 
@@ -518,14 +708,17 @@ export function BuildModeAssistant({
     // Note: If onCharacterUpdate causes too many re-runs, wrap it in useCallback in the parent
   }, [messages, onCharacterUpdate]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inputText.trim() || isLoading) return;
+  const handleSubmit = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!inputText.trim() || isLoading) return;
 
-    const userMessage = inputText;
-    setInputText("");
-    await sendElizaMessage(userMessage);
-  };
+      const userMessage = inputText;
+      setInputText("");
+      await sendElizaMessage(userMessage);
+    },
+    [inputText, isLoading, sendElizaMessage],
+  );
 
   // Pre-prompts for quick start - different for creator vs build mode
   const quickPrompts = isCreatorMode
@@ -668,159 +861,197 @@ export function BuildModeAssistant({
                       </div>
 
                       <div className="flex flex-col gap-1.5">
+                        {/* Message Attachments (Images) */}
+                        {message.attachments &&
+                          message.attachments.length > 0 && (
+                            <div className="flex flex-wrap gap-2">
+                              {message.attachments.map((attachment) => (
+                                <div
+                                  key={attachment.id}
+                                  className="relative rounded-lg overflow-hidden border border-white/[0.08] bg-white/[0.02]"
+                                >
+                                  <img
+                                    src={attachment.url}
+                                    alt={attachment.title || "Generated image"}
+                                    className="max-w-[280px] max-h-[280px] object-cover"
+                                    loading="lazy"
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         {/* Message Text */}
-                        <div className="py-3 px-4 bg-white/[0.03] border border-white/[0.06] rounded-lg transition-colors hover:bg-white/[0.05] hover:border-white/[0.08] overflow-hidden">
-                          <style jsx>{`
-                            .build-mode-content :global(pre) {
-                              background: rgba(0, 0, 0, 0.4) !important;
-                              padding: 12px !important;
-                              border-radius: 8px !important;
-                              overflow-x: auto !important;
-                              margin: 8px 0 !important;
-                            }
-                            .build-mode-content
-                              :global(pre)::-webkit-scrollbar {
-                              height: 8px;
-                            }
-                            .build-mode-content
-                              :global(pre)::-webkit-scrollbar-track {
-                              background: rgba(0, 0, 0, 0.2);
-                            }
-                            .build-mode-content
-                              :global(pre)::-webkit-scrollbar-thumb {
-                              background: rgba(255, 88, 0, 0.4);
-                              border-radius: 4px;
-                            }
-                            .build-mode-content
-                              :global(pre)::-webkit-scrollbar-thumb:hover {
-                              background: rgba(255, 88, 0, 0.6);
-                            }
-                            .build-mode-content :global(pre code) {
-                              font-family:
-                                "Monaco", "Menlo", "Ubuntu Mono", "Consolas",
-                                monospace !important;
-                              font-size: 13px !important;
-                              white-space: pre-wrap !important;
-                              word-break: break-word !important;
-                            }
-                            .build-mode-content :global(code) {
-                              font-family:
-                                "Monaco", "Menlo", "Ubuntu Mono", "Consolas",
-                                monospace !important;
-                              font-size: 13px !important;
-                            }
-                            /* JSON property keys */
-                            .build-mode-content :global(.token.property),
-                            .build-mode-content :global(.token.key) {
-                              color: #fe9f6d !important;
-                            }
-                            /* JSON punctuation (brackets, braces, commas, colons) */
-                            .build-mode-content :global(.token.punctuation) {
-                              color: #e434bb !important;
-                            }
-                            /* JSON string values */
-                            .build-mode-content :global(.token.string) {
-                              color: #d4d4d4 !important;
-                            }
-                            /* JSON numbers */
-                            .build-mode-content :global(.token.number) {
-                              color: #d4d4d4 !important;
-                            }
-                            /* JSON booleans and null */
-                            .build-mode-content :global(.token.boolean),
-                            .build-mode-content :global(.token.null) {
-                              color: #d4d4d4 !important;
-                            }
-                            /* Remove prose margins for tighter spacing */
-                            .build-mode-content :global(p) {
-                              margin: 0 !important;
-                              word-break: break-word !important;
-                            }
-                            .build-mode-content :global(p + p) {
-                              margin-top: 8px !important;
-                            }
-                            .build-mode-content :global(ul),
-                            .build-mode-content :global(ol) {
-                              margin: 8px 0 !important;
-                              padding-left: 20px !important;
-                            }
-                            .build-mode-content :global(li) {
-                              margin: 2px 0 !important;
-                            }
-                            .build-mode-content :global(h1),
-                            .build-mode-content :global(h2),
-                            .build-mode-content :global(h3),
-                            .build-mode-content :global(h4) {
-                              margin: 12px 0 4px 0 !important;
-                              font-weight: 600 !important;
-                            }
-                            .build-mode-content :global(h1) {
-                              font-size: 18px !important;
-                            }
-                            .build-mode-content :global(h2) {
-                              font-size: 16px !important;
-                            }
-                            .build-mode-content :global(h3),
-                            .build-mode-content :global(h4) {
-                              font-size: 14px !important;
-                            }
-                          `}</style>
-                          <div className="text-[15px] leading-relaxed text-white/90 build-mode-content break-words">
-                            <ReactMarkdown
-                              remarkPlugins={[remarkGfm]}
-                              rehypePlugins={[rehypeHighlight]}
-                              components={{
-                                code: ({ className, children, ...props }) => {
-                                  const isInline = !className;
-                                  return isInline ? (
-                                    <code
-                                      className="bg-white/10 px-1.5 py-0.5 rounded text-xs break-all"
-                                      {...props}
+                        {content && (
+                          <div className="py-3 px-4 bg-white/[0.03] border border-white/[0.06] rounded-lg transition-colors hover:bg-white/[0.05] hover:border-white/[0.08] overflow-hidden">
+                            <style jsx>{`
+                              .build-mode-content :global(pre) {
+                                background: rgba(0, 0, 0, 0.4) !important;
+                                padding: 12px !important;
+                                border-radius: 8px !important;
+                                overflow-x: auto !important;
+                                margin: 8px 0 !important;
+                              }
+                              .build-mode-content
+                                :global(pre)::-webkit-scrollbar {
+                                height: 8px;
+                              }
+                              .build-mode-content
+                                :global(pre)::-webkit-scrollbar-track {
+                                background: rgba(0, 0, 0, 0.2);
+                              }
+                              .build-mode-content
+                                :global(pre)::-webkit-scrollbar-thumb {
+                                background: rgba(255, 88, 0, 0.4);
+                                border-radius: 4px;
+                              }
+                              .build-mode-content
+                                :global(pre)::-webkit-scrollbar-thumb:hover {
+                                background: rgba(255, 88, 0, 0.6);
+                              }
+                              .build-mode-content :global(pre code) {
+                                font-family:
+                                  "Monaco", "Menlo", "Ubuntu Mono", "Consolas",
+                                  monospace !important;
+                                font-size: 13px !important;
+                                white-space: pre-wrap !important;
+                                word-break: break-word !important;
+                              }
+                              .build-mode-content :global(code) {
+                                font-family:
+                                  "Monaco", "Menlo", "Ubuntu Mono", "Consolas",
+                                  monospace !important;
+                                font-size: 13px !important;
+                              }
+                              /* JSON property keys */
+                              .build-mode-content :global(.token.property),
+                              .build-mode-content :global(.token.key) {
+                                color: #fe9f6d !important;
+                              }
+                              /* JSON punctuation (brackets, braces, commas, colons) */
+                              .build-mode-content :global(.token.punctuation) {
+                                color: #e434bb !important;
+                              }
+                              /* JSON string values */
+                              .build-mode-content :global(.token.string) {
+                                color: #d4d4d4 !important;
+                              }
+                              /* JSON numbers */
+                              .build-mode-content :global(.token.number) {
+                                color: #d4d4d4 !important;
+                              }
+                              /* JSON booleans and null */
+                              .build-mode-content :global(.token.boolean),
+                              .build-mode-content :global(.token.null) {
+                                color: #d4d4d4 !important;
+                              }
+                              /* Remove prose margins for tighter spacing */
+                              .build-mode-content :global(p) {
+                                margin: 0 !important;
+                                word-break: break-word !important;
+                              }
+                              .build-mode-content :global(p + p) {
+                                margin-top: 8px !important;
+                              }
+                              .build-mode-content :global(ul),
+                              .build-mode-content :global(ol) {
+                                margin: 8px 0 !important;
+                                padding-left: 24px !important;
+                                list-style-position: outside !important;
+                              }
+                              .build-mode-content :global(li) {
+                                margin: 6px 0 !important;
+                                padding-left: 4px !important;
+                              }
+                              .build-mode-content :global(li > p) {
+                                display: inline !important;
+                                margin: 0 !important;
+                              }
+                              .build-mode-content :global(li > p:first-child) {
+                                display: inline !important;
+                              }
+                              .build-mode-content :global(h1),
+                              .build-mode-content :global(h2),
+                              .build-mode-content :global(h3),
+                              .build-mode-content :global(h4) {
+                                margin: 12px 0 4px 0 !important;
+                                font-weight: 600 !important;
+                              }
+                              .build-mode-content :global(h1) {
+                                font-size: 18px !important;
+                              }
+                              .build-mode-content :global(h2) {
+                                font-size: 16px !important;
+                              }
+                              .build-mode-content :global(h3),
+                              .build-mode-content :global(h4) {
+                                font-size: 14px !important;
+                              }
+                            `}</style>
+                            <div className="text-[15px] leading-relaxed text-white/90 build-mode-content break-words">
+                              <ReactMarkdown
+                                remarkPlugins={[remarkGfm]}
+                                rehypePlugins={[rehypeHighlight]}
+                                components={{
+                                  code: ({ className, children, ...props }) => {
+                                    const isInline = !className;
+                                    return isInline ? (
+                                      <code
+                                        className="bg-white/10 px-1.5 py-0.5 rounded text-xs break-all"
+                                        {...props}
+                                      >
+                                        {children}
+                                      </code>
+                                    ) : (
+                                      <code className={className} {...props}>
+                                        {children}
+                                      </code>
+                                    );
+                                  },
+                                  pre: ({ children }) => (
+                                    <pre className="bg-black/40 border border-white/10 rounded-lg p-3 overflow-x-auto my-2">
+                                      {children}
+                                    </pre>
+                                  ),
+                                  a: ({ href, children }) => (
+                                    <a
+                                      href={href}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-[#FF5800] hover:text-[#FF5800]/80 underline break-all"
                                     >
                                       {children}
-                                    </code>
-                                  ) : (
-                                    <code className={className} {...props}>
+                                    </a>
+                                  ),
+                                  ul: ({ children }) => (
+                                    <ul className="list-disc my-2 pl-6">
                                       {children}
-                                    </code>
-                                  );
-                                },
-                                pre: ({ children }) => (
-                                  <pre className="bg-black/40 border border-white/10 rounded-lg p-3 overflow-x-auto my-2">
-                                    {children}
-                                  </pre>
-                                ),
-                                a: ({ href, children }) => (
-                                  <a
-                                    href={href}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-[#FF5800] hover:text-[#FF5800]/80 underline break-all"
-                                  >
-                                    {children}
-                                  </a>
-                                ),
-                                ul: ({ children }) => (
-                                  <ul className="list-disc list-inside my-2">
-                                    {children}
-                                  </ul>
-                                ),
-                                ol: ({ children }) => (
-                                  <ol className="list-decimal list-inside my-2">
-                                    {children}
-                                  </ol>
-                                ),
-                                p: ({ children }) => (
-                                  <p className="my-2 first:mt-0 last:mb-0">
-                                    {children}
-                                  </p>
-                                ),
-                              }}
-                            >
-                              {content}
-                            </ReactMarkdown>
+                                    </ul>
+                                  ),
+                                  ol: ({ children }) => (
+                                    <ol className="list-decimal my-2 pl-6">
+                                      {children}
+                                    </ol>
+                                  ),
+                                  li: ({
+                                    children,
+                                    ...props
+                                  }: React.HTMLProps<HTMLLIElement>) => (
+                                    <li className="my-1.5 pl-1" {...props}>
+                                      {children}
+                                    </li>
+                                  ),
+                                  p: ({ children }) => (
+                                    <p className="my-2 first:mt-0 last:mb-0">
+                                      {children}
+                                    </p>
+                                  ),
+                                }}
+                              >
+                                {content}
+                              </ReactMarkdown>
+                            </div>
                           </div>
-                        </div>
+                        )}
                         {/* Time and Actions */}
                         <div className="flex items-center gap-2 pl-1 opacity-0 group-hover/message:opacity-100 transition-opacity">
                           <span className="text-xs text-white/40">
@@ -940,75 +1171,122 @@ export function BuildModeAssistant({
           onSubmit={handleSubmit}
           className="border-t border-white/[0.06] p-4"
         >
-          <div className="max-w-3xl mx-auto space-y-3 px-4 sm:px-6">
-            {/* Text Input Box - Prominent standalone */}
-            <div className="relative rounded-lg border border-white/[0.08] bg-white/[0.02] overflow-hidden transition-colors focus-within:border-white/[0.15] focus-within:bg-white/[0.03]">
-              {/* Robot Eye Visor Scanner - Animated line on top edge with randomness - Only show when waiting for agent */}
-              {isLoading && (
-                <div className="absolute top-0 left-0 right-0 h-[2px] overflow-hidden pointer-events-none z-10">
-                  {/* Primary scanner */}
-                  <div
-                    className="absolute h-full w-24 bg-gradient-to-r from-transparent via-[#FF5800] to-transparent"
-                    style={{
-                      animation:
-                        "visor-scan 4.8s cubic-bezier(0.4, 0, 0.6, 1) infinite",
-                      boxShadow: "0 0 15px 3px rgba(255, 88, 0, 0.7)",
-                      filter: "blur(0.5px)",
-                    }}
-                  />
-                  {/* Secondary scanner for organic feel */}
-                  <div
-                    className="absolute h-full w-16 bg-gradient-to-r from-transparent via-[#FF5800]/60 to-transparent"
-                    style={{
-                      animation:
-                        "visor-scan-delayed 6.2s cubic-bezier(0.3, 0.1, 0.7, 0.9) infinite 1.5s",
-                      boxShadow: "0 0 10px 2px rgba(255, 88, 0, 0.5)",
-                      filter: "blur(1px)",
-                    }}
-                  />
-                </div>
-              )}
-              <textarea
-                rows={1}
-                value={inputText}
-                onChange={(e) => setInputText(e.currentTarget.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    if (!isLoading) {
-                      handleSubmit(e);
-                    }
-                  }
-                }}
-                onInput={(e) => {
-                  const target = e.currentTarget;
-                  target.style.height = "44px";
-                  target.style.height =
-                    Math.min(target.scrollHeight, 140) + "px";
-                }}
-                placeholder="Describe your character or ask for help..."
-                className="w-full bg-transparent px-4 py-3 text-[15px] text-white placeholder:text-white/40 focus:outline-none resize-none leading-relaxed"
-                style={{
-                  minHeight: "44px",
-                  maxHeight: "140px",
-                }}
-              />
-            </div>
-
-            {/* Bottom Row: Send Button */}
-            <div className="flex items-center justify-end">
-              <Button
-                type="submit"
-                disabled={isLoading || !inputText.trim()}
-                size="icon"
-                className="h-9 w-9 rounded-lg bg-[#FF5800]/20 border border-[#FF5800]/30 hover:bg-[#FF5800]/30 disabled:opacity-40 transition-colors"
-              >
-                {isLoading ? (
-                  <Loader2 className="h-4 w-4 animate-spin text-[#FF5800]" />
-                ) : (
-                  <Send className="h-4 w-4 text-[#FF5800]" />
+          <div className="max-w-3xl mx-auto px-4 sm:px-6">
+            <div className="space-y-3">
+              {/* Input Container */}
+              <div className="relative rounded-lg border border-white/[0.08] bg-white/[0.02] overflow-hidden transition-colors focus-within:border-white/[0.15] focus-within:bg-white/[0.03]">
+                {/* Robot Eye Visor Scanner - Only show when loading */}
+                {isLoading && (
+                  <div className="absolute top-0 left-0 right-0 h-[2px] overflow-hidden pointer-events-none z-10">
+                    <div
+                      className="absolute h-full w-24 bg-gradient-to-r from-transparent via-[#FF5800] to-transparent"
+                      style={{
+                        animation:
+                          "visor-scan 4.8s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+                        boxShadow: "0 0 15px 3px rgba(255, 88, 0, 0.7)",
+                        filter: "blur(0.5px)",
+                      }}
+                    />
+                    <div
+                      className="absolute h-full w-16 bg-gradient-to-r from-transparent via-[#FF5800]/60 to-transparent"
+                      style={{
+                        animation:
+                          "visor-scan-delayed 6.2s cubic-bezier(0.3, 0.1, 0.7, 0.9) infinite 1.5s",
+                        boxShadow: "0 0 10px 2px rgba(255, 88, 0, 0.5)",
+                        filter: "blur(1px)",
+                      }}
+                    />
+                  </div>
                 )}
-              </Button>
+
+                {/* Textarea */}
+                <textarea
+                  rows={1}
+                  value={inputText}
+                  onChange={(e) => setInputText(e.currentTarget.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      if (!isLoading) {
+                        handleSubmit(e);
+                      }
+                    }
+                  }}
+                  onInput={(e) => {
+                    const target = e.currentTarget;
+                    target.style.height = "44px";
+                    target.style.height =
+                      Math.min(target.scrollHeight, 140) + "px";
+                  }}
+                  placeholder="Describe your agent or ask for help..."
+                  className="w-full bg-transparent px-4 py-3 text-[15px] text-white placeholder:text-white/40 focus:outline-none resize-none leading-relaxed"
+                  style={{
+                    minHeight: "44px",
+                    maxHeight: "140px",
+                  }}
+                />
+              </div>
+
+              {/* Bottom Row: Model Selector (left) and Send Button (right) */}
+              <div className="flex items-center justify-between">
+                {/* Model Tier Selector */}
+                <Select
+                  value={selectedTier}
+                  onValueChange={(value) => {
+                    setSelectedTier(value as "fast" | "pro" | "ultra");
+                    const tier = BUILD_MODE_TIER_LIST.find((t) => t.id === value);
+                    if (tier) {
+                      toast.success(`Model: ${tier.name}`);
+                    }
+                  }}
+                >
+                  <SelectTrigger className="w-[120px] h-9 border-white/[0.08] bg-white/[0.02] rounded-lg text-sm hover:bg-white/[0.05] transition-colors">
+                    <SelectValue placeholder="Select model">
+                      <span className="flex items-center gap-2">
+                        {tierIcons[selectedTier]}
+                        {BUILD_MODE_TIER_LIST.find((t) => t.id === selectedTier)
+                          ?.name || "Pro"}
+                      </span>
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent className="rounded-lg border-white/[0.08]">
+                    {BUILD_MODE_TIER_LIST.map((tier) => (
+                      <SelectItem key={tier.id} value={tier.id}>
+                        <div className="flex items-center gap-2">
+                          {tierIcons[tier.id]}
+                          <div className="flex flex-col">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-medium">{tier.name}</span>
+                              {tier.recommended && (
+                                <span className="text-[10px] px-1 py-0.5 rounded bg-[#FF5800]/20 text-[#FF5800]">
+                                  recommended
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-[10px] text-white/40 font-mono">
+                              {tier.modelId}
+                            </span>
+                          </div>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                {/* Send Button */}
+                <Button
+                  type="submit"
+                  disabled={isLoading || !inputText.trim()}
+                  size="icon"
+                  className="h-9 w-9 rounded-lg bg-[#FF5800]/20 border border-[#FF5800]/30 hover:bg-[#FF5800]/30 disabled:opacity-40 transition-colors"
+                >
+                  {isLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin text-[#FF5800]" />
+                  ) : (
+                    <Send className="h-4 w-4 text-[#FF5800]" />
+                  )}
+                </Button>
+              </div>
             </div>
           </div>
         </form>

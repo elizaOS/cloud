@@ -571,8 +571,17 @@ export class CreditsService {
     return await creditPacksRepository.findByStripePriceId(stripePriceId);
   }
 
+  /**
+   * List active credit packs with caching.
+   * Credit packs rarely change so we cache aggressively with SWR.
+   */
   async listActiveCreditPacks(): Promise<CreditPack[]> {
-    return await creditPacksRepository.listActive();
+    // Import cache lazily to avoid circular dependencies
+    const { creditPacksCache } = await import("@/lib/cache/credit-packs-cache");
+
+    return await creditPacksCache.getWithSWR(async () => {
+      return await creditPacksRepository.listActive();
+    });
   }
 
   async listAllCreditPacks(): Promise<CreditPack[]> {

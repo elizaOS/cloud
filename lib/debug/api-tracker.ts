@@ -9,7 +9,15 @@
  * - Warns about duplicate/spam calls
  * - Tracks response times
  * - Auto-logs summaries at sensible intervals
+ *
+ * CONTROLLED BY ENV: NEXT_PUBLIC_ENABLE_API_TRACKING (default: false)
+ * Set to "true" to enable API tracking in development.
  */
+
+// Feature flag: disabled by default, enable with NEXT_PUBLIC_ENABLE_API_TRACKING=true
+export const API_TRACKING_ENABLED =
+  process.env.NODE_ENV === "development" &&
+  process.env.NEXT_PUBLIC_ENABLE_API_TRACKING === "true";
 
 interface ApiCallInfo {
   url: string;
@@ -76,6 +84,21 @@ function trackApiCall(
   const key = getCallKey(url, method);
   const now = Date.now();
 
+  if (!API_TRACKING_ENABLED) {
+    return {
+      key,
+      info: {
+        url: url.split("?")[0],
+        method,
+        count: 0,
+        timestamps: [],
+        responseTimes: [],
+        avgResponseTime: 0,
+        errors: 0,
+      },
+    };
+  }
+
   globalApiStats.totalCalls += 1;
 
   // Get or create endpoint info
@@ -131,6 +154,8 @@ function trackApiCall(
  * Track API response
  */
 function trackApiResponse(key: string, startTime: number, ok: boolean): void {
+  if (!API_TRACKING_ENABLED) return;
+
   const info = globalApiStats.endpointStats.get(key);
   if (!info) return;
 
@@ -185,7 +210,7 @@ export function resetApiStats(): void {
  * Log API summary to console
  */
 export function logApiSummary(): void {
-  if (process.env.NODE_ENV !== "development") return;
+  if (!API_TRACKING_ENABLED) return;
 
   const sessionDuration = (
     (Date.now() - globalApiStats.sessionStart) /
@@ -266,11 +291,12 @@ export function logApiSummary(): void {
  * Check if we should auto-log
  */
 export function shouldAutoLog(): boolean {
+  if (!API_TRACKING_ENABLED) return false;
   return Date.now() - globalApiStats.lastLogTime >= AUTO_LOG_INTERVAL_MS;
 }
 
-// Patch global fetch in development mode
-if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
+// Patch global fetch only when API tracking is enabled
+if (typeof window !== "undefined" && API_TRACKING_ENABLED) {
   const originalFetch = window.fetch;
 
   window.fetch = async function patchedFetch(

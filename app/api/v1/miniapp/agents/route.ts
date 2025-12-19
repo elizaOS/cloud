@@ -8,7 +8,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { charactersService } from "@/lib/services/characters/characters";
-import { characterMarketplaceService as myAgentsService } from "@/lib/services/characters/marketplace";
 import {
   addCorsHeaders,
   validateOrigin,
@@ -76,39 +75,58 @@ export async function GET(request: NextRequest) {
     );
     const search = searchParams.get("search") || undefined;
 
-    const result = await myAgentsService.searchCharacters({
-      userId: user.id,
-      organizationId: user.organization_id,
-      filters: {
-        search,
-        source: "miniapp", // Only show miniapp-created agents
-      },
-      sortOptions: { sortBy: "newest", order: "desc" },
-      pagination: { page, limit },
-      includeStats: true,
+    // Get user's miniapp agents
+    let characters = await charactersService.listByUser(user.id, {
+      source: "miniapp",
     });
+
+    // Apply search filter if provided
+    if (search) {
+      const query = search.toLowerCase();
+      characters = characters.filter(
+        (char) =>
+          char.name.toLowerCase().includes(query) ||
+          (typeof char.bio === "string" &&
+            char.bio.toLowerCase().includes(query)) ||
+          (Array.isArray(char.bio) &&
+            char.bio.some((b) => b.toLowerCase().includes(query))),
+      );
+    }
+
+    // Sort by newest first
+    characters.sort((a, b) => {
+      const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return dateB - dateA;
+    });
+
+    // Apply pagination
+    const totalCount = characters.length;
+    const totalPages = Math.ceil(totalCount / limit);
+    const offset = (page - 1) * limit;
+    const paginatedCharacters = characters.slice(offset, offset + limit);
 
     const response = NextResponse.json({
       success: true,
-      agents: result.characters.map((char) => ({
+      agents: paginatedCharacters.map((char) => ({
         id: char.id,
         name: char.name,
         bio: char.bio,
-        avatarUrl: char.avatarUrl || char.avatar_url,
-        isPublic: char.isPublic ?? char.is_public ?? false,
-        createdAt: char.createdAt || char.created_at,
-        updatedAt: char.updatedAt || char.updated_at,
-        stats: char.stats,
+        avatarUrl: char.avatar_url,
+        isPublic: char.is_public ?? false,
+        createdAt: char.created_at,
+        updatedAt: char.updated_at,
+        stats: undefined,
         imageSettings: affiliateDataToImageSettings(
           char.settings as Record<string, unknown> | undefined,
         ),
       })),
       pagination: {
-        page: result.pagination.page,
-        limit: result.pagination.limit,
-        totalPages: result.pagination.totalPages,
-        totalCount: result.pagination.totalCount,
-        hasMore: result.pagination.hasMore,
+        page,
+        limit,
+        totalPages,
+        totalCount,
+        hasMore: page < totalPages,
       },
     });
 

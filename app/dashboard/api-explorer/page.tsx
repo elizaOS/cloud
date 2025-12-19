@@ -25,6 +25,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 
 import {
   API_ENDPOINTS,
@@ -41,8 +42,19 @@ import {
 import { ApiTester } from "@/components/api-explorer/api-tester";
 import { AuthManager } from "@/components/api-explorer/auth-manager";
 import { EndpointCard } from "@/components/api-explorer/endpoint-card";
+import { MonacoEditorSkeleton } from "@/components/chat/monaco-editor-skeleton";
 
-import { OpenApiViewer } from "@/components/api-explorer/openapi-viewer";
+// Dynamic import Monaco-based OpenApiViewer to reduce initial bundle size (~500KB savings)
+const OpenApiViewer = dynamic(
+  () =>
+    import("@/components/api-explorer/openapi-viewer").then(
+      (mod) => mod.OpenApiViewer,
+    ),
+  {
+    ssr: false,
+    loading: () => <MonacoEditorSkeleton height="800px" />,
+  },
+);
 import { useSetPageHeader } from "@/components/layout/page-header-context";
 import { cn } from "@/lib/utils";
 
