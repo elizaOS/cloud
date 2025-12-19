@@ -38,7 +38,7 @@ function initStripe(): Stripe | null {
 
   if (!process.env.STRIPE_SECRET_KEY) {
     stripeInitError = new Error(
-      "STRIPE_SECRET_KEY is not set in environment variables",
+      "STRIPE_SECRET_KEY is not set in environment variables"
     );
     return null;
   }
@@ -46,7 +46,7 @@ function initStripe(): Stripe | null {
   if (!process.env.STRIPE_SECRET_KEY.startsWith("sk_")) {
     stripeInitError = new Error(
       "STRIPE_SECRET_KEY appears invalid (should start with 'sk_'). " +
-        "Please verify your Stripe configuration.",
+        "Please verify your Stripe configuration."
     );
     return null;
   }
