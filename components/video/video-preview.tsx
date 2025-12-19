@@ -101,22 +101,20 @@ export function VideoPreview({ video }: VideoPreviewProps) {
             </h3>
           </div>
           <div className="flex items-center gap-2 flex-wrap justify-end">
-            <span
-              className={cn(
-                "px-2 md:px-3 py-1 text-xs font-mono font-bold uppercase tracking-wide border whitespace-nowrap",
-                video
-                  ? video.status === "completed"
-                    ? video.isMock
-                      ? "bg-white/10 text-white/80 border-white/20"
-                      : "bg-green-500/20 text-green-400 border-green-500/40"
-                    : video.status === "processing"
+            {(!video || video.status !== "completed") && (
+              <span
+                className={cn(
+                  "px-2 md:px-3 py-1 text-xs font-mono font-bold uppercase tracking-wide border whitespace-nowrap",
+                  video
+                    ? video.status === "processing"
                       ? "bg-blue-500/20 text-blue-400 border-blue-500/40"
                       : "bg-rose-500/20 text-rose-400 border-rose-500/40"
-                  : "bg-white/10 text-white/60 border-white/20",
-              )}
-            >
-              {video ? video.status : "Idle"}
-            </span>
+                    : "bg-white/10 text-white/60 border-white/20",
+                )}
+              >
+                {video ? video.status : "Idle"}
+              </span>
+            )}
             {video?.isMock ? (
               <span className="bg-white/10 px-2 md:px-3 py-1 text-xs font-mono text-white/60 whitespace-nowrap">
                 Mock
