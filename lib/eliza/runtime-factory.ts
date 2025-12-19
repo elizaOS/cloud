@@ -11,6 +11,7 @@ import {
   type Plugin,
   type IDatabaseAdapter,
   type Logger,
+  type World,
 } from "@elizaos/core";
 import { createDatabaseAdapter } from "@elizaos/plugin-sql/node";
 import { agentLoader } from "./agent-loader";
@@ -85,7 +86,6 @@ export class RuntimeFactory {
       character: { ...character, id: agentId, settings },
       plugins: filteredPlugins,
       agentId,
-      settings,
     });
 
     runtime.registerDatabaseAdapter(dbAdapter);
@@ -146,7 +146,7 @@ export class RuntimeFactory {
   private buildSettings(
     character: Character,
     context: UserContext,
-  ): Record<string, string | boolean | Record<string, unknown>> {
+  ): NonNullable<Character["settings"]> {
     const charSettings = character.settings || {};
     const getSetting = (key: string, fallback: string) =>
       (charSettings[key] as string) || process.env[key] || fallback;
@@ -249,7 +249,7 @@ export class RuntimeFactory {
     character: Character,
     agentId: UUID,
   ): Promise<void> {
-    // First initialize runtime (creates agent in agents table)
+    // Initialize runtime (creates agent in agents table first, then world)
     try {
       await runtime.initialize({ skipMigrations: true });
     } catch (e) {
@@ -366,15 +366,17 @@ export class RuntimeFactory {
   ): Promise<void> {
     if (!plugins.some((p) => p.name === "mcp")) return;
 
-    // Poll for service (registers async)
-    const maxAttempts = 40;
-    let mcpService: {
+    type McpService = {
       waitForInitialization?: () => Promise<void>;
       getServers?: () => unknown[];
-    } | null = null;
+    };
+
+    // Poll for service (registers async)
+    const maxAttempts = 40;
+    let mcpService: McpService | null = null;
 
     for (let i = 0; i < maxAttempts && !mcpService; i++) {
-      mcpService = runtime.getService("mcp") as typeof mcpService;
+      mcpService = runtime.getService("mcp") as McpService | null;
       if (!mcpService) await new Promise((r) => setTimeout(r, 100));
     }
 

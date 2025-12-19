@@ -93,25 +93,11 @@ async function handlePOST(request: NextRequest) {
 
     generationId = generation.id;
 
-    console.log(
-      `[VIDEO GENERATION] Starting generation for user ${user.id}, model: ${model}`,
-    );
-
     const result = await fal.subscribe(model, {
       input: {
         prompt: prompt.trim(),
       },
       logs: true,
-      onQueueUpdate: (update: QueueStatus) => {
-        if (update.status === "IN_PROGRESS") {
-          const logMessages = update.logs
-            ?.map((log: { message: string }) => log.message)
-            .join(", ");
-          console.log(
-            `[VIDEO GENERATION] Progress: ${logMessages || "Processing..."}`,
-          );
-        }
-      },
     });
 
     const data = result.data as FalVideoData;
@@ -123,10 +109,6 @@ async function handlePOST(request: NextRequest) {
         { status: 500 },
       );
     }
-
-    console.log(
-      `[VIDEO GENERATION] Success for user ${user.id}, requestId: ${result.requestId}`,
-    );
 
     // Upload video to Vercel Blob (required - we don't expose Fal.ai URLs)
     let blobUrl: string;
@@ -155,10 +137,6 @@ async function handlePOST(request: NextRequest) {
 
       blobUrl = uploadResult.url;
       blobFileSize = BigInt(uploadResult.size);
-
-      console.log(
-        `[VIDEO GENERATION] Uploaded to Vercel Blob: ${blobUrl} (${blobFileSize.toString()} bytes)`,
-      );
     } catch (blobError) {
       logger.error(
         "[VIDEO GENERATION] Failed to upload to Vercel Blob:",
@@ -243,10 +221,6 @@ async function handlePOST(request: NextRequest) {
       });
     }
 
-    console.log(
-      `[VIDEO GENERATION] Cost: $${VIDEO_GENERATION_COST.toFixed(2)}, New balance: $${deductionResult.newBalance.toFixed(2)}`,
-    );
-
     return NextResponse.json(
       {
         video: {
@@ -270,8 +244,6 @@ async function handlePOST(request: NextRequest) {
 
     const errorMessage =
       error instanceof Error ? error.message : "Unknown error occurred";
-
-    console.log("[VIDEO GENERATION] Returning fallback video due to error");
 
     try {
       const {
@@ -330,10 +302,6 @@ async function handlePOST(request: NextRequest) {
           },
         });
       }
-
-      console.log(
-        `[VIDEO GENERATION] Fallback cost: $${VIDEO_GENERATION_FALLBACK_COST.toFixed(2)}, New balance: $${fallbackDeduction.newBalance.toFixed(2)}`,
-      );
     } catch (authError) {
       logger.error(
         "[VIDEO GENERATION] Auth error during fallback logging:",

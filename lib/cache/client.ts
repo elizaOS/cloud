@@ -452,19 +452,12 @@ export class CacheClient {
   }
 
   private logMetric(
-    key: string,
-    operation: "hit" | "miss" | "set" | "del" | "del_pattern" | "stale",
-    durationMs: number,
-    metadata?: Record<string, unknown>,
+    _key: string,
+    _operation: "hit" | "miss" | "set" | "del" | "del_pattern" | "stale",
+    _durationMs: number,
+    _metadata?: Record<string, unknown>,
   ): void {
-    if (durationMs > 100) {
-      logger.warn(`[Cache] Slow ${operation}: ${key} (${durationMs}ms)`, {
-        operation,
-        durationMs,
-        timestamp: new Date().toISOString(),
-        ...metadata,
-      });
-    }
+    // Metrics logging disabled to reduce console noise
   }
 }
 

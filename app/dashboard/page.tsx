@@ -35,7 +35,6 @@ export default async function DashboardPage() {
     <DashboardPageWrapper userName={data.user.name.split(" ")[0] || "User"}>
       <main className="mx-auto w-full max-w-[1400px] px-4 pb-8 pt-6 lg:px-8">
         <div className="space-y-8">
-
           <section>
             <Suspense fallback={<AgentsSectionSkeleton />}>
               <AgentsSection agents={data.agents} />
