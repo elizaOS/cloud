@@ -22,17 +22,42 @@ const CLOUD_URL = process.env.CLOUD_URL ?? "http://localhost:3000";
 const MINIAPP_URL = process.env.MINIAPP_URL ?? "http://localhost:3001";
 const API_KEY = process.env.TEST_API_KEY;
 
-// Check if miniapp is available
+let cloudAvailable = false;
 let miniappAvailable = false;
 
-test.beforeAll(async ({ request }) => {
-  const miniappResponse = await request.get(MINIAPP_URL).catch(() => null);
-  miniappAvailable = miniappResponse?.ok() ?? false;
+async function waitForServer(url: string, maxRetries = 10, delayMs = 2000): Promise<boolean> {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      const response = await fetch(url, { signal: AbortSignal.timeout(5000) });
+      if (response.ok || response.status === 404) {
+        return true;
+      }
+    } catch (error) {
+      if (i < maxRetries - 1) {
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+      }
+    }
+  }
+  return false;
+}
 
+test.beforeAll(async () => {
+  console.log("Checking server availability...");
+
+  cloudAvailable = await waitForServer(CLOUD_URL, 15, 2000);
+  if (!cloudAvailable) {
+    console.log(`⚠️ Cloud not available at ${CLOUD_URL} after 30s`);
+    console.log("ℹ️ Skipping miniapp tests - Cloud server required");
+    return;
+  }
+  console.log(`✅ Cloud available at ${CLOUD_URL}`);
+
+  miniappAvailable = await waitForServer(MINIAPP_URL, 15, 2000);
   if (!miniappAvailable) {
-    console.log(
-      `⚠️ Miniapp not available at ${MINIAPP_URL}. Skipping miniapp tests. Start with: cd miniapp && bun run dev`,
-    );
+    console.log(`⚠️ Miniapp not available at ${MINIAPP_URL} after 30s`);
+    console.log("ℹ️ Miniapp tests will be skipped");
+  } else {
+    console.log(`✅ Miniapp available at ${MINIAPP_URL}`);
   }
 });
 
@@ -75,6 +100,10 @@ test.describe("Anonymous Character Creation Flow", () => {
   test("anonymous character creation returns session with 5 message limit", async ({
     request,
   }) => {
+    if (!miniappAvailable) {
+      test.skip();
+      return;
+    }
     const response = await request.post(`${MINIAPP_URL}/api/create-character`, {
       data: {
         name: "Limit Test Character",

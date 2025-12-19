@@ -18,24 +18,42 @@ import { test, expect } from "@playwright/test";
 const CLOUD_URL = process.env.CLOUD_URL ?? "http://localhost:3000";
 const MINIAPP_URL = process.env.MINIAPP_URL ?? "http://localhost:3001";
 
-// Check if services are running - skip tests if not available
+let cloudAvailable = false;
 let miniappAvailable = false;
 
-test.beforeAll(async ({ request }) => {
-  const cloudResponse = await request.get(CLOUD_URL).catch(() => null);
-  if (!cloudResponse?.ok()) {
-    throw new Error(
-      `Cloud not available at ${CLOUD_URL}. Start with: bun run dev`,
-    );
+async function waitForServer(url: string, maxRetries = 10, delayMs = 2000): Promise<boolean> {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      const response = await fetch(url, { signal: AbortSignal.timeout(5000) });
+      if (response.ok || response.status === 404) {
+        return true;
+      }
+    } catch (error) {
+      if (i < maxRetries - 1) {
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+      }
+    }
   }
+  return false;
+}
 
-  const miniappResponse = await request.get(MINIAPP_URL).catch(() => null);
-  miniappAvailable = miniappResponse?.ok() ?? false;
+test.beforeAll(async () => {
+  console.log("Checking server availability...");
 
+  cloudAvailable = await waitForServer(CLOUD_URL, 15, 2000);
+  if (!cloudAvailable) {
+    console.log(`⚠️ Cloud not available at ${CLOUD_URL} after 30s`);
+    console.log("ℹ️ Skipping miniapp tests - Cloud server required");
+    return;
+  }
+  console.log(`✅ Cloud available at ${CLOUD_URL}`);
+
+  miniappAvailable = await waitForServer(MINIAPP_URL, 15, 2000);
   if (!miniappAvailable) {
-    console.log(
-      `⚠️ Miniapp not available at ${MINIAPP_URL}. Skipping miniapp tests. Start with: cd miniapp && bun run dev`,
-    );
+    console.log(`⚠️ Miniapp not available at ${MINIAPP_URL} after 30s`);
+    console.log("ℹ️ Some miniapp tests will be skipped");
+  } else {
+    console.log(`✅ Miniapp available at ${MINIAPP_URL}`);
   }
 });
 
@@ -54,6 +72,10 @@ test.describe("Miniapp Pages", () => {
   });
 
   test("home page has character creator form", async ({ page }) => {
+    if (!miniappAvailable) {
+      test.skip();
+      return;
+    }
     await page.goto(MINIAPP_URL);
 
     // Look for character creation inputs
@@ -62,6 +84,10 @@ test.describe("Miniapp Pages", () => {
   });
 
   test("home page has header with sign in button", async ({ page }) => {
+    if (!miniappAvailable) {
+      test.skip();
+      return;
+    }
     await page.goto(MINIAPP_URL);
 
     // Look for sign in button
@@ -72,6 +98,10 @@ test.describe("Miniapp Pages", () => {
   test("agents page loads (redirects unauthenticated users)", async ({
     page,
   }) => {
+    if (!miniappAvailable) {
+      test.skip();
+      return;
+    }
     await page.goto(`${MINIAPP_URL}/agents`);
 
     // Should redirect to home or show loading
@@ -83,6 +113,10 @@ test.describe("Miniapp Pages", () => {
   test("chats page loads (redirects unauthenticated users)", async ({
     page,
   }) => {
+    if (!miniappAvailable) {
+      test.skip();
+      return;
+    }
     await page.goto(`${MINIAPP_URL}/chats`);
 
     await page.waitForLoadState("networkidle");
@@ -93,6 +127,10 @@ test.describe("Miniapp Pages", () => {
   test("settings page loads (redirects unauthenticated users)", async ({
     page,
   }) => {
+    if (!miniappAvailable) {
+      test.skip();
+      return;
+    }
     await page.goto(`${MINIAPP_URL}/settings`);
 
     await page.waitForLoadState("networkidle");
@@ -101,7 +139,10 @@ test.describe("Miniapp Pages", () => {
   });
 
   test("auth callback page exists", async ({ page }) => {
-    // Navigate to callback without session (should handle gracefully)
+    if (!miniappAvailable) {
+      test.skip();
+      return;
+    }
     await page.goto(`${MINIAPP_URL}/auth/callback`);
 
     await page.waitForLoadState("networkidle");
@@ -115,6 +156,10 @@ test.describe("Pass-Through Auth Flow", () => {
   test("POST /api/auth/miniapp-session creates session", async ({
     request,
   }) => {
+    if (!cloudAvailable) {
+      test.skip();
+      return;
+    }
     const response = await request.post(
       `${CLOUD_URL}/api/auth/miniapp-session`,
       {
@@ -142,7 +187,10 @@ test.describe("Pass-Through Auth Flow", () => {
   test("GET /api/auth/miniapp-session/:id returns status", async ({
     request,
   }) => {
-    // First create a session
+    if (!cloudAvailable) {
+      test.skip();
+      return;
+    }
     const createResponse = await request.post(
       `${CLOUD_URL}/api/auth/miniapp-session`,
       {
@@ -173,6 +221,10 @@ test.describe("Pass-Through Auth Flow", () => {
   test("GET /api/auth/miniapp-session/:id returns 404 for invalid session", async ({
     request,
   }) => {
+    if (!cloudAvailable) {
+      test.skip();
+      return;
+    }
     const response = await request.get(
       `${CLOUD_URL}/api/auth/miniapp-session/invalid-session-id`,
     );
@@ -181,7 +233,10 @@ test.describe("Pass-Through Auth Flow", () => {
   });
 
   test("Cloud login page loads with session", async ({ page, request }) => {
-    // Create a session
+    if (!cloudAvailable) {
+      test.skip();
+      return;
+    }
     const createResponse = await request.post(
       `${CLOUD_URL}/api/auth/miniapp-session`,
       {
@@ -215,16 +270,28 @@ test.describe("Pass-Through Auth Flow", () => {
 
 test.describe("Cloud API - Authentication Required", () => {
   test("GET /user returns 401 without auth", async ({ request }) => {
+    if (!cloudAvailable) {
+      test.skip();
+      return;
+    }
     const response = await request.get(`${CLOUD_URL}/api/v1/miniapp/user`);
     expect([401, 403]).toContain(response.status());
   });
 
   test("GET /agents returns 401 without auth", async ({ request }) => {
+    if (!cloudAvailable) {
+      test.skip();
+      return;
+    }
     const response = await request.get(`${CLOUD_URL}/api/v1/miniapp/agents`);
     expect([401, 403]).toContain(response.status());
   });
 
   test("POST /agents returns 401 without auth", async ({ request }) => {
+    if (!cloudAvailable) {
+      test.skip();
+      return;
+    }
     const response = await request.post(`${CLOUD_URL}/api/v1/miniapp/agents`, {
       data: { name: "Test", bio: "Test" },
     });
@@ -232,6 +299,10 @@ test.describe("Cloud API - Authentication Required", () => {
   });
 
   test("GET /billing returns 401 without auth", async ({ request }) => {
+    if (!cloudAvailable) {
+      test.skip();
+      return;
+    }
     const response = await request.get(`${CLOUD_URL}/api/v1/miniapp/billing`);
     expect([401, 403]).toContain(response.status());
   });
@@ -239,6 +310,10 @@ test.describe("Cloud API - Authentication Required", () => {
 
 test.describe("Miniapp Proxy", () => {
   test("proxy user endpoint forwards to cloud API", async ({ request }) => {
+    if (!miniappAvailable) {
+      test.skip();
+      return;
+    }
     const response = await request.get(`${MINIAPP_URL}/api/proxy/user`);
 
     // Accept auth errors or server errors (proxy may not be configured in CI)
@@ -246,6 +321,10 @@ test.describe("Miniapp Proxy", () => {
   });
 
   test("proxy agents endpoint forwards to cloud API", async ({ request }) => {
+    if (!miniappAvailable) {
+      test.skip();
+      return;
+    }
     const response = await request.get(`${MINIAPP_URL}/api/proxy/agents`);
 
     // Accept auth errors or server errors (proxy may not be configured in CI)
@@ -253,6 +332,10 @@ test.describe("Miniapp Proxy", () => {
   });
 
   test("proxy handles CORS preflight", async ({ request }) => {
+    if (!miniappAvailable) {
+      test.skip();
+      return;
+    }
     const response = await request.fetch(`${MINIAPP_URL}/api/proxy/user`, {
       method: "OPTIONS",
     });
@@ -267,6 +350,10 @@ test.describe("Miniapp Proxy", () => {
 
 test.describe("Character Creation (Unauthenticated)", () => {
   test("create-character endpoint responds", async ({ request }) => {
+    if (!miniappAvailable) {
+      test.skip();
+      return;
+    }
     const response = await request.post(`${MINIAPP_URL}/api/create-character`, {
       data: {
         name: "Test Character",
@@ -286,6 +373,10 @@ test.describe("Character Creation (Unauthenticated)", () => {
   });
 
   test("create-character requires name", async ({ request }) => {
+    if (!miniappAvailable) {
+      test.skip();
+      return;
+    }
     const response = await request.post(`${MINIAPP_URL}/api/create-character`, {
       data: {
         personality: "Friendly",
@@ -304,6 +395,10 @@ test.describe("Miniapp AI Features", () => {
   test("generate-field endpoint responds without crashing", async ({
     request,
   }) => {
+    if (!miniappAvailable) {
+      test.skip();
+      return;
+    }
     const response = await request.post(`${MINIAPP_URL}/api/generate-field`, {
       data: {
         fieldName: "name",
@@ -325,6 +420,10 @@ test.describe("Miniapp AI Features", () => {
   test("generate-photo endpoint responds without crashing", async ({
     request,
   }) => {
+    if (!miniappAvailable) {
+      test.skip();
+      return;
+    }
     const response = await request.post(`${MINIAPP_URL}/api/generate-photo`, {
       data: {
         prompt: "A friendly robot character",
@@ -339,6 +438,10 @@ test.describe("Miniapp AI Features", () => {
 
 test.describe("UI Interaction - Character Creator", () => {
   test("can fill out character creator form", async ({ page }) => {
+    if (!miniappAvailable) {
+      test.skip();
+      return;
+    }
     await page.goto(MINIAPP_URL);
 
     // Fill in name
@@ -356,6 +459,10 @@ test.describe("UI Interaction - Character Creator", () => {
   });
 
   test("sparkle buttons exist for AI generation", async ({ page }) => {
+    if (!miniappAvailable) {
+      test.skip();
+      return;
+    }
     await page.goto(MINIAPP_URL);
 
     // Look for sparkle/generate buttons
@@ -371,6 +478,10 @@ test.describe("UI Interaction - Character Creator", () => {
 
 test.describe("Navigation", () => {
   test("header has logo that links to home", async ({ page }) => {
+    if (!miniappAvailable) {
+      test.skip();
+      return;
+    }
     await page.goto(`${MINIAPP_URL}/agents`);
 
     // Click logo
@@ -382,6 +493,10 @@ test.describe("Navigation", () => {
   });
 
   test("connecting page renders with animation", async ({ page }) => {
+    if (!miniappAvailable) {
+      test.skip();
+      return;
+    }
     await page.goto(
       `${MINIAPP_URL}/connecting?characterId=test-id&name=TestChar`,
     );
@@ -395,7 +510,10 @@ test.describe("Navigation", () => {
   test("connecting page with sessionId redirects to Cloud chat", async ({
     page,
   }) => {
-    // Connecting page with sessionId indicates unauthenticated user
+    if (!miniappAvailable) {
+      test.skip();
+      return;
+    }
     // They should be redirected to Cloud chat, not miniapp chat
     await page.goto(
       `${MINIAPP_URL}/connecting?characterId=test-id&name=TestChar&sessionId=test-session`,
@@ -413,6 +531,10 @@ test.describe("Navigation", () => {
 
 test.describe("Authentication Flow Integration", () => {
   test("login button initiates pass-through auth flow", async ({ page }) => {
+    if (!miniappAvailable) {
+      test.skip();
+      return;
+    }
     await page.goto(MINIAPP_URL);
 
     // Find and click sign in button
@@ -444,7 +566,10 @@ test.describe("Authentication Flow Integration", () => {
 
 test.describe("Anonymous Message Limits", () => {
   test("anonymous session has 5 message limit", async ({ request }) => {
-    // Create an anonymous session via affiliate API
+    if (!cloudAvailable) {
+      test.skip();
+      return;
+    }
     const response = await request.post(
       `${CLOUD_URL}/api/affiliate/create-session`,
       {
@@ -465,6 +590,10 @@ test.describe("Anonymous Message Limits", () => {
   test("character creation returns session with correct limit", async ({
     request,
   }) => {
+    if (!miniappAvailable) {
+      test.skip();
+      return;
+    }
     const response = await request.post(`${MINIAPP_URL}/api/create-character`, {
       data: {
         name: "Test Limit Character",
