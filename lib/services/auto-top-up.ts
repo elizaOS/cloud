@@ -1,7 +1,7 @@
 import { db } from "@/db/client";
 import { organizations } from "@/db/schemas/organizations";
 import { eq, and, lt, sql } from "drizzle-orm";
-import { stripe } from "@/lib/stripe";
+import { requireStripe } from "@/lib/stripe";
 import { organizationsRepository, usersRepository } from "@/db/repositories";
 import type { Organization } from "@/db/repositories";
 import { emailService } from "./email";
@@ -188,7 +188,7 @@ export class AutoTopUpService {
     // Create and confirm PaymentIntent with saved payment method
     logger.info(`[AutoTopUp] Creating PaymentIntent for $${amount.toFixed(2)}`);
 
-    const paymentIntent = await stripe.paymentIntents.create({
+    const paymentIntent = await requireStripe().paymentIntents.create({
       amount: Math.round(amount * 100), // Convert to cents
       currency: "usd",
       customer: org.stripe_customer_id,
@@ -321,7 +321,7 @@ export class AutoTopUpService {
 
     let paymentMethodDisplay = "Card on file";
     if (org.stripe_default_payment_method) {
-      const pm = await stripe.paymentMethods.retrieve(
+      const pm = await requireStripe().paymentMethods.retrieve(
         org.stripe_default_payment_method,
       );
       if (pm.card) {
