@@ -104,9 +104,8 @@ export async function validateAppAuth(
   }
 
   // Check if this API key is associated with an app
-  // (We need to query apps table to find which app uses this API key)
-  const apps = await appsService.listByOrganization(apiKey.organization_id);
-  const app = apps.find((a) => a.api_key_id === apiKey.id);
+  // Uses cached lookup - avoids fetching all org apps
+  const app = await appsService.getByApiKeyId(apiKey.id);
 
   if (!app) {
     // This is a regular API key, not an app API key
@@ -193,16 +192,14 @@ export async function requireAppAuth(
 
 /**
  * Extract app ID from API key without full validation
- * Useful for tracking purposes
+ * Uses cached lookup for performance
  */
 export async function getAppFromApiKey(apiKey: string): Promise<string | null> {
   const validatedKey = await apiKeysService.validateApiKey(apiKey);
   if (!validatedKey) return null;
 
-  const apps = await appsService.listByOrganization(
-    validatedKey.organization_id,
-  );
-  const app = apps.find((a) => a.api_key_id === validatedKey.id);
+  // Use cached lookup instead of fetching all org apps
+  const app = await appsService.getByApiKeyId(validatedKey.id);
 
   return app?.id || null;
 }

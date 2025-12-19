@@ -326,7 +326,6 @@ export const endpoints = {
   characters: {
     list: "/api/my-agents/characters",
     get: (id: string) => `/api/my-agents/characters/${id}`,
-    marketplace: "/api/marketplace/characters",
   },
 
   // API Keys

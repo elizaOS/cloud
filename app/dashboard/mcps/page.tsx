@@ -4,6 +4,8 @@ import { MCPsPageClient } from "@/components/mcps/mcps-page-client";
 import { Puzzle, Server, Zap, Globe } from "lucide-react";
 import { BrandCard, CornerBrackets } from "@/components/brand";
 
+// Auth check requires cookies which makes this dynamic
+// MCP server list is hardcoded but auth is dynamic
 export const dynamic = "force-dynamic";
 
 // Demo MCP servers available for users
@@ -120,25 +122,7 @@ export default async function MCPsPage() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto py-10 space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-start">
-        <div>
-          <div className="flex items-center gap-2 mb-2">
-            <span
-              className="inline-block w-2 h-2 rounded-full"
-              style={{ backgroundColor: "#FF5800" }}
-            />
-            <h1
-              className="text-4xl font-normal tracking-tight text-white"
-              style={{ fontFamily: "var(--font-roboto-mono)" }}
-            >
-              MCP Servers
-            </h1>
-          </div>
-        </div>
-      </div>
-
+    <div className="max-w-7xl mx-auto pb-10 space-y-6">
       {/* Stats Overview */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <BrandCard corners={false} className="pt-6 shadow-md shadow-black/30">
