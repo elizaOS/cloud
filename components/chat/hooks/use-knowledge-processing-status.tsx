@@ -23,7 +23,6 @@ interface KnowledgeProcessingStatus {
 export function useKnowledgeProcessingStatus(characterId: string | null) {
   const [status, setStatus] = useState<KnowledgeProcessingStatus | null>(null);
   const wasProcessingRef = useRef(false);
-  const isMountedRef = useRef(true);
 
   // Initial fetch and polling
   useEffect(() => {
@@ -32,12 +31,16 @@ export function useKnowledgeProcessingStatus(characterId: string | null) {
       return;
     }
 
-    isMountedRef.current = true;
+    // Local variable scoped to this effect run to prevent race conditions
+    // when characterId changes. Each effect run gets its own isCurrentEffect.
+    let isCurrentEffect = true;
 
     const fetchStatus = async () => {
       const response = await fetch(`/api/v1/knowledge/jobs/${characterId}`);
 
-      if (!isMountedRef.current) return;
+      // Check local variable, not shared ref - prevents stale responses
+      // from updating state after characterId has changed
+      if (!isCurrentEffect) return;
 
       if (!response.ok) {
         toast.error("Failed to fetch knowledge processing status");
@@ -69,16 +72,16 @@ export function useKnowledgeProcessingStatus(characterId: string | null) {
     // Initial fetch
     void fetchStatus();
 
-    // Poll every 3 seconds
+    // Poll every 3 seconds while processing
     const interval = setInterval(() => {
-      if (wasProcessingRef.current || status?.isProcessing) {
+      if (wasProcessingRef.current) {
         void fetchStatus();
       }
     }, 3000);
 
     return () => {
-      isMountedRef.current = false;
+      isCurrentEffect = false;
       clearInterval(interval);
     };
-  }, [characterId, status?.isProcessing]);
+  }, [characterId]);
 }

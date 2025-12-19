@@ -231,6 +231,23 @@ export class KnowledgeProcessingService {
       };
     };
 
+    // Idempotency check: verify job hasn't already been processed.
+    // Check both status and result field - if result exists, knowledge was already added
+    // even if status update failed afterward.
+    const currentJob = await jobsRepository.findById(job.id);
+    if (!currentJob) {
+      logger.warn("[KnowledgeProcessing] Job not found, skipping", { jobId: job.id });
+      return true;
+    }
+    if (currentJob.status === "completed" || currentJob.result) {
+      logger.info("[KnowledgeProcessing] Job already processed, skipping", {
+        jobId: job.id,
+        status: currentJob.status,
+        hasResult: !!currentJob.result,
+      });
+      return true;
+    }
+
     try {
       // Note: Job status is already set to in_progress by claimPendingJobs
 
@@ -311,13 +328,18 @@ export class KnowledgeProcessingService {
         },
       });
 
-      // Mark as completed
-      await jobsRepository.updateStatus(job.id, "completed", {
-        result: {
-          fragmentCount: result.fragmentCount,
-          documentId: result.clientDocumentId,
-        },
-      });
+      // Store result first for idempotency - this ensures that even if the status update
+      // fails, we won't reprocess this job (the idempotency check looks for result field).
+      const jobResult = {
+        fragmentCount: result.fragmentCount,
+        documentId: result.clientDocumentId,
+        processedAt: Date.now(),
+      };
+
+      await jobsRepository.update(job.id, { result: jobResult });
+
+      // Now mark as completed
+      await jobsRepository.updateStatus(job.id, "completed");
 
       logger.info("[KnowledgeProcessing] Job completed successfully", {
         jobId: job.id,

@@ -218,7 +218,7 @@ export function CharacterBuildMode({
 
     // Mark changes as saved after successful save
     onUnsavedChanges?.(false);
-  }, [character, selectedCharacterId, onUnsavedChanges, router, setRoomId, setSelectedCharacterId]);
+  }, [character, selectedCharacterId, onUnsavedChanges, router, setRoomId, setSelectedCharacterId, preUploadedFiles]);
 
   const handleCharacterRefresh = useCallback(async () => {
     if (!character.id) {
