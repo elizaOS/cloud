@@ -17,15 +17,15 @@ import type { KnowledgeDocument, PreUploadedFile } from "@/lib/types/knowledge";
 
 interface UploadsTabProps {
   characterId: string | null;
+  preUploadedFiles?: PreUploadedFile[];
   onPreUploadedFilesChange?: (files: PreUploadedFile[]) => void;
 }
 
-export function UploadsTab({ characterId, onPreUploadedFilesChange }: UploadsTabProps) {
+export function UploadsTab({ characterId, preUploadedFiles = [], onPreUploadedFilesChange }: UploadsTabProps) {
   const [documents, setDocuments] = useState<KnowledgeDocument[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [preUploadedFiles, setPreUploadedFiles] = useState<PreUploadedFile[]>([]);
 
   const fetchDocuments = useCallback(async () => {
     if (!characterId) return;
@@ -75,11 +75,7 @@ export function UploadsTab({ characterId, onPreUploadedFilesChange }: UploadsTab
         const data = await response.json();
         const newFiles = data.files as PreUploadedFile[];
         
-        setPreUploadedFiles((prev) => {
-          const updated = [...prev, ...newFiles];
-          onPreUploadedFilesChange?.(updated);
-          return updated;
-        });
+        onPreUploadedFilesChange?.([...preUploadedFiles, ...newFiles]);
         
         toast.success("Files uploaded successfully", {
           description: `${data.successCount} file(s) uploaded. They will be processed when you save the character.`,
@@ -166,7 +162,6 @@ export function UploadsTab({ characterId, onPreUploadedFilesChange }: UploadsTab
 
   const handleDeletePreUpload = (fileId: string) => {
     const updatedFiles = preUploadedFiles.filter((f) => f.id !== fileId);
-    setPreUploadedFiles(updatedFiles);
     onPreUploadedFilesChange?.(updatedFiles);
     toast.success("File removed");
   };

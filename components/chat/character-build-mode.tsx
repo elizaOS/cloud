@@ -312,6 +312,7 @@ export function CharacterBuildMode({
               character={character}
               onChange={setCharacter}
               onSave={handleSave}
+              preUploadedFiles={preUploadedFiles}
               onPreUploadedFilesChange={handlePreUploadedFilesChange}
             />
           </div>
@@ -349,6 +350,7 @@ export function CharacterBuildMode({
                 character={character}
                 onChange={setCharacter}
                 onSave={handleSave}
+                preUploadedFiles={preUploadedFiles}
                 onPreUploadedFilesChange={handlePreUploadedFilesChange}
               />
             </div>

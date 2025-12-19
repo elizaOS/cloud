@@ -38,6 +38,7 @@ interface CharacterEditorProps {
   character: ElizaCharacter;
   onChange: (character: ElizaCharacter) => void;
   onSave: () => Promise<void>;
+  preUploadedFiles?: PreUploadedFile[];
   onPreUploadedFilesChange?: (files: PreUploadedFile[]) => void;
 }
 
@@ -47,6 +48,7 @@ export function CharacterEditor({
   character,
   onChange,
   onSave,
+  preUploadedFiles,
   onPreUploadedFilesChange,
 }: CharacterEditorProps) {
   const searchParams = useSearchParams();
@@ -206,6 +208,7 @@ export function CharacterEditor({
             {activeTab === "files" && (
               <UploadsTab
                 characterId={character.id || null}
+                preUploadedFiles={preUploadedFiles}
                 onPreUploadedFilesChange={onPreUploadedFilesChange}
               />
             )}

@@ -7,6 +7,7 @@ import { userContextService } from "@/lib/eliza/user-context";
 import { RuntimeFactory } from "@/lib/eliza/runtime-factory";
 import { AgentMode } from "@/lib/eliza/agent-mode-types";
 import type { UserWithOrganization, ApiKey } from "@/lib/types";
+import { KNOWLEDGE_CONSTANTS } from "@/lib/constants/knowledge";
 
 interface FileToQueue {
   blobUrl: string;
@@ -65,8 +66,8 @@ function isValidBlobUrl(url: string): boolean {
  */
 export class KnowledgeProcessingService {
   private readonly JOB_TYPE = "knowledge_processing";
-  private readonly MAX_ATTEMPTS = 3;
-  private readonly STALE_JOB_THRESHOLD_MS = 10 * 60 * 1000; // 10 minutes
+  private readonly MAX_ATTEMPTS = KNOWLEDGE_CONSTANTS.MAX_ATTEMPTS;
+  private readonly STALE_JOB_THRESHOLD_MS = KNOWLEDGE_CONSTANTS.STALE_JOB_THRESHOLD_MS;
 
   /**
    * Queues multiple files for background processing.
@@ -240,11 +241,21 @@ export class KnowledgeProcessingService {
       return true;
     }
     if (currentJob.status === "completed" || currentJob.result) {
-      logger.info("[KnowledgeProcessing] Job already processed, skipping", {
-        jobId: job.id,
-        status: currentJob.status,
-        hasResult: !!currentJob.result,
-      });
+      // If result exists but status is not completed, fix the status
+      // This can happen if updateStatus() failed after update() succeeded
+      if (currentJob.result && currentJob.status !== "completed") {
+        await jobsRepository.updateStatus(job.id, "completed");
+        logger.info("[KnowledgeProcessing] Fixed job status to completed", {
+          jobId: job.id,
+          previousStatus: currentJob.status,
+        });
+      } else {
+        logger.info("[KnowledgeProcessing] Job already processed, skipping", {
+          jobId: job.id,
+          status: currentJob.status,
+          hasResult: !!currentJob.result,
+        });
+      }
       return true;
     }
 

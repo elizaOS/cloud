@@ -114,6 +114,7 @@ export class JobsRepository {
   /**
    * Recovers stale jobs that have been stuck in in_progress status.
    * Jobs older than the threshold are reset to pending for retry.
+   * Only recovers jobs with a valid started_at timestamp.
    *
    * @param filters - Filter criteria including type, organizationId, and staleThresholdMs.
    * @returns Number of jobs recovered.
@@ -137,6 +138,7 @@ export class JobsRepository {
           eq(jobs.type, filters.type),
           eq(jobs.organization_id, filters.organizationId),
           eq(jobs.status, "in_progress"),
+          sql`${jobs.started_at} IS NOT NULL`,
           lt(jobs.started_at, staleThreshold),
         ),
       )

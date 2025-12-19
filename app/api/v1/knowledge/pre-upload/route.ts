@@ -4,24 +4,12 @@ import { logger } from "@/lib/utils/logger";
 import { uploadToBlob } from "@/lib/blob";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import type { PreUploadedFile } from "@/lib/types/knowledge";
-
-const MAX_FILES_PER_REQUEST = 10;
-const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
-const ALLOWED_EXTENSIONS = [".pdf", ".txt", ".md", ".doc", ".docx", ".json", ".xml", ".yaml", ".yml", ".csv"];
-const ALLOWED_CONTENT_TYPES = [
-  "application/pdf",
-  "text/plain",
-  "text/markdown",
-  "application/msword",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "application/json",
-  "application/xml",
-  "text/xml",
-  "application/x-yaml",
-  "text/yaml",
-  "text/csv",
-  "application/octet-stream",
-];
+import {
+  KNOWLEDGE_CONSTANTS,
+  ALLOWED_EXTENSIONS,
+  ALLOWED_CONTENT_TYPES,
+  TEXT_EXTENSIONS_FOR_OCTET_STREAM,
+} from "@/lib/constants/knowledge";
 
 function getFileExtension(filename: string): string {
   const lastDot = filename.lastIndexOf(".");
@@ -54,11 +42,11 @@ async function handlePOST(req: NextRequest) {
     );
   }
 
-  if (files.length > MAX_FILES_PER_REQUEST) {
+  if (files.length > KNOWLEDGE_CONSTANTS.MAX_FILES_PER_REQUEST) {
     return NextResponse.json(
       {
         error: "Too many files",
-        details: `Maximum ${MAX_FILES_PER_REQUEST} files per request`,
+        details: `Maximum ${KNOWLEDGE_CONSTANTS.MAX_FILES_PER_REQUEST} files per request`,
       },
       { status: 400 },
     );
@@ -66,18 +54,18 @@ async function handlePOST(req: NextRequest) {
 
   // Validate files before upload
   for (const file of files) {
-    if (file.size > MAX_FILE_SIZE) {
+    if (file.size > KNOWLEDGE_CONSTANTS.MAX_FILE_SIZE) {
       return NextResponse.json(
         {
           error: "File too large",
-          details: `${file.name} exceeds ${MAX_FILE_SIZE / 1024 / 1024}MB limit`,
+          details: `${file.name} exceeds ${KNOWLEDGE_CONSTANTS.MAX_FILE_SIZE / 1024 / 1024}MB limit`,
         },
         { status: 400 },
       );
     }
 
     const ext = getFileExtension(file.name);
-    if (!ALLOWED_EXTENSIONS.includes(ext)) {
+    if (!ALLOWED_EXTENSIONS.includes(ext as typeof ALLOWED_EXTENSIONS[number])) {
       return NextResponse.json(
         {
           error: "Invalid file type",
@@ -88,7 +76,7 @@ async function handlePOST(req: NextRequest) {
     }
 
     const contentType = file.type || "application/octet-stream";
-    if (!ALLOWED_CONTENT_TYPES.includes(contentType)) {
+    if (!ALLOWED_CONTENT_TYPES.includes(contentType as typeof ALLOWED_CONTENT_TYPES[number])) {
       return NextResponse.json(
         {
           error: "Invalid content type",
@@ -96,6 +84,20 @@ async function handlePOST(req: NextRequest) {
         },
         { status: 400 },
       );
+    }
+
+    // Stricter validation for application/octet-stream
+    // Only allow octet-stream for text-based file formats that browsers may misidentify
+    if (contentType === "application/octet-stream") {
+      if (!TEXT_EXTENSIONS_FOR_OCTET_STREAM.includes(ext as typeof TEXT_EXTENSIONS_FOR_OCTET_STREAM[number])) {
+        return NextResponse.json(
+          {
+            error: "Invalid content type",
+            details: `${file.name}: Binary files (${ext}) must have explicit content type, not application/octet-stream`,
+          },
+          { status: 400 },
+        );
+      }
     }
   }
 
