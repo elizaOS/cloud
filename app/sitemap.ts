@@ -6,7 +6,7 @@ import type { MetadataRoute } from "next";
  *
  * @returns Sitemap configuration with URLs, priorities, and change frequencies.
  */
-export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+export default function sitemap(): MetadataRoute.Sitemap {
   // Get base URL with automatic Vercel URL detection as fallback
   const baseUrl =
     process.env.NEXT_PUBLIC_APP_URL ||

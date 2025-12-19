@@ -7,7 +7,7 @@ import type { MetadataRoute } from "next";
  *
  * @returns Robots configuration with rules and sitemap reference.
  */
-export default async function robots(): Promise<MetadataRoute.Robots> {
+export default function robots(): MetadataRoute.Robots {
   // Get base URL with automatic Vercel URL detection as fallback
   const baseUrl =
     process.env.NEXT_PUBLIC_APP_URL ||
