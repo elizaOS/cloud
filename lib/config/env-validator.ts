@@ -177,6 +177,23 @@ const ENV_VARS = {
     },
     errorMessage: "Must be a valid 32-byte hex key",
   },
+
+  // OxaPay Crypto Payments (optional - for crypto payment feature)
+  OXAPAY_MERCHANT_API_KEY: {
+    required: false,
+    description: "OxaPay merchant API key for crypto payments",
+    validate: (value: string) => value.length >= 32,
+    errorMessage: "Must be at least 32 characters",
+  },
+
+  // Cron Jobs
+  CRON_SECRET: {
+    required: true,
+    description:
+      "Secret for authenticating cron job requests (required for production security)",
+    validate: (value: string) => value.length >= 32,
+    errorMessage: "Must be at least 32 characters for security",
+  },
 } as const;
 
 /**
@@ -269,7 +286,7 @@ export function requireValidEnvironment(): void {
     }
     console.error("");
     console.error(
-      "Please check your .env.local file and set the required variables.",
+      "Please check your .env.local file and set the required variables."
     );
     console.error("See example.env.local for reference.");
     throw new Error("Invalid environment configuration");
@@ -278,7 +295,7 @@ export function requireValidEnvironment(): void {
   logger.info("✅ Environment validation passed");
   if (result.warnings.length > 0) {
     logger.info(
-      `⚠️  ${result.warnings.length} optional variable(s) not set - some features may be unavailable`,
+      `⚠️  ${result.warnings.length} optional variable(s) not set - some features may be unavailable`
     );
   }
   logger.info("");
@@ -305,6 +322,10 @@ export function isFeatureConfigured(feature: string): boolean {
       return !!(
         process.env.STRIPE_SECRET_KEY && process.env.STRIPE_WEBHOOK_SECRET
       );
+    case "crypto":
+      return !!process.env.OXAPAY_MERCHANT_API_KEY;
+    case "cron":
+      return !!process.env.CRON_SECRET;
     case "blob":
       return !!process.env.BLOB_READ_WRITE_TOKEN;
     case "ai":
@@ -335,7 +356,7 @@ export function isFeatureConfigured(feature: string): boolean {
  * @returns Array of configured feature names.
  */
 export function getConfiguredFeatures(): string[] {
-  const features = ["containers", "stripe", "blob", "ai"];
+  const features = ["containers", "stripe", "crypto", "cron", "blob", "ai"];
   return features.filter((f) => isFeatureConfigured(f));
 }
 
@@ -350,6 +371,8 @@ export function logConfigurationStatus(): void {
   const features = [
     { name: "Container Deployments", key: "containers" },
     { name: "Stripe Payments", key: "stripe" },
+    { name: "Crypto Payments (OxaPay)", key: "crypto" },
+    { name: "Cron Jobs", key: "cron" },
     { name: "Blob Storage", key: "blob" },
     { name: "AI Services", key: "ai" },
     { name: "EVM Token Payouts", key: "evm-payouts" },

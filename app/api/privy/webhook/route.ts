@@ -5,6 +5,7 @@ import { syncUserFromPrivy, type SyncOptions } from "@/lib/privy-sync";
 import { migrateAnonymousSession } from "@/lib/session";
 import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
 import { logger } from "@/lib/utils/logger";
+import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 
 // Verify webhook signature from Privy using their recommended method
 async function verifyWebhookSignature(
@@ -43,10 +44,12 @@ async function verifyWebhookSignature(
  * Verifies webhook signatures and syncs user data from Privy.
  * Handles anonymous session migration when users sign up.
  *
+ * Rate limited: AGGRESSIVE (100 req/min per IP) to prevent webhook flooding
+ *
  * @param request - Request containing Privy webhook payload with signature header.
  * @returns Webhook processing result.
  */
-export async function POST(request: NextRequest) {
+async function handlePrivyWebhook(request: NextRequest) {
   try {
     // Get the raw body
     const body = await request.text();
@@ -87,8 +90,6 @@ export async function POST(request: NextRequest) {
     // Parse the webhook payload
     const payload = JSON.parse(body);
 
-    logger.debug("Received Privy webhook", { type: payload.type });
-
     // Extract IP address from headers (for abuse tracking)
     const forwardedFor = headersList.get("x-forwarded-for");
     const realIp = headersList.get("x-real-ip");
@@ -111,7 +112,6 @@ export async function POST(request: NextRequest) {
 
         // Sync user on creation, linking new account, or authentication
         const user = await syncUserFromPrivy(payload.user, syncOptions);
-        logger.info("User synced via webhook", { userId: user.id });
 
         // Check for anonymous session cookie and migrate data
         const cookieStore = await cookies();
@@ -155,22 +155,19 @@ export async function POST(request: NextRequest) {
 
       case "user.updated": {
         // Update existing user
-        const user = await syncUserFromPrivy(payload.user);
-        logger.info("User updated via webhook", { userId: user.id });
+        await syncUserFromPrivy(payload.user);
         break;
       }
 
       case "user.deleted": {
         // Handle user deletion if needed
-        logger.info("User deletion event received", {
-          privyUserId: payload.user.userId,
-        });
         // For now, we'll keep the user in our database but could mark as inactive
         break;
       }
 
       default:
-        logger.debug("Unhandled webhook type", { type: payload.type });
+        // Unhandled webhook type
+        break;
     }
 
     return NextResponse.json(
@@ -191,3 +188,6 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+// Export rate-limited handler
+export const POST = withRateLimit(handlePrivyWebhook, RateLimitPresets.AGGRESSIVE);

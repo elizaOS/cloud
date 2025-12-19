@@ -16,6 +16,8 @@ const eslintConfig = [
       "vendor/**",
       "apps/**",
       "miniapp/.next/**",
+      "tests/playwright/test-reports/**",
+      "tests/playwright/test-results/**",
     ],
   },
   ...nextConfig,

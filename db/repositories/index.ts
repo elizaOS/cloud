@@ -143,3 +143,8 @@ export * from "./managed-domains";
 // Community Moderation
 // ============================================
 export * from "./community-moderation";
+
+// ============================================
+// Crypto Payments (CDP wallet payments)
+// ============================================
+export * from "./crypto-payments";

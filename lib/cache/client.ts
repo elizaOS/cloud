@@ -457,7 +457,7 @@ export class CacheClient {
     _durationMs: number,
     _metadata?: Record<string, unknown>,
   ): void {
-    // Slow operation logging disabled
+    // Metrics logging disabled to reduce console noise
   }
 }
 

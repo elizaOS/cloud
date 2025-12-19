@@ -103,8 +103,6 @@ export async function DELETE(
       );
     }
 
-    logger.info("Starting teardown of container", { containerId });
-
     // Step 1: Update status to deleting
     await updateContainerStatus(containerId, "deleting", {
       deploymentLog: "Teardown initiated...",
@@ -112,8 +110,6 @@ export async function DELETE(
 
     // Step 2: Delete CloudFormation stack
     try {
-      logger.info("Deleting CloudFormation stack", { containerId });
-
       await cloudFormationService.deleteUserStack(
         containerId,
         container.project_name,
@@ -126,8 +122,6 @@ export async function DELETE(
         container.project_name,
         DELETION_TIMEOUT_MINUTES,
       );
-
-      logger.info("CloudFormation stack deleted", { containerId });
     } catch (cfError) {
       logger.error(`Failed to delete CloudFormation stack:`, cfError);
 
@@ -141,7 +135,6 @@ export async function DELETE(
     // Step 3: Release ALB priority
     try {
       await dbPriorityManager.releasePriority(containerId);
-      logger.info("Released ALB priority", { containerId });
     } catch (priorityError) {
       logger.error(`Failed to release ALB priority:`, priorityError);
       // Non-critical - continue with cleanup
@@ -182,8 +175,6 @@ export async function DELETE(
               runtimeHours: runtimeHours.toFixed(2),
             },
           });
-
-          logger.info("Refunded credits for early deletion", { refundAmount });
         }
       } catch (refundError) {
         logger.error(`Failed to process refund:`, refundError);
@@ -193,8 +184,6 @@ export async function DELETE(
 
     // Step 5: Delete from database
     await deleteContainer(containerId, user.organization_id!);
-
-    logger.info("Container deleted successfully", { containerId });
 
     return NextResponse.json({
       success: true,
@@ -351,8 +340,6 @@ export async function PATCH(
       );
     }
 
-    logger.info("Updating container", { containerId, updates });
-
     // Update status to deploying
     await updateContainerStatus(containerId, "deploying", {
       deploymentLog: "Initiating container update via CloudFormation...",
@@ -411,8 +398,6 @@ export async function PATCH(
       await updateContainerStatus(containerId, "running", {
         deploymentLog: "Container updated successfully",
       });
-
-      logger.info("Container updated successfully", { containerId });
 
       return NextResponse.json({
         success: true,

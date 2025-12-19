@@ -55,6 +55,14 @@
     {
       "path": "/api/cron/webhook-triggers",
       "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/cleanup-expired-crypto-payments",
+      "schedule": "*/10 * * * *"
+    },
+    {
+      "path": "/api/cron/cleanup-webhook-events",
+      "schedule": "0 2 * * *"
     }
   ]
 }

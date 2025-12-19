@@ -8,7 +8,7 @@ on:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'push' }}
 
 env:
   BUN_VERSION: "1.2"
@@ -160,11 +160,36 @@ jobs:
           restore-keys: nextjs-${{ hashFiles('bun.lockb') }}-
       - run: bun install --frozen-lockfile
       - run: bun run build
+      - name: Verify build output
+        run: |
+          if [ -d ".next" ]; then
+            echo "✅ .next directory exists"
+            ls -la .next | head -10
+          else
+            echo "❌ .next directory not found"
+            ls -la
+            exit 1
+          fi
+      - name: Clean invalid artifact characters
+        run: |
+          echo "Checking for files with invalid characters (colons)..."
+          INVALID_FILES=$(find .next -name '*:*' 2>/dev/null || true)
+          if [ -n "$INVALID_FILES" ]; then
+            echo "⚠️ Found files with invalid characters:"
+            echo "$INVALID_FILES"
+            echo "Removing these files..."
+            find .next -name '*:*' -delete 2>/dev/null || true
+            echo "✅ Cleaned files with invalid characters"
+          else
+            echo "✅ No invalid characters found"
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: nextjs-build
-          path: .next
+          path: .next/
           retention-days: 1
+          if-no-files-found: error
+          include-hidden-files: true
 
   e2e:
     name: E2E - ${{ matrix.suite }}

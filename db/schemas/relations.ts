@@ -38,6 +38,7 @@ import { containers } from "./containers";
 import { userMcps } from "./user-mcps";
 import { n8nWorkflows } from "./n8n-workflows";
 import { appAgents, appWorkflows, appServices } from "./app-integrations";
+import { cryptoPayments } from "./crypto-payments";
 
 /**
  * Organizations table relations.
@@ -611,4 +612,18 @@ export const userMcpsRelations = relations(userMcps, ({ one, many }) => ({
   }),
   // Apps that use this service
   appServices: many(appServices),
+}));
+
+/**
+ * Crypto payments table relations.
+ */
+export const cryptoPaymentsRelations = relations(cryptoPayments, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [cryptoPayments.organization_id],
+    references: [organizations.id],
+  }),
+  user: one(users, {
+    fields: [cryptoPayments.user_id],
+    references: [users.id],
+  }),
 }));

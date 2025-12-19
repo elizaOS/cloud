@@ -143,7 +143,7 @@ export function ImageGeneratorAdvanced() {
 
   // Carousel API (external ref)
   const [carouselApi, setCarouselApi] = useState<CarouselApi | undefined>(
-    undefined
+    undefined,
   );
 
   // Consolidated request state
@@ -650,7 +650,7 @@ export function ImageGeneratorAdvanced() {
                             handleDownload(
                               imageState.currentImages[
                                 imageState.currentIndex
-                              ] ?? imageState.currentImage
+                              ] ?? imageState.currentImage,
                             )
                           }
                           className="px-3 py-2 border border-white/20 bg-transparent text-white hover:bg-white/5 transition-colors flex items-center justify-center gap-1 md:gap-2"
@@ -902,7 +902,7 @@ export function ImageGeneratorAdvanced() {
                         onClick={() =>
                           handleDownload(
                             imageState.currentImages[imageState.currentIndex] ??
-                              imageState.currentImage!
+                              imageState.currentImage!,
                           )
                         }
                       >

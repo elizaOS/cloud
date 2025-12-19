@@ -34,6 +34,12 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: "https",
+        hostname: "api.qrserver.com",
+        port: "",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
         hostname: "api.dicebear.com",
         port: "",
         pathname: "/**",
@@ -134,6 +140,8 @@ const nextConfig: NextConfig = {
     "https",
     "zlib",
     "buffer",
+    // oxapay uses __dirname + fs.readFile for method info JSON
+    "oxapay",
   ],
 
   webpack: (config, { isServer }) => {

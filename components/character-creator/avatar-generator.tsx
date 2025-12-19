@@ -52,7 +52,7 @@ export function AvatarGenerator({
 
   const handleRandomize = () => {
     onAvatarChange(
-      generateDefaultAvatarUrl(characterName || `char-${Date.now()}`)
+      generateDefaultAvatarUrl(characterName || `char-${Date.now()}`),
     );
     toast.success("Random avatar selected");
   };
@@ -93,7 +93,7 @@ export function AvatarGenerator({
     } catch (error) {
       logger.error("Error generating AI avatar:", error);
       toast.error(
-        error instanceof Error ? error.message : "Failed to generate AI avatar"
+        error instanceof Error ? error.message : "Failed to generate AI avatar",
       );
     } finally {
       setIsGeneratingAI(false);
@@ -161,7 +161,7 @@ export function AvatarGenerator({
                   "relative w-full max-w-16 max-h-16 aspect-square rounded-lg overflow-hidden border-2 transition-all",
                   isSelected
                     ? "border-[#FF5800] ring-2 ring-[#FF5800]/30"
-                    : "border-white/10 hover:border-white/30"
+                    : "border-white/10 hover:border-white/30",
                 )}
                 title={avatar.name}
               >

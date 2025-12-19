@@ -235,7 +235,10 @@ export class AppsService {
    * Increment app usage counters (requests, credits)
    * This is a fire-and-forget operation for tracking
    */
-  async incrementUsage(appId: string, creditsUsed: string = "0.00"): Promise<void> {
+  async incrementUsage(
+    appId: string,
+    creditsUsed: string = "0.00",
+  ): Promise<void> {
     await appsRepository.incrementUsage(appId, creditsUsed);
   }
 

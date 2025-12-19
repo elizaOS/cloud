@@ -140,26 +140,11 @@ async function handlePOST(request: NextRequest) {
 
     generationId = generation.id;
 
-    logger.info("[VIDEO GENERATION] Starting generation", {
-      userId: user.id,
-      model: userModel,
-    });
-
     const result = await fal.subscribe(internalModel, {
       input: {
         prompt: prompt.trim(),
       },
       logs: true,
-      onQueueUpdate: (update: QueueStatus) => {
-        if (update.status === "IN_PROGRESS") {
-          const logMessages = update.logs
-            ?.map((log: { message: string }) => log.message)
-            .join(", ");
-          logger.debug("[VIDEO GENERATION] Progress", {
-            status: logMessages || "Processing...",
-          });
-        }
-      },
     });
 
     const data = result.data as VideoProviderResponse;
@@ -171,11 +156,6 @@ async function handlePOST(request: NextRequest) {
         { status: 500 },
       );
     }
-
-    logger.info("[VIDEO GENERATION] Success", {
-      userId: user.id,
-      requestId: result.requestId,
-    });
 
     // Upload video to our storage (required - we don't expose external provider URLs)
     let blobUrl: string;
@@ -201,10 +181,6 @@ async function handlePOST(request: NextRequest) {
 
       blobUrl = uploadResult.url;
       blobFileSize = BigInt(uploadResult.size);
-
-      logger.info("[VIDEO GENERATION] Uploaded to storage", {
-        sizeBytes: blobFileSize.toString(),
-      });
     } catch (blobError) {
       logger.error(
         "[VIDEO GENERATION] Failed to upload to storage:",
@@ -285,11 +261,6 @@ async function handlePOST(request: NextRequest) {
       });
     }
 
-    logger.info("[VIDEO GENERATION] Cost deducted", {
-      cost: VIDEO_GENERATION_COST.toFixed(2),
-      newBalance: deductionResult.newBalance.toFixed(2),
-    });
-
     return NextResponse.json(
       {
         video: {
@@ -313,8 +284,6 @@ async function handlePOST(request: NextRequest) {
 
     const errorMessage =
       error instanceof Error ? error.message : "Unknown error occurred";
-
-    logger.info("[VIDEO GENERATION] Returning fallback due to error");
 
     try {
       const {
@@ -373,11 +342,6 @@ async function handlePOST(request: NextRequest) {
           },
         });
       }
-
-      logger.info("[VIDEO GENERATION] Fallback cost deducted", {
-        cost: VIDEO_GENERATION_FALLBACK_COST.toFixed(2),
-        newBalance: fallbackDeduction.newBalance.toFixed(2),
-      });
     } catch (authError) {
       logger.error(
         "[VIDEO GENERATION] Auth error during fallback logging:",

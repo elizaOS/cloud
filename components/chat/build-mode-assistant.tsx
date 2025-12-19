@@ -125,7 +125,10 @@ export function BuildModeAssistant({
   const [selectedTier, setSelectedTier] = useState<ModelTier>(() => {
     if (typeof window !== "undefined") {
       const stored = localStorage.getItem("build-mode-model-tier");
-      if (stored && (stored === "fast" || stored === "pro" || stored === "ultra")) {
+      if (
+        stored &&
+        (stored === "fast" || stored === "pro" || stored === "ultra")
+      ) {
         return stored as ModelTier;
       }
     }
@@ -188,10 +191,10 @@ export function BuildModeAssistant({
           const existingRoom = conversations.find(
             (conv) =>
               conv.title.startsWith(
-                `[BUILD] ${character?.name || "Character"}`
+                `[BUILD] ${character?.name || "Character"}`,
               ) &&
               character?.id &&
-              conv.title.includes(`(${character.id})`)
+              conv.title.includes(`(${character.id})`),
           );
 
           if (existingRoom) {
@@ -307,7 +310,7 @@ export function BuildModeAssistant({
                   contentType: att.contentType,
                 })),
               };
-            }
+            },
           )
           .filter((msg: Message | null): msg is Message => msg !== null);
 
@@ -576,7 +579,8 @@ export function BuildModeAssistant({
                     delete updateWithMeta.__avatarSaved;
 
                     onCharacterUpdate(proposedCharacterUpdate);
-                    const isAvatarUpdate = "avatarUrl" in proposedCharacterUpdate;
+                    const isAvatarUpdate =
+                      "avatarUrl" in proposedCharacterUpdate;
 
                     if (isAvatarUpdate) {
                       // Update sidebar/dropdown avatar if saved in build mode (not creator mode)
@@ -600,7 +604,6 @@ export function BuildModeAssistant({
                     }
                   }
 
-                  // Handle character creation in creator mode - lock the room
                   // Handle character creation in creator mode - lock the room
                   if (
                     isCreatorMode &&
@@ -668,7 +671,7 @@ export function BuildModeAssistant({
   const scrollToBottom = useCallback((smooth = false) => {
     if (scrollAreaRef.current) {
       const viewport = scrollAreaRef.current.querySelector(
-        "[data-radix-scroll-area-viewport]"
+        "[data-radix-scroll-area-viewport]",
       );
       if (viewport) {
         // Use requestAnimationFrame to ensure DOM has updated
@@ -720,7 +723,7 @@ export function BuildModeAssistant({
         } catch {
           try {
             const fieldMatches = jsonText.matchAll(
-              /"(\w+)":\s*("(?:[^"\\]|\\.)*"|true|false|null|\d+(?:\.\d+)?|\[[^\]]*\])/g
+              /"(\w+)":\s*("(?:[^"\\]|\\.)*"|true|false|null|\d+(?:\.\d+)?|\[[^\]]*\])/g,
             );
             const partialUpdates: Record<string, unknown> = {};
 
@@ -1274,7 +1277,9 @@ export function BuildModeAssistant({
                   value={selectedTier}
                   onValueChange={(value) => {
                     setSelectedTier(value as "fast" | "pro" | "ultra");
-                    const tier = BUILD_MODE_TIER_LIST.find((t) => t.id === value);
+                    const tier = BUILD_MODE_TIER_LIST.find(
+                      (t) => t.id === value,
+                    );
                     if (tier) {
                       toast.success(`Model: ${tier.name}`);
                     }

@@ -33,11 +33,15 @@ import {
   type TabItem,
 } from "@/components/brand/brand-tabs-responsive";
 import { useSearchParams } from "next/navigation";
+import type { PreUploadedFile } from "@/lib/types/knowledge";
 
 interface CharacterEditorProps {
   character: ElizaCharacter;
   onChange: (character: ElizaCharacter) => void;
   onSave: () => Promise<void>;
+  preUploadedFiles?: PreUploadedFile[];
+  onPreUploadedFilesAdd?: (files: PreUploadedFile[]) => void;
+  onPreUploadedFileRemove?: (fileId: string) => void;
 }
 
 type MainTab = "character" | "plugins" | "files" | "secrets";
@@ -46,6 +50,9 @@ export function CharacterEditor({
   character,
   onChange,
   onSave,
+  preUploadedFiles,
+  onPreUploadedFilesAdd,
+  onPreUploadedFileRemove,
 }: CharacterEditorProps) {
   const searchParams = useSearchParams();
   const initialTab = searchParams.get("tab") as MainTab | null;
@@ -99,8 +106,11 @@ export function CharacterEditor({
 
   const handleSave = async () => {
     setIsSaving(true);
-    await onSave();
-    setIsSaving(false);
+    try {
+      await onSave();
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleExport = () => {
@@ -115,6 +125,7 @@ export function CharacterEditor({
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
+
   return (
     <div className="flex h-full flex-col bg-black/40">
       <div className="flex-shrink-0 border-b border-white/10 px-6 py-4">
@@ -138,6 +149,7 @@ export function CharacterEditor({
               onClick={handleSave}
               disabled={isSaving}
               className="text-white hover:bg-[#FF5800]/90 bg-[#FF5800] rounded-none"
+              data-onboarding="build-save"
             >
               <CloudUpload className="mr-2 h-4 w-4" />
               {isSaving ? "Saving..." : "Deploy"}
@@ -207,7 +219,12 @@ export function CharacterEditor({
               />
             )}
             {activeTab === "files" && (
-              <UploadsTab characterId={character.id || null} />
+              <UploadsTab
+                characterId={character.id || null}
+                preUploadedFiles={preUploadedFiles}
+                onPreUploadedFilesAdd={onPreUploadedFilesAdd}
+                onPreUploadedFileRemove={onPreUploadedFileRemove}
+              />
             )}
             {activeTab === "secrets" && hasSavedCharacter && (
               <div className="p-6">

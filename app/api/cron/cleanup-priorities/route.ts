@@ -51,20 +51,14 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    logger.info("Starting ALB priority cleanup cron job");
-
     // Get stats before cleanup
     const statsBefore = await dbPriorityManager.getStats();
-    logger.debug("Stats before cleanup", statsBefore);
 
     // Run cleanup
     const deletedCount = await dbPriorityManager.cleanupExpiredPriorities();
 
     // Get stats after cleanup
     const statsAfter = await dbPriorityManager.getStats();
-    logger.debug("Stats after cleanup", statsAfter);
-
-    logger.info("ALB priority cleanup complete", { deletedCount });
 
     return NextResponse.json({
       success: true,

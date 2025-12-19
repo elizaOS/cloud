@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { stripe } from "@/lib/stripe";
+import { isStripeConfigured, requireStripe } from "@/lib/stripe";
 import { creditsService } from "@/lib/services/credits";
 import { invoicesService } from "@/lib/services/invoices";
 import { appCreditsService } from "@/lib/services/app-credits";
@@ -10,6 +10,7 @@ import { usersRepository } from "@/db/repositories/users";
 import { headers } from "next/headers";
 import type Stripe from "stripe";
 import { logger } from "@/lib/utils/logger";
+import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 
 // Maximum allowed credit amount for validation
 const MAX_CREDITS = 10000;
@@ -40,10 +41,12 @@ function parseAndValidateCredits(creditsStr: string): number | null {
  * Handles checkout sessions, payment intents, invoices, and subscription events.
  * Verifies webhook signatures for security.
  *
+ * Rate limited: AGGRESSIVE (100 req/min per IP) to prevent webhook flooding
+ *
  * @param req - Request containing Stripe webhook event data.
  * @returns Webhook processing result.
  */
-export async function POST(req: NextRequest) {
+async function handleStripeWebhook(req: NextRequest) {
   const body = await req.text();
   const headersList = await headers();
   const signature = headersList.get("stripe-signature");
@@ -51,7 +54,7 @@ export async function POST(req: NextRequest) {
   if (!signature) {
     return NextResponse.json(
       { error: "No signature provided" },
-      { status: 400 },
+      { status: 400 }
     );
   }
 
@@ -60,19 +63,28 @@ export async function POST(req: NextRequest) {
     logger.error("[Stripe Webhook] STRIPE_WEBHOOK_SECRET is not set");
     return NextResponse.json(
       { error: "Webhook configuration error" },
-      { status: 500 },
+      { status: 500 }
     );
   }
 
+  if (!isStripeConfigured()) {
+    logger.error("[Stripe Webhook] STRIPE_SECRET_KEY is not set");
+    return NextResponse.json(
+      { error: "Stripe configuration error" },
+      { status: 500 }
+    );
+  }
+
+  const stripe = requireStripe();
   let event: Stripe.Event;
 
   try {
     event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
-  } catch (err) {
+  } catch {
     logger.error("[Stripe Webhook] Signature verification failed");
     return NextResponse.json(
       { error: "Webhook signature verification failed" },
-      { status: 400 },
+      { status: 400 }
     );
   }
 
@@ -100,7 +112,7 @@ export async function POST(req: NextRequest) {
           if (!organizationId || !credits) {
             logger.warn(
               `[Stripe Webhook] Permanent failure - Invalid metadata in checkout session ${session.id}`,
-              { hasOrgId: !!organizationId, hasValidCredits: !!credits },
+              { hasOrgId: !!organizationId, hasValidCredits: !!credits }
             );
             return NextResponse.json(
               {
@@ -108,13 +120,13 @@ export async function POST(req: NextRequest) {
                 error: "Invalid metadata",
                 skipped: true,
               },
-              { status: 200 },
+              { status: 200 }
             );
           }
 
           if (!paymentIntentId) {
             logger.warn(
-              `[Stripe Webhook] Permanent failure - No payment intent ID in checkout session ${session.id}`,
+              `[Stripe Webhook] Permanent failure - No payment intent ID in checkout session ${session.id}`
             );
             return NextResponse.json(
               {
@@ -122,29 +134,29 @@ export async function POST(req: NextRequest) {
                 error: "No payment intent ID",
                 skipped: true,
               },
-              { status: 200 },
+              { status: 200 }
             );
           }
 
           const existingTransaction =
             await creditsService.getTransactionByStripePaymentIntent(
-              paymentIntentId,
+              paymentIntentId
             );
 
           if (existingTransaction) {
             logger.debug(
-              `[Stripe Webhook] Duplicate event - Payment intent ${paymentIntentId} already processed`,
+              `[Stripe Webhook] Duplicate event - Payment intent ${paymentIntentId} already processed`
             );
             return NextResponse.json(
               { received: true, duplicate: true },
-              { status: 200 },
+              { status: 200 }
             );
           }
 
           // Handle app-specific purchases with creator monetization
           if (isAppPurchase) {
             logger.info(
-              `[Stripe Webhook] Processing app-specific credit purchase for app ${appId}`,
+              `[Stripe Webhook] Processing app-specific credit purchase for app ${appId}`
             );
 
             try {
@@ -163,7 +175,7 @@ export async function POST(req: NextRequest) {
                   platformOffset: result.platformOffset,
                   creatorEarnings: result.creatorEarnings,
                   newBalance: result.newBalance,
-                },
+                }
               );
 
               // Also create a record in regular credit transactions for audit trail
@@ -187,7 +199,7 @@ export async function POST(req: NextRequest) {
             } catch (appError) {
               logger.error(
                 "[Stripe Webhook] Error processing app credit purchase",
-                appError,
+                appError
               );
               // Fall through to regular credit addition as fallback
               await creditsService.addCredits({
@@ -221,7 +233,7 @@ export async function POST(req: NextRequest) {
             });
 
             logger.info(
-              `[Stripe Webhook] Credits added: ${credits} to org ${organizationId}`,
+              `[Stripe Webhook] Credits added: ${credits} to org ${organizationId}`
             );
 
             // Track payment for agent reputation (fire and forget)
@@ -236,7 +248,7 @@ export async function POST(req: NextRequest) {
               .catch((err) => {
                 logger.error(
                   "[Stripe Webhook] Failed to record payment for reputation",
-                  { error: err },
+                  { error: err }
                 );
               });
           }
@@ -247,18 +259,18 @@ export async function POST(req: NextRequest) {
               await referralSignupsRepository.findByReferredUserId(userId);
             if (referralSignup) {
               const referrerUser = await usersRepository.findById(
-                referralSignup.referrer_user_id,
+                referralSignup.referrer_user_id
               );
               if (referrerUser?.organization_id) {
                 const commission =
                   await referralsService.processReferralCommission(
                     userId,
                     credits,
-                    referrerUser.organization_id,
+                    referrerUser.organization_id
                   );
                 if (commission > 0) {
                   logger.info(
-                    `[Stripe Webhook] Referral commission credited: $${commission.toFixed(2)} to org ${referrerUser.organization_id}`,
+                    `[Stripe Webhook] Referral commission credited: $${commission.toFixed(2)} to org ${referrerUser.organization_id}`
                   );
                 }
               }
@@ -267,7 +279,7 @@ export async function POST(req: NextRequest) {
 
           try {
             const existingInvoice = await invoicesService.getByStripeInvoiceId(
-              `cs_${session.id}`,
+              `cs_${session.id}`
             );
 
             if (!existingInvoice) {
@@ -298,17 +310,17 @@ export async function POST(req: NextRequest) {
               });
 
               logger.debug(
-                `[Stripe Webhook] Invoice created for checkout session ${session.id}`,
+                `[Stripe Webhook] Invoice created for checkout session ${session.id}`
               );
             } else {
               logger.debug(
-                `[Stripe Webhook] Invoice already exists for checkout session ${session.id}`,
+                `[Stripe Webhook] Invoice already exists for checkout session ${session.id}`
               );
             }
           } catch (invoiceError) {
             logger.error(
               "[Stripe Webhook] Non-critical error creating invoice record",
-              invoiceError,
+              invoiceError
             );
           }
         }
@@ -318,7 +330,7 @@ export async function POST(req: NextRequest) {
       case "payment_intent.succeeded": {
         const paymentIntent = event.data.object;
         logger.debug(
-          `[Stripe Webhook] Payment intent succeeded: ${paymentIntent.id}`,
+          `[Stripe Webhook] Payment intent succeeded: ${paymentIntent.id}`
         );
 
         // Only process if this is a one-time purchase or auto-top-up
@@ -327,7 +339,7 @@ export async function POST(req: NextRequest) {
 
         if (!purchaseType || purchaseType === "credit_pack") {
           logger.debug(
-            `[Stripe Webhook] Skipping payment intent ${paymentIntent.id} - type: ${purchaseType || "unknown"}`,
+            `[Stripe Webhook] Skipping payment intent ${paymentIntent.id} - type: ${purchaseType || "unknown"}`
           );
           break;
         }
@@ -339,7 +351,7 @@ export async function POST(req: NextRequest) {
         if (!organizationId || !credits) {
           logger.warn(
             `[Stripe Webhook] Permanent failure - Invalid metadata in payment intent ${paymentIntent.id}`,
-            { hasOrgId: !!organizationId, hasValidCredits: !!credits },
+            { hasOrgId: !!organizationId, hasValidCredits: !!credits }
           );
           // Return 200 to prevent retries for permanent failures (bad data)
           return NextResponse.json(
@@ -348,23 +360,23 @@ export async function POST(req: NextRequest) {
               error: "Invalid metadata",
               skipped: true,
             },
-            { status: 200 },
+            { status: 200 }
           );
         }
 
         // Check for duplicate transaction
         const existingTransaction =
           await creditsService.getTransactionByStripePaymentIntent(
-            paymentIntent.id,
+            paymentIntent.id
           );
 
         if (existingTransaction) {
           logger.debug(
-            `[Stripe Webhook] Duplicate event - Payment intent ${paymentIntent.id} already processed`,
+            `[Stripe Webhook] Duplicate event - Payment intent ${paymentIntent.id} already processed`
           );
           return NextResponse.json(
             { received: true, duplicate: true },
-            { status: 200 },
+            { status: 200 }
           );
         }
 
@@ -387,7 +399,7 @@ export async function POST(req: NextRequest) {
         });
 
         logger.info(
-          `[Stripe Webhook] Credits added: ${credits} to org ${organizationId} (${purchaseType})`,
+          `[Stripe Webhook] Credits added: ${credits} to org ${organizationId} (${purchaseType})`
         );
 
         try {
@@ -434,13 +446,13 @@ export async function POST(req: NextRequest) {
               });
 
               logger.debug(
-                `[Stripe Webhook] Invoice created for payment intent ${paymentIntent.id}`,
+                `[Stripe Webhook] Invoice created for payment intent ${paymentIntent.id}`
               );
             }
           } else {
             // Check if invoice already exists (might have been created synchronously)
             const existingInvoice = await invoicesService.getByStripeInvoiceId(
-              `pi_${paymentIntent.id}`,
+              `pi_${paymentIntent.id}`
             );
 
             if (!existingInvoice) {
@@ -465,11 +477,11 @@ export async function POST(req: NextRequest) {
               });
 
               logger.debug(
-                `[Stripe Webhook] Invoice created for direct payment ${paymentIntent.id}`,
+                `[Stripe Webhook] Invoice created for direct payment ${paymentIntent.id}`
               );
             } else {
               logger.debug(
-                `[Stripe Webhook] Invoice already exists for payment ${paymentIntent.id}`,
+                `[Stripe Webhook] Invoice already exists for payment ${paymentIntent.id}`
               );
             }
           }
@@ -478,7 +490,7 @@ export async function POST(req: NextRequest) {
           // The credits were already added successfully
           logger.error(
             "[Stripe Webhook] Non-critical error creating invoice record",
-            invoiceError,
+            invoiceError
           );
         }
 
@@ -488,7 +500,7 @@ export async function POST(req: NextRequest) {
       case "payment_intent.payment_failed": {
         const paymentIntent = event.data.object;
         logger.warn(
-          `[Stripe Webhook] Payment intent failed: ${paymentIntent.id}`,
+          `[Stripe Webhook] Payment intent failed: ${paymentIntent.id}`
         );
         // Payment failures are expected events, acknowledge receipt
         break;
@@ -505,7 +517,7 @@ export async function POST(req: NextRequest) {
 
     logger.error(
       `[Stripe Webhook] Error processing event ${event.type} (${event.id}):`,
-      errorMessage,
+      errorMessage
     );
 
     // Only log stack traces in development to prevent information disclosure
@@ -525,7 +537,7 @@ export async function POST(req: NextRequest) {
     if (isPermanentError) {
       // Return 200 for permanent errors to prevent retries
       logger.warn(
-        "[Stripe Webhook] Permanent error detected, returning 200 to prevent retries",
+        "[Stripe Webhook] Permanent error detected, returning 200 to prevent retries"
       );
       return NextResponse.json(
         {
@@ -535,14 +547,14 @@ export async function POST(req: NextRequest) {
           event_id: event.id,
           event_type: event.type,
         },
-        { status: 200 },
+        { status: 200 }
       );
     }
 
     // Return 500 for transient errors to trigger Stripe retry logic
     // (database issues, network issues, temporary service unavailability)
     logger.warn(
-      "[Stripe Webhook] Transient error detected, returning 500 to trigger retry",
+      "[Stripe Webhook] Transient error detected, returning 500 to trigger retry"
     );
     return NextResponse.json(
       {
@@ -551,7 +563,10 @@ export async function POST(req: NextRequest) {
         event_id: event.id,
         event_type: event.type,
       },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }
+
+// Export rate-limited handler
+export const POST = withRateLimit(handleStripeWebhook, RateLimitPresets.AGGRESSIVE);
