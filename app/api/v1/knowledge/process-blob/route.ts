@@ -22,8 +22,11 @@ const TRUSTED_BLOB_HOSTS = [
 function isValidBlobUrl(url: string): boolean {
   try {
     const parsedUrl = new URL(url);
-    // Use exact hostname matching to prevent subdomain bypass attacks
-    return TRUSTED_BLOB_HOSTS.includes(parsedUrl.hostname);
+    // Vercel Blob URLs have random subdomain prefixes (e.g., l5fpqchmvmrcwa0k.public.blob.vercel-storage.com)
+    // Using endsWith is safe because Vercel controls all subdomains of blob.vercel-storage.com
+    return TRUSTED_BLOB_HOSTS.some((host) => 
+      parsedUrl.hostname === host || parsedUrl.hostname.endsWith(`.${host}`)
+    );
   } catch {
     return false;
   }

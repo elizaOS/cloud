@@ -110,17 +110,17 @@ export function useKnowledgeProcessingStatus(characterId: string | null) {
 
       if (wasProcessingRef.current && !data.isProcessing) {
         if (data.totalFiles > 0) {
-          if (data.failedCount > 0) {
-            toast.success("Knowledge files processed", {
-              description: `${data.completedCount} succeeded, ${data.failedCount} failed`,
-              duration: 5000,
-            });
-          } else {
-            toast.success("Knowledge base ready!", {
-              description: `Successfully processed ${data.completedCount} file(s)`,
-              duration: 4000,
-            });
-          }
+        if (data.failedCount > 0) {
+          toast.success("Knowledge files processed", {
+            description: `${data.completedCount} succeeded, ${data.failedCount} failed`,
+            duration: 5000,
+          });
+        } else {
+          toast.success("Knowledge base ready!", {
+            description: `Successfully processed ${data.completedCount} file(s)`,
+            duration: 4000,
+          });
+        }
         }
         // Clear pending state regardless of totalFiles to stop polling
         // This handles the case where localStorage has a pending marker but API returns no jobs
