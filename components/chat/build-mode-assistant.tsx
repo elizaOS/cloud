@@ -185,10 +185,10 @@ export function BuildModeAssistant({
           const existingRoom = conversations.find(
             (conv) =>
               conv.title.startsWith(
-                `[BUILD] ${character?.name || "Character"}`,
+                `[BUILD] ${character?.name || "Character"}`
               ) &&
               character?.id &&
-              conv.title.includes(`(${character.id})`),
+              conv.title.includes(`(${character.id})`)
           );
 
           if (existingRoom) {
@@ -304,7 +304,7 @@ export function BuildModeAssistant({
                   contentType: att.contentType,
                 })),
               };
-            },
+            }
           )
           .filter((msg: Message | null): msg is Message => msg !== null);
 
@@ -379,7 +379,7 @@ export function BuildModeAssistant({
               metadata,
             },
           }),
-        },
+        }
       );
 
       if (!response.ok) {
@@ -589,7 +589,7 @@ export function BuildModeAssistant({
 
                   toast.success(
                     "Character created! You can now chat with your agent.",
-                    { duration: 4000 },
+                    { duration: 4000 }
                   );
                 }
 
@@ -608,7 +608,7 @@ export function BuildModeAssistant({
       toast.error(
         error instanceof Error
           ? error.message
-          : "Failed to send message. Please try again.",
+          : "Failed to send message. Please try again."
       );
     } finally {
       setIsLoading(false);
@@ -628,7 +628,7 @@ export function BuildModeAssistant({
   const scrollToBottom = useCallback((smooth = false) => {
     if (scrollAreaRef.current) {
       const viewport = scrollAreaRef.current.querySelector(
-        "[data-radix-scroll-area-viewport]",
+        "[data-radix-scroll-area-viewport]"
       );
       if (viewport) {
         // Use requestAnimationFrame to ensure DOM has updated
@@ -680,7 +680,7 @@ export function BuildModeAssistant({
         } catch {
           try {
             const fieldMatches = jsonText.matchAll(
-              /"(\w+)":\s*("(?:[^"\\]|\\.)*"|true|false|null|\d+(?:\.\d+)?|\[[^\]]*\])/g,
+              /"(\w+)":\s*("(?:[^"\\]|\\.)*"|true|false|null|\d+(?:\.\d+)?|\[[^\]]*\])/g
             );
             const partialUpdates: Record<string, unknown> = {};
 
