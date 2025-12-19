@@ -22,42 +22,15 @@ const MINIAPP_URL = process.env.MINIAPP_URL ?? "http://localhost:3001";
 let miniappAvailable = false;
 
 test.beforeAll(async ({ request }) => {
-  // Retry logic for server readiness (needed when SKIP_WEB_SERVER=true in CI)
-  const maxRetries = 30;
-  const retryDelay = 2000; // 2 seconds
-  let cloudReady = false;
-
-  console.log("Waiting for servers to be ready...");
-
-  // Wait for Cloud server
-  for (let i = 0; i < maxRetries; i++) {
-    const cloudResponse = await request.get(CLOUD_URL).catch(() => null);
-    if (cloudResponse?.ok()) {
-      cloudReady = true;
-      console.log(`✅ Cloud server ready at ${CLOUD_URL}`);
-      break;
-    }
-    console.log(`⏳ Waiting for Cloud server... (attempt ${i + 1}/${maxRetries})`);
-    await new Promise((resolve) => setTimeout(resolve, retryDelay));
-  }
-
-  if (!cloudReady) {
+  const cloudResponse = await request.get(CLOUD_URL).catch(() => null);
+  if (!cloudResponse?.ok()) {
     throw new Error(
-      `Cloud not available at ${CLOUD_URL} after ${maxRetries} retries. Start with: bun run dev`,
+      `Cloud not available at ${CLOUD_URL}. Start with: bun run dev`,
     );
   }
 
-  // Wait for Miniapp server
-  for (let i = 0; i < maxRetries; i++) {
-    const miniappResponse = await request.get(MINIAPP_URL).catch(() => null);
-    if (miniappResponse?.ok()) {
-      miniappAvailable = true;
-      console.log(`✅ Miniapp server ready at ${MINIAPP_URL}`);
-      break;
-    }
-    console.log(`⏳ Waiting for Miniapp server... (attempt ${i + 1}/${maxRetries})`);
-    await new Promise((resolve) => setTimeout(resolve, retryDelay));
-  }
+  const miniappResponse = await request.get(MINIAPP_URL).catch(() => null);
+  miniappAvailable = miniappResponse?.ok() ?? false;
 
   if (!miniappAvailable) {
     console.log(
