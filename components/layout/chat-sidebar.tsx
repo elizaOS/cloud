@@ -20,11 +20,10 @@ import {
   MessageSquare,
   Loader2,
   Trash2,
-  Edit3,
-  Bot,
+  Plus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { CornerBrackets, BrandButton } from "@/components/brand";
+import { CornerBrackets, LockOnButton } from "@/components/brand";
 import { useChatStore } from "@/lib/stores/chat-store";
 import { SidebarBottomPanel } from "./sidebar-bottom-panel";
 import { ElizaAvatar } from "@/components/chat/eliza-avatar";
@@ -92,7 +91,7 @@ export function ChatSidebar({
     if (!selectedCharacterId) {
       // Show rooms with no character assignment OR default Eliza ID
       return rooms.filter(
-        (room) => !room.characterId || room.characterId === DEFAULT_AGENT_ID,
+        (room) => !room.characterId || room.characterId === DEFAULT_AGENT_ID
       );
     }
     // Show rooms for the selected character
@@ -101,7 +100,7 @@ export function ChatSidebar({
 
   // Find selected character details
   const selectedCharacter = availableCharacters.find(
-    (c) => c.id === selectedCharacterId,
+    (c) => c.id === selectedCharacterId
   );
 
   useEffect(() => {
@@ -199,7 +198,7 @@ export function ChatSidebar({
           isMobile
             ? `fixed inset-y-0 left-0 z-50 w-64 ${isOpen ? "translate-x-0" : "-translate-x-full"}`
             : "w-64",
-          className,
+          className
         )}
       >
         {/* Header with Logo */}
@@ -267,21 +266,17 @@ export function ChatSidebar({
             </div>
 
             {/* New Chat Button */}
-            <BrandButton
+            <LockOnButton
               onClick={handleNewChat}
               disabled={operationState.isCreatingRoom}
               size="sm"
-              className="flex-shrink-0 h-7 px-2 text-xs"
             >
               {operationState.isCreatingRoom ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                <Loader2 className="h-3 w-3 animate-spin" />
               ) : (
-                <>
-                  <Edit3 className="h-3.5 w-3.5" />
-                  <span className="ml-1">New</span>
-                </>
+                <Plus className="h-3 w-3" />
               )}
-            </BrandButton>
+            </LockOnButton>
           </div>
         </div>
 
@@ -305,7 +300,7 @@ export function ChatSidebar({
                       roomId === room.id &&
                         "bg-white/10 border-l-2 border-[#FF5800]",
                       (isDeleting || isLoading) &&
-                        "opacity-50 pointer-events-none",
+                        "opacity-50 pointer-events-none"
                     )}
                   >
                     <div className="relative overflow-hidden">
@@ -314,7 +309,7 @@ export function ChatSidebar({
                         disabled={isDeleting || isLoading}
                         className={cn(
                           "w-full text-left px-2.5 py-2 transition-transform duration-200",
-                          "group-hover:-translate-x-8",
+                          "group-hover:-translate-x-8"
                         )}
                       >
                         <div className="flex items-start gap-2">
@@ -346,7 +341,7 @@ export function ChatSidebar({
                         className={cn(
                           "absolute top-0 right-0 h-full w-8 flex items-center justify-center",
                           "opacity-0 group-hover:opacity-100 transition-opacity duration-200",
-                          "hover:bg-red-500/10 text-white/60 hover:text-red-400",
+                          "hover:bg-red-500/10 text-white/60 hover:text-red-400"
                         )}
                       >
                         {isDeleting ? (

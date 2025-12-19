@@ -69,7 +69,7 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
       : [];
     updateField(
       type,
-      currentArray.filter((_, i) => i !== index),
+      currentArray.filter((_, i) => i !== index)
     );
   };
 
@@ -94,7 +94,7 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
     const currentExamples = character.messageExamples || [];
     updateField(
       "messageExamples",
-      currentExamples.filter((_, i) => i !== index),
+      currentExamples.filter((_, i) => i !== index)
     );
   };
 
@@ -142,7 +142,7 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                   id="name"
                   value={character.name || ""}
                   onChange={(e) => updateField("name", e.target.value)}
-                  placeholder="Nova, Tech Advisor, MarketBot"
+                  placeholder="Agent name"
                   className="rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
                 />
               </div>
@@ -175,7 +175,7 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                 id="bio"
                 value={bioText}
                 onChange={(e) => updateField("bio", e.target.value)}
-                placeholder="A friendly AI assistant specializing in blockchain technology and DeFi protocols. Has a passion for educating newcomers and simplifying complex concepts..."
+                placeholder="Describe the agent's background and purpose..."
                 className="min-h-[120px] rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
               />
             </div>

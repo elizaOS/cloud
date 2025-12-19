@@ -2,7 +2,18 @@
  * Character category definitions and utilities.
  */
 
-import type { CategoryId, CategoryInfo } from "@/lib/types/marketplace";
+/**
+ * Valid category identifiers for characters.
+ */
+export type CategoryId =
+  | "assistant"
+  | "anime"
+  | "creative"
+  | "gaming"
+  | "learning"
+  | "entertainment"
+  | "history"
+  | "lifestyle";
 
 /**
  * Definition for a character category.

@@ -1,46 +1,35 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { requireAuthWithOrg } from "@/lib/auth";
-import { characterMarketplaceService as myAgentsService } from "@/lib/services/characters/marketplace";
-import { logger } from "@/lib/utils/logger";
+import { getAllCategories } from "@/lib/constants/character-categories";
 
 export const dynamic = "force-dynamic";
 
 /**
  * GET /api/my-agents/categories
- * Gets all available character categories for the user's agents.
- *
- * @param request - The Next.js request object.
- * @returns Array of categories with character counts.
+ * Get available character categories.
  */
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    const user = await requireAuthWithOrg();
+    await requireAuthWithOrg();
 
-    logger.debug(
-      "[My Agents API] Getting categories for:",
-      user.organization_id!,
-    );
-
-    const categories = await myAgentsService.getCategories(
-      user.organization_id!,
-      user.id,
-    );
+    const categories = getAllCategories();
 
     return NextResponse.json({
       success: true,
       data: {
-        categories,
+        categories: categories.map((cat) => ({
+          id: cat.id,
+          name: cat.name,
+          description: cat.description,
+          icon: cat.icon,
+          color: cat.color,
+          count: 0, // Count was from marketplace service
+        })),
       },
     });
   } catch (error) {
-    logger.error("[My Agents API] Error getting categories:", error);
-
     return NextResponse.json(
-      {
-        success: false,
-        error:
-          error instanceof Error ? error.message : "Failed to get categories",
-      },
+      { success: false, error: "Failed to get categories" },
       { status: 500 },
     );
   }
