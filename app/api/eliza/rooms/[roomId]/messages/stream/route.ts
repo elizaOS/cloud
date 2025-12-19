@@ -533,7 +533,9 @@ export async function POST(
       runtime.character.settings = {
         ...runtime.character.settings,
         clientCharacterState: validatedState.data,
-        isClientStateUnsaved: (agentModeConfig.metadata.isUnsaved as boolean) ?? true,
+        isClientStateUnsaved: typeof agentModeConfig.metadata.isUnsaved === 'boolean'
+          ? agentModeConfig.metadata.isUnsaved
+          : true,
       };
       logger.info(
         "[Stream] BUILD mode - Stored validated client character state in runtime settings",
