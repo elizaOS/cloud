@@ -80,6 +80,13 @@ export class UserContextService {
     // For authenticated users, entityId === userId (clear mapping)
     const entityId = authResult.user.id;
 
+    // Authenticated users must have an organization
+    if (!authResult.user.organization_id) {
+      throw new Error(
+        "User does not have an organization. Please contact support.",
+      );
+    }
+
     // Get API key once, here (no more fetching at route level)
     const apiKey = await this.getUserApiKey(
       authResult.user.id,
@@ -106,9 +113,8 @@ export class UserContextService {
       agentMode: authResult.agentMode,
       apiKey,
       isAnonymous: false,
-      modelPreferences: authResult.user.model_preferences,
-      name: authResult.user.name,
-      email: authResult.user.email,
+      name: authResult.user.name ?? undefined,
+      email: authResult.user.email ?? undefined,
       appId: authResult.appId,
       appPromptConfig: authResult.appPromptConfig,
     };
@@ -178,7 +184,7 @@ export class UserContextService {
       isAnonymous: true,
       sessionToken: session.session_token,
       name: user.name || "Anonymous",
-      email: user.email,
+      email: user.email ?? undefined,
       appId,
       appPromptConfig,
     };
