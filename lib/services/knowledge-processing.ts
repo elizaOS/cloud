@@ -160,10 +160,12 @@ export class KnowledgeProcessingService {
     }
 
     // First, recover any stale jobs that have been stuck in in_progress for too long
+    // Increments attempts counter to prevent infinite retry loops for problematic files
     const recoveredCount = await jobsRepository.recoverStaleJobs({
       type: this.JOB_TYPE,
       organizationId: user.organization_id,
       staleThresholdMs: this.STALE_JOB_THRESHOLD_MS,
+      maxAttempts: this.MAX_ATTEMPTS,
     });
 
     if (recoveredCount > 0) {
@@ -335,18 +337,19 @@ export class KnowledgeProcessingService {
         },
       });
 
-      // Store result first for idempotency - this ensures that even if the status update
-      // fails, we won't reprocess this job (the idempotency check looks for result field).
+      // Store result and mark completed in a single update for atomicity
+      // This ensures we don't end up with a job that has result but wrong status
       const jobResult = {
         fragmentCount: result.fragmentCount,
         documentId: result.clientDocumentId,
         processedAt: Date.now(),
       };
 
-      await jobsRepository.update(job.id, { result: jobResult });
-
-      // Now mark as completed
-      await jobsRepository.updateStatus(job.id, "completed");
+      await jobsRepository.update(job.id, {
+        result: jobResult,
+        status: "completed",
+        completed_at: new Date(),
+      });
 
       logger.info("[KnowledgeProcessing] Job completed successfully", {
         jobId: job.id,

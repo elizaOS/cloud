@@ -146,16 +146,31 @@ export function useKnowledgeProcessingStatus(characterId: string | null) {
     void fetchStatus(characterId);
 
     const capturedCharacterId = characterId;
+    let pollCount = 0;
+    const MAX_POLLS = 100; // 5 minutes max at 3s intervals
+    
     const interval = setInterval(() => {
-      if (wasProcessingRef.current) {
+      if (!wasProcessingRef.current) {
+        // Processing completed - stop polling
+        clearInterval(interval);
+        return;
+      }
+      
+      if (pollCount < MAX_POLLS) {
+        pollCount++;
         void fetchStatus(capturedCharacterId);
+      } else {
+        // Prevent unbounded polling - stop after max attempts
+        clearInterval(interval);
+        wasProcessingRef.current = false;
+        clearPendingKnowledgeProcessing(capturedCharacterId);
       }
     }, 3000);
 
     return () => {
       isCurrentEffect = false;
       clearInterval(interval);
-      wasProcessingRef.current = false;
+      // Don't reset wasProcessingRef here - managed by effect body and localStorage
     };
   }, [characterId]);
 

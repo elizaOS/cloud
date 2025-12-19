@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -27,6 +27,9 @@ export function UploadsTab({ characterId, preUploadedFiles = [], onPreUploadedFi
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  
+  // Track concurrent uploads to prevent premature "uploading = false" state
+  const activeUploadsRef = useRef(0);
 
   const fetchDocuments = useCallback(async () => {
     if (!characterId) return;
@@ -56,6 +59,16 @@ export function UploadsTab({ characterId, preUploadedFiles = [], onPreUploadedFi
   const handleUpload = async (files: File[]) => {
     if (files.length === 0) return;
 
+    // Validate pre-upload mode requirements BEFORE entering tracked upload state
+    // This avoids incrementing counter and setting uploading=true for invalid operations
+    if (!characterId && !onPreUploadedFilesAdd) {
+      toast.error("Cannot upload files", {
+        description: "File tracking is not configured for this view",
+      });
+      return;
+    }
+
+    activeUploadsRef.current++;
     setUploading(true);
     setSelectedFiles(files);
 
@@ -64,14 +77,6 @@ export function UploadsTab({ characterId, preUploadedFiles = [], onPreUploadedFi
       
       // Pre-upload mode: upload to blob storage only (no characterId yet)
       if (!characterId) {
-        // Fail fast if callbacks aren't provided - files would be uploaded but not tracked
-        if (!onPreUploadedFilesAdd) {
-          toast.error("Cannot upload files", {
-            description: "File tracking is not configured for this view",
-          });
-          return;
-        }
-
         for (const file of files) {
           formData.append("files", file, file.name);
         }
@@ -87,7 +92,8 @@ export function UploadsTab({ characterId, preUploadedFiles = [], onPreUploadedFi
           const newFiles = data.files as PreUploadedFile[];
           
           // Use add callback - parent uses functional update to avoid stale closure issues
-          onPreUploadedFilesAdd(newFiles);
+          // Non-null assertion safe: validated before entering upload state
+          onPreUploadedFilesAdd!(newFiles);
           
           toast.success("Files uploaded successfully", {
             description: `${data.successCount} file(s) uploaded. They will be processed when you save the character.`,
@@ -138,7 +144,11 @@ export function UploadsTab({ characterId, preUploadedFiles = [], onPreUploadedFi
         setSelectedFiles([]);
       }
     } finally {
-      setUploading(false);
+      activeUploadsRef.current--;
+      // Only set uploading to false when all concurrent uploads have completed
+      if (activeUploadsRef.current === 0) {
+        setUploading(false);
+      }
     }
   };
 

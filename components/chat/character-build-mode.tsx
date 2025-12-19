@@ -95,6 +95,9 @@ export function CharacterBuildMode({
 
   const [character, setCharacter] = useState<ElizaCharacter>(initialCharacter);
   const [preUploadedFiles, setPreUploadedFiles] = useState<PreUploadedFile[]>([]);
+  
+  // Track the character ID to detect actual character switches vs reference changes
+  const previousCharacterIdRef = useRef<string | undefined>(initialCharacter.id);
 
   // Use functional updates to avoid stale closure issues with concurrent operations
   const handlePreUploadedFilesAdd = useCallback((newFiles: PreUploadedFile[]) => {
@@ -113,11 +116,15 @@ export function CharacterBuildMode({
     onUnsavedChanges?.(hasCharacterChanges || hasFileChanges);
   }, [character, initialCharacter, preUploadedFiles, onUnsavedChanges]);
 
-  // Update local state when derived character changes
-  // Also clear pre-uploaded files since they only apply to the previous character context
+  // Update local state only when switching to a DIFFERENT character (by ID)
+  // This prevents data loss when parent re-renders with new array reference but same content
   useEffect(() => {
-    setCharacter(initialCharacter);
-    setPreUploadedFiles([]);
+    const characterIdChanged = initialCharacter.id !== previousCharacterIdRef.current;
+    if (characterIdChanged) {
+      setCharacter(initialCharacter);
+      setPreUploadedFiles([]);
+      previousCharacterIdRef.current = initialCharacter.id;
+    }
   }, [initialCharacter]);
 
   // Handle navigation after state updates have been committed
@@ -222,12 +229,13 @@ export function CharacterBuildMode({
           // Track if file queueing succeeds (only relevant if we have files)
           let fileQueuingSucceeded = true;
 
+          // Capture files to queue BEFORE any async operations
+          // Used later to determine which toast to show (state updates are async)
+          const filesToQueue = preUploadedFiles;
+          const queuedFileIds = new Set(filesToQueue.map((f) => f.id));
+
           // Queue pre-uploaded files for background processing
-          if (preUploadedFiles.length > 0) {
-            // Capture file IDs before async operation to only clear these specific files
-            // This preserves any files added during the fetch request
-            const filesToQueue = preUploadedFiles;
-            const queuedFileIds = new Set(filesToQueue.map((f) => f.id));
+          if (filesToQueue.length > 0) {
 
             try {
               const queueResponse = await fetch("/api/v1/knowledge/queue", {
@@ -303,7 +311,8 @@ export function CharacterBuildMode({
           }
 
           // Only show redirect toast if no files were queued (avoids duplicate success toasts)
-          if (preUploadedFiles.length === 0) {
+          // Use filesToQueue.length instead of preUploadedFiles.length since state updates are async
+          if (filesToQueue.length === 0) {
             toast.success("Character created! Redirecting to chat...", {
               duration: 2000,
             });
@@ -317,6 +326,9 @@ export function CharacterBuildMode({
 
           // Use pendingNavigation pattern to defer navigation until state is committed
           setPendingNavigation(saved.id);
+        } else {
+          // createCharacter returned without an id - treat as failure
+          throw new Error("Character creation failed: no ID returned");
         }
       }
     } catch (error) {

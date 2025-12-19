@@ -55,3 +55,23 @@ export const ALLOWED_CONTENT_TYPES = [
 
 export type AllowedExtension = (typeof ALLOWED_EXTENSIONS)[number];
 export type AllowedContentType = (typeof ALLOWED_CONTENT_TYPES)[number];
+
+/**
+ * Characters that are not allowed in filenames for security.
+ * Prevents path traversal attacks and unexpected storage key structures.
+ */
+const UNSAFE_FILENAME_CHARS = /[/\\:*?"<>|]/;
+
+/**
+ * Validates that a filename doesn't contain path-unsafe characters.
+ * Prevents path traversal attacks like "foo/../../bar.txt".
+ *
+ * @param filename - The filename to validate.
+ * @returns True if the filename is safe to use.
+ */
+export function isValidFilename(filename: string): boolean {
+  if (!filename || typeof filename !== "string") return false;
+  if (UNSAFE_FILENAME_CHARS.test(filename)) return false;
+  if (filename.includes("..")) return false;
+  return true;
+}

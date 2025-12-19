@@ -9,6 +9,7 @@ import {
   ALLOWED_EXTENSIONS,
   ALLOWED_CONTENT_TYPES,
   TEXT_EXTENSIONS_FOR_OCTET_STREAM,
+  isValidFilename,
 } from "@/lib/constants/knowledge";
 import { fileTypeFromBuffer } from "file-type";
 
@@ -74,6 +75,17 @@ async function handlePOST(req: NextRequest) {
 
   // Validate files before upload
   for (const file of files) {
+    // Reject filenames with path-unsafe characters to prevent path traversal
+    if (!isValidFilename(file.name)) {
+      return NextResponse.json(
+        {
+          error: "Invalid filename",
+          details: `${file.name} contains invalid characters. Filenames cannot contain / \\ : * ? " < > | or ..`,
+        },
+        { status: 400 },
+      );
+    }
+
     if (file.size > KNOWLEDGE_CONSTANTS.MAX_FILE_SIZE) {
       return NextResponse.json(
         {

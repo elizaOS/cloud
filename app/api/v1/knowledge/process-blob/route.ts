@@ -8,7 +8,7 @@ import { userContextService } from "@/lib/eliza/user-context";
 import { RuntimeFactory } from "@/lib/eliza/runtime-factory";
 import { AgentMode } from "@/lib/eliza/agent-mode-types";
 import { userCharactersRepository } from "@/db/repositories/characters";
-import { KNOWLEDGE_CONSTANTS, ALLOWED_CONTENT_TYPES } from "@/lib/constants/knowledge";
+import { KNOWLEDGE_CONSTANTS, ALLOWED_CONTENT_TYPES, isValidFilename } from "@/lib/constants/knowledge";
 import { isValidBlobUrl } from "@/lib/blob";
 
 export const maxDuration = 60;
@@ -102,6 +102,13 @@ async function handlePOST(req: NextRequest) {
     if (!file.filename || typeof file.filename !== "string" || file.filename.length > MAX_FILENAME_LENGTH) {
       return NextResponse.json(
         { error: `Invalid filename: must be a string under ${MAX_FILENAME_LENGTH} characters` },
+        { status: 400 },
+      );
+    }
+
+    if (!isValidFilename(file.filename)) {
+      return NextResponse.json(
+        { error: `Invalid filename: ${file.filename} contains path-unsafe characters` },
         { status: 400 },
       );
     }

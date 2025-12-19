@@ -4,7 +4,7 @@ import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { knowledgeProcessingService } from "@/lib/services/knowledge-processing";
 import { userCharactersRepository } from "@/db/repositories/characters";
 import { isValidBlobUrl } from "@/lib/blob";
-import { KNOWLEDGE_CONSTANTS, ALLOWED_CONTENT_TYPES } from "@/lib/constants/knowledge";
+import { KNOWLEDGE_CONSTANTS, ALLOWED_CONTENT_TYPES, isValidFilename } from "@/lib/constants/knowledge";
 
 const MAX_FILENAME_LENGTH = 255;
 
@@ -82,6 +82,13 @@ async function handlePOST(req: NextRequest) {
     if (!file.filename || typeof file.filename !== "string" || file.filename.length > MAX_FILENAME_LENGTH) {
       return NextResponse.json(
         { error: `Invalid filename: must be a string under ${MAX_FILENAME_LENGTH} characters` },
+        { status: 400 },
+      );
+    }
+
+    if (!isValidFilename(file.filename)) {
+      return NextResponse.json(
+        { error: `Invalid filename: ${file.filename} contains path-unsafe characters` },
         { status: 400 },
       );
     }

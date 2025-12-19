@@ -120,24 +120,25 @@ export class JobsRepository {
    * Recovers stale jobs that have been stuck in in_progress status.
    * Jobs older than the threshold are reset to pending for retry.
    * Only recovers jobs with a valid started_at timestamp.
+   * 
+   * Increments attempts counter to prevent infinite retry loops.
+   * Jobs exceeding maxAttempts are marked as failed instead of pending.
    *
-   * @param filters - Filter criteria including type, organizationId, and staleThresholdMs.
-   * @returns Number of jobs recovered.
+   * @param filters - Filter criteria including type, organizationId, staleThresholdMs, and maxAttempts.
+   * @returns Number of jobs recovered (reset to pending, not failed).
    */
   async recoverStaleJobs(filters: {
     type: string;
     organizationId: string;
     staleThresholdMs: number;
+    maxAttempts: number;
   }): Promise<number> {
     const staleThreshold = new Date(Date.now() - filters.staleThresholdMs);
 
-    const result = await db
-      .update(jobs)
-      .set({
-        status: "pending",
-        error: "Job timed out - recovered for retry",
-        updated_at: new Date(),
-      })
+    // First, find all stale jobs
+    const staleJobs = await db
+      .select()
+      .from(jobs)
       .where(
         and(
           eq(jobs.type, filters.type),
@@ -146,10 +147,33 @@ export class JobsRepository {
           sql`${jobs.started_at} IS NOT NULL`,
           lt(jobs.started_at, staleThreshold),
         ),
-      )
-      .returning();
+      );
 
-    return result.length;
+    let recoveredCount = 0;
+
+    // Process each stale job, incrementing attempts and failing if max reached
+    for (const job of staleJobs) {
+      const newAttempts = (job.attempts || 0) + 1;
+      const isFailed = newAttempts >= filters.maxAttempts;
+
+      await db
+        .update(jobs)
+        .set({
+          status: isFailed ? "failed" : "pending",
+          error: isFailed
+            ? `Job timed out ${newAttempts} times - max attempts reached`
+            : `Job timed out - recovered for retry (attempt ${newAttempts}/${filters.maxAttempts})`,
+          attempts: newAttempts,
+          updated_at: new Date(),
+        })
+        .where(eq(jobs.id, job.id));
+
+      if (!isFailed) {
+        recoveredCount++;
+      }
+    }
+
+    return recoveredCount;
   }
 
   /**
