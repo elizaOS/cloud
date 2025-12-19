@@ -62,8 +62,6 @@ interface Agent {
 interface AgentsSectionProps {
   agents: Agent[];
   className?: string;
-  onAgentDeleted?: () => void;
-
 }
 
 export function AgentsSection({ agents, className }: AgentsSectionProps) {
@@ -156,8 +154,6 @@ function GettingStartedSection() {
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
-
-
 
   return (
     <div className="relative overflow-hidden border border-white/10 bg-gradient-to-br from-[#FF5800]/5 via-black/40 to-purple-900/10 p-6">
@@ -365,7 +361,7 @@ function AgentCard({ agent }: { agent: Agent }) {
 
         <div className="w-full">
           <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
-            <DropdownMenuTrigger className="absolute select-none right-0 m-2 flex items-center justify-center h-8 w-8 rounded-md bg-none backdrop-blur-sm hover:bg-black/70 transition-colors">
+            <DropdownMenuTrigger className="absolute select-none right-0 m-2 flex items-center justify-center h-8 w-8 rounded-md bg-transparent backdrop-blur-sm hover:bg-black/70 transition-colors">
               <MoreHorizontal className="h-4 w-4 text-white" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-40">
