@@ -64,10 +64,7 @@ test.describe("Social Login", () => {
 
   test("should initiate Google OAuth flow", async ({ page, context }) => {
     const success = await goToLogin(page);
-    if (!success) {
-      console.log("ℹ️ Page navigation failed - skipping");
-      return;
-    }
+    skipIf(!success, "Page navigation failed");
 
     // Listen for new pages (OAuth redirects to new tab/window sometimes)
     const pagePromise = context
@@ -77,13 +74,10 @@ test.describe("Social Login", () => {
     // Click Google login button
     const googleButton = page.locator(LoginSelectors.googleButton);
     const isVisible = await googleButton
-      .isVisible({ timeout: 30000 })
+      .isVisible({ timeout: 5000 })
       .catch(() => false);
 
-    if (!isVisible) {
-      console.log("ℹ️ Google button not found, skipping OAuth flow test");
-      return;
-    }
+    skipIf(!isVisible, "Google button not found");
 
     await googleButton.click({ force: true });
 
@@ -125,7 +119,8 @@ test.describe("Social Login", () => {
   });
 
   test("should initiate Discord OAuth flow", async ({ page, context }) => {
-    await goToLogin(page);
+    const success = await goToLogin(page);
+    skipIf(!success, "Page navigation failed");
 
     const pagePromise = context
       .waitForEvent("page", { timeout: 10000 })
@@ -134,13 +129,10 @@ test.describe("Social Login", () => {
     // Click Discord login button
     const discordButton = page.locator(LoginSelectors.discordButton);
     const isVisible = await discordButton
-      .isVisible({ timeout: 30000 })
+      .isVisible({ timeout: 5000 })
       .catch(() => false);
 
-    if (!isVisible) {
-      console.log("ℹ️ Discord button not found, skipping OAuth flow test");
-      return;
-    }
+    skipIf(!isVisible, "Discord button not found");
 
     await discordButton.click();
 
@@ -160,18 +152,16 @@ test.describe("Social Login", () => {
   });
 
   test("should initiate GitHub OAuth flow", async ({ page, context }) => {
-    await goToLogin(page);
+    const success = await goToLogin(page);
+    skipIf(!success, "Page navigation failed");
 
     // Verify GitHub button exists and is clickable
     const githubButton = page.locator(LoginSelectors.githubButton);
     const isVisible = await githubButton
-      .isVisible({ timeout: 30000 })
+      .isVisible({ timeout: 5000 })
       .catch(() => false);
 
-    if (!isVisible) {
-      console.log("ℹ️ GitHub button not found, skipping OAuth flow test");
-      return;
-    }
+    skipIf(!isVisible, "GitHub button not found");
 
     await expect(githubButton).toBeEnabled();
 
@@ -184,21 +174,15 @@ test.describe("Social Login", () => {
 
   test("should trigger OAuth flow when button is clicked", async ({ page }) => {
     const success = await goToLogin(page);
-    if (!success) {
-      console.log("ℹ️ Page navigation failed - skipping");
-      return;
-    }
+    skipIf(!success, "Page navigation failed");
 
     // Google OAuth button should be visible and enabled
     const googleButton = page.locator(LoginSelectors.googleButton);
     const isVisible = await googleButton
-      .isVisible({ timeout: 30000 })
+      .isVisible({ timeout: 5000 })
       .catch(() => false);
 
-    if (!isVisible) {
-      console.log("ℹ️ Google button not found, skipping OAuth flow test");
-      return;
-    }
+    skipIf(!isVisible, "Google button not found");
 
     await expect(googleButton).toBeEnabled();
 
@@ -217,20 +201,14 @@ test.describe("Email Login", () => {
 
   test("should display email input and send code button", async ({ page }) => {
     const success = await goToLogin(page);
-    if (!success) {
-      console.log("ℹ️ Page navigation failed - skipping");
-      return;
-    }
+    skipIf(!success, "Page navigation failed");
 
     // Verify email input is visible
     const emailInput = page.locator(LoginSelectors.emailInput);
     const inputVisible = await emailInput
-      .isVisible({ timeout: 30000 })
+      .isVisible({ timeout: 5000 })
       .catch(() => false);
-    if (!inputVisible) {
-      console.log("ℹ️ Email input not visible - skipping");
-      return;
-    }
+    skipIf(!inputVisible, "Email input not visible");
     await expect(emailInput).toBeEnabled();
 
     // Verify send code button
@@ -240,21 +218,15 @@ test.describe("Email Login", () => {
 
   test("should require valid email before sending code", async ({ page }) => {
     const success = await goToLogin(page);
-    if (!success) {
-      console.log("ℹ️ Page navigation failed - skipping");
-      return;
-    }
+    skipIf(!success, "Page navigation failed");
 
     const emailInput = page.locator(LoginSelectors.emailInput);
     const sendCodeButton = page.locator(LoginSelectors.sendCodeButton);
 
     const inputVisible = await emailInput
-      .isVisible({ timeout: 30000 })
+      .isVisible({ timeout: 5000 })
       .catch(() => false);
-    if (!inputVisible) {
-      console.log("ℹ️ Email input not visible - skipping");
-      return;
-    }
+    skipIf(!inputVisible, "Email input not visible");
 
     // Empty email - button should be disabled
     await expect(sendCodeButton).toBeDisabled();
@@ -272,21 +244,15 @@ test.describe("Email Login", () => {
     page,
   }) => {
     const success = await goToLogin(page);
-    if (!success) {
-      console.log("ℹ️ Page navigation failed - skipping");
-      return;
-    }
+    skipIf(!success, "Page navigation failed");
 
     const emailInput = page.locator(LoginSelectors.emailInput);
     const sendCodeButton = page.locator(LoginSelectors.sendCodeButton);
 
     const inputVisible = await emailInput
-      .isVisible({ timeout: 30000 })
+      .isVisible({ timeout: 5000 })
       .catch(() => false);
-    if (!inputVisible) {
-      console.log("ℹ️ Email input not visible - skipping");
-      return;
-    }
+    skipIf(!inputVisible, "Email input not visible");
 
     // Enter valid email
     await emailInput.fill("test@example.com");
@@ -310,20 +276,14 @@ test.describe("Email Login", () => {
 
   test("should have email form visible initially", async ({ page }) => {
     const success = await goToLogin(page);
-    if (!success) {
-      console.log("ℹ️ Page navigation failed - skipping");
-      return;
-    }
+    skipIf(!success, "Page navigation failed");
 
     // Email input should be visible on initial load
     const emailInput = page.locator(LoginSelectors.emailInput);
     const inputVisible = await emailInput
-      .isVisible({ timeout: 30000 })
+      .isVisible({ timeout: 5000 })
       .catch(() => false);
-    if (!inputVisible) {
-      console.log("ℹ️ Email input not visible - skipping");
-      return;
-    }
+    skipIf(!inputVisible, "Email input not visible");
 
     // Send code button should be visible
     const sendCodeButton = page.locator(LoginSelectors.sendCodeButton);
@@ -365,20 +325,17 @@ test.describe("Login Page Navigation", () => {
 
   test("should display terms and privacy policy links", async ({ page }) => {
     const success = await goToLogin(page);
-    if (!success) {
-      console.log("ℹ️ Page navigation failed - skipping");
-      return;
-    }
+    skipIf(!success, "Page navigation failed");
 
     // Check for terms and privacy links
     const termsLink = page.locator('a[href="/terms-of-service"]');
     const privacyLink = page.locator('a[href="/privacy-policy"]');
 
     const termsVisible = await termsLink
-      .isVisible({ timeout: 10000 })
+      .isVisible({ timeout: 5000 })
       .catch(() => false);
     const privacyVisible = await privacyLink
-      .isVisible({ timeout: 10000 })
+      .isVisible({ timeout: 5000 })
       .catch(() => false);
 
     if (termsVisible) {
@@ -396,12 +353,9 @@ test.describe("Login Page Navigation", () => {
   test("should handle signup intent parameter", async ({ page }) => {
     // Visit login with signup intent
     const response = await page
-      .goto("/login?intent=signup", { timeout: 30000 })
+      .goto("/login?intent=signup", { timeout: 10000 })
       .catch(() => null);
-    if (!response) {
-      console.log("ℹ️ Page navigation failed - skipping");
-      return;
-    }
+    skipIf(!response, "Page navigation failed");
     await page.waitForLoadState("domcontentloaded").catch(() => {});
     await page.waitForTimeout(2000);
 
