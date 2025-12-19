@@ -32,8 +32,8 @@ export function MyAgentsClient() {
     try {
       const response = await fetch("/api/my-agents/characters");
       if (!response.ok) throw new Error("Failed to fetch characters");
-      const data = await response.json();
-      setCharacters(data.characters || []);
+      const result = await response.json();
+      setCharacters(result.data?.characters || []);
     } catch (error) {
       logger.error("[MyAgents] Failed to fetch characters:", error);
       toast.error("Failed to load your agents");
