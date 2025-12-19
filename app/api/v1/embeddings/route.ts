@@ -2,7 +2,6 @@
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { creditsService } from "@/lib/services/credits";
 import { usageService } from "@/lib/services/usage";
-import { organizationsService } from "@/lib/services/organizations";
 import {
   calculateCost,
   getProviderFromModel,
@@ -106,24 +105,11 @@ async function handlePOST(req: NextRequest) {
     const requiredCredits = Math.ceil(estimatedCost * 1.5);
 
     // Check credits before making API call
-    const org = await organizationsService.getById(user.organization_id!);
-    if (!org) {
-      return Response.json(
-        {
-          error: {
-            message: "Organization not found",
-            type: "invalid_request_error",
-            code: "organization_not_found",
-          },
-        },
-        { status: 404 },
-      );
-    }
-
+    // Use org data from auth (already fetched, avoids redundant DB call)
     const creditCheck = {
-      sufficient: Number(org.credit_balance) >= requiredCredits,
+      sufficient: Number(user.organization.credit_balance) >= requiredCredits,
       required: requiredCredits,
-      balance: Number(org.credit_balance),
+      balance: Number(user.organization.credit_balance),
     };
 
     // Check for x402 payment if credits insufficient

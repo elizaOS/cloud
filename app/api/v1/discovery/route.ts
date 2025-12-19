@@ -2,7 +2,7 @@
  * Discovery API
  *
  * Provides a single endpoint to discover services from both:
- * - Local Eliza Cloud marketplace (agents, MCPs, apps)
+ * - Local Eliza Cloud agents and MCPs
  * - External ERC-8004 registry (decentralized agents, MCPs)
  *
  * This enables agents to find and interact with services across
@@ -15,7 +15,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { agent0Service } from "@/lib/services/agent0";
 import { userMcpsService } from "@/lib/services/user-mcps";
-import { characterMarketplaceService } from "@/lib/services/characters/marketplace";
+import { charactersService } from "@/lib/services/characters";
 import { cache } from "@/lib/cache/client";
 import { CacheKeys, CacheStaleTTL } from "@/lib/cache/keys";
 import { createHash } from "crypto";
@@ -234,7 +234,7 @@ export async function GET(request: NextRequest) {
 // ============================================================================
 
 /**
- * Fetch local agents from the marketplace
+ * Fetch local public agents
  */
 async function fetchLocalAgents(
   params: z.infer<typeof querySchema>,
@@ -242,26 +242,39 @@ async function fetchLocalAgents(
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
 
   try {
-    const result = await characterMarketplaceService.searchCharactersPublic({
-      filters: {
-        search: params.query,
-        category: params.categories?.[0],
-      },
-      sortOptions: { field: "popularity_score", direction: "desc" },
-      pagination: {
-        limit: params.limit,
-        page: Math.floor(params.offset / params.limit) + 1,
-      },
-      includeStats: false,
-    });
+    // Get all public characters
+    let characters = await charactersService.listPublic();
 
-    return result.characters.map((char): DiscoveredService => {
+    // Apply basic filtering
+    if (params.query) {
+      const query = params.query.toLowerCase();
+      characters = characters.filter(
+        (char) =>
+          char.name.toLowerCase().includes(query) ||
+          (typeof char.bio === "string" && char.bio.toLowerCase().includes(query)) ||
+          (Array.isArray(char.bio) &&
+            char.bio.some((b) => b.toLowerCase().includes(query)))
+      );
+    }
+
+    if (params.categories?.length) {
+      characters = characters.filter((char) =>
+        params.categories?.includes(char.category ?? "")
+      );
+    }
+
+    // Apply pagination
+    const offset = params.offset ?? 0;
+    const limit = params.limit ?? 20;
+    characters = characters.slice(offset, offset + limit);
+
+    return characters.map((char): DiscoveredService => {
       const bio = Array.isArray(char.bio) ? char.bio.join(" ") : char.bio;
 
       return {
         id: char.id,
         name: char.name,
-        description: bio || "",
+        description: bio,
         type: "agent",
         source: "local",
         image: char.avatar_url ?? undefined,
@@ -378,7 +391,7 @@ async function fetchERC8004Services(
 /**
  * Deduplicate services by preferring local over ERC-8004
  *
- * When a service exists in both local marketplace and ERC-8004 registry,
+ * When a service exists in both local and ERC-8004 registry,
  * we prefer the local version since it has richer metadata.
  *
  * Deduplication is based on:

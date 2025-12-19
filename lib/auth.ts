@@ -9,15 +9,36 @@ import type { Organization } from "@/db/schemas/organizations";
 import { cache } from "react";
 import { cookies } from "next/headers";
 import type { NextRequest } from "next/server";
+import crypto from "crypto";
+import { cache as redisCache } from "@/lib/cache/client";
+import { CacheKeys, CacheTTL } from "@/lib/cache/keys";
 
 // Re-export Organization type for convenience
 export type { Organization };
+
+/**
+ * Invalidate user session cache (call when user/org data changes)
+ * @param sessionToken - The session token to invalidate cache for
+ */
+export async function invalidateUserSessionCache(sessionToken: string): Promise<void> {
+  const tokenHash = hashToken(sessionToken);
+  const cacheKey = CacheKeys.session.user(tokenHash);
+  await redisCache.del(cacheKey);
+  logger.debug("[AUTH] Invalidated user session cache");
+}
 
 // Initialize Privy client
 const privyClient = new PrivyClient(
   process.env.NEXT_PUBLIC_PRIVY_APP_ID!,
   process.env.PRIVY_APP_SECRET!,
 );
+
+/**
+ * Hash a token for use as cache key (never store raw tokens)
+ */
+function hashToken(token: string): string {
+  return crypto.createHash("sha256").update(token).digest("hex").substring(0, 32);
+}
 
 /**
  * Ensure user has a default API key for programmatic access
@@ -67,26 +88,22 @@ export type AuthResult = {
 /**
  * Get the current authenticated user from Privy token
  *
- * Flow:
- * 1. Check Redis cache for session data (fast path)
- * 2. If cache miss, verify Privy token from cookies
- * 3. Look up user in database by Privy ID
- * 4. If not found, fetch full user data from Privy API (just-in-time sync)
- * 5. Create user and organization in database
- * 6. Cache the session data in Redis for subsequent requests
+ * Performance optimized with Redis caching:
+ * 1. Check Redis cache first (avoids Privy API call AND DB call)
+ * 2. On cache miss: verify with Privy, fetch from DB, cache result
+ * 3. Session tracking is non-blocking to not slow down the response
+ *
+ * Flow (on cache miss):
+ * 1. Verify Privy token from cookies
+ * 2. Look up user in database by Privy ID
+ * 3. If not found, fetch full user data from Privy API (just-in-time sync)
+ * 4. Cache the user data in Redis
+ * 5. Update session tracking (non-blocking)
  *
  * This handles the race condition where webhooks haven't fired yet.
  */
 export const getCurrentUser = cache(
   async (): Promise<UserWithOrganization | null> => {
-    // Import session cache utilities
-    const {
-      getCachedSessionUser,
-      cacheSessionUser,
-      getCachedSessionValidation,
-      cacheSessionValidation,
-    } = await import("@/lib/auth/session-cache");
-
     try {
       // Get the auth token from cookies
       const cookieStore = await cookies();
@@ -96,45 +113,40 @@ export const getCurrentUser = cache(
         return null;
       }
 
-      // FAST PATH: Check Redis cache for already-validated session + user data
-      const cachedUser = await getCachedSessionUser(authToken.value);
+      const tokenHash = hashToken(authToken.value);
+      const cacheKey = CacheKeys.session.user(tokenHash);
+
+      // Check Redis cache first - avoids both Privy API AND DB calls
+      const cachedUser = await redisCache.get<UserWithOrganization>(cacheKey);
       if (cachedUser) {
-        logger.debug("[AUTH] Using cached user data", { userId: cachedUser.id });
+        logger.debug("[AUTH] Cache hit for user session");
+        
+        // Update session tracking in background (non-blocking)
+        if (cachedUser.organization_id) {
+          void trackSessionActivity(cachedUser.id, cachedUser.organization_id, authToken.value);
+        }
+        
         return cachedUser;
       }
 
-      // Check if we have cached session validation (Privy ID)
-      const cachedSession = await getCachedSessionValidation(authToken.value);
-      let privyUserId: string | null = null;
+      logger.debug("[AUTH] Cache miss, verifying with Privy");
 
-      if (cachedSession?.isValid) {
-        // Use cached Privy validation result
-        privyUserId = cachedSession.privyId;
-        logger.debug("[AUTH] Using cached session validation", {
-          privyId: privyUserId,
-        });
-      } else {
-        // SLOW PATH: Verify the token with Privy (network call)
-        const verifiedClaims = await privyClient.verifyAuthToken(
-          authToken.value,
-        );
+      // Verify the token with Privy (this is the expensive network call)
+      const verifiedClaims = await privyClient.verifyAuthToken(authToken.value);
 
-        if (!verifiedClaims) {
-          return null;
-        }
-
-        privyUserId = verifiedClaims.userId;
+      if (!verifiedClaims) {
+        return null;
       }
 
       // Get user from database by Privy ID
-      let user = await usersService.getByPrivyId(privyUserId);
+      let user = await usersService.getByPrivyId(verifiedClaims.userId);
 
       // Just-in-time sync: If user doesn't exist, fetch from Privy and create
       // This handles race conditions where webhooks haven't fired yet
       if (!user) {
-        logger.debug(
+        logger.info(
           "[AUTH] User not in DB, starting JIT sync for:",
-          privyUserId,
+          verifiedClaims.userId,
         );
 
         try {
@@ -147,7 +159,7 @@ export const getCurrentUser = cache(
             try {
               privyUser = await privyClient.getUser({ idToken: idToken.value });
             } catch {
-              logger.debug(
+              logger.warn(
                 "[AUTH] privy-id-token method failed, will fallback to userId",
               );
             }
@@ -156,12 +168,12 @@ export const getCurrentUser = cache(
           // Fallback: use userId directly (counts against rate limits)
           if (!privyUser) {
             logger.debug("[AUTH] Using userId for user lookup (fallback)");
-            privyUser = await privyClient.getUser(privyUserId);
+            privyUser = await privyClient.getUser(verifiedClaims.userId);
           }
 
           if (privyUser) {
             user = await syncUserFromPrivy(privyUser);
-            logger.info("[AUTH] JIT sync complete", {
+            logger.info("[AUTH] JIT sync complete:", {
               userId: user.id,
               orgId: user.organization_id,
             });
@@ -176,57 +188,70 @@ export const getCurrentUser = cache(
         }
       }
 
-      // Create or get user session for authenticated users with organizations
-      if (user && user.organization_id) {
-        await userSessionsService.getOrCreateSession({
-          user_id: user.id,
-          organization_id: user.organization_id,
-          session_token: authToken.value,
-        });
+      if (!user) {
+        return null;
+      }
 
-        // Ensure user has an API key for agent runtime (fire-and-forget)
-        // This handles existing users who registered before API key auto-generation
+      // Cache the user data in Redis (5 min TTL)
+      await redisCache.set(cacheKey, user, CacheTTL.session.user);
+      logger.debug("[AUTH] Cached user session data");
+
+      // Handle session tracking and API key in background (non-blocking)
+      if (user.organization_id) {
+        void trackSessionActivity(user.id, user.organization_id, authToken.value);
         void ensureUserHasApiKey(user.id, user.organization_id);
-
-        // Cache session data in Redis for subsequent requests (fire-and-forget)
-        void Promise.all([
-          cacheSessionValidation(authToken.value, user.id, privyUserId),
-          cacheSessionUser(authToken.value, user),
-        ]);
-      } else if (user && !user.organization_id) {
+      } else {
         logger.error("[AUTH] User missing organization_id:", user.id);
       }
 
-      return user ?? null;
+      return user;
     } catch (error) {
-      // Log the full error for better debugging - Drizzle/Neon errors often have
-      // the SQL query in message but actual error in cause or other properties
-      if (error instanceof Error) {
-        logger.error("[AUTH] ✗ Error:", error.message);
-        // Log additional error properties that might contain the real database error
-        const dbError = error as Error & {
-          cause?: unknown;
-          code?: string;
-          detail?: string;
-          constraint?: string;
-        };
-        if (dbError.cause) {
-          logger.error("[AUTH] ✗ Cause:", dbError.cause);
-        }
-        if (dbError.code || dbError.detail) {
-          logger.error("[AUTH] ✗ DB Error:", {
-            code: dbError.code,
-            detail: dbError.detail,
-            constraint: dbError.constraint,
-          });
-        }
-      } else {
-        logger.error("[AUTH] ✗ Error:", error);
-      }
+      logger.error(
+        "[AUTH] Error:",
+        error instanceof Error ? error.message : error,
+      );
       return null;
     }
   },
 );
+
+/**
+ * Track session activity in background (non-blocking, debounced)
+ * Uses Redis to debounce writes - only writes to DB every 60 seconds per session
+ */
+async function trackSessionActivity(
+  userId: string,
+  organizationId: string,
+  sessionToken: string,
+): Promise<void> {
+  try {
+    const tokenHash = hashToken(sessionToken);
+    const debounceKey = `session:debounce:${tokenHash}`;
+    
+    // Check if we've tracked this session recently (within 60 seconds)
+    const recentlyTracked = await redisCache.get<boolean>(debounceKey);
+    if (recentlyTracked) {
+      // Skip DB write - already tracked recently
+      return;
+    }
+
+    // Mark as tracked for next 60 seconds
+    await redisCache.set(debounceKey, true, 60);
+
+    // Now do the actual DB upsert
+    await userSessionsService.getOrCreateSession({
+      user_id: userId,
+      organization_id: organizationId,
+      session_token: sessionToken,
+    });
+  } catch (error) {
+    // Don't let session tracking failures affect the main request
+    logger.warn(
+      "[AUTH] Session tracking failed:",
+      error instanceof Error ? error.message : error,
+    );
+  }
+}
 
 /**
  * Require authentication - throws error if not authenticated

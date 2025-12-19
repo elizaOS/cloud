@@ -71,7 +71,7 @@ export interface MonetizationSettings {
 }
 
 /**
- * Extended character with marketplace and display metadata.
+ * Extended character with display metadata.
  */
 export interface ExtendedCharacter extends ElizaCharacter {
   id: string;

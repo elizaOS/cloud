@@ -29,7 +29,7 @@ interface SidebarNavigationSectionProps {
 export function SidebarNavigationSection({
   section,
 }: SidebarNavigationSectionProps) {
-  // Use centralized admin hook with request deduplication
+  // Use the centralized admin hook with request deduplication
   const { isAdmin } = useAdmin();
 
   // Generate a storage key based on section title

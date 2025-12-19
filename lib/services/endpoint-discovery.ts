@@ -8,7 +8,6 @@
 import { AVAILABLE_SKILLS } from "@/lib/api/a2a/handlers";
 import { agent0Service } from "@/lib/services/agent0";
 import { userMcpsService } from "@/lib/services/user-mcps";
-import { characterMarketplaceService } from "@/lib/services/characters/marketplace";
 import { getDefaultNetwork, CHAIN_IDS } from "@/lib/config/erc8004";
 import { logger } from "@/lib/utils/logger";
 import type { DiscoveredService } from "@/lib/types/erc8004";

@@ -17,7 +17,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { agent0Service } from "@/lib/services/agent0";
 import { userMcpsService } from "@/lib/services/user-mcps";
-import { characterMarketplaceService } from "@/lib/services/characters/marketplace";
+import { charactersService } from "@/lib/services/characters";
 import { cache } from "@/lib/cache/client";
 import { CacheTTL } from "@/lib/cache/keys";
 import { logger } from "@/lib/utils/logger";
@@ -260,18 +260,25 @@ export async function GET(request: NextRequest) {
       try {
         // Local agents
         if (!params.types || params.types.includes("agent")) {
-          const result =
-            await characterMarketplaceService.searchCharactersPublic({
-              filters: {
-                search: params.query,
-                category: params.categories?.[0],
-              },
-              sortOptions: { field: "popularity_score", direction: "desc" },
-              pagination: { limit: 100, page: 1 },
-              includeStats: false,
-            });
+          let characters = await charactersService.listPublic();
+          
+          // Apply filters
+          if (params.query) {
+            const query = params.query.toLowerCase();
+            characters = characters.filter(char => 
+              char.name.toLowerCase().includes(query) ||
+              (typeof char.bio === "string" && char.bio.toLowerCase().includes(query)) ||
+              (Array.isArray(char.bio) && char.bio.some(b => b.toLowerCase().includes(query)))
+            );
+          }
+          if (params.categories?.[0]) {
+            characters = characters.filter(char => char.category === params.categories![0]);
+          }
+          
+          // Limit results
+          characters = characters.slice(0, 100);
 
-          for (const char of result.characters) {
+          for (const char of characters) {
             const bio = Array.isArray(char.bio) ? char.bio.join(" ") : char.bio;
 
             allServices.push({

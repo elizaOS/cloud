@@ -32,7 +32,7 @@ import {
   orgCharacters,
 } from "@/lib/eliza/characters/org";
 import type { Character } from "@elizaos/core";
-import { eventEmitter } from "../events/event-emitter";
+import { eventEmitter } from "./events/event-emitter";
 
 // =============================================================================
 // TYPES

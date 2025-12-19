@@ -9,7 +9,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { agent0Service } from "@/lib/services/agent0";
 import { userMcpsService } from "@/lib/services/user-mcps";
-import { characterMarketplaceService } from "@/lib/services/characters/marketplace";
+import { charactersService } from "@/lib/services/characters";
 import { cache } from "@/lib/cache/client";
 import { CacheTTL } from "@/lib/cache/keys";
 import {
@@ -99,13 +99,7 @@ export async function GET(_request: NextRequest) {
 
     // Try to fetch local data
     try {
-      const result = await characterMarketplaceService.searchCharactersPublic({
-        filters: {},
-        sortOptions: { field: "popularity_score", direction: "desc" },
-        pagination: { limit: 1000, page: 1 },
-        includeStats: false,
-      });
-      characters = result.characters;
+      characters = await charactersService.listPublic();
       mcps = await userMcpsService.listPublic({ limit: 1000 });
     } catch {
       // Database unavailable - continue with ERC-8004 only

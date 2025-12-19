@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
 
+// Auth check requires cookies which makes this dynamic
+// MCP server list is hardcoded but auth is dynamic
 export const dynamic = "force-dynamic";
 
 /**

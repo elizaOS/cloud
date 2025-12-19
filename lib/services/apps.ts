@@ -12,7 +12,7 @@ import {
 import { apiKeysService } from "./api-keys";
 import { logger } from "@/lib/utils/logger";
 import crypto from "crypto";
-import { eventEmitter } from "../events/event-emitter";
+import { eventEmitter } from "./events/event-emitter";
 
 /**
  * Service for app CRUD operations and app management.

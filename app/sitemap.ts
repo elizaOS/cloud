@@ -1,16 +1,12 @@
 import type { MetadataRoute } from "next";
-import { logger } from "@/lib/utils/logger";
-import { db } from "@/db/client";
-import { userCharacters } from "@/db/schemas/user-characters";
-import { eq } from "drizzle-orm";
 
 /**
  * Generates the sitemap for search engines.
- * Includes static pages and up to 1000 public marketplace characters.
+ * Includes static pages for the application.
  *
  * @returns Sitemap configuration with URLs, priorities, and change frequencies.
  */
-export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+export default function sitemap(): MetadataRoute.Sitemap {
   // Get base URL with automatic Vercel URL detection as fallback
   const baseUrl =
     process.env.NEXT_PUBLIC_APP_URL ||
@@ -18,18 +14,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       ? `https://${process.env.VERCEL_URL}`
       : "http://localhost:3000");
 
-  const staticPages: MetadataRoute.Sitemap = [
+  return [
     {
       url: baseUrl,
       lastModified: new Date(),
       changeFrequency: "daily",
       priority: 1.0,
-    },
-    {
-      url: `${baseUrl}/marketplace`,
-      lastModified: new Date(),
-      changeFrequency: "daily",
-      priority: 0.9,
     },
     {
       url: `${baseUrl}/login`,
@@ -98,29 +88,4 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.6,
     },
   ];
-
-  try {
-    const publicCharacters = await db
-      .select({
-        id: userCharacters.id,
-        updated_at: userCharacters.updated_at,
-      })
-      .from(userCharacters)
-      .where(eq(userCharacters.is_public, true))
-      .limit(1000);
-
-    const characterPages: MetadataRoute.Sitemap = publicCharacters.map(
-      (character) => ({
-        url: `${baseUrl}/marketplace/characters/${character.id}`,
-        lastModified: character.updated_at,
-        changeFrequency: "weekly" as const,
-        priority: 0.7,
-      }),
-    );
-
-    return [...staticPages, ...characterPages];
-  } catch (error) {
-    logger.error("Error generating sitemap:", error);
-    return staticPages;
-  }
 }

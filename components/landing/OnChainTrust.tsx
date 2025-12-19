@@ -8,11 +8,9 @@
 import { Button } from "@/components/ui/button";
 import { ArrowUpRight, Check } from "lucide-react";
 import { CornerBrackets, SectionLabel, BrandCard } from "@/components/brand";
-import MicropaymentNetwork from "./MicropaymentNetwork";
+import { MicropaymentNetworkLazy } from "./MicropaymentNetworkLazy";
 import Image from "next/image";
-import { ReactFlowProvider } from "@xyflow/react";
 import { motion } from "framer-motion";
-
 
 export default function OnChainTrust() {
   const mockCardData = [
@@ -280,9 +278,7 @@ export default function OnChainTrust() {
             className="flex min-h-[400px] items-center justify-center rounded-sm"
           >
             <div className="w-full">
-              <ReactFlowProvider>
-                <MicropaymentNetwork />
-              </ReactFlowProvider>
+              <MicropaymentNetworkLazy />
             </div>
           </BrandCard>
         </div>

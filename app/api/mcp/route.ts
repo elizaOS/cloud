@@ -21,7 +21,6 @@ type AuthResultWithOrg = AuthResult & {
 import { checkRateLimitRedis } from "@/lib/middleware/rate-limit-redis";
 import { creditsService } from "@/lib/services/credits";
 import { usageService } from "@/lib/services/usage";
-import { organizationsService } from "@/lib/services/organizations";
 import { generationsService } from "@/lib/services/generations";
 import { conversationsService } from "@/lib/services/conversations";
 import { memoryService } from "@/lib/services/memory";
@@ -41,7 +40,6 @@ import { redeemableEarningsService } from "@/lib/services/redeemable-earnings";
 import { agentBudgetService } from "@/lib/services/agent-budgets";
 import { analyticsService } from "@/lib/services/analytics";
 import { getElevenLabsService } from "@/lib/services/elevenlabs";
-import { characterMarketplaceService } from "@/lib/services/characters/marketplace";
 import {
   storageService,
   calculateUploadCost,
@@ -127,23 +125,8 @@ const mcpHandler = createMcpHandler(
         try {
           const { user } = getAuthContext();
 
-          const org = await organizationsService.getById(user.organization_id!);
-
-          if (!org) {
-            return {
-              content: [
-                {
-                  type: "text" as const,
-                  text: JSON.stringify(
-                    { error: "Organization not found" },
-                    null,
-                    2,
-                  ),
-                },
-              ],
-              isError: true,
-            };
-          }
+          // Use org data from auth context (already fetched, avoids redundant DB call)
+          const org = user.organization;
 
           const response: {
             balance: number;
@@ -378,22 +361,8 @@ const mcpHandler = createMcpHandler(
 
           const provider = getProviderFromModel(model);
 
-          const org = await organizationsService.getById(user.organization_id!);
-          if (!org) {
-            return {
-              content: [
-                {
-                  type: "text" as const,
-                  text: JSON.stringify(
-                    { error: "Organization not found" },
-                    null,
-                    2,
-                  ),
-                },
-              ],
-              isError: true,
-            };
-          }
+          // Use org data from auth context (already fetched, avoids redundant DB call)
+          const org = user.organization;
 
           // Estimate cost before generation (returns integer credits)
           const estimatedCost = await estimateRequestCost(model, [
@@ -687,22 +656,8 @@ const mcpHandler = createMcpHandler(
             },
           );
 
-          const org = await organizationsService.getById(user.organization_id!);
-          if (!org) {
-            return {
-              content: [
-                {
-                  type: "text" as const,
-                  text: JSON.stringify(
-                    { error: "Organization not found" },
-                    null,
-                    2,
-                  ),
-                },
-              ],
-              isError: true,
-            };
-          }
+          // Use org data from auth context (already fetched, avoids redundant DB call)
+          const org = user.organization;
 
           // CRITICAL FIX: Deduct credits BEFORE generation to prevent race conditions
           // The deductCredits method uses database-level locking (SELECT FOR UPDATE)
@@ -1026,22 +981,8 @@ const mcpHandler = createMcpHandler(
         try {
           const { user } = getAuthContext();
 
-          const org = await organizationsService.getById(user.organization_id!);
-          if (!org) {
-            return {
-              content: [
-                {
-                  type: "text" as const,
-                  text: JSON.stringify(
-                    { error: "Organization not found" },
-                    null,
-                    2,
-                  ),
-                },
-              ],
-              isError: true,
-            };
-          }
+          // Use org data from auth context (already fetched, avoids redundant DB call)
+          const org = user.organization;
 
           if (!roomId) {
             return {
@@ -1296,22 +1237,8 @@ const mcpHandler = createMcpHandler(
         try {
           const { user } = getAuthContext();
 
-          const org = await organizationsService.getById(user.organization_id!);
-          if (!org) {
-            return {
-              content: [
-                {
-                  type: "text" as const,
-                  text: JSON.stringify(
-                    { error: "Organization not found" },
-                    null,
-                    2,
-                  ),
-                },
-              ],
-              isError: true,
-            };
-          }
+          // Use org data from auth context (already fetched, avoids redundant DB call)
+          const org = user.organization;
 
           // CRITICAL FIX: Deduct credits BEFORE retrieval to prevent race conditions
           // Estimate max cost upfront, then refund difference if actual cost is lower
@@ -1577,22 +1504,8 @@ const mcpHandler = createMcpHandler(
         try {
           const { user } = getAuthContext();
 
-          const org = await organizationsService.getById(user.organization_id!);
-          if (!org) {
-            return {
-              content: [
-                {
-                  type: "text" as const,
-                  text: JSON.stringify(
-                    { error: "Organization not found" },
-                    null,
-                    2,
-                  ),
-                },
-              ],
-              isError: true,
-            };
-          }
+          // Use org data from auth context (already fetched, avoids redundant DB call)
+          const org = user.organization;
 
           if (Number(org.credit_balance) < CONTEXT_RETRIEVAL_COST) {
             return {
@@ -1749,22 +1662,8 @@ const mcpHandler = createMcpHandler(
         try {
           const { user } = getAuthContext();
 
-          const org = await organizationsService.getById(user.organization_id!);
-          if (!org) {
-            return {
-              content: [
-                {
-                  type: "text" as const,
-                  text: JSON.stringify(
-                    { error: "Organization not found" },
-                    null,
-                    2,
-                  ),
-                },
-              ],
-              isError: true,
-            };
-          }
+          // Use org data from auth context (already fetched, avoids redundant DB call)
+          const org = user.organization;
 
           if (Number(org.credit_balance) < CONVERSATION_CREATE_COST) {
             return {
@@ -1913,22 +1812,8 @@ const mcpHandler = createMcpHandler(
         try {
           const { user } = getAuthContext();
 
-          const org = await organizationsService.getById(user.organization_id!);
-          if (!org) {
-            return {
-              content: [
-                {
-                  type: "text" as const,
-                  text: JSON.stringify(
-                    { error: "Organization not found" },
-                    null,
-                    2,
-                  ),
-                },
-              ],
-              isError: true,
-            };
-          }
+          // Use org data from auth context (already fetched, avoids redundant DB call)
+          const org = user.organization;
 
           if (Number(org.credit_balance) < CONVERSATION_SEARCH_COST) {
             return {
@@ -2082,22 +1967,8 @@ const mcpHandler = createMcpHandler(
         try {
           const { user } = getAuthContext();
 
-          const org = await organizationsService.getById(user.organization_id!);
-          if (!org) {
-            return {
-              content: [
-                {
-                  type: "text" as const,
-                  text: JSON.stringify(
-                    { error: "Organization not found" },
-                    null,
-                    2,
-                  ),
-                },
-              ],
-              isError: true,
-            };
-          }
+          // Use org data from auth context (already fetched, avoids redundant DB call)
+          const org = user.organization;
 
           const estimatedCost = Math.min(
             CONVERSATION_SUMMARY_BASE_COST + Math.floor(lastN / 10),
@@ -2255,22 +2126,8 @@ const mcpHandler = createMcpHandler(
         try {
           const { user } = getAuthContext();
 
-          const org = await organizationsService.getById(user.organization_id!);
-          if (!org) {
-            return {
-              content: [
-                {
-                  type: "text" as const,
-                  text: JSON.stringify(
-                    { error: "Organization not found" },
-                    null,
-                    2,
-                  ),
-                },
-              ],
-              isError: true,
-            };
-          }
+          // Use org data from auth context (already fetched, avoids redundant DB call)
+          const org = user.organization;
 
           if (Number(org.credit_balance) < CONTEXT_OPTIMIZATION_COST) {
             return {
@@ -2415,22 +2272,8 @@ const mcpHandler = createMcpHandler(
         try {
           const { user } = getAuthContext();
 
-          const org = await organizationsService.getById(user.organization_id!);
-          if (!org) {
-            return {
-              content: [
-                {
-                  type: "text" as const,
-                  text: JSON.stringify(
-                    { error: "Organization not found" },
-                    null,
-                    2,
-                  ),
-                },
-              ],
-              isError: true,
-            };
-          }
+          // Use org data from auth context (already fetched, avoids redundant DB call)
+          const org = user.organization;
 
           if (Number(org.credit_balance) < CONVERSATION_EXPORT_COST) {
             return {
@@ -2578,22 +2421,8 @@ const mcpHandler = createMcpHandler(
         try {
           const { user } = getAuthContext();
 
-          const org = await organizationsService.getById(user.organization_id!);
-          if (!org) {
-            return {
-              content: [
-                {
-                  type: "text" as const,
-                  text: JSON.stringify(
-                    { error: "Organization not found" },
-                    null,
-                    2,
-                  ),
-                },
-              ],
-              isError: true,
-            };
-          }
+          // Use org data from auth context (already fetched, avoids redundant DB call)
+          const org = user.organization;
 
           if (Number(org.credit_balance) < CONVERSATION_CLONE_COST) {
             return {
@@ -2739,22 +2568,8 @@ const mcpHandler = createMcpHandler(
         try {
           const { user } = getAuthContext();
 
-          const org = await organizationsService.getById(user.organization_id!);
-          if (!org) {
-            return {
-              content: [
-                {
-                  type: "text" as const,
-                  text: JSON.stringify(
-                    { error: "Organization not found" },
-                    null,
-                    2,
-                  ),
-                },
-              ],
-              isError: true,
-            };
-          }
+          // Use org data from auth context (already fetched, avoids redundant DB call)
+          const org = user.organization;
 
           if (Number(org.credit_balance) < MEMORY_ANALYSIS_COST) {
             return {
@@ -2934,23 +2749,8 @@ const mcpHandler = createMcpHandler(
             },
           );
 
-          const org = await organizationsService.getById(user.organization_id!);
-
-          if (!org) {
-            return {
-              content: [
-                {
-                  type: "text" as const,
-                  text: JSON.stringify(
-                    { error: "Organization not found" },
-                    null,
-                    2,
-                  ),
-                },
-              ],
-              isError: true,
-            };
-          }
+          // Use org data from auth context (already fetched, avoids redundant DB call)
+          const org = user.organization;
 
           const estimatedInputTokens = Math.ceil(message.length / 4);
           const estimatedCost = Math.max(
@@ -5424,8 +5224,8 @@ const mcpHandler = createMcpHandler(
       async () => {
         try {
           const { user } = getAuthContext();
-          const org = await organizationsService.getById(user.organization_id!);
-          if (!org) throw new Error("Organization not found");
+          // Use org data from auth context (already fetched, avoids redundant DB call)
+          const org = user.organization;
 
           const redeemable = await redeemableEarningsService.getBalance(
             user.organization_id!,
@@ -5903,11 +5703,21 @@ const mcpHandler = createMcpHandler(
           // Search local services
           if (searchSources.includes("local")) {
             if (searchTypes.includes("agent")) {
-              const chars = await characterMarketplaceService.searchPublic({
-                search: query,
-                category: categories?.[0],
-                limit: limit,
-              });
+              let chars = await charactersService.listPublic();
+              // Apply basic filtering
+              if (query) {
+                const q = query.toLowerCase();
+                chars = chars.filter(
+                  (c) =>
+                    c.name.toLowerCase().includes(q) ||
+                    (typeof c.bio === "string" && c.bio.toLowerCase().includes(q)) ||
+                    (Array.isArray(c.bio) && c.bio.some((b) => b.toLowerCase().includes(q)))
+                );
+              }
+              if (categories?.length) {
+                chars = chars.filter((c) => categories.includes(c.category ?? ""));
+              }
+              chars = chars.slice(0, limit ?? 20);
               for (const char of chars) {
                 services.push({
                   id: char.id,

@@ -1,4 +1,16 @@
-// Agent Registry - ERC-8004 on-chain registration for public agents
+/**
+ * Agent Registry Service
+ *
+ * Handles ERC-8004 on-chain registration for public agents.
+ * When a user makes their agent public, we:
+ * 1. Mint an NFT on the ERC-8004 Identity Registry (Eliza Cloud pays gas)
+ * 2. Create A2A and MCP endpoints for the agent
+ * 3. Enable monetization if requested
+ *
+ * This makes agents discoverable by other AI agents across the ecosystem.
+ *
+ * @see https://eips.ethereum.org/EIPS/eip-8004
+ */
 
 import {
   CHAIN_IDS,

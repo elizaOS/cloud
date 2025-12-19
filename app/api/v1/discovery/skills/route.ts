@@ -10,7 +10,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { agent0Service } from "@/lib/services/agent0";
-import { characterMarketplaceService } from "@/lib/services/characters/marketplace";
+import { charactersService } from "@/lib/services/characters";
 import { cache } from "@/lib/cache/client";
 import { CacheTTL } from "@/lib/cache/keys";
 
@@ -96,14 +96,12 @@ export async function GET(request: NextRequest) {
     const allSkills: SkillInfo[] = [];
 
     try {
-      const result = await characterMarketplaceService.searchCharactersPublic({
-        filters: {},
-        sortOptions: { field: "popularity_score", direction: "desc" },
-        pagination: { limit: 200, page: 1 },
-        includeStats: false,
-      });
+      const characters = await charactersService.listPublic();
+      
+      // Limit to 200 characters
+      const limitedCharacters = characters.slice(0, 200);
 
-      for (const char of result.characters) {
+      for (const char of limitedCharacters) {
         const endpoint = `${baseUrl}/api/agents/${char.id}/a2a`;
 
         // Each character exposes a "chat" skill by default

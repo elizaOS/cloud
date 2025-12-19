@@ -90,9 +90,11 @@ export function BuildModeAssistant({
   const [inputText, setInputText] = useState(initialPrompt || "");
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
-  
+
   // Get store method to update character avatar in sidebar/dropdown
-  const updateCharacterAvatar = useChatStore((state) => state.updateCharacterAvatar);
+  const updateCharacterAvatar = useChatStore(
+    (state) => state.updateCharacterAvatar,
+  );
   const [isLoading, setIsLoading] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
   const [builderRoomId, setBuilderRoomId] = useState<string>("");
@@ -229,9 +231,12 @@ export function BuildModeAssistant({
             }) => {
               const text = msg.content?.text;
               const attachments = msg.content?.attachments;
-              
+
               // Allow messages with text OR attachments
-              if ((!text || typeof text !== "string") && (!attachments || attachments.length === 0)) {
+              if (
+                (!text || typeof text !== "string") &&
+                (!attachments || attachments.length === 0)
+              ) {
                 return null;
               }
 
@@ -383,7 +388,10 @@ export function BuildModeAssistant({
                 try {
                   const data = JSON.parse(eventData);
 
-                  if (data.type === "agent" && (data.content?.text || data.content?.attachments?.length)) {
+                  if (
+                    data.type === "agent" &&
+                    (data.content?.text || data.content?.attachments?.length)
+                  ) {
                     // Skip action result messages from UI but process metadata
                     if (data.content?.metadata?.type === "action_result") {
                       // Check for character creation in action results
@@ -409,12 +417,17 @@ export function BuildModeAssistant({
                     // Capture attachments (images, etc.)
                     if (data.content?.attachments?.length) {
                       messageAttachments = data.content.attachments.map(
-                        (att: { id?: string; url: string; title?: string; contentType?: string }) => ({
+                        (att: {
+                          id?: string;
+                          url: string;
+                          title?: string;
+                          contentType?: string;
+                        }) => ({
                           id: att.id || `att-${Date.now()}`,
                           url: att.url,
                           title: att.title,
                           contentType: att.contentType,
-                        })
+                        }),
                       );
                     }
 
@@ -454,7 +467,9 @@ export function BuildModeAssistant({
                       proposedCharacterUpdate = data.content.metadata.changes;
                       // Track if avatar was auto-saved
                       if (data.content?.metadata?.avatarSaved) {
-                        (proposedCharacterUpdate as Record<string, unknown>).__avatarSaved = true;
+                        (
+                          proposedCharacterUpdate as Record<string, unknown>
+                        ).__avatarSaved = true;
                       }
                     }
                   }
@@ -471,32 +486,45 @@ export function BuildModeAssistant({
                     role: "assistant",
                     content: assistantMessage,
                     timestamp: Date.now(),
-                    attachments: messageAttachments.length > 0 ? messageAttachments : undefined,
+                    attachments:
+                      messageAttachments.length > 0
+                        ? messageAttachments
+                        : undefined,
                   };
                   setMessages((prev) => [...prev, newAssistantMessage]);
 
                   // Apply character updates to editor
                   if (proposedCharacterUpdate) {
                     // Check for avatar saved flag and remove it before updating
-                    const updateWithMeta = proposedCharacterUpdate as Record<string, unknown>;
+                    const updateWithMeta = proposedCharacterUpdate as Record<
+                      string,
+                      unknown
+                    >;
                     const avatarWasSaved = updateWithMeta.__avatarSaved;
                     delete updateWithMeta.__avatarSaved;
-                    
+
                     onCharacterUpdate(proposedCharacterUpdate);
                     const isAvatarUpdate = "avatarUrl" in proposedCharacterUpdate;
-                    
+
                     if (isAvatarUpdate) {
                       // Update sidebar/dropdown avatar if saved in build mode (not creator mode)
                       if (avatarWasSaved && !isCreatorMode && character?.id) {
-                        updateCharacterAvatar(character.id, updateWithMeta.avatarUrl as string);
+                        updateCharacterAvatar(
+                          character.id,
+                          updateWithMeta.avatarUrl as string,
+                        );
                       }
-                      
+
                       toast.success(
-                        avatarWasSaved ? "Avatar generated and saved!" : "Avatar preview updated!",
+                        avatarWasSaved
+                          ? "Avatar generated and saved!"
+                          : "Avatar preview updated!",
                         { duration: 4000 },
                       );
                     } else {
-                      toast.success("Character preview updated!", { duration: 4000 });
+                      toast.success("Character preview updated!", {
+                        duration: 4000,
+                      });
                     }
                   }
 
@@ -789,177 +817,178 @@ export function BuildModeAssistant({
 
                       <div className="flex flex-col gap-1.5">
                         {/* Message Attachments (Images) */}
-                        {message.attachments && message.attachments.length > 0 && (
-                          <div className="flex flex-wrap gap-2">
-                            {message.attachments.map((attachment) => (
-                              <div
-                                key={attachment.id}
-                                className="relative rounded-lg overflow-hidden border border-white/[0.08] bg-white/[0.02]"
-                              >
-                                <img
-                                  src={attachment.url}
-                                  alt={attachment.title || "Generated image"}
-                                  className="max-w-[280px] max-h-[280px] object-cover"
-                                  loading="lazy"
-                                />
-                              </div>
-                            ))}
-                          </div>
-                        )}
+                        {message.attachments &&
+                          message.attachments.length > 0 && (
+                            <div className="flex flex-wrap gap-2">
+                              {message.attachments.map((attachment) => (
+                                <div
+                                  key={attachment.id}
+                                  className="relative rounded-lg overflow-hidden border border-white/[0.08] bg-white/[0.02]"
+                                >
+                                  <img
+                                    src={attachment.url}
+                                    alt={attachment.title || "Generated image"}
+                                    className="max-w-[280px] max-h-[280px] object-cover"
+                                    loading="lazy"
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         {/* Message Text */}
                         {content && (
-                        <div className="py-3 px-4 bg-white/[0.03] border border-white/[0.06] rounded-lg transition-colors hover:bg-white/[0.05] hover:border-white/[0.08] overflow-hidden">
-                          <style jsx>{`
-                            .build-mode-content :global(pre) {
-                              background: rgba(0, 0, 0, 0.4) !important;
-                              padding: 12px !important;
-                              border-radius: 8px !important;
-                              overflow-x: auto !important;
-                              margin: 8px 0 !important;
-                            }
-                            .build-mode-content
-                              :global(pre)::-webkit-scrollbar {
-                              height: 8px;
-                            }
-                            .build-mode-content
-                              :global(pre)::-webkit-scrollbar-track {
-                              background: rgba(0, 0, 0, 0.2);
-                            }
-                            .build-mode-content
-                              :global(pre)::-webkit-scrollbar-thumb {
-                              background: rgba(255, 88, 0, 0.4);
-                              border-radius: 4px;
-                            }
-                            .build-mode-content
-                              :global(pre)::-webkit-scrollbar-thumb:hover {
-                              background: rgba(255, 88, 0, 0.6);
-                            }
-                            .build-mode-content :global(pre code) {
-                              font-family:
-                                "Monaco", "Menlo", "Ubuntu Mono", "Consolas",
-                                monospace !important;
-                              font-size: 13px !important;
-                              white-space: pre-wrap !important;
-                              word-break: break-word !important;
-                            }
-                            .build-mode-content :global(code) {
-                              font-family:
-                                "Monaco", "Menlo", "Ubuntu Mono", "Consolas",
-                                monospace !important;
-                              font-size: 13px !important;
-                            }
-                            /* JSON property keys */
-                            .build-mode-content :global(.token.property),
-                            .build-mode-content :global(.token.key) {
-                              color: #fe9f6d !important;
-                            }
-                            /* JSON punctuation (brackets, braces, commas, colons) */
-                            .build-mode-content :global(.token.punctuation) {
-                              color: #e434bb !important;
-                            }
-                            /* JSON string values */
-                            .build-mode-content :global(.token.string) {
-                              color: #d4d4d4 !important;
-                            }
-                            /* JSON numbers */
-                            .build-mode-content :global(.token.number) {
-                              color: #d4d4d4 !important;
-                            }
-                            /* JSON booleans and null */
-                            .build-mode-content :global(.token.boolean),
-                            .build-mode-content :global(.token.null) {
-                              color: #d4d4d4 !important;
-                            }
-                            /* Remove prose margins for tighter spacing */
-                            .build-mode-content :global(p) {
-                              margin: 0 !important;
-                              word-break: break-word !important;
-                            }
-                            .build-mode-content :global(p + p) {
-                              margin-top: 8px !important;
-                            }
-                            .build-mode-content :global(ul),
-                            .build-mode-content :global(ol) {
-                              margin: 8px 0 !important;
-                              padding-left: 20px !important;
-                            }
-                            .build-mode-content :global(li) {
-                              margin: 2px 0 !important;
-                            }
-                            .build-mode-content :global(h1),
-                            .build-mode-content :global(h2),
-                            .build-mode-content :global(h3),
-                            .build-mode-content :global(h4) {
-                              margin: 12px 0 4px 0 !important;
-                              font-weight: 600 !important;
-                            }
-                            .build-mode-content :global(h1) {
-                              font-size: 18px !important;
-                            }
-                            .build-mode-content :global(h2) {
-                              font-size: 16px !important;
-                            }
-                            .build-mode-content :global(h3),
-                            .build-mode-content :global(h4) {
-                              font-size: 14px !important;
-                            }
-                          `}</style>
-                          <div className="text-[15px] leading-relaxed text-white/90 build-mode-content break-words">
-                            <ReactMarkdown
-                              remarkPlugins={[remarkGfm]}
-                              rehypePlugins={[rehypeHighlight]}
-                              components={{
-                                code: ({ className, children, ...props }) => {
-                                  const isInline = !className;
-                                  return isInline ? (
-                                    <code
-                                      className="bg-white/10 px-1.5 py-0.5 rounded text-xs break-all"
-                                      {...props}
+                          <div className="py-3 px-4 bg-white/[0.03] border border-white/[0.06] rounded-lg transition-colors hover:bg-white/[0.05] hover:border-white/[0.08] overflow-hidden">
+                            <style jsx>{`
+                              .build-mode-content :global(pre) {
+                                background: rgba(0, 0, 0, 0.4) !important;
+                                padding: 12px !important;
+                                border-radius: 8px !important;
+                                overflow-x: auto !important;
+                                margin: 8px 0 !important;
+                              }
+                              .build-mode-content
+                                :global(pre)::-webkit-scrollbar {
+                                height: 8px;
+                              }
+                              .build-mode-content
+                                :global(pre)::-webkit-scrollbar-track {
+                                background: rgba(0, 0, 0, 0.2);
+                              }
+                              .build-mode-content
+                                :global(pre)::-webkit-scrollbar-thumb {
+                                background: rgba(255, 88, 0, 0.4);
+                                border-radius: 4px;
+                              }
+                              .build-mode-content
+                                :global(pre)::-webkit-scrollbar-thumb:hover {
+                                background: rgba(255, 88, 0, 0.6);
+                              }
+                              .build-mode-content :global(pre code) {
+                                font-family:
+                                  "Monaco", "Menlo", "Ubuntu Mono", "Consolas",
+                                  monospace !important;
+                                font-size: 13px !important;
+                                white-space: pre-wrap !important;
+                                word-break: break-word !important;
+                              }
+                              .build-mode-content :global(code) {
+                                font-family:
+                                  "Monaco", "Menlo", "Ubuntu Mono", "Consolas",
+                                  monospace !important;
+                                font-size: 13px !important;
+                              }
+                              /* JSON property keys */
+                              .build-mode-content :global(.token.property),
+                              .build-mode-content :global(.token.key) {
+                                color: #fe9f6d !important;
+                              }
+                              /* JSON punctuation (brackets, braces, commas, colons) */
+                              .build-mode-content :global(.token.punctuation) {
+                                color: #e434bb !important;
+                              }
+                              /* JSON string values */
+                              .build-mode-content :global(.token.string) {
+                                color: #d4d4d4 !important;
+                              }
+                              /* JSON numbers */
+                              .build-mode-content :global(.token.number) {
+                                color: #d4d4d4 !important;
+                              }
+                              /* JSON booleans and null */
+                              .build-mode-content :global(.token.boolean),
+                              .build-mode-content :global(.token.null) {
+                                color: #d4d4d4 !important;
+                              }
+                              /* Remove prose margins for tighter spacing */
+                              .build-mode-content :global(p) {
+                                margin: 0 !important;
+                                word-break: break-word !important;
+                              }
+                              .build-mode-content :global(p + p) {
+                                margin-top: 8px !important;
+                              }
+                              .build-mode-content :global(ul),
+                              .build-mode-content :global(ol) {
+                                margin: 8px 0 !important;
+                                padding-left: 20px !important;
+                              }
+                              .build-mode-content :global(li) {
+                                margin: 2px 0 !important;
+                              }
+                              .build-mode-content :global(h1),
+                              .build-mode-content :global(h2),
+                              .build-mode-content :global(h3),
+                              .build-mode-content :global(h4) {
+                                margin: 12px 0 4px 0 !important;
+                                font-weight: 600 !important;
+                              }
+                              .build-mode-content :global(h1) {
+                                font-size: 18px !important;
+                              }
+                              .build-mode-content :global(h2) {
+                                font-size: 16px !important;
+                              }
+                              .build-mode-content :global(h3),
+                              .build-mode-content :global(h4) {
+                                font-size: 14px !important;
+                              }
+                            `}</style>
+                            <div className="text-[15px] leading-relaxed text-white/90 build-mode-content break-words">
+                              <ReactMarkdown
+                                remarkPlugins={[remarkGfm]}
+                                rehypePlugins={[rehypeHighlight]}
+                                components={{
+                                  code: ({ className, children, ...props }) => {
+                                    const isInline = !className;
+                                    return isInline ? (
+                                      <code
+                                        className="bg-white/10 px-1.5 py-0.5 rounded text-xs break-all"
+                                        {...props}
+                                      >
+                                        {children}
+                                      </code>
+                                    ) : (
+                                      <code className={className} {...props}>
+                                        {children}
+                                      </code>
+                                    );
+                                  },
+                                  pre: ({ children }) => (
+                                    <pre className="bg-black/40 border border-white/10 rounded-lg p-3 overflow-x-auto my-2">
+                                      {children}
+                                    </pre>
+                                  ),
+                                  a: ({ href, children }) => (
+                                    <a
+                                      href={href}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-[#FF5800] hover:text-[#FF5800]/80 underline break-all"
                                     >
                                       {children}
-                                    </code>
-                                  ) : (
-                                    <code className={className} {...props}>
+                                    </a>
+                                  ),
+                                  ul: ({ children }) => (
+                                    <ul className="list-disc list-inside my-2">
                                       {children}
-                                    </code>
-                                  );
-                                },
-                                pre: ({ children }) => (
-                                  <pre className="bg-black/40 border border-white/10 rounded-lg p-3 overflow-x-auto my-2">
-                                    {children}
-                                  </pre>
-                                ),
-                                a: ({ href, children }) => (
-                                  <a
-                                    href={href}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-[#FF5800] hover:text-[#FF5800]/80 underline break-all"
-                                  >
-                                    {children}
-                                  </a>
-                                ),
-                                ul: ({ children }) => (
-                                  <ul className="list-disc list-inside my-2">
-                                    {children}
-                                  </ul>
-                                ),
-                                ol: ({ children }) => (
-                                  <ol className="list-decimal list-inside my-2">
-                                    {children}
-                                  </ol>
-                                ),
-                                p: ({ children }) => (
-                                  <p className="my-2 first:mt-0 last:mb-0">
-                                    {children}
-                                  </p>
-                                ),
-                              }}
-                            >
-                              {content}
-                            </ReactMarkdown>
+                                    </ul>
+                                  ),
+                                  ol: ({ children }) => (
+                                    <ol className="list-decimal list-inside my-2">
+                                      {children}
+                                    </ol>
+                                  ),
+                                  p: ({ children }) => (
+                                    <p className="my-2 first:mt-0 last:mb-0">
+                                      {children}
+                                    </p>
+                                  ),
+                                }}
+                              >
+                                {content}
+                              </ReactMarkdown>
+                            </div>
                           </div>
-                        </div>
                         )}
                         {/* Time and Actions */}
                         <div className="flex items-center gap-2 pl-1 opacity-0 group-hover/message:opacity-100 transition-opacity">
@@ -1089,7 +1118,8 @@ export function BuildModeAssistant({
                   <div
                     className="absolute h-full w-24 bg-gradient-to-r from-transparent via-[#FF5800] to-transparent"
                     style={{
-                      animation: "visor-scan 4.8s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+                      animation:
+                        "visor-scan 4.8s cubic-bezier(0.4, 0, 0.6, 1) infinite",
                       boxShadow: "0 0 15px 3px rgba(255, 88, 0, 0.7)",
                       filter: "blur(0.5px)",
                     }}
@@ -1097,14 +1127,15 @@ export function BuildModeAssistant({
                   <div
                     className="absolute h-full w-16 bg-gradient-to-r from-transparent via-[#FF5800]/60 to-transparent"
                     style={{
-                      animation: "visor-scan-delayed 6.2s cubic-bezier(0.3, 0.1, 0.7, 0.9) infinite 1.5s",
+                      animation:
+                        "visor-scan-delayed 6.2s cubic-bezier(0.3, 0.1, 0.7, 0.9) infinite 1.5s",
                       boxShadow: "0 0 10px 2px rgba(255, 88, 0, 0.5)",
                       filter: "blur(1px)",
                     }}
                   />
                 </div>
               )}
-              
+
               {/* Textarea */}
               <textarea
                 rows={1}
@@ -1121,7 +1152,8 @@ export function BuildModeAssistant({
                 onInput={(e) => {
                   const target = e.currentTarget;
                   target.style.height = "40px";
-                  target.style.height = Math.min(target.scrollHeight, 120) + "px";
+                  target.style.height =
+                    Math.min(target.scrollHeight, 120) + "px";
                 }}
                 placeholder="Describe your character or ask for help..."
                 className="flex-1 min-w-0 bg-transparent px-2 py-2 text-[15px] text-white placeholder:text-white/40 focus:outline-none resize-none leading-relaxed scrollbar-hide"
@@ -1130,7 +1162,7 @@ export function BuildModeAssistant({
                   maxHeight: "120px",
                 }}
               />
-              
+
               {/* Send Button */}
               <Button
                 type="submit"
