@@ -724,7 +724,7 @@ export function VoiceCloneForm({
                     setSettings((prev) => ({ ...prev, stability: v[0] }))
                   }
                   disabled={isUploading}
-                  className="h-4"
+                  className="h-4 [&_[role=slider]]:bg-[#FF5800] [&_[role=slider]]:border-[#FF5800]"
                 />
               </div>
               <div className="space-y-1.5">
@@ -748,7 +748,7 @@ export function VoiceCloneForm({
                     }))
                   }
                   disabled={isUploading}
-                  className="h-4"
+                  className="h-4 [&_[role=slider]]:bg-[#FF5800] [&_[role=slider]]:border-[#FF5800]"
                 />
               </div>
               <div className="space-y-1.5">
@@ -769,7 +769,7 @@ export function VoiceCloneForm({
                     setSettings((prev) => ({ ...prev, style: v[0] }))
                   }
                   disabled={isUploading}
-                  className="h-4"
+                  className="h-4 [&_[role=slider]]:bg-[#FF5800] [&_[role=slider]]:border-[#FF5800]"
                 />
               </div>
             </div>
