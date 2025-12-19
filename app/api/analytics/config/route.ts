@@ -20,7 +20,8 @@ async function handleGET(req: NextRequest) {
     const { user } = await requireAuthOrApiKeyWithOrg(req);
 
     // Use org data from auth (already fetched, avoids redundant DB call)
-    const settings = (user.organization.settings as Record<string, unknown>) || {};
+    const settings =
+      (user.organization.settings as Record<string, unknown>) || {};
     const analyticsConfig = (settings.analytics as Record<string, unknown>) || {
       markupPercentage: 20,
       autoRefreshInterval: 30,
@@ -159,7 +160,8 @@ async function handlePUT(req: NextRequest) {
 
     // Use org data from auth (already fetched, avoids redundant DB call)
     // Note: For update operations, we get current settings then update via service
-    const currentSettings = (user.organization?.settings as Record<string, unknown>) || {};
+    const currentSettings =
+      (user.organization?.settings as Record<string, unknown>) || {};
     const currentAnalyticsConfig =
       (currentSettings.analytics as Record<string, unknown>) || {};
 

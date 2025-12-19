@@ -983,11 +983,20 @@ export function ElizaChatInterface({
                     onPlayAudio={(messageId) => {
                       const url = messageAudioUrls.current.get(messageId);
                       if (url) {
-                        if (audioState.currentPlayingId === messageId && player.isPlaying) {
+                        if (
+                          audioState.currentPlayingId === messageId &&
+                          player.isPlaying
+                        ) {
                           player.stopAudio();
-                          setAudioState((prev) => ({ ...prev, currentPlayingId: null }));
+                          setAudioState((prev) => ({
+                            ...prev,
+                            currentPlayingId: null,
+                          }));
                         } else {
-                          setAudioState((prev) => ({ ...prev, currentPlayingId: messageId }));
+                          setAudioState((prev) => ({
+                            ...prev,
+                            currentPlayingId: messageId,
+                          }));
                           player.playAudio(url);
                         }
                       }

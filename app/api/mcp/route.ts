@@ -5710,12 +5710,16 @@ const mcpHandler = createMcpHandler(
                 chars = chars.filter(
                   (c) =>
                     c.name.toLowerCase().includes(q) ||
-                    (typeof c.bio === "string" && c.bio.toLowerCase().includes(q)) ||
-                    (Array.isArray(c.bio) && c.bio.some((b) => b.toLowerCase().includes(q)))
+                    (typeof c.bio === "string" &&
+                      c.bio.toLowerCase().includes(q)) ||
+                    (Array.isArray(c.bio) &&
+                      c.bio.some((b) => b.toLowerCase().includes(q))),
                 );
               }
               if (categories?.length) {
-                chars = chars.filter((c) => categories.includes(c.category ?? ""));
+                chars = chars.filter((c) =>
+                  categories.includes(c.category ?? ""),
+                );
               }
               chars = chars.slice(0, limit ?? 20);
               for (const char of chars) {

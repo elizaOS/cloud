@@ -245,23 +245,24 @@ async function fetchLocalAgents(
     // Get all public characters
     let characters = await charactersService.listPublic();
 
-    // Apply basic filtering
-    if (params.query) {
-      const query = params.query.toLowerCase();
-      characters = characters.filter(
-        (char) =>
-          char.name.toLowerCase().includes(query) ||
-          (typeof char.bio === "string" && char.bio.toLowerCase().includes(query)) ||
-          (Array.isArray(char.bio) &&
-            char.bio.some((b) => b.toLowerCase().includes(query)))
-      );
-    }
+  // Apply basic filtering
+  if (params.query) {
+    const query = params.query.toLowerCase();
+    characters = characters.filter(
+      (char) =>
+        char.name.toLowerCase().includes(query) ||
+        (typeof char.bio === "string" &&
+          char.bio.toLowerCase().includes(query)) ||
+        (Array.isArray(char.bio) &&
+          char.bio.some((b) => b.toLowerCase().includes(query))),
+    );
+  }
 
-    if (params.categories?.length) {
-      characters = characters.filter((char) =>
-        params.categories?.includes(char.category ?? "")
-      );
-    }
+  if (params.categories?.length) {
+    characters = characters.filter((char) =>
+      params.categories?.includes(char.category ?? ""),
+    );
+  }
 
     // Apply pagination
     const offset = params.offset ?? 0;

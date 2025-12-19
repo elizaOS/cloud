@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
           (typeof char.bio === "string" &&
             char.bio.toLowerCase().includes(query)) ||
           (Array.isArray(char.bio) &&
-            char.bio.some((b) => b.toLowerCase().includes(query)))
+            char.bio.some((b) => b.toLowerCase().includes(query))),
       );
     }
 
@@ -130,7 +130,7 @@ export async function GET(request: NextRequest) {
             ? error.message
             : "Failed to search characters",
       },
-      { status }
+      { status },
     );
   }
 }

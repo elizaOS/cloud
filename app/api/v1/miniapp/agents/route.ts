@@ -70,9 +70,10 @@ export async function GET(request: NextRequest) {
       characters = characters.filter(
         (char) =>
           char.name.toLowerCase().includes(query) ||
-          (typeof char.bio === "string" && char.bio.toLowerCase().includes(query)) ||
+          (typeof char.bio === "string" &&
+            char.bio.toLowerCase().includes(query)) ||
           (Array.isArray(char.bio) &&
-            char.bio.some((b) => b.toLowerCase().includes(query)))
+            char.bio.some((b) => b.toLowerCase().includes(query))),
       );
     }
 

@@ -15,7 +15,9 @@ import Image from "next/image";
 // Dynamically import ReactMarkdown to reduce initial bundle (~150KB savings)
 const ReactMarkdown = dynamic(() => import("react-markdown"), {
   ssr: false,
-  loading: () => <div className="animate-pulse h-4 bg-white/10 rounded w-full" />,
+  loading: () => (
+    <div className="animate-pulse h-4 bg-white/10 rounded w-full" />
+  ),
 });
 
 // Import plugins only when needed (they're used with ReactMarkdown)
@@ -48,17 +50,28 @@ interface MemoizedChatMessageProps {
   isPlaying: boolean;
   hasAudioUrl: boolean;
   formatTimestamp: (timestamp: number) => string;
-  onCopy: (text: string, messageId: string, attachments?: Message["content"]["attachments"]) => void;
+  onCopy: (
+    text: string,
+    messageId: string,
+    attachments?: Message["content"]["attachments"],
+  ) => void;
   onPlayAudio?: (messageId: string) => void;
   onImageLoad?: () => void;
 }
 
 // Markdown components configuration
 const markdownComponents = {
-  code: ({ className, children, ...props }: React.ComponentPropsWithoutRef<"code"> & { className?: string }) => {
+  code: ({
+    className,
+    children,
+    ...props
+  }: React.ComponentPropsWithoutRef<"code"> & { className?: string }) => {
     const isInline = !className;
     return isInline ? (
-      <code className="bg-white/10 px-1.5 py-0.5 rounded text-xs break-all" {...props}>
+      <code
+        className="bg-white/10 px-1.5 py-0.5 rounded text-xs break-all"
+        {...props}
+      >
         {children}
       </code>
     ) : (
@@ -105,7 +118,10 @@ function ChatMessageComponent({
   onImageLoad,
 }: MemoizedChatMessageProps) {
   const isThinking = message.id.startsWith("thinking-");
-  const [plugins, setPlugins] = React.useState<{ remarkGfm: any; rehypeHighlight: any } | null>(null);
+  const [plugins, setPlugins] = React.useState<{
+    remarkGfm: any;
+    rehypeHighlight: any;
+  } | null>(null);
 
   // Load plugins once
   React.useEffect(() => {
@@ -130,7 +146,9 @@ function ChatMessageComponent({
               iconClassName="h-3 w-3"
               animate={isThinking}
             />
-            <span className="text-xs font-medium text-white/50">{characterName}</span>
+            <span className="text-xs font-medium text-white/50">
+              {characterName}
+            </span>
           </div>
 
           <div className="flex flex-col gap-1.5">
@@ -153,46 +171,60 @@ function ChatMessageComponent({
                         {message.content.text}
                       </ReactMarkdown>
                     ) : (
-                      <div className="whitespace-pre-wrap">{message.content.text}</div>
+                      <div className="whitespace-pre-wrap">
+                        {message.content.text}
+                      </div>
                     )}
                   </div>
                 </div>
 
                 {/* Image Attachments */}
-                {message.content.attachments && message.content.attachments.length > 0 && (
-                  <div className="mt-2 space-y-2">
-                    {message.content.attachments.map((attachment) => {
-                      if (attachment.contentType === "IMAGE" || attachment.contentType === "image") {
-                        return (
-                          <div
-                            key={attachment.id}
-                            className="inline-block rounded-lg overflow-hidden border border-white/10 max-w-md"
-                          >
-                            <Image
-                              src={attachment.url}
-                              alt={attachment.title || "Generated image"}
-                              width={512}
-                              height={512}
-                              className="w-full h-auto"
-                              style={{ display: "block" }}
-                              onLoad={onImageLoad}
-                            />
-                          </div>
-                        );
-                      }
-                      return null;
-                    })}
-                  </div>
-                )}
+                {message.content.attachments &&
+                  message.content.attachments.length > 0 && (
+                    <div className="mt-2 space-y-2">
+                      {message.content.attachments.map((attachment) => {
+                        if (
+                          attachment.contentType === "IMAGE" ||
+                          attachment.contentType === "image"
+                        ) {
+                          return (
+                            <div
+                              key={attachment.id}
+                              className="inline-block rounded-lg overflow-hidden border border-white/10 max-w-md"
+                            >
+                              <Image
+                                src={attachment.url}
+                                alt={attachment.title || "Generated image"}
+                                width={512}
+                                height={512}
+                                className="w-full h-auto"
+                                style={{ display: "block" }}
+                                onLoad={onImageLoad}
+                              />
+                            </div>
+                          );
+                        }
+                        return null;
+                      })}
+                    </div>
+                  )}
 
                 {/* Time and Actions */}
                 <div className="flex items-center gap-2 pl-1 opacity-0 group-hover/message:opacity-100 transition-opacity">
-                  <span className="text-xs text-white/40">{formatTimestamp(message.createdAt)}</span>
+                  <span className="text-xs text-white/40">
+                    {formatTimestamp(message.createdAt)}
+                  </span>
                   <Button
                     size="sm"
                     variant="ghost"
                     className="h-6 w-6 p-0 hover:bg-white/10 rounded transition-colors"
-                    onClick={() => onCopy(message.content.text, message.id, message.content.attachments)}
+                    onClick={() =>
+                      onCopy(
+                        message.content.text,
+                        message.id,
+                        message.content.attachments,
+                      )
+                    }
                     title="Copy message"
                   >
                     {copiedMessageId === message.id ? (
@@ -230,12 +262,20 @@ function ChatMessageComponent({
           </div>
           {/* Time and Actions */}
           <div className="flex items-center gap-2 justify-end pr-1 opacity-0 group-hover/message:opacity-100 transition-opacity">
-            <span className="text-xs text-white/40">{formatTimestamp(message.createdAt)}</span>
+            <span className="text-xs text-white/40">
+              {formatTimestamp(message.createdAt)}
+            </span>
             <Button
               size="sm"
               variant="ghost"
               className="h-6 w-6 p-0 hover:bg-white/10 rounded transition-colors"
-              onClick={() => onCopy(message.content.text, message.id, message.content.attachments)}
+              onClick={() =>
+                onCopy(
+                  message.content.text,
+                  message.id,
+                  message.content.attachments,
+                )
+              }
               title="Copy message"
             >
               {copiedMessageId === message.id ? (
@@ -252,14 +292,17 @@ function ChatMessageComponent({
 }
 
 // Memoize with custom comparison function
-export const MemoizedChatMessage = memo(ChatMessageComponent, (prevProps, nextProps) => {
-  // Only re-render if these specific props change
-  return (
-    prevProps.message.id === nextProps.message.id &&
-    prevProps.message.content.text === nextProps.message.content.text &&
-    prevProps.copiedMessageId === nextProps.copiedMessageId &&
-    prevProps.currentPlayingId === nextProps.currentPlayingId &&
-    prevProps.isPlaying === nextProps.isPlaying &&
-    prevProps.hasAudioUrl === nextProps.hasAudioUrl
-  );
-});
+export const MemoizedChatMessage = memo(
+  ChatMessageComponent,
+  (prevProps, nextProps) => {
+    // Only re-render if these specific props change
+    return (
+      prevProps.message.id === nextProps.message.id &&
+      prevProps.message.content.text === nextProps.message.content.text &&
+      prevProps.copiedMessageId === nextProps.copiedMessageId &&
+      prevProps.currentPlayingId === nextProps.currentPlayingId &&
+      prevProps.isPlaying === nextProps.isPlaying &&
+      prevProps.hasAudioUrl === nextProps.hasAudioUrl
+    );
+  },
+);

@@ -36,18 +36,22 @@ export {
 
 // Lazy-loaded UsageChart
 export const UsageChartLazy = dynamic(
-  () => import("@/components/analytics/usage-chart").then((mod) => mod.UsageChart),
+  () =>
+    import("@/components/analytics/usage-chart").then((mod) => mod.UsageChart),
   {
     ssr: false,
     loading: () => <ChartSkeleton />,
-  }
+  },
 );
 
 // Lazy-loaded ProjectionsChart
 export const ProjectionsChartLazy = dynamic(
-  () => import("@/components/analytics/projections-chart").then((mod) => mod.ProjectionsChart),
+  () =>
+    import("@/components/analytics/projections-chart").then(
+      (mod) => mod.ProjectionsChart,
+    ),
   {
     ssr: false,
     loading: () => <ChartSkeleton />,
-  }
+  },
 );

@@ -13,7 +13,7 @@ const SparklesCore = dynamic(
   {
     ssr: false,
     loading: () => <div className="opacity-0" />,
-  }
+  },
 );
 
 export { SparklesCore };

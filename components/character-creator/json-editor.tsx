@@ -23,12 +23,12 @@ import { MonacoEditorSkeleton } from "@/components/chat/monaco-editor-skeleton";
 const MonacoJsonEditor = dynamic(
   () =>
     import("@/components/chat/monaco-json-editor").then(
-      (mod) => mod.MonacoJsonEditor
+      (mod) => mod.MonacoJsonEditor,
     ),
   {
     ssr: false,
     loading: () => <MonacoEditorSkeleton />,
-  }
+  },
 );
 
 interface JsonEditorProps {
