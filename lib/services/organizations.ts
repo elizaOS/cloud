@@ -21,7 +21,7 @@ export class OrganizationsService {
    */
   async getById(id: string): Promise<Organization | undefined> {
     const cacheKey = CacheKeys.org.data(id);
-    
+
     // Try cache first - return immediately on hit (no DB call!)
     const cached = await cache.get<Organization>(cacheKey);
     if (cached) {

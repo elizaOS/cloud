@@ -20,7 +20,9 @@ export type { Organization };
  * Invalidate user session cache (call when user/org data changes)
  * @param sessionToken - The session token to invalidate cache for
  */
-export async function invalidateUserSessionCache(sessionToken: string): Promise<void> {
+export async function invalidateUserSessionCache(
+  sessionToken: string,
+): Promise<void> {
   const tokenHash = hashToken(sessionToken);
   const cacheKey = CacheKeys.session.user(tokenHash);
   await redisCache.del(cacheKey);
@@ -37,7 +39,11 @@ const privyClient = new PrivyClient(
  * Hash a token for use as cache key (never store raw tokens)
  */
 function hashToken(token: string): string {
-  return crypto.createHash("sha256").update(token).digest("hex").substring(0, 32);
+  return crypto
+    .createHash("sha256")
+    .update(token)
+    .digest("hex")
+    .substring(0, 32);
 }
 
 /**
@@ -120,12 +126,16 @@ export const getCurrentUser = cache(
       const cachedUser = await redisCache.get<UserWithOrganization>(cacheKey);
       if (cachedUser) {
         logger.debug("[AUTH] Cache hit for user session");
-        
+
         // Update session tracking in background (non-blocking)
         if (cachedUser.organization_id) {
-          void trackSessionActivity(cachedUser.id, cachedUser.organization_id, authToken.value);
+          void trackSessionActivity(
+            cachedUser.id,
+            cachedUser.organization_id,
+            authToken.value,
+          );
         }
-        
+
         return cachedUser;
       }
 
@@ -198,7 +208,11 @@ export const getCurrentUser = cache(
 
       // Handle session tracking and API key in background (non-blocking)
       if (user.organization_id) {
-        void trackSessionActivity(user.id, user.organization_id, authToken.value);
+        void trackSessionActivity(
+          user.id,
+          user.organization_id,
+          authToken.value,
+        );
         void ensureUserHasApiKey(user.id, user.organization_id);
       } else {
         logger.error("[AUTH] ✗ User missing organization_id:", user.id);
@@ -227,7 +241,7 @@ async function trackSessionActivity(
   try {
     const tokenHash = hashToken(sessionToken);
     const debounceKey = `session:debounce:${tokenHash}`;
-    
+
     // Check if we've tracked this session recently (within 60 seconds)
     const recentlyTracked = await redisCache.get<boolean>(debounceKey);
     if (recentlyTracked) {

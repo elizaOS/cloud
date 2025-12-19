@@ -30,7 +30,7 @@ export async function GET() {
   } catch (error) {
     return NextResponse.json(
       { success: false, error: "Failed to get categories" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

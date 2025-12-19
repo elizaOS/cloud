@@ -74,7 +74,7 @@ export function MyAgentsClient() {
               description: data.claimed
                 .map((c: { name: string }) => c.name)
                 .join(", "),
-            }
+            },
           );
           fetchCharacters();
 

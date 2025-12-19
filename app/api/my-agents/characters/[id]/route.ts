@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
  */
 export async function GET(
   _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const user = await requireAuthWithOrg();
   const { id } = await params;
@@ -21,7 +21,7 @@ export async function GET(
   if (!character) {
     return NextResponse.json(
       { success: false, error: "Character not found" },
-      { status: 404 }
+      { status: 404 },
     );
   }
 
@@ -34,7 +34,7 @@ export async function GET(
  */
 export async function DELETE(
   _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const user = await requireAuthWithOrg();
   const { id } = await params;
@@ -49,7 +49,7 @@ export async function DELETE(
   if (!character) {
     return NextResponse.json(
       { success: false, error: "Character not found or access denied" },
-      { status: 404 }
+      { status: 404 },
     );
   }
 

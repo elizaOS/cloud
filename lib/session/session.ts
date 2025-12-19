@@ -140,11 +140,11 @@ export async function getOrCreateSessionUser(
   // This leverages Redis caching to avoid redundant Privy API calls
   try {
     const user = await getCurrentUser();
-    
+
     if (user && user.organization_id) {
       const cookieStore = await cookies();
       const privyToken = cookieStore.get("privy-token")?.value;
-      
+
       logger.info(`${logPrefix} Authenticated user session (cached)`, {
         userId: user.id,
         orgId: user.organization_id,
