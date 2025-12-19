@@ -13,6 +13,8 @@ const isCI = !!process.env.CI;
 const isProduction = process.env.NODE_ENV === "production";
 const useProductionServer = isCI || isProduction;
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000";
+// For miniapp tests in CI, servers are started manually, so skip webServer
+const skipWebServer = process.env.SKIP_WEB_SERVER === "true";
 
 const CACHE_DIR = path.join(__dirname, ".cache-synpress");
 
@@ -99,9 +101,6 @@ export default defineConfig({
         viewport: { width: 1280, height: 720 },
       },
       testMatch: /miniapp.*\.spec\.ts$/,
-      // Miniapp tests require both main app and miniapp servers
-      // These are started manually in CI, so disable webServer for this project
-      webServer: undefined,
     },
     {
       name: "cleanup",
@@ -112,21 +111,23 @@ export default defineConfig({
   timeout: testTimeout,
   expect: { timeout: expectTimeout },
 
-  webServer: useProductionServer
-    ? {
-        command: "bun run start",
-        url: baseURL,
-        reuseExistingServer: true,
-        timeout: webServerTimeout,
-        stdout: "pipe",
-        stderr: "pipe",
-      }
-    : {
-        command: "bun run dev",
-        url: baseURL,
-        reuseExistingServer: true,
-        timeout: webServerTimeout,
-        stdout: "pipe",
-        stderr: "pipe",
-      },
+  webServer: skipWebServer
+    ? undefined
+    : useProductionServer
+      ? {
+          command: "bun run start",
+          url: baseURL,
+          reuseExistingServer: true,
+          timeout: webServerTimeout,
+          stdout: "pipe",
+          stderr: "pipe",
+        }
+      : {
+          command: "bun run dev",
+          url: baseURL,
+          reuseExistingServer: true,
+          timeout: webServerTimeout,
+          stdout: "pipe",
+          stderr: "pipe",
+        },
 });
