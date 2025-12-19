@@ -303,7 +303,10 @@ export function ElizaChatInterface({
           return prev;
         }
 
-        const streamingIndex = prev.findIndex((m) => m.id.startsWith("streaming-"));
+        // Find streaming message by prefix
+        const streamingIndex = prev.findIndex(
+          (m) => m.id === `streaming-${messageData.id}`
+        );
         if (streamingIndex !== -1) {
           const updated = [...prev];
           updated[streamingIndex] = {
@@ -567,6 +570,7 @@ export function ElizaChatInterface({
       handleStreamChunk,
       loadRooms,
       onMessageSent,
+      clearAllStreaming,
     ],
   );
 

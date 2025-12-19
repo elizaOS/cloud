@@ -6,23 +6,13 @@
 "use client";
 
 import React, { memo } from "react";
-import dynamic from "next/dynamic";
 import { Loader2, Copy, Check, Volume2, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ElizaAvatar } from "./eliza-avatar";
 import Image from "next/image";
-
-// Dynamically import ReactMarkdown to reduce initial bundle (~150KB savings)
-const ReactMarkdown = dynamic(() => import("react-markdown"), {
-  ssr: false,
-  loading: () => (
-    <div className="animate-pulse h-4 bg-white/10 rounded w-full" />
-  ),
-});
-
-// Import plugins only when needed (they're used with ReactMarkdown)
-const remarkGfm = import("remark-gfm").then((mod) => mod.default);
-const rehypeHighlight = import("rehype-highlight").then((mod) => mod.default);
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import rehypeHighlight from "rehype-highlight";
 
 interface Message {
   id: string;
@@ -80,12 +70,12 @@ const markdownComponents = {
       </code>
     );
   },
-  pre: ({ children }: { children: React.ReactNode }) => (
+  pre: ({ children }: { children?: React.ReactNode }) => (
     <pre className="bg-black/40 border border-white/10 rounded-lg p-3 overflow-x-auto [&>code]:whitespace-pre-wrap [&>code]:break-words">
       {children}
     </pre>
   ),
-  a: ({ href, children }: { href?: string; children: React.ReactNode }) => (
+  a: ({ href, children }: { href?: string; children?: React.ReactNode }) => (
     <a
       href={href}
       target="_blank"
@@ -95,17 +85,16 @@ const markdownComponents = {
       {children}
     </a>
   ),
-  ul: ({ children }: { children: React.ReactNode }) => (
+  ul: ({ children }: { children?: React.ReactNode }) => (
     <ul className="list-disc list-inside">{children}</ul>
   ),
-  ol: ({ children }: { children: React.ReactNode }) => (
+  ol: ({ children }: { children?: React.ReactNode }) => (
     <ol className="list-decimal list-inside">{children}</ol>
   ),
 };
 
 function ChatMessageComponent({
   message,
-  index,
   characterName,
   characterAvatarUrl,
   copiedMessageId,
@@ -118,22 +107,10 @@ function ChatMessageComponent({
   onImageLoad,
 }: MemoizedChatMessageProps) {
   const isThinking = message.id.startsWith("thinking-");
-  const [plugins, setPlugins] = React.useState<{
-    remarkGfm: any;
-    rehypeHighlight: any;
-  } | null>(null);
-
-  // Load plugins once
-  React.useEffect(() => {
-    Promise.all([remarkGfm, rehypeHighlight]).then(([remark, rehype]) => {
-      setPlugins({ remarkGfm: remark, rehypeHighlight: rehype });
-    });
-  }, []);
 
   return (
     <div
-      className={`flex ${message.isAgent ? "justify-start" : "justify-end"} animate-in fade-in slide-in-from-bottom-4 duration-500`}
-      style={{ animationDelay: `${index * 50}ms` }}
+      className={`flex ${message.isAgent ? "justify-start" : "justify-end"}`}
     >
       {message.isAgent ? (
         <div className="flex flex-col gap-1.5 max-w-[85%] sm:max-w-[75%] group/message">
@@ -162,19 +139,13 @@ function ChatMessageComponent({
                 {/* Message Text */}
                 <div className="py-3 px-4 bg-none border border-none rounded-lg transition-colors hover:bg-none hover:border-none overflow-hidden">
                   <div className="text-[15px] leading-relaxed text-white/90 prose prose-invert prose-sm max-w-none prose-p:my-2 prose-ul:my-2 prose-ol:my-2 prose-li:my-1 prose-headings:my-3 prose-pre:my-2 break-words [&_pre]:overflow-x-auto [&_pre_code]:whitespace-pre-wrap [&_pre_code]:break-words">
-                    {plugins ? (
-                      <ReactMarkdown
-                        remarkPlugins={[plugins.remarkGfm]}
-                        rehypePlugins={[plugins.rehypeHighlight]}
-                        components={markdownComponents}
-                      >
-                        {message.content.text}
-                      </ReactMarkdown>
-                    ) : (
-                      <div className="whitespace-pre-wrap">
-                        {message.content.text}
-                      </div>
-                    )}
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      rehypePlugins={[rehypeHighlight]}
+                      components={markdownComponents}
+                    >
+                      {message.content.text}
+                    </ReactMarkdown>
                   </div>
                 </div>
 
@@ -295,7 +266,7 @@ function ChatMessageComponent({
 export const MemoizedChatMessage = memo(
   ChatMessageComponent,
   (prevProps, nextProps) => {
-    // Only re-render if these specific props change
+    // Compare relevant props - streaming messages use streaming- prefix
     return (
       prevProps.message.id === nextProps.message.id &&
       prevProps.message.content.text === nextProps.message.content.text &&

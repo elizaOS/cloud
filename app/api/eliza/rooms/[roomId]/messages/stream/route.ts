@@ -533,7 +533,7 @@ export async function POST(
       runtime.character.settings = {
         ...runtime.character.settings,
         clientCharacterState: validatedState.data,
-        isClientStateUnsaved: agentModeConfig.metadata.isUnsaved ?? true,
+        isClientStateUnsaved: (agentModeConfig.metadata.isUnsaved as boolean) ?? true,
       };
       logger.info(
         "[Stream] BUILD mode - Stored validated client character state in runtime settings",
@@ -654,9 +654,8 @@ export async function POST(
             responseContentPayload.metadata = messageContent.metadata;
           }
 
-          // Send agent response
           sendEvent("message", {
-            id: result.message.id,
+            id: responseMessageId,
             entityId: result.message.entityId,
             agentId: result.message.agentId,
             content: responseContentPayload,
