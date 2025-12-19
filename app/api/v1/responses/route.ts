@@ -35,7 +35,6 @@ import type { NextRequest } from "next/server";
 import type {
   OpenAIChatRequest,
   OpenAIChatResponse,
-  OpenAIChatMessage,
 } from "@/lib/providers/types";
 import type { UserWithOrganization } from "@/lib/types";
 
@@ -182,43 +181,13 @@ function transformOpenAIToAISdk(openAIResponse: OpenAIChatResponse): object {
     output: openAIResponse.choices.map((choice) => {
       // Flatten the message object and transform content
       const message = choice.message;
-      let content;
-
-      if (typeof message.content === "string") {
-        // Simple string content
-        content = [
-          { type: "output_text", text: message.content, annotations: [] },
-        ];
-      } else if (Array.isArray(message.content)) {
-        // Already array (multimodal)
-        content = message.content.map((part) => {
-          if (typeof part === "string") {
-            return { type: "output_text", text: part, annotations: [] };
-          }
-          if (
-            typeof part === "object" &&
-            part !== null &&
-            "text" in part &&
-            typeof part.text === "string"
-          ) {
-            return {
-              type: "output_text",
-              text: part.text,
-              annotations: [],
-            };
-          }
-          return { type: "output_text", text: "", annotations: [] };
-        });
-      } else {
-        // null or other type
-        content = [
-          {
-            type: "output_text",
-            text: String(message.content || ""),
-            annotations: [],
-          },
-        ];
-      }
+      const content = [
+        {
+          type: "output_text",
+          text: message.content ?? "",
+          annotations: [],
+        },
+      ];
 
       return {
         type: "message", // AI SDK requires "type": "message"
@@ -289,51 +258,6 @@ async function handlePOST(req: NextRequest) {
 
     // 3. Transform to OpenAI format
     const request = transformAISdkToOpenAI(aiSdkRequest);
-
-    // Log detailed message breakdown
-    const systemMessages = request.messages.filter(
-      (msg) => msg.role === "system",
-    );
-    const userMessages = request.messages.filter((msg) => msg.role === "user");
-    const assistantMessages = request.messages.filter(
-      (msg) => msg.role === "assistant",
-    );
-
-    // Helper to get content as string for logging
-    const getContentString = (content: OpenAIChatMessage["content"]): string =>
-      typeof content === "string" ? content : JSON.stringify(content);
-
-    logger.info("[Responses API] 📝 PROMPT BREAKDOWN", {
-      model: request.model,
-      totalMessages: request.messages.length,
-      messageTypes: {
-        system: systemMessages.length,
-        user: userMessages.length,
-        assistant: assistantMessages.length,
-      },
-      systemPrompts: systemMessages.map((msg) => ({
-        content: getContentString(msg.content),
-        length: getContentString(msg.content).length,
-      })),
-      userPrompts: userMessages.map((msg) => ({
-        content: getContentString(msg.content),
-        length: getContentString(msg.content).length,
-      })),
-      assistantResponses: assistantMessages.map((msg) => ({
-        content: getContentString(msg.content),
-        length: getContentString(msg.content).length,
-      })),
-    });
-
-    logger.debug(
-      "[Responses API] Transformed AI SDK request to OpenAI format",
-      {
-        originalFields: Object.keys(aiSdkRequest),
-        transformedFields: Object.keys(request),
-        originalMessages: JSON.stringify(aiSdkRequest.input),
-        transformedMessages: JSON.stringify(request.messages),
-      },
-    );
 
     // 4. Validate input
     if (!request.model || !request.messages) {
@@ -564,16 +488,6 @@ async function handlePOST(req: NextRequest) {
         );
       }
 
-      logger.info("[Responses API] Chat completion request (AI SDK format)", {
-        organizationId: user.organization_id,
-        userId: user.id,
-        model,
-        normalizedModel,
-        provider,
-        streaming: isStreaming,
-        messageCount: request.messages.length,
-        estimatedCost,
-      });
     } // End of non-anonymous credit check block
 
     // Log for anonymous users
@@ -700,6 +614,7 @@ async function handleNonStreamingResponse(
 
   // Deduct credits SYNCHRONOUSLY before returning response (skip for anonymous users)
   if (usage && user.organization_id) {
+    const organizationId = user.organization_id;
     const { inputCost, outputCost, totalCost } = await calculateCost(
       model,
       provider,
@@ -709,7 +624,7 @@ async function handleNonStreamingResponse(
 
     // CRITICAL: Deduct credits before returning response
     const deductResult = await creditsService.deductCredits({
-      organizationId: user.organization_id,
+      organizationId,
       amount: totalCost,
       description: `Responses API: ${model}`,
       metadata: { user_id: user.id },
@@ -719,7 +634,7 @@ async function handleNonStreamingResponse(
       logger.error(
         "[Responses API] Failed to deduct credits after completion",
         {
-          organizationId: user.organization_id,
+          organizationId,
           cost: String(totalCost),
           balance: deductResult.newBalance,
         },
@@ -741,7 +656,7 @@ async function handleNonStreamingResponse(
     (async () => {
       try {
         const usageRecord = await usageService.create({
-          organization_id: user.organization_id,
+          organization_id: organizationId,
           user_id: user.id,
           api_key_id: apiKey?.id || null,
           type: "chat",
@@ -756,7 +671,7 @@ async function handleNonStreamingResponse(
 
         if (apiKey) {
           await generationsService.create({
-            organization_id: user.organization_id,
+            organization_id: organizationId,
             user_id: user.id,
             api_key_id: apiKey.id,
             type: "chat",
@@ -794,11 +709,6 @@ async function handleNonStreamingResponse(
 
   // Transform OpenAI response to AI SDK format before returning
   const aiSdkResponse = transformOpenAIToAISdk(data);
-
-  logger.debug("[Responses API] Transformed OpenAI response to AI SDK format", {
-    openAIFields: Object.keys(data),
-    aiSdkFields: Object.keys(aiSdkResponse),
-  });
 
   return Response.json(aiSdkResponse);
 }

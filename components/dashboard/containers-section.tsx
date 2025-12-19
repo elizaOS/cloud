@@ -41,7 +41,12 @@ export function ContainersSection({
       <div className="flex items-center justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-xl font-semibold text-white">Containers</h2>
+            <Link
+              href="/dashboard/containers"
+              className="text-xl font-semibold text-white transition-colors duration-200 hover:text-orange-500"
+            >
+              Containers
+            </Link>
             <span className="text-sm text-white/30">({containers.length})</span>
             <Tooltip>
               <TooltipTrigger asChild>

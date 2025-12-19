@@ -23,7 +23,6 @@ import {
   Plus,
   Sparkles,
   HelpCircle,
-  Clock,
   Rocket,
   Terminal,
   Copy,
@@ -31,15 +30,24 @@ import {
   Zap,
   BookOpen,
   ExternalLink,
+  Pencil,
+  Trash2,
+  MoreHorizontal,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
-import { formatDistanceToNow } from "date-fns";
 import { isBuiltInAvatar, ensureAvatarUrl } from "@/lib/utils/default-avatar";
-
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import type { DashboardAgentStats as AgentStats } from "@/lib/actions/dashboard";
 import { Skeleton } from "../ui/skeleton";
+import { toast } from "sonner";
 
 interface Agent {
   id: string;
@@ -71,7 +79,12 @@ export function AgentsSection({ agents, className }: AgentsSectionProps) {
       <div className="flex items-center justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-xl font-semibold text-white">My Agents</h2>
+            <Link
+              href="/dashboard/my-agents"
+              className="text-xl font-semibold text-white transition-colors duration-200 hover:text-orange-500"
+            >
+              My Agents
+            </Link>
             <span className="text-sm text-white/30">({agents.length})</span>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -260,20 +273,60 @@ function getAgentColor(name: string): string {
 
 // Individual Agent Card - Full card style with prominent avatar
 function AgentCard({ agent }: { agent: Agent }) {
+  const router = useRouter();
   const bioText = Array.isArray(agent.bio) ? agent.bio[0] : agent.bio;
   const isDeployed = agent.stats?.deploymentStatus === "deployed";
   const isStopped = agent.stats?.deploymentStatus === "stopped";
-  const gradientColor = getAgentColor(agent.name);
+  const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
+  const [isDeleting, setIsDeleting] = React.useState(false);
+  const [dropdownOpen, setDropdownOpen] = React.useState(false);
+
+  const handleDeleteClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDropdownOpen(false);
+    setShowDeleteConfirm(true);
+  };
+
+  const handleConfirmDelete = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDeleting(true);
+    const response = await fetch(`/api/my-agents/characters/${agent.id}`, {
+      method: "DELETE",
+    });
+
+    if (response.ok) {
+      toast.success("Agent deleted");
+      setShowDeleteConfirm(false);
+      router.refresh();
+    } else {
+      toast.error("Failed to delete agent");
+      setIsDeleting(false);
+      setShowDeleteConfirm(false);
+    }
+  };
+
+  const handleCancelDelete = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setShowDeleteConfirm(false);
+  };
+
+  // Prevent card click when delete dialog is open
+  const handleCardClick = (e: React.MouseEvent) => {
+    if (showDeleteConfirm) {
+      e.preventDefault();
+    }
+  };
 
   return (
     <Link
       href={`/dashboard/chat?characterId=${agent.id}`}
       className="block h-full"
+      onClick={handleCardClick}
     >
       <div className="group relative h-full overflow-hidden border border-white/10 bg-black/40 transition-all duration-300 hover:border-[#FF5800]/50 hover:shadow-lg hover:shadow-[#FF5800]/10 hover:-translate-y-1">
-        <div className="pointer-events-none absolute inset-0 z-10">
-          <CornerBrackets size="md" color="#E1E1E1" hoverColor="#FF5800" />
-        </div>
         {/* Avatar Section - Large prominent image */}
         <div className={cn("relative h-36 w-full overflow-hidden")}>
           <Skeleton className="absolute inset-0 w-full h-full" />
@@ -288,7 +341,8 @@ function AgentCard({ agent }: { agent: Agent }) {
           />
 
           {/* Gradient overlay at bottom */}
-          <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/80 to-transparent" />
+          <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-black/90 to-transparent" />
+          {/* Three dots menu - TOP LEFT */}
 
           {/* Status badges */}
           <div className="absolute top-2 right-2 z-20 flex gap-1.5">
@@ -306,33 +360,76 @@ function AgentCard({ agent }: { agent: Agent }) {
           </div>
         </div>
 
-        {/* Content Section */}
-        <div className="p-4 space-y-2">
-          {/* Name */}
-          <h3 className="font-semibold text-white truncate group-hover:text-[#FF5800] transition-colors">
-            {agent.name}
-          </h3>
+        <div className="w-full">
+          <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
+            <DropdownMenuTrigger className="absolute select-none right-0 m-2 flex items-center justify-center h-8 w-8 rounded-md bg-transparent backdrop-blur-sm hover:bg-black/70 transition-colors">
+              <MoreHorizontal className="h-4 w-4 text-white" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-40">
+              <Link
+                href={`/dashboard/build?characterId=${agent.id}`}
+                className="block h-full"
+              >
+                <DropdownMenuItem className="cursor-pointer">
+                  <Pencil className="h-4 w-4 mr-2" />
+                  Edit
+                </DropdownMenuItem>
+              </Link>
+              <DropdownMenuItem 
+                onClick={handleDeleteClick}
+                className="cursor-pointer text-red-600 focus:text-red-600"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
-          {/* Bio */}
-          <p className="text-xs text-white/50 line-clamp-2 leading-relaxed min-h-[2rem]">
-            {bioText || "No description yet"}
-          </p>
+          {/* Delete Confirmation Dialog */}
+          {showDeleteConfirm && (
+            <div 
+              className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm transition-opacity duration-200"
+              onClick={handleCancelDelete}
+            >
+              <div 
+                className="bg-zinc-900 border border-white/10 rounded-lg p-4 m-4 transform transition-all duration-200 scale-100"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <p className="text-sm text-white mb-4">
+                  Delete <span className="font-semibold">{agent.name}</span>?
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={handleCancelDelete}
+                    className="flex-1 px-3 py-1.5 text-xs rounded bg-white/10 text-white hover:bg-white/20 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleConfirmDelete}
+                    disabled={isDeleting}
+                    className="flex-1 px-3 py-1.5 text-xs rounded bg-red-600 text-white hover:bg-red-700 transition-colors disabled:opacity-50"
+                  >
+                    {isDeleting ? "..." : "Delete"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
-          {/* Stats */}
-          <div className="flex items-center gap-3 pt-2 border-t border-white/5 text-[11px] text-white/40">
-            {agent.stats?.lastActiveAt && (
-              <span className="flex items-center gap-1 truncate">
-                <Clock className="h-3 w-3 flex-shrink-0" />
-                {formatDistanceToNow(new Date(agent.stats.lastActiveAt), {
-                  addSuffix: true,
-                })}
-              </span>
-            )}
-            {agent.category && (
-              <span className="ml-auto text-white/30 truncate">
-                {agent.category}
-              </span>
-            )}
+          {/* Content Section */}
+          <div className="p-4 space-y-2">
+            {/* Name */}
+            <h3 className="font-semibold text-white truncate group-hover:text-[#FF5800] transition-colors">
+              {agent.name}
+            </h3>
+
+            {/* Bio */}
+            <p className="text-xs text-white/50 line-clamp-2 leading-relaxed min-h-[2rem]">
+              {bioText || "No description yet"}
+            </p>
           </div>
         </div>
       </div>

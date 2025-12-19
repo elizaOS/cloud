@@ -64,6 +64,18 @@ interface GeneratedImage {
   settings: ImageGenerationSettings;
 }
 
+interface GalleryItem {
+  id: string;
+  url: string;
+  prompt: string;
+  createdAt: Date;
+  dimensions?: { width?: number; height?: number };
+}
+
+interface ImageGeneratorAdvancedProps {
+  initialHistory?: GalleryItem[];
+}
+
 const SIZE_PRESETS = [
   { label: "Square", width: 1024, height: 1024 },
   { label: "Portrait", width: 768, height: 1024 },
@@ -131,7 +143,7 @@ export function ImageGeneratorAdvanced() {
 
   // Carousel API (external ref)
   const [carouselApi, setCarouselApi] = useState<CarouselApi | undefined>(
-    undefined,
+    undefined
   );
 
   // Consolidated request state
@@ -638,27 +650,13 @@ export function ImageGeneratorAdvanced() {
                             handleDownload(
                               imageState.currentImages[
                                 imageState.currentIndex
-                              ] ?? imageState.currentImage,
+                              ] ?? imageState.currentImage
                             )
                           }
                           className="px-3 py-2 border border-white/20 bg-transparent text-white hover:bg-white/5 transition-colors flex items-center justify-center gap-1 md:gap-2"
                         >
                           <Download className="h-3 md:h-4 w-3 md:w-4" />
-                          <span className="text-xs font-mono">Save</span>
-                        </button>
-                        <button
-                          type="button"
-                          className="px-3 py-2 border border-white/20 bg-transparent text-white hover:bg-white/5 transition-colors flex items-center justify-center gap-1 md:gap-2"
-                        >
-                          <Heart className="h-3 md:h-4 w-3 md:w-4" />
-                          <span className="text-xs font-mono">Like</span>
-                        </button>
-                        <button
-                          type="button"
-                          className="px-3 py-2 border border-white/20 bg-transparent text-white hover:bg-white/5 transition-colors flex items-center justify-center gap-1 md:gap-2"
-                        >
-                          <Share2 className="h-3 md:h-4 w-3 md:w-4" />
-                          <span className="text-xs font-mono">Share</span>
+                          <span className="text-xs font-mono">Download</span>
                         </button>
                         <button
                           type="button"
@@ -904,7 +902,7 @@ export function ImageGeneratorAdvanced() {
                         onClick={() =>
                           handleDownload(
                             imageState.currentImages[imageState.currentIndex] ??
-                              imageState.currentImage!,
+                              imageState.currentImage!
                           )
                         }
                       >

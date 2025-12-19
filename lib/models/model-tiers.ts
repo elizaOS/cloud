@@ -127,6 +127,30 @@ export const MODEL_TIER_LIST: ModelTierConfig[] = [
   MODEL_TIERS.ultra,
 ];
 
+/**
+ * Build mode tiers - uses more capable models for character building tasks.
+ * The fast tier uses a better model since gpt-oss can't handle complex build instructions.
+ */
+export const BUILD_MODE_TIERS: Record<ModelTier, ModelTierConfig> = {
+  fast: {
+    ...MODEL_TIERS.fast,
+    modelId: "moonshotai/kimi-k2-0905",
+    provider: "moonshotai",
+    description: "Fast responses for build mode",
+  },
+  pro: {
+    ...MODEL_TIERS.pro,
+    recommended: true,
+  },
+  ultra: MODEL_TIERS.ultra,
+};
+
+export const BUILD_MODE_TIER_LIST: ModelTierConfig[] = [
+  BUILD_MODE_TIERS.fast,
+  BUILD_MODE_TIERS.pro,
+  BUILD_MODE_TIERS.ultra,
+];
+
 export const DEFAULT_MODEL_TIER: ModelTier = "pro";
 
 export function resolveModel(tierOrModelId?: string | null): ModelTierConfig {

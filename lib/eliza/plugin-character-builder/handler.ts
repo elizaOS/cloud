@@ -4,7 +4,6 @@ import {
   createUniqueUuid,
   EventType,
   logger,
-  type IAgentRuntime,
   type Memory,
   ModelType,
   parseKeyValueXml,
@@ -83,12 +82,13 @@ export async function handleMessage({
   try {
     await runtime.createMemory(message, "messages");
 
-    // Compose state with all providers including actions
+    // Compose state with all providers including actions and current character
     const state = await runtime.composeState(message, [
       "SUMMARIZED_CONTEXT",
       "RECENT_MESSAGES",
       "LONG_TERM_MEMORY",
       "ACTIONS",
+      "CURRENT_CHARACTER",
     ]);
 
     // Inject mode context for planning phase
@@ -109,6 +109,9 @@ export async function handleMessage({
       composePromptFromState({ state, template: buildModePlanningTemplate }),
     );
 
+    logger.debug("####### handleMessage planning system prompt", runtime.character.system);
+    logger.debug("####### handleMessage planning prompt", planningPrompt);
+
     const planningResponse = await runtime.useModel(ModelType.TEXT_LARGE, {
       prompt: planningPrompt,
     });
@@ -119,7 +122,7 @@ export async function handleMessage({
     const selectedAction =
       parsePlannedItems(plan?.actions)[0] || "BUILDER_CHAT";
 
-    logger.debug(`[${modeLabel}] Executing action: ${selectedAction}`);
+    logger.debug("####### handleMessage planning response", JSON.stringify(plan, null, 2));
 
     // Create action response with thought and mode context
     const actionResponse: Memory = {

@@ -28,6 +28,40 @@ import {
   MAX_RESPONSE_STYLE_LENGTH,
 } from "@/lib/constants/image-generation";
 
+/**
+ * Schema for validating client-provided character state in BUILD mode.
+ * Matches ElizaCharacter type - validates structure without being overly strict.
+ */
+const clientCharacterStateSchema = z
+  .object({
+    name: z.string().max(100).optional(),
+    bio: z.union([z.string(), z.array(z.string())]).optional(),
+    system: z.string().optional(),
+    adjectives: z.array(z.string()).optional(),
+    topics: z.array(z.string()).optional(),
+    style: z
+      .object({
+        all: z.array(z.string()).optional(),
+        chat: z.array(z.string()).optional(),
+        post: z.array(z.string()).optional(),
+      })
+      .optional(),
+    messageExamples: z
+      .array(
+        z.array(
+          z.object({
+            name: z.string(),
+            content: z.object({
+              text: z.string(),
+            }),
+          }),
+        ),
+      )
+      .optional(),
+    avatarUrl: z.string().optional(),
+  })
+  .passthrough();
+
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -482,6 +516,39 @@ export async function POST(
 
     // Step 6: Create runtime with user context (clean, no key fetching here!)
     const runtime = await runtimeFactory.createRuntimeForUser(userContext);
+
+    // Step 6.5: For BUILD mode, store client character state in runtime settings
+    // This allows the provider to use what the user currently sees on the frontend
+    if (
+      agentModeConfig.mode === AgentMode.BUILD &&
+      agentModeConfig.metadata?.clientCharacterState
+    ) {
+      const validatedState = clientCharacterStateSchema.safeParse(
+        agentModeConfig.metadata.clientCharacterState,
+      );
+
+      if (!validatedState.success) {
+        logger.warn("[Stream] BUILD mode - Invalid clientCharacterState", {
+          issues: validatedState.error.issues,
+        });
+        return new Response(
+          JSON.stringify({
+            error: "Invalid character state provided",
+            details: validatedState.error.issues,
+          }),
+          { status: 400, headers: { "Content-Type": "application/json" } },
+        );
+      }
+
+      runtime.character.settings = {
+        ...runtime.character.settings,
+        clientCharacterState: validatedState.data,
+        isClientStateUnsaved: agentModeConfig.metadata.isUnsaved ?? true,
+      };
+      logger.info(
+        "[Stream] BUILD mode - Stored validated client character state in runtime settings",
+      );
+    }
 
     // Step 7: Create message handler
     const messageHandler = createMessageHandler(runtime, userContext);

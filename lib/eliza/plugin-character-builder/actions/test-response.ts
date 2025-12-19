@@ -86,7 +86,7 @@ export const testResponseAction = {
     if (isCreatorMode(runtime)) {
       logger.error("[TEST_RESPONSE] Called in creator mode");
       await callback({
-        text: "Character testing is only available once you've created and saved a character. Would you like to create one first?",
+        text: "Test Response is only available in **Edit Mode** after you've saved a character. Right now we're in Creator Mode - I'm Eliza, helping you design the character. Once you save it, you can test how they'd respond to specific prompts, or go to **Chat** to talk with them directly.",
         error: true,
       });
       return;

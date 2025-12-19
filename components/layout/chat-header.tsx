@@ -217,12 +217,6 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
                 ? "bg-[#471E08] text-[#FF5800]"
                 : "bg-[#1F1F1F] text-[#ADADAD] hover:text-white",
             )}
-            style={{
-              fontFamily: "'Roboto Mono', monospace",
-              fontWeight: 500,
-              fontSize: "14px",
-              lineHeight: "18px",
-            }}
           >
             <MessageSquare className="h-4 w-4" />
             <span className="hidden md:inline">Chat</span>
