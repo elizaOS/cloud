@@ -19,9 +19,29 @@ const TRUSTED_BLOB_HOSTS = [
 function isValidBlobUrl(url: string): boolean {
   try {
     const parsedUrl = new URL(url);
-    return TRUSTED_BLOB_HOSTS.some((host) => parsedUrl.hostname.endsWith(host));
+    // Use exact hostname matching to prevent subdomain bypass attacks
+    return TRUSTED_BLOB_HOSTS.includes(parsedUrl.hostname);
   } catch {
     return false;
+  }
+}
+
+/**
+ * Extracts the user ID from a pre-upload blob URL path.
+ * Blob paths follow the format: knowledge-pre-upload/{userId}/{timestamp}-{filename}
+ * Returns null if the path doesn't match the expected format.
+ */
+function extractUserIdFromBlobPath(url: string): string | null {
+  try {
+    const parsedUrl = new URL(url);
+    const pathParts = parsedUrl.pathname.split("/").filter(Boolean);
+    // Expected format: knowledge-pre-upload/{userId}/{timestamp}-{filename}
+    if (pathParts.length >= 3 && pathParts[0] === "knowledge-pre-upload") {
+      return pathParts[1];
+    }
+    return null;
+  } catch {
+    return null;
   }
 }
 
@@ -177,12 +197,14 @@ async function handlePOST(req: NextRequest) {
  * DELETE /api/v1/knowledge/pre-upload
  * Deletes a pre-uploaded file from Vercel Blob storage.
  * Used when users remove files from the pre-upload list before saving a character.
+ * Verifies that the blob belongs to the authenticated user before deletion.
  *
  * @param req - JSON body with blobUrl to delete.
  * @returns Success or error response.
  */
 async function handleDELETE(req: NextRequest) {
-  await requireAuthOrApiKey(req);
+  const authResult = await requireAuthOrApiKey(req);
+  const { user } = authResult;
 
   const body = await req.json();
   const { blobUrl } = body as { blobUrl: string };
@@ -201,10 +223,19 @@ async function handleDELETE(req: NextRequest) {
     );
   }
 
+  // Verify blob ownership - user can only delete their own pre-uploaded files
+  const blobOwnerId = extractUserIdFromBlobPath(blobUrl);
+  if (!blobOwnerId || blobOwnerId !== user.id) {
+    return NextResponse.json(
+      { error: "Unauthorized to delete this file" },
+      { status: 403 },
+    );
+  }
+
   try {
     await deleteBlob(blobUrl);
 
-    logger.info("[PreUpload] File deleted from blob", { blobUrl });
+    logger.info("[PreUpload] File deleted from blob", { blobUrl, userId: user.id });
 
     return NextResponse.json({ success: true });
   } catch (error) {

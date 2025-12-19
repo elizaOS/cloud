@@ -93,8 +93,10 @@ export function CharacterBuildMode({
   }, [character, initialCharacter, preUploadedFiles.length, onUnsavedChanges]);
 
   // Update local state when derived character changes
+  // Also clear pre-uploaded files since they only apply to the previous character context
   useEffect(() => {
     setCharacter(initialCharacter);
+    setPreUploadedFiles([]);
   }, [initialCharacter]);
 
   // Handle navigation after state updates have been committed

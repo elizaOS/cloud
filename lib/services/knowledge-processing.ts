@@ -53,7 +53,8 @@ const TRUSTED_BLOB_HOSTS = [
 function isValidBlobUrl(url: string): boolean {
   try {
     const parsedUrl = new URL(url);
-    return TRUSTED_BLOB_HOSTS.some((host) => parsedUrl.hostname.endsWith(host));
+    // Use exact hostname matching to prevent subdomain bypass attacks
+    return TRUSTED_BLOB_HOSTS.includes(parsedUrl.hostname);
   } catch {
     return false;
   }

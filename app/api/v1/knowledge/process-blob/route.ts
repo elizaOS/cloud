@@ -8,8 +8,11 @@ import { userContextService } from "@/lib/eliza/user-context";
 import { RuntimeFactory } from "@/lib/eliza/runtime-factory";
 import { AgentMode } from "@/lib/eliza/agent-mode-types";
 import { userCharactersRepository } from "@/db/repositories/characters";
+import { KNOWLEDGE_CONSTANTS, ALLOWED_CONTENT_TYPES } from "@/lib/constants/knowledge";
 
 export const maxDuration = 60;
+
+const MAX_FILENAME_LENGTH = 255;
 
 const TRUSTED_BLOB_HOSTS = [
   "blob.vercel-storage.com",
@@ -19,7 +22,8 @@ const TRUSTED_BLOB_HOSTS = [
 function isValidBlobUrl(url: string): boolean {
   try {
     const parsedUrl = new URL(url);
-    return TRUSTED_BLOB_HOSTS.some((host) => parsedUrl.hostname.endsWith(host));
+    // Use exact hostname matching to prevent subdomain bypass attacks
+    return TRUSTED_BLOB_HOSTS.includes(parsedUrl.hostname);
   } catch {
     return false;
   }
@@ -93,6 +97,44 @@ async function handlePOST(req: NextRequest) {
     );
   }
 
+  if (files.length > KNOWLEDGE_CONSTANTS.MAX_FILES_PER_REQUEST) {
+    return NextResponse.json(
+      { error: `Maximum ${KNOWLEDGE_CONSTANTS.MAX_FILES_PER_REQUEST} files per request` },
+      { status: 400 },
+    );
+  }
+
+  // Validate each file's metadata
+  for (const file of files) {
+    if (!file.blobUrl || !isValidBlobUrl(file.blobUrl)) {
+      return NextResponse.json(
+        { error: `Invalid or untrusted blobUrl for file: ${file.filename || "unknown"}` },
+        { status: 400 },
+      );
+    }
+
+    if (!file.filename || typeof file.filename !== "string" || file.filename.length > MAX_FILENAME_LENGTH) {
+      return NextResponse.json(
+        { error: `Invalid filename: must be a string under ${MAX_FILENAME_LENGTH} characters` },
+        { status: 400 },
+      );
+    }
+
+    if (!file.contentType || !ALLOWED_CONTENT_TYPES.includes(file.contentType as typeof ALLOWED_CONTENT_TYPES[number])) {
+      return NextResponse.json(
+        { error: `Invalid content type: ${file.contentType}` },
+        { status: 400 },
+      );
+    }
+
+    if (typeof file.size !== "number" || file.size <= 0 || file.size > KNOWLEDGE_CONSTANTS.MAX_FILE_SIZE) {
+      return NextResponse.json(
+        { error: `Invalid file size for ${file.filename}: must be between 1 byte and ${KNOWLEDGE_CONSTANTS.MAX_FILE_SIZE / 1024 / 1024}MB` },
+        { status: 400 },
+      );
+    }
+  }
+
   // Build user context with ASSISTANT mode (required for knowledge plugin)
   const userContext = await userContextService.buildContext({
     user,
@@ -120,12 +162,7 @@ async function handlePOST(req: NextRequest) {
 
   for (const file of files) {
     try {
-      // Validate blob URL against trusted domains to prevent SSRF
-      if (!isValidBlobUrl(file.blobUrl)) {
-        throw new Error("Invalid or untrusted blob URL");
-      }
-
-      // Fetch the file from blob storage
+      // Fetch the file from blob storage (already validated above)
       const response = await fetch(file.blobUrl);
       if (!response.ok) {
         throw new Error(
