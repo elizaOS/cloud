@@ -50,12 +50,13 @@ function LoginPageContent() {
   useEffect(() => {
     // Check for OAuth callback indicators in URL or session storage
     const urlParams = new URLSearchParams(window.location.search);
-    const hasOAuthParams = urlParams.has('privy_oauth_code') || 
-                           urlParams.has('privy_oauth_state') ||
-                           urlParams.has('code') ||
-                           urlParams.has('state');
-    const sessionFlag = sessionStorage.getItem('oauth_login_pending');
-    
+    const hasOAuthParams =
+      urlParams.has("privy_oauth_code") ||
+      urlParams.has("privy_oauth_state") ||
+      urlParams.has("code") ||
+      urlParams.has("state");
+    const sessionFlag = sessionStorage.getItem("oauth_login_pending");
+
     if (hasOAuthParams || sessionFlag) {
       setIsProcessingOAuth(true);
     }
@@ -65,7 +66,7 @@ function LoginPageContent() {
   useEffect(() => {
     if (ready && authenticated) {
       // Clear OAuth session flag and guards
-      sessionStorage.removeItem('oauth_login_pending');
+      sessionStorage.removeItem("oauth_login_pending");
       loginInProgressRef.current = false;
       // Use setTimeout to avoid synchronous setState in effect
       setTimeout(() => {
@@ -92,7 +93,7 @@ function LoginPageContent() {
       if (isProcessingOAuth) {
         const timeout = setTimeout(() => {
           setIsProcessingOAuth(false);
-          sessionStorage.removeItem('oauth_login_pending');
+          sessionStorage.removeItem("oauth_login_pending");
         }, 3000); // Give Privy 3 seconds to complete auth
         return () => clearTimeout(timeout);
       }
@@ -144,7 +145,7 @@ function LoginPageContent() {
   ) => {
     setLoadingButton(provider);
     // Set session flag to detect OAuth callback when returning
-    sessionStorage.setItem('oauth_login_pending', 'true');
+    sessionStorage.setItem("oauth_login_pending", "true");
     toast.loading(`Redirecting to ${provider}...`);
     await initOAuth({ provider });
     // This will redirect to OAuth provider
@@ -230,8 +231,8 @@ function LoginPageContent() {
                   {isProcessingOAuth ? "Completing sign in..." : "Loading..."}
                 </h3>
                 <p className="text-sm text-white/60">
-                  {isProcessingOAuth 
-                    ? "Processing your authentication" 
+                  {isProcessingOAuth
+                    ? "Processing your authentication"
                     : "Initializing..."}
                 </p>
               </div>

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthWithOrg } from "@/lib/auth";
-import { characterMarketplaceService as myAgentsService } from "@/lib/services/characters/marketplace";
+import { charactersService } from "@/lib/services/characters";
 import { logger } from "@/lib/utils/logger";
 import type { CategoryId, SortBy, SortOrder } from "@/lib/types/my-agents";
 
@@ -8,10 +8,10 @@ export const dynamic = "force-dynamic";
 
 /**
  * GET /api/my-agents/characters
- * Searches and filters user's own characters with pagination and sorting.
+ * Lists user's own characters with filtering and sorting.
  *
  * @param request - Request with query parameters for search, filters, sorting, and pagination.
- * @returns Paginated character results with optional statistics.
+ * @returns Paginated character results.
  */
 export async function GET(request: NextRequest) {
   try {
@@ -21,10 +21,6 @@ export async function GET(request: NextRequest) {
     // Parse search filters
     const search = searchParams.get("search") || undefined;
     const category = searchParams.get("category") as CategoryId | undefined;
-
-    // Boolean filters - only set if explicitly "true"
-    const hasVoice = searchParams.get("hasVoice") === "true" ? true : undefined;
-    const deployed = searchParams.get("deployed") === "true" ? true : undefined;
 
     // Sort options
     const sortBy = (searchParams.get("sortBy") || "newest") as SortBy;
@@ -37,44 +33,88 @@ export async function GET(request: NextRequest) {
       Math.max(1, parseInt(searchParams.get("limit") || "20", 10)),
     );
 
-    const includeStats = searchParams.get("includeStats") === "true";
-
     logger.debug("[My Agents API] Search request:", {
       userId: user.id,
       organizationId: user.organization_id,
       search,
       category,
-      hasVoice,
-      deployed,
       sortBy,
       page,
       limit,
     });
 
-    const result = await myAgentsService.searchCharacters({
-      userId: user.id,
-      organizationId: user.organization_id!,
-      filters: {
-        search,
-        category,
-        hasVoice,
-        deployed,
-        source: "cloud", // Only show cloud-created agents in main dashboard
-      },
-      sortOptions: {
-        sortBy,
-        order,
-      },
-      pagination: {
-        page,
-        limit,
-      },
-      includeStats,
+    // Get user's characters
+    let characters = await charactersService.listByUser(user.id);
+
+    // Apply search filter
+    if (search) {
+      const query = search.toLowerCase();
+      characters = characters.filter(
+        (char) =>
+          char.name.toLowerCase().includes(query) ||
+          (typeof char.bio === "string" &&
+            char.bio.toLowerCase().includes(query)) ||
+          (Array.isArray(char.bio) &&
+            char.bio.some((b) => b.toLowerCase().includes(query)))
+      );
+    }
+
+    // Apply category filter
+    if (category) {
+      characters = characters.filter((char) => char.category === category);
+    }
+
+    // Sort characters
+    characters.sort((a, b) => {
+      const multiplier = order === "desc" ? -1 : 1;
+      switch (sortBy) {
+        case "name":
+          return multiplier * a.name.localeCompare(b.name);
+        case "newest":
+          const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+          const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+          return multiplier * (dateB - dateA);
+        case "updated":
+          const updA = a.updated_at ? new Date(a.updated_at).getTime() : 0;
+          const updB = b.updated_at ? new Date(b.updated_at).getTime() : 0;
+          return multiplier * (updB - updA);
+        default:
+          return 0;
+      }
     });
+
+    // Apply pagination
+    const totalCount = characters.length;
+    const totalPages = Math.ceil(totalCount / limit);
+    const offset = (page - 1) * limit;
+    const paginatedCharacters = characters.slice(offset, offset + limit);
 
     return NextResponse.json({
       success: true,
-      data: result,
+      data: {
+        characters: paginatedCharacters.map((char) => ({
+          id: char.id,
+          name: char.name,
+          bio: char.bio,
+          avatarUrl: char.avatar_url,
+          avatar_url: char.avatar_url,
+          category: char.category,
+          isPublic: char.is_public,
+          is_public: char.is_public,
+          createdAt: char.created_at,
+          created_at: char.created_at,
+          updatedAt: char.updated_at,
+          updated_at: char.updated_at,
+          tags: char.tags,
+        })),
+        pagination: {
+          page,
+          limit,
+          totalPages,
+          totalCount,
+          hasMore: page < totalPages,
+        },
+      },
     });
   } catch (error) {
     logger.error("[My Agents API] Error searching characters:", error);
@@ -90,7 +130,7 @@ export async function GET(request: NextRequest) {
             ? error.message
             : "Failed to search characters",
       },
-      { status },
+      { status }
     );
   }
 }

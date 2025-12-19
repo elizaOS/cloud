@@ -1,10 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/utils/logger";
 import { requireAuthWithOrg } from "@/lib/auth";
-import {
-  organizationsRepository,
-  creditTransactionsRepository,
-} from "@/db/repositories";
 import { db } from "@/db/client";
 import { usageRecords } from "@/db/schemas/usage-records";
 import { creditTransactions } from "@/db/schemas/credit-transactions";
@@ -44,9 +40,11 @@ export async function GET(req: NextRequest) {
     const periodStart = new Date();
     periodStart.setDate(periodStart.getDate() - days);
 
-    const [org, transactionStats, usageStats, lastTransaction] =
+    // Use org data from auth (already fetched, avoids redundant DB call)
+    const org = user.organization;
+
+    const [transactionStats, usageStats, lastTransaction] =
       await Promise.all([
-        organizationsRepository.findById(organizationId),
         db
           .select({
             totalCredits: sql<string>`COALESCE(SUM(CASE WHEN ${creditTransactions.type} = 'credit' THEN ${creditTransactions.amount} ELSE 0 END), 0)`,
@@ -77,13 +75,6 @@ export async function GET(req: NextRequest) {
           .orderBy(desc(creditTransactions.created_at))
           .limit(1),
       ]);
-
-    if (!org) {
-      return NextResponse.json(
-        { error: "Organization not found" },
-        { status: 404 },
-      );
-    }
 
     const remaining = Number(org.credit_balance || 0);
     const totalDebits = Number(transactionStats[0]?.totalDebits || 0);

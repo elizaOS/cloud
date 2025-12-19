@@ -288,38 +288,44 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
               </div>
 
               {/* Existing conversation examples */}
-              {character.messageExamples && character.messageExamples.length > 0 && (
-                <div className="space-y-2 pt-2">
-                  {character.messageExamples.map((conversation, index) => (
-                    <div
-                      key={index}
-                      className="rounded-none bg-black/20 border border-white/10 p-2"
-                    >
-                      <div className="flex items-start justify-between mb-1">
-                        <span className="text-xs text-white/40">#{index + 1}</span>
-                        <button
-                          onClick={() => removeMessageExample(index)}
-                          className="hover:text-rose-400 transition-colors"
-                        >
-                          <X className="h-3.5 w-3.5 text-white/50" />
-                        </button>
+              {character.messageExamples &&
+                character.messageExamples.length > 0 && (
+                  <div className="space-y-2 pt-2">
+                    {character.messageExamples.map((conversation, index) => (
+                      <div
+                        key={index}
+                        className="rounded-none bg-black/20 border border-white/10 p-2"
+                      >
+                        <div className="flex items-start justify-between mb-1">
+                          <span className="text-xs text-white/40">
+                            #{index + 1}
+                          </span>
+                          <button
+                            onClick={() => removeMessageExample(index)}
+                            className="hover:text-rose-400 transition-colors"
+                          >
+                            <X className="h-3.5 w-3.5 text-white/50" />
+                          </button>
+                        </div>
+                        <div className="space-y-1">
+                          {conversation.map((message, msgIndex) => (
+                            <div key={msgIndex} className="flex gap-2 text-sm">
+                              <span className="text-[#FF5800] shrink-0">
+                                {message.name === "user" ||
+                                message.name === "{{user1}}"
+                                  ? "U:"
+                                  : "A:"}
+                              </span>
+                              <span className="text-white/80">
+                                {message.content.text}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                      <div className="space-y-1">
-                        {conversation.map((message, msgIndex) => (
-                          <div key={msgIndex} className="flex gap-2 text-sm">
-                            <span className="text-[#FF5800] shrink-0">
-                              {message.name === "user" || message.name === "{{user1}}"
-                                ? "U:"
-                                : "A:"}
-                            </span>
-                            <span className="text-white/80">{message.content.text}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+                    ))}
+                  </div>
+                )}
             </div>
 
             {/* Post Examples */}
@@ -336,7 +342,9 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                     side="right"
                     className="max-w-xs bg-black/95 border border-white/10 text-white"
                   >
-                    <p className="font-medium mb-1">Sample social media posts</p>
+                    <p className="font-medium mb-1">
+                      Sample social media posts
+                    </p>
                     <p className="text-white/70">
                       Add examples of posts your agent might create on social
                       platforms like Twitter/X. Example: "Just shipped a new
@@ -408,8 +416,8 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                       Universal style rules for all contexts
                     </p>
                     <p className="text-white/70">
-                      Define overarching style rules that apply everywhere (chats
-                      AND posts). Example: "Always use lowercase", "Be
+                      Define overarching style rules that apply everywhere
+                      (chats AND posts). Example: "Always use lowercase", "Be
                       enthusiastic and friendly", "Avoid formal language"
                     </p>
                   </TooltipContent>
@@ -503,8 +511,9 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                     </p>
                     <p className="text-white/70">
                       Define how your agent creates public posts on platforms
-                      like Twitter/X. Example: "Always include a call-to-action",
-                      "Use trending hashtags", "Keep posts under 280 characters"
+                      like Twitter/X. Example: "Always include a
+                      call-to-action", "Use trending hashtags", "Keep posts
+                      under 280 characters"
                     </p>
                   </TooltipContent>
                 </Tooltip>

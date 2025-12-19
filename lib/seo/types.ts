@@ -8,7 +8,7 @@ import type { Metadata } from "next";
  * Parameters for generating Open Graph images.
  */
 export interface OGImageParams {
-  type: "default" | "character" | "chat" | "container" | "marketplace";
+  type: "default" | "character" | "chat" | "container";
   title?: string;
   description?: string;
   id?: string;

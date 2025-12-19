@@ -9,23 +9,10 @@ import { CreditsProvider } from "@/lib/providers/CreditsProvider";
 import DebugProvider from "@/components/debug/debug-provider";
 import localFont from "next/font/local";
 
+// Performance optimization: Load only essential font weights (reduced from 7 to 4)
+// This reduces initial font bundle size by ~40%
 const sfPro = localFont({
   src: [
-    {
-      path: "./fonts/sf-pro/SF-Pro-Display-Ultralight.otf",
-      weight: "200",
-      style: "normal",
-    },
-    {
-      path: "./fonts/sf-pro/SF-Pro-Display-Thin.otf",
-      weight: "300",
-      style: "normal",
-    },
-    {
-      path: "./fonts/sf-pro/SF-Pro-Display-Light.otf",
-      weight: "350",
-      style: "normal",
-    },
     {
       path: "./fonts/sf-pro/SF-Pro-Display-Regular.otf",
       weight: "400",

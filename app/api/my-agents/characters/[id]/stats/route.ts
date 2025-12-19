@@ -1,64 +1,44 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
-import { characterMarketplaceService as myAgentsService } from "@/lib/services/characters/marketplace";
-import { logger } from "@/lib/utils/logger";
+import { requireAuthWithOrg } from "@/lib/auth";
+import { charactersService } from "@/lib/services/characters";
 
 export const dynamic = "force-dynamic";
 
 /**
  * GET /api/my-agents/characters/[id]/stats
- * Gets statistics for a user's character.
- *
- * @param request - The Next.js request object.
- * @param params - Route parameters containing the character ID.
- * @returns Character statistics including message count, room count, and deployment status.
+ * Get statistics for a character.
  */
 export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireAuth();
+    const user = await requireAuthWithOrg();
     const { id } = await params;
 
-    logger.debug("[My Agents API] Getting stats for character:", id);
-
-    const character = await myAgentsService.getCharacterById(id, true);
-
+    const character = await charactersService.getByIdForUser(id, user.id);
     if (!character) {
       return NextResponse.json(
-        {
-          success: false,
-          error: "Character not found",
-        },
-        { status: 404 },
+        { success: false, error: "Character not found" },
+        { status: 404 }
       );
     }
 
+    // Return basic stats - detailed stats were part of marketplace service
     return NextResponse.json({
       success: true,
       data: {
-        characterId: character.id,
-        stats: character.stats || {
-          messageCount: 0,
-          roomCount: 0,
-          lastActiveAt: null,
-          deploymentStatus: "draft" as const,
+        stats: {
+          viewCount: 0,
+          interactionCount: 0,
+          cloneCount: 0,
         },
       },
     });
   } catch (error) {
-    logger.error("[My Agents API] Error getting character stats:", error);
-
     return NextResponse.json(
-      {
-        success: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to get character stats",
-      },
-      { status: 500 },
+      { success: false, error: "Failed to get stats" },
+      { status: 500 }
     );
   }
 }

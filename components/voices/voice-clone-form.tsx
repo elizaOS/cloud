@@ -425,7 +425,9 @@ export function VoiceCloneForm({
               >
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    <span className="font-mono font-semibold text-xs text-white">Instant</span>
+                    <span className="font-mono font-semibold text-xs text-white">
+                      Instant
+                    </span>
                     <span className="bg-green-500/20 text-green-400 border border-green-500/40 px-1 py-0.5 text-[9px] font-mono font-bold uppercase">
                       Rec
                     </span>
@@ -459,12 +461,15 @@ export function VoiceCloneForm({
               >
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    <span className="font-mono font-semibold text-xs text-white">Professional</span>
-                    {professionalVoiceCount !== null && professionalVoiceCount >= 1 && (
-                      <span className="border-amber-500/40 bg-amber-500/10 text-amber-300 border px-1 py-0.5 text-[9px] font-mono font-bold uppercase">
-                        Full
-                      </span>
-                    )}
+                    <span className="font-mono font-semibold text-xs text-white">
+                      Professional
+                    </span>
+                    {professionalVoiceCount !== null &&
+                      professionalVoiceCount >= 1 && (
+                        <span className="border-amber-500/40 bg-amber-500/10 text-amber-300 border px-1 py-0.5 text-[9px] font-mono font-bold uppercase">
+                          Full
+                        </span>
+                      )}
                   </div>
                   <span className="font-mono font-semibold text-xs text-white/80">
                     ${VOICE_CLONE_PROFESSIONAL_COST.toFixed(2)}
@@ -548,8 +553,12 @@ export function VoiceCloneForm({
                       <div className="flex items-center gap-2">
                         <Mic className="h-5 w-5 text-muted-foreground" />
                         <div>
-                          <p className="text-xs font-medium text-white">Ready to record</p>
-                          <p className="text-[10px] text-white/50">Speak clearly in a quiet space</p>
+                          <p className="text-xs font-medium text-white">
+                            Ready to record
+                          </p>
+                          <p className="text-[10px] text-white/50">
+                            Speak clearly in a quiet space
+                          </p>
                         </div>
                       </div>
                       <BrandButton
@@ -579,7 +588,9 @@ export function VoiceCloneForm({
                           <p className="text-lg font-mono font-semibold text-white">
                             {formatRecordingTime(recorder.recordingTime)}
                           </p>
-                          <p className="text-[10px] text-white/50">Recording...</p>
+                          <p className="text-[10px] text-white/50">
+                            Recording...
+                          </p>
                         </div>
                       </div>
                       <BrandButton
@@ -589,7 +600,10 @@ export function VoiceCloneForm({
                         size="sm"
                         className="h-8 animate-pulse"
                       >
-                        <Square className="mr-1.5 h-3 w-3" fill="currentColor" />
+                        <Square
+                          className="mr-1.5 h-3 w-3"
+                          fill="currentColor"
+                        />
                         Stop
                       </BrandButton>
                     </div>
@@ -697,7 +711,9 @@ export function VoiceCloneForm({
                   <span className="text-[10px] font-medium text-white/60 uppercase">
                     Stability
                   </span>
-                  <span className="text-[10px] font-mono text-white/80">{settings.stability.toFixed(2)}</span>
+                  <span className="text-[10px] font-mono text-white/80">
+                    {settings.stability.toFixed(2)}
+                  </span>
                 </div>
                 <Slider
                   value={[settings.stability]}
@@ -716,7 +732,9 @@ export function VoiceCloneForm({
                   <span className="text-[10px] font-medium text-white/60 uppercase">
                     Similarity
                   </span>
-                  <span className="text-[10px] font-mono text-white/80">{settings.similarityBoost.toFixed(2)}</span>
+                  <span className="text-[10px] font-mono text-white/80">
+                    {settings.similarityBoost.toFixed(2)}
+                  </span>
                 </div>
                 <Slider
                   value={[settings.similarityBoost]}
@@ -738,7 +756,9 @@ export function VoiceCloneForm({
                   <span className="text-[10px] font-medium text-white/60 uppercase">
                     Style
                   </span>
-                  <span className="text-[10px] font-mono text-white/80">{settings.style.toFixed(2)}</span>
+                  <span className="text-[10px] font-mono text-white/80">
+                    {settings.style.toFixed(2)}
+                  </span>
                 </div>
                 <Slider
                   value={[settings.style]}
@@ -789,7 +809,8 @@ export function VoiceCloneForm({
           {/* Credit warning if insufficient */}
           {!hasEnoughCredits && (
             <p className="text-[10px] text-center text-amber-400 font-mono">
-              Insufficient credits. Need ${cost.toFixed(2)}, have ${Number(creditBalance).toFixed(2)}
+              Insufficient credits. Need ${cost.toFixed(2)}, have $
+              {Number(creditBalance).toFixed(2)}
             </p>
           )}
         </div>

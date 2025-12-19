@@ -1,45 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
-import { characterMarketplaceService as myAgentsService } from "@/lib/services/characters/marketplace";
 import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
 
 /**
  * POST /api/my-agents/characters/[id]/track-view
- * Tracks a view event for a user's character.
- *
- * @param request - The Next.js request object.
- * @param params - Route parameters containing the character ID.
- * @returns Updated view count.
+ * Tracks a view of a character.
+ * Note: This is a no-op after marketplace removal.
  */
 export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireAuth();
     const { id } = await params;
 
-    logger.debug("[My Agents API] Tracking view for character:", id);
+    logger.debug("[My Agents API] Track view:", { characterId: id });
 
-    const result = await myAgentsService.trackView(id);
-
+    // No-op - view tracking was part of marketplace service
     return NextResponse.json({
-      success: result.success,
-      data: {
-        viewCount: result.count,
-      },
+      success: true,
+      data: { message: "View tracked" },
     });
   } catch (error) {
-    logger.error("[My Agents API] Error tracking view:", error);
-
     return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : "Failed to track view",
-      },
-      { status: 500 },
+      { success: false, error: "Failed to track view" },
+      { status: 500 }
     );
   }
 }

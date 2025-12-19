@@ -17,7 +17,15 @@ import { PluginsTab } from "@/components/chat/plugins-tab";
 import { UploadsTab } from "@/components/chat/uploads-tab";
 import type { ElizaCharacter } from "@/lib/types";
 import { Button } from "@/components/ui/button";
-import { Download, Zap, BookOpen, Sparkles, Puzzle, CloudUpload, Upload } from "lucide-react";
+import {
+  Download,
+  Zap,
+  BookOpen,
+  Sparkles,
+  Puzzle,
+  CloudUpload,
+  Upload,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   BrandTabsResponsive,

@@ -4,6 +4,8 @@ import { MCPsPageClient } from "@/components/mcps/mcps-page-client";
 import { Puzzle, Server, Zap, Globe } from "lucide-react";
 import { BrandCard, CornerBrackets } from "@/components/brand";
 
+// Auth check requires cookies which makes this dynamic
+// MCP server list is hardcoded but auth is dynamic
 export const dynamic = "force-dynamic";
 
 // Demo MCP servers available for users

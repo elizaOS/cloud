@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthWithOrg } from "@/lib/auth";
-import { characterMarketplaceService as myAgentsService } from "@/lib/services/characters/marketplace";
+import { charactersService } from "@/lib/services/characters";
 import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
 
 /**
  * POST /api/my-agents/characters/[id]/clone
- * Clones a character from the user's agents to create a new copy.
+ * Clones a character to create a new copy owned by the user.
  *
  * @param request - Request body with optional name and makePublic flag.
  * @param params - Route parameters containing the character ID to clone.
@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await requireAuthWithOrg();
@@ -34,15 +34,34 @@ export async function POST(
       name: body.name,
     });
 
-    const clonedCharacter = await myAgentsService.cloneCharacter(
-      id,
-      user.id,
-      user.organization_id!,
-      {
-        name: body.name,
-        makePublic: body.makePublic,
-      },
-    );
+    // Get the original character
+    const original = await charactersService.getById(id);
+    if (!original) {
+      return NextResponse.json(
+        { success: false, error: "Character not found" },
+        { status: 404 }
+      );
+    }
+
+    // Create a clone
+    const clonedCharacter = await charactersService.create({
+      user_id: user.id,
+      organization_id: user.organization_id!,
+      name: body.name || `${original.name} (Copy)`,
+      bio: original.bio,
+      system: original.system,
+      topics: original.topics,
+      adjectives: original.adjectives,
+      knowledge: original.knowledge,
+      plugins: original.plugins,
+      style: original.style,
+      settings: original.settings,
+      avatar_url: original.avatar_url,
+      category: original.category,
+      tags: original.tags,
+      is_public: body.makePublic ?? false,
+      is_template: false,
+    });
 
     return NextResponse.json({
       success: true,
@@ -65,7 +84,7 @@ export async function POST(
           error instanceof Error && error.message.includes("not found")
             ? 404
             : 500,
-      },
+      }
     );
   }
 }

@@ -82,7 +82,11 @@ export const generateAvatarAction = {
 - User says "give me an avatar", "create avatar", "generate profile pic"
 - User describes how their character should look
 Returns the avatar URL for immediate preview and update.`,
-  validate: async (_runtime: IAgentRuntime, _message: Memory, _state?: State) => {
+  validate: async (
+    _runtime: IAgentRuntime,
+    _message: Memory,
+    _state?: State,
+  ) => {
     return true;
   },
   handler: async (
@@ -96,7 +100,9 @@ Returns the avatar URL for immediate preview and update.`,
     const creatorMode = isCreatorMode(runtime);
     const modeLabel = creatorMode ? "Creator" : "Build";
 
-    logger.info(`[GENERATE_AVATAR] ${modeLabel} mode - Generating character avatar`);
+    logger.info(
+      `[GENERATE_AVATAR] ${modeLabel} mode - Generating character avatar`,
+    );
 
     // Compose state with character context
     const allProviders =
@@ -143,26 +149,40 @@ Returns the avatar URL for immediate preview and update.`,
       prompt?: string;
       text?: string;
     } | null;
-    
-    const avatarPrompt = parsed?.prompt?.trim() || 
+
+    const avatarPrompt =
+      parsed?.prompt?.trim() ||
       `Professional character avatar portrait. Digital illustration, dark background (#0A0A0A), high quality, cinematic lighting, centered portrait composition, suitable for profile picture.`;
-    
+
     const thought = parsed?.thought?.trim() || "Generating character avatar";
     const responseText = parsed?.text?.trim() || "Here's the avatar I created!";
 
-    logger.info(`[GENERATE_AVATAR] Generated prompt: ${avatarPrompt.substring(0, 100)}...`);
+    logger.info(
+      `[GENERATE_AVATAR] Generated prompt: ${avatarPrompt.substring(0, 100)}...`,
+    );
 
     // Generate the avatar image
     const imageResponse = await runtime.useModel(ModelType.IMAGE, {
       prompt: avatarPrompt,
     });
 
-    if (!imageResponse || imageResponse.length === 0 || !imageResponse[0]?.url) {
-      logger.error("[GENERATE_AVATAR] Image generation failed - no valid response", JSON.stringify({
-        imageResponse,
-        avatarPrompt,
-      }, null, 2));
-      
+    if (
+      !imageResponse ||
+      imageResponse.length === 0 ||
+      !imageResponse[0]?.url
+    ) {
+      logger.error(
+        "[GENERATE_AVATAR] Image generation failed - no valid response",
+        JSON.stringify(
+          {
+            imageResponse,
+            avatarPrompt,
+          },
+          null,
+          2,
+        ),
+      );
+
       await callback({
         text: "I couldn't generate the avatar right now. Want me to try again?",
         thought: "Avatar generation failed - no image returned from model",
@@ -175,23 +195,35 @@ Returns the avatar URL for immediate preview and update.`,
 
       return {
         text: "Avatar generation failed",
-        values: { success: false, error: "IMAGE_GENERATION_FAILED", prompt: avatarPrompt },
-        data: { actionName: "GENERATE_AVATAR", prompt: avatarPrompt, rawResponse: imageResponse },
+        values: {
+          success: false,
+          error: "IMAGE_GENERATION_FAILED",
+          prompt: avatarPrompt,
+        },
+        data: {
+          actionName: "GENERATE_AVATAR",
+          prompt: avatarPrompt,
+          rawResponse: imageResponse,
+        },
         success: false,
       };
     }
 
     const avatarUrl = imageResponse[0].url;
-    logger.info(`[GENERATE_AVATAR] Avatar generated successfully: ${avatarUrl}`);
+    logger.info(
+      `[GENERATE_AVATAR] Avatar generated successfully: ${avatarUrl}`,
+    );
 
     // Auto-save avatar in build mode (existing character)
     let avatarSaved = false;
     if (!creatorMode && runtime.character.id) {
       const userId = runtime.character.settings?.USER_ID as string;
-      
+
       if (userId) {
-        logger.info(`[GENERATE_AVATAR] Auto-saving avatar for character ${runtime.character.id}`);
-        
+        logger.info(
+          `[GENERATE_AVATAR] Auto-saving avatar for character ${runtime.character.id}`,
+        );
+
         const savedCharacter = await charactersService.updateForUser(
           runtime.character.id as string,
           userId,
@@ -207,16 +239,23 @@ Returns the avatar URL for immediate preview and update.`,
           };
           logger.info(`[GENERATE_AVATAR] Avatar saved successfully`);
         } else {
-          logger.warn(`[GENERATE_AVATAR] Failed to save avatar - permission denied or character not found`);
+          logger.warn(
+            `[GENERATE_AVATAR] Failed to save avatar - permission denied or character not found`,
+          );
         }
       } else {
-        logger.warn(`[GENERATE_AVATAR] Cannot auto-save - no USER_ID in runtime settings`);
+        logger.warn(
+          `[GENERATE_AVATAR] Cannot auto-save - no USER_ID in runtime settings`,
+        );
       }
     }
 
     // Create attachment for display
     const attachmentId = v4();
-    const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+    const timestamp = new Date()
+      .toISOString()
+      .replace(/[:.]/g, "-")
+      .slice(0, 19);
     const fileName = `Avatar_${timestamp}.png`;
 
     const attachments = [
