@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const user = await requireAuthWithOrg();
@@ -39,7 +39,7 @@ export async function POST(
     if (!original) {
       return NextResponse.json(
         { success: false, error: "Character not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -84,7 +84,7 @@ export async function POST(
           error instanceof Error && error.message.includes("not found")
             ? 404
             : 500,
-      }
+      },
     );
   }
 }

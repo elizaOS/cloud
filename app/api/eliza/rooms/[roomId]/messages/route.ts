@@ -190,7 +190,9 @@ export async function POST(
       }
 
       // Use org data from auth (already fetched, avoids redundant DB call)
-      const creditBalance = Number.parseFloat(String(user.organization.credit_balance));
+      const creditBalance = Number.parseFloat(
+        String(user.organization.credit_balance),
+      );
       if (creditBalance < estimatedCost) {
         return NextResponse.json(
           {

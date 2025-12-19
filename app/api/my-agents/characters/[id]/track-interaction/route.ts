@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
  */
 export async function POST(
   _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     await requireAuthWithOrg();
@@ -27,7 +27,7 @@ export async function POST(
   } catch (error) {
     return NextResponse.json(
       { success: false, error: "Failed to track interaction" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

@@ -48,12 +48,12 @@ import { MonacoEditorSkeleton } from "@/components/chat/monaco-editor-skeleton";
 const OpenApiViewer = dynamic(
   () =>
     import("@/components/api-explorer/openapi-viewer").then(
-      (mod) => mod.OpenApiViewer
+      (mod) => mod.OpenApiViewer,
     ),
   {
     ssr: false,
     loading: () => <MonacoEditorSkeleton height="800px" />,
-  }
+  },
 );
 import { useSetPageHeader } from "@/components/layout/page-header-context";
 import { cn } from "@/lib/utils";

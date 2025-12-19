@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
  */
 export async function GET(
   _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const user = await requireAuthWithOrg();
@@ -20,7 +20,7 @@ export async function GET(
     if (!character) {
       return NextResponse.json(
         { success: false, error: "Character not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -38,7 +38,7 @@ export async function GET(
   } catch (error) {
     return NextResponse.json(
       { success: false, error: "Failed to get stats" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

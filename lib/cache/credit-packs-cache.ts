@@ -29,7 +29,7 @@ export class CreditPacksCache {
    */
   async setActiveCreditPacks(
     packs: CreditPack[],
-    ttl: number = CACHE_TTL
+    ttl: number = CACHE_TTL,
   ): Promise<void> {
     await cacheClient.set(CACHE_KEY, packs, ttl);
     logger.debug("[CreditPacks Cache] Cached active credit packs");
@@ -48,12 +48,12 @@ export class CreditPacksCache {
    * Returns cached data immediately (even if stale) while refreshing in background.
    */
   async getWithSWR(
-    fetchFn: () => Promise<CreditPack[]>
+    fetchFn: () => Promise<CreditPack[]>,
   ): Promise<CreditPack[]> {
     const result = await cacheClient.getWithSWR<CreditPack[]>(
       CACHE_KEY,
       CACHE_TTL,
-      fetchFn
+      fetchFn,
     );
     return result || [];
   }

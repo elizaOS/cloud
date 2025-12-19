@@ -237,15 +237,16 @@ async function fetchLocalAgents(
     characters = characters.filter(
       (char) =>
         char.name.toLowerCase().includes(query) ||
-        (typeof char.bio === "string" && char.bio.toLowerCase().includes(query)) ||
+        (typeof char.bio === "string" &&
+          char.bio.toLowerCase().includes(query)) ||
         (Array.isArray(char.bio) &&
-          char.bio.some((b) => b.toLowerCase().includes(query)))
+          char.bio.some((b) => b.toLowerCase().includes(query))),
     );
   }
 
   if (params.categories?.length) {
     characters = characters.filter((char) =>
-      params.categories?.includes(char.category ?? "")
+      params.categories?.includes(char.category ?? ""),
     );
   }
 
