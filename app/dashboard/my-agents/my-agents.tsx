@@ -74,7 +74,7 @@ export function MyAgentsClient() {
               description: data.claimed
                 .map((c: { name: string }) => c.name)
                 .join(", "),
-            },
+            }
           );
           fetchCharacters();
 
@@ -121,16 +121,19 @@ export function MyAgentsClient() {
     router.push("/dashboard/build");
   }, [router]);
 
-  useSetPageHeader({
-    title: "My Agents",
-    description: `Manage your ${characters.length} AI agent${characters.length !== 1 ? "s" : ""}`,
-    actions: (
-      <BrandButton onClick={handleCreateNew}>
-        <Plus className="h-4 w-4 mr-2" />
-        Create New Agent
-      </BrandButton>
-    ),
-  });
+  useSetPageHeader(
+    {
+      title: "My Agents",
+      description: `Manage your ${characters.length} AI agent${characters.length !== 1 ? "s" : ""}`,
+      actions: (
+        <BrandButton onClick={handleCreateNew}>
+          <Plus className="h-4 w-4 mr-2" />
+          Create New Agent
+        </BrandButton>
+      ),
+    },
+    [characters.length, handleCreateNew]
+  );
 
   if (isLoading) {
     return (
