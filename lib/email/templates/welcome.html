@@ -16,22 +16,25 @@
           "Helvetica Neue", Arial, sans-serif;
         line-height: 1.6;
         color: #1f2937;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background-color: #f5f5f5;
         padding: 40px 20px;
       }
       .email-wrapper {
         max-width: 600px;
         margin: 0 auto;
-        background: white;
-        border-radius: 16px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 8px;
         overflow: hidden;
         box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        padding: 20px;
       }
       .header-banner {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         padding: 50px 40px;
         text-align: center;
         color: white;
+        position: relative;
+        overflow: hidden;
       }
       .header-banner h1 {
         font-size: 32px;
@@ -47,19 +50,12 @@
       .celebration-icon {
         font-size: 56px;
         margin-bottom: 20px;
-        animation: bounce 1s ease infinite;
-      }
-      @keyframes bounce {
-        0%,
-        100% {
-          transform: translateY(0);
-        }
-        50% {
-          transform: translateY(-10px);
-        }
       }
       .content {
+        background: white;
+        border-radius: 8px;
         padding: 40px;
+        margin-top: 16px;
       }
       .welcome-text {
         font-size: 16px;
@@ -73,7 +69,7 @@
       }
       .credit-card {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        border-radius: 12px;
+        border-radius: 6px;
         padding: 30px;
         text-align: center;
         margin: 30px 0;
@@ -109,7 +105,7 @@
       }
       .step-card {
         background: #f9fafb;
-        border-radius: 12px;
+        border-radius: 6px;
         padding: 24px;
         margin-bottom: 16px;
         display: flex;
@@ -162,7 +158,7 @@
         color: white;
         padding: 16px 36px;
         text-decoration: none;
-        border-radius: 10px;
+        border-radius: 4px;
         margin: 8px;
         font-weight: 600;
         font-size: 16px;
@@ -185,7 +181,7 @@
       .help-section {
         background: #fef3c7;
         border-left: 4px solid #f59e0b;
-        border-radius: 8px;
+        border-radius: 4px;
         padding: 20px;
         margin: 30px 0;
       }
@@ -204,10 +200,11 @@
         font-weight: 600;
       }
       .footer {
-        background: #f9fafb;
+        background: white;
         padding: 30px 40px;
         text-align: center;
-        border-top: 1px solid #e5e7eb;
+        border-radius: 0 0 8px 8px;
+        margin-top: -12px;
       }
       .footer p {
         color: #6b7280;
