@@ -99,6 +99,9 @@ export default defineConfig({
         viewport: { width: 1280, height: 720 },
       },
       testMatch: /miniapp.*\.spec\.ts$/,
+      // Miniapp tests require both main app and miniapp servers
+      // These are started manually in CI, so disable webServer for this project
+      webServer: undefined,
     },
     {
       name: "cleanup",
