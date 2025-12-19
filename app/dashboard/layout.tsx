@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  useState,
-  useEffect,
-  useCallback,
-  Profiler,
-  type ProfilerOnRenderCallback,
-} from "react";
+import { useState, useEffect, useCallback } from "react";
 import { usePrivy } from "@privy-io/react-auth";
 import { useRouter, usePathname } from "next/navigation";
 import { Loader2 } from "lucide-react";
@@ -14,13 +8,6 @@ import Sidebar from "@/components/layout/sidebar";
 import Header from "@/components/layout/header";
 import { PageHeaderProvider } from "@/components/layout/page-header-context";
 import { OnboardingProvider, OnboardingOverlay } from "@/components/onboarding";
-
-// Import render tracker for profiling (dev only)
-let onRenderCallback: ProfilerOnRenderCallback | undefined;
-if (process.env.NODE_ENV === "development") {
-  const tracker = require("@/lib/debug/render-tracker");
-  onRenderCallback = tracker.onRenderCallback;
-}
 
 /**
  * Free Mode Paths (accessible without auth):
@@ -101,52 +88,33 @@ export default function DashboardLayout({
 
   // For chat/build pages, render children directly without standard layout
   if (isCustomLayoutPage) {
-    const content = (
+    return (
       <OnboardingProvider>
         <PageHeaderProvider>{children}</PageHeaderProvider>
         <OnboardingOverlay />
       </OnboardingProvider>
     );
-    if (process.env.NODE_ENV === "development" && onRenderCallback) {
-      return (
-        <Profiler id="Dashboard-Chat-Build" onRender={onRenderCallback}>
-          {content}
-        </Profiler>
-      );
-    }
-    return content;
   }
 
   // Standard dashboard layout for all other pages
-  const dashboardContent = (
+  return (
     <OnboardingProvider>
       <PageHeaderProvider>
         <div className="flex h-screen w-full bg-[#0A0A0A]">
           {/* Sidebar */}
-          <Profiler id="Sidebar" onRender={onRenderCallback || (() => {})}>
-            <Sidebar isOpen={sidebarOpen} onToggle={handleToggleSidebar} />
-          </Profiler>
+          <Sidebar isOpen={sidebarOpen} onToggle={handleToggleSidebar} />
 
           {/* Main Content */}
           <div className="flex flex-1 flex-col overflow-hidden">
             {/* Header - pass auth state for signup button */}
-            <Profiler id="Header" onRender={onRenderCallback || (() => {})}>
-              <Header
-                onToggleSidebar={handleToggleSidebar}
-                isAnonymous={!authenticated}
-              />
-            </Profiler>
+            <Header
+              onToggleSidebar={handleToggleSidebar}
+              isAnonymous={!authenticated}
+            />
 
             {/* Main Content Area */}
             <main className="flex-1 overflow-y-auto bg-[#0A0A0A]">
-              <Profiler
-                id="Dashboard-Main"
-                onRender={onRenderCallback || (() => {})}
-              >
-                <div className="h-full px-2 py-3 md:px-6 md:py-6">
-                  {children}
-                </div>
-              </Profiler>
+              <div className="h-full px-2 py-3 md:px-6 md:py-6">{children}</div>
             </main>
           </div>
         </div>
@@ -154,14 +122,4 @@ export default function DashboardLayout({
       <OnboardingOverlay />
     </OnboardingProvider>
   );
-
-  if (process.env.NODE_ENV === "development" && onRenderCallback) {
-    return (
-      <Profiler id="Dashboard-Layout" onRender={onRenderCallback}>
-        {dashboardContent}
-      </Profiler>
-    );
-  }
-
-  return dashboardContent;
 }

@@ -201,9 +201,6 @@ async function handleCreateContainer(request: NextRequest) {
 
     const isUpdate = !!existingProject;
 
-    console.log(
-      `🔍 [handleCreateContainer] Project "${validatedData.project_name}" ${isUpdate ? "EXISTS - will update" : "is NEW - will create"}`,
-    );
 
     let container;
     let newBalance: number;
@@ -211,9 +208,6 @@ async function handleCreateContainer(request: NextRequest) {
 
     if (isUpdate && existingProject) {
       // UPDATE: Update the existing container record
-      console.log(
-        `🔄 [handleCreateContainer] Updating existing container: ${existingProject.id}`,
-      );
 
       const updateData = {
         name: validatedData.name,
@@ -293,9 +287,6 @@ async function handleCreateContainer(request: NextRequest) {
       });
     } else {
       // FRESH: Create a new container record
-      console.log(
-        `🆕 [handleCreateContainer] Creating new container for project "${validatedData.project_name}"`,
-      );
 
       const containerData: NewContainer = {
         name: validatedData.name,
@@ -429,19 +420,11 @@ async function handleCreateContainer(request: NextRequest) {
     // Create CloudFormation stack SYNCHRONOUSLY
     // The CreateStack API call itself is fast (milliseconds) - it just initiates the stack
     // Only the wait for completion takes 8-12 minutes, which the cron job handles
-    console.log(
-      `🚀 [handleCreateContainer] Creating CloudFormation stack for container: ${container.id}`,
-    );
-
     try {
       const stackName = await initiateCloudFormationStack(
         container.id,
         validatedData,
         user.organization_id!,
-      );
-
-      console.log(
-        `✅ [handleCreateContainer] CloudFormation stack initiated: ${stackName}`,
       );
 
       // Return immediately with container info and polling instructions
@@ -484,9 +467,6 @@ async function handleCreateContainer(request: NextRequest) {
           description: `Refund for failed container deployment: ${validatedData.name}`,
           metadata: { type: "refund" },
         });
-        console.log(
-          `✅ Refunded ${deploymentCost} credits for failed deployment`,
-        );
       } catch (refundError) {
         logger.error(`❌ Failed to refund credits:`, refundError);
       }
@@ -577,10 +557,6 @@ async function initiateCloudFormationStack(
   config: z.infer<typeof createContainerSchema>,
   organizationId: string,
 ): Promise<string> {
-  console.log(
-    `🚀 [initiateCloudFormationStack] Starting for container: ${containerId}`,
-  );
-
   const { cloudFormationService } =
     await import("@/lib/services/cloudformation");
 
@@ -590,9 +566,6 @@ async function initiateCloudFormationStack(
   });
 
   // Check if shared infrastructure is deployed
-  console.log(
-    `🔍 [initiateCloudFormationStack] Checking shared infrastructure...`,
-  );
   const sharedInfraExists =
     await cloudFormationService.isSharedInfrastructureDeployed();
 
@@ -601,7 +574,6 @@ async function initiateCloudFormationStack(
       "Shared infrastructure not deployed. Contact support or deploy infrastructure first.",
     );
   }
-  console.log(`✅ [initiateCloudFormationStack] Shared infrastructure exists`);
 
   // Determine architecture and instance type
   const architecture = config.architecture || "arm64";
@@ -620,10 +592,6 @@ async function initiateCloudFormationStack(
     ...(config.environment_vars || {}),
   };
 
-  console.log(
-    `🔐 [initiateCloudFormationStack] Injecting ${Object.keys(environmentVars).length} environment variables`,
-  );
-
   // Get container to check if this is an update
   const container = await getContainer(containerId, organizationId);
   const isUpdate = container?.is_update === "true";
@@ -641,16 +609,6 @@ async function initiateCloudFormationStack(
     environmentVars: environmentVars,
   };
 
-  console.log(
-    `☁️ [initiateCloudFormationStack] Calling CloudFormation API...`,
-    {
-      userId: stackConfig.userId,
-      projectName: stackConfig.projectName,
-      architecture: stackConfig.architecture,
-      isUpdate,
-    },
-  );
-
   // Create or update CloudFormation stack
   // This API call is FAST (milliseconds) - it just initiates the stack
   let stackId: string;
@@ -659,10 +617,6 @@ async function initiateCloudFormationStack(
   } else {
     stackId = await cloudFormationService.createUserStack(stackConfig);
   }
-
-  console.log(
-    `✅ [initiateCloudFormationStack] CloudFormation API call successful: ${stackId}`,
-  );
 
   // Get the stack name for storage
   const stackName = cloudFormationService.getStackName(
@@ -675,10 +629,6 @@ async function initiateCloudFormationStack(
     cloudformationStackName: stackName,
     deploymentLog: `CloudFormation stack "${stackName}" creation initiated. Monitoring for completion...`,
   });
-
-  console.log(
-    `✅ [initiateCloudFormationStack] Stack ${stackName} initiated. Cron job will monitor completion.`,
-  );
 
   return stackName;
 }

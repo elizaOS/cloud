@@ -139,12 +139,8 @@ export function getAvailableAvatarStyles(): Array<{
  * @returns A valid avatar URL (either the original or the fallback)
  */
 export function ensureAvatarUrl(avatarUrl: string | null | undefined): string {
-  console.log(`[ensureAvatarUrl] avatarUrl=${avatarUrl}`);
-  console.log(`[ensureAvatarUrl] DEFAULT_AVATAR=${DEFAULT_AVATAR}`);
   if (avatarUrl && avatarUrl.trim() !== "") {
-    console.log(`[ensureAvatarUrl] returning avatarUrl=${avatarUrl}`);
     return avatarUrl;
   }
-  console.log(`[ensureAvatarUrl] returning DEFAULT_AVATAR=${DEFAULT_AVATAR}`);
   return DEFAULT_AVATAR;
 }

@@ -90,8 +90,6 @@ async function handlePrivyWebhook(request: NextRequest) {
     // Parse the webhook payload
     const payload = JSON.parse(body);
 
-    console.log("Received Privy webhook:", payload.type);
-
     // Extract IP address from headers (for abuse tracking)
     const forwardedFor = headersList.get("x-forwarded-for");
     const realIp = headersList.get("x-real-ip");
@@ -114,7 +112,6 @@ async function handlePrivyWebhook(request: NextRequest) {
 
         // Sync user on creation, linking new account, or authentication
         const user = await syncUserFromPrivy(payload.user, syncOptions);
-        console.log("User synced via webhook:", user.id);
 
         // Check for anonymous session cookie and migrate data
         const cookieStore = await cookies();
@@ -158,20 +155,19 @@ async function handlePrivyWebhook(request: NextRequest) {
 
       case "user.updated": {
         // Update existing user
-        const user = await syncUserFromPrivy(payload.user);
-        console.log("User updated via webhook:", user.id);
+        await syncUserFromPrivy(payload.user);
         break;
       }
 
       case "user.deleted": {
         // Handle user deletion if needed
-        console.log("User deletion event received:", payload.user.userId);
         // For now, we'll keep the user in our database but could mark as inactive
         break;
       }
 
       default:
-        console.log("Unhandled webhook type:", payload.type);
+        // Unhandled webhook type
+        break;
     }
 
     return NextResponse.json(
