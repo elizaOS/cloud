@@ -10,6 +10,7 @@ import { usersRepository } from "@/db/repositories/users";
 import { headers } from "next/headers";
 import type Stripe from "stripe";
 import { logger } from "@/lib/utils/logger";
+import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 
 // Maximum allowed credit amount for validation
 const MAX_CREDITS = 10000;
@@ -40,10 +41,12 @@ function parseAndValidateCredits(creditsStr: string): number | null {
  * Handles checkout sessions, payment intents, invoices, and subscription events.
  * Verifies webhook signatures for security.
  *
+ * Rate limited: AGGRESSIVE (100 req/min per IP) to prevent webhook flooding
+ *
  * @param req - Request containing Stripe webhook event data.
  * @returns Webhook processing result.
  */
-export async function POST(req: NextRequest) {
+async function handleStripeWebhook(req: NextRequest) {
   const body = await req.text();
   const headersList = await headers();
   const signature = headersList.get("stripe-signature");
@@ -556,3 +559,6 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
+// Export rate-limited handler
+export const POST = withRateLimit(handleStripeWebhook, RateLimitPresets.AGGRESSIVE);
