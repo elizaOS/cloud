@@ -199,9 +199,12 @@ export function CharacterBuildMode({
             });
           }
 
-          toast.success("Character created! Redirecting to chat...", {
-            duration: 2000,
-          });
+          // Only show redirect toast if no files were queued (avoids duplicate success toasts)
+          if (preUploadedFiles.length === 0) {
+            toast.success("Character created! Redirecting to chat...", {
+              duration: 2000,
+            });
+          }
 
           // Clear room and set new character BEFORE navigating
           // This ensures chat page starts fresh with no stale room data

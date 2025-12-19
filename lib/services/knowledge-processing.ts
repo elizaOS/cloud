@@ -329,7 +329,7 @@ export class KnowledgeProcessingService {
         roomId: runtime.agentId,
         entityId: runtime.agentId,
         metadata: {
-          uploadedBy: user.id,
+          uploadedBy: job.user_id,
           uploadedAt: Date.now(),
           organizationId: user.organization_id,
           fileSize: jobData.file.size,

@@ -249,7 +249,7 @@ export class JobsRepository {
     const isFailed = newAttempts >= maxAttempts;
 
     // Exponential backoff: 30s, 2min, 8min for attempts 1, 2, 3
-    const backoffMs = isFailed ? 0 : Math.pow(4, newAttempts) * 30 * 1000;
+    const backoffMs = isFailed ? 0 : Math.pow(4, newAttempts - 1) * 30 * 1000;
     const scheduledFor = new Date(Date.now() + backoffMs);
 
     const [updated] = await db
