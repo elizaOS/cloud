@@ -199,7 +199,7 @@ test.describe("Dashboard Pages (Auth Protected)", () => {
         try {
           await page.goto(`${BASE_URL}${path}`, {
             waitUntil: "domcontentloaded",
-            timeout: 30000,
+            timeout: 10000,
           });
           success = true;
         } catch (error) {

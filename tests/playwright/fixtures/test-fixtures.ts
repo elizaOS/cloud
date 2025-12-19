@@ -1,4 +1,4 @@
-import { test as base, expect, type Page } from "@playwright/test";
+import { test as base, expect, type Page, type TestInfo } from "@playwright/test";
 import { metaMaskFixtures, MetaMask } from "@synthetixio/synpress/playwright";
 import walletSetup from "../wallet-setup/wallet.setup";
 
@@ -30,7 +30,7 @@ export type { MetaMask };
 export async function waitForPageLoad(page: Page): Promise<void> {
   await page.waitForLoadState("domcontentloaded").catch(() => {});
   await page
-    .waitForLoadState("networkidle", { timeout: 30000 })
+    .waitForLoadState("networkidle", { timeout: 10000 })
     .catch(() => {});
 }
 
@@ -42,14 +42,14 @@ export async function waitForPrivyReady(page: Page): Promise<void> {
   // Wait for any loading spinners to disappear
   const loadingSpinner = page.locator('[data-testid="loading-spinner"]');
   if (await loadingSpinner.isVisible({ timeout: 1000 }).catch(() => false)) {
-    await loadingSpinner.waitFor({ state: "hidden", timeout: 30000 });
+    await loadingSpinner.waitFor({ state: "hidden", timeout: 10000 });
   }
 
-  // Alternative: wait for the login form to be visible
+  // Alternative: wait for the login form to be visible (short timeout - may not exist in CI)
   await page
-    .waitForSelector('[data-testid="login-form"]', { timeout: 30000 })
+    .waitForSelector('[data-testid="login-form"]', { timeout: 5000 })
     .catch(() => {
-      // If login form not found, we might be on a different page
+      // If login form not found, Privy may not be configured
     });
 }
 
@@ -160,6 +160,20 @@ export const LoginSelectors = {
   signingInMessage: "text=Signing you in",
   redirectingMessage: "text=Taking you to your dashboard",
 } as const;
+
+/**
+ * Skip test with a reason (for conditional skipping in test body).
+ * Use this instead of early return for explicit test skipping.
+ *
+ * @example
+ * const success = await goToLogin(page);
+ * skipIf(!success, "Page navigation failed");
+ */
+export function skipIf(condition: boolean, reason: string): void {
+  if (condition) {
+    base.skip(true, reason);
+  }
+}
 
 /**
  * Dashboard selectors

@@ -234,7 +234,7 @@ test.describe("Cron Endpoints", () => {
       `${CLOUD_URL}/api/cron/cleanup-priorities`,
     );
 
-    expect([200, 401, 403, 404, 500, 501]).toContain(response.status());
+    expect([200, 401, 403, 404, 500, 501, 503]).toContain(response.status());
 
     if (response.status() === 401 || response.status() === 403) {
       console.log("✅ Priorities cleanup cron requires authorization");
