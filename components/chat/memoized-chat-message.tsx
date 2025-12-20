@@ -272,8 +272,8 @@ function ChatMessageComponent({
       ) : (
         <div className="flex flex-col gap-1.5 max-w-[85%] sm:max-w-[75%] group/message">
           {/* User Message */}
-          <div className="py-3 px-4 bg-[#FF5800]/10 border border-[#FF5800]/20 rounded-lg transition-colors hover:bg-[#FF5800]/15 hover:border-[#FF5800]/30">
-            <div className="whitespace-pre-wrap text-[15px] leading-relaxed text-white/95">
+          <div className="py-3 px-4 bg-[#FF5800]/10 border border-[#FF5800]/20 rounded-lg transition-colors hover:bg-[#FF5800]/15 hover:border-[#FF5800]/30 w-fit">
+            <div className="whitespace-pre-wrap text-[15px] leading-relaxed text-white/95 text-left">
               {message.content.text}
             </div>
           </div>
