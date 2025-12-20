@@ -80,28 +80,32 @@ export function GalleryPageClient() {
     refetchStats,
   } = useGalleryData(galleryOptions);
 
-  const galleryTabs: TabItem[] = [
-    {
-      value: "all",
-      label: "All Media",
-      icon: <LayoutGridIcon className="h-4 w-4" />,
-    },
-    {
-      value: "image",
-      label: "Images",
-      icon: <ImageIcon className="h-4 w-4" />,
-    },
-    {
-      value: "video",
-      label: "Videos",
-      icon: <VideoIcon className="h-4 w-4" />,
-    },
-    {
-      value: "collections",
-      label: "Collections",
-      icon: <FolderOpen className="h-4 w-4" />,
-    },
-  ];
+  // Memoize tabs to show counts from stats
+  const galleryTabs: TabItem[] = useMemo(
+    () => [
+      {
+        value: "all",
+        label: "All Media",
+        icon: <LayoutGridIcon className="h-4 w-4" />,
+      },
+      {
+        value: "image",
+        label: stats ? `Images (${stats.totalImages})` : "Images",
+        icon: <ImageIcon className="h-4 w-4" />,
+      },
+      {
+        value: "video",
+        label: stats ? `Videos (${stats.totalVideos})` : "Videos",
+        icon: <VideoIcon className="h-4 w-4" />,
+      },
+      {
+        value: "collections",
+        label: "Collections",
+        icon: <FolderOpen className="h-4 w-4" />,
+      },
+    ],
+    [stats],
+  );
 
   const refreshData = async () => {
     invalidateGalleryItems();

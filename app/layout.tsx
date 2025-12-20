@@ -130,7 +130,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${sfPro.variable} antialiased`}>
+      <body
+        className={`${sfPro.variable} antialiased selection:bg-[#FF5800] selection:text-white`}
+      >
         <PrivyProvider>
           <CreditsProvider>
             <ThemeProvider

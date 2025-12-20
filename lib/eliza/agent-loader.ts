@@ -18,7 +18,13 @@ import type { ElizaCharacter } from "@/lib/types";
 import type { UserCharacter } from "@/db/schemas/user-characters";
 import defaultAgent from "./agent";
 import { getElizaCloudApiUrl } from "./config";
-import { AgentMode, AGENT_MODE_PLUGINS } from "./agent-mode-types";
+import {
+  AgentMode,
+  AGENT_MODE_PLUGINS,
+  SETTINGS_PLUGIN_MAP,
+  getConditionalPlugins,
+  requiresAssistantMode,
+} from "./agent-mode-types";
 import { loadAgentSecrets, isSecretsConfigured } from "@/lib/services/secrets";
 import {
   isOrgCharacter,
@@ -31,11 +37,25 @@ import { agentLifecycleService } from "@/lib/services/agent-lifecycle";
  * Reasons why mode was upgraded to ASSISTANT.
  * Used for logging and debugging.
  */
-export type ModeUpgradeReason = "mcp_plugin" | "has_knowledge" | "none";
+export type ModeUpgradeReason =
+  | "settings_plugin"
+  | "explicit_plugin"
+  | "has_knowledge"
+  | "mcp_plugin"
+  | "none";
 
 export interface ModeResolution {
   mode: AgentMode;
   upgradeReason: ModeUpgradeReason;
+}
+
+/**
+ * Checks if any settings-based plugins are explicitly listed in character plugins.
+ * Used to upgrade mode when MCP or similar plugins are in the plugins array.
+ */
+function hasExplicitSettingsPlugin(characterPlugins: string[]): boolean {
+  const settingsPluginNames: string[] = Object.values(SETTINGS_PLUGIN_MAP);
+  return characterPlugins.some((p) => settingsPluginNames.includes(p));
 }
 
 /**
@@ -44,12 +64,14 @@ export interface ModeResolution {
  *
  * @param requestedMode - The mode originally requested
  * @param characterId - The character ID to check capabilities for
- * @param characterPlugins - Plugins configured on the character
+ * @param characterSettings - Settings configured on the character
+ * @param characterPlugins - Plugins explicitly listed on the character
  * @returns The effective mode and reason for any upgrade
  */
 async function resolveEffectiveMode(
   requestedMode: AgentMode,
   characterId: string,
+  characterSettings: Record<string, unknown>,
   characterPlugins: string[],
 ): Promise<ModeResolution> {
   // BUILD mode is never upgraded - it's a specific workflow
@@ -62,12 +84,18 @@ async function resolveEffectiveMode(
     return { mode: requestedMode, upgradeReason: "none" };
   }
 
-  // Check 1: MCP plugin requires ASSISTANT mode for tool execution
-  if (characterPlugins.includes("@elizaos/plugin-mcp")) {
-    return { mode: AgentMode.ASSISTANT, upgradeReason: "mcp_plugin" };
+  // Check 1: Settings-based plugins (mcp, webSearch, etc.) require ASSISTANT mode
+  if (requiresAssistantMode(characterSettings)) {
+    return { mode: AgentMode.ASSISTANT, upgradeReason: "settings_plugin" };
   }
 
-  // Check 2: Knowledge documents require ASSISTANT mode for RAG
+  // Check 2: Explicit settings-based plugins in character plugins require ASSISTANT mode
+  // MCP plugin requires ASSISTANT mode for tool execution even when explicitly listed
+  if (hasExplicitSettingsPlugin(characterPlugins)) {
+    return { mode: AgentMode.ASSISTANT, upgradeReason: "explicit_plugin" };
+  }
+
+  // Check 3: Knowledge documents require ASSISTANT mode for RAG
   const documentCount = await memoriesRepository.countByType(
     characterId,
     "documents",
@@ -135,17 +163,24 @@ export class AgentLoader {
 
     // Build character with secrets loaded from secrets service
     const character = await this.buildCharacter(elizaCharacter, dbCharacter);
+    const characterSettings = (elizaCharacter.settings ?? {}) as Record<
+      string,
+      unknown
+    >;
+    const characterPlugins = elizaCharacter.plugins || [];
 
     // Resolve effective mode based on character capabilities
     const modeResolution = await resolveEffectiveMode(
       agentMode,
       characterId,
-      elizaCharacter.plugins || [],
+      characterSettings,
+      characterPlugins,
     );
 
     const plugins = await this.resolvePlugins(
       modeResolution.mode,
-      elizaCharacter.plugins || [],
+      characterPlugins,
+      characterSettings,
     );
     return { character, plugins, modeResolution };
   }
@@ -203,9 +238,14 @@ export class AgentLoader {
       upgradeReason: "mcp_plugin",
     };
 
+    const characterSettings = (character.settings ?? {}) as Record<
+      string,
+      unknown
+    >;
     const plugins = await this.resolvePlugins(
       AgentMode.ASSISTANT,
       character.plugins || [],
+      characterSettings,
     );
 
     return { character, plugins, modeResolution };
@@ -237,7 +277,7 @@ export class AgentLoader {
       mode: agentMode,
       upgradeReason: "none",
     };
-    const plugins = await this.resolvePlugins(agentMode, []);
+    const plugins = await this.resolvePlugins(agentMode, [], {});
     return { character: defaultAgent.character, plugins, modeResolution };
   }
 
@@ -268,7 +308,10 @@ export class AgentLoader {
       : {};
 
     // Merge settings - secrets take highest priority
-    const settings: Record<string, unknown> = {
+    const settings: Record<
+      string,
+      string | boolean | number | Record<string, unknown>
+    > = {
       ...charSettings,
       POSTGRES_URL: process.env.DATABASE_URL!,
       DATABASE_URL: process.env.DATABASE_URL!,
@@ -329,7 +372,9 @@ export class AgentLoader {
         "ELEVENLABS_STT_TAG_AUDIO_EVENTS",
         "false",
       ),
-      avatarUrl: elizaCharacter.avatarUrl || elizaCharacter.avatar_url,
+      ...(elizaCharacter.avatarUrl || elizaCharacter.avatar_url
+        ? { avatarUrl: elizaCharacter.avatarUrl || elizaCharacter.avatar_url }
+        : {}),
       ...secrets,
     };
 
@@ -351,15 +396,18 @@ export class AgentLoader {
     };
   }
 
-  /** Resolve plugins based on mode + character-specific additions */
+  /** Resolve plugins based on mode + character-specific additions + settings-based conditionals */
   private async resolvePlugins(
     agentMode: AgentMode,
     characterPlugins: string[],
+    characterSettings: Record<string, unknown>,
   ): Promise<Plugin[]> {
     const plugins: Plugin[] = [];
+    const conditionalPlugins = getConditionalPlugins(characterSettings);
     const allPluginNames = [
       ...AGENT_MODE_PLUGINS[agentMode],
       ...characterPlugins,
+      ...conditionalPlugins,
     ];
 
     for (const pluginName of allPluginNames) {

@@ -30,7 +30,7 @@ import type { GalleryItem, CollectionSummary } from "@/app/actions/gallery";
 import { deleteMedia, addToCollection } from "@/app/actions/gallery";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { BrandCard, BrandButton } from "@/components/brand";
+import { BrandButton, BrandCard } from "@/components/brand";
 
 interface GalleryGridProps {
   items: GalleryItem[];
@@ -133,7 +133,7 @@ export function GalleryGrid({
 
   return (
     <>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
         {items.map((item) => (
           <BrandCard
             key={item.id}
@@ -482,15 +482,14 @@ export function GalleryGrid({
 
 export function GalleryGridSkeleton() {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
       {Array.from({ length: 8 }).map((_, i) => (
-        <BrandCard key={i} corners={false} className="overflow-hidden p-0">
-          <Skeleton className="aspect-video w-full bg-white/10" />
-          <div className="p-3 space-y-2">
-            <Skeleton className="h-4 w-full bg-white/10" />
-            <Skeleton className="h-3 w-2/3 bg-white/10" />
-          </div>
-        </BrandCard>
+        <div
+          key={i}
+          className="overflow-hidden group cursor-pointer relative bg-black/60 aspect-square"
+        >
+          <Skeleton className="w-full h-full bg-white/10" />
+        </div>
       ))}
     </div>
   );

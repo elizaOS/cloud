@@ -2,6 +2,11 @@
 @import "tw-animate-css";
 @plugin "@tailwindcss/typography";
 
+@plugin 'tailwind-scrollbar' {
+  nocompatible: true;
+  preferredstrategy: "pseudoelements";
+}
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
@@ -54,40 +59,6 @@
 
 :root {
   --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.45 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
-}
-
-.dark {
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.205 0 0);
@@ -351,15 +322,6 @@
     }
   }
 
-  .scrollbar-hide {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
-
-  .scrollbar-hide::-webkit-scrollbar {
-    display: none;
-  }
-
   /* Brand utilities */
   .brand-surface {
     background-color: rgb(0 0 0 / 0.4);
@@ -453,23 +415,12 @@
   .hero-gradient {
     position: absolute;
     inset: 0;
-    background:
-      radial-gradient(
-        800px 400px at 50% -10%,
-        rgba(255, 88, 0, 0.25),
-        rgba(255, 88, 0, 0) 60%
-      ),
-      radial-gradient(
-        600px 300px at 80% 10%,
-        rgba(11, 53, 241, 0.18),
-        rgba(11, 53, 241, 0) 60%
-      ),
-      linear-gradient(
-        to bottom,
-        rgba(10, 10, 10, 0) 0%,
-        rgba(10, 10, 10, 0.4) 50%,
-        rgba(10, 10, 10, 0.8) 100%
-      );
+    background: linear-gradient(
+      to bottom,
+      rgba(10, 10, 10, 0) 0%,
+      rgba(10, 10, 10, 0.4) 50%,
+      rgba(10, 10, 10, 0.8) 100%
+    );
   }
 
   .hero-grid {
@@ -493,39 +444,6 @@
   }
 }
 
-/* Custom Scrollbar Styling */
-::-webkit-scrollbar {
-  width: 12px;
-  height: 12px;
-}
-
-::-webkit-scrollbar-track {
-  background: #0a0a0a;
-  border-left: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-::-webkit-scrollbar-thumb {
-  background: #ff5800;
-  border-radius: 0px;
-  border: 2px solid #0a0a0a;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #ff5800;
-  filter: brightness(1.2);
-}
-
-::-webkit-scrollbar-thumb:active {
-  background: #ff5800;
-  filter: brightness(1.4);
-}
-
-/* Firefox scrollbar */
-* {
-  scrollbar-width: thin;
-  scrollbar-color: #ff5800 #0a0a0a;
-}
-
 /* Sonner Toast Customization */
 [data-sonner-toast] {
   border-radius: 0px !important;
@@ -577,6 +495,7 @@
   background: rgba(255, 88, 0, 0.3) !important;
   border-color: rgba(255, 88, 0, 0.5) !important;
 }
+
 /* All buttons should have cursor pointer */
 button:not(:disabled),
 [role="button"]:not(:disabled),
@@ -617,60 +536,8 @@ button:not(:disabled),
   scrollbar-color: #ff5800 #0a0a0a;
 }
 
-/* Sonner Toast Customization */
-[data-sonner-toast] {
-  border-radius: 0px !important;
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
-  background: rgba(0, 0, 0, 0.8) !important;
-  backdrop-filter: blur(12px) !important;
-  font-family: var(--font-roboto-mono) !important;
-}
-
-[data-sonner-toast][data-type="success"] {
-  background: rgba(34, 197, 94, 0.15) !important;
-  border-color: rgba(34, 197, 94, 0.3) !important;
-  color: rgb(134, 239, 172) !important;
-}
-
-[data-sonner-toast][data-type="error"] {
-  background: rgba(239, 68, 68, 0.15) !important;
-  border-color: rgba(239, 68, 68, 0.3) !important;
-  color: rgb(252, 165, 165) !important;
-}
-
-[data-sonner-toast][data-type="warning"] {
-  background: rgba(251, 146, 60, 0.15) !important;
-  border-color: rgba(251, 146, 60, 0.3) !important;
-  color: rgb(253, 186, 116) !important;
-}
-
-[data-sonner-toast][data-type="info"],
-[data-sonner-toast][data-type="loading"] {
-  background: rgba(255, 88, 0, 0.15) !important;
-  border-color: rgba(255, 88, 0, 0.3) !important;
-  color: rgb(255, 255, 255) !important;
-}
-
-/* Toast icons */
-[data-icon] {
-  color: inherit !important;
-}
-
-/* Toast close button */
-[data-close-button] {
-  background: rgba(255, 255, 255, 0.1) !important;
-  border-color: rgba(255, 255, 255, 0.2) !important;
-  color: white !important;
-  border-radius: 0px !important;
-}
-
-[data-close-button]:hover {
-  background: rgba(255, 88, 0, 0.3) !important;
-  border-color: rgba(255, 88, 0, 0.5) !important;
-}
-/* All buttons should have cursor pointer */
-button:not(:disabled),
-[role="button"]:not(:disabled),
-[data-slot="button"]:not(:disabled) {
-  cursor: pointer;
+/* OnChainTrust button hover */
+.onchain-trust-button:hover {
+  background-color: transparent !important;
+  color: #e1e1e1 !important;
 }

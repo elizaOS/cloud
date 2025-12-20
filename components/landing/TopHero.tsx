@@ -1,252 +1,381 @@
 /**
  * Top hero section component for the landing page.
- * Displays CLI commands for creating and deploying agents with OS-specific tabs.
+ * Displays CLI commands for creating and deploying agents with animated terminal.
  * Includes copy-to-clipboard functionality and call-to-action buttons.
  */
 
 "use client";
 
-import { useState } from "react";
-import { usePrivy, useLogin } from "@privy-io/react-auth";
-import { useRouter } from "next/navigation";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { useState, useEffect } from "react";
+import { Copy, Check, Terminal, Rocket, Code2, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
-import {
-  Bot,
-  Image as ImageIcon,
-  Video,
-  Sparkles,
-  ArrowUp,
-  ArrowRight,
-  Terminal,
-} from "lucide-react";
-import {
-  TAB_CONFIG,
-  JOURNEY_STEPS,
-  ALL_TABS,
-  type TabValue,
-} from "@/lib/config/landing-hero";
+import { BrandButton, CornerBrackets } from "@/components/brand";
+import { useRouter } from "next/navigation";
+import { motion } from "motion/react";
 
-const TAB_TRIGGER_CLASS =
-  "inline-flex items-center gap-1 md:gap-2 rounded-none px-3 md:px-6 py-3 text-xs md:text-sm font-medium transition-all border-b-2 border-transparent data-[state=active]:border-[#FF5800] [&[data-state=active]]:bg-[#252527] whitespace-nowrap";
-
-export default function TopHero() {
-  const { authenticated, ready } = usePrivy();
-  const { login } = useLogin();
+const TopHero = () => {
+  const [activeOS, setActiveOS] = useState<"unix" | "windows">("unix");
+  const [copied, setCopied] = useState<string | null>(null);
+  const [deployingDots, setDeployingDots] = useState(0);
+  const [isDeploying, setIsDeploying] = useState(true);
+  const [cursorLine, setCursorLine] = useState<"deploy" | "deploying" | "url">(
+    "deploy"
+  );
+  const [status, setStatus] = useState<"create" | "deploy">("create");
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<TabValue>("agent");
-  const [inputValue, setInputValue] = useState("");
 
-  const config = TAB_CONFIG[activeTab];
+  useEffect(() => {
+    let timeout: NodeJS.Timeout | null = null;
 
-  const handleSubmit = () => {
-    if (!ready) return;
-    const promptParam = inputValue
-      ? `?prompt=${encodeURIComponent(inputValue)}`
-      : "";
-    if (authenticated) {
-      router.push(`${config.destination}${promptParam}`);
-    } else {
-      sessionStorage.setItem(
-        "pendingPrompt",
-        JSON.stringify({ tab: activeTab, prompt: inputValue }),
-      );
-      login();
+    const switchToDeploy = () => {
+      setStatus("deploy");
+      // After 10 seconds in deploy, switch back to create
+      timeout = setTimeout(() => {
+        switchToCreate();
+      }, 10000);
+    };
+
+    const switchToCreate = () => {
+      setStatus("create");
+      // Reset deploy panel state
+      setCursorLine("deploy");
+      setIsDeploying(true);
+      setDeployingDots(0);
+      // After 3 seconds in create, switch to deploy
+      timeout = setTimeout(() => {
+        switchToDeploy();
+      }, 3000);
+    };
+
+    // Start the loop: create → deploy after 3 seconds
+    timeout = setTimeout(() => {
+      switchToDeploy();
+    }, 3000);
+
+    return () => {
+      if (timeout) {
+        clearTimeout(timeout);
+        timeout = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (status !== "deploy") return;
+
+    // Reset cursor to deploy line when deploy status starts
+    setCursorLine("deploy");
+
+    // Move cursor to deploying line when it appears (1s after deploy starts)
+    const deployingTimeout = setTimeout(() => {
+      setCursorLine("deploying");
+    }, 1000);
+
+    // Move cursor to URL line when it appears (6s after deploy starts)
+    const urlTimeout = setTimeout(() => {
+      setCursorLine("url");
+    }, 6000);
+
+    return () => {
+      clearTimeout(deployingTimeout);
+      clearTimeout(urlTimeout);
+    };
+  }, [status]);
+
+  useEffect(() => {
+    if (status !== "deploy") {
+      setIsDeploying(true);
+      setDeployingDots(0);
+      return;
     }
+
+    let interval: NodeJS.Timeout | null = null;
+
+    // Reset state when deploy starts
+    setIsDeploying(true);
+    setDeployingDots(0);
+
+    // Wait for the text to appear (1s delay + 0.3s animation duration = 1.3s)
+    const startDelay = setTimeout(() => {
+      let stepCount = 0;
+      const totalSteps = 12; // 3 cycles × 4 states (1, 2, 3, 0)
+
+      setDeployingDots(1);
+      stepCount = 1;
+
+      interval = setInterval(() => {
+        stepCount++;
+        const positionInCycle = stepCount % 4;
+        // Cycle: 1, 2, 3, 0
+        if (positionInCycle === 0) {
+          setDeployingDots(0);
+        } else {
+          setDeployingDots(positionInCycle);
+        }
+
+        if (stepCount >= totalSteps) {
+          setIsDeploying(false);
+          setDeployingDots(3);
+          if (interval) clearInterval(interval);
+        }
+      }, 333);
+    }, 1300);
+
+    return () => {
+      clearTimeout(startDelay);
+      if (interval) clearInterval(interval);
+    };
+  }, [status]);
+
+  const commands = {
+    unix: {
+      create: "npx elizaos create my-agent",
+      deploy: "npx elizaos deploy",
+    },
+    windows: {
+      create: "npx elizaos create my-agent",
+      deploy: "npx elizaos deploy",
+    },
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSubmit();
-    }
+  const handleCopy = (text: string, type: string) => {
+    navigator.clipboard.writeText(text);
+    setCopied(type);
+    setTimeout(() => setCopied(null), 2000);
   };
+
+  const handleGetStarted = () => {
+    router.push("/login?intent=signup");
+  };
+
+  const steps = [
+    {
+      icon: <Terminal className="h-5 w-5" />,
+      title: "Create",
+    },
+    {
+      icon: <Code2 className="h-5 w-5" />,
+      title: "Develop",
+    },
+    {
+      icon: <Rocket className="h-5 w-5" />,
+      title: "Deploy",
+    },
+  ];
 
   return (
-    <section className="w-full py-16 md:py-24 lg:py-32 relative overflow-hidden bg-[#0A0A0A]">
-      {/* Background effects */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-[#FF5800]/5 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-600/5 rounded-full blur-3xl" />
-      </div>
-
+    <section className="w-full flex items-center shrink-0 py-24 lg:py-36 relative overflow-hidden min-h-screen">
       <div className="container mx-auto px-4 md:px-6 relative z-10">
         <div className="mx-auto max-w-5xl text-center">
           {/* Headline */}
-          <h1 className="mb-4 text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-normal tracking-tight drop-shadow-lg">
-            <span className="inline-flex items-center justify-center gap-3">
-              <span className="inline-block w-2 h-2 md:w-2.5 md:h-2.5 rounded-full bg-[#FF5800] flex-shrink-0" />
-              <span className="text-white">
-                What do you want to <span className="font-bold">build</span>?
-              </span>
+          <motion.h1
+            className="mb-6 md:mb-6 font-normal tracking-tight relative z-10 text-balance"
+            style={{ textShadow: "0 2px 10px rgba(0,0,0,0.5)" }}
+          >
+            <span className="text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold">
+              Ship Agents,
+            </span>{" "}
+            <span className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl text-neutral-400 sm:text-neutral-500">
+              not infrastructure
             </span>
-          </h1>
+          </motion.h1>
 
-          {/* Journey Steps */}
-          <div className="flex items-center justify-center gap-2 md:gap-4 mb-10">
-            {JOURNEY_STEPS.map((step, index) => (
-              <div
-                key={step.label}
-                className="flex items-center gap-2 md:gap-4"
-              >
-                <div className="flex items-center gap-1.5 md:gap-2">
-                  <div
-                    className="p-1.5 md:p-2 rounded-md"
-                    style={{
-                      backgroundColor: `${step.color}20`,
-                      border: `1px solid ${step.color}40`,
-                    }}
-                  >
-                    <step.icon
-                      className="h-4 w-4"
-                      style={{ color: step.color }}
-                    />
-                  </div>
-                  <span className="text-xs md:text-sm text-white/70 font-medium hidden sm:inline">
-                    {step.label}
-                  </span>
-                </div>
-                {index < JOURNEY_STEPS.length - 1 && (
-                  <ArrowRight className="h-3 w-3 md:h-4 md:w-4 text-white/20" />
-                )}
+          {/* Subhead */}
+          <motion.p
+            className="mb-10 md:mb-16 text-sm sm:text-base md:text-lg lg:text-xl text-white mx-auto relative z-10 px-4 max-w-4xl"
+            style={{ textShadow: "0 1px 8px rgba(0,0,0,0.4)" }}
+          >
+            <span className={status === "create" ? "bg-brand-orange" : ""}>
+              Create
+            </span>{" "}
+            and{" "}
+            <span className={status === "deploy" ? "bg-brand-orange" : ""}>
+              deploy
+            </span>{" "}
+            AI agents in one command. Open source. Zero lock-in.
+          </motion.p>
+
+          {/* Terminal Display */}
+          <div className="relative mx-auto max-w-3xl mb-2 md:mb-4">
+            {status === "create" && (
+              <CornerBrackets size="md" color="#FF5800" />
+            )}
+            {/* Create command */}
+            <div className="flex items-center justify-between gap-2 bg-black border border-white/15 rounded px-3 py-2.5">
+              <div className="flex items-center gap-2 min-w-0 overflow-x-auto">
+                <span
+                  style={{ color: status === "create" ? "#FF5800" : "white" }}
+                >
+                  ▸
+                </span>
+                <code className="text-sm sm:text-base text-white whitespace-nowrap select-all">
+                  {commands[activeOS].create}
+                </code>
               </div>
-            ))}
+              <button
+                onClick={() => handleCopy(commands[activeOS].create, "create")}
+                className="shrink-0 p-1.5 text-white/60 hover:text-white transition-colors"
+                aria-label="Copy command"
+              >
+                {copied === "create" ? (
+                  <Check className="h-4 w-4 text-[#FF5800]" />
+                ) : (
+                  <Copy className="h-4 w-4" />
+                )}
+              </button>
+            </div>
           </div>
 
-          {/* Tabs */}
-          <Tabs
-            value={activeTab}
-            onValueChange={(v) => setActiveTab(v as TabValue)}
-            className="relative z-10"
-          >
-            <TabsList className="inline-flex h-12 items-center justify-center rounded-none bg-black/50 border border-white/10 p-0 backdrop-blur-sm">
-              <TabsTrigger value="agent" className={TAB_TRIGGER_CLASS}>
-                <Bot className="h-4 w-4" />
-                <span className="hidden sm:inline">Agent</span>
-              </TabsTrigger>
-              <TabsTrigger value="app" className={TAB_TRIGGER_CLASS}>
-                <Terminal className="h-4 w-4" />
-                <span className="hidden sm:inline">App</span>
-              </TabsTrigger>
-              <TabsTrigger value="image" className={TAB_TRIGGER_CLASS}>
-                <ImageIcon className="h-4 w-4" />
-                <span className="hidden sm:inline">Image</span>
-              </TabsTrigger>
-              <TabsTrigger value="video" className={TAB_TRIGGER_CLASS}>
-                <Video className="h-4 w-4" />
-                <span className="hidden sm:inline">Video</span>
-              </TabsTrigger>
-              <TabsTrigger
-                value="pro-studio"
-                disabled
-                className={`${TAB_TRIGGER_CLASS} disabled:opacity-60`}
-              >
-                <Sparkles className="h-4 w-4" />
-                <span className="hidden sm:inline bg-gradient-to-r from-[#EC594F] to-[#7E6BF0] bg-clip-text text-transparent">
-                  Pro
-                </span>
-                <Badge
-                  variant="outline"
-                  className="ml-1 text-[9px] border-white/20 px-1"
+          {/* Bottom section with features and terminal */}
+          <div className="relative mx-auto max-w-3xl mb-10 md:mb-16">
+            {status === "deploy" && (
+              <CornerBrackets size="md" color="#FF5800" />
+            )}
+            <div className="bg-black border border-white/15 overflow-hidden text-start">
+              {/* Terminal header */}
+              <div className="bg-black/60 border-b border-white/10 pl-4 md:pl-6 pr-2 md:pr-3 flex h-10 md:h-12 items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full bg-red-500" />
+                  <div className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full bg-yellow-500" />
+                  <div className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full bg-green-500" />
+                </div>
+
+                <button
+                  onClick={() =>
+                    handleCopy(commands[activeOS].deploy, "deploy")
+                  }
+                  className="shrink-0 p-1.5 text-white/60 hover:text-white transition-colors"
+                  aria-label="Copy command"
                 >
-                  Soon
-                </Badge>
-              </TabsTrigger>
-            </TabsList>
-
-            {/* Tab Content - Shared input structure */}
-            {ALL_TABS.map((tab) => (
-              <TabsContent key={tab} value={tab} className="mt-8">
-                <div className="relative mx-auto max-w-4xl">
-                  {/* HUD-style input container */}
-                  <div className="relative bg-black/40 border border-white/20 backdrop-blur-sm">
-                    {/* Corner decorations */}
-                    <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-[#FF5800]" />
-                    <div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-[#FF5800]" />
-                    <div className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-[#FF5800]" />
-                    <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-[#FF5800]" />
-
-                    <Textarea
-                      value={inputValue}
-                      onChange={(e) => setInputValue(e.target.value)}
-                      onKeyDown={handleKeyDown}
-                      placeholder={TAB_CONFIG[tab].placeholder}
-                      className="min-h-[120px] md:min-h-[150px] bg-transparent border-0 resize-none focus-visible:ring-0 text-white placeholder:text-white/40 p-4 pr-20 w-full text-base"
-                    />
-
-                    <div className="absolute bottom-4 right-4">
-                      <Button
-                        onClick={handleSubmit}
-                        size="icon"
-                        className="h-10 w-10 rounded-none border-0 bg-[#FF5800] hover:brightness-125 active:brightness-150 transition-all"
-                      >
-                        <ArrowUp className="h-5 w-5 text-white" />
-                      </Button>
-                    </div>
-                  </div>
-
-                  {/* Prompt examples */}
-                  <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-0">
-                    {TAB_CONFIG[tab].prompts.map((prompt, index) => (
-                      <button
-                        key={index}
-                        onClick={() => setInputValue(prompt)}
-                        className="group relative bg-black/30 border border-white/10 p-4 md:p-5 text-left hover:border-[#FF5800]/50 hover:bg-black/50 transition-all"
-                      >
-                        <p className="text-sm text-white/60 group-hover:text-white/90 pr-8 leading-relaxed">
-                          {prompt}
-                        </p>
-                        <ArrowUp className="absolute bottom-4 right-4 h-4 w-4 text-white/30 group-hover:text-[#FF5800] transition-colors" />
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </TabsContent>
-            ))}
-
-            <TabsContent value="pro-studio" className="mt-8">
-              <div className="text-center py-12">
-                <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-full">
-                  <Sparkles className="h-4 w-4 text-purple-400" />
-                  <span className="text-white/60 text-sm">
-                    Professional studio features coming soon
-                  </span>
-                </div>
+                  {copied === "deploy" ? (
+                    <Check className="h-4 w-4 text-[#FF5800]" />
+                  ) : (
+                    <Copy className="h-4 w-4" />
+                  )}
+                </button>
               </div>
-            </TabsContent>
-          </Tabs>
 
-          {/* Bottom CTA */}
-          <div className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Button
-              onClick={() =>
-                authenticated ? router.push("/dashboard") : login()
-              }
+              {/* Terminal content */}
+              <div className="p-4 md:p-6 text-sm md:text-base">
+                <div className="flex items-center gap-2">
+                  <span className="text-yellow-500">$</span>
+                  <span className="text-white select-all">
+                    npx elizaos deploy
+                  </span>
+                  {cursorLine === "deploy" && status === "deploy" && (
+                    <span
+                      className="inline-block w-0.5 h-3.5 bg-white ml-px"
+                      style={{
+                        animation: "blink 1s step-end infinite",
+                      }}
+                    />
+                  )}
+                </div>
+                <motion.div
+                  className="flex items-center gap-2"
+                  initial={{ opacity: 0 }}
+                  animate={
+                    status === "deploy" ? { opacity: 1 } : { opacity: 0 }
+                  }
+                  transition={{
+                    duration: 0.3,
+                    delay: status === "deploy" ? 1 : 0,
+                  }}
+                >
+                  <span className="text-green-500">
+                    {isDeploying ? "Deploying" : "Deployed"}
+                    {isDeploying ? ".".repeat(deployingDots) : " ✓"}
+                  </span>
+                  {cursorLine === "deploying" && status === "deploy" && (
+                    <span
+                      className="inline-block w-0.5 h-3.5 bg-white ml-px"
+                      style={{
+                        animation: "blink 1s step-end infinite",
+                      }}
+                    />
+                  )}
+                </motion.div>
+                <motion.div
+                  className="text-white/70"
+                  initial={{ opacity: 0 }}
+                  animate={
+                    status === "deploy" ? { opacity: 1 } : { opacity: 0 }
+                  }
+                  transition={{
+                    duration: 0.4,
+                    delay: status === "deploy" ? 5.6 : 0,
+                  }}
+                >
+                  Running on Eliza Cloud
+                </motion.div>
+                <motion.div
+                  className="flex items-center gap-2 text-blue-400 break-all"
+                  initial={{ opacity: 0 }}
+                  animate={
+                    status === "deploy" ? { opacity: 1 } : { opacity: 0 }
+                  }
+                  transition={{
+                    duration: 0.4,
+                    delay: status === "deploy" ? 6 : 0,
+                  }}
+                >
+                  → https://my-agent.containers.elizacloud.ai
+                  {cursorLine === "url" && status === "deploy" && (
+                    <span
+                      className="inline-block w-0.5 h-3.5 bg-white ml-px shrink-0"
+                      style={{
+                        animation: "blink 1s step-end infinite",
+                      }}
+                    />
+                  )}
+                </motion.div>
+              </div>
+            </div>
+          </div>
+
+          {/* CTAs */}
+          <motion.div className="flex flex-col md:flex-row max-w-3xl mx-auto items-center justify-center gap-2 sm:gap-6">
+            <BrandButton
+              variant="primary"
               size="lg"
-              className="min-w-[180px] bg-[#FF5800] hover:bg-[#FF5800]/90 text-white rounded-none"
+              onClick={handleGetStarted}
+              className="w-full md:w-auto min-w-[176px] text-base group border border-brand-orange bg-brand-orange text-white hover:bg-black hover:text-brand-orange"
             >
-              {authenticated ? "Go to Dashboard" : "Get Started Free"}
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
+              Start Building
+              <ArrowRight className="ml-2 h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
+            </BrandButton>
             <Button
               variant="outline"
               size="lg"
-              className="min-w-[180px] h-12 border-white/20 text-white hover:bg-white/5 hover:text-white rounded-none"
+              className="w-full md:w-auto min-w-[176px] h-12 text-base bg-transparent border-white/60 text-white hover:bg-white hover:text-black"
               asChild
             >
               <a
-                href="https://elizaos.ai/docs"
+                href="https://docs.elizaos.ai/"
                 target="_blank"
                 rel="noopener noreferrer"
               >
                 Documentation
               </a>
             </Button>
-          </div>
+          </motion.div>
         </div>
       </div>
+
+      {/* Blink animation for cursor */}
+      <style jsx>{`
+        @keyframes blink {
+          0%,
+          100% {
+            opacity: 1;
+          }
+          50% {
+            opacity: 0;
+          }
+        }
+      `}</style>
     </section>
   );
-}
+};
+
+export default TopHero;

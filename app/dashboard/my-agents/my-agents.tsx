@@ -127,8 +127,8 @@ export function MyAgentsClient() {
       description: `Manage your ${characters.length} AI agent${characters.length !== 1 ? "s" : ""}`,
       actions: (
         <BrandButton onClick={handleCreateNew}>
-          <Plus className="h-4 w-4 mr-2" />
-          Create New Agent
+          <Plus className="h-4 w-4" />
+          Create Agent
         </BrandButton>
       ),
     },
