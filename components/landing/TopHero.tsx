@@ -201,7 +201,7 @@ const TopHero = () => {
               <CornerBrackets size="md" color="#FF5800" />
             )}
             {/* Create command */}
-            <div className="flex items-center justify-between gap-2 bg-black border border-white/15 rounded px-3 py-2.5">
+            <div className="flex items-center justify-between gap-2 bg-[#161616BF] border border-white/15 rounded px-3 py-2.5">
               <div className="flex items-center gap-2 min-w-0 overflow-x-auto">
                 <span
                   style={{ color: status === "create" ? "#FF5800" : "white" }}
@@ -231,13 +231,13 @@ const TopHero = () => {
             {status === "deploy" && (
               <CornerBrackets size="md" color="#FF5800" />
             )}
-            <div className="bg-black border border-white/15 overflow-hidden text-start">
+            <div className="bg-[#161616BF] border border-white/15 overflow-hidden text-start">
               {/* Terminal header */}
-              <div className="bg-black/60 border-b border-white/10 pl-4 md:pl-6 pr-2 md:pr-3 flex h-10 md:h-12 items-center justify-between gap-2">
+              <div className="bg-[#161616BF] border-b border-white/10 pl-4 md:pl-6 pr-2 md:pr-3 flex h-10 md:h-12 items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
-                  <div className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full bg-red-500" />
-                  <div className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full bg-yellow-500" />
-                  <div className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full bg-green-500" />
+                  <div className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full bg-[#A2A2A2]" />
+                  <div className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full bg-[#A2A2A2]" />
+                  <div className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full bg-[#A2A2A2]" />
                 </div>
 
                 <button
@@ -258,7 +258,7 @@ const TopHero = () => {
               {/* Terminal content */}
               <div className="p-4 md:p-6 text-sm md:text-base">
                 <div className="flex items-center gap-2">
-                  <span className="text-yellow-500">$</span>
+                  <span className="text-[#FF5800]">$</span>
                   <span className="text-white select-all">
                     npx elizaos deploy
                   </span>
@@ -282,7 +282,7 @@ const TopHero = () => {
                     delay: status === "deploy" ? 1 : 0,
                   }}
                 >
-                  <span className="text-green-500">
+                  <span className="text-[#00BE4C]">
                     {isDeploying ? "Deploying" : "Deployed"}
                     {isDeploying ? ".".repeat(deployingDots) : " ✓"}
                   </span>
@@ -309,7 +309,7 @@ const TopHero = () => {
                   Running on Eliza Cloud
                 </motion.div>
                 <motion.div
-                  className="flex items-center gap-2 text-blue-400 break-all"
+                  className="flex items-center gap-2 text-[#FF5800] break-all"
                   initial={{ opacity: 0 }}
                   animate={
                     status === "deploy" ? { opacity: 1 } : { opacity: 0 }

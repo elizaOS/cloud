@@ -44,7 +44,7 @@ export default function Installation() {
         {/* Terminal command section */}
         <div className="max-w-3xl mx-auto px-4 mb-12 sm:mb-24">
           {/* Command display */}
-          <div className="bg-neutral-900 text-white pl-3 pr-2 py-2 md:pl-4 md:pr-3 md:py-3 flex items-center justify-between gap-2 md:gap-4 border border-white/10 hover:border-brand-orange hover:bg-black transition-all duration-300">
+          <div className="bg-[#161616BF] text-white pl-3 pr-2 py-2 md:pl-4 md:pr-3 md:py-3 flex items-center justify-between gap-2 md:gap-4 border border-white/10 hover:border-brand-orange hover:bg-black transition-all duration-300">
             <div className="flex items-center gap-2 md:gap-3 flex-1 min-w-0">
               <span className="shrink-0" style={{ color: "#FF5800" }}>
                 ▸
