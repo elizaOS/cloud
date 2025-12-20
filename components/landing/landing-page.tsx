@@ -19,6 +19,7 @@ import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { usePlatform } from "@/lib/hooks/use-platform";
+import BayerDitheringBackground from "./BayerDitheringBackground";
 
 export function LandingPage() {
   const { ready, authenticated } = usePrivy();
@@ -72,12 +73,16 @@ export function LandingPage() {
 
   // Web: Show landing page for anonymous users
   return (
-    <div className="flex min-h-screen flex-col">
-      <LandingHeader />
-      <TopHero />
-      <OnChainTrust />
-      <Installation />
-      <Footer />
+    <div className="flex h-screen bg-black">
+      <BayerDitheringBackground />
+      <div className="relative z-30 flex w-full flex-col overflow-y-scroll sm:scrollbar-thin sm:scrollbar-thumb-brand-orange sm:scrollbar-track-black">
+        <LandingHeader />
+
+        <TopHero />
+        <OnChainTrust />
+        <Installation />
+        <Footer />
+      </div>
     </div>
   );
 }

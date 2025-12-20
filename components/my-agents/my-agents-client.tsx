@@ -73,7 +73,7 @@ export function MyAgentsClient({ initialCharacters }: MyAgentsClientProps) {
       description: `Manage your ${initialCharacters.length} AI agent${initialCharacters.length !== 1 ? "s" : ""}`,
       actions: (
         <BrandButton onClick={handleCreateNew}>
-          <Plus className="h-4 w-4 mr-2" />
+          <Plus className="h-4 w-4" />
           Create New Agent
         </BrandButton>
       ),

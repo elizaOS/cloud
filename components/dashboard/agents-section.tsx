@@ -76,7 +76,7 @@ export function AgentsSection({ agents, className }: AgentsSectionProps) {
       {showGettingStarted && <GettingStartedSection />}
 
       {/* Section Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex h-12 items-center justify-between">
         <div>
           <div className="flex items-center gap-2">
             <Link
@@ -104,12 +104,12 @@ export function AgentsSection({ agents, className }: AgentsSectionProps) {
             </Tooltip>
           </div>
         </div>
-        <LockOnButton
+       {agents.length != 0 && <LockOnButton
           onClick={() => (window.location.href = "/dashboard/build")}
           icon={<Plus className="h-4 w-4" />}
         >
           New Agent
-        </LockOnButton>
+        </LockOnButton>}
       </div>
 
       {/* Agents Grid */}
@@ -439,34 +439,15 @@ function AgentCard({ agent }: { agent: Agent }) {
 // Empty State
 function AgentsEmptyState() {
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-      {/* Empty state card styled like an agent card */}
-      <div className="relative overflow-hidden border border-dashed border-white/20 bg-black/20 h-full min-h-[240px]">
-        <div className="pointer-events-none absolute inset-0 z-10">
-          <CornerBrackets size="md" color="#E1E1E1" />
-        </div>
-        <div className="relative z-0 flex flex-col items-center justify-center p-6 text-center h-full">
-          <div className="p-4 rounded-full bg-[#FF5800]/10 border border-[#FF5800]/20 mb-4">
-            <Bot className="h-8 w-8 text-[#FF5800]" />
-          </div>
-          <h3 className="text-base font-medium text-white mb-1">
-            No agents yet
-          </h3>
-          <p className="text-xs text-white/50 mb-4">
-            Create your first agent to get started
-          </p>
-          <div className="flex gap-2">
-            <BrandButton
-              onClick={() => (window.location.href = "/dashboard/build")}
-              size="sm"
-              className="h-8 text-xs"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              Create Agent
-            </BrandButton>
-          </div>
-        </div>
-      </div>
+    <div className="flex flex-col items-center justify-center relative min-h-[240px] gap-4">
+      <CornerBrackets size="md" color="#E1E1E1" />
+      <h3 className="text-lg font-medium text-neutral-500">No agents yet</h3>
+      <LockOnButton
+          onClick={() => (window.location.href = "/dashboard/build")}
+        icon={<Plus className="h-4 w-4" />}
+      >
+        Create Agent
+      </LockOnButton>
     </div>
   );
 }

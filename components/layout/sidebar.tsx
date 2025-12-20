@@ -13,12 +13,17 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useState, useEffect, memo, useCallback } from "react";
-import { X } from "lucide-react";
+import { X, Copy, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SidebarNavigationSection } from "./sidebar-section";
 import { sidebarSections } from "./sidebar-data";
-import { CornerBrackets } from "@/components/brand";
 import { SidebarBottomPanel } from "./sidebar-bottom-panel";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 interface SidebarProps {
   className?: string;
@@ -26,12 +31,36 @@ interface SidebarProps {
   onToggle?: () => void;
 }
 
+const TOKEN_ADDRESSES = [
+  {
+    name: "Solana",
+    address: "DuMbhu7mvQvqQHGcnikDgb4XegXJRyhUBfdU22uELiZA",
+    id: "solana",
+  },
+  {
+    name: "Ethereum",
+    address: "0xea17Df5Cf6D172224892B5477A16ACb111182478",
+    id: "ethereum",
+  },
+  {
+    name: "Base",
+    address: "0xea17Df5Cf6D172224892B5477A16ACb111182478",
+    id: "base",
+  },
+  {
+    name: "Bsc",
+    address: "0xea17Df5Cf6D172224892B5477A16ACb111182478",
+    id: "bsc",
+  },
+] as const;
+
 function SidebarComponent({
   className,
   isOpen = false,
   onToggle,
 }: SidebarProps) {
   const [isMobile, setIsMobile] = useState(false);
+  const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
 
   useEffect(() => {
     const checkScreenSize = () => {
@@ -51,6 +80,15 @@ function SidebarComponent({
   const handleCloseClick = useCallback(() => {
     onToggle?.();
   }, [onToggle]);
+
+  const handleCopyAddress = useCallback(
+    async (address: string, network: string) => {
+      await navigator.clipboard.writeText(address);
+      setCopiedAddress(network);
+      setTimeout(() => setCopiedAddress(null), 2000);
+    },
+    []
+  );
 
   return (
     <>
@@ -74,22 +112,89 @@ function SidebarComponent({
       >
         {/* Header with Logo */}
         <div className="relative flex h-16 items-center justify-between border-b border-white/10 px-4">
-          {/* Corner brackets for logo area */}
-          <CornerBrackets size="sm" className="opacity-30" />
-
           <Link
             href="/dashboard"
             className="flex items-center gap-2 transition-opacity hover:opacity-80 relative z-10"
           >
             <Image
-              src="/eliza-font.svg"
+              src="/cloudlogo.svg"
               alt="ELIZA"
               width={80}
               height={24}
-              className="h-5 w-auto"
+              className={`invert shrink-0 ${isMobile ? "w-20" : "w-24"}`}
             />
           </Link>
-
+          <div
+            className={`flex items-center w-full ${
+              isMobile ? "justify-start pl-4" : "justify-end"
+            }`}
+          >
+            <Dialog>
+              <DialogTrigger asChild>
+                <button
+                  className="rounded-full hover:opacity-80 transition-opacity focus:outline-none focus:ring-2 focus:ring-white/20"
+                  aria-label="View token addresses"
+                >
+                  <Image
+                    src="/elizaOS_token_logo.png"
+                    alt="ELIZA Token"
+                    width={24}
+                    height={24}
+                    className="size-8 rounded-full"
+                  />
+                </button>
+              </DialogTrigger>
+              <DialogContent className="bg-[#0A0A0A] border-white/10 text-white max-w-md">
+                <div className="space-y-6">
+                  <DialogTitle className="text-xl font-mono font-bold text-brand-orange">
+                    TOKEN_ADDRESSES
+                  </DialogTitle>
+                  <div className="space-y-4 font-mono text-sm">
+                    {TOKEN_ADDRESSES.map((token) => (
+                      <div key={token.id} className="flex flex-col gap-1">
+                        <div className="flex items-center gap-1">
+                          <span className="text-brand-orange font-semibold">
+                            {token.name}
+                          </span>
+                          <button
+                            onClick={() =>
+                              handleCopyAddress(token.address, token.id)
+                            }
+                            className="transition-opacity p-1 hover:bg-brand-orange/10 rounded sm:hidden"
+                            aria-label={`Copy ${token.name} address`}
+                          >
+                            {copiedAddress === token.id ? (
+                              <Check className="size-3.5 text-brand-orange" />
+                            ) : (
+                              <Copy className="size-3.5 text-white/70" />
+                            )}
+                          </button>
+                        </div>
+                        <div className="flex items-center justify-between gap-2 group">
+                          <span className="text-white/70 break-all font-mono">
+                            {token.address}
+                          </span>
+                          <button
+                            onClick={() =>
+                              handleCopyAddress(token.address, token.id)
+                            }
+                            className="transition-opacity p-1 hover:bg-brand-orange/10 rounded hidden sm:block shrink-0"
+                            aria-label={`Copy ${token.name} address`}
+                          >
+                            {copiedAddress === token.id ? (
+                              <Check className="size-4 text-brand-orange" />
+                            ) : (
+                              <Copy className="size-4 text-white/70" />
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
           {/* Mobile Close Button */}
           {isMobile && onToggle && (
             <button
