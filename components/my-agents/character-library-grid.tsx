@@ -34,8 +34,8 @@ export function CharacterLibraryGrid({
     <div
       className={
         viewMode === "grid"
-          ? "grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4   gap-3"
-          : "flex flex-col gap-3"
+          ? "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2"
+          : "flex flex-col gap-2"
       }
     >
       {characters.map((character) => (
