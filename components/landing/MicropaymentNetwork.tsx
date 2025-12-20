@@ -66,7 +66,7 @@ const FloatingNode = ({
       >
         {data.isCenter ? (
           <div className="relative w-full h-full rounded-full overflow-hidden">
-            <Image src="/eliza.png" alt="Eliza" fill className="object-cover" />
+            <Image src="/eliza.png" alt="Eliza" fill sizes="80px" className="object-cover" />
           </div>
         ) : data.image ? (
           <div
@@ -76,6 +76,7 @@ const FloatingNode = ({
               src={data.image}
               alt={data.label}
               fill
+              sizes={data.type === "agent" ? "32px" : "48px"}
               className={
                 data.type === "agent" ? "object-cover" : "object-contain p-1"
               }

@@ -416,14 +416,11 @@ export function ChatSidebar({
                         "opacity-50 pointer-events-none",
                     )}
                   >
-                    <div className="relative overflow-hidden">
+                    <div className="relative">
                       <button
                         onClick={() => handleSelectRoom(room.id)}
                         disabled={isDeleting || isLoading}
-                        className={cn(
-                          "w-full text-left px-2.5 py-2 transition-transform duration-200",
-                          "group-hover:-translate-x-8",
-                        )}
+                        className="w-full text-left px-2.5 py-2"
                       >
                         <div className="flex items-start gap-2">
                           {isLoading ? (
@@ -431,13 +428,13 @@ export function ChatSidebar({
                           ) : (
                             <MessageSquare className="h-3.5 w-3.5 text-white/40 mt-0.5 shrink-0" />
                           )}
-                          <div className="flex-1 min-w-0">
+                          <div className="flex-1 min-w-0 pr-6">
                             <div className="flex items-center justify-between gap-1.5 mb-0.5">
                               <span className="text-[11px] font-medium text-white/90 truncate">
                                 {room.title || "New Chat"}
                               </span>
                               {room.lastTime && !isLoading && (
-                                <span className="text-[10px] text-white/30 shrink-0">
+                                <span className="text-[10px] text-white/30 shrink-0 group-hover:opacity-0 transition-opacity duration-200">
                                   {formatTimestamp(room.lastTime)}
                                 </span>
                               )}
@@ -445,24 +442,34 @@ export function ChatSidebar({
                           </div>
                         </div>
                       </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteRoom(room.id);
-                        }}
-                        disabled={isDeleting}
+                      {/* Delete button with gradient background overlay */}
+                      <div
                         className={cn(
-                          "absolute top-0 right-0 h-full w-8 flex items-center justify-center",
+                          "absolute top-0 right-0 h-full flex items-center",
                           "opacity-0 group-hover:opacity-100 transition-opacity duration-200",
-                          "hover:bg-red-500/10 text-white/60 hover:text-red-400",
+                          "bg-gradient-to-l from-[#0A0A0A] via-[#0A0A0A]/90 to-transparent",
+                          "pl-4 pr-1",
                         )}
                       >
-                        {isDeleting ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                          <Trash2 className="h-3.5 w-3.5" />
-                        )}
-                      </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteRoom(room.id);
+                          }}
+                          disabled={isDeleting}
+                          className={cn(
+                            "h-6 w-6 flex items-center justify-center rounded",
+                            "hover:bg-red-500/20 text-white/60 hover:text-red-400",
+                            "transition-colors duration-150",
+                          )}
+                        >
+                          {isDeleting ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-3.5 w-3.5" />
+                          )}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 );

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 
@@ -182,36 +182,38 @@ function BayerDitheringMaterial({
   onTimeUpdate?: (time: number) => void;
 }) {
   const materialRef = useRef<THREE.ShaderMaterial>(null);
-  const uniformsRef = useRef<ShaderUniforms>({
-    uResolution: { value: resolution.clone() },
-    uTime: { value: 0 },
-    uClickPos: {
-      value: Array(MAX_CLICKS)
-        .fill(null)
-        .map(() => new THREE.Vector2(-1, -1)),
-    },
-    uClickTimes: { value: Array(MAX_CLICKS).fill(-1) },
-    uMousePos: { value: new THREE.Vector2(-1, -1) },
-  });
+
+  // Use useMemo to create stable uniforms object that can be passed during render
+  const uniforms = useMemo<ShaderUniforms>(
+    () => ({
+      uResolution: { value: resolution.clone() },
+      uTime: { value: 0 },
+      uClickPos: {
+        value: Array(MAX_CLICKS)
+          .fill(null)
+          .map(() => new THREE.Vector2(-1, -1)),
+      },
+      uClickTimes: { value: Array(MAX_CLICKS).fill(-1) },
+      uMousePos: { value: new THREE.Vector2(-1, -1) },
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [] // Only create once - we update values in useFrame
+  );
 
   // Update resolution when it changes
   useEffect(() => {
-    if (uniformsRef.current) {
-      uniformsRef.current.uResolution.value.copy(resolution);
-    }
-  }, [resolution]);
+    uniforms.uResolution.value.copy(resolution);
+  }, [resolution, uniforms]);
 
   // Update mouse position when it changes
   useEffect(() => {
-    if (uniformsRef.current) {
-      uniformsRef.current.uMousePos.value.copy(mousePos);
-    }
-  }, [mousePos]);
+    uniforms.uMousePos.value.copy(mousePos);
+  }, [mousePos, uniforms]);
 
   useFrame((state) => {
-    if (materialRef.current && uniformsRef.current) {
+    if (materialRef.current) {
       const currentTime = state.clock.elapsedTime;
-      uniformsRef.current.uTime.value = currentTime;
+      uniforms.uTime.value = currentTime;
 
       // Notify parent of current time
       if (onTimeUpdate) {
@@ -221,11 +223,11 @@ function BayerDitheringMaterial({
       // Update click positions and times
       for (let i = 0; i < MAX_CLICKS; i++) {
         if (i < clicks.length) {
-          uniformsRef.current.uClickPos.value[i].copy(clicks[i].position);
-          uniformsRef.current.uClickTimes.value[i] = clicks[i].time;
+          uniforms.uClickPos.value[i].copy(clicks[i].position);
+          uniforms.uClickTimes.value[i] = clicks[i].time;
         } else {
-          uniformsRef.current.uClickPos.value[i].set(-1, -1);
-          uniformsRef.current.uClickTimes.value[i] = -1;
+          uniforms.uClickPos.value[i].set(-1, -1);
+          uniforms.uClickTimes.value[i] = -1;
         }
       }
     }
@@ -236,7 +238,7 @@ function BayerDitheringMaterial({
       ref={materialRef}
       vertexShader={vertexShader}
       fragmentShader={fragmentShader}
-      uniforms={uniformsRef.current as any}
+      uniforms={uniforms as any}
     />
   );
 }
@@ -323,17 +325,20 @@ export default function BayerDitheringBackground({
     window.addEventListener("click", handleClick);
     window.addEventListener("mousemove", handleMouseMove);
 
+    // Capture ref value to avoid stale closure in cleanup
+    const canvasElement = canvasRef.current;
+
     // Attach mouseleave to the canvas div element
-    if (canvasRef.current) {
-      canvasRef.current.addEventListener("mouseleave", handleMouseLeave);
+    if (canvasElement) {
+      canvasElement.addEventListener("mouseleave", handleMouseLeave);
     }
 
     return () => {
       window.removeEventListener("resize", handleResize);
       window.removeEventListener("click", handleClick);
       window.removeEventListener("mousemove", handleMouseMove);
-      if (canvasRef.current) {
-        canvasRef.current.removeEventListener("mouseleave", handleMouseLeave);
+      if (canvasElement) {
+        canvasElement.removeEventListener("mouseleave", handleMouseLeave);
       }
     };
   }, []);

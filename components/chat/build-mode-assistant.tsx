@@ -18,6 +18,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import Image from "next/image";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Send,
@@ -877,11 +878,13 @@ export function BuildModeAssistant({
                                   key={attachment.id}
                                   className="relative rounded-lg overflow-hidden border border-white/[0.08] bg-white/[0.02]"
                                 >
-                                  <img
+                                  <Image
                                     src={attachment.url}
                                     alt={attachment.title || "Generated image"}
+                                    width={280}
+                                    height={280}
                                     className="max-w-[280px] max-h-[280px] object-cover"
-                                    loading="lazy"
+                                    unoptimized
                                   />
                                 </div>
                               ))}
