@@ -262,7 +262,7 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
               </div>
 
               {/* Add new conversation example */}
-              <div className="space-y-2 rounded-none border border-white/10 bg-black/20 p-3">
+              <div className="space-y-2 rounded-none border-b border-white/10 bg-black/20 pb-6">
                 <div className="space-y-1">
                   <label className="text-xs text-white/50">User says:</label>
                   <Input

@@ -37,10 +37,9 @@ function LoginPageContent() {
   const [showCodeInput, setShowCodeInput] = useState(false);
   const [loadingButton, setLoadingButton] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
-  const [isProcessingOAuth, setIsProcessingOAuth] = useState(false);
-
-  // Initialize OAuth processing state on client-side only to prevent SSR hydration mismatch
-  useEffect(() => {
+  const [isProcessingOAuth, setIsProcessingOAuth] = useState(() => {
+    // Initialize OAuth processing state on client-side only to prevent SSR hydration mismatch
+    if (typeof window === "undefined") return false;
     const urlParams = new URLSearchParams(window.location.search);
     const hasOAuthParams =
       urlParams.has("privy_oauth_code") ||
@@ -48,10 +47,8 @@ function LoginPageContent() {
       urlParams.has("code") ||
       urlParams.has("state");
     const sessionFlag = sessionStorage.getItem("oauth_login_pending");
-    if (hasOAuthParams || sessionFlag) {
-      setIsProcessingOAuth(true);
-    }
-  }, []);
+    return hasOAuthParams || sessionFlag === "true";
+  });
 
   // Check if this is a signup intent (from "Get Started" button)
   const isSignupIntent = searchParams.get("intent") === "signup";

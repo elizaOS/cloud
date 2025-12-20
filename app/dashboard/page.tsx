@@ -21,15 +21,12 @@ export const metadata: Metadata = generatePageMetadata({
 export const dynamic = "force-dynamic";
 
 /**
- * Main dashboard page displaying user's agents, containers, and onboarding status.
- * Shows getting started section for new users.
+ * Main dashboard page displaying user's agents and containers.
  *
  * @returns Dashboard page with agents and containers sections.
  */
 export default async function DashboardPage() {
   const data = await getDashboardData();
-
-  const { hasAgents, hasApiKey, hasChatHistory } = data.onboarding;
 
   return (
     <DashboardPageWrapper userName={data.user.name.split(" ")[0] || "User"}>
