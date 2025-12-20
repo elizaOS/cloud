@@ -378,12 +378,12 @@ export function ChatSidebar({
               onClick={handleNewChat}
               disabled={operationState.isCreatingRoom}
               size="sm"
-              className="shrink-0 h-7 px-5 text-xs"
+              className="shrink-0 h-7 px-3 text-xs"
             >
               {operationState.isCreatingRoom ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
               ) : (
-                <span className="text-base">+</span>
+                <span className="text-base mb-0.5">+</span>
               )}
             </LockOnButton>
           </div>
