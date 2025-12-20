@@ -102,7 +102,7 @@ export default function Footer() {
               <Dialog>
                 <DialogTrigger asChild>
                   <button className="text-base text-white transition-colors hover:text-[#FF5800]">
-                    Tokens
+                    Token
                   </button>
                 </DialogTrigger>
                 <DialogContent className="bg-[#0A0A0A] border-white/10 text-white max-w-md">

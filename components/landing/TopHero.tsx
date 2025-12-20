@@ -173,7 +173,7 @@ const TopHero = () => {
             style={{ textShadow: "0 2px 10px rgba(0,0,0,0.5)" }}
           >
             <span className="text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold">
-              Ship Agents,
+              Build agents,
             </span>{" "}
             <span className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl text-neutral-400 sm:text-neutral-500">
               not infrastructure
