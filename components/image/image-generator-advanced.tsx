@@ -16,7 +16,7 @@ import {
   CarouselPrevious,
   type CarouselApi,
 } from "@/components/ui/carousel";
-import { Dialog, DialogContent, DialogClose } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogClose, DialogTitle } from "@/components/ui/dialog";
 import {
   Wand2,
   Sparkles,
@@ -711,10 +711,16 @@ export function ImageGeneratorAdvanced({
           className="!max-w-[99vw] !max-h-[99vh] !w-[99vw] !h-[99vh] p-0 bg-black/80 border-white/10 sm:!max-w-[99vw] md:!max-w-[99vw] lg:!max-w-[99vw]"
           showCloseButton={false}
         >
-          <div className="relative w-full h-full flex items-center justify-center p-1">
+          {/* Screen reader accessible title (visually hidden) */}
+          <DialogTitle className="sr-only">
+            {imageState.currentImages[imageState.currentIndex]?.prompt ??
+              imageState.currentImage?.prompt ??
+              "Image preview"}
+          </DialogTitle>
+          <div className="relative w-full h-full flex items-center justify-center p-4 md:p-6">
             {imageState.currentImage && (
               <>
-                <div className="relative w-full h-full flex items-center justify-center">
+                <div className="relative w-full h-full flex items-center justify-center pb-32 md:pb-40">
                   <Image
                     src={
                       imageState.currentImages[imageState.currentIndex]?.url ??
@@ -737,7 +743,7 @@ export function ImageGeneratorAdvanced({
                 </DialogClose>
 
                 {/* Image info overlay */}
-                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-3 md:p-4 lg:p-6 space-y-2 md:space-y-3">
+                <div className="absolute bottom-0 left-0 right-0 z-40 bg-gradient-to-t from-black/90 via-black/70 to-transparent px-4 pt-6 pb-4 md:px-6 md:pt-10 md:pb-6 lg:px-8 lg:pt-12 lg:pb-8 space-y-2 md:space-y-3 max-h-[50vh] overflow-y-auto">
                   <p className="text-xs md:text-sm font-mono text-white/90 leading-relaxed max-w-3xl break-words">
                     {imageState.currentImages[imageState.currentIndex]
                       ?.prompt ?? imageState.currentImage.prompt}

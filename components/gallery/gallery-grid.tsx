@@ -150,9 +150,9 @@ export function GalleryGrid({ items, onItemDeleted }: GalleryGridProps) {
               </DialogClose>
 
               {/* Info overlay at bottom */}
-              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent px-6 py-6 md:px-8 md:py-8 space-y-3">
+              <div className="absolute bottom-0 left-0 right-0 z-40 bg-gradient-to-t from-black/90 via-black/70 to-transparent px-6 pt-8 pb-6 md:px-8 md:pt-12 md:pb-8 space-y-3 max-h-[50vh] overflow-y-auto">
                 {/* Prompt */}
-                <p className="text-sm text-white/90 leading-relaxed max-w-4xl">
+                <p className="text-sm text-white/90 leading-relaxed max-w-4xl break-words">
                   {selectedItem.prompt}
                 </p>
 
