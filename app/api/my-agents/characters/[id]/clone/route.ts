@@ -56,6 +56,7 @@ export async function POST(
       plugins: original.plugins,
       style: original.style,
       settings: original.settings,
+      character_data: original.character_data || {},
       avatar_url: original.avatar_url,
       category: original.category,
       tags: original.tags,
