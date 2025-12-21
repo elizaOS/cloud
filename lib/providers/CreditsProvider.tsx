@@ -49,6 +49,8 @@ export function CreditsProvider({ children }: { children: ReactNode }) {
   const isPollingPausedRef = useRef(false);
   const isVisibleRef = useRef(true);
   const lastFetchTimeRef = useRef<number>(0);
+  // Flag to prevent race conditions during logout - ensures no fetches fire during logout flow
+  const isLoggingOutRef = useRef(false);
 
   // Store Privy functions in refs to avoid recreating callbacks on every render
   const getAccessTokenRef = useRef(getAccessToken);
@@ -69,10 +71,14 @@ export function CreditsProvider({ children }: { children: ReactNode }) {
   const resumePolling = useCallback(() => {
     authErrorCountRef.current = 0;
     isPollingPausedRef.current = false;
+    isLoggingOutRef.current = false; // Reset logout flag on re-authentication
   }, []);
 
   const fetchBalance = useCallback(async () => {
     if (!isMountedRef.current) return;
+
+    // Don't fetch if logout is in progress - prevents race conditions
+    if (isLoggingOutRef.current) return;
 
     // Don't fetch if not authenticated, polling is paused, or tab is hidden
     if (!authenticated || isPollingPausedRef.current || !isVisibleRef.current) {
@@ -93,6 +99,8 @@ export function CreditsProvider({ children }: { children: ReactNode }) {
     }
     lastFetchTimeRef.current = now;
 
+    // Note: credentials: "include" is required for cookie-based auth.
+    // For cross-origin scenarios, the server must set cookies with SameSite=None; Secure
     const doFetch = () =>
       fetch("/api/credits/balance", {
         cache: "no-store",
@@ -121,14 +129,18 @@ export function CreditsProvider({ children }: { children: ReactNode }) {
           setCreditBalance(null);
           setIsLoading(false);
         }
+        // Set logout flag BEFORE stopping polling to prevent race conditions
+        isLoggingOutRef.current = true;
         stopPolling();
         logoutRef.current();
         return;
       }
 
+      // Token refresh succeeded - reset error counter before retry
+      // This acknowledges the auth system is working, giving a fresh set of retries
+      authErrorCountRef.current = 0;
+
       // Retry with refreshed session
-      // Note: Don't reset error counter here - only reset on successful fetch (line 160)
-      // This ensures persistent auth failures (e.g., suspended account) eventually trigger logout
       response = await doFetch();
     }
 
@@ -140,8 +152,18 @@ export function CreditsProvider({ children }: { children: ReactNode }) {
           logger.warn(
             "[CreditsProvider] Too many auth errors after refresh, logging out",
           );
+          // Set logout flag BEFORE stopping polling to prevent race conditions
+          isLoggingOutRef.current = true;
           stopPolling();
           logoutRef.current();
+          // Early return after triggering logout to prevent further processing
+          if (isMountedRef.current) {
+            setError("Unauthorized");
+            setIsConnected(false);
+            setCreditBalance(null);
+            setIsLoading(false);
+          }
+          return;
         }
 
         if (isMountedRef.current) {
