@@ -204,5 +204,7 @@ export async function estimateRequestCost(
   );
 
   // Add 50% buffer for safety (increased from 20% to handle usage spikes)
-  return Math.ceil(totalCost * 1.5);
+  // Round to nearest cent (2 decimal places), minimum $0.01
+  const bufferedCost = totalCost * 1.5;
+  return Math.max(0.01, Math.ceil(bufferedCost * 100) / 100);
 }
