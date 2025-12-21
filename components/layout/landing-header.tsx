@@ -25,25 +25,16 @@ export default function LandingHeader() {
   };
 
   return (
-    <motion.header
-      className="fixed top-0 left-0 z-[100] w-full pointer-events-auto"
-      initial={{ opacity: 0, y: -20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{
-        duration: 1,
-        ease: [0.25, 0.1, 0.25, 1],
-        delay: 0.2,
-      }}
-    >
-      <div className="flex h-16 items-center justify-between w-full px-4">
+    <motion.header className="fixed top-0 left-0 z-[100] w-full pointer-events-auto pr-4 sm:pr-[20px]">
+      <div className="flex h-16 items-center justify-between w-full pl-4">
         <Link href="/" className="flex items-center gap-3">
           <div className="flex items-center gap-2">
             <Image
-              src="/eliza-font.svg"
+              src="/cloudlogo.svg"
               alt="ELIZA"
-              width={80}
-              height={24}
-              className="h-5 w-auto"
+              width={100}
+              height={100}
+              className="w-20 sm:w-24 invert shrink-0"
             />
           </div>
         </Link>
@@ -68,14 +59,15 @@ export default function LandingHeader() {
                 variant="ghost"
                 size="sm"
                 disabled={!ready}
-                className="text-white/70 hover:text-white hover:bg-white/5"
+                className="text-base text-white hover:text-white hover:bg-white/5"
               >
-                <Link href="/login">Log in</Link>
+                <Link href="/login">Sign in</Link>
               </Button>
               <LockOnButton
                 size="sm"
                 onClick={handleGetStarted}
                 disabled={!ready}
+                className="text-sm"
               >
                 Sign Up
               </LockOnButton>

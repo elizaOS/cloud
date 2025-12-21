@@ -76,11 +76,7 @@ export function OnboardingOverlay() {
   const [targetRect, setTargetRect] = useState<TargetRect | null>(null);
   const [tooltipSize, setTooltipSize] = useState({ width: 320, height: 200 });
   const tooltipRef = useRef<HTMLDivElement>(null);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const [mounted, setMounted] = useState(() => typeof window !== "undefined");
 
   const currentStep = activeTour?.steps[currentStepIndex];
 
@@ -115,7 +111,10 @@ export function OnboardingOverlay() {
   useEffect(() => {
     if (!isActive) return;
 
-    updateTargetRect();
+    // Use requestAnimationFrame to defer state update outside of effect body
+    const rafId = requestAnimationFrame(() => {
+      updateTargetRect();
+    });
 
     // Delay to ensure DOM is fully rendered
     const timer = setTimeout(updateTargetRect, 100);
@@ -124,6 +123,7 @@ export function OnboardingOverlay() {
     window.addEventListener("scroll", updateTargetRect, true);
 
     return () => {
+      cancelAnimationFrame(rafId);
       clearTimeout(timer);
       window.removeEventListener("resize", updateTargetRect);
       window.removeEventListener("scroll", updateTargetRect, true);

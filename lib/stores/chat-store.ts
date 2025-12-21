@@ -48,7 +48,7 @@ interface ChatState {
   setAnonymousSessionToken: (token: string | null) => void;
   updateCharacterAvatar: (characterId: string, avatarUrl: string) => void;
   loadRooms: (force?: boolean) => Promise<void>;
-  createRoom: (characterId?: string | null) => Promise<string | null>;
+  createRoom: (characterId?: string | null, skipLoadRooms?: boolean) => Promise<string | null>;
   deleteRoom: (roomId: string) => Promise<void>;
   clearChatData: () => void;
 }
@@ -185,7 +185,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   // Create new room
   // entityId is derived from authenticated user on the server
-  createRoom: async (characterId?: string | null) => {
+  // skipLoadRooms: if true, don't auto-reload rooms after creation (prevents flicker during message send)
+  createRoom: async (characterId?: string | null, skipLoadRooms = false) => {
     const { loadRooms, setRoomId, anonymousSessionToken } = get();
 
     const requestBody: Record<string, string | undefined> = {
@@ -227,8 +228,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
       // This ensures the UI updates immediately
       setRoomId(newRoomId);
 
-      // Then reload rooms to get the updated list (fire-and-forget)
-      void loadRooms();
+      // Only reload rooms if not skipped (prevents flicker during message send flow)
+      if (!skipLoadRooms) {
+        // Use a slight delay to avoid race conditions
+        setTimeout(() => {
+          void loadRooms();
+        }, 100);
+      }
 
       return newRoomId;
     } else {

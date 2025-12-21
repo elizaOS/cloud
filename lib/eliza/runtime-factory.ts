@@ -270,12 +270,15 @@ export class RuntimeFactory {
       await runtime.initialize({ skipMigrations: true });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      const isDuplicate =
+      // These errors indicate the resource already exists (race condition or retry)
+      // and can be safely ignored since the resource we need is already there
+      const isDuplicateOrExists =
         msg.toLowerCase().includes("duplicate") ||
         msg.toLowerCase().includes("unique constraint") ||
         msg.includes("Failed to create entity") ||
-        msg.includes("Failed to create agent");
-      if (!isDuplicate) throw e;
+        msg.includes("Failed to create agent") ||
+        msg.includes("Failed to create room");
+      if (!isDuplicateOrExists) throw e;
     }
 
     if (!(await runtime.getAgent(agentId))) {

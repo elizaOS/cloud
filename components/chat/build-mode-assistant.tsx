@@ -18,6 +18,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import Image from "next/image";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Send,
@@ -829,7 +830,7 @@ export function BuildModeAssistant({
                       <button
                         key={item.label}
                         onClick={() => handleQuickPrompt(item.prompt)}
-                        className="px-4 py-3 text-left text-sm text-white/80 bg-white/[0.03] border border-white/[0.08] rounded-lg hover:bg-white/[0.06] hover:border-white/[0.12] transition-colors"
+                        className="px-4 py-3 text-center text-sm text-white/80 bg-white/[0.03] border border-white/[0.08] rounded-lg hover:bg-white/[0.06] hover:border-white/[0.12] transition-colors"
                       >
                         {item.label}
                       </button>
@@ -877,11 +878,13 @@ export function BuildModeAssistant({
                                   key={attachment.id}
                                   className="relative rounded-lg overflow-hidden border border-white/[0.08] bg-white/[0.02]"
                                 >
-                                  <img
+                                  <Image
                                     src={attachment.url}
                                     alt={attachment.title || "Generated image"}
+                                    width={280}
+                                    height={280}
                                     className="max-w-[280px] max-h-[280px] object-cover"
-                                    loading="lazy"
+                                    unoptimized
                                   />
                                 </div>
                               ))}
@@ -1178,7 +1181,7 @@ export function BuildModeAssistant({
           onSubmit={handleSubmit}
           className="border-t border-white/[0.06] p-4"
         >
-          <div className="max-w-3xl mx-auto px-4 sm:px-6">
+          <div className="mx-auto px-4 sm:px-6">
             <div className="space-y-3">
               {/* Input Container */}
               <div className="relative rounded-lg border border-white/[0.08] bg-white/[0.02] overflow-hidden transition-colors focus-within:border-white/[0.15] focus-within:bg-white/[0.03]">
