@@ -23,8 +23,6 @@ import {
   Zap,
   Search,
   Info,
-  ChevronDown,
-  ChevronUp,
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
@@ -92,7 +90,6 @@ export function PluginsTab({ character, onChange }: PluginsTabProps) {
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [categories, setCategories] = useState<string[]>([]);
   const [selectedMcp, setSelectedMcp] = useState<McpRegistryEntry | null>(null);
-  const [showEnabledMcps, setShowEnabledMcps] = useState(true);
 
   // Extract current MCP settings from character
   const getCurrentMcpSettings = useCallback((): McpSettings => {
@@ -241,7 +238,7 @@ export function PluginsTab({ character, onChange }: PluginsTabProps) {
   }
 
   return (
-    <div className="flex h-full flex-col relative overflow-hidden">
+    <div className="flex h-full flex-col relative">
       {/* Header */}
       <div className="flex-shrink-0 border-b border-white/10 px-6 py-4">
         <div className="flex items-center justify-between mb-4">
@@ -312,45 +309,28 @@ export function PluginsTab({ character, onChange }: PluginsTabProps) {
       </div>
 
       {/* Content */}
-      <ScrollArea className="flex-1 overflow-y-auto sm:scrollbar-thin sm:scrollbar-thumb-brand-orange sm:scrollbar-track-black">
+      <ScrollArea className="flex-1">
         <div className="p-6 space-y-8">
           {/* Enabled MCPs Section */}
           {enabledMcps.length > 0 && (
             <section>
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-green-400" />
-                  <h4 className="text-sm font-medium text-white/80 uppercase tracking-wider">
-                    Enabled ({enabledMcps.length})
-                  </h4>
-                </div>
-                <button
-                  onClick={() => setShowEnabledMcps(!showEnabledMcps)}
-                  className="p-1 hover:bg-white/10 transition-colors"
-                  aria-label={
-                    showEnabledMcps ? "Hide enabled MCPs" : "Show enabled MCPs"
-                  }
-                >
-                  {showEnabledMcps ? (
-                    <ChevronUp className="size-6 text-white/60" />
-                  ) : (
-                    <ChevronDown className="size-6 text-white/60" />
-                  )}
-                </button>
+              <div className="flex items-center gap-2 mb-4">
+                <Check className="h-4 w-4 text-green-400" />
+                <h4 className="text-sm font-medium text-white/80 uppercase tracking-wider">
+                  Enabled ({enabledMcps.length})
+                </h4>
               </div>
-              {showEnabledMcps && (
-                <div className="grid gap-4 md:grid-cols-2">
-                  {enabledMcps.map((mcp) => (
-                    <McpCard
-                      key={mcp.id}
-                      mcp={mcp}
-                      isEnabled={true}
-                      onToggle={() => disableMcp(mcp.id)}
-                      onSelect={() => setSelectedMcp(mcp)}
-                    />
-                  ))}
-                </div>
-              )}
+              <div className="grid gap-4 md:grid-cols-2">
+                {enabledMcps.map((mcp) => (
+                  <McpCard
+                    key={mcp.id}
+                    mcp={mcp}
+                    isEnabled={true}
+                    onToggle={() => disableMcp(mcp.id)}
+                    onSelect={() => setSelectedMcp(mcp)}
+                  />
+                ))}
+              </div>
             </section>
           )}
 

@@ -43,7 +43,7 @@ export function SectionHeader({
         className={cn(
           "flex items-center gap-3 mb-4",
           align === "center" && "justify-center",
-          align === "right" && "justify-end"
+          align === "right" && "justify-end",
         )}
       >
         <span
@@ -53,7 +53,7 @@ export function SectionHeader({
         <p
           className={cn(
             "text-xl uppercase tracking-wider font-normal",
-            labelClassName
+            labelClassName,
           )}
           style={{
             color: "#E1E1E1",
@@ -68,7 +68,7 @@ export function SectionHeader({
         <h2
           className={cn(
             "text-3xl md:text-4xl lg:text-5xl font-bold mb-4 text-white",
-            titleClassName
+            titleClassName,
           )}
         >
           {title}
@@ -80,7 +80,7 @@ export function SectionHeader({
           className={cn(
             "text-white/70 text-base md:text-lg",
             align === "center" && "max-w-2xl mx-auto",
-            descriptionClassName
+            descriptionClassName,
           )}
         >
           {description}
@@ -101,11 +101,11 @@ export function SectionLabel({
   return (
     <div className={cn("flex items-center gap-3", className)}>
       <span
-        className="inline-block w-2 h-2"
+        className="inline-block w-2 h-2 rounded-full"
         style={{ backgroundColor: "#FF5800" }}
       />
       <span
-        className="text-xl uppercase font-normal"
+        className="text-xl uppercase tracking-wider font-normal"
         style={{
           color: "#E1E1E1",
           lineHeight: "26px",

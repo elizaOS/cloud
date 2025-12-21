@@ -471,7 +471,7 @@ export function VideoPageClient({
 
       {/* Activity Tab Content */}
       <TabsContent value="activity" className="mt-0">
-        <section className="w-full">
+        <section className="max-w-2xl">
           <BrandCard
             className="relative flex h-full flex-col"
             id="recent-renders"

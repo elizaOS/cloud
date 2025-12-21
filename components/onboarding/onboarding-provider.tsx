@@ -56,12 +56,17 @@ export function OnboardingProvider({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const [state, setState] = useState<OnboardingState>(() => loadState());
+  const [state, setState] = useState<OnboardingState>(defaultState);
   const [activeTour, setActiveTour] = useState<OnboardingTour | null>(null);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
-  const [isInitialized, setIsInitialized] = useState(
-    () => typeof window !== "undefined"
-  );
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  // Load state from localStorage on mount
+  useEffect(() => {
+    const loaded = loadState();
+    setState(loaded);
+    setIsInitialized(true);
+  }, []);
 
   // Auto-start tour for current path if user hasn't seen it
   useEffect(() => {

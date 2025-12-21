@@ -35,7 +35,7 @@ const POLL_INTERVAL = 30000; // Increased from 10s to 30s
 const MAX_AUTH_ERRORS = 3;
 
 export function CreditsProvider({ children }: { children: ReactNode }) {
-  const { authenticated, ready } = usePrivy();
+  const { authenticated, ready, getAccessToken, logout } = usePrivy();
   const [creditBalance, setCreditBalance] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -49,6 +49,12 @@ export function CreditsProvider({ children }: { children: ReactNode }) {
   const isPollingPausedRef = useRef(false);
   const isVisibleRef = useRef(true);
   const lastFetchTimeRef = useRef<number>(0);
+
+  // Store Privy functions in refs to avoid recreating callbacks on every render
+  const getAccessTokenRef = useRef(getAccessToken);
+  const logoutRef = useRef(logout);
+  getAccessTokenRef.current = getAccessToken;
+  logoutRef.current = logout;
 
   // Stop polling when too many auth errors occur
   const stopPolling = useCallback(() => {
@@ -87,29 +93,55 @@ export function CreditsProvider({ children }: { children: ReactNode }) {
     }
     lastFetchTimeRef.current = now;
 
-    const response = await fetch("/api/credits/balance", {
-      cache: "no-store",
-      headers: {
-        "Cache-Control": "no-cache, no-store, must-revalidate",
-        Pragma: "no-cache",
-      },
-    });
+    const doFetch = () =>
+      fetch("/api/credits/balance", {
+        cache: "no-store",
+        credentials: "include",
+        headers: {
+          "Cache-Control": "no-cache, no-store, must-revalidate",
+          Pragma: "no-cache",
+        },
+      });
+
+    let response = await doFetch();
+
+    // On 401, try to refresh the session and retry once
+    if (response.status === 401) {
+      logger.info("[CreditsProvider] Session may be stale, refreshing...");
+
+      // getAccessToken() triggers Privy to refresh the session/cookies
+      const freshToken = await getAccessTokenRef.current().catch(() => null);
+
+      if (!freshToken) {
+        // Token refresh failed - session is truly expired
+        logger.warn("[CreditsProvider] Session refresh failed, logging out");
+        if (isMountedRef.current) {
+          setError("Session expired");
+          setIsConnected(false);
+          setCreditBalance(null);
+          setIsLoading(false);
+        }
+        stopPolling();
+        logoutRef.current();
+        return;
+      }
+
+      // Retry with refreshed session
+      // Note: Don't reset error counter here - only reset on successful fetch (line 160)
+      // This ensures persistent auth failures (e.g., suspended account) eventually trigger logout
+      response = await doFetch();
+    }
 
     if (!response.ok) {
       if (response.status === 401) {
         authErrorCountRef.current++;
 
-        if (authErrorCountRef.current === 1) {
-          logger.warn(
-            "[CreditsProvider] Unauthorized - user may need to re-authenticate",
-          );
-        }
-
         if (authErrorCountRef.current >= MAX_AUTH_ERRORS) {
           logger.warn(
-            "[CreditsProvider] Too many auth errors, pausing polling",
+            "[CreditsProvider] Too many auth errors after refresh, logging out",
           );
           stopPolling();
+          logoutRef.current();
         }
 
         if (isMountedRef.current) {

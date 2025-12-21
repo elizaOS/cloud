@@ -30,8 +30,9 @@ export function HUDContainer({
     <div
       className={cn(
         "group relative bg-black/40 transition-all duration-300 ease-out",
+        "hover:bg-black/60 hover:scale-[1.02] hover:shadow-xl hover:shadow-white/10",
         withBorder && "border border-white/20 hover:border-white/30",
-        className
+        className,
       )}
     >
       <CornerBrackets

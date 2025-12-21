@@ -71,16 +71,16 @@ export function GalleryPageClient() {
       },
       {
         value: "image",
-        label: stats ? `Images (${stats.totalImages})` : "Images",
+        label: "Images",
         icon: <ImageIcon className="h-4 w-4" />,
       },
       {
         value: "video",
-        label: stats ? `Videos (${stats.totalVideos})` : "Videos",
+        label: "Videos",
         icon: <VideoIcon className="h-4 w-4" />,
       },
     ],
-    [stats]
+    [],
   );
 
   const loadItemsForTab = useCallback(async (tab: TabType, force = false) => {
@@ -197,6 +197,90 @@ export function GalleryPageClient() {
 
   return (
     <div className="flex flex-col gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {isLoadingStats ? (
+          <>
+            <BrandCard corners={false} className="p-4">
+              <div className="flex items-center gap-3">
+                <Skeleton className="w-9 h-9 rounded-full" />
+                <div className="space-y-2">
+                  <Skeleton className="h-8 w-16" />
+                  <Skeleton className="h-4 w-12" />
+                </div>
+              </div>
+            </BrandCard>
+            <BrandCard corners={false} className="p-4">
+              <div className="flex items-center gap-3">
+                <Skeleton className="w-9 h-9 rounded-full" />
+                <div className="space-y-2">
+                  <Skeleton className="h-8 w-16" />
+                  <Skeleton className="h-4 w-12" />
+                </div>
+              </div>
+            </BrandCard>
+            <BrandCard corners={false} className="p-4">
+              <div className="flex items-center gap-3">
+                <Skeleton className="w-9 h-9 rounded-full" />
+                <div className="space-y-2">
+                  <Skeleton className="h-8 w-20" />
+                  <Skeleton className="h-4 w-16" />
+                </div>
+              </div>
+            </BrandCard>
+          </>
+        ) : stats ? (
+          <>
+            <BrandCard corners={false} className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="rounded-full bg-blue-500/20 border border-blue-500/40 p-2">
+                  <ImageIcon className="w-5 h-5 text-blue-400" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-white">
+                    {stats.totalImages}
+                  </p>
+                  <p className="text-sm text-white/50 uppercase tracking-wide">
+                    Images
+                  </p>
+                </div>
+              </div>
+            </BrandCard>
+
+            <BrandCard corners={false} className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="rounded-full bg-purple-500/20 border border-purple-500/40 p-2">
+                  <VideoIcon className="w-5 h-5 text-purple-400" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-white">
+                    {stats.totalVideos}
+                  </p>
+                  <p className="text-sm text-white/50 uppercase tracking-wide">
+                    Videos
+                  </p>
+                </div>
+              </div>
+            </BrandCard>
+
+            <BrandCard corners={false} className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="rounded-full bg-green-500/20 border border-green-500/40 p-2">
+                  <LayoutGridIcon className="w-5 h-5 text-green-400" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-white">
+                    {(stats.totalSize / 1024 / 1024).toFixed(1)} MB
+                  </p>
+                  <p className="text-sm text-white/50 uppercase tracking-wide">
+                    Total Size
+                  </p>
+                </div>
+              </div>
+            </BrandCard>
+          </>
+        ) : null}
+      </div>
+
       <BrandTabsResponsive
         id="gallery-tabs"
         tabs={galleryTabs}
