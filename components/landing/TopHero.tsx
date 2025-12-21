@@ -172,11 +172,11 @@ const TopHero = () => {
             className="mb-6 md:mb-6 font-normal tracking-tight relative z-10 text-balance"
             style={{ textShadow: "0 2px 10px rgba(0,0,0,0.5)" }}
           >
-            <span className="text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold">
-              Build agents,
+            <span className="text-4xl mx-3 md:text-5xl lg:text-6xl xl:text-7xl font-bold">
+              Build Agents,
             </span>{" "}
             <span className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl text-neutral-400 sm:text-neutral-500">
-              not infrastructure
+              Not Infrastructure
             </span>
           </motion.h1>
 
