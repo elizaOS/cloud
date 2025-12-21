@@ -75,6 +75,7 @@ export function LandingPage() {
   return (
     <div className="flex h-screen bg-black">
       <BayerDitheringBackground />
+
       <div className="relative z-30 flex w-full flex-col overflow-y-scroll sm:scrollbar-thin sm:scrollbar-thumb-brand-orange sm:scrollbar-track-black">
         <LandingHeader />
 

@@ -6,14 +6,8 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Copy, Check } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 
 const TOKEN_ADDRESSES = [
   {
@@ -40,12 +34,34 @@ const TOKEN_ADDRESSES = [
 
 export default function Footer() {
   const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
+  const [showTokens, setShowTokens] = useState(false);
+  const tokensRef = useRef<HTMLDivElement>(null);
 
   const handleCopyAddress = async (address: string, network: string) => {
     await navigator.clipboard.writeText(address);
     setCopiedAddress(network);
     setTimeout(() => setCopiedAddress(null), 2000);
   };
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        showTokens &&
+        tokensRef.current &&
+        !tokensRef.current.contains(event.target as Node)
+      ) {
+        setShowTokens(false);
+      }
+    };
+
+    if (showTokens) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showTokens]);
   return (
     <footer className="relative shrink-0 border-t border-neutral-800 bg-black ">
       <div className="container mx-auto px-6 py-8 md:py-16 relative z-10 flex flex-col gap-8 md:gap-12">
@@ -98,63 +114,68 @@ export default function Footer() {
           {/* 3. Right section (Navigation/Social Icons) */}
           <div className="flex flex-col gap-1 md:gap-2 items-end">
             {/* Navigation */}
-            <nav className="flex flex-col gap-1.5 md:gap-2.5 text-right">
-              <Dialog>
-                <DialogTrigger asChild>
-                  <button className="text-base text-white transition-colors hover:text-[#FF5800]">
-                    Tokens
-                  </button>
-                </DialogTrigger>
-                <DialogContent className="bg-[#0A0A0A] border-white/10 text-white max-w-md">
-                  <div className="space-y-6">
-                    <DialogTitle className="text-xl font-mono font-bold text-brand-orange">
-                      TOKEN_ADDRESSES
-                    </DialogTitle>
-                    <div className="space-y-4 font-mono text-sm">
-                      {TOKEN_ADDRESSES.map((token) => (
-                        <div key={token.id} className="flex flex-col gap-1">
-                          <div className="flex items-center gap-1">
-                            <span className="text-brand-orange font-semibold">
-                              {token.name}
-                            </span>
-                            <button
-                              onClick={() =>
-                                handleCopyAddress(token.address, token.id)
-                              }
-                              className="transition-opacity p-1 hover:bg-brand-orange/10 rounded sm:hidden"
-                              aria-label={`Copy ${token.name} address`}
-                            >
-                              {copiedAddress === token.id ? (
-                                <Check className="size-3.5 text-brand-orange" />
-                              ) : (
-                                <Copy className="size-3.5 text-white/70" />
-                              )}
-                            </button>
-                          </div>
-                          <div className="flex items-center justify-between gap-2 group">
-                            <span className="text-white/70 break-all font-mono">
-                              {token.address}
-                            </span>
-                            <button
-                              onClick={() =>
-                                handleCopyAddress(token.address, token.id)
-                              }
-                              className="transition-opacity p-1 hover:bg-brand-orange/10 rounded hidden sm:block shrink-0"
-                              aria-label={`Copy ${token.name} address`}
-                            >
-                              {copiedAddress === token.id ? (
-                                <Check className="size-4 text-brand-orange" />
-                              ) : (
-                                <Copy className="size-4 text-white/70" />
-                              )}
-                            </button>
-                          </div>
-                        </div>
-                      ))}
+            <nav className="flex flex-col gap-1.5 md:gap-2.5 text-right relative">
+              {/* Token Addresses Display - shown above Tokens button when toggled */}
+              <div ref={tokensRef} className="relative">
+                {showTokens && (
+                  <div className="bg-[#0A0A0A] border border-white/10 p-4 sm:p-3 mb-2 w-[calc(100vw-1rem)] sm:w-[460px] max-w-[96vw] absolute bottom-full -right-4 sm:right-0 z-10">
+                    <div className="space-y-3">
+                      <h3 className="text-xl font-mono font-bold text-brand-orange text-start border-b border-white/10 pb-3 sm:px-3">
+                        elizaOS Token Addresses
+                      </h3>
+                      <div className="space-y-4 sm:space-y-0 font-mono text-sm">
+                        {TOKEN_ADDRESSES.map((token) => (
+                          <button
+                            type="button"
+                            key={token.id}
+                            onClick={() =>
+                              handleCopyAddress(token.address, token.id)
+                            }
+                            className="group/token flex flex-col w-full gap-1 sm:gap-0 hover:bg-brand-orange/10 sm:p-3"
+                          >
+                            <div className="flex items-end gap-1">
+                              <span className="text-brand-orange font-semibold">
+                                {token.name}
+                              </span>
+                              <div
+                                className="transition-opacity p-1 hover:bg-brand-orange/10 rounded sm:hidden"
+                                aria-label={`Copy ${token.name} address`}
+                              >
+                                {copiedAddress === token.id ? (
+                                  <Check className="size-3.5 text-brand-orange" />
+                                ) : (
+                                  <Copy className="size-3.5 text-white/70" />
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center justify-between gap-2 group">
+                              <span className="text-white/70 break-all font-mono text-start tracking-tight sm:tracking-normal">
+                                {token.address}
+                              </span>
+                              <div
+                                className="hidden sm:block shrink-0 opacity-100 sm:group-hover/token:opacity-100 sm:opacity-0"
+                                aria-label={`Copy ${token.name} address`}
+                              >
+                                {copiedAddress === token.id ? (
+                                  <Check className="size-4 text-brand-orange" />
+                                ) : (
+                                  <Copy className="size-4 text-white/70" />
+                                )}
+                              </div>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </div>
-                </DialogContent>
-              </Dialog>
+                )}
+                <button
+                  onClick={() => setShowTokens(!showTokens)}
+                  className="text-base text-white transition-colors hover:text-[#FF5800]"
+                >
+                  Tokens
+                </button>
+              </div>
               <a
                 href="https://elizaos.ai/docs"
                 target="_blank"

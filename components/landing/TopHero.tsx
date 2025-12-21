@@ -347,7 +347,7 @@ const TopHero = () => {
             <Button
               variant="outline"
               size="lg"
-              className="w-full md:w-auto min-w-[176px] h-12 text-base bg-transparent border-white/60 text-white hover:bg-white hover:text-black"
+              className="w-full md:w-auto min-w-[176px] h-12 text-base bg-transparent border-white/60 text-white hover:bg-white hover:text-black dark:bg-transparent dark:border-white/60 dark:text-white dark:hover:bg-white dark:hover:text-black"
               asChild
             >
               <a
