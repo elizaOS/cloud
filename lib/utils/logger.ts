@@ -1,10 +1,12 @@
 /**
  * Conditional logging utility with sensitive data redaction
- * Only logs debug/info in development environment to reduce noise in production
+ * Debug/info logs only show when VERBOSE_LOGGING=true to reduce console noise
  * Provides utilities to redact sensitive data like transaction hashes and IDs
  */
 
 const isDev = process.env.NODE_ENV === "development";
+// Only show debug/info logs when explicitly enabled via VERBOSE_LOGGING=true
+const isVerbose = process.env.VERBOSE_LOGGING === "true";
 
 /**
  * Redaction utilities for sensitive data in logs
@@ -152,19 +154,19 @@ export const redact = {
 
 export const logger = {
   /**
-   * Debug-level logs - only shown in development
+   * Debug-level logs - only shown when VERBOSE_LOGGING=true
    */
   debug: (...args: unknown[]) => {
-    if (isDev) {
+    if (isVerbose) {
       console.log(...args);
     }
   },
 
   /**
-   * Info-level logs - only shown in development
+   * Info-level logs - only shown when VERBOSE_LOGGING=true
    */
   info: (...args: unknown[]) => {
-    if (isDev) {
+    if (isVerbose) {
       console.info(...args);
     }
   },

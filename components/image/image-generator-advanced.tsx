@@ -504,6 +504,7 @@ export function ImageGeneratorAdvanced({
                             src={img.url}
                             alt={img.prompt}
                             fill
+                            sizes="(max-width: 768px) 50vw, 25vw"
                             className="object-cover group-hover:scale-105 transition-transform duration-300"
                             unoptimized
                           />
@@ -527,6 +528,7 @@ export function ImageGeneratorAdvanced({
                                     src={img.url}
                                     alt={img.prompt}
                                     fill
+                                    sizes="(max-width: 768px) 100vw, (max-width: 1024px) 75vw, 60vw"
                                     className="object-contain"
                                     unoptimized
                                   />
@@ -544,6 +546,7 @@ export function ImageGeneratorAdvanced({
                           src={imageState.currentImage.url}
                           alt={imageState.currentImage.prompt}
                           fill
+                          sizes="(max-width: 768px) 100vw, (max-width: 1024px) 75vw, 60vw"
                           className="object-contain"
                           unoptimized
                         />
@@ -661,6 +664,7 @@ export function ImageGeneratorAdvanced({
                         src={image.url}
                         alt={image.prompt}
                         fill
+                        sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
                         className="object-cover group-hover:scale-105 transition-transform duration-300"
                         unoptimized
                       />
