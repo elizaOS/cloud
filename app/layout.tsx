@@ -47,8 +47,8 @@ const baseUrl =
 
 export const metadata: Metadata = {
   title: {
-    default: "elizaOS Platform - AI Agent Development Platform",
-    template: "%s | elizaOS Platform",
+    default: "Cloud - AI Agent Development Platform",
+    template: "%s | Cloud",
   },
   description:
     "Complete AI agent development platform with inference, hosting, storage, and rapid deployment. Build, deploy, and scale intelligent agents with ease.",
@@ -130,7 +130,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${sfPro.variable} antialiased`}>
+      <body
+        className={`${sfPro.variable} antialiased selection:bg-[#FF5800] selection:text-white`}
+      >
         <PrivyProvider>
           <CreditsProvider>
             <ThemeProvider

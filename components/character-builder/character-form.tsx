@@ -14,7 +14,6 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { X, Plus, Info } from "lucide-react";
 import type { ElizaCharacter } from "@/lib/types";
-import { AvatarUpload } from "@/components/character-builder/avatar-upload";
 import { AvatarGenerator } from "@/components/character-creator/avatar-generator";
 import {
   BrandTabs,
@@ -210,26 +209,6 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
               currentAvatarUrl={character.avatarUrl || character.avatar_url}
               onAvatarChange={(url) => updateField("avatarUrl", url)}
             />
-
-            {/* Divider */}
-            <div className="flex items-center gap-4">
-              <div className="flex-1 h-px bg-white/10" />
-              <span className="text-xs text-white/40">or upload custom</span>
-              <div className="flex-1 h-px bg-white/10" />
-            </div>
-
-            {/* Manual Upload */}
-            <div className="flex flex-col items-center space-y-2">
-              <AvatarUpload
-                value={character.avatarUrl || character.avatar_url}
-                onChange={(url) => updateField("avatarUrl", url)}
-                name={character.name || "Character"}
-                size="md"
-              />
-              <p className="text-xs text-white/40 text-center">
-                Upload a custom image (max 5MB)
-              </p>
-            </div>
           </BrandTabsContent>
 
           {/* Personality Tab */}
@@ -262,7 +241,7 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
               </div>
 
               {/* Add new conversation example */}
-              <div className="space-y-2 rounded-none border border-white/10 bg-black/20 p-3">
+              <div className="space-y-2 rounded-none border-b border-white/10 bg-black/20 pb-6">
                 <div className="space-y-1">
                   <label className="text-xs text-white/50">User says:</label>
                   <Input

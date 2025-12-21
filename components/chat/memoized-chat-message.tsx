@@ -5,14 +5,48 @@
 
 "use client";
 
-import React, { memo } from "react";
+import React, { memo, useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import { Loader2, Copy, Check, Volume2, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ElizaAvatar } from "./eliza-avatar";
 import Image from "next/image";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import rehypeHighlight from "rehype-highlight";
+
+// Dynamically import ReactMarkdown to reduce initial bundle (~150KB savings)
+// No loading fallback - we'll show plain text while it loads to avoid flicker
+const ReactMarkdown = dynamic(() => import("react-markdown"), {
+  ssr: false,
+});
+
+// Pre-load plugins at module level - shared across all message instances
+// This prevents the flash caused by loading plugins inside each component
+let pluginsCache: { remarkGfm: any; rehypeHighlight: any } | null = null;
+let pluginsLoading = false;
+const pluginsPromise = Promise.all([
+  import("remark-gfm").then((mod) => mod.default),
+  import("rehype-highlight").then((mod) => mod.default),
+]).then(([remarkGfm, rehypeHighlight]) => {
+  pluginsCache = { remarkGfm, rehypeHighlight };
+  return pluginsCache;
+});
+
+// Hook to access shared plugins - all components share the same cache
+function useMarkdownPlugins() {
+  const [plugins, setPlugins] = useState(pluginsCache);
+  
+  useEffect(() => {
+    if (!pluginsCache && !pluginsLoading) {
+      pluginsLoading = true;
+      pluginsPromise.then((loaded) => {
+        setPlugins(loaded);
+      });
+    } else if (pluginsCache && !plugins) {
+      setPlugins(pluginsCache);
+    }
+  }, [plugins]);
+  
+  return plugins;
+}
 
 interface Message {
   id: string;
@@ -107,6 +141,8 @@ function ChatMessageComponent({
   onImageLoad,
 }: MemoizedChatMessageProps) {
   const isThinking = message.id.startsWith("thinking-");
+  // Use shared plugins cache - no flash since plugins are pre-loaded at module level
+  const plugins = useMarkdownPlugins();
 
   return (
     <div
@@ -136,16 +172,24 @@ function ChatMessageComponent({
               </div>
             ) : (
               <>
-                {/* Message Text */}
+                {/* Message Text - Always show content immediately, upgrade to markdown when ready */}
                 <div className="py-3 px-4 bg-none border border-none rounded-lg transition-colors hover:bg-none hover:border-none overflow-hidden">
                   <div className="text-[15px] leading-relaxed text-white/90 prose prose-invert prose-sm max-w-none prose-p:my-2 prose-ul:my-2 prose-ol:my-2 prose-li:my-1 prose-headings:my-3 prose-pre:my-2 break-words [&_pre]:overflow-x-auto [&_pre_code]:whitespace-pre-wrap [&_pre_code]:break-words">
-                    <ReactMarkdown
-                      remarkPlugins={[remarkGfm]}
-                      rehypePlugins={[rehypeHighlight]}
-                      components={markdownComponents}
-                    >
-                      {message.content.text}
-                    </ReactMarkdown>
+                    {plugins && ReactMarkdown ? (
+                      <ReactMarkdown
+                        remarkPlugins={[plugins.remarkGfm]}
+                        rehypePlugins={[plugins.rehypeHighlight]}
+                        components={markdownComponents}
+                      >
+                        {message.content.text}
+                      </ReactMarkdown>
+                    ) : (
+                      // Plain text fallback - shown immediately while markdown loads
+                      // Uses same styling to prevent layout shift
+                      <div className="whitespace-pre-wrap">
+                        {message.content.text}
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -226,8 +270,8 @@ function ChatMessageComponent({
       ) : (
         <div className="flex flex-col gap-1.5 max-w-[85%] sm:max-w-[75%] group/message">
           {/* User Message */}
-          <div className="py-3 px-4 bg-[#FF5800]/10 border border-[#FF5800]/20 rounded-lg transition-colors hover:bg-[#FF5800]/15 hover:border-[#FF5800]/30">
-            <div className="whitespace-pre-wrap text-[15px] leading-relaxed text-white/95">
+          <div className="py-3 px-4 bg-[#FF5800]/10 border border-[#FF5800]/20 rounded-lg transition-colors hover:bg-[#FF5800]/15 hover:border-[#FF5800]/30 w-fit">
+            <div className="whitespace-pre-wrap text-[15px] leading-relaxed text-white/95 text-left">
               {message.content.text}
             </div>
           </div>
@@ -277,3 +321,5 @@ export const MemoizedChatMessage = memo(
     );
   },
 );
+
+

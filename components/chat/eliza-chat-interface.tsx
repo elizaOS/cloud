@@ -138,6 +138,10 @@ export function ElizaChatInterface({
   const sendMessageRef = useRef<
     ((textOverride?: string) => Promise<void>) | null
   >(null);
+  // Track newly created rooms to skip unnecessary loading (prevents flicker)
+  const justCreatedRoomIdRef = useRef<string | null>(null);
+  // Track if we're in the middle of sending to prevent loading state flicker
+  const isSendingRef = useRef(false);
 
   // Get character name from prop (preferred), store, or agentInfo (memoized)
   const selectedCharacter = useMemo(
@@ -238,15 +242,22 @@ export function ElizaChatInterface({
   // Poll knowledge processing status and show toast when complete
   useKnowledgeProcessingStatus(selectedCharacterId || null);
 
-  const loadMessages = useCallback(async (targetRoomId: string) => {
-    setLoadingState((prev) => ({ ...prev, isLoadingMessages: true }));
+  const loadMessages = useCallback(async (targetRoomId: string, skipLoadingState = false) => {
+    // Don't show loading state if we're sending (prevents flicker) or explicitly skipped
+    if (!skipLoadingState && !isSendingRef.current) {
+      setLoadingState((prev) => ({ ...prev, isLoadingMessages: true }));
+    }
     try {
       const response = await fetch(`/api/eliza/rooms/${targetRoomId}`, {
         credentials: "include",
       });
       if (response.ok) {
         const data = await response.json();
-        setMessages(data.messages || []);
+        // Only update messages if we're not in the middle of sending
+        // This prevents overwriting optimistic messages with stale data
+        if (!isSendingRef.current) {
+          setMessages(data.messages || []);
+        }
         if (data.agent) {
           setAgentInfo(data.agent);
         }
@@ -254,13 +265,24 @@ export function ElizaChatInterface({
     } catch (err) {
       console.error("Error loading messages:", err);
     } finally {
-      setLoadingState((prev) => ({ ...prev, isLoadingMessages: false }));
+      if (!skipLoadingState && !isSendingRef.current) {
+        setLoadingState((prev) => ({ ...prev, isLoadingMessages: false }));
+      }
     }
   }, []); // Stable - no dependencies needed
 
   // Load messages when roomId from context changes
   useEffect(() => {
     if (roomId) {
+      // Skip loading for rooms we just created (they're empty, prevents flicker)
+      if (justCreatedRoomIdRef.current === roomId) {
+        justCreatedRoomIdRef.current = null; // Clear the flag
+        return; // Skip loading - room is empty and we have optimistic messages
+      }
+      // Skip loading if we're currently sending (prevents flicker)
+      if (isSendingRef.current) {
+        return;
+      }
       loadMessages(roomId);
     } else {
       // Room was deleted or cleared - reset to empty state
@@ -272,12 +294,13 @@ export function ElizaChatInterface({
   }, [roomId, loadMessages]); // loadMessages is stable, only roomId changes
 
   const createRoom = useCallback(
-    async (characterId?: string | null) => {
+    async (characterId?: string | null, skipLoadRooms = false) => {
       const charIdToUse =
         characterId !== undefined ? characterId : selectedCharacterId;
       setError(null);
       // Use store's createRoom which handles the API call
-      const newRoomId = await createRoomInStore(charIdToUse);
+      // Pass skipLoadRooms to prevent unnecessary room list reload during message send
+      const newRoomId = await createRoomInStore(charIdToUse, skipLoadRooms);
 
       if (!newRoomId) {
         throw new Error("Failed to create room");
@@ -430,8 +453,13 @@ export function ElizaChatInterface({
       if (!textOverride) {
         setInputText("");
       }
+      // Set both state and ref to track sending status
       setLoadingState((prev) => ({ ...prev, isSending: true }));
+      isSendingRef.current = true;
       setError(null);
+
+      // Track if we created a new room (to skip loadRooms later)
+      let didCreateNewRoom = false;
 
       try {
         // If no room exists, create one first
@@ -443,13 +471,15 @@ export function ElizaChatInterface({
             if (!existingRoomId) {
               setError("Room creation failed");
               setLoadingState((prev) => ({ ...prev, isSending: false }));
+              isSendingRef.current = false;
               return;
             }
             currentRoomId = existingRoomId;
           } else {
             // Start new room creation and store the promise
+            // Pass skipLoadRooms=true to prevent unnecessary room list reload
             isCreatingRoomRef.current = true;
-            roomCreationPromiseRef.current = createRoom(selectedCharacterId)
+            roomCreationPromiseRef.current = createRoom(selectedCharacterId, true)
               .then((newRoomId) => {
                 isCreatingRoomRef.current = false;
                 roomCreationPromiseRef.current = null;
@@ -466,9 +496,13 @@ export function ElizaChatInterface({
             if (!newRoomId) {
               setError("Room creation returned empty ID");
               setLoadingState((prev) => ({ ...prev, isSending: false }));
+              isSendingRef.current = false;
               return;
             }
             currentRoomId = newRoomId;
+            didCreateNewRoom = true;
+            // Mark this room as just created to skip loading in the useEffect
+            justCreatedRoomIdRef.current = newRoomId;
           }
         }
 
@@ -522,7 +556,13 @@ export function ElizaChatInterface({
             }
           },
           onComplete: () => {
-            loadRooms();
+            // Only reload rooms if we didn't just create one (prevents duplicate load)
+            // Use a slight delay to avoid race conditions with room state updates
+            if (!didCreateNewRoom) {
+              setTimeout(() => {
+                loadRooms();
+              }, 100);
+            }
             // Notify parent that a message was sent successfully (for anonymous message counting)
             if (onMessageSent) {
               onMessageSent();
@@ -551,6 +591,7 @@ export function ElizaChatInterface({
         }
       } finally {
         setLoadingState((prev) => ({ ...prev, isSending: false }));
+        isSendingRef.current = false;
       }
     },
     [
