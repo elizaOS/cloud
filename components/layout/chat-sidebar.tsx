@@ -20,12 +20,11 @@ import {
   MessageSquare,
   Loader2,
   Trash2,
-  Edit3,
   Copy,
   Check,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { BrandButton } from "@/components/brand";
+import { LockOnButton } from "@/components/brand";
 import { useChatStore } from "@/lib/stores/chat-store";
 import { SidebarBottomPanel } from "./sidebar-bottom-panel";
 import { ElizaAvatar } from "@/components/chat/eliza-avatar";
@@ -438,21 +437,18 @@ export function ChatSidebar({
             </div>
 
             {/* New Chat Button */}
-            <BrandButton
+            <LockOnButton
               onClick={handleNewChat}
               disabled={operationState.isCreatingRoom}
               size="sm"
-              className="shrink-0 h-7 px-2 text-xs"
+              className="shrink-0 h-7 px-3 text-xs"
             >
               {operationState.isCreatingRoom ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
               ) : (
-                <>
-                  <Edit3 className="h-3.5 w-3.5" />
-                  <span className="ml-1">New</span>
-                </>
+                <span className="text-base mb-0.5">+</span>
               )}
-            </BrandButton>
+            </LockOnButton>
           </div>
         </div>
 
