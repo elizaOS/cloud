@@ -55,3 +55,4 @@ export const ProjectionsChartLazy = dynamic(
     loading: () => <ChartSkeleton />,
   },
 );
+

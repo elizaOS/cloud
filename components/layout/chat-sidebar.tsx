@@ -436,11 +436,12 @@ export function ChatSidebar({
               </div>
             </div>
 
-            {/* New Chat Button */}
+            {/* New Chat Button - uses petite corners for tiny button */}
             <LockOnButton
               onClick={handleNewChat}
               disabled={operationState.isCreatingRoom}
               size="sm"
+              cornerSize="petite"
               className="shrink-0 h-7 px-3 text-xs"
             >
               {operationState.isCreatingRoom ? (
