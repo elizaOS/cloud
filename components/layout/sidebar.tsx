@@ -68,24 +68,37 @@ function SidebarComponent({
     return () => window.removeEventListener("resize", checkScreenSize);
   }, []);
 
+  // Handle click outside to close token display
   useEffect(() => {
+    if (!showTokens) return;
+
     const handleClickOutside = (event: MouseEvent) => {
-      if (
-        showTokens &&
-        tokensRef.current &&
-        !tokensRef.current.contains(event.target as Node)
-      ) {
+      if (tokensRef.current && !tokensRef.current.contains(event.target as Node)) {
         setShowTokens(false);
       }
     };
 
-    if (showTokens) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showTokens]);
 
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
+  // Handle escape key to close token display
+  useEffect(() => {
+    if (!showTokens) return;
+
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setShowTokens(false);
     };
+
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [showTokens]);
+
+  // Focus management - move focus to container when opened
+  useEffect(() => {
+    if (showTokens && tokensRef.current) {
+      tokensRef.current.focus();
+    }
   }, [showTokens]);
 
   // Memoize toggle handler
@@ -145,11 +158,17 @@ function SidebarComponent({
               isMobile ? "justify-start pl-4" : "justify-end"
             }`}
           >
-            <div ref={tokensRef}>
+            <div ref={tokensRef} tabIndex={-1}>
               {showTokens && (
-                <div className="bg-[#0A0A0A] border border-white/10 p-4 sm:p-3 mt-2 w-[calc(100vw-1rem)] sm:w-[460px] max-w-[96vw] absolute top-full left-2 z-[60]">
+                <div
+                  id="token-addresses-sidebar"
+                  role="dialog"
+                  aria-modal="true"
+                  aria-labelledby="token-title-sidebar"
+                  className="bg-[#0A0A0A] border border-white/10 p-4 sm:p-3 mt-2 w-[calc(100vw-1rem)] sm:w-[460px] max-w-[96vw] absolute top-full left-2 z-[60]"
+                >
                   <div className="space-y-3">
-                    <h3 className="text-xl font-mono font-bold text-brand-orange text-start border-b border-white/10 pb-3 sm:px-3">
+                    <h3 id="token-title-sidebar" className="text-xl font-mono font-bold text-brand-orange text-start border-b border-white/10 pb-3 sm:px-3">
                       elizaOS Token Addresses
                     </h3>
                     <div className="space-y-4 sm:space-y-0 font-mono text-sm">
@@ -191,8 +210,17 @@ function SidebarComponent({
                               {token.address}
                             </span>
                             <div
-                              className="hidden sm:block shrink-0 opacity-100 sm:group-hover/token:opacity-100 sm:opacity-0"
+                              className="hidden sm:flex shrink-0 opacity-100 sm:group-hover/token:opacity-100 sm:opacity-0 cursor-pointer"
+                              role="button"
+                              tabIndex={0}
                               aria-label={`Copy ${token.name} address`}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" || e.key === " ") {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  handleCopyAddress(token.address, token.id);
+                                }
+                              }}
                             >
                               {copiedAddress === token.id ? (
                                 <Check className="size-4 text-brand-orange" />
@@ -209,6 +237,8 @@ function SidebarComponent({
               )}
               <button
                 onClick={() => setShowTokens(!showTokens)}
+                aria-expanded={showTokens}
+                aria-controls="token-addresses-sidebar"
                 className="rounded-full hover:opacity-80 transition-opacity focus:outline-none focus:ring-2 focus:ring-white/20"
                 aria-label="View token addresses"
               >
