@@ -6,6 +6,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
 import { GalleryGrid, GalleryGridSkeleton } from "./gallery-grid";
 import { listUserMedia, getUserMediaStats } from "@/app/actions/gallery";
@@ -36,15 +37,27 @@ type ItemsCache = {
 };
 
 export function GalleryPageClient() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  
+  // Get initial tab from URL query param
+  const initialTab = useMemo(() => {
+    const tabParam = searchParams.get("tab");
+    if (tabParam === "image" || tabParam === "video") {
+      return tabParam;
+    }
+    return "all";
+  }, [searchParams]);
+
   useSetPageHeader({
     title: "Gallery",
     description: "View and manage your AI-generated images and videos",
   });
 
-  const [activeTab, setActiveTab] = useState<TabType>("all");
+  const [activeTab, setActiveTab] = useState<TabType>(initialTab);
   const [itemsCache, setItemsCache] = useState<ItemsCache>({});
   const [loadingTabs, setLoadingTabs] = useState<Set<TabType>>(
-    new Set(["all"]),
+    new Set([initialTab]),
   );
   const [isLoadingStats, setIsLoadingStats] = useState(true);
   const [stats, setStats] = useState<{
@@ -61,6 +74,18 @@ export function GalleryPageClient() {
   const loadingTimeoutRef = useRef<Map<TabType, NodeJS.Timeout>>(new Map());
   const itemsCacheRef = useRef<ItemsCache>(itemsCache);
   itemsCacheRef.current = itemsCache;
+
+  // Update URL when tab changes
+  const handleTabChange = useCallback((tab: TabType) => {
+    setActiveTab(tab);
+    const url = new URL(window.location.href);
+    if (tab === "all") {
+      url.searchParams.delete("tab");
+    } else {
+      url.searchParams.set("tab", tab);
+    }
+    router.replace(url.pathname + url.search, { scroll: false });
+  }, [router]);
 
   const galleryTabs: TabItem[] = useMemo(
     () => [
@@ -201,7 +226,7 @@ export function GalleryPageClient() {
         id="gallery-tabs"
         tabs={galleryTabs}
         value={activeTab}
-        onValueChange={(v) => setActiveTab(v as "all" | "image" | "video")}
+        onValueChange={(v) => handleTabChange(v as "all" | "image" | "video")}
       >
         <BrandTabsContent value={activeTab} className="mt-6">
           {isLoading ? (
