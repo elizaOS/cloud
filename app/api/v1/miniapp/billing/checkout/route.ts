@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { stripe } from "@/lib/stripe";
+import { requireStripe } from "@/lib/stripe";
 import { creditsService } from "@/lib/services/credits";
 import { organizationsService } from "@/lib/services/organizations";
 import {
@@ -231,7 +231,7 @@ export async function POST(request: NextRequest) {
         };
       }
 
-      const customer = await stripe.customers.create(customerData);
+      const customer = await requireStripe().customers.create(customerData);
       customerId = customer.id;
 
       await organizationsService.update(organizationId, {
@@ -241,7 +241,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create checkout session
-    const session = await stripe.checkout.sessions.create({
+    const session = await requireStripe().checkout.sessions.create({
       customer: customerId,
       payment_method_types: ["card"],
       line_items: lineItems,

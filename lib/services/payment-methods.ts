@@ -1,4 +1,4 @@
-import { stripe } from "@/lib/stripe";
+import { requireStripe } from "@/lib/stripe";
 import { organizationsRepository, type Organization } from "@/db/repositories";
 import type Stripe from "stripe";
 import { logger } from "@/lib/utils/logger";
@@ -26,7 +26,7 @@ export class PaymentMethodsService {
     );
 
     try {
-      const customer = await stripe.customers.create({
+      const customer = await requireStripe().customers.create({
         name: org.name,
         email: org.billing_email || undefined,
         metadata: {
@@ -77,7 +77,7 @@ export class PaymentMethodsService {
 
     // Attach payment method to customer
     try {
-      await stripe.paymentMethods.attach(paymentMethodId, {
+      await requireStripe().paymentMethods.attach(paymentMethodId, {
         customer: customerId,
       });
     } catch (error) {
@@ -127,7 +127,7 @@ export class PaymentMethodsService {
     // Verify the payment method belongs to this customer
     try {
       const paymentMethod =
-        await stripe.paymentMethods.retrieve(paymentMethodId);
+        await requireStripe().paymentMethods.retrieve(paymentMethodId);
       if (paymentMethod.customer !== org.stripe_customer_id) {
         throw new Error("Payment method does not belong to this customer");
       }
@@ -140,7 +140,7 @@ export class PaymentMethodsService {
 
     // Update customer's default payment method in Stripe
     try {
-      await stripe.customers.update(org.stripe_customer_id, {
+      await requireStripe().customers.update(org.stripe_customer_id, {
         invoice_settings: {
           default_payment_method: paymentMethodId,
         },
@@ -204,7 +204,7 @@ export class PaymentMethodsService {
 
     // Detach from Stripe
     try {
-      await stripe.paymentMethods.detach(paymentMethodId);
+      await requireStripe().paymentMethods.detach(paymentMethodId);
     } catch (error) {
       if (error instanceof Error) {
         // If payment method is already detached, that's fine
@@ -254,7 +254,7 @@ export class PaymentMethodsService {
       return [];
     }
 
-    const paymentMethods = await stripe.paymentMethods.list({
+    const paymentMethods = await requireStripe().paymentMethods.list({
       customer: org.stripe_customer_id,
       type: "card",
     });
@@ -280,7 +280,7 @@ export class PaymentMethodsService {
       return null;
     }
 
-    const paymentMethod = await stripe.paymentMethods.retrieve(paymentMethodId);
+    const paymentMethod = await requireStripe().paymentMethods.retrieve(paymentMethodId);
 
     // Verify it belongs to this customer
     if (paymentMethod.customer !== org.stripe_customer_id) {

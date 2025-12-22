@@ -35,7 +35,7 @@ const POLL_INTERVAL = 30000; // Increased from 10s to 30s
 const MAX_AUTH_ERRORS = 3;
 
 export function CreditsProvider({ children }: { children: ReactNode }) {
-  const { authenticated, ready } = usePrivy();
+  const { authenticated, ready, getAccessToken, logout } = usePrivy();
   const [creditBalance, setCreditBalance] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -49,6 +49,14 @@ export function CreditsProvider({ children }: { children: ReactNode }) {
   const isPollingPausedRef = useRef(false);
   const isVisibleRef = useRef(true);
   const lastFetchTimeRef = useRef<number>(0);
+  // Flag to prevent race conditions during logout - ensures no fetches fire during logout flow
+  const isLoggingOutRef = useRef(false);
+
+  // Store Privy functions in refs to avoid recreating callbacks on every render
+  const getAccessTokenRef = useRef(getAccessToken);
+  const logoutRef = useRef(logout);
+  getAccessTokenRef.current = getAccessToken;
+  logoutRef.current = logout;
 
   // Stop polling when too many auth errors occur
   const stopPolling = useCallback(() => {
@@ -63,10 +71,14 @@ export function CreditsProvider({ children }: { children: ReactNode }) {
   const resumePolling = useCallback(() => {
     authErrorCountRef.current = 0;
     isPollingPausedRef.current = false;
+    isLoggingOutRef.current = false; // Reset logout flag on re-authentication
   }, []);
 
   const fetchBalance = useCallback(async () => {
     if (!isMountedRef.current) return;
+
+    // Don't fetch if logout is in progress - prevents race conditions
+    if (isLoggingOutRef.current) return;
 
     // Don't fetch if not authenticated, polling is paused, or tab is hidden
     if (!authenticated || isPollingPausedRef.current || !isVisibleRef.current) {
@@ -87,29 +99,71 @@ export function CreditsProvider({ children }: { children: ReactNode }) {
     }
     lastFetchTimeRef.current = now;
 
-    const response = await fetch("/api/credits/balance", {
-      cache: "no-store",
-      headers: {
-        "Cache-Control": "no-cache, no-store, must-revalidate",
-        Pragma: "no-cache",
-      },
-    });
+    // Note: credentials: "include" is required for cookie-based auth.
+    // For cross-origin scenarios, the server must set cookies with SameSite=None; Secure
+    const doFetch = () =>
+      fetch("/api/credits/balance", {
+        cache: "no-store",
+        credentials: "include",
+        headers: {
+          "Cache-Control": "no-cache, no-store, must-revalidate",
+          Pragma: "no-cache",
+        },
+      });
+
+    let response = await doFetch();
+
+    // On 401, try to refresh the session and retry once
+    if (response.status === 401) {
+      logger.info("[CreditsProvider] Session may be stale, refreshing...");
+
+      // getAccessToken() triggers Privy to refresh the session/cookies
+      const freshToken = await getAccessTokenRef.current().catch(() => null);
+
+      if (!freshToken) {
+        // Token refresh failed - session is truly expired
+        logger.warn("[CreditsProvider] Session refresh failed, logging out");
+        if (isMountedRef.current) {
+          setError("Session expired");
+          setIsConnected(false);
+          setCreditBalance(null);
+          setIsLoading(false);
+        }
+        // Set logout flag BEFORE stopping polling to prevent race conditions
+        isLoggingOutRef.current = true;
+        stopPolling();
+        logoutRef.current();
+        return;
+      }
+
+      // Token refresh succeeded - reset error counter before retry
+      // This acknowledges the auth system is working, giving a fresh set of retries
+      authErrorCountRef.current = 0;
+
+      // Retry with refreshed session
+      response = await doFetch();
+    }
 
     if (!response.ok) {
       if (response.status === 401) {
         authErrorCountRef.current++;
 
-        if (authErrorCountRef.current === 1) {
-          logger.warn(
-            "[CreditsProvider] Unauthorized - user may need to re-authenticate",
-          );
-        }
-
         if (authErrorCountRef.current >= MAX_AUTH_ERRORS) {
           logger.warn(
-            "[CreditsProvider] Too many auth errors, pausing polling",
+            "[CreditsProvider] Too many auth errors after refresh, logging out",
           );
+          // Set logout flag BEFORE stopping polling to prevent race conditions
+          isLoggingOutRef.current = true;
           stopPolling();
+          logoutRef.current();
+          // Early return after triggering logout to prevent further processing
+          if (isMountedRef.current) {
+            setError("Unauthorized");
+            setIsConnected(false);
+            setCreditBalance(null);
+            setIsLoading(false);
+          }
+          return;
         }
 
         if (isMountedRef.current) {

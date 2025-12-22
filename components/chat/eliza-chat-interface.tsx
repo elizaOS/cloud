@@ -11,7 +11,6 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -19,16 +18,12 @@ import {
   Send,
   Mic,
   Square,
-  Volume2,
   Plus,
-  Copy,
-  Check,
   Zap,
   Sparkles,
   Crown,
   Paperclip,
 } from "lucide-react";
-import Link from "next/link";
 import { ElizaAvatar } from "./eliza-avatar";
 import { useAudioRecorder } from "./hooks/use-audio-recorder";
 import { useAudioPlayer } from "./hooks/use-audio-player";
@@ -47,17 +42,15 @@ import {
 } from "@/components/ui/select";
 import { ensureAudioFormat } from "@/lib/utils/audio";
 import { useChatStore } from "@/lib/stores/chat-store";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import rehypeHighlight from "rehype-highlight";
+import { MemoizedChatMessage } from "./memoized-chat-message";
 import "highlight.js/styles/github-dark.css";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useRenderTracker } from "@/lib/debug/render-tracker";
 import { usePrivy } from "@privy-io/react-auth";
+import { useKnowledgeProcessingStatus } from "@/components/chat/hooks/use-knowledge-processing-status";
 
 interface Message {
   id: string;
@@ -116,9 +109,6 @@ export function ElizaChatInterface({
   onMessageSent,
   character,
 }: ElizaChatInterfaceProps) {
-  // Track renders in development
-  useRenderTracker("ElizaChatInterface");
-
   // Use chat store for room and character management
   const {
     roomId,
@@ -147,6 +137,10 @@ export function ElizaChatInterface({
   const sendMessageRef = useRef<
     ((textOverride?: string) => Promise<void>) | null
   >(null);
+  // Track newly created rooms to skip unnecessary loading (prevents flicker)
+  const justCreatedRoomIdRef = useRef<string | null>(null);
+  // Track if we're in the middle of sending to prevent loading state flicker
+  const isSendingRef = useRef(false);
 
   // Get character name from prop (preferred), store, or agentInfo (memoized)
   const selectedCharacter = useMemo(
@@ -204,6 +198,7 @@ export function ElizaChatInterface({
 
   const messageAudioUrls = useRef<Map<string, string>>(new Map());
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
+  const voicesFetchedRef = useRef(false);
 
   // Clear audio cache when voice changes (so messages regenerate with new voice)
   useEffect(() => {
@@ -234,13 +229,25 @@ export function ElizaChatInterface({
     isLoading: isLoadingModels,
   } = useModelTier();
 
-  const loadMessages = useCallback(async (targetRoomId: string) => {
-    setLoadingState((prev) => ({ ...prev, isLoadingMessages: true }));
+  // Poll knowledge processing status and show toast when complete
+  useKnowledgeProcessingStatus(selectedCharacterId || null);
+
+  const loadMessages = useCallback(async (targetRoomId: string, skipLoadingState = false) => {
+    // Don't show loading state if we're sending (prevents flicker) or explicitly skipped
+    if (!skipLoadingState && !isSendingRef.current) {
+      setLoadingState((prev) => ({ ...prev, isLoadingMessages: true }));
+    }
     try {
-      const response = await fetch(`/api/eliza/rooms/${targetRoomId}`);
+      const response = await fetch(`/api/eliza/rooms/${targetRoomId}`, {
+        credentials: "include",
+      });
       if (response.ok) {
         const data = await response.json();
-        setMessages(data.messages || []);
+        // Only update messages if we're not in the middle of sending
+        // This prevents overwriting optimistic messages with stale data
+        if (!isSendingRef.current) {
+          setMessages(data.messages || []);
+        }
         if (data.agent) {
           setAgentInfo(data.agent);
         }
@@ -248,13 +255,24 @@ export function ElizaChatInterface({
     } catch (err) {
       console.error("Error loading messages:", err);
     } finally {
-      setLoadingState((prev) => ({ ...prev, isLoadingMessages: false }));
+      if (!skipLoadingState && !isSendingRef.current) {
+        setLoadingState((prev) => ({ ...prev, isLoadingMessages: false }));
+      }
     }
   }, []); // Stable - no dependencies needed
 
   // Load messages when roomId from context changes
   useEffect(() => {
     if (roomId) {
+      // Skip loading for rooms we just created (they're empty, prevents flicker)
+      if (justCreatedRoomIdRef.current === roomId) {
+        justCreatedRoomIdRef.current = null; // Clear the flag
+        return; // Skip loading - room is empty and we have optimistic messages
+      }
+      // Skip loading if we're currently sending (prevents flicker)
+      if (isSendingRef.current) {
+        return;
+      }
       loadMessages(roomId);
     } else {
       // Room was deleted or cleared - reset to empty state
@@ -266,12 +284,13 @@ export function ElizaChatInterface({
   }, [roomId, loadMessages]); // loadMessages is stable, only roomId changes
 
   const createRoom = useCallback(
-    async (characterId?: string | null) => {
+    async (characterId?: string | null, skipLoadRooms = false) => {
       const charIdToUse =
         characterId !== undefined ? characterId : selectedCharacterId;
       setError(null);
       // Use store's createRoom which handles the API call
-      const newRoomId = await createRoomInStore(charIdToUse);
+      // Pass skipLoadRooms to prevent unnecessary room list reload during message send
+      const newRoomId = await createRoomInStore(charIdToUse, skipLoadRooms);
 
       if (!newRoomId) {
         throw new Error("Failed to create room");
@@ -353,35 +372,33 @@ export function ElizaChatInterface({
       if (!textOverride) {
         setInputText("");
       }
+      // Set both state and ref to track sending status
       setLoadingState((prev) => ({ ...prev, isSending: true }));
+      isSendingRef.current = true;
       setError(null);
+
+      // Track if we created a new room (to skip loadRooms later)
+      let didCreateNewRoom = false;
 
       try {
         // If no room exists, create one first
         let currentRoomId = roomId;
         if (!currentRoomId) {
-          console.log("[ElizaChat] No room selected, creating new room...");
-
           // If room creation is already in progress, await the existing promise
           if (isCreatingRoomRef.current && roomCreationPromiseRef.current) {
-            console.log(
-              "[ElizaChat] Room creation already in progress, awaiting...",
-            );
             const existingRoomId = await roomCreationPromiseRef.current;
             if (!existingRoomId) {
               setError("Room creation failed");
               setLoadingState((prev) => ({ ...prev, isSending: false }));
+              isSendingRef.current = false;
               return;
             }
             currentRoomId = existingRoomId;
-            console.log(
-              "[ElizaChat] Got room from existing creation:",
-              currentRoomId,
-            );
           } else {
             // Start new room creation and store the promise
+            // Pass skipLoadRooms=true to prevent unnecessary room list reload
             isCreatingRoomRef.current = true;
-            roomCreationPromiseRef.current = createRoom(selectedCharacterId)
+            roomCreationPromiseRef.current = createRoom(selectedCharacterId, true)
               .then((newRoomId) => {
                 isCreatingRoomRef.current = false;
                 roomCreationPromiseRef.current = null;
@@ -398,10 +415,13 @@ export function ElizaChatInterface({
             if (!newRoomId) {
               setError("Room creation returned empty ID");
               setLoadingState((prev) => ({ ...prev, isSending: false }));
+              isSendingRef.current = false;
               return;
             }
             currentRoomId = newRoomId;
-            console.log("[ElizaChat] Created new room:", newRoomId);
+            didCreateNewRoom = true;
+            // Mark this room as just created to skip loading in the useEffect
+            justCreatedRoomIdRef.current = newRoomId;
           }
         }
 
@@ -452,7 +472,13 @@ export function ElizaChatInterface({
             }
           },
           onComplete: () => {
-            loadRooms();
+            // Only reload rooms if we didn't just create one (prevents duplicate load)
+            // Use a slight delay to avoid race conditions with room state updates
+            if (!didCreateNewRoom) {
+              setTimeout(() => {
+                loadRooms();
+              }, 100);
+            }
             // Notify parent that a message was sent successfully (for anonymous message counting)
             if (onMessageSent) {
               onMessageSent();
@@ -478,6 +504,7 @@ export function ElizaChatInterface({
         }
       } finally {
         setLoadingState((prev) => ({ ...prev, isSending: false }));
+        isSendingRef.current = false;
       }
     },
     [
@@ -506,9 +533,6 @@ export function ElizaChatInterface({
 
     // If no roomId exists, create one first
     if (!roomId) {
-      console.log(
-        "[ElizaChat] Pending message found but no room - creating room first",
-      );
       isPendingMessageProcessingRef.current = true;
 
       // Store the message in ref so we can send it after room is created
@@ -520,13 +544,8 @@ export function ElizaChatInterface({
       createRoom()
         .then(() => {
           // Room creation will update roomId, which will trigger sending logic
-          console.log("[ElizaChat] Room created for pending message");
         })
-        .catch((err) => {
-          console.error(
-            "[ElizaChat] Failed to create room for pending message:",
-            err,
-          );
+        .catch(() => {
           isPendingMessageProcessingRef.current = false;
         });
       return;
@@ -539,7 +558,6 @@ export function ElizaChatInterface({
       !loadingState.isLoadingMessages
     ) {
       const messageToSend = pendingMessageToSendRef.current;
-      console.log("[ElizaChat] Auto-sending pending message:", messageToSend);
 
       // Clear the ref
       pendingMessageToSendRef.current = null;
@@ -621,6 +639,12 @@ export function ElizaChatInterface({
       return;
     }
 
+    // Prevent duplicate fetches - only fetch once per component lifecycle
+    if (voicesFetchedRef.current) {
+      return;
+    }
+    voicesFetchedRef.current = true;
+
     const fetchCustomVoices = async () => {
       try {
         const response = await fetch("/api/elevenlabs/voices/user");
@@ -649,37 +673,40 @@ export function ElizaChatInterface({
     }
   }, [recorder]);
 
-  const handleFileUpload = useCallback(async (files: File[]) => {
-    if (!selectedCharacterId || files.length === 0) return;
+  const handleFileUpload = useCallback(
+    async (files: File[]) => {
+      if (!selectedCharacterId || files.length === 0) return;
 
-    setIsUploadingFiles(true);
-    
-    const formData = new FormData();
-    formData.append("characterId", selectedCharacterId);
+      setIsUploadingFiles(true);
 
-    for (const file of files) {
-      formData.append("files", file, file.name);
-    }
+      const formData = new FormData();
+      formData.append("characterId", selectedCharacterId);
 
-    const response = await fetch("/api/v1/knowledge/upload-file", {
-      method: "POST",
-      body: formData,
-    });
+      for (const file of files) {
+        formData.append("files", file, file.name);
+      }
 
-    if (response.ok) {
-      const data = await response.json();
-      toast.success(`${files.length} file(s) uploaded`, {
-        description: "Files are now searchable",
+      const response = await fetch("/api/v1/knowledge/upload-file", {
+        method: "POST",
+        body: formData,
       });
-    } else {
-      const data = await response.json();
-      toast.error("Upload failed", {
-        description: data.error || "Failed to upload files",
-      });
-    }
-    
-    setIsUploadingFiles(false);
-  }, [selectedCharacterId]);
+
+      if (response.ok) {
+        const data = await response.json();
+        toast.success(`${files.length} file(s) uploaded`, {
+          description: "Files are now searchable",
+        });
+      } else {
+        const data = await response.json();
+        toast.error("Upload failed", {
+          description: data.error || "Failed to upload files",
+        });
+      }
+
+      setIsUploadingFiles(false);
+    },
+    [selectedCharacterId],
+  );
 
   // Process audio blob when it becomes available after recording stops
   useEffect(() => {
@@ -966,248 +993,43 @@ export function ElizaChatInterface({
                 )}
 
               {!loadingState.isLoadingMessages &&
-                messages.map((message, index) => {
-                  const isThinking = message.id.startsWith("thinking-");
-                  return (
-                    <div
-                      key={message.id}
-                      className={`flex ${
-                        message.isAgent ? "justify-start" : "justify-end"
-                      } animate-in fade-in slide-in-from-bottom-4 duration-500`}
-                      style={{ animationDelay: `${index * 50}ms` }}
-                    >
-                      {message.isAgent ? (
-                        <div className="flex flex-col gap-1.5 max-w-[85%] sm:max-w-[75%] group/message">
-                          {/* Agent Name Row with Avatar */}
-                          <div className="flex items-center gap-2 pl-1">
-                            <ElizaAvatar
-                              avatarUrl={characterAvatarUrl}
-                              name={characterName}
-                              className="flex-shrink-0 w-5 h-5"
-                              iconClassName="h-3 w-3"
-                              animate={isThinking}
-                            />
-                            <span className="text-xs font-medium text-white/50">
-                              {characterName}
-                            </span>
-                          </div>
-
-                          <div className="flex flex-col gap-1.5">
-                            {isThinking ? (
-                              <div className="flex items-center gap-2 py-3 px-4 bg-white/[0.03] border border-white/[0.06] rounded-lg">
-                                <Loader2 className="h-4 w-4 animate-spin text-white/40" />
-                                <span className="text-sm text-white/40">
-                                  thinking...
-                                </span>
-                              </div>
-                            ) : (
-                              <>
-                                {/* Message Text */}
-                                <div className="py-3 px-4 bg-white/[0.03] border border-white/[0.06] rounded-lg transition-colors hover:bg-white/[0.05] hover:border-white/[0.08] overflow-hidden">
-                                  <div className="text-[15px] leading-relaxed text-white/90 prose prose-invert prose-sm max-w-none prose-p:my-2 prose-ul:my-2 prose-ol:my-2 prose-li:my-1 prose-headings:my-3 prose-pre:my-2 break-words [&_pre]:overflow-x-auto [&_pre_code]:whitespace-pre-wrap [&_pre_code]:break-words">
-                                    <ReactMarkdown
-                                      remarkPlugins={[remarkGfm]}
-                                      rehypePlugins={[rehypeHighlight]}
-                                      components={{
-                                        code: ({
-                                          className,
-                                          children,
-                                          ...props
-                                        }) => {
-                                          const isInline = !className;
-                                          return isInline ? (
-                                            <code
-                                              className="bg-white/10 px-1.5 py-0.5 rounded text-xs break-all"
-                                              {...props}
-                                            >
-                                              {children}
-                                            </code>
-                                          ) : (
-                                            <code
-                                              className={className}
-                                              {...props}
-                                            >
-                                              {children}
-                                            </code>
-                                          );
-                                        },
-                                        pre: ({ children }) => (
-                                          <pre className="bg-black/40 border border-white/10 rounded-lg p-3 overflow-x-auto [&>code]:whitespace-pre-wrap [&>code]:break-words">
-                                            {children}
-                                          </pre>
-                                        ),
-                                        a: ({ href, children }) => (
-                                          <a
-                                            href={href}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="text-[#FF5800] hover:text-[#FF5800]/80 underline break-all"
-                                          >
-                                            {children}
-                                          </a>
-                                        ),
-                                        ul: ({ children }) => (
-                                          <ul className="list-disc list-inside">
-                                            {children}
-                                          </ul>
-                                        ),
-                                        ol: ({ children }) => (
-                                          <ol className="list-decimal list-inside">
-                                            {children}
-                                          </ol>
-                                        ),
-                                      }}
-                                    >
-                                      {message.content.text}
-                                    </ReactMarkdown>
-                                  </div>
-                                </div>
-
-                                {/* Image Attachments */}
-                                {message.content.attachments &&
-                                  message.content.attachments.length > 0 && (
-                                    <div className="mt-2 space-y-2">
-                                      {message.content.attachments.map(
-                                        (attachment) => {
-                                          if (
-                                            attachment.contentType ===
-                                              "IMAGE" ||
-                                            attachment.contentType === "image"
-                                          ) {
-                                            return (
-                                              <div
-                                                key={attachment.id}
-                                                className="inline-block rounded-lg overflow-hidden border border-white/10 max-w-md"
-                                              >
-                                                <Image
-                                                  src={attachment.url}
-                                                  alt={
-                                                    attachment.title ||
-                                                    "Generated image"
-                                                  }
-                                                  width={512}
-                                                  height={512}
-                                                  className="w-full h-auto"
-                                                  style={{ display: "block" }}
-                                                  onLoad={() =>
-                                                    scrollToBottom()
-                                                  }
-                                                />
-                                              </div>
-                                            );
-                                          }
-                                          return null;
-                                        },
-                                      )}
-                                    </div>
-                                  )}
-
-                                {/* Time and Actions */}
-                                <div className="flex items-center gap-2 pl-1 opacity-0 group-hover/message:opacity-100 transition-opacity">
-                                  <span className="text-xs text-white/40">
-                                    {formatTimestamp(message.createdAt)}
-                                  </span>
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    className="h-6 w-6 p-0 hover:bg-white/10 rounded transition-colors"
-                                    onClick={() =>
-                                      copyToClipboard(
-                                        message.content.text,
-                                        message.id,
-                                        message.content.attachments,
-                                      )
-                                    }
-                                    title="Copy message"
-                                  >
-                                    {copiedMessageId === message.id ? (
-                                      <Check className="h-3.5 w-3.5 text-green-500" />
-                                    ) : (
-                                      <Copy className="h-3.5 w-3.5 text-white/50 hover:text-white/80" />
-                                    )}
-                                  </Button>
-                                  {messageAudioUrls.current.has(message.id) && (
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      className="h-6 w-6 p-0 hover:bg-white/10 rounded transition-colors"
-                                      onClick={() => {
-                                        const url =
-                                          messageAudioUrls.current.get(
-                                            message.id,
-                                          );
-                                        if (url) {
-                                          if (
-                                            audioState.currentPlayingId ===
-                                              message.id &&
-                                            player.isPlaying
-                                          ) {
-                                            player.stopAudio();
-                                            setAudioState((prev) => ({
-                                              ...prev,
-                                              currentPlayingId: null,
-                                            }));
-                                          } else {
-                                            setAudioState((prev) => ({
-                                              ...prev,
-                                              currentPlayingId: message.id,
-                                            }));
-                                            player.playAudio(url);
-                                          }
-                                        }
-                                      }}
-                                    >
-                                      {audioState.currentPlayingId ===
-                                        message.id && player.isPlaying ? (
-                                        <Square className="h-3.5 w-3.5 text-white/50" />
-                                      ) : (
-                                        <Volume2 className="h-3.5 w-3.5 text-white/50 hover:text-white/80" />
-                                      )}
-                                    </Button>
-                                  )}
-                                </div>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="flex flex-col gap-1.5 max-w-[85%] sm:max-w-[75%] group/message">
-                          {/* User Message */}
-                          <div className="py-3 px-4 bg-[#FF5800]/10 border border-[#FF5800]/20 rounded-lg transition-colors hover:bg-[#FF5800]/15 hover:border-[#FF5800]/30">
-                            <div className="whitespace-pre-wrap text-[15px] leading-relaxed text-white/95">
-                              {message.content.text}
-                            </div>
-                          </div>
-                          {/* Time and Actions */}
-                          <div className="flex items-center gap-2 justify-end pr-1 opacity-0 group-hover/message:opacity-100 transition-opacity">
-                            <span className="text-xs text-white/40">
-                              {formatTimestamp(message.createdAt)}
-                            </span>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-6 w-6 p-0 hover:bg-white/10 rounded transition-colors"
-                              onClick={() =>
-                                copyToClipboard(
-                                  message.content.text,
-                                  message.id,
-                                  message.content.attachments,
-                                )
-                              }
-                              title="Copy message"
-                            >
-                              {copiedMessageId === message.id ? (
-                                <Check className="h-3.5 w-3.5 text-green-500" />
-                              ) : (
-                                <Copy className="h-3.5 w-3.5 text-white/50 hover:text-white/80" />
-                              )}
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+                messages.map((message, index) => (
+                  <MemoizedChatMessage
+                    key={message.id}
+                    message={message}
+                    index={index}
+                    characterName={characterName}
+                    characterAvatarUrl={characterAvatarUrl}
+                    copiedMessageId={copiedMessageId}
+                    currentPlayingId={audioState.currentPlayingId}
+                    isPlaying={player.isPlaying}
+                    hasAudioUrl={messageAudioUrls.current.has(message.id)}
+                    formatTimestamp={formatTimestamp}
+                    onCopy={copyToClipboard}
+                    onPlayAudio={(messageId) => {
+                      const url = messageAudioUrls.current.get(messageId);
+                      if (url) {
+                        if (
+                          audioState.currentPlayingId === messageId &&
+                          player.isPlaying
+                        ) {
+                          player.stopAudio();
+                          setAudioState((prev) => ({
+                            ...prev,
+                            currentPlayingId: null,
+                          }));
+                        } else {
+                          setAudioState((prev) => ({
+                            ...prev,
+                            currentPlayingId: messageId,
+                          }));
+                          player.playAudio(url);
+                        }
+                      }
+                    }}
+                    onImageLoad={scrollToBottom}
+                  />
+                ))}
             </div>
           </ScrollArea>
         </div>

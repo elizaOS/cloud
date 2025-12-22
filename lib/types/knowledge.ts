@@ -29,3 +29,16 @@ export interface QueryResult {
   similarity: number;
   metadata?: Record<string, unknown>;
 }
+
+/**
+ * Pre-uploaded file metadata.
+ * Used for files uploaded before character creation.
+ */
+export interface PreUploadedFile {
+  id: string;
+  filename: string;
+  blobUrl: string;
+  contentType: string;
+  size: number;
+  uploadedAt: number;
+}

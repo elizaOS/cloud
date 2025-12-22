@@ -27,7 +27,24 @@ const nextConfig: NextConfig = {
         port: "",
         pathname: "/**",
       },
-      // Note: DiceBear removed - using local avatars from /public/avatars/
+      {
+        protocol: "https",
+        hostname: "api.qrserver.com",
+        port: "",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "api.dicebear.com",
+        port: "",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "images.unsplash.com",
+        port: "",
+        pathname: "/**",
+      },
       // Note: Fal.ai URLs are no longer allowed - all assets are proxied through our storage
     ],
   },
@@ -81,6 +98,8 @@ const nextConfig: NextConfig = {
     "ipfs-utils",
     "electron-fetch",
     "electron",
+    // oxapay uses __dirname + fs.readFile for method info JSON
+    "oxapay",
   ],
 
   webpack: (config, { isServer }) => {
@@ -109,10 +128,9 @@ const nextConfig: NextConfig = {
               "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://challenges.cloudflare.com https://va.vercel-scripts.com https://cdn.jsdelivr.net",
               // Styles - allow self, inline styles, and Monaco Editor CDN (required for many UI libraries)
               "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
-              // Images - allow self, data URIs, blob URIs, Vercel storage, Instagram CDN
-              // Note: DiceBear removed - using local avatars from /public/avatars/
+              // Images - allow self, data URIs, blob URIs, Vercel storage, Instagram CDN, DiceBear avatars, Unsplash
               // Note: Fal.ai URLs are proxied through our storage, so not needed here
-              "img-src 'self' data: blob: https://*.public.blob.vercel-storage.com https://raw.githubusercontent.com https://*.fbcdn.net https://*.cdninstagram.com",
+              "img-src 'self' data: blob: https://*.public.blob.vercel-storage.com https://raw.githubusercontent.com https://*.fbcdn.net https://*.cdninstagram.com https://api.dicebear.com https://images.unsplash.com",
               // Fonts - allow self and Monaco Editor CDN
               "font-src 'self' https://cdn.jsdelivr.net",
               // Objects - block all (e.g., Flash, Java applets)
@@ -158,8 +176,8 @@ const nextConfig: NextConfig = {
               "worker-src 'self' blob:",
               // Manifest - allow self
               "manifest-src 'self'",
-              // Media - allow self, data URIs, and blob URIs
-              "media-src 'self' data: blob:",
+              // Media - allow self, data URIs, blob URIs, and video placeholder domain
+              "media-src 'self' data: blob: https://video-placeholder.eliza.ai",
             ]
               .join("; ")
               .replace(/\s+/g, " "),

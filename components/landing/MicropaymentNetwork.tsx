@@ -66,7 +66,7 @@ const FloatingNode = ({
       >
         {data.isCenter ? (
           <div className="relative w-full h-full rounded-full overflow-hidden">
-            <Image src="/eliza.png" alt="Eliza" fill className="object-cover" />
+            <Image src="/eliza.png" alt="Eliza" fill sizes="80px" className="object-cover" />
           </div>
         ) : data.image ? (
           <div
@@ -76,6 +76,7 @@ const FloatingNode = ({
               src={data.image}
               alt={data.label}
               fill
+              sizes={data.type === "agent" ? "32px" : "48px"}
               className={
                 data.type === "agent" ? "object-cover" : "object-contain p-1"
               }
@@ -188,42 +189,42 @@ export default function MicropaymentNetwork() {
         source: "center",
         target: "eth",
         animated: true,
-        style: { stroke: "#316AFF40", strokeWidth: 1.5 },
+        style: { stroke: "#316AFFCC", strokeWidth: 2.5 },
       },
       {
         id: "e-center-sol",
         source: "center",
         target: "sol",
         animated: true,
-        style: { stroke: "#316AFF40", strokeWidth: 1.5 },
+        style: { stroke: "#316AFFCC", strokeWidth: 2.5 },
       },
       {
         id: "e-center-base",
         source: "center",
         target: "base",
         animated: true,
-        style: { stroke: "#316AFF40", strokeWidth: 1.5 },
+        style: { stroke: "#316AFFCC", strokeWidth: 2.5 },
       },
       {
         id: "e-center-hl",
         source: "center",
         target: "hl",
         animated: true,
-        style: { stroke: "#316AFF40", strokeWidth: 1.5 },
+        style: { stroke: "#316AFFCC", strokeWidth: 2.5 },
       },
       {
         id: "e-center-agent1",
         source: "center",
         target: "agent1",
         animated: true,
-        style: { stroke: "#FF580040", strokeWidth: 1.5 },
+        style: { stroke: "#FF5800CC", strokeWidth: 2.5 },
       },
       {
         id: "e-center-agent2",
         source: "center",
         target: "agent2",
         animated: true,
-        style: { stroke: "#FF580040", strokeWidth: 1.5 },
+        style: { stroke: "#FF5800CC", strokeWidth: 2.5 },
       },
     ],
     []

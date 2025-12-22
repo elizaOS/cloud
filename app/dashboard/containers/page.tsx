@@ -33,28 +33,7 @@ export default async function ContainersPage() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto py-10 space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-start">
-        <div>
-          <div className="flex items-center gap-2 mb-2">
-            <span
-              className="inline-block w-2 h-2 rounded-full"
-              style={{ backgroundColor: "#FF5800" }}
-            />
-            <h1
-              className="text-4xl font-normal tracking-tight text-white"
-              style={{ fontFamily: "var(--font-roboto-mono)" }}
-            >
-              Containers
-            </h1>
-          </div>
-          <p className="text-white/60 mt-2">
-            Deploy and manage your containerized ElizaOS applications
-          </p>
-        </div>
-      </div>
-
+    <div className="max-w-7xl mx-auto pb-10 space-y-6">
       {/* Stats Overview - Only show if there are containers */}
       {containers.length > 0 && (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

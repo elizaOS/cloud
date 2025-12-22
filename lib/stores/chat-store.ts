@@ -46,8 +46,9 @@ interface ChatState {
   setSelectedCharacterId: (characterId: string | null) => void;
   setPendingMessage: (message: string | null) => void;
   setAnonymousSessionToken: (token: string | null) => void;
+  updateCharacterAvatar: (characterId: string, avatarUrl: string) => void;
   loadRooms: (force?: boolean) => Promise<void>;
-  createRoom: (characterId?: string | null) => Promise<string | null>;
+  createRoom: (characterId?: string | null, skipLoadRooms?: boolean) => Promise<string | null>;
   deleteRoom: (roomId: string) => Promise<void>;
   clearChatData: () => void;
 }
@@ -79,6 +80,15 @@ export const useChatStore = create<ChatState>((set, get) => ({
   setPendingMessage: (message) => set({ pendingMessage: message }),
   setAnonymousSessionToken: (token) => set({ anonymousSessionToken: token }),
 
+  // Update a character's avatar URL (used when avatar is generated in build mode)
+  updateCharacterAvatar: (characterId, avatarUrl) => {
+    const { availableCharacters } = get();
+    const updatedCharacters = availableCharacters.map((char) =>
+      char.id === characterId ? { ...char, avatarUrl } : char,
+    );
+    set({ availableCharacters: updatedCharacters });
+  },
+
   // Load rooms from API
   // entityId is now derived from authenticated user on the server
   loadRooms: async (force = false) => {
@@ -101,7 +111,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
         headers["X-Anonymous-Session"] = anonymousSessionToken;
       }
 
-      const res = await fetch(`/api/eliza/rooms`, { headers });
+      const res = await fetch(`/api/eliza/rooms`, {
+        headers,
+        credentials: "include",
+      });
 
       if (res.ok) {
         const data = await res.json();
@@ -172,7 +185,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   // Create new room
   // entityId is derived from authenticated user on the server
-  createRoom: async (characterId?: string | null) => {
+  // skipLoadRooms: if true, don't auto-reload rooms after creation (prevents flicker during message send)
+  createRoom: async (characterId?: string | null, skipLoadRooms = false) => {
     const { loadRooms, setRoomId, anonymousSessionToken } = get();
 
     const requestBody: Record<string, string | undefined> = {
@@ -196,6 +210,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const response = await fetch("/api/eliza/rooms", {
       method: "POST",
       headers,
+      credentials: "include",
       body: JSON.stringify(requestBody),
     });
 
@@ -213,8 +228,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
       // This ensures the UI updates immediately
       setRoomId(newRoomId);
 
-      // Then reload rooms to get the updated list (fire-and-forget)
-      void loadRooms();
+      // Only reload rooms if not skipped (prevents flicker during message send flow)
+      if (!skipLoadRooms) {
+        // Use a slight delay to avoid race conditions
+        setTimeout(() => {
+          void loadRooms();
+        }, 100);
+      }
 
       return newRoomId;
     } else {
@@ -231,6 +251,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
     const response = await fetch(`/api/eliza/rooms/${roomIdToDelete}`, {
       method: "DELETE",
+      credentials: "include",
     });
 
     if (response.ok) {

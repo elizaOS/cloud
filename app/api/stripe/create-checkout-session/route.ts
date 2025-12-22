@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { requireAuthWithOrg } from "@/lib/auth";
-import { stripe } from "@/lib/stripe";
+import { requireStripe } from "@/lib/stripe";
 import { creditsService } from "@/lib/services/credits";
 import { organizationsService } from "@/lib/services/organizations";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
@@ -169,7 +169,7 @@ async function handleCheckoutSession(req: NextRequest) {
         };
       }
 
-      const customer = await stripe.customers.create(customerData);
+      const customer = await requireStripe().customers.create(customerData);
       customerId = customer.id;
 
       await organizationsService.update(organizationId, {
@@ -215,7 +215,7 @@ async function handleCheckoutSession(req: NextRequest) {
       returnUrl,
     });
 
-    const session = await stripe.checkout.sessions.create({
+    const session = await requireStripe().checkout.sessions.create({
       customer: customerId,
       payment_method_types: ["card"],
       line_items: lineItems,

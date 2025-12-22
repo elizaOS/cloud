@@ -14,7 +14,6 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { organizationsService } from "@/lib/services/organizations";
 import { creditsService } from "@/lib/services/credits";
 import { redeemableEarningsService } from "@/lib/services/redeemable-earnings";
 import { agentBudgetService } from "@/lib/services/agent-budgets";
@@ -33,14 +32,8 @@ import { logger } from "@/lib/utils/logger";
 async function getSummaryHandler(request: NextRequest): Promise<Response> {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
 
-  // Get organization credits
-  const org = await organizationsService.getById(user.organization_id);
-  if (!org) {
-    return NextResponse.json(
-      { error: "Organization not found" },
-      { status: 404 },
-    );
-  }
+  // Use organization data from auth (already fetched, avoids redundant DB call)
+  const org = user.organization;
 
   // Get all agents owned by this org
   const agents = await db.query.userCharacters.findMany({

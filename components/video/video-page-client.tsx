@@ -8,7 +8,15 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogClose,
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -24,6 +32,11 @@ import {
   Loader2,
   Sparkles,
   BarChart3,
+  Play,
+  X,
+  ExternalLink,
+  Download,
+  Link2,
 } from "lucide-react";
 import { useSetPageHeader } from "@/components/layout/page-header-context";
 
@@ -34,7 +47,7 @@ import type {
   VideoModelOption,
   VideoUsageSummary,
 } from "./types";
-import { BrandCard, CornerBrackets } from "@/components/brand";
+import { BrandCard, CornerBrackets, BrandButton } from "@/components/brand";
 
 const THUMBNAIL_FALLBACKS = [
   "https://images.unsplash.com/photo-1526318472351-c75fcf07015d?auto=format&fit=crop&w=1600&q=80",
@@ -124,6 +137,7 @@ export function VideoPageClient({
   usage,
   recentVideos,
 }: VideoPageClientProps) {
+  const router = useRouter();
   const [prompt, setPrompt] = useState(
     featuredVideo?.prompt ??
       "A cinematic drone shot over a futuristic coastal city at sunset",
@@ -141,6 +155,8 @@ export function VideoPageClient({
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [previewVideo, setPreviewVideo] = useState<GeneratedVideo | null>(null);
+  const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
 
   useSetPageHeader({
     title: "Video Studio",
@@ -161,9 +177,34 @@ export function VideoPageClient({
     });
   }, [prompt, selectedModel]);
 
-  const scrollToHistory = useCallback(() => {
-    const element = document.getElementById("recent-renders");
-    element?.scrollIntoView({ behavior: "smooth", block: "start" });
+  const navigateToGallery = useCallback(() => {
+    router.push("/dashboard/gallery?tab=video");
+  }, [router]);
+
+  const handleHistoryItemClick = useCallback((video: GeneratedVideo) => {
+    setPreviewVideo(video);
+  }, []);
+
+  const handlePreviewDownload = useCallback((video: GeneratedVideo) => {
+    if (!video?.videoUrl) {
+      setCopyFeedback("Video will be available after rendering completes.");
+      setTimeout(() => setCopyFeedback(null), 2600);
+      return;
+    }
+    window.open(video.videoUrl, "_blank", "noopener,noreferrer");
+  }, []);
+
+  const handlePreviewCopyLink = useCallback(async (video: GeneratedVideo) => {
+    if (!video?.videoUrl) {
+      setCopyFeedback("No video link yet.");
+      setTimeout(() => setCopyFeedback(null), 2600);
+      return;
+    }
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
+      await navigator.clipboard.writeText(video.videoUrl);
+      setCopyFeedback("Link copied to clipboard.");
+      setTimeout(() => setCopyFeedback(null), 2600);
+    }
   }, []);
 
   const replaceVideoEntry = useCallback(
@@ -471,7 +512,7 @@ export function VideoPageClient({
 
       {/* Activity Tab Content */}
       <TabsContent value="activity" className="mt-0">
-        <section className="max-w-2xl">
+        <section className="w-full">
           <BrandCard
             className="relative flex h-full flex-col"
             id="recent-renders"
@@ -491,69 +532,105 @@ export function VideoPageClient({
               {historyVideos.map((video) => (
                 <div
                   key={video.id}
-                  className="flex flex-col gap-2 border border-white/10 bg-black/40 p-3 md:p-4 transition-colors hover:border-[#FF5800]/50"
+                  onClick={() => handleHistoryItemClick(video)}
+                  className="flex gap-3 md:gap-4 border border-white/10 bg-black/40 p-3 md:p-4 transition-colors hover:border-[#FF5800]/50 cursor-pointer group"
                 >
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span
-                      className={cn(
-                        "px-2 md:px-3 py-1 text-xs font-mono font-bold uppercase tracking-wide border capitalize flex-shrink-0",
-                        video.status === "completed"
-                          ? video.isMock
-                            ? "bg-white/10 text-white/80 border-white/20"
-                            : "bg-green-500/20 text-green-400 border-green-500/40"
-                          : video.status === "processing"
-                            ? "bg-blue-500/20 text-blue-400 border-blue-500/40"
-                            : "bg-rose-500/20 text-rose-400 border-rose-500/40",
-                      )}
-                    >
-                      {video.status}
-                    </span>
-                    {video.isMock ? (
-                      <span className="bg-white/10 px-2 md:px-2.5 py-0.5 text-[11px] font-mono uppercase tracking-wide text-white/60 flex-shrink-0">
-                        Mock
+                  {/* Thumbnail/Preview */}
+                  <div className="relative flex-shrink-0 w-24 md:w-32 aspect-video bg-black/60 border border-white/10 overflow-hidden">
+                    {video.videoUrl ? (
+                      <video
+                        src={video.videoUrl}
+                        className="absolute inset-0 w-full h-full object-cover"
+                        preload="metadata"
+                        muted
+                      />
+                    ) : video.thumbnailUrl ? (
+                      <Image
+                        src={video.thumbnailUrl}
+                        alt={video.prompt}
+                        fill
+                        className="object-cover"
+                        sizes="128px"
+                      />
+                    ) : (
+                      <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-black/40 to-black/80">
+                        <Play className="h-6 w-6 text-white/40" />
+                      </div>
+                    )}
+                    {/* Play overlay */}
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center">
+                      <Play className="h-6 w-6 text-[#FF5800] opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </div>
+                    {/* Status indicator on thumbnail */}
+                    {video.status === "processing" && (
+                      <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                        <Loader2 className="h-5 w-5 animate-spin text-blue-400" />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Content */}
+                  <div className="flex-1 min-w-0 flex flex-col gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span
+                        className={cn(
+                          "px-2 md:px-3 py-1 text-xs font-mono font-bold uppercase tracking-wide border capitalize flex-shrink-0",
+                          video.status === "completed"
+                            ? video.isMock
+                              ? "bg-white/10 text-white/80 border-white/20"
+                              : "bg-green-500/20 text-green-400 border-green-500/40"
+                            : video.status === "processing"
+                              ? "bg-blue-500/20 text-blue-400 border-blue-500/40"
+                              : "bg-rose-500/20 text-rose-400 border-rose-500/40",
+                        )}
+                      >
+                        {video.status}
                       </span>
-                    ) : null}
-                    <p className="text-xs md:text-sm font-mono font-medium text-white break-words">
-                      {video.prompt.length > 60
-                        ? `${video.prompt.slice(0, 57)}...`
-                        : video.prompt}
+                      {video.isMock ? (
+                        <span className="bg-white/10 px-2 md:px-2.5 py-0.5 text-[11px] font-mono uppercase tracking-wide text-white/60 flex-shrink-0">
+                          Mock
+                        </span>
+                      ) : null}
+                    </div>
+                    <p className="text-xs md:text-sm font-mono font-medium text-white break-words line-clamp-2">
+                      {video.prompt}
                     </p>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2 md:gap-3 text-xs font-mono text-white/60">
-                    <span className="flex items-center gap-1 flex-shrink-0">
-                      <CheckCircle2 className="h-3.5 w-3.5 text-[#FF5800]" />
-                      <span className="truncate max-w-[120px]">
-                        {video.modelId.split("/").pop()}
+                    <div className="flex flex-wrap items-center gap-2 md:gap-3 text-xs font-mono text-white/60">
+                      <span className="flex items-center gap-1 flex-shrink-0">
+                        <CheckCircle2 className="h-3.5 w-3.5 text-[#FF5800]" />
+                        <span className="truncate max-w-[120px]">
+                          {video.modelId.split("/").pop()}
+                        </span>
                       </span>
-                    </span>
-                    <span className="flex items-center gap-1 flex-shrink-0">
-                      <Clock4 className="h-3.5 w-3.5 text-[#FF5800]" />
-                      {video.durationSeconds
-                        ? `${video.durationSeconds}s`
-                        : video.status === "processing"
-                          ? "Rendering"
-                          : "Pending"}
-                    </span>
-                    <span className="flex-shrink-0">
-                      {new Date(video.createdAt).toLocaleTimeString(undefined, {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </span>
-                  </div>
-                  {video.requestId ? (
-                    <div className="flex flex-wrap items-center gap-2 text-[11px] font-mono text-white/50">
-                      <span className="font-medium text-white/80 flex-shrink-0">
-                        ID:
+                      <span className="flex items-center gap-1 flex-shrink-0">
+                        <Clock4 className="h-3.5 w-3.5 text-[#FF5800]" />
+                        {video.durationSeconds
+                          ? `${video.durationSeconds}s`
+                          : video.status === "processing"
+                            ? "Rendering"
+                            : "Pending"}
                       </span>
-                      <span className="break-all">{video.requestId}</span>
+                      <span className="flex-shrink-0">
+                        {new Date(video.createdAt).toLocaleTimeString(undefined, {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </span>
                     </div>
-                  ) : null}
-                  {video.failureReason && video.status !== "completed" ? (
-                    <div className="text-[11px] font-mono text-rose-400 break-words">
-                      {video.failureReason}
-                    </div>
-                  ) : null}
+                    {video.requestId ? (
+                      <div className="flex flex-wrap items-center gap-2 text-[11px] font-mono text-white/50">
+                        <span className="font-medium text-white/80 flex-shrink-0">
+                          ID:
+                        </span>
+                        <span className="break-all">{video.requestId}</span>
+                      </div>
+                    ) : null}
+                    {video.failureReason && video.status !== "completed" ? (
+                      <div className="text-[11px] font-mono text-rose-400 break-words">
+                        {video.failureReason}
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
               ))}
               {historyVideos.length === 0 && (
@@ -567,15 +644,198 @@ export function VideoPageClient({
             <div className="relative z-10 border-t border-white/10 pt-3 md:pt-4 mt-3 md:mt-4">
               <button
                 type="button"
-                onClick={scrollToHistory}
-                className="w-full px-4 py-2 border border-white/20 bg-transparent text-white hover:bg-white/5 transition-colors"
+                onClick={navigateToGallery}
+                className="w-full px-4 py-2 border border-white/20 bg-transparent text-white hover:bg-white/5 transition-colors flex items-center justify-center gap-2"
               >
                 <span className="font-mono text-sm">View full history</span>
+                <ExternalLink className="h-4 w-4" />
               </button>
             </div>
           </BrandCard>
         </section>
       </TabsContent>
+
+      {/* Video Preview Dialog */}
+      <Dialog
+        open={!!previewVideo}
+        onOpenChange={(open) => !open && setPreviewVideo(null)}
+      >
+        <DialogContent
+          className="!max-w-[99vw] !max-h-[99vh] !w-[99vw] !h-[99vh] p-0 bg-black/95 border-white/10 sm:!max-w-[99vw] md:!max-w-[99vw] lg:!max-w-[99vw]"
+          showCloseButton={false}
+        >
+          <DialogTitle className="sr-only">
+            {previewVideo?.prompt || "Video preview"}
+          </DialogTitle>
+          {previewVideo && (
+            <div className="relative w-full h-full flex items-center justify-center p-4 md:p-6">
+              {/* Main Content */}
+              <div className="relative w-full h-full flex items-center justify-center pb-48 md:pb-56">
+                {previewVideo.videoUrl ? (
+                  <video
+                    key={previewVideo.videoUrl}
+                    src={previewVideo.videoUrl}
+                    controls
+                    autoPlay
+                    className="max-w-full max-h-full object-contain"
+                  />
+                ) : previewVideo.status === "processing" ? (
+                  <div className="flex flex-col items-center justify-center gap-4 text-center">
+                    <Loader2 className="h-12 w-12 animate-spin text-[#FF5800]" />
+                    <p className="text-lg font-mono font-medium text-white">
+                      Video is still rendering...
+                    </p>
+                    <p className="text-sm font-mono text-white/60">
+                      Check back in a few moments.
+                    </p>
+                  </div>
+                ) : previewVideo.status === "failed" ? (
+                  <div className="flex flex-col items-center justify-center gap-4 text-center">
+                    <div className="rounded-full bg-rose-500/20 border border-rose-500/40 p-4">
+                      <X className="h-8 w-8 text-rose-400" />
+                    </div>
+                    <p className="text-lg font-mono font-medium text-white">
+                      Generation failed
+                    </p>
+                    <p className="text-sm font-mono text-rose-400 max-w-md">
+                      {previewVideo.failureReason || "An error occurred during video generation."}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center gap-4 text-center">
+                    <Play className="h-12 w-12 text-white/40" />
+                    <p className="text-sm font-mono text-white/60">
+                      Video not available yet.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Close button */}
+              <DialogClose className="absolute top-4 right-4 z-50 rounded-none border border-white/20 bg-black/60 p-2 hover:bg-[#FF580020] hover:border-[#FF5800]/40 transition-colors">
+                <X className="h-5 w-5 text-white" />
+              </DialogClose>
+
+              {/* Info overlay at bottom */}
+              <div className="absolute bottom-0 left-0 right-0 z-40 bg-gradient-to-t from-black/95 via-black/80 to-transparent px-6 pt-8 pb-6 md:px-8 md:pt-12 md:pb-8 space-y-3 max-h-[50vh] overflow-y-auto">
+                {/* Status Badge */}
+                <div className="flex items-center gap-2">
+                  <span
+                    className={cn(
+                      "px-3 py-1 text-xs font-mono font-bold uppercase tracking-wide border",
+                      previewVideo.status === "completed"
+                        ? "bg-green-500/20 text-green-400 border-green-500/40"
+                        : previewVideo.status === "processing"
+                          ? "bg-blue-500/20 text-blue-400 border-blue-500/40"
+                          : "bg-rose-500/20 text-rose-400 border-rose-500/40",
+                    )}
+                  >
+                    {previewVideo.status}
+                  </span>
+                  {previewVideo.isMock && (
+                    <span className="bg-white/10 px-2.5 py-1 text-xs font-mono uppercase tracking-wide text-white/60">
+                      Mock
+                    </span>
+                  )}
+                </div>
+
+                {/* Prompt */}
+                <p className="text-sm text-white/90 leading-relaxed max-w-4xl break-words">
+                  {previewVideo.prompt}
+                </p>
+
+                {/* Details - Inline compact layout */}
+                <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-white/50 uppercase tracking-wide">
+                      Model:
+                    </span>
+                    <span className="text-white font-medium">
+                      {previewVideo.modelId.split("/").pop()}
+                    </span>
+                  </div>
+
+                  {previewVideo.durationSeconds && (
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-white/50 uppercase tracking-wide">
+                        Duration:
+                      </span>
+                      <span className="text-white font-medium">
+                        {previewVideo.durationSeconds}s
+                      </span>
+                    </div>
+                  )}
+
+                  {previewVideo.resolution && (
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-white/50 uppercase tracking-wide">
+                        Resolution:
+                      </span>
+                      <span className="text-white font-medium">
+                        {previewVideo.resolution}
+                      </span>
+                    </div>
+                  )}
+
+                  {previewVideo.seed && (
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-white/50 uppercase tracking-wide">
+                        Seed:
+                      </span>
+                      <span className="text-white font-medium">
+                        {previewVideo.seed}
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-white/50 uppercase tracking-wide">
+                      Created:
+                    </span>
+                    <span className="text-white font-medium">
+                      {new Date(previewVideo.createdAt).toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+
+                {previewVideo.requestId && (
+                  <div className="text-xs font-mono text-white/50">
+                    <span className="text-white/70">ID:</span> {previewVideo.requestId}
+                  </div>
+                )}
+
+                {/* Action Buttons */}
+                {previewVideo.videoUrl && (
+                  <div className="flex items-center gap-2 pt-2">
+                    <BrandButton
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePreviewDownload(previewVideo)}
+                    >
+                      <Download className="w-4 h-4 mr-2" />
+                      Download
+                    </BrandButton>
+                    <BrandButton
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePreviewCopyLink(previewVideo)}
+                    >
+                      <Link2 className="w-4 h-4 mr-2" />
+                      Copy link
+                    </BrandButton>
+                  </div>
+                )}
+
+                {copyFeedback && (
+                  <p className="text-xs font-mono text-white/60">
+                    {copyFeedback}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </Tabs>
   );
 }

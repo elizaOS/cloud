@@ -206,7 +206,7 @@ export function generateCharacterMetadata(
     title: `${name} - AI Character`,
     description,
     keywords: [name, "AI character", "AI agent", "elizaOS", ...tags],
-    path: `/marketplace/characters/${id}`,
+    path: `/dashboard/my-agents/${id}`,
     ogImage:
       avatarUrl ||
       generateOGImageUrl({

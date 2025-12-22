@@ -37,6 +37,18 @@ function LoginPageContent() {
   const [showCodeInput, setShowCodeInput] = useState(false);
   const [loadingButton, setLoadingButton] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isProcessingOAuth, setIsProcessingOAuth] = useState(() => {
+    // Initialize OAuth processing state on client-side only to prevent SSR hydration mismatch
+    if (typeof window === "undefined") return false;
+    const urlParams = new URLSearchParams(window.location.search);
+    const hasOAuthParams =
+      urlParams.has("privy_oauth_code") ||
+      urlParams.has("privy_oauth_state") ||
+      urlParams.has("code") ||
+      urlParams.has("state");
+    const sessionFlag = sessionStorage.getItem("oauth_login_pending");
+    return hasOAuthParams || sessionFlag === "true";
+  });
 
   // Check if this is a signup intent (from "Get Started" button)
   const isSignupIntent = searchParams.get("intent") === "signup";
@@ -48,11 +60,13 @@ function LoginPageContent() {
   // Redirect to dashboard if already authenticated
   useEffect(() => {
     if (ready && authenticated) {
-      // Clear guards and loading states
+      // Clear OAuth session flag and guards
+      sessionStorage.removeItem("oauth_login_pending");
       loginInProgressRef.current = false;
       // Use setTimeout to avoid synchronous setState in effect
       setTimeout(() => {
         setLoadingButton(null);
+        setIsProcessingOAuth(false);
         // Show syncing state before redirect
         setIsSyncing(true);
       }, 0);
@@ -69,8 +83,17 @@ function LoginPageContent() {
       if (loginInProgressRef.current && !loadingButton) {
         loginInProgressRef.current = false;
       }
+      // If OAuth processing timed out (ready but not authenticated after callback)
+      // clear the flag after a small delay to allow Privy to finish
+      if (isProcessingOAuth) {
+        const timeout = setTimeout(() => {
+          setIsProcessingOAuth(false);
+          sessionStorage.removeItem("oauth_login_pending");
+        }, 3000); // Give Privy 3 seconds to complete auth
+        return () => clearTimeout(timeout);
+      }
     }
-  }, [ready, authenticated, router, loadingButton, user]);
+  }, [ready, authenticated, router, loadingButton, user, isProcessingOAuth]);
 
   // Monitor email state to show code input
   useEffect(() => {
@@ -116,7 +139,9 @@ function LoginPageContent() {
     provider: "google" | "discord" | "github",
   ) => {
     setLoadingButton(provider);
-    const toastId = toast.loading(`Redirecting to ${provider}...`);
+    // Set session flag to detect OAuth callback when returning
+    sessionStorage.setItem("oauth_login_pending", "true");
+    toast.loading(`Redirecting to ${provider}...`);
     await initOAuth({ provider });
     // This will redirect to OAuth provider
   };
@@ -165,13 +190,54 @@ function LoginPageContent() {
     setCode("");
   };
 
-  // Show loading state while checking authentication
-  if (!ready) {
+  // Show loading state while checking authentication or processing OAuth callback
+  if (!ready || isProcessingOAuth) {
     return (
-      <div className="flex min-h-screen w-full items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-sm text-muted-foreground">Loading...</p>
+      <div className="relative flex min-h-screen w-full flex-col overflow-hidden">
+        {/* Header */}
+        <LandingHeader />
+
+        {/* Fullscreen background video */}
+        <video
+          src="/videos/Hero Cloud_x3 Slower_1_Scale 5.mp4"
+          autoPlay
+          loop
+          muted
+          playsInline
+          className="absolute inset-0 w-full h-full object-cover"
+          style={{
+            filter: "brightness(0.4) blur(2px)",
+          }}
+        />
+
+        {/* Gradient overlay */}
+        <div className="absolute inset-0 bg-gradient-to-br from-black/60 via-black/40 to-black/60" />
+
+        <div className="relative z-10 flex flex-1 items-center justify-center p-4">
+          <BrandCard className="w-full max-w-md backdrop-blur-sm bg-black/60">
+            <CornerBrackets size="md" className="opacity-50" />
+            <div className="relative z-10 flex flex-col items-center gap-6 py-8">
+              <div className="relative">
+                <Loader2 className="h-12 w-12 animate-spin text-[#FF5800]" />
+                <div className="absolute inset-0 h-12 w-12 animate-pulse rounded-full bg-[#FF5800]/20 blur-xl" />
+              </div>
+              <div className="space-y-2 text-center">
+                <h3 className="text-lg font-semibold text-white">
+                  {isProcessingOAuth ? "Completing sign in..." : "Loading..."}
+                </h3>
+                <p className="text-sm text-white/60">
+                  {isProcessingOAuth
+                    ? "Processing your authentication"
+                    : "Initializing..."}
+                </p>
+              </div>
+              <div className="flex gap-1">
+                <div className="h-2 w-2 animate-bounce rounded-full bg-[#FF5800] [animation-delay:-0.3s]" />
+                <div className="h-2 w-2 animate-bounce rounded-full bg-[#FF5800] [animation-delay:-0.15s]" />
+                <div className="h-2 w-2 animate-bounce rounded-full bg-[#FF5800]" />
+              </div>
+            </div>
+          </BrandCard>
         </div>
       </div>
     );
@@ -493,13 +559,44 @@ function LoginPageContent() {
   );
 }
 
-// Loading fallback component
+// Loading fallback component - matches the styled loading state
 function LoginPageFallback() {
   return (
-    <div className="flex min-h-screen w-full items-center justify-center bg-background">
-      <div className="flex flex-col items-center gap-3">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p className="text-sm text-muted-foreground">Loading...</p>
+    <div className="relative flex min-h-screen w-full flex-col overflow-hidden bg-black">
+      {/* Fullscreen background video */}
+      <video
+        src="/videos/Hero Cloud_x3 Slower_1_Scale 5.mp4"
+        autoPlay
+        loop
+        muted
+        playsInline
+        className="absolute inset-0 w-full h-full object-cover"
+        style={{
+          filter: "brightness(0.4) blur(2px)",
+        }}
+      />
+
+      {/* Gradient overlay */}
+      <div className="absolute inset-0 bg-gradient-to-br from-black/60 via-black/40 to-black/60" />
+
+      <div className="relative z-10 flex flex-1 items-center justify-center p-4">
+        <div className="w-full max-w-md rounded-lg border border-white/10 backdrop-blur-sm bg-black/60 p-8">
+          <div className="flex flex-col items-center gap-6 py-8">
+            <div className="relative">
+              <Loader2 className="h-12 w-12 animate-spin text-[#FF5800]" />
+              <div className="absolute inset-0 h-12 w-12 animate-pulse rounded-full bg-[#FF5800]/20 blur-xl" />
+            </div>
+            <div className="space-y-2 text-center">
+              <h3 className="text-lg font-semibold text-white">Loading...</h3>
+              <p className="text-sm text-white/60">Initializing...</p>
+            </div>
+            <div className="flex gap-1">
+              <div className="h-2 w-2 animate-bounce rounded-full bg-[#FF5800] [animation-delay:-0.3s]" />
+              <div className="h-2 w-2 animate-bounce rounded-full bg-[#FF5800] [animation-delay:-0.15s]" />
+              <div className="h-2 w-2 animate-bounce rounded-full bg-[#FF5800]" />
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

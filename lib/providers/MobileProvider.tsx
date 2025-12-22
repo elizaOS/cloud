@@ -80,10 +80,6 @@ export function MobileProvider({ children }: { children: ReactNode }) {
       setConfig(platformConfig);
     });
 
-    // Log platform info in development
-    if (process.env.NODE_ENV === "development") {
-      console.log("[MobileProvider] Platform info:", getUserAgentInfo());
-    }
 
     // Set up safe area CSS variables
     if (typeof window !== "undefined" && platformConfig.isMobile) {

@@ -43,6 +43,8 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
     (a) => a.id === selectedCharacterId,
   );
 
+  const existingAgent = selectedAgent !== undefined;
+
   const handleAgentChange = (characterId: string) => {
     const charId = characterId || null;
     setSelectedCharacterId(charId);
@@ -212,15 +214,9 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
             className={cn(
               "flex items-center gap-2 px-3 py-1.5 rounded-none transition-colors border-0",
               mode === "chat"
-                ? "bg-[#471E08] text-[#FF5800]"
+                ? "bg-[#471E08] text-white"
                 : "bg-[#1F1F1F] text-[#ADADAD] hover:text-white",
             )}
-            style={{
-              fontFamily: "'Roboto Mono', monospace",
-              fontWeight: 500,
-              fontSize: "14px",
-              lineHeight: "18px",
-            }}
           >
             <MessageSquare className="h-4 w-4" />
             <span className="hidden md:inline">Chat</span>
@@ -230,18 +226,19 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
             className={cn(
               "flex items-center gap-2 px-3 py-1.5 rounded-none transition-colors border-0",
               mode === "build"
-                ? "bg-[#2D1505] text-[#FF5800]"
+                ? "bg-[#2D1505] text-white"
                 : "bg-[#1F1F1F] text-[#ADADAD] hover:text-white",
             )}
-            style={{
-              fontFamily: "'Roboto Mono', monospace",
-              fontWeight: 500,
-              fontSize: "14px",
-              lineHeight: "18px",
-            }}
           >
-            <Wrench className="h-4 w-4" />
-            <span className="hidden md:inline">Build</span>
+            <Wrench
+              className={cn(
+                "h-4 w-4",
+                mode === "build" ? "text-[#FF5800]" : "text-white",
+              )}
+            />
+            <span className="hidden md:inline">
+              {existingAgent ? "Edit" : "Build"}
+            </span>
           </button>
         </div>
       </div>

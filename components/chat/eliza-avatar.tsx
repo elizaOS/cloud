@@ -24,6 +24,8 @@ interface ElizaAvatarProps {
   fallbackClassName?: string;
   iconClassName?: string;
   animate?: boolean;
+  /** Set to true for above-the-fold images to improve LCP */
+  priority?: boolean;
 }
 
 /**
@@ -36,6 +38,7 @@ export function ElizaAvatar({
   className,
   iconClassName,
   animate = false,
+  priority = false,
 }: ElizaAvatarProps) {
   const resolvedAvatarUrl = ensureAvatarUrl(avatarUrl);
 
@@ -57,6 +60,7 @@ export function ElizaAvatar({
           iconClassName,
         )}
         sizes="48px"
+        priority={priority}
         unoptimized={!isBuiltInAvatar(resolvedAvatarUrl)}
       />
     </div>

@@ -4,7 +4,6 @@ import { requireAuthWithOrg } from "@/lib/auth";
 import { voiceCloningService } from "@/lib/services/voice-cloning";
 import { creditsService } from "@/lib/services/credits";
 import { usageService } from "@/lib/services/usage";
-import { organizationsService } from "@/lib/services/organizations";
 import { logger } from "@/lib/utils/logger";
 import {
   VOICE_CLONE_INSTANT_COST,
@@ -126,27 +125,19 @@ export async function POST(request: NextRequest) {
         ? VOICE_CLONE_INSTANT_COST
         : VOICE_CLONE_PROFESSIONAL_COST;
 
-    // Check credit balance
-    const org = await organizationsService.getById(user.organization_id!);
-    if (!org) {
-      return NextResponse.json(
-        { error: "Organization not found" },
-        { status: 404 },
-      );
-    }
-
-    if (Number(org.credit_balance) < cost) {
+    // Check credit balance (use org from auth, avoids redundant DB call)
+    if (Number(user.organization.credit_balance) < cost) {
       logger.warn("[Voice Clone API] Insufficient credits", {
-        organizationId: user.organization_id!!,
+        organizationId: user.organization_id,
         required: cost,
-        balance: org.credit_balance,
+        balance: user.organization.credit_balance,
       });
       return NextResponse.json(
         {
           error: "Insufficient balance",
           details: {
             required: cost,
-            available: org.credit_balance,
+            available: user.organization.credit_balance,
             cloneType,
           },
         },

@@ -22,11 +22,11 @@ const MONO_FONT =
 
 /**
  * GET /api/og
- * Generates Open Graph images for various page types (character, chat, container, marketplace).
+ * Generates Open Graph images for various page types (character, chat, container).
  * Uses Next.js ImageResponse API to create dynamic OG images with brand styling.
  *
  * Query Parameters:
- * - `type`: "character" | "chat" | "container" | "marketplace" | "default"
+ * - `type`: "character" | "chat" | "container" | "default"
  * - `title`: Page title
  * - `description`: Page description
  * - `name`: Character or entity name
@@ -586,168 +586,6 @@ export async function GET(request: NextRequest) {
                   }}
                 />
                 Deployed on elizaOS
-              </div>
-            </div>
-          </div>,
-          {
-            width: 1200,
-            height: 630,
-          },
-        );
-
-      case "marketplace":
-        return new ImageResponse(
-          <div
-            style={{
-              height: "100%",
-              width: "100%",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              background: BRAND_BG,
-              fontFamily: "system-ui, sans-serif",
-              position: "relative",
-            }}
-          >
-            {/* Corner Brackets */}
-            <div
-              style={{
-                position: "absolute",
-                left: 40,
-                top: 40,
-                width: 48,
-                height: 48,
-                borderTop: `3px solid ${BRAND_BORDER}`,
-                borderLeft: `3px solid ${BRAND_BORDER}`,
-              }}
-            />
-            <div
-              style={{
-                position: "absolute",
-                right: 40,
-                top: 40,
-                width: 48,
-                height: 48,
-                borderTop: `3px solid ${BRAND_BORDER}`,
-                borderRight: `3px solid ${BRAND_BORDER}`,
-              }}
-            />
-            <div
-              style={{
-                position: "absolute",
-                left: 40,
-                bottom: 40,
-                width: 48,
-                height: 48,
-                borderBottom: `3px solid ${BRAND_BORDER}`,
-                borderLeft: `3px solid ${BRAND_BORDER}`,
-              }}
-            />
-            <div
-              style={{
-                position: "absolute",
-                right: 40,
-                bottom: 40,
-                width: 48,
-                height: 48,
-                borderBottom: `3px solid ${BRAND_BORDER}`,
-                borderRight: `3px solid ${BRAND_BORDER}`,
-              }}
-            />
-
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                background: BRAND_SURFACE,
-                border: `1px solid rgba(255, 255, 255, 0.1)`,
-                padding: "60px 80px",
-                maxWidth: "900px",
-                position: "relative",
-              }}
-            >
-              {/* Mini Corner Brackets on card */}
-              <div
-                style={{
-                  position: "absolute",
-                  left: 0,
-                  top: 0,
-                  width: 24,
-                  height: 24,
-                  borderTop: `2px solid ${BRAND_ORANGE}`,
-                  borderLeft: `2px solid ${BRAND_ORANGE}`,
-                }}
-              />
-              <div
-                style={{
-                  position: "absolute",
-                  right: 0,
-                  top: 0,
-                  width: 24,
-                  height: 24,
-                  borderTop: `2px solid ${BRAND_ORANGE}`,
-                  borderRight: `2px solid ${BRAND_ORANGE}`,
-                }}
-              />
-              <div
-                style={{
-                  position: "absolute",
-                  left: 0,
-                  bottom: 0,
-                  width: 24,
-                  height: 24,
-                  borderBottom: `2px solid ${BRAND_ORANGE}`,
-                  borderLeft: `2px solid ${BRAND_ORANGE}`,
-                }}
-              />
-              <div
-                style={{
-                  position: "absolute",
-                  right: 0,
-                  bottom: 0,
-                  width: 24,
-                  height: 24,
-                  borderBottom: `2px solid ${BRAND_ORANGE}`,
-                  borderRight: `2px solid ${BRAND_ORANGE}`,
-                }}
-              />
-
-              <div
-                style={{
-                  display: "flex",
-                  fontSize: 72,
-                  marginBottom: 32,
-                }}
-              >
-                🤖
-              </div>
-              <div
-                style={{
-                  display: "flex",
-                  fontSize: 52,
-                  fontWeight: 700,
-                  color: "white",
-                  marginBottom: 24,
-                  textAlign: "center",
-                  fontFamily: MONO_FONT,
-                }}
-              >
-                AI Agent Marketplace
-              </div>
-              <div
-                style={{
-                  display: "flex",
-                  fontSize: 24,
-                  color: "rgba(255, 255, 255, 0.7)",
-                  textAlign: "center",
-                  maxWidth: "700px",
-                  fontFamily: MONO_FONT,
-                }}
-              >
-                Discover intelligent AI characters and agents
               </div>
             </div>
           </div>,
