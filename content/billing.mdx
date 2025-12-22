@@ -1,0 +1,281 @@
+---
+title: Billing & Credits
+description: Understand elizaOS Cloud pricing, credits system, and billing management.
+---
+
+import { Callout, Cards } from 'nextra/components'
+
+# Billing & Credits
+
+<div className="status-badge status-stable">Stable</div>
+
+elizaOS Cloud uses a credit-based system for flexible, pay-as-you-go pricing.
+
+<Callout type="info">
+This page is the **authoritative source** for all pricing information. Credit costs shown elsewhere in the docs link back here.
+</Callout>
+
+## Overview
+
+- **Credits**: Universal currency for all services
+- **Pay-as-you-go**: Only pay for what you use
+- **Top-up**: Purchase credits as needed
+- **Auto top-up**: Automatic refills (optional)
+
+## Credit Pricing
+
+### Chat & Language Models
+
+| Model | Cost per 1K tokens |
+|-------|-------------------|
+| GPT-4o | 0.015 credits |
+| GPT-4o-mini | 0.0015 credits |
+| Claude 3.5 Sonnet | 0.018 credits |
+| Claude 3 Haiku | 0.003 credits |
+| Gemini Pro | 0.0035 credits |
+
+### Embeddings
+
+| Model | Cost per 1K tokens |
+|-------|-------------------|
+| text-embedding-3-small | 0.0001 credits |
+| text-embedding-3-large | 0.0003 credits |
+
+### Image Generation
+
+| Model | Cost per image |
+|-------|---------------|
+| FLUX Schnell | 0.02 credits |
+| FLUX Pro | 0.05 credits |
+| FLUX Dev | 0.03 credits |
+| SD3 | 0.03 credits |
+
+### Video Generation
+
+| Model | Cost per video |
+|-------|---------------|
+| MiniMax Video-01 | 0.50 credits |
+| Runway Gen-3 | 0.75 credits |
+| Kling Video | 0.30 credits |
+
+### Voice
+
+| Feature | Cost |
+|---------|------|
+| Voice cloning | 5.00 credits |
+| TTS (per 1K chars) | 0.1 credits |
+| STT (per minute) | 0.1 credits |
+
+### Infrastructure
+
+| Resource | Cost |
+|----------|------|
+| Container CPU (per core/hour) | 0.05 credits |
+| Container Memory (per GB/hour) | 0.01 credits |
+| Knowledge storage (per GB/day) | 0.01 credits |
+
+## Credit Packs
+
+Purchase credit packs from the dashboard:
+
+| Pack | Credits | Price | Bonus |
+|------|---------|-------|-------|
+| Starter | 1,000 | $10 | - |
+| Growth | 5,000 | $45 | 10% |
+| Pro | 20,000 | $160 | 20% |
+| Enterprise | 100,000 | $700 | 30% |
+
+## Checking Balance
+
+### Dashboard
+
+View your balance at [Dashboard → Billing](/dashboard/billing).
+
+### API
+
+```bash
+curl -X GET "https://elizacloud.ai/api/v1/credits/summary" \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+```json
+{
+  "balance": 4523.50,
+  "pending": 0,
+  "usage": {
+    "today": 45.20,
+    "thisMonth": 1250.00
+  }
+}
+```
+
+## Top Up Credits
+
+### Stripe Checkout
+
+```bash
+curl -X POST "https://elizacloud.ai/api/stripe/create-checkout-session" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "packId": "growth"
+  }'
+```
+
+### x402 Crypto Payment
+
+<div className="status-badge status-new">New</div>
+
+Pay with USDC via x402 protocol:
+
+```bash
+curl -X POST "https://elizacloud.ai/api/v1/credits/topup" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "X-PAYMENT: <x402-payment-header>"
+```
+
+<Callout type="info">
+See [x402 Payments](/docs/x402) for details on crypto payments.
+</Callout>
+
+## Auto Top-Up
+
+Configure automatic credit refills:
+
+```bash
+curl -X POST "https://elizacloud.ai/api/auto-top-up/settings" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "enabled": true,
+    "threshold": 100,
+    "amount": 1000
+  }'
+```
+
+| Setting | Description |
+|---------|-------------|
+| `enabled` | Enable auto top-up |
+| `threshold` | Trigger when balance falls below |
+| `amount` | Credits to add |
+
+## Usage Analytics
+
+Track your spending:
+
+```bash
+curl -X GET "https://elizacloud.ai/api/billing/usage?period=month" \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+```json
+{
+  "period": "2024-01",
+  "total": 1250.50,
+  "breakdown": {
+    "chat": 800.00,
+    "embeddings": 150.00,
+    "images": 200.00,
+    "videos": 50.00,
+    "containers": 50.50
+  },
+  "daily": [
+    { "date": "2024-01-01", "usage": 42.50 },
+    { "date": "2024-01-02", "usage": 38.00 }
+  ]
+}
+```
+
+## Invoices
+
+### List Invoices
+
+```bash
+curl -X GET "https://elizacloud.ai/api/invoices/list" \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+### Download Invoice
+
+```bash
+curl -X GET "https://elizacloud.ai/api/invoices/{id}" \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+## Payment Methods
+
+### Add Card
+
+```bash
+curl -X POST "https://elizacloud.ai/api/payment-methods/attach" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "paymentMethodId": "pm_xxx"
+  }'
+```
+
+### Set Default
+
+```bash
+curl -X POST "https://elizacloud.ai/api/payment-methods/set-default" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "paymentMethodId": "pm_xxx"
+  }'
+```
+
+## Cost Alerts
+
+Set up alerts for spending thresholds:
+
+```bash
+curl -X POST "https://elizacloud.ai/api/analytics/config" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "alerts": [
+      { "threshold": 100, "email": true },
+      { "threshold": 500, "email": true, "webhook": "https://..." }
+    ]
+  }'
+```
+
+## Free Tier
+
+New accounts receive:
+
+- **1,000 credits** free on signup
+- Basic access to all features
+- Community support
+
+<Callout type="info">
+Free credits expire after 30 days of inactivity.
+</Callout>
+
+## Enterprise
+
+For high-volume usage:
+
+- Custom pricing
+- Volume discounts
+- Dedicated support
+- SLA guarantees
+- Custom invoicing
+
+Contact [sales@eliza.ai](mailto:sales@eliza.ai) for enterprise plans.
+
+## Next Steps
+
+<Cards>
+  <Cards.Card title="Earnings" href="/docs/earnings">
+    Earn from your agents
+  </Cards.Card>
+  <Cards.Card title="x402 Payments" href="/docs/x402">
+    Pay with crypto
+  </Cards.Card>
+  <Cards.Card title="API Reference" href="/docs/api">
+    Usage tracking APIs
+  </Cards.Card>
+</Cards>

@@ -21,6 +21,10 @@ import {
   chatAssistantPlanningTemplate,
   chatAssistantFinalSystemPrompt,
   chatAssistantResponseTemplate,
+  affiliateSystemPrompt,
+  affiliatePlanningTemplate,
+  affiliateFinalSystemPrompt,
+  affiliateResponseTemplate,
 } from "./prompts/chat-assistant-prompts";
 import {
   setLatestResponseId,
@@ -112,12 +116,12 @@ export async function handleMessage({
 
   const originalSystemPrompt = runtime.character.system;
 
-  // Streaming context for automatic streaming in all useModel calls
-  // Use XmlTagExtractor to extract and stream <text> content from responses
-  let streamingContext: { onStreamChunk: (chunk: string, messageId?: UUID) => Promise<void>; messageId?: UUID } | undefined;
-  if (onStreamChunk) {
+  // Helper to create fresh streaming context for a specific call
+  // Each call needs its own XmlTagExtractor since they're single-use
+  const createStreamingContext = () => {
+    if (!onStreamChunk) return undefined;
     const extractor = new XmlTagExtractor('text');
-    streamingContext = {
+    return {
       onStreamChunk: async (chunk: string, msgId?: UUID) => {
         if (extractor.done) return;
         const textToStream = extractor.push(chunk);
@@ -127,11 +131,10 @@ export async function handleMessage({
       },
       messageId: responseId as UUID,
     };
-  }
+  };
 
   try {
-    await runWithStreamingContext(streamingContext, async () => {
-      await runtime.createMemory(message, "messages");
+    await runtime.createMemory(message, "messages");
 
     // Check for affiliate character (uses minimal providers to save tokens)
     const affiliateData = runtime.character.settings?.affiliateData as
@@ -171,19 +174,26 @@ export async function handleMessage({
 
     const initialState = await runtime.composeState(message, providers);
 
+    // Select prompts based on affiliate mode
+    const systemPromptTemplate = isAffiliateChat
+      ? affiliateSystemPrompt
+      : chatAssistantSystemPrompt;
+    const planningTemplate = isAffiliateChat
+      ? affiliatePlanningTemplate
+      : chatAssistantPlanningTemplate;
+
     // Planning phase
     const planningPrompt = cleanPrompt(
       composePromptFromState({
         state: initialState,
         template:
-          runtime.character.templates?.planningTemplate ||
-          chatAssistantPlanningTemplate,
+          runtime.character.templates?.planningTemplate || planningTemplate,
       }),
     );
 
     runtime.character.system = composePromptFromState({
       state: initialState,
-      template: chatAssistantSystemPrompt,
+      template: systemPromptTemplate,
     });
 
     const planningResponse = await runtime.useModel(ModelType.TEXT_LARGE, {
@@ -303,10 +313,18 @@ export async function handleMessage({
         "APP_CONFIG",
       ]);
 
+      // Select final prompts based on affiliate mode
+      const finalSystemTemplate = isAffiliateChat
+        ? affiliateFinalSystemPrompt
+        : chatAssistantFinalSystemPrompt;
+      const responseTemplate = isAffiliateChat
+        ? affiliateResponseTemplate
+        : chatAssistantResponseTemplate;
+
       runtime.character.system = cleanPrompt(
         composePromptFromState({
           state: updatedState,
-          template: chatAssistantFinalSystemPrompt,
+          template: finalSystemTemplate,
         }),
       );
 
@@ -315,13 +333,16 @@ export async function handleMessage({
           state: updatedState,
           template:
             runtime.character.templates?.messageHandlerTemplate ||
-            chatAssistantResponseTemplate,
+            responseTemplate,
         }),
       );
 
-      const responseResult = await generateResponseWithRetry(
-        runtime,
-        responsePrompt,
+      // Wrap final response generation with streaming context
+      // This is where we actually want to stream to the user
+      const streamingContext = createStreamingContext();
+      const responseResult = await runWithStreamingContext(
+        streamingContext,
+        () => generateResponseWithRetry(runtime, responsePrompt),
       );
       responseContent = responseResult.text;
       thought = responseResult.thought;
@@ -432,9 +453,9 @@ export async function handleMessage({
       endTime,
       duration: endTime - startTime,
     });
-    });
   } catch (error) {
     runtime.character.system = originalSystemPrompt;
+    // @ts-expect-error - RUN_ENDED status should include "error" for proper analytics tracking
     await runtime.emitEvent(EventType.RUN_ENDED, {
       runtime,
       source: "chatAssistantWorkflow",
@@ -443,7 +464,7 @@ export async function handleMessage({
       roomId: message.roomId,
       entityId: message.entityId,
       startTime,
-      status: "completed",
+      status: "error",
       endTime: Date.now(),
       duration: Date.now() - startTime,
       error: error instanceof Error ? error.message : String(error),
