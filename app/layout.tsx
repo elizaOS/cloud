@@ -114,9 +114,9 @@ export const metadata: Metadata = {
     },
   },
   icons: {
-    icon: "/favicon.ico",
-    shortcut: "/favicon.ico",
-    apple: "/favicon.ico",
+    icon: "/cloudlogo-white.svg",
+    shortcut: "/cloudlogo-white.svg",
+    apple: "/cloudlogo-white.svg",
   },
   manifest: "/site.webmanifest",
 };

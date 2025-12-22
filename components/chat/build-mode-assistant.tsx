@@ -1210,83 +1210,71 @@ export function BuildModeAssistant({
           onSubmit={handleSubmit}
           className="border-t border-white/[0.06] py-4"
         >
-          <div className="pl-[56px] md:pl-[64px] pr-4 md:pr-6">
-            <div className="space-y-3">
-              {/* Input Container */}
-              <div className="relative rounded-lg border border-white/[0.08] bg-white/[0.02] overflow-hidden transition-colors focus-within:border-white/[0.15] focus-within:bg-white/[0.03]">
-                {/* Robot Eye Visor Scanner - Only show when loading */}
-                {isLoading && (
-                  <div className="absolute top-0 left-0 right-0 h-[2px] overflow-hidden pointer-events-none z-10">
-                    <div
-                      className="absolute h-full w-24 bg-gradient-to-r from-transparent via-[#FF5800] to-transparent"
-                      style={{
-                        animation:
-                          "visor-scan 4.8s cubic-bezier(0.4, 0, 0.6, 1) infinite",
-                        boxShadow: "0 0 15px 3px rgba(255, 88, 0, 0.7)",
-                        filter: "blur(0.5px)",
-                      }}
-                    />
-                    <div
-                      className="absolute h-full w-16 bg-gradient-to-r from-transparent via-[#FF5800]/60 to-transparent"
-                      style={{
-                        animation:
-                          "visor-scan-delayed 6.2s cubic-bezier(0.3, 0.1, 0.7, 0.9) infinite 1.5s",
-                        boxShadow: "0 0 10px 2px rgba(255, 88, 0, 0.5)",
-                        filter: "blur(1px)",
-                      }}
-                    />
-                  </div>
-                )}
+          <div className="mx-auto px-4 sm:px-6">
+            <div className="relative rounded-2xl border border-white/[0.08] bg-white/[0.02] overflow-hidden transition-colors focus-within:border-white/[0.15] focus-within:bg-white/[0.03]">
+              {/* Robot Eye Visor Scanner - Only show when loading */}
+              {isLoading && (
+                <div className="absolute top-0 left-0 right-0 h-[2px] overflow-hidden pointer-events-none z-10">
+                  <div
+                    className="absolute h-full w-24 bg-gradient-to-r from-transparent via-[#FF5800] to-transparent"
+                    style={{
+                      animation: "visor-scan 4.8s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+                      boxShadow: "0 0 15px 3px rgba(255, 88, 0, 0.7)",
+                      filter: "blur(0.5px)",
+                    }}
+                  />
+                  <div
+                    className="absolute h-full w-16 bg-gradient-to-r from-transparent via-[#FF5800]/60 to-transparent"
+                    style={{
+                      animation: "visor-scan-delayed 6.2s cubic-bezier(0.3, 0.1, 0.7, 0.9) infinite 1.5s",
+                      boxShadow: "0 0 10px 2px rgba(255, 88, 0, 0.5)",
+                      filter: "blur(1px)",
+                    }}
+                  />
+                </div>
+              )}
 
-                {/* Textarea */}
-                <textarea
-                  rows={1}
-                  value={inputText}
-                  onChange={(e) => setInputText(e.currentTarget.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      if (!isLoading) {
-                        handleSubmit(e);
-                      }
+              {/* Textarea */}
+              <textarea
+                rows={1}
+                value={inputText}
+                onChange={(e) => setInputText(e.currentTarget.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    if (!isLoading) {
+                      handleSubmit(e);
                     }
-                  }}
-                  onInput={(e) => {
-                    const target = e.currentTarget;
-                    target.style.height = "44px";
-                    target.style.height =
-                      Math.min(target.scrollHeight, 140) + "px";
-                  }}
-                  placeholder="Describe your agent or ask for help..."
-                  className="w-full bg-transparent px-4 py-3 text-[15px] text-white placeholder:text-white/40 focus:outline-none resize-none leading-relaxed"
-                  style={{
-                    minHeight: "44px",
-                    maxHeight: "140px",
-                  }}
-                />
-              </div>
+                  }
+                }}
+                onInput={(e) => {
+                  const target = e.currentTarget;
+                  target.style.height = "52px";
+                  target.style.height = Math.min(target.scrollHeight, 200) + "px";
+                }}
+                placeholder="Describe your agent or ask for help..."
+                className="w-full bg-transparent px-4 pt-3 pb-3 text-[15px] text-white placeholder:text-white/40 focus:outline-none resize-none leading-relaxed"
+                style={{ minHeight: "52px", maxHeight: "200px" }}
+              />
 
-              {/* Bottom Row: Model Selector (left) and Send Button (right) */}
-              <div className="flex items-center justify-between">
-                {/* Model Tier Selector */}
+              {/* Bottom bar with buttons inside input */}
+              <div className="flex items-center justify-between px-2 py-2">
+                {/* Model Tier Selector - Left */}
                 <Select
                   value={selectedTier}
                   onValueChange={(value) => {
                     setSelectedTier(value as "fast" | "pro" | "ultra");
-                    const tier = BUILD_MODE_TIER_LIST.find(
-                      (t) => t.id === value,
-                    );
+                    const tier = BUILD_MODE_TIER_LIST.find((t) => t.id === value);
                     if (tier) {
                       toast.success(`Model: ${tier.name}`);
                     }
                   }}
                 >
-                  <SelectTrigger className="w-[120px] h-9 border-white/[0.08] bg-white/[0.02] rounded-lg text-sm hover:bg-white/[0.05] transition-colors">
+                  <SelectTrigger className="h-8 w-auto gap-1.5 border-0 bg-transparent px-2 text-sm text-white/50 hover:text-white/70 hover:bg-white/[0.06] rounded-lg transition-colors">
                     <SelectValue placeholder="Select model">
-                      <span className="flex items-center gap-2">
+                      <span className="flex items-center gap-1.5">
                         {tierIcons[selectedTier]}
-                        {BUILD_MODE_TIER_LIST.find((t) => t.id === selectedTier)
-                          ?.name || "Pro"}
+                        {BUILD_MODE_TIER_LIST.find((t) => t.id === selectedTier)?.name || "Pro"}
                       </span>
                     </SelectValue>
                   </SelectTrigger>
@@ -1304,9 +1292,7 @@ export function BuildModeAssistant({
                                 </span>
                               )}
                             </div>
-                            <span className="text-[10px] text-white/40 font-mono">
-                              {tier.modelId}
-                            </span>
+                            <span className="text-[10px] text-white/40 font-mono">{tier.modelId}</span>
                           </div>
                         </div>
                       </SelectItem>
@@ -1314,7 +1300,7 @@ export function BuildModeAssistant({
                   </SelectContent>
                 </Select>
 
-                {/* Send Button */}
+                {/* Send Button - Right */}
                 <Button
                   type="submit"
                   disabled={isLoading || !inputText.trim()}
