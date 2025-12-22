@@ -249,6 +249,23 @@ export class RuntimeFactory {
     character: Character,
     agentId: UUID,
   ): Promise<void> {
+    // Ensure agent exists in database first (FK constraint for worlds table)
+    try {
+      await runtime.databaseAdapter.createAgent({
+        id: agentId,
+        name: character.name,
+        username: character.name,
+      });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (
+        !msg.toLowerCase().includes("duplicate") &&
+        !msg.toLowerCase().includes("unique constraint")
+      ) {
+        throw e;
+      }
+    }
+
     // Ensure world exists before runtime.initialize() (FK constraint)
     try {
       await runtime.ensureWorldExists({
