@@ -99,7 +99,7 @@ export default function OnChainTrust() {
               }}
             >
               Fully autonomous agents that utilize 8004 & x402 to find agents,
-              understand their reputation and safely take part in agentic
+              understand their reputation and securely take part in agentic
               commerce.
             </motion.p>
           </div>
