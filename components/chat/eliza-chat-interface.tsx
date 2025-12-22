@@ -1099,6 +1099,7 @@ export function ElizaChatInterface({
                       currentPlayingId={audioState.currentPlayingId}
                       isPlaying={player.isPlaying}
                       hasAudioUrl={messageAudioUrls.current.has(message.id)}
+                      isStreaming={isStreaming}
                       formatTimestamp={formatTimestamp}
                       onCopy={copyToClipboard}
                       onPlayAudio={(messageId) => {

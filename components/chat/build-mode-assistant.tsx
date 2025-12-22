@@ -1016,8 +1016,24 @@ export function BuildModeAssistant({
                               .build-mode-content :global(h4) {
                                 font-size: 14px !important;
                               }
+                              /* Streaming text animation for smoother chunk appearance */
+                              @keyframes streamFadeIn {
+                                from {
+                                  opacity: 0.7;
+                                }
+                                to {
+                                  opacity: 1;
+                                }
+                              }
+                              .streaming-text {
+                                animation: streamFadeIn 150ms ease-out forwards;
+                              }
+                              .streaming-text p:last-child,
+                              .streaming-text > *:last-child {
+                                animation: streamFadeIn 120ms ease-out forwards;
+                              }
                             `}</style>
-                            <div className="text-[15px] leading-relaxed text-white/90 build-mode-content break-words">
+                            <div className={`text-[15px] leading-relaxed text-white/90 build-mode-content break-words${isStreaming ? " streaming-text" : ""}`}>
                               <ReactMarkdown
                                 remarkPlugins={[remarkGfm]}
                                 rehypePlugins={[rehypeHighlight]}
