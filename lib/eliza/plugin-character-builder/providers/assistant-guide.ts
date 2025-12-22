@@ -29,7 +29,7 @@ Your assistant can analyze and reference large amounts of information through th
 - **Update Regularly**: Keep knowledge base current for accurate responses
 
 ### User Instructions
-Tell users: "Go to the **Knowledge** tab to upload PDFs, transcripts, or text files. Your assistant will be able to search and reference this content when answering questions."
+Tell users: "Go to the **Files** tab to upload PDFs, transcripts, or text files. Your assistant will be able to search and reference this content when answering questions."
 
 ---
 

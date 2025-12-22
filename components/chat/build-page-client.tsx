@@ -220,9 +220,12 @@ export function BuildPageClient({
       )}
 
       {/* Build Mode */}
+      {/* Key forces complete remount when characterId changes, ensuring fresh state */}
       <div className="flex flex-1 overflow-hidden">
         <CharacterBuildMode
+          key={initialCharacterId || "creator"}
           initialCharacters={initialCharacters}
+          initialCharacterId={initialCharacterId}
           onUnsavedChanges={setHasUnsavedChanges}
         />
       </div>
