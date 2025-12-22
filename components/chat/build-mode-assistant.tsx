@@ -238,6 +238,7 @@ export function BuildModeAssistant({
 
         if (!createResponse.ok) {
           toast.error("Failed to create builder room");
+          setIsInitializing(false);
           return;
         }
 
@@ -254,6 +255,7 @@ export function BuildModeAssistant({
 
         if (!welcomeResponse.ok) {
           toast.error("Failed to initialize builder room");
+          setIsInitializing(false);
           return;
         }
 
@@ -279,6 +281,7 @@ export function BuildModeAssistant({
 
       if (!createResponse.ok) {
         toast.error("Failed to create builder room");
+        setIsInitializing(false);
         return;
       }
 
@@ -295,6 +298,7 @@ export function BuildModeAssistant({
 
       if (!welcomeResponse.ok) {
         toast.error("Failed to initialize builder room");
+        setIsInitializing(false);
         return;
       }
 
