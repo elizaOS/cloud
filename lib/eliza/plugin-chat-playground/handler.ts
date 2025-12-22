@@ -208,6 +208,7 @@ export async function handleMessage({
     });
   } catch (error) {
     runtime.character.system = originalSystemPrompt;
+    // @ts-expect-error - RUN_ENDED status should include "error" for proper analytics tracking
     await runtime.emitEvent(EventType.RUN_ENDED, {
       runtime,
       source: "chatPlaygroundWorkflow",
@@ -216,7 +217,7 @@ export async function handleMessage({
       roomId: message.roomId,
       entityId: message.entityId,
       startTime,
-      status: "completed",
+      status: "error",
       endTime: Date.now(),
       duration: Date.now() - startTime,
       error: error instanceof Error ? error.message : String(error),

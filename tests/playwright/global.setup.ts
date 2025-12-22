@@ -22,7 +22,7 @@ const PAGES_TO_WARMUP = [
   "/marketplace",
   "/terms-of-service",
   "/privacy-policy",
-  "/auth-error",
+  "/authentication-error",
   "/auth/error",
   "/auth/cli-login",
 

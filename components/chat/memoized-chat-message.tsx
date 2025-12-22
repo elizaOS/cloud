@@ -79,6 +79,7 @@ interface MemoizedChatMessageProps {
   currentPlayingId: string | null;
   isPlaying: boolean;
   hasAudioUrl: boolean;
+  isStreaming?: boolean;
   formatTimestamp: (timestamp: number) => string;
   onCopy: (
     text: string,
@@ -141,6 +142,7 @@ function ChatMessageComponent({
   currentPlayingId,
   isPlaying,
   hasAudioUrl,
+  isStreaming = false,
   formatTimestamp,
   onCopy,
   onPlayAudio,
@@ -149,6 +151,9 @@ function ChatMessageComponent({
   const isThinking = message.id.startsWith("thinking-");
   // Use shared plugins cache - no flash since plugins are pre-loaded at module level
   const plugins = useMarkdownPlugins();
+  
+  // Detect streaming from message id if not explicitly passed
+  const isStreamingMessage = isStreaming || message.id.startsWith("streaming-");
 
   return (
     <div
@@ -180,7 +185,27 @@ function ChatMessageComponent({
               <>
                 {/* Message Text - Always show content immediately, upgrade to markdown when ready */}
                 <div className="overflow-hidden">
-                  <div className="text-[15px] leading-relaxed text-white/90 prose prose-invert prose-sm max-w-none prose-p:my-2 prose-ul:my-2 prose-ol:my-2 prose-li:my-1 prose-headings:my-3 prose-pre:my-2 break-words [&_pre]:overflow-x-auto [&_pre_code]:whitespace-pre-wrap [&_pre_code]:break-words">
+                  {/* Streaming text animation styles */}
+                  {isStreamingMessage && (
+                    <style jsx>{`
+                      @keyframes streamFadeIn {
+                        from {
+                          opacity: 0.7;
+                        }
+                        to {
+                          opacity: 1;
+                        }
+                      }
+                      .streaming-text-content {
+                        animation: streamFadeIn 150ms ease-out forwards;
+                      }
+                      .streaming-text-content p:last-child,
+                      .streaming-text-content > *:last-child {
+                        animation: streamFadeIn 120ms ease-out forwards;
+                      }
+                    `}</style>
+                  )}
+                  <div className={`text-[15px] leading-relaxed text-white/90 prose prose-invert prose-sm max-w-none prose-p:my-2 prose-ul:my-2 prose-ol:my-2 prose-li:my-1 prose-headings:my-3 prose-pre:my-2 break-words [&_pre]:overflow-x-auto [&_pre_code]:whitespace-pre-wrap [&_pre_code]:break-words${isStreamingMessage ? " streaming-text-content" : ""}`}>
                     {plugins && ReactMarkdown ? (
                       <ReactMarkdown
                         remarkPlugins={[plugins.remarkGfm]}
@@ -195,6 +220,10 @@ function ChatMessageComponent({
                       <div className="whitespace-pre-wrap">
                         {message.content.text}
                       </div>
+                    )}
+                    {/* Blinking cursor for streaming messages */}
+                    {isStreamingMessage && (
+                      <span className="inline-block w-2 h-4 bg-[#FF5800]/70 ml-0.5 animate-pulse" />
                     )}
                   </div>
                 </div>
@@ -230,7 +259,8 @@ function ChatMessageComponent({
                     </div>
                   )}
 
-                {/* Time and Actions */}
+                {/* Time and Actions - hide during streaming */}
+                {!isStreamingMessage && (
                 <div className="flex items-center gap-2 opacity-0 group-hover/message:opacity-100 transition-opacity">
                   <span className="text-xs text-white/40">
                     {formatTimestamp(message.createdAt)}
@@ -269,6 +299,7 @@ function ChatMessageComponent({
                     </Button>
                   )}
                 </div>
+                )}
               </>
             )}
           </div>
@@ -323,7 +354,8 @@ export const MemoizedChatMessage = memo(
       prevProps.copiedMessageId === nextProps.copiedMessageId &&
       prevProps.currentPlayingId === nextProps.currentPlayingId &&
       prevProps.isPlaying === nextProps.isPlaying &&
-      prevProps.hasAudioUrl === nextProps.hasAudioUrl
+      prevProps.hasAudioUrl === nextProps.hasAudioUrl &&
+      prevProps.isStreaming === nextProps.isStreaming
     );
   }
 );
