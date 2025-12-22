@@ -249,32 +249,57 @@ export class RuntimeFactory {
     character: Character,
     agentId: UUID,
   ): Promise<void> {
+    const startTime = Date.now();
+
     // Initialize runtime (creates agent in agents table first, then world)
+    let initSucceeded = false;
     try {
+      const initStart = Date.now();
       await runtime.initialize({ skipMigrations: true });
+      elizaLogger.info(
+        `[RuntimeFactory] initialize() completed in ${Date.now() - initStart}ms`,
+      );
+      initSucceeded = true;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       const isDuplicate =
         msg.toLowerCase().includes("duplicate") ||
         msg.toLowerCase().includes("unique constraint") ||
         msg.includes("Failed to create entity") ||
-        msg.includes("Failed to create agent");
+        msg.includes("Failed to create agent") ||
+        msg.includes("Failed to create room");
       if (!isDuplicate) throw e;
+
+      // CRITICAL: If initialize() threw but we caught it, initPromise is unresolved!
+      // Services waiting on initPromise will timeout after 30s.
+      // We must manually resolve it to prevent service registration timeouts.
+      elizaLogger.warn(
+        `[RuntimeFactory] Caught init error (${msg.substring(0, 50)}...), resolving initPromise manually`,
+      );
+      this.resolveInitPromise(runtime);
     }
 
     // Ensure agent exists after initialize
+    const agentCheckStart = Date.now();
     if (!(await runtime.getAgent(agentId))) {
       await this.ensureAgentExists(runtime, character, agentId);
+      elizaLogger.info(
+        `[RuntimeFactory] ensureAgentExists() completed in ${Date.now() - agentCheckStart}ms`,
+      );
     }
 
     // Now create world (FK constraint requires agent to exist first)
     try {
+      const worldStart = Date.now();
       await runtime.ensureWorldExists({
         id: agentId,
         name: `World for ${character.name}`,
         agentId,
         serverId: agentId,
       } as World);
+      elizaLogger.info(
+        `[RuntimeFactory] ensureWorldExists() completed in ${Date.now() - worldStart}ms`,
+      );
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       if (
@@ -282,6 +307,27 @@ export class RuntimeFactory {
         !msg.toLowerCase().includes("unique constraint")
       )
         throw e;
+    }
+
+    // If init succeeded but we still need to resolve (edge case)
+    if (initSucceeded) {
+      this.resolveInitPromise(runtime);
+    }
+
+    elizaLogger.info(
+      `[RuntimeFactory] Total initializeRuntime() completed in ${Date.now() - startTime}ms`,
+    );
+  }
+
+  /** Manually resolve runtime's initPromise to prevent service timeouts */
+  private resolveInitPromise(runtime: AgentRuntime): void {
+    // Access internal initResolver - it's not truly private in JS
+    const runtimeAny = runtime as unknown as {
+      initResolver?: () => void;
+    };
+    if (typeof runtimeAny.initResolver === "function") {
+      runtimeAny.initResolver();
+      runtimeAny.initResolver = undefined;
     }
   }
 
