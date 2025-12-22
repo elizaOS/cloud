@@ -266,14 +266,16 @@ export function GalleryGrid({
           className="!max-w-[99vw] !max-h-[99vh] !w-[99vw] !h-[99vh] p-0 bg-black/80 border-white/10 sm:!max-w-[99vw] md:!max-w-[99vw] lg:!max-w-[99vw]"
           showCloseButton={false}
         >
-          <DialogTitle className="sr-only">Media Preview</DialogTitle>
+          <DialogTitle className="sr-only">
+            {selectedItem?.prompt || "Media preview"}
+          </DialogTitle>
           <DialogDescription className="sr-only">
             View and manage your media file
           </DialogDescription>
           {selectedItem && (
-            <div className="relative w-full h-full flex items-center justify-center p-1">
+            <div className="relative w-full h-full flex items-center justify-center p-4 md:p-6">
               {/* Main Content */}
-              <div className="relative w-full h-full flex items-center justify-center">
+              <div className="relative w-full h-full flex items-center justify-center pb-40 md:pb-48">
                 {selectedItem.type === "image" ? (
                   <Image
                     src={selectedItem.url}
@@ -299,9 +301,9 @@ export function GalleryGrid({
               </DialogClose>
 
               {/* Info overlay at bottom */}
-              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-8 space-y-4">
-                {/* Title/Prompt */}
-                <p className="text-sm text-white/90 leading-relaxed max-w-4xl">
+              <div className="absolute bottom-0 left-0 right-0 z-40 bg-gradient-to-t from-black/90 via-black/70 to-transparent px-6 pt-8 pb-6 md:px-8 md:pt-12 md:pb-8 space-y-3 max-h-[50vh] overflow-y-auto">
+                {/* Prompt */}
+                <p className="text-sm text-white/90 leading-relaxed max-w-4xl break-words">
                   {getItemTitle(selectedItem)}
                 </p>
 

@@ -51,6 +51,7 @@ export async function handleMessage({
   runtime,
   message,
   callback,
+  onStreamChunk,
 }: MessageReceivedHandlerParams): Promise<void> {
   const responseId = v4();
   const runId = asUUID(v4());
@@ -69,14 +70,13 @@ export async function handleMessage({
   await setLatestResponseId(runtime, message.roomId, responseId);
   await runtime.emitEvent(EventType.RUN_STARTED, {
     runtime,
+    source: "build-mode",
     runId,
-    messageId: message.id,
+    messageId: message.id || asUUID(v4()),
     roomId: message.roomId,
     entityId: message.entityId,
     startTime,
     status: "started",
-    source: "build-mode",
-    mode: modeLabel,
   });
 
   try {
@@ -154,7 +154,13 @@ export async function handleMessage({
       planningThought: plan?.thought || "",
     };
 
-    await runtime.processActions(message, [actionResponse], state, callback);
+    await runtime.processActions(
+      message,
+      [actionResponse],
+      state,
+      callback,
+      onStreamChunk ? { onStreamChunk } : undefined,
+    );
 
     if (!(await isResponseStillValid(runtime, message.roomId, responseId)))
       return;
@@ -171,28 +177,26 @@ export async function handleMessage({
 
     await runtime.emitEvent(EventType.RUN_ENDED, {
       runtime,
+      source: "build-mode",
       runId,
-      messageId: message.id,
+      messageId: message.id || asUUID(v4()),
       roomId: message.roomId,
       entityId: message.entityId,
       startTime,
       status: "completed",
       endTime: Date.now(),
       duration: Date.now() - startTime,
-      source: "build-mode",
-      selectedAction,
-      mode: modeLabel,
     });
   } catch (error) {
     runtime.character.system = originalSystemPrompt;
     await runtime.emitEvent(EventType.RUN_ENDED, {
       runtime,
       runId,
-      messageId: message.id,
+      messageId: message.id || asUUID(v4()),
       roomId: message.roomId,
       entityId: message.entityId,
       startTime,
-      status: "error",
+      status: "completed",
       endTime: Date.now(),
       duration: Date.now() - startTime,
       error: extractErrorMessage(error),

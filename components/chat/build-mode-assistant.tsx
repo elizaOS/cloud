@@ -60,6 +60,7 @@ import { ElizaAvatar } from "./eliza-avatar";
 import { DEFAULT_AVATAR } from "@/lib/utils/default-avatar";
 import Link from "next/link";
 import { useChatStore } from "@/lib/stores/chat-store";
+import { useThrottledStreamingUpdate } from "@/lib/hooks/use-throttled-streaming";
 
 // Default Eliza configuration for creator mode
 const DEFAULT_ELIZA = {
@@ -75,7 +76,6 @@ interface BuildModeAssistantProps {
   onCharacterCreated?: (characterId: string, characterName: string) => void;
   userId: string;
   isCreatorMode?: boolean;
-  initialPrompt?: string;
 }
 
 interface MessageAttachment {
@@ -106,14 +106,12 @@ export function BuildModeAssistant({
   onCharacterCreated,
   userId,
   isCreatorMode = false,
-  initialPrompt,
 }: BuildModeAssistantProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
-  const roomInitKeyRef = useRef<string | null>(null);
-  const messagesLoadedRef = useRef<string | null>(null);
-  const initialPromptSentRef = useRef(false);
-  const [inputText, setInputText] = useState(initialPrompt || "");
+  const roomInitKeyRef = useRef<string | null>(null); // Track which room key we've initialized
+  const messagesLoadedRef = useRef<string | null>(null); // Track which room we've loaded messages for
+  const [inputText, setInputText] = useState("");
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
 
@@ -144,9 +142,9 @@ export function BuildModeAssistant({
     pro: <Sparkles className="h-3.5 w-3.5" />,
     ultra: <Crown className="h-3.5 w-3.5" />,
   };
-  const [isInitializing, setIsInitializing] = useState(true);
+  const [isInitializing, setIsInitializing] = useState(true); // Loading state for initial welcome
   const [builderRoomId, setBuilderRoomId] = useState<string>("");
-  const [lockedRoom, setLockedRoom] = useState<LockedRoomInfo | null>(null);
+  const [lockedRoom, setLockedRoom] = useState<LockedRoomInfo | null>(null); // Track if room is locked after character creation
 
   // Determine display info based on mode
   // In creator mode, always show Eliza (we're creating a new character)
@@ -324,39 +322,10 @@ export function BuildModeAssistant({
     loadMessages();
   }, [builderRoomId]);
 
-  const sendElizaMessageRef = useRef<((text: string) => Promise<void>) | null>(
-    null,
-  );
-
   // Persist model tier to localStorage
   useEffect(() => {
     localStorage.setItem("build-mode-model-tier", selectedTier);
   }, [selectedTier]);
-
-  // Auto-submit initial prompt after room is initialized
-  useEffect(() => {
-    if (
-      !isInitializing &&
-      builderRoomId &&
-      initialPrompt &&
-      !initialPromptSentRef.current &&
-      messages.length === 0 &&
-      !isLoading &&
-      sendElizaMessageRef.current
-    ) {
-      initialPromptSentRef.current = true;
-      setInputText("");
-
-      const sendFn = sendElizaMessageRef.current;
-      queueMicrotask(() => sendFn(initialPrompt));
-    }
-  }, [
-    isInitializing,
-    builderRoomId,
-    initialPrompt,
-    messages.length,
-    isLoading,
-  ]);
 
   // Send message to ElizaOS stream endpoint with BUILD workflow
   const sendElizaMessage = useCallback(
@@ -663,10 +632,6 @@ export function BuildModeAssistant({
       updateCharacterAvatar,
     ],
   );
-
-  useEffect(() => {
-    sendElizaMessageRef.current = sendElizaMessage;
-  }, [sendElizaMessage]);
 
   // Robust scroll to bottom function
   const scrollToBottom = useCallback((smooth = false) => {
@@ -1120,9 +1085,9 @@ export function BuildModeAssistant({
                       </div>
                     </div>
                   ) : (
-                    <div className="flex flex-col gap-1.5 max-w-[85%] sm:max-w-[75%] group/message">
+                    <div className="flex flex-col gap-1.5 max-w-[85%] sm:max-w-[75%] group/message items-end">
                       {/* User Message */}
-                      <div className="py-3 px-4 bg-[#FF5800]/10 border border-[#FF5800]/20 rounded-lg transition-colors hover:bg-[#FF5800]/15 hover:border-[#FF5800]/30">
+                      <div className="py-3 px-4 bg-[#FF5800]/10 border border-[#FF5800]/20 rounded-lg transition-colors hover:bg-[#FF5800]/15 hover:border-[#FF5800]/30 ml-auto">
                         <div className="whitespace-pre-wrap text-[15px] leading-relaxed text-white/95">
                           {content}
                         </div>

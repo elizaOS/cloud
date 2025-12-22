@@ -4,8 +4,8 @@
  */
 "use client";
 
-import { useState, useRef, useMemo } from "react";
-import { useSearchParams } from "next/navigation";
+import { useState, useCallback, useRef, useMemo } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
 import { GalleryGrid, GalleryGridSkeleton } from "./gallery-grid";
 import { uploadMedia } from "@/app/actions/gallery";
@@ -38,18 +38,23 @@ type TypeFilter = "all" | "image" | "video" | "collections";
 
 export function GalleryPageClient() {
   const searchParams = useSearchParams();
-  const initialTab = (searchParams.get("tab") as TypeFilter) || "all";
+  const router = useRouter();
+
+  // Get initial tab from URL query param
+  const initialTab = useMemo(() => {
+    const tabParam = searchParams.get("tab");
+    if (tabParam === "image" || tabParam === "video" || tabParam === "collections") {
+      return tabParam;
+    }
+    return "all";
+  }, [searchParams]);
 
   useSetPageHeader({
     title: "Gallery",
     description: "View and manage your AI-generated images and uploads",
   });
 
-  const [activeTab, setActiveTab] = useState<TypeFilter>(
-    ["all", "image", "video", "collections"].includes(initialTab)
-      ? initialTab
-      : "all",
-  );
+  const [activeTab, setActiveTab] = useState<TypeFilter>(initialTab);
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>("all");
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -80,7 +85,18 @@ export function GalleryPageClient() {
     refetchStats,
   } = useGalleryData(galleryOptions);
 
-  // Memoize tabs to show counts from stats
+  // Update URL when tab changes
+  const handleTabChange = useCallback((tab: TypeFilter) => {
+    setActiveTab(tab);
+    const url = new URL(window.location.href);
+    if (tab === "all") {
+      url.searchParams.delete("tab");
+    } else {
+      url.searchParams.set("tab", tab);
+    }
+    router.replace(url.pathname + url.search, { scroll: false });
+  }, [router]);
+
   const galleryTabs: TabItem[] = useMemo(
     () => [
       {
@@ -329,7 +345,7 @@ export function GalleryPageClient() {
         id="gallery-tabs"
         tabs={galleryTabs}
         value={activeTab}
-        onValueChange={(v) => setActiveTab(v as TypeFilter)}
+        onValueChange={(v) => handleTabChange(v as TypeFilter)}
       >
         <BrandTabsContent value={activeTab} className="mt-6">
           {activeTab === "collections" ? (

@@ -44,7 +44,13 @@ const nextConfig: NextConfig = {
         port: "",
         pathname: "/**",
       },
-      // Note: Fal.ai and other external provider URLs are proxied through our storage
+      {
+        protocol: "https",
+        hostname: "images.unsplash.com",
+        port: "",
+        pathname: "/**",
+      },
+      // Note: Fal.ai URLs are no longer allowed - all assets are proxied through our storage
     ],
   },
   // Increase body size limit for container image uploads (max 2GB)
@@ -144,7 +150,7 @@ const nextConfig: NextConfig = {
     "oxapay",
   ],
 
-  webpack: (config, { isServer }) => {
+  webpack: (config, { isServer, dev }) => {
     // Fix for worker_threads not being handled by Turbopack
     if (isServer) {
       config.externals = config.externals || [];
@@ -153,19 +159,80 @@ const nextConfig: NextConfig = {
       }
     }
 
-    // Prevent pino and related packages from being bundled (they have Node.js-only deps)
-    config.resolve = config.resolve || {};
-    config.resolve.alias = config.resolve.alias || {};
+    // Production optimizations
+    if (!dev && !isServer) {
+      // Optimize chunk splitting for better caching
+      config.optimization = {
+        ...config.optimization,
+        moduleIds: "deterministic",
+        runtimeChunk: "single",
+        splitChunks: {
+          chunks: "all",
+          cacheGroups: {
+            // Vendor chunks - stable dependencies
+            vendor: {
+              test: /[\\/]node_modules[\\/]/,
+              name: "vendors",
+              priority: 10,
+              reuseExistingChunk: true,
+            },
+            // ElizaOS packages - frequently updated
+            elizaos: {
+              test: /[\\/]node_modules[\\/]@elizaos[\\/]/,
+              name: "elizaos",
+              priority: 20,
+              reuseExistingChunk: true,
+            },
+            // UI libraries - large but stable
+            ui: {
+              test: /[\\/]node_modules[\\/](@radix-ui|lucide-react|@tabler)[\\/]/,
+              name: "ui-lib",
+              priority: 15,
+              reuseExistingChunk: true,
+            },
+            // Heavy libraries loaded separately
+            monaco: {
+              test: /[\\/]node_modules[\\/](@monaco-editor|monaco-editor)[\\/]/,
+              name: "monaco",
+              priority: 25,
+              reuseExistingChunk: true,
+            },
+            three: {
+              test: /[\\/]node_modules[\\/](three|@react-three)[\\/]/,
+              name: "three",
+              priority: 25,
+              reuseExistingChunk: true,
+            },
+            recharts: {
+              test: /[\\/]node_modules[\\/]recharts[\\/]/,
+              name: "recharts",
+              priority: 25,
+              reuseExistingChunk: true,
+            },
+            // Common shared code
+            common: {
+              minChunks: 2,
+              priority: 5,
+              reuseExistingChunk: true,
+              enforce: true,
+            },
+          },
+          maxInitialRequests: 25,
+          minSize: 20000,
+        },
+      };
 
-    // Alias pino ecosystem to empty modules for client builds
-    if (!isServer) {
-      config.resolve.alias["pino"] = require.resolve("./lib/empty-module.js");
-      config.resolve.alias["thread-stream"] =
-        require.resolve("./lib/empty-module.js");
-      config.resolve.alias["sonic-boom"] =
-        require.resolve("./lib/empty-module.js");
-      config.resolve.alias["pino-pretty"] =
-        require.resolve("./lib/empty-module.js");
+      // Enable bundle analyzer if env variable is set
+      if (process.env.ANALYZE === "true") {
+        const { BundleAnalyzerPlugin } = require("webpack-bundle-analyzer");
+        config.plugins.push(
+          new BundleAnalyzerPlugin({
+            analyzerMode: "static",
+            reportFilename: "./analyze/client.html",
+            openAnalyzer: false,
+          }),
+        );
+      }
     }
 
     return config;
@@ -186,9 +253,9 @@ const nextConfig: NextConfig = {
               "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://challenges.cloudflare.com https://va.vercel-scripts.com https://cdn.jsdelivr.net",
               // Styles - allow self, inline styles, and Monaco Editor CDN (required for many UI libraries)
               "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
-              // Images - allow self, data URIs, blob URIs, Vercel storage, DiceBear avatars, Instagram CDN
-              // Note: Fal.ai and other external provider URLs are proxied through our storage
-              "img-src 'self' data: blob: https://*.public.blob.vercel-storage.com https://raw.githubusercontent.com https://*.fbcdn.net https://*.cdninstagram.com https://api.dicebear.com",
+              // Images - allow self, data URIs, blob URIs, Vercel storage, Instagram CDN, DiceBear avatars, Unsplash
+              // Note: Fal.ai URLs are proxied through our storage, so not needed here
+              "img-src 'self' data: blob: https://*.public.blob.vercel-storage.com https://raw.githubusercontent.com https://*.fbcdn.net https://*.cdninstagram.com https://api.dicebear.com https://images.unsplash.com",
               // Fonts - allow self, data URIs (for inline fonts like Monaco's Codicon), and Monaco Editor CDN
               "font-src 'self' data: https://cdn.jsdelivr.net",
               // Objects - block all (e.g., Flash, Java applets)

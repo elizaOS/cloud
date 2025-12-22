@@ -60,12 +60,14 @@ export function renderWelcomeTemplate(data: WelcomeEmailData): {
   const htmlTemplate = loadTemplate("welcome.html");
   const textTemplate = loadTemplate("welcome.txt");
 
+  const baseUrl = data.dashboardUrl.replace(/\/dashboard.*/, "");
   const templateData = {
     userName: data.userName,
     organizationName: data.organizationName,
     creditBalance: data.creditBalance.toLocaleString(),
     dashboardUrl: data.dashboardUrl,
-    docsUrl: `${data.dashboardUrl.replace(/\/dashboard.*/, "")}/docs`,
+    docsUrl: `${baseUrl}/docs`,
+    baseUrl: baseUrl,
     currentYear: new Date().getFullYear(),
   };
 

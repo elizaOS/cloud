@@ -10,6 +10,7 @@ import localFont from "next/font/local";
 
 // Performance optimization: Load only essential font weights (reduced from 7 to 4)
 // This reduces initial font bundle size by ~40%
+// preload: false prevents unused font preload warnings since SF Pro is only used in specific UI elements
 const sfPro = localFont({
   src: [
     {
@@ -34,6 +35,8 @@ const sfPro = localFont({
     },
   ],
   variable: "--font-sf-pro",
+  display: "swap",
+  preload: false,
 });
 
 /**

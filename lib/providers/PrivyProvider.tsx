@@ -17,6 +17,27 @@ const loginMethods: ("wallet" | "email" | "google" | "discord" | "github")[] = [
   "github",
 ];
 
+// Use a unique string key on globalThis to store connectors cache
+// This survives HMR (Hot Module Replacement) and module re-evaluations
+// which would otherwise cause WalletConnect to be initialized multiple times
+const SOLANA_CONNECTORS_KEY = "__ELIZA_CLOUD_SOLANA_CONNECTORS__";
+
+type SolanaConnectors = ReturnType<typeof toSolanaWalletConnectors>;
+
+// Create Solana wallet connectors once globally to prevent
+// WalletConnect double-initialization in React Strict Mode and during HMR
+const getSolanaConnectors = (): SolanaConnectors => {
+  const globalCache = globalThis as unknown as Record<string, SolanaConnectors | undefined>;
+  
+  if (globalCache[SOLANA_CONNECTORS_KEY]) {
+    return globalCache[SOLANA_CONNECTORS_KEY];
+  }
+  
+  const connectors = toSolanaWalletConnectors();
+  globalCache[SOLANA_CONNECTORS_KEY] = connectors;
+  return connectors;
+};
+
 /**
  * Wrapper component to handle post-authentication logic
  * Handles migration of anonymous user data after successful authentication
@@ -143,7 +164,8 @@ export default function PrivyProvider({
       },
       externalWallets: {
         solana: {
-          connectors: toSolanaWalletConnectors(),
+          // Use cached connectors to prevent WalletConnect double-init in Strict Mode
+          connectors: getSolanaConnectors(),
         },
       },
     }),

@@ -16,6 +16,7 @@ import { affiliateContextProvider } from "./providers/affiliate-context";
 import { currentRunContextProvider } from "./providers/current-run-context";
 import { handleMessage } from "./handler";
 import { roomTitleEvaluator } from "../shared/evaluators";
+import type { StreamChunkCallback } from "../shared/types";
 
 export const assistantPlugin: Plugin = {
   name: "eliza-assistant",
@@ -24,13 +25,16 @@ export const assistantPlugin: Plugin = {
     [EventType.MESSAGE_RECEIVED]: [
       async (payload: MessagePayload) => {
         if (!payload.callback) return;
+        // Extract onStreamChunk if present (added by eliza-cloud message handler)
+        const onStreamChunk = (payload as MessagePayload & { onStreamChunk?: StreamChunkCallback }).onStreamChunk;
         logger.info(
-          `[Assistant] Message received in room ${payload.message.roomId}`,
+          `[Assistant] Message received in room ${payload.message.roomId}, streaming=${!!onStreamChunk}`,
         );
         await handleMessage({
           runtime: payload.runtime,
           message: payload.message,
           callback: payload.callback,
+          onStreamChunk,
         });
       },
     ],

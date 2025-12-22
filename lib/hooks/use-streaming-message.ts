@@ -27,8 +27,23 @@ interface SSEErrorData {
 }
 
 /**
+ * Chunk data from streaming event.
+ */
+export interface StreamChunkData {
+  messageId: string;
+  chunk: string;
+  timestamp: number;
+}
+
+/**
  * Options for sending a streaming message.
  */
+/** Default stream timeout in milliseconds (60 seconds) */
+const STREAM_TIMEOUT_MS = 60_000;
+
+/** Maximum buffer size to prevent memory exhaustion (1MB) */
+const MAX_BUFFER_SIZE = 1024 * 1024;
+
 interface SendMessageOptions {
   /** Room ID where the message is sent. */
   roomId: string;
@@ -40,10 +55,14 @@ interface SendMessageOptions {
   sessionToken?: string;
   /** Callback invoked for each streamed message chunk. */
   onMessage: (message: StreamingMessage) => void;
+  /** Callback invoked for each text chunk (real-time streaming). */
+  onChunk?: (chunk: StreamChunkData) => void;
   /** Optional error callback. */
   onError?: (error: string) => void;
   /** Optional completion callback. */
   onComplete?: () => void;
+  /** Optional timeout in ms (default: 60000) */
+  timeoutMs?: number;
 }
 
 /**
@@ -60,27 +79,45 @@ export async function sendStreamingMessage({
   model,
   sessionToken,
   onMessage,
+  onChunk,
   onError,
   onComplete,
+  timeoutMs = STREAM_TIMEOUT_MS,
 }: SendMessageOptions): Promise<void> {
-  const response = await fetch(`/api/eliza/rooms/${roomId}/messages/stream`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      // Include session token as header for anonymous users
-      // This ensures session tracking works even if the cookie race condition occurs
-      ...(sessionToken && { "X-Anonymous-Session": sessionToken }),
-    },
-    credentials: "include",
-    body: JSON.stringify({
-      text,
-      ...(model && { model }), // Include model if provided
-      // Also include in body as backup
-      ...(sessionToken && { sessionToken }),
-    }),
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => {
+    controller.abort();
+  }, timeoutMs);
+
+  let response: Response;
+  try {
+    response = await fetch(`/api/eliza/rooms/${roomId}/messages/stream`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        // Include session token as header for anonymous users
+        // This ensures session tracking works even if the cookie race condition occurs
+        ...(sessionToken && { "X-Anonymous-Session": sessionToken }),
+      },
+      credentials: "include",
+      signal: controller.signal,
+      body: JSON.stringify({
+        text,
+        ...(model && { model }), // Include model if provided
+        // Also include in body as backup
+        ...(sessionToken && { sessionToken }),
+      }),
+    });
+  } catch (error) {
+    clearTimeout(timeoutId);
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error("Stream timeout: Request took too long");
+    }
+    throw error;
+  }
 
   if (!response.ok) {
+    clearTimeout(timeoutId);
     let errorMessage = "Failed to send message";
     const contentType = response.headers.get("content-type");
 
@@ -116,6 +153,7 @@ export async function sendStreamingMessage({
   }
 
   if (!response.body) {
+    clearTimeout(timeoutId);
     throw new Error("No response body");
   }
 
@@ -123,38 +161,52 @@ export async function sendStreamingMessage({
   const decoder = new TextDecoder();
   let buffer = "";
 
-  while (true) {
-    const { done, value } = await reader.read();
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
 
-    if (done) {
-      // Process any remaining data in buffer
-      if (buffer.trim()) {
+      if (done) {
+        // Process any remaining data in buffer
+        if (buffer.trim()) {
+          try {
+            processSSEMessage(buffer.trim(), onMessage, onChunk, onError, onComplete);
+          } catch (err) {
+            console.error("[Stream] Error processing final buffer:", err);
+            onError?.("Stream ended unexpectedly");
+          }
+        }
+        break;
+      }
+
+      buffer += decoder.decode(value, { stream: true });
+
+      // Prevent unbounded buffer growth (potential DoS vector)
+      if (buffer.length > MAX_BUFFER_SIZE) {
+        throw new Error("Stream buffer exceeded maximum size - possible malformed SSE data");
+      }
+
+      // Process complete SSE messages (separated by double newline)
+      const messages = buffer.split("\n\n");
+      buffer = messages.pop() || ""; // Keep incomplete message in buffer
+
+      for (const message of messages) {
+        if (!message.trim()) continue;
+
         try {
-          processSSEMessage(buffer.trim(), onMessage, onError, onComplete);
+          processSSEMessage(message.trim(), onMessage, onChunk, onError, onComplete);
         } catch (err) {
-          logger.error("[Stream] Error processing final buffer:", err);
-          onError?.("Stream ended unexpectedly");
+          console.error("[Stream] Error parsing SSE message:", err, message);
+          // Continue processing other messages even if one fails
         }
       }
-      break;
     }
-
-    buffer += decoder.decode(value, { stream: true });
-
-    // Process complete SSE messages (separated by double newline)
-    const messages = buffer.split("\n\n");
-    buffer = messages.pop() || ""; // Keep incomplete message in buffer
-
-    for (const message of messages) {
-      if (!message.trim()) continue;
-
-      try {
-        processSSEMessage(message.trim(), onMessage, onError, onComplete);
-      } catch (err) {
-        logger.error("[Stream] Error parsing SSE message:", err, message);
-        // Continue processing other messages even if one fails
-      }
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      onError?.("Stream timeout: Connection took too long");
     }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 
@@ -165,6 +217,7 @@ export async function sendStreamingMessage({
 function processSSEMessage(
   message: string,
   onMessage: (message: StreamingMessage) => void,
+  onChunk?: (chunk: StreamChunkData) => void,
   onError?: (error: string) => void,
   onComplete?: () => void,
 ): void {
@@ -209,6 +262,12 @@ function processSSEMessage(
         logger.warn("[Stream] Invalid message format:", data);
       }
       break;
+    case "chunk":
+      // Real-time streaming chunk - call onChunk if provided
+      if (onChunk && isValidStreamChunkData(data as StreamChunkData)) {
+        onChunk(data as StreamChunkData);
+      }
+      break;
     case "error":
       const errorData = data as SSEErrorData;
       const errorMessage =
@@ -231,6 +290,18 @@ function processSSEMessage(
     default:
       logger.debug(`[Stream] Unhandled event type: ${eventType}`, data);
   }
+}
+
+/**
+ * Type guard to validate StreamChunkData structure
+ */
+function isValidStreamChunkData(data: StreamChunkData): data is StreamChunkData {
+  if (!data || typeof data !== "object") return false;
+  return (
+    typeof data.messageId === "string" &&
+    typeof data.chunk === "string" &&
+    typeof data.timestamp === "number"
+  );
 }
 
 /**

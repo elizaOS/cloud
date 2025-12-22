@@ -18,6 +18,7 @@ import { agentLoader } from "./agent-loader";
 import { getElizaCloudApiUrl, getDefaultModels } from "./config";
 import type { UserContext } from "./user-context";
 import { logger } from "@/lib/utils/logger";
+import { agentsService } from "@/lib/services/agents";
 import "@/lib/polyfills/dom-polyfills";
 
 interface GlobalWithEliza {
@@ -29,7 +30,7 @@ const globalAny = globalThis as GlobalWithEliza;
 export class RuntimeFactory {
   private static instance: RuntimeFactory;
   private readonly DEFAULT_AGENT_ID = stringToUuid(
-    "b850bc30-45f8-0041-a00a-83df46d8555d",
+    "b850bc30-45f8-0041-a00a-83df46d8555d"
   ) as UUID;
   private readonly DEFAULT_AGENT_ID_STRING =
     "b850bc30-45f8-0041-a00a-83df46d8555d";
@@ -51,7 +52,7 @@ export class RuntimeFactory {
    */
   async createRuntimeForUser(context: UserContext): Promise<AgentRuntime> {
     elizaLogger.info(
-      `[RuntimeFactory] Creating runtime: user=${context.userId}, mode=${context.agentMode}, char=${context.characterId || "default"}`,
+      `[RuntimeFactory] Creating runtime: user=${context.userId}, mode=${context.agentMode}, char=${context.characterId || "default"}`
     );
 
     const isDefaultCharacter =
@@ -61,13 +62,13 @@ export class RuntimeFactory {
       ? await agentLoader.getDefaultCharacter(context.agentMode)
       : await agentLoader.loadCharacter(
           context.characterId!,
-          context.agentMode,
+          context.agentMode
         );
 
     // Log mode upgrade if it occurred
     if (modeResolution.upgradeReason !== "none") {
       elizaLogger.info(
-        `[RuntimeFactory] Mode upgraded: ${context.agentMode} → ${modeResolution.mode} (reason: ${modeResolution.upgradeReason})`,
+        `[RuntimeFactory] Mode upgraded: ${context.agentMode} → ${modeResolution.mode} (reason: ${modeResolution.upgradeReason})`
       );
     }
 
@@ -75,11 +76,11 @@ export class RuntimeFactory {
       character.id ? stringToUuid(character.id) : this.DEFAULT_AGENT_ID
     ) as UUID;
     elizaLogger.info(
-      `[RuntimeFactory] Character: ${character.name} (${agentId})`,
+      `[RuntimeFactory] Character: ${character.name} (${agentId})`
     );
 
     const dbAdapter = await this.createDatabaseAdapter(agentId);
-    const settings = this.buildSettings(character, context);
+    const settings = this.buildSettings(character, context) as any;
     const filteredPlugins = this.filterPlugins(plugins);
 
     const runtime = new AgentRuntime({
@@ -94,14 +95,14 @@ export class RuntimeFactory {
     await this.waitForMcpServiceIfNeeded(runtime, filteredPlugins);
 
     elizaLogger.success(
-      `[RuntimeFactory] Runtime ready: ${character.name} (${modeResolution.mode})`,
+      `[RuntimeFactory] Runtime ready: ${character.name} (${modeResolution.mode})`
     );
     return runtime;
   }
 
   /** Expand pathname URLs to full URLs in MCP settings */
   private transformMcpSettings(
-    mcpSettings: Record<string, unknown>,
+    mcpSettings: Record<string, unknown>
   ): Record<string, unknown> {
     if (!mcpSettings?.servers) return mcpSettings;
 
@@ -109,7 +110,7 @@ export class RuntimeFactory {
     const transformedServers: Record<string, unknown> = {};
 
     for (const [serverId, serverConfig] of Object.entries(
-      mcpSettings.servers as Record<string, { url?: string }>,
+      mcpSettings.servers as Record<string, { url?: string }>
     )) {
       transformedServers[serverId] = {
         ...serverConfig,
@@ -124,7 +125,7 @@ export class RuntimeFactory {
 
   /** Create fresh DB adapter for agent (no caching - prevents cross-agent contamination) */
   private async createDatabaseAdapter(
-    agentId: UUID,
+    agentId: UUID
   ): Promise<IDatabaseAdapter> {
     if (!process.env.DATABASE_URL) {
       throw new Error("DATABASE_URL environment variable is required");
@@ -132,7 +133,7 @@ export class RuntimeFactory {
 
     const dbAdapter = createDatabaseAdapter(
       { postgresUrl: process.env.DATABASE_URL },
-      agentId,
+      agentId
     );
     await dbAdapter.init();
     return dbAdapter;
@@ -145,7 +146,7 @@ export class RuntimeFactory {
   /** Build settings with user context overrides */
   private buildSettings(
     character: Character,
-    context: UserContext,
+    context: UserContext
   ): NonNullable<Character["settings"]> {
     const charSettings = character.settings || {};
     const getSetting = (key: string, fallback: string) =>
@@ -169,7 +170,7 @@ export class RuntimeFactory {
       ELEVENLABS_API_KEY: process.env.ELEVENLABS_API_KEY!,
       ELEVENLABS_VOICE_ID: getSetting(
         "ELEVENLABS_VOICE_ID",
-        "EXAVITQu4vr4xnSDxMaL",
+        "EXAVITQu4vr4xnSDxMaL"
       ),
       ELEVENLABS_MODEL_ID: getSetting(
         "ELEVENLABS_MODEL_ID",
@@ -177,38 +178,38 @@ export class RuntimeFactory {
       ),
       ELEVENLABS_VOICE_STABILITY: getSetting(
         "ELEVENLABS_VOICE_STABILITY",
-        "0.5",
+        "0.5"
       ),
       ELEVENLABS_VOICE_SIMILARITY_BOOST: getSetting(
         "ELEVENLABS_VOICE_SIMILARITY_BOOST",
-        "0.75",
+        "0.75"
       ),
       ELEVENLABS_VOICE_STYLE: getSetting("ELEVENLABS_VOICE_STYLE", "0"),
       ELEVENLABS_VOICE_USE_SPEAKER_BOOST: getSetting(
         "ELEVENLABS_VOICE_USE_SPEAKER_BOOST",
-        "true",
+        "true"
       ),
       ELEVENLABS_OPTIMIZE_STREAMING_LATENCY: getSetting(
         "ELEVENLABS_OPTIMIZE_STREAMING_LATENCY",
-        "0",
+        "0"
       ),
       ELEVENLABS_OUTPUT_FORMAT: getSetting(
         "ELEVENLABS_OUTPUT_FORMAT",
-        "mp3_44100_128",
+        "mp3_44100_128"
       ),
       ELEVENLABS_LANGUAGE_CODE: getSetting("ELEVENLABS_LANGUAGE_CODE", "en"),
       // ElevenLabs STT
       ELEVENLABS_STT_MODEL_ID: getSetting(
         "ELEVENLABS_STT_MODEL_ID",
-        "scribe_v1",
+        "scribe_v1"
       ),
       ELEVENLABS_STT_LANGUAGE_CODE: getSetting(
         "ELEVENLABS_STT_LANGUAGE_CODE",
-        "en",
+        "en"
       ),
       ELEVENLABS_STT_TIMESTAMPS_GRANULARITY: getSetting(
         "ELEVENLABS_STT_TIMESTAMPS_GRANULARITY",
-        "word",
+        "word"
       ),
       ELEVENLABS_STT_DIARIZE: getSetting("ELEVENLABS_STT_DIARIZE", "false"),
       ...(charSettings.ELEVENLABS_STT_NUM_SPEAKERS ||
@@ -221,13 +222,13 @@ export class RuntimeFactory {
         : {}),
       ELEVENLABS_STT_TAG_AUDIO_EVENTS: getSetting(
         "ELEVENLABS_STT_TAG_AUDIO_EVENTS",
-        "false",
+        "false"
       ),
       // MCP
       ...(charSettings.mcp
         ? {
             mcp: this.transformMcpSettings(
-              charSettings.mcp as Record<string, unknown>,
+              charSettings.mcp as Record<string, unknown>
             ),
           }
         : {}),
@@ -243,12 +244,20 @@ export class RuntimeFactory {
     };
   }
 
-  /** Initialize runtime, ensuring world/agent exist first */
+  /** Initialize runtime, ensuring agent/world exist */
   private async initializeRuntime(
     runtime: AgentRuntime,
     character: Character,
-    agentId: UUID,
+    agentId: UUID
   ): Promise<void> {
+    // Ensure agent exists in agents table BEFORE creating world (FK constraint)
+    const isDefaultAgent = agentId === this.DEFAULT_AGENT_ID;
+    if (isDefaultAgent) {
+      await agentsService.ensureDefaultAgentExists();
+    } else {
+      await agentsService.ensureAgentExists(agentId as string);
+    }
+
     // Ensure world exists before runtime.initialize() (FK constraint)
     try {
       await runtime.ensureWorldExists({
@@ -257,47 +266,6 @@ export class RuntimeFactory {
         agentId,
         serverId: agentId,
       } as World);
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      if (
-        !msg.toLowerCase().includes("duplicate") &&
-        !msg.toLowerCase().includes("unique constraint")
-      )
-        throw e;
-    }
-
-    try {
-      await runtime.initialize({ skipMigrations: true });
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      // These errors indicate the resource already exists (race condition or retry)
-      // and can be safely ignored since the resource we need is already there
-      const isDuplicateOrExists =
-        msg.toLowerCase().includes("duplicate") ||
-        msg.toLowerCase().includes("unique constraint") ||
-        msg.includes("Failed to create entity") ||
-        msg.includes("Failed to create agent") ||
-        msg.includes("Failed to create room");
-      if (!isDuplicateOrExists) throw e;
-    }
-
-    if (!(await runtime.getAgent(agentId))) {
-      await this.ensureAgentExists(runtime, character, agentId);
-    }
-  }
-
-  private async ensureAgentExists(
-    runtime: AgentRuntime,
-    character: Character,
-    agentId: UUID,
-  ): Promise<void> {
-    try {
-      await runtime.createEntity({
-        id: agentId,
-        names: [character.name || "Eliza"],
-        agentId,
-        metadata: { name: character.name || "Eliza" },
-      });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       if (
@@ -331,7 +299,7 @@ export class RuntimeFactory {
       elizaLogger.debug = console.debug.bind(console);
       elizaLogger.success = (
         obj: string | Error | Record<string, unknown>,
-        msg?: string,
+        msg?: string
       ) => {
         logger.info(typeof obj === "string" ? `✓ ${obj}` : ["✓", obj, msg]);
       };
@@ -349,7 +317,7 @@ export class RuntimeFactory {
         fatal: console.error.bind(console),
         success: (
           obj: string | Error | Record<string, unknown>,
-          msg?: string,
+          msg?: string
         ) => {
           logger.info(typeof obj === "string" ? `✓ ${obj}` : ["✓", obj, msg]);
         },
@@ -363,7 +331,7 @@ export class RuntimeFactory {
   /** Wait for MCP service if plugin loaded */
   private async waitForMcpServiceIfNeeded(
     runtime: AgentRuntime,
-    plugins: Plugin[],
+    plugins: Plugin[]
   ): Promise<void> {
     if (!plugins.some((p) => p.name === "mcp")) return;
 
@@ -393,7 +361,7 @@ export class RuntimeFactory {
     const servers = mcpService.getServers?.();
     if (servers) {
       elizaLogger.info(
-        `[RuntimeFactory] MCP: ${servers.length} server(s) connected`,
+        `[RuntimeFactory] MCP: ${servers.length} server(s) connected`
       );
     }
   }

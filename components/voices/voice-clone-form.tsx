@@ -121,7 +121,7 @@ export function VoiceCloneForm({
         const data = await response.json();
         if (data.success && data.voices) {
           const proCount = data.voices.filter(
-            (v: Voice) => v.cloneType === "professional",
+            (v: Voice) => v.cloneType === "professional"
           ).length;
           setProfessionalVoiceCount(proCount);
         }
@@ -255,7 +255,7 @@ export function VoiceCloneForm({
 
     if (!hasEnoughCredits) {
       setError(
-        `Insufficient balance. You need $${cost.toFixed(2)} but have $${Number(creditBalance).toFixed(2)}`,
+        `Insufficient balance. You need $${cost.toFixed(2)} but have $${Number(creditBalance).toFixed(2)}`
       );
       return;
     }
@@ -300,11 +300,11 @@ export function VoiceCloneForm({
       if (formData.cloneType === "professional") {
         toast.success(
           `Voice "${formData.name}" is being created. Professional cloning takes 30-60 minutes. Check back later!`,
-          { duration: 10000 },
+          { duration: 10000 }
         );
       } else {
         toast.success(
-          `Voice "${formData.name}" created successfully and ready to use!`,
+          `Voice "${formData.name}" created successfully and ready to use!`
         );
       }
 
@@ -350,9 +350,6 @@ export function VoiceCloneForm({
               Create Voice Clone
             </h3>
           </div>
-          <span className="border border-white/20 bg-transparent px-2 py-0.5 text-xs font-mono font-medium text-white/80 whitespace-nowrap">
-            ${Number(creditBalance).toFixed(2)}
-          </span>
         </div>
       </div>
       <form
@@ -420,7 +417,7 @@ export function VoiceCloneForm({
                   "flex-1 border px-3 py-2 text-left transition-all",
                   formData.cloneType === "instant"
                     ? "border-[#FF5800] bg-[#FF580010]"
-                    : "border-white/10 hover:border-white/30 hover:bg-white/5",
+                    : "border-white/10 hover:border-white/30 hover:bg-white/5"
                 )}
               >
                 <div className="flex items-center justify-between gap-2">
@@ -432,9 +429,6 @@ export function VoiceCloneForm({
                       Rec
                     </span>
                   </div>
-                  <span className="font-mono font-semibold text-xs text-white/80">
-                    ${VOICE_CLONE_INSTANT_COST.toFixed(2)}
-                  </span>
                 </div>
                 <div className="flex items-center gap-2 text-[9px] font-mono text-white/50 mt-1">
                   <span>~30s</span>
@@ -456,7 +450,7 @@ export function VoiceCloneForm({
                   "flex-1 border px-3 py-2 text-left transition-all",
                   formData.cloneType === "professional"
                     ? "border-[#FF5800] bg-[#FF580010]"
-                    : "border-white/10 hover:border-white/30 hover:bg-white/5",
+                    : "border-white/10 hover:border-white/30 hover:bg-white/5"
                 )}
               >
                 <div className="flex items-center justify-between gap-2">
@@ -471,9 +465,6 @@ export function VoiceCloneForm({
                         </span>
                       )}
                   </div>
-                  <span className="font-mono font-semibold text-xs text-white/80">
-                    ${VOICE_CLONE_PROFESSIONAL_COST.toFixed(2)}
-                  </span>
                 </div>
                 <div className="flex items-center gap-2 text-[9px] font-mono text-white/50 mt-1">
                   <span>30-60 min</span>
@@ -517,7 +508,7 @@ export function VoiceCloneForm({
                     "border border-dashed p-4 text-center transition-colors cursor-pointer w-full",
                     isDragging
                       ? "border-[#FF5800] bg-[#FF5800]/5"
-                      : "border-white/20 hover:border-white/40 bg-black/20",
+                      : "border-white/20 hover:border-white/40 bg-black/20"
                   )}
                   onClick={() => fileInputRef.current?.click()}
                   disabled={isUploading}

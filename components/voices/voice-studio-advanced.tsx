@@ -19,6 +19,7 @@ import {
   Loader2,
   AlertCircle,
   Library,
+  RefreshCw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { VoiceCloneForm } from "./voice-clone-form";
@@ -314,13 +315,14 @@ export function VoiceStudioAdvanced({
                   type="button"
                   onClick={manualRefresh}
                   disabled={operationState.isRefreshing}
-                  className="px-3 py-2 border border-white/20 bg-transparent text-white hover:bg-white/5 transition-colors disabled:opacity-50 flex-shrink-0"
+                  className="inline-flex items-center gap-1.5 px-2 py-1 border border-white/20 bg-white/5 text-white hover:bg-white/10 transition-colors disabled:opacity-50 flex-shrink-0 rounded-sm"
                 >
                   {operationState.isRefreshing ? (
                     <Loader2 className="h-3 w-3 animate-spin" />
                   ) : (
-                    <span className="text-xs font-mono">Refresh</span>
+                    <RefreshCw className="h-3 w-3" />
                   )}
+                  <span className="text-xs font-mono">Refresh</span>
                 </button>
               </div>
               <div className="flex items-center gap-2 flex-wrap">

@@ -33,6 +33,7 @@ import {
   Pencil,
   Trash2,
   MoreHorizontal,
+  Upload,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -43,6 +44,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { DashboardAgentStats as AgentStats } from "@/lib/actions/dashboard";
@@ -281,6 +283,46 @@ function AgentCard({ agent }: { agent: Agent }) {
   const [isDeleting, setIsDeleting] = React.useState(false);
   const [dropdownOpen, setDropdownOpen] = React.useState(false);
 
+  const handleDuplicate = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDropdownOpen(false);
+
+    toast.info("Duplicating agent...");
+
+    const response = await fetch(`/api/my-agents/characters/${agent.id}/clone`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: `${agent.name} (Copy)` }),
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      toast.success(`Created "${data.data.character.name}"`);
+      router.refresh();
+      router.push(`/dashboard/build?characterId=${data.data.character.id}`);
+    } else {
+      const error = await response.json();
+      toast.error(error.error || "Failed to duplicate agent");
+    }
+  };
+
+  const handleExport = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDropdownOpen(false);
+
+    const dataStr = JSON.stringify(agent, null, 2);
+    const dataBlob = new Blob([dataStr], { type: "application/json" });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${agent.name || "agent"}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+    toast.success("Agent exported successfully");
+  };
+
   const handleDeleteClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -299,6 +341,7 @@ function AgentCard({ agent }: { agent: Agent }) {
     if (response.ok) {
       toast.success("Agent deleted");
       setShowDeleteConfirm(false);
+      window.dispatchEvent(new Event("characters-updated"));
       router.refresh();
     } else {
       toast.error("Failed to delete agent");
@@ -327,16 +370,16 @@ function AgentCard({ agent }: { agent: Agent }) {
       onClick={handleCardClick}
     >
       <div className="group relative h-full overflow-hidden border border-white/10 bg-black/40 transition-all duration-300 hover:border-[#FF5800]/50 hover:shadow-lg hover:shadow-[#FF5800]/10 hover:-translate-y-1">
-        {/* Avatar Section - Large prominent image */}
-        <div className={cn("relative h-36 w-full overflow-hidden")}>
+        <div className={cn("relative aspect-square w-full overflow-hidden")}>
           <Skeleton className="absolute inset-0 w-full h-full" />
 
           <Image
             src={ensureAvatarUrl(agent.avatarUrl)}
             alt={agent.name}
             fill
-            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, (max-width: 1280px) 33vw, 25vw"
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
             className="object-cover transition-transform duration-500 group-hover:scale-110"
+            priority
             unoptimized={!isBuiltInAvatar(agent.avatarUrl)}
           />
 
@@ -375,6 +418,21 @@ function AgentCard({ agent }: { agent: Agent }) {
                   Edit
                 </DropdownMenuItem>
               </Link>
+              <DropdownMenuItem
+                onClick={handleDuplicate}
+                className="cursor-pointer"
+              >
+                <Copy className="h-4 w-4 mr-2" />
+                Duplicate
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={handleExport}
+                className="cursor-pointer"
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                Export JSON
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={handleDeleteClick}
                 className="cursor-pointer text-red-600 focus:text-red-600"

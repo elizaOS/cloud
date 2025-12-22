@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { requireAuthWithOrg } from "@/lib/auth";
 import { charactersService } from "@/lib/services/characters";
 import { logger } from "@/lib/utils/logger";
@@ -54,6 +55,9 @@ export async function DELETE(
   }
 
   await charactersService.delete(id);
+
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/my-agents");
 
   return NextResponse.json({
     success: true,

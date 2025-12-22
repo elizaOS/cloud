@@ -217,18 +217,6 @@ export function ContainersTable({ containers }: ContainersTableProps) {
           <Server className="h-12 w-12 text-muted-foreground" />
         </div>
         <h3 className="text-2xl font-semibold mb-2">No containers deployed</h3>
-        <p className="text-muted-foreground mb-6 text-center max-w-md">
-          Get started by deploying your first ElizaOS container using the CLI
-        </p>
-        <div className="bg-muted p-4 rounded-lg font-mono text-sm space-y-2 max-w-lg w-full">
-          <div className="text-muted-foreground"># Install ElizaOS CLI</div>
-          <div className="text-foreground">bun install -g @elizaos/cli</div>
-          <div className="text-muted-foreground mt-3">
-            # Deploy your project
-          </div>
-          <div className="text-foreground">cd your-elizaos-project</div>
-          <div className="text-foreground">elizaos deploy</div>
-        </div>
       </div>
     );
   }
@@ -443,7 +431,7 @@ export function ContainersTable({ containers }: ContainersTableProps) {
                           {container.last_deployed_at && (
                             <div className="text-xs text-muted-foreground">
                               {new Date(
-                                container.last_deployed_at,
+                                container.last_deployed_at
                               ).toLocaleTimeString([], {
                                 hour: "2-digit",
                                 minute: "2-digit",
@@ -476,7 +464,7 @@ export function ContainersTable({ containers }: ContainersTableProps) {
                                   onClick={() => {
                                     window.open(
                                       container.load_balancer_url!,
-                                      "_blank",
+                                      "_blank"
                                     );
                                   }}
                                 >

@@ -33,18 +33,24 @@ const pluginsPromise = Promise.all([
 // Hook to access shared plugins - all components share the same cache
 function useMarkdownPlugins() {
   const [plugins, setPlugins] = useState(pluginsCache);
-  
+
   useEffect(() => {
+    // Only subscribe to promise if cache isn't already loaded
     if (!pluginsCache && !pluginsLoading) {
       pluginsLoading = true;
-      pluginsPromise.then((loaded) => {
-        setPlugins(loaded);
-      });
-    } else if (pluginsCache && !plugins) {
-      setPlugins(pluginsCache);
     }
-  }, [plugins]);
-  
+    // Subscribe to the promise - it will resolve immediately if already loaded
+    let mounted = true;
+    pluginsPromise.then((loaded) => {
+      if (mounted) {
+        setPlugins(loaded);
+      }
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   return plugins;
 }
 
@@ -77,7 +83,7 @@ interface MemoizedChatMessageProps {
   onCopy: (
     text: string,
     messageId: string,
-    attachments?: Message["content"]["attachments"],
+    attachments?: Message["content"]["attachments"]
   ) => void;
   onPlayAudio?: (messageId: string) => void;
   onImageLoad?: () => void;
@@ -104,12 +110,12 @@ const markdownComponents = {
       </code>
     );
   },
-  pre: ({ children }: { children: React.ReactNode }) => (
+  pre: ({ children }: { children?: React.ReactNode }) => (
     <pre className="bg-black/40 border border-white/10 rounded-lg p-3 overflow-x-auto [&>code]:whitespace-pre-wrap [&>code]:break-words">
       {children}
     </pre>
   ),
-  a: ({ href, children }: { href?: string; children: React.ReactNode }) => (
+  a: ({ href, children }: { href?: string; children?: React.ReactNode }) => (
     <a
       href={href}
       target="_blank"
@@ -119,17 +125,16 @@ const markdownComponents = {
       {children}
     </a>
   ),
-  ul: ({ children }: { children: React.ReactNode }) => (
+  ul: ({ children }: { children?: React.ReactNode }) => (
     <ul className="list-disc list-inside">{children}</ul>
   ),
-  ol: ({ children }: { children: React.ReactNode }) => (
+  ol: ({ children }: { children?: React.ReactNode }) => (
     <ol className="list-decimal list-inside">{children}</ol>
   ),
 };
 
 function ChatMessageComponent({
   message,
-  index,
   characterName,
   characterAvatarUrl,
   copiedMessageId,
@@ -147,13 +152,12 @@ function ChatMessageComponent({
 
   return (
     <div
-      className={`flex ${message.isAgent ? "justify-start" : "justify-end"} animate-in fade-in slide-in-from-bottom-4 duration-500`}
-      style={{ animationDelay: `${index * 50}ms` }}
+      className={`flex ${message.isAgent ? "justify-start" : "justify-end"}`}
     >
       {message.isAgent ? (
-        <div className="flex flex-col gap-1.5 max-w-[85%] sm:max-w-[75%] group/message">
+        <div className="flex flex-col gap-0.5 max-w-[85%] sm:max-w-[75%] group/message">
           {/* Agent Name Row with Avatar */}
-          <div className="flex items-center gap-2 pl-1">
+          <div className="flex items-center gap-2">
             <ElizaAvatar
               avatarUrl={characterAvatarUrl}
               name={characterName}
@@ -166,16 +170,16 @@ function ChatMessageComponent({
             </span>
           </div>
 
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-0.5">
             {isThinking ? (
-              <div className="flex items-center gap-2 py-3 px-4 bg-white/[0.03] border border-white/[0.06] rounded-lg">
+              <div className="flex items-center gap-2 py-2 px-3 bg-white/[0.03] border border-white/[0.06] rounded-lg">
                 <Loader2 className="h-4 w-4 animate-spin text-white/40" />
                 <span className="text-sm text-white/40">thinking...</span>
               </div>
             ) : (
               <>
                 {/* Message Text - Always show content immediately, upgrade to markdown when ready */}
-                <div className="py-3 px-4 bg-none border border-none rounded-lg transition-colors hover:bg-none hover:border-none overflow-hidden">
+                <div className="overflow-hidden">
                   <div className="text-[15px] leading-relaxed text-white/90 prose prose-invert prose-sm max-w-none prose-p:my-2 prose-ul:my-2 prose-ol:my-2 prose-li:my-1 prose-headings:my-3 prose-pre:my-2 break-words [&_pre]:overflow-x-auto [&_pre_code]:whitespace-pre-wrap [&_pre_code]:break-words">
                     {plugins && ReactMarkdown ? (
                       <ReactMarkdown
@@ -227,7 +231,7 @@ function ChatMessageComponent({
                   )}
 
                 {/* Time and Actions */}
-                <div className="flex items-center gap-2 pl-1 opacity-0 group-hover/message:opacity-100 transition-opacity">
+                <div className="flex items-center gap-2 opacity-0 group-hover/message:opacity-100 transition-opacity">
                   <span className="text-xs text-white/40">
                     {formatTimestamp(message.createdAt)}
                   </span>
@@ -239,7 +243,7 @@ function ChatMessageComponent({
                       onCopy(
                         message.content.text,
                         message.id,
-                        message.content.attachments,
+                        message.content.attachments
                       )
                     }
                     title="Copy message"
@@ -270,15 +274,15 @@ function ChatMessageComponent({
           </div>
         </div>
       ) : (
-        <div className="flex flex-col gap-1.5 max-w-[85%] sm:max-w-[75%] group/message">
+        <div className="flex flex-col max-w-[85%] sm:max-w-[75%] group/message items-end">
           {/* User Message */}
-          <div className="py-3 px-4 bg-[#FF5800]/10 border border-[#FF5800]/20 rounded-lg transition-colors hover:bg-[#FF5800]/15 hover:border-[#FF5800]/30 w-fit">
+          <div className="py-2 px-3 bg-[#FF5800]/10 border border-[#FF5800]/20 rounded-lg transition-colors hover:bg-[#FF5800]/15 hover:border-[#FF5800]/30 w-fit ml-auto">
             <div className="whitespace-pre-wrap text-[15px] leading-relaxed text-white/95 text-left">
               {message.content.text}
             </div>
           </div>
           {/* Time and Actions */}
-          <div className="flex items-center gap-2 justify-end pr-1 opacity-0 group-hover/message:opacity-100 transition-opacity">
+          <div className="flex items-center gap-2 justify-end opacity-0 group-hover/message:opacity-100 transition-opacity">
             <span className="text-xs text-white/40">
               {formatTimestamp(message.createdAt)}
             </span>
@@ -290,7 +294,7 @@ function ChatMessageComponent({
                 onCopy(
                   message.content.text,
                   message.id,
-                  message.content.attachments,
+                  message.content.attachments
                 )
               }
               title="Copy message"
@@ -312,7 +316,7 @@ function ChatMessageComponent({
 export const MemoizedChatMessage = memo(
   ChatMessageComponent,
   (prevProps, nextProps) => {
-    // Only re-render if these specific props change
+    // Compare relevant props - streaming messages use streaming- prefix
     return (
       prevProps.message.id === nextProps.message.id &&
       prevProps.message.content.text === nextProps.message.content.text &&
@@ -321,5 +325,5 @@ export const MemoizedChatMessage = memo(
       prevProps.isPlaying === nextProps.isPlaying &&
       prevProps.hasAudioUrl === nextProps.hasAudioUrl
     );
-  },
+  }
 );

@@ -6,6 +6,7 @@
 
 "use client";
 
+import { useState, useEffect } from "react";
 import { usePrivy, useLogout } from "@privy-io/react-auth";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -17,7 +18,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   LogOut,
   Loader2,
@@ -31,12 +32,61 @@ import { useRouter } from "next/navigation";
 import { useCredits } from "@/lib/providers/CreditsProvider";
 import { useChatStore } from "@/lib/stores/chat-store";
 
+interface UserProfile {
+  id: string;
+  name: string | null;
+  avatar: string | null;
+  email: string | null;
+}
+
 export default function UserMenu() {
   const { ready, authenticated, user } = usePrivy();
   const { logout } = useLogout();
   const router = useRouter();
   const { creditBalance, isLoading: loadingCredits } = useCredits();
   const { clearChatData } = useChatStore();
+
+  // User profile state for avatar
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+
+  // Fetch user profile from API to get avatar
+  useEffect(() => {
+    if (!authenticated) return;
+
+    let mounted = true;
+
+    const fetchProfile = async () => {
+      try {
+        const response = await fetch("/api/v1/user");
+        if (response.ok && mounted) {
+          const data = await response.json();
+          if (data.success && data.data) {
+            setUserProfile({
+              id: data.data.id,
+              name: data.data.name,
+              avatar: data.data.avatar,
+              email: data.data.email,
+            });
+          }
+        }
+      } catch (error) {
+        console.error("Failed to fetch user profile:", error);
+      }
+    };
+
+    fetchProfile();
+
+    // Listen for avatar updates (when user saves a new avatar in settings)
+    const handleAvatarUpdate = () => {
+      fetchProfile();
+    };
+    window.addEventListener("user-avatar-updated", handleAvatarUpdate);
+
+    return () => {
+      mounted = false;
+      window.removeEventListener("user-avatar-updated", handleAvatarUpdate);
+    };
+  }, [authenticated]);
 
   // Loading state
   if (!ready) {
@@ -165,14 +215,42 @@ export default function UserMenu() {
     return "No identifier";
   };
 
+  // Get user initials for fallback
+  const getInitials = () => {
+    const name = userProfile?.name || getUserName();
+    if (name && name !== "User") {
+      return name
+        .split(" ")
+        .map((n) => n[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2);
+    }
+    const email = userProfile?.email || getUserEmail();
+    if (email) {
+      return email.slice(0, 2).toUpperCase();
+    }
+    return "U";
+  };
+
   // Signed in state
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+        <Button
+          variant="ghost"
+          className="relative h-10 w-10 rounded-full ring-2 ring-transparent hover:ring-[#FF5800]/50 transition-all"
+        >
           <Avatar className="h-10 w-10">
-            <AvatarFallback className="bg-primary text-primary-foreground">
-              <User className="select-none" />
+            {userProfile?.avatar && (
+              <AvatarImage
+                src={userProfile.avatar}
+                alt={userProfile.name || "User avatar"}
+                className="object-cover"
+              />
+            )}
+            <AvatarFallback className="bg-gradient-to-br from-[#FF5800]/20 to-[#FF5800]/5 text-white font-semibold">
+              {getInitials()}
             </AvatarFallback>
           </Avatar>
         </Button>

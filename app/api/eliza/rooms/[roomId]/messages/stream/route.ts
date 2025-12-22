@@ -543,7 +543,9 @@ export async function POST(
       runtime.character.settings = {
         ...runtime.character.settings,
         clientCharacterState: validatedState.data,
-        isClientStateUnsaved: agentModeConfig.metadata.isUnsaved ?? true,
+        isClientStateUnsaved: typeof agentModeConfig.metadata.isUnsaved === 'boolean'
+          ? agentModeConfig.metadata.isUnsaved
+          : true,
       };
       logger.info(
         "[Stream] BUILD mode - Stored validated client character state in runtime settings",
@@ -596,6 +598,8 @@ export async function POST(
             type: "user",
           });
 
+          const responseMessageId = `agent-${crypto.randomUUID()}`;
+
           // Send thinking indicator
           sendEvent("message", {
             id: `thinking-${Date.now()}`,
@@ -606,14 +610,24 @@ export async function POST(
             type: "thinking",
           });
 
+          // Create streaming callback to send chunks via SSE in real-time
+          const onStreamChunk = async (chunk: string) => {
+            sendEvent("chunk", {
+              messageId: responseMessageId,
+              chunk,
+              timestamp: Date.now(),
+            });
+          };
+
           // Process message and get response (using user's actual ID)
-          logger.info("[Stream Messages] Processing message...");
+          logger.info("[Stream Messages] Processing message with streaming...");
           const result = await messageHandler.process({
             roomId,
             text,
             model,
             agentModeConfig,
             attachments,
+            onStreamChunk,
           });
 
           // Extract content - the full Content object is now stored in memory
@@ -652,9 +666,8 @@ export async function POST(
             responseContentPayload.metadata = messageContent.metadata;
           }
 
-          // Send agent response
           sendEvent("message", {
-            id: result.message.id,
+            id: responseMessageId,
             entityId: result.message.entityId,
             agentId: result.message.agentId,
             content: responseContentPayload,
