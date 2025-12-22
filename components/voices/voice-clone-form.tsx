@@ -350,9 +350,6 @@ export function VoiceCloneForm({
               Create Voice Clone
             </h3>
           </div>
-          <span className="border border-white/20 bg-transparent px-2 py-0.5 text-xs font-mono font-medium text-white/80 whitespace-nowrap">
-            ${Number(creditBalance).toFixed(2)}
-          </span>
         </div>
       </div>
       <form
@@ -468,9 +465,6 @@ export function VoiceCloneForm({
                         </span>
                       )}
                   </div>
-                  <span className="font-mono font-semibold text-xs text-white/80">
-                    ${VOICE_CLONE_PROFESSIONAL_COST.toFixed(2)}
-                  </span>
                 </div>
                 <div className="flex items-center gap-2 text-[9px] font-mono text-white/50 mt-1">
                   <span>30-60 min</span>
