@@ -45,14 +45,14 @@ export default function UserMenu() {
   const router = useRouter();
   const { creditBalance, isLoading: loadingCredits } = useCredits();
   const { clearChatData } = useChatStore();
-  
+
   // User profile state for avatar
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
 
   // Fetch user profile from API to get avatar
   const fetchUserProfile = useCallback(async () => {
     if (!authenticated) return;
-    
+
     try {
       const response = await fetch("/api/v1/user");
       if (response.ok) {
@@ -81,7 +81,7 @@ export default function UserMenu() {
     const handleAvatarUpdate = () => {
       fetchUserProfile();
     };
-    
+
     window.addEventListener("user-avatar-updated", handleAvatarUpdate);
     return () => {
       window.removeEventListener("user-avatar-updated", handleAvatarUpdate);
@@ -237,11 +237,14 @@ export default function UserMenu() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="relative h-10 w-10 rounded-full ring-2 ring-transparent hover:ring-[#FF5800]/50 transition-all">
-          <Avatar className="h-10 w-10">
+        <Button
+          variant="ghost"
+          className="relative h-10 w-10 rounded-full ring-2 ring-transparent hover:ring-[#FF5800]/50 transition-all"
+        >
+          <Avatar className="h-12 w-12">
             {userProfile?.avatar && (
-              <AvatarImage 
-                src={userProfile.avatar} 
+              <AvatarImage
+                src={userProfile.avatar}
                 alt={userProfile.name || "User avatar"}
                 className="object-cover"
               />
