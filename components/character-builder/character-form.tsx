@@ -116,14 +116,14 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
             <BrandTabsTrigger value="basics" className="flex-1">
               Basics
             </BrandTabsTrigger>
-            <BrandTabsTrigger value="avatar" className="flex-1">
-              Avatar
-            </BrandTabsTrigger>
             <BrandTabsTrigger value="personality" className="flex-1">
               Personality
             </BrandTabsTrigger>
             <BrandTabsTrigger value="style" className="flex-1">
               Style
+            </BrandTabsTrigger>
+            <BrandTabsTrigger value="avatar" className="flex-1">
+              Avatar
             </BrandTabsTrigger>
           </BrandTabsList>
 
