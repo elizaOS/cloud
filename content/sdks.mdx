@@ -11,46 +11,82 @@ import { Callout, Tabs, Cards } from 'nextra/components'
 
 Integrate elizaOS Cloud with official SDKs and community libraries.
 
-## Official SDKs
+## Quick Start
 
-### JavaScript/TypeScript
+Since elizaOS Cloud is **100% OpenAI API compatible**, you can use any existing OpenAI SDK by simply changing the base URL. No special SDK required!
 
-The official TypeScript SDK for elizaOS Cloud:
-
-```bash
-bun add @elizaos/cloud
-```
-
+<Tabs items={['TypeScript', 'Python', 'cURL']}>
+  <Tabs.Tab>
 ```typescript
-import { ElizaCloud } from '@elizaos/cloud';
+import OpenAI from 'openai';
 
-const client = new ElizaCloud({
+const client = new OpenAI({
   apiKey: process.env.ELIZA_API_KEY,
+  baseURL: 'https://elizacloud.ai/api/v1',
 });
 
-// Chat completion
 const response = await client.chat.completions.create({
   model: 'gpt-4o',
-  messages: [
-    { role: 'user', content: 'Hello!' }
-  ],
+  messages: [{ role: 'user', content: 'Hello!' }],
 });
 
 console.log(response.choices[0].message.content);
 ```
+  </Tabs.Tab>
+  <Tabs.Tab>
+```python
+from openai import OpenAI
 
-#### Features
+client = OpenAI(
+    api_key="ek_xxx",
+    base_url="https://elizacloud.ai/api/v1"
+)
 
-- Full TypeScript support
-- Automatic retries
-- Streaming support
-- Rate limit handling
-- All API endpoints
+response = client.chat.completions.create(
+    model="gpt-4o",
+    messages=[{"role": "user", "content": "Hello!"}]
+)
 
-#### Examples
+print(response.choices[0].message.content)
+```
+  </Tabs.Tab>
+  <Tabs.Tab>
+```bash
+curl -X POST "https://elizacloud.ai/api/v1/chat/completions" \
+  -H "Authorization: Bearer $ELIZA_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "gpt-4o",
+    "messages": [{"role": "user", "content": "Hello!"}]
+  }'
+```
+  </Tabs.Tab>
+</Tabs>
+
+## JavaScript / TypeScript
+
+### Installation
+
+```bash
+npm install openai
+# or
+bun add openai
+```
+
+### Basic Usage
 
 ```typescript
-// Streaming
+import OpenAI from 'openai';
+
+const client = new OpenAI({
+  apiKey: process.env.ELIZA_API_KEY,
+  baseURL: 'https://elizacloud.ai/api/v1',
+});
+```
+
+### Streaming
+
+```typescript
 const stream = await client.chat.completions.create({
   model: 'gpt-4o',
   messages: [{ role: 'user', content: 'Tell me a story' }],
@@ -60,25 +96,26 @@ const stream = await client.chat.completions.create({
 for await (const chunk of stream) {
   process.stdout.write(chunk.choices[0]?.delta?.content || '');
 }
+```
 
-// Image generation
-const image = await client.images.generate({
-  prompt: 'A sunset over mountains',
-  model: 'fal-ai/flux/schnell',
-});
+### Embeddings
 
-console.log(image.images[0].url);
-
-// Embeddings
+```typescript
 const embedding = await client.embeddings.create({
   input: 'Hello world',
   model: 'text-embedding-3-small',
 });
 ```
 
-### Python
+## Python
 
-Use the OpenAI Python SDK with elizaOS Cloud (recommended approach):
+### Installation
+
+```bash
+pip install openai
+```
+
+### Basic Usage
 
 ```python
 from openai import OpenAI
@@ -96,54 +133,60 @@ response = client.chat.completions.create(
 print(response.choices[0].message.content)
 ```
 
-This works because elizaOS Cloud is fully OpenAI-compatible.
-
-## OpenAI Compatibility
-
-elizaOS Cloud is OpenAI-compatible. Use existing OpenAI SDKs:
-
-### JavaScript
-
-```typescript
-import OpenAI from 'openai';
-
-const client = new OpenAI({
-  apiKey: process.env.ELIZA_API_KEY,
-  baseURL: 'https://elizacloud.ai/api/v1',
-});
-
-const response = await client.chat.completions.create({
-  model: 'gpt-4o',
-  messages: [{ role: 'user', content: 'Hello!' }],
-});
-```
-
-### Python
+### Streaming
 
 ```python
-from openai import OpenAI
-
-client = OpenAI(
-    api_key="ek_xxx",
-    base_url="https://elizacloud.ai/api/v1"
-)
-
-response = client.chat.completions.create(
+stream = client.chat.completions.create(
     model="gpt-4o",
-    messages=[{"role": "user", "content": "Hello!"}]
+    messages=[{"role": "user", "content": "Tell me a story"}],
+    stream=True
 )
+
+for chunk in stream:
+    if chunk.choices[0].delta.content:
+        print(chunk.choices[0].delta.content, end="")
 ```
 
-### cURL
+## elizaOS-Specific APIs
 
-```bash
-curl -X POST "https://elizacloud.ai/api/v1/chat/completions" \
-  -H "Authorization: Bearer $ELIZA_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model": "gpt-4o",
-    "messages": [{"role": "user", "content": "Hello!"}]
-  }'
+For APIs that extend beyond OpenAI compatibility (images, video, voice), use direct HTTP calls:
+
+### Image Generation
+
+```typescript
+const response = await fetch('https://elizacloud.ai/api/v1/generate-image', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${process.env.ELIZA_API_KEY}`,
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    prompt: 'A sunset over mountains',
+    model: 'fal-ai/flux/schnell',
+  }),
+});
+
+const data = await response.json();
+console.log(data.images[0].url);
+```
+
+### Video Generation
+
+```typescript
+const response = await fetch('https://elizacloud.ai/api/v1/generate-video', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${process.env.ELIZA_API_KEY}`,
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    prompt: 'A cat playing piano',
+    duration: 5,
+  }),
+});
+
+const data = await response.json();
+console.log(data.video_url);
 ```
 
 ## Framework Integrations
@@ -230,21 +273,23 @@ Since elizaOS Cloud is OpenAI-compatible, you can use any OpenAI SDK in your pre
 
 Simply configure the base URL to `https://elizacloud.ai/api/v1` and use your elizaOS API key.
 
-## SDK Features
+## Feature Support
 
-Since elizaOS Cloud is OpenAI-compatible, features depend on the OpenAI SDK you use:
-
-| Feature | Official TS SDK | OpenAI SDKs |
-|---------|-----------------|-------------|
+| Feature | OpenAI SDK | Direct REST |
+|---------|------------|-------------|
 | Chat Completions | ✅ | ✅ |
 | Streaming | ✅ | ✅ |
 | Embeddings | ✅ | ✅ |
-| Images | ✅ | ✅ (via REST) |
-| Videos | ✅ | REST only |
-| Knowledge | ✅ | REST only |
-| MCP | ✅ | REST only |
-| Auto-retry | ✅ | Varies |
-| TypeScript Types | ✅ | Varies |
+| Image Generation | ❌ | ✅ |
+| Video Generation | ❌ | ✅ |
+| Voice / TTS | ❌ | ✅ |
+| Knowledge Base | ❌ | ✅ |
+| MCP Tools | ❌ | ✅ |
+| Agents API | ❌ | ✅ |
+
+<Callout type="info">
+  OpenAI SDK compatibility covers chat, embeddings, and streaming. For elizaOS-specific features like image/video generation, use direct REST calls.
+</Callout>
 
 ## Contributing
 

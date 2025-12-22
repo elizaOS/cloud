@@ -125,11 +125,18 @@ print(data['images'][0]['url'])
 
 ## Available Models
 
-| Model | Quality | Speed | Best For |
-|-------|---------|-------|----------|
-| `fal-ai/flux/schnell` | High | Fast | General use |
-| `fal-ai/flux/dev` | Higher | Medium | Detailed images |
-| `fal-ai/flux-pro` | Highest | Slower | Professional |
+| Model | Quality | Speed | Credits | Best For |
+|-------|---------|-------|---------|----------|
+| `fal-ai/flux/schnell` | High | ~2s | 2 | General use, prototyping |
+| `fal-ai/flux/dev` | Higher | ~8s | 5 | Detailed images, fine art |
+| `fal-ai/flux-pro` | Highest | ~15s | 10 | Professional, production |
+| `fal-ai/flux-pro/v1.1` | Highest | ~12s | 12 | Latest pro model |
+| `fal-ai/flux-realism` | Photorealistic | ~10s | 8 | Photo-realistic images |
+| `fal-ai/stable-diffusion-v3-medium` | High | ~5s | 3 | Stable Diffusion 3 |
+
+<Callout type="info">
+  **Tip:** Start with `flux/schnell` for quick iterations, then switch to `flux-pro` for final production images.
+</Callout>
 
 ---
 
@@ -137,18 +144,101 @@ print(data['images'][0]['url'])
 
 ### Be Specific
 
+Good prompts include subject, style, lighting, and composition details:
+
 ```json
 {
-  "prompt": "A golden retriever puppy playing in autumn leaves, 
-             golden hour lighting, shallow depth of field"
+  "prompt": "A golden retriever puppy playing in autumn leaves, golden hour lighting, shallow depth of field, professional photography, Canon EOS R5"
 }
 ```
 
 ### Use Negative Prompts
 
+Exclude unwanted elements from your generation:
+
 ```json
 {
-  "prompt": "Portrait of a woman, natural lighting",
-  "negative_prompt": "blurry, distorted, low quality"
+  "prompt": "Portrait of a woman, natural lighting, studio photography",
+  "negative_prompt": "blurry, distorted, low quality, watermark, text, oversaturated"
+}
+```
+
+### Style Keywords
+
+Enhance your prompts with these style modifiers:
+
+| Category | Keywords |
+|----------|----------|
+| Photography | `professional photo`, `DSLR`, `35mm film`, `macro`, `portrait` |
+| Art Styles | `oil painting`, `watercolor`, `digital art`, `concept art`, `anime` |
+| Lighting | `golden hour`, `studio lighting`, `dramatic shadows`, `soft light` |
+| Quality | `highly detailed`, `8K`, `masterpiece`, `award winning` |
+
+---
+
+## Error Handling
+
+| Code | Error | Solution |
+|------|-------|----------|
+| 400 | Invalid prompt | Check prompt is non-empty string |
+| 400 | Invalid model | Use a supported model from the list above |
+| 402 | Insufficient credits | Add credits to your account |
+| 429 | Rate limited | Wait and retry with exponential backoff |
+| 500 | Generation failed | Retry, or try a different model |
+
+### Example Error Response
+
+```json
+{
+  "error": {
+    "code": "INSUFFICIENT_CREDITS",
+    "message": "You need at least 2 credits for this request",
+    "required": 2,
+    "available": 0
+  }
+}
+```
+
+---
+
+## Batch Generation
+
+Generate multiple images in a single request (up to 4):
+
+```bash
+curl -X POST "https://elizacloud.ai/api/v1/generate-image" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "prompt": "Cyberpunk cityscape at night",
+    "model": "fal-ai/flux/schnell",
+    "num_images": 4,
+    "seed": 42
+  }'
+```
+
+Using the same `seed` with `num_images > 1` generates variations on the same concept.
+
+---
+
+## Webhook Notifications
+
+For long-running generations, use webhooks instead of polling:
+
+```json
+{
+  "prompt": "Complex detailed scene...",
+  "model": "fal-ai/flux-pro",
+  "webhook_url": "https://your-server.com/webhook/image-ready"
+}
+```
+
+Your webhook receives:
+
+```json
+{
+  "event": "image.completed",
+  "request_id": "req_abc123",
+  "images": [{ "url": "https://..." }]
 }
 ```
