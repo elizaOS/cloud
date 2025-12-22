@@ -299,6 +299,7 @@ function AgentCard({ agent }: { agent: Agent }) {
     if (response.ok) {
       toast.success("Agent deleted");
       setShowDeleteConfirm(false);
+      window.dispatchEvent(new Event("characters-updated"));
       router.refresh();
     } else {
       toast.error("Failed to delete agent");

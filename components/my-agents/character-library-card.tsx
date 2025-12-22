@@ -105,6 +105,7 @@ export function CharacterLibraryCard({
     if (response.ok) {
       toast.success(`Deleted ${character.name}`);
       setShowDeleteConfirm(false);
+      window.dispatchEvent(new Event("characters-updated"));
       router.refresh();
     } else {
       const error = await response.json();
