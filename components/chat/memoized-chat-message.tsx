@@ -33,18 +33,24 @@ const pluginsPromise = Promise.all([
 // Hook to access shared plugins - all components share the same cache
 function useMarkdownPlugins() {
   const [plugins, setPlugins] = useState(pluginsCache);
-  
+
   useEffect(() => {
+    // Only subscribe to promise if cache isn't already loaded
     if (!pluginsCache && !pluginsLoading) {
       pluginsLoading = true;
-      pluginsPromise.then((loaded) => {
-        setPlugins(loaded);
-      });
-    } else if (pluginsCache && !plugins) {
-      setPlugins(pluginsCache);
     }
-  }, [plugins]);
-  
+    // Subscribe to the promise - it will resolve immediately if already loaded
+    let mounted = true;
+    pluginsPromise.then((loaded) => {
+      if (mounted) {
+        setPlugins(loaded);
+      }
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   return plugins;
 }
 
@@ -77,7 +83,7 @@ interface MemoizedChatMessageProps {
   onCopy: (
     text: string,
     messageId: string,
-    attachments?: Message["content"]["attachments"],
+    attachments?: Message["content"]["attachments"]
   ) => void;
   onPlayAudio?: (messageId: string) => void;
   onImageLoad?: () => void;
@@ -237,7 +243,7 @@ function ChatMessageComponent({
                       onCopy(
                         message.content.text,
                         message.id,
-                        message.content.attachments,
+                        message.content.attachments
                       )
                     }
                     title="Copy message"
@@ -288,7 +294,7 @@ function ChatMessageComponent({
                 onCopy(
                   message.content.text,
                   message.id,
-                  message.content.attachments,
+                  message.content.attachments
                 )
               }
               title="Copy message"
@@ -319,7 +325,5 @@ export const MemoizedChatMessage = memo(
       prevProps.isPlaying === nextProps.isPlaying &&
       prevProps.hasAudioUrl === nextProps.hasAudioUrl
     );
-  },
+  }
 );
-
-

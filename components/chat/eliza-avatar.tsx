@@ -13,6 +13,7 @@
 
 "use client";
 
+import { memo } from "react";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import { isBuiltInAvatar, ensureAvatarUrl } from "@/lib/utils/default-avatar";
@@ -32,7 +33,7 @@ interface ElizaAvatarProps {
  * Reusable Eliza avatar component with consistent fallback behavior.
  * Shows custom avatar if provided, otherwise shows the default Eliza avatar.
  */
-export function ElizaAvatar({
+export const ElizaAvatar = memo(function ElizaAvatar({
   avatarUrl,
   name = "Eliza",
   className,
@@ -65,4 +66,4 @@ export function ElizaAvatar({
       />
     </div>
   );
-}
+});

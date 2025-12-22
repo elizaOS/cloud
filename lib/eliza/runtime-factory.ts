@@ -18,6 +18,7 @@ import { agentLoader } from "./agent-loader";
 import { getElizaCloudApiUrl, getDefaultModels } from "./config";
 import type { UserContext } from "./user-context";
 import { logger } from "@/lib/utils/logger";
+import { agentsService } from "@/lib/services/agents";
 import "@/lib/polyfills/dom-polyfills";
 
 interface GlobalWithEliza {
@@ -79,7 +80,7 @@ export class RuntimeFactory {
     );
 
     const dbAdapter = await this.createDatabaseAdapter(agentId);
-    const settings = this.buildSettings(character, context);
+    const settings = this.buildSettings(character, context) as any;
     const filteredPlugins = this.filterPlugins(plugins);
 
     const runtime = new AgentRuntime({
@@ -249,25 +250,15 @@ export class RuntimeFactory {
     character: Character,
     agentId: UUID
   ): Promise<void> {
-    // Initialize runtime (creates agent in agents table first, then world)
-    try {
-      await runtime.initialize({ skipMigrations: true });
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      const isDuplicate =
-        msg.toLowerCase().includes("duplicate") ||
-        msg.toLowerCase().includes("unique constraint") ||
-        msg.includes("Failed to create entity") ||
-        msg.includes("Failed to create agent");
-      if (!isDuplicate) throw e;
+    // Ensure agent exists in agents table BEFORE creating world (FK constraint)
+    const isDefaultAgent = agentId === this.DEFAULT_AGENT_ID;
+    if (isDefaultAgent) {
+      await agentsService.ensureDefaultAgentExists();
+    } else {
+      await agentsService.ensureAgentExists(agentId as string);
     }
 
-    // Ensure agent exists after initialize
-    if (!(await runtime.getAgent(agentId))) {
-      await this.ensureAgentExists(runtime, character, agentId);
-    }
-
-    // Now create world (FK constraint requires agent to exist first)
+    // Ensure world exists before runtime.initialize() (FK constraint)
     try {
       await runtime.ensureWorldExists({
         id: agentId,
@@ -275,28 +266,6 @@ export class RuntimeFactory {
         agentId,
         serverId: agentId,
       } as World);
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      if (
-        !msg.toLowerCase().includes("duplicate") &&
-        !msg.toLowerCase().includes("unique constraint")
-      )
-        throw e;
-    }
-  }
-
-  private async ensureAgentExists(
-    runtime: AgentRuntime,
-    character: Character,
-    agentId: UUID
-  ): Promise<void> {
-    try {
-      await runtime.createEntity({
-        id: agentId,
-        names: [character.name || "Eliza"],
-        agentId,
-        metadata: { name: character.name || "Eliza" },
-      });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       if (
