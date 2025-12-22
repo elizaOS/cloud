@@ -48,10 +48,6 @@ import {
 import { toast } from "sonner";
 import { AgentMode } from "@/lib/eliza/agent-mode-types";
 import {
-  createConversationAction,
-  listUserConversationsAction,
-} from "@/app/actions/conversations";
-import {
   BUILD_MODE_TIER_LIST,
   BUILD_MODE_TIERS,
   DEFAULT_MODEL_TIER,
@@ -153,6 +149,12 @@ export function BuildModeAssistant({
   const [builderRoomId, setBuilderRoomId] = useState<string>("");
   const [lockedRoom, setLockedRoom] = useState<LockedRoomInfo | null>(null); // Track if room is locked after character creation
 
+  // Detect stale messages during mode/character transitions
+  const expectedRoomKey = isCreatorMode ? "creator" : `build-${character?.id}`;
+  const messagesAreStale = 
+    (roomInitKeyRef.current !== null && roomInitKeyRef.current !== expectedRoomKey) ||
+    (!isCreatorMode && !character?.id);
+
   // Cleanup refs on unmount to prevent memory leaks
   useEffect(() => {
     return () => {
@@ -161,77 +163,147 @@ export function BuildModeAssistant({
     };
   }, [clearAllStreaming]);
 
-  // Determine display info based on mode
-  // In creator mode, always show Eliza (we're creating a new character)
-  // In build mode, show the character being edited (even if not fully saved yet)
-  const shouldShowCharacter = !isCreatorMode && character?.id;
-  const displayName = shouldShowCharacter
-    ? character?.name || "Build Assistant"
-    : DEFAULT_ELIZA.name;
-  const displayAvatar = shouldShowCharacter
-    ? character?.avatarUrl || character?.avatar_url
-    : DEFAULT_ELIZA.avatarUrl;
+  // Creator mode: Show Eliza as the builder assistant
+  // Edit mode: Show the character being edited (chat with the character)
+  const displayName = isCreatorMode
+    ? DEFAULT_ELIZA.name
+    : character?.name || "Agent";
+  const displayAvatar = isCreatorMode
+    ? DEFAULT_ELIZA.avatarUrl
+    : character?.avatarUrl || DEFAULT_ELIZA.avatarUrl;
 
-  // Create builder room ID
-  // - Creator mode: single room for creating new characters (fresh start each time)
-  // - Build mode: room per character for editing
+  // Create builder room using Eliza rooms API
+  // - Creator mode: always fresh room for creating new characters, chat with Eliza
+  // - Edit mode: reuses same room per character to persist edit history, chat with character
   useEffect(() => {
     if (!userId) return;
 
-    // Create a unique key for this room configuration
+    // Create a stable key for this room configuration
     const roomKey = isCreatorMode ? "creator" : `build-${character?.id}`;
 
-    // Skip if we've already initialized this room
+    // Skip if we've already initialized this exact room configuration
     if (roomInitKeyRef.current === roomKey) return;
     roomInitKeyRef.current = roomKey;
 
+    // Clear state IMMEDIATELY (synchronously) when switching modes/characters
+    // This prevents stale messages from showing while new room initializes
+    setMessages([]);
+    setLockedRoom(null);
+    setBuilderRoomId("");
+    setIsInitializing(true);
+    messagesLoadedRef.current = null;
+
     const initializeBuilderRoom = async () => {
-      // Clear messages and locked state when switching rooms
-      setMessages([]);
-      setLockedRoom(null);
-      messagesLoadedRef.current = null;
+      // For edit mode, try to find existing room and reuse it (preserve history)
+      if (!isCreatorMode && character?.id) {
+        const roomsResponse = await fetch(
+          "/api/eliza/rooms?includeBuildRooms=true",
+          {
+            credentials: "include",
+          },
+        );
 
-      // Room title based on mode - for creator mode, always create fresh
-      const timestamp = isCreatorMode ? Date.now() : "";
-      const builderTitle = isCreatorMode
-        ? `[CREATOR] New Character Builder ${timestamp}`
-        : `[BUILD] ${character?.name || "Character"} (${character?.id})`;
+        if (roomsResponse.ok) {
+          const roomsData = await roomsResponse.json();
+          const rooms = roomsData.rooms || [];
 
-      // For build mode, try to find existing room
-      if (!isCreatorMode) {
-        const { success, conversations } = await listUserConversationsAction();
-
-        if (success && conversations) {
-          const existingRoom = conversations.find(
-            (conv) =>
-              conv.title.startsWith(
-                `[BUILD] ${character?.name || "Character"}`,
-              ) &&
-              character?.id &&
-              conv.title.includes(`(${character.id})`),
+          // Find existing build room for this character
+          const existingRoom = rooms.find(
+            (room: { id: string; title?: string; characterId?: string }) =>
+              room.title?.startsWith(`[BUILD]`) &&
+              room.characterId === character.id,
           );
 
           if (existingRoom) {
+            // Reuse existing room - preserve edit history
             setBuilderRoomId(existingRoom.id);
             onRoomIdChange?.(existingRoom.id);
             return;
           }
         }
-      }
 
-      // Create new builder room (always fresh for creator mode)
-      const { success: createSuccess, conversation } =
-        await createConversationAction({
-          title: builderTitle,
-          model: "gpt-4o",
+        // No existing room found - create new one with welcome message
+        const welcomeText = `${character?.name || "Your agent"} is live. Tell me what you want to change - I'll update the character file as we talk, or you can edit directly on the right. What needs tweaking?`;
+        const roomTitle = `[BUILD] ${character?.name || "Character"} (${character?.id})`;
+
+        const createResponse = await fetch("/api/eliza/rooms", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            characterId: character?.id,
+            name: roomTitle,
+          }),
         });
 
-      if (createSuccess && conversation) {
-        setBuilderRoomId(conversation.id);
-        onRoomIdChange?.(conversation.id);
-      } else {
-        toast.error("Failed to create builder room");
+        if (!createResponse.ok) {
+          toast.error("Failed to create builder room");
+          setIsInitializing(false);
+          return;
+        }
+
+        const createData = await createResponse.json();
+        const roomId = createData.roomId;
+
+        // Store welcome message for new edit room
+        const welcomeResponse = await fetch(`/api/eliza/rooms/${roomId}/welcome`, {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: welcomeText }),
+        });
+
+        if (!welcomeResponse.ok) {
+          toast.error("Failed to initialize builder room");
+          setIsInitializing(false);
+          return;
+        }
+
+        setBuilderRoomId(roomId);
+        onRoomIdChange?.(roomId);
+        return;
       }
+
+      // Creator mode: always create fresh room with Eliza
+      const welcomeText =
+        "Hey, I'm Eliza. I'm going to help you build an agent. Just describe what you're imagining - personality, purpose, whatever - and I'll write the character file as we go. You can also build manually by adding or editing anything on the right. So. What are we making?";
+      const roomTitle = `[CREATOR] New Character Builder ${Date.now()}`;
+
+      const createResponse = await fetch("/api/eliza/rooms", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          characterId: character?.id,
+          name: roomTitle,
+        }),
+      });
+
+      if (!createResponse.ok) {
+        toast.error("Failed to create builder room");
+        setIsInitializing(false);
+        return;
+      }
+
+      const createData = await createResponse.json();
+      const roomId = createData.roomId;
+
+      // Store welcome message
+      const welcomeResponse = await fetch(`/api/eliza/rooms/${roomId}/welcome`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: welcomeText }),
+      });
+
+      if (!welcomeResponse.ok) {
+        toast.error("Failed to initialize builder room");
+        setIsInitializing(false);
+        return;
+      }
+
+      setBuilderRoomId(roomId);
+      onRoomIdChange?.(roomId);
     };
 
     initializeBuilderRoom();
@@ -628,7 +700,6 @@ export function BuildModeAssistant({
           }
         }
       } catch (error) {
-        console.error("[BuildMode] Error sending message:", error);
         toast.error(
           error instanceof Error
             ? error.message
@@ -743,53 +814,6 @@ export function BuildModeAssistant({
     [inputText, isLoading, sendElizaMessage],
   );
 
-  // Pre-prompts for quick start - different for creator vs build mode
-  const quickPrompts = isCreatorMode
-    ? [
-        {
-          label: "Build a companion",
-          prompt: "Help me build a companion with personality",
-        },
-        {
-          label: "Build an assistant",
-          prompt: "Help me create a personal AI assistant",
-        },
-        {
-          label: "I have an idea",
-          prompt: "I have an idea for an agent, let me tell you about it",
-        },
-        {
-          label: "What can I build?",
-          prompt: "What types of agents can I create here?",
-        },
-      ]
-    : [
-        {
-          label: "Make it funnier",
-          prompt: "Make my character's personality more witty and humorous",
-        },
-        {
-          label: "Improve the bio",
-          prompt: "Help me write a better bio for this character",
-        },
-        {
-          label: "Add knowledge",
-          prompt: "How can I add knowledge to this character?",
-        },
-        {
-          label: "Test a response",
-          prompt: "Show me how this character would respond to a greeting",
-        },
-      ];
-
-  const handleQuickPrompt = async (prompt: string) => {
-    if (isLoading) return;
-    await sendElizaMessage(prompt);
-  };
-
-  // Show empty state with quick prompts when no messages
-  const showEmptyState = messages.length === 0 && !isLoading && !isInitializing;
-
   const formatTimestamp = (timestamp: number): string => {
     const date = new Date(timestamp);
     const now = new Date();
@@ -813,49 +837,10 @@ export function BuildModeAssistant({
     <div className="flex h-full w-full min-h-0 flex-col bg-[#0A0A0A]">
       {/* Messages Area */}
       <div className="flex-1 min-h-0 overflow-hidden">
-        <ScrollArea className="h-full py-6 px-2" ref={scrollAreaRef}>
-          <div className="space-y-6 max-w-3xl mx-auto px-4 sm:px-6">
-            {/* Empty State with Quick Prompts */}
-            {showEmptyState && (
-              <div className="flex flex-col items-center justify-center h-full min-h-[400px] animate-in fade-in duration-500">
-                <div className="flex flex-col items-center gap-6 max-w-md text-center">
-                  <ElizaAvatar
-                    avatarUrl={displayAvatar}
-                    name={displayName}
-                    className="w-16 h-16"
-                    iconClassName="h-8 w-8"
-                    fallbackClassName="bg-[#FF5800]"
-                  />
-                  <div className="space-y-2">
-                    <h2 className="text-xl font-semibold text-white">
-                      {isCreatorMode
-                        ? "Create your agent"
-                        : `Edit ${character?.name || "character"}`}
-                    </h2>
-                    <p className="text-sm text-white/50">
-                      {isCreatorMode
-                        ? "I'll help you build a companion, assistant, or both."
-                        : "Chat with me to refine personality, knowledge, or capabilities."}
-                    </p>
-                  </div>
-
-                  {/* Quick Prompts Grid */}
-                  <div className="grid grid-cols-2 gap-2 w-full mt-2">
-                    {quickPrompts.map((item) => (
-                      <button
-                        key={item.label}
-                        onClick={() => handleQuickPrompt(item.prompt)}
-                        className="px-4 py-3 text-center text-sm text-white/80 bg-white/[0.03] border border-white/[0.08] rounded-lg hover:bg-white/[0.06] hover:border-white/[0.12] transition-colors"
-                      >
-                        {item.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {messages.map((message, index) => {
+        <ScrollArea className="h-full py-6" ref={scrollAreaRef}>
+          <div className="space-y-6 pl-[56px] md:pl-[64px] pr-4 md:pr-6">
+            {/* Only render messages if they're not stale (from a different mode/character) */}
+            {!messagesAreStale && messages.map((message, index) => {
               const content = message.content;
               const isAgent = message.role === "assistant";
               const isStreaming = message.id.startsWith("streaming-");
@@ -912,7 +897,7 @@ export function BuildModeAssistant({
                           )}
                         {/* Message Text */}
                         {content && (
-                          <div className="py-3 px-4 bg-white/[0.03] border border-white/[0.06] rounded-lg transition-colors hover:bg-white/[0.05] hover:border-white/[0.08] overflow-hidden">
+                          <div className="overflow-hidden">
                             <style jsx>{`
                               .build-mode-content :global(pre) {
                                 background: rgba(0, 0, 0, 0.4) !important;
@@ -1158,8 +1143,9 @@ export function BuildModeAssistant({
               );
             })}
 
-            {/* Show thinking indicator only when loading and no streaming message yet */}
-            {isLoading && !messages.some((m) => m.id.startsWith("streaming-")) && (
+            {/* Show thinking indicator when loading, initializing, or transitioning between modes */}
+            {(isLoading || messagesAreStale || (isInitializing && messages.length === 0)) && 
+             !messages.some((m) => m.id.startsWith("streaming-")) && (
               <div className="flex justify-start animate-in fade-in slide-in-from-bottom-4 duration-500">
                 <div className="flex flex-col gap-1.5 max-w-[85%] sm:max-w-[75%]">
                   <div className="flex items-center gap-2 pl-1">
@@ -1190,8 +1176,8 @@ export function BuildModeAssistant({
 
       {/* Locked Room Banner - Shows when character was created */}
       {lockedRoom && (
-        <div className="border-t border-white/[0.06] p-4">
-          <div className="max-w-3xl mx-auto px-4 sm:px-6">
+        <div className="border-t border-white/[0.06] py-4">
+          <div className="pl-[56px] md:pl-[64px] pr-4 md:pr-6">
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 bg-white/[0.02] border border-white/[0.08] rounded-lg">
               <div className="flex items-center gap-3">
                 <div className="flex items-center justify-center w-10 h-10 rounded-full bg-green-500/10 border border-green-500/20">
@@ -1222,9 +1208,9 @@ export function BuildModeAssistant({
       {!lockedRoom && (
         <form
           onSubmit={handleSubmit}
-          className="border-t border-white/[0.06] p-4"
+          className="border-t border-white/[0.06] py-4"
         >
-          <div className="mx-auto px-4 sm:px-6">
+          <div className="pl-[56px] md:pl-[64px] pr-4 md:pr-6">
             <div className="space-y-3">
               {/* Input Container */}
               <div className="relative rounded-lg border border-white/[0.08] bg-white/[0.02] overflow-hidden transition-colors focus-within:border-white/[0.15] focus-within:bg-white/[0.03]">

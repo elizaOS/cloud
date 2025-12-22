@@ -179,45 +179,52 @@ export class RoomsService {
    * Get rooms for an entity (user) with last message preview
    * Uses a single optimized query - no N+1 problem
    *
-   * Filters out:
+   * By default, filters out:
    * - Locked rooms (where a character was created/saved)
    * - BUILD and CREATOR rooms (character building sessions)
    *
    * @param entityId - The user's ID (from auth)
+   * @param options.includeBuildRooms - Include build rooms in results (for edit mode)
    * @returns Room previews sorted by most recent activity
    */
-  async getRoomsForEntity(entityId: string): Promise<RoomPreview[]> {
+  async getRoomsForEntity(
+    entityId: string,
+    options?: { includeBuildRooms?: boolean },
+  ): Promise<RoomPreview[]> {
     // Single query: participants → rooms → last message → user_characters
     const roomsWithPreview =
       await roomsRepository.findRoomsWithPreviewForEntity(entityId);
 
-    // Transform to API response format and filter out locked/builder rooms
-    return (
-      roomsWithPreview
-        .map((room) => {
-          const metadata = room.metadata as { locked?: boolean } | null;
-          const isLocked = metadata?.locked === true;
-          const isBuildRoom =
-            room.name?.startsWith("[BUILD]") ||
-            room.name?.startsWith("[CREATOR]") ||
-            false;
+    const includeBuildRooms = options?.includeBuildRooms ?? false;
 
-          return {
-            id: room.id,
-            title: room.name || undefined,
-            characterId: room.characterId || undefined,
-            characterName: room.characterName || undefined,
-            characterAvatarUrl: room.characterAvatarUrl || undefined,
-            lastTime:
-              room.lastMessageTime?.getTime() || room.createdAt?.getTime(),
-            lastText: room.lastMessageText?.substring(0, 100) || undefined,
-            isLocked,
-            isBuildRoom,
-          };
-        })
-        // Filter out locked rooms and builder rooms from the list
-        .filter((room) => !room.isLocked && !room.isBuildRoom)
-    );
+    // Transform to API response format and filter out locked/builder rooms
+    return roomsWithPreview
+      .map((room) => {
+        const metadata = room.metadata as { locked?: boolean } | null;
+        const isLocked = metadata?.locked === true;
+        const isBuildRoom =
+          room.name?.startsWith("[BUILD]") ||
+          room.name?.startsWith("[CREATOR]") ||
+          false;
+
+        return {
+          id: room.id,
+          title: room.name || undefined,
+          characterId: room.characterId || undefined,
+          characterName: room.characterName || undefined,
+          characterAvatarUrl: room.characterAvatarUrl || undefined,
+          lastTime:
+            room.lastMessageTime?.getTime() || room.createdAt?.getTime(),
+          lastText: room.lastMessageText?.substring(0, 100) || undefined,
+          isLocked,
+          isBuildRoom,
+        };
+      })
+      .filter((room) => {
+        if (room.isLocked) return false;
+        if (room.isBuildRoom && !includeBuildRooms) return false;
+        return true;
+      });
   }
 
   /**
