@@ -36,23 +36,23 @@ function initStripe(): Stripe | null {
   if (stripeInstance) return stripeInstance;
   if (stripeInitError) return null;
 
-  if (!process.env.STRIPE_SECRET_KEY) {
+  const secretKey = process.env.STRIPE_SECRET_KEY?.trim();
+
+  if (!secretKey) {
     stripeInitError = new Error(
       "STRIPE_SECRET_KEY is not set in environment variables"
     );
     return null;
   }
 
-  if (!process.env.STRIPE_SECRET_KEY.startsWith("sk_")) {
+  if (!secretKey.startsWith("sk_")) {
     stripeInitError = new Error(
-      "STRIPE_SECRET_KEY appears invalid (should start with 'sk_'). " +
-        "Please verify your Stripe configuration."
+      `STRIPE_SECRET_KEY appears invalid (should start with 'sk_', got '${secretKey.substring(0, 7)}...'). Please verify your Stripe configuration.`
     );
     return null;
   }
 
-  stripeInstance = new Stripe(process.env.STRIPE_SECRET_KEY, {
-    apiVersion: "2025-11-17.clover",
+  stripeInstance = new Stripe(secretKey, {
     typescript: true,
   });
   return stripeInstance;
