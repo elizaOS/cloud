@@ -410,22 +410,71 @@ async function handlePOST(req: NextRequest) {
     });
 
     // Update generation record for authenticated users
-    if (generationId && usageRecordId) {
-      await generationsService.update(generationId, {
-        status: "completed",
-        content: uploadResults[0].imageBase64,
-        storage_url: uploadResults[0].blobUrl,
-        mime_type: uploadResults[0].mimeType,
-        file_size: uploadResults[0].fileSize,
-        usage_record_id: usageRecordId,
-        completed_at: new Date(),
-        result: {
-          images: uploadedImages,
-          numImages: successfulResults.length,
-          aspectRatio,
-          stylePreset,
-        },
-      });
+    if (generationId && usageRecordId && user.organization_id) {
+      // For multi-image generations, create separate records for each image
+      // so they all appear in the gallery (which filters by storage_url)
+      if (uploadResults.length > 1) {
+        // Update the first generation record with the first image
+        await generationsService.update(generationId, {
+          status: "completed",
+          content: uploadResults[0].imageBase64,
+          storage_url: uploadResults[0].blobUrl,
+          mime_type: uploadResults[0].mimeType,
+          file_size: uploadResults[0].fileSize,
+          usage_record_id: usageRecordId,
+          completed_at: new Date(),
+          result: {
+            imageIndex: 0,
+            totalImages: uploadResults.length,
+            aspectRatio,
+            stylePreset,
+          },
+        });
+
+        // Create additional generation records for remaining images
+        for (let i = 1; i < uploadResults.length; i++) {
+          await generationsService.create({
+            organization_id: user.organization_id,
+            user_id: user.id,
+            api_key_id: apiKey?.id || null,
+            type: "image",
+            model: "google/gemini-2.5-flash-image-preview",
+            provider: "google",
+            prompt: prompt,
+            status: "completed",
+            content: uploadResults[i].imageBase64,
+            storage_url: uploadResults[i].blobUrl,
+            mime_type: uploadResults[i].mimeType,
+            file_size: uploadResults[i].fileSize,
+            credits: String(0),
+            cost: String(0),
+            usage_record_id: usageRecordId,
+            completed_at: new Date(),
+            result: {
+              imageIndex: i,
+              totalImages: uploadResults.length,
+              aspectRatio,
+              stylePreset,
+              batchGenerationId: generationId,
+            },
+          });
+        }
+      } else {
+        // Single image - keep existing behavior
+        await generationsService.update(generationId, {
+          status: "completed",
+          content: uploadResults[0].imageBase64,
+          storage_url: uploadResults[0].blobUrl,
+          mime_type: uploadResults[0].mimeType,
+          file_size: uploadResults[0].fileSize,
+          usage_record_id: usageRecordId,
+          completed_at: new Date(),
+          result: {
+            aspectRatio,
+            stylePreset,
+          },
+        });
+      }
     }
 
     if (!isAnonymous) {
