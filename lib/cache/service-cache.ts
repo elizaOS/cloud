@@ -65,7 +65,7 @@ export const CacheKeys = {
 export async function withCache<T>(
   key: string,
   ttl: number,
-  fetcher: () => Promise<T>,
+  fetcher: () => Promise<T>
 ): Promise<T> {
   try {
     // Try to get from cache
@@ -87,7 +87,7 @@ export async function withCache<T>(
   cache
     .set(key, data, ttl)
     .catch((error) =>
-      logger.error(`[Cache] Error writing to cache for key ${key}:`, error),
+      logger.error(`[Cache] Error writing to cache for key ${key}:`, error)
     );
 
   return data;
@@ -107,14 +107,14 @@ export async function withStaleWhileRevalidate<T>(
   key: string,
   ttl: number,
   staleTime: number,
-  fetcher: () => Promise<T>,
+  fetcher: () => Promise<T>
 ): Promise<T | null> {
   try {
-    return await cache.getWithSWR<T>(key, staleTime, fetcher);
+    return await cache.getWithSWR<T>(key, staleTime, fetcher, ttl);
   } catch (error) {
     logger.error(
       `[Cache] Error in stale-while-revalidate for key ${key}:`,
-      error,
+      error
     );
     // Fallback to direct fetch
     return await fetcher();
@@ -132,7 +132,7 @@ export async function withStaleWhileRevalidate<T>(
 export async function withBatchCache<T>(
   keys: string[],
   ttl: number,
-  fetcher: (missedKeys: string[]) => Promise<Map<string, T>>,
+  fetcher: (missedKeys: string[]) => Promise<Map<string, T>>
 ): Promise<Map<string, T>> {
   const result = new Map<string, T>();
   const missedKeys: string[] = [];
@@ -153,7 +153,7 @@ export async function withBatchCache<T>(
         logger.warn(`[Cache] Error reading from cache for key ${key}:`, error);
         missedKeys.push(key);
       }
-    }),
+    })
   );
 
   // Fetch missing data
@@ -163,13 +163,15 @@ export async function withBatchCache<T>(
     // Store in cache (fire and forget)
     Promise.all(
       Array.from(freshData.entries()).map(([key, data]) =>
-        cache.set(key, data, ttl).catch((error) =>
-          logger.error(
-            `[Cache] Error writing to cache for key ${key}:`,
-            error,
-          ),
-        ),
-      ),
+        cache
+          .set(key, data, ttl)
+          .catch((error) =>
+            logger.error(
+              `[Cache] Error writing to cache for key ${key}:`,
+              error
+            )
+          )
+      )
     );
 
     // Add to result
@@ -203,10 +205,7 @@ export async function invalidateCachePattern(pattern: string): Promise<void> {
     await cache.delPattern(pattern);
     logger.debug(`[Cache] INVALIDATED PATTERN: ${pattern}`);
   } catch (error) {
-    logger.error(
-      `[Cache] Error invalidating cache pattern ${pattern}:`,
-      error,
-    );
+    logger.error(`[Cache] Error invalidating cache pattern ${pattern}:`, error);
   }
 }
 
