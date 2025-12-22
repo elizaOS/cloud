@@ -16,7 +16,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Copy, Upload, Trash2, MoreHorizontal } from "lucide-react";
+import { Copy, Upload, Trash2, MoreHorizontal, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import type { ElizaCharacter } from "@/lib/types";
 import type { ViewMode } from "./my-agents-client";
@@ -170,6 +170,15 @@ export function CharacterLibraryCard({
                 <MoreHorizontal className="h-4 w-4 text-white" />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-40">
+                <Link
+                  href={`/dashboard/build?characterId=${character.id}`}
+                  className="block h-full"
+                >
+                  <DropdownMenuItem className="cursor-pointer">
+                    <Pencil className="h-4 w-4 mr-2" />
+                    Edit
+                  </DropdownMenuItem>
+                </Link>
                 <DropdownMenuItem
                   onClick={handleDuplicate}
                   className="cursor-pointer"
@@ -266,6 +275,15 @@ export function CharacterLibraryCard({
             <MoreHorizontal className="h-4 w-4 text-white" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-40">
+            <Link
+              href={`/dashboard/build?characterId=${character.id}`}
+              className="block h-full"
+            >
+              <DropdownMenuItem className="cursor-pointer">
+                <Pencil className="h-4 w-4 mr-2" />
+                Edit
+              </DropdownMenuItem>
+            </Link>
             <DropdownMenuItem
               onClick={handleDuplicate}
               className="cursor-pointer"
