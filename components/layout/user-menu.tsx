@@ -297,7 +297,9 @@ export default function UserMenu() {
           <SettingsIcon className="mr-2 h-4 w-4" />
           <span>Settings</span>
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => router.push("/dashboard/billing")}>
+        <DropdownMenuItem
+          onClick={() => router.push("/dashboard/settings?tab=billing")}
+        >
           <Coins className="mr-2 h-4 w-4" />
           <span>Billing</span>
         </DropdownMenuItem>

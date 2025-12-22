@@ -28,7 +28,7 @@ export function InvoiceDetailClient({ invoice }: InvoiceDetailClientProps) {
       day: "numeric",
       hour: "2-digit",
       minute: "2-digit",
-    },
+    }
   );
 
   const paidDate = invoice.paid_at
@@ -113,7 +113,8 @@ export function InvoiceDetailClient({ invoice }: InvoiceDetailClientProps) {
                 Invoice Number
               </p>
               <p className="text-base font-mono text-white">
-                {invoice.invoice_number || invoice.stripe_invoice_id}
+                {invoice.invoice_number ||
+                  `INV-${invoice.stripe_invoice_id.slice(-8).toUpperCase()}`}
               </p>
             </div>
             <div className="space-y-2">
