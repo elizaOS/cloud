@@ -556,13 +556,12 @@ export function ElizaChatInterface({
             }
           },
           onComplete: () => {
-            // Only reload rooms if we didn't just create one (prevents duplicate load)
-            // Use a slight delay to avoid race conditions with room state updates
-            if (!didCreateNewRoom) {
-              setTimeout(() => {
-                loadRooms();
-              }, 100);
-            }
+            // Always reload rooms to update lastText and lastTime
+            // Use longer delay for newly created rooms to ensure server-side processing is complete
+            const delay = didCreateNewRoom ? 500 : 100;
+            setTimeout(() => {
+              loadRooms();
+            }, delay);
             // Notify parent that a message was sent successfully (for anonymous message counting)
             if (onMessageSent) {
               onMessageSent();
