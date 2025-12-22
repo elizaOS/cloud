@@ -7,6 +7,8 @@ import { Tabs, Callout, Steps } from 'nextra/components'
 
 # Installation
 
+<div className="status-badge status-stable">Stable</div>
+
 Set up your development environment for elizaOS Cloud integration.
 
 ## SDK Installation
@@ -109,16 +111,14 @@ For TypeScript projects, ensure your `tsconfig.json` includes:
 
 ## Package Versions
 
-Current stable versions:
+Install the latest stable versions:
 
-| Package | Version |
-|---------|---------|
-| `@elizaos/core` | 1.6.4 |
-| `@elizaos/cli` | 1.6.4 |
-| `@elizaos/plugin-elizacloud` | 1.5.20 |
+```bash
+bun add @elizaos/core@latest @elizaos/plugin-elizacloud@latest
+```
 
 <Callout type="warning">
-Always use matching versions of elizaOS packages to avoid compatibility issues.
+Always use matching versions of elizaOS packages to avoid compatibility issues. Run `bun update` regularly to get the latest fixes.
 </Callout>
 
 ## Next Steps

@@ -251,20 +251,10 @@ Restrict what your app key can access:
 
 ## Best Practices
 
-<Cards>
-  <Cards.Card title="Secure Keys" href="/docs/apps">
-    Never expose API keys in client-side code
-  </Cards.Card>
-  <Cards.Card title="Monitor Usage" href="/docs/apps">
-    Set up alerts for unusual activity
-  </Cards.Card>
-  <Cards.Card title="Rate Limiting" href="/docs/apps">
-    Implement client-side rate limiting
-  </Cards.Card>
-  <Cards.Card title="Error Handling" href="/docs/apps">
-    Handle API errors gracefully
-  </Cards.Card>
-</Cards>
+- **Secure Keys** — Never expose API keys in client-side code; use server-side proxying
+- **Monitor Usage** — Set up alerts in [Dashboard → Analytics](/dashboard/analytics) for unusual activity
+- **Rate Limiting** — Implement client-side rate limiting to avoid 429 errors
+- **Error Handling** — Handle API errors gracefully with retry logic (see [Error Handling](/docs/errors))
 
 ## Next Steps
 

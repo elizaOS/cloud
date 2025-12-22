@@ -7,6 +7,8 @@ import { Callout, Tabs, Cards } from 'nextra/components'
 
 # SDKs & Libraries
 
+<div className="status-badge status-stable">Stable</div>
+
 Integrate elizaOS Cloud with official SDKs and community libraries.
 
 ## Official SDKs
@@ -76,19 +78,25 @@ const embedding = await client.embeddings.create({
 
 ### Python
 
-Coming soon! The Python SDK is in development.
+Use the OpenAI Python SDK with elizaOS Cloud (recommended approach):
 
 ```python
-# Coming soon
-from elizaos import ElizaCloud
+from openai import OpenAI
 
-client = ElizaCloud(api_key="ek_xxx")
+client = OpenAI(
+    api_key="ek_xxx",
+    base_url="https://elizacloud.ai/api/v1"
+)
 
 response = client.chat.completions.create(
     model="gpt-4o",
     messages=[{"role": "user", "content": "Hello!"}]
 )
+
+print(response.choices[0].message.content)
 ```
+
+This works because elizaOS Cloud is fully OpenAI-compatible.
 
 ## OpenAI Compatibility
 
@@ -211,29 +219,32 @@ const result = await client.callTool('generate_image', {
 
 ## Community Libraries
 
-| Library | Language | Description |
-|---------|----------|-------------|
-| `eliza-go` | Go | Go client for elizaOS Cloud |
-| `eliza-rs` | Rust | Rust SDK |
-| `eliza-rb` | Ruby | Ruby gem |
+Since elizaOS Cloud is OpenAI-compatible, you can use any OpenAI SDK in your preferred language:
 
-<Callout type="info">
-Community libraries are not officially supported. Use at your own discretion.
-</Callout>
+| Language | Library | Installation |
+|----------|---------|--------------|
+| Go | `sashabaranov/go-openai` | `go get github.com/sashabaranov/go-openai` |
+| Rust | `async-openai` | `cargo add async-openai` |
+| Ruby | `ruby-openai` | `gem install ruby-openai` |
+| PHP | `openai-php/client` | `composer require openai-php/client` |
+
+Simply configure the base URL to `https://elizacloud.ai/api/v1` and use your elizaOS API key.
 
 ## SDK Features
 
-| Feature | JS/TS | Python | Go |
-|---------|-------|--------|-----|
-| Chat Completions | ✅ | 🔜 | 🔜 |
-| Streaming | ✅ | 🔜 | 🔜 |
-| Embeddings | ✅ | 🔜 | 🔜 |
-| Images | ✅ | 🔜 | 🔜 |
-| Videos | ✅ | 🔜 | 🔜 |
-| Knowledge | ✅ | 🔜 | 🔜 |
-| MCP | ✅ | 🔜 | 🔜 |
-| Auto-retry | ✅ | 🔜 | 🔜 |
-| TypeScript | ✅ | N/A | N/A |
+Since elizaOS Cloud is OpenAI-compatible, features depend on the OpenAI SDK you use:
+
+| Feature | Official TS SDK | OpenAI SDKs |
+|---------|-----------------|-------------|
+| Chat Completions | ✅ | ✅ |
+| Streaming | ✅ | ✅ |
+| Embeddings | ✅ | ✅ |
+| Images | ✅ | ✅ (via REST) |
+| Videos | ✅ | REST only |
+| Knowledge | ✅ | REST only |
+| MCP | ✅ | REST only |
+| Auto-retry | ✅ | Varies |
+| TypeScript Types | ✅ | Varies |
 
 ## Contributing
 

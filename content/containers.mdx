@@ -280,29 +280,14 @@ curl -X GET "https://elizacloud.ai/api/v1/containers/quota" \
 
 ## Pricing
 
-| Resource | Cost |
-|----------|------|
-| CPU (per core/hour) | 0.05 credits |
-| Memory (per GB/hour) | 0.01 credits |
-| Network (per GB) | 0.02 credits |
-| Storage (per GB/day) | 0.005 credits |
+See [Billing & Credits](/docs/billing) for current pricing on CPU, memory, network, and storage.
 
 ## Best Practices
 
-<Cards>
-  <Cards.Card title="Health Checks" href="/docs/containers">
-    Always configure health checks for reliability
-  </Cards.Card>
-  <Cards.Card title="Resource Limits" href="/docs/containers">
-    Set appropriate CPU and memory limits
-  </Cards.Card>
-  <Cards.Card title="Secrets" href="/docs/containers">
-    Use secret references for sensitive data
-  </Cards.Card>
-  <Cards.Card title="Monitoring" href="/docs/containers">
-    Set up alerts for critical metrics
-  </Cards.Card>
-</Cards>
+- **Health Checks** — Always configure health checks for reliability
+- **Resource Limits** — Set appropriate CPU and memory limits to control costs
+- **Secrets** — Use `{{secrets.NAME}}` references for sensitive data
+- **Monitoring** — Set up alerts in [Dashboard → Analytics](/dashboard/analytics) for critical metrics
 
 ## Next Steps
 

@@ -11,6 +11,10 @@ Deep dive into the Model Context Protocol implementation on elizaOS Cloud.
 
 <div className="status-badge status-stable">Stable</div>
 
+<Callout type="info">
+This page covers the **MCP protocol specification**. To connect MCP servers to your agents, see [MCP Integration](/docs/mcps).
+</Callout>
+
 ## Overview
 
 MCP (Model Context Protocol) is a standard for connecting AI models to external tools and data:
@@ -355,20 +359,10 @@ app.post('/mcp', (req, res) => {
 
 ## Best Practices
 
-<Cards>
-  <Cards.Card title="Clear Schemas" href="/docs/mcp">
-    Provide detailed input schemas
-  </Cards.Card>
-  <Cards.Card title="Good Descriptions" href="/docs/mcp">
-    Help models understand tool purposes
-  </Cards.Card>
-  <Cards.Card title="Handle Errors" href="/docs/mcp">
-    Return clear error messages
-  </Cards.Card>
-  <Cards.Card title="Validate Input" href="/docs/mcp">
-    Always validate tool arguments
-  </Cards.Card>
-</Cards>
+- **Clear Schemas** — Provide detailed input schemas for your tools
+- **Good Descriptions** — Help models understand tool purposes with clear naming
+- **Handle Errors** — Return clear error messages following JSON-RPC conventions
+- **Validate Input** — Always validate tool arguments before processing
 
 ## Next Steps
 

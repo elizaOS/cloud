@@ -11,6 +11,10 @@ Extend your agents with external tools and services using the Model Context Prot
 
 <div className="status-badge status-stable">Stable</div>
 
+<Callout type="info">
+This page covers **connecting MCP servers to your agents**. For protocol details and building your own MCP server, see [MCP Protocol](/docs/mcp).
+</Callout>
+
 ## Overview
 
 MCP (Model Context Protocol) allows agents to:
@@ -324,20 +328,10 @@ curl -X POST "https://elizacloud.ai/api/v1/mcps/{mcpId}/publish" \
 
 ## Best Practices
 
-<Cards>
-  <Cards.Card title="Minimal Tools" href="/docs/mcps">
-    Only connect tools your agent needs
-  </Cards.Card>
-  <Cards.Card title="Test Thoroughly" href="/docs/mcps">
-    Verify tools work before production
-  </Cards.Card>
-  <Cards.Card title="Handle Errors" href="/docs/mcps">
-    MCP calls can fail - handle gracefully
-  </Cards.Card>
-  <Cards.Card title="Monitor Usage" href="/docs/mcps">
-    Track tool invocations for optimization
-  </Cards.Card>
-</Cards>
+- **Minimal Tools** — Only connect tools your agent actually needs to reduce latency
+- **Test Thoroughly** — Verify tools work correctly before deploying to production
+- **Handle Errors** — MCP calls can fail; implement graceful fallbacks in your agent
+- **Monitor Usage** — Track tool invocations in [Dashboard](/dashboard) for optimization
 
 ## Next Steps
 

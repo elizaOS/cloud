@@ -7,6 +7,8 @@ import { Callout, Cards } from 'nextra/components'
 
 # Error Handling
 
+<div className="status-badge status-stable">Stable</div>
+
 Learn how to handle API errors effectively in your elizaOS Cloud integrations.
 
 ## Error Format
@@ -227,20 +229,57 @@ curl -X POST "https://elizacloud.ai/api/v1/chat/completions" \
 
 ## Best Practices
 
-<Cards>
-  <Cards.Card title="Handle All Errors" href="/docs/errors">
-    Never assume requests will succeed
-  </Cards.Card>
-  <Cards.Card title="Log Errors" href="/docs/errors">
-    Log error codes and request IDs
-  </Cards.Card>
-  <Cards.Card title="User Feedback" href="/docs/errors">
-    Show meaningful error messages to users
-  </Cards.Card>
-  <Cards.Card title="Graceful Degradation" href="/docs/errors">
-    Have fallbacks for critical features
-  </Cards.Card>
-</Cards>
+- **Handle All Errors** — Never assume requests will succeed
+- **Log Errors** — Log error codes and request IDs for debugging
+- **User Feedback** — Show meaningful error messages to users
+- **Graceful Degradation** — Have fallbacks for critical features
+
+## Troubleshooting
+
+### "UNAUTHORIZED" errors
+
+**Problem**: Getting 401 errors on every request.
+
+**Solutions**:
+1. Verify your API key starts with `ek_live_` or `ek_test_`
+2. Check the key hasn't been revoked in [Dashboard → API Keys](/dashboard/api-keys)
+3. Ensure you're using `Authorization: Bearer YOUR_KEY` (not `X-API-Key`)
+
+### "RATE_LIMITED" errors
+
+**Problem**: Getting 429 errors during normal usage.
+
+**Solutions**:
+1. Implement exponential backoff (see code example above)
+2. Check your rate limit headers: `X-RateLimit-Remaining`
+3. Upgrade your plan for higher limits at [Dashboard → Billing](/dashboard/billing)
+
+### "INSUFFICIENT_CREDITS" errors
+
+**Problem**: Getting 402 errors.
+
+**Solutions**:
+1. Check your balance at [Dashboard → Billing](/dashboard/billing)
+2. Enable auto top-up to avoid interruptions
+3. Top up credits via Stripe or [x402 crypto payments](/docs/x402)
+
+### Streaming not working
+
+**Problem**: Stream responses come as a single chunk.
+
+**Solutions**:
+1. Ensure `stream: true` is set in your request body
+2. Don't buffer the response—read chunks as they arrive
+3. Check your proxy/CDN isn't buffering SSE responses
+
+### Agent not responding as expected
+
+**Problem**: Agent ignores personality/style settings.
+
+**Solutions**:
+1. Verify character JSON is valid with the [API Explorer](/dashboard/api-explorer)
+2. Check you're using the agent ID (not model name) as the `model` parameter
+3. Clear conversation history and start fresh
 
 ## Next Steps
 
