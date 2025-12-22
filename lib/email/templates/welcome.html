@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Welcome to Eliza Cloud</title>
+  <title>Welcome to Cloud - Powered by elizaOS</title>
   <style>
     * {
       margin: 0;
@@ -76,8 +76,8 @@
     }
 
     .credit-card {
-      background: #252527;
-      border: 1px solid rgba(255, 88, 0, 0.2);
+      background: linear-gradient(135deg, #6B46C1 0%, #805AD5 100%);
+      border: 1px solid rgba(107, 70, 193, 0.3);
       padding: 30px;
       text-align: center;
       margin: 30px 0;
@@ -97,7 +97,7 @@
       font-size: 42px;
       font-weight: 700;
       margin: 10px 0;
-      color: #FF5800;
+      color: #ffffff;
     }
 
     .credit-subtitle {
@@ -250,55 +250,49 @@
   <div class="email-wrapper">
     <div class="header-banner">
       <div class="celebration-icon">🎉</div>
-      <h1>Welcome to Eliza Cloud!</h1>
-      <p>Hi {{userName}}, we're excited to have you here!</p>
+      <h1>Welcome to Cloud</h1>
+      <p>Powered by elizaOS</p>
     </div>
 
     <div class="content">
       <p class="welcome-text">
-        Congratulations! Your organization
-        <span class="organization-name">{{organizationName}}</span> has been
-        successfully created. You're now ready to start building powerful AI
-        agents that will transform how you work.
+        You're ready to start building powerful AI agents that will transform how you work.
       </p>
 
       <div class="credit-card">
-        <div class="credit-label">🎁 YOUR STARTING BALANCE</div>
-        <div class="credit-amount">${{creditBalance}}</div>
+        <div class="credit-label">YOUR STARTING BALANCE</div>
+        <div class="credit-amount">$5</div>
         <div class="credit-subtitle">
-          Perfect for building your first agents!
+          Enough to get started and explore what you can build.
         </div>
       </div>
 
       <div class="steps-section">
-        <h2 class="steps-title">Get Started in 3 Easy Steps</h2>
+        <h2 class="steps-title">Get Started in 3 Steps</h2>
 
         <div class="step-card">
           <div class="step-content">
-            <div class="step-title">📊 Explore Your Dashboard</div>
+            <div class="step-title">Create Your First Agent</div>
             <div class="step-description">
-              Monitor your balance, track usage analytics, and manage your
-              account settings — all in one place.
+              Deploy AI agents with custom personalities, capabilities, and integrations tailored to your needs.
             </div>
           </div>
         </div>
 
         <div class="step-card">
           <div class="step-content">
-            <div class="step-title">🤖 Create Your First Agent</div>
+            <div class="step-title">Integrate with Your Apps</div>
             <div class="step-description">
-              Deploy intelligent AI agents with custom personalities,
-              capabilities, and integrations tailored to your needs.
+              Use our API to connect Eliza agents to your applications and workflows.
             </div>
           </div>
         </div>
 
         <div class="step-card">
           <div class="step-content">
-            <div class="step-title">🔗 Integrate with Your Apps</div>
+            <div class="step-title">Explore Your Dashboard</div>
             <div class="step-description">
-              Use our powerful API to seamlessly connect Eliza agents to your
-              applications and workflows.
+              Monitor your balance, track usage, and manage your account settings in one place.
             </div>
           </div>
         </div>
@@ -310,18 +304,16 @@
       </div>
 
       <div class="help-section">
-        <strong>💡 Need Help Getting Started?</strong>
+        <strong>Need Help?</strong>
         <p>
-          Check out our comprehensive
-          <a href="{{docsUrl}}">documentation</a> or reach out to our support
-          team. We're here to help you succeed!
+          Check out our <a href="{{docsUrl}}">documentation</a> or reach out to support if you get stuck.
         </p>
       </div>
     </div>
 
     <div class="footer">
-      <div class="footer-logo">Eliza Cloud</div>
-      <p>© {{currentYear}} Eliza Cloud. All rights reserved.</p>
+      <div class="footer-logo">Cloud - Powered by Eliza</div>
+      <p>© 2025 Eliza Cloud. All rights reserved.</p>
       <p style="margin-top: 12px">
         You received this email because you created an account at Eliza Cloud.
       </p>
