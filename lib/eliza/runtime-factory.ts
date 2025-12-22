@@ -11,12 +11,14 @@ import {
   type Plugin,
   type IDatabaseAdapter,
   type Logger,
+  type World,
 } from "@elizaos/core";
 import { createDatabaseAdapter } from "@elizaos/plugin-sql/node";
 import { agentLoader } from "./agent-loader";
 import { getElizaCloudApiUrl, getDefaultModels } from "./config";
 import type { UserContext } from "./user-context";
 import { logger } from "@/lib/utils/logger";
+import { agentsService } from "@/lib/services/agents";
 import "@/lib/polyfills/dom-polyfills";
 
 interface GlobalWithEliza {
@@ -78,7 +80,7 @@ export class RuntimeFactory {
     );
 
     const dbAdapter = await this.createDatabaseAdapter(agentId);
-    const settings = this.buildSettings(character, context);
+    const settings = this.buildSettings(character, context) as any;
     const filteredPlugins = this.filterPlugins(plugins);
 
     const runtime = new AgentRuntime({
@@ -146,7 +148,7 @@ export class RuntimeFactory {
   private buildSettings(
     character: Character,
     context: UserContext,
-  ): Record<string, string | boolean | Record<string, unknown>> {
+  ): any {
     const charSettings = character.settings || {};
     const getSetting = (key: string, fallback: string) =>
       (charSettings[key] as string) || process.env[key] || fallback;
@@ -249,6 +251,14 @@ export class RuntimeFactory {
     character: Character,
     agentId: UUID,
   ): Promise<void> {
+    // Ensure agent exists in agents table BEFORE creating world (FK constraint)
+    const isDefaultAgent = agentId === this.DEFAULT_AGENT_ID;
+    if (isDefaultAgent) {
+      await agentsService.ensureDefaultAgentExists();
+    } else {
+      await agentsService.ensureAgentExists(agentId as string);
+    }
+
     // Ensure world exists before runtime.initialize() (FK constraint)
     try {
       await runtime.ensureWorldExists({
@@ -256,7 +266,7 @@ export class RuntimeFactory {
         name: `World for ${character.name}`,
         agentId,
         serverId: agentId,
-      } as Record<string, unknown>);
+      } as World);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       if (
