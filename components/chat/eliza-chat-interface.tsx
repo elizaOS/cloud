@@ -11,6 +11,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useThrottledStreamingUpdate } from "@/lib/hooks/use-throttled-streaming";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -29,7 +30,7 @@ import { useAudioRecorder } from "./hooks/use-audio-recorder";
 import { useAudioPlayer } from "./hooks/use-audio-player";
 import { useModelTier } from "./hooks/use-model-tier";
 import { sendStreamingMessage } from "@/lib/hooks/use-streaming-message";
-import type { StreamingMessage } from "@/lib/hooks/use-streaming-message";
+import type { StreamingMessage, StreamChunkData } from "@/lib/hooks/use-streaming-message";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -50,6 +51,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { usePrivy } from "@privy-io/react-auth";
+import { useKnowledgeProcessingStatus } from "@/components/chat/hooks/use-knowledge-processing-status";
 
 interface Message {
   id: string;
@@ -66,8 +68,6 @@ interface Message {
   isAgent: boolean;
   createdAt: number;
 }
-
-import type { AgentInfo } from "@/db/repositories/agents";
 
 /**
  * Display version of AgentInfo with UI-specific fields.
@@ -88,6 +88,8 @@ interface CharacterData {
     bio?: string | string[];
     personality?: string;
     description?: string;
+    avatarUrl?: string;
+    avatar_url?: string;
   };
 }
 
@@ -136,6 +138,10 @@ export function ElizaChatInterface({
   const sendMessageRef = useRef<
     ((textOverride?: string) => Promise<void>) | null
   >(null);
+  // Track newly created rooms to skip unnecessary loading (prevents flicker)
+  const justCreatedRoomIdRef = useRef<string | null>(null);
+  // Track if we're in the middle of sending to prevent loading state flicker
+  const isSendingRef = useRef(false);
 
   // Get character name from prop (preferred), store, or agentInfo (memoized)
   const selectedCharacter = useMemo(
@@ -151,13 +157,13 @@ export function ElizaChatInterface({
   // Get avatar URL from prop (preferred), store, or agentInfo
   const characterAvatarUrl = useMemo(
     () =>
-      character?.avatarUrl ||
-      character?.avatar_url ||
+      character?.character_data?.avatarUrl ||
+      character?.character_data?.avatar_url ||
       selectedCharacter?.avatarUrl ||
       agentInfo?.avatarUrl,
     [
-      character?.avatarUrl,
-      character?.avatar_url,
+      character?.character_data?.avatarUrl,
+      character?.character_data?.avatar_url,
       selectedCharacter?.avatarUrl,
       agentInfo?.avatarUrl,
     ],
@@ -173,6 +179,14 @@ export function ElizaChatInterface({
   const [error, setError] = useState<string | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const thinkingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // Throttled streaming updates (reduces re-renders from ~100/sec to ~60/sec)
+  const {
+    accumulateChunk,
+    clearAll: clearAllStreaming,
+    scheduleUpdate,
+  } = useThrottledStreamingUpdate();
+  // Track rendered message keys to prevent re-animation
+  const renderedMessagesRef = useRef<Set<string>>(new Set());
 
   const [audioState, setAudioState] = useState<{
     autoPlayTTS: boolean;
@@ -202,15 +216,17 @@ export function ElizaChatInterface({
     }
   }, [audioState.selectedVoiceId]);
 
-  // Cleanup thinkingTimeoutRef on unmount to prevent memory leaks
+  // Cleanup refs on unmount to prevent memory leaks
   useEffect(() => {
     return () => {
       if (thinkingTimeoutRef.current) {
         clearTimeout(thinkingTimeoutRef.current);
         thinkingTimeoutRef.current = null;
       }
+      clearAllStreaming();
+      renderedMessagesRef.current.clear();
     };
-  }, []);
+  }, [clearAllStreaming]);
 
   const recorder = useAudioRecorder();
   const player = useAudioPlayer();
@@ -218,21 +234,30 @@ export function ElizaChatInterface({
   const {
     selectedTier,
     selectedModelId,
-    displayInfo,
     tiers,
     setTier,
     isLoading: isLoadingModels,
   } = useModelTier();
 
-  const loadMessages = useCallback(async (targetRoomId: string) => {
-    setLoadingState((prev) => ({ ...prev, isLoadingMessages: true }));
+  // Poll knowledge processing status and show toast when complete
+  useKnowledgeProcessingStatus(selectedCharacterId || null);
+
+  const loadMessages = useCallback(async (targetRoomId: string, skipLoadingState = false) => {
+    // Don't show loading state if we're sending (prevents flicker) or explicitly skipped
+    if (!skipLoadingState && !isSendingRef.current) {
+      setLoadingState((prev) => ({ ...prev, isLoadingMessages: true }));
+    }
     try {
       const response = await fetch(`/api/eliza/rooms/${targetRoomId}`, {
         credentials: "include",
       });
       if (response.ok) {
         const data = await response.json();
-        setMessages(data.messages || []);
+        // Only update messages if we're not in the middle of sending
+        // This prevents overwriting optimistic messages with stale data
+        if (!isSendingRef.current) {
+          setMessages(data.messages || []);
+        }
         if (data.agent) {
           setAgentInfo(data.agent);
         }
@@ -240,13 +265,24 @@ export function ElizaChatInterface({
     } catch (err) {
       console.error("Error loading messages:", err);
     } finally {
-      setLoadingState((prev) => ({ ...prev, isLoadingMessages: false }));
+      if (!skipLoadingState && !isSendingRef.current) {
+        setLoadingState((prev) => ({ ...prev, isLoadingMessages: false }));
+      }
     }
   }, []); // Stable - no dependencies needed
 
   // Load messages when roomId from context changes
   useEffect(() => {
     if (roomId) {
+      // Skip loading for rooms we just created (they're empty, prevents flicker)
+      if (justCreatedRoomIdRef.current === roomId) {
+        justCreatedRoomIdRef.current = null; // Clear the flag
+        return; // Skip loading - room is empty and we have optimistic messages
+      }
+      // Skip loading if we're currently sending (prevents flicker)
+      if (isSendingRef.current) {
+        return;
+      }
       loadMessages(roomId);
     } else {
       // Room was deleted or cleared - reset to empty state
@@ -258,12 +294,13 @@ export function ElizaChatInterface({
   }, [roomId, loadMessages]); // loadMessages is stable, only roomId changes
 
   const createRoom = useCallback(
-    async (characterId?: string | null) => {
+    async (characterId?: string | null, skipLoadRooms = false) => {
       const charIdToUse =
         characterId !== undefined ? characterId : selectedCharacterId;
       setError(null);
       // Use store's createRoom which handles the API call
-      const newRoomId = await createRoomInStore(charIdToUse);
+      // Pass skipLoadRooms to prevent unnecessary room list reload during message send
+      const newRoomId = await createRoomInStore(charIdToUse, skipLoadRooms);
 
       if (!newRoomId) {
         throw new Error("Failed to create room");
@@ -277,11 +314,10 @@ export function ElizaChatInterface({
 
   const handleStreamMessage = useCallback((messageData: StreamingMessage) => {
     setMessages((prev) => {
-      // Handle agent response - remove thinking indicator
+      // Handle agent response - update streaming message in place to avoid flash
       if (messageData.type === "agent") {
-        const withoutThinking = prev.filter(
-          (m) => !m.id.startsWith("thinking-"),
-        );
+        // Clean up streaming state
+        clearAllStreaming();
 
         // Clear thinking timeout
         if (thinkingTimeoutRef.current) {
@@ -290,13 +326,36 @@ export function ElizaChatInterface({
         }
 
         // Check for duplicates
-        if (withoutThinking.some((m) => m.id === messageData.id)) {
+        if (prev.some((m) => m.id === messageData.id)) {
           return prev;
         }
 
-        // Remove temp messages
-        const filtered = withoutThinking.filter(
-          (m) => !m.id.startsWith("temp-"),
+        // Find streaming message by prefix
+        const streamingIndex = prev.findIndex(
+          (m) => m.id === `streaming-${messageData.id}`
+        );
+        if (streamingIndex !== -1) {
+          const updated = [...prev];
+          updated[streamingIndex] = {
+            ...updated[streamingIndex],
+            id: messageData.id,
+            content: {
+              ...messageData.content,
+              text: updated[streamingIndex].content.text || messageData.content.text,
+            },
+          };
+          // Also remove any thinking/temp messages
+          return updated.filter(
+            (m) => !m.id.startsWith("thinking-") && !m.id.startsWith("temp-"),
+          );
+        }
+
+        // No streaming message found - fallback to normal add
+        const filtered = prev.filter(
+          (m) =>
+            !m.id.startsWith("thinking-") &&
+            !m.id.startsWith("temp-") &&
+            !m.id.startsWith("streaming-"),
         );
 
         return [...filtered, messageData];
@@ -335,7 +394,56 @@ export function ElizaChatInterface({
 
       return prev;
     });
-  }, []);
+  }, [clearAllStreaming]);
+
+  // Handle real-time streaming chunks - updates message text incrementally
+  const handleStreamChunk = useCallback((chunkData: StreamChunkData) => {
+    const { messageId, chunk } = chunkData;
+
+    // Accumulate text in hook (no re-render)
+    accumulateChunk(messageId, chunk);
+
+    // Schedule throttled UI update
+    scheduleUpdate(messageId, (newText) => {
+      setMessages((prev) => {
+        // Check if we already have a streaming message for this messageId
+        const streamingMsgIndex = prev.findIndex(
+          (m) => m.id === `streaming-${messageId}`
+        );
+
+        if (streamingMsgIndex !== -1) {
+          // Update existing streaming message
+          const updated = [...prev];
+          updated[streamingMsgIndex] = {
+            ...updated[streamingMsgIndex],
+            content: { ...updated[streamingMsgIndex].content, text: newText },
+          };
+          return updated;
+        }
+
+        // First chunk - create a new streaming message and remove thinking indicator
+        const withoutThinking = prev.filter(
+          (m) => !m.id.startsWith("thinking-")
+        );
+
+        // Clear thinking timeout
+        if (thinkingTimeoutRef.current) {
+          clearTimeout(thinkingTimeoutRef.current);
+          thinkingTimeoutRef.current = null;
+        }
+
+        // Add new streaming message
+        const streamingMessage: Message = {
+          id: `streaming-${messageId}`,
+          content: { text: newText },
+          isAgent: true,
+          createdAt: Date.now(),
+        };
+
+        return [...withoutThinking, streamingMessage];
+      });
+    });
+  }, [accumulateChunk, scheduleUpdate]);
 
   const sendMessage = useCallback(
     async (textOverride?: string) => {
@@ -345,35 +453,33 @@ export function ElizaChatInterface({
       if (!textOverride) {
         setInputText("");
       }
+      // Set both state and ref to track sending status
       setLoadingState((prev) => ({ ...prev, isSending: true }));
+      isSendingRef.current = true;
       setError(null);
+
+      // Track if we created a new room (to skip loadRooms later)
+      let didCreateNewRoom = false;
 
       try {
         // If no room exists, create one first
         let currentRoomId = roomId;
         if (!currentRoomId) {
-          console.log("[ElizaChat] No room selected, creating new room...");
-
           // If room creation is already in progress, await the existing promise
           if (isCreatingRoomRef.current && roomCreationPromiseRef.current) {
-            console.log(
-              "[ElizaChat] Room creation already in progress, awaiting...",
-            );
             const existingRoomId = await roomCreationPromiseRef.current;
             if (!existingRoomId) {
               setError("Room creation failed");
               setLoadingState((prev) => ({ ...prev, isSending: false }));
+              isSendingRef.current = false;
               return;
             }
             currentRoomId = existingRoomId;
-            console.log(
-              "[ElizaChat] Got room from existing creation:",
-              currentRoomId,
-            );
           } else {
             // Start new room creation and store the promise
+            // Pass skipLoadRooms=true to prevent unnecessary room list reload
             isCreatingRoomRef.current = true;
-            roomCreationPromiseRef.current = createRoom(selectedCharacterId)
+            roomCreationPromiseRef.current = createRoom(selectedCharacterId, true)
               .then((newRoomId) => {
                 isCreatingRoomRef.current = false;
                 roomCreationPromiseRef.current = null;
@@ -390,15 +496,18 @@ export function ElizaChatInterface({
             if (!newRoomId) {
               setError("Room creation returned empty ID");
               setLoadingState((prev) => ({ ...prev, isSending: false }));
+              isSendingRef.current = false;
               return;
             }
             currentRoomId = newRoomId;
-            console.log("[ElizaChat] Created new room:", newRoomId);
+            didCreateNewRoom = true;
+            // Mark this room as just created to skip loading in the useEffect
+            justCreatedRoomIdRef.current = newRoomId;
           }
         }
 
         // Add optimistic temp user message
-        const clientMessageId = `temp-${Date.now()}`;
+        const clientMessageId = `temp-${crypto.randomUUID()}`;
         const now = Date.now();
         const tempUserMessage: Message = {
           id: clientMessageId,
@@ -427,15 +536,18 @@ export function ElizaChatInterface({
           model: selectedModelId, // Pass selected model from tier
           sessionToken: anonymousSessionToken || undefined, // Pass session token for anonymous users
           onMessage: handleStreamMessage,
+          onChunk: handleStreamChunk, // Handle real-time streaming chunks
           onError: (errorMsg) => {
             setError(errorMsg);
             toast.error(errorMsg);
-            // Remove temp and thinking messages on error
+            // Remove temp, thinking, and streaming messages on error
+            clearAllStreaming();
             setMessages((prev) =>
               prev.filter(
                 (msg) =>
                   msg.id !== tempUserMessage.id &&
-                  !msg.id.startsWith("thinking-"),
+                  !msg.id.startsWith("thinking-") &&
+                  !msg.id.startsWith("streaming-"),
               ),
             );
             if (thinkingTimeoutRef.current) {
@@ -444,7 +556,12 @@ export function ElizaChatInterface({
             }
           },
           onComplete: () => {
-            loadRooms();
+            // Always reload rooms to update lastText and lastTime
+            // Use longer delay for newly created rooms to ensure server-side processing is complete
+            const delay = didCreateNewRoom ? 500 : 100;
+            setTimeout(() => {
+              loadRooms();
+            }, delay);
             // Notify parent that a message was sent successfully (for anonymous message counting)
             if (onMessageSent) {
               onMessageSent();
@@ -457,11 +574,14 @@ export function ElizaChatInterface({
         toast.error(
           err instanceof Error ? err.message : "Failed to send message",
         );
-        // Remove temp and thinking messages on error
+        // Remove temp, thinking, and streaming messages on error
+        clearAllStreaming();
         setMessages((prev) =>
           prev.filter(
             (msg) =>
-              !msg.id.startsWith("temp-") && !msg.id.startsWith("thinking-"),
+              !msg.id.startsWith("temp-") &&
+              !msg.id.startsWith("thinking-") &&
+              !msg.id.startsWith("streaming-"),
           ),
         );
         if (thinkingTimeoutRef.current) {
@@ -470,6 +590,7 @@ export function ElizaChatInterface({
         }
       } finally {
         setLoadingState((prev) => ({ ...prev, isSending: false }));
+        isSendingRef.current = false;
       }
     },
     [
@@ -480,8 +601,10 @@ export function ElizaChatInterface({
       selectedModelId,
       anonymousSessionToken,
       handleStreamMessage,
+      handleStreamChunk,
       loadRooms,
       onMessageSent,
+      clearAllStreaming,
     ],
   );
 
@@ -498,9 +621,6 @@ export function ElizaChatInterface({
 
     // If no roomId exists, create one first
     if (!roomId) {
-      console.log(
-        "[ElizaChat] Pending message found but no room - creating room first",
-      );
       isPendingMessageProcessingRef.current = true;
 
       // Store the message in ref so we can send it after room is created
@@ -512,13 +632,8 @@ export function ElizaChatInterface({
       createRoom()
         .then(() => {
           // Room creation will update roomId, which will trigger sending logic
-          console.log("[ElizaChat] Room created for pending message");
         })
-        .catch((err) => {
-          console.error(
-            "[ElizaChat] Failed to create room for pending message:",
-            err,
-          );
+        .catch(() => {
           isPendingMessageProcessingRef.current = false;
         });
       return;
@@ -531,7 +646,6 @@ export function ElizaChatInterface({
       !loadingState.isLoadingMessages
     ) {
       const messageToSend = pendingMessageToSendRef.current;
-      console.log("[ElizaChat] Auto-sending pending message:", messageToSend);
 
       // Clear the ref
       pendingMessageToSendRef.current = null;
@@ -967,43 +1081,52 @@ export function ElizaChatInterface({
                 )}
 
               {!loadingState.isLoadingMessages &&
-                messages.map((message, index) => (
-                  <MemoizedChatMessage
-                    key={message.id}
-                    message={message}
-                    index={index}
-                    characterName={characterName}
-                    characterAvatarUrl={characterAvatarUrl}
-                    copiedMessageId={copiedMessageId}
-                    currentPlayingId={audioState.currentPlayingId}
-                    isPlaying={player.isPlaying}
-                    hasAudioUrl={messageAudioUrls.current.has(message.id)}
-                    formatTimestamp={formatTimestamp}
-                    onCopy={copyToClipboard}
-                    onPlayAudio={(messageId) => {
-                      const url = messageAudioUrls.current.get(messageId);
-                      if (url) {
-                        if (
-                          audioState.currentPlayingId === messageId &&
-                          player.isPlaying
-                        ) {
-                          player.stopAudio();
-                          setAudioState((prev) => ({
-                            ...prev,
-                            currentPlayingId: null,
-                          }));
-                        } else {
-                          setAudioState((prev) => ({
-                            ...prev,
-                            currentPlayingId: messageId,
-                          }));
-                          player.playAudio(url);
+                messages.map((message, index) => {
+                  const isStreaming = message.id.startsWith("streaming-");
+                  // Use stable key that doesn't change when streaming message becomes final
+                  // This prevents React from remounting the component (avoids flash)
+                  const stableKey = isStreaming
+                    ? message.id.replace("streaming-", "")
+                    : message.id;
+                  return (
+                    <MemoizedChatMessage
+                      key={stableKey}
+                      message={message}
+                      index={index}
+                      characterName={characterName}
+                      characterAvatarUrl={characterAvatarUrl}
+                      copiedMessageId={copiedMessageId}
+                      currentPlayingId={audioState.currentPlayingId}
+                      isPlaying={player.isPlaying}
+                      hasAudioUrl={messageAudioUrls.current.has(message.id)}
+                      isStreaming={isStreaming}
+                      formatTimestamp={formatTimestamp}
+                      onCopy={copyToClipboard}
+                      onPlayAudio={(messageId) => {
+                        const url = messageAudioUrls.current.get(messageId);
+                        if (url) {
+                          if (
+                            audioState.currentPlayingId === messageId &&
+                            player.isPlaying
+                          ) {
+                            player.stopAudio();
+                            setAudioState((prev) => ({
+                              ...prev,
+                              currentPlayingId: null,
+                            }));
+                          } else {
+                            setAudioState((prev) => ({
+                              ...prev,
+                              currentPlayingId: messageId,
+                            }));
+                            player.playAudio(url);
+                          }
                         }
-                      }
-                    }}
-                    onImageLoad={scrollToBottom}
-                  />
-                ))}
+                      }}
+                      onImageLoad={scrollToBottom}
+                    />
+                  );
+                })}
             </div>
           </ScrollArea>
         </div>

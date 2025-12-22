@@ -21,6 +21,11 @@ import {
 import { useChatStore } from "@/lib/stores/chat-store";
 import { ElizaAvatar } from "@/components/chat/eliza-avatar";
 
+// Default Eliza avatars - different for build vs chat pages
+const DEFAULT_ELIZA_AVATAR_CHAT =
+  "https://raw.githubusercontent.com/elizaOS/eliza-avatars/refs/heads/master/Eliza/portrait.png";
+const DEFAULT_ELIZA_AVATAR_BUILD = "/avatars/eliza-default.png";
+
 interface ChatHeaderProps {
   onToggleSidebar?: () => void;
 }
@@ -37,6 +42,10 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
 
   // Derive mode from pathname
   const mode = pathname.includes("/build") ? "build" : "chat";
+
+  // Use different default avatar for build vs chat pages
+  const defaultElizaAvatar =
+    mode === "build" ? DEFAULT_ELIZA_AVATAR_BUILD : DEFAULT_ELIZA_AVATAR_CHAT;
 
   // Find selected agent
   const selectedAgent = availableCharacters.find(
@@ -127,7 +136,7 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
                 <>
                   <div className="flex items-center gap-2">
                     <ElizaAvatar
-                      avatarUrl="https://raw.githubusercontent.com/elizaOS/eliza-avatars/refs/heads/master/Eliza/portrait.png"
+                      avatarUrl={defaultElizaAvatar}
                       name="Eliza"
                       className="w-6 h-6"
                       iconClassName="h-3 w-3"
@@ -154,7 +163,7 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
               )}
             >
               <ElizaAvatar
-                avatarUrl="https://raw.githubusercontent.com/elizaOS/eliza-avatars/refs/heads/master/Eliza/portrait.png"
+                avatarUrl={defaultElizaAvatar}
                 name="Eliza"
                 className="w-6 h-6"
                 iconClassName="h-3 w-3"
@@ -214,15 +223,9 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
             className={cn(
               "flex items-center gap-2 px-3 py-1.5 rounded-none transition-colors border-0",
               mode === "chat"
-                ? "bg-[#471E08] text-[#FF5800]"
+                ? "bg-[#471E08] text-white"
                 : "bg-[#1F1F1F] text-[#ADADAD] hover:text-white",
             )}
-            style={{
-              fontFamily: "'Roboto Mono', monospace",
-              fontWeight: 500,
-              fontSize: "14px",
-              lineHeight: "18px",
-            }}
           >
             <MessageSquare className="h-4 w-4" />
             <span className="hidden md:inline">Chat</span>
@@ -232,16 +235,16 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
             className={cn(
               "flex items-center gap-2 px-3 py-1.5 rounded-none transition-colors border-0",
               mode === "build"
-                ? "bg-[#2D1505] text-[#FF5800]"
+                ? "bg-[#2D1505] text-white"
                 : "bg-[#1F1F1F] text-[#ADADAD] hover:text-white",
             )}
-            style={{
-              fontWeight: 500,
-              fontSize: "14px",
-              lineHeight: "18px",
-            }}
           >
-            <Wrench className="h-4 w-4" />
+            <Wrench
+              className={cn(
+                "h-4 w-4",
+                mode === "build" ? "text-[#FF5800]" : "text-white",
+              )}
+            />
             <span className="hidden md:inline">
               {existingAgent ? "Edit" : "Build"}
             </span>

@@ -18,29 +18,53 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import { useThrottledStreamingUpdate } from "@/lib/hooks/use-throttled-streaming";
+import Image from "next/image";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, Loader2, Copy, Check, MessageSquare, Lock } from "lucide-react";
+import {
+  Send,
+  Loader2,
+  Copy,
+  Check,
+  MessageSquare,
+  Lock,
+  Zap,
+  Sparkles,
+  Crown,
+} from "lucide-react";
 import type { ElizaCharacter } from "@/lib/types";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
 import "highlight.js/styles/github-dark.css";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 import { AgentMode } from "@/lib/eliza/agent-mode-types";
 import {
   createConversationAction,
   listUserConversationsAction,
 } from "@/app/actions/conversations";
+import {
+  BUILD_MODE_TIER_LIST,
+  BUILD_MODE_TIERS,
+  DEFAULT_MODEL_TIER,
+  type ModelTier,
+} from "@/lib/models/model-tiers";
 import { ElizaAvatar } from "./eliza-avatar";
-import { DEFAULT_AVATAR } from "@/lib/utils/default-avatar";
 import Link from "next/link";
 import { useChatStore } from "@/lib/stores/chat-store";
 
-// Default Eliza configuration for creator mode
+// Default Eliza configuration for creator mode (build page only)
 const DEFAULT_ELIZA = {
   name: "Eliza",
-  avatarUrl: DEFAULT_AVATAR,
+  avatarUrl: "/avatars/eliza-default.png",
 } as const;
 
 interface BuildModeAssistantProps {
@@ -48,6 +72,7 @@ interface BuildModeAssistantProps {
   onCharacterUpdate: (updates: Partial<ElizaCharacter>) => void;
   onCharacterRefresh?: () => Promise<void>;
   onRoomIdChange?: (roomId: string) => void;
+  onCharacterCreated?: (characterId: string, characterName: string) => void;
   userId: string;
   isCreatorMode?: boolean;
 }
@@ -77,6 +102,7 @@ export function BuildModeAssistant({
   onCharacterUpdate,
   onCharacterRefresh,
   onRoomIdChange,
+  onCharacterCreated,
   userId,
   isCreatorMode = false,
 }: BuildModeAssistantProps) {
@@ -84,6 +110,14 @@ export function BuildModeAssistant({
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const roomInitKeyRef = useRef<string | null>(null); // Track which room key we've initialized
   const messagesLoadedRef = useRef<string | null>(null); // Track which room we've loaded messages for
+  // Track rendered message keys to prevent re-animation (avoids flash)
+  const renderedMessagesRef = useRef<Set<string>>(new Set());
+  // Throttled streaming updates (reduces re-renders from ~100/sec to ~60/sec)
+  const {
+    accumulateChunk,
+    clearAll: clearAllStreaming,
+    scheduleUpdate,
+  } = useThrottledStreamingUpdate();
   const [inputText, setInputText] = useState("");
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -93,9 +127,39 @@ export function BuildModeAssistant({
     (state) => state.updateCharacterAvatar,
   );
   const [isLoading, setIsLoading] = useState(false);
+
+  const [selectedTier, setSelectedTier] = useState<ModelTier>(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("build-mode-model-tier");
+      if (
+        stored &&
+        (stored === "fast" || stored === "pro" || stored === "ultra")
+      ) {
+        return stored as ModelTier;
+      }
+    }
+    return DEFAULT_MODEL_TIER;
+  });
+  const selectedModelId =
+    BUILD_MODE_TIER_LIST.find((t) => t.id === selectedTier)?.modelId ??
+    BUILD_MODE_TIERS[DEFAULT_MODEL_TIER].modelId;
+
+  const tierIcons: Record<string, React.ReactNode> = {
+    fast: <Zap className="h-3.5 w-3.5" />,
+    pro: <Sparkles className="h-3.5 w-3.5" />,
+    ultra: <Crown className="h-3.5 w-3.5" />,
+  };
   const [isInitializing, setIsInitializing] = useState(true); // Loading state for initial welcome
   const [builderRoomId, setBuilderRoomId] = useState<string>("");
   const [lockedRoom, setLockedRoom] = useState<LockedRoomInfo | null>(null); // Track if room is locked after character creation
+
+  // Cleanup refs on unmount to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      renderedMessagesRef.current.clear();
+      clearAllStreaming(); // Cancel pending rAF frames and clear text
+    };
+  }, [clearAllStreaming]);
 
   // Determine display info based on mode
   // In creator mode, always show Eliza (we're creating a new character)
@@ -273,99 +337,160 @@ export function BuildModeAssistant({
     loadMessages();
   }, [builderRoomId]);
 
+  // Persist model tier to localStorage
+  useEffect(() => {
+    localStorage.setItem("build-mode-model-tier", selectedTier);
+  }, [selectedTier]);
+
   // Send message to ElizaOS stream endpoint with BUILD workflow
-  const sendElizaMessage = async (text: string) => {
-    if (!text.trim() || !builderRoomId) return;
+  const sendElizaMessage = useCallback(
+    async (text: string) => {
+      if (!text.trim() || !builderRoomId) return;
 
-    setIsLoading(true);
+      setIsLoading(true);
 
-    // Add user message to UI immediately
-    const userMessage: Message = {
-      id: `user-${Date.now()}`,
-      role: "user",
-      content: text,
-      timestamp: Date.now(),
-    };
-    setMessages((prev) => [...prev, userMessage]);
+      // Add user message to UI immediately
+      const userMessage: Message = {
+        id: `user-${Date.now()}`,
+        role: "user",
+        content: text,
+        timestamp: Date.now(),
+      };
+      setMessages((prev) => [...prev, userMessage]);
 
-    // Build metadata based on mode
-    const metadata: Record<string, unknown> = isCreatorMode
-      ? { isCreatorMode: true }
-      : { targetCharacterId: character?.id };
+      // Build metadata based on mode
+      // Include current client-side character state so the agent knows what user sees
+      const clientCharacterState = character
+        ? {
+            name: character.name || "",
+            bio: character.bio || "",
+            system: character.system || "",
+            adjectives: character.adjectives || [],
+            topics: character.topics || [],
+            style: character.style || { all: [], chat: [], post: [] },
+            messageExamples: character.messageExamples || [],
+            avatarUrl: character.avatarUrl || character.avatar_url || "",
+          }
+        : null;
 
-    try {
-      const response = await fetch(
-        `/api/eliza/rooms/${builderRoomId}/messages/stream`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({
-            text,
-            agentMode: {
-              mode: AgentMode.BUILD,
-              metadata,
-            },
-          }),
-        },
-      );
+      const metadata: Record<string, unknown> = isCreatorMode
+        ? {
+            isCreatorMode: true,
+            clientCharacterState,
+            isUnsaved: true, // Creator mode is always unsaved
+          }
+        : {
+            targetCharacterId: character?.id,
+            clientCharacterState,
+            isUnsaved: !character?.id, // Unsaved if no ID yet
+          };
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+      try {
+        const response = await fetch(
+          `/api/eliza/rooms/${builderRoomId}/messages/stream`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({
+              text,
+              model: selectedModelId,
+              agentMode: {
+                mode: AgentMode.BUILD,
+                metadata,
+              },
+            }),
+          },
+        );
 
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
-      let assistantMessage = "";
-      let assistantMessageId = "";
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
 
-      if (reader) {
-        let buffer = "";
-        let detectedApplyAction = false;
-        let detectedCharacterCreated = false;
-        let createdCharacterId: string | null = null;
-        let proposedCharacterUpdate: Partial<ElizaCharacter> | null = null;
-        let messageAttachments: MessageAttachment[] = [];
+        const reader = response.body?.getReader();
+        const decoder = new TextDecoder();
+        let assistantMessage = "";
+        let assistantMessageId = "";
 
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
+        if (reader) {
+          let buffer = "";
+          let detectedApplyAction = false;
+          let detectedCharacterCreated = false;
+          let createdCharacterId: string | null = null;
+          let proposedCharacterUpdate: Partial<ElizaCharacter> | null = null;
+          let messageAttachments: MessageAttachment[] = [];
 
-          buffer += decoder.decode(value, { stream: true });
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
 
-          const events = buffer.split("\n\n");
-          buffer = events.pop() || "";
+            buffer += decoder.decode(value, { stream: true });
 
-          for (const eventBlock of events) {
-            if (!eventBlock.trim()) continue;
+            const events = buffer.split("\n\n");
+            buffer = events.pop() || "";
 
-            const lines = eventBlock.split("\n");
-            let eventType = "";
-            let eventData = "";
+            for (const eventBlock of events) {
+              if (!eventBlock.trim()) continue;
 
-            for (const line of lines) {
-              if (line.startsWith("event: ")) {
-                eventType = line.slice(7).trim();
-              } else if (line.startsWith("data: ")) {
-                eventData = line.slice(6);
+              const lines = eventBlock.split("\n");
+              let eventType = "";
+              let eventData = "";
+
+              for (const line of lines) {
+                if (line.startsWith("event: ")) {
+                  eventType = line.slice(7).trim();
+                } else if (line.startsWith("data: ")) {
+                  eventData = line.slice(6);
+                }
               }
-            }
 
-            if (eventData) {
-              try {
-                const data = JSON.parse(eventData);
+              if (eventData) {
+                try {
+                  const data = JSON.parse(eventData);
 
-                if (
-                  data.type === "agent" &&
-                  (data.content?.text || data.content?.attachments?.length)
-                ) {
-                  // Skip action result messages from UI but process metadata
-                  if (data.content?.metadata?.type === "action_result") {
-                    // Check for character creation in action results
-                    if (data.content?.metadata?.characterId) {
-                      detectedCharacterCreated = true;
-                      createdCharacterId = data.content.metadata.characterId;
+                  if (
+                    data.type === "agent" &&
+                    (data.content?.text || data.content?.attachments?.length)
+                  ) {
+                    // Skip action result messages from UI but process metadata
+                    if (data.content?.metadata?.type === "action_result") {
+                      // Check for character creation in action results
+                      if (data.content?.metadata?.characterId) {
+                        detectedCharacterCreated = true;
+                        createdCharacterId = data.content.metadata.characterId;
+                      }
+                      // Check for SAVE_CHANGES action
+                      if (
+                        data.content?.actions &&
+                        Array.isArray(data.content.actions)
+                      ) {
+                        if (data.content.actions.includes("SAVE_CHANGES")) {
+                          detectedApplyAction = true;
+                        }
+                      }
+                      continue;
                     }
+
+                    assistantMessage = data.content.text || "";
+                    assistantMessageId = data.id;
+
+                    // Capture attachments (images, etc.)
+                    if (data.content?.attachments?.length) {
+                      messageAttachments = data.content.attachments.map(
+                        (att: {
+                          id?: string;
+                          url: string;
+                          title?: string;
+                          contentType?: string;
+                        }) => ({
+                          id: att.id || `att-${Date.now()}`,
+                          url: att.url,
+                          title: att.title,
+                          contentType: att.contentType,
+                        }),
+                      );
+                    }
+
                     // Check for SAVE_CHANGES action
                     if (
                       data.content?.actions &&
@@ -375,165 +500,156 @@ export function BuildModeAssistant({
                         detectedApplyAction = true;
                       }
                     }
-                    continue;
-                  }
 
-                  assistantMessage = data.content.text || "";
-                  assistantMessageId = data.id;
+                    // Check for CREATE_CHARACTER metadata
+                    if (
+                      data.content?.metadata?.action === "CREATE_CHARACTER" &&
+                      data.content?.metadata?.characterCreated
+                    ) {
+                      detectedCharacterCreated = true;
+                      createdCharacterId =
+                        data.content.metadata.characterId || null;
+                    }
 
-                  // Capture attachments (images, etc.)
-                  if (data.content?.attachments?.length) {
-                    messageAttachments = data.content.attachments.map(
-                      (att: {
-                        id?: string;
-                        url: string;
-                        title?: string;
-                        contentType?: string;
-                      }) => ({
-                        id: att.id || `att-${Date.now()}`,
-                        url: att.url,
-                        title: att.title,
-                        contentType: att.contentType,
-                      }),
-                    );
-                  }
+                    // Check for SUGGEST_CHANGES with partial field updates
+                    if (
+                      data.content?.metadata?.action === "SUGGEST_CHANGES" &&
+                      data.content?.metadata?.changes
+                    ) {
+                      proposedCharacterUpdate = data.content.metadata.changes;
+                    }
 
-                  // Check for SAVE_CHANGES action
-                  if (
-                    data.content?.actions &&
-                    Array.isArray(data.content.actions)
-                  ) {
-                    if (data.content.actions.includes("SAVE_CHANGES")) {
-                      detectedApplyAction = true;
+                    // Check for GENERATE_AVATAR with avatar URL
+                    if (
+                      data.content?.metadata?.action === "GENERATE_AVATAR" &&
+                      data.content?.metadata?.changes?.avatarUrl
+                    ) {
+                      proposedCharacterUpdate = data.content.metadata.changes;
+                      // Track if avatar was auto-saved
+                      if (data.content?.metadata?.avatarSaved) {
+                        (
+                          proposedCharacterUpdate as Record<string, unknown>
+                        ).__avatarSaved = true;
+                      }
                     }
                   }
-
-                  // Check for CREATE_CHARACTER metadata
-                  if (
-                    data.content?.metadata?.action === "CREATE_CHARACTER" &&
-                    data.content?.metadata?.characterCreated
-                  ) {
-                    detectedCharacterCreated = true;
-                    createdCharacterId =
-                      data.content.metadata.characterId || null;
-                  }
-
-                  // Check for SUGGEST_CHANGES with partial field updates
-                  if (
-                    data.content?.metadata?.action === "SUGGEST_CHANGES" &&
-                    data.content?.metadata?.changes
-                  ) {
-                    proposedCharacterUpdate = data.content.metadata.changes;
-                  }
-
-                  // Check for GENERATE_AVATAR with avatar URL
-                  if (
-                    data.content?.metadata?.action === "GENERATE_AVATAR" &&
-                    data.content?.metadata?.changes?.avatarUrl
-                  ) {
-                    proposedCharacterUpdate = data.content.metadata.changes;
-                    // Track if avatar was auto-saved
-                    if (data.content?.metadata?.avatarSaved) {
-                      (
-                        proposedCharacterUpdate as Record<string, unknown>
-                      ).__avatarSaved = true;
-                    }
-                  }
+                } catch {
+                  // Silently ignore parse errors during streaming
                 }
-              } catch {
-                // Silently ignore parse errors during streaming
               }
-            }
 
-            // Handle done event
-            if (eventType === "done") {
-              if (assistantMessage || messageAttachments.length > 0) {
-                const newAssistantMessage: Message = {
-                  id: assistantMessageId || `assistant-${Date.now()}`,
-                  role: "assistant",
-                  content: assistantMessage,
-                  timestamp: Date.now(),
-                  attachments:
-                    messageAttachments.length > 0
-                      ? messageAttachments
-                      : undefined,
-                };
-                setMessages((prev) => [...prev, newAssistantMessage]);
+              // Handle done event
+              if (eventType === "done") {
+                if (assistantMessage || messageAttachments.length > 0) {
+                  const newAssistantMessage: Message = {
+                    id: assistantMessageId || `assistant-${Date.now()}`,
+                    role: "assistant",
+                    content: assistantMessage,
+                    timestamp: Date.now(),
+                    attachments:
+                      messageAttachments.length > 0
+                        ? messageAttachments
+                        : undefined,
+                  };
+                  setMessages((prev) => [...prev, newAssistantMessage]);
 
-                // Apply character updates to editor
-                if (proposedCharacterUpdate) {
-                  // Check for avatar saved flag and remove it before updating
-                  const updateWithMeta = proposedCharacterUpdate as Record<
-                    string,
-                    unknown
-                  >;
-                  const avatarWasSaved = updateWithMeta.__avatarSaved;
-                  delete updateWithMeta.__avatarSaved;
+                  // Apply character updates to editor
+                  if (proposedCharacterUpdate) {
+                    // Check for avatar saved flag and remove it before updating
+                    const updateWithMeta = proposedCharacterUpdate as Record<
+                      string,
+                      unknown
+                    >;
+                    const avatarWasSaved = updateWithMeta.__avatarSaved;
+                    delete updateWithMeta.__avatarSaved;
 
-                  onCharacterUpdate(proposedCharacterUpdate);
-                  const isAvatarUpdate = "avatarUrl" in proposedCharacterUpdate;
+                    onCharacterUpdate(proposedCharacterUpdate);
+                    const isAvatarUpdate =
+                      "avatarUrl" in proposedCharacterUpdate;
 
-                  if (isAvatarUpdate) {
-                    // Update sidebar/dropdown avatar if saved in build mode (not creator mode)
-                    if (avatarWasSaved && !isCreatorMode && character?.id) {
-                      updateCharacterAvatar(
-                        character.id,
-                        updateWithMeta.avatarUrl as string,
+                    if (isAvatarUpdate) {
+                      // Update sidebar/dropdown avatar if saved in build mode (not creator mode)
+                      if (avatarWasSaved && !isCreatorMode && character?.id) {
+                        updateCharacterAvatar(
+                          character.id,
+                          updateWithMeta.avatarUrl as string,
+                        );
+                      }
+
+                      toast.success(
+                        avatarWasSaved
+                          ? "Avatar generated and saved!"
+                          : "Avatar preview updated!",
+                        { duration: 4000 },
                       );
+                    } else {
+                      toast.success("Character preview updated!", {
+                        duration: 4000,
+                      });
                     }
+                  }
+
+                  // Handle character creation in creator mode - lock the room
+                  if (
+                    isCreatorMode &&
+                    detectedCharacterCreated &&
+                    createdCharacterId
+                  ) {
+                    const createdName =
+                      (proposedCharacterUpdate?.name as string) ||
+                      character?.name ||
+                      "your agent";
+
+                    // Lock the room and show link to chat with the created agent
+                    setLockedRoom({
+                      characterId: createdCharacterId,
+                      characterName: createdName,
+                    });
+
+                    // Notify parent that character was created (clears unsaved changes)
+                    onCharacterCreated?.(createdCharacterId, createdName);
 
                     toast.success(
-                      avatarWasSaved
-                        ? "Avatar generated and saved!"
-                        : "Avatar preview updated!",
+                      "Character created! You can now chat with your agent.",
                       { duration: 4000 },
                     );
-                  } else {
-                    toast.success("Character preview updated!", {
-                      duration: 4000,
-                    });
+                  }
+
+                  // Refresh character data after apply action
+                  if (detectedApplyAction && onCharacterRefresh) {
+                    toast.success("Character saved!", { duration: 3000 });
+                    await onCharacterRefresh();
                   }
                 }
-
-                // Handle character creation in creator mode - lock the room
-                if (
-                  isCreatorMode &&
-                  detectedCharacterCreated &&
-                  createdCharacterId
-                ) {
-                  // Lock the room and show link to chat with the created agent
-                  setLockedRoom({
-                    characterId: createdCharacterId,
-                    characterName:
-                      (proposedCharacterUpdate?.name as string) || "your agent",
-                  });
-                  toast.success(
-                    "Character created! You can now chat with your agent.",
-                    { duration: 4000 },
-                  );
-                }
-
-                // Refresh character data after apply action
-                if (detectedApplyAction && onCharacterRefresh) {
-                  toast.success("Character saved!", { duration: 3000 });
-                  await onCharacterRefresh();
-                }
               }
+              // Clear streaming state
+              clearAllStreaming();
             }
           }
         }
+      } catch (error) {
+        console.error("[BuildMode] Error sending message:", error);
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : "Failed to send message. Please try again.",
+        );
+      } finally {
+        setIsLoading(false);
       }
-    } catch (error) {
-      console.error("[BuildMode] Error sending message:", error);
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Failed to send message. Please try again.",
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    },
+    [
+      builderRoomId,
+      character,
+      clearAllStreaming,
+      isCreatorMode,
+      onCharacterCreated,
+      onCharacterRefresh,
+      onCharacterUpdate,
+      selectedModelId,
+      updateCharacterAvatar,
+    ],
+  );
 
   // Robust scroll to bottom function
   const scrollToBottom = useCallback((smooth = false) => {
@@ -542,13 +658,9 @@ export function BuildModeAssistant({
         "[data-radix-scroll-area-viewport]",
       );
       if (viewport) {
-        // Use requestAnimationFrame to ensure DOM has updated
         requestAnimationFrame(() => {
           if (smooth) {
-            viewport.scrollTo({
-              top: viewport.scrollHeight,
-              behavior: "smooth",
-            });
+            viewport.scrollTo({ top: viewport.scrollHeight, behavior: "smooth" });
           } else {
             viewport.scrollTop = viewport.scrollHeight;
           }
@@ -619,14 +731,17 @@ export function BuildModeAssistant({
     // Note: If onCharacterUpdate causes too many re-runs, wrap it in useCallback in the parent
   }, [messages, onCharacterUpdate]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inputText.trim() || isLoading) return;
+  const handleSubmit = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!inputText.trim() || isLoading) return;
 
-    const userMessage = inputText;
-    setInputText("");
-    await sendElizaMessage(userMessage);
-  };
+      const userMessage = inputText;
+      setInputText("");
+      await sendElizaMessage(userMessage);
+    },
+    [inputText, isLoading, sendElizaMessage],
+  );
 
   // Pre-prompts for quick start - different for creator vs build mode
   const quickPrompts = isCreatorMode
@@ -730,7 +845,7 @@ export function BuildModeAssistant({
                       <button
                         key={item.label}
                         onClick={() => handleQuickPrompt(item.prompt)}
-                        className="px-4 py-3 text-left text-sm text-white/80 bg-white/[0.03] border border-white/[0.08] rounded-lg hover:bg-white/[0.06] hover:border-white/[0.12] transition-colors"
+                        className="px-4 py-3 text-center text-sm text-white/80 bg-white/[0.03] border border-white/[0.08] rounded-lg hover:bg-white/[0.06] hover:border-white/[0.12] transition-colors"
                       >
                         {item.label}
                       </button>
@@ -743,14 +858,19 @@ export function BuildModeAssistant({
             {messages.map((message, index) => {
               const content = message.content;
               const isAgent = message.role === "assistant";
+              const isStreaming = message.id.startsWith("streaming-");
+              // Use stable key that doesn't change when streaming message becomes final
+              const stableKey = isStreaming ? message.id.replace("streaming-", "") : message.id;
+              // Only animate messages that haven't been rendered before
+              const wasAlreadyRendered = renderedMessagesRef.current.has(stableKey);
+              const shouldAnimate = !wasAlreadyRendered && !isStreaming;
+              renderedMessagesRef.current.add(stableKey);
 
               return (
                 <div
-                  key={message.id}
-                  className={`flex ${
-                    isAgent ? "justify-start" : "justify-end"
-                  } animate-in fade-in slide-in-from-bottom-4 duration-500`}
-                  style={{ animationDelay: `${index * 50}ms` }}
+                  key={stableKey}
+                  className={`flex ${isAgent ? "justify-start" : "justify-end"}${shouldAnimate ? " animate-in fade-in slide-in-from-bottom-4 duration-500" : ""}`}
+                  style={shouldAnimate ? { animationDelay: `${index * 50}ms` } : undefined}
                 >
                   {isAgent ? (
                     <div className="flex flex-col gap-1.5 max-w-[85%] sm:max-w-[75%] group/message">
@@ -778,11 +898,13 @@ export function BuildModeAssistant({
                                   key={attachment.id}
                                   className="relative rounded-lg overflow-hidden border border-white/[0.08] bg-white/[0.02]"
                                 >
-                                  <img
+                                  <Image
                                     src={attachment.url}
                                     alt={attachment.title || "Generated image"}
+                                    width={280}
+                                    height={280}
                                     className="max-w-[280px] max-h-[280px] object-cover"
-                                    loading="lazy"
+                                    unoptimized
                                   />
                                 </div>
                               ))}
@@ -863,10 +985,19 @@ export function BuildModeAssistant({
                               .build-mode-content :global(ul),
                               .build-mode-content :global(ol) {
                                 margin: 8px 0 !important;
-                                padding-left: 20px !important;
+                                padding-left: 24px !important;
+                                list-style-position: outside !important;
                               }
                               .build-mode-content :global(li) {
-                                margin: 2px 0 !important;
+                                margin: 6px 0 !important;
+                                padding-left: 4px !important;
+                              }
+                              .build-mode-content :global(li > p) {
+                                display: inline !important;
+                                margin: 0 !important;
+                              }
+                              .build-mode-content :global(li > p:first-child) {
+                                display: inline !important;
                               }
                               .build-mode-content :global(h1),
                               .build-mode-content :global(h2),
@@ -885,8 +1016,24 @@ export function BuildModeAssistant({
                               .build-mode-content :global(h4) {
                                 font-size: 14px !important;
                               }
+                              /* Streaming text animation for smoother chunk appearance */
+                              @keyframes streamFadeIn {
+                                from {
+                                  opacity: 0.7;
+                                }
+                                to {
+                                  opacity: 1;
+                                }
+                              }
+                              .streaming-text {
+                                animation: streamFadeIn 150ms ease-out forwards;
+                              }
+                              .streaming-text p:last-child,
+                              .streaming-text > *:last-child {
+                                animation: streamFadeIn 120ms ease-out forwards;
+                              }
                             `}</style>
-                            <div className="text-[15px] leading-relaxed text-white/90 build-mode-content break-words">
+                            <div className={`text-[15px] leading-relaxed text-white/90 build-mode-content break-words${isStreaming ? " streaming-text" : ""}`}>
                               <ReactMarkdown
                                 remarkPlugins={[remarkGfm]}
                                 rehypePlugins={[rehypeHighlight]}
@@ -922,14 +1069,22 @@ export function BuildModeAssistant({
                                     </a>
                                   ),
                                   ul: ({ children }) => (
-                                    <ul className="list-disc list-inside my-2">
+                                    <ul className="list-disc my-2 pl-6">
                                       {children}
                                     </ul>
                                   ),
                                   ol: ({ children }) => (
-                                    <ol className="list-decimal list-inside my-2">
+                                    <ol className="list-decimal my-2 pl-6">
                                       {children}
                                     </ol>
+                                  ),
+                                  li: ({
+                                    children,
+                                    ...props
+                                  }: React.HTMLProps<HTMLLIElement>) => (
+                                    <li className="my-1.5 pl-1" {...props}>
+                                      {children}
+                                    </li>
                                   ),
                                   p: ({ children }) => (
                                     <p className="my-2 first:mt-0 last:mb-0">
@@ -940,34 +1095,40 @@ export function BuildModeAssistant({
                               >
                                 {content}
                               </ReactMarkdown>
+                              {/* Blinking cursor for streaming messages */}
+                              {isStreaming && (
+                                <span className="inline-block w-2 h-4 bg-[#FF5800]/70 ml-0.5 animate-pulse" />
+                              )}
                             </div>
                           </div>
                         )}
-                        {/* Time and Actions */}
-                        <div className="flex items-center gap-2 pl-1 opacity-0 group-hover/message:opacity-100 transition-opacity">
-                          <span className="text-xs text-white/40">
-                            {formatTimestamp(message.timestamp)}
-                          </span>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-6 w-6 p-0 hover:bg-white/10 rounded transition-colors"
-                            onClick={() => copyToClipboard(content, message.id)}
-                            title="Copy message"
-                          >
-                            {copiedMessageId === message.id ? (
-                              <Check className="h-3.5 w-3.5 text-green-500" />
-                            ) : (
-                              <Copy className="h-3.5 w-3.5 text-white/50 hover:text-white/80" />
-                            )}
-                          </Button>
-                        </div>
+                        {/* Time and Actions - hide during streaming */}
+                        {!isStreaming && (
+                          <div className="flex items-center gap-2 pl-1 opacity-0 group-hover/message:opacity-100 transition-opacity">
+                            <span className="text-xs text-white/40">
+                              {formatTimestamp(message.timestamp)}
+                            </span>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-6 w-6 p-0 hover:bg-white/10 rounded transition-colors"
+                              onClick={() => copyToClipboard(content, message.id)}
+                              title="Copy message"
+                            >
+                              {copiedMessageId === message.id ? (
+                                <Check className="h-3.5 w-3.5 text-green-500" />
+                              ) : (
+                                <Copy className="h-3.5 w-3.5 text-white/50 hover:text-white/80" />
+                              )}
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ) : (
-                    <div className="flex flex-col gap-1.5 max-w-[85%] sm:max-w-[75%] group/message">
+                    <div className="flex flex-col gap-1.5 max-w-[85%] sm:max-w-[75%] group/message items-end">
                       {/* User Message */}
-                      <div className="py-3 px-4 bg-[#FF5800]/10 border border-[#FF5800]/20 rounded-lg transition-colors hover:bg-[#FF5800]/15 hover:border-[#FF5800]/30">
+                      <div className="py-3 px-4 bg-[#FF5800]/10 border border-[#FF5800]/20 rounded-lg transition-colors hover:bg-[#FF5800]/15 hover:border-[#FF5800]/30 ml-auto">
                         <div className="whitespace-pre-wrap text-[15px] leading-relaxed text-white/95">
                           {content}
                         </div>
@@ -997,7 +1158,8 @@ export function BuildModeAssistant({
               );
             })}
 
-            {isLoading && (
+            {/* Show thinking indicator only when loading and no streaming message yet */}
+            {isLoading && !messages.some((m) => m.id.startsWith("streaming-")) && (
               <div className="flex justify-start animate-in fade-in slide-in-from-bottom-4 duration-500">
                 <div className="flex flex-col gap-1.5 max-w-[85%] sm:max-w-[75%]">
                   <div className="flex items-center gap-2 pl-1">
@@ -1062,73 +1224,124 @@ export function BuildModeAssistant({
           onSubmit={handleSubmit}
           className="border-t border-white/[0.06] p-4"
         >
-          <div className="max-w-3xl mx-auto px-4 sm:px-6">
-            {/* Input Container - Flexbox layout for proper alignment */}
-            <div className="relative flex items-end gap-2 rounded-xl border border-white/[0.08] bg-white/[0.02] p-2 transition-colors focus-within:border-white/[0.15] focus-within:bg-white/[0.03]">
-              {/* Robot Eye Visor Scanner - Only show when loading */}
-              {isLoading && (
-                <div className="absolute top-0 left-0 right-0 h-[2px] overflow-hidden pointer-events-none z-10 rounded-t-xl">
-                  <div
-                    className="absolute h-full w-24 bg-gradient-to-r from-transparent via-[#FF5800] to-transparent"
-                    style={{
-                      animation:
-                        "visor-scan 4.8s cubic-bezier(0.4, 0, 0.6, 1) infinite",
-                      boxShadow: "0 0 15px 3px rgba(255, 88, 0, 0.7)",
-                      filter: "blur(0.5px)",
-                    }}
-                  />
-                  <div
-                    className="absolute h-full w-16 bg-gradient-to-r from-transparent via-[#FF5800]/60 to-transparent"
-                    style={{
-                      animation:
-                        "visor-scan-delayed 6.2s cubic-bezier(0.3, 0.1, 0.7, 0.9) infinite 1.5s",
-                      boxShadow: "0 0 10px 2px rgba(255, 88, 0, 0.5)",
-                      filter: "blur(1px)",
-                    }}
-                  />
-                </div>
-              )}
-
-              {/* Textarea */}
-              <textarea
-                rows={1}
-                value={inputText}
-                onChange={(e) => setInputText(e.currentTarget.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    if (!isLoading) {
-                      handleSubmit(e);
-                    }
-                  }
-                }}
-                onInput={(e) => {
-                  const target = e.currentTarget;
-                  target.style.height = "40px";
-                  target.style.height =
-                    Math.min(target.scrollHeight, 120) + "px";
-                }}
-                placeholder="Describe your character or ask for help..."
-                className="flex-1 min-w-0 bg-transparent px-2 py-2 text-[15px] text-white placeholder:text-white/40 focus:outline-none resize-none leading-relaxed scrollbar-hide"
-                style={{
-                  height: "40px",
-                  maxHeight: "120px",
-                }}
-              />
-
-              {/* Send Button */}
-              <Button
-                type="submit"
-                disabled={isLoading || !inputText.trim()}
-                size="icon"
-                className="flex-shrink-0 h-10 w-10 rounded-lg bg-[#FF5800]/20 border border-[#FF5800]/30 hover:bg-[#FF5800]/30 disabled:opacity-40 transition-colors flex items-center justify-center"
-              >
-                {isLoading ? (
-                  <Loader2 className="h-4 w-4 animate-spin text-[#FF5800]" />
-                ) : (
-                  <Send className="h-4 w-4 text-[#FF5800]" />
+          <div className="mx-auto px-4 sm:px-6">
+            <div className="space-y-3">
+              {/* Input Container */}
+              <div className="relative rounded-lg border border-white/[0.08] bg-white/[0.02] overflow-hidden transition-colors focus-within:border-white/[0.15] focus-within:bg-white/[0.03]">
+                {/* Robot Eye Visor Scanner - Only show when loading */}
+                {isLoading && (
+                  <div className="absolute top-0 left-0 right-0 h-[2px] overflow-hidden pointer-events-none z-10">
+                    <div
+                      className="absolute h-full w-24 bg-gradient-to-r from-transparent via-[#FF5800] to-transparent"
+                      style={{
+                        animation:
+                          "visor-scan 4.8s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+                        boxShadow: "0 0 15px 3px rgba(255, 88, 0, 0.7)",
+                        filter: "blur(0.5px)",
+                      }}
+                    />
+                    <div
+                      className="absolute h-full w-16 bg-gradient-to-r from-transparent via-[#FF5800]/60 to-transparent"
+                      style={{
+                        animation:
+                          "visor-scan-delayed 6.2s cubic-bezier(0.3, 0.1, 0.7, 0.9) infinite 1.5s",
+                        boxShadow: "0 0 10px 2px rgba(255, 88, 0, 0.5)",
+                        filter: "blur(1px)",
+                      }}
+                    />
+                  </div>
                 )}
-              </Button>
+
+                {/* Textarea */}
+                <textarea
+                  rows={1}
+                  value={inputText}
+                  onChange={(e) => setInputText(e.currentTarget.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      if (!isLoading) {
+                        handleSubmit(e);
+                      }
+                    }
+                  }}
+                  onInput={(e) => {
+                    const target = e.currentTarget;
+                    target.style.height = "44px";
+                    target.style.height =
+                      Math.min(target.scrollHeight, 140) + "px";
+                  }}
+                  placeholder="Describe your agent or ask for help..."
+                  className="w-full bg-transparent px-4 py-3 text-[15px] text-white placeholder:text-white/40 focus:outline-none resize-none leading-relaxed"
+                  style={{
+                    minHeight: "44px",
+                    maxHeight: "140px",
+                  }}
+                />
+              </div>
+
+              {/* Bottom Row: Model Selector (left) and Send Button (right) */}
+              <div className="flex items-center justify-between">
+                {/* Model Tier Selector */}
+                <Select
+                  value={selectedTier}
+                  onValueChange={(value) => {
+                    setSelectedTier(value as "fast" | "pro" | "ultra");
+                    const tier = BUILD_MODE_TIER_LIST.find(
+                      (t) => t.id === value,
+                    );
+                    if (tier) {
+                      toast.success(`Model: ${tier.name}`);
+                    }
+                  }}
+                >
+                  <SelectTrigger className="w-[120px] h-9 border-white/[0.08] bg-white/[0.02] rounded-lg text-sm hover:bg-white/[0.05] transition-colors">
+                    <SelectValue placeholder="Select model">
+                      <span className="flex items-center gap-2">
+                        {tierIcons[selectedTier]}
+                        {BUILD_MODE_TIER_LIST.find((t) => t.id === selectedTier)
+                          ?.name || "Pro"}
+                      </span>
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent className="rounded-lg border-white/[0.08]">
+                    {BUILD_MODE_TIER_LIST.map((tier) => (
+                      <SelectItem key={tier.id} value={tier.id}>
+                        <div className="flex items-center gap-2">
+                          {tierIcons[tier.id]}
+                          <div className="flex flex-col">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-medium">{tier.name}</span>
+                              {tier.recommended && (
+                                <span className="text-[10px] px-1 py-0.5 rounded bg-[#FF5800]/20 text-[#FF5800]">
+                                  recommended
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-[10px] text-white/40 font-mono">
+                              {tier.modelId}
+                            </span>
+                          </div>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                {/* Send Button */}
+                <Button
+                  type="submit"
+                  disabled={isLoading || !inputText.trim()}
+                  size="icon"
+                  className="h-9 w-9 rounded-lg bg-[#FF5800]/20 border border-[#FF5800]/30 hover:bg-[#FF5800]/30 disabled:opacity-40 transition-colors"
+                >
+                  {isLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin text-[#FF5800]" />
+                  ) : (
+                    <Send className="h-4 w-4 text-[#FF5800]" />
+                  )}
+                </Button>
+              </div>
             </div>
           </div>
         </form>

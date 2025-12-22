@@ -11,10 +11,6 @@ import {
   ContainersSection,
   ContainersSectionSkeleton,
 } from "@/components/dashboard/containers-section";
-import {
-  GettingStarted,
-  GettingStartedSkeleton,
-} from "@/components/dashboard/getting-started";
 
 export const metadata: Metadata = generatePageMetadata({
   ...ROUTE_METADATA.dashboard,
@@ -25,30 +21,17 @@ export const metadata: Metadata = generatePageMetadata({
 export const dynamic = "force-dynamic";
 
 /**
- * Main dashboard page displaying user's agents, containers, and onboarding status.
- * Shows getting started section for new users.
+ * Main dashboard page displaying user's agents and containers.
  *
  * @returns Dashboard page with agents and containers sections.
  */
 export default async function DashboardPage() {
   const data = await getDashboardData();
 
-  const { hasAgents, hasApiKey, hasChatHistory } = data.onboarding;
-
   return (
     <DashboardPageWrapper userName={data.user.name.split(" ")[0] || "User"}>
       <main className="mx-auto w-full max-w-[1400px] px-4 pb-8 pt-6 lg:px-8">
         <div className="space-y-8">
-          {!hasAgents && (
-            <Suspense fallback={<GettingStartedSkeleton />}>
-              <GettingStarted
-                hasAgents={hasAgents}
-                hasApiKey={hasApiKey}
-                hasChatHistory={hasChatHistory}
-              />
-            </Suspense>
-          )}
-
           <section>
             <Suspense fallback={<AgentsSectionSkeleton />}>
               <AgentsSection agents={data.agents} />

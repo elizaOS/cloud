@@ -37,18 +37,9 @@ function LoginPageContent() {
   const [showCodeInput, setShowCodeInput] = useState(false);
   const [loadingButton, setLoadingButton] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
-  const [isProcessingOAuth, setIsProcessingOAuth] = useState(false);
-
-  // Check if this is a signup intent (from "Get Started" button)
-  const isSignupIntent = searchParams.get("intent") === "signup";
-
-  // Guard against multiple simultaneous login() calls (critical for macOS/Brave)
-  const loginInProgressRef = useRef(false);
-  const lastLoginAttemptRef = useRef<number>(0);
-
-  // Detect OAuth callback on mount - check for Privy OAuth params or session flag
-  useEffect(() => {
-    // Check for OAuth callback indicators in URL or session storage
+  const [isProcessingOAuth, setIsProcessingOAuth] = useState(() => {
+    // Initialize OAuth processing state on client-side only to prevent SSR hydration mismatch
+    if (typeof window === "undefined") return false;
     const urlParams = new URLSearchParams(window.location.search);
     const hasOAuthParams =
       urlParams.has("privy_oauth_code") ||
@@ -56,11 +47,15 @@ function LoginPageContent() {
       urlParams.has("code") ||
       urlParams.has("state");
     const sessionFlag = sessionStorage.getItem("oauth_login_pending");
+    return hasOAuthParams || sessionFlag === "true";
+  });
 
-    if (hasOAuthParams || sessionFlag) {
-      setIsProcessingOAuth(true);
-    }
-  }, []);
+  // Check if this is a signup intent (from "Get Started" button)
+  const isSignupIntent = searchParams.get("intent") === "signup";
+
+  // Guard against multiple simultaneous login() calls (critical for macOS/Brave)
+  const loginInProgressRef = useRef(false);
+  const lastLoginAttemptRef = useRef<number>(0);
 
   // Redirect to dashboard if already authenticated
   useEffect(() => {

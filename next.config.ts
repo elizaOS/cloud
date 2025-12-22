@@ -35,7 +35,19 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: "https",
+        hostname: "api.qrserver.com",
+        port: "",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
         hostname: "api.dicebear.com",
+        port: "",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "images.unsplash.com",
         port: "",
         pathname: "/**",
       },
@@ -78,14 +90,95 @@ const nextConfig: NextConfig = {
     "ipfs-utils",
     "electron-fetch",
     "electron",
+    // oxapay uses __dirname + fs.readFile for method info JSON
+    "oxapay",
   ],
-  webpack: (config, { isServer }) => {
+
+  webpack: (config, { isServer, dev }) => {
+    // Fix for worker_threads not being handled by Turbopack
     if (isServer) {
       config.externals = config.externals || [];
       if (Array.isArray(config.externals)) {
         config.externals.push("worker_threads");
       }
     }
+
+    // Production optimizations
+    if (!dev && !isServer) {
+      // Optimize chunk splitting for better caching
+      config.optimization = {
+        ...config.optimization,
+        moduleIds: "deterministic",
+        runtimeChunk: "single",
+        splitChunks: {
+          chunks: "all",
+          cacheGroups: {
+            // Vendor chunks - stable dependencies
+            vendor: {
+              test: /[\\/]node_modules[\\/]/,
+              name: "vendors",
+              priority: 10,
+              reuseExistingChunk: true,
+            },
+            // ElizaOS packages - frequently updated
+            elizaos: {
+              test: /[\\/]node_modules[\\/]@elizaos[\\/]/,
+              name: "elizaos",
+              priority: 20,
+              reuseExistingChunk: true,
+            },
+            // UI libraries - large but stable
+            ui: {
+              test: /[\\/]node_modules[\\/](@radix-ui|lucide-react|@tabler)[\\/]/,
+              name: "ui-lib",
+              priority: 15,
+              reuseExistingChunk: true,
+            },
+            // Heavy libraries loaded separately
+            monaco: {
+              test: /[\\/]node_modules[\\/](@monaco-editor|monaco-editor)[\\/]/,
+              name: "monaco",
+              priority: 25,
+              reuseExistingChunk: true,
+            },
+            three: {
+              test: /[\\/]node_modules[\\/](three|@react-three)[\\/]/,
+              name: "three",
+              priority: 25,
+              reuseExistingChunk: true,
+            },
+            recharts: {
+              test: /[\\/]node_modules[\\/]recharts[\\/]/,
+              name: "recharts",
+              priority: 25,
+              reuseExistingChunk: true,
+            },
+            // Common shared code
+            common: {
+              minChunks: 2,
+              priority: 5,
+              reuseExistingChunk: true,
+              enforce: true,
+            },
+          },
+          maxInitialRequests: 25,
+          minSize: 20000,
+        },
+      };
+
+      // Enable bundle analyzer if env variable is set
+      if (process.env.ANALYZE === "true") {
+        const { BundleAnalyzerPlugin } = require("webpack-bundle-analyzer");
+        config.plugins.push(
+          new BundleAnalyzerPlugin({
+            analyzerMode: "static",
+            reportFilename: "./analyze/client.html",
+            openAnalyzer: false,
+          }),
+        );
+      }
+    }
+
     return config;
   },
   async headers() {
@@ -99,9 +192,9 @@ const nextConfig: NextConfig = {
               "default-src 'self'",
               "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://challenges.cloudflare.com https://va.vercel-scripts.com https://cdn.jsdelivr.net",
               "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
-              // Images - allow self, data URIs, blob URIs, Vercel storage, Instagram CDN, DiceBear avatars
+              // Images - allow self, data URIs, blob URIs, Vercel storage, Instagram CDN, DiceBear avatars, Unsplash
               // Note: Fal.ai URLs are proxied through our storage, so not needed here
-              "img-src 'self' data: blob: https://*.public.blob.vercel-storage.com https://raw.githubusercontent.com https://*.fbcdn.net https://*.cdninstagram.com https://api.dicebear.com",
+              "img-src 'self' data: blob: https://*.public.blob.vercel-storage.com https://raw.githubusercontent.com https://*.fbcdn.net https://*.cdninstagram.com https://api.dicebear.com https://images.unsplash.com",
               // Fonts - allow self and Monaco Editor CDN
               "font-src 'self' https://cdn.jsdelivr.net",
               "object-src 'none'",

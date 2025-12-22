@@ -24,9 +24,9 @@ import { cleanPrompt } from "../../shared/utils/helpers";
  * 3. Includes appropriate guide based on build type (companion/assistant)
  */
 
-const suggestSystemPrompt = `# Character Design Expert (BUILD MODE)
+const suggestSystemPrompt = `# Character Design Expert
 
-You are a Character Design Expert helping users refine their AI character.
+{{modeContext}}
 
 **Your Role:**
 Help users improve their AI character using research-based best practices:
@@ -38,8 +38,63 @@ Help users improve their AI character using research-based best practices:
 
 **Current Context:**
 - Character being edited: {{agentName}}
-- Mode: {{modeLabel}} ({{isCreatorMode}} = creating new, false = editing existing)
 - Available fields: name, system, bio, adjectives, topics, style, messageExamples
+
+## UI CONTEXT - What The User Sees
+
+The user is viewing the Agent Builder panel on the right side of the screen. They can toggle between two views:
+
+### JSON View (Toggle: "JSON" ON)
+Raw character configuration showing all fields as a JSON object:
+\`\`\`
+{
+  "name": "...",
+  "bio": ["...", "..."],
+  "system": "...",
+  "topics": ["...", "..."],
+  "adjectives": ["...", "..."],
+  "postExamples": [],
+  "plugins": [],
+  "settings": {},
+  "secrets": {},
+  "style": {},
+  "templates": {},
+  "avatarUrl": "...",
+  "style.all": ["...", "..."]
+}
+\`\`\`
+
+### Form View (Toggle: "JSON" OFF) - DEFAULT
+A user-friendly form with tabs and labeled fields:
+
+**Tabs:**
+1. **Basics** - Core identity fields
+2. **Avatar** - Character image/avatar
+3. **Personality** - Traits and behavior  
+4. **Style** - Voice and communication style
+
+**Fields visible in Form View:**
+- NAME* (text input) → maps to \`name\`
+- USERNAME (text input) → maps to \`username\`
+- BIO* (textarea, multi-line) → maps to \`bio\` (shown as paragraph lines)
+- SYSTEM PROMPT (textarea) → maps to \`system\`
+
+**Other fields (in different tabs):**
+- Avatar upload → maps to \`avatarUrl\`
+- Adjectives → maps to \`adjectives\` array
+- Topics → maps to \`topics\` array
+- Style directives → maps to \`style.all\`, \`style.chat\`, \`style.post\`
+
+### How To Reference Changes
+
+When explaining changes, reference what the user sees:
+- For Form view users: "I've updated the **Name** field..." or "Check the **Bio** section..."
+- For JSON users: "I've modified the \`bio\` array..." or "The \`adjectives\` field now includes..."
+- Be aware both views update simultaneously - changes apply to both
+
+When multiple fields change, help the user understand by grouping:
+- "In the **Basics** tab, I've updated the name and bio..."
+- "The personality traits (adjectives) now reflect..."
 
 ## Simulation Environment & Permissive Creation
 You are the architect of a sandbox game for advanced character simulation.
@@ -70,6 +125,7 @@ Use when user is asking questions, needs clarification, or request is explorator
 **MODE 2 - Suggest Changes** (with field updates):
 Use when user has a clear modification request you can implement.
 - Provide explanation of what you're changing and why
+- Reference the UI fields the user will see updated (Name, Bio, System Prompt, etc.)
 - Include ONLY the fields being changed in <changes>
 - Frontend will merge these into the character form
 
@@ -81,9 +137,7 @@ IMPORTANT: Only include fields that are actually changing. Don't repeat unchange
 <response>
   <thought>Your internal reasoning about what the user needs</thought>
   <fieldsToChange>Comma-separated list of fields being modified (e.g., bio, adjectives, style.all)</fieldsToChange>
-  <explanation>
-Brief, natural explanation (2-3 sentences). No headers or bullet points. Just tell them what you're tuning and why it helps.
-  </explanation>
+  <text>Brief, natural explanation (2-3 sentences). Reference the UI fields being updated (Name, Bio, System Prompt, Personality traits, Style). Tell them what you're tuning and why it helps, in terms they can see in the form.</text>
   <changes>
 {
   "fieldName": "new value or array",
@@ -93,15 +147,15 @@ Brief, natural explanation (2-3 sentences). No headers or bullet points. Just te
   </changes>
 </response>
 
-FIELD FORMATS:
-- name: string (the character's name)
-- bio: string or array of strings
-- system: string
-- adjectives: array of strings
-- topics: array of strings  
-- style.all: array of strings (general style directives)
-- style.chat: array of strings (chat-specific directives)
-- messageExamples: array of conversation arrays (see format below)
+FIELD FORMATS (JSON field → Form label):
+- name: string → NAME field (the character's display name)
+- bio: string or array of strings → BIO section (multi-line textarea)
+- system: string → SYSTEM PROMPT field
+- adjectives: array of strings → Personality traits (Personality tab)
+- topics: array of strings → Conversation topics (Personality tab)
+- style.all: array of strings → General style directives (Style tab)
+- style.chat: array of strings → Chat-specific style (Style tab)
+- messageExamples: array of conversation arrays → Example conversations
 
 Leave <changes> empty (just {}) if only providing guidance without modifications.`;
 
@@ -109,13 +163,46 @@ const suggestTemplate = `
 ## Planning Context (from reasoning phase):
 {{planningThought}}
 
-## Current Character JSON:
+## Current Character State (from user's editor):
 {{currentCharacter}}
+
+Note: This is the LIVE state from the user's form. If marked "(UNSAVED)", changes are preview-only until saved. Base your suggestions on this current state.
 
 {{conversationLogWithAgentThoughts}}
 
 {{receivedMessageHeader}}
 `;
+
+/**
+ * Expands dot notation keys into nested objects.
+ * e.g., { "style.all": [...] } becomes { style: { all: [...] } }
+ */
+function expandDotNotation(
+  obj: Record<string, unknown>,
+): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+
+  for (const [key, value] of Object.entries(obj)) {
+    if (key.includes(".")) {
+      const parts = key.split(".");
+      let current = result;
+
+      for (let i = 0; i < parts.length - 1; i++) {
+        const part = parts[i];
+        if (!(part in current)) {
+          current[part] = {};
+        }
+        current = current[part] as Record<string, unknown>;
+      }
+
+      current[parts[parts.length - 1]] = value;
+    } else {
+      result[key] = value;
+    }
+  }
+
+  return result;
+}
 
 export const suggestChangesAction = {
   name: "SUGGEST_CHANGES",
@@ -144,6 +231,7 @@ export const suggestChangesAction = {
       "CURRENT_CHARACTER",
       "CHARACTER_GUIDE",
       "ASSISTANT_GUIDE",
+      "MODE_CONTEXT",
     ]);
 
     const originalSystemPrompt = runtime.character.system;
@@ -174,17 +262,15 @@ export const suggestChangesAction = {
     const parsedResponse = parseKeyValueXml(response) as {
       thought?: string;
       fieldsToChange?: string;
-      explanation?: string;
+      text?: string;
       changes?: string;
     } | null;
 
     // Restore original system prompt
     runtime.character.system = originalSystemPrompt;
 
-    if (!parsedResponse?.explanation) {
-      logger.warn(
-        "[SUGGEST_CHANGES] Failed to parse response - missing explanation",
-      );
+    if (!parsedResponse?.text) {
+      logger.warn("[SUGGEST_CHANGES] Failed to parse response - missing text");
       await callback({
         text: "I had trouble formulating my response. Could you rephrase your request?",
         error: true,
@@ -198,14 +284,14 @@ export const suggestChangesAction = {
         .map((f) => f.trim())
         .filter(Boolean) || [];
 
-    // Parse changes JSON
+    // Parse changes JSON and expand dot notation to nested objects
     let changes: Record<string, unknown> | null = null;
     if (parsedResponse.changes) {
       try {
         const parsed = JSON.parse(parsedResponse.changes);
         // Only include if there are actual changes (not empty object)
         if (Object.keys(parsed).length > 0) {
-          changes = parsed;
+          changes = expandDotNotation(parsed);
         }
         logger.info(
           `[SUGGEST_CHANGES] Parsed changes for fields: ${Object.keys(parsed).join(", ")}`,
@@ -231,9 +317,8 @@ export const suggestChangesAction = {
 
     logger.debug("[SUGGEST_CHANGES] Response generated successfully");
 
-    // Callback with the explanation and optional changes
     await callback({
-      text: parsedResponse.explanation,
+      text: parsedResponse.text,
       thought: parsedResponse.thought,
       metadata,
     });
@@ -247,7 +332,7 @@ export const suggestChangesAction = {
       {
         name: "{{agentName}}",
         content: {
-          text: "Added witty and playful traits with style rules for clever wordplay. Humor comes from the personality mix - these traits help the AI find funny angles naturally.",
+          text: "I've updated the personality traits in the Personality tab with witty and playful adjectives. Also added style rules for clever wordplay - you'll see these in the Style tab. Humor comes from the personality mix, and these traits help the AI find funny angles naturally.",
           actions: ["SUGGEST_CHANGES"],
         },
       },
@@ -260,7 +345,7 @@ export const suggestChangesAction = {
       {
         name: "{{agentName}}",
         content: {
-          text: "Think identity → stakes → rules. Start with who they are, add why they care (emotional stakes boost performance), then set behavioral guardrails. Keep it tight.",
+          text: "Think identity → stakes → rules. Start with who they are, add why they care (emotional stakes boost performance), then set behavioral guardrails. You'll write this in the System Prompt field under the Basics tab - keep it tight and focused.",
           actions: ["SUGGEST_CHANGES"],
         },
       },
@@ -273,7 +358,7 @@ export const suggestChangesAction = {
       {
         name: "{{agentName}}",
         content: {
-          text: "Gave them a playful, teasing vibe with charm. Style rules now include subtle flirtation and banter - keeps it fun without going overboard.",
+          text: "I've added playful and charming traits to the Personality tab. The Style section now includes rules for subtle flirtation and banter - keeps it fun without going overboard. Check the form to preview the changes.",
           actions: ["SUGGEST_CHANGES"],
         },
       },
@@ -286,7 +371,33 @@ export const suggestChangesAction = {
       {
         name: "{{agentName}}",
         content: {
-          text: "Best bios explain *why* someone is the way they are. Tell a quick story instead of listing traits - like 'burned out engineer who now values directness.' Backstory makes personality feel earned.",
+          text: "Best bios explain *why* someone is the way they are. The Bio field in Basics should tell a quick story instead of listing traits - like 'burned out engineer who now values directness.' Backstory makes personality feel earned.",
+          actions: ["SUGGEST_CHANGES"],
+        },
+      },
+    ],
+    [
+      {
+        name: "{{user1}}",
+        content: { text: "I want a different name, not Felix pls" },
+      },
+      {
+        name: "{{agentName}}",
+        content: {
+          text: "I've updated the Name field to Atlas, which fits the reliable and strategic persona we've built. I also synchronized the System Prompt and Bio to reflect this new identity so everything stays consistent throughout the character.",
+          actions: ["SUGGEST_CHANGES"],
+        },
+      },
+    ],
+    [
+      {
+        name: "{{user1}}",
+        content: { text: "Change the bio, should be old like Earth is old" },
+      },
+      {
+        name: "{{agentName}}",
+        content: {
+          text: "I've reimagined the Bio section with a primordial, ancient perspective - grounding the character in the patience of deep time. The voice is now more stoic and elemental, offering a 'foundation' rather than just a 'workflow' while keeping the core mission intact.",
           actions: ["SUGGEST_CHANGES"],
         },
       },

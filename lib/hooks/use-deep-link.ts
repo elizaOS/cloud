@@ -97,7 +97,6 @@ export function useDeepLink(handlers?: Record<string, DeepLinkHandler>): void {
   const handleDeepLink = useCallback(
     (urlString: string) => {
       const event = parseDeepLink(urlString);
-      console.log("[DeepLink] Received:", event);
 
       // Check for custom handlers
       const customHandlers = handlersRef.current;
@@ -138,7 +137,6 @@ export function useDeepLink(handlers?: Record<string, DeepLinkHandler>): void {
       const unlistenAuth = await listen(
         "auth-callback",
         (event: { payload: string }) => {
-          console.log("[DeepLink] Auth callback:", event.payload);
           handleDeepLink(event.payload);
         },
       );
@@ -147,7 +145,6 @@ export function useDeepLink(handlers?: Record<string, DeepLinkHandler>): void {
       const unlistenBilling = await listen(
         "billing-success",
         (event: { payload: string }) => {
-          console.log("[DeepLink] Billing success:", event.payload);
           handleDeepLink(event.payload);
         },
       );
@@ -156,7 +153,6 @@ export function useDeepLink(handlers?: Record<string, DeepLinkHandler>): void {
       const unlistenGeneric = await listen(
         "deep-link",
         (event: { payload: string }) => {
-          console.log("[DeepLink] Generic deep link:", event.payload);
           handleDeepLink(event.payload);
         },
       );
@@ -184,8 +180,6 @@ export function useAuthDeepLink(
 ): void {
   useDeepLink({
     "/auth/callback": (event) => {
-      console.log("[DeepLink] Auth callback received:", event.params);
-
       if (onCallback) {
         onCallback(event.params);
       } else {
@@ -205,9 +199,7 @@ export function useAuthDeepLink(
  */
 export function useBillingDeepLink(onSuccess?: () => void): void {
   useDeepLink({
-    "/billing/success": (event) => {
-      console.log("[DeepLink] Billing success:", event.params);
-
+    "/billing/success": () => {
       if (onSuccess) {
         onSuccess();
       }

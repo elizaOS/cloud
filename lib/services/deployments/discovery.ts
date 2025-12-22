@@ -300,6 +300,7 @@ export class CharacterDeploymentDiscoveryService {
 
   /**
    * Get character statistics for multiple characters in a single batch operation
+   * Uses Redis MGET for efficient batch cache lookups
    * @param characterIds - Array of character IDs
    * @returns Map of character ID to stats
    */
@@ -312,12 +313,13 @@ export class CharacterDeploymentDiscoveryService {
       return statsMap;
     }
 
-    // First, try to get all from cache
+    // PERFORMANCE FIX: Use batch MGET instead of sequential cache lookups
+    const cachedStats = await agentStateCache.getAgentStatsBatch(characterIds);
     const uncachedIds: string[] = [];
-    for (const characterId of characterIds) {
-      const cached = await agentStateCache.getAgentStats(characterId);
-      if (cached) {
-        statsMap.set(characterId, cached);
+
+    for (const [characterId, stats] of cachedStats) {
+      if (stats) {
+        statsMap.set(characterId, stats);
       } else {
         uncachedIds.push(characterId);
       }
@@ -332,8 +334,8 @@ export class CharacterDeploymentDiscoveryService {
     const containers = await containersService.listByCharacterIds(uncachedIds);
     const containerMap = new Map(containers.map((c) => [c.character_id!, c]));
 
-    // Process each uncached character
-    for (const characterId of uncachedIds) {
+    // PERFORMANCE FIX: Process uncached characters in parallel
+    const uncachedPromises = uncachedIds.map(async (characterId) => {
       const container = containerMap.get(characterId);
 
       // If no container, return empty stats
@@ -347,12 +349,16 @@ export class CharacterDeploymentDiscoveryService {
           status: "draft",
         };
         await agentStateCache.setAgentStats(characterId, emptyStats);
-        statsMap.set(characterId, emptyStats);
-        continue;
+        return { characterId, stats: emptyStats };
       }
 
       // For deployed characters, fetch individual stats
       const stats = await this.getCharacterStatistics(characterId);
+      return { characterId, stats };
+    });
+
+    const results = await Promise.all(uncachedPromises);
+    for (const { characterId, stats } of results) {
       statsMap.set(characterId, stats);
     }
 

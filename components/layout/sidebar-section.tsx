@@ -116,19 +116,12 @@ export function SidebarNavigationSection({
   // Render collapsed "coming soon" sections
   if (isComingSoon) {
     return (
-      <div className="w-full mb-3 px-3 flex items-center gap-2 opacity-50 cursor-not-allowed">
+      <div className="w-full mb-3 px-3 flex items-center gap-2 opacity-50 select-none cursor-default">
         <span
           className="inline-block w-1.5 h-1.5 rounded-full flex-shrink-0"
           style={{ backgroundColor: dotColor }}
         />
-        <h3
-          className="flex-1 text-xs font-semibold uppercase tracking-wider text-white/50 text-left"
-          style={{
-            fontFamily: "var(--font-roboto-mono)",
-            fontWeight: 400,
-            letterSpacing: "-0.003em",
-          }}
-        >
+        <h3 className="flex-1 text-xs font-normal uppercase tracking-wider text-white/50 text-left">
           {section.title}
         </h3>
         <span

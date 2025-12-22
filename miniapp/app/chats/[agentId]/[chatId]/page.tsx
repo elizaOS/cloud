@@ -568,6 +568,7 @@ function ChatPage() {
                       alt={agent.name}
                       width={40}
                       height={40}
+                      priority
                       className="h-10 w-10 rounded-lg object-cover"
                     />
                   )

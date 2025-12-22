@@ -14,7 +14,6 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { X, Plus, Info } from "lucide-react";
 import type { ElizaCharacter } from "@/lib/types";
-import { AvatarUpload } from "@/components/character-builder/avatar-upload";
 import { AvatarGenerator } from "@/components/character-creator/avatar-generator";
 import {
   BrandTabs,
@@ -69,7 +68,7 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
       : [];
     updateField(
       type,
-      currentArray.filter((_, i) => i !== index),
+      currentArray.filter((_, i) => i !== index)
     );
   };
 
@@ -94,7 +93,7 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
     const currentExamples = character.messageExamples || [];
     updateField(
       "messageExamples",
-      currentExamples.filter((_, i) => i !== index),
+      currentExamples.filter((_, i) => i !== index)
     );
   };
 
@@ -142,7 +141,7 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                   id="name"
                   value={character.name || ""}
                   onChange={(e) => updateField("name", e.target.value)}
-                  placeholder="Character name"
+                  placeholder="Agent name"
                   className="rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
                 />
               </div>
@@ -158,7 +157,7 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                   id="username"
                   value={character.username || ""}
                   onChange={(e) => updateField("username", e.target.value)}
-                  placeholder="@username"
+                  placeholder="@eliza"
                   className="rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
                 />
               </div>
@@ -175,7 +174,7 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                 id="bio"
                 value={bioText}
                 onChange={(e) => updateField("bio", e.target.value)}
-                placeholder="Describe the character's background and purpose..."
+                placeholder="Describe the agent's background and purpose..."
                 className="min-h-[120px] rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
               />
             </div>
@@ -191,7 +190,7 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                 id="system"
                 value={character.system || ""}
                 onChange={(e) => updateField("system", e.target.value)}
-                placeholder="System-level instructions for the agent..."
+                placeholder="You are a helpful AI assistant focused on providing accurate information. Always fact-check before responding and cite sources when possible..."
                 className="min-h-[80px] rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
               />
             </div>
@@ -210,26 +209,6 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
               currentAvatarUrl={character.avatarUrl || character.avatar_url}
               onAvatarChange={(url) => updateField("avatarUrl", url)}
             />
-
-            {/* Divider */}
-            <div className="flex items-center gap-4">
-              <div className="flex-1 h-px bg-white/10" />
-              <span className="text-xs text-white/40">or upload custom</span>
-              <div className="flex-1 h-px bg-white/10" />
-            </div>
-
-            {/* Manual Upload */}
-            <div className="flex flex-col items-center space-y-2">
-              <AvatarUpload
-                value={character.avatarUrl || character.avatar_url}
-                onChange={(url) => updateField("avatarUrl", url)}
-                name={character.name || "Character"}
-                size="md"
-              />
-              <p className="text-xs text-white/40 text-center">
-                Upload a custom image (max 5MB)
-              </p>
-            </div>
           </BrandTabsContent>
 
           {/* Personality Tab */}
@@ -249,31 +228,40 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                     className="max-w-xs bg-black/95 border border-white/10 text-white"
                   >
                     <p className="font-medium mb-1">
-                      Teach your agent's conversation style
+                      Teach your agent&apos;s conversation style
                     </p>
                     <p className="text-white/70">
                       Add realistic user-agent exchanges that demonstrate tone,
-                      vocabulary, and response patterns. Example: User: "How are
-                      you?" → Agent: "I'm doing great, thanks for asking!"
+                      vocabulary, and response patterns. Example: User:
+                      &quot;How are you?&quot; → Agent: &quot;I&apos;m doing
+                      great, thanks for asking!&quot;
                     </p>
                   </TooltipContent>
                 </Tooltip>
               </div>
 
               {/* Add new conversation example */}
-              <div className="space-y-2">
-                <Input
-                  value={newUserMessage}
-                  onChange={(e) => setNewUserMessage(e.target.value)}
-                  placeholder="User says..."
-                  className="rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
-                />
-                <Textarea
-                  value={newAgentMessage}
-                  onChange={(e) => setNewAgentMessage(e.target.value)}
-                  placeholder="Agent responds..."
-                  className="min-h-[60px] rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
-                />
+              <div className="space-y-2 rounded-none border-b border-white/10 bg-black/20 pb-6">
+                <div className="space-y-1">
+                  <label className="text-xs text-white/50">User says:</label>
+                  <Input
+                    value={newUserMessage}
+                    onChange={(e) => setNewUserMessage(e.target.value)}
+                    placeholder="What's the best way to start learning about crypto?"
+                    className="rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-white/50">
+                    Agent responds:
+                  </label>
+                  <Textarea
+                    value={newAgentMessage}
+                    onChange={(e) => setNewAgentMessage(e.target.value)}
+                    placeholder="Great question! I'd recommend starting with Bitcoin and Ethereum basics. Understanding blockchain fundamentals is key before diving into specific projects..."
+                    className="min-h-[60px] rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
+                  />
+                </div>
                 <BrandButton
                   type="button"
                   variant="outline"
@@ -347,8 +335,8 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                     </p>
                     <p className="text-white/70">
                       Add examples of posts your agent might create on social
-                      platforms like Twitter/X. Example: "Just shipped a new
-                      feature! 🚀 Check it out at example.com"
+                      platforms like Twitter/X. Example: &quot;Just shipped a
+                      new feature! 🚀 Check it out at example.com&quot;
                     </p>
                   </TooltipContent>
                 </Tooltip>
@@ -357,7 +345,7 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                 <Input
                   value={newTag}
                   onChange={(e) => setNewTag(e.target.value)}
-                  placeholder="Add an example post..."
+                  placeholder="Just discovered an amazing DeFi protocol! 🚀 Thread below..."
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
                       e.preventDefault();
@@ -417,8 +405,9 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                     </p>
                     <p className="text-white/70">
                       Define overarching style rules that apply everywhere
-                      (chats AND posts). Example: "Always use lowercase", "Be
-                      enthusiastic and friendly", "Avoid formal language"
+                      (chats AND posts). Example: &quot;Always use
+                      lowercase&quot;, &quot;Be enthusiastic and friendly&quot;,
+                      &quot;Avoid formal language&quot;
                     </p>
                   </TooltipContent>
                 </Tooltip>
@@ -438,7 +427,9 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                     all: e.target.value.split("\n").filter((s) => s.trim()),
                   })
                 }
-                placeholder="One guideline per line..."
+                placeholder={
+                  "Be friendly and approachable\nUse clear, simple language\nShow enthusiasm with occasional emojis\nStay professional but conversational"
+                }
                 className="min-h-[80px] rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
               />
             </div>
@@ -464,8 +455,9 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                     </p>
                     <p className="text-white/70">
                       Define how your agent behaves in one-on-one conversations
-                      and direct messages. Example: "Keep responses concise",
-                      "Ask follow-up questions", "Use emojis sparingly"
+                      and direct messages. Example: &quot;Keep responses
+                      concise&quot;, &quot;Ask follow-up questions&quot;,
+                      &quot;Use emojis sparingly&quot;
                     </p>
                   </TooltipContent>
                 </Tooltip>
@@ -485,7 +477,9 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                     chat: e.target.value.split("\n").filter((s) => s.trim()),
                   })
                 }
-                placeholder="One guideline per line..."
+                placeholder={
+                  "Keep responses concise and focused\nAsk follow-up questions to understand better\nUse examples to explain complex topics\nBe patient and encouraging"
+                }
                 className="min-h-[80px] rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
               />
             </div>
@@ -511,9 +505,9 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                     </p>
                     <p className="text-white/70">
                       Define how your agent creates public posts on platforms
-                      like Twitter/X. Example: "Always include a
-                      call-to-action", "Use trending hashtags", "Keep posts
-                      under 280 characters"
+                      like Twitter/X. Example: &quot;Always include a
+                      call-to-action&quot;, &quot;Use trending hashtags&quot;,
+                      &quot;Keep posts under 280 characters&quot;
                     </p>
                   </TooltipContent>
                 </Tooltip>
@@ -533,7 +527,9 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                     post: e.target.value.split("\n").filter((s) => s.trim()),
                   })
                 }
-                placeholder="One guideline per line..."
+                placeholder={
+                  "Start with an engaging hook\nKeep posts under 280 characters when possible\nInclude relevant hashtags sparingly\nEnd with a call-to-action or question"
+                }
                 className="min-h-[80px] rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
               />
             </div>

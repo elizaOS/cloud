@@ -138,7 +138,10 @@ export async function verifyAuthTokenCached(
     // Calculate TTL: minimum of our configured TTL and token's remaining lifetime
     const now = Math.floor(Date.now() / 1000);
     const tokenRemainingSeconds = claims.expiration - now;
-    const effectiveTtl = Math.min(CacheTTL.session.privy, tokenRemainingSeconds);
+    const effectiveTtl = Math.min(
+      CacheTTL.session.privy,
+      tokenRemainingSeconds,
+    );
 
     if (effectiveTtl > 0) {
       const cachedClaims: CachedPrivyClaims = {
@@ -227,3 +230,4 @@ export async function getUserById(userId: string) {
 
 // Re-export the client for advanced use cases
 export { getPrivyClient as privyClient };
+

@@ -20,18 +20,18 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { DownloadIcon, TrashIcon, CalendarIcon } from "@radix-ui/react-icons";
+import { DownloadIcon, TrashIcon } from "@radix-ui/react-icons";
 import { Eye, X } from "lucide-react";
 import { DialogClose } from "@/components/ui/dialog";
 import type { GalleryItem } from "@/app/actions/gallery";
 import { deleteMedia } from "@/app/actions/gallery";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { BrandCard, BrandButton } from "@/components/brand";
+import { BrandButton } from "@/components/brand";
 
 interface GalleryGridProps {
   items: GalleryItem[];
-  onItemDeleted?: () => void;
+  onItemDeleted?: (itemId: string, itemType: "image" | "video") => void;
 }
 
 export function GalleryGrid({ items, onItemDeleted }: GalleryGridProps) {
@@ -45,7 +45,7 @@ export function GalleryGrid({ items, onItemDeleted }: GalleryGridProps) {
     await deleteMedia(item.id);
     toast.success("Media deleted successfully");
     setDeleteConfirmItem(null);
-    onItemDeleted?.();
+    onItemDeleted?.(item.id, item.type as "image" | "video");
     setIsDeleting(false);
   };
 
@@ -79,51 +79,32 @@ export function GalleryGrid({ items, onItemDeleted }: GalleryGridProps) {
 
   return (
     <>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
         {items.map((item) => (
-          <BrandCard
+          <div
             key={item.id}
-            corners={false}
-            hover
-            className="overflow-hidden group cursor-pointer p-0"
             onClick={() => setSelectedItem(item)}
+            className={`overflow-hidden group cursor-pointer rounded-md relative bg-black/60 ${item.type === "image" ? "aspect-square" : "aspect-video"}`}
           >
-            <div className="aspect-video relative bg-black/60">
-              {item.type === "image" ? (
-                <Image
-                  src={item.url}
-                  alt={item.prompt}
-                  fill
-                  className="object-cover"
-                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-                />
-              ) : (
-                <video
-                  src={item.url}
-                  className="w-full h-full object-cover"
-                  preload="metadata"
-                />
-              )}
-              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center">
-                <Eye className="w-8 h-8 text-[#FF5800] opacity-0 group-hover:opacity-100 transition-opacity" />
-              </div>
-              <span className="absolute top-2 right-2 text-xs rounded-none bg-[#FF580020] border border-[#FF5800]/40 px-2 py-0.5 font-bold uppercase tracking-wide text-[#FF5800]">
-                {item.type}
-              </span>
+            {item.type === "image" ? (
+              <Image
+                src={item.url}
+                alt={item.prompt}
+                fill
+                className="object-cover"
+                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+              />
+            ) : (
+              <video
+                src={item.url}
+                className="w-full h-full object-cover"
+                preload="metadata"
+              />
+            )}
+            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center">
+              <Eye className="w-8 h-8 text-[#FF5800] opacity-0 group-hover:opacity-100 transition-opacity" />
             </div>
-            <div className="p-3">
-              <p className="text-sm font-medium line-clamp-2 mb-2 text-white">
-                {item.prompt}
-              </p>
-              <div className="flex items-center justify-between text-xs text-white/60">
-                <span className="flex items-center gap-1">
-                  <CalendarIcon className="w-3 h-3 text-[#FF5800]" />
-                  {format(new Date(item.createdAt), "MMM d, yyyy")}
-                </span>
-                <span className="truncate max-w-[100px]">{item.model}</span>
-              </div>
-            </div>
-          </BrandCard>
+          </div>
         ))}
       </div>
 
@@ -136,10 +117,14 @@ export function GalleryGrid({ items, onItemDeleted }: GalleryGridProps) {
           className="!max-w-[99vw] !max-h-[99vh] !w-[99vw] !h-[99vh] p-0 bg-black/80 border-white/10 sm:!max-w-[99vw] md:!max-w-[99vw] lg:!max-w-[99vw]"
           showCloseButton={false}
         >
+          {/* Screen reader accessible title (visually hidden) */}
+          <DialogTitle className="sr-only">
+            {selectedItem?.prompt || "Media preview"}
+          </DialogTitle>
           {selectedItem && (
-            <div className="relative w-full h-full flex items-center justify-center p-1">
+            <div className="relative w-full h-full flex items-center justify-center p-4 md:p-6">
               {/* Main Content */}
-              <div className="relative w-full h-full flex items-center justify-center">
+              <div className="relative w-full h-full flex items-center justify-center pb-40 md:pb-48">
                 {selectedItem.type === "image" ? (
                   <Image
                     src={selectedItem.url}
@@ -165,9 +150,9 @@ export function GalleryGrid({ items, onItemDeleted }: GalleryGridProps) {
               </DialogClose>
 
               {/* Info overlay at bottom */}
-              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-6 space-y-3">
+              <div className="absolute bottom-0 left-0 right-0 z-40 bg-gradient-to-t from-black/90 via-black/70 to-transparent px-6 pt-8 pb-6 md:px-8 md:pt-12 md:pb-8 space-y-3 max-h-[50vh] overflow-y-auto">
                 {/* Prompt */}
-                <p className="text-sm text-white/90 leading-relaxed max-w-4xl">
+                <p className="text-sm text-white/90 leading-relaxed max-w-4xl break-words">
                   {selectedItem.prompt}
                 </p>
 
@@ -305,15 +290,14 @@ export function GalleryGrid({ items, onItemDeleted }: GalleryGridProps) {
 
 export function GalleryGridSkeleton() {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
       {Array.from({ length: 8 }).map((_, i) => (
-        <BrandCard key={i} corners={false} className="overflow-hidden p-0">
-          <Skeleton className="aspect-video w-full bg-white/10" />
-          <div className="p-3 space-y-2">
-            <Skeleton className="h-4 w-full bg-white/10" />
-            <Skeleton className="h-3 w-2/3 bg-white/10" />
-          </div>
-        </BrandCard>
+        <div
+          key={i}
+          className="overflow-hidden group cursor-pointer relative bg-black/60 aspect-square"
+        >
+          <Skeleton className="w-full h-full bg-white/10" />
+        </div>
       ))}
     </div>
   );

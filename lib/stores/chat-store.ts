@@ -46,9 +46,10 @@ interface ChatState {
   setSelectedCharacterId: (characterId: string | null) => void;
   setPendingMessage: (message: string | null) => void;
   setAnonymousSessionToken: (token: string | null) => void;
+  updateRoom: (roomId: string, updates: Partial<Omit<RoomItem, "id">>) => void;
   updateCharacterAvatar: (characterId: string, avatarUrl: string) => void;
   loadRooms: (force?: boolean) => Promise<void>;
-  createRoom: (characterId?: string | null) => Promise<string | null>;
+  createRoom: (characterId?: string | null, skipLoadRooms?: boolean) => Promise<string | null>;
   deleteRoom: (roomId: string) => Promise<void>;
   clearChatData: () => void;
 }
@@ -80,6 +81,16 @@ export const useChatStore = create<ChatState>((set, get) => ({
   setPendingMessage: (message) => set({ pendingMessage: message }),
   setAnonymousSessionToken: (token) => set({ anonymousSessionToken: token }),
 
+  // Update an existing room's properties (for instant UI updates)
+  updateRoom: (roomId: string, updates: Partial<Omit<RoomItem, "id">>) => {
+    const { rooms } = get();
+    const updatedRooms = rooms.map((room) =>
+      room.id === roomId ? { ...room, ...updates } : room,
+    );
+    set({ rooms: updatedRooms });
+  },
+
+  // Update a character's avatar URL (used when avatar is generated in build mode)
   // Update a character's avatar URL (used when avatar is generated in build mode)
   updateCharacterAvatar: (characterId, avatarUrl) => {
     const { availableCharacters } = get();
@@ -185,7 +196,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   // Create new room
   // entityId is derived from authenticated user on the server
-  createRoom: async (characterId?: string | null) => {
+  // skipLoadRooms: if true, don't auto-reload rooms after creation (prevents flicker during message send)
+  createRoom: async (characterId?: string | null, skipLoadRooms = false) => {
     const { loadRooms, setRoomId, anonymousSessionToken } = get();
 
     const requestBody: Record<string, string | undefined> = {
@@ -227,8 +239,35 @@ export const useChatStore = create<ChatState>((set, get) => ({
       // This ensures the UI updates immediately
       setRoomId(newRoomId);
 
-      // Then reload rooms to get the updated list (fire-and-forget)
-      void loadRooms();
+      // IMPORTANT: Add the new room to the rooms array immediately
+      // This ensures the sidebar shows the room instantly without waiting for loadRooms()
+      const currentState = get();
+      const newRoom: RoomItem = {
+        id: newRoomId,
+        characterId: characterId || undefined,
+        characterName: characterId
+          ? currentState.availableCharacters.find((c) => c.id === characterId)
+              ?.name
+          : undefined,
+        lastTime: Date.now(),
+        title: undefined, // Will be set when first message is sent
+        lastText: undefined,
+        isLocked: false,
+        isBuildRoom: false,
+      };
+
+      // Prepend new room to the beginning of the list (most recent first)
+      const updatedRooms = [newRoom, ...currentState.rooms];
+      set({ rooms: updatedRooms });
+
+      // Only reload rooms if not skipped (prevents flicker during message send flow)
+      // The reload will sync any server-side changes
+      if (!skipLoadRooms) {
+        // Use a slight delay to avoid race conditions
+        setTimeout(() => {
+          void loadRooms();
+        }, 100);
+      }
 
       return newRoomId;
     } else {

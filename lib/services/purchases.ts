@@ -1,4 +1,4 @@
-import { stripe, STRIPE_CURRENCY } from "@/lib/stripe";
+import { requireStripe, STRIPE_CURRENCY } from "@/lib/stripe";
 import {
   organizationsRepository,
   usersRepository,
@@ -79,7 +79,7 @@ export class PurchasesService {
     }
 
     try {
-      const customer = await stripe.customers.create({
+      const customer = await requireStripe().customers.create({
         name: org.name,
         email: org.billing_email || undefined,
         metadata: {
@@ -158,7 +158,7 @@ export class PurchasesService {
       }
 
       const paymentIntent =
-        await stripe.paymentIntents.create(paymentIntentParams);
+        await requireStripe().paymentIntents.create(paymentIntentParams);
 
       // CRITICAL: If payment succeeded immediately, add credits synchronously
       // This prevents race condition where client fetches balance before webhook fires
@@ -205,7 +205,7 @@ export class PurchasesService {
             await invoicesService.getByStripeInvoiceId(invoiceId);
 
           if (!existingInvoice) {
-            const stripeInvoice = await stripe.invoices.retrieve(invoiceId);
+            const stripeInvoice = await requireStripe().invoices.retrieve(invoiceId);
 
             await invoicesService.create({
               organization_id: organizationId,
@@ -309,7 +309,7 @@ export class PurchasesService {
     paymentIntentId: string,
     organizationId: string,
   ): Promise<Stripe.PaymentIntent | null> {
-    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+    const paymentIntent = await requireStripe().paymentIntents.retrieve(paymentIntentId);
 
     // Verify the payment intent belongs to this organization
     if (paymentIntent.metadata?.organization_id !== organizationId) {
@@ -348,7 +348,7 @@ export class PurchasesService {
     }
 
     try {
-      const paymentIntent = await stripe.paymentIntents.confirm(
+      const paymentIntent = await requireStripe().paymentIntents.confirm(
         paymentIntentId,
         {
           payment_method: paymentMethodId,
@@ -400,7 +400,7 @@ export class PurchasesService {
       return existingPaymentIntent;
     }
 
-    const cancelledIntent = await stripe.paymentIntents.cancel(paymentIntentId);
+    const cancelledIntent = await requireStripe().paymentIntents.cancel(paymentIntentId);
     return cancelledIntent;
   }
 
@@ -447,7 +447,7 @@ export class PurchasesService {
     let paymentMethodDisplay = "Card";
     if (paymentMethodId) {
       const paymentMethod =
-        await stripe.paymentMethods.retrieve(paymentMethodId);
+        await requireStripe().paymentMethods.retrieve(paymentMethodId);
       if (paymentMethod.card) {
         paymentMethodDisplay = `${paymentMethod.card.brand} ••••${paymentMethod.card.last4}`;
       }

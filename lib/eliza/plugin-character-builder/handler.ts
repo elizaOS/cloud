@@ -4,7 +4,6 @@ import {
   createUniqueUuid,
   EventType,
   logger,
-  type IAgentRuntime,
   type Memory,
   ModelType,
   parseKeyValueXml,
@@ -51,6 +50,7 @@ export async function handleMessage({
   runtime,
   message,
   callback,
+  onStreamChunk,
 }: MessageReceivedHandlerParams): Promise<void> {
   const responseId = v4();
   const runId = asUUID(v4());
@@ -69,25 +69,25 @@ export async function handleMessage({
   await setLatestResponseId(runtime, message.roomId, responseId);
   await runtime.emitEvent(EventType.RUN_STARTED, {
     runtime,
+    source: "build-mode",
     runId,
-    messageId: message.id,
+    messageId: message.id || asUUID(v4()),
     roomId: message.roomId,
     entityId: message.entityId,
     startTime,
     status: "started",
-    source: "build-mode",
-    mode: modeLabel,
   });
 
   try {
     await runtime.createMemory(message, "messages");
 
-    // Compose state with all providers including actions
+    // Compose state with all providers including actions and current character
     const state = await runtime.composeState(message, [
       "SUMMARIZED_CONTEXT",
       "RECENT_MESSAGES",
       "LONG_TERM_MEMORY",
       "ACTIONS",
+      "CURRENT_CHARACTER",
     ]);
 
     // Inject mode context for planning phase
@@ -108,6 +108,12 @@ export async function handleMessage({
       composePromptFromState({ state, template: buildModePlanningTemplate }),
     );
 
+    logger.debug(
+      "####### handleMessage planning system prompt",
+      runtime.character.system,
+    );
+    logger.debug("####### handleMessage planning prompt", planningPrompt);
+
     const planningResponse = await runtime.useModel(ModelType.TEXT_LARGE, {
       prompt: planningPrompt,
     });
@@ -118,7 +124,10 @@ export async function handleMessage({
     const selectedAction =
       parsePlannedItems(plan?.actions)[0] || "BUILDER_CHAT";
 
-    logger.debug(`[${modeLabel}] Executing action: ${selectedAction}`);
+    logger.debug(
+      "####### handleMessage planning response",
+      JSON.stringify(plan, null, 2),
+    );
 
     // Create action response with thought and mode context
     const actionResponse: Memory = {
@@ -144,7 +153,13 @@ export async function handleMessage({
       planningThought: plan?.thought || "",
     };
 
-    await runtime.processActions(message, [actionResponse], state, callback);
+    await runtime.processActions(
+      message,
+      [actionResponse],
+      state,
+      callback,
+      onStreamChunk ? { onStreamChunk } : undefined,
+    );
 
     if (!(await isResponseStillValid(runtime, message.roomId, responseId)))
       return;
@@ -161,28 +176,26 @@ export async function handleMessage({
 
     await runtime.emitEvent(EventType.RUN_ENDED, {
       runtime,
+      source: "build-mode",
       runId,
-      messageId: message.id,
+      messageId: message.id || asUUID(v4()),
       roomId: message.roomId,
       entityId: message.entityId,
       startTime,
       status: "completed",
       endTime: Date.now(),
       duration: Date.now() - startTime,
-      source: "build-mode",
-      selectedAction,
-      mode: modeLabel,
     });
   } catch (error) {
     runtime.character.system = originalSystemPrompt;
     await runtime.emitEvent(EventType.RUN_ENDED, {
       runtime,
       runId,
-      messageId: message.id,
+      messageId: message.id || asUUID(v4()),
       roomId: message.roomId,
       entityId: message.entityId,
       startTime,
-      status: "error",
+      status: "completed",
       endTime: Date.now(),
       duration: Date.now() - startTime,
       error: error instanceof Error ? error.message : String(error),

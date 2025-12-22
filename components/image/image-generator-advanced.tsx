@@ -16,7 +16,7 @@ import {
   CarouselPrevious,
   type CarouselApi,
 } from "@/components/ui/carousel";
-import { Dialog, DialogContent, DialogClose } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogClose, DialogTitle } from "@/components/ui/dialog";
 import {
   Wand2,
   Sparkles,
@@ -57,6 +57,18 @@ interface GeneratedImage {
   settings: ImageGenerationSettings;
 }
 
+interface GalleryItem {
+  id: string;
+  url: string;
+  prompt: string;
+  createdAt: Date;
+  dimensions?: { width?: number; height?: number };
+}
+
+interface ImageGeneratorAdvancedProps {
+  initialHistory?: GalleryItem[];
+}
+
 const SIZE_PRESETS = [
   { label: "Square", width: 1024, height: 1024 },
   { label: "Portrait", width: 768, height: 1024 },
@@ -64,7 +76,23 @@ const SIZE_PRESETS = [
   { label: "Wide", width: 1280, height: 768 },
 ];
 
-export function ImageGeneratorAdvanced() {
+export function ImageGeneratorAdvanced({
+  initialHistory = [],
+}: ImageGeneratorAdvancedProps) {
+  // Convert initial history to GeneratedImage format
+  const convertedHistory: GeneratedImage[] = initialHistory.map((item) => ({
+    id: item.id,
+    url: item.url,
+    prompt: item.prompt,
+    timestamp: new Date(item.createdAt),
+    settings: {
+      width: item.dimensions?.width || 1024,
+      height: item.dimensions?.height || 1024,
+      steps: 30,
+      guidanceScale: 7.5,
+    },
+  }));
+
   // Form state
   const [prompt, setPrompt] = useState("");
   const [settings, setSettings] = useState<ImageGenerationSettings>({
@@ -75,7 +103,7 @@ export function ImageGeneratorAdvanced() {
   });
   const [numImages, setNumImages] = useState<number>(1);
 
-  // Consolidated image state - current batch and selection
+  // Consolidated image state - current batch and selection (initialized with server history)
   const [imageState, setImageState] = useState<{
     currentImage: GeneratedImage | null;
     currentImages: GeneratedImage[];
@@ -85,7 +113,7 @@ export function ImageGeneratorAdvanced() {
     currentImage: null,
     currentImages: [],
     currentIndex: 0,
-    history: [],
+    history: convertedHistory,
   });
 
   // Carousel API (external ref)
@@ -476,6 +504,7 @@ export function ImageGeneratorAdvanced() {
                             src={img.url}
                             alt={img.prompt}
                             fill
+                            sizes="(max-width: 768px) 50vw, 25vw"
                             className="object-cover group-hover:scale-105 transition-transform duration-300"
                             unoptimized
                           />
@@ -499,6 +528,7 @@ export function ImageGeneratorAdvanced() {
                                     src={img.url}
                                     alt={img.prompt}
                                     fill
+                                    sizes="(max-width: 768px) 100vw, (max-width: 1024px) 75vw, 60vw"
                                     className="object-contain"
                                     unoptimized
                                   />
@@ -516,6 +546,7 @@ export function ImageGeneratorAdvanced() {
                           src={imageState.currentImage.url}
                           alt={imageState.currentImage.prompt}
                           fill
+                          sizes="(max-width: 768px) 100vw, (max-width: 1024px) 75vw, 60vw"
                           className="object-contain"
                           unoptimized
                         />
@@ -560,21 +591,7 @@ export function ImageGeneratorAdvanced() {
                           className="px-3 py-2 border border-white/20 bg-transparent text-white hover:bg-white/5 transition-colors flex items-center justify-center gap-1 md:gap-2"
                         >
                           <Download className="h-3 md:h-4 w-3 md:w-4" />
-                          <span className="text-xs font-mono">Save</span>
-                        </button>
-                        <button
-                          type="button"
-                          className="px-3 py-2 border border-white/20 bg-transparent text-white hover:bg-white/5 transition-colors flex items-center justify-center gap-1 md:gap-2"
-                        >
-                          <Heart className="h-3 md:h-4 w-3 md:w-4" />
-                          <span className="text-xs font-mono">Like</span>
-                        </button>
-                        <button
-                          type="button"
-                          className="px-3 py-2 border border-white/20 bg-transparent text-white hover:bg-white/5 transition-colors flex items-center justify-center gap-1 md:gap-2"
-                        >
-                          <Share2 className="h-3 md:h-4 w-3 md:w-4" />
-                          <span className="text-xs font-mono">Share</span>
+                          <span className="text-xs font-mono">Download</span>
                         </button>
                         <button
                           type="button"
@@ -647,6 +664,7 @@ export function ImageGeneratorAdvanced() {
                         src={image.url}
                         alt={image.prompt}
                         fill
+                        sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
                         className="object-cover group-hover:scale-105 transition-transform duration-300"
                         unoptimized
                       />
@@ -693,10 +711,16 @@ export function ImageGeneratorAdvanced() {
           className="!max-w-[99vw] !max-h-[99vh] !w-[99vw] !h-[99vh] p-0 bg-black/80 border-white/10 sm:!max-w-[99vw] md:!max-w-[99vw] lg:!max-w-[99vw]"
           showCloseButton={false}
         >
-          <div className="relative w-full h-full flex items-center justify-center p-1">
+          {/* Screen reader accessible title (visually hidden) */}
+          <DialogTitle className="sr-only">
+            {imageState.currentImages[imageState.currentIndex]?.prompt ??
+              imageState.currentImage?.prompt ??
+              "Image preview"}
+          </DialogTitle>
+          <div className="relative w-full h-full flex items-center justify-center p-4 md:p-6">
             {imageState.currentImage && (
               <>
-                <div className="relative w-full h-full flex items-center justify-center">
+                <div className="relative w-full h-full flex items-center justify-center pb-32 md:pb-40">
                   <Image
                     src={
                       imageState.currentImages[imageState.currentIndex]?.url ??
@@ -719,7 +743,7 @@ export function ImageGeneratorAdvanced() {
                 </DialogClose>
 
                 {/* Image info overlay */}
-                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-3 md:p-4 lg:p-6 space-y-2 md:space-y-3">
+                <div className="absolute bottom-0 left-0 right-0 z-40 bg-gradient-to-t from-black/90 via-black/70 to-transparent px-4 pt-6 pb-4 md:px-6 md:pt-10 md:pb-6 lg:px-8 lg:pt-12 lg:pb-8 space-y-2 md:space-y-3 max-h-[50vh] overflow-y-auto">
                   <p className="text-xs md:text-sm font-mono text-white/90 leading-relaxed max-w-3xl break-words">
                     {imageState.currentImages[imageState.currentIndex]
                       ?.prompt ?? imageState.currentImage.prompt}

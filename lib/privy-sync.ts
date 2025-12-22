@@ -20,6 +20,7 @@ import {
   type SignupContext,
 } from "@/lib/services/abuse-detection";
 import type { UserWithOrganization } from "@/lib/types";
+import { getRandomUserAvatar } from "@/lib/utils/default-user-avatar";
 
 const DEFAULT_INITIAL_CREDITS = 5.0;
 const getInitialCredits = (): number => {
@@ -228,6 +229,7 @@ export async function syncUserFromPrivy(
         wallet_chain_type: walletChainType || null,
         wallet_verified: walletVerified,
         name,
+        avatar: getRandomUserAvatar(),
         organization_id: pendingInvite.organization_id,
         role: pendingInvite.invited_role,
         is_active: true,
@@ -364,6 +366,7 @@ export async function syncUserFromPrivy(
       wallet_chain_type: walletChainType || null,
       wallet_verified: walletVerified,
       name,
+      avatar: getRandomUserAvatar(),
       organization_id: organization.id,
       role: "owner",
       is_active: true,

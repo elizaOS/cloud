@@ -38,7 +38,6 @@ import type { NextRequest } from "next/server";
 import type {
   OpenAIChatRequest,
   OpenAIChatResponse,
-  OpenAIChatMessage,
 } from "@/lib/providers/types";
 import type { UserWithOrganization } from "@/lib/types";
 
@@ -175,26 +174,56 @@ function transformAISdkToOpenAI(aiSdkRequest: AISdkRequest): OpenAIChatRequest {
 
 /**
  * Transform OpenAI response format to AI SDK format
+ *
+ * AI SDK v5+ expects a specific response schema with required fields.
+ * This function transforms OpenAI chat completion responses to match.
  */
 function transformOpenAIToAISdk(openAIResponse: OpenAIChatResponse): object {
+  // Get the first choice's finish reason to determine status
+  const firstChoice = openAIResponse.choices[0];
+  const finishReason = firstChoice?.finish_reason || "stop";
+
+  // Map OpenAI finish_reason to AI SDK status
+  // "length" = max tokens reached, "content_filter" = blocked, "stop" = normal completion
+  let status: "completed" | "incomplete" | "failed";
+  let incompleteReason: string | null = null;
+
+  switch (finishReason) {
+    case "length":
+      status = "incomplete";
+      incompleteReason = "max_output_tokens";
+      break;
+    case "content_filter":
+      status = "failed";
+      break;
+    case "stop":
+    default:
+      status = "completed";
+      break;
+  }
+
   return {
     id: openAIResponse.id,
-    created_at: openAIResponse.created, // OpenAI: "created" -> AI SDK: "created_at"
+    object: "response", // AI SDK expects "response" not "chat.completion"
+    created_at: openAIResponse.created,
     model: openAIResponse.model,
-    object: openAIResponse.object,
+    status, // AI SDK requires status field
+    // Required: incomplete_details must be object or null
+    incomplete_details: incompleteReason ? { reason: incompleteReason } : null,
     output: openAIResponse.choices.map((choice) => {
       // Flatten the message object and transform content
       const message = choice.message;
+      const messageContent = message.content;
       let content;
 
-      if (typeof message.content === "string") {
+      if (typeof messageContent === "string") {
         // Simple string content
         content = [
-          { type: "output_text", text: message.content, annotations: [] },
+          { type: "output_text", text: messageContent, annotations: [] },
         ];
-      } else if (Array.isArray(message.content)) {
+      } else if (Array.isArray(messageContent)) {
         // Already array (multimodal)
-        content = message.content.map((part) => {
+        content = (messageContent as Array<unknown>).map((part: unknown) => {
           if (typeof part === "string") {
             return { type: "output_text", text: part, annotations: [] };
           }
@@ -202,11 +231,11 @@ function transformOpenAIToAISdk(openAIResponse: OpenAIChatResponse): object {
             typeof part === "object" &&
             part !== null &&
             "text" in part &&
-            typeof part.text === "string"
+            typeof (part as { text: unknown }).text === "string"
           ) {
             return {
               type: "output_text",
-              text: part.text,
+              text: (part as { text: string }).text,
               annotations: [],
             };
           }
@@ -217,7 +246,7 @@ function transformOpenAIToAISdk(openAIResponse: OpenAIChatResponse): object {
         content = [
           {
             type: "output_text",
-            text: String(message.content || ""),
+            text: String(messageContent || ""),
             annotations: [],
           },
         ];
@@ -229,7 +258,7 @@ function transformOpenAIToAISdk(openAIResponse: OpenAIChatResponse): object {
         id: openAIResponse.id, // Use generation id
         role: message.role, // Flatten: message.role -> role
         content, // Transformed content
-        finish_reason: choice.finish_reason,
+        status: choice.finish_reason === "length" ? "incomplete" : "completed",
         // Include tool calls if present
         ...(message.tool_calls ? { tool_calls: message.tool_calls } : {}),
         // Include function call if present
@@ -240,11 +269,13 @@ function transformOpenAIToAISdk(openAIResponse: OpenAIChatResponse): object {
     }), // OpenAI: "choices" -> AI SDK: "output" with flattened structure
     usage: openAIResponse.usage
       ? {
-          input_tokens: openAIResponse.usage.prompt_tokens, // OpenAI: "prompt_tokens" -> AI SDK: "input_tokens"
-          output_tokens: openAIResponse.usage.completion_tokens, // OpenAI: "completion_tokens" -> AI SDK: "output_tokens"
+          input_tokens: openAIResponse.usage.prompt_tokens,
+          output_tokens: openAIResponse.usage.completion_tokens,
           total_tokens: openAIResponse.usage.total_tokens,
         }
-      : undefined,
+      : { input_tokens: 0, output_tokens: 0, total_tokens: 0 },
+    // Additional AI SDK expected fields
+    error: null,
     // Preserve any provider metadata
     ...("provider_metadata" in openAIResponse &&
     openAIResponse.provider_metadata
@@ -299,51 +330,6 @@ async function handlePOST(req: NextRequest) {
 
     // 3. Transform to OpenAI format
     const request = transformAISdkToOpenAI(aiSdkRequest);
-
-    // Log detailed message breakdown
-    const systemMessages = request.messages.filter(
-      (msg) => msg.role === "system",
-    );
-    const userMessages = request.messages.filter((msg) => msg.role === "user");
-    const assistantMessages = request.messages.filter(
-      (msg) => msg.role === "assistant",
-    );
-
-    // Helper to get content as string for logging
-    const getContentString = (content: OpenAIChatMessage["content"]): string =>
-      typeof content === "string" ? content : JSON.stringify(content);
-
-    logger.info("[Responses API] 📝 PROMPT BREAKDOWN", {
-      model: request.model,
-      totalMessages: request.messages.length,
-      messageTypes: {
-        system: systemMessages.length,
-        user: userMessages.length,
-        assistant: assistantMessages.length,
-      },
-      systemPrompts: systemMessages.map((msg) => ({
-        content: getContentString(msg.content),
-        length: getContentString(msg.content).length,
-      })),
-      userPrompts: userMessages.map((msg) => ({
-        content: getContentString(msg.content),
-        length: getContentString(msg.content).length,
-      })),
-      assistantResponses: assistantMessages.map((msg) => ({
-        content: getContentString(msg.content),
-        length: getContentString(msg.content).length,
-      })),
-    });
-
-    logger.debug(
-      "[Responses API] Transformed AI SDK request to OpenAI format",
-      {
-        originalFields: Object.keys(aiSdkRequest),
-        transformedFields: Object.keys(request),
-        originalMessages: JSON.stringify(aiSdkRequest.input),
-        transformedMessages: JSON.stringify(request.messages),
-      },
-    );
 
     // 4. Validate input
     if (!request.model || !request.messages) {
@@ -573,17 +559,6 @@ async function handlePOST(req: NextRequest) {
           { status: 402 },
         );
       }
-
-      logger.info("[Responses API] Chat completion request (AI SDK format)", {
-        organizationId: user.organization_id,
-        userId: user.id,
-        model,
-        normalizedModel,
-        provider,
-        streaming: isStreaming,
-        messageCount: request.messages.length,
-        estimatedCost,
-      });
     } // End of non-anonymous credit check block
 
     // Log for anonymous users
@@ -710,6 +685,7 @@ async function handleNonStreamingResponse(
 
   // Deduct credits SYNCHRONOUSLY before returning response (skip for anonymous users)
   if (usage && user.organization_id) {
+    const organizationId = user.organization_id;
     const { inputCost, outputCost, totalCost } = await calculateCost(
       model,
       provider,
@@ -719,7 +695,7 @@ async function handleNonStreamingResponse(
 
     // CRITICAL: Deduct credits before returning response
     const deductResult = await creditsService.deductCredits({
-      organizationId: user.organization_id,
+      organizationId,
       amount: totalCost,
       description: `Responses API: ${model}`,
       metadata: { user_id: user.id },
@@ -729,7 +705,7 @@ async function handleNonStreamingResponse(
       logger.error(
         "[Responses API] Failed to deduct credits after completion",
         {
-          organizationId: user.organization_id,
+          organizationId,
           cost: String(totalCost),
           balance: deductResult.newBalance,
         },
@@ -751,7 +727,7 @@ async function handleNonStreamingResponse(
     (async () => {
       try {
         const usageRecord = await usageService.create({
-          organization_id: user.organization_id,
+          organization_id: organizationId,
           user_id: user.id,
           api_key_id: apiKey?.id || null,
           type: "chat",
@@ -766,7 +742,7 @@ async function handleNonStreamingResponse(
 
         if (apiKey) {
           await generationsService.create({
-            organization_id: user.organization_id,
+            organization_id: organizationId,
             user_id: user.id,
             api_key_id: apiKey.id,
             type: "chat",
@@ -805,31 +781,10 @@ async function handleNonStreamingResponse(
   // Transform OpenAI response to AI SDK format before returning
   const aiSdkResponse = transformOpenAIToAISdk(data);
 
-  logger.debug("[Responses API] Transformed OpenAI response to AI SDK format", {
-    openAIFields: Object.keys(data),
-    aiSdkFields: Object.keys(aiSdkResponse),
-  });
-
   return Response.json(aiSdkResponse);
 }
 
-// Type for streaming response choices
-interface StreamingChoice {
-  index: number;
-  delta: {
-    role?: string;
-    content?: string;
-    tool_calls?: Array<{
-      id: string;
-      type: "function";
-      function: { name: string; arguments: string };
-    }>;
-    function_call?: { name: string; arguments: string };
-  };
-  finish_reason: string | null;
-}
-
-// Handle streaming response
+// Handle streaming response - transforms OpenAI SSE to AI SDK streaming protocol
 function handleStreamingResponse(
   providerResponse: Response,
   user: { organization_id: string | null; id: string },
@@ -844,17 +799,33 @@ function handleStreamingResponse(
   let outputTokens = 0;
   let fullContent = "";
 
-  // Create transform stream to track usage AND transform chunks
+  // Create transform stream to convert OpenAI format to AI SDK streaming protocol
   const { readable, writable } = new TransformStream();
   const writer = writable.getWriter();
   const decoder = new TextDecoder();
   const encoder = new TextEncoder();
+
+  // Helper to write AI SDK streaming events with backpressure handling
+  // AI SDK expects just "data:" lines with type in the JSON payload, NOT "event:" lines
+  const writeEvent = async (data: object) => {
+    await writer.ready;
+    const dataLine = `data: ${JSON.stringify(data)}\n\n`;
+    await writer.write(encoder.encode(dataLine));
+  };
 
   // Process stream in background
   (async () => {
     try {
       const reader = providerResponse.body?.getReader();
       if (!reader) throw new Error("No response body");
+
+      let responseId = "";
+      let responseModel = model;
+      let createdAt = Math.floor(Date.now() / 1000);
+      let sentCreated = false;
+      let sentOutputItemAdded = false;
+      const itemId = `msg_${Date.now()}`;
+      let outputIndex = 0;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -863,27 +834,109 @@ function handleStreamingResponse(
         // Parse chunk to transform it AND extract usage info
         const chunk = decoder.decode(value);
         const lines = chunk.split("\n");
-        const transformedLines: string[] = [];
 
         for (const line of lines) {
           if (line.startsWith("data: ")) {
             const data = line.slice(6);
             if (data === "[DONE]") {
-              transformedLines.push(line); // Keep [DONE] as-is
+              // Send response.output_item.done event
+              await writeEvent({
+                type: "response.output_item.done",
+                output_index: outputIndex,
+                item: {
+                  type: "message",
+                  id: itemId,
+                  role: "assistant",
+                  content: [{ type: "output_text", text: fullContent, annotations: [] }],
+                  status: "completed",
+                },
+              });
+
+              // Send response.completed event
+              await writeEvent({
+                type: "response.completed",
+                response: {
+                  id: responseId,
+                  object: "response",
+                  created_at: createdAt,
+                  model: responseModel,
+                  status: "completed",
+                  incomplete_details: null,
+                  output: [{
+                    type: "message",
+                    id: itemId,
+                    role: "assistant",
+                    content: [{ type: "output_text", text: fullContent, annotations: [] }],
+                    status: "completed",
+                  }],
+                  usage: {
+                    input_tokens: inputTokens,
+                    output_tokens: outputTokens,
+                    total_tokens: totalTokens,
+                  },
+                  error: null,
+                },
+              });
               continue;
             }
-            if (!data.trim()) {
-              transformedLines.push(line); // Keep empty lines
-              continue;
-            }
+            if (!data.trim()) continue;
 
             try {
               const parsed = JSON.parse(data);
 
-              // Collect content for analytics
+              // Extract metadata from first chunk
+              if (!responseId && parsed.id) {
+                responseId = parsed.id;
+                responseModel = parsed.model || model;
+                createdAt = parsed.created || Math.floor(Date.now() / 1000);
+              }
+
+              // Send response.created event on first chunk
+              if (!sentCreated) {
+                sentCreated = true;
+                await writeEvent({
+                  type: "response.created",
+                  response: {
+                    id: responseId,
+                    object: "response",
+                    created_at: createdAt,
+                    model: responseModel,
+                    status: "in_progress",
+                    incomplete_details: null,
+                    output: [],
+                    usage: null,
+                    error: null,
+                  },
+                });
+              }
+
+              // Send response.output_item.added on first content chunk
+              if (!sentOutputItemAdded) {
+                sentOutputItemAdded = true;
+                await writeEvent({
+                  type: "response.output_item.added",
+                  output_index: outputIndex,
+                  item: {
+                    type: "message",
+                    id: itemId,
+                    role: "assistant",
+                    content: [],
+                    status: "in_progress",
+                  },
+                });
+              }
+
+              // Extract and emit text deltas
               const content = parsed.choices?.[0]?.delta?.content;
               if (content) {
                 fullContent += content;
+                await writeEvent({
+                  type: "response.output_text.delta",
+                  item_id: itemId,
+                  output_index: outputIndex,
+                  content_index: 0,
+                  delta: content,
+                });
               }
 
               // Extract usage from final chunk (if available)
@@ -892,70 +945,15 @@ function handleStreamingResponse(
                 outputTokens = parsed.usage.completion_tokens || 0;
                 totalTokens = parsed.usage.total_tokens || 0;
               }
-
-              // Transform chunk from OpenAI format to AI SDK format
-              const transformedChunk = {
-                id: parsed.id,
-                created_at: parsed.created, // OpenAI: "created" -> AI SDK: "created_at"
-                model: parsed.model,
-                object: parsed.object,
-                output: parsed.choices
-                  ? parsed.choices.map((choice: StreamingChoice) => {
-                      // For streaming, delta contains the incremental content
-                      const delta = choice.delta || {};
-                      const content = delta.content
-                        ? [
-                            {
-                              type: "output_text",
-                              text: delta.content,
-                              annotations: [],
-                            },
-                          ]
-                        : undefined;
-
-                      return {
-                        type: "message", // AI SDK requires "type": "message"
-                        index: choice.index,
-                        id: parsed.id,
-                        // For streaming deltas, role might only be in first chunk
-                        ...(delta.role ? { role: delta.role } : {}),
-                        // Transform content to array format
-                        ...(content ? { content } : {}),
-                        finish_reason: choice.finish_reason,
-                        // Include tool calls if present
-                        ...(delta.tool_calls
-                          ? { tool_calls: delta.tool_calls }
-                          : {}),
-                        ...(delta.function_call
-                          ? { function_call: delta.function_call }
-                          : {}),
-                      };
-                    })
-                  : undefined, // OpenAI: "choices" -> AI SDK: "output" with flattened structure
-                usage: parsed.usage
-                  ? {
-                      input_tokens: parsed.usage.prompt_tokens,
-                      output_tokens: parsed.usage.completion_tokens,
-                      total_tokens: parsed.usage.total_tokens,
-                    }
-                  : undefined,
-              };
-
-              transformedLines.push(
-                `data: ${JSON.stringify(transformedChunk)}`,
-              );
-            } catch {
-              // If parsing fails, keep original line
-              transformedLines.push(line);
+            } catch (parseError) {
+              // Log parsing failures as warnings - silent failures are hard to debug
+              logger.warn("[Responses API] Failed to parse streaming chunk", {
+                line: line.substring(0, 200), // Truncate to avoid log spam
+                error: parseError instanceof Error ? parseError.message : String(parseError),
+              });
             }
-          } else {
-            transformedLines.push(line);
           }
         }
-
-        // Write transformed chunk
-        const transformedChunk = transformedLines.join("\n");
-        writer.write(encoder.encode(transformedChunk));
       }
 
       writer.close();

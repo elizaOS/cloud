@@ -4,6 +4,7 @@ import { getAnonymousUser } from "@/lib/auth-anonymous";
 import type { NextRequest } from "next/server";
 import { roomsService } from "@/lib/services/agents/rooms";
 import { agentsService } from "@/lib/services/agents/agents";
+import { conversationsRepository } from "@/db/repositories";
 import { logger } from "@/lib/utils/logger";
 import {
   parseMessageContent,
@@ -68,7 +69,32 @@ export async function GET(
     limit ? parseInt(limit) : 50,
   );
 
+  // If room doesn't exist in Eliza tables, check if it's a conversation
+  // that hasn't had any messages yet (room is created on first message)
   if (!roomData) {
+    const conversation = await conversationsRepository.findById(roomId);
+    if (conversation) {
+      // Room exists as a conversation but no Eliza room yet - return empty messages
+      logger.info(
+        `[Eliza Room API] Room ${roomId} not found in Eliza tables, but conversation exists - returning empty messages`,
+      );
+      return NextResponse.json(
+        {
+          success: true,
+          roomId,
+          messages: [],
+          count: 0,
+          characterId: undefined,
+          agent: {
+            id: "default",
+            name: "Eliza",
+            avatarUrl: undefined,
+          },
+          metadata: {},
+        },
+        { headers: { "Cache-Control": "no-store" } },
+      );
+    }
     return NextResponse.json({ error: "Room not found" }, { status: 404 });
   }
 

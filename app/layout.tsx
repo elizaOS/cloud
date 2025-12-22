@@ -6,11 +6,11 @@ import { Toaster } from "sonner";
 import NextTopLoader from "nextjs-toploader";
 import PrivyProvider from "@/lib/providers/PrivyProvider";
 import { CreditsProvider } from "@/lib/providers/CreditsProvider";
-import DebugProvider from "@/components/debug/debug-provider";
 import localFont from "next/font/local";
 
 // Performance optimization: Load only essential font weights (reduced from 7 to 4)
 // This reduces initial font bundle size by ~40%
+// preload: false prevents unused font preload warnings since SF Pro is only used in specific UI elements
 const sfPro = localFont({
   src: [
     {
@@ -35,6 +35,8 @@ const sfPro = localFont({
     },
   ],
   variable: "--font-sf-pro",
+  display: "swap",
+  preload: false,
 });
 
 /**
@@ -48,8 +50,8 @@ const baseUrl =
 
 export const metadata: Metadata = {
   title: {
-    default: "elizaOS Platform - AI Agent Development Platform",
-    template: "%s | elizaOS Platform",
+    default: "Cloud - AI Agent Development Platform",
+    template: "%s | Cloud",
   },
   description:
     "Complete AI agent development platform with inference, hosting, storage, and rapid deployment. Build, deploy, and scale intelligent agents with ease.",
@@ -131,7 +133,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${sfPro.variable} antialiased`}>
+      <body
+        className={`${sfPro.variable} antialiased selection:bg-[#FF5800] selection:text-white`}
+      >
         <PrivyProvider>
           <CreditsProvider>
             <ThemeProvider
@@ -141,7 +145,7 @@ export default function RootLayout({
               disableTransitionOnChange
             >
               <NextTopLoader showSpinner={false} color="#FF5800" />
-              <DebugProvider>{children}</DebugProvider>
+              {children}
               <Toaster
                 richColors
                 theme="dark"

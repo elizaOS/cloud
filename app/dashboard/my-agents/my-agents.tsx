@@ -32,8 +32,8 @@ export function MyAgentsClient() {
     try {
       const response = await fetch("/api/my-agents/characters");
       if (!response.ok) throw new Error("Failed to fetch characters");
-      const data = await response.json();
-      setCharacters(data.characters || []);
+      const result = await response.json();
+      setCharacters(result.data?.characters || []);
     } catch (error) {
       logger.error("[MyAgents] Failed to fetch characters:", error);
       toast.error("Failed to load your agents");
@@ -121,16 +121,19 @@ export function MyAgentsClient() {
     router.push("/dashboard/build");
   }, [router]);
 
-  useSetPageHeader({
-    title: "My Agents",
-    description: `Manage your ${characters.length} AI agent${characters.length !== 1 ? "s" : ""}`,
-    actions: (
-      <BrandButton onClick={handleCreateNew}>
-        <Plus className="h-4 w-4 mr-2" />
-        Create New Agent
-      </BrandButton>
-    ),
-  });
+  useSetPageHeader(
+    {
+      title: "My Agents",
+      description: `Manage your ${characters.length} AI agent${characters.length !== 1 ? "s" : ""}`,
+      actions: (
+        <BrandButton onClick={handleCreateNew}>
+          <Plus className="h-4 w-4" />
+          Create Agent
+        </BrandButton>
+      ),
+    },
+    [characters.length, handleCreateNew],
+  );
 
   if (isLoading) {
     return (
