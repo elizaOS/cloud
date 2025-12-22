@@ -110,12 +110,12 @@ const markdownComponents = {
       </code>
     );
   },
-  pre: ({ children }: { children: React.ReactNode }) => (
+  pre: ({ children }: { children?: React.ReactNode }) => (
     <pre className="bg-black/40 border border-white/10 rounded-lg p-3 overflow-x-auto [&>code]:whitespace-pre-wrap [&>code]:break-words">
       {children}
     </pre>
   ),
-  a: ({ href, children }: { href?: string; children: React.ReactNode }) => (
+  a: ({ href, children }: { href?: string; children?: React.ReactNode }) => (
     <a
       href={href}
       target="_blank"
@@ -125,17 +125,16 @@ const markdownComponents = {
       {children}
     </a>
   ),
-  ul: ({ children }: { children: React.ReactNode }) => (
+  ul: ({ children }: { children?: React.ReactNode }) => (
     <ul className="list-disc list-inside">{children}</ul>
   ),
-  ol: ({ children }: { children: React.ReactNode }) => (
+  ol: ({ children }: { children?: React.ReactNode }) => (
     <ol className="list-decimal list-inside">{children}</ol>
   ),
 };
 
 function ChatMessageComponent({
   message,
-  index,
   characterName,
   characterAvatarUrl,
   copiedMessageId,
@@ -153,8 +152,7 @@ function ChatMessageComponent({
 
   return (
     <div
-      className={`flex ${message.isAgent ? "justify-start" : "justify-end"} animate-in fade-in slide-in-from-bottom-4 duration-500`}
-      style={{ animationDelay: `${index * 50}ms` }}
+      className={`flex ${message.isAgent ? "justify-start" : "justify-end"}`}
     >
       {message.isAgent ? (
         <div className="flex flex-col gap-0.5 max-w-[85%] sm:max-w-[75%] group/message">
@@ -318,7 +316,7 @@ function ChatMessageComponent({
 export const MemoizedChatMessage = memo(
   ChatMessageComponent,
   (prevProps, nextProps) => {
-    // Only re-render if these specific props change
+    // Compare relevant props - streaming messages use streaming- prefix
     return (
       prevProps.message.id === nextProps.message.id &&
       prevProps.message.content.text === nextProps.message.content.text &&

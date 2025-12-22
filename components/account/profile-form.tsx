@@ -15,13 +15,27 @@ import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { updateProfile, uploadAvatar, updateEmail } from "@/app/actions/users";
-import { Loader2, Upload, User, Mail, Shield, X, Check, ImagePlus } from "lucide-react";
+import {
+  Loader2,
+  Upload,
+  User,
+  Mail,
+  Shield,
+  X,
+  Check,
+  ImagePlus,
+} from "lucide-react";
 import type { UserWithOrganization } from "@/lib/types";
 import { toast } from "sonner";
 import { BrandCard, BrandButton, CornerBrackets } from "@/components/brand";
 
 // Constants for validation
-const VALID_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+const VALID_IMAGE_TYPES = [
+  "image/jpeg",
+  "image/jpg",
+  "image/png",
+  "image/webp",
+];
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
 interface ProfileFormProps {
@@ -36,7 +50,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [isUpdatingEmail, setIsUpdatingEmail] = useState(false);
   const [emailAdded, setEmailAdded] = useState(false);
-  
+
   // Avatar preview states
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
@@ -46,7 +60,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
   const getInitials = (
     name: string | null,
     email: string | null,
-    walletAddress: string | null,
+    walletAddress: string | null
   ) => {
     if (name) {
       return name
@@ -66,42 +80,48 @@ export function ProfileForm({ user }: ProfileFormProps) {
   };
 
   // Validate and create preview for selected file
-  const handleFileSelect = useCallback((file: File) => {
-    // Validate file type
-    if (!VALID_IMAGE_TYPES.includes(file.type)) {
-      toast.error("Invalid file type. Only JPEG, PNG, and WebP are allowed.");
-      return;
-    }
+  const handleFileSelect = useCallback(
+    (file: File) => {
+      // Validate file type
+      if (!VALID_IMAGE_TYPES.includes(file.type)) {
+        toast.error("Invalid file type. Only JPEG, PNG, and WebP are allowed.");
+        return;
+      }
 
-    // Validate file size
-    if (file.size > MAX_FILE_SIZE) {
-      toast.error("File too large. Maximum size is 5MB.");
-      return;
-    }
+      // Validate file size
+      if (file.size > MAX_FILE_SIZE) {
+        toast.error("File too large. Maximum size is 5MB.");
+        return;
+      }
 
-    // Clean up previous preview URL if exists
-    if (previewUrl) {
-      URL.revokeObjectURL(previewUrl);
-    }
+      // Clean up previous preview URL if exists
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
 
-    // Create preview URL and store pending file
-    const objectUrl = URL.createObjectURL(file);
-    setPreviewUrl(objectUrl);
-    setPendingFile(file);
-    setError(null);
-  }, [previewUrl]);
+      // Create preview URL and store pending file
+      const objectUrl = URL.createObjectURL(file);
+      setPreviewUrl(objectUrl);
+      setPendingFile(file);
+      setError(null);
+    },
+    [previewUrl]
+  );
 
   // Handle file input change
-  const handleAvatarSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      handleFileSelect(file);
-    }
-    // Reset input so same file can be selected again
-    if (e.target) {
-      e.target.value = "";
-    }
-  }, [handleFileSelect]);
+  const handleAvatarSelect = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file) {
+        handleFileSelect(file);
+      }
+      // Reset input so same file can be selected again
+      if (e.target) {
+        e.target.value = "";
+      }
+    },
+    [handleFileSelect]
+  );
 
   // Drag and drop handlers
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -116,16 +136,19 @@ export function ProfileForm({ user }: ProfileFormProps) {
     setIsDragging(false);
   }, []);
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDragging(false);
 
-    const files = e.dataTransfer.files;
-    if (files.length > 0) {
-      handleFileSelect(files[0]);
-    }
-  }, [handleFileSelect]);
+      const files = e.dataTransfer.files;
+      if (files.length > 0) {
+        handleFileSelect(files[0]);
+      }
+    },
+    [handleFileSelect]
+  );
 
   // Cancel preview and discard pending file
   const handleCancelPreview = useCallback(() => {
@@ -266,8 +289,8 @@ export function ProfileForm({ user }: ProfileFormProps) {
                   </>
                 ) : (
                   <>
-                    <Mail className="h-4 w-4 mr-2" />
-                    Add Email Address
+                    <Mail className="h-4 w-4 mr-2 text-white" />
+                    <p className="text-white">Add Email Address</p>
                   </>
                 )}
               </BrandButton>
@@ -429,7 +452,9 @@ export function ProfileForm({ user }: ProfileFormProps) {
                   role="button"
                   tabIndex={0}
                   onClick={() => fileInputRef.current?.click()}
-                  onKeyDown={(e) => e.key === "Enter" && fileInputRef.current?.click()}
+                  onKeyDown={(e) =>
+                    e.key === "Enter" && fileInputRef.current?.click()
+                  }
                   onDragOver={handleDragOver}
                   onDragLeave={handleDragLeave}
                   onDrop={handleDrop}
@@ -568,7 +593,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
                   Saving...
                 </>
               ) : (
-                "Save Changes"
+                <p className="text-white">Save Changes</p>
               )}
             </BrandButton>
             <BrandButton

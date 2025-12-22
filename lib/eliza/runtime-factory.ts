@@ -244,7 +244,7 @@ export class RuntimeFactory {
     };
   }
 
-  /** Initialize runtime, ensuring world/agent exist first */
+  /** Initialize runtime, ensuring agent/world exist */
   private async initializeRuntime(
     runtime: AgentRuntime,
     character: Character,
@@ -266,47 +266,6 @@ export class RuntimeFactory {
         agentId,
         serverId: agentId,
       } as World);
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      if (
-        !msg.toLowerCase().includes("duplicate") &&
-        !msg.toLowerCase().includes("unique constraint")
-      )
-        throw e;
-    }
-
-    try {
-      await runtime.initialize({ skipMigrations: true });
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      // These errors indicate the resource already exists (race condition or retry)
-      // and can be safely ignored since the resource we need is already there
-      const isDuplicateOrExists =
-        msg.toLowerCase().includes("duplicate") ||
-        msg.toLowerCase().includes("unique constraint") ||
-        msg.includes("Failed to create entity") ||
-        msg.includes("Failed to create agent") ||
-        msg.includes("Failed to create room");
-      if (!isDuplicateOrExists) throw e;
-    }
-
-    if (!(await runtime.getAgent(agentId))) {
-      await this.ensureAgentExists(runtime, character, agentId);
-    }
-  }
-
-  private async ensureAgentExists(
-    runtime: AgentRuntime,
-    character: Character,
-    agentId: UUID,
-  ): Promise<void> {
-    try {
-      await runtime.createEntity({
-        id: agentId,
-        names: [character.name || "Eliza"],
-        agentId,
-        metadata: { name: character.name || "Eliza" },
-      });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       if (

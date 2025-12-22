@@ -11,6 +11,7 @@ import {
 } from "../shared/providers";
 import { handleMessage } from "./handler";
 import { roomTitleEvaluator } from "../shared/evaluators";
+import type { StreamChunkCallback } from "../shared/types";
 
 export const chatPlaygroundPlugin: Plugin = {
   name: "eliza-chat-playground",
@@ -19,13 +20,16 @@ export const chatPlaygroundPlugin: Plugin = {
     [EventType.MESSAGE_RECEIVED]: [
       async (payload: MessagePayload) => {
         if (!payload.callback) return;
+        // Extract onStreamChunk if present (added by eliza-cloud message handler)
+        const onStreamChunk = (payload as MessagePayload & { onStreamChunk?: StreamChunkCallback }).onStreamChunk;
         logger.info(
-          `[Playground] Message received in room ${payload.message.roomId}`,
+          `[Playground] Message received in room ${payload.message.roomId}, streaming=${!!onStreamChunk}`,
         );
         await handleMessage({
           runtime: payload.runtime,
           message: payload.message,
           callback: payload.callback,
+          onStreamChunk,
         });
       },
     ],

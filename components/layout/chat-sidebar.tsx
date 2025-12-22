@@ -12,7 +12,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useState, useEffect, useMemo, useRef } from "react";
 import {
   ArrowLeft,
@@ -28,6 +28,11 @@ import { LockOnButton } from "@/components/brand";
 import { useChatStore } from "@/lib/stores/chat-store";
 import { SidebarBottomPanel } from "./sidebar-bottom-panel";
 import { ElizaAvatar } from "@/components/chat/eliza-avatar";
+
+// Default Eliza avatars - different for build vs chat pages
+const DEFAULT_ELIZA_AVATAR_CHAT =
+  "https://raw.githubusercontent.com/elizaOS/eliza-avatars/refs/heads/master/Eliza/portrait.png";
+const DEFAULT_ELIZA_AVATAR_BUILD = "/avatars/eliza-default.png";
 
 interface ChatSidebarProps {
   className?: string;
@@ -84,7 +89,14 @@ export function ChatSidebar({
   onToggle,
 }: ChatSidebarProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const [isMobile, setIsMobile] = useState(false);
+
+  // Use different default avatar for build vs chat pages
+  const isBuildPage = pathname.includes("/build");
+  const defaultElizaAvatar = isBuildPage
+    ? DEFAULT_ELIZA_AVATAR_BUILD
+    : DEFAULT_ELIZA_AVATAR_CHAT;
   const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
   const [showTokens, setShowTokens] = useState(false);
   const tokensRef = useRef<HTMLDivElement>(null);
@@ -418,7 +430,7 @@ export function ChatSidebar({
           <div className="flex items-center gap-2.5">
             {/* Character Avatar */}
             <ElizaAvatar
-              avatarUrl={selectedCharacter?.avatarUrl}
+              avatarUrl={selectedCharacter?.avatarUrl || defaultElizaAvatar}
               name={selectedCharacter?.name || "Eliza"}
               className="w-8 h-8 shrink-0"
               iconClassName="h-4 w-4"
