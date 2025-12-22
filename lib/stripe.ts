@@ -47,7 +47,7 @@ function initStripe(): Stripe | null {
 
   if (!secretKey.startsWith("sk_")) {
     stripeInitError = new Error(
-      `STRIPE_SECRET_KEY appears invalid (should start with 'sk_', got '${secretKey.substring(0, 7)}...'). Please verify your Stripe configuration.`
+      `STRIPE_SECRET_KEY appears invalid (should start with 'sk_', got '${secretKey.substring(0, 3)}...'). Please verify your Stripe configuration.`
     );
     return null;
   }
@@ -136,11 +136,12 @@ export const stripe: Stripe = new Proxy({} as Stripe, {
 });
 
 /**
- * Check if Stripe is configured (has secret key).
+ * Check if Stripe is configured (has valid secret key).
  * Use this before accessing the `stripe` proxy to avoid runtime errors.
  */
 export function isStripeConfigured(): boolean {
-  return !!process.env.STRIPE_SECRET_KEY;
+  const key = process.env.STRIPE_SECRET_KEY?.trim();
+  return !!key && key.startsWith("sk_");
 }
 
 /**

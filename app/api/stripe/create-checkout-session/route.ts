@@ -234,23 +234,9 @@ async function handleCheckoutSession(req: NextRequest) {
   } catch (error) {
     logger.error("[Stripe Checkout] Error creating checkout session:", error);
 
-    // Extract detailed error information for debugging
-    const errorMessage =
-      error instanceof Error ? error.message : "Unknown error";
-
-    // Check if it's a Stripe error (has type and code properties)
-    const stripeError =
-      error && typeof error === "object" && "type" in error
-        ? (error as { type: string; code?: string; message?: string })
-        : null;
-
+    // Don't expose internal details - log them but return generic message
     return NextResponse.json(
-      {
-        error: "Failed to create checkout session",
-        details: stripeError?.message || errorMessage,
-        code: stripeError?.code,
-        type: stripeError?.type,
-      },
+      { error: "Failed to create checkout session" },
       { status: 500 }
     );
   }
