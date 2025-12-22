@@ -21,6 +21,11 @@ import {
 import { useChatStore } from "@/lib/stores/chat-store";
 import { ElizaAvatar } from "@/components/chat/eliza-avatar";
 
+// Default Eliza avatars - different for build vs chat pages
+const DEFAULT_ELIZA_AVATAR_CHAT =
+  "https://raw.githubusercontent.com/elizaOS/eliza-avatars/refs/heads/master/Eliza/portrait.png";
+const DEFAULT_ELIZA_AVATAR_BUILD = "/avatars/eliza-default.png";
+
 interface ChatHeaderProps {
   onToggleSidebar?: () => void;
 }
@@ -37,6 +42,10 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
 
   // Derive mode from pathname
   const mode = pathname.includes("/build") ? "build" : "chat";
+
+  // Use different default avatar for build vs chat pages
+  const defaultElizaAvatar =
+    mode === "build" ? DEFAULT_ELIZA_AVATAR_BUILD : DEFAULT_ELIZA_AVATAR_CHAT;
 
   // Find selected agent
   const selectedAgent = availableCharacters.find(
@@ -127,7 +136,7 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
                 <>
                   <div className="flex items-center gap-2">
                     <ElizaAvatar
-                      avatarUrl="https://raw.githubusercontent.com/elizaOS/eliza-avatars/refs/heads/master/Eliza/portrait.png"
+                      avatarUrl={defaultElizaAvatar}
                       name="Eliza"
                       className="w-6 h-6"
                       iconClassName="h-3 w-3"
@@ -154,7 +163,7 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
               )}
             >
               <ElizaAvatar
-                avatarUrl="https://raw.githubusercontent.com/elizaOS/eliza-avatars/refs/heads/master/Eliza/portrait.png"
+                avatarUrl={defaultElizaAvatar}
                 name="Eliza"
                 className="w-6 h-6"
                 iconClassName="h-3 w-3"

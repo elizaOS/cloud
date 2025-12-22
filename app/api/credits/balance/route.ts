@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/utils/logger";
 import { requireAuthWithOrg } from "@/lib/auth";
+import { organizationsService } from "@/lib/services/organizations";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -9,20 +10,29 @@ export const revalidate = 0;
  * GET /api/credits/balance
  * Gets the credit balance for the authenticated user's organization.
  *
- * Performance optimized: Uses organization data already fetched during auth
- * instead of making a redundant database call.
+ * Query params:
+ * - fresh=true: Bypass cache and fetch directly from DB (use after payments)
  *
  * @param req - The Next.js request object.
  * @returns JSON response with balance or error.
  */
 export async function GET(req: NextRequest) {
   try {
-    // requireAuthWithOrg already fetches organization with credit_balance
-    // No need for additional DB call - use the data we already have
     const user = await requireAuthWithOrg();
 
-    // Organization is guaranteed to exist since requireAuthWithOrg validates it
-    const balance = Number(user.organization.credit_balance || 0);
+    // Check if fresh data is requested (e.g., after payment)
+    const forceFresh = req.nextUrl.searchParams.get("fresh") === "true";
+
+    let balance: number;
+
+    if (forceFresh) {
+      // Fetch fresh from database - bypass session cache
+      const freshOrg = await organizationsService.getById(user.organization_id);
+      balance = Number(freshOrg?.credit_balance || 0);
+    } else {
+      // Use cached session data for normal polling (fast)
+      balance = Number(user.organization.credit_balance || 0);
+    }
 
     return NextResponse.json(
       { balance },
@@ -32,7 +42,7 @@ export async function GET(req: NextRequest) {
           Pragma: "no-cache",
           Expires: "0",
         },
-      },
+      }
     );
   } catch (error) {
     const errorMessage =
@@ -54,7 +64,7 @@ export async function GET(req: NextRequest) {
             Pragma: "no-cache",
             Expires: "0",
           },
-        },
+        }
       );
     }
 
@@ -68,7 +78,7 @@ export async function GET(req: NextRequest) {
           Pragma: "no-cache",
           Expires: "0",
         },
-      },
+      }
     );
   }
 }

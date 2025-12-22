@@ -137,9 +137,7 @@ IMPORTANT: Only include fields that are actually changing. Don't repeat unchange
 <response>
   <thought>Your internal reasoning about what the user needs</thought>
   <fieldsToChange>Comma-separated list of fields being modified (e.g., bio, adjectives, style.all)</fieldsToChange>
-  <explanation>
-Brief, natural explanation (2-3 sentences). Reference the UI fields being updated (Name, Bio, System Prompt, Personality traits, Style). Tell them what you're tuning and why it helps, in terms they can see in the form.
-  </explanation>
+  <text>Brief, natural explanation (2-3 sentences). Reference the UI fields being updated (Name, Bio, System Prompt, Personality traits, Style). Tell them what you're tuning and why it helps, in terms they can see in the form.</text>
   <changes>
 {
   "fieldName": "new value or array",
@@ -264,17 +262,15 @@ export const suggestChangesAction = {
     const parsedResponse = parseKeyValueXml(response) as {
       thought?: string;
       fieldsToChange?: string;
-      explanation?: string;
+      text?: string;
       changes?: string;
     } | null;
 
     // Restore original system prompt
     runtime.character.system = originalSystemPrompt;
 
-    if (!parsedResponse?.explanation) {
-      logger.warn(
-        "[SUGGEST_CHANGES] Failed to parse response - missing explanation",
-      );
+    if (!parsedResponse?.text) {
+      logger.warn("[SUGGEST_CHANGES] Failed to parse response - missing text");
       await callback({
         text: "I had trouble formulating my response. Could you rephrase your request?",
         error: true,
@@ -321,9 +317,8 @@ export const suggestChangesAction = {
 
     logger.debug("[SUGGEST_CHANGES] Response generated successfully");
 
-    // Callback with the explanation and optional changes
     await callback({
-      text: parsedResponse.explanation,
+      text: parsedResponse.text,
       thought: parsedResponse.thought,
       metadata,
     });

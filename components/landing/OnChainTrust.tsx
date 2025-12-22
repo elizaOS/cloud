@@ -113,13 +113,6 @@ export default function OnChainTrust() {
             }}
             asChild
           >
-            <a
-              href="https://docs.elizaos.ai/"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Learn more
-            </a>
           </Button>
         </div>
 

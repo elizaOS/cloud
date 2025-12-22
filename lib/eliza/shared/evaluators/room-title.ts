@@ -53,6 +53,7 @@ IMPORTANT: Your response must ONLY contain the <response></response> XML block a
 
 /**
  * Handler - generates and saves room title
+ * IMPORTANT: Runs as fire-and-forget to avoid blocking message response
  */
 async function handler(runtime: IAgentRuntime, message: Memory) {
   const { roomId } = message;
@@ -62,6 +63,24 @@ async function handler(runtime: IAgentRuntime, message: Memory) {
     return;
   }
 
+  // Fire-and-forget: Don't block the message response
+  // The title will be generated in the background
+  generateTitleInBackground(runtime, message, roomId).catch((error) => {
+    logger.error(
+      "[RoomTitle] Background title generation failed:",
+      error instanceof Error ? error.message : String(error),
+    );
+  });
+}
+
+/**
+ * Background title generation - runs without blocking
+ */
+async function generateTitleInBackground(
+  runtime: IAgentRuntime,
+  message: Memory,
+  roomId: string,
+) {
   try {
     // Check if room already has a title
     const existingRoom = await runtime.getRoom(roomId as UUID);
@@ -80,7 +99,7 @@ async function handler(runtime: IAgentRuntime, message: Memory) {
     // Get recent messages for context
     const recentMessages = await runtime.getMemories({
       tableName: "messages",
-      roomId,
+      roomId: roomId as UUID,
       count: 5, // Get first few messages for context
       unique: false,
     });

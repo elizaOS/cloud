@@ -10,6 +10,8 @@ import {
   type Media,
   ModelType,
   parseKeyValueXml,
+  runWithStreamingContext,
+  XmlTagExtractor,
   type UUID,
 } from "@elizaos/core";
 import type { DialogueMetadata } from "@/lib/types/message-content";
@@ -86,6 +88,7 @@ export async function handleMessage({
   runtime,
   message,
   callback,
+  onStreamChunk,
 }: MessageReceivedHandlerParams): Promise<void> {
   const responseId = v4();
   const runId = asUUID(v4());
@@ -98,19 +101,37 @@ export async function handleMessage({
   await setLatestResponseId(runtime, message.roomId, responseId);
   await runtime.emitEvent(EventType.RUN_STARTED, {
     runtime,
+    source: "chatAssistantWorkflow",
     runId,
-    messageId: message.id,
+    messageId: message.id || asUUID(v4()),
     roomId: message.roomId,
     entityId: message.entityId,
     startTime,
     status: "started",
-    source: "chatAssistantWorkflow",
   });
 
   const originalSystemPrompt = runtime.character.system;
 
+  // Streaming context for automatic streaming in all useModel calls
+  // Use XmlTagExtractor to extract and stream <text> content from responses
+  let streamingContext: { onStreamChunk: (chunk: string, messageId?: UUID) => Promise<void>; messageId?: UUID } | undefined;
+  if (onStreamChunk) {
+    const extractor = new XmlTagExtractor('text');
+    streamingContext = {
+      onStreamChunk: async (chunk: string, msgId?: UUID) => {
+        if (extractor.done) return;
+        const textToStream = extractor.push(chunk);
+        if (textToStream) {
+          await onStreamChunk(textToStream, msgId);
+        }
+      },
+      messageId: responseId as UUID,
+    };
+  }
+
   try {
-    await runtime.createMemory(message, "messages");
+    await runWithStreamingContext(streamingContext, async () => {
+      await runtime.createMemory(message, "messages");
 
     // Check for affiliate character (uses minimal providers to save tokens)
     const affiliateData = runtime.character.settings?.affiliateData as
@@ -251,6 +272,7 @@ export async function handleMessage({
           plan,
           updatedState,
           callback,
+          onStreamChunk,
         );
 
         // Exit early if action already sent response
@@ -261,15 +283,15 @@ export async function handleMessage({
 
           await runtime.emitEvent(EventType.RUN_ENDED, {
             runtime,
+            source: "chatAssistantWorkflow",
             runId,
-            messageId: message.id,
+            messageId: message.id || asUUID(v4()),
             roomId: message.roomId,
             entityId: message.entityId,
             startTime,
             status: "completed",
             endTime: Date.now(),
             duration: Date.now() - startTime,
-            source: "chatAssistantWorkflow",
           });
           return;
         }
@@ -400,30 +422,31 @@ export async function handleMessage({
     const endTime = Date.now();
     await runtime.emitEvent(EventType.RUN_ENDED, {
       runtime,
+      source: "chatAssistantWorkflow",
       runId,
-      messageId: message.id,
+      messageId: message.id || asUUID(v4()),
       roomId: message.roomId,
       entityId: message.entityId,
       startTime,
       status: "completed",
       endTime,
       duration: endTime - startTime,
-      source: "chatAssistantWorkflow",
+    });
     });
   } catch (error) {
     runtime.character.system = originalSystemPrompt;
     await runtime.emitEvent(EventType.RUN_ENDED, {
       runtime,
+      source: "chatAssistantWorkflow",
       runId,
-      messageId: message.id,
+      messageId: message.id || asUUID(v4()),
       roomId: message.roomId,
       entityId: message.entityId,
       startTime,
-      status: "error",
+      status: "completed",
       endTime: Date.now(),
       duration: Date.now() - startTime,
       error: error instanceof Error ? error.message : String(error),
-      source: "chatAssistantWorkflow",
     });
     throw error;
   }
