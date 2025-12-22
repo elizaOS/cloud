@@ -178,8 +178,8 @@ aside.nextra-sidebar-container {
    ═══════════════════════════════════════════════════════════════════════════ */
 main {
   background: var(--surface-bg) !important;
-  /* Only control horizontal padding so we don't wipe out Nextra's vertical spacing */
-  padding-inline: 0.5rem !important;
+  /* Minimal padding to maximize content width */
+  padding-inline: 0.25rem !important;
 }
 
 /* The docs landing page has its own spacing; avoid double-padding it */
@@ -190,8 +190,8 @@ main.nextra-content-container.docs-landing {
 .nextra-body-typesetting-article,
 .nextra-body-full,
 .nextra-content-container {
-  /* Provide consistent horizontal gutters even when Nextra's wrapper isn't present */
-  padding-inline: 0.5rem !important;
+  /* Minimal horizontal gutters to maximize content area */
+  padding-inline: 0.25rem !important;
 }
 
 /* Prevent `.nextra-content-container` rule from re-adding padding on the landing page */
@@ -201,9 +201,23 @@ main.nextra-content-container.docs-landing.nextra-content-container {
 
 article.nextra-content {
   color: var(--text-secondary) !important;
-  max-width: 90ch;
+  max-width: 115ch;
   margin: 0 auto;
-  padding: 2rem 0.75rem;
+  padding: 2rem 1.5rem;
+}
+
+/* Widen content on larger screens */
+@media (min-width: 1280px) {
+  article.nextra-content {
+    max-width: 130ch;
+    padding: 2rem 2rem;
+  }
+}
+
+@media (min-width: 1536px) {
+  article.nextra-content {
+    max-width: 150ch;
+  }
 }
 
 /* Headings */
@@ -1551,17 +1565,18 @@ footer.nextra-footer {
    ═══════════════════════════════════════════════════════════════════════════ */
 @media (max-width: 1024px) {
   main {
-    padding-inline: 0.75rem !important;
+    padding-inline: 0.5rem !important;
   }
 
   .nextra-body-typesetting-article,
   .nextra-body-full,
   .nextra-content-container {
-    padding-inline: 0.75rem !important;
+    padding-inline: 0.5rem !important;
   }
   
   article.nextra-content {
-    padding: 2rem 0.5rem;
+    max-width: 100%;
+    padding: 2rem 1rem;
   }
   
   article h1 {
@@ -1584,13 +1599,13 @@ footer.nextra-footer {
 
 @media (max-width: 768px) {
   main {
-    padding-inline: 0.5rem !important;
+    padding-inline: 0.25rem !important;
   }
 
   .nextra-body-typesetting-article,
   .nextra-body-full,
   .nextra-content-container {
-    padding-inline: 0.5rem !important;
+    padding-inline: 0.25rem !important;
   }
   
   .nextra-sidebar-container {
@@ -1602,7 +1617,8 @@ footer.nextra-footer {
   }
   
   article.nextra-content {
-    padding: 1.5rem 0.5rem;
+    max-width: 100%;
+    padding: 1.5rem 0.75rem;
   }
   
   article h1 {
@@ -1638,18 +1654,19 @@ footer.nextra-footer {
    ═══════════════════════════════════════════════════════════════════════════ */
 .nextra-toc,
 aside.nextra-toc {
-  padding-right: 1.5rem !important;
+  padding-right: 1rem !important;
+  padding-left: 1rem !important;
 }
 
 .nextra-body > div:first-child {
   /* Avoid removing vertical spacing by using inline-only padding */
-  padding-inline: 0.5rem !important;
+  padding-inline: 0.25rem !important;
 }
 
 .nextra-content > div,
 .nextra-content > article {
-  padding-left: 0.25rem;
-  padding-right: 0.25rem;
+  padding-left: 0;
+  padding-right: 0;
 }
 
 .nextra-breadcrumb {
@@ -1660,6 +1677,33 @@ aside.nextra-toc {
 /* Fix nextra-theme-docs IntersectionObserver rootMargin bug */
 :root {
   --nextra-navbar-height: 64px;
+}
+
+/* Widen content area on large screens by reducing sidebar/TOC space */
+@media (min-width: 1280px) {
+  .nextra-sidebar-container {
+    width: 220px !important;
+    min-width: 220px !important;
+    max-width: 220px !important;
+  }
+  
+  .nextra-toc {
+    width: 180px !important;
+    min-width: 180px !important;
+  }
+}
+
+@media (min-width: 1536px) {
+  .nextra-sidebar-container {
+    width: 240px !important;
+    min-width: 240px !important;
+    max-width: 240px !important;
+  }
+  
+  .nextra-toc {
+    width: 200px !important;
+    min-width: 200px !important;
+  }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
