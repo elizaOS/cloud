@@ -9,7 +9,7 @@ import type Stripe from "stripe";
 import { logger } from "@/lib/utils/logger";
 
 const CUSTOM_AMOUNT_LIMITS = {
-  MIN_AMOUNT: 5,
+  MIN_AMOUNT: 1,
   MAX_AMOUNT: 1000,
 } as const;
 
@@ -72,13 +72,13 @@ async function handleCheckoutSession(req: NextRequest) {
     const validationResult = checkoutRequestSchema.safeParse(body);
 
     if (!validationResult.success) {
-      return NextResponse.json(
-        {
-          error: "Validation failed",
-          details: validationResult.error.flatten().fieldErrors,
-        },
-        { status: 400 }
-      );
+      // Extract the first user-friendly error message
+      const flatErrors = validationResult.error.flatten();
+      const fieldErrors = Object.values(flatErrors.fieldErrors).flat();
+      const formErrors = flatErrors.formErrors;
+      const firstError = fieldErrors[0] || formErrors[0] || "Invalid request";
+
+      return NextResponse.json({ error: firstError }, { status: 400 });
     }
 
     const { creditPackId, amount, returnUrl } = validationResult.data;
