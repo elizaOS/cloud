@@ -142,10 +142,6 @@ export const chatAssistantResponseTemplate = `
 
 {{knowledge}}
 
-{{conversationLog}}
-
-{{receivedMessageHeader}}
-
 # Response Guidelines
 - Be conversational and human. This is a real chat, not a performance.
 - Respond directly to what the user said. Acknowledge their message.
