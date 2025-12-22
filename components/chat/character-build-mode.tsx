@@ -36,15 +36,19 @@ import { markKnowledgeProcessingPending } from "@/components/chat/hooks/use-know
 
 interface CharacterBuildModeProps {
   initialCharacters: ElizaCharacter[];
+  initialCharacterId?: string;
   onUnsavedChanges?: (hasChanges: boolean) => void;
 }
 
 export function CharacterBuildMode({
   initialCharacters,
+  initialCharacterId,
   onUnsavedChanges,
 }: CharacterBuildModeProps) {
-  const { selectedCharacterId, setRoomId, setSelectedCharacterId } =
-    useChatStore();
+  const { setRoomId, setSelectedCharacterId } = useChatStore();
+
+  // Parent uses key={initialCharacterId} to force remount on character change
+  const effectiveCharacterId = initialCharacterId || null;
   const { user } = usePrivy();
   const userId = user?.id || "";
   const router = useRouter();
@@ -69,15 +73,16 @@ export function CharacterBuildMode({
   // Clear default character ref when switching to an existing character
   // This is done in a separate effect to avoid side effects in useMemo
   useEffect(() => {
-    if (selectedCharacterId) {
+    if (effectiveCharacterId) {
       defaultCharacterRef.current = null;
     }
-  }, [selectedCharacterId]);
+  }, [effectiveCharacterId]);
 
-  // Derive character from selectedCharacterId - avoid setState in effect
+  // Derive character from effectiveCharacterId - avoid setState in effect
+  // Use effectiveCharacterId to get correct character on first render
   const initialCharacter = useMemo(() => {
-    if (selectedCharacterId) {
-      const char = initialCharacters.find((c) => c.id === selectedCharacterId);
+    if (effectiveCharacterId) {
+      const char = initialCharacters.find((c) => c.id === effectiveCharacterId);
       if (char) {
         return char;
       }
@@ -87,11 +92,12 @@ export function CharacterBuildMode({
       defaultCharacterRef.current = createDefaultCharacter();
     }
     return defaultCharacterRef.current;
-  }, [selectedCharacterId, initialCharacters]);
+  }, [effectiveCharacterId, initialCharacters]);
 
   // Creator mode: no selected character from database (creating new)
   // Build mode: editing an existing character from database
-  const isCreatorMode = !selectedCharacterId;
+  // Use effectiveCharacterId to avoid flash on first render when store has stale value
+  const isCreatorMode = !effectiveCharacterId;
 
   const [character, setCharacter] = useState<ElizaCharacter>(initialCharacter);
   const [preUploadedFiles, setPreUploadedFiles] = useState<PreUploadedFile[]>(
@@ -348,10 +354,7 @@ export function CharacterBuildMode({
   }, [character, onUnsavedChanges, setRoomId, preUploadedFiles]);
 
   const handleCharacterRefresh = useCallback(async () => {
-    if (!character.id) {
-      console.warn("[CharacterBuildMode] No character ID to refresh");
-      return;
-    }
+    if (!character.id) return;
 
     const refreshedCharacter = await getCharacter(character.id);
 
@@ -424,6 +427,7 @@ export function CharacterBuildMode({
         {mobileView === "assistant" ? (
           <div className="flex h-full flex-col overflow-hidden">
             <BuildModeAssistant
+              key={effectiveCharacterId || "creator"}
               character={character}
               onCharacterUpdate={handleCharacterUpdate}
               onCharacterRefresh={handleCharacterRefresh}
@@ -457,6 +461,7 @@ export function CharacterBuildMode({
               data-onboarding="build-assistant"
             >
               <BuildModeAssistant
+                key={effectiveCharacterId || "creator"}
                 character={character}
                 onCharacterUpdate={handleCharacterUpdate}
                 onCharacterRefresh={handleCharacterRefresh}

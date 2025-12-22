@@ -826,14 +826,20 @@ function handleStreamingResponse(
       let sentOutputItemAdded = false;
       const itemId = `msg_${Date.now()}`;
       let outputIndex = 0;
+      
+      // Buffer for handling partial chunks that split across network boundaries
+      let lineBuffer = "";
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
 
-        // Parse chunk to transform it AND extract usage info
-        const chunk = decoder.decode(value);
-        const lines = chunk.split("\n");
+        // Append to buffer using streaming mode to handle multi-byte chars properly
+        lineBuffer += decoder.decode(value, { stream: true });
+        
+        // Split into lines, keeping last potentially incomplete line in buffer
+        const lines = lineBuffer.split("\n");
+        lineBuffer = lines.pop() ?? "";
 
         for (const line of lines) {
           if (line.startsWith("data: ")) {
@@ -952,6 +958,40 @@ function handleStreamingResponse(
                 error: parseError instanceof Error ? parseError.message : String(parseError),
               });
             }
+          }
+        }
+      }
+      
+      // Flush decoder and process any remaining buffered content
+      const finalChunk = decoder.decode();
+      if (finalChunk) {
+        lineBuffer += finalChunk;
+      }
+      
+      // Process any remaining complete line in buffer
+      if (lineBuffer.trim() && lineBuffer.startsWith("data: ")) {
+        const data = lineBuffer.slice(6);
+        if (data !== "[DONE]" && data.trim()) {
+          try {
+            const parsed = JSON.parse(data);
+            const content = parsed.choices?.[0]?.delta?.content;
+            if (content) {
+              fullContent += content;
+              await writeEvent({
+                type: "response.output_text.delta",
+                item_id: itemId,
+                output_index: outputIndex,
+                content_index: 0,
+                delta: content,
+              });
+            }
+            if (parsed.usage) {
+              inputTokens = parsed.usage.prompt_tokens || 0;
+              outputTokens = parsed.usage.completion_tokens || 0;
+              totalTokens = parsed.usage.total_tokens || 0;
+            }
+          } catch {
+            // Final buffer wasn't a complete JSON - this is expected if the stream ended cleanly
           }
         }
       }

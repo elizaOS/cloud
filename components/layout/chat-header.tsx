@@ -9,7 +9,8 @@
 "use client";
 
 import { useRouter, usePathname } from "next/navigation";
-import { Menu, ChevronDown, MessageSquare, Wrench } from "lucide-react";
+import Link from "next/link";
+import { Menu, ChevronDown, ChevronLeft, MessageSquare, Wrench, Plus } from "lucide-react";
 import { BrandButton } from "@/components/brand";
 import { cn } from "@/lib/utils";
 import {
@@ -20,11 +21,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useChatStore } from "@/lib/stores/chat-store";
 import { ElizaAvatar } from "@/components/chat/eliza-avatar";
-
-// Default Eliza avatars - different for build vs chat pages
-const DEFAULT_ELIZA_AVATAR_CHAT =
-  "https://raw.githubusercontent.com/elizaOS/eliza-avatars/refs/heads/master/Eliza/portrait.png";
-const DEFAULT_ELIZA_AVATAR_BUILD = "/avatars/eliza-default.png";
 
 interface ChatHeaderProps {
   onToggleSidebar?: () => void;
@@ -42,10 +38,7 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
 
   // Derive mode from pathname
   const mode = pathname.includes("/build") ? "build" : "chat";
-
-  // Use different default avatar for build vs chat pages
-  const defaultElizaAvatar =
-    mode === "build" ? DEFAULT_ELIZA_AVATAR_BUILD : DEFAULT_ELIZA_AVATAR_CHAT;
+  const isBuildPage = mode === "build";
 
   // Find selected agent
   const selectedAgent = availableCharacters.find(
@@ -55,19 +48,21 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
   const existingAgent = selectedAgent !== undefined;
 
   const handleAgentChange = (characterId: string) => {
-    const charId = characterId || null;
-    setSelectedCharacterId(charId);
+    setSelectedCharacterId(characterId);
     // Clear current room selection since we're switching characters
-    // User will need to select a room from the filtered list or create new
     setRoomId(null);
 
     // Update URL with new character, clearing roomId, staying on current mode
     const params = new URLSearchParams();
-    if (charId) {
-      params.set("characterId", charId);
-    }
+    params.set("characterId", characterId);
     const path = mode === "build" ? "/dashboard/build" : "/dashboard/chat";
     router.push(`${path}?${params.toString()}`);
+  };
+
+  const handleCreateNewAgent = () => {
+    setSelectedCharacterId(null);
+    setRoomId(null);
+    router.push("/dashboard/build");
   };
 
   const handleModeChange = (newMode: "chat" | "build") => {
@@ -86,17 +81,30 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
 
   return (
     <header className="flex h-16 items-center justify-between border-b border-white/10 bg-transparent backdrop-blur-3xl px-4 md:px-6">
-      <div className="flex items-center gap-4">
-        {/* Mobile Menu Button */}
-        <BrandButton
-          variant="ghost"
-          size="icon"
-          className="md:hidden"
-          onClick={onToggleSidebar}
-          aria-label="Toggle navigation"
-        >
-          <Menu className="h-5 w-5 text-white" />
-        </BrandButton>
+      <div className="flex items-center gap-3">
+        {/* Mobile Menu Button - only show when sidebar is available (chat mode) */}
+        {onToggleSidebar && (
+          <BrandButton
+            variant="ghost"
+            size="icon"
+            className="md:hidden"
+            onClick={onToggleSidebar}
+            aria-label="Toggle navigation"
+          >
+            <Menu className="h-5 w-5 text-white" />
+          </BrandButton>
+        )}
+
+        {/* Back to Dashboard - only on build page */}
+        {isBuildPage && (
+          <Link
+            href="/dashboard"
+            className="flex items-center justify-center w-7 h-7 text-white/40 hover:text-white hover:bg-white/5 rounded transition-colors"
+            aria-label="Back to dashboard"
+          >
+            <ChevronLeft className="h-5 w-5" />
+          </Link>
+        )}
 
         {/* Agent Picker Dropdown */}
         <DropdownMenu>
@@ -135,14 +143,10 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
               ) : (
                 <>
                   <div className="flex items-center gap-2">
-                    <ElizaAvatar
-                      avatarUrl={defaultElizaAvatar}
-                      name="Eliza"
-                      className="w-6 h-6"
-                      iconClassName="h-3 w-3"
-                      fallbackClassName="bg-[#FF5800]"
-                    />
-                    <span className="text-sm text-white">Default (Eliza)</span>
+                    <div className="w-6 h-6 rounded-full bg-[#FF5800]/20 border border-[#FF5800]/30 flex items-center justify-center">
+                      <Plus className="h-3 w-3 text-[#FF5800]" />
+                    </div>
+                    <span className="text-sm text-white">Create New Agent</span>
                   </div>
                   <ChevronDown className="h-4 w-4 text-white/60" />
                 </>
@@ -153,25 +157,20 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
             align="start"
             className="w-64 bg-[#0A0A0A] border-white/10"
           >
-            {/* Default Eliza option */}
+            {/* Create New Agent option */}
             <DropdownMenuItem
-              onClick={() => handleAgentChange("")}
+              onClick={handleCreateNewAgent}
               className={cn(
                 "flex items-center gap-2 px-3 py-2 cursor-pointer",
                 "hover:bg-white/5 focus:bg-white/5",
-                !selectedCharacterId && "bg-white/10",
               )}
             >
-              <ElizaAvatar
-                avatarUrl={defaultElizaAvatar}
-                name="Eliza"
-                className="w-6 h-6"
-                iconClassName="h-3 w-3"
-                fallbackClassName="bg-[#FF5800]"
-              />
+              <div className="w-6 h-6 rounded-full bg-[#FF5800]/20 border border-[#FF5800]/30 flex items-center justify-center">
+                <Plus className="h-3 w-3 text-[#FF5800]" />
+              </div>
               <div className="flex flex-col">
                 <span className="text-sm font-medium text-white">
-                  Default (Eliza)
+                  Create New Agent
                 </span>
               </div>
             </DropdownMenuItem>

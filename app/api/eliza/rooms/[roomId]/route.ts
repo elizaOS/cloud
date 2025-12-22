@@ -4,7 +4,7 @@ import { getAnonymousUser } from "@/lib/auth-anonymous";
 import type { NextRequest } from "next/server";
 import { roomsService } from "@/lib/services/agents/rooms";
 import { agentsService } from "@/lib/services/agents/agents";
-import { conversationsRepository } from "@/db/repositories";
+import { conversationsRepository, roomsRepository } from "@/db/repositories";
 import { logger } from "@/lib/utils/logger";
 import {
   parseMessageContent,
@@ -217,22 +217,43 @@ export async function PATCH(
     );
   }
 
-  const body = (await request.json()) as { metadata?: Record<string, unknown> };
+  const body = (await request.json()) as {
+    metadata?: Record<string, unknown>;
+    name?: string;
+  };
 
-  if (!body.metadata || typeof body.metadata !== "object") {
+  if (!body.metadata && !body.name) {
     return NextResponse.json(
-      { error: "metadata object is required" },
+      { error: "metadata or name is required" },
       { status: 400 },
     );
   }
 
-  await roomsService.updateMetadata(roomId, body.metadata);
+  if (body.metadata && typeof body.metadata !== "object") {
+    return NextResponse.json(
+      { error: "metadata must be an object" },
+      { status: 400 },
+    );
+  }
 
-  logger.info("[Eliza Room API] ✓ Room metadata updated successfully:", roomId);
+  if (body.metadata) {
+    await roomsService.updateMetadata(roomId, body.metadata);
+  }
+
+  if (body.name) {
+    await roomsRepository.update(roomId, { name: body.name });
+  }
+
+  const updatedFields = [
+    body.metadata && "metadata",
+    body.name && "name",
+  ].filter(Boolean);
+  
+  logger.info("[Eliza Room API] ✓ Room updated successfully:", roomId);
 
   return NextResponse.json({
     success: true,
-    message: "Room metadata updated successfully",
+    message: `Room ${updatedFields.join(" and ")} updated successfully`,
     roomId,
   });
 }
