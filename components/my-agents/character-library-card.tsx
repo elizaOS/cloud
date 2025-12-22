@@ -251,9 +251,9 @@ export function CharacterLibraryCard({
       className="block h-full"
       onClick={handleCardClick}
     >
-      <div className="group relative h-full overflow-hidden border border-white/10 bg-black/40 transition-all duration-300 hover:border-[#FF5800]/50 hover:shadow-lg hover:shadow-[#FF5800]/10 hover:-translate-y-1 max-w-[430px]">
+      <div className="group relative h-full overflow-hidden border border-white/10 bg-black/40 transition-all duration-300 hover:border-[#FF5800]/50 hover:shadow-lg hover:shadow-[#FF5800]/10 hover:-translate-y-1">
         {/* Avatar Section */}
-        <div className="relative h-36 w-full overflow-hidden">
+        <div className="relative aspect-square w-full overflow-hidden">
           <Skeleton className="absolute inset-0 w-full h-full" />
           <Image
             src={ensureAvatarUrl(avatarUrl)}
