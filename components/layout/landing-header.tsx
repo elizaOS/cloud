@@ -40,12 +40,21 @@ export default function LandingHeader() {
         </Link>
 
         <div className="flex items-center gap-3">
+          {/* Docs link - visible for all users */}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-base text-white hover:text-white hover:bg-white/5"
+            asChild
+          >
+            <Link href="/docs">Docs</Link>
+          </Button>
+          
           {authenticated ? (
             <>
               {/* Authenticated user - show Dashboard + UserMenu */}
               <Button
                 size="sm"
-                // onClick={handleDashboard}
                 className="bg-[#FF5800] hover:bg-[#FF5800]/90 text-white"
               >
                 <Link href="/dashboard">Dashboard</Link>

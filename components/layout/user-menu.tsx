@@ -27,6 +27,7 @@ import {
   SettingsIcon,
   Key,
   User,
+  BookOpen,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCredits } from "@/lib/providers/CreditsProvider";
@@ -306,6 +307,10 @@ export default function UserMenu() {
         <DropdownMenuItem onClick={() => router.push("/dashboard/api-keys")}>
           <Key className="mr-2 h-4 w-4" />
           <span>API Keys</span>
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => router.push("/docs")}>
+          <BookOpen className="mr-2 h-4 w-4" />
+          <span>Docs</span>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
