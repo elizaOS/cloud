@@ -17,6 +17,9 @@ import type { UserWithOrganization } from "@/lib/types";
 
 export const maxDuration = 30;
 
+const IMAGE_MODEL = "google/gemini-2.5-flash-image-preview";
+const IMAGE_PROVIDER = "google";
+
 type AspectRatio = "1:1" | "16:9" | "9:16" | "4:3" | "3:4" | "21:9" | "9:21";
 type StylePreset =
   | "none"
@@ -68,7 +71,7 @@ async function authenticateUser(req: NextRequest): Promise<AuthContext> {
 
     if (!anonData) {
       logger.info(
-        "[Generate Image] No session cookie - creating new anonymous session",
+        "[Generate Image] No session cookie - creating new anonymous session"
       );
       const newAnonData = await getOrCreateAnonymousUser();
       anonData = {
@@ -111,7 +114,7 @@ async function handlePOST(req: NextRequest) {
     const { user, apiKey, session_token, isAnonymous } = authContext;
 
     logger.info(
-      `[Generate Image] Request from ${isAnonymous ? "anonymous" : "authenticated"} user: ${user.id}`,
+      `[Generate Image] Request from ${isAnonymous ? "anonymous" : "authenticated"} user: ${user.id}`
     );
 
     const {
@@ -124,7 +127,7 @@ async function handlePOST(req: NextRequest) {
     if (!prompt || typeof prompt !== "string" || prompt.trim().length === 0) {
       return Response.json(
         { error: "Prompt is required and must be a non-empty string" },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -132,18 +135,19 @@ async function handlePOST(req: NextRequest) {
     const totalCost = IMAGE_GENERATION_COST * numImages;
 
     // Only create generation record for authenticated users with an organization
+    // Note: We set credits/cost to 0 initially - they'll be updated with actualCost on completion
     if (!isAnonymous && user.organization_id) {
       const generation = await generationsService.create({
         organization_id: user.organization_id,
         user_id: user.id,
         api_key_id: apiKey?.id || null,
         type: "image",
-        model: "google/gemini-2.5-flash-image-preview",
-        provider: "google",
+        model: IMAGE_MODEL,
+        provider: IMAGE_PROVIDER,
         prompt: prompt,
         status: "pending",
-        credits: String(totalCost),
-        cost: String(totalCost),
+        credits: String(0),
+        cost: String(0),
       });
       generationId = generation.id;
     }
@@ -192,7 +196,7 @@ async function handlePOST(req: NextRequest) {
     enhancedPrompt += `, ${aspectRatioDescriptions[aspectRatio]}`;
 
     logger.info(
-      `[Generate Image] Generating ${numImages} image(s) for ${isAnonymous ? "anonymous" : "authenticated"} user with prompt: ${enhancedPrompt.substring(0, 100)}...`,
+      `[Generate Image] Generating ${numImages} image(s) for ${isAnonymous ? "anonymous" : "authenticated"} user with prompt: ${enhancedPrompt.substring(0, 100)}...`
     );
 
     // Function to generate a single image
@@ -202,7 +206,7 @@ async function handlePOST(req: NextRequest) {
       mimeType: string;
     } | null> {
       const result = streamText({
-        model: "google/gemini-2.5-flash-image-preview",
+        model: IMAGE_MODEL,
         providerOptions: {
           google: { responseModalities: ["TEXT", "IMAGE"] },
         },
@@ -244,13 +248,13 @@ async function handlePOST(req: NextRequest) {
 
     // Generate multiple images in parallel
     const imagePromises = Array.from({ length: numImages }, () =>
-      generateSingleImage(),
+      generateSingleImage()
     );
     const results = await Promise.all(imagePromises);
 
     // Filter out any failed generations
     const successfulResults = results.filter(
-      (r): r is NonNullable<typeof r> => r !== null,
+      (r): r is NonNullable<typeof r> => r !== null
     );
 
     if (successfulResults.length === 0) {
@@ -261,8 +265,8 @@ async function handlePOST(req: NextRequest) {
           user_id: user.id,
           api_key_id: apiKey?.id || null,
           type: "image",
-          model: "google/gemini-2.5-flash-image-preview",
-          provider: "google",
+          model: IMAGE_MODEL,
+          provider: IMAGE_PROVIDER,
           input_tokens: 0,
           output_tokens: 0,
           input_cost: String(0),
@@ -275,6 +279,8 @@ async function handlePOST(req: NextRequest) {
           await generationsService.update(generationId, {
             status: "failed",
             error: "No images were generated",
+            credits: String(0),
+            cost: String(0),
             usage_record_id: usageRecord.id,
             completed_at: new Date(),
           });
@@ -283,7 +289,7 @@ async function handlePOST(req: NextRequest) {
 
       return Response.json(
         { error: "No images were generated" },
-        { status: 500 },
+        { status: 500 }
       );
     }
 
@@ -299,7 +305,7 @@ async function handlePOST(req: NextRequest) {
       deductionResult = await creditsService.deductCredits({
         organizationId: user.organization_id,
         amount: actualCost,
-        description: `Image generation (${successfulResults.length}x): google/gemini-2.5-flash-image-preview`,
+        description: `Image generation (${successfulResults.length}x): ${IMAGE_MODEL}`,
         metadata: { user_id: user.id },
         session_token,
       });
@@ -312,7 +318,7 @@ async function handlePOST(req: NextRequest) {
             organizationId: user.organization_id,
             cost: String(actualCost),
             balance: deductionResult.newBalance,
-          },
+          }
         );
 
         return Response.json(
@@ -321,12 +327,12 @@ async function handlePOST(req: NextRequest) {
             required: actualCost,
             available: deductionResult.newBalance,
           },
-          { status: 402 }, // Payment Required
+          { status: 402 } // Payment Required
         );
       }
     } else {
       logger.info(
-        `[Generate Image] Anonymous user - skipping credit deduction`,
+        "[Generate Image] Anonymous user - skipping credit deduction"
       );
     }
 
@@ -338,8 +344,8 @@ async function handlePOST(req: NextRequest) {
         user_id: user.id,
         api_key_id: apiKey?.id || null,
         type: "image",
-        model: "google/gemini-2.5-flash-image-preview",
-        provider: "google",
+        model: IMAGE_MODEL,
+        provider: IMAGE_PROVIDER,
         input_tokens: 0,
         output_tokens: 0,
         input_cost: String(actualCost),
@@ -374,12 +380,12 @@ async function handlePOST(req: NextRequest) {
         blobUrl = blobResult.url;
         fileSize = blobResult.size ? BigInt(blobResult.size) : null;
         logger.info(
-          `[Generate Image] Uploaded image ${index + 1} to Vercel Blob: ${blobUrl} (${blobResult.size} bytes)`,
+          `[Generate Image] Uploaded image ${index + 1} to Vercel Blob: ${blobUrl} (${blobResult.size} bytes)`
         );
       } catch (blobError) {
         logger.error(
           `[Generate Image] Failed to upload image ${index + 1} to Vercel Blob:`,
-          blobError instanceof Error ? blobError.message : String(blobError),
+          blobError instanceof Error ? blobError.message : String(blobError)
         );
         // Continue with base64 as fallback
       }
@@ -409,32 +415,92 @@ async function handlePOST(req: NextRequest) {
       };
     });
 
-    // Update generation record for authenticated users
+    // Update generation record if we created one
+    // Note: generationId only exists if user.organization_id was present at creation time
     if (generationId && usageRecordId) {
-      await generationsService.update(generationId, {
-        status: "completed",
-        content: uploadResults[0].imageBase64,
-        storage_url: uploadResults[0].blobUrl,
-        mime_type: uploadResults[0].mimeType,
-        file_size: uploadResults[0].fileSize,
-        usage_record_id: usageRecordId,
-        completed_at: new Date(),
-        result: {
-          images: uploadedImages,
-          numImages: successfulResults.length,
-          aspectRatio,
-          stylePreset,
-        },
-      });
+      // For multi-image generations, create separate records for each image
+      // so they all appear in the gallery (which filters by storage_url)
+      if (uploadResults.length > 1 && user.organization_id) {
+        // Update the first generation record with the first image
+        // First record holds the total cost for the entire batch
+        await generationsService.update(generationId, {
+          status: "completed",
+          credits: String(actualCost),
+          cost: String(actualCost),
+          content: uploadResults[0].imageBase64,
+          storage_url: uploadResults[0].blobUrl,
+          mime_type: uploadResults[0].mimeType,
+          file_size: uploadResults[0].fileSize,
+          usage_record_id: usageRecordId,
+          completed_at: new Date(),
+          result: {
+            imageIndex: 0,
+            totalImages: uploadResults.length,
+            aspectRatio,
+            stylePreset,
+          },
+        });
+
+        // Create additional generation records for remaining images
+        // These have cost: 0 since the batch cost is on the first record
+        for (let i = 1; i < uploadResults.length; i++) {
+          await generationsService.create({
+            organization_id: user.organization_id,
+            user_id: user.id,
+            api_key_id: apiKey?.id || null,
+            type: "image",
+            model: IMAGE_MODEL,
+            provider: IMAGE_PROVIDER,
+            prompt: prompt,
+            status: "completed",
+            content: uploadResults[i].imageBase64,
+            storage_url: uploadResults[i].blobUrl,
+            mime_type: uploadResults[i].mimeType,
+            file_size: uploadResults[i].fileSize,
+            credits: String(0),
+            cost: String(0),
+            usage_record_id: usageRecordId,
+            completed_at: new Date(),
+            result: {
+              imageIndex: i,
+              totalImages: uploadResults.length,
+              aspectRatio,
+              stylePreset,
+              batchGenerationId: generationId,
+            },
+          });
+        }
+      } else {
+        // Single image or multi-image without org (just update existing record)
+        await generationsService.update(generationId, {
+          status: "completed",
+          credits: String(actualCost),
+          cost: String(actualCost),
+          content: uploadResults[0].imageBase64,
+          storage_url: uploadResults[0].blobUrl,
+          mime_type: uploadResults[0].mimeType,
+          file_size: uploadResults[0].fileSize,
+          usage_record_id: usageRecordId,
+          completed_at: new Date(),
+          result: {
+            aspectRatio,
+            stylePreset,
+            ...(uploadResults.length > 1 && {
+              imageIndex: 0,
+              totalImages: uploadResults.length,
+            }),
+          },
+        });
+      }
     }
 
     if (!isAnonymous) {
       logger.info(
-        `[Generate Image] Generated ${successfulResults.length} image(s), Cost: $${actualCost.toFixed(2)}, New balance: $${deductionResult.newBalance.toFixed(2)}`,
+        `[Generate Image] Generated ${successfulResults.length} image(s), Cost: $${actualCost.toFixed(2)}, New balance: $${deductionResult.newBalance.toFixed(2)}`
       );
     } else {
       logger.info(
-        `[Generate Image] Generated ${successfulResults.length} image(s) for anonymous user (no charge)`,
+        `[Generate Image] Generated ${successfulResults.length} image(s) for anonymous user (no charge)`
       );
     }
 
@@ -456,12 +522,12 @@ async function handlePOST(req: NextRequest) {
           organizationName: user.organization.name,
           numImages: successfulResults.length,
           aspectRatio: aspectRatio,
-          model: "google/gemini-2.5-flash-image-preview",
+          model: IMAGE_MODEL,
         })
         .catch((error) => {
           logger.error(
             "[Generate Image] Failed to log to Discord:",
-            error instanceof Error ? error.message : String(error),
+            error instanceof Error ? error.message : String(error)
           );
         });
     }
@@ -473,7 +539,7 @@ async function handlePOST(req: NextRequest) {
   } catch (error) {
     logger.error(
       "[Generate Image] Error:",
-      error instanceof Error ? error.message : String(error),
+      error instanceof Error ? error.message : String(error)
     );
     const errorMessage =
       error instanceof Error ? error.message : "Image generation failed";
@@ -490,7 +556,7 @@ async function handlePOST(req: NextRequest) {
           "[Generate Image] Failed to update generation record:",
           updateError instanceof Error
             ? updateError.message
-            : String(updateError),
+            : String(updateError)
         );
       }
     }
@@ -502,7 +568,7 @@ async function handlePOST(req: NextRequest) {
           error instanceof Error && error.message.includes("API key")
             ? 401
             : 500,
-      },
+      }
     );
   }
 }

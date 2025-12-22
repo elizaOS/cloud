@@ -6,7 +6,7 @@
 
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { usePrivy, useLogout } from "@privy-io/react-auth";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -50,43 +50,43 @@ export default function UserMenu() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
 
   // Fetch user profile from API to get avatar
-  const fetchUserProfile = useCallback(async () => {
+  useEffect(() => {
     if (!authenticated) return;
 
-    try {
-      const response = await fetch("/api/v1/user");
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success && data.data) {
-          setUserProfile({
-            id: data.data.id,
-            name: data.data.name,
-            avatar: data.data.avatar,
-            email: data.data.email,
-          });
+    let mounted = true;
+
+    const fetchProfile = async () => {
+      try {
+        const response = await fetch("/api/v1/user");
+        if (response.ok && mounted) {
+          const data = await response.json();
+          if (data.success && data.data) {
+            setUserProfile({
+              id: data.data.id,
+              name: data.data.name,
+              avatar: data.data.avatar,
+              email: data.data.email,
+            });
+          }
         }
+      } catch (error) {
+        console.error("Failed to fetch user profile:", error);
       }
-    } catch (error) {
-      console.error("Failed to fetch user profile:", error);
-    }
-  }, [authenticated]);
-
-  // Fetch profile on mount and when auth changes
-  useEffect(() => {
-    fetchUserProfile();
-  }, [fetchUserProfile]);
-
-  // Listen for avatar updates (when user saves a new avatar in settings)
-  useEffect(() => {
-    const handleAvatarUpdate = () => {
-      fetchUserProfile();
     };
 
+    fetchProfile();
+
+    // Listen for avatar updates (when user saves a new avatar in settings)
+    const handleAvatarUpdate = () => {
+      fetchProfile();
+    };
     window.addEventListener("user-avatar-updated", handleAvatarUpdate);
+
     return () => {
+      mounted = false;
       window.removeEventListener("user-avatar-updated", handleAvatarUpdate);
     };
-  }, [fetchUserProfile]);
+  }, [authenticated]);
 
   // Loading state
   if (!ready) {
@@ -241,7 +241,7 @@ export default function UserMenu() {
           variant="ghost"
           className="relative h-10 w-10 rounded-full ring-2 ring-transparent hover:ring-[#FF5800]/50 transition-all"
         >
-          <Avatar className="h-12 w-12">
+          <Avatar className="h-10 w-10">
             {userProfile?.avatar && (
               <AvatarImage
                 src={userProfile.avatar}
@@ -297,7 +297,9 @@ export default function UserMenu() {
           <SettingsIcon className="mr-2 h-4 w-4" />
           <span>Settings</span>
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => router.push("/dashboard/billing")}>
+        <DropdownMenuItem
+          onClick={() => router.push("/dashboard/settings?tab=billing")}
+        >
           <Coins className="mr-2 h-4 w-4" />
           <span>Billing</span>
         </DropdownMenuItem>
