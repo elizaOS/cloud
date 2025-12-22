@@ -155,13 +155,18 @@ export function ElizaChatInterface({
   );
 
   // Get avatar URL from prop (preferred), store, or agentInfo
+  // Check both top-level and nested character_data properties
   const characterAvatarUrl = useMemo(
     () =>
+      character?.avatarUrl ||
+      character?.avatar_url ||
       character?.character_data?.avatarUrl ||
       character?.character_data?.avatar_url ||
       selectedCharacter?.avatarUrl ||
       agentInfo?.avatarUrl,
     [
+      character?.avatarUrl,
+      character?.avatar_url,
       character?.character_data?.avatarUrl,
       character?.character_data?.avatar_url,
       selectedCharacter?.avatarUrl,
@@ -1099,6 +1104,7 @@ export function ElizaChatInterface({
                       currentPlayingId={audioState.currentPlayingId}
                       isPlaying={player.isPlaying}
                       hasAudioUrl={messageAudioUrls.current.has(message.id)}
+                      isStreaming={isStreaming}
                       formatTimestamp={formatTimestamp}
                       onCopy={copyToClipboard}
                       onPlayAudio={(messageId) => {

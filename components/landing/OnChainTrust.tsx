@@ -113,7 +113,15 @@ export default function OnChainTrust() {
               color: "#000000",
             }}
             asChild
-          ></Button>
+          >
+            <a
+              href="https://docs.elizaos.ai/"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Learn more
+            </a>
+          </Button>
         </div>
 
         {/* Two column layout */}

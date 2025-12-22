@@ -11,7 +11,8 @@
 
 "use client";
 
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { ElizaChatInterface } from "@/components/chat/eliza-chat-interface";
 import { SignupPromptBanner } from "@/components/chat/signup-prompt-banner";
 import { useSetPageHeader } from "@/components/layout/page-header-context";
@@ -32,6 +33,7 @@ export function ElizaPageClient({
   initialRoomId,
   initialCharacterId,
 }: ElizaPageClientProps) {
+  const router = useRouter();
   const [anonymousSession, setAnonymousSession] = useState<{
     messageCount: number;
     messagesLimit: number;
@@ -40,8 +42,20 @@ export function ElizaPageClient({
   const [isLoadingSession, setIsLoadingSession] = useState(!isAuthenticated);
 
   // Initialize store with characters (must be at top level)
-  const { setAvailableCharacters, setRoomId, setSelectedCharacterId } =
+  const { setAvailableCharacters, setRoomId, setSelectedCharacterId, selectedCharacterId } =
     useChatStore();
+
+  // Redirect authenticated users without a selected character to the build page
+  // Chat mode requires an agent - "Create New Agent" mode is only available in build mode
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    
+    // If no character is selected and no initial character ID provided,
+    // redirect to build page - chat requires an existing agent
+    if (!selectedCharacterId && !initialCharacterId && initialCharacters.length === 0) {
+      router.replace("/dashboard/build");
+    }
+  }, [isAuthenticated, selectedCharacterId, initialCharacterId, initialCharacters.length, router]);
 
   // Note: Page header is now handled by ChatHeader component
   // Remove this if you want to completely disable the old header system for chat
