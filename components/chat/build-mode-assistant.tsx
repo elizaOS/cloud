@@ -58,14 +58,13 @@ import {
   type ModelTier,
 } from "@/lib/models/model-tiers";
 import { ElizaAvatar } from "./eliza-avatar";
-import { DEFAULT_AVATAR } from "@/lib/utils/default-avatar";
 import Link from "next/link";
 import { useChatStore } from "@/lib/stores/chat-store";
 
-// Default Eliza configuration for creator mode
+// Default Eliza configuration for creator mode (build page only)
 const DEFAULT_ELIZA = {
   name: "Eliza",
-  avatarUrl: DEFAULT_AVATAR,
+  avatarUrl: "/avatars/eliza-default.png",
 } as const;
 
 interface BuildModeAssistantProps {
