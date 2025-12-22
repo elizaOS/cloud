@@ -11,6 +11,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useThrottledStreamingUpdate } from "@/lib/hooks/use-throttled-streaming";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -29,7 +30,7 @@ import { useAudioRecorder } from "./hooks/use-audio-recorder";
 import { useAudioPlayer } from "./hooks/use-audio-player";
 import { useModelTier } from "./hooks/use-model-tier";
 import { sendStreamingMessage } from "@/lib/hooks/use-streaming-message";
-import type { StreamingMessage } from "@/lib/hooks/use-streaming-message";
+import type { StreamingMessage, StreamChunkData } from "@/lib/hooks/use-streaming-message";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -68,8 +69,6 @@ interface Message {
   createdAt: number;
 }
 
-import type { AgentInfo } from "@/db/repositories/agents";
-
 /**
  * Display version of AgentInfo with UI-specific fields.
  * Used for chat interface display (simplified from full AgentInfo).
@@ -89,6 +88,8 @@ interface CharacterData {
     bio?: string | string[];
     personality?: string;
     description?: string;
+    avatarUrl?: string;
+    avatar_url?: string;
   };
 }
 
@@ -156,13 +157,13 @@ export function ElizaChatInterface({
   // Get avatar URL from prop (preferred), store, or agentInfo
   const characterAvatarUrl = useMemo(
     () =>
-      character?.avatarUrl ||
-      character?.avatar_url ||
+      character?.character_data?.avatarUrl ||
+      character?.character_data?.avatar_url ||
       selectedCharacter?.avatarUrl ||
       agentInfo?.avatarUrl,
     [
-      character?.avatarUrl,
-      character?.avatar_url,
+      character?.character_data?.avatarUrl,
+      character?.character_data?.avatar_url,
       selectedCharacter?.avatarUrl,
       agentInfo?.avatarUrl,
     ],
@@ -178,6 +179,14 @@ export function ElizaChatInterface({
   const [error, setError] = useState<string | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const thinkingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // Throttled streaming updates (reduces re-renders from ~100/sec to ~60/sec)
+  const {
+    accumulateChunk,
+    clearAll: clearAllStreaming,
+    scheduleUpdate,
+  } = useThrottledStreamingUpdate();
+  // Track rendered message keys to prevent re-animation
+  const renderedMessagesRef = useRef<Set<string>>(new Set());
 
   const [audioState, setAudioState] = useState<{
     autoPlayTTS: boolean;
@@ -207,15 +216,17 @@ export function ElizaChatInterface({
     }
   }, [audioState.selectedVoiceId]);
 
-  // Cleanup thinkingTimeoutRef on unmount to prevent memory leaks
+  // Cleanup refs on unmount to prevent memory leaks
   useEffect(() => {
     return () => {
       if (thinkingTimeoutRef.current) {
         clearTimeout(thinkingTimeoutRef.current);
         thinkingTimeoutRef.current = null;
       }
+      clearAllStreaming();
+      renderedMessagesRef.current.clear();
     };
-  }, []);
+  }, [clearAllStreaming]);
 
   const recorder = useAudioRecorder();
   const player = useAudioPlayer();
@@ -223,7 +234,6 @@ export function ElizaChatInterface({
   const {
     selectedTier,
     selectedModelId,
-    displayInfo,
     tiers,
     setTier,
     isLoading: isLoadingModels,
@@ -304,11 +314,10 @@ export function ElizaChatInterface({
 
   const handleStreamMessage = useCallback((messageData: StreamingMessage) => {
     setMessages((prev) => {
-      // Handle agent response - remove thinking indicator
+      // Handle agent response - update streaming message in place to avoid flash
       if (messageData.type === "agent") {
-        const withoutThinking = prev.filter(
-          (m) => !m.id.startsWith("thinking-"),
-        );
+        // Clean up streaming state
+        clearAllStreaming();
 
         // Clear thinking timeout
         if (thinkingTimeoutRef.current) {
@@ -317,13 +326,36 @@ export function ElizaChatInterface({
         }
 
         // Check for duplicates
-        if (withoutThinking.some((m) => m.id === messageData.id)) {
+        if (prev.some((m) => m.id === messageData.id)) {
           return prev;
         }
 
-        // Remove temp messages
-        const filtered = withoutThinking.filter(
-          (m) => !m.id.startsWith("temp-"),
+        // Find streaming message by prefix
+        const streamingIndex = prev.findIndex(
+          (m) => m.id === `streaming-${messageData.id}`
+        );
+        if (streamingIndex !== -1) {
+          const updated = [...prev];
+          updated[streamingIndex] = {
+            ...updated[streamingIndex],
+            id: messageData.id,
+            content: {
+              ...messageData.content,
+              text: updated[streamingIndex].content.text || messageData.content.text,
+            },
+          };
+          // Also remove any thinking/temp messages
+          return updated.filter(
+            (m) => !m.id.startsWith("thinking-") && !m.id.startsWith("temp-"),
+          );
+        }
+
+        // No streaming message found - fallback to normal add
+        const filtered = prev.filter(
+          (m) =>
+            !m.id.startsWith("thinking-") &&
+            !m.id.startsWith("temp-") &&
+            !m.id.startsWith("streaming-"),
         );
 
         return [...filtered, messageData];
@@ -362,7 +394,56 @@ export function ElizaChatInterface({
 
       return prev;
     });
-  }, []);
+  }, [clearAllStreaming]);
+
+  // Handle real-time streaming chunks - updates message text incrementally
+  const handleStreamChunk = useCallback((chunkData: StreamChunkData) => {
+    const { messageId, chunk } = chunkData;
+
+    // Accumulate text in hook (no re-render)
+    accumulateChunk(messageId, chunk);
+
+    // Schedule throttled UI update
+    scheduleUpdate(messageId, (newText) => {
+      setMessages((prev) => {
+        // Check if we already have a streaming message for this messageId
+        const streamingMsgIndex = prev.findIndex(
+          (m) => m.id === `streaming-${messageId}`
+        );
+
+        if (streamingMsgIndex !== -1) {
+          // Update existing streaming message
+          const updated = [...prev];
+          updated[streamingMsgIndex] = {
+            ...updated[streamingMsgIndex],
+            content: { ...updated[streamingMsgIndex].content, text: newText },
+          };
+          return updated;
+        }
+
+        // First chunk - create a new streaming message and remove thinking indicator
+        const withoutThinking = prev.filter(
+          (m) => !m.id.startsWith("thinking-")
+        );
+
+        // Clear thinking timeout
+        if (thinkingTimeoutRef.current) {
+          clearTimeout(thinkingTimeoutRef.current);
+          thinkingTimeoutRef.current = null;
+        }
+
+        // Add new streaming message
+        const streamingMessage: Message = {
+          id: `streaming-${messageId}`,
+          content: { text: newText },
+          isAgent: true,
+          createdAt: Date.now(),
+        };
+
+        return [...withoutThinking, streamingMessage];
+      });
+    });
+  }, [accumulateChunk, scheduleUpdate]);
 
   const sendMessage = useCallback(
     async (textOverride?: string) => {
@@ -426,7 +507,7 @@ export function ElizaChatInterface({
         }
 
         // Add optimistic temp user message
-        const clientMessageId = `temp-${Date.now()}`;
+        const clientMessageId = `temp-${crypto.randomUUID()}`;
         const now = Date.now();
         const tempUserMessage: Message = {
           id: clientMessageId,
@@ -455,15 +536,18 @@ export function ElizaChatInterface({
           model: selectedModelId, // Pass selected model from tier
           sessionToken: anonymousSessionToken || undefined, // Pass session token for anonymous users
           onMessage: handleStreamMessage,
+          onChunk: handleStreamChunk, // Handle real-time streaming chunks
           onError: (errorMsg) => {
             setError(errorMsg);
             toast.error(errorMsg);
-            // Remove temp and thinking messages on error
+            // Remove temp, thinking, and streaming messages on error
+            clearAllStreaming();
             setMessages((prev) =>
               prev.filter(
                 (msg) =>
                   msg.id !== tempUserMessage.id &&
-                  !msg.id.startsWith("thinking-"),
+                  !msg.id.startsWith("thinking-") &&
+                  !msg.id.startsWith("streaming-"),
               ),
             );
             if (thinkingTimeoutRef.current) {
@@ -491,11 +575,14 @@ export function ElizaChatInterface({
         toast.error(
           err instanceof Error ? err.message : "Failed to send message",
         );
-        // Remove temp and thinking messages on error
+        // Remove temp, thinking, and streaming messages on error
+        clearAllStreaming();
         setMessages((prev) =>
           prev.filter(
             (msg) =>
-              !msg.id.startsWith("temp-") && !msg.id.startsWith("thinking-"),
+              !msg.id.startsWith("temp-") &&
+              !msg.id.startsWith("thinking-") &&
+              !msg.id.startsWith("streaming-"),
           ),
         );
         if (thinkingTimeoutRef.current) {
@@ -515,8 +602,10 @@ export function ElizaChatInterface({
       selectedModelId,
       anonymousSessionToken,
       handleStreamMessage,
+      handleStreamChunk,
       loadRooms,
       onMessageSent,
+      clearAllStreaming,
     ],
   );
 
@@ -993,43 +1082,51 @@ export function ElizaChatInterface({
                 )}
 
               {!loadingState.isLoadingMessages &&
-                messages.map((message, index) => (
-                  <MemoizedChatMessage
-                    key={message.id}
-                    message={message}
-                    index={index}
-                    characterName={characterName}
-                    characterAvatarUrl={characterAvatarUrl}
-                    copiedMessageId={copiedMessageId}
-                    currentPlayingId={audioState.currentPlayingId}
-                    isPlaying={player.isPlaying}
-                    hasAudioUrl={messageAudioUrls.current.has(message.id)}
-                    formatTimestamp={formatTimestamp}
-                    onCopy={copyToClipboard}
-                    onPlayAudio={(messageId) => {
-                      const url = messageAudioUrls.current.get(messageId);
-                      if (url) {
-                        if (
-                          audioState.currentPlayingId === messageId &&
-                          player.isPlaying
-                        ) {
-                          player.stopAudio();
-                          setAudioState((prev) => ({
-                            ...prev,
-                            currentPlayingId: null,
-                          }));
-                        } else {
-                          setAudioState((prev) => ({
-                            ...prev,
-                            currentPlayingId: messageId,
-                          }));
-                          player.playAudio(url);
+                messages.map((message, index) => {
+                  const isStreaming = message.id.startsWith("streaming-");
+                  // Use stable key that doesn't change when streaming message becomes final
+                  // This prevents React from remounting the component (avoids flash)
+                  const stableKey = isStreaming
+                    ? message.id.replace("streaming-", "")
+                    : message.id;
+                  return (
+                    <MemoizedChatMessage
+                      key={stableKey}
+                      message={message}
+                      index={index}
+                      characterName={characterName}
+                      characterAvatarUrl={characterAvatarUrl}
+                      copiedMessageId={copiedMessageId}
+                      currentPlayingId={audioState.currentPlayingId}
+                      isPlaying={player.isPlaying}
+                      hasAudioUrl={messageAudioUrls.current.has(message.id)}
+                      formatTimestamp={formatTimestamp}
+                      onCopy={copyToClipboard}
+                      onPlayAudio={(messageId) => {
+                        const url = messageAudioUrls.current.get(messageId);
+                        if (url) {
+                          if (
+                            audioState.currentPlayingId === messageId &&
+                            player.isPlaying
+                          ) {
+                            player.stopAudio();
+                            setAudioState((prev) => ({
+                              ...prev,
+                              currentPlayingId: null,
+                            }));
+                          } else {
+                            setAudioState((prev) => ({
+                              ...prev,
+                              currentPlayingId: messageId,
+                            }));
+                            player.playAudio(url);
+                          }
                         }
-                      }
-                    }}
-                    onImageLoad={scrollToBottom}
-                  />
-                ))}
+                      }}
+                      onImageLoad={scrollToBottom}
+                    />
+                  );
+                })}
             </div>
           </ScrollArea>
         </div>

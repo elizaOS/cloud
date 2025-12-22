@@ -38,6 +38,14 @@ export interface MessageResult {
   usage?: UsageInfo;
 }
 
+/**
+ * Callback for streaming text chunks to the client in real-time.
+ */
+export type StreamChunkCallback = (
+  chunk: string,
+  messageId?: UUID,
+) => Promise<void>;
+
 export interface MessageOptions {
   roomId: string;
   text: string;
@@ -45,6 +53,8 @@ export interface MessageOptions {
   characterId?: string;
   model?: string;
   agentModeConfig?: AgentModeConfig;
+  /** Optional callback for streaming text chunks to the client */
+  onStreamChunk?: StreamChunkCallback;
 }
 
 export class MessageHandler {
@@ -54,12 +64,13 @@ export class MessageHandler {
   ) {}
 
   async process(options: MessageOptions): Promise<MessageResult> {
-    const { roomId, text, attachments, agentModeConfig } = options;
+    const { roomId, text, attachments, agentModeConfig, onStreamChunk } =
+      options;
     const entityId = this.userContext.userId;
     const modeConfig = agentModeConfig || DEFAULT_AGENT_MODE;
 
     elizaLogger.info(
-      `[MessageHandler] Processing: user=${this.userContext.userId}, room=${roomId}, mode=${modeConfig.mode}`,
+      `[MessageHandler] Processing: user=${this.userContext.userId}, room=${roomId}, mode=${modeConfig.mode}, streaming=${!!onStreamChunk}`,
     );
 
     await this.ensureConnectionForCloud(roomId, entityId);
@@ -75,6 +86,7 @@ export class MessageHandler {
       runtime: this.runtime,
       message: userMessage,
       agentModeConfig: modeConfig,
+      onStreamChunk,
       callback: async (content: Content) => {
         if (content.text) {
           responseContent = content;

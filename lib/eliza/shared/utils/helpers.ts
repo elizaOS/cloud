@@ -360,6 +360,7 @@ export async function executeActions(
   plan: ParsedPlan | null,
   currentState: State,
   callback?: HandlerCallback,
+  onStreamChunk?: (chunk: string, messageId?: UUID) => Promise<void>,
 ): Promise<State> {
   if (plannedActions.length === 0) return currentState;
 
@@ -404,11 +405,13 @@ export async function executeActions(
     return callback ? callback(content) : [];
   };
 
+  // Pass onStreamChunk to processActions so each action can manage its own streaming context
   await runtime.processActions(
     message,
     [actionResponse],
     currentState,
     wrappedCallback,
+    onStreamChunk ? { onStreamChunk } : undefined,
   );
   const actionState = await runtime.composeState(message, [
     "CURRENT_RUN_CONTEXT",
@@ -425,7 +428,9 @@ export async function generateResponseWithRetry(
 
   for (let i = 0; i < MAX_RESPONSE_RETRIES; i++) {
     try {
-      const response = await runtime.useModel(ModelType.TEXT_LARGE, { prompt });
+      const response = await runtime.useModel(ModelType.TEXT_LARGE, {
+        prompt,
+      });
 
       if (
         !response ||

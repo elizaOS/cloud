@@ -18,6 +18,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import { useThrottledStreamingUpdate } from "@/lib/hooks/use-throttled-streaming";
 import Image from "next/image";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -110,6 +111,14 @@ export function BuildModeAssistant({
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const roomInitKeyRef = useRef<string | null>(null); // Track which room key we've initialized
   const messagesLoadedRef = useRef<string | null>(null); // Track which room we've loaded messages for
+  // Track rendered message keys to prevent re-animation (avoids flash)
+  const renderedMessagesRef = useRef<Set<string>>(new Set());
+  // Throttled streaming updates (reduces re-renders from ~100/sec to ~60/sec)
+  const {
+    accumulateChunk,
+    clearAll: clearAllStreaming,
+    scheduleUpdate,
+  } = useThrottledStreamingUpdate();
   const [inputText, setInputText] = useState("");
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -144,6 +153,14 @@ export function BuildModeAssistant({
   const [isInitializing, setIsInitializing] = useState(true); // Loading state for initial welcome
   const [builderRoomId, setBuilderRoomId] = useState<string>("");
   const [lockedRoom, setLockedRoom] = useState<LockedRoomInfo | null>(null); // Track if room is locked after character creation
+
+  // Cleanup refs on unmount to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      renderedMessagesRef.current.clear();
+      clearAllStreaming(); // Cancel pending rAF frames and clear text
+    };
+  }, [clearAllStreaming]);
 
   // Determine display info based on mode
   // In creator mode, always show Eliza (we're creating a new character)
@@ -606,6 +623,8 @@ export function BuildModeAssistant({
                   }
                 }
               }
+              // Clear streaming state
+              clearAllStreaming();
             }
           }
         }
@@ -623,6 +642,7 @@ export function BuildModeAssistant({
     [
       builderRoomId,
       character,
+      clearAllStreaming,
       isCreatorMode,
       onCharacterCreated,
       onCharacterRefresh,
@@ -639,13 +659,9 @@ export function BuildModeAssistant({
         "[data-radix-scroll-area-viewport]",
       );
       if (viewport) {
-        // Use requestAnimationFrame to ensure DOM has updated
         requestAnimationFrame(() => {
           if (smooth) {
-            viewport.scrollTo({
-              top: viewport.scrollHeight,
-              behavior: "smooth",
-            });
+            viewport.scrollTo({ top: viewport.scrollHeight, behavior: "smooth" });
           } else {
             viewport.scrollTop = viewport.scrollHeight;
           }
@@ -843,14 +859,19 @@ export function BuildModeAssistant({
             {messages.map((message, index) => {
               const content = message.content;
               const isAgent = message.role === "assistant";
+              const isStreaming = message.id.startsWith("streaming-");
+              // Use stable key that doesn't change when streaming message becomes final
+              const stableKey = isStreaming ? message.id.replace("streaming-", "") : message.id;
+              // Only animate messages that haven't been rendered before
+              const wasAlreadyRendered = renderedMessagesRef.current.has(stableKey);
+              const shouldAnimate = !wasAlreadyRendered && !isStreaming;
+              renderedMessagesRef.current.add(stableKey);
 
               return (
                 <div
-                  key={message.id}
-                  className={`flex ${
-                    isAgent ? "justify-start" : "justify-end"
-                  } animate-in fade-in slide-in-from-bottom-4 duration-500`}
-                  style={{ animationDelay: `${index * 50}ms` }}
+                  key={stableKey}
+                  className={`flex ${isAgent ? "justify-start" : "justify-end"}${shouldAnimate ? " animate-in fade-in slide-in-from-bottom-4 duration-500" : ""}`}
+                  style={shouldAnimate ? { animationDelay: `${index * 50}ms` } : undefined}
                 >
                   {isAgent ? (
                     <div className="flex flex-col gap-1.5 max-w-[85%] sm:max-w-[75%] group/message">
@@ -1059,28 +1080,34 @@ export function BuildModeAssistant({
                               >
                                 {content}
                               </ReactMarkdown>
+                              {/* Blinking cursor for streaming messages */}
+                              {isStreaming && (
+                                <span className="inline-block w-2 h-4 bg-[#FF5800]/70 ml-0.5 animate-pulse" />
+                              )}
                             </div>
                           </div>
                         )}
-                        {/* Time and Actions */}
-                        <div className="flex items-center gap-2 pl-1 opacity-0 group-hover/message:opacity-100 transition-opacity">
-                          <span className="text-xs text-white/40">
-                            {formatTimestamp(message.timestamp)}
-                          </span>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-6 w-6 p-0 hover:bg-white/10 rounded transition-colors"
-                            onClick={() => copyToClipboard(content, message.id)}
-                            title="Copy message"
-                          >
-                            {copiedMessageId === message.id ? (
-                              <Check className="h-3.5 w-3.5 text-green-500" />
-                            ) : (
-                              <Copy className="h-3.5 w-3.5 text-white/50 hover:text-white/80" />
-                            )}
-                          </Button>
-                        </div>
+                        {/* Time and Actions - hide during streaming */}
+                        {!isStreaming && (
+                          <div className="flex items-center gap-2 pl-1 opacity-0 group-hover/message:opacity-100 transition-opacity">
+                            <span className="text-xs text-white/40">
+                              {formatTimestamp(message.timestamp)}
+                            </span>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-6 w-6 p-0 hover:bg-white/10 rounded transition-colors"
+                              onClick={() => copyToClipboard(content, message.id)}
+                              title="Copy message"
+                            >
+                              {copiedMessageId === message.id ? (
+                                <Check className="h-3.5 w-3.5 text-green-500" />
+                              ) : (
+                                <Copy className="h-3.5 w-3.5 text-white/50 hover:text-white/80" />
+                              )}
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ) : (
@@ -1116,7 +1143,8 @@ export function BuildModeAssistant({
               );
             })}
 
-            {isLoading && (
+            {/* Show thinking indicator only when loading and no streaming message yet */}
+            {isLoading && !messages.some((m) => m.id.startsWith("streaming-")) && (
               <div className="flex justify-start animate-in fade-in slide-in-from-bottom-4 duration-500">
                 <div className="flex flex-col gap-1.5 max-w-[85%] sm:max-w-[75%]">
                   <div className="flex items-center gap-2 pl-1">
