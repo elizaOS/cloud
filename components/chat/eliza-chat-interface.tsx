@@ -1136,7 +1136,7 @@ export function ElizaChatInterface({
           </ScrollArea>
         </div>
 
-        {/* Enhanced Input Area - Redesigned layout */}
+        {/* Input Area - Buttons inside input like Gemini/ChatGPT */}
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -1144,69 +1144,60 @@ export function ElizaChatInterface({
           }}
           className="border-t border-white/[0.06] p-4"
         >
-          <div className="space-y-3">
-            {/* Text Input Box - Prominent standalone */}
-            <div className="relative rounded-lg border border-white/[0.08] bg-white/[0.02] overflow-hidden transition-colors focus-within:border-white/[0.15] focus-within:bg-white/[0.03]">
-              {/* Robot Eye Visor Scanner - Animated line on top edge with randomness - Only show when waiting for agent */}
-              {loadingState.isSending && (
-                <div className="absolute top-0 left-0 right-0 h-[2px] overflow-hidden pointer-events-none z-10">
-                  {/* Primary scanner */}
-                  <div
-                    className="absolute h-full w-24 bg-gradient-to-r from-transparent via-[#FF5800] to-transparent"
-                    style={{
-                      animation:
-                        "visor-scan 4.8s cubic-bezier(0.4, 0, 0.6, 1) infinite",
-                      boxShadow: "0 0 15px 3px rgba(255, 88, 0, 0.7)",
-                      filter: "blur(0.5px)",
-                    }}
-                  />
-                  {/* Secondary scanner for organic feel */}
-                  <div
-                    className="absolute h-full w-16 bg-gradient-to-r from-transparent via-[#FF5800]/60 to-transparent"
-                    style={{
-                      animation:
-                        "visor-scan-delayed 6.2s cubic-bezier(0.3, 0.1, 0.7, 0.9) infinite 1.5s",
-                      boxShadow: "0 0 10px 2px rgba(255, 88, 0, 0.5)",
-                      filter: "blur(1px)",
-                    }}
-                  />
-                </div>
-              )}
-              <textarea
-                rows={1}
-                value={inputText}
-                onChange={(e) => setInputText(e.currentTarget.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    if (!loadingState.isSending && !recorder.isRecording) {
-                      sendMessage();
-                    }
-                  }
-                }}
-                onInput={(e) => {
-                  const target = e.target as HTMLTextAreaElement;
-                  target.style.height = "44px";
-                  target.style.height =
-                    Math.min(target.scrollHeight, 140) + "px";
-                }}
-                placeholder={
-                  recorder.isRecording
-                    ? "Recording... Click stop when done"
-                    : "Type your message..."
-                }
-                disabled={recorder.isRecording}
-                className="w-full bg-transparent px-4 py-3 text-[15px] text-white placeholder:text-white/40 focus:outline-none disabled:opacity-50 resize-none leading-relaxed"
-                style={{
-                  minHeight: "44px",
-                  maxHeight: "140px",
-                }}
-              />
-            </div>
+          <div className="relative rounded-2xl border border-white/[0.08] bg-white/[0.02] overflow-hidden transition-colors focus-within:border-white/[0.15] focus-within:bg-white/[0.03]">
+            {/* Robot Eye Visor Scanner */}
+            {loadingState.isSending && (
+              <div className="absolute top-0 left-0 right-0 h-[2px] overflow-hidden pointer-events-none z-10">
+                <div
+                  className="absolute h-full w-24 bg-gradient-to-r from-transparent via-[#FF5800] to-transparent"
+                  style={{
+                    animation: "visor-scan 4.8s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+                    boxShadow: "0 0 15px 3px rgba(255, 88, 0, 0.7)",
+                    filter: "blur(0.5px)",
+                  }}
+                />
+                <div
+                  className="absolute h-full w-16 bg-gradient-to-r from-transparent via-[#FF5800]/60 to-transparent"
+                  style={{
+                    animation: "visor-scan-delayed 6.2s cubic-bezier(0.3, 0.1, 0.7, 0.9) infinite 1.5s",
+                    boxShadow: "0 0 10px 2px rgba(255, 88, 0, 0.5)",
+                    filter: "blur(1px)",
+                  }}
+                />
+              </div>
+            )}
 
-            {/* Bottom Row: Model Selector (left) and Action Buttons (right) */}
-            <div className="flex items-center justify-between">
-              {/* Model Tier Selector - Bottom Left */}
+            {/* Textarea */}
+            <textarea
+              rows={1}
+              value={inputText}
+              onChange={(e) => setInputText(e.currentTarget.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  if (!loadingState.isSending && !recorder.isRecording) {
+                    sendMessage();
+                  }
+                }
+              }}
+              onInput={(e) => {
+                const target = e.target as HTMLTextAreaElement;
+                target.style.height = "52px";
+                target.style.height = Math.min(target.scrollHeight, 200) + "px";
+              }}
+              placeholder={
+                recorder.isRecording
+                  ? "Recording... Click stop when done"
+                  : "Type your message..."
+              }
+              disabled={recorder.isRecording}
+              className="w-full bg-transparent px-4 pt-3 pb-3 text-[15px] text-white placeholder:text-white/40 focus:outline-none disabled:opacity-50 resize-none leading-relaxed"
+              style={{ minHeight: "52px", maxHeight: "200px" }}
+            />
+
+            {/* Bottom bar with buttons inside input */}
+            <div className="flex items-center justify-between px-2 py-2">
+              {/* Model Tier Selector - Left */}
               <Select
                 value={selectedTier}
                 onValueChange={(value) => {
@@ -1218,9 +1209,9 @@ export function ElizaChatInterface({
                 }}
                 disabled={isLoadingModels}
               >
-                <SelectTrigger className="w-[120px] h-9 border-white/[0.08] bg-white/[0.02] rounded-lg text-sm hover:bg-white/[0.05] transition-colors">
+                <SelectTrigger className="h-8 w-auto gap-1.5 border-0 bg-transparent px-2 text-sm text-white/50 hover:text-white/70 hover:bg-white/[0.06] rounded-lg transition-colors">
                   <SelectValue placeholder="Select model">
-                    <span className="flex items-center gap-2">
+                    <span className="flex items-center gap-1.5">
                       {tierIcons[selectedTier]}
                       {tiers.find((t) => t.id === selectedTier)?.name || "Pro"}
                     </span>
@@ -1240,9 +1231,7 @@ export function ElizaChatInterface({
                               </span>
                             )}
                           </div>
-                          <span className="text-[10px] text-white/40 font-mono">
-                            {tier.modelId}
-                          </span>
+                          <span className="text-[10px] text-white/40 font-mono">{tier.modelId}</span>
                         </div>
                       </div>
                     </SelectItem>
@@ -1250,8 +1239,8 @@ export function ElizaChatInterface({
                 </SelectContent>
               </Select>
 
-              {/* Action Buttons - Bottom Right */}
-              <div className="flex items-center gap-1.5">
+              {/* Action Buttons - Right */}
+              <div className="flex items-center gap-1">
                 <input
                   type="file"
                   id="chat-file-upload"
