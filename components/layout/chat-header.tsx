@@ -45,8 +45,6 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
     (a) => a.id === selectedCharacterId,
   );
 
-  const existingAgent = selectedAgent !== undefined;
-
   const handleAgentChange = (characterId: string) => {
     setSelectedCharacterId(characterId);
     // Clear current room selection since we're switching characters
@@ -67,6 +65,11 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
 
   const handleModeChange = (newMode: "chat" | "build") => {
     if (newMode === mode) return;
+
+    // Can't switch to chat mode without an agent - need to create one first
+    if (newMode === "chat" && !selectedCharacterId) {
+      return;
+    }
 
     // Build URL with current character
     const params = new URLSearchParams();
@@ -214,42 +217,42 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
         </DropdownMenu>
       </div>
 
-      {/* Mode Toggle */}
-      <div className="flex items-center">
-        <div className="flex items-center rounded-none border border-white/10 bg-black/40">
-          <button
-            onClick={() => handleModeChange("chat")}
-            className={cn(
-              "flex items-center gap-2 px-3 py-1.5 rounded-none transition-colors border-0",
-              mode === "chat"
-                ? "bg-[#471E08] text-white"
-                : "bg-[#1F1F1F] text-[#ADADAD] hover:text-white",
-            )}
-          >
-            <MessageSquare className="h-4 w-4" />
-            <span className="hidden md:inline">Chat</span>
-          </button>
-          <button
-            onClick={() => handleModeChange("build")}
-            className={cn(
-              "flex items-center gap-2 px-3 py-1.5 rounded-none transition-colors border-0",
-              mode === "build"
-                ? "bg-[#2D1505] text-white"
-                : "bg-[#1F1F1F] text-[#ADADAD] hover:text-white",
-            )}
-          >
-            <Wrench
+      {/* Mode Toggle - Only show when an agent is selected */}
+      {selectedCharacterId && (
+        <div className="flex items-center">
+          <div className="flex items-center rounded-none border border-white/10 bg-black/40">
+            <button
+              onClick={() => handleModeChange("chat")}
               className={cn(
-                "h-4 w-4",
-                mode === "build" ? "text-[#FF5800]" : "text-white",
+                "flex items-center gap-2 px-3 py-1.5 rounded-none transition-colors border-0",
+                mode === "chat"
+                  ? "bg-[#471E08] text-white"
+                  : "bg-[#1F1F1F] text-[#ADADAD] hover:text-white",
               )}
-            />
-            <span className="hidden md:inline">
-              {existingAgent ? "Edit" : "Build"}
-            </span>
-          </button>
+            >
+              <MessageSquare className="h-4 w-4" />
+              <span className="hidden md:inline">Chat</span>
+            </button>
+            <button
+              onClick={() => handleModeChange("build")}
+              className={cn(
+                "flex items-center gap-2 px-3 py-1.5 rounded-none transition-colors border-0",
+                mode === "build"
+                  ? "bg-[#2D1505] text-white"
+                  : "bg-[#1F1F1F] text-[#ADADAD] hover:text-white",
+              )}
+            >
+              <Wrench
+                className={cn(
+                  "h-4 w-4",
+                  mode === "build" ? "text-[#FF5800]" : "text-white",
+                )}
+              />
+              <span className="hidden md:inline">Edit</span>
+            </button>
+          </div>
         </div>
-      </div>
+      )}
     </header>
   );
 }
