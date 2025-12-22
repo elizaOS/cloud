@@ -63,8 +63,11 @@ export function BillingTab({ user }: BillingTabProps) {
     Number(user.organization?.credit_balance || 0)
   );
 
-  const fetchBalance = useCallback(async () => {
-    const response = await fetch("/api/credits/balance");
+  const fetchBalance = useCallback(async (fresh = false) => {
+    const url = fresh
+      ? "/api/credits/balance?fresh=true"
+      : "/api/credits/balance";
+    const response = await fetch(url);
     if (response.ok) {
       const data = await response.json();
       setBalance(data.balance);
@@ -94,7 +97,8 @@ export function BillingTab({ user }: BillingTabProps) {
   useEffect(() => {
     queueMicrotask(() => {
       fetchInvoices();
-      fetchBalance();
+      // Fetch fresh balance on billing tab load (user may have just returned from payment)
+      fetchBalance(true);
       fetchCryptoStatus();
     });
   }, [fetchInvoices, fetchBalance, fetchCryptoStatus]);
