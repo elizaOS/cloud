@@ -19,6 +19,7 @@ import { guideOnboardingAction } from "./actions/guide-onboarding";
 import { handleMessage } from "./handler";
 import { roomTitleEvaluator } from "../shared/evaluators";
 import { characterProvider, recentMessagesProvider } from "../shared/providers";
+import type { StreamChunkCallback } from "../shared/types";
 
 /**
  * Character Builder Plugin
@@ -45,13 +46,15 @@ export const characterBuilderPlugin: Plugin = {
     [EventType.MESSAGE_RECEIVED]: [
       async (payload: MessagePayload) => {
         if (!payload.callback) return;
+        const onStreamChunk = (payload as MessagePayload & { onStreamChunk?: StreamChunkCallback }).onStreamChunk;
         logger.info(
-          `[Builder] Message received in room ${payload.message.roomId}`,
+          `[Builder] Message received in room ${payload.message.roomId}, streaming=${!!onStreamChunk}`,
         );
         await handleMessage({
           runtime: payload.runtime,
           message: payload.message,
           callback: payload.callback,
+          onStreamChunk,
         });
       },
     ],

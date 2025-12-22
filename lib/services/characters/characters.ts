@@ -15,6 +15,8 @@ import { elizaRoomCharactersTable } from "@/db/schemas";
 import { eq, and } from "drizzle-orm";
 import type { ElizaCharacter } from "@/lib/types";
 import type { Agent } from "@elizaos/core";
+import { cache } from "@/lib/cache/client";
+import { CacheKeys } from "@/lib/cache/keys";
 
 /**
  * Service for character CRUD operations.
@@ -98,6 +100,9 @@ export class CharactersService {
 
     await agentsRepository.create(agent);
 
+    // Invalidate dashboard cache
+    await cache.del(CacheKeys.org.dashboard(data.organization_id));
+
     return character;
   }
 
@@ -124,7 +129,11 @@ export class CharactersService {
   }
 
   async delete(id: string): Promise<void> {
+    const character = await this.getById(id);
     await userCharactersRepository.delete(id);
+    if (character) {
+      await cache.del(CacheKeys.org.dashboard(character.organization_id));
+    }
   }
 
   async deleteForUser(characterId: string, userId: string): Promise<boolean> {

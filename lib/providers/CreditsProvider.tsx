@@ -55,8 +55,12 @@ export function CreditsProvider({ children }: { children: ReactNode }) {
   // Store Privy functions in refs to avoid recreating callbacks on every render
   const getAccessTokenRef = useRef(getAccessToken);
   const logoutRef = useRef(logout);
-  getAccessTokenRef.current = getAccessToken;
-  logoutRef.current = logout;
+
+  // Update refs in effect to avoid updating during render
+  useEffect(() => {
+    getAccessTokenRef.current = getAccessToken;
+    logoutRef.current = logout;
+  }, [getAccessToken, logout]);
 
   // Stop polling when too many auth errors occur
   const stopPolling = useCallback(() => {
@@ -150,7 +154,7 @@ export function CreditsProvider({ children }: { children: ReactNode }) {
 
         if (authErrorCountRef.current >= MAX_AUTH_ERRORS) {
           logger.warn(
-            "[CreditsProvider] Too many auth errors after refresh, logging out",
+            "[CreditsProvider] Too many auth errors after refresh, logging out"
           );
           // Set logout flag BEFORE stopping polling to prevent race conditions
           isLoggingOutRef.current = true;
@@ -281,7 +285,7 @@ export function CreditsProvider({ children }: { children: ReactNode }) {
       lastUpdate,
       refreshBalance: fetchBalance,
     }),
-    [creditBalance, isConnected, isLoading, error, lastUpdate, fetchBalance],
+    [creditBalance, isConnected, isLoading, error, lastUpdate, fetchBalance]
   );
 
   return (

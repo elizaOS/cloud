@@ -33,18 +33,24 @@ const pluginsPromise = Promise.all([
 // Hook to access shared plugins - all components share the same cache
 function useMarkdownPlugins() {
   const [plugins, setPlugins] = useState(pluginsCache);
-  
+
   useEffect(() => {
+    // Only subscribe to promise if cache isn't already loaded
     if (!pluginsCache && !pluginsLoading) {
       pluginsLoading = true;
-      pluginsPromise.then((loaded) => {
-        setPlugins(loaded);
-      });
-    } else if (pluginsCache && !plugins) {
-      setPlugins(pluginsCache);
     }
-  }, [plugins]);
-  
+    // Subscribe to the promise - it will resolve immediately if already loaded
+    let mounted = true;
+    pluginsPromise.then((loaded) => {
+      if (mounted) {
+        setPlugins(loaded);
+      }
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   return plugins;
 }
 
@@ -77,7 +83,7 @@ interface MemoizedChatMessageProps {
   onCopy: (
     text: string,
     messageId: string,
-    attachments?: Message["content"]["attachments"],
+    attachments?: Message["content"]["attachments"]
   ) => void;
   onPlayAudio?: (messageId: string) => void;
   onImageLoad?: () => void;
@@ -104,12 +110,12 @@ const markdownComponents = {
       </code>
     );
   },
-  pre: ({ children }: { children: React.ReactNode }) => (
+  pre: ({ children }: { children?: React.ReactNode }) => (
     <pre className="bg-black/40 border border-white/10 rounded-lg p-3 overflow-x-auto [&>code]:whitespace-pre-wrap [&>code]:break-words">
       {children}
     </pre>
   ),
-  a: ({ href, children }: { href?: string; children: React.ReactNode }) => (
+  a: ({ href, children }: { href?: string; children?: React.ReactNode }) => (
     <a
       href={href}
       target="_blank"
@@ -119,17 +125,16 @@ const markdownComponents = {
       {children}
     </a>
   ),
-  ul: ({ children }: { children: React.ReactNode }) => (
+  ul: ({ children }: { children?: React.ReactNode }) => (
     <ul className="list-disc list-inside">{children}</ul>
   ),
-  ol: ({ children }: { children: React.ReactNode }) => (
+  ol: ({ children }: { children?: React.ReactNode }) => (
     <ol className="list-decimal list-inside">{children}</ol>
   ),
 };
 
 function ChatMessageComponent({
   message,
-  index,
   characterName,
   characterAvatarUrl,
   copiedMessageId,
@@ -147,8 +152,7 @@ function ChatMessageComponent({
 
   return (
     <div
-      className={`flex ${message.isAgent ? "justify-start" : "justify-end"} animate-in fade-in slide-in-from-bottom-4 duration-500`}
-      style={{ animationDelay: `${index * 50}ms` }}
+      className={`flex ${message.isAgent ? "justify-start" : "justify-end"}`}
     >
       {message.isAgent ? (
         <div className="flex flex-col gap-0.5 max-w-[85%] sm:max-w-[75%] group/message">
@@ -239,7 +243,7 @@ function ChatMessageComponent({
                       onCopy(
                         message.content.text,
                         message.id,
-                        message.content.attachments,
+                        message.content.attachments
                       )
                     }
                     title="Copy message"
@@ -290,7 +294,7 @@ function ChatMessageComponent({
                 onCopy(
                   message.content.text,
                   message.id,
-                  message.content.attachments,
+                  message.content.attachments
                 )
               }
               title="Copy message"
@@ -312,7 +316,7 @@ function ChatMessageComponent({
 export const MemoizedChatMessage = memo(
   ChatMessageComponent,
   (prevProps, nextProps) => {
-    // Only re-render if these specific props change
+    // Compare relevant props - streaming messages use streaming- prefix
     return (
       prevProps.message.id === nextProps.message.id &&
       prevProps.message.content.text === nextProps.message.content.text &&
@@ -321,6 +325,5 @@ export const MemoizedChatMessage = memo(
       prevProps.isPlaying === nextProps.isPlaying &&
       prevProps.hasAudioUrl === nextProps.hasAudioUrl
     );
-  },
+  }
 );
-

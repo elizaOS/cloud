@@ -6,7 +6,7 @@
 
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { usePrivy, useLogout } from "@privy-io/react-auth";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -45,48 +45,48 @@ export default function UserMenu() {
   const router = useRouter();
   const { creditBalance, isLoading: loadingCredits } = useCredits();
   const { clearChatData } = useChatStore();
-  
+
   // User profile state for avatar
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
 
   // Fetch user profile from API to get avatar
-  const fetchUserProfile = useCallback(async () => {
+  useEffect(() => {
     if (!authenticated) return;
-    
-    try {
-      const response = await fetch("/api/v1/user");
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success && data.data) {
-          setUserProfile({
-            id: data.data.id,
-            name: data.data.name,
-            avatar: data.data.avatar,
-            email: data.data.email,
-          });
+
+    let mounted = true;
+
+    const fetchProfile = async () => {
+      try {
+        const response = await fetch("/api/v1/user");
+        if (response.ok && mounted) {
+          const data = await response.json();
+          if (data.success && data.data) {
+            setUserProfile({
+              id: data.data.id,
+              name: data.data.name,
+              avatar: data.data.avatar,
+              email: data.data.email,
+            });
+          }
         }
+      } catch (error) {
+        console.error("Failed to fetch user profile:", error);
       }
-    } catch (error) {
-      console.error("Failed to fetch user profile:", error);
-    }
-  }, [authenticated]);
-
-  // Fetch profile on mount and when auth changes
-  useEffect(() => {
-    fetchUserProfile();
-  }, [fetchUserProfile]);
-
-  // Listen for avatar updates (when user saves a new avatar in settings)
-  useEffect(() => {
-    const handleAvatarUpdate = () => {
-      fetchUserProfile();
     };
-    
+
+    fetchProfile();
+
+    // Listen for avatar updates (when user saves a new avatar in settings)
+    const handleAvatarUpdate = () => {
+      fetchProfile();
+    };
     window.addEventListener("user-avatar-updated", handleAvatarUpdate);
+
     return () => {
+      mounted = false;
       window.removeEventListener("user-avatar-updated", handleAvatarUpdate);
     };
-  }, [fetchUserProfile]);
+  }, [authenticated]);
 
   // Loading state
   if (!ready) {
@@ -237,11 +237,14 @@ export default function UserMenu() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="relative h-10 w-10 rounded-full ring-2 ring-transparent hover:ring-[#FF5800]/50 transition-all">
+        <Button
+          variant="ghost"
+          className="relative h-10 w-10 rounded-full ring-2 ring-transparent hover:ring-[#FF5800]/50 transition-all"
+        >
           <Avatar className="h-10 w-10">
             {userProfile?.avatar && (
-              <AvatarImage 
-                src={userProfile.avatar} 
+              <AvatarImage
+                src={userProfile.avatar}
                 alt={userProfile.name || "User avatar"}
                 className="object-cover"
               />

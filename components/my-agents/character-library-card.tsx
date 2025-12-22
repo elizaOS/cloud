@@ -16,7 +16,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Copy, Upload, Trash2, MoreHorizontal } from "lucide-react";
+import { Copy, Upload, Trash2, MoreHorizontal, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import type { ElizaCharacter } from "@/lib/types";
 import type { ViewMode } from "./my-agents-client";
@@ -105,6 +105,7 @@ export function CharacterLibraryCard({
     if (response.ok) {
       toast.success(`Deleted ${character.name}`);
       setShowDeleteConfirm(false);
+      window.dispatchEvent(new Event("characters-updated"));
       router.refresh();
     } else {
       const error = await response.json();
@@ -170,6 +171,15 @@ export function CharacterLibraryCard({
                 <MoreHorizontal className="h-4 w-4 text-white" />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-40">
+                <Link
+                  href={`/dashboard/build?characterId=${character.id}`}
+                  className="block h-full"
+                >
+                  <DropdownMenuItem className="cursor-pointer">
+                    <Pencil className="h-4 w-4 mr-2" />
+                    Edit
+                  </DropdownMenuItem>
+                </Link>
                 <DropdownMenuItem
                   onClick={handleDuplicate}
                   className="cursor-pointer"
@@ -242,9 +252,9 @@ export function CharacterLibraryCard({
       className="block h-full"
       onClick={handleCardClick}
     >
-      <div className="group relative h-full overflow-hidden border border-white/10 bg-black/40 transition-all duration-300 hover:border-[#FF5800]/50 hover:shadow-lg hover:shadow-[#FF5800]/10 hover:-translate-y-1 max-w-[430px]">
+      <div className="group relative h-full overflow-hidden border border-white/10 bg-black/40 transition-all duration-300 hover:border-[#FF5800]/50 hover:shadow-lg hover:shadow-[#FF5800]/10 hover:-translate-y-1">
         {/* Avatar Section */}
-        <div className="relative h-36 w-full overflow-hidden">
+        <div className="relative aspect-square w-full overflow-hidden">
           <Skeleton className="absolute inset-0 w-full h-full" />
           <Image
             src={ensureAvatarUrl(avatarUrl)}
@@ -266,6 +276,15 @@ export function CharacterLibraryCard({
             <MoreHorizontal className="h-4 w-4 text-white" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-40">
+            <Link
+              href={`/dashboard/build?characterId=${character.id}`}
+              className="block h-full"
+            >
+              <DropdownMenuItem className="cursor-pointer">
+                <Pencil className="h-4 w-4 mr-2" />
+                Edit
+              </DropdownMenuItem>
+            </Link>
             <DropdownMenuItem
               onClick={handleDuplicate}
               className="cursor-pointer"
