@@ -76,12 +76,12 @@ export default function Footer() {
     }
   }, [showTokens]);
   return (
-    <footer className="relative shrink-0 border-t border-neutral-800 bg-black ">
-      <div className="container mx-auto px-6 py-8 md:py-16 relative z-10 flex flex-col gap-8 md:gap-12">
-        <div className="grid grid-cols-2 gap-12 md:grid-cols-3 md:gap-8 items-start">
+    <footer className="relative border-t border-neutral-800 bg-black" style={{ flexShrink: 0 }}>
+      <div className="container mx-auto px-6 py-8 md:py-16 relative z-10">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-8 items-start">
           {/* 1. Left section (Text/Copyright) */}
-          <div className="flex flex-col h-full justify-between">
-            <div className="mb-8 flex items-center gap-3 relative mr-auto">
+          <div className="flex flex-col gap-8">
+            <div className="flex items-center gap-3 relative mr-auto">
               <svg
                 id="poweredby"
                 xmlns="http://www.w3.org/2000/svg"
