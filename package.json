@@ -15,7 +15,7 @@
     "dev:full": "bun run setup:check && bun run dev:all",
     "generate:llms": "tsx scripts/generate-llms-txt.ts",
     "build": "bun run generate:llms && next build",
-    "build:analyze": "ANALYZE=true next build"
+    "build:analyze": "ANALYZE=true next build",
     "start": "next start",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
