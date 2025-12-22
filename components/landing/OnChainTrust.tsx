@@ -43,7 +43,7 @@ export default function OnChainTrust() {
       name: "Eliza",
       description: "Knowledge base curator",
       address: "0xE7A5...D48",
-      image: "/agent-wallet.png",
+      image: "/avatars/eliza-default.png",
     },
     {
       name: "Pixel",
