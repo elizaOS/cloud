@@ -2,7 +2,7 @@ import {
   cryptoPaymentsRepository,
   type CryptoPayment,
 } from "@/db/repositories/crypto-payments";
-import { db } from "@/db/client";
+import { dbWrite } from "@/db/client";
 import { cryptoPayments } from "@/db/schemas/crypto-payments";
 import { eq } from "drizzle-orm";
 import { creditsService } from "./credits";
@@ -386,7 +386,7 @@ class CryptoPaymentsService {
   ): Promise<void> {
     validateUuid(paymentId, "payment ID");
 
-    await db.transaction(async (tx) => {
+    await dbWrite.transaction(async (tx) => {
       const paymentResult = await tx
         .select()
         .from(cryptoPayments)

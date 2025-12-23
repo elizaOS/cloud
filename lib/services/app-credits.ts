@@ -9,7 +9,7 @@ import {
 import { appsRepository, type App } from "@/db/repositories/apps";
 import { appEarningsRepository } from "@/db/repositories/app-earnings";
 import { apps } from "@/db/schemas/apps";
-import { db } from "@/db/client";
+import { dbWrite } from "@/db/client";
 import { eq, sql } from "drizzle-orm";
 import { logger } from "@/lib/utils/logger";
 import { usersRepository } from "@/db/repositories/users";
@@ -236,7 +236,7 @@ export class AppCreditsService {
         },
       );
 
-      await db
+      await dbWrite
         .update(apps)
         .set({
           total_creator_earnings: sql`${apps.total_creator_earnings} + ${creatorEarnings}`,
@@ -340,7 +340,7 @@ export class AppCreditsService {
         },
       );
 
-      await db
+      await dbWrite
         .update(apps)
         .set({
           total_creator_earnings: sql`${apps.total_creator_earnings} + ${creatorMarkup}`,

@@ -5,7 +5,7 @@
  * Used by both the API route and lib/auth-anonymous.ts to avoid code duplication.
  */
 
-import { db } from "@/db/client";
+import { dbWrite } from "@/db/client";
 import { users } from "@/db/schemas";
 import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
 import { logger } from "@/lib/utils/logger";
@@ -35,7 +35,7 @@ export async function createAnonymousUserAndSession(
   const { sessionToken, expiresAt, ipAddress, userAgent, messagesLimit } =
     params;
 
-  const [newUser] = await db
+  const [newUser] = await dbWrite
     .insert(users)
     .values({
       is_anonymous: true,

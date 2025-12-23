@@ -3,7 +3,7 @@
  * Verifies user access to resources in SSE streams and API endpoints
  */
 
-import { db } from "@/db/client";
+import { dbRead } from "@/db/client";
 import { eq, and } from "drizzle-orm";
 import { containers } from "@/db/schemas/containers";
 import { organizations } from "@/db/schemas/organizations";
@@ -35,7 +35,7 @@ export async function verifyResourceAccess(
     case "agent": {
       // For agent events, resourceId is the roomId
       // Verify the room/conversation belongs to the organization
-      const conversation = await db.query.conversations.findFirst({
+      const conversation = await dbRead.query.conversations.findFirst({
         where: eq(conversations.id, resourceId),
         columns: { id: true, organization_id: true },
       });
@@ -56,7 +56,7 @@ export async function verifyResourceAccess(
 
     case "container": {
       // For container events, verify container belongs to organization
-      const container = await db
+      const container = await dbRead
         .select()
         .from(containers)
         .where(
@@ -88,7 +88,7 @@ export async function verifyResourceAccess(
 export async function verifyOrganizationAccess(
   organizationId: string,
 ): Promise<boolean> {
-  const org = await db.query.organizations.findFirst({
+  const org = await dbRead.query.organizations.findFirst({
     where: eq(organizations.id, organizationId),
     columns: { id: true },
   });

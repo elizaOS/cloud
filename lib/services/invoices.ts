@@ -2,7 +2,7 @@
  * Service for managing invoices from Stripe payments.
  */
 
-import { db } from "@/db/client";
+import { dbRead, dbWrite } from "@/db/client";
 import { invoices, type Invoice, type NewInvoice } from "@/db/schemas";
 import { eq, desc } from "drizzle-orm";
 import { logger } from "@/lib/utils/logger";
@@ -12,7 +12,7 @@ import { logger } from "@/lib/utils/logger";
  */
 class InvoicesService {
   async create(data: NewInvoice): Promise<Invoice> {
-    const [invoice] = await db
+    const [invoice] = await dbWrite
       .insert(invoices)
       .values({
         ...data,
@@ -33,7 +33,7 @@ class InvoicesService {
   async getByStripeInvoiceId(
     stripeInvoiceId: string,
   ): Promise<Invoice | undefined> {
-    const [invoice] = await db
+    const [invoice] = await dbRead
       .select()
       .from(invoices)
       .where(eq(invoices.stripe_invoice_id, stripeInvoiceId))
@@ -43,7 +43,7 @@ class InvoicesService {
   }
 
   async listByOrganization(organizationId: string): Promise<Invoice[]> {
-    const orgInvoices = await db
+    const orgInvoices = await dbRead
       .select()
       .from(invoices)
       .where(eq(invoices.organization_id, organizationId))
@@ -58,7 +58,7 @@ class InvoicesService {
   }
 
   async update(id: string, data: Partial<NewInvoice>): Promise<void> {
-    await db
+    await dbWrite
       .update(invoices)
       .set({
         ...data,
@@ -72,7 +72,7 @@ class InvoicesService {
   }
 
   async getById(id: string): Promise<Invoice | undefined> {
-    const [invoice] = await db
+    const [invoice] = await dbRead
       .select()
       .from(invoices)
       .where(eq(invoices.id, id))

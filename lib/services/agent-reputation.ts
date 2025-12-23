@@ -16,7 +16,7 @@
  * Config is loaded from config/agent-reputation.json
  */
 
-import { db } from "@/db/client";
+import { dbRead, dbWrite } from "@/db/client";
 import {
   agentReputation,
   agentModerationEvents,
@@ -105,14 +105,14 @@ class AgentReputationService {
    * Get or create agent reputation record
    */
   async getOrCreateAgent(params: ReputationUpdate): Promise<AgentReputation> {
-    const existing = await db.query.agentReputation.findFirst({
+    const existing = await dbRead.query.agentReputation.findFirst({
       where: eq(agentReputation.agentIdentifier, params.agentIdentifier),
     });
 
     if (existing) {
       // Update optional fields if provided
       if (params.organizationId && !existing.organizationId) {
-        await db
+        await dbWrite
           .update(agentReputation)
           .set({ organizationId: params.organizationId, updatedAt: new Date() })
           .where(eq(agentReputation.id, existing.id));
@@ -121,7 +121,7 @@ class AgentReputationService {
     }
 
     // Create new agent reputation record
-    const [newAgent] = await db
+    const [newAgent] = await dbWrite
       .insert(agentReputation)
       .values({
         agentIdentifier: params.agentIdentifier,
@@ -148,7 +148,7 @@ class AgentReputationService {
    * Get agent by identifier
    */
   async getAgent(agentIdentifier: string): Promise<AgentReputation | null> {
-    const result = await db.query.agentReputation.findFirst({
+    const result = await dbRead.query.agentReputation.findFirst({
       where: eq(agentReputation.agentIdentifier, agentIdentifier),
     });
     return result ?? null;
@@ -161,7 +161,7 @@ class AgentReputationService {
     chainId: number,
     tokenId: number,
   ): Promise<AgentReputation | null> {
-    const result = await db.query.agentReputation.findFirst({
+    const result = await dbRead.query.agentReputation.findFirst({
       where: and(
         eq(agentReputation.chainId, chainId),
         eq(agentReputation.tokenId, tokenId),
@@ -185,7 +185,7 @@ class AgentReputationService {
     const newPaymentCount = agent.paymentCount + 1;
 
     // Update agent
-    await db
+    await dbWrite
       .update(agentReputation)
       .set({
         totalDeposited: newTotalDeposited,
@@ -196,7 +196,7 @@ class AgentReputationService {
       .where(eq(agentReputation.id, agent.id));
 
     // Log activity
-    await db.insert(agentActivityLog).values({
+    await dbWrite.insert(agentActivityLog).values({
       agentReputationId: agent.id,
       activityType: "payment",
       amountUsd: event.amountUsd,
@@ -233,13 +233,13 @@ class AgentReputationService {
       updates.failedRequests = agent.failedRequests + 1;
     }
 
-    await db
+    await dbWrite
       .update(agentReputation)
       .set(updates)
       .where(eq(agentReputation.id, agent.id));
 
     // Log activity (batch these for performance in production)
-    await db.insert(agentActivityLog).values({
+    await dbWrite.insert(agentActivityLog).values({
       agentReputationId: agent.id,
       activityType: "request",
       amountUsd: event.costUsd,
@@ -317,7 +317,7 @@ class AgentReputationService {
       }
     }
 
-    await db
+    await dbWrite
       .update(agentReputation)
       .set(updates)
       .where(eq(agentReputation.id, agent.id));
@@ -328,7 +328,7 @@ class AgentReputationService {
     );
 
     // Log moderation event
-    await db.insert(agentModerationEvents).values({
+    await dbWrite.insert(agentModerationEvents).values({
       agentReputationId: agent.id,
       eventType: "violation",
       flagType: event.flagType,
@@ -379,7 +379,7 @@ class AgentReputationService {
       updates.banReason = params.reason;
     }
 
-    await db
+    await dbWrite
       .update(agentReputation)
       .set(updates)
       .where(eq(agentReputation.id, agent.id));
@@ -390,7 +390,7 @@ class AgentReputationService {
     );
 
     // Log event
-    await db.insert(agentModerationEvents).values({
+    await dbWrite.insert(agentModerationEvents).values({
       agentReputationId: agent.id,
       eventType: "admin_flag",
       flagType: params.flagType,
@@ -434,7 +434,7 @@ class AgentReputationService {
           now.getTime() + config.defaults.banDurationDays * 24 * 60 * 60 * 1000,
         );
 
-    await db
+    await dbWrite
       .update(agentReputation)
       .set({
         status: "banned",
@@ -449,7 +449,7 @@ class AgentReputationService {
       .where(eq(agentReputation.id, agent.id));
 
     // Log event
-    await db.insert(agentModerationEvents).values({
+    await dbWrite.insert(agentModerationEvents).values({
       agentReputationId: agent.id,
       eventType: "ban",
       severity: "critical",
@@ -484,7 +484,7 @@ class AgentReputationService {
       throw new Error(`Agent not found: ${params.agentIdentifier}`);
     }
 
-    await db
+    await dbWrite
       .update(agentReputation)
       .set({
         status: "warned", // Reset to warned, not clean
@@ -502,7 +502,7 @@ class AgentReputationService {
     );
 
     // Log event
-    await db.insert(agentModerationEvents).values({
+    await dbWrite.insert(agentModerationEvents).values({
       agentReputationId: agent.id,
       eventType: "unban",
       severity: "low",
@@ -536,7 +536,7 @@ class AgentReputationService {
 
     // If banned, score is 0
     if (agent.status === "banned") {
-      await db
+      await dbWrite
         .update(agentReputation)
         .set({
           reputationScore: 0,
@@ -620,7 +620,7 @@ class AgentReputationService {
     const confidenceScore = Math.min(100, dataPoints / 10);
 
     // Update agent
-    await db
+    await dbWrite
       .update(agentReputation)
       .set({
         reputationScore: score,
@@ -661,7 +661,7 @@ class AgentReputationService {
       // Check if ban has expired
       if (agent.banExpiresAt && agent.banExpiresAt < new Date()) {
         // Auto-unban (but keep warned status)
-        await db
+        await dbWrite
           .update(agentReputation)
           .set({
             status: "warned",
@@ -692,7 +692,7 @@ class AgentReputationService {
    * Get agents flagged for review
    */
   async getAgentsFlaggedForReview(): Promise<AgentReputation[]> {
-    return db.query.agentReputation.findMany({
+    return dbRead.query.agentReputation.findMany({
       where: sql`${agentReputation.isFlaggedByAdmin} = true OR ${agentReputation.totalViolations} >= 3 OR ${agentReputation.reputationScore} < 30`,
       orderBy: [desc(agentReputation.lastViolationAt)],
     });
@@ -702,7 +702,7 @@ class AgentReputationService {
    * Get banned agents
    */
   async getBannedAgents(): Promise<AgentReputation[]> {
-    return db.query.agentReputation.findMany({
+    return dbRead.query.agentReputation.findMany({
       where: eq(agentReputation.status, "banned"),
       orderBy: [desc(agentReputation.bannedAt)],
     });
@@ -717,7 +717,7 @@ class AgentReputationService {
     const agent = await this.getAgent(agentIdentifier);
     if (!agent) return [];
 
-    return db.query.agentModerationEvents.findMany({
+    return dbRead.query.agentModerationEvents.findMany({
       where: eq(agentModerationEvents.agentReputationId, agent.id),
       orderBy: [desc(agentModerationEvents.createdAt)],
     });
@@ -727,7 +727,7 @@ class AgentReputationService {
    * Get reputation leaderboard (top agents)
    */
   async getReputationLeaderboard(limit = 50): Promise<AgentReputation[]> {
-    return db.query.agentReputation.findMany({
+    return dbRead.query.agentReputation.findMany({
       where: sql`${agentReputation.status} != 'banned'`,
       orderBy: [desc(agentReputation.reputationScore)],
       limit,
@@ -740,7 +740,7 @@ class AgentReputationService {
   async getLowReputationAgents(
     scoreThreshold = 30,
   ): Promise<AgentReputation[]> {
-    return db.query.agentReputation.findMany({
+    return dbRead.query.agentReputation.findMany({
       where: and(
         sql`${agentReputation.reputationScore} < ${scoreThreshold}`,
         sql`${agentReputation.status} != 'banned'`,

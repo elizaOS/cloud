@@ -1,5 +1,5 @@
 import { eq, desc, and } from "drizzle-orm";
-import { db } from "../client";
+import { dbRead, dbWrite } from "../helpers";
 import {
   creditTransactions,
   type CreditTransaction,
@@ -10,13 +10,20 @@ export type { CreditTransaction, NewCreditTransaction };
 
 /**
  * Repository for credit transaction database operations.
+ *
+ * Read operations → dbRead (read replica)
+ * Write operations → dbWrite (NA primary)
  */
 export class CreditTransactionsRepository {
+  // ============================================================================
+  // READ OPERATIONS (use read replica)
+  // ============================================================================
+
   /**
    * Finds a credit transaction by ID.
    */
   async findById(id: string): Promise<CreditTransaction | undefined> {
-    return await db.query.creditTransactions.findFirst({
+    return await dbRead.query.creditTransactions.findFirst({
       where: eq(creditTransactions.id, id),
     });
   }
@@ -27,7 +34,7 @@ export class CreditTransactionsRepository {
   async findByStripePaymentIntent(
     paymentIntentId: string,
   ): Promise<CreditTransaction | undefined> {
-    return await db.query.creditTransactions.findFirst({
+    return await dbRead.query.creditTransactions.findFirst({
       where: eq(creditTransactions.stripe_payment_intent_id, paymentIntentId),
     });
   }
@@ -39,7 +46,7 @@ export class CreditTransactionsRepository {
     organizationId: string,
     limit?: number,
   ): Promise<CreditTransaction[]> {
-    return await db.query.creditTransactions.findMany({
+    return await dbRead.query.creditTransactions.findMany({
       where: eq(creditTransactions.organization_id, organizationId),
       orderBy: desc(creditTransactions.created_at),
       limit,
@@ -53,7 +60,7 @@ export class CreditTransactionsRepository {
     organizationId: string,
     type: string,
   ): Promise<CreditTransaction[]> {
-    return await db.query.creditTransactions.findMany({
+    return await dbRead.query.creditTransactions.findMany({
       where: and(
         eq(creditTransactions.organization_id, organizationId),
         eq(creditTransactions.type, type),
@@ -62,11 +69,15 @@ export class CreditTransactionsRepository {
     });
   }
 
+  // ============================================================================
+  // WRITE OPERATIONS (use NA primary)
+  // ============================================================================
+
   /**
    * Creates a new credit transaction.
    */
   async create(data: NewCreditTransaction): Promise<CreditTransaction> {
-    const [transaction] = await db
+    const [transaction] = await dbWrite
       .insert(creditTransactions)
       .values(data)
       .returning();

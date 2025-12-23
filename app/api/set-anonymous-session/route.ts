@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
 import { usersService } from "@/lib/services/users";
 import { logger } from "@/lib/utils/logger";
-import { db } from "@/db/client";
+import { dbWrite } from "@/db/client";
 import { users, anonymousSessions } from "@/db/schemas";
 import { eq } from "drizzle-orm";
 
@@ -145,7 +145,7 @@ export async function POST(request: NextRequest) {
       );
 
       // Create anonymous user
-      const [newUser] = await db
+      const [newUser] = await dbWrite
         .insert(users)
         .values({
           is_anonymous: true,
@@ -158,7 +158,7 @@ export async function POST(request: NextRequest) {
         .returning();
 
       // Update the existing session to point to the new user
-      await db
+      await dbWrite
         .update(anonymousSessions)
         .set({ user_id: newUser.id })
         .where(eq(anonymousSessions.id, session.id));

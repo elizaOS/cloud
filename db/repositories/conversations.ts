@@ -1,5 +1,5 @@
 import { eq, desc } from "drizzle-orm";
-import { db } from "../client";
+import { dbRead, dbWrite } from "../helpers";
 import {
   conversations,
   conversationMessages,
@@ -25,13 +25,20 @@ export interface ConversationWithMessages extends Conversation {
 
 /**
  * Repository for conversation database operations.
+ *
+ * Read operations → dbRead (read replica)
+ * Write operations → dbWrite (NA primary)
  */
 export class ConversationsRepository {
+  // ============================================================================
+  // READ OPERATIONS (use read replica)
+  // ============================================================================
+
   /**
    * Finds a conversation by ID.
    */
   async findById(id: string): Promise<Conversation | undefined> {
-    return await db.query.conversations.findFirst({
+    return await dbRead.query.conversations.findFirst({
       where: eq(conversations.id, id),
     });
   }
@@ -42,7 +49,7 @@ export class ConversationsRepository {
   async findWithMessages(
     id: string,
   ): Promise<ConversationWithMessages | undefined> {
-    const conversation = await db.query.conversations.findFirst({
+    const conversation = await dbRead.query.conversations.findFirst({
       where: eq(conversations.id, id),
       with: {
         messages: {
@@ -58,7 +65,7 @@ export class ConversationsRepository {
    * Lists conversations for a user.
    */
   async listByUser(userId: string, limit?: number): Promise<Conversation[]> {
-    return await db.query.conversations.findMany({
+    return await dbRead.query.conversations.findMany({
       where: eq(conversations.user_id, userId),
       orderBy: desc(conversations.updated_at),
       limit,
@@ -72,7 +79,7 @@ export class ConversationsRepository {
     organizationId: string,
     limit?: number,
   ): Promise<Conversation[]> {
-    return await db.query.conversations.findMany({
+    return await dbRead.query.conversations.findMany({
       where: eq(conversations.organization_id, organizationId),
       orderBy: desc(conversations.updated_at),
       limit,
@@ -80,10 +87,36 @@ export class ConversationsRepository {
   }
 
   /**
+   * Gets all messages for a conversation, ordered by sequence number.
+   */
+  async getMessages(conversationId: string): Promise<ConversationMessage[]> {
+    return await dbRead.query.conversationMessages.findMany({
+      where: eq(conversationMessages.conversation_id, conversationId),
+      orderBy: desc(conversationMessages.sequence_number),
+    });
+  }
+
+  /**
+   * Gets the next sequence number for a conversation.
+   */
+  async getNextSequenceNumber(conversationId: string): Promise<number> {
+    const lastMessage = await dbRead.query.conversationMessages.findFirst({
+      where: eq(conversationMessages.conversation_id, conversationId),
+      orderBy: desc(conversationMessages.sequence_number),
+    });
+
+    return lastMessage ? lastMessage.sequence_number + 1 : 1;
+  }
+
+  // ============================================================================
+  // WRITE OPERATIONS (use NA primary)
+  // ============================================================================
+
+  /**
    * Creates a new conversation.
    */
   async create(data: NewConversation): Promise<Conversation> {
-    const [conversation] = await db
+    const [conversation] = await dbWrite
       .insert(conversations)
       .values(data)
       .returning();
@@ -97,7 +130,7 @@ export class ConversationsRepository {
     id: string,
     data: Partial<NewConversation>,
   ): Promise<Conversation | undefined> {
-    const [updated] = await db
+    const [updated] = await dbWrite
       .update(conversations)
       .set({
         ...data,
@@ -112,40 +145,18 @@ export class ConversationsRepository {
    * Deletes a conversation by ID.
    */
   async delete(id: string): Promise<void> {
-    await db.delete(conversations).where(eq(conversations.id, id));
+    await dbWrite.delete(conversations).where(eq(conversations.id, id));
   }
 
   /**
    * Adds a message to a conversation.
    */
   async addMessage(data: NewConversationMessage): Promise<ConversationMessage> {
-    const [message] = await db
+    const [message] = await dbWrite
       .insert(conversationMessages)
       .values(data)
       .returning();
     return message;
-  }
-
-  /**
-   * Gets all messages for a conversation, ordered by sequence number.
-   */
-  async getMessages(conversationId: string): Promise<ConversationMessage[]> {
-    return await db.query.conversationMessages.findMany({
-      where: eq(conversationMessages.conversation_id, conversationId),
-      orderBy: desc(conversationMessages.sequence_number),
-    });
-  }
-
-  /**
-   * Gets the next sequence number for a conversation.
-   */
-  async getNextSequenceNumber(conversationId: string): Promise<number> {
-    const lastMessage = await db.query.conversationMessages.findFirst({
-      where: eq(conversationMessages.conversation_id, conversationId),
-      orderBy: desc(conversationMessages.sequence_number),
-    });
-
-    return lastMessage ? lastMessage.sequence_number + 1 : 1;
   }
 
   /**
@@ -157,7 +168,7 @@ export class ConversationsRepository {
     conversationId: string,
     data: Omit<NewConversationMessage, "sequence_number" | "conversation_id">,
   ): Promise<ConversationMessage> {
-    return await db.transaction(async (tx) => {
+    return await dbWrite.transaction(async (tx) => {
       const lastMessage = await tx.query.conversationMessages.findFirst({
         where: eq(conversationMessages.conversation_id, conversationId),
         orderBy: desc(conversationMessages.sequence_number),

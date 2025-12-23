@@ -5,7 +5,7 @@
  * Default anvil wallet is auto-admin in devnet (not production).
  */
 
-import { db } from "@/db/client";
+import { dbRead, dbWrite } from "@/db/client";
 import {
   adminUsers,
   moderationViolations,
@@ -47,7 +47,7 @@ class AdminService {
       return true;
     }
 
-    const admin = await db.query.adminUsers.findFirst({
+    const admin = await dbRead.query.adminUsers.findFirst({
       where: and(
         eq(adminUsers.walletAddress, walletAddress.toLowerCase()),
         eq(adminUsers.isActive, true),
@@ -61,7 +61,7 @@ class AdminService {
    * Check if a user ID is an admin (via their wallet address)
    */
   async isUserAdmin(userId: string): Promise<boolean> {
-    const user = await db.query.users.findFirst({
+    const user = await dbRead.query.users.findFirst({
       where: eq(users.id, userId),
     });
 
@@ -84,7 +84,7 @@ class AdminService {
       return "super_admin";
     }
 
-    const admin = await db.query.adminUsers.findFirst({
+    const admin = await dbRead.query.adminUsers.findFirst({
       where: and(
         eq(adminUsers.walletAddress, walletAddress.toLowerCase()),
         eq(adminUsers.isActive, true),
@@ -111,14 +111,14 @@ class AdminService {
     } = params;
 
     // Check if already admin
-    const existing = await db.query.adminUsers.findFirst({
+    const existing = await dbRead.query.adminUsers.findFirst({
       where: eq(adminUsers.walletAddress, walletAddress.toLowerCase()),
     });
 
     if (existing) {
       // Reactivate if was revoked
       if (!existing.isActive) {
-        const [updated] = await db
+        const [updated] = await dbWrite
           .update(adminUsers)
           .set({
             isActive: true,
@@ -136,7 +136,7 @@ class AdminService {
 
       // Update role if different
       if (existing.role !== role) {
-        const [updated] = await db
+        const [updated] = await dbWrite
           .update(adminUsers)
           .set({ role, updatedAt: new Date() })
           .where(eq(adminUsers.id, existing.id))
@@ -150,11 +150,11 @@ class AdminService {
     }
 
     // Find user ID if they've already signed up
-    const user = await db.query.users.findFirst({
+    const user = await dbRead.query.users.findFirst({
       where: eq(users.wallet_address, walletAddress.toLowerCase()),
     });
 
-    const [admin] = await db
+    const [admin] = await dbWrite
       .insert(adminUsers)
       .values({
         walletAddress: walletAddress.toLowerCase(),
@@ -180,7 +180,7 @@ class AdminService {
     walletAddress: string,
     revokedByWallet?: string,
   ): Promise<void> {
-    await db
+    await dbWrite
       .update(adminUsers)
       .set({
         isActive: false,
@@ -197,7 +197,7 @@ class AdminService {
    * List all admins
    */
   async listAdmins(): Promise<AdminUser[]> {
-    const admins = await db.query.adminUsers.findMany({
+    const admins = await dbRead.query.adminUsers.findMany({
       where: eq(adminUsers.isActive, true),
       orderBy: [desc(adminUsers.createdAt)],
     });
@@ -248,7 +248,7 @@ class AdminService {
     const { userId, roomId, messageText, categories, scores, action } = params;
 
     // Record violation
-    const [violation] = await db
+    const [violation] = await dbWrite
       .insert(moderationViolations)
       .values({
         userId,
@@ -279,7 +279,7 @@ class AdminService {
     userId: string,
     action: ModerationAction,
   ): Promise<void> {
-    const existing = await db.query.userModerationStatus.findFirst({
+    const existing = await dbRead.query.userModerationStatus.findFirst({
       where: eq(userModerationStatus.userId, userId),
     });
 
@@ -301,7 +301,7 @@ class AdminService {
         newStatus = "warned";
       }
 
-      await db
+      await dbWrite
         .update(userModerationStatus)
         .set({
           totalViolations: newTotalViolations,
@@ -314,7 +314,7 @@ class AdminService {
         })
         .where(eq(userModerationStatus.userId, userId));
     } else {
-      await db.insert(userModerationStatus).values({
+      await dbWrite.insert(userModerationStatus).values({
         userId,
         status: "clean",
         totalViolations: 1,
@@ -333,7 +333,7 @@ class AdminService {
   async getUserModerationStatus(
     userId: string,
   ): Promise<UserModerationStatus | null> {
-    const result = await db.query.userModerationStatus.findFirst({
+    const result = await dbRead.query.userModerationStatus.findFirst({
       where: eq(userModerationStatus.userId, userId),
     });
     return result ?? null;
@@ -368,7 +368,7 @@ class AdminService {
   }): Promise<void> {
     const { userId, status, adminUserId, reason } = params;
 
-    await db
+    await dbWrite
       .update(userModerationStatus)
       .set({
         status,
@@ -379,7 +379,7 @@ class AdminService {
     // Also insert a record if it doesn't exist
     const existing = await this.getUserModerationStatus(userId);
     if (!existing) {
-      await db.insert(userModerationStatus).values({
+      await dbWrite.insert(userModerationStatus).values({
         userId,
         status,
         totalViolations: 0,
@@ -410,7 +410,7 @@ class AdminService {
     const existing = await this.getUserModerationStatus(userId);
 
     if (existing) {
-      await db
+      await dbWrite
         .update(userModerationStatus)
         .set({
           status: "banned",
@@ -422,7 +422,7 @@ class AdminService {
         })
         .where(eq(userModerationStatus.userId, userId));
     } else {
-      await db.insert(userModerationStatus).values({
+      await dbWrite.insert(userModerationStatus).values({
         userId,
         status: "banned",
         totalViolations: 0,
@@ -441,7 +441,7 @@ class AdminService {
    * Unban a user
    */
   async unbanUser(userId: string, adminUserId: string): Promise<void> {
-    await db
+    await dbWrite
       .update(userModerationStatus)
       .set({
         status: "clean",
@@ -462,7 +462,7 @@ class AdminService {
    * Get recent violations
    */
   async getRecentViolations(limit = 100): Promise<ModerationViolation[]> {
-    return db.query.moderationViolations.findMany({
+    return dbRead.query.moderationViolations.findMany({
       orderBy: [desc(moderationViolations.createdAt)],
       limit,
     });
@@ -472,7 +472,7 @@ class AdminService {
    * Get violations for a specific user
    */
   async getUserViolations(userId: string): Promise<ModerationViolation[]> {
-    return db.query.moderationViolations.findMany({
+    return dbRead.query.moderationViolations.findMany({
       where: eq(moderationViolations.userId, userId),
       orderBy: [desc(moderationViolations.createdAt)],
     });
@@ -482,7 +482,7 @@ class AdminService {
    * Get users flagged for review (high risk or many violations)
    */
   async getUsersFlaggedForReview(): Promise<UserModerationStatus[]> {
-    return db.query.userModerationStatus.findMany({
+    return dbRead.query.userModerationStatus.findMany({
       where: sql`${userModerationStatus.totalViolations} >= 3 OR ${userModerationStatus.riskScore} >= 60`,
       orderBy: [desc(userModerationStatus.riskScore)],
     });
@@ -492,7 +492,7 @@ class AdminService {
    * Get banned users
    */
   async getBannedUsers(): Promise<UserModerationStatus[]> {
-    return db.query.userModerationStatus.findMany({
+    return dbRead.query.userModerationStatus.findMany({
       where: eq(userModerationStatus.status, "banned"),
       orderBy: [desc(userModerationStatus.bannedAt)],
     });
@@ -509,10 +509,10 @@ class AdminService {
   }> {
     const [user, moderationStatusResult, violations, generationsResult] =
       await Promise.all([
-        db.query.users.findFirst({ where: eq(users.id, userId) }),
+        dbRead.query.users.findFirst({ where: eq(users.id, userId) }),
         this.getUserModerationStatus(userId),
         this.getUserViolations(userId),
-        db.execute<{ count: string }>(
+        dbRead.execute<{ count: string }>(
           sql`SELECT COUNT(*) as count FROM generations WHERE user_id = ${userId}::uuid`,
         ),
       ]);

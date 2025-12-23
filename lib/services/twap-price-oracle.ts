@@ -31,7 +31,7 @@
  *    - Mitigation: Multi-source validation + TWAP smoothing
  */
 
-import { db } from "@/db/client";
+import { dbRead, dbWrite } from "@/db/client";
 import { elizaTokenPrices } from "@/db/schemas/token-redemptions";
 import { sql, desc, gte, and, eq, lt } from "drizzle-orm";
 import { logger } from "@/lib/utils/logger";
@@ -156,7 +156,7 @@ export class TWAPPriceOracle {
   ): Promise<void> {
     const now = new Date();
 
-    await db.insert(elizaTokenPrices).values({
+    await dbWrite.insert(elizaTokenPrices).values({
       network,
       price_usd: String(price),
       source,
@@ -182,7 +182,7 @@ export class TWAPPriceOracle {
     const windowStart = new Date(now.getTime() - TWAP_CONFIG.TWAP_WINDOW_MS);
 
     // Fetch price samples in the TWAP window
-    const samples = await db
+    const samples = await dbRead
       .select({
         price: elizaTokenPrices.price_usd,
         timestamp: elizaTokenPrices.fetched_at,
@@ -386,21 +386,21 @@ export class TWAPPriceOracle {
     );
 
     // Get hourly volume from token_redemptions table
-    const hourlyResult = await db.execute(sql`
+    const hourlyResult = await dbRead.execute(sql`
       SELECT COALESCE(SUM(CAST(usd_value AS DECIMAL)), 0) as total
       FROM token_redemptions
       WHERE status IN ('approved', 'processing', 'completed')
       AND created_at >= ${hourAgo}
     `);
 
-    const dailyResult = await db.execute(sql`
+    const dailyResult = await dbRead.execute(sql`
       SELECT COALESCE(SUM(CAST(usd_value AS DECIMAL)), 0) as total
       FROM token_redemptions
       WHERE status IN ('approved', 'processing', 'completed')
       AND created_at >= ${dayAgo}
     `);
 
-    const velocityResult = await db.execute(sql`
+    const velocityResult = await dbRead.execute(sql`
       SELECT COUNT(*) as count
       FROM token_redemptions
       WHERE status IN ('approved', 'processing', 'completed')
@@ -505,7 +505,7 @@ export class TWAPPriceOracle {
   async cleanupOldSamples(): Promise<number> {
     const cutoff = new Date(Date.now() - TWAP_CONFIG.TWAP_WINDOW_MS * 4);
 
-    const result = await db
+    const result = await dbWrite
       .delete(elizaTokenPrices)
       .where(lt(elizaTokenPrices.fetched_at, cutoff));
 

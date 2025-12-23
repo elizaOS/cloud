@@ -18,7 +18,7 @@ import { creditsService } from "@/lib/services/credits";
 import { redeemableEarningsService } from "@/lib/services/redeemable-earnings";
 import { agentBudgetService } from "@/lib/services/agent-budgets";
 import { appCreditsService } from "@/lib/services/app-credits";
-import { db } from "@/db/client";
+import { dbRead } from "@/db/client";
 import { apps } from "@/db/schemas/apps";
 import { userCharacters } from "@/db/schemas/user-characters";
 import { eq } from "drizzle-orm";
@@ -36,7 +36,7 @@ async function getSummaryHandler(request: NextRequest): Promise<Response> {
   const org = user.organization;
 
   // Get all agents owned by this org
-  const agents = await db.query.userCharacters.findMany({
+  const agents = await dbRead.query.userCharacters.findMany({
     where: eq(userCharacters.organization_id, user.organization_id),
   });
 
@@ -47,7 +47,7 @@ async function getSummaryHandler(request: NextRequest): Promise<Response> {
   const budgetMap = new Map(agentBudgets.map((b) => [b.agent_id, b]));
 
   // Get all apps owned by this org
-  const orgApps = await db.query.apps.findMany({
+  const orgApps = await dbRead.query.apps.findMany({
     where: eq(apps.organization_id, user.organization_id),
   });
 
