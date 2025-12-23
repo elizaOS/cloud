@@ -88,24 +88,42 @@ interface RegionalConnections {
 
 /**
  * Vercel region to database region mapping
- * https://vercel.com/docs/concepts/edge-network/regions
+ * https://vercel.com/docs/edge-network/regions
+ * 
+ * Database routing:
+ * - EU regions → EU read replica (if configured)
+ * - All other regions → NA primary
+ * 
+ * Note: APAC and other regions currently route to NA primary.
+ * Add DATABASE_URL_APAC_READ if you deploy an APAC replica.
  */
 const VERCEL_REGION_MAP: Record<string, DatabaseRegion> = {
   // North America
-  iad1: "na", // Washington DC
-  sfo1: "na", // San Francisco
-  pdx1: "na", // Portland
-  cle1: "na", // Cleveland
+  iad1: "na", // Washington DC (US East)
+  sfo1: "na", // San Francisco (US West)
+  pdx1: "na", // Portland (US West)
+  cle1: "na", // Cleveland (US East)
+  
+  // South America (routes to NA - closest primary)
+  gru1: "na", // São Paulo
+  eze1: "na", // Buenos Aires
+  
   // Europe
   cdg1: "eu", // Paris
   fra1: "eu", // Frankfurt
   lhr1: "eu", // London
   arn1: "eu", // Stockholm
   dub1: "eu", // Dublin
-  // Asia Pacific (falls back to NA for now)
+  
+  // Africa (routes to EU - closest replica)
+  cpt1: "eu", // Cape Town
+  
+  // Asia Pacific (routes to NA - no APAC replica yet)
   hnd1: "apac", // Tokyo
+  kix1: "apac", // Osaka
   sin1: "apac", // Singapore
   syd1: "apac", // Sydney
+  mel1: "apac", // Melbourne
   hkg1: "apac", // Hong Kong
   bom1: "apac", // Mumbai
   icn1: "apac", // Seoul
