@@ -7,7 +7,7 @@
  * 3. Developer role support in responses API
  */
 
-import { describe, test, expect, beforeEach, mock, spyOn } from "bun:test";
+import { describe, test, expect, beforeEach, mock } from "bun:test";
 
 // ============================================================================
 // 1. MODEL PRICING CACHE TESTS
@@ -35,7 +35,7 @@ describe("Model Pricing Cache", () => {
           is_active: true,
           created_at: new Date(),
           updated_at: new Date(),
-        }),
+        })
       ),
     };
   });
@@ -80,7 +80,7 @@ describe("Model Pricing Cache", () => {
       "nonexistent-model",
       "openai",
       1000,
-      1000,
+      1000
     );
 
     expect(result.inputCost).toBeGreaterThan(0);
@@ -106,28 +106,27 @@ describe("Model Pricing Cache", () => {
   test("calculateCost handles large token counts", async () => {
     const { calculateCost } = await import("@/lib/pricing");
 
-    const result = await calculateCost(
-      "gpt-4o-mini",
-      "openai",
-      100000,
-      100000,
-    );
+    const result = await calculateCost("gpt-4o-mini", "openai", 100000, 100000);
 
     expect(result.inputCost).toBeGreaterThan(0);
     expect(result.outputCost).toBeGreaterThan(0);
-    expect(result.totalCost).toBeGreaterThan(result.inputCost);
-    expect(result.totalCost).toBeGreaterThan(result.outputCost);
+    expect(result.totalCost).toBe(result.inputCost + result.outputCost);
   });
 
   test("calculateCost handles different providers", async () => {
     const { calculateCost } = await import("@/lib/pricing");
 
-    const resultOpenAI = await calculateCost("gpt-4o-mini", "openai", 1000, 1000);
+    const resultOpenAI = await calculateCost(
+      "gpt-4o-mini",
+      "openai",
+      1000,
+      1000
+    );
     const resultAnthropic = await calculateCost(
       "claude-3-5-sonnet-20241022",
       "anthropic",
       1000,
-      1000,
+      1000
     );
 
     expect(resultOpenAI.totalCost).toBeGreaterThan(0);
@@ -155,27 +154,24 @@ describe("Model Pricing Cache", () => {
 
 describe("Ban Status Caching", () => {
   test("shouldBlockUser caching is implemented", async () => {
-    const { contentModerationService } = await import(
-      "@/lib/services/content-moderation"
-    );
+    const { contentModerationService } =
+      await import("@/lib/services/content-moderation");
 
     expect(typeof contentModerationService.shouldBlockUser).toBe("function");
   });
 
   test("invalidateBanStatusCache is exported", async () => {
-    const { contentModerationService } = await import(
-      "@/lib/services/content-moderation"
-    );
+    const { contentModerationService } =
+      await import("@/lib/services/content-moderation");
 
     expect(typeof contentModerationService.invalidateBanStatusCache).toBe(
-      "function",
+      "function"
     );
   });
 
   test("shouldBlockUser returns boolean", async () => {
-    const { contentModerationService } = await import(
-      "@/lib/services/content-moderation"
-    );
+    const { contentModerationService } =
+      await import("@/lib/services/content-moderation");
 
     const testUserId = "00000000-0000-0000-0000-000000000001";
     const result = await contentModerationService.shouldBlockUser(testUserId);
@@ -201,7 +197,12 @@ describe("Developer Role Support in Responses API", () => {
 
   test("developer role is transformed to system role", () => {
     const developerMessage = {
-      role: "developer" as "user" | "system" | "assistant" | "tool" | "developer",
+      role: "developer" as
+        | "user"
+        | "system"
+        | "assistant"
+        | "tool"
+        | "developer",
       content: "Test instruction",
     };
 
@@ -224,7 +225,8 @@ describe("Developer Role Support in Responses API", () => {
     }));
 
     const filtered = transformedMessages.filter(
-      (msg) => msg.role !== "system" || (msg.content && msg.content.trim() !== ""),
+      (msg) =>
+        msg.role !== "system" || (msg.content && msg.content.trim() !== "")
     );
 
     expect(filtered.length).toBe(1);
@@ -243,7 +245,8 @@ describe("Developer Role Support in Responses API", () => {
     }));
 
     const filtered = transformedMessages.filter(
-      (msg) => msg.role !== "system" || (msg.content && msg.content.trim() !== ""),
+      (msg) =>
+        msg.role !== "system" || (msg.content && msg.content.trim() !== "")
     );
 
     expect(filtered.length).toBe(2);
@@ -295,7 +298,9 @@ describe("Pricing Utilities", () => {
     expect(getProviderFromModel("openai/gpt-4o-mini")).toBe("openai");
     expect(getProviderFromModel("anthropic/claude-3")).toBe("anthropic");
     expect(getProviderFromModel("gpt-4o-mini")).toBe("openai");
-    expect(getProviderFromModel("claude-3-5-sonnet-20241022")).toBe("anthropic");
+    expect(getProviderFromModel("claude-3-5-sonnet-20241022")).toBe(
+      "anthropic"
+    );
     expect(getProviderFromModel("gemini-1.5-pro")).toBe("google");
   });
 
@@ -362,7 +367,7 @@ describe("Error Handling", () => {
       "unknown-model",
       "unknown-provider",
       1000,
-      1000,
+      1000
     );
 
     expect(result.inputCost).toBeGreaterThanOrEqual(0);
@@ -399,9 +404,7 @@ describe("Performance Benchmarks", () => {
   test("estimateRequestCost completes quickly", async () => {
     const { estimateRequestCost } = await import("@/lib/pricing");
 
-    const messages = [
-      { role: "user", content: "Test message" },
-    ];
+    const messages = [{ role: "user", content: "Test message" }];
 
     const start = Date.now();
     await estimateRequestCost("gpt-4o-mini", messages);
