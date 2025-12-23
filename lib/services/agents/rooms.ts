@@ -73,7 +73,7 @@ export class RoomsService {
   async getRoomWithMessages(
     roomId: string,
     limit = 50,
-    afterTimestamp?: number,
+    afterTimestamp?: number
   ): Promise<RoomWithMessages | null> {
     const [room, rawMessages, participantIds] = await Promise.all([
       roomsRepository.findById(roomId),
@@ -164,7 +164,7 @@ export class RoomsService {
     });
 
     const cleanMessages = visibleMessages.filter(
-      (_, index) => !indicesToRemove.has(index),
+      (_, index) => !indicesToRemove.has(index)
     );
 
     return {
@@ -188,7 +188,7 @@ export class RoomsService {
    */
   async getRoomsForEntity(
     entityId: string,
-    options?: { includeBuildRooms?: boolean },
+    options?: { includeBuildRooms?: boolean }
   ): Promise<RoomPreview[]> {
     // Single query: participants → rooms → last message → user_characters
     const roomsWithPreview =
@@ -261,7 +261,7 @@ export class RoomsService {
    */
   async updateMetadata(
     roomId: string,
-    metadata: Record<string, unknown>,
+    metadata: Record<string, unknown>
   ): Promise<void> {
     await roomsRepository.updateMetadata(roomId, metadata);
   }
@@ -310,7 +310,7 @@ export class RoomsService {
             time: lastMessage.createdAt || Date.now(),
             text: ((lastMessage.content?.text as string) || "").substring(
               0,
-              100,
+              100
             ),
           }
         : undefined,
@@ -327,7 +327,7 @@ export class RoomsService {
     // First check if user is a participant
     const isParticipant = await participantsRepository.isParticipant(
       roomId,
-      entityId,
+      entityId
     );
     if (isParticipant) {
       return true;
@@ -356,7 +356,7 @@ export class RoomsService {
   async addParticipant(
     roomId: string,
     entityId: string,
-    agentId: string,
+    agentId: string
   ): Promise<void> {
     // Ensure entity exists
     await entitiesRepository.create({

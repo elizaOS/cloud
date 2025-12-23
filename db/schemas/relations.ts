@@ -66,7 +66,7 @@ export const organizationInvitesRelations = relations(
       fields: [organizationInvites.accepted_by_user_id],
       references: [users.id],
     }),
-  }),
+  })
 );
 
 /**
@@ -133,7 +133,7 @@ export const appCreditBalancesRelations = relations(
       fields: [appCreditBalances.organization_id],
       references: [organizations.id],
     }),
-  }),
+  })
 );
 
 /**
@@ -160,7 +160,7 @@ export const appEarningsTransactionsRelations = relations(
       fields: [appEarningsTransactions.user_id],
       references: [users.id],
     }),
-  }),
+  })
 );
 
 /**
@@ -181,7 +181,7 @@ export const tokenRedemptionsRelations = relations(
       fields: [tokenRedemptions.reviewed_by],
       references: [users.id],
     }),
-  }),
+  })
 );
 
 /**
@@ -194,7 +194,7 @@ export const redemptionLimitsRelations = relations(
       fields: [redemptionLimits.user_id],
       references: [users.id],
     }),
-  }),
+  })
 );
 
 /**

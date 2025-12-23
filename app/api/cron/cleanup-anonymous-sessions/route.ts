@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
       logger.error("cleanup-cron", "CRON_SECRET not configured");
       return NextResponse.json(
         { error: "Cron not configured" },
-        { status: 500 },
+        { status: 500 }
       );
     }
 
@@ -70,13 +70,13 @@ export async function GET(request: NextRequest) {
       .where(
         and(
           eq(users.is_anonymous, true),
-          lt(users.expires_at!, now), // expires_at < now
-        ),
+          lt(users.expires_at!, now) // expires_at < now
+        )
       );
 
     logger.info(
       "cleanup-cron",
-      `Found ${expiredUsers.length} expired anonymous users`,
+      `Found ${expiredUsers.length} expired anonymous users`
     );
 
     // Step 2: Delete expired users (this will cascade to sessions)
@@ -111,7 +111,7 @@ export async function GET(request: NextRequest) {
       .from(users)
       .leftJoin(anonymousSessions, eq(anonymousSessions.user_id, users.id))
       .where(
-        and(eq(users.is_anonymous, true), lt(users.created_at, sevenDaysAgo)),
+        and(eq(users.is_anonymous, true), lt(users.created_at, sevenDaysAgo))
       );
 
     let deletedInactiveUsers = 0;
@@ -124,7 +124,7 @@ export async function GET(request: NextRequest) {
 
     logger.info(
       "cleanup-cron",
-      `Deleted ${deletedInactiveUsers} inactive anonymous users`,
+      `Deleted ${deletedInactiveUsers} inactive anonymous users`
     );
 
     // Return summary
@@ -147,7 +147,7 @@ export async function GET(request: NextRequest) {
         success: false,
         error: error instanceof Error ? error.message : "Cleanup failed",
       },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }

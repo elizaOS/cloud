@@ -41,7 +41,7 @@ import type {
 export async function executeSkillChatCompletion(
   textContent: string,
   dataContent: Record<string, unknown>,
-  ctx: A2AContext,
+  ctx: A2AContext
 ): Promise<ChatCompletionResult> {
   const model = (dataContent.model as string) || "gpt-4o";
   const messages = (dataContent.messages as Array<{
@@ -58,7 +58,7 @@ export async function executeSkillChatCompletion(
 
   if (Number(ctx.user.organization.credit_balance) < estimatedCost) {
     throw new Error(
-      `Insufficient credits: need $${estimatedCost.toFixed(4)}, have $${Number(ctx.user.organization.credit_balance).toFixed(4)}`,
+      `Insufficient credits: need $${estimatedCost.toFixed(4)}, have $${Number(ctx.user.organization.credit_balance).toFixed(4)}`
     );
   }
 
@@ -88,7 +88,7 @@ export async function executeSkillChatCompletion(
     model,
     provider,
     usage?.inputTokens || 0,
-    usage?.outputTokens || 0,
+    usage?.outputTokens || 0
   );
   const costDiff = totalCost - estimatedCost;
 
@@ -140,7 +140,7 @@ export async function executeSkillChatCompletion(
 export async function executeSkillImageGeneration(
   textContent: string,
   dataContent: Record<string, unknown>,
-  ctx: A2AContext,
+  ctx: A2AContext
 ): Promise<ImageGenerationResult> {
   const prompt = (dataContent.prompt as string) || textContent;
   const aspectRatio = (dataContent.aspectRatio as string) || "1:1";
@@ -149,7 +149,7 @@ export async function executeSkillImageGeneration(
 
   if (Number(ctx.user.organization.credit_balance) < IMAGE_GENERATION_COST) {
     throw new Error(
-      `Insufficient credits: need $${IMAGE_GENERATION_COST.toFixed(4)}`,
+      `Insufficient credits: need $${IMAGE_GENERATION_COST.toFixed(4)}`
     );
   }
 
@@ -228,7 +228,7 @@ export async function executeSkillImageGeneration(
  * Check balance skill
  */
 export async function executeSkillCheckBalance(
-  ctx: A2AContext,
+  ctx: A2AContext
 ): Promise<BalanceResult> {
   const org = await organizationsService.getById(ctx.user.organization_id);
   if (!org) throw new Error("Organization not found");
@@ -244,12 +244,12 @@ export async function executeSkillCheckBalance(
  */
 export async function executeSkillGetUsage(
   dataContent: Record<string, unknown>,
-  ctx: A2AContext,
+  ctx: A2AContext
 ): Promise<UsageResult> {
   const limit = Math.min(50, (dataContent.limit as number) || 10);
   const records = await usageService.listByOrganization(
     ctx.user.organization_id,
-    limit,
+    limit
   );
   return {
     usage: records.map((r) => ({
@@ -270,11 +270,11 @@ export async function executeSkillGetUsage(
  */
 export async function executeSkillListAgents(
   dataContent: Record<string, unknown>,
-  ctx: A2AContext,
+  ctx: A2AContext
 ): Promise<ListAgentsResult> {
   const limit = (dataContent.limit as number) || 20;
   const chars = await charactersService.listByOrganization(
-    ctx.user.organization_id,
+    ctx.user.organization_id
   );
   return {
     agents: chars.slice(0, limit).map((c) => ({
@@ -294,7 +294,7 @@ export async function executeSkillListAgents(
 export async function executeSkillChatWithAgent(
   textContent: string,
   dataContent: Record<string, unknown>,
-  ctx: A2AContext,
+  ctx: A2AContext
 ): Promise<ChatWithAgentResult> {
   const message = (dataContent.message as string) || textContent;
   const roomId = dataContent.roomId as string | undefined;
@@ -331,7 +331,7 @@ export async function executeSkillChatWithAgent(
 export async function executeSkillSaveMemory(
   textContent: string,
   dataContent: Record<string, unknown>,
-  ctx: A2AContext,
+  ctx: A2AContext
 ): Promise<SaveMemoryResult> {
   const content = (dataContent.content as string) || textContent;
   const type =
@@ -372,7 +372,7 @@ export async function executeSkillSaveMemory(
 export async function executeSkillRetrieveMemories(
   textContent: string,
   dataContent: Record<string, unknown>,
-  ctx: A2AContext,
+  ctx: A2AContext
 ): Promise<RetrieveMemoriesResult> {
   const query = (dataContent.query as string) || textContent;
   const roomId = dataContent.roomId as string | undefined;
@@ -412,11 +412,11 @@ export async function executeSkillRetrieveMemories(
  */
 export async function executeSkillListContainers(
   dataContent: Record<string, unknown>,
-  ctx: A2AContext,
+  ctx: A2AContext
 ): Promise<ListContainersResult> {
   const status = dataContent.status as string | undefined;
   let containers = await containersService.listByOrganization(
-    ctx.user.organization_id,
+    ctx.user.organization_id
   );
   if (status) containers = containers.filter((c) => c.status === status);
   return {
@@ -436,7 +436,7 @@ export async function executeSkillListContainers(
  */
 export async function executeSkillDeleteMemory(
   dataContent: Record<string, unknown>,
-  ctx: A2AContext,
+  ctx: A2AContext
 ): Promise<{ success: boolean; memoryId: string }> {
   const memoryId = dataContent.memoryId as string;
   if (!memoryId) throw new Error("memoryId required");
@@ -454,7 +454,7 @@ export async function executeSkillDeleteMemory(
 export async function executeSkillVideoGeneration(
   textContent: string,
   dataContent: Record<string, unknown>,
-  ctx: A2AContext,
+  ctx: A2AContext
 ): Promise<VideoGenerationResult> {
   const prompt = (dataContent.prompt as string) || textContent;
   const model = (dataContent.model as string) || "fal-ai/veo3";
@@ -499,7 +499,7 @@ export async function executeSkillVideoGeneration(
  * Get user profile skill
  */
 export async function executeSkillGetUserProfile(
-  ctx: A2AContext,
+  ctx: A2AContext
 ): Promise<{ user: Record<string, unknown> }> {
   return {
     user: {

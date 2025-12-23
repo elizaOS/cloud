@@ -21,7 +21,7 @@ import type { Memory } from "@elizaos/core";
  */
 export async function GET(
   request: NextRequest,
-  ctx: { params: Promise<{ roomId: string }> },
+  ctx: { params: Promise<{ roomId: string }> }
 ) {
   // Get authenticated user ID
   let userId: string;
@@ -54,11 +54,11 @@ export async function GET(
   const hasAccess = await roomsService.hasAccess(roomId, userId);
   if (!hasAccess) {
     logger.warn(
-      `[Eliza Room API] Access denied: User ${userId} attempted to access room ${roomId}`,
+      `[Eliza Room API] Access denied: User ${userId} attempted to access room ${roomId}`
     );
     return NextResponse.json(
       { error: "You don't have permission to access this room" },
-      { status: 403 },
+      { status: 403 }
     );
   }
 
@@ -66,7 +66,7 @@ export async function GET(
   // Service handles filtering (hidden/action_result) and deduplication
   const roomData = await roomsService.getRoomWithMessages(
     roomId,
-    limit ? parseInt(limit) : 50,
+    limit ? parseInt(limit) : 50
   );
 
   if (!roomData) {
@@ -89,7 +89,7 @@ export async function GET(
     // Debug: Log attachment info for agent messages
     if (content?.source === "agent" && content?.attachments) {
       logger.info(
-        `[Eliza Room API] 📎 Message ${msg.id?.substring(0, 8)} has ${content.attachments.length} attachment(s)`,
+        `[Eliza Room API] 📎 Message ${msg.id?.substring(0, 8)} has ${content.attachments.length} attachment(s)`
       );
     }
 
@@ -110,7 +110,7 @@ export async function GET(
   });
 
   logger.info(
-    `[Eliza Room API] ✅ Returning ${messages.length} messages for room ${roomId}`,
+    `[Eliza Room API] ✅ Returning ${messages.length} messages for room ${roomId}`
   );
 
   // Get agent display info from database (no runtime needed!)
@@ -142,7 +142,7 @@ export async function GET(
       agent: agentInfo,
       metadata: roomData.room.metadata || {},
     },
-    { headers: { "Cache-Control": "no-store" } },
+    { headers: { "Cache-Control": "no-store" } }
   );
 }
 
@@ -154,7 +154,7 @@ export async function GET(
  */
 export async function PATCH(
   request: NextRequest,
-  ctx: { params: Promise<{ roomId: string }> },
+  ctx: { params: Promise<{ roomId: string }> }
 ) {
   // Get authenticated user ID
   let userId: string;
@@ -168,7 +168,7 @@ export async function PATCH(
     if (!anonData) {
       return NextResponse.json(
         { error: "Authentication required" },
-        { status: 401 },
+        { status: 401 }
       );
     }
     userId = anonData.user.id;
@@ -184,11 +184,11 @@ export async function PATCH(
   const hasAccess = await roomsService.hasAccess(roomId, userId);
   if (!hasAccess) {
     logger.warn(
-      `[Eliza Room API] Access denied: User ${userId} attempted to update room ${roomId}`,
+      `[Eliza Room API] Access denied: User ${userId} attempted to update room ${roomId}`
     );
     return NextResponse.json(
       { error: "You don't have permission to update this room" },
-      { status: 403 },
+      { status: 403 }
     );
   }
 
@@ -200,14 +200,14 @@ export async function PATCH(
   if (!body.metadata && !body.name) {
     return NextResponse.json(
       { error: "metadata or name is required" },
-      { status: 400 },
+      { status: 400 }
     );
   }
 
   if (body.metadata && typeof body.metadata !== "object") {
     return NextResponse.json(
       { error: "metadata must be an object" },
-      { status: 400 },
+      { status: 400 }
     );
   }
 
@@ -223,7 +223,7 @@ export async function PATCH(
     body.metadata && "metadata",
     body.name && "name",
   ].filter(Boolean);
-  
+
   logger.info("[Eliza Room API] ✓ Room updated successfully:", roomId);
 
   return NextResponse.json({
@@ -241,7 +241,7 @@ export async function PATCH(
  */
 export async function DELETE(
   request: NextRequest,
-  ctx: { params: Promise<{ roomId: string }> },
+  ctx: { params: Promise<{ roomId: string }> }
 ) {
   // Get authenticated user ID
   let userId: string;
@@ -255,7 +255,7 @@ export async function DELETE(
     if (!anonData) {
       return NextResponse.json(
         { error: "Authentication required" },
-        { status: 401 },
+        { status: 401 }
       );
     }
     userId = anonData.user.id;
@@ -271,11 +271,11 @@ export async function DELETE(
   const hasAccess = await roomsService.hasAccess(roomId, userId);
   if (!hasAccess) {
     logger.warn(
-      `[Eliza Room API] Access denied: User ${userId} attempted to delete room ${roomId}`,
+      `[Eliza Room API] Access denied: User ${userId} attempted to delete room ${roomId}`
     );
     return NextResponse.json(
       { error: "You don't have permission to delete this room" },
-      { status: 403 },
+      { status: 403 }
     );
   }
 

@@ -28,7 +28,7 @@ export interface ResourceAccessParams {
  * @throws Error if resource access is denied.
  */
 export async function verifyResourceAccess(
-  params: ResourceAccessParams,
+  params: ResourceAccessParams
 ): Promise<boolean> {
   const { organizationId, userId, eventType, resourceId } = params;
 
@@ -42,8 +42,8 @@ export async function verifyResourceAccess(
         .where(
           and(
             eq(participantTable.roomId, resourceId),
-            eq(participantTable.entityId, userId),
-          ),
+            eq(participantTable.entityId, userId)
+          )
         )
         .limit(1);
 
@@ -73,8 +73,8 @@ export async function verifyResourceAccess(
         .where(
           and(
             eq(roomTable.id, resourceId),
-            eq(users.organization_id, organizationId),
-          ),
+            eq(users.organization_id, organizationId)
+          )
         )
         .limit(1);
 
@@ -97,8 +97,8 @@ export async function verifyResourceAccess(
         .where(
           and(
             eq(containers.id, resourceId),
-            eq(containers.organization_id, organizationId),
-          ),
+            eq(containers.organization_id, organizationId)
+          )
         )
         .limit(1);
 
@@ -121,7 +121,7 @@ export async function verifyResourceAccess(
  * @returns True if organization exists.
  */
 export async function verifyOrganizationAccess(
-  organizationId: string,
+  organizationId: string
 ): Promise<boolean> {
   const org = await dbRead.query.organizations.findFirst({
     where: eq(organizations.id, organizationId),
