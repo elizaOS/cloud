@@ -8,7 +8,6 @@ import { eq, and } from "drizzle-orm";
 import { containers } from "@/db/schemas/containers";
 import { organizations } from "@/db/schemas/organizations";
 import { participantTable, roomTable } from "@/db/schemas/eliza";
-import { users } from "@/db/schemas/users";
 
 /**
  * Parameters for resource access verification.
@@ -30,7 +29,7 @@ export interface ResourceAccessParams {
 export async function verifyResourceAccess(
   params: ResourceAccessParams
 ): Promise<boolean> {
-  const { organizationId, userId, eventType, resourceId } = params;
+  const { userId, eventType, resourceId, organizationId } = params;
 
   switch (eventType) {
     case "agent": {
@@ -65,20 +64,8 @@ export async function verifyResourceAccess(
         }
       }
 
-      // Also verify the room's agent belongs to the organization
-      const roomWithOrg = await dbRead
-        .select({ agentId: roomTable.agentId })
-        .from(roomTable)
-        .innerJoin(users, eq(users.id, userId))
-        .where(
-          and(
-            eq(roomTable.id, resourceId),
-            eq(users.organization_id, organizationId)
-          )
-        )
-        .limit(1);
-
-      return roomWithOrg.length > 0;
+      // User is neither a participant nor the room creator - deny access
+      return false;
     }
 
     case "credits": {
