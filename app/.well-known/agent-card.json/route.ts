@@ -239,16 +239,6 @@ export async function GET() {
         outputModes: ["data"],
       },
 
-      // ===== Conversation Skills =====
-      {
-        id: "create_conversation",
-        name: "Create Conversation",
-        description: "Create a new conversation context with settings.",
-        tags: ["conversation", "management"],
-        inputModes: ["data"],
-        outputModes: ["data"],
-      },
-
       // ===== Billing Skills =====
       {
         id: "check_balance",

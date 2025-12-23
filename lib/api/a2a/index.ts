@@ -17,10 +17,8 @@ export {
   executeSkillChatWithAgent,
   executeSkillSaveMemory,
   executeSkillRetrieveMemories,
-  executeSkillCreateConversation,
   executeSkillListContainers,
   executeSkillDeleteMemory,
-  executeSkillGetConversationContext,
   executeSkillVideoGeneration,
   executeSkillGetUserProfile,
 } from "./skills";

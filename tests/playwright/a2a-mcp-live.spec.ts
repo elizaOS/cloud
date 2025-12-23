@@ -399,8 +399,6 @@ Available Skills (${data.skills?.length || 0}):
 ├── save_memory     - Save a memory
 ├── retrieve_memories - Retrieve memories
 ├── delete_memory   - Delete a memory
-├── create_conversation - Create conversation
-├── get_conversation_context - Get conversation details
 ├── list_containers - List deployed containers
 └── get_user_profile - Get user profile
 

@@ -58,8 +58,6 @@ export const A2A_SKILLS = [
   "save_memory",
   "retrieve_memories",
   "delete_memory",
-  "create_conversation",
-  "get_conversation_context",
   "list_containers",
   "get_user_profile",
 ] as const;

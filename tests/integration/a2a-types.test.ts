@@ -79,7 +79,7 @@ describe("A2A Task", () => {
     const task = createTask("t1", "working");
     task.status = createTaskStatus(
       "completed",
-      createMessage("agent", [createTextPart("Done")]),
+      createMessage("agent", [createTextPart("Done")])
     );
 
     expect(task.status.state).toBe("completed");
@@ -94,7 +94,7 @@ describe("A2A Artifact", () => {
       "output",
       "description",
       0,
-      { cost: 0.001 },
+      { cost: 0.001 }
     );
 
     expect(artifact.name).toBe("output");
@@ -160,7 +160,7 @@ describe("A2A Configuration", () => {
     expect(A2A_SKILLS).toContain("check_balance");
     expect(A2A_SKILLS).toContain("list_agents");
     expect(A2A_SKILLS).toContain("save_memory");
-    expect(A2A_SKILLS.length).toBe(14);
+    expect(A2A_SKILLS.length).toBe(12);
   });
 
   test("rate limits scale with trust", () => {

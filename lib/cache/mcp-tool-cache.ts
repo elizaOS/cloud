@@ -30,8 +30,7 @@ const TOOL_CACHE_TTLS: Record<string, number> = {
 
   // Paid tools (cache carefully to avoid stale data)
   retrieve_memories: 60, // Memories can be cached briefly
-  get_conversation_context: 45, // Context changes with new messages
-  search_conversations: 120, // Search results relatively stable (2 min)
+  get_conversation_context: 45, // Room context changes with new messages
 
   // Never cache these (write operations or highly dynamic):
   // - generate_text
@@ -39,7 +38,6 @@ const TOOL_CACHE_TTLS: Record<string, number> = {
   // - save_memory
   // - delete_memory
   // - chat_with_agent
-  // - create_conversation
   // - etc.
 };
 
