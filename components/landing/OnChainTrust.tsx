@@ -77,7 +77,7 @@ export default function OnChainTrust() {
         <div className="mb-8 md:mb-8 flex flex-col md:flex-row items-start md:justify-between gap-6">
           <div className="max-w-4xl">
             <motion.div className="mb-1 md:mb-2">
-              <SectionLabel>Build Autonomous Agents</SectionLabel>
+              <SectionLabel><span className="normal-case">Build Autonomous Agents</span></SectionLabel>
             </motion.div>
 
             <motion.h2
