@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { db } from "../client";
+import { dbRead, dbWrite } from "../helpers";
 import { users, type User, type NewUser } from "../schemas/users";
 import { type Organization } from "../schemas/organizations";
 
@@ -14,13 +14,20 @@ export interface UserWithOrganization extends User {
 
 /**
  * Repository for user database operations.
+ *
+ * Read operations → dbRead (read replica)
+ * Write operations → dbWrite (primary)
  */
 export class UsersRepository {
+  // ============================================================================
+  // READ OPERATIONS (use read replica)
+  // ============================================================================
+
   /**
    * Finds a user by ID.
    */
   async findById(id: string): Promise<User | undefined> {
-    return await db.query.users.findFirst({
+    return await dbRead.query.users.findFirst({
       where: eq(users.id, id),
     });
   }
@@ -29,7 +36,7 @@ export class UsersRepository {
    * Finds a user by email address.
    */
   async findByEmail(email: string): Promise<User | undefined> {
-    return await db.query.users.findFirst({
+    return await dbRead.query.users.findFirst({
       where: eq(users.email, email),
     });
   }
@@ -40,7 +47,7 @@ export class UsersRepository {
   async findByPrivyIdWithOrganization(
     privyUserId: string,
   ): Promise<UserWithOrganization | undefined> {
-    const user = await db.query.users.findFirst({
+    const user = await dbRead.query.users.findFirst({
       where: eq(users.privy_user_id, privyUserId),
       with: {
         organization: true,
@@ -56,7 +63,7 @@ export class UsersRepository {
   async findWithOrganization(
     userId: string,
   ): Promise<UserWithOrganization | undefined> {
-    const user = await db.query.users.findFirst({
+    const user = await dbRead.query.users.findFirst({
       where: eq(users.id, userId),
       with: {
         organization: true,
@@ -72,7 +79,7 @@ export class UsersRepository {
   async findByEmailWithOrganization(
     email: string,
   ): Promise<UserWithOrganization | undefined> {
-    const user = await db.query.users.findFirst({
+    const user = await dbRead.query.users.findFirst({
       where: eq(users.email, email),
       with: {
         organization: true,
@@ -86,7 +93,7 @@ export class UsersRepository {
    * Finds a user by wallet address (case-insensitive).
    */
   async findByWalletAddress(walletAddress: string): Promise<User | undefined> {
-    return await db.query.users.findFirst({
+    return await dbRead.query.users.findFirst({
       where: eq(users.wallet_address, walletAddress.toLowerCase()),
     });
   }
@@ -97,7 +104,7 @@ export class UsersRepository {
   async findByWalletAddressWithOrganization(
     walletAddress: string,
   ): Promise<UserWithOrganization | undefined> {
-    const user = await db.query.users.findFirst({
+    const user = await dbRead.query.users.findFirst({
       where: eq(users.wallet_address, walletAddress.toLowerCase()),
       with: {
         organization: true,
@@ -111,16 +118,20 @@ export class UsersRepository {
    * Lists all users in an organization.
    */
   async listByOrganization(organizationId: string): Promise<User[]> {
-    return await db.query.users.findMany({
+    return await dbRead.query.users.findMany({
       where: eq(users.organization_id, organizationId),
     });
   }
+
+  // ============================================================================
+  // WRITE OPERATIONS (use primary)
+  // ============================================================================
 
   /**
    * Creates a new user.
    */
   async create(data: NewUser): Promise<User> {
-    const [user] = await db.insert(users).values(data).returning();
+    const [user] = await dbWrite.insert(users).values(data).returning();
     return user;
   }
 
@@ -128,7 +139,7 @@ export class UsersRepository {
    * Updates an existing user.
    */
   async update(id: string, data: Partial<NewUser>): Promise<User | undefined> {
-    const [updated] = await db
+    const [updated] = await dbWrite
       .update(users)
       .set({
         ...data,
@@ -143,7 +154,7 @@ export class UsersRepository {
    * Deletes a user by ID.
    */
   async delete(id: string): Promise<void> {
-    await db.delete(users).where(eq(users.id, id));
+    await dbWrite.delete(users).where(eq(users.id, id));
   }
 }
 

@@ -11,7 +11,7 @@ import {
   type ContainerStatus,
 } from "@/db/repositories/containers";
 import type { Database } from "@/db/client";
-import { db } from "@/db/client";
+import { dbWrite } from "@/db/client";
 import { containers } from "@/db/schemas/containers";
 import { eq } from "drizzle-orm";
 
@@ -179,7 +179,7 @@ export const updateContainerStatus = async (
     updateData.last_deployed_at = new Date();
   }
 
-  const [container] = await db
+  const [container] = await dbWrite
     .update(containers)
     .set(updateData)
     .where(eq(containers.id, id))

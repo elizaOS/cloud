@@ -21,7 +21,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/db/client";
+import { dbRead, dbWrite } from "@/db/client";
 import { users, anonymousSessions, conversations } from "@/db/schemas";
 import { and, eq, lt } from "drizzle-orm";
 import { logger } from "@/lib/utils/logger";
@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
     let deletedConversations = 0;
 
     // Step 1: Find expired anonymous users
-    const expiredUsers = await db
+    const expiredUsers = await dbRead
       .select()
       .from(users)
       .where(
@@ -85,7 +85,7 @@ export async function GET(request: NextRequest) {
       const userIds = expiredUsers.map((u) => u.id);
 
       // Count conversations to be deleted
-      const conversationsToDelete = await db.select().from(conversations).where(
+      const conversationsToDelete = await dbRead.select().from(conversations).where(
         eq(conversations.user_id, userIds[0]), // We'll delete one by one
       );
 
@@ -93,7 +93,7 @@ export async function GET(request: NextRequest) {
 
       // Delete expired users (this will cascade to sessions and conversations)
       for (const user of expiredUsers) {
-        await db.delete(users).where(eq(users.id, user.id));
+        await dbWrite.delete(users).where(eq(users.id, user.id));
         deletedUsers++;
       }
 
@@ -104,7 +104,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Step 3: Delete expired sessions (in case user wasn't deleted)
-    const expiredSessions = await db
+    const expiredSessions = await dbWrite
       .delete(anonymousSessions)
       .where(lt(anonymousSessions.expires_at, now))
       .returning();
@@ -116,7 +116,7 @@ export async function GET(request: NextRequest) {
     // Step 4: Clean up inactive anonymous users (over 7 days old, no messages)
     const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-    const inactiveUsersWithSessions = await db
+    const inactiveUsersWithSessions = await dbRead
       .select({
         userId: users.id,
         messageCount: anonymousSessions.message_count,
@@ -131,7 +131,7 @@ export async function GET(request: NextRequest) {
     let deletedInactiveUsers = 0;
     for (const record of inactiveUsersWithSessions) {
       if (record.messageCount === 0) {
-        await db.delete(users).where(eq(users.id, record.userId));
+        await dbWrite.delete(users).where(eq(users.id, record.userId));
         deletedInactiveUsers++;
       }
     }

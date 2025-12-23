@@ -13,7 +13,7 @@
  * - Low budget alerts
  */
 
-import { db } from "@/db/client";
+import { dbRead, dbWrite } from "@/db/client";
 import {
   agentBudgets,
   agentBudgetTransactions,
@@ -93,7 +93,7 @@ class AgentBudgetService {
    */
   async getOrCreateBudget(agentId: string): Promise<AgentBudget | null> {
     // Get agent to find owner org
-    const agent = await db.query.userCharacters.findFirst({
+    const agent = await dbRead.query.userCharacters.findFirst({
       where: eq(userCharacters.id, agentId),
     });
 
@@ -102,14 +102,14 @@ class AgentBudgetService {
     }
 
     // Check for existing budget
-    let [budget] = await db
+    let [budget] = await dbRead
       .select()
       .from(agentBudgets)
       .where(eq(agentBudgets.agent_id, agentId));
 
     if (!budget) {
       // Create new budget with defaults
-      [budget] = await db
+      [budget] = await dbWrite
         .insert(agentBudgets)
         .values({
           agent_id: agentId,
@@ -134,7 +134,7 @@ class AgentBudgetService {
    * Get budget by agent ID
    */
   async getBudget(agentId: string): Promise<AgentBudget | null> {
-    const [budget] = await db
+    const [budget] = await dbRead
       .select()
       .from(agentBudgets)
       .where(eq(agentBudgets.agent_id, agentId));
@@ -244,7 +244,7 @@ class AgentBudgetService {
       };
     }
 
-    return await db.transaction(async (tx) => {
+    return await dbWrite.transaction(async (tx) => {
       // Lock the budget row
       const [budget] = await tx
         .select()
@@ -425,7 +425,7 @@ class AgentBudgetService {
       return { success: false, newBalance: 0, error: "Agent not found" };
     }
 
-    return await db.transaction(async (tx) => {
+    return await dbWrite.transaction(async (tx) => {
       // Lock budget row
       const [lockedBudget] = await tx
         .select()
@@ -550,7 +550,7 @@ class AgentBudgetService {
     });
 
     if (result.success) {
-      await db
+      await dbWrite
         .update(agentBudgets)
         .set({ last_refill_at: new Date(), updated_at: new Date() })
         .where(eq(agentBudgets.id, budget.id));
@@ -574,7 +574,7 @@ class AgentBudgetService {
    * Pause an agent's budget
    */
   async pauseBudget(agentId: string, reason: string): Promise<void> {
-    await db
+    await dbWrite
       .update(agentBudgets)
       .set({
         is_paused: true,
@@ -591,7 +591,7 @@ class AgentBudgetService {
    * Resume an agent's budget
    */
   async resumeBudget(agentId: string): Promise<void> {
-    await db
+    await dbWrite
       .update(agentBudgets)
       .set({
         is_paused: false,
@@ -647,7 +647,7 @@ class AgentBudgetService {
         : null;
     }
 
-    await db
+    await dbWrite
       .update(agentBudgets)
       .set(updateData)
       .where(eq(agentBudgets.id, budget.id));
@@ -669,7 +669,7 @@ class AgentBudgetService {
       return [];
     }
 
-    return await db.query.agentBudgetTransactions.findMany({
+    return await dbRead.query.agentBudgetTransactions.findMany({
       where: eq(agentBudgetTransactions.budget_id, budget.id),
       orderBy: (t, { desc }) => desc(t.created_at),
       limit,
@@ -680,7 +680,7 @@ class AgentBudgetService {
    * Get all budgets for an organization
    */
   async getOrgBudgets(orgId: string): Promise<AgentBudget[]> {
-    return await db.query.agentBudgets.findMany({
+    return await dbRead.query.agentBudgets.findMany({
       where: eq(agentBudgets.owner_org_id, orgId),
     });
   }
@@ -697,7 +697,7 @@ class AgentBudgetService {
     failedAgents: string[];
   }> {
     // Find all budgets that need refilling
-    const budgetsToRefill = await db
+    const budgetsToRefill = await dbRead
       .select()
       .from(agentBudgets)
       .where(
@@ -727,7 +727,7 @@ class AgentBudgetService {
         });
 
         if (result.success) {
-          await db
+          await dbWrite
             .update(agentBudgets)
             .set({ last_refill_at: new Date(), updated_at: new Date() })
             .where(eq(agentBudgets.id, budget.id));
@@ -760,7 +760,7 @@ class AgentBudgetService {
   private async maybeResetDailySpent(budget: AgentBudget): Promise<void> {
     const now = new Date();
     if (budget.daily_reset_at && now >= budget.daily_reset_at) {
-      await db
+      await dbWrite
         .update(agentBudgets)
         .set({
           daily_spent: "0.0000",
@@ -776,13 +776,13 @@ class AgentBudgetService {
     balance: number,
   ): Promise<boolean> {
     // Mark alert as sent
-    await db
+    await dbWrite
       .update(agentBudgets)
       .set({ low_budget_alert_sent: true, updated_at: new Date() })
       .where(eq(agentBudgets.agent_id, agentId));
 
     // Get agent and organization info for email
-    const [agentInfo] = await db
+    const [agentInfo] = await dbRead
       .select({
         agentName: userCharacters.name,
         organizationId: userCharacters.organization_id,
@@ -800,7 +800,7 @@ class AgentBudgetService {
     }
 
     // Get billing email from organization or owner
-    const [orgInfo] = await db
+    const [orgInfo] = await dbRead
       .select({
         billingEmail: organizations.billing_email,
         orgName: organizations.name,
@@ -813,7 +813,7 @@ class AgentBudgetService {
 
     // Fallback to owner's email if no billing email
     if (!recipientEmail && agentInfo.ownerId) {
-      const [ownerInfo] = await db
+      const [ownerInfo] = await dbRead
         .select({ email: users.email })
         .from(users)
         .where(eq(users.id, agentInfo.ownerId))

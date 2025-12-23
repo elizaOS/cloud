@@ -10,7 +10,7 @@ import {
   type NewCreditTransaction,
   type CreditPack,
 } from "@/db/repositories";
-import { db } from "@/db/client";
+import { dbWrite } from "@/db/helpers";
 import { organizations } from "@/db/schemas/organizations";
 import { creditTransactions } from "@/db/schemas/credit-transactions";
 import { eq } from "drizzle-orm";
@@ -140,7 +140,7 @@ export class CreditsService {
 
     // FIXED: Wrap in atomic transaction to prevent inconsistency between
     // transaction record and balance update
-    const result = await db
+    const result = await dbWrite
       .transaction(async (tx) => {
         // Double-check inside transaction to handle race condition where both
         // threads passed the first check but haven't inserted yet
@@ -268,7 +268,7 @@ export class CreditsService {
     // CRITICAL FIX: Wrap entire operation in atomic transaction with row-level
     // locking to prevent race conditions where concurrent requests could cause
     // negative balance (TOCTOU vulnerability)
-    return await db
+    return await dbWrite
       .transaction(async (tx) => {
         // Lock the organization row with FOR UPDATE to prevent concurrent access
         // This ensures atomicity and prevents race conditions
@@ -508,7 +508,7 @@ export class CreditsService {
       throw new Error("Refund amount must be positive");
     }
 
-    return await db
+    return await dbWrite
       .transaction(async (tx) => {
         // Lock the organization row
         const [org] = await tx

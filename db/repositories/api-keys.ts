@@ -1,18 +1,25 @@
 import { eq, and, sql } from "drizzle-orm";
-import { db } from "../client";
+import { dbRead, dbWrite } from "../helpers";
 import { apiKeys, type ApiKey, type NewApiKey } from "../schemas/api-keys";
 
 export type { ApiKey, NewApiKey };
 
 /**
  * Repository for API key database operations.
+ *
+ * Read operations → dbRead (read replica)
+ * Write operations → dbWrite (NA primary)
  */
 export class ApiKeysRepository {
+  // ============================================================================
+  // READ OPERATIONS (use read replica)
+  // ============================================================================
+
   /**
    * Finds an API key by ID.
    */
   async findById(id: string): Promise<ApiKey | undefined> {
-    return await db.query.apiKeys.findFirst({
+    return await dbRead.query.apiKeys.findFirst({
       where: eq(apiKeys.id, id),
     });
   }
@@ -21,7 +28,7 @@ export class ApiKeysRepository {
    * Finds an API key by its hash.
    */
   async findByHash(hash: string): Promise<ApiKey | undefined> {
-    return await db.query.apiKeys.findFirst({
+    return await dbRead.query.apiKeys.findFirst({
       where: eq(apiKeys.key_hash, hash),
     });
   }
@@ -30,7 +37,7 @@ export class ApiKeysRepository {
    * Finds an active, non-expired API key by hash.
    */
   async findActiveByHash(hash: string): Promise<ApiKey | undefined> {
-    const apiKey = await db.query.apiKeys.findFirst({
+    const apiKey = await dbRead.query.apiKeys.findFirst({
       where: and(eq(apiKeys.key_hash, hash), eq(apiKeys.is_active, true)),
     });
 
@@ -50,16 +57,20 @@ export class ApiKeysRepository {
    * Lists all API keys for an organization.
    */
   async listByOrganization(organizationId: string): Promise<ApiKey[]> {
-    return await db.query.apiKeys.findMany({
+    return await dbRead.query.apiKeys.findMany({
       where: eq(apiKeys.organization_id, organizationId),
     });
   }
+
+  // ============================================================================
+  // WRITE OPERATIONS (use NA primary)
+  // ============================================================================
 
   /**
    * Creates a new API key.
    */
   async create(data: NewApiKey): Promise<ApiKey> {
-    const [apiKey] = await db.insert(apiKeys).values(data).returning();
+    const [apiKey] = await dbWrite.insert(apiKeys).values(data).returning();
     return apiKey;
   }
 
@@ -70,7 +81,7 @@ export class ApiKeysRepository {
     id: string,
     data: Partial<NewApiKey>,
   ): Promise<ApiKey | undefined> {
-    const [updated] = await db
+    const [updated] = await dbWrite
       .update(apiKeys)
       .set({
         ...data,
@@ -87,7 +98,7 @@ export class ApiKeysRepository {
    * Uses SQL atomic increment to prevent race conditions.
    */
   async incrementUsage(id: string): Promise<void> {
-    await db
+    await dbWrite
       .update(apiKeys)
       .set({
         usage_count: sql`${apiKeys.usage_count} + 1`,
@@ -101,7 +112,7 @@ export class ApiKeysRepository {
    * Deletes an API key by ID.
    */
   async delete(id: string): Promise<void> {
-    await db.delete(apiKeys).where(eq(apiKeys.id, id));
+    await dbWrite.delete(apiKeys).where(eq(apiKeys.id, id));
   }
 }
 

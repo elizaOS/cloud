@@ -13,7 +13,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
 import { secureTokenRedemptionService } from "@/lib/services/token-redemption-secure";
-import { db } from "@/db/client";
+import { dbRead } from "@/db/client";
 import { tokenRedemptions } from "@/db/schemas/token-redemptions";
 import { users } from "@/db/schemas/users";
 import { apps } from "@/db/schemas/apps";
@@ -51,7 +51,7 @@ async function listPendingRedemptionsHandler(
         : [statusFilter];
 
   // Get redemptions with user and app info
-  const redemptions = await db
+  const redemptions = await dbRead
     .select({
       id: tokenRedemptions.id,
       user_id: tokenRedemptions.user_id,
@@ -84,7 +84,7 @@ async function listPendingRedemptionsHandler(
     .limit(limit);
 
   // Get summary counts
-  const counts = await db
+  const counts = await dbRead
     .select({
       status: tokenRedemptions.status,
       count: sql<number>`COUNT(*)`,

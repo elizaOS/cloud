@@ -1,4 +1,4 @@
-import { db } from "@/db/client";
+import { dbRead, dbWrite } from "@/db/helpers";
 import {
   cliAuthSessions,
   type CliAuthSession,
@@ -12,20 +12,9 @@ export type { CliAuthSession, NewCliAuthSession };
  * Repository for CLI authentication session database operations.
  */
 export class CliAuthSessionsRepository {
-  /**
-   * Creates a new CLI auth session.
-   *
-   * @throws Error if session creation fails.
-   */
-  async create(data: NewCliAuthSession): Promise<CliAuthSession> {
-    const [session] = await db.insert(cliAuthSessions).values(data).returning();
-
-    if (!session) {
-      throw new Error("Failed to create CLI auth session");
-    }
-
-    return session;
-  }
+  // ============================================================================
+  // READ OPERATIONS (use read replica)
+  // ============================================================================
 
   /**
    * Finds a CLI auth session by session ID.
@@ -33,7 +22,7 @@ export class CliAuthSessionsRepository {
   async findBySessionId(
     sessionId: string,
   ): Promise<CliAuthSession | undefined> {
-    const [session] = await db
+    const [session] = await dbRead
       .select()
       .from(cliAuthSessions)
       .where(eq(cliAuthSessions.session_id, sessionId))
@@ -49,7 +38,7 @@ export class CliAuthSessionsRepository {
     sessionId: string,
   ): Promise<CliAuthSession | undefined> {
     const now = new Date();
-    const [session] = await db
+    const [session] = await dbRead
       .select()
       .from(cliAuthSessions)
       .where(
@@ -63,6 +52,25 @@ export class CliAuthSessionsRepository {
     return session;
   }
 
+  // ============================================================================
+  // WRITE OPERATIONS (use NA primary)
+  // ============================================================================
+
+  /**
+   * Creates a new CLI auth session.
+   *
+   * @throws Error if session creation fails.
+   */
+  async create(data: NewCliAuthSession): Promise<CliAuthSession> {
+    const [session] = await dbWrite.insert(cliAuthSessions).values(data).returning();
+
+    if (!session) {
+      throw new Error("Failed to create CLI auth session");
+    }
+
+    return session;
+  }
+
   /**
    * Updates an existing CLI auth session.
    */
@@ -70,7 +78,7 @@ export class CliAuthSessionsRepository {
     sessionId: string,
     data: Partial<NewCliAuthSession>,
   ): Promise<CliAuthSession | undefined> {
-    const [updated] = await db
+    const [updated] = await dbWrite
       .update(cliAuthSessions)
       .set({
         ...data,
@@ -104,7 +112,7 @@ export class CliAuthSessionsRepository {
    * Clears the plain API key from a session (for security after retrieval).
    */
   async clearPlainKey(sessionId: string): Promise<void> {
-    await db
+    await dbWrite
       .update(cliAuthSessions)
       .set({
         api_key_plain: null,
@@ -117,7 +125,7 @@ export class CliAuthSessionsRepository {
    * Marks a session as expired.
    */
   async markExpired(sessionId: string): Promise<void> {
-    await db
+    await dbWrite
       .update(cliAuthSessions)
       .set({
         status: "expired",
@@ -131,7 +139,7 @@ export class CliAuthSessionsRepository {
    */
   async deleteExpiredSessions(): Promise<void> {
     const now = new Date();
-    await db.delete(cliAuthSessions).where(lt(cliAuthSessions.expires_at, now));
+    await dbWrite.delete(cliAuthSessions).where(lt(cliAuthSessions.expires_at, now));
   }
 }
 

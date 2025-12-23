@@ -12,7 +12,7 @@
  * 5. Logs all price fetches for audit trail
  */
 
-import { db } from "@/db/client";
+import { dbRead, dbWrite } from "@/db/client";
 import { elizaTokenPrices } from "@/db/schemas/token-redemptions";
 import { eq, and, gte, desc } from "drizzle-orm";
 import { logger } from "@/lib/utils/logger";
@@ -431,7 +431,7 @@ export class ElizaTokenPriceService {
     const now = new Date();
     const minExpiresAt = new Date(now.getTime() - PRICE_CACHE_TTL_MS);
 
-    const cached = await db.query.elizaTokenPrices.findFirst({
+    const cached = await dbRead.query.elizaTokenPrices.findFirst({
       where: and(
         eq(elizaTokenPrices.network, network),
         gte(elizaTokenPrices.fetched_at, minExpiresAt),
@@ -459,7 +459,7 @@ export class ElizaTokenPriceService {
     network: SupportedNetwork,
     quote: PriceQuote,
   ): Promise<void> {
-    await db.insert(elizaTokenPrices).values({
+    await dbWrite.insert(elizaTokenPrices).values({
       network,
       price_usd: String(quote.priceUsd),
       source: quote.source,

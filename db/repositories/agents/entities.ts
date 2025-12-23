@@ -4,7 +4,7 @@
  * Handles all database operations for entities without spinning up runtime.
  */
 
-import { db } from "@/db/client";
+import { dbRead, dbWrite } from "@/db/helpers";
 import { entityTable } from "@/db/schemas/eliza";
 import { eq, inArray, sql } from "drizzle-orm";
 import type { Entity, UUID } from "@elizaos/core";
@@ -23,13 +23,17 @@ export interface CreateEntityInput {
  * Repository for ElizaOS entity database operations.
  */
 export class EntitiesRepository {
+  // ============================================================================
+  // READ OPERATIONS (use read replica)
+  // ============================================================================
+
   /**
    * Gets an entity by ID.
    *
    * @param entityId - User's database ID (UUID).
    */
   async findById(entityId: string): Promise<Entity | null> {
-    const result = await db
+    const result = await dbRead
       .select()
       .from(entityTable)
       .where(eq(entityTable.id, entityId))
@@ -44,7 +48,7 @@ export class EntitiesRepository {
   async findByIds(entityIds: string[]): Promise<Entity[]> {
     if (entityIds.length === 0) return [];
 
-    const results = await db
+    const results = await dbRead
       .select()
       .from(entityTable)
       .where(inArray(entityTable.id, entityIds));
@@ -56,7 +60,7 @@ export class EntitiesRepository {
    * Gets entities by agent ID.
    */
   async findByAgentId(agentId: string, limit = 100): Promise<Entity[]> {
-    const results = await db
+    const results = await dbRead
       .select()
       .from(entityTable)
       .where(eq(entityTable.agentId, agentId))
@@ -69,7 +73,7 @@ export class EntitiesRepository {
    * Checks if an entity exists.
    */
   async exists(entityId: string): Promise<boolean> {
-    const result = await db
+    const result = await dbRead
       .select({ id: entityTable.id })
       .from(entityTable)
       .where(eq(entityTable.id, entityId))
@@ -79,80 +83,10 @@ export class EntitiesRepository {
   }
 
   /**
-   * Creates a new entity.
-   *
-   * Both entityId and agentId should be UUIDs from our database.
-   * Returns existing entity if already present.
-   */
-  async create(input: CreateEntityInput): Promise<Entity> {
-    // Check if already exists
-    const existing = await this.findById(input.id);
-    if (existing) {
-      return existing;
-    }
-
-    const [entity] = await db
-      .insert(entityTable)
-      .values({
-        id: input.id,
-        agentId: input.agentId,
-        names: input.names,
-        metadata: input.metadata,
-        createdAt: new Date(),
-      })
-      .returning();
-
-    return entity;
-  }
-
-  /**
-   * Updates entity names.
-   */
-  async updateNames(entityId: string, names: string[]): Promise<Entity> {
-    const [entity] = await db
-      .update(entityTable)
-      .set({ names })
-      .where(eq(entityTable.id, entityId))
-      .returning();
-
-    return entity;
-  }
-
-  /**
-   * Updates entity metadata.
-   */
-  async updateMetadata(
-    entityId: string,
-    metadata: Record<string, unknown>,
-  ): Promise<Entity> {
-    const [entity] = await db
-      .update(entityTable)
-      .set({ metadata })
-      .where(eq(entityTable.id, entityId))
-      .returning();
-
-    return entity;
-  }
-
-  /**
-   * Deletes an entity.
-   *
-   * @returns True if entity was deleted, false if not found.
-   */
-  async delete(entityId: string): Promise<boolean> {
-    const result = await db
-      .delete(entityTable)
-      .where(eq(entityTable.id, entityId))
-      .returning({ id: entityTable.id });
-
-    return result.length > 0;
-  }
-
-  /**
    * Counts entities for an agent.
    */
   async countByAgentId(agentId: string): Promise<number> {
-    const result = await db
+    const result = await dbRead
       .select({ count: sql<number>`count(*)` })
       .from(entityTable)
       .where(eq(entityTable.agentId, agentId));
@@ -164,7 +98,7 @@ export class EntitiesRepository {
    * Finds an entity by name within an agent's entities.
    */
   async findByName(agentId: string, name: string): Promise<Entity | null> {
-    const result = await db.execute<{
+    const result = await dbRead.execute<{
       id: string;
       agent_id: string;
       names: string[];
@@ -198,7 +132,7 @@ export class EntitiesRepository {
     namePattern: string,
     limit = 10,
   ): Promise<Entity[]> {
-    const result = await db.execute<{
+    const result = await dbRead.execute<{
       id: string;
       agent_id: string;
       names: string[];
@@ -225,6 +159,80 @@ export class EntitiesRepository {
           createdAt: row.created_at.getTime(),
         }) as Entity,
     );
+  }
+
+  // ============================================================================
+  // WRITE OPERATIONS (use NA primary)
+  // ============================================================================
+
+  /**
+   * Creates a new entity.
+   *
+   * Both entityId and agentId should be UUIDs from our database.
+   * Returns existing entity if already present.
+   */
+  async create(input: CreateEntityInput): Promise<Entity> {
+    // Check if already exists
+    const existing = await this.findById(input.id);
+    if (existing) {
+      return existing;
+    }
+
+    const [entity] = await dbWrite
+      .insert(entityTable)
+      .values({
+        id: input.id,
+        agentId: input.agentId,
+        names: input.names,
+        metadata: input.metadata,
+        createdAt: new Date(),
+      })
+      .returning();
+
+    return entity;
+  }
+
+  /**
+   * Updates entity names.
+   */
+  async updateNames(entityId: string, names: string[]): Promise<Entity> {
+    const [entity] = await dbWrite
+      .update(entityTable)
+      .set({ names })
+      .where(eq(entityTable.id, entityId))
+      .returning();
+
+    return entity;
+  }
+
+  /**
+   * Updates entity metadata.
+   */
+  async updateMetadata(
+    entityId: string,
+    metadata: Record<string, unknown>,
+  ): Promise<Entity> {
+    const [entity] = await dbWrite
+      .update(entityTable)
+      .set({ metadata })
+      .where(eq(entityTable.id, entityId))
+      .returning();
+
+    return entity;
+  }
+
+  /**
+   * Deletes an entity.
+   *
+   * @returns True if entity was deleted, false if not found.
+   */
+  async delete(entityId: string): Promise<boolean> {
+    const result = await dbWrite
+      .delete(entityTable)
+      .where(eq(entityTable.id, entityId))
+      .returning({ id: entityTable.id });
+
+    return result.length > 0;
   }
 }
 

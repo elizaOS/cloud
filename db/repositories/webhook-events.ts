@@ -1,5 +1,5 @@
 import { eq, lt, and } from "drizzle-orm";
-import { db } from "../client";
+import { dbRead, dbWrite } from "../helpers";
 import {
   webhookEvents,
   type WebhookEvent,
@@ -9,11 +9,15 @@ import {
 export type { WebhookEvent, NewWebhookEvent };
 
 export class WebhookEventsRepository {
+  // ============================================================================
+  // READ OPERATIONS (use read replica)
+  // ============================================================================
+
   /**
    * Find a webhook event by its unique event ID.
    */
   async findByEventId(eventId: string): Promise<WebhookEvent | undefined> {
-    return await db.query.webhookEvents.findFirst({
+    return await dbRead.query.webhookEvents.findFirst({
       where: eq(webhookEvents.event_id, eventId),
     });
   }
@@ -26,11 +30,15 @@ export class WebhookEventsRepository {
     return !!event;
   }
 
+  // ============================================================================
+  // WRITE OPERATIONS (use NA primary)
+  // ============================================================================
+
   /**
    * Record a processed webhook event.
    */
   async create(data: NewWebhookEvent): Promise<WebhookEvent> {
-    const [event] = await db
+    const [event] = await dbWrite
       .insert(webhookEvents)
       .values({
         ...data,
@@ -49,7 +57,7 @@ export class WebhookEventsRepository {
     data: NewWebhookEvent
   ): Promise<{ created: true; event: WebhookEvent } | { created: false }> {
     try {
-      const [event] = await db
+      const [event] = await dbWrite
         .insert(webhookEvents)
         .values({
           ...data,
@@ -79,7 +87,7 @@ export class WebhookEventsRepository {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
 
-    const result = await db
+    const result = await dbWrite
       .delete(webhookEvents)
       .where(lt(webhookEvents.processed_at, cutoffDate))
       .returning();
@@ -97,7 +105,7 @@ export class WebhookEventsRepository {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
 
-    const result = await db
+    const result = await dbWrite
       .delete(webhookEvents)
       .where(
         and(

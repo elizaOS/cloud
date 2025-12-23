@@ -1,5 +1,5 @@
 import { eq, desc, and, gte, lte, sql, type SQL } from "drizzle-orm";
-import { db } from "../client";
+import { dbRead, dbWrite } from "../helpers";
 import {
   usageRecords,
   type UsageRecord,
@@ -116,11 +116,15 @@ export interface CostBreakdownItem {
  * Repository for usage record database operations and analytics.
  */
 export class UsageRecordsRepository {
+  // ============================================================================
+  // READ OPERATIONS (use read replica)
+  // ============================================================================
+
   /**
    * Finds a usage record by ID.
    */
   async findById(id: string): Promise<UsageRecord | undefined> {
-    return await db.query.usageRecords.findFirst({
+    return await dbRead.query.usageRecords.findFirst({
       where: eq(usageRecords.id, id),
     });
   }
@@ -132,7 +136,7 @@ export class UsageRecordsRepository {
     organizationId: string,
     limit?: number,
   ): Promise<UsageRecord[]> {
-    return await db.query.usageRecords.findMany({
+    return await dbRead.query.usageRecords.findMany({
       where: eq(usageRecords.organization_id, organizationId),
       orderBy: desc(usageRecords.created_at),
       limit,
@@ -147,7 +151,7 @@ export class UsageRecordsRepository {
     startDate: Date,
     endDate: Date,
   ): Promise<UsageRecord[]> {
-    return await db.query.usageRecords.findMany({
+    return await dbRead.query.usageRecords.findMany({
       where: and(
         eq(usageRecords.organization_id, organizationId),
         gte(usageRecords.created_at, startDate),
@@ -176,7 +180,7 @@ export class UsageRecordsRepository {
       conditions.push(sql`${usageRecords.created_at} <= ${endDate}`);
     }
 
-    const [stats] = await db
+    const [stats] = await dbRead
       .select({
         totalRequests: sql<number>`count(*)::int`,
         totalInputTokens: sql<number>`coalesce(sum(${usageRecords.input_tokens}), 0)::int`,
@@ -198,14 +202,6 @@ export class UsageRecordsRepository {
       totalCost: Number(stats?.totalCost || 0), // Convert NUMERIC to number
       successRate: stats?.successRate || 1.0,
     };
-  }
-
-  /**
-   * Creates a new usage record.
-   */
-  async create(data: NewUsageRecord): Promise<UsageRecord> {
-    const [record] = await db.insert(usageRecords).values(data).returning();
-    return record;
   }
 
   /**
@@ -233,7 +229,7 @@ export class UsageRecordsRepository {
       conditions.push(lte(usageRecords.created_at, endDate));
     }
 
-    const result = await db
+    const result = await dbRead
       .select({
         model: usageRecords.model,
         provider: usageRecords.provider,
@@ -272,7 +268,7 @@ export class UsageRecordsRepository {
       month: sql`date_trunc('month', ${usageRecords.created_at})`,
     }[granularity];
 
-    const result = await db
+    const result = await dbRead
       .select({
         timestamp: truncateExpression.as("timestamp"),
         totalRequests: sql<number>`count(*)::int`,
@@ -330,7 +326,7 @@ export class UsageRecordsRepository {
       conditions.push(sql`${usageRecords.created_at} <= ${endDate}`);
     }
 
-    const result = await db
+    const result = await dbRead
       .select({
         userId: usageRecords.user_id,
         userName: users.name,
@@ -377,7 +373,7 @@ export class UsageRecordsRepository {
     const [currentStats, previousStats, orgData] = await Promise.all([
       this.getStatsByOrganization(organizationId, yesterday, now),
       this.getStatsByOrganization(organizationId, twoDaysAgo, yesterday),
-      db.query.organizations.findFirst({
+      dbRead.query.organizations.findFirst({
         where: eq(organizations.id, organizationId),
         columns: { credit_balance: true },
       }),
@@ -424,7 +420,7 @@ export class UsageRecordsRepository {
       conditions.push(sql`${usageRecords.created_at} <= ${options.endDate}`);
     }
 
-    const result = await db
+    const result = await dbRead
       .select({
         provider: usageRecords.provider,
         totalRequests: sql<number>`count(*)::int`,
@@ -481,7 +477,7 @@ export class UsageRecordsRepository {
       conditions.push(sql`${usageRecords.created_at} <= ${endDate}`);
     }
 
-    const result = await db
+    const result = await dbRead
       .select({
         model: usageRecords.model,
         provider: usageRecords.provider,
@@ -618,7 +614,7 @@ export class UsageRecordsRepository {
 
     const orderDirection = sortOrder === "desc" ? desc(sortColumn) : sortColumn;
 
-    const result = await db
+    const result = await dbRead
       .select({
         value: dimensionColumn,
         cost: sql<number>`coalesce(sum(${usageRecords.input_cost} + ${usageRecords.output_cost}), 0)::numeric`,
@@ -643,6 +639,18 @@ export class UsageRecordsRepository {
       successCount: row.successCount,
       totalCount: row.totalCount,
     }));
+  }
+
+  // ============================================================================
+  // WRITE OPERATIONS (use NA primary)
+  // ============================================================================
+
+  /**
+   * Creates a new usage record.
+   */
+  async create(data: NewUsageRecord): Promise<UsageRecord> {
+    const [record] = await dbWrite.insert(usageRecords).values(data).returning();
+    return record;
   }
 }
 

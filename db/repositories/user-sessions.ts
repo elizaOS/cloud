@@ -1,5 +1,5 @@
 import { eq, and, isNull, desc, sql } from "drizzle-orm";
-import { db } from "../client";
+import { dbRead, dbWrite } from "../helpers";
 import {
   userSessions,
   type UserSession,
@@ -10,13 +10,20 @@ export type { UserSession, NewUserSession };
 
 /**
  * Repository for user session database operations.
+ *
+ * Read operations → dbRead (read replica)
+ * Write operations → dbWrite (NA primary)
  */
 export class UserSessionsRepository {
+  // ============================================================================
+  // READ OPERATIONS (use read replica)
+  // ============================================================================
+
   /**
    * Finds a user session by ID.
    */
   async findById(id: string): Promise<UserSession | undefined> {
-    return await db.query.userSessions.findFirst({
+    return await dbRead.query.userSessions.findFirst({
       where: eq(userSessions.id, id),
     });
   }
@@ -27,7 +34,7 @@ export class UserSessionsRepository {
   async findActiveByToken(
     sessionToken: string,
   ): Promise<UserSession | undefined> {
-    return await db.query.userSessions.findFirst({
+    return await dbRead.query.userSessions.findFirst({
       where: and(
         eq(userSessions.session_token, sessionToken),
         isNull(userSessions.ended_at),
@@ -39,7 +46,7 @@ export class UserSessionsRepository {
    * Lists all active sessions for a user, ordered by last activity.
    */
   async listActiveByUser(userId: string): Promise<UserSession[]> {
-    return await db.query.userSessions.findMany({
+    return await dbRead.query.userSessions.findMany({
       where: and(
         eq(userSessions.user_id, userId),
         isNull(userSessions.ended_at),
@@ -55,7 +62,7 @@ export class UserSessionsRepository {
     organizationId: string,
     limit?: number,
   ): Promise<UserSession[]> {
-    return await db.query.userSessions.findMany({
+    return await dbRead.query.userSessions.findMany({
       where: eq(userSessions.organization_id, organizationId),
       orderBy: desc(userSessions.started_at),
       limit,
@@ -63,10 +70,47 @@ export class UserSessionsRepository {
   }
 
   /**
+   * Gets aggregated stats across all active sessions for a user.
+   *
+   * @returns Aggregated stats or null if no active sessions.
+   */
+  async getCurrentSessionStats(userId: string): Promise<{
+    credits_used: number;
+    requests_made: number;
+    tokens_consumed: number;
+  } | null> {
+    const activeSessions = await dbRead.query.userSessions.findMany({
+      where: and(
+        eq(userSessions.user_id, userId),
+        isNull(userSessions.ended_at),
+      ),
+    });
+
+    if (activeSessions.length === 0) {
+      return null;
+    }
+
+    const stats = activeSessions.reduce(
+      (acc, session) => ({
+        credits_used: acc.credits_used + Number(session.credits_used || 0),
+        requests_made: acc.requests_made + (session.requests_made || 0),
+        tokens_consumed: acc.tokens_consumed + (session.tokens_consumed || 0),
+      }),
+      { credits_used: 0, requests_made: 0, tokens_consumed: 0 },
+    );
+
+    return stats;
+  }
+
+  // ============================================================================
+  // WRITE OPERATIONS (use NA primary)
+  // ============================================================================
+
+  /**
    * Creates a new user session.
    */
   async create(data: NewUserSession): Promise<UserSession> {
-    const [session] = await db.insert(userSessions).values(data).returning();
+    const [session] = await dbWrite.insert(userSessions).values(data).returning();
     return session;
   }
 
@@ -77,7 +121,7 @@ export class UserSessionsRepository {
    * If session_token already exists, updates last_activity_at and returns existing session.
    */
   async getOrCreate(data: NewUserSession): Promise<UserSession> {
-    const [session] = await db
+    const [session] = await dbWrite
       .insert(userSessions)
       .values(data)
       .onConflictDoUpdate({
@@ -120,7 +164,7 @@ export class UserSessionsRepository {
       updateFields.tokens_consumed = metrics.tokens_consumed;
     }
 
-    const [updated] = await db
+    const [updated] = await dbWrite
       .update(userSessions)
       .set(updateFields)
       .where(eq(userSessions.session_token, sessionToken))
@@ -156,7 +200,7 @@ export class UserSessionsRepository {
       updateFields.tokens_consumed = sql`${userSessions.tokens_consumed} + ${increments.tokens_consumed}`;
     }
 
-    const [updated] = await db
+    const [updated] = await dbWrite
       .update(userSessions)
       .set(updateFields)
       .where(
@@ -174,7 +218,7 @@ export class UserSessionsRepository {
    * Ends a session by setting ended_at timestamp.
    */
   async endSession(sessionToken: string): Promise<UserSession | undefined> {
-    const [updated] = await db
+    const [updated] = await dbWrite
       .update(userSessions)
       .set({
         ended_at: new Date(),
@@ -191,7 +235,7 @@ export class UserSessionsRepository {
    * @returns Number of sessions ended.
    */
   async endAllUserSessions(userId: string): Promise<number> {
-    const result = await db
+    const result = await dbWrite
       .update(userSessions)
       .set({
         ended_at: new Date(),
@@ -214,44 +258,11 @@ export class UserSessionsRepository {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - daysOld);
 
-    const result = await db
+    const result = await dbWrite
       .delete(userSessions)
       .where(sql`${userSessions.ended_at} < ${cutoffDate}`);
 
     return result.rowCount || 0;
-  }
-
-  /**
-   * Gets aggregated stats across all active sessions for a user.
-   *
-   * @returns Aggregated stats or null if no active sessions.
-   */
-  async getCurrentSessionStats(userId: string): Promise<{
-    credits_used: number;
-    requests_made: number;
-    tokens_consumed: number;
-  } | null> {
-    const activeSessions = await db.query.userSessions.findMany({
-      where: and(
-        eq(userSessions.user_id, userId),
-        isNull(userSessions.ended_at),
-      ),
-    });
-
-    if (activeSessions.length === 0) {
-      return null;
-    }
-
-    const stats = activeSessions.reduce(
-      (acc, session) => ({
-        credits_used: acc.credits_used + Number(session.credits_used || 0),
-        requests_made: acc.requests_made + (session.requests_made || 0),
-        tokens_consumed: acc.tokens_consumed + (session.tokens_consumed || 0),
-      }),
-      { credits_used: 0, requests_made: 0, tokens_consumed: 0 },
-    );
-
-    return stats;
   }
 }
 
