@@ -59,17 +59,9 @@ export const CLOUD_AGENT_AVATARS = [
 
 /**
  * Available character avatars for random selection when creating new characters.
- * These are fun, personality-driven avatars that give new characters visual identity.
+ * Uses the cloud agent sample avatars for visual identity.
  */
-export const CHARACTER_AVATARS = [
-  "/avatars/codementor.png",
-  "/avatars/comedybot.png",
-  "/avatars/creativespark.png",
-  "/avatars/gamemaster.png",
-  "/avatars/historyscholar.png",
-  "/avatars/mysticoracle.png",
-  ...CLOUD_AGENT_AVATARS,
-] as const;
+export const CHARACTER_AVATARS = CLOUD_AGENT_AVATARS;
 
 /**
  * The default fallback avatar used when a character has no avatar set.
@@ -160,7 +152,7 @@ export function getAvailableAvatarStyles(): Array<{
   name: string;
   url: string;
 }> {
-  const cloudAgentStyles = CLOUD_AGENT_AVATARS.map((url, index) => {
+  return CLOUD_AGENT_AVATARS.map((url, index) => {
     const filename = url.split("/").pop()?.replace(".webp", "") ?? `agent-${index}`;
     return {
       id: `cloud-${filename}`,
@@ -168,20 +160,6 @@ export function getAvailableAvatarStyles(): Array<{
       url,
     };
   });
-
-  return [
-    ...cloudAgentStyles,
-    { id: "codementor", name: "Code Mentor", url: "/avatars/codementor.png" },
-    { id: "comedybot", name: "Comedy Bot", url: "/avatars/comedybot.png" },
-    { id: "creativespark", name: "Creative Spark", url: "/avatars/creativespark.png" },
-    { id: "gamemaster", name: "Game Master", url: "/avatars/gamemaster.png" },
-    { id: "historyscholar", name: "History Scholar", url: "/avatars/historyscholar.png" },
-    { id: "mysticoracle", name: "Mystic Oracle", url: "/avatars/mysticoracle.png" },
-    { id: "eliza", name: "Eliza", url: "/avatars/eliza.png" },
-    { id: "amara", name: "Amara", url: "/avatars/amara.png" },
-    { id: "luna", name: "Luna", url: "/avatars/luna.png" },
-    { id: "prof_ada", name: "Prof Ada", url: "/avatars/prof_ada.png" },
-  ];
 }
 
 /**

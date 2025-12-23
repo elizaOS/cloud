@@ -145,8 +145,8 @@ export function AvatarGenerator({
           Choose from the built-in avatars:
         </p>
 
-        <div className="border border-white/10 rounded-xl p-2 max-h-[300px] overflow-y-auto">
-          <div className="flex flex-wrap gap-[4px]">
+        <div className="border border-white/10 rounded-xl p-2 max-h-[300px] overflow-y-auto w-fit">
+          <div className="grid grid-cols-[repeat(10,_auto)] gap-1">
             {availableAvatars.map((avatar) => {
               const isSelected = currentAvatarUrl === avatar.url;
               return (
@@ -154,7 +154,7 @@ export function AvatarGenerator({
                   key={avatar.id}
                   onClick={() => handleSelectAvatar(avatar.url)}
                   className={cn(
-                    "relative w-14 h-14 rounded-lg overflow-hidden border-2 transition-all shrink-0",
+                    "relative w-[52px] h-[52px] rounded-lg overflow-hidden border-2 transition-all",
                     isSelected
                       ? "border-[#FF5800] ring-2 ring-[#FF5800]/30"
                       : "border-transparent hover:border-white/30",
