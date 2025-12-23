@@ -20,7 +20,9 @@ import {
   MINIAPP_WRITE_LIMITS,
 } from "@/lib/middleware/miniapp-rate-limit";
 import { logger } from "@/lib/utils/logger";
-import { db } from "@/db/client";
+import { safeToISOString } from "@/lib/utils/date";
+import { extractMessageText } from "@/lib/utils/message-text";
+import { dbRead, dbWrite } from "@/db/client";
 import { roomTable, memoryTable, participantTable } from "@/db/schemas/eliza";
 import { eq, and, asc } from "drizzle-orm";
 import type { UUID } from "@elizaos/core";
@@ -60,7 +62,7 @@ async function verifyAccess(
   }
 
   // Verify room exists
-  const room = await db.query.roomTable.findFirst({
+  const room = await dbRead.query.roomTable.findFirst({
     where: eq(roomTable.id, chatId as UUID),
   });
 
@@ -69,7 +71,7 @@ async function verifyAccess(
   }
 
   // Verify user has access - either via participant record OR as the creator
-  const userParticipant = await db.query.participantTable.findFirst({
+  const userParticipant = await dbRead.query.participantTable.findFirst({
     where: and(
       eq(participantTable.roomId, chatId as UUID),
       eq(participantTable.entityId, userId as UUID),
@@ -136,12 +138,12 @@ export async function GET(
     }
 
     // Get room details (for name)
-    const room = await db.query.roomTable.findFirst({
+    const room = await dbRead.query.roomTable.findFirst({
       where: eq(roomTable.id, chatId as UUID),
     });
 
     // Get messages from memory table (where roomId exists)
-    const messages = await db
+    const messages = await dbRead
       .select()
       .from(memoryTable)
       .where(
@@ -299,29 +301,7 @@ export async function GET(
         (msg.content as Record<string, unknown>)?.source === "agent";
 
       // Safely convert createdAt to ISO string
-      let createdAtValue: string;
-      try {
-        if (typeof msg.createdAt === "string") {
-          const testDate = new Date(msg.createdAt);
-          createdAtValue = !isNaN(testDate.getTime())
-            ? msg.createdAt
-            : new Date().toISOString();
-        } else if (typeof msg.createdAt === "number") {
-          createdAtValue = new Date(msg.createdAt).toISOString();
-        } else if (
-          msg.createdAt &&
-          typeof (msg.createdAt as { getTime?: () => number }).getTime ===
-            "function"
-        ) {
-          createdAtValue = new Date(
-            (msg.createdAt as { getTime: () => number }).getTime(),
-          ).toISOString();
-        } else {
-          createdAtValue = new Date().toISOString();
-        }
-      } catch {
-        createdAtValue = new Date().toISOString();
-      }
+      const createdAtValue = safeToISOString(msg.createdAt);
 
       return {
         id: msg.id,
@@ -410,15 +390,15 @@ export async function DELETE(
     }
 
     // Delete messages first (foreign key constraint)
-    await db.delete(memoryTable).where(eq(memoryTable.roomId, chatId));
+    await dbWrite.delete(memoryTable).where(eq(memoryTable.roomId, chatId));
 
     // Delete participants
-    await db
+    await dbWrite
       .delete(participantTable)
       .where(eq(participantTable.roomId, chatId as UUID));
 
     // Delete room
-    await db.delete(roomTable).where(eq(roomTable.id, chatId as UUID));
+    await dbWrite.delete(roomTable).where(eq(roomTable.id, chatId as UUID));
 
     logger.info("[Miniapp API] Deleted chat", {
       chatId,

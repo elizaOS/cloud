@@ -16,10 +16,68 @@ import {
   TOPUP_PRICE,
   CREDITS_PER_DOLLAR,
 } from "@/lib/config/x402";
+import { discoverApiV1Routes } from "@/lib/docs/api-route-discovery";
+
+type OpenApiPathItem = Record<
+  string,
+  {
+    operationId: string;
+    summary: string;
+    description?: string;
+    tags?: string[];
+    security?: Array<Record<string, string[]>>;
+    requestBody?: unknown;
+    parameters?: unknown[];
+    responses: Record<string, unknown>;
+  }
+>;
+
+function toOperationId(method: string, routePath: string) {
+  // e.g. POST /api/v1/apps/{id}/earnings -> post_api_v1_apps_id_earnings
+  const clean = routePath
+    .replace(/^\//, "")
+    .replace(/[{}]/g, "")
+    .replace(/[^a-zA-Z0-9/_-]/g, "")
+    .replace(/[\/-]+/g, "_");
+  return `${method.toLowerCase()}_${clean}`;
+}
+
+function tagForPath(routePath: string) {
+  const parts = routePath.split("/").filter(Boolean);
+  // ["api","v1",...]
+  const group = parts[2] ?? "v1";
+  return group === "v1" ? "v1" : group;
+}
 
 export async function GET() {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
   const network = getDefaultNetwork();
+
+  const discovered = await discoverApiV1Routes();
+  const discoveredPaths: Record<string, OpenApiPathItem> = {};
+
+  for (const r of discovered) {
+    if (!discoveredPaths[r.path]) discoveredPaths[r.path] = {};
+    const tag = tagForPath(r.path);
+
+    for (const method of r.methods) {
+      discoveredPaths[r.path][method.toLowerCase()] = {
+        operationId: toOperationId(method, r.path),
+        summary: r.meta?.name ?? `${method} ${r.path}`,
+        description: r.meta?.description,
+        tags: r.meta?.category ? [r.meta.category] : [tag],
+        responses: {
+          "200": { description: "Successful response" },
+          "400": { description: "Bad request" },
+          "401": { description: "Unauthorized" },
+          "403": { description: "Forbidden" },
+          "404": { description: "Not found" },
+          "429": { description: "Rate limited" },
+          "500": { description: "Server error" },
+        },
+      };
+    }
+  }
 
   const spec = {
     openapi: "3.1.0",
@@ -49,238 +107,7 @@ export async function GET() {
       ...(X402_ENABLED && isX402Configured() ? [{ x402: [] }] : []),
     ],
     paths: {
-      // Chat Completions
-      "/api/v1/chat/completions": {
-        post: {
-          operationId: "createChatCompletion",
-          summary: "Create chat completion",
-          description: "Generate a response using the specified model.",
-          tags: ["Chat"],
-          requestBody: {
-            required: true,
-            content: {
-              "application/json": {
-                schema: { $ref: "#/components/schemas/ChatCompletionRequest" },
-              },
-            },
-          },
-          responses: {
-            "200": {
-              description: "Successful response",
-              content: {
-                "application/json": {
-                  schema: {
-                    $ref: "#/components/schemas/ChatCompletionResponse",
-                  },
-                },
-              },
-            },
-            "401": { description: "Unauthorized" },
-            "402": { description: "Payment required" },
-          },
-        },
-      },
-
-      // Image Generation
-      "/api/v1/generate-image": {
-        post: {
-          operationId: "generateImage",
-          summary: "Generate image",
-          description: "Generate an image from a text prompt.",
-          tags: ["Generation"],
-          requestBody: {
-            required: true,
-            content: {
-              "application/json": {
-                schema: { $ref: "#/components/schemas/ImageGenerationRequest" },
-              },
-            },
-          },
-          responses: {
-            "200": {
-              description: "Successful response",
-              content: {
-                "application/json": {
-                  schema: {
-                    $ref: "#/components/schemas/ImageGenerationResponse",
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-
-      // Video Generation
-      "/api/v1/generate-video": {
-        post: {
-          operationId: "generateVideo",
-          summary: "Generate video",
-          description: "Generate a video from a text prompt or image.",
-          tags: ["Generation"],
-          requestBody: {
-            required: true,
-            content: {
-              "application/json": {
-                schema: { $ref: "#/components/schemas/VideoGenerationRequest" },
-              },
-            },
-          },
-          responses: {
-            "200": {
-              description: "Successful response",
-              content: {
-                "application/json": {
-                  schema: {
-                    $ref: "#/components/schemas/VideoGenerationResponse",
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-
-      // Embeddings
-      "/api/v1/embeddings": {
-        post: {
-          operationId: "createEmbedding",
-          summary: "Create embedding",
-          description: "Create an embedding vector for the input text.",
-          tags: ["Embeddings"],
-          requestBody: {
-            required: true,
-            content: {
-              "application/json": {
-                schema: { $ref: "#/components/schemas/EmbeddingRequest" },
-              },
-            },
-          },
-          responses: {
-            "200": {
-              description: "Successful response",
-              content: {
-                "application/json": {
-                  schema: { $ref: "#/components/schemas/EmbeddingResponse" },
-                },
-              },
-            },
-          },
-        },
-      },
-
-      // Credit Top-up
-      "/api/v1/credits/topup": {
-        get: {
-          operationId: "getTopupInfo",
-          summary: "Get credit top-up information",
-          description:
-            "Get current balance and pricing info for credit top-up.",
-          tags: ["Credits"],
-          responses: {
-            "200": {
-              description: "Top-up information",
-              content: {
-                "application/json": {
-                  schema: { $ref: "#/components/schemas/TopupInfoResponse" },
-                },
-              },
-            },
-          },
-        },
-        post: {
-          operationId: "topupCredits",
-          summary: "Top up credits via x402",
-          description:
-            "Top up account credits using x402 payment. Requires X-PAYMENT header.",
-          tags: ["Credits"],
-          security: [{ x402: [] }],
-          responses: {
-            "200": {
-              description: "Credits added successfully",
-              content: {
-                "application/json": {
-                  schema: { $ref: "#/components/schemas/TopupResponse" },
-                },
-              },
-            },
-            "402": {
-              description: "Payment required",
-              headers: {
-                "X-Payment-Requirement": {
-                  schema: { type: "string" },
-                  description: "JSON-encoded x402 payment requirements",
-                },
-              },
-            },
-          },
-        },
-      },
-
-      // A2A Protocol
-      "/.well-known/agent-card.json": {
-        get: {
-          operationId: "getAgentCard",
-          summary: "Get A2A Agent Card",
-          description:
-            "Returns the A2A Agent Card for Eliza Cloud service discovery.",
-          tags: ["A2A"],
-          responses: {
-            "200": {
-              description: "Agent Card",
-              content: {
-                "application/json": {
-                  schema: { $ref: "#/components/schemas/AgentCard" },
-                },
-              },
-            },
-          },
-        },
-      },
-
-      // MCP Protocol
-      "/api/mcp": {
-        get: {
-          operationId: "getMcpInfo",
-          summary: "Get MCP server information",
-          description: "Returns MCP server metadata and available tools.",
-          tags: ["MCP"],
-          responses: {
-            "200": {
-              description: "MCP server info",
-              content: {
-                "application/json": {
-                  schema: { $ref: "#/components/schemas/MCPServerInfo" },
-                },
-              },
-            },
-          },
-        },
-        post: {
-          operationId: "mcpRequest",
-          summary: "MCP JSON-RPC request",
-          description: "Handle MCP protocol JSON-RPC requests.",
-          tags: ["MCP"],
-          requestBody: {
-            required: true,
-            content: {
-              "application/json": {
-                schema: { $ref: "#/components/schemas/JsonRpcRequest" },
-              },
-            },
-          },
-          responses: {
-            "200": {
-              description: "JSON-RPC response",
-              content: {
-                "application/json": {
-                  schema: { $ref: "#/components/schemas/JsonRpcResponse" },
-                },
-              },
-            },
-          },
-        },
-      },
+      ...discoveredPaths,
     },
     components: {
       securitySchemes: {
@@ -611,14 +438,7 @@ export async function GET() {
         },
       },
     },
-    tags: [
-      { name: "Chat", description: "Chat completion endpoints" },
-      { name: "Generation", description: "Image and video generation" },
-      { name: "Embeddings", description: "Text embedding generation" },
-      { name: "Credits", description: "Credit management and top-up" },
-      { name: "A2A", description: "Agent-to-Agent protocol" },
-      { name: "MCP", description: "Model Context Protocol" },
-    ],
+    tags: [],
     externalDocs: {
       description: "Eliza Cloud Documentation",
       url: "https://elizacloud.ai/docs",

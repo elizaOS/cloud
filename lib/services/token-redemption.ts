@@ -53,7 +53,7 @@
  *    - Admin review workflow for flagged requests
  */
 
-import { db } from "@/db/client";
+import { dbRead, dbWrite } from "@/db/client";
 import {
   tokenRedemptions,
   redemptionLimits,
@@ -412,7 +412,7 @@ export class TokenRedemptionService {
       pointsAmount >= CONFIG.ADMIN_APPROVAL_THRESHOLD_POINTS;
 
     // Atomic transaction: deduct balance and create redemption request
-    const result = await db.transaction(async (tx) => {
+    const result = await dbWrite.transaction(async (tx) => {
       // Lock and check user's balance
       let balance: number;
 
@@ -576,7 +576,7 @@ export class TokenRedemptionService {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const limits = await db.query.redemptionLimits.findFirst({
+    const limits = await dbRead.query.redemptionLimits.findFirst({
       where: and(
         eq(redemptionLimits.user_id, userId),
         gte(redemptionLimits.date, today),
@@ -640,7 +640,7 @@ export class TokenRedemptionService {
    * Check if user has a pending redemption.
    */
   private async hasPendingRedemption(userId: string): Promise<boolean> {
-    const pending = await db.query.tokenRedemptions.findFirst({
+    const pending = await dbRead.query.tokenRedemptions.findFirst({
       where: and(
         eq(tokenRedemptions.user_id, userId),
         eq(tokenRedemptions.status, "pending"),
@@ -662,7 +662,7 @@ export class TokenRedemptionService {
       conditions.push(eq(tokenRedemptions.user_id, userId));
     }
 
-    const redemption = await db.query.tokenRedemptions.findFirst({
+    const redemption = await dbRead.query.tokenRedemptions.findFirst({
       where: and(...conditions),
     });
 
@@ -676,7 +676,7 @@ export class TokenRedemptionService {
     userId: string,
     limit = 20,
   ): Promise<TokenRedemption[]> {
-    return await db.query.tokenRedemptions.findMany({
+    return await dbRead.query.tokenRedemptions.findMany({
       where: eq(tokenRedemptions.user_id, userId),
       orderBy: (redemptions, { desc }) => [desc(redemptions.created_at)],
       limit,
@@ -691,7 +691,7 @@ export class TokenRedemptionService {
     adminUserId: string,
     notes?: string,
   ): Promise<{ success: boolean; error?: string }> {
-    const [updated] = await db
+    const [updated] = await dbWrite
       .update(tokenRedemptions)
       .set({
         status: "approved",
@@ -729,7 +729,7 @@ export class TokenRedemptionService {
     adminUserId: string,
     reason: string,
   ): Promise<{ success: boolean; error?: string }> {
-    const result = await db.transaction(async (tx) => {
+    await dbWrite.transaction(async (tx) => {
       // Get the redemption
       const [redemption] = await tx
         .select()

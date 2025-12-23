@@ -1,4 +1,4 @@
-import { db } from "../client";
+import { dbRead, dbWrite } from "../helpers";
 import {
   apps,
   appUsers,
@@ -18,15 +18,20 @@ export type { App, NewApp, AppUser, NewAppUser, AppAnalytics, NewAppAnalytics };
  * Repository for app database operations.
  *
  * Handles CRUD operations for apps, app users, and app analytics.
+ *
+ * Read operations → dbRead (read replica)
+ * Write operations → dbWrite (NA primary)
  */
 export class AppsRepository {
-  // ==================== Apps CRUD ====================
+  // ============================================================================
+  // READ OPERATIONS (use read replica)
+  // ============================================================================
 
   /**
    * Finds an app by ID.
    */
   async findById(id: string): Promise<App | undefined> {
-    return await db.query.apps.findFirst({
+    return await dbRead.query.apps.findFirst({
       where: eq(apps.id, id),
     });
   }
@@ -35,7 +40,7 @@ export class AppsRepository {
    * Finds an app by slug.
    */
   async findBySlug(slug: string): Promise<App | undefined> {
-    return await db.query.apps.findFirst({
+    return await dbRead.query.apps.findFirst({
       where: eq(apps.slug, slug),
     });
   }
@@ -44,7 +49,7 @@ export class AppsRepository {
    * Finds an app by affiliate code.
    */
   async findByAffiliateCode(code: string): Promise<App | undefined> {
-    return await db.query.apps.findFirst({
+    return await dbRead.query.apps.findFirst({
       where: eq(apps.affiliate_code, code),
     });
   }
@@ -54,7 +59,7 @@ export class AppsRepository {
    * This is a direct lookup instead of fetching all org apps.
    */
   async findByApiKeyId(apiKeyId: string): Promise<App | undefined> {
-    return await db.query.apps.findFirst({
+    return await dbRead.query.apps.findFirst({
       where: eq(apps.api_key_id, apiKeyId),
     });
   }
@@ -63,7 +68,7 @@ export class AppsRepository {
    * Lists all apps for an organization, ordered by creation date.
    */
   async listByOrganization(organizationId: string): Promise<App[]> {
-    return await db.query.apps.findMany({
+    return await dbRead.query.apps.findMany({
       where: eq(apps.organization_id, organizationId),
       orderBy: [desc(apps.created_at)],
     });
@@ -86,17 +91,103 @@ export class AppsRepository {
       conditions.push(eq(apps.is_approved, filters.isApproved));
     }
 
-    return await db.query.apps.findMany({
+    return await dbRead.query.apps.findMany({
       where: conditions.length > 0 ? and(...conditions) : undefined,
       orderBy: [desc(apps.created_at)],
     });
   }
 
   /**
+   * Finds an app user by app ID and user ID.
+   */
+  async findAppUser(
+    appId: string,
+    userId: string,
+  ): Promise<AppUser | undefined> {
+    return await dbRead.query.appUsers.findFirst({
+      where: and(eq(appUsers.app_id, appId), eq(appUsers.user_id, userId)),
+    });
+  }
+
+  /**
+   * Lists app users for an app, ordered by first seen date.
+   */
+  async listAppUsers(appId: string, limit?: number): Promise<AppUser[]> {
+    return await dbRead.query.appUsers.findMany({
+      where: eq(appUsers.app_id, appId),
+      orderBy: [desc(appUsers.first_seen_at)],
+      limit: limit,
+    });
+  }
+
+  /**
+   * Gets app analytics within a date range for a specific period type.
+   */
+  async getAnalytics(
+    appId: string,
+    periodType: string,
+    startDate: Date,
+    endDate: Date,
+  ): Promise<AppAnalytics[]> {
+    return await dbRead.query.appAnalytics.findMany({
+      where: and(
+        eq(appAnalytics.app_id, appId),
+        eq(appAnalytics.period_type, periodType),
+        gte(appAnalytics.period_start, startDate),
+        lte(appAnalytics.period_end, endDate),
+      ),
+      orderBy: [desc(appAnalytics.period_start)],
+    });
+  }
+
+  /**
+   * Gets the latest app analytics records.
+   */
+  async getLatestAnalytics(
+    appId: string,
+    limit: number = 30,
+  ): Promise<AppAnalytics[]> {
+    return await dbRead.query.appAnalytics.findMany({
+      where: eq(appAnalytics.app_id, appId),
+      orderBy: [desc(appAnalytics.period_start)],
+      limit,
+    });
+  }
+
+  /**
+   * Gets aggregated statistics for an app.
+   */
+  async getTotalStats(appId: string): Promise<{
+    totalRequests: number;
+    totalUsers: number;
+    totalCreditsUsed: string;
+  }> {
+    const app = await this.findById(appId);
+
+    if (!app) {
+      return {
+        totalRequests: 0,
+        totalUsers: 0,
+        totalCreditsUsed: "0.00",
+      };
+    }
+
+    return {
+      totalRequests: app.total_requests,
+      totalUsers: app.total_users,
+      totalCreditsUsed: app.total_credits_used,
+    };
+  }
+
+  // ============================================================================
+  // WRITE OPERATIONS (use NA primary)
+  // ============================================================================
+
+  /**
    * Creates a new app.
    */
   async create(data: NewApp): Promise<App> {
-    const [app] = await db.insert(apps).values(data).returning();
+    const [app] = await dbWrite.insert(apps).values(data).returning();
     return app;
   }
 
@@ -104,7 +195,7 @@ export class AppsRepository {
    * Updates an existing app.
    */
   async update(id: string, data: Partial<NewApp>): Promise<App | undefined> {
-    const [updated] = await db
+    const [updated] = await dbWrite
       .update(apps)
       .set({
         ...data,
@@ -119,7 +210,7 @@ export class AppsRepository {
    * Deletes an app by ID.
    */
   async delete(id: string): Promise<void> {
-    await db.delete(apps).where(eq(apps.id, id));
+    await dbWrite.delete(apps).where(eq(apps.id, id));
   }
 
   /**
@@ -129,7 +220,7 @@ export class AppsRepository {
     id: string,
     creditsUsed: string = "0.00",
   ): Promise<void> {
-    await db
+    await dbWrite
       .update(apps)
       .set({
         total_requests: sql`${apps.total_requests} + 1`,
@@ -140,39 +231,14 @@ export class AppsRepository {
       .where(eq(apps.id, id));
   }
 
-  // ==================== App Users CRUD ====================
-
-  /**
-   * Finds an app user by app ID and user ID.
-   */
-  async findAppUser(
-    appId: string,
-    userId: string,
-  ): Promise<AppUser | undefined> {
-    return await db.query.appUsers.findFirst({
-      where: and(eq(appUsers.app_id, appId), eq(appUsers.user_id, userId)),
-    });
-  }
-
-  /**
-   * Lists app users for an app, ordered by first seen date.
-   */
-  async listAppUsers(appId: string, limit?: number): Promise<AppUser[]> {
-    return await db.query.appUsers.findMany({
-      where: eq(appUsers.app_id, appId),
-      orderBy: [desc(appUsers.first_seen_at)],
-      limit: limit,
-    });
-  }
-
   /**
    * Creates a new app user and increments the app's total user count.
    */
   async createAppUser(data: NewAppUser): Promise<AppUser> {
-    const [appUser] = await db.insert(appUsers).values(data).returning();
+    const [appUser] = await dbWrite.insert(appUsers).values(data).returning();
 
     // Increment the app's total_users count
-    await db
+    await dbWrite
       .update(apps)
       .set({
         total_users: sql`${apps.total_users} + 1`,
@@ -191,7 +257,7 @@ export class AppsRepository {
     userId: string,
     data: Partial<NewAppUser>,
   ): Promise<AppUser | undefined> {
-    const [updated] = await db
+    const [updated] = await dbWrite
       .update(appUsers)
       .set({
         ...data,
@@ -210,7 +276,7 @@ export class AppsRepository {
     userId: string,
     creditsUsed: string = "0.00",
   ): Promise<void> {
-    await db
+    await dbWrite
       .update(appUsers)
       .set({
         total_requests: sql`${appUsers.total_requests} + 1`,
@@ -252,67 +318,8 @@ export class AppsRepository {
    * Creates a new app analytics record.
    */
   async createAnalytics(data: NewAppAnalytics): Promise<AppAnalytics> {
-    const [analytics] = await db.insert(appAnalytics).values(data).returning();
+    const [analytics] = await dbWrite.insert(appAnalytics).values(data).returning();
     return analytics;
-  }
-
-  /**
-   * Gets app analytics within a date range for a specific period type.
-   */
-  async getAnalytics(
-    appId: string,
-    periodType: string,
-    startDate: Date,
-    endDate: Date,
-  ): Promise<AppAnalytics[]> {
-    return await db.query.appAnalytics.findMany({
-      where: and(
-        eq(appAnalytics.app_id, appId),
-        eq(appAnalytics.period_type, periodType),
-        gte(appAnalytics.period_start, startDate),
-        lte(appAnalytics.period_end, endDate),
-      ),
-      orderBy: [desc(appAnalytics.period_start)],
-    });
-  }
-
-  /**
-   * Gets the latest app analytics records.
-   */
-  async getLatestAnalytics(
-    appId: string,
-    limit: number = 30,
-  ): Promise<AppAnalytics[]> {
-    return await db.query.appAnalytics.findMany({
-      where: eq(appAnalytics.app_id, appId),
-      orderBy: [desc(appAnalytics.period_start)],
-      limit,
-    });
-  }
-
-  /**
-   * Gets aggregated statistics for an app.
-   */
-  async getTotalStats(appId: string): Promise<{
-    totalRequests: number;
-    totalUsers: number;
-    totalCreditsUsed: string;
-  }> {
-    const app = await this.findById(appId);
-
-    if (!app) {
-      return {
-        totalRequests: 0,
-        totalUsers: 0,
-        totalCreditsUsed: "0.00",
-      };
-    }
-
-    return {
-      totalRequests: app.total_requests,
-      totalUsers: app.total_users,
-      totalCreditsUsed: app.total_credits_used,
-    };
   }
 }
 

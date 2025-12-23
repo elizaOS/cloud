@@ -1,4 +1,4 @@
-import { db } from "@/db/client";
+import { dbRead, dbWrite } from "@/db/helpers";
 import {
   userMcps,
   mcpUsage,
@@ -15,19 +15,15 @@ import { eq, and, desc, sql, ilike, or } from "drizzle-orm";
  * CRUD operations for user-created MCP servers.
  */
 export const userMcpsRepository = {
-  /**
-   * Create a new user MCP
-   */
-  async create(data: NewUserMcp): Promise<UserMcp> {
-    const [mcp] = await db.insert(userMcps).values(data).returning();
-    return mcp;
-  },
+  // ============================================================================
+  // READ OPERATIONS (use read replica)
+  // ============================================================================
 
   /**
    * Get MCP by ID
    */
   async getById(id: string): Promise<UserMcp | null> {
-    const [mcp] = await db.select().from(userMcps).where(eq(userMcps.id, id));
+    const [mcp] = await dbRead.select().from(userMcps).where(eq(userMcps.id, id));
     return mcp ?? null;
   },
 
@@ -38,7 +34,7 @@ export const userMcpsRepository = {
     slug: string,
     organizationId: string,
   ): Promise<UserMcp | null> {
-    const [mcp] = await db
+    const [mcp] = await dbRead
       .select()
       .from(userMcps)
       .where(
@@ -63,7 +59,7 @@ export const userMcpsRepository = {
   ): Promise<UserMcp[]> {
     const { status, limit = 50, offset = 0 } = options;
 
-    let query = db
+    let query = dbRead
       .select()
       .from(userMcps)
       .where(eq(userMcps.organization_id, organizationId))
@@ -72,7 +68,7 @@ export const userMcpsRepository = {
       .offset(offset);
 
     if (status) {
-      query = db
+      query = dbRead
         .select()
         .from(userMcps)
         .where(
@@ -127,7 +123,7 @@ export const userMcpsRepository = {
       );
     }
 
-    return db
+    return dbRead
       .select()
       .from(userMcps)
       .where(and(...conditions))
@@ -137,13 +133,92 @@ export const userMcpsRepository = {
   },
 
   /**
+   * Get MCPs by container ID
+   */
+  async getByContainerId(containerId: string): Promise<UserMcp[]> {
+    return dbRead
+      .select()
+      .from(userMcps)
+      .where(eq(userMcps.container_id, containerId));
+  },
+
+  /**
+   * Count MCPs by organization
+   */
+  async countByOrganization(organizationId: string): Promise<number> {
+    const [result] = await dbRead
+      .select({ count: sql<number>`count(*)` })
+      .from(userMcps)
+      .where(eq(userMcps.organization_id, organizationId));
+    return Number(result?.count ?? 0);
+  },
+
+  /**
+   * List MCPs registered on ERC-8004
+   */
+  async listERC8004Registered(
+    options: {
+      network?: string;
+      limit?: number;
+      offset?: number;
+    } = {},
+  ): Promise<UserMcp[]> {
+    const { network, limit = 100, offset = 0 } = options;
+
+    const conditions = [eq(userMcps.erc8004_registered, true)];
+
+    if (network) {
+      conditions.push(eq(userMcps.erc8004_network, network));
+    }
+
+    return dbRead
+      .select()
+      .from(userMcps)
+      .where(and(...conditions))
+      .orderBy(desc(userMcps.erc8004_registered_at))
+      .limit(limit)
+      .offset(offset);
+  },
+
+  /**
+   * Get MCP by ERC-8004 agent ID
+   */
+  async getByERC8004AgentId(
+    network: string,
+    agentId: number,
+  ): Promise<UserMcp | null> {
+    const [mcp] = await dbRead
+      .select()
+      .from(userMcps)
+      .where(
+        and(
+          eq(userMcps.erc8004_network, network),
+          eq(userMcps.erc8004_agent_id, agentId),
+        ),
+      );
+    return mcp ?? null;
+  },
+
+  // ============================================================================
+  // WRITE OPERATIONS (use NA primary)
+  // ============================================================================
+
+  /**
+   * Create a new user MCP
+   */
+  async create(data: NewUserMcp): Promise<UserMcp> {
+    const [mcp] = await dbWrite.insert(userMcps).values(data).returning();
+    return mcp;
+  },
+
+  /**
    * Update an MCP
    */
   async update(
     id: string,
     data: Partial<Omit<UserMcp, "id" | "created_at">>,
   ): Promise<UserMcp | null> {
-    const [mcp] = await db
+    const [mcp] = await dbWrite
       .update(userMcps)
       .set({ ...data, updated_at: new Date() })
       .where(eq(userMcps.id, id))
@@ -155,7 +230,7 @@ export const userMcpsRepository = {
    * Delete an MCP
    */
   async delete(id: string): Promise<boolean> {
-    const result = await db.delete(userMcps).where(eq(userMcps.id, id));
+    const result = await dbWrite.delete(userMcps).where(eq(userMcps.id, id));
     return (result.rowCount ?? 0) > 0;
   },
 
@@ -167,7 +242,7 @@ export const userMcpsRepository = {
     creditsEarned: number,
     x402EarnedUsd: number = 0,
   ): Promise<void> {
-    await db
+    await dbWrite
       .update(userMcps)
       .set({
         total_requests: sql`${userMcps.total_requests} + 1`,
@@ -195,113 +270,12 @@ export const userMcpsRepository = {
       updateData.published_at = new Date();
     }
 
-    const [mcp] = await db
+    const [mcp] = await dbWrite
       .update(userMcps)
       .set(updateData)
       .where(eq(userMcps.id, id))
       .returning();
     return mcp ?? null;
-  },
-
-  /**
-   * Get MCPs by container ID
-   */
-  async getByContainerId(containerId: string): Promise<UserMcp[]> {
-    return db
-      .select()
-      .from(userMcps)
-      .where(eq(userMcps.container_id, containerId));
-  },
-
-  /**
-   * Count MCPs by organization
-   */
-  async countByOrganization(organizationId: string): Promise<number> {
-    const [result] = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(userMcps)
-      .where(eq(userMcps.organization_id, organizationId));
-    return Number(result?.count ?? 0);
-  },
-
-  /**
-   * List MCPs registered on ERC-8004
-   */
-  async listERC8004Registered(
-    options: {
-      network?: string;
-      limit?: number;
-      offset?: number;
-    } = {},
-  ): Promise<UserMcp[]> {
-    const { network, limit = 100, offset = 0 } = options;
-
-    const conditions = [eq(userMcps.erc8004_registered, true)];
-
-    if (network) {
-      conditions.push(eq(userMcps.erc8004_network, network));
-    }
-
-    return db
-      .select()
-      .from(userMcps)
-      .where(and(...conditions))
-      .orderBy(desc(userMcps.erc8004_registered_at))
-      .limit(limit)
-      .offset(offset);
-  },
-
-  /**
-   * Get MCP by ERC-8004 agent ID
-   */
-  async getByERC8004AgentId(
-    network: string,
-    agentId: number,
-  ): Promise<UserMcp | null> {
-    const [mcp] = await db
-      .select()
-      .from(userMcps)
-      .where(
-        and(
-          eq(userMcps.erc8004_network, network),
-          eq(userMcps.erc8004_agent_id, agentId),
-        ),
-      );
-    return mcp ?? null;
-  },
-
-  /**
-   * Find public MCPs registered on ERC-8004.
-   * Used for marketplace discovery by external agents.
-   */
-  async findPublicRegistered(
-    options: {
-      erc8004Only?: boolean;
-      category?: string;
-      limit?: number;
-    } = {},
-  ): Promise<UserMcp[]> {
-    const { erc8004Only = false, category, limit = 100 } = options;
-
-    const conditions = [
-      eq(userMcps.is_public, true),
-      eq(userMcps.status, "live"),
-    ];
-
-    if (erc8004Only) {
-      conditions.push(eq(userMcps.erc8004_registered, true));
-    }
-
-    if (category) {
-      conditions.push(eq(userMcps.category, category));
-    }
-
-    return db
-      .select()
-      .from(userMcps)
-      .where(and(...conditions))
-      .orderBy(desc(userMcps.total_requests), desc(userMcps.created_at))
-      .limit(limit);
   },
 };
 
@@ -311,13 +285,9 @@ export const userMcpsRepository = {
  * Tracks usage of user MCPs.
  */
 export const mcpUsageRepository = {
-  /**
-   * Record MCP usage
-   */
-  async create(data: NewMcpUsage): Promise<McpUsage> {
-    const [usage] = await db.insert(mcpUsage).values(data).returning();
-    return usage;
-  },
+  // ============================================================================
+  // READ OPERATIONS (use read replica)
+  // ============================================================================
 
   /**
    * Get usage by MCP
@@ -328,7 +298,7 @@ export const mcpUsageRepository = {
   ): Promise<McpUsage[]> {
     const { limit = 100, offset = 0 } = options;
 
-    return db
+    return dbRead
       .select()
       .from(mcpUsage)
       .where(eq(mcpUsage.mcp_id, mcpId))
@@ -346,7 +316,7 @@ export const mcpUsageRepository = {
   ): Promise<McpUsage[]> {
     const { limit = 100, offset = 0 } = options;
 
-    return db
+    return dbRead
       .select()
       .from(mcpUsage)
       .where(eq(mcpUsage.organization_id, organizationId))
@@ -364,7 +334,7 @@ export const mcpUsageRepository = {
     totalX402Usd: number;
     uniqueOrgs: number;
   }> {
-    const [result] = await db
+    const [result] = await dbRead
       .select({
         totalRequests: sql<number>`sum(${mcpUsage.request_count})`,
         totalCreditsCharged: sql<number>`sum(${mcpUsage.credits_charged})`,
@@ -380,6 +350,18 @@ export const mcpUsageRepository = {
       totalX402Usd: Number(result?.totalX402Usd ?? 0),
       uniqueOrgs: Number(result?.uniqueOrgs ?? 0),
     };
+  },
+
+  // ============================================================================
+  // WRITE OPERATIONS (use NA primary)
+  // ============================================================================
+
+  /**
+   * Record MCP usage
+   */
+  async create(data: NewMcpUsage): Promise<McpUsage> {
+    const [usage] = await dbWrite.insert(mcpUsage).values(data).returning();
+    return usage;
   },
 };
 

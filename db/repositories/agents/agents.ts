@@ -3,9 +3,12 @@
  *
  * Pure database operations for the ElizaOS agents table.
  * Used to get agent info without spinning up the full runtime.
+ *
+ * Read operations → dbRead (read replica)
+ * Write operations → dbWrite (NA primary)
  */
 
-import { db } from "@/db/client";
+import { dbRead, dbWrite } from "@/db/helpers";
 import { agentTable } from "@/db/schemas/eliza";
 import { eq, inArray } from "drizzle-orm";
 import type { Agent } from "@elizaos/core";
@@ -32,11 +35,15 @@ export interface AgentInfo {
  * Repository for ElizaOS agent database operations.
  */
 export class AgentsRepository {
+  // ============================================================================
+  // READ OPERATIONS (use read replica)
+  // ============================================================================
+
   /**
    * Gets an agent by ID.
    */
   async findById(agentId: string): Promise<AgentInfo | null> {
-    const result = await db
+    const result = await dbRead
       .select({
         id: agentTable.id,
         name: agentTable.name,
@@ -61,7 +68,7 @@ export class AgentsRepository {
   async findByIds(agentIds: string[]): Promise<AgentInfo[]> {
     if (agentIds.length === 0) return [];
 
-    return await db
+    return await dbRead
       .select({
         id: agentTable.id,
         name: agentTable.name,
@@ -81,7 +88,7 @@ export class AgentsRepository {
    * Checks if an agent exists.
    */
   async exists(agentId: string): Promise<boolean> {
-    const result = await db
+    const result = await dbRead
       .select({ id: agentTable.id })
       .from(agentTable)
       .where(eq(agentTable.id, agentId))
@@ -89,6 +96,10 @@ export class AgentsRepository {
 
     return result.length > 0;
   }
+
+  // ============================================================================
+  // WRITE OPERATIONS (use NA primary)
+  // ============================================================================
 
   /**
    * Creates a new agent.
@@ -98,8 +109,9 @@ export class AgentsRepository {
    */
   async create(agent: Partial<Agent>): Promise<boolean> {
     // Check for existing agent with the same ID only (names can be duplicated)
+    // Note: Use write connection for the check to avoid replication lag issues
     if (agent.id) {
-      const existing = await db
+      const existing = await dbWrite
         .select({ id: agentTable.id })
         .from(agentTable)
         .where(eq(agentTable.id, agent.id))
@@ -111,7 +123,7 @@ export class AgentsRepository {
       }
     }
 
-    await db.transaction(async (tx) => {
+    await dbWrite.transaction(async (tx) => {
       await tx.insert(agentTable).values({
         ...agent,
         createdAt: new Date(agent.createdAt || Date.now()),

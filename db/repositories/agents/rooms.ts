@@ -4,7 +4,7 @@
  * Handles all database operations for rooms without spinning up runtime.
  */
 
-import { db } from "@/db/client";
+import { dbRead, dbWrite } from "@/db/client";
 import { roomTable, participantTable, memoryTable } from "@/db/schemas/eliza";
 import { userCharacters } from "@/db/schemas/user-characters";
 import { eq, inArray, sql, and } from "drizzle-orm";
@@ -77,7 +77,7 @@ export class RoomsRepository {
    * Gets a room by ID.
    */
   async findById(roomId: string): Promise<Room | null> {
-    const result = await db
+    const result = await dbRead
       .select()
       .from(roomTable)
       .where(eq(roomTable.id, roomId))
@@ -92,7 +92,7 @@ export class RoomsRepository {
   async findByIds(roomIds: string[]): Promise<Room[]> {
     if (roomIds.length === 0) return [];
 
-    const results = await db
+    const results = await dbRead
       .select()
       .from(roomTable)
       .where(inArray(roomTable.id, roomIds));
@@ -104,7 +104,7 @@ export class RoomsRepository {
    * Finds rooms by agent ID, sorted by last activity.
    */
   async findByAgentId(agentId: string, limit = 50): Promise<Room[]> {
-    const results = await db
+    const results = await dbRead
       .select()
       .from(roomTable)
       .where(eq(roomTable.agentId, agentId));
@@ -125,7 +125,7 @@ export class RoomsRepository {
    * Note: source and type are required in the database (notNull, no defaults).
    */
   async create(input: CreateRoomInput): Promise<Room> {
-    const [room] = await db
+    const [room] = await dbWrite
       .insert(roomTable)
       .values({
         id: input.id,
@@ -148,7 +148,7 @@ export class RoomsRepository {
    * Updates a room.
    */
   async update(roomId: string, input: UpdateRoomInput): Promise<Room> {
-    const [room] = await db
+    const [room] = await dbWrite
       .update(roomTable)
       .set(input)
       .where(eq(roomTable.id, roomId))
@@ -161,14 +161,14 @@ export class RoomsRepository {
    * Deletes a room.
    */
   async delete(roomId: string): Promise<void> {
-    await db.delete(roomTable).where(eq(roomTable.id, roomId));
+    await dbWrite.delete(roomTable).where(eq(roomTable.id, roomId));
   }
 
   /**
    * Checks if a room exists.
    */
   async exists(roomId: string): Promise<boolean> {
-    const result = await db
+    const result = await dbRead
       .select({ id: roomTable.id })
       .from(roomTable)
       .where(eq(roomTable.id, roomId))
@@ -181,7 +181,7 @@ export class RoomsRepository {
    * Counts rooms for an agent.
    */
   async countByAgentId(agentId: string): Promise<number> {
-    const results = await db
+    const results = await dbRead
       .select()
       .from(roomTable)
       .where(eq(roomTable.agentId, agentId));
@@ -203,7 +203,7 @@ export class RoomsRepository {
     const currentMetadata = room.metadata || {};
 
     // Merge and write back
-    await db
+    await dbWrite
       .update(roomTable)
       .set({
         metadata: {
@@ -227,7 +227,7 @@ export class RoomsRepository {
     entityId: string,
   ): Promise<RoomWithPreview[]> {
     // Use a subquery to get the latest message per room
-    const latestMessagesSubquery = db
+    const latestMessagesSubquery = dbRead
       .select({
         roomId: memoryTable.roomId,
         createdAt: memoryTable.createdAt,
@@ -242,7 +242,7 @@ export class RoomsRepository {
       .as("latest_messages");
 
     // Main query: join participants -> rooms -> latest messages -> user_characters
-    const results = await db
+    const results = await dbRead
       .select({
         id: roomTable.id,
         name: roomTable.name,

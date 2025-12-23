@@ -21,7 +21,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
-import { db } from "@/db/client";
+import { dbRead } from "@/db/client";
 import {
   redeemableEarnings,
   redeemableEarningsLedger,
@@ -79,12 +79,12 @@ async function getBalanceHandler(request: NextRequest): Promise<Response> {
 
   try {
     // Get user's redeemable earnings record
-    const earningsRecord = await db.query.redeemableEarnings.findFirst({
+    const earningsRecord = await dbRead.query.redeemableEarnings.findFirst({
       where: eq(redeemableEarnings.user_id, user.id),
     });
 
     // Get earnings breakdown by source
-    const earningsBySource = await db
+    const earningsBySource = await dbRead
       .select({
         source: redeemableEarningsLedger.earnings_source,
         totalEarned: sql<string>`SUM(CAST(${redeemableEarningsLedger.amount} AS DECIMAL))`,
@@ -100,7 +100,7 @@ async function getBalanceHandler(request: NextRequest): Promise<Response> {
       .groupBy(redeemableEarningsLedger.earnings_source);
 
     // Get recent earnings (last 10)
-    const recentEarnings = await db
+    const recentEarnings = await dbRead
       .select({
         id: redeemableEarningsLedger.id,
         source: redeemableEarningsLedger.earnings_source,
@@ -120,7 +120,7 @@ async function getBalanceHandler(request: NextRequest): Promise<Response> {
       .limit(10);
 
     // Get total redeemed
-    const redeemedResult = await db
+    const redeemedResult = await dbRead
       .select({
         total: sql<string>`COALESCE(SUM(CAST(${tokenRedemptions.usd_value} AS DECIMAL)), 0)`,
       })
@@ -135,7 +135,7 @@ async function getBalanceHandler(request: NextRequest): Promise<Response> {
     const totalRedeemed = Number(redeemedResult[0]?.total || 0);
 
     // Check for cooldown (last redemption time)
-    const lastRedemption = await db.query.tokenRedemptions.findFirst({
+    const lastRedemption = await dbRead.query.tokenRedemptions.findFirst({
       where: eq(tokenRedemptions.user_id, user.id),
       orderBy: (r, { desc: d }) => [d(r.created_at)],
     });
@@ -156,7 +156,7 @@ async function getBalanceHandler(request: NextRequest): Promise<Response> {
     const todayStart = new Date();
     todayStart.setUTCHours(0, 0, 0, 0);
 
-    const dailyRedeemedResult = await db.execute(sql`
+    const dailyRedeemedResult = await dbRead.execute(sql`
     SELECT COALESCE(SUM(CAST(usd_value AS DECIMAL)), 0) as total
     FROM token_redemptions
     WHERE user_id = ${user.id}

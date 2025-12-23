@@ -1,5 +1,5 @@
 import { eq, inArray, sql, count } from "drizzle-orm";
-import { db } from "../client";
+import { dbRead, dbWrite } from "../helpers";
 import {
   elizaRoomCharactersTable,
   type ElizaRoomCharacter,
@@ -13,11 +13,15 @@ import {
  * room to use a different character.
  */
 export const elizaRoomCharactersRepository = {
+  // ============================================================================
+  // READ OPERATIONS (use read replica)
+  // ============================================================================
+
   /**
    * Count rooms for a specific user
    */
   async countByUserId(userId: string): Promise<number> {
-    const result = await db
+    const result = await dbRead
       .select({ count: count() })
       .from(elizaRoomCharactersTable)
       .where(eq(elizaRoomCharactersTable.user_id, userId));
@@ -29,7 +33,7 @@ export const elizaRoomCharactersRepository = {
    * Count rooms for a specific character
    */
   async countByCharacterId(characterId: string): Promise<number> {
-    const result = await db
+    const result = await dbRead
       .select({ count: count() })
       .from(elizaRoomCharactersTable)
       .where(eq(elizaRoomCharactersTable.character_id, characterId));
@@ -47,7 +51,7 @@ export const elizaRoomCharactersRepository = {
       return new Map();
     }
 
-    const results = await db
+    const results = await dbRead
       .select({
         character_id: elizaRoomCharactersTable.character_id,
         count: count(),
@@ -81,7 +85,7 @@ export const elizaRoomCharactersRepository = {
       `[RoomCharRepo] findByRoomId(${roomId.substring(0, 8)}...) - fetching from DB (cache disabled)`,
     );
 
-    const result = await db
+    const result = await dbRead
       .select()
       .from(elizaRoomCharactersTable)
       .where(eq(elizaRoomCharactersTable.room_id, roomId))
@@ -106,7 +110,7 @@ export const elizaRoomCharactersRepository = {
       return new Map();
     }
 
-    const results = await db
+    const results = await dbRead
       .select()
       .from(elizaRoomCharactersTable)
       .where(inArray(elizaRoomCharactersTable.room_id, roomIds));
@@ -117,46 +121,6 @@ export const elizaRoomCharactersRepository = {
     }
 
     return mappings;
-  },
-
-  /**
-   * Creates a new room-character mapping.
-   */
-  async create(data: NewElizaRoomCharacter): Promise<ElizaRoomCharacter> {
-    const result = await db
-      .insert(elizaRoomCharactersTable)
-      .values(data)
-      .returning();
-
-    return result[0];
-  },
-
-  /**
-   * Updates the character mapping for a room.
-   */
-  async update(
-    roomId: string,
-    characterId: string,
-  ): Promise<ElizaRoomCharacter | undefined> {
-    const result = await db
-      .update(elizaRoomCharactersTable)
-      .set({
-        character_id: characterId,
-        updated_at: new Date(),
-      })
-      .where(eq(elizaRoomCharactersTable.room_id, roomId))
-      .returning();
-
-    return result[0];
-  },
-
-  /**
-   * Deletes a room-character mapping.
-   */
-  async delete(roomId: string): Promise<void> {
-    await db
-      .delete(elizaRoomCharactersTable)
-      .where(eq(elizaRoomCharactersTable.room_id, roomId));
   },
 
   /**
@@ -171,7 +135,7 @@ export const elizaRoomCharactersRepository = {
       roomId: string;
     }>
   > {
-    const results = await db.execute<{
+    const results = await dbRead.execute<{
       character_id: string;
       character_name: string;
       owner_id: string;
@@ -199,5 +163,49 @@ export const elizaRoomCharactersRepository = {
       ownerId: r.owner_id,
       roomId: r.room_id,
     }));
+  },
+
+  // ============================================================================
+  // WRITE OPERATIONS (use NA primary)
+  // ============================================================================
+
+  /**
+   * Creates a new room-character mapping.
+   */
+  async create(data: NewElizaRoomCharacter): Promise<ElizaRoomCharacter> {
+    const result = await dbWrite
+      .insert(elizaRoomCharactersTable)
+      .values(data)
+      .returning();
+
+    return result[0];
+  },
+
+  /**
+   * Updates the character mapping for a room.
+   */
+  async update(
+    roomId: string,
+    characterId: string,
+  ): Promise<ElizaRoomCharacter | undefined> {
+    const result = await dbWrite
+      .update(elizaRoomCharactersTable)
+      .set({
+        character_id: characterId,
+        updated_at: new Date(),
+      })
+      .where(eq(elizaRoomCharactersTable.room_id, roomId))
+      .returning();
+
+    return result[0];
+  },
+
+  /**
+   * Deletes a room-character mapping.
+   */
+  async delete(roomId: string): Promise<void> {
+    await dbWrite
+      .delete(elizaRoomCharactersTable)
+      .where(eq(elizaRoomCharactersTable.room_id, roomId));
   },
 };

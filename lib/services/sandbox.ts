@@ -90,7 +90,7 @@ const TOOLS: Anthropic.Tool[] = [
   {
     name: "install_packages",
     description:
-      "Install npm packages. Use this BEFORE writing files that import external packages.",
+      "Install packages (bun). Use this BEFORE writing files that import external packages.",
     input_schema: {
       type: "object" as const,
       properties: {
@@ -375,6 +375,9 @@ async function listFilesViaSh(
     : [];
 }
 
+/**
+ * Install packages (bun)
+ */
 async function installPackages(
   sandbox: SandboxInstance,
   packages: string[],
@@ -384,13 +387,13 @@ async function installPackages(
   logger.info("Installing packages", { packages });
 
   let result = await sandbox.runCommand({
-    cmd: "pnpm",
+    cmd: "bun",
     args: ["add", ...packages],
   });
   if (result.exitCode !== 0) {
     result = await sandbox.runCommand({
-      cmd: "npm",
-      args: ["install", ...packages],
+      cmd: "pnpm",
+      args: ["add", ...packages],
     });
   }
 

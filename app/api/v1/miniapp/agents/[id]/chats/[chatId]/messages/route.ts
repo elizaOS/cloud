@@ -18,7 +18,7 @@ import {
   createPreflightResponse,
 } from "@/lib/middleware/cors-apps";
 import { logger } from "@/lib/utils/logger";
-import { db } from "@/db/client";
+import { dbRead } from "@/db/client";
 import { roomTable, participantTable } from "@/db/schemas/eliza";
 import { eq, and } from "drizzle-orm";
 import type { UUID } from "@elizaos/core";
@@ -95,7 +95,7 @@ export async function POST(
     }
 
     // Verify room exists and user has access
-    const room = await db.query.roomTable.findFirst({
+    const room = await dbRead.query.roomTable.findFirst({
       where: eq(roomTable.id, chatId as UUID),
     });
 
@@ -108,7 +108,7 @@ export async function POST(
     }
 
     // Check if user has access - either via participant record OR as the creator
-    const userParticipant = await db.query.participantTable.findFirst({
+    const userParticipant = await dbRead.query.participantTable.findFirst({
       where: and(
         eq(participantTable.roomId, chatId as UUID),
         eq(participantTable.entityId, user.id as UUID),

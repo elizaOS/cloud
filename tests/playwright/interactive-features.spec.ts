@@ -396,7 +396,7 @@ test.describe("Error Handling", () => {
   });
 
   test("auth error page displays correctly", async ({ page }) => {
-    await page.goto(`${BASE_URL}/auth-error`);
+    await page.goto(`${BASE_URL}/authentication-error`);
     await page.waitForLoadState("networkidle");
 
     const content = await page.locator("body").textContent();

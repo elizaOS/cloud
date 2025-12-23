@@ -10,7 +10,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { db } from "@/db/client";
+import { dbWrite } from "@/db/client";
 import { userCharacters } from "@/db/schemas/user-characters";
 import { eq } from "drizzle-orm";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
@@ -120,7 +120,7 @@ export async function POST(
   }
 
   // Step 1: Update agent to public with settings
-  await db
+  await dbWrite
     .update(userCharacters)
     .set({
       is_public: true,
@@ -165,7 +165,7 @@ export async function POST(
     const tokenIdNum = tokenId !== "?" ? parseInt(tokenId, 10) : null;
 
     // Update agent with ERC-8004 registration info
-    await db
+    await dbWrite
       .update(userCharacters)
       .set({
         erc8004_registered: true,
@@ -249,7 +249,7 @@ export async function DELETE(
   }
 
   // Make agent private
-  await db
+  await dbWrite
     .update(userCharacters)
     .set({
       is_public: false,

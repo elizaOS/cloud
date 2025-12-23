@@ -1,5 +1,5 @@
 import { eq, desc, and, or, ilike, sql, SQL, inArray } from "drizzle-orm";
-import { db } from "../client";
+import { dbRead, dbWrite } from "../helpers";
 import {
   userCharacters,
   type UserCharacter,
@@ -18,7 +18,7 @@ export class UserCharactersRepository {
    * Finds a character by ID.
    */
   async findById(id: string): Promise<UserCharacter | undefined> {
-    return await db.query.userCharacters.findFirst({
+    return await dbRead.query.userCharacters.findFirst({
       where: eq(userCharacters.id, id),
     });
   }
@@ -36,12 +36,12 @@ export class UserCharactersRepository {
     userId: string,
     source: "cloud" | "app" = "cloud",
   ): Promise<UserCharacter[]> {
-    const interactedCharacterIds = db
+    const interactedCharacterIds = dbRead
       .selectDistinct({ character_id: elizaRoomCharactersTable.character_id })
       .from(elizaRoomCharactersTable)
       .where(eq(elizaRoomCharactersTable.user_id, userId));
 
-    return await db
+    return await dbRead
       .selectDistinct()
       .from(userCharacters)
       .where(
@@ -66,7 +66,7 @@ export class UserCharactersRepository {
     organizationId: string,
     source: "cloud" | "app" = "cloud",
   ): Promise<UserCharacter[]> {
-    return await db.query.userCharacters.findMany({
+    return await dbRead.query.userCharacters.findMany({
       where: and(
         eq(userCharacters.organization_id, organizationId),
         eq(userCharacters.source, source),
@@ -79,7 +79,7 @@ export class UserCharactersRepository {
    * Lists all public characters (cloud source only).
    */
   async listPublic(): Promise<UserCharacter[]> {
-    return await db.query.userCharacters.findMany({
+    return await dbRead.query.userCharacters.findMany({
       where: and(
         eq(userCharacters.is_public, true),
         eq(userCharacters.source, "cloud"),
@@ -92,7 +92,7 @@ export class UserCharactersRepository {
    * Lists all template characters (cloud source only).
    */
   async listTemplates(): Promise<UserCharacter[]> {
-    return await db.query.userCharacters.findMany({
+    return await dbRead.query.userCharacters.findMany({
       where: and(
         eq(userCharacters.is_template, true),
         eq(userCharacters.source, "cloud"),
@@ -105,7 +105,7 @@ export class UserCharactersRepository {
    * Creates a new character.
    */
   async create(data: NewUserCharacter): Promise<UserCharacter> {
-    const [character] = await db
+    const [character] = await dbWrite
       .insert(userCharacters)
       .values(data)
       .returning();
@@ -119,7 +119,7 @@ export class UserCharactersRepository {
     id: string,
     data: Partial<NewUserCharacter>,
   ): Promise<UserCharacter | undefined> {
-    const [updated] = await db
+    const [updated] = await dbWrite
       .update(userCharacters)
       .set({
         ...data,
@@ -134,7 +134,7 @@ export class UserCharactersRepository {
    * Deletes a character by ID.
    */
   async delete(id: string): Promise<void> {
-    await db.delete(userCharacters).where(eq(userCharacters.id, id));
+    await dbWrite.delete(userCharacters).where(eq(userCharacters.id, id));
   }
 
   /**
@@ -191,7 +191,7 @@ export class UserCharactersRepository {
     // Include characters that user owns OR has interacted with via chat rooms
     // This allows affiliate-created characters (clone-your-crush) to appear in my-agents
     // when the user has chatted with them, even if they don't "own" the character
-    const interactedCharacterIds = db
+    const interactedCharacterIds = dbRead
       .selectDistinct({ character_id: elizaRoomCharactersTable.character_id })
       .from(elizaRoomCharactersTable)
       .where(eq(elizaRoomCharactersTable.user_id, userId));
@@ -234,7 +234,7 @@ export class UserCharactersRepository {
         secondaryOrderBy = desc(userCharacters.popularity_score);
     }
 
-    return await db
+    return await dbRead
       .select()
       .from(userCharacters)
       .where(conditions.length > 0 ? and(...conditions) : undefined)
@@ -290,7 +290,7 @@ export class UserCharactersRepository {
     }
 
     // Include characters that user owns OR has interacted with via chat rooms
-    const interactedCharacterIds = db
+    const interactedCharacterIds = dbRead
       .selectDistinct({ character_id: elizaRoomCharactersTable.character_id })
       .from(elizaRoomCharactersTable)
       .where(eq(elizaRoomCharactersTable.user_id, userId));
@@ -302,7 +302,7 @@ export class UserCharactersRepository {
       )!,
     );
 
-    const result = await db
+    const result = await dbRead
       .select({ count: sql<number>`count(*)` })
       .from(userCharacters)
       .where(conditions.length > 0 ? and(...conditions) : undefined);
@@ -314,7 +314,7 @@ export class UserCharactersRepository {
    * Atomically increments the view count for a character.
    */
   async incrementViewCount(id: string): Promise<void> {
-    await db
+    await dbWrite
       .update(userCharacters)
       .set({
         view_count: sql`${userCharacters.view_count} + 1`,
@@ -326,7 +326,7 @@ export class UserCharactersRepository {
    * Atomically increments the interaction count for a character.
    */
   async incrementInteractionCount(id: string): Promise<void> {
-    await db
+    await dbWrite
       .update(userCharacters)
       .set({
         interaction_count: sql`${userCharacters.interaction_count} + 1`,
@@ -338,7 +338,7 @@ export class UserCharactersRepository {
    * Updates the popularity score for a character.
    */
   async updatePopularityScore(id: string, score: number): Promise<void> {
-    await db
+    await dbWrite
       .update(userCharacters)
       .set({
         popularity_score: score,
@@ -352,7 +352,7 @@ export class UserCharactersRepository {
    * @param limit - Maximum number of characters to return (default: 10).
    */
   async getFeatured(limit: number = 10): Promise<UserCharacter[]> {
-    return await db.query.userCharacters.findMany({
+    return await dbRead.query.userCharacters.findMany({
       where: and(
         eq(userCharacters.featured, true),
         eq(userCharacters.source, "cloud"),
@@ -368,7 +368,7 @@ export class UserCharactersRepository {
    * @param limit - Maximum number of characters to return (default: 20).
    */
   async getPopular(limit: number = 20): Promise<UserCharacter[]> {
-    return await db.query.userCharacters.findMany({
+    return await dbRead.query.userCharacters.findMany({
       where: and(
         or(
           eq(userCharacters.is_template, true),
@@ -462,7 +462,7 @@ export class UserCharactersRepository {
         secondaryOrderBy = desc(userCharacters.popularity_score);
     }
 
-    return await db
+    return await dbRead
       .select()
       .from(userCharacters)
       .where(and(...conditions))
@@ -518,7 +518,7 @@ export class UserCharactersRepository {
       conditions.push(eq(userCharacters.source, filters.source));
     }
 
-    const result = await db
+    const result = await dbRead
       .select({ count: sql<number>`count(*)` })
       .from(userCharacters)
       .where(and(...conditions));

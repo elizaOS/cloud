@@ -89,8 +89,10 @@ export const generations = pgTable(
       table.type,
       table.status,
     ),
-    // Gallery query optimization: covers WHERE org_id AND status AND user_id ORDER BY created_at
-    gallery_query_idx: index("idx_generations_gallery_query").on(
+    // Composite index for gallery queries: org + status + user + created_at ordering
+    org_status_user_created_idx: index(
+      "generations_org_status_user_created_idx",
+    ).on(
       table.organization_id,
       table.status,
       table.user_id,

@@ -22,6 +22,7 @@ import {
   Trash2,
   Copy,
   Check,
+  Plus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { LockOnButton } from "@/components/brand";
@@ -137,7 +138,10 @@ export function ChatSidebar({
     if (!showTokens) return;
 
     const handleClickOutside = (event: MouseEvent) => {
-      if (tokensRef.current && !tokensRef.current.contains(event.target as Node)) {
+      if (
+        tokensRef.current &&
+        !tokensRef.current.contains(event.target as Node)
+      ) {
         setShowTokens(false);
       }
     };
@@ -312,7 +316,10 @@ export function ChatSidebar({
                   className="bg-[#0A0A0A] border border-white/10 p-4 sm:p-3 mt-2 w-[calc(100vw-1rem)] sm:w-[460px] max-w-[96vw] absolute top-full left-2 z-[60]"
                 >
                   <div className="space-y-3">
-                    <h3 id="token-title-chat-sidebar" className="text-xl font-mono font-bold text-brand-orange text-start border-b border-white/10 pb-3 sm:px-3">
+                    <h3
+                      id="token-title-chat-sidebar"
+                      className="text-xl font-mono font-bold text-brand-orange text-start border-b border-white/10 pb-3 sm:px-3"
+                    >
                       elizaOS Token Addresses
                     </h3>
                     <div className="space-y-4 sm:space-y-0 font-mono text-sm">
@@ -416,52 +423,72 @@ export function ChatSidebar({
 
         {/* Back Button */}
         <div className="border-b border-white/10 px-4 py-2">
-          <Link
-            href="/dashboard"
+          <button
+            type="button"
+            onClick={() => router.back()}
             className="flex items-center gap-1.5 text-xs text-white/50 hover:text-white/80 transition-colors"
           >
             <ArrowLeft className="h-3 w-3" />
             <span>Back</span>
-          </Link>
+          </button>
         </div>
 
         {/* Selected Character Profile with New Chat Icon */}
         <div className="border-b border-white/10 px-4 py-3">
           <div className="flex items-center gap-2.5">
-            {/* Character Avatar */}
-            <ElizaAvatar
-              avatarUrl={selectedCharacter?.avatarUrl || defaultElizaAvatar}
-              name={selectedCharacter?.name || "Eliza"}
-              className="w-8 h-8 shrink-0"
-              iconClassName="h-4 w-4"
-              fallbackClassName="bg-[#FF5800]/10"
-            />
+            {/* Character Avatar or Create New Agent Icon */}
+            {selectedCharacter ? (
+              <ElizaAvatar
+                avatarUrl={selectedCharacter.avatarUrl}
+                name={selectedCharacter.name}
+                className="w-8 h-8 shrink-0"
+                iconClassName="h-4 w-4"
+                fallbackClassName="bg-[#FF5800]/10"
+              />
+            ) : (
+              <div className="w-8 h-8 rounded-full bg-[#FF5800]/20 border border-[#FF5800]/30 flex items-center justify-center shrink-0">
+                <Plus className="h-4 w-4 text-[#FF5800]" />
+              </div>
+            )}
 
-            {/* Character Info */}
+            {/* Character Info or Create New Agent */}
             <div className="flex-1 min-w-0">
               <div className="text-sm font-medium text-white truncate">
-                {selectedCharacter?.name || "Eliza"}
+                {selectedCharacter?.name || "Create New Agent"}
               </div>
-              <div className="text-[10px] text-white/40 truncate">
-                {filteredRooms.length} chat
-                {filteredRooms.length !== 1 ? "s" : ""}
-              </div>
+              {selectedCharacter && (
+                <div className="text-[10px] text-white/40 truncate">
+                  {filteredRooms.length} chat
+                  {filteredRooms.length !== 1 ? "s" : ""}
+                </div>
+              )}
             </div>
 
-            {/* New Chat Button - uses petite corners for tiny button */}
-            <LockOnButton
-              onClick={handleNewChat}
-              disabled={operationState.isCreatingRoom}
-              size="sm"
-              cornerSize="petite"
-              className="shrink-0 h-7 px-3 text-xs"
-            >
-              {operationState.isCreatingRoom ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <span className="text-base mb-0.5">+</span>
-              )}
-            </LockOnButton>
+            {/* New Chat Button or Create Agent Button */}
+            {selectedCharacter ? (
+              <LockOnButton
+                onClick={handleNewChat}
+                disabled={operationState.isCreatingRoom}
+                size="sm"
+                cornerSize="petite"
+                className="shrink-0 h-7 px-3 text-xs"
+              >
+                {operationState.isCreatingRoom ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <span className="text-base mb-0.5">+</span>
+                )}
+              </LockOnButton>
+            ) : (
+              <LockOnButton
+                onClick={() => router.push("/dashboard/build")}
+                size="sm"
+                cornerSize="petite"
+                className="shrink-0 h-7 px-3 text-xs"
+              >
+                <span className="text-xs">Build</span>
+              </LockOnButton>
+            )}
           </div>
         </div>
 

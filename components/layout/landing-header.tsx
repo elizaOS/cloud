@@ -25,7 +25,7 @@ export default function LandingHeader() {
   };
 
   return (
-    <motion.header className="fixed top-0 left-0 z-[100] w-full pointer-events-auto pr-4 sm:pr-[20px]">
+    <motion.header className="fixed top-0 left-0 z-[100] w-full pointer-events-auto pr-4 sm:pr-[20px] bg-black/40 backdrop-blur-md md:bg-transparent md:backdrop-blur-none">
       <div className="flex h-16 items-center justify-between w-full pl-4">
         <Link href="/" className="flex items-center gap-3">
           <div className="flex items-center gap-2">
@@ -45,7 +45,6 @@ export default function LandingHeader() {
               {/* Authenticated user - show Dashboard + UserMenu */}
               <Button
                 size="sm"
-                // onClick={handleDashboard}
                 className="bg-[#FF5800] hover:bg-[#FF5800]/90 text-white"
               >
                 <Link href="/dashboard">Dashboard</Link>

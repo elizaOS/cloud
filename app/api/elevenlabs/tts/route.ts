@@ -3,7 +3,7 @@ import { requireAuthWithOrg } from "@/lib/auth";
 import { getElevenLabsService } from "@/lib/services/elevenlabs";
 import { voiceCloningService } from "@/lib/services/voice-cloning";
 import { usageService } from "@/lib/services/usage";
-import { db } from "@/db/client";
+import { dbRead } from "@/db/client";
 import { userVoices } from "@/db/schemas/user-voices";
 import { eq } from "drizzle-orm";
 import { logger } from "@/lib/utils/logger";
@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
 
     if (voiceId) {
       // Check if this is a custom user voice (not default ElevenLabs voice)
-      const [voice] = await db
+      const [voice] = await dbRead
         .select({
           id: userVoices.id,
           name: userVoices.name,

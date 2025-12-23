@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/utils/logger";
 import { requireAuthWithOrg } from "@/lib/auth";
-import { db } from "@/db/client";
+import { dbRead } from "@/db/client";
 import { usageRecords } from "@/db/schemas/usage-records";
 import { creditTransactions } from "@/db/schemas/credit-transactions";
 import { eq, sql, and, gte, desc } from "drizzle-orm";
@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
     const org = user.organization;
 
     const [transactionStats, usageStats, lastTransaction] = await Promise.all([
-      db
+      dbRead
         .select({
           totalCredits: sql<string>`COALESCE(SUM(CASE WHEN ${creditTransactions.type} = 'credit' THEN ${creditTransactions.amount} ELSE 0 END), 0)`,
           totalDebits: sql<string>`COALESCE(SUM(CASE WHEN ${creditTransactions.type} = 'debit' THEN ABS(${creditTransactions.amount}) ELSE 0 END), 0)`,
@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
         })
         .from(creditTransactions)
         .where(eq(creditTransactions.organization_id, organizationId)),
-      db
+      dbRead
         .select({
           totalRequests: sql<number>`COUNT(*)::int`,
           successfulRequests: sql<number>`SUM(CASE WHEN ${usageRecords.is_successful} = true THEN 1 ELSE 0 END)::int`,
@@ -58,7 +58,7 @@ export async function GET(req: NextRequest) {
             gte(usageRecords.created_at, periodStart),
           ),
         ),
-      db
+      dbRead
         .select({ created_at: creditTransactions.created_at })
         .from(creditTransactions)
         .where(eq(creditTransactions.organization_id, organizationId))

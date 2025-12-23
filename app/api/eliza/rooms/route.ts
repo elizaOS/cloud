@@ -47,8 +47,14 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  // Parse query parameters
+  const { searchParams } = new URL(request.url);
+  const includeBuildRooms = searchParams.get("includeBuildRooms") === "true";
+
   // Single optimized query: rooms + last message for each room
-  const rooms = await roomsService.getRoomsForEntity(userId);
+  const rooms = await roomsService.getRoomsForEntity(userId, {
+    includeBuildRooms,
+  });
 
   return NextResponse.json({
     success: true,
@@ -69,7 +75,7 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   const body = await request.json();
-  const { characterId, sessionToken: bodySessionToken } = body;
+  const { characterId, sessionToken: bodySessionToken, name: roomName } = body;
 
   // Also check header for session token (anonymous users)
   const headerSessionToken = request.headers.get("X-Anonymous-Session");
@@ -173,7 +179,7 @@ export async function POST(request: NextRequest) {
     entityId: userId, // User's ID (from auth) - not used in ElizaOS schema but useful for our queries
     source: "web",
     type: "DM",
-    name: "New Chat",
+    name: roomName || "New Chat",
     metadata: {
       createdAt,
       creatorUserId: userId, // Store creator for access control

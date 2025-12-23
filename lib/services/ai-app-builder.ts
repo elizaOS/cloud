@@ -5,7 +5,7 @@ import {
   type FullAppTemplateType,
 } from "@/lib/fragments/prompt";
 import { logger } from "@/lib/utils/logger";
-import { db } from "@/db/client";
+import { dbRead, dbWrite } from "@/db/client";
 import {
   appSandboxSessions,
   appBuilderPrompts,
@@ -69,7 +69,7 @@ export class AIAppBuilderService {
     sessionId: string,
     userId: string,
   ): Promise<AppSandboxSession> {
-    const session = await db.query.appSandboxSessions.findFirst({
+    const session = await dbRead.query.appSandboxSessions.findFirst({
       where: eq(appSandboxSessions.id, sessionId),
     });
 
@@ -102,7 +102,7 @@ export class AIAppBuilderService {
 
     let templateUrl: string | undefined;
     if (templateType !== "blank") {
-      const template = await db.query.appTemplates.findFirst({
+      const template = await dbRead.query.appTemplates.findFirst({
         where: eq(appTemplates.slug, templateType),
       });
       templateUrl = template?.git_repo_url;
@@ -125,7 +125,7 @@ export class AIAppBuilderService {
 
     const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
 
-    const [session] = await db
+    const [session] = await dbWrite
       .insert(appSandboxSessions)
       .values({
         user_id: userId,
@@ -145,7 +145,7 @@ export class AIAppBuilderService {
       } satisfies NewAppSandboxSession)
       .returning();
 
-    await db.insert(appBuilderPrompts).values({
+    await dbWrite.insert(appBuilderPrompts).values({
       sandbox_session_id: session.id,
       role: "system",
       content: systemPrompt,
@@ -194,12 +194,12 @@ export class AIAppBuilderService {
         `Session is not ready. Current status: ${session.status}`,
       );
 
-    await db
+    await dbWrite
       .update(appSandboxSessions)
       .set({ status: "generating", updated_at: new Date() })
       .where(eq(appSandboxSessions.id, sessionId));
 
-    const [promptRecord] = await db
+    const [promptRecord] = await dbWrite
       .insert(appBuilderPrompts)
       .values({
         sandbox_session_id: sessionId,
@@ -209,7 +209,7 @@ export class AIAppBuilderService {
       } satisfies NewAppBuilderPrompt)
       .returning();
 
-    const systemPromptRecord = await db.query.appBuilderPrompts.findFirst({
+    const systemPromptRecord = await dbRead.query.appBuilderPrompts.findFirst({
       where: eq(appBuilderPrompts.sandbox_session_id, sessionId),
       orderBy: [desc(appBuilderPrompts.created_at)],
     });
@@ -226,7 +226,7 @@ export class AIAppBuilderService {
     );
     const durationMs = Date.now() - startTime;
 
-    await db
+    await dbWrite
       .update(appBuilderPrompts)
       .set({
         status: result.success ? "completed" : "error",
@@ -237,7 +237,7 @@ export class AIAppBuilderService {
       })
       .where(eq(appBuilderPrompts.id, promptRecord.id));
 
-    await db.insert(appBuilderPrompts).values({
+    await dbWrite.insert(appBuilderPrompts).values({
       sandbox_session_id: sessionId,
       role: "assistant",
       content: result.output,
@@ -257,7 +257,7 @@ export class AIAppBuilderService {
       },
     );
 
-    await db
+    await dbWrite
       .update(appSandboxSessions)
       .set({
         status: "ready",
@@ -301,7 +301,7 @@ export class AIAppBuilderService {
   ): Promise<BuilderSession | null> {
     const session = await this.verifyOwnership(sessionId, userId);
 
-    const prompts = await db.query.appBuilderPrompts.findMany({
+    const prompts = await dbRead.query.appBuilderPrompts.findMany({
       where: eq(appBuilderPrompts.sandbox_session_id, sessionId),
       orderBy: [desc(appBuilderPrompts.created_at)],
     });
@@ -336,7 +336,7 @@ export class AIAppBuilderService {
   ): Promise<AppSandboxSession[]> {
     const { limit = 10, includeInactive = false } = options;
 
-    const sessions = await db.query.appSandboxSessions.findMany({
+    const sessions = await dbRead.query.appSandboxSessions.findMany({
       where: eq(appSandboxSessions.user_id, userId),
       orderBy: [desc(appSandboxSessions.created_at)],
       limit,
@@ -363,7 +363,7 @@ export class AIAppBuilderService {
     await sandboxService.extendTimeout(session.sandbox_id, durationMs);
 
     const newExpiresAt = new Date(Date.now() + durationMs);
-    await db
+    await dbWrite
       .update(appSandboxSessions)
       .set({ expires_at: newExpiresAt, updated_at: new Date() })
       .where(eq(appSandboxSessions.id, sessionId));
@@ -388,7 +388,7 @@ export class AIAppBuilderService {
       await sandboxService.stop(session.sandbox_id);
     }
 
-    await db
+    await dbWrite
       .update(appSandboxSessions)
       .set({
         status: "stopped",
@@ -418,3 +418,4 @@ export class AIAppBuilderService {
 }
 
 export const aiAppBuilderService = new AIAppBuilderService();
+

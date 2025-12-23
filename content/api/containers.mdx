@@ -1,0 +1,194 @@
+---
+title: Containers
+description: Deploy and manage containers on elizaOS Cloud.
+---
+
+import { Callout, Tabs } from 'nextra/components'
+
+# Containers
+
+<div className="status-badge status-stable">Stable</div>
+
+Deploy and manage containerized applications.
+
+## List Containers
+
+<div className="api-endpoint">
+  <span className="method-badge method-badge-get">GET</span>
+  <span className="path">/api/v1/containers</span>
+</div>
+
+Get all your containers.
+
+### Response
+
+```json
+{
+  "containers": [
+    {
+      "id": "cnt_abc123",
+      "name": "my-agent-runtime",
+      "status": "running",
+      "url": "https://my-agent.elizacloud.ai",
+      "createdAt": "2024-01-15T10:30:00Z"
+    }
+  ]
+}
+```
+
+---
+
+## Create Container
+
+<div className="api-endpoint">
+  <span className="method-badge method-badge-post">POST</span>
+  <span className="path">/api/v1/containers</span>
+</div>
+
+Deploy a new container.
+
+### Request
+
+```json
+{
+  "name": "my-agent-runtime",
+  "characterId": "char_abc123",
+  "environment": {
+    "NODE_ENV": "production"
+  }
+}
+```
+
+### Response
+
+```json
+{
+  "id": "cnt_abc123",
+  "name": "my-agent-runtime",
+  "status": "deploying",
+  "url": "https://my-agent.elizacloud.ai"
+}
+```
+
+---
+
+## Get Container
+
+<div className="api-endpoint">
+  <span className="method-badge method-badge-get">GET</span>
+  <span className="path">/api/v1/containers/{'{id}'}</span>
+</div>
+
+Get container details.
+
+---
+
+## Delete Container
+
+<div className="api-endpoint">
+  <span className="method-badge method-badge-delete">DELETE</span>
+  <span className="path">/api/v1/containers/{'{id}'}</span>
+</div>
+
+Stop and delete a container.
+
+---
+
+## Container Logs
+
+<div className="api-endpoint">
+  <span className="method-badge method-badge-get">GET</span>
+  <span className="path">/api/v1/containers/{'{id}'}/logs</span>
+</div>
+
+Get container logs.
+
+### Query Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `tail` | integer | Number of lines (default: 100) |
+| `since` | string | Start time (ISO 8601) |
+
+### Response
+
+```json
+{
+  "logs": [
+    {
+      "timestamp": "2024-01-15T10:30:00Z",
+      "message": "Server started on port 3000"
+    }
+  ]
+}
+```
+
+---
+
+## Container Metrics
+
+<div className="api-endpoint">
+  <span className="method-badge method-badge-get">GET</span>
+  <span className="path">/api/v1/containers/{'{id}'}/metrics</span>
+</div>
+
+Get container resource metrics.
+
+### Response
+
+```json
+{
+  "cpu": {
+    "usage": 15.5,
+    "limit": 100
+  },
+  "memory": {
+    "usage": 256,
+    "limit": 512,
+    "unit": "MB"
+  },
+  "network": {
+    "rx": 1024000,
+    "tx": 512000
+  }
+}
+```
+
+---
+
+## Container Health
+
+<div className="api-endpoint">
+  <span className="method-badge method-badge-get">GET</span>
+  <span className="path">/api/v1/containers/{'{id}'}/health</span>
+</div>
+
+Get container health status.
+
+### Response
+
+```json
+{
+  "status": "healthy",
+  "checks": {
+    "http": "passing",
+    "memory": "passing",
+    "disk": "passing"
+  }
+}
+```
+
+---
+
+## Stream Logs
+
+<div className="api-endpoint">
+  <span className="method-badge method-badge-get">GET</span>
+  <span className="path">/api/v1/containers/{'{id}'}/logs/stream</span>
+</div>
+
+Stream logs in real-time using Server-Sent Events.
+
+<Callout type="info">
+Container logs are retained for 7 days.
+</Callout>

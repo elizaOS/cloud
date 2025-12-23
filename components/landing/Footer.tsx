@@ -48,7 +48,10 @@ export default function Footer() {
     if (!showTokens) return;
 
     const handleClickOutside = (event: MouseEvent) => {
-      if (tokensRef.current && !tokensRef.current.contains(event.target as Node)) {
+      if (
+        tokensRef.current &&
+        !tokensRef.current.contains(event.target as Node)
+      ) {
         setShowTokens(false);
       }
     };
@@ -76,7 +79,10 @@ export default function Footer() {
     }
   }, [showTokens]);
   return (
-    <footer className="relative border-t border-neutral-800 bg-black" style={{ flexShrink: 0 }}>
+    <footer
+      className="relative border-t border-neutral-800 bg-black"
+      style={{ flexShrink: 0 }}
+    >
       <div className="container mx-auto px-6 py-8 md:py-16 relative z-10">
         <div className="grid grid-cols-2 md:grid-cols-3 gap-8 items-start">
           {/* 1. Left section (Text/Copyright) */}
@@ -139,7 +145,10 @@ export default function Footer() {
                     className="bg-[#0A0A0A] border border-white/10 p-4 sm:p-3 mb-2 w-[calc(100vw-1rem)] sm:w-[460px] max-w-[96vw] absolute bottom-full -right-4 sm:right-0 z-10"
                   >
                     <div className="space-y-3">
-                      <h3 id="token-title-footer" className="text-xl font-mono font-bold text-brand-orange text-start border-b border-white/10 pb-3 sm:px-3">
+                      <h3
+                        id="token-title-footer"
+                        className="text-xl font-mono font-bold text-brand-orange text-start border-b border-white/10 pb-3 sm:px-3"
+                      >
                         elizaOS Token Addresses
                       </h3>
                       <div className="space-y-4 sm:space-y-0 font-mono text-sm">
@@ -156,25 +165,25 @@ export default function Footer() {
                               <span className="text-brand-orange font-semibold">
                                 {token.name}
                               </span>
-                            <div
-                              className="transition-opacity p-1 hover:bg-brand-orange/10 rounded sm:hidden cursor-pointer"
-                              role="button"
-                              tabIndex={0}
-                              aria-label={`Copy ${token.name} address`}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter" || e.key === " ") {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  handleCopyAddress(token.address, token.id);
-                                }
-                              }}
-                            >
-                              {copiedAddress === token.id ? (
-                                <Check className="size-3.5 text-brand-orange" />
-                              ) : (
-                                <Copy className="size-3.5 text-white/70" />
-                              )}
-                            </div>
+                              <div
+                                className="transition-opacity p-1 hover:bg-brand-orange/10 rounded sm:hidden cursor-pointer"
+                                role="button"
+                                tabIndex={0}
+                                aria-label={`Copy ${token.name} address`}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter" || e.key === " ") {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    handleCopyAddress(token.address, token.id);
+                                  }
+                                }}
+                              >
+                                {copiedAddress === token.id ? (
+                                  <Check className="size-3.5 text-brand-orange" />
+                                ) : (
+                                  <Copy className="size-3.5 text-white/70" />
+                                )}
+                              </div>
                             </div>
                             <div className="flex items-center justify-between gap-2 group">
                               <span className="text-white/70 break-all font-mono text-start tracking-tight sm:tracking-normal">
@@ -208,9 +217,7 @@ export default function Footer() {
                 </button>
               </div>
               <a
-                href="https://elizaos.ai/docs"
-                target="_blank"
-                rel="noopener noreferrer"
+                href="/docs"
                 className="text-base text-white transition-colors hover:text-[#FF5800]"
               >
                 Docs
@@ -251,7 +258,7 @@ export default function Footer() {
                 </svg>
               </a>
               <a
-                href="https://discord.gg/elizaos"
+                href="https://discord.gg/mPsBnEXJuA"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-white transition-colors hover:text-[#FF5800]"

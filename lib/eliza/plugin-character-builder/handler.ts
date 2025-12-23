@@ -62,21 +62,27 @@ export async function handleMessage({
     throw new Error("Message is from the agent itself");
   }
 
+  if (!message.id) {
+    throw new Error("Message must have an id");
+  }
+
+  const messageId = message.id;
   const creatorMode = isCreatorMode(runtime);
   const modeLabel = creatorMode ? "Creator" : "Build";
+  const sourceLabel = creatorMode ? "build-mode-Creator" : "build-mode-Build";
 
   logger.info(`[${modeLabel}] Processing message in room ${message.roomId}`);
 
   await setLatestResponseId(runtime, message.roomId, responseId);
   await runtime.emitEvent(EventType.RUN_STARTED, {
     runtime,
-    source: "build-mode",
     runId,
-    messageId: message.id || asUUID(v4()),
+    messageId,
     roomId: message.roomId,
     entityId: message.entityId,
     startTime,
     status: "started",
+    source: sourceLabel,
   });
 
   try {
@@ -109,12 +115,6 @@ export async function handleMessage({
       composePromptFromState({ state, template: buildModePlanningTemplate }),
     );
 
-    logger.debug(
-      "####### handleMessage planning system prompt",
-      runtime.character.system,
-    );
-    logger.debug("####### handleMessage planning prompt", planningPrompt);
-
     const planningResponse = await runtime.useModel(ModelType.TEXT_LARGE, {
       prompt: planningPrompt,
     });
@@ -124,11 +124,6 @@ export async function handleMessage({
     const plan = parsePlanningResponse(planningResponse);
     const selectedAction =
       parsePlannedItems(plan?.actions)[0] || "BUILDER_CHAT";
-
-    logger.debug(
-      "####### handleMessage planning response",
-      JSON.stringify(plan, null, 2),
-    );
 
     // Create action response with thought and mode context
     const actionResponse: Memory = {
@@ -175,32 +170,35 @@ export async function handleMessage({
       callback,
     );
 
+    const endTime = Date.now();
     await runtime.emitEvent(EventType.RUN_ENDED, {
       runtime,
-      source: "build-mode",
       runId,
-      messageId: message.id || asUUID(v4()),
+      messageId,
       roomId: message.roomId,
       entityId: message.entityId,
       startTime,
       status: "completed",
-      endTime: Date.now(),
-      duration: Date.now() - startTime,
+      endTime,
+      duration: endTime - startTime,
+      source: sourceLabel,
     });
   } catch (error) {
     runtime.character.system = originalSystemPrompt;
+    const endTime = Date.now();
+    // @ts-expect-error - RUN_ENDED status should include "error" for proper analytics tracking
     await runtime.emitEvent(EventType.RUN_ENDED, {
       runtime,
       runId,
-      messageId: message.id || asUUID(v4()),
+      messageId,
       roomId: message.roomId,
       entityId: message.entityId,
       startTime,
-      status: "completed",
-      endTime: Date.now(),
-      duration: Date.now() - startTime,
-      error: extractErrorMessage(error),
-      source: "build-mode",
+      status: "error",
+      endTime,
+      duration: endTime - startTime,
+      error: error instanceof Error ? error.message : String(error),
+      source: sourceLabel,
     });
     throw error;
   }

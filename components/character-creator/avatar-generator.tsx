@@ -21,8 +21,6 @@ import { logger } from "@/lib/utils/logger";
 import {
   generateDefaultAvatarUrl,
   getAvailableAvatarStyles,
-  isBuiltInAvatar,
-  ensureAvatarUrl,
 } from "@/lib/utils/default-avatar";
 import Image from "next/image";
 import { AvatarUpload } from "../character-builder";
@@ -100,8 +98,6 @@ export function AvatarGenerator({
     }
   };
 
-  const resolvedCurrentAvatar = ensureAvatarUrl(currentAvatarUrl);
-
   return (
     <div className={cn("flex flex-col gap-4", className)}>
       {/* Current Avatar Preview */}
@@ -150,37 +146,39 @@ export function AvatarGenerator({
           Choose from the built-in avatars:
         </p>
 
-        <div className="grid grid-cols-5 gap-2 max-w-[360px]">
-          {availableAvatars.map((avatar) => {
-            const isSelected = currentAvatarUrl === avatar.url;
-            return (
-              <button
-                key={avatar.id}
-                onClick={() => handleSelectAvatar(avatar.url)}
-                className={cn(
-                  "relative w-full max-w-16 max-h-16 aspect-square rounded-lg overflow-hidden border-2 transition-all",
-                  isSelected
-                    ? "border-[#FF5800] ring-2 ring-[#FF5800]/30"
-                    : "border-white/10 hover:border-white/30",
-                )}
-                title={avatar.name}
-              >
-                <Image
-                  src={avatar.url}
-                  alt={avatar.name}
-                  fill
-                  className="object-cover"
-                  draggable={false}
-                  sizes="64px"
-                />
-                {isSelected && (
-                  <div className="absolute inset-0 bg-[#FF5800]/20 flex items-center justify-center">
-                    <Check className="h-6 w-6 text-[#FF5800]" />
-                  </div>
-                )}
-              </button>
-            );
-          })}
+        <div className="border border-white/10 rounded-xl p-2 max-h-[300px] overflow-y-auto w-fit">
+          <div className="grid grid-cols-[repeat(10,_auto)] gap-1">
+            {availableAvatars.map((avatar) => {
+              const isSelected = currentAvatarUrl === avatar.url;
+              return (
+                <button
+                  key={avatar.id}
+                  onClick={() => handleSelectAvatar(avatar.url)}
+                  className={cn(
+                    "relative w-[52px] h-[52px] rounded-lg overflow-hidden border-2 transition-all",
+                    isSelected
+                      ? "border-[#FF5800] ring-2 ring-[#FF5800]/30"
+                      : "border-transparent hover:border-white/30",
+                  )}
+                  title={avatar.name}
+                >
+                  <Image
+                    src={avatar.url}
+                    alt={avatar.name}
+                    fill
+                    className="object-cover"
+                    draggable={false}
+                    sizes="56px"
+                  />
+                  {isSelected && (
+                    <div className="absolute inset-0 bg-[#FF5800]/20 flex items-center justify-center">
+                      <Check className="h-5 w-5 text-[#FF5800]" />
+                    </div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
     </div>

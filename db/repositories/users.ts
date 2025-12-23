@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { db } from "../client";
+import { dbRead, dbWrite } from "../helpers";
 import { users, type User, type NewUser } from "../schemas/users";
 import { organizations, type Organization } from "../schemas/organizations";
 
@@ -32,13 +32,20 @@ function logDbError(operation: string, error: unknown): void {
 
 /**
  * Repository for user database operations.
+ *
+ * Read operations → dbRead (read replica)
+ * Write operations → dbWrite (primary)
  */
 export class UsersRepository {
+  // ============================================================================
+  // READ OPERATIONS (use read replica)
+  // ============================================================================
+
   /**
    * Finds a user by ID.
    */
   async findById(id: string): Promise<User | undefined> {
-    return await db.query.users.findFirst({
+    return await dbRead.query.users.findFirst({
       where: eq(users.id, id),
     });
   }
@@ -47,7 +54,7 @@ export class UsersRepository {
    * Finds a user by email address.
    */
   async findByEmail(email: string): Promise<User | undefined> {
-    return await db.query.users.findFirst({
+    return await dbRead.query.users.findFirst({
       where: eq(users.email, email),
     });
   }
@@ -60,7 +67,7 @@ export class UsersRepository {
     privyUserId: string,
   ): Promise<UserWithOrganization | undefined> {
     try {
-      const user = await db.query.users.findFirst({
+      const user = await dbRead.query.users.findFirst({
         where: eq(users.privy_user_id, privyUserId),
         with: {
           organization: true,
@@ -74,7 +81,7 @@ export class UsersRepository {
 
       // Fallback: try a simpler two-query approach if relational query fails
       try {
-        const user = await db.query.users.findFirst({
+        const user = await dbRead.query.users.findFirst({
           where: eq(users.privy_user_id, privyUserId),
         });
 
@@ -85,7 +92,7 @@ export class UsersRepository {
         // Fetch organization separately if user exists and has org_id
         let org: Organization | null = null;
         if (user.organization_id) {
-          const orgResult = await db.query.organizations.findFirst({
+          const orgResult = await dbRead.query.organizations.findFirst({
             where: eq(organizations.id, user.organization_id),
           });
           org = orgResult ?? null;
@@ -108,7 +115,7 @@ export class UsersRepository {
     userId: string,
   ): Promise<UserWithOrganization | undefined> {
     try {
-      const user = await db.query.users.findFirst({
+      const user = await dbRead.query.users.findFirst({
         where: eq(users.id, userId),
         with: {
           organization: true,
@@ -121,7 +128,7 @@ export class UsersRepository {
 
       // Fallback: try a simpler two-query approach
       try {
-        const user = await db.query.users.findFirst({
+        const user = await dbRead.query.users.findFirst({
           where: eq(users.id, userId),
         });
 
@@ -131,7 +138,7 @@ export class UsersRepository {
 
         let org: Organization | null = null;
         if (user.organization_id) {
-          const orgResult = await db.query.organizations.findFirst({
+          const orgResult = await dbRead.query.organizations.findFirst({
             where: eq(organizations.id, user.organization_id),
           });
           org = orgResult ?? null;
@@ -153,7 +160,7 @@ export class UsersRepository {
     email: string,
   ): Promise<UserWithOrganization | undefined> {
     try {
-      const user = await db.query.users.findFirst({
+      const user = await dbRead.query.users.findFirst({
         where: eq(users.email, email),
         with: {
           organization: true,
@@ -166,7 +173,7 @@ export class UsersRepository {
 
       // Fallback: try a simpler two-query approach
       try {
-        const user = await db.query.users.findFirst({
+        const user = await dbRead.query.users.findFirst({
           where: eq(users.email, email),
         });
 
@@ -176,7 +183,7 @@ export class UsersRepository {
 
         let org: Organization | null = null;
         if (user.organization_id) {
-          const orgResult = await db.query.organizations.findFirst({
+          const orgResult = await dbRead.query.organizations.findFirst({
             where: eq(organizations.id, user.organization_id),
           });
           org = orgResult ?? null;
@@ -194,7 +201,7 @@ export class UsersRepository {
    * Finds a user by wallet address (case-insensitive).
    */
   async findByWalletAddress(walletAddress: string): Promise<User | undefined> {
-    return await db.query.users.findFirst({
+    return await dbRead.query.users.findFirst({
       where: eq(users.wallet_address, walletAddress.toLowerCase()),
     });
   }
@@ -207,7 +214,7 @@ export class UsersRepository {
     walletAddress: string,
   ): Promise<UserWithOrganization | undefined> {
     try {
-      const user = await db.query.users.findFirst({
+      const user = await dbRead.query.users.findFirst({
         where: eq(users.wallet_address, walletAddress.toLowerCase()),
         with: {
           organization: true,
@@ -220,7 +227,7 @@ export class UsersRepository {
 
       // Fallback: try a simpler two-query approach
       try {
-        const user = await db.query.users.findFirst({
+        const user = await dbRead.query.users.findFirst({
           where: eq(users.wallet_address, walletAddress.toLowerCase()),
         });
 
@@ -230,7 +237,7 @@ export class UsersRepository {
 
         let org: Organization | null = null;
         if (user.organization_id) {
-          const orgResult = await db.query.organizations.findFirst({
+          const orgResult = await dbRead.query.organizations.findFirst({
             where: eq(organizations.id, user.organization_id),
           });
           org = orgResult ?? null;
@@ -248,16 +255,20 @@ export class UsersRepository {
    * Lists all users in an organization.
    */
   async listByOrganization(organizationId: string): Promise<User[]> {
-    return await db.query.users.findMany({
+    return await dbRead.query.users.findMany({
       where: eq(users.organization_id, organizationId),
     });
   }
+
+  // ============================================================================
+  // WRITE OPERATIONS (use primary)
+  // ============================================================================
 
   /**
    * Creates a new user.
    */
   async create(data: NewUser): Promise<User> {
-    const [user] = await db.insert(users).values(data).returning();
+    const [user] = await dbWrite.insert(users).values(data).returning();
     return user;
   }
 
@@ -265,7 +276,7 @@ export class UsersRepository {
    * Updates an existing user.
    */
   async update(id: string, data: Partial<NewUser>): Promise<User | undefined> {
-    const [updated] = await db
+    const [updated] = await dbWrite
       .update(users)
       .set({
         ...data,
@@ -280,7 +291,7 @@ export class UsersRepository {
    * Deletes a user by ID.
    */
   async delete(id: string): Promise<void> {
-    await db.delete(users).where(eq(users.id, id));
+    await dbWrite.delete(users).where(eq(users.id, id));
   }
 }
 

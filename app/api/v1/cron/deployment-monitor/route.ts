@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/db/client";
+import { dbRead } from "@/db/client";
 import { containers } from "@/db/schemas/containers";
 import { inArray } from "drizzle-orm";
 import { cloudFormationService } from "@/lib/services/cloudformation";
@@ -54,7 +54,7 @@ async function handleDeploymentMonitor(request: NextRequest) {
     logger.info("[Deployment Monitor] Starting deployment status check");
 
     // Get all containers that are being deployed
-    const deployingContainers = await db
+    const deployingContainers = await dbRead
       .select()
       .from(containers)
       .where(inArray(containers.status, ["building", "deploying"]));
@@ -347,3 +347,6 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   return handleDeploymentMonitor(request);
 }
+
+
+

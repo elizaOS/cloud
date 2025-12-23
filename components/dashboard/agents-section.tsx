@@ -11,7 +11,7 @@
 "use client";
 
 import * as React from "react";
-import { BrandButton, LockOnButton, CornerBrackets } from "@/components/brand";
+import { BrandButton, CornerBrackets } from "@/components/brand";
 import {
   Tooltip,
   TooltipContent,
@@ -106,12 +106,12 @@ export function AgentsSection({ agents, className }: AgentsSectionProps) {
             </Tooltip>
           </div>
         </div>
-       {agents.length != 0 && <LockOnButton
+       {agents.length != 0 && <BrandButton
           onClick={() => (window.location.href = "/dashboard/build")}
-          icon={<Plus className="h-4 w-4" />}
         >
-          New Agent
-        </LockOnButton>}
+          <Plus className="h-4 w-4" />
+          Create New Agent
+        </BrandButton>}
       </div>
 
       {/* Agents Grid */}
@@ -233,7 +233,7 @@ function GettingStartedSection() {
         {/* Quick links */}
         <div className="flex items-center gap-4 mt-5 pt-4 border-t border-white/5">
           <a
-            href="https://elizaos.ai/docs"
+            href="/docs"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1.5 text-xs text-white/50 hover:text-[#FF5800] transition-colors"
@@ -290,11 +290,14 @@ function AgentCard({ agent }: { agent: Agent }) {
 
     toast.info("Duplicating agent...");
 
-    const response = await fetch(`/api/my-agents/characters/${agent.id}/clone`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: `${agent.name} (Copy)` }),
-    });
+    const response = await fetch(
+      `/api/my-agents/characters/${agent.id}/clone`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: `${agent.name} (Copy)` }),
+      }
+    );
 
     if (response.ok) {
       const data = await response.json();
@@ -501,12 +504,10 @@ function AgentsEmptyState() {
     <div className="flex flex-col items-center justify-center relative min-h-[240px] gap-4">
       <CornerBrackets size="md" color="#E1E1E1" />
       <h3 className="text-lg font-medium text-neutral-500">No agents yet</h3>
-      <LockOnButton
-          onClick={() => (window.location.href = "/dashboard/build")}
-        icon={<Plus className="h-4 w-4" />}
-      >
-        Create Agent
-      </LockOnButton>
+      <BrandButton onClick={() => (window.location.href = "/dashboard/build")}>
+        <Plus className="h-4 w-4" />
+        Create New Agent
+      </BrandButton>
     </div>
   );
 }

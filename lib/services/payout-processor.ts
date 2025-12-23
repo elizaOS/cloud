@@ -32,7 +32,7 @@
  * ============================================================================
  */
 
-import { db } from "@/db/client";
+import { dbRead, dbWrite } from "@/db/client";
 import { tokenRedemptions } from "@/db/schemas/token-redemptions";
 import { eq, and, lt, sql, isNull, or } from "drizzle-orm";
 import { logger } from "@/lib/utils/logger";
@@ -207,7 +207,7 @@ export class PayoutProcessorService {
     }
 
     // Find approved redemptions that aren't being processed
-    const redemptions = await db
+    const redemptions = await dbRead
       .select()
       .from(tokenRedemptions)
       .where(
@@ -262,7 +262,7 @@ export class PayoutProcessorService {
    * Acquire processing lock on a redemption.
    */
   private async acquireLock(redemptionId: string): Promise<boolean> {
-    const [updated] = await db
+    const [updated] = await dbWrite
       .update(tokenRedemptions)
       .set({
         status: "processing",
@@ -533,7 +533,7 @@ export class PayoutProcessorService {
     redemptionId: string,
     txHash: string,
   ): Promise<void> {
-    await db
+    await dbWrite
       .update(tokenRedemptions)
       .set({
         status: "completed",
@@ -554,7 +554,7 @@ export class PayoutProcessorService {
   ): Promise<void> {
     if (retryable) {
       // Increment retry count and reset to approved for retry
-      await db
+      await dbWrite
         .update(tokenRedemptions)
         .set({
           status: "approved", // Reset to approved for retry
@@ -567,7 +567,7 @@ export class PayoutProcessorService {
         .where(eq(tokenRedemptions.id, redemptionId));
     } else {
       // Mark as failed (requires manual intervention)
-      await db
+      await dbWrite
         .update(tokenRedemptions)
         .set({
           status: "failed",

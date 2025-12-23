@@ -1,4 +1,4 @@
-import { db } from "@/db/client";
+import { dbRead, dbWrite } from "@/db/helpers";
 import { anonymousSessions, type AnonymousSession } from "@/db/schemas";
 import { eq, and, lt, gte, sql } from "drizzle-orm";
 
@@ -7,13 +7,20 @@ import { eq, and, lt, gte, sql } from "drizzle-orm";
  *
  * Handles CRUD operations for anonymous user sessions.
  * Used for tracking free tier usage and rate limiting.
+ *
+ * Read operations → dbRead (read replica)
+ * Write operations → dbWrite (NA primary)
  */
 export class AnonymousSessionsRepository {
+  // ============================================================================
+  // READ OPERATIONS (use read replica)
+  // ============================================================================
+
   /**
    * Gets an active, non-expired session by token.
    */
   async getByToken(sessionToken: string): Promise<AnonymousSession | null> {
-    const [session] = await db
+    const [session] = await dbRead
       .select()
       .from(anonymousSessions)
       .where(
@@ -32,7 +39,7 @@ export class AnonymousSessionsRepository {
    * Gets a session by user ID.
    */
   async getByUserId(userId: string): Promise<AnonymousSession | null> {
-    const [session] = await db
+    const [session] = await dbRead
       .select()
       .from(anonymousSessions)
       .where(eq(anonymousSessions.user_id, userId))
@@ -40,6 +47,33 @@ export class AnonymousSessionsRepository {
 
     return session || null;
   }
+
+  /**
+   * Gets all active sessions by IP address (for abuse detection).
+   */
+  async getByIpAddress(ipAddress: string): Promise<AnonymousSession[]> {
+    return await dbRead
+      .select()
+      .from(anonymousSessions)
+      .where(
+        and(
+          eq(anonymousSessions.ip_address, ipAddress),
+          eq(anonymousSessions.is_active, true),
+        ),
+      );
+  }
+
+  /**
+   * Counts active sessions by IP address (for abuse detection).
+   */
+  async countActiveSessionsByIp(ipAddress: string): Promise<number> {
+    const sessions = await this.getByIpAddress(ipAddress);
+    return sessions.length;
+  }
+
+  // ============================================================================
+  // WRITE OPERATIONS (use NA primary)
+  // ============================================================================
 
   /**
    * Creates a new anonymous session.
@@ -53,7 +87,7 @@ export class AnonymousSessionsRepository {
     fingerprint?: string;
     messages_limit?: number;
   }): Promise<AnonymousSession> {
-    const [session] = await db
+    const [session] = await dbWrite
       .insert(anonymousSessions)
       .values({
         session_token: data.session_token,
@@ -78,7 +112,7 @@ export class AnonymousSessionsRepository {
    * @throws Error if session not found.
    */
   async incrementMessageCount(sessionId: string): Promise<AnonymousSession> {
-    const [session] = await db
+    const [session] = await dbWrite
       .update(anonymousSessions)
       .set({
         message_count: sql`${anonymousSessions.message_count} + 1`,
@@ -114,7 +148,7 @@ export class AnonymousSessionsRepository {
 
     // Use a single atomic update with conditional logic
     // This resets the counter if the hour has passed, otherwise increments
-    const [updated] = await db
+    const [updated] = await dbWrite
       .update(anonymousSessions)
       .set({
         hourly_message_count: sql`
@@ -159,7 +193,7 @@ export class AnonymousSessionsRepository {
    * @throws Error if session not found.
    */
   async addTokenUsage(sessionId: string, tokens: number): Promise<void> {
-    const result = await db
+    const result = await dbWrite
       .update(anonymousSessions)
       .set({
         total_tokens_used: sql`${anonymousSessions.total_tokens_used} + ${tokens}`,
@@ -178,7 +212,7 @@ export class AnonymousSessionsRepository {
    * @throws Error if session not found.
    */
   async incrementSignupPrompt(sessionId: string): Promise<void> {
-    const result = await db
+    const result = await dbWrite
       .update(anonymousSessions)
       .set({
         signup_prompted_at: new Date(),
@@ -196,7 +230,7 @@ export class AnonymousSessionsRepository {
    * Marks session as converted (user signed up) and deactivates it.
    */
   async markConverted(sessionId: string): Promise<void> {
-    await db
+    await dbWrite
       .update(anonymousSessions)
       .set({
         converted_at: new Date(),
@@ -209,7 +243,7 @@ export class AnonymousSessionsRepository {
    * Deactivates a session.
    */
   async deactivate(sessionId: string): Promise<void> {
-    await db
+    await dbWrite
       .update(anonymousSessions)
       .set({
         is_active: false,
@@ -224,34 +258,11 @@ export class AnonymousSessionsRepository {
    */
   async deleteExpired(): Promise<number> {
     const now = new Date();
-    const result = await db
+    const result = await dbWrite
       .delete(anonymousSessions)
       .where(lt(anonymousSessions.expires_at, now));
 
     return result.rowCount || 0;
-  }
-
-  /**
-   * Gets all active sessions by IP address (for abuse detection).
-   */
-  async getByIpAddress(ipAddress: string): Promise<AnonymousSession[]> {
-    return await db
-      .select()
-      .from(anonymousSessions)
-      .where(
-        and(
-          eq(anonymousSessions.ip_address, ipAddress),
-          eq(anonymousSessions.is_active, true),
-        ),
-      );
-  }
-
-  /**
-   * Counts active sessions by IP address (for abuse detection).
-   */
-  async countActiveSessionsByIp(ipAddress: string): Promise<number> {
-    const sessions = await this.getByIpAddress(ipAddress);
-    return sessions.length;
   }
 }
 

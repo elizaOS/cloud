@@ -14,7 +14,7 @@ import { ChannelType, stringToUuid } from "@elizaos/core";
 import { createHash } from "crypto";
 import { conversationsService } from "@/lib/services/conversations";
 import type { ConversationMessage } from "@/db/repositories";
-import { db } from "@/db/client";
+import { db, dbRead } from "@/db/client";
 import { eq, and, desc, inArray } from "drizzle-orm";
 import { users } from "@/db/schemas/users";
 import { participantTable, memoryTable } from "@/db/schemas/eliza";
@@ -107,7 +107,7 @@ export class MemoryService {
     organizationId: string,
     roomId: string,
   ): Promise<boolean> {
-    const result = await db
+    const result = await dbRead
       .select({ exists: participantTable.roomId })
       .from(participantTable)
       .innerJoin(users, eq(participantTable.entityId, users.id))
@@ -129,7 +129,7 @@ export class MemoryService {
       `[Memory Service] getRoomIdsForOrganization called for org: ${organizationId}`,
     );
 
-    const results = await db
+    const results = await dbRead
       .selectDistinct({ roomId: participantTable.roomId })
       .from(participantTable)
       .innerJoin(users, eq(participantTable.entityId, users.id))
@@ -303,7 +303,7 @@ export class MemoryService {
           `[Memory Service] Querying database directly for roomId: ${input.roomId}`,
         );
 
-        const results = await db
+        const results = await dbRead
           .select()
           .from(memoryTable)
           .where(

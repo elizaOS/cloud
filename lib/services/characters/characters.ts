@@ -10,7 +10,7 @@ import {
 import { agentsRepository } from "@/db/repositories/agents/agents";
 import { usersService } from "../users";
 import { logger } from "@/lib/utils/logger";
-import { db } from "@/db/client";
+import { dbWrite } from "@/db/client";
 import { elizaRoomCharactersTable } from "@/db/schemas";
 import { eq, and } from "drizzle-orm";
 import type { ElizaCharacter } from "@/lib/types";
@@ -259,7 +259,7 @@ export class CharactersService {
       return { success: false, message: "Failed to update character" };
 
     if (previousOwnerId) {
-      const roomUpdateResult = await db
+      const roomUpdateResult = await dbWrite
         .update(elizaRoomCharactersTable)
         .set({ user_id: userId, updated_at: new Date() })
         .where(

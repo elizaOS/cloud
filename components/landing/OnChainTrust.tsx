@@ -43,7 +43,7 @@ export default function OnChainTrust() {
       name: "Eliza",
       description: "Knowledge base curator",
       address: "0xE7A5...D48",
-      image: "/agent-wallet.png",
+      image: "/avatars/eliza-default.png",
     },
     {
       name: "Pixel",
@@ -77,7 +77,7 @@ export default function OnChainTrust() {
         <div className="mb-8 md:mb-8 flex flex-col md:flex-row items-start md:justify-between gap-6">
           <div className="max-w-4xl">
             <motion.div className="mb-1 md:mb-2">
-              <SectionLabel>ON-CHAIN TRUST & ECONOMY</SectionLabel>
+              <SectionLabel><span className="normal-case">Build Autonomous Agents</span></SectionLabel>
             </motion.div>
 
             <motion.h2
@@ -88,7 +88,7 @@ export default function OnChainTrust() {
                 color: "#FFFFFF",
               }}
             >
-              Wallets, identity, and reputation.
+              Onchain discovery, trust and payments
             </motion.h2>
 
             <motion.p
@@ -98,22 +98,11 @@ export default function OnChainTrust() {
                 letterSpacing: "-0.003em",
               }}
             >
-              Fully onchain agents that discover each other, build trust through
-              ERC-8004, and transact natively.
+              Fully autonomous agents that utilize 8004 & x402 to find agents,
+              understand their reputation and securely take part in agentic
+              commerce.
             </motion.p>
           </div>
-
-          <Button
-            variant="outline"
-            className="onchain-trust-button hidden lg:flex shrink-0 gap-2 rounded-none transition-colors"
-            style={{
-              backgroundColor: "#E1E1E1",
-              borderColor: "#E1E1E1",
-              color: "#000000",
-            }}
-            asChild
-          >
-          </Button>
         </div>
 
         {/* Two column layout */}
