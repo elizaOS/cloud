@@ -65,23 +65,6 @@ type Database = NodePgDatabase<typeof schema> | NeonDatabase<typeof schema>;
 type DatabaseRegion = "na" | "eu" | "apac";
 type DatabaseRole = "read" | "write";
 
-interface DatabaseConfig {
-  url: string;
-  region: DatabaseRegion;
-  role: DatabaseRole;
-}
-
-interface DatabaseConnections {
-  write: Database;
-  read: Database;
-}
-
-interface RegionalConnections {
-  na: DatabaseConnections | null;
-  eu: DatabaseConnections | null;
-  apac: DatabaseConnections | null;
-}
-
 // ============================================================================
 // Region Detection
 // ============================================================================
@@ -247,7 +230,6 @@ function createConnection(url: string): Database {
  */
 class DatabaseConnectionManager {
   private connections: Map<string, Database> = new Map();
-  private initialized = false;
 
   /**
    * Get or create a database connection
@@ -289,7 +271,7 @@ class DatabaseConnectionManager {
       return this.getConnection(getPrimaryDatabaseUrl());
     }
 
-    const url = getDatabaseUrl(region, role);
+    const url = getDatabaseUrl(region, role) ?? getPrimaryDatabaseUrl();
     return this.getConnection(url);
   }
 
