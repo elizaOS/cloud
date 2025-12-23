@@ -5,6 +5,7 @@ import 'nextra-theme-docs/style.css'
 import './docs.css'
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import Image from 'next/image'
 import { LlmsTxtBadge } from '@/components/docs/llms-txt-badge'
 
 export const metadata: Metadata = {
@@ -19,9 +20,15 @@ export const metadata: Metadata = {
 const navbar = (
   <Navbar
     logo={
-      <div className="flex items-center gap-2">
-        <span className="text-white font-semibold tracking-tight">elizaOS</span>
-        <span className="text-[#ff5800] font-semibold tracking-tight">Cloud</span>
+      <div className="flex items-center gap-3 pointer-events-none select-none">
+        <Image
+          src="/cloudlogo-white.svg"
+          alt="Cloud"
+          width={90}
+          height={35}
+          priority
+          draggable={false}
+        />
         <span className="text-white/30 text-xs font-medium px-1.5 py-0.5 border border-white/10 bg-white/5">
           DOCS
         </span>
@@ -32,7 +39,7 @@ const navbar = (
     <LlmsTxtBadge />
     <Link 
       href="/dashboard" 
-      className="flex items-center gap-1.5 text-xs text-white/90 hover:text-white transition-colors px-3 py-1.5 bg-[#ff5800] hover:bg-[#ff6a1a]"
+      className="flex items-center gap-1.5 text-xs font-medium text-white/70 hover:text-white transition-all duration-200 px-3 py-1.5 rounded border border-white/10 hover:border-white/20 hover:bg-white/5"
     >
       Dashboard →
     </Link>

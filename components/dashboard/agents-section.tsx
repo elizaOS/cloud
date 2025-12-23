@@ -233,7 +233,7 @@ function GettingStartedSection() {
         {/* Quick links */}
         <div className="flex items-center gap-4 mt-5 pt-4 border-t border-white/5">
           <a
-            href="https://elizaos.ai/docs"
+            href="/docs"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1.5 text-xs text-white/50 hover:text-[#FF5800] transition-colors"
@@ -290,11 +290,14 @@ function AgentCard({ agent }: { agent: Agent }) {
 
     toast.info("Duplicating agent...");
 
-    const response = await fetch(`/api/my-agents/characters/${agent.id}/clone`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: `${agent.name} (Copy)` }),
-    });
+    const response = await fetch(
+      `/api/my-agents/characters/${agent.id}/clone`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: `${agent.name} (Copy)` }),
+      }
+    );
 
     if (response.ok) {
       const data = await response.json();

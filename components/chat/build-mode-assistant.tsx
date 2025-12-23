@@ -705,6 +705,7 @@ export function BuildModeAssistant({
                       );
                     } else {
                       toast.success("Character preview updated!", {
+                        description: isCreatorMode ? undefined : "Save to persist changes",
                         duration: 4000,
                       });
                     }
@@ -736,7 +737,7 @@ export function BuildModeAssistant({
                     );
                   }
 
-                  // Refresh character data after apply action
+                  // Refresh character data after apply action (SAVE_CHANGES)
                   if (detectedApplyAction && onCharacterRefresh) {
                     toast.success("Character saved!", { duration: 3000 });
                     await onCharacterRefresh();

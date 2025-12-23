@@ -79,11 +79,20 @@ export class RuntimeFactory {
     );
 
     const dbAdapter = await this.createDatabaseAdapter(agentId);
-    const settings = this.buildSettings(character, context);
+    const baseSettings = this.buildSettings(character, context);
     const filteredPlugins = this.filterPlugins(plugins);
 
+    const runtimeSecrets = {
+      ...(baseSettings.secrets as Record<string, unknown> | undefined),
+      ELIZAOS_CLOUD_API_KEY: context.apiKey,
+    };
+
     const runtime = new AgentRuntime({
-      character: { ...character, id: agentId, settings },
+      character: {
+        ...character,
+        id: agentId,
+        settings: { ...baseSettings, secrets: runtimeSecrets },
+      },
       plugins: filteredPlugins,
       agentId,
     });
