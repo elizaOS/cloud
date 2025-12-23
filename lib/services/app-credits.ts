@@ -9,7 +9,7 @@ import {
 import { appsRepository, type App } from "@/db/repositories/apps";
 import { appEarningsRepository } from "@/db/repositories/app-earnings";
 import { apps } from "@/db/schemas/apps";
-import { dbWrite } from "@/db/client";
+import { dbWrite } from "@/db/helpers";
 import { eq, sql } from "drizzle-orm";
 import { logger } from "@/lib/utils/logger";
 import { usersRepository } from "@/db/repositories/users";
