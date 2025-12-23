@@ -24,6 +24,7 @@ import {
   Sparkles,
   Crown,
   Paperclip,
+  Globe,
 } from "lucide-react";
 import { ElizaAvatar } from "./eliza-avatar";
 import { useAudioRecorder } from "./hooks/use-audio-recorder";
@@ -209,6 +210,7 @@ export function ElizaChatInterface({
   }));
 
   const [isUploadingFiles, setIsUploadingFiles] = useState(false);
+  const [webSearchEnabled, setWebSearchEnabled] = useState(false);
 
   const messageAudioUrls = useRef<Map<string, string>>(new Map());
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
@@ -540,6 +542,7 @@ export function ElizaChatInterface({
           text: messageText,
           model: selectedModelId, // Pass selected model from tier
           sessionToken: anonymousSessionToken || undefined, // Pass session token for anonymous users
+          webSearchEnabled, // Pass web search toggle state
           onMessage: handleStreamMessage,
           onChunk: handleStreamChunk, // Handle real-time streaming chunks
           onError: (errorMsg) => {
@@ -605,6 +608,7 @@ export function ElizaChatInterface({
       selectedCharacterId,
       selectedModelId,
       anonymousSessionToken,
+      webSearchEnabled,
       handleStreamMessage,
       handleStreamChunk,
       loadRooms,
@@ -1255,6 +1259,20 @@ export function ElizaChatInterface({
                   }}
                   className="hidden"
                 />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setWebSearchEnabled(!webSearchEnabled)}
+                  className={`h-9 w-9 rounded-lg border transition-colors ${
+                    webSearchEnabled
+                      ? "border-[#FF5800]/50 bg-[#FF5800]/10 hover:bg-[#FF5800]/20"
+                      : "border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.06]"
+                  }`}
+                  title={webSearchEnabled ? "Web search enabled" : "Enable web search"}
+                >
+                  <Globe className={`h-4 w-4 ${webSearchEnabled ? "text-[#FF5800]" : "text-white/60"}`} />
+                </Button>
                 <Button
                   type="button"
                   variant="ghost"

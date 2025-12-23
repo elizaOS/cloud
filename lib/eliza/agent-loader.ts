@@ -99,6 +99,11 @@ async function loadKnowledgePlugin() {
   return knowledgePluginCore;
 }
 
+async function loadWebSearchPlugin() {
+  const { webSearchPlugin } = await import("@elizaos/plugin-web-search");
+  return webSearchPlugin;
+}
+
 /**
  * Cast external plugin to local Plugin type.
  * Required because external @elizaos plugins may be compiled against
@@ -129,6 +134,7 @@ export class AgentLoader {
   async loadCharacter(
     characterId: string,
     agentMode: AgentMode,
+    options?: { webSearchEnabled?: boolean },
   ): Promise<{
     character: Character;
     plugins: Plugin[];
@@ -144,6 +150,11 @@ export class AgentLoader {
     const characterSettings = (elizaCharacter.settings ?? {}) as Record<string, unknown>;
     const characterPlugins = elizaCharacter.plugins || [];
 
+    // Inject webSearch settings if enabled via chat UI
+    if (options?.webSearchEnabled) {
+      characterSettings.webSearch = { enabled: true };
+    }
+
     // Resolve effective mode based on character capabilities
     const modeResolution = await resolveEffectiveMode(
       agentMode,
@@ -152,15 +163,27 @@ export class AgentLoader {
       characterPlugins,
     );
 
+    // Check if character has knowledge files (cached query, not runtime related)
+    const documentCount = await memoriesRepository.countByType(
+      characterId,
+      "documents",
+      characterId,
+    );
+    const hasKnowledge = documentCount > 0;
+
     const plugins = await this.resolvePlugins(
       modeResolution.mode,
       characterPlugins,
       characterSettings,
+      { hasKnowledge },
     );
     return { character, plugins, modeResolution };
   }
 
-  async getDefaultCharacter(agentMode: AgentMode): Promise<{
+  async getDefaultCharacter(
+    agentMode: AgentMode,
+    options?: { webSearchEnabled?: boolean },
+  ): Promise<{
     character: Character;
     plugins: Plugin[];
     modeResolution: ModeResolution;
@@ -170,7 +193,12 @@ export class AgentLoader {
       mode: agentMode,
       upgradeReason: "none",
     };
-    const plugins = await this.resolvePlugins(agentMode, [], {});
+    // Inject webSearch settings if enabled via chat UI
+    const characterSettings: Record<string, unknown> = {};
+    if (options?.webSearchEnabled) {
+      characterSettings.webSearch = { enabled: true };
+    }
+    const plugins = await this.resolvePlugins(agentMode, [], characterSettings);
     return { character: defaultAgent.character, plugins, modeResolution };
   }
 
@@ -271,6 +299,7 @@ export class AgentLoader {
     agentMode: AgentMode,
     characterPlugins: string[],
     characterSettings: Record<string, unknown>,
+    options?: { hasKnowledge?: boolean },
   ): Promise<Plugin[]> {
     const plugins: Plugin[] = [];
     const conditionalPlugins = getConditionalPlugins(characterSettings);
@@ -280,11 +309,23 @@ export class AgentLoader {
       ...conditionalPlugins,
     ];
 
+    // Add knowledge plugin if character has uploaded files
+    if (options?.hasKnowledge && agentMode === AgentMode.ASSISTANT) {
+      allPluginNames.push("@elizaos/plugin-knowledge");
+    }
+
     for (const pluginName of allPluginNames) {
       // Knowledge plugin lazy-loaded (SSR compatibility)
       if (pluginName === "@elizaos/plugin-knowledge") {
         const knowledgePlugin = await loadKnowledgePlugin();
         if (!plugins.includes(knowledgePlugin)) plugins.push(knowledgePlugin);
+        continue;
+      }
+
+      // Web search plugin lazy-loaded (SSR compatibility)
+      if (pluginName === "@elizaos/plugin-web-search") {
+        const webSearchPlugin = await loadWebSearchPlugin();
+        if (!plugins.includes(webSearchPlugin)) plugins.push(webSearchPlugin);
         continue;
       }
 

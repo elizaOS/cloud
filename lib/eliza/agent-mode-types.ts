@@ -80,6 +80,7 @@ export function isValidAgentModeConfig(
 /**
  * Plugin sets for each agent mode
  * These define which plugins are loaded for each operational mode
+ * NOTE: Knowledge and WebSearch plugins are conditionally loaded - not included in base sets
  */
 export const AGENT_MODE_PLUGINS = {
   [AgentMode.CHAT]: [
@@ -96,7 +97,6 @@ export const AGENT_MODE_PLUGINS = {
     "@elizaos/plugin-elizacloud",
     "@eliza-cloud/plugin-assistant",
     "@elizaos/plugin-memory",
-    "@elizaos/plugin-knowledge",
   ],
 } as const;
 
@@ -116,7 +116,9 @@ export interface ConditionalPluginSettings {
   mcp?: {
     servers: Record<string, McpServerConfig>;
   };
-  // Future: webSearch?: WebSearchSettings;
+  webSearch?: {
+    enabled: boolean;
+  };
 }
 
 /**
@@ -125,7 +127,7 @@ export interface ConditionalPluginSettings {
  */
 export const SETTINGS_PLUGIN_MAP = {
   mcp: "@elizaos/plugin-mcp",
-  // Future: webSearch: "@elizaos/plugin-web-search",
+  webSearch: "@elizaos/plugin-web-search",
 } as const satisfies Record<keyof ConditionalPluginSettings, string>;
 
 /**
@@ -147,7 +149,10 @@ function hasValidConfiguration(
         Object.keys(mcpSettings.servers).length > 0
       );
     }
-    // Future: case "webSearch": { ... }
+    case "webSearch": {
+      const webSearchSettings = value as ConditionalPluginSettings["webSearch"];
+      return webSearchSettings?.enabled === true;
+    }
     default:
       return false;
   }

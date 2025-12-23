@@ -96,6 +96,7 @@ export async function POST(
       attachments,
       appId: bodyAppId,
       appPromptConfig,
+      webSearchEnabled,
     } = body;
 
     // App ID can come from body OR X-App-Id header (miniapp proxy uses header)
@@ -275,8 +276,14 @@ export async function POST(
     const userContext = await authenticateAndBuildContext(
       request,
       agentModeConfig.mode,
-      { sessionToken, appId, appPromptConfig },
+      { sessionToken, appId, appPromptConfig, webSearchEnabled },
     );
+    
+    // Set webSearchEnabled on context if provided
+    if (webSearchEnabled) {
+      userContext.webSearchEnabled = true;
+      logger.info("[Stream] Web search enabled for this request");
+    }
 
     logger.info("[Stream] 📊 UserContext after auth:", {
       isAnonymous: userContext.isAnonymous,
@@ -733,6 +740,7 @@ async function authenticateAndBuildContext(
     sessionToken?: string;
     appId?: string;
     appPromptConfig?: Record<string, unknown>;
+    webSearchEnabled?: boolean;
   },
 ) {
   const headerToken = request.headers.get("X-Anonymous-Session");
