@@ -516,6 +516,43 @@ export function BuildModeAssistant({
                 }
               }
 
+              // Handle streaming chunks for real-time display
+              if (eventType === "chunk" && eventData) {
+                try {
+                  const chunkData = JSON.parse(eventData);
+                  if (chunkData.chunk && chunkData.messageId) {
+                    // Accumulate chunk text
+                    accumulateChunk(chunkData.messageId, chunkData.chunk);
+
+                    // Update streaming message in UI using throttled update
+                    const streamingId = `streaming-${chunkData.messageId}`;
+                    scheduleUpdate(chunkData.messageId, (accumulatedText) => {
+                      setMessages((prev) => {
+                        const existingIndex = prev.findIndex(m => m.id === streamingId);
+                        const streamingMsg: Message = {
+                          id: streamingId,
+                          role: "assistant",
+                          content: accumulatedText,
+                          timestamp: Date.now(),
+                        };
+
+                        if (existingIndex >= 0) {
+                          const updated = [...prev];
+                          updated[existingIndex] = streamingMsg;
+                          return updated;
+                        }
+                        return [...prev, streamingMsg];
+                      });
+                    });
+
+                    assistantMessageId = chunkData.messageId;
+                  }
+                } catch {
+                  // Ignore chunk parse errors
+                }
+                continue;
+              }
+
               if (eventData) {
                 try {
                   const data = JSON.parse(eventData);
@@ -610,20 +647,32 @@ export function BuildModeAssistant({
                 }
               }
 
-              // Handle done event
+              // Handle done event - replace streaming message with final message
               if (eventType === "done") {
                 if (assistantMessage || messageAttachments.length > 0) {
-                  const newAssistantMessage: Message = {
-                    id: assistantMessageId || `assistant-${Date.now()}`,
-                    role: "assistant",
-                    content: assistantMessage,
-                    timestamp: Date.now(),
-                    attachments:
-                      messageAttachments.length > 0
-                        ? messageAttachments
-                        : undefined,
-                  };
-                  setMessages((prev) => [...prev, newAssistantMessage]);
+                  const finalId = assistantMessageId || `assistant-${Date.now()}`;
+                  const streamingId = `streaming-${assistantMessageId}`;
+
+                  // Replace streaming message with final message
+                  setMessages((prev) => {
+                    const existingIndex = prev.findIndex((m) => m.id === streamingId);
+                    const finalMessage: Message = {
+                      id: finalId,
+                      role: "assistant",
+                      content: assistantMessage,
+                      timestamp: Date.now(),
+                      attachments: messageAttachments.length > 0 ? messageAttachments : undefined,
+                    };
+
+                    if (existingIndex >= 0) {
+                      // Replace streaming message with final
+                      const updated = [...prev];
+                      updated[existingIndex] = finalMessage;
+                      return updated;
+                    }
+                    // No streaming message found, just add final
+                    return [...prev, finalMessage];
+                  });
 
                   // Apply character updates to editor
                   if (proposedCharacterUpdate) {
@@ -710,6 +759,7 @@ export function BuildModeAssistant({
       }
     },
     [
+      accumulateChunk,
       builderRoomId,
       character,
       clearAllStreaming,
@@ -717,6 +767,7 @@ export function BuildModeAssistant({
       onCharacterCreated,
       onCharacterRefresh,
       onCharacterUpdate,
+      scheduleUpdate,
       selectedModelId,
       updateCharacterAvatar,
     ],
