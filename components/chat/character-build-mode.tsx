@@ -121,13 +121,18 @@ export function CharacterBuildMode({
     setPreUploadedFiles((prev) => prev.filter((f) => f.id !== fileId));
   }, []);
 
-  // Track unsaved changes (includes both character edits and pre-uploaded files)
-  useEffect(() => {
+  // Track unsaved changes (memoized to avoid JSON.stringify on every render)
+  const hasUnsavedChanges = useMemo(() => {
     const hasCharacterChanges =
       JSON.stringify(character) !== JSON.stringify(initialCharacter);
     const hasFileChanges = preUploadedFiles.length > 0;
-    onUnsavedChanges?.(hasCharacterChanges || hasFileChanges);
-  }, [character, initialCharacter, preUploadedFiles, onUnsavedChanges]);
+    return hasCharacterChanges || hasFileChanges;
+  }, [character, initialCharacter, preUploadedFiles]);
+
+  // Notify parent of unsaved changes state
+  useEffect(() => {
+    onUnsavedChanges?.(hasUnsavedChanges);
+  }, [hasUnsavedChanges, onUnsavedChanges]);
 
   // Update local state only when switching to a DIFFERENT character (by ID)
   // This prevents data loss when parent re-renders with new array reference but same content

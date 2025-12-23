@@ -10,7 +10,7 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { CharacterBuildMode } from "@/components/chat/character-build-mode";
 import { SignupPromptBanner } from "@/components/chat/signup-prompt-banner";
@@ -39,6 +39,11 @@ export function BuildPageClient({
   const [isLoadingSession, setIsLoadingSession] = useState(!isAuthenticated);
   const [showWarning, setShowWarning] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
+  // Ref to track when user confirmed navigation (bypasses beforeunload)
+  const isNavigatingRef = useRef(false);
+  // Ref to store pending navigation target
+  const pendingNavigationRef = useRef<string | null>(null);
 
   const router = useRouter();
   const pathname = usePathname();
@@ -91,7 +96,7 @@ export function BuildPageClient({
     }
   }, [isAuthenticated, anonymousSession]);
 
-  // Intercept Next.js navigation
+  // Intercept in-app navigation when there are unsaved changes
   useEffect(() => {
     if (!hasUnsavedChanges) return;
 
@@ -108,16 +113,12 @@ export function BuildPageClient({
           return;
         }
 
+        // Only intercept navigation to different paths
         if (url.pathname !== currentUrl.pathname) {
           e.preventDefault();
           e.stopPropagation();
+          pendingNavigationRef.current = anchor.href;
           setShowWarning(true);
-
-          interface WindowWithPendingNavigation extends Window {
-            __pendingNavigation?: string | null;
-          }
-          (window as WindowWithPendingNavigation).__pendingNavigation =
-            anchor.href;
         }
       }
 
@@ -125,8 +126,8 @@ export function BuildPageClient({
       if (button && button.textContent?.toLowerCase().includes("back")) {
         e.preventDefault();
         e.stopPropagation();
+        pendingNavigationRef.current = "back";
         setShowWarning(true);
-        (window as WindowWithPendingNavigation).__pendingNavigation = "back";
       }
     };
 
@@ -134,14 +135,18 @@ export function BuildPageClient({
     return () => document.removeEventListener("click", handleClick, true);
   }, [hasUnsavedChanges, pathname]);
 
-  interface WindowWithPendingNavigation extends Window {
-    __pendingNavigation?: string | null;
-  }
-
+  // Warn on browser close/refresh (only when not already navigating via our modal)
   useEffect(() => {
     if (!hasUnsavedChanges) return;
 
+    // Reset navigation flag when setting up new warning listener
+    // This ensures the flag doesn't persist from a previous navigation
+    isNavigatingRef.current = false;
+
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      // Skip if user already confirmed leave via our modal
+      if (isNavigatingRef.current) return;
+
       e.preventDefault();
       e.returnValue = "";
       return "";
@@ -152,21 +157,34 @@ export function BuildPageClient({
   }, [hasUnsavedChanges]);
 
   const handleConfirmLeave = () => {
+    // Mark that we're intentionally navigating (bypasses beforeunload)
+    isNavigatingRef.current = true;
     setShowWarning(false);
     setHasUnsavedChanges(false);
 
-    const pending = (window as WindowWithPendingNavigation).__pendingNavigation;
+    const pending = pendingNavigationRef.current;
     if (pending === "back") {
       router.back();
     } else if (pending) {
-      window.location.href = pending;
+      // Use router.push for internal links to avoid beforeunload
+      try {
+        const url = new URL(pending);
+        if (url.origin === window.location.origin) {
+          router.push(url.pathname + url.search + url.hash);
+        } else {
+          window.location.href = pending;
+        }
+      } catch {
+        // Invalid URL format - fall back to direct navigation
+        window.location.href = pending;
+      }
     }
-    (window as WindowWithPendingNavigation).__pendingNavigation = null;
+    pendingNavigationRef.current = null;
   };
 
   const handleCancelLeave = () => {
     setShowWarning(false);
-    (window as WindowWithPendingNavigation).__pendingNavigation = null;
+    pendingNavigationRef.current = null;
   };
 
   // Show loading state while initializing anonymous session
@@ -180,36 +198,36 @@ export function BuildPageClient({
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      {/* Navigation Warning Modal */}
-      {/* Navigation Warning Modal */}
-      <div
-        className={`fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] transition-opacity duration-200 ${
-          showWarning ? "opacity-100" : "opacity-0 pointer-events-none"
-        }`}
-      >
-        <div
-          className={`bg-black border border-white/10 rounded-none p-6 flex flex-col items-center gap-4 transition-all duration-200 ${
-            showWarning ? "scale-100 opacity-100" : "scale-95 opacity-0"
-          }`}
-        >
-          <TriangleAlert className="text-red-500 h-12 w-12" />
-          <h1 className="text-center">You have unsaved changes</h1>
-          <div className="flex gap-4 w-full justify-center">
-            <button
-              onClick={handleConfirmLeave}
-              className="px-4 py-2 border border-white/10 rounded-none bg-red-600/40 hover:bg-red-600/20"
-            >
-              Leave
-            </button>
-            <button
-              onClick={handleCancelLeave}
-              className="px-4 py-2 border border-white/10 rounded-none hover:bg-white/5"
-            >
-              Stay
-            </button>
+      {/* Unsaved Changes Warning Modal */}
+      {showWarning && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999] animate-in fade-in duration-150">
+          <div className="bg-[#0A0A0A] border border-white/10 rounded-lg p-6 flex flex-col items-center gap-4 max-w-sm mx-4 animate-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-center w-12 h-12 rounded-full bg-amber-500/10 border border-amber-500/20">
+              <TriangleAlert className="text-amber-500 h-6 w-6" />
+            </div>
+            <div className="text-center">
+              <h2 className="text-lg font-medium text-white">Unsaved changes</h2>
+              <p className="text-sm text-white/50 mt-1">
+                Your changes will be lost if you leave without saving.
+              </p>
+            </div>
+            <div className="flex gap-3 w-full">
+              <button
+                onClick={handleCancelLeave}
+                className="flex-1 px-4 py-2.5 border border-white/10 rounded-lg text-sm font-medium text-white/70 hover:text-white hover:bg-white/5 transition-colors"
+              >
+                Stay
+              </button>
+              <button
+                onClick={handleConfirmLeave}
+                className="flex-1 px-4 py-2.5 rounded-lg text-sm font-medium bg-red-600 hover:bg-red-700 text-white transition-colors"
+              >
+                Leave
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Signup prompt banner for anonymous users */}
       {!isAuthenticated && anonymousSession && (
