@@ -8,7 +8,7 @@ import {
   type InferSelectModel,
   type InferInsertModel,
 } from "drizzle-orm";
-import { db, type Database } from "../client";
+import { dbRead, dbWrite, type Database } from "../helpers";
 import { containers } from "../schemas/containers";
 import { organizations } from "../schemas/organizations";
 import { creditTransactions } from "../schemas/credit-transactions";
@@ -63,13 +63,20 @@ export class DuplicateContainerNameError extends Error {
 
 /**
  * Repository for container deployment database operations.
+ *
+ * Read operations → dbRead (read replica)
+ * Write operations → dbWrite (NA primary)
  */
 export class ContainersRepository {
+  // ============================================================================
+  // READ OPERATIONS (use read replica)
+  // ============================================================================
+
   /**
    * Lists all containers for an organization.
    */
   async listByOrganization(organizationId: string): Promise<Container[]> {
-    return await db
+    return await dbRead
       .select()
       .from(containers)
       .where(eq(containers.organization_id, organizationId))
@@ -83,7 +90,7 @@ export class ContainersRepository {
     id: string,
     organizationId: string,
   ): Promise<Container | null> {
-    const results = await db
+    const results = await dbRead
       .select()
       .from(containers)
       .where(
@@ -101,7 +108,7 @@ export class ContainersRepository {
    * Finds the most recent container for a character.
    */
   async findByCharacterId(characterId: string): Promise<Container | null> {
-    const results = await db
+    const results = await dbRead
       .select()
       .from(containers)
       .where(eq(containers.character_id, characterId))
@@ -119,105 +126,11 @@ export class ContainersRepository {
       return [];
     }
 
-    return await db
+    return await dbRead
       .select()
       .from(containers)
       .where(inArray(containers.character_id, characterIds))
       .orderBy(desc(containers.created_at));
-  }
-
-  /**
-   * Creates a new container record.
-   */
-  async create(data: NewContainer): Promise<Container> {
-    const [container] = await db
-      .insert(containers)
-      .values({
-        ...data,
-        updated_at: new Date(),
-      })
-      .returning();
-
-    return container;
-  }
-
-  /**
-   * Updates an existing container.
-   */
-  async update(
-    id: string,
-    organizationId: string,
-    data: Partial<NewContainer>,
-  ): Promise<Container | null> {
-    const [updated] = await db
-      .update(containers)
-      .set({
-        ...data,
-        updated_at: new Date(),
-      })
-      .where(
-        and(
-          eq(containers.id, id),
-          eq(containers.organization_id, organizationId),
-        ),
-      )
-      .returning();
-
-    return updated || null;
-  }
-
-  /**
-   * Deletes a container by ID.
-   */
-  async delete(id: string, organizationId: string): Promise<boolean> {
-    const results = await db
-      .delete(containers)
-      .where(
-        and(
-          eq(containers.id, id),
-          eq(containers.organization_id, organizationId),
-        ),
-      )
-      .returning();
-
-    return results.length > 0;
-  }
-
-  /**
-   * Updates container status and optional error message.
-   */
-  async updateStatus(
-    id: string,
-    status: ContainerStatus,
-    errorMessage?: string,
-  ): Promise<Container | null> {
-    const [updated] = await db
-      .update(containers)
-      .set({
-        status,
-        error_message: errorMessage || null,
-        updated_at: new Date(),
-      })
-      .where(eq(containers.id, id))
-      .returning();
-
-    return updated || null;
-  }
-
-  /**
-   * Updates the last health check timestamp for a container.
-   */
-  async updateHealthCheck(id: string): Promise<Container | null> {
-    const [updated] = await db
-      .update(containers)
-      .set({
-        last_health_check: new Date(),
-        updated_at: new Date(),
-      })
-      .where(eq(containers.id, id))
-      .returning();
-
-    return updated || null;
   }
 
   /**
@@ -228,7 +141,7 @@ export class ContainersRepository {
    */
   async checkQuota(organizationId: string): Promise<QuotaCheckResult> {
     // Get organization details
-    const org = await db.query.organizations.findFirst({
+    const org = await dbRead.query.organizations.findFirst({
       where: eq(organizations.id, organizationId),
       columns: { credit_balance: true, settings: true },
     });
@@ -243,7 +156,7 @@ export class ContainersRepository {
     }
 
     // Count active containers (excluding deleting/deleted status)
-    const [{ count }] = await db
+    const [{ count }] = await dbRead
       .select({ count: sql<number>`count(*)::int` })
       .from(containers)
       .where(
@@ -268,6 +181,104 @@ export class ContainersRepository {
         ? undefined
         : `Container quota exceeded (${count}/${maxContainers})`,
     };
+  }
+
+  // ============================================================================
+  // WRITE OPERATIONS (use NA primary)
+  // ============================================================================
+
+  /**
+   * Creates a new container record.
+   */
+  async create(data: NewContainer): Promise<Container> {
+    const [container] = await dbWrite
+      .insert(containers)
+      .values({
+        ...data,
+        updated_at: new Date(),
+      })
+      .returning();
+
+    return container;
+  }
+
+  /**
+   * Updates an existing container.
+   */
+  async update(
+    id: string,
+    organizationId: string,
+    data: Partial<NewContainer>,
+  ): Promise<Container | null> {
+    const [updated] = await dbWrite
+      .update(containers)
+      .set({
+        ...data,
+        updated_at: new Date(),
+      })
+      .where(
+        and(
+          eq(containers.id, id),
+          eq(containers.organization_id, organizationId),
+        ),
+      )
+      .returning();
+
+    return updated || null;
+  }
+
+  /**
+   * Deletes a container by ID.
+   */
+  async delete(id: string, organizationId: string): Promise<boolean> {
+    const results = await dbWrite
+      .delete(containers)
+      .where(
+        and(
+          eq(containers.id, id),
+          eq(containers.organization_id, organizationId),
+        ),
+      )
+      .returning();
+
+    return results.length > 0;
+  }
+
+  /**
+   * Updates container status and optional error message.
+   */
+  async updateStatus(
+    id: string,
+    status: ContainerStatus,
+    errorMessage?: string,
+  ): Promise<Container | null> {
+    const [updated] = await dbWrite
+      .update(containers)
+      .set({
+        status,
+        error_message: errorMessage || null,
+        updated_at: new Date(),
+      })
+      .where(eq(containers.id, id))
+      .returning();
+
+    return updated || null;
+  }
+
+  /**
+   * Updates the last health check timestamp for a container.
+   */
+  async updateHealthCheck(id: string): Promise<Container | null> {
+    const [updated] = await dbWrite
+      .update(containers)
+      .set({
+        last_health_check: new Date(),
+        updated_at: new Date(),
+      })
+      .where(eq(containers.id, id))
+      .returning();
+
+    return updated || null;
   }
 
   /**
@@ -340,7 +351,7 @@ export class ContainersRepository {
     if (transaction) {
       return await executeInTransaction(transaction);
     } else {
-      return await db.transaction(executeInTransaction);
+      return await dbWrite.transaction(executeInTransaction);
     }
   }
 
@@ -352,11 +363,11 @@ export class ContainersRepository {
     userId: string,
     deploymentCost: number,
   ): Promise<{ container: Container; newBalance: number }> {
-    return await db.transaction(async (tx) => {
+    return await dbWrite.transaction(async (tx) => {
       // Create container with quota check
       const container = await this.createWithQuotaCheck(
         containerData,
-        tx as typeof db,
+        tx as typeof dbWrite,
       );
 
       // Check and deduct credits

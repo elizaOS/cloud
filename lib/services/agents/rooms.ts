@@ -12,7 +12,7 @@ import {
   type Room,
   type RoomWithPreview,
 } from "@/db/repositories";
-import { db } from "@/db/client";
+import { dbWrite } from "@/db/client";
 import { roomTable } from "@/db/schemas/eliza";
 import type { Memory } from "@elizaos/core";
 import { v4 as uuidv4 } from "uuid";
@@ -241,7 +241,7 @@ export class RoomsService {
     // Create room with agentId - required for ElizaOS room lookup
     // The API route ensures agent exists before calling this
     // ElizaOS's ensureConnection creates entity/participant when first message is sent
-    const [room] = await db
+    const [room] = await dbWrite
       .insert(roomTable)
       .values({
         id: roomId,

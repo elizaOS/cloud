@@ -16,7 +16,7 @@ import {
 import { logger } from "@/lib/utils/logger";
 import type { NextRequest } from "next/server";
 import { roomsRepository } from "@/db/repositories";
-import { db } from "@/db/client";
+import { dbRead } from "@/db/client";
 import { sql } from "drizzle-orm";
 import type { UserWithOrganization, ApiKey } from "@/lib/types";
 import type { AnonymousSession } from "@/db/schemas/anonymous-sessions";
@@ -295,7 +295,7 @@ export async function POST(
 
         const character =
           characterId &&
-          (await db.execute<{ name: string }>(
+          (await dbRead.execute<{ name: string }>(
             sql`SELECT name FROM user_characters WHERE id = ${characterId}::uuid LIMIT 1`,
           ));
 

@@ -21,7 +21,7 @@ import {
 } from "@/lib/middleware/miniapp-rate-limit";
 import { logger } from "@/lib/utils/logger";
 import { safeToISOString } from "@/lib/utils/date";
-import { db } from "@/db/client";
+import { dbRead, dbWrite } from "@/db/client";
 import { roomTable, memoryTable, participantTable } from "@/db/schemas/eliza";
 import { eq, and, desc, sql, or, inArray } from "drizzle-orm";
 import type { UUID } from "@elizaos/core";
@@ -120,7 +120,7 @@ export async function GET(
     // 2. Rooms where user is the creator (stored in metadata, before any messages)
 
     // First, get rooms where user is a participant
-    const roomsWithParticipants = await db
+    const roomsWithParticipants = await dbRead
       .select({
         room: roomTable,
       })
@@ -139,7 +139,7 @@ export async function GET(
 
     // Then get rooms where user is creator (in metadata) - for newly created rooms
     // that haven't had messages sent yet
-    const roomsFromMetadata = await db
+    const roomsFromMetadata = await dbRead
       .select()
       .from(roomTable)
       .where(
@@ -169,7 +169,7 @@ export async function GET(
     const chatsWithMessages = await Promise.all(
       rooms.map(async (room) => {
         // Get last message (from memoryTable, which has roomId)
-        const [lastMessage] = await db
+        const [lastMessage] = await dbRead
           .select()
           .from(memoryTable)
           .where(
@@ -182,7 +182,7 @@ export async function GET(
           .limit(1);
 
         // Count messages
-        const messageCount = await db
+        const messageCount = await dbRead
           .select()
           .from(memoryTable)
           .where(
@@ -319,7 +319,7 @@ export async function POST(
     // will handle entity/participant creation when the first message is sent
     // (via ensureConnection in message-handler.ts). This avoids foreign key
     // constraint issues since entities might not exist in entityTable yet.
-    const [room] = await db
+    const [room] = await dbWrite
       .insert(roomTable)
       .values({
         source: "miniapp",

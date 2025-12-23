@@ -20,7 +20,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqual } from "crypto";
-import { db } from "@/db/client";
+import { dbRead, dbWrite } from "@/db/client";
 import { appEarnings } from "@/db/schemas/app-earnings";
 import { appEarningsTransactions } from "@/db/schemas/app-earnings";
 import { sql, and, gt, lte } from "drizzle-orm";
@@ -82,7 +82,7 @@ export async function GET(request: NextRequest) {
 
   // Find all apps with pending balances where earnings are old enough
   // We look at the oldest transaction to determine if balance can be released
-  const appsWithPending = await db
+  const appsWithPending = await dbRead
     .select({
       app_id: appEarnings.app_id,
       pending_balance: appEarnings.pending_balance,
@@ -93,7 +93,7 @@ export async function GET(request: NextRequest) {
   for (const app of appsWithPending) {
     // Check if this app has any earnings older than the vesting period
     // that haven't been released yet
-    const oldestPendingTransaction = await db
+    const oldestPendingTransaction = await dbRead
       .select({
         created_at: appEarningsTransactions.created_at,
         amount: appEarningsTransactions.amount,
@@ -116,7 +116,7 @@ export async function GET(request: NextRequest) {
 
     // Calculate total amount that can be released
     // (all transactions older than vesting period)
-    const releasableResult = await db
+    const releasableResult = await dbRead
       .select({
         total: sql<string>`COALESCE(SUM(CAST(${appEarningsTransactions.amount} AS DECIMAL)), 0)`,
       })
@@ -140,7 +140,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Atomic release: move from pending to withdrawable
-    await db.transaction(async (tx) => {
+    await dbWrite.transaction(async (tx) => {
       await tx
         .update(appEarnings)
         .set({

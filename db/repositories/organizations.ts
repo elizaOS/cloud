@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { db } from "../client";
+import { dbRead, dbWrite } from "../helpers";
 import {
   organizations,
   type Organization,
@@ -12,13 +12,20 @@ export type { Organization, NewOrganization };
 
 /**
  * Repository for organization database operations.
+ *
+ * Read operations → dbRead (read replica)
+ * Write operations → dbWrite (NA primary)
  */
 export class OrganizationsRepository {
+  // ============================================================================
+  // READ OPERATIONS (use read replica)
+  // ============================================================================
+
   /**
    * Finds an organization by ID.
    */
   async findById(id: string): Promise<Organization | undefined> {
-    return await db.query.organizations.findFirst({
+    return await dbRead.query.organizations.findFirst({
       where: eq(organizations.id, id),
     });
   }
@@ -27,7 +34,7 @@ export class OrganizationsRepository {
    * Finds an organization by slug.
    */
   async findBySlug(slug: string): Promise<Organization | undefined> {
-    return await db.query.organizations.findFirst({
+    return await dbRead.query.organizations.findFirst({
       where: eq(organizations.slug, slug),
     });
   }
@@ -38,7 +45,7 @@ export class OrganizationsRepository {
   async findByStripeCustomerId(
     stripeCustomerId: string,
   ): Promise<Organization | undefined> {
-    return await db.query.organizations.findFirst({
+    return await dbRead.query.organizations.findFirst({
       where: eq(organizations.stripe_customer_id, stripeCustomerId),
     });
   }
@@ -47,7 +54,7 @@ export class OrganizationsRepository {
    * Finds an organization with associated users.
    */
   async findWithUsers(id: string) {
-    return await db.query.organizations.findFirst({
+    return await dbRead.query.organizations.findFirst({
       where: eq(organizations.id, id),
       with: {
         users: true,
@@ -55,11 +62,15 @@ export class OrganizationsRepository {
     });
   }
 
+  // ============================================================================
+  // WRITE OPERATIONS (use NA primary)
+  // ============================================================================
+
   /**
    * Creates a new organization.
    */
   async create(data: NewOrganization): Promise<Organization> {
-    const [organization] = await db
+    const [organization] = await dbWrite
       .insert(organizations)
       .values(data)
       .returning();
@@ -73,7 +84,7 @@ export class OrganizationsRepository {
     id: string,
     data: Partial<NewOrganization>,
   ): Promise<Organization | undefined> {
-    const [updated] = await db
+    const [updated] = await dbWrite
       .update(organizations)
       .set({
         ...data,
@@ -93,7 +104,7 @@ export class OrganizationsRepository {
     organizationId: string,
     amount: number,
   ): Promise<{ success: boolean; newBalance: number }> {
-    const result = await db.transaction(async (tx) => {
+    const result = await dbWrite.transaction(async (tx) => {
       const org = await tx.query.organizations.findFirst({
         where: eq(organizations.id, organizationId),
       });
@@ -127,7 +138,7 @@ export class OrganizationsRepository {
    * Deletes an organization by ID.
    */
   async delete(id: string): Promise<void> {
-    await db.delete(organizations).where(eq(organizations.id, id));
+    await dbWrite.delete(organizations).where(eq(organizations.id, id));
   }
 
   /**
@@ -147,7 +158,7 @@ export class OrganizationsRepository {
     newBalance: number;
     transaction: CreditTransaction;
   }> {
-    return await db.transaction(async (tx) => {
+    return await dbWrite.transaction(async (tx) => {
       const org = await tx.query.organizations.findFirst({
         where: eq(organizations.id, organizationId),
       });

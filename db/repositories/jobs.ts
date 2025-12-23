@@ -1,4 +1,4 @@
-import { db } from "../client";
+import { dbRead, dbWrite } from "../helpers";
 import { jobs } from "../schemas/jobs";
 import type { Job, NewJob } from "../schemas/jobs";
 import { eq, and, sql, desc, lt } from "drizzle-orm";
@@ -17,16 +17,9 @@ export type { Job, NewJob };
  * - etc.
  */
 export class JobsRepository {
-  /**
-   * Creates a new background job.
-   *
-   * @param jobData - Job data conforming to NewJob type.
-   * @returns Created job record.
-   */
-  async create(jobData: NewJob): Promise<Job> {
-    const [job] = await db.insert(jobs).values(jobData).returning();
-    return job;
-  }
+  // ============================================================================
+  // READ OPERATIONS (use read replica)
+  // ============================================================================
 
   /**
    * Finds a job by ID.
@@ -35,7 +28,7 @@ export class JobsRepository {
    * @returns Job record or undefined.
    */
   async findById(id: string): Promise<Job | undefined> {
-    const [job] = await db.select().from(jobs).where(eq(jobs.id, id)).limit(1);
+    const [job] = await dbRead.select().from(jobs).where(eq(jobs.id, id)).limit(1);
     return job;
   }
 
@@ -66,7 +59,7 @@ export class JobsRepository {
     }
 
     // Build query in one chain to avoid TypeScript inference issues
-    const query = db.select().from(jobs).$dynamic();
+    const query = dbRead.select().from(jobs).$dynamic();
 
     return await (
       conditions.length > 0 ? query.where(and(...conditions)) : query
@@ -75,6 +68,56 @@ export class JobsRepository {
       .orderBy(
         filters.orderBy === "desc" ? desc(jobs.created_at) : jobs.created_at,
       );
+  }
+
+  /**
+   * Gets jobs with a custom JSON data filter.
+   * Useful for filtering by data fields like characterId.
+   *
+   * @param filters - Filter criteria including JSON path query.
+   * @returns List of matching jobs.
+   */
+  async findByDataField(filters: {
+    type: string;
+    organizationId: string;
+    dataField: "characterId";
+    dataValue: string;
+    orderBy?: "asc" | "desc";
+  }): Promise<Job[]> {
+    // Only allow whitelisted data fields to prevent SQL injection
+    const allowedFields = ["characterId"] as const;
+    if (!allowedFields.includes(filters.dataField)) {
+      throw new Error(`Invalid data field: ${filters.dataField}`);
+    }
+
+    return await dbRead
+      .select()
+      .from(jobs)
+      .where(
+        and(
+          eq(jobs.type, filters.type),
+          eq(jobs.organization_id, filters.organizationId),
+          sql`${jobs.data}->>'characterId' = ${filters.dataValue}`,
+        ),
+      )
+      .orderBy(
+        filters.orderBy === "desc" ? desc(jobs.created_at) : jobs.created_at,
+      );
+  }
+
+  // ============================================================================
+  // WRITE OPERATIONS (use NA primary)
+  // ============================================================================
+
+  /**
+   * Creates a new background job.
+   *
+   * @param jobData - Job data conforming to NewJob type.
+   * @returns Created job record.
+   */
+  async create(jobData: NewJob): Promise<Job> {
+    const [job] = await dbWrite.insert(jobs).values(jobData).returning();
+    return job;
   }
 
   /**
@@ -94,7 +137,7 @@ export class JobsRepository {
   }): Promise<Job[]> {
     // Use CTE with FOR UPDATE SKIP LOCKED for proper row-level locking
     // The CTE locks the rows first, then the UPDATE operates on locked rows
-    const result = await db.execute<Job>(sql`
+    const result = await dbWrite.execute<Job>(sql`
       WITH claimed AS (
         SELECT id FROM ${jobs}
         WHERE type = ${filters.type}
@@ -136,8 +179,8 @@ export class JobsRepository {
   }): Promise<number> {
     const staleThreshold = new Date(Date.now() - filters.staleThresholdMs);
 
-    // First, find all stale jobs
-    const staleJobs = await db
+    // First, find all stale jobs - use dbWrite to ensure we get latest data
+    const staleJobs = await dbWrite
       .select()
       .from(jobs)
       .where(
@@ -157,7 +200,7 @@ export class JobsRepository {
       const newAttempts = (job.attempts || 0) + 1;
       const isFailed = newAttempts >= filters.maxAttempts;
 
-      await db
+      await dbWrite
         .update(jobs)
         .set({
           status: isFailed ? "failed" : "pending",
@@ -178,41 +221,6 @@ export class JobsRepository {
   }
 
   /**
-   * Gets jobs with a custom JSON data filter.
-   * Useful for filtering by data fields like characterId.
-   *
-   * @param filters - Filter criteria including JSON path query.
-   * @returns List of matching jobs.
-   */
-  async findByDataField(filters: {
-    type: string;
-    organizationId: string;
-    dataField: "characterId";
-    dataValue: string;
-    orderBy?: "asc" | "desc";
-  }): Promise<Job[]> {
-    // Only allow whitelisted data fields to prevent SQL injection
-    const allowedFields = ["characterId"] as const;
-    if (!allowedFields.includes(filters.dataField)) {
-      throw new Error(`Invalid data field: ${filters.dataField}`);
-    }
-
-    return await db
-      .select()
-      .from(jobs)
-      .where(
-        and(
-          eq(jobs.type, filters.type),
-          eq(jobs.organization_id, filters.organizationId),
-          sql`${jobs.data}->>'characterId' = ${filters.dataValue}`,
-        ),
-      )
-      .orderBy(
-        filters.orderBy === "desc" ? desc(jobs.created_at) : jobs.created_at,
-      );
-  }
-
-  /**
    * Updates a job with partial data.
    * Generic update method for any job fields.
    *
@@ -221,7 +229,7 @@ export class JobsRepository {
    * @returns Updated job record.
    */
   async update(id: string, updates: Partial<Job>): Promise<Job> {
-    const [updated] = await db
+    const [updated] = await dbWrite
       .update(jobs)
       .set({ ...updates, updated_at: new Date() })
       .where(eq(jobs.id, id))
@@ -254,7 +262,7 @@ export class JobsRepository {
       updates.completed_at = new Date();
     }
 
-    await db.update(jobs).set(updates).where(eq(jobs.id, id));
+    await dbWrite.update(jobs).set(updates).where(eq(jobs.id, id));
   }
 
   /**
@@ -282,7 +290,7 @@ export class JobsRepository {
     const backoffMs = isFailed ? 0 : Math.pow(4, newAttempts - 1) * 30 * 1000;
     const scheduledFor = new Date(Date.now() + backoffMs);
 
-    const [updated] = await db
+    const [updated] = await dbWrite
       .update(jobs)
       .set({
         status: isFailed ? "failed" : "pending",
@@ -303,7 +311,7 @@ export class JobsRepository {
    * @param id - Job ID to delete.
    */
   async delete(id: string): Promise<void> {
-    await db.delete(jobs).where(eq(jobs.id, id));
+    await dbWrite.delete(jobs).where(eq(jobs.id, id));
   }
 }
 

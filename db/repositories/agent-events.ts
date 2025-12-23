@@ -1,5 +1,5 @@
 import { eq, desc, and, gte, sql, inArray } from "drizzle-orm";
-import { db } from "../client";
+import { dbRead, dbWrite } from "../helpers";
 import {
   agentEvents,
   type AgentEvent,
@@ -18,18 +18,12 @@ export interface AgentEventFilters {
 }
 
 export class AgentEventsRepository {
-  async create(data: NewAgentEvent): Promise<AgentEvent> {
-    const [event] = await db.insert(agentEvents).values(data).returning();
-    return event;
-  }
-
-  async createMany(data: NewAgentEvent[]): Promise<AgentEvent[]> {
-    if (data.length === 0) return [];
-    return await db.insert(agentEvents).values(data).returning();
-  }
+  // ============================================================================
+  // READ OPERATIONS (use read replica)
+  // ============================================================================
 
   async findById(id: string): Promise<AgentEvent | undefined> {
-    return await db.query.agentEvents.findFirst({
+    return await dbRead.query.agentEvents.findFirst({
       where: eq(agentEvents.id, id),
     });
   }
@@ -52,7 +46,7 @@ export class AgentEventsRepository {
       conditions.push(gte(agentEvents.created_at, filters.since));
     }
 
-    return await db.query.agentEvents.findMany({
+    return await dbRead.query.agentEvents.findMany({
       where: and(...conditions),
       orderBy: desc(agentEvents.created_at),
       limit: filters?.limit || 50,
@@ -77,7 +71,7 @@ export class AgentEventsRepository {
       conditions.push(gte(agentEvents.created_at, filters.since));
     }
 
-    return await db.query.agentEvents.findMany({
+    return await dbRead.query.agentEvents.findMany({
       where: and(...conditions),
       orderBy: desc(agentEvents.created_at),
       limit: filters?.limit || 100,
@@ -94,14 +88,14 @@ export class AgentEventsRepository {
       conditions.push(eq(agentEvents.event_type, eventType));
     }
 
-    return await db.query.agentEvents.findFirst({
+    return await dbRead.query.agentEvents.findFirst({
       where: and(...conditions),
       orderBy: desc(agentEvents.created_at),
     });
   }
 
   async getLatestError(agentId: string): Promise<AgentEvent | undefined> {
-    return await db.query.agentEvents.findFirst({
+    return await dbRead.query.agentEvents.findFirst({
       where: and(
         eq(agentEvents.agent_id, agentId),
         eq(agentEvents.level, "error"),
@@ -119,14 +113,14 @@ export class AgentEventsRepository {
       conditions.push(gte(agentEvents.created_at, since));
     }
 
-    const [countResult] = await db
+    const [countResult] = await dbRead
       .select({
         total: sql<number>`count(*)::int`,
       })
       .from(agentEvents)
       .where(and(...conditions));
 
-    const typeBreakdown = await db
+    const typeBreakdown = await dbRead
       .select({
         eventType: agentEvents.event_type,
         count: sql<number>`count(*)::int`,
@@ -146,11 +140,25 @@ export class AgentEventsRepository {
     };
   }
 
+  // ============================================================================
+  // WRITE OPERATIONS (use NA primary)
+  // ============================================================================
+
+  async create(data: NewAgentEvent): Promise<AgentEvent> {
+    const [event] = await dbWrite.insert(agentEvents).values(data).returning();
+    return event;
+  }
+
+  async createMany(data: NewAgentEvent[]): Promise<AgentEvent[]> {
+    if (data.length === 0) return [];
+    return await dbWrite.insert(agentEvents).values(data).returning();
+  }
+
   async deleteOlderThan(days: number): Promise<number> {
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - days);
 
-    const result = await db
+    const result = await dbWrite
       .delete(agentEvents)
       .where(sql`${agentEvents.created_at} < ${cutoff}`);
 

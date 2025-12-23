@@ -4,7 +4,7 @@
  * Handles all database operations for memories without spinning up runtime.
  */
 
-import { db } from "@/db/client";
+import { dbRead, dbWrite } from "@/db/helpers";
 import { memoryTable } from "@/db/schemas/eliza";
 import { eq, and, sql, desc, inArray } from "drizzle-orm";
 import type { Memory } from "@elizaos/core";
@@ -39,6 +39,10 @@ export interface SearchMemoriesOptions {
  * Repository for ElizaOS memory database operations.
  */
 export class MemoriesRepository {
+  // ============================================================================
+  // READ OPERATIONS (use read replica)
+  // ============================================================================
+
   /**
    * Gets messages for a room (type='messages').
    */
@@ -79,7 +83,7 @@ export class MemoriesRepository {
       );
     }
 
-    const results = await db
+    const results = await dbRead
       .select()
       .from(memoryTable)
       .where(and(...conditions))
@@ -109,7 +113,7 @@ export class MemoriesRepository {
       conditions.push(eq(memoryTable.agentId, agentId));
     }
 
-    const results = await db
+    const results = await dbRead
       .select()
       .from(memoryTable)
       .where(and(...conditions))
@@ -132,7 +136,7 @@ export class MemoriesRepository {
       conditions.push(eq(memoryTable.agentId, agentId));
     }
 
-    const result = await db
+    const result = await dbRead
       .select({ count: sql<number>`count(*)` })
       .from(memoryTable)
       .where(and(...conditions));
@@ -144,7 +148,7 @@ export class MemoriesRepository {
    * Counts messages by agent across all rooms.
    */
   async countMessagesByAgent(agentId: string): Promise<number> {
-    const result = await db
+    const result = await dbRead
       .select({ count: sql<number>`count(*)` })
       .from(memoryTable)
       .where(
@@ -158,7 +162,7 @@ export class MemoriesRepository {
    * Gets the last message timestamp for an agent.
    */
   async getLastMessageTime(agentId: string): Promise<Date | null> {
-    const result = await db
+    const result = await dbRead
       .select({ createdAt: memoryTable.createdAt })
       .from(memoryTable)
       .where(
@@ -171,22 +175,6 @@ export class MemoriesRepository {
   }
 
   /**
-   * Deletes all messages in a room.
-   *
-   * @returns Number of messages deleted.
-   */
-  async deleteMessages(roomId: string): Promise<number> {
-    const result = await db
-      .delete(memoryTable)
-      .where(
-        and(eq(memoryTable.roomId, roomId), eq(memoryTable.type, "messages")),
-      )
-      .returning({ id: memoryTable.id });
-
-    return result.length;
-  }
-
-  /**
    * Gets memories for a room (excluding messages).
    */
   async findByRoomId(
@@ -195,7 +183,7 @@ export class MemoriesRepository {
     limit = 50,
     offset = 0,
   ): Promise<Memory[]> {
-    const results = await db
+    const results = await dbRead
       .select()
       .from(memoryTable)
       .where(
@@ -220,7 +208,7 @@ export class MemoriesRepository {
     limit = 50,
     offset = 0,
   ): Promise<Memory[]> {
-    const results = await db
+    const results = await dbRead
       .select()
       .from(memoryTable)
       .where(
@@ -240,7 +228,7 @@ export class MemoriesRepository {
    * Gets a memory by ID.
    */
   async findById(memoryId: string): Promise<Memory | null> {
-    const result = await db
+    const result = await dbRead
       .select()
       .from(memoryTable)
       .where(eq(memoryTable.id, memoryId))
@@ -270,7 +258,7 @@ export class MemoriesRepository {
       conditions.push(inArray(memoryTable.type, types));
     }
 
-    const results = await db
+    const results = await dbRead
       .select()
       .from(memoryTable)
       .where(and(...conditions))
@@ -282,86 +270,10 @@ export class MemoriesRepository {
   }
 
   /**
-   * Creates a new memory.
-   */
-  async create(input: CreateMemoryInput): Promise<Memory> {
-    const [memory] = await db
-      .insert(memoryTable)
-      .values({
-        id: input.id,
-        roomId: input.roomId,
-        entityId: input.entityId,
-        agentId: input.agentId,
-        type: input.type,
-        content: input.content,
-        unique: input.unique ?? false,
-        worldId: input.worldId,
-        createdAt: new Date(),
-      })
-      .returning();
-
-    return memory;
-  }
-
-  /**
-   * Deletes a memory.
-   *
-   * @returns True if memory was deleted, false if not found.
-   */
-  async delete(memoryId: string): Promise<boolean> {
-    const result = await db
-      .delete(memoryTable)
-      .where(eq(memoryTable.id, memoryId))
-      .returning({ id: memoryTable.id });
-
-    return result.length > 0;
-  }
-
-  /**
-   * Deletes memories by room (when deleting room).
-   *
-   * Only deletes non-message memories. Messages are preserved.
-   *
-   * @returns Number of memories deleted.
-   */
-  async deleteByRoomId(roomId: string): Promise<number> {
-    const result = await db
-      .delete(memoryTable)
-      .where(
-        and(
-          eq(memoryTable.roomId, roomId),
-          sql`${memoryTable.type} != 'messages'`, // Only delete non-message memories
-        ),
-      )
-      .returning({ id: memoryTable.id });
-
-    return result.length;
-  }
-
-  /**
-   * Deletes memories by agent (excluding messages).
-   *
-   * @returns Number of memories deleted.
-   */
-  async deleteByAgentId(agentId: string): Promise<number> {
-    const result = await db
-      .delete(memoryTable)
-      .where(
-        and(
-          eq(memoryTable.agentId, agentId),
-          sql`${memoryTable.type} != 'messages'`,
-        ),
-      )
-      .returning({ id: memoryTable.id });
-
-    return result.length;
-  }
-
-  /**
    * Counts memories for a room and agent (excluding messages).
    */
   async countByRoomId(roomId: string, agentId: string): Promise<number> {
-    const result = await db
+    const result = await dbRead
       .select({ count: sql<number>`count(*)` })
       .from(memoryTable)
       .where(
@@ -392,7 +304,7 @@ export class MemoriesRepository {
       conditions.push(eq(memoryTable.roomId, roomId));
     }
 
-    const result = await db
+    const result = await dbRead
       .select({ count: sql<number>`count(*)` })
       .from(memoryTable)
       .where(and(...conditions));
@@ -404,7 +316,7 @@ export class MemoriesRepository {
    * Gets distinct memory types for an agent (excluding messages).
    */
   async getTypes(agentId: string): Promise<string[]> {
-    const result = await db
+    const result = await dbRead
       .selectDistinct({ type: memoryTable.type })
       .from(memoryTable)
       .where(
@@ -415,6 +327,120 @@ export class MemoriesRepository {
       );
 
     return result.map((r) => r.type).filter((t): t is string => t !== null);
+  }
+
+  /**
+   * Gets the last message for a single room.
+   *
+   * @returns Raw Memory object or null if no messages found.
+   */
+  async findLastMessageForRoom(roomId: string): Promise<Memory | null> {
+    const result = await dbRead
+      .select()
+      .from(memoryTable)
+      .where(
+        and(eq(memoryTable.roomId, roomId), eq(memoryTable.type, "messages")),
+      )
+      .orderBy(desc(memoryTable.createdAt))
+      .limit(1);
+
+    return result[0] || null;
+  }
+
+  // ============================================================================
+  // WRITE OPERATIONS (use NA primary)
+  // ============================================================================
+
+  /**
+   * Deletes all messages in a room.
+   *
+   * @returns Number of messages deleted.
+   */
+  async deleteMessages(roomId: string): Promise<number> {
+    const result = await dbWrite
+      .delete(memoryTable)
+      .where(
+        and(eq(memoryTable.roomId, roomId), eq(memoryTable.type, "messages")),
+      )
+      .returning({ id: memoryTable.id });
+
+    return result.length;
+  }
+
+  /**
+   * Creates a new memory.
+   */
+  async create(input: CreateMemoryInput): Promise<Memory> {
+    const [memory] = await dbWrite
+      .insert(memoryTable)
+      .values({
+        id: input.id,
+        roomId: input.roomId,
+        entityId: input.entityId,
+        agentId: input.agentId,
+        type: input.type,
+        content: input.content,
+        unique: input.unique ?? false,
+        worldId: input.worldId,
+        createdAt: new Date(),
+      })
+      .returning();
+
+    return memory;
+  }
+
+  /**
+   * Deletes a memory.
+   *
+   * @returns True if memory was deleted, false if not found.
+   */
+  async delete(memoryId: string): Promise<boolean> {
+    const result = await dbWrite
+      .delete(memoryTable)
+      .where(eq(memoryTable.id, memoryId))
+      .returning({ id: memoryTable.id });
+
+    return result.length > 0;
+  }
+
+  /**
+   * Deletes memories by room (when deleting room).
+   *
+   * Only deletes non-message memories. Messages are preserved.
+   *
+   * @returns Number of memories deleted.
+   */
+  async deleteByRoomId(roomId: string): Promise<number> {
+    const result = await dbWrite
+      .delete(memoryTable)
+      .where(
+        and(
+          eq(memoryTable.roomId, roomId),
+          sql`${memoryTable.type} != 'messages'`, // Only delete non-message memories
+        ),
+      )
+      .returning({ id: memoryTable.id });
+
+    return result.length;
+  }
+
+  /**
+   * Deletes memories by agent (excluding messages).
+   *
+   * @returns Number of memories deleted.
+   */
+  async deleteByAgentId(agentId: string): Promise<number> {
+    const result = await dbWrite
+      .delete(memoryTable)
+      .where(
+        and(
+          eq(memoryTable.agentId, agentId),
+          sql`${memoryTable.type} != 'messages'`,
+        ),
+      )
+      .returning({ id: memoryTable.id });
+
+    return result.length;
   }
 
   /**
@@ -443,30 +469,12 @@ export class MemoriesRepository {
       conditions.push(inArray(memoryTable.type, types));
     }
 
-    const result = await db
+    const result = await dbWrite
       .delete(memoryTable)
       .where(and(...conditions))
       .returning({ id: memoryTable.id });
 
     return result.length;
-  }
-
-  /**
-   * Gets the last message for a single room.
-   *
-   * @returns Raw Memory object or null if no messages found.
-   */
-  async findLastMessageForRoom(roomId: string): Promise<Memory | null> {
-    const result = await db
-      .select()
-      .from(memoryTable)
-      .where(
-        and(eq(memoryTable.roomId, roomId), eq(memoryTable.type, "messages")),
-      )
-      .orderBy(desc(memoryTable.createdAt))
-      .limit(1);
-
-    return result[0] || null;
   }
 }
 

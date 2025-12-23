@@ -1,5 +1,5 @@
 import { eq, desc, and, lt, isNull, sql } from "drizzle-orm";
-import { db } from "../client";
+import { dbRead, dbWrite } from "../helpers";
 import {
   cryptoPayments,
   type CryptoPayment,
@@ -8,9 +8,19 @@ import {
 
 export type { CryptoPayment, NewCryptoPayment };
 
+/**
+ * Repository for crypto payment database operations.
+ *
+ * Read operations → dbRead (read replica)
+ * Write operations → dbWrite (NA primary)
+ */
 export class CryptoPaymentsRepository {
+  // ============================================================================
+  // READ OPERATIONS (use read replica)
+  // ============================================================================
+
   async findById(id: string): Promise<CryptoPayment | undefined> {
-    return await db.query.cryptoPayments.findFirst({
+    return await dbRead.query.cryptoPayments.findFirst({
       where: eq(cryptoPayments.id, id),
     });
   }
@@ -18,7 +28,7 @@ export class CryptoPaymentsRepository {
   async findByPaymentAddress(
     address: string,
   ): Promise<CryptoPayment | undefined> {
-    return await db.query.cryptoPayments.findFirst({
+    return await dbRead.query.cryptoPayments.findFirst({
       where: eq(cryptoPayments.payment_address, address),
       orderBy: desc(cryptoPayments.created_at),
     });
@@ -27,13 +37,13 @@ export class CryptoPaymentsRepository {
   async findByTransactionHash(
     txHash: string,
   ): Promise<CryptoPayment | undefined> {
-    return await db.query.cryptoPayments.findFirst({
+    return await dbRead.query.cryptoPayments.findFirst({
       where: eq(cryptoPayments.transaction_hash, txHash),
     });
   }
 
   async findByTrackId(trackId: string): Promise<CryptoPayment | undefined> {
-    const [payment] = await db
+    const [payment] = await dbRead
       .select()
       .from(cryptoPayments)
       .where(sql`${cryptoPayments.metadata}->>'oxapay_track_id' = ${trackId}`)
@@ -44,7 +54,7 @@ export class CryptoPaymentsRepository {
   async findPendingByAddress(
     address: string,
   ): Promise<CryptoPayment | undefined> {
-    return await db.query.cryptoPayments.findFirst({
+    return await dbRead.query.cryptoPayments.findFirst({
       where: and(
         eq(cryptoPayments.payment_address, address),
         eq(cryptoPayments.status, "pending"),
@@ -53,21 +63,21 @@ export class CryptoPaymentsRepository {
   }
 
   async listByOrganization(organizationId: string): Promise<CryptoPayment[]> {
-    return await db.query.cryptoPayments.findMany({
+    return await dbRead.query.cryptoPayments.findMany({
       where: eq(cryptoPayments.organization_id, organizationId),
       orderBy: desc(cryptoPayments.created_at),
     });
   }
 
   async listPendingPayments(): Promise<CryptoPayment[]> {
-    return await db.query.cryptoPayments.findMany({
+    return await dbRead.query.cryptoPayments.findMany({
       where: eq(cryptoPayments.status, "pending"),
       orderBy: desc(cryptoPayments.created_at),
     });
   }
 
   async listExpiredPendingPayments(): Promise<CryptoPayment[]> {
-    return await db.query.cryptoPayments.findMany({
+    return await dbRead.query.cryptoPayments.findMany({
       where: and(
         eq(cryptoPayments.status, "pending"),
         lt(cryptoPayments.expires_at, new Date()),
@@ -75,8 +85,12 @@ export class CryptoPaymentsRepository {
     });
   }
 
+  // ============================================================================
+  // WRITE OPERATIONS (use NA primary)
+  // ============================================================================
+
   async create(data: NewCryptoPayment): Promise<CryptoPayment> {
-    const [payment] = await db
+    const [payment] = await dbWrite
       .insert(cryptoPayments)
       .values({
         ...data,
@@ -91,7 +105,7 @@ export class CryptoPaymentsRepository {
     id: string,
     data: Partial<NewCryptoPayment>,
   ): Promise<CryptoPayment | undefined> {
-    const [payment] = await db
+    const [payment] = await dbWrite
       .update(cryptoPayments)
       .set({
         ...data,
@@ -108,7 +122,7 @@ export class CryptoPaymentsRepository {
     blockNumber: string,
     receivedAmount: string,
   ): Promise<CryptoPayment | undefined> {
-    const [payment] = await db
+    const [payment] = await dbWrite
       .update(cryptoPayments)
       .set({
         status: "confirmed",
@@ -124,7 +138,7 @@ export class CryptoPaymentsRepository {
   }
 
   async markAsExpired(id: string): Promise<CryptoPayment | undefined> {
-    const [payment] = await db
+    const [payment] = await dbWrite
       .update(cryptoPayments)
       .set({
         status: "expired",
@@ -140,7 +154,7 @@ export class CryptoPaymentsRepository {
     reason?: string,
   ): Promise<CryptoPayment | undefined> {
     const existing = await this.findById(id);
-    const [payment] = await db
+    const [payment] = await dbWrite
       .update(cryptoPayments)
       .set({
         status: "failed",

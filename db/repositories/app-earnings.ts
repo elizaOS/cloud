@@ -1,4 +1,4 @@
-import { db } from "../client";
+import { dbRead, dbWrite } from "../helpers";
 import {
   appEarnings,
   appEarningsTransactions,
@@ -18,16 +18,192 @@ export type {
 
 /**
  * Repository for app earnings database operations.
+ *
+ * Read operations → dbRead (read replica)
+ * Write operations → dbWrite (NA primary)
  */
 export class AppEarningsRepository {
+  // ============================================================================
+  // READ OPERATIONS (use read replica)
+  // ============================================================================
+
   /**
    * Finds app earnings record by app ID.
    */
   async findByAppId(appId: string): Promise<AppEarnings | undefined> {
-    return await db.query.appEarnings.findFirst({
+    return await dbRead.query.appEarnings.findFirst({
       where: eq(appEarnings.app_id, appId),
     });
   }
+
+  /**
+   * Lists earnings transactions for an app, ordered by creation date.
+   */
+  async listTransactions(
+    appId: string,
+    limit: number = 50,
+    offset: number = 0,
+  ): Promise<AppEarningsTransaction[]> {
+    return await dbRead.query.appEarningsTransactions.findMany({
+      where: eq(appEarningsTransactions.app_id, appId),
+      orderBy: [desc(appEarningsTransactions.created_at)],
+      limit,
+      offset,
+    });
+  }
+
+  /**
+   * Lists earnings transactions filtered by type.
+   */
+  async listTransactionsByType(
+    appId: string,
+    type: string,
+    limit: number = 50,
+  ): Promise<AppEarningsTransaction[]> {
+    return await dbRead.query.appEarningsTransactions.findMany({
+      where: and(
+        eq(appEarningsTransactions.app_id, appId),
+        eq(appEarningsTransactions.type, type),
+      ),
+      orderBy: [desc(appEarningsTransactions.created_at)],
+      limit,
+    });
+  }
+
+  /**
+   * Finds an earnings transaction by Stripe payment intent ID.
+   *
+   * Uses JSONB containment query for efficient lookup.
+   */
+  async findTransactionByPaymentIntent(
+    appId: string,
+    paymentIntentId: string,
+  ): Promise<AppEarningsTransaction | undefined> {
+    const result = await dbRead
+      .select()
+      .from(appEarningsTransactions)
+      .where(
+        and(
+          eq(appEarningsTransactions.app_id, appId),
+          sql`${appEarningsTransactions.metadata} @> ${JSON.stringify({ stripePaymentIntentId: paymentIntentId })}::jsonb`,
+        ),
+      )
+      .limit(1);
+
+    return result[0];
+  }
+
+  /**
+   * Gets transaction totals grouped by type within a date range.
+   */
+  async getTransactionTotalsByType(
+    appId: string,
+    startDate: Date,
+    endDate: Date,
+  ): Promise<{
+    inference_markup: number;
+    purchase_share: number;
+    withdrawal: number;
+    adjustment: number;
+  }> {
+    const result = await dbRead
+      .select({
+        type: appEarningsTransactions.type,
+        total: sql<string>`COALESCE(SUM(${appEarningsTransactions.amount}), 0)`,
+      })
+      .from(appEarningsTransactions)
+      .where(
+        and(
+          eq(appEarningsTransactions.app_id, appId),
+          gte(appEarningsTransactions.created_at, startDate),
+          lte(appEarningsTransactions.created_at, endDate),
+        ),
+      )
+      .groupBy(appEarningsTransactions.type);
+
+    const totals = {
+      inference_markup: 0,
+      purchase_share: 0,
+      withdrawal: 0,
+      adjustment: 0,
+    };
+
+    for (const row of result) {
+      if (row.type in totals) {
+        totals[row.type as keyof typeof totals] = Number(row.total);
+      }
+    }
+
+    return totals;
+  }
+
+  /**
+   * Gets daily earnings breakdown within a date range.
+   */
+  async getDailyEarnings(
+    appId: string,
+    startDate: Date,
+    endDate: Date,
+  ): Promise<
+    Array<{
+      date: string;
+      inference_earnings: number;
+      purchase_earnings: number;
+      total: number;
+    }>
+  > {
+    const result = await dbRead
+      .select({
+        date: sql<string>`DATE(${appEarningsTransactions.created_at})`,
+        type: appEarningsTransactions.type,
+        total: sql<string>`COALESCE(SUM(${appEarningsTransactions.amount}), 0)`,
+      })
+      .from(appEarningsTransactions)
+      .where(
+        and(
+          eq(appEarningsTransactions.app_id, appId),
+          gte(appEarningsTransactions.created_at, startDate),
+          lte(appEarningsTransactions.created_at, endDate),
+        ),
+      )
+      .groupBy(
+        sql`DATE(${appEarningsTransactions.created_at})`,
+        appEarningsTransactions.type,
+      )
+      .orderBy(sql`DATE(${appEarningsTransactions.created_at})`);
+
+    const byDate: Record<
+      string,
+      { inference_earnings: number; purchase_earnings: number; total: number }
+    > = {};
+
+    for (const row of result) {
+      if (!byDate[row.date]) {
+        byDate[row.date] = {
+          inference_earnings: 0,
+          purchase_earnings: 0,
+          total: 0,
+        };
+      }
+
+      const amount = Number(row.total);
+      if (row.type === "inference_markup") {
+        byDate[row.date].inference_earnings = amount;
+      } else if (row.type === "purchase_share") {
+        byDate[row.date].purchase_earnings = amount;
+      }
+      byDate[row.date].total += amount;
+    }
+
+    return Object.entries(byDate).map(([date, data]) => ({
+      date,
+      ...data,
+    }));
+  }
+
+  // ============================================================================
+  // WRITE OPERATIONS (use NA primary)
+  // ============================================================================
 
   /**
    * Gets existing earnings record or creates a new one if it doesn't exist.
@@ -38,14 +214,17 @@ export class AppEarningsRepository {
       return existing;
     }
 
-    const [created] = await db
+    const [created] = await dbWrite
       .insert(appEarnings)
       .values({ app_id: appId })
       .onConflictDoNothing()
       .returning();
 
     if (!created) {
-      const refetched = await this.findByAppId(appId);
+      // Race condition - use write DB to avoid replication lag
+      const refetched = await dbWrite.query.appEarnings.findFirst({
+        where: eq(appEarnings.app_id, appId),
+      });
       if (!refetched) {
         throw new Error(`Failed to create or find earnings for app ${appId}`);
       }
@@ -64,7 +243,7 @@ export class AppEarningsRepository {
   ): Promise<AppEarnings> {
     await this.getOrCreate(appId);
 
-    const [updated] = await db
+    const [updated] = await dbWrite
       .update(appEarnings)
       .set({
         total_lifetime_earnings: sql`${appEarnings.total_lifetime_earnings} + ${amount}`,
@@ -87,7 +266,7 @@ export class AppEarningsRepository {
   ): Promise<AppEarnings> {
     await this.getOrCreate(appId);
 
-    const [updated] = await db
+    const [updated] = await dbWrite
       .update(appEarnings)
       .set({
         total_lifetime_earnings: sql`${appEarnings.total_lifetime_earnings} + ${amount}`,
@@ -117,7 +296,7 @@ export class AppEarningsRepository {
       return earnings;
     }
 
-    const [updated] = await db
+    const [updated] = await dbWrite
       .update(appEarnings)
       .set({
         pending_balance: "0.00",
@@ -144,7 +323,7 @@ export class AppEarningsRepository {
     earnings: AppEarnings | null;
     message: string;
   }> {
-    return await db.transaction(async (tx) => {
+    return await dbWrite.transaction(async (tx) => {
       const [earnings] = await tx
         .select()
         .from(appEarnings)
@@ -204,7 +383,7 @@ export class AppEarningsRepository {
     appId: string,
     threshold: number,
   ): Promise<AppEarnings> {
-    const [updated] = await db
+    const [updated] = await dbWrite
       .update(appEarnings)
       .set({
         payout_threshold: String(threshold),
@@ -222,176 +401,11 @@ export class AppEarningsRepository {
   async createTransaction(
     data: NewAppEarningsTransaction,
   ): Promise<AppEarningsTransaction> {
-    const [transaction] = await db
+    const [transaction] = await dbWrite
       .insert(appEarningsTransactions)
       .values(data)
       .returning();
     return transaction;
-  }
-
-  /**
-   * Lists earnings transactions for an app, ordered by creation date.
-   */
-  async listTransactions(
-    appId: string,
-    limit: number = 50,
-    offset: number = 0,
-  ): Promise<AppEarningsTransaction[]> {
-    return await db.query.appEarningsTransactions.findMany({
-      where: eq(appEarningsTransactions.app_id, appId),
-      orderBy: [desc(appEarningsTransactions.created_at)],
-      limit,
-      offset,
-    });
-  }
-
-  /**
-   * Lists earnings transactions filtered by type.
-   */
-  async listTransactionsByType(
-    appId: string,
-    type: string,
-    limit: number = 50,
-  ): Promise<AppEarningsTransaction[]> {
-    return await db.query.appEarningsTransactions.findMany({
-      where: and(
-        eq(appEarningsTransactions.app_id, appId),
-        eq(appEarningsTransactions.type, type),
-      ),
-      orderBy: [desc(appEarningsTransactions.created_at)],
-      limit,
-    });
-  }
-
-  /**
-   * Finds an earnings transaction by Stripe payment intent ID.
-   *
-   * Uses JSONB containment query for efficient lookup.
-   */
-  async findTransactionByPaymentIntent(
-    appId: string,
-    paymentIntentId: string,
-  ): Promise<AppEarningsTransaction | undefined> {
-    const result = await db
-      .select()
-      .from(appEarningsTransactions)
-      .where(
-        and(
-          eq(appEarningsTransactions.app_id, appId),
-          sql`${appEarningsTransactions.metadata} @> ${JSON.stringify({ stripePaymentIntentId: paymentIntentId })}::jsonb`,
-        ),
-      )
-      .limit(1);
-
-    return result[0];
-  }
-
-  /**
-   * Gets transaction totals grouped by type within a date range.
-   */
-  async getTransactionTotalsByType(
-    appId: string,
-    startDate: Date,
-    endDate: Date,
-  ): Promise<{
-    inference_markup: number;
-    purchase_share: number;
-    withdrawal: number;
-    adjustment: number;
-  }> {
-    const result = await db
-      .select({
-        type: appEarningsTransactions.type,
-        total: sql<string>`COALESCE(SUM(${appEarningsTransactions.amount}), 0)`,
-      })
-      .from(appEarningsTransactions)
-      .where(
-        and(
-          eq(appEarningsTransactions.app_id, appId),
-          gte(appEarningsTransactions.created_at, startDate),
-          lte(appEarningsTransactions.created_at, endDate),
-        ),
-      )
-      .groupBy(appEarningsTransactions.type);
-
-    const totals = {
-      inference_markup: 0,
-      purchase_share: 0,
-      withdrawal: 0,
-      adjustment: 0,
-    };
-
-    for (const row of result) {
-      if (row.type in totals) {
-        totals[row.type as keyof typeof totals] = Number(row.total);
-      }
-    }
-
-    return totals;
-  }
-
-  /**
-   * Gets daily earnings breakdown within a date range.
-   */
-  async getDailyEarnings(
-    appId: string,
-    startDate: Date,
-    endDate: Date,
-  ): Promise<
-    Array<{
-      date: string;
-      inference_earnings: number;
-      purchase_earnings: number;
-      total: number;
-    }>
-  > {
-    const result = await db
-      .select({
-        date: sql<string>`DATE(${appEarningsTransactions.created_at})`,
-        type: appEarningsTransactions.type,
-        total: sql<string>`COALESCE(SUM(${appEarningsTransactions.amount}), 0)`,
-      })
-      .from(appEarningsTransactions)
-      .where(
-        and(
-          eq(appEarningsTransactions.app_id, appId),
-          gte(appEarningsTransactions.created_at, startDate),
-          lte(appEarningsTransactions.created_at, endDate),
-        ),
-      )
-      .groupBy(
-        sql`DATE(${appEarningsTransactions.created_at})`,
-        appEarningsTransactions.type,
-      )
-      .orderBy(sql`DATE(${appEarningsTransactions.created_at})`);
-
-    const byDate: Record<
-      string,
-      { inference_earnings: number; purchase_earnings: number; total: number }
-    > = {};
-
-    for (const row of result) {
-      if (!byDate[row.date]) {
-        byDate[row.date] = {
-          inference_earnings: 0,
-          purchase_earnings: 0,
-          total: 0,
-        };
-      }
-
-      const amount = Number(row.total);
-      if (row.type === "inference_markup") {
-        byDate[row.date].inference_earnings = amount;
-      } else if (row.type === "purchase_share") {
-        byDate[row.date].purchase_earnings = amount;
-      }
-      byDate[row.date].total += amount;
-    }
-
-    return Object.entries(byDate).map(([date, data]) => ({
-      date,
-      ...data,
-    }));
   }
 }
 

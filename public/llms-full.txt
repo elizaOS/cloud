@@ -17,7 +17,7 @@ Summary: Build, deploy, and scale intelligent AI agents with elizaOS Cloud.
 <div className="docs-hero">
 
 <div className="relative z-10">
-  <h1><strong>Build</strong> Agents <br/> <strong>Make</strong> Bank</h1>
+  <h1><strong>Build</strong> Agents, <br/> <strong>Make</strong> Magic</h1>
   
   <p>
     The complete platform for building, deploying, and scaling intelligent AI agents. 

@@ -1,5 +1,5 @@
 import { and, eq } from "drizzle-orm";
-import { db } from "../client";
+import { dbRead, dbWrite } from "../helpers";
 import {
   organizationInvites,
   type OrganizationInvite,
@@ -10,13 +10,20 @@ export type { OrganizationInvite, NewOrganizationInvite };
 
 /**
  * Repository for organization invite database operations.
+ *
+ * Read operations → dbRead (read replica)
+ * Write operations → dbWrite (NA primary)
  */
 export class OrganizationInvitesRepository {
+  // ============================================================================
+  // READ OPERATIONS (use read replica)
+  // ============================================================================
+
   /**
    * Finds an organization invite by ID.
    */
   async findById(id: string): Promise<OrganizationInvite | undefined> {
-    return await db.query.organizationInvites.findFirst({
+    return await dbRead.query.organizationInvites.findFirst({
       where: eq(organizationInvites.id, id),
     });
   }
@@ -27,7 +34,7 @@ export class OrganizationInvitesRepository {
   async findByTokenHash(
     tokenHash: string,
   ): Promise<OrganizationInvite | undefined> {
-    return await db.query.organizationInvites.findFirst({
+    return await dbRead.query.organizationInvites.findFirst({
       where: eq(organizationInvites.token_hash, tokenHash),
       with: {
         organization: true,
@@ -42,7 +49,7 @@ export class OrganizationInvitesRepository {
   async findPendingInviteByEmail(
     email: string,
   ): Promise<OrganizationInvite | undefined> {
-    return await db.query.organizationInvites.findFirst({
+    return await dbRead.query.organizationInvites.findFirst({
       where: and(
         eq(organizationInvites.invited_email, email.toLowerCase()),
         eq(organizationInvites.status, "pending"),
@@ -59,7 +66,7 @@ export class OrganizationInvitesRepository {
   async listByOrganization(
     organizationId: string,
   ): Promise<OrganizationInvite[]> {
-    return await db.query.organizationInvites.findMany({
+    return await dbRead.query.organizationInvites.findMany({
       where: eq(organizationInvites.organization_id, organizationId),
       with: {
         inviter: {
@@ -80,7 +87,7 @@ export class OrganizationInvitesRepository {
   async listPendingByOrganization(
     organizationId: string,
   ): Promise<OrganizationInvite[]> {
-    return await db.query.organizationInvites.findMany({
+    return await dbRead.query.organizationInvites.findMany({
       where: and(
         eq(organizationInvites.organization_id, organizationId),
         eq(organizationInvites.status, "pending"),
@@ -98,11 +105,15 @@ export class OrganizationInvitesRepository {
     });
   }
 
+  // ============================================================================
+  // WRITE OPERATIONS (use NA primary)
+  // ============================================================================
+
   /**
    * Creates a new organization invite.
    */
   async create(data: NewOrganizationInvite): Promise<OrganizationInvite> {
-    const [invite] = await db
+    const [invite] = await dbWrite
       .insert(organizationInvites)
       .values(data)
       .returning();
@@ -116,7 +127,7 @@ export class OrganizationInvitesRepository {
     id: string,
     data: Partial<NewOrganizationInvite>,
   ): Promise<OrganizationInvite | undefined> {
-    const [updated] = await db
+    const [updated] = await dbWrite
       .update(organizationInvites)
       .set({
         ...data,
@@ -163,7 +174,7 @@ export class OrganizationInvitesRepository {
    * Deletes an organization invite by ID.
    */
   async delete(id: string): Promise<void> {
-    await db.delete(organizationInvites).where(eq(organizationInvites.id, id));
+    await dbWrite.delete(organizationInvites).where(eq(organizationInvites.id, id));
   }
 }
 

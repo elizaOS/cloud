@@ -1,5 +1,5 @@
 import { eq, desc, and, sql, count, sum } from "drizzle-orm";
-import { db } from "../client";
+import { dbRead, dbWrite } from "../helpers";
 import {
   generations,
   type Generation,
@@ -10,13 +10,20 @@ export type { Generation, NewGeneration };
 
 /**
  * Repository for generation (image/video) database operations.
+ *
+ * Read operations → dbRead (read replica)
+ * Write operations → dbWrite (NA primary)
  */
 export class GenerationsRepository {
+  // ============================================================================
+  // READ OPERATIONS (use read replica)
+  // ============================================================================
+
   /**
    * Finds a generation by ID.
    */
   async findById(id: string): Promise<Generation | undefined> {
-    return await db.query.generations.findFirst({
+    return await dbRead.query.generations.findFirst({
       where: eq(generations.id, id),
     });
   }
@@ -25,7 +32,7 @@ export class GenerationsRepository {
    * Finds a generation by job ID.
    */
   async findByJobId(jobId: string): Promise<Generation | undefined> {
-    return await db.query.generations.findFirst({
+    return await dbRead.query.generations.findFirst({
       where: eq(generations.job_id, jobId),
     });
   }
@@ -37,7 +44,7 @@ export class GenerationsRepository {
     organizationId: string,
     limit?: number,
   ): Promise<Generation[]> {
-    return await db.query.generations.findMany({
+    return await dbRead.query.generations.findMany({
       where: eq(generations.organization_id, organizationId),
       orderBy: desc(generations.created_at),
       limit,
@@ -52,7 +59,7 @@ export class GenerationsRepository {
     type: string,
     limit?: number,
   ): Promise<Generation[]> {
-    return await db.query.generations.findMany({
+    return await dbRead.query.generations.findMany({
       where: and(
         eq(generations.organization_id, organizationId),
         eq(generations.type, type),
@@ -88,45 +95,12 @@ export class GenerationsRepository {
       conditions.push(eq(generations.type, options.type));
     }
 
-    return await db.query.generations.findMany({
+    return await dbRead.query.generations.findMany({
       where: and(...conditions),
       orderBy: desc(generations.created_at),
       limit: options?.limit,
       offset: options?.offset,
     });
-  }
-
-  /**
-   * Creates a new generation record.
-   */
-  async create(data: NewGeneration): Promise<Generation> {
-    const [generation] = await db.insert(generations).values(data).returning();
-    return generation;
-  }
-
-  /**
-   * Updates an existing generation.
-   */
-  async update(
-    id: string,
-    data: Partial<NewGeneration>,
-  ): Promise<Generation | undefined> {
-    const [updated] = await db
-      .update(generations)
-      .set({
-        ...data,
-        updated_at: new Date(),
-      })
-      .where(eq(generations.id, id))
-      .returning();
-    return updated;
-  }
-
-  /**
-   * Deletes a generation by ID.
-   */
-  async delete(id: string): Promise<void> {
-    await db.delete(generations).where(eq(generations.id, id));
   }
 
   /**
@@ -158,7 +132,7 @@ export class GenerationsRepository {
       conditions.push(sql`${generations.created_at} <= ${endDate}`);
     }
 
-    const [totalResult] = await db
+    const [totalResult] = await dbRead
       .select({
         total: count(),
         completed: sql<number>`count(*) filter (where ${generations.status} = 'completed')::int`,
@@ -169,7 +143,7 @@ export class GenerationsRepository {
       .from(generations)
       .where(and(...conditions));
 
-    const byTypeResult = await db
+    const byTypeResult = await dbRead
       .select({
         type: generations.type,
         count: sql<number>`count(*)::int`,
@@ -191,6 +165,43 @@ export class GenerationsRepository {
         totalCredits: Number(r.totalCredits || 0),
       })),
     };
+  }
+
+  // ============================================================================
+  // WRITE OPERATIONS (use NA primary)
+  // ============================================================================
+
+  /**
+   * Creates a new generation record.
+   */
+  async create(data: NewGeneration): Promise<Generation> {
+    const [generation] = await dbWrite.insert(generations).values(data).returning();
+    return generation;
+  }
+
+  /**
+   * Updates an existing generation.
+   */
+  async update(
+    id: string,
+    data: Partial<NewGeneration>,
+  ): Promise<Generation | undefined> {
+    const [updated] = await dbWrite
+      .update(generations)
+      .set({
+        ...data,
+        updated_at: new Date(),
+      })
+      .where(eq(generations.id, id))
+      .returning();
+    return updated;
+  }
+
+  /**
+   * Deletes a generation by ID.
+   */
+  async delete(id: string): Promise<void> {
+    await dbWrite.delete(generations).where(eq(generations.id, id));
   }
 }
 

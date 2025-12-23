@@ -1,4 +1,4 @@
-import { db } from "../client";
+import { dbRead, dbWrite } from "../helpers";
 import {
   tokenRedemptions,
   redemptionLimits,
@@ -23,24 +23,20 @@ export type {
 
 /**
  * Repository for token redemption database operations.
+ *
+ * Read operations → dbRead (read replica)
+ * Write operations → dbWrite (NA primary)
  */
 export class TokenRedemptionsRepository {
-  /**
-   * Creates a new token redemption request.
-   */
-  async create(data: NewTokenRedemption): Promise<TokenRedemption> {
-    const [redemption] = await db
-      .insert(tokenRedemptions)
-      .values(data)
-      .returning();
-    return redemption;
-  }
+  // ============================================================================
+  // READ OPERATIONS (use read replica)
+  // ============================================================================
 
   /**
    * Finds a redemption by ID.
    */
   async findById(id: string): Promise<TokenRedemption | undefined> {
-    return await db.query.tokenRedemptions.findFirst({
+    return await dbRead.query.tokenRedemptions.findFirst({
       where: eq(tokenRedemptions.id, id),
     });
   }
@@ -52,7 +48,7 @@ export class TokenRedemptionsRepository {
     id: string,
     userId: string,
   ): Promise<TokenRedemption | undefined> {
-    return await db.query.tokenRedemptions.findFirst({
+    return await dbRead.query.tokenRedemptions.findFirst({
       where: and(
         eq(tokenRedemptions.id, id),
         eq(tokenRedemptions.user_id, userId),
@@ -64,7 +60,7 @@ export class TokenRedemptionsRepository {
    * Lists redemptions for a user, ordered by creation date.
    */
   async listByUser(userId: string, limit = 20): Promise<TokenRedemption[]> {
-    return await db.query.tokenRedemptions.findMany({
+    return await dbRead.query.tokenRedemptions.findMany({
       where: eq(tokenRedemptions.user_id, userId),
       orderBy: [desc(tokenRedemptions.created_at)],
       limit,
@@ -75,7 +71,7 @@ export class TokenRedemptionsRepository {
    * Checks if user has a pending redemption.
    */
   async hasPendingRedemption(userId: string): Promise<boolean> {
-    const pending = await db.query.tokenRedemptions.findFirst({
+    const pending = await dbRead.query.tokenRedemptions.findFirst({
       where: and(
         eq(tokenRedemptions.user_id, userId),
         eq(tokenRedemptions.status, "pending"),
@@ -95,7 +91,7 @@ export class TokenRedemptionsRepository {
   ): Promise<TokenRedemption[]> {
     const lockThreshold = new Date(Date.now() - lockTimeoutMs);
 
-    return await db
+    return await dbRead
       .select()
       .from(tokenRedemptions)
       .where(
@@ -112,6 +108,35 @@ export class TokenRedemptionsRepository {
   }
 
   /**
+   * Gets pending redemptions requiring admin review.
+   */
+  async getPendingForReview(limit = 50): Promise<TokenRedemption[]> {
+    return await dbRead.query.tokenRedemptions.findMany({
+      where: and(
+        eq(tokenRedemptions.status, "pending"),
+        eq(tokenRedemptions.requires_review, true),
+      ),
+      orderBy: [desc(tokenRedemptions.created_at)],
+      limit,
+    });
+  }
+
+  // ============================================================================
+  // WRITE OPERATIONS (use NA primary)
+  // ============================================================================
+
+  /**
+   * Creates a new token redemption request.
+   */
+  async create(data: NewTokenRedemption): Promise<TokenRedemption> {
+    const [redemption] = await dbWrite
+      .insert(tokenRedemptions)
+      .values(data)
+      .returning();
+    return redemption;
+  }
+
+  /**
    * Acquires processing lock on a redemption.
    * Returns true if lock was acquired, false if already locked.
    */
@@ -119,7 +144,7 @@ export class TokenRedemptionsRepository {
     redemptionId: string,
     workerId: string,
   ): Promise<boolean> {
-    const [updated] = await db
+    const [updated] = await dbWrite
       .update(tokenRedemptions)
       .set({
         status: "processing",
@@ -142,7 +167,7 @@ export class TokenRedemptionsRepository {
    * Marks a redemption as completed with transaction hash.
    */
   async markCompleted(redemptionId: string, txHash: string): Promise<void> {
-    await db
+    await dbWrite
       .update(tokenRedemptions)
       .set({
         status: "completed",
@@ -163,7 +188,7 @@ export class TokenRedemptionsRepository {
     retryable: boolean,
   ): Promise<void> {
     if (retryable) {
-      await db
+      await dbWrite
         .update(tokenRedemptions)
         .set({
           status: "approved",
@@ -175,7 +200,7 @@ export class TokenRedemptionsRepository {
         })
         .where(eq(tokenRedemptions.id, redemptionId));
     } else {
-      await db
+      await dbWrite
         .update(tokenRedemptions)
         .set({
           status: "failed",
@@ -194,7 +219,7 @@ export class TokenRedemptionsRepository {
     reviewerId: string,
     notes?: string,
   ): Promise<boolean> {
-    const [updated] = await db
+    const [updated] = await dbWrite
       .update(tokenRedemptions)
       .set({
         status: "approved",
@@ -222,7 +247,7 @@ export class TokenRedemptionsRepository {
     reviewerId: string,
     reason: string,
   ): Promise<boolean> {
-    const [updated] = await db
+    const [updated] = await dbWrite
       .update(tokenRedemptions)
       .set({
         status: "rejected",
@@ -242,24 +267,13 @@ export class TokenRedemptionsRepository {
 
     return !!updated;
   }
-
-  /**
-   * Gets pending redemptions requiring admin review.
-   */
-  async getPendingForReview(limit = 50): Promise<TokenRedemption[]> {
-    return await db.query.tokenRedemptions.findMany({
-      where: and(
-        eq(tokenRedemptions.status, "pending"),
-        eq(tokenRedemptions.requires_review, true),
-      ),
-      orderBy: [desc(tokenRedemptions.created_at)],
-      limit,
-    });
-  }
 }
 
 /**
  * Repository for redemption limits (daily rate limiting).
+ *
+ * Read operations → dbRead (read replica)
+ * Write operations → dbWrite (NA primary)
  */
 export class RedemptionLimitsRepository {
   /**
@@ -269,7 +283,7 @@ export class RedemptionLimitsRepository {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const existing = await db.query.redemptionLimits.findFirst({
+    const existing = await dbRead.query.redemptionLimits.findFirst({
       where: and(
         eq(redemptionLimits.user_id, userId),
         gte(redemptionLimits.date, today),
@@ -280,7 +294,7 @@ export class RedemptionLimitsRepository {
       return existing;
     }
 
-    const [created] = await db
+    const [created] = await dbWrite
       .insert(redemptionLimits)
       .values({
         user_id: userId,
@@ -290,8 +304,8 @@ export class RedemptionLimitsRepository {
       .returning();
 
     if (!created) {
-      // Race condition - another request created it
-      const refetched = await db.query.redemptionLimits.findFirst({
+      // Race condition - another request created it, use write DB to avoid replication lag
+      const refetched = await dbWrite.query.redemptionLimits.findFirst({
         where: and(
           eq(redemptionLimits.user_id, userId),
           gte(redemptionLimits.date, today),
@@ -313,7 +327,7 @@ export class RedemptionLimitsRepository {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    await db
+    await dbWrite
       .insert(redemptionLimits)
       .values({
         user_id: userId,
@@ -334,8 +348,15 @@ export class RedemptionLimitsRepository {
 
 /**
  * Repository for elizaOS token price cache.
+ *
+ * Read operations → dbRead (read replica)
+ * Write operations → dbWrite (NA primary)
  */
 export class ElizaTokenPricesRepository {
+  // ============================================================================
+  // READ OPERATIONS (use read replica)
+  // ============================================================================
+
   /**
    * Gets the most recent cached price for a network.
    */
@@ -345,7 +366,7 @@ export class ElizaTokenPricesRepository {
   ): Promise<ElizaTokenPrice | undefined> {
     const minFetchedAt = new Date(Date.now() - maxAgeMs);
 
-    return await db.query.elizaTokenPrices.findFirst({
+    return await dbRead.query.elizaTokenPrices.findFirst({
       where: and(
         eq(elizaTokenPrices.network, network),
         gte(elizaTokenPrices.fetched_at, minFetchedAt),
@@ -354,11 +375,15 @@ export class ElizaTokenPricesRepository {
     });
   }
 
+  // ============================================================================
+  // WRITE OPERATIONS (use NA primary)
+  // ============================================================================
+
   /**
    * Caches a new price.
    */
   async cache(data: NewElizaTokenPrice): Promise<ElizaTokenPrice> {
-    const [price] = await db.insert(elizaTokenPrices).values(data).returning();
+    const [price] = await dbWrite.insert(elizaTokenPrices).values(data).returning();
     return price;
   }
 
@@ -366,7 +391,7 @@ export class ElizaTokenPricesRepository {
    * Cleans up expired price entries.
    */
   async cleanupExpired(): Promise<number> {
-    const result = await db
+    const result = await dbWrite
       .delete(elizaTokenPrices)
       .where(lt(elizaTokenPrices.expires_at, new Date()));
 

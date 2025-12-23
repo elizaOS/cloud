@@ -1,4 +1,4 @@
-import { db } from "@/db/client";
+import { dbRead, dbWrite } from "@/db/client";
 import {
   userVoices,
   voiceCloningJobs,
@@ -85,7 +85,7 @@ export class VoiceCloningService {
       this.validateAudioFiles(files);
 
       // Create job record
-      const [job] = await db
+      const [job] = await dbWrite
         .insert(voiceCloningJobs)
         .values({
           organizationId,
@@ -127,7 +127,7 @@ export class VoiceCloningService {
             });
 
             // Store sample metadata in database
-            await db.insert(voiceSamples).values({
+            await dbWrite.insert(voiceSamples).values({
               jobId: job.id,
               organizationId,
               userId,
@@ -184,7 +184,7 @@ export class VoiceCloningService {
           : VOICE_CLONE_PROFESSIONAL_COST;
 
       // Create user_voices record
-      const [userVoice] = await db
+      const [userVoice] = await dbWrite
         .insert(userVoices)
         .values({
           organizationId,
@@ -205,7 +205,7 @@ export class VoiceCloningService {
       });
 
       // Update job as completed
-      const [updatedJob] = await db
+      const [updatedJob] = await dbWrite
         .update(voiceCloningJobs)
         .set({
           status: "completed",
@@ -237,7 +237,7 @@ export class VoiceCloningService {
         });
 
         // Update job as failed
-        await db
+        await dbWrite
           .update(voiceCloningJobs)
           .set({
             status: "failed",
@@ -281,7 +281,7 @@ export class VoiceCloningService {
       conditions.push(eq(userVoices.cloneType, params.cloneType));
     }
 
-    return db
+    return dbRead
       .select()
       .from(userVoices)
       .where(and(...conditions))
@@ -292,7 +292,7 @@ export class VoiceCloningService {
    * Get voice by ID
    */
   async getVoiceById(voiceId: string, organizationId: string) {
-    const [voice] = await db
+    const [voice] = await dbRead
       .select()
       .from(userVoices)
       .where(
@@ -307,7 +307,7 @@ export class VoiceCloningService {
     }
 
     // Get associated samples
-    const samples = await db
+    const samples = await dbRead
       .select()
       .from(voiceSamples)
       .where(eq(voiceSamples.userVoiceId, voiceId));
@@ -329,7 +329,7 @@ export class VoiceCloningService {
       isPublic?: boolean;
     },
   ) {
-    const [updatedVoice] = await db
+    const [updatedVoice] = await dbWrite
       .update(userVoices)
       .set({
         ...updates,
@@ -382,7 +382,7 @@ export class VoiceCloningService {
     });
 
     // Soft delete from database (set inactive instead of hard delete)
-    await db
+    await dbWrite
       .update(userVoices)
       .set({
         isActive: false,
@@ -398,13 +398,13 @@ export class VoiceCloningService {
    */
   async incrementUsageCount(voiceId: string): Promise<void> {
     // Get current voice
-    const [voice] = await db
+    const [voice] = await dbRead
       .select()
       .from(userVoices)
       .where(eq(userVoices.id, voiceId));
 
     if (voice) {
-      await db
+      await dbWrite
         .update(userVoices)
         .set({
           usageCount: voice.usageCount + 1,
@@ -419,7 +419,7 @@ export class VoiceCloningService {
    * Get job status
    */
   async getJobStatus(jobId: string, organizationId: string) {
-    const [job] = await db
+    const [job] = await dbRead
       .select()
       .from(voiceCloningJobs)
       .where(
@@ -442,7 +442,7 @@ export class VoiceCloningService {
       conditions.push(eq(voiceCloningJobs.userId, userId));
     }
 
-    return db
+    return dbRead
       .select()
       .from(voiceCloningJobs)
       .where(and(...conditions))

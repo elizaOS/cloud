@@ -55,7 +55,7 @@ function extractProvider(modelId: string): string {
 }
 
 const FAST_MODEL_ID = getEnvModelId("fast", "openai/gpt-oss-120b");
-const PRO_MODEL_ID = getEnvModelId("pro", "google/gemini-3-flash");
+const PRO_MODEL_ID = getEnvModelId("pro", "anthropic/claude-haiku-4.5");
 const ULTRA_MODEL_ID = getEnvModelId("ultra", "anthropic/claude-sonnet-4.5");
 
 export const MODEL_TIERS: Record<ModelTier, ModelTierConfig> = {
@@ -82,8 +82,8 @@ export const MODEL_TIERS: Record<ModelTier, ModelTierConfig> = {
     provider: extractProvider(PRO_MODEL_ID),
     icon: "sparkles",
     pricing: {
-      inputPer1k: 0.003,
-      outputPer1k: 0.015,
+      inputPer1k: 0.001,
+      outputPer1k: 0.005,
       currency: "USD",
     },
     capabilities: [

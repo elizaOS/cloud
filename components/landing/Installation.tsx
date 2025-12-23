@@ -29,16 +29,16 @@ export default function Installation() {
       <div className="relative container mx-auto px-4 md:px-6 py-16 md:py-20 lg:py-40">
         {/* Hero heading */}
         <motion.h2
-          className="text-xl sm:text-3xl md:text-4xl font-medium text-center mb-8 md:mb-16 sm:uppercase max-w-7xl mx-auto px-4"
+          className="text-xl sm:text-3xl md:text-4xl font-medium text-center mb-8 md:mb-16  max-w-7xl mx-auto px-4"
           style={{
             fontFamily: "var(--font-geist-sans)",
             lineHeight: "1.3",
             color: "#FFFFFF",
           }}
         >
-          From your terminal to the cloud.
+          From Your Terminal To The Cloud.
           <br />
-          In seconds.
+          In Seconds.
         </motion.h2>
 
         {/* Terminal command section */}

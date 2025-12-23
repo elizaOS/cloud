@@ -1,5 +1,5 @@
 import { eq, and, lte, gte, sql } from "drizzle-orm";
-import { db } from "../client";
+import { dbRead, dbWrite } from "../helpers";
 import {
   usageQuotas,
   type UsageQuota,
@@ -12,11 +12,15 @@ export type { UsageQuota, NewUsageQuota };
  * Repository for usage quota database operations.
  */
 export class UsageQuotasRepository {
+  // ============================================================================
+  // READ OPERATIONS (use read replica)
+  // ============================================================================
+
   /**
    * Finds a usage quota by ID.
    */
   async findById(id: string): Promise<UsageQuota | undefined> {
-    return await db.query.usageQuotas.findFirst({
+    return await dbRead.query.usageQuotas.findFirst({
       where: eq(usageQuotas.id, id),
     });
   }
@@ -25,7 +29,7 @@ export class UsageQuotasRepository {
    * Lists all usage quotas for an organization.
    */
   async findByOrganization(organizationId: string): Promise<UsageQuota[]> {
-    return await db.query.usageQuotas.findMany({
+    return await dbRead.query.usageQuotas.findMany({
       where: eq(usageQuotas.organization_id, organizationId),
     });
   }
@@ -36,7 +40,7 @@ export class UsageQuotasRepository {
   async findActiveByOrganization(
     organizationId: string,
   ): Promise<UsageQuota[]> {
-    return await db.query.usageQuotas.findMany({
+    return await dbRead.query.usageQuotas.findMany({
       where: and(
         eq(usageQuotas.organization_id, organizationId),
         eq(usageQuotas.is_active, true),
@@ -64,68 +68,9 @@ export class UsageQuotasRepository {
       conditions.push(sql`${usageQuotas.model_name} IS NULL`);
     }
 
-    return await db.query.usageQuotas.findFirst({
+    return await dbRead.query.usageQuotas.findFirst({
       where: and(...conditions),
     });
-  }
-
-  /**
-   * Creates a new usage quota.
-   */
-  async create(data: NewUsageQuota): Promise<UsageQuota> {
-    const [quota] = await db.insert(usageQuotas).values(data).returning();
-    return quota;
-  }
-
-  /**
-   * Updates an existing usage quota.
-   */
-  async update(
-    id: string,
-    data: Partial<NewUsageQuota>,
-  ): Promise<UsageQuota | undefined> {
-    const [updated] = await db
-      .update(usageQuotas)
-      .set({
-        ...data,
-        updated_at: new Date(),
-      })
-      .where(eq(usageQuotas.id, id))
-      .returning();
-    return updated;
-  }
-
-  /**
-   * Resets usage count to zero for a quota.
-   */
-  async resetUsage(id: string): Promise<UsageQuota | undefined> {
-    const [updated] = await db
-      .update(usageQuotas)
-      .set({
-        current_usage: "0.00",
-        updated_at: new Date(),
-      })
-      .where(eq(usageQuotas.id, id))
-      .returning();
-    return updated;
-  }
-
-  /**
-   * Atomically increments usage count for a quota.
-   */
-  async incrementUsage(
-    id: string,
-    amount: number,
-  ): Promise<UsageQuota | undefined> {
-    const [updated] = await db
-      .update(usageQuotas)
-      .set({
-        current_usage: sql`${usageQuotas.current_usage} + ${amount}`,
-        updated_at: new Date(),
-      })
-      .where(eq(usageQuotas.id, id))
-      .returning();
-    return updated;
   }
 
   /**
@@ -148,40 +93,12 @@ export class UsageQuotasRepository {
    */
   async listExpiredQuotas(): Promise<UsageQuota[]> {
     const now = new Date();
-    return await db.query.usageQuotas.findMany({
+    return await dbRead.query.usageQuotas.findMany({
       where: and(
         eq(usageQuotas.is_active, true),
         lte(usageQuotas.period_end, now),
       ),
     });
-  }
-
-  /**
-   * Updates quota period and resets usage count to zero.
-   */
-  async updatePeriod(
-    id: string,
-    periodStart: Date,
-    periodEnd: Date,
-  ): Promise<UsageQuota | undefined> {
-    const [updated] = await db
-      .update(usageQuotas)
-      .set({
-        period_start: periodStart,
-        period_end: periodEnd,
-        current_usage: "0.00",
-        updated_at: new Date(),
-      })
-      .where(eq(usageQuotas.id, id))
-      .returning();
-    return updated;
-  }
-
-  /**
-   * Deletes a usage quota by ID.
-   */
-  async delete(id: string): Promise<void> {
-    await db.delete(usageQuotas).where(eq(usageQuotas.id, id));
   }
 
   /**
@@ -213,6 +130,97 @@ export class UsageQuotasRepository {
     }
 
     return result;
+  }
+
+  // ============================================================================
+  // WRITE OPERATIONS (use NA primary)
+  // ============================================================================
+
+  /**
+   * Creates a new usage quota.
+   */
+  async create(data: NewUsageQuota): Promise<UsageQuota> {
+    const [quota] = await dbWrite.insert(usageQuotas).values(data).returning();
+    return quota;
+  }
+
+  /**
+   * Updates an existing usage quota.
+   */
+  async update(
+    id: string,
+    data: Partial<NewUsageQuota>,
+  ): Promise<UsageQuota | undefined> {
+    const [updated] = await dbWrite
+      .update(usageQuotas)
+      .set({
+        ...data,
+        updated_at: new Date(),
+      })
+      .where(eq(usageQuotas.id, id))
+      .returning();
+    return updated;
+  }
+
+  /**
+   * Resets usage count to zero for a quota.
+   */
+  async resetUsage(id: string): Promise<UsageQuota | undefined> {
+    const [updated] = await dbWrite
+      .update(usageQuotas)
+      .set({
+        current_usage: "0.00",
+        updated_at: new Date(),
+      })
+      .where(eq(usageQuotas.id, id))
+      .returning();
+    return updated;
+  }
+
+  /**
+   * Atomically increments usage count for a quota.
+   */
+  async incrementUsage(
+    id: string,
+    amount: number,
+  ): Promise<UsageQuota | undefined> {
+    const [updated] = await dbWrite
+      .update(usageQuotas)
+      .set({
+        current_usage: sql`${usageQuotas.current_usage} + ${amount}`,
+        updated_at: new Date(),
+      })
+      .where(eq(usageQuotas.id, id))
+      .returning();
+    return updated;
+  }
+
+  /**
+   * Updates quota period and resets usage count to zero.
+   */
+  async updatePeriod(
+    id: string,
+    periodStart: Date,
+    periodEnd: Date,
+  ): Promise<UsageQuota | undefined> {
+    const [updated] = await dbWrite
+      .update(usageQuotas)
+      .set({
+        period_start: periodStart,
+        period_end: periodEnd,
+        current_usage: "0.00",
+        updated_at: new Date(),
+      })
+      .where(eq(usageQuotas.id, id))
+      .returning();
+    return updated;
+  }
+
+  /**
+   * Deletes a usage quota by ID.
+   */
+  async delete(id: string): Promise<void> {
+    await dbWrite.delete(usageQuotas).where(eq(usageQuotas.id, id));
   }
 }
 

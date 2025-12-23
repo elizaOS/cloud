@@ -16,7 +16,7 @@
  * - ERC-8004 registered agents
  */
 
-import { db } from "@/db/client";
+import { dbRead, dbWrite } from "@/db/client";
 import { userCharacters } from "@/db/schemas/user-characters";
 import { eq, sql } from "drizzle-orm";
 import { logger } from "@/lib/utils/logger";
@@ -96,7 +96,7 @@ class AgentMonetizationService {
   async getAgentMonetization(
     agentId: string,
   ): Promise<AgentMonetizationInfo | null> {
-    const agent = await db.query.userCharacters.findFirst({
+    const agent = await dbRead.query.userCharacters.findFirst({
       where: eq(userCharacters.id, agentId),
     });
 
@@ -224,7 +224,7 @@ class AgentMonetizationService {
     }
 
     // 2. Update agent's earnings tracking
-    await db
+    await dbWrite
       .update(userCharacters)
       .set({
         total_creator_earnings: sql`${userCharacters.total_creator_earnings} + ${earningsDecimal}`,
@@ -361,7 +361,7 @@ class AgentMonetizationService {
     },
   ): Promise<{ success: boolean; error?: string }> {
     // Verify ownership
-    const agent = await db.query.userCharacters.findFirst({
+    const agent = await dbRead.query.userCharacters.findFirst({
       where: eq(userCharacters.id, agentId),
     });
 
@@ -388,7 +388,7 @@ class AgentMonetizationService {
     }
 
     // Update settings
-    await db
+    await dbWrite
       .update(userCharacters)
       .set({
         ...(settings.monetizationEnabled !== undefined && {
@@ -427,7 +427,7 @@ class AgentMonetizationService {
     }>;
   }> {
     // Get all agents owned by this user
-    const agents = await db.query.userCharacters.findMany({
+    const agents = await dbRead.query.userCharacters.findMany({
       where: eq(userCharacters.user_id, userId),
     });
 

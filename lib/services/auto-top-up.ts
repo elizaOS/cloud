@@ -1,6 +1,6 @@
-import { db } from "@/db/client";
+import { dbRead } from "@/db/client";
 import { organizations } from "@/db/schemas/organizations";
-import { eq, and, lt, sql } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import { requireStripe } from "@/lib/stripe";
 import { organizationsRepository, usersRepository } from "@/db/repositories";
 import type { Organization } from "@/db/repositories";
@@ -94,7 +94,7 @@ export class AutoTopUpService {
 
     // Find organizations that need auto top-up
     // Using raw SQL for numeric comparison to avoid type coercion issues
-    const orgsNeedingTopUp = await db
+    const orgsNeedingTopUp = await dbRead
       .select()
       .from(organizations)
       .where(
