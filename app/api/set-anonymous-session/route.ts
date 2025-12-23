@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
 import { usersService } from "@/lib/services/users";
 import { logger } from "@/lib/utils/logger";
-import { dbRead, dbWrite } from "@/db/client";
+import { dbWrite } from "@/db/client";
 import { users, anonymousSessions } from "@/db/schemas";
 import { eq } from "drizzle-orm";
 

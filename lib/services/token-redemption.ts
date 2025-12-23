@@ -717,7 +717,7 @@ export class TokenRedemptionService {
     adminUserId: string,
     reason: string,
   ): Promise<{ success: boolean; error?: string }> {
-    const result = await dbWrite.transaction(async (tx) => {
+    await dbWrite.transaction(async (tx) => {
       // Get the redemption
       const [redemption] = await tx
         .select()
