@@ -138,7 +138,10 @@ export function ChatSidebar({
     if (!showTokens) return;
 
     const handleClickOutside = (event: MouseEvent) => {
-      if (tokensRef.current && !tokensRef.current.contains(event.target as Node)) {
+      if (
+        tokensRef.current &&
+        !tokensRef.current.contains(event.target as Node)
+      ) {
         setShowTokens(false);
       }
     };
@@ -313,7 +316,10 @@ export function ChatSidebar({
                   className="bg-[#0A0A0A] border border-white/10 p-4 sm:p-3 mt-2 w-[calc(100vw-1rem)] sm:w-[460px] max-w-[96vw] absolute top-full left-2 z-[60]"
                 >
                   <div className="space-y-3">
-                    <h3 id="token-title-chat-sidebar" className="text-xl font-mono font-bold text-brand-orange text-start border-b border-white/10 pb-3 sm:px-3">
+                    <h3
+                      id="token-title-chat-sidebar"
+                      className="text-xl font-mono font-bold text-brand-orange text-start border-b border-white/10 pb-3 sm:px-3"
+                    >
                       elizaOS Token Addresses
                     </h3>
                     <div className="space-y-4 sm:space-y-0 font-mono text-sm">
@@ -417,13 +423,14 @@ export function ChatSidebar({
 
         {/* Back Button */}
         <div className="border-b border-white/10 px-4 py-2">
-          <Link
-            href="/dashboard"
+          <button
+            type="button"
+            onClick={() => router.back()}
             className="flex items-center gap-1.5 text-xs text-white/50 hover:text-white/80 transition-colors"
           >
             <ArrowLeft className="h-3 w-3" />
             <span>Back</span>
-          </Link>
+          </button>
         </div>
 
         {/* Selected Character Profile with New Chat Icon */}

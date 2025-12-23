@@ -22,7 +22,7 @@ interface AccountPageClientProps {
 
 export function AccountPageClient({ user }: AccountPageClientProps) {
   useSetPageHeader({
-    title: "Account Settings",
+    title: "Account",
     description: "Manage your account preferences and profile information",
   });
 

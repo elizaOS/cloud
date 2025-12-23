@@ -103,25 +103,6 @@ export default function OnChainTrust() {
               commerce.
             </motion.p>
           </div>
-
-          <Button
-            variant="outline"
-            className="onchain-trust-button hidden lg:flex shrink-0 gap-2 rounded-none transition-colors"
-            style={{
-              backgroundColor: "#E1E1E1",
-              borderColor: "#E1E1E1",
-              color: "#000000",
-            }}
-            asChild
-          >
-            <a
-              href="https://docs.elizaos.ai/"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Learn more
-            </a>
-          </Button>
         </div>
 
         {/* Two column layout */}
