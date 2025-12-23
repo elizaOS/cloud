@@ -11,7 +11,7 @@
  * - No complex hashing or collision handling needed
  */
 
-import { db } from "@/db/client";
+import { dbRead, dbWrite } from "@/db/client";
 import { albPriorities } from "@/db/schemas/alb-priorities";
 import { eq, sql, lt, and, isNotNull, isNull } from "drizzle-orm";
 import { logger } from "@/lib/utils/logger";
@@ -31,7 +31,7 @@ export class DatabasePriorityManager {
       `[ALB allocatePriority] Starting allocation for user ${userId}`,
     );
 
-    return await db.transaction(async (tx) => {
+    return await dbWrite.transaction(async (tx) => {
       logger.info(
         `[ALB allocatePriority] Inside transaction for user ${userId}`,
       );
@@ -95,7 +95,7 @@ export class DatabasePriorityManager {
     // Set expiry date (1 hour from now for audit trail)
     const expiryDate = new Date(Date.now() + 60 * 60 * 1000);
 
-    const result = await db
+    const result = await dbWrite
       .update(albPriorities)
       .set({ expiresAt: expiryDate })
       .where(eq(albPriorities.userId, userId))
@@ -114,7 +114,7 @@ export class DatabasePriorityManager {
    * Get priority for a user (without allocating if doesn't exist)
    */
   async getPriority(userId: string): Promise<number | undefined> {
-    const result = await db.query.albPriorities.findFirst({
+    const result = await dbRead.query.albPriorities.findFirst({
       where: eq(albPriorities.userId, userId),
     });
 
@@ -132,7 +132,7 @@ export class DatabasePriorityManager {
    */
   async cleanupExpiredPriorities(): Promise<number> {
     const now = new Date();
-    const deleted = await db
+    const deleted = await dbWrite
       .delete(albPriorities)
       .where(
         and(
@@ -157,7 +157,7 @@ export class DatabasePriorityManager {
   async getAllActivePriorities(): Promise<
     Array<{ userId: string; priority: number; createdAt: Date }>
   > {
-    const results = await db.query.albPriorities.findMany({
+    const results = await dbRead.query.albPriorities.findMany({
       where: isNull(albPriorities.expiresAt),
       columns: {
         userId: true,
@@ -183,17 +183,17 @@ export class DatabasePriorityManager {
     highestPriority: number;
     availableSlots: number;
   }> {
-    const [activeCount] = await db
+    const [activeCount] = await dbRead
       .select({ count: sql<number>`count(*)::int` })
       .from(albPriorities)
       .where(isNull(albPriorities.expiresAt));
 
-    const [expiredCount] = await db
+    const [expiredCount] = await dbRead
       .select({ count: sql<number>`count(*)::int` })
       .from(albPriorities)
       .where(isNotNull(albPriorities.expiresAt));
 
-    const [maxResult] = await db
+    const [maxResult] = await dbRead
       .select({ max: sql<number>`COALESCE(MAX(${albPriorities.priority}), 0)` })
       .from(albPriorities)
       .where(isNull(albPriorities.expiresAt));

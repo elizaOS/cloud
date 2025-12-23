@@ -19,7 +19,7 @@
  * 14. ✅ Quote mismatch - Single source of truth for pricing
  */
 
-import { db } from "@/db/client";
+import { dbRead, dbWrite } from "@/db/client";
 import {
   tokenRedemptions,
   redemptionLimits,
@@ -487,7 +487,7 @@ export class SecureTokenRedemptionService {
       };
     }
 
-    const result = await db.transaction(async (tx) => {
+    const result = await dbWrite.transaction(async (tx) => {
       // Lock the earnings with atomic operation
       // This uses the redeemableEarnings table with version-based optimistic locking
       const [earningsRecord] = await tx
@@ -750,7 +750,7 @@ export class SecureTokenRedemptionService {
   // Fix #3: Check all in-flight statuses
   // ========================================
   private async hasInFlightRedemption(userId: string): Promise<boolean> {
-    const inFlight = await db.query.tokenRedemptions.findFirst({
+    const inFlight = await dbRead.query.tokenRedemptions.findFirst({
       where: and(
         eq(tokenRedemptions.user_id, userId),
         inArray(tokenRedemptions.status, ["pending", "approved", "processing"]),
@@ -764,7 +764,7 @@ export class SecureTokenRedemptionService {
   // Fix #2: Enforce cooldown
   // ========================================
   private async checkCooldown(userId: string): Promise<ValidationResult> {
-    const lastRedemption = await db.query.tokenRedemptions.findFirst({
+    const lastRedemption = await dbRead.query.tokenRedemptions.findFirst({
       where: eq(tokenRedemptions.user_id, userId),
       orderBy: (r, { desc }) => [desc(r.created_at)],
     });
@@ -796,7 +796,7 @@ export class SecureTokenRedemptionService {
     const todayUTC = new Date();
     todayUTC.setUTCHours(0, 0, 0, 0);
 
-    const limits = await db.query.redemptionLimits.findFirst({
+    const limits = await dbRead.query.redemptionLimits.findFirst({
       where: and(
         eq(redemptionLimits.user_id, userId),
         gte(redemptionLimits.date, todayUTC),
@@ -841,7 +841,7 @@ export class SecureTokenRedemptionService {
     const usdValue = pointsAmount / 100;
 
     // Check hourly redemption count from this IP
-    const hourlyCount = await db.execute(sql`
+    const hourlyCount = await dbRead.execute(sql`
       SELECT COUNT(*) as count
       FROM token_redemptions
       WHERE metadata->>'ip_address' = ${ipAddress}
@@ -861,7 +861,7 @@ export class SecureTokenRedemptionService {
     }
 
     // Check daily redemption count from this IP
-    const dailyStats = await db.execute(sql`
+    const dailyStats = await dbRead.execute(sql`
       SELECT 
         COUNT(*) as count,
         COALESCE(SUM(CAST(usd_value AS DECIMAL)), 0) as total_usd
@@ -928,7 +928,7 @@ export class SecureTokenRedemptionService {
   private async findByIdempotencyKey(
     key: string,
   ): Promise<TokenRedemption | null> {
-    const redemption = await db.query.tokenRedemptions.findFirst({
+    const redemption = await dbRead.query.tokenRedemptions.findFirst({
       where: sql`${tokenRedemptions.metadata}->>'idempotency_key' = ${key}`,
     });
 
@@ -1073,7 +1073,7 @@ export class SecureTokenRedemptionService {
     adminUserId: string,
     reason: string,
   ): Promise<{ success: boolean; error?: string }> {
-    await db.transaction(async (tx) => {
+    await dbWrite.transaction(async (tx) => {
       const [redemption] = await tx
         .select()
         .from(tokenRedemptions)
@@ -1177,7 +1177,7 @@ export class SecureTokenRedemptionService {
     );
 
     // Look for recent earnings transactions
-    const recentEarnings = await db.execute(sql`
+    const recentEarnings = await dbRead.execute(sql`
       SELECT COUNT(*) as count, COALESCE(SUM(CAST(amount AS DECIMAL)), 0) as total
       FROM app_earnings_transactions
       WHERE app_id = ${appId}
@@ -1201,14 +1201,14 @@ export class SecureTokenRedemptionService {
     }
 
     // Check 2: High redemption ratio
-    const totalEarned = await db.execute(sql`
+    const totalEarned = await dbRead.execute(sql`
       SELECT COALESCE(SUM(CAST(amount AS DECIMAL)), 0) as total
       FROM app_earnings_transactions
       WHERE app_id = ${appId}
       AND type IN ('inference_markup', 'purchase_share')
     `);
 
-    const totalRedeemed = await db.execute(sql`
+    const totalRedeemed = await dbRead.execute(sql`
       SELECT COALESCE(SUM(CAST(usd_value AS DECIMAL)), 0) as total
       FROM token_redemptions
       WHERE user_id = ${userId}
@@ -1236,7 +1236,7 @@ export class SecureTokenRedemptionService {
 
     // Check 3: Shared payout address (same address used by multiple users)
     if (payoutAddress) {
-      const sharedAddressCheck = await db.execute(sql`
+      const sharedAddressCheck = await dbRead.execute(sql`
         SELECT COUNT(DISTINCT user_id) as user_count
         FROM token_redemptions
         WHERE payout_address = ${payoutAddress}
@@ -1273,7 +1273,7 @@ export class SecureTokenRedemptionService {
       conditions.push(eq(tokenRedemptions.user_id, userId));
     }
 
-    const redemption = await db.query.tokenRedemptions.findFirst({
+    const redemption = await dbRead.query.tokenRedemptions.findFirst({
       where: and(...conditions),
     });
 
@@ -1284,7 +1284,7 @@ export class SecureTokenRedemptionService {
     userId: string,
     limit = 20,
   ): Promise<TokenRedemption[]> {
-    return await db.query.tokenRedemptions.findMany({
+    return await dbRead.query.tokenRedemptions.findMany({
       where: eq(tokenRedemptions.user_id, userId),
       orderBy: (redemptions, { desc }) => [desc(redemptions.created_at)],
       limit: Math.min(limit, 100),
@@ -1296,7 +1296,7 @@ export class SecureTokenRedemptionService {
     adminUserId: string,
     notes?: string,
   ): Promise<{ success: boolean; error?: string }> {
-    const [updated] = await db
+    const [updated] = await dbWrite
       .update(tokenRedemptions)
       .set({
         status: "approved",

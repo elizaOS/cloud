@@ -208,10 +208,8 @@ export default function Footer() {
                 </button>
               </div>
               <a
-                href="https://elizaos.ai/docs"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-base text-white transition-colors hover:text-[#FF5800]"
+                href="/docs"
+                className="text-base font-semibold text-[#FF5800] transition-colors hover:text-white"
               >
                 Docs
               </a>

@@ -1,5 +1,5 @@
 import { eq, and } from "drizzle-orm";
-import { db } from "../client";
+import { dbRead, dbWrite } from "../helpers";
 import {
   modelPricing,
   type ModelPricing,
@@ -12,6 +12,10 @@ export type { ModelPricing, NewModelPricing };
  * Repository for model pricing database operations.
  */
 export class ModelPricingRepository {
+  // ============================================================================
+  // READ OPERATIONS (use read replica)
+  // ============================================================================
+
   /**
    * Finds active pricing for a model and provider combination.
    */
@@ -19,7 +23,7 @@ export class ModelPricingRepository {
     model: string,
     provider: string,
   ): Promise<ModelPricing | undefined> {
-    return await db.query.modelPricing.findFirst({
+    return await dbRead.query.modelPricing.findFirst({
       where: and(
         eq(modelPricing.model, model),
         eq(modelPricing.provider, provider),
@@ -32,7 +36,7 @@ export class ModelPricingRepository {
    * Finds model pricing by ID.
    */
   async findById(id: string): Promise<ModelPricing | undefined> {
-    return await db.query.modelPricing.findFirst({
+    return await dbRead.query.modelPricing.findFirst({
       where: eq(modelPricing.id, id),
     });
   }
@@ -41,16 +45,20 @@ export class ModelPricingRepository {
    * Lists all active model pricing records.
    */
   async listActive(): Promise<ModelPricing[]> {
-    return await db.query.modelPricing.findMany({
+    return await dbRead.query.modelPricing.findMany({
       where: eq(modelPricing.is_active, true),
     });
   }
+
+  // ============================================================================
+  // WRITE OPERATIONS (use NA primary)
+  // ============================================================================
 
   /**
    * Creates a new model pricing record.
    */
   async create(data: NewModelPricing): Promise<ModelPricing> {
-    const [pricing] = await db.insert(modelPricing).values(data).returning();
+    const [pricing] = await dbWrite.insert(modelPricing).values(data).returning();
     return pricing;
   }
 
@@ -61,7 +69,7 @@ export class ModelPricingRepository {
     id: string,
     data: Partial<NewModelPricing>,
   ): Promise<ModelPricing | undefined> {
-    const [updated] = await db
+    const [updated] = await dbWrite
       .update(modelPricing)
       .set({
         ...data,

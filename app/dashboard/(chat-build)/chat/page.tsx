@@ -31,7 +31,7 @@ export const dynamic = "force-dynamic";
 export async function generateMetadata({
   searchParams,
 }: PageProps): Promise<Metadata> {
-  const params = await searchParams;
+  const params = await searchParams ?? {};
   const characterId = params.characterId;
 
   // If no characterId, use default metadata
@@ -132,7 +132,7 @@ export default async function ElizaPage({ searchParams }: PageProps) {
   const characters = isAnonymous ? [] : await listCharacters();
 
   // Get URL params
-  const params = await searchParams;
+  const params = await searchParams ?? {};
   const initialRoomId = params.roomId;
   const initialCharacterId = params.characterId;
 

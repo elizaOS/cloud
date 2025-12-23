@@ -1,5 +1,5 @@
 import { eq, asc } from "drizzle-orm";
-import { db } from "../client";
+import { dbRead, dbWrite } from "../helpers";
 import {
   creditPacks,
   type CreditPack,
@@ -12,11 +12,15 @@ export type { CreditPack, NewCreditPack };
  * Repository for credit pack database operations.
  */
 export class CreditPacksRepository {
+  // ============================================================================
+  // READ OPERATIONS (use read replica)
+  // ============================================================================
+
   /**
    * Finds a credit pack by ID.
    */
   async findById(id: string): Promise<CreditPack | undefined> {
-    return await db.query.creditPacks.findFirst({
+    return await dbRead.query.creditPacks.findFirst({
       where: eq(creditPacks.id, id),
     });
   }
@@ -27,7 +31,7 @@ export class CreditPacksRepository {
   async findByStripePriceId(
     stripePriceId: string,
   ): Promise<CreditPack | undefined> {
-    return await db.query.creditPacks.findFirst({
+    return await dbRead.query.creditPacks.findFirst({
       where: eq(creditPacks.stripe_price_id, stripePriceId),
     });
   }
@@ -36,7 +40,7 @@ export class CreditPacksRepository {
    * Lists all active credit packs, ordered by sort order.
    */
   async listActive(): Promise<CreditPack[]> {
-    return await db.query.creditPacks.findMany({
+    return await dbRead.query.creditPacks.findMany({
       where: eq(creditPacks.is_active, true),
       orderBy: asc(creditPacks.sort_order),
     });
@@ -46,16 +50,20 @@ export class CreditPacksRepository {
    * Lists all credit packs, ordered by sort order.
    */
   async listAll(): Promise<CreditPack[]> {
-    return await db.query.creditPacks.findMany({
+    return await dbRead.query.creditPacks.findMany({
       orderBy: asc(creditPacks.sort_order),
     });
   }
+
+  // ============================================================================
+  // WRITE OPERATIONS (use NA primary)
+  // ============================================================================
 
   /**
    * Creates a new credit pack.
    */
   async create(data: NewCreditPack): Promise<CreditPack> {
-    const [creditPack] = await db.insert(creditPacks).values(data).returning();
+    const [creditPack] = await dbWrite.insert(creditPacks).values(data).returning();
     return creditPack;
   }
 
@@ -66,7 +74,7 @@ export class CreditPacksRepository {
     id: string,
     data: Partial<NewCreditPack>,
   ): Promise<CreditPack | undefined> {
-    const [updated] = await db
+    const [updated] = await dbWrite
       .update(creditPacks)
       .set({
         ...data,
@@ -81,7 +89,7 @@ export class CreditPacksRepository {
    * Deletes a credit pack by ID.
    */
   async delete(id: string): Promise<void> {
-    await db.delete(creditPacks).where(eq(creditPacks.id, id));
+    await dbWrite.delete(creditPacks).where(eq(creditPacks.id, id));
   }
 }
 

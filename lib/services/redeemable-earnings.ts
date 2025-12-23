@@ -18,7 +18,7 @@
  * - MCP creator earnings
  */
 
-import { db } from "@/db/client";
+import { dbRead, dbWrite } from "@/db/client";
 import {
   redeemableEarnings,
   redeemableEarningsLedger,
@@ -101,7 +101,7 @@ class RedeemableEarningsService {
       mcps: number;
     };
   } | null> {
-    const earnings = await db.query.redeemableEarnings.findFirst({
+    const earnings = await dbRead.query.redeemableEarnings.findFirst({
       where: eq(redeemableEarnings.user_id, userId),
     });
 
@@ -149,7 +149,7 @@ class RedeemableEarningsService {
     // Use Decimal for precision
     const amountDecimal = new Decimal(amount).toFixed(4);
 
-    const result = await db.transaction(async (tx) => {
+    const result = await dbWrite.transaction(async (tx) => {
       // Get or create earnings record with lock
       let [earnings] = await tx
         .select()
@@ -252,7 +252,7 @@ class RedeemableEarningsService {
 
     const amountDecimal = new Decimal(amount).toFixed(4);
 
-    const result = await db.transaction(async (tx) => {
+    const result = await dbWrite.transaction(async (tx) => {
       // Get earnings with row lock
       const [earnings] = await tx
         .select()
@@ -363,7 +363,7 @@ class RedeemableEarningsService {
 
     const amountDecimal = new Decimal(amount).toFixed(4);
 
-    await db.transaction(async (tx) => {
+    await dbWrite.transaction(async (tx) => {
       // Update balances
       const [updated] = await tx
         .update(redeemableEarnings)
@@ -414,7 +414,7 @@ class RedeemableEarningsService {
 
     const amountDecimal = new Decimal(amount).toFixed(4);
 
-    await db.transaction(async (tx) => {
+    await dbWrite.transaction(async (tx) => {
       // Update balances - move from pending back to available
       const [updated] = await tx
         .update(redeemableEarnings)
@@ -472,7 +472,7 @@ class RedeemableEarningsService {
       createdAt: Date;
     }>
   > {
-    const entries = await db.query.redeemableEarningsLedger.findMany({
+    const entries = await dbRead.query.redeemableEarningsLedger.findMany({
       where: eq(redeemableEarningsLedger.user_id, userId),
       orderBy: (ledger, { desc }) => [desc(ledger.created_at)],
       limit,
@@ -497,7 +497,7 @@ class RedeemableEarningsService {
    * SECURITY: Additional layer of double-redemption protection
    */
   async hasBeenRedeemed(ledgerEntryId: string): Promise<boolean> {
-    const tracking = await db.query.redeemedEarningsTracking.findFirst({
+    const tracking = await dbRead.query.redeemedEarningsTracking.findFirst({
       where: eq(redeemedEarningsTracking.ledger_entry_id, ledgerEntryId),
     });
 

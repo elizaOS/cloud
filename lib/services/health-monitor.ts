@@ -3,7 +3,7 @@
  * Monitors deployed containers and updates their health status
  */
 
-import { db } from "@/db/client";
+import { dbRead, dbWrite } from "@/db/client";
 import { containers } from "@/db/schemas";
 import { eq, and } from "drizzle-orm";
 import { logger } from "@/lib/utils/logger";
@@ -103,7 +103,7 @@ export async function updateContainerHealth(
   if (!healthResult.healthy) {
     // Atomically mark as failed ONLY if currently running
     // The WHERE clause ensures we only update if status hasn't changed
-    const [updatedContainer] = await db
+    const [updatedContainer] = await dbWrite
       .update(containers)
       .set({
         ...baseUpdate,
@@ -121,7 +121,7 @@ export async function updateContainerHealth(
     // If no rows were updated, container status has changed (not a race condition)
     if (!updatedContainer) {
       // Just update health check timestamp without changing status
-      await db
+      await dbWrite
         .update(containers)
         .set(baseUpdate)
         .where(eq(containers.id, containerId));
@@ -144,7 +144,7 @@ export async function updateContainerHealth(
     });
   } else {
     // Health check passed - atomically restore to running ONLY if currently failed
-    const [updatedContainer] = await db
+    const [updatedContainer] = await dbWrite
       .update(containers)
       .set({
         ...baseUpdate,
@@ -161,7 +161,7 @@ export async function updateContainerHealth(
 
     if (!updatedContainer) {
       // Just update health check timestamp for non-failed containers
-      await db
+      await dbWrite
         .update(containers)
         .set(baseUpdate)
         .where(eq(containers.id, containerId));
@@ -194,7 +194,7 @@ export async function monitorAllContainers(
   logger.info("Starting health check for all containers");
 
   // Get all running containers
-  const runningContainers = await db
+  const runningContainers = await dbRead
     .select()
     .from(containers)
     .where(eq(containers.status, "running"));
@@ -256,8 +256,8 @@ export async function getContainerHealthStatus(
   containerId: string,
 ): Promise<HealthCheckResult | null> {
   // Note: We need to get container without organization_id here
-  // So we still use db directly, but this is acceptable for health monitoring
-  const results = await db
+  // So we still use dbRead directly, but this is acceptable for health monitoring
+  const results = await dbRead
     .select()
     .from(containers)
     .where(eq(containers.id, containerId))

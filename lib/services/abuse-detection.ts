@@ -1,4 +1,4 @@
-import { db } from "@/db/client";
+import { dbRead, dbWrite } from "@/db/client";
 import { organizations } from "@/db/schemas/organizations";
 import { users } from "@/db/schemas/users";
 import { sql, eq, and, gte, or } from "drizzle-orm";
@@ -125,7 +125,7 @@ class AbuseDetectionService {
       riskScore += 10;
     }
 
-    const [existingUser] = await db
+    const [existingUser] = await dbRead
       .select({ id: users.id })
       .from(users)
       .where(eq(users.email, email.toLowerCase()))
@@ -148,7 +148,7 @@ class AbuseDetectionService {
     const twentyFourHoursAgo = new Date();
     twentyFourHoursAgo.setHours(twentyFourHoursAgo.getHours() - 24);
 
-    const [recentSignups] = await db
+    const [recentSignups] = await dbRead
       .select({
         count: sql<number>`COUNT(*)::int`,
       })
@@ -182,7 +182,7 @@ class AbuseDetectionService {
     const twentyFourHoursAgo = new Date();
     twentyFourHoursAgo.setHours(twentyFourHoursAgo.getHours() - 24);
 
-    const [recentSignups] = await db
+    const [recentSignups] = await dbRead
       .select({
         count: sql<number>`COUNT(*)::int`,
       })
@@ -212,7 +212,7 @@ class AbuseDetectionService {
     context: SignupContext,
   ): Promise<void> {
     try {
-      const [org] = await db
+      const [org] = await dbRead
         .select({ settings: organizations.settings })
         .from(organizations)
         .where(eq(organizations.id, organizationId))
@@ -228,7 +228,7 @@ class AbuseDetectionService {
         signup_timestamp: new Date().toISOString(),
       };
 
-      await db
+      await dbWrite
         .update(organizations)
         .set({ settings: updatedSettings })
         .where(eq(organizations.id, organizationId));
@@ -248,7 +248,7 @@ class AbuseDetectionService {
     relatedOrganizations: number;
   }> {
     try {
-      const [org] = await db
+      const [org] = await dbRead
         .select({ settings: organizations.settings })
         .from(organizations)
         .where(eq(organizations.id, organizationId))
@@ -277,7 +277,7 @@ class AbuseDetectionService {
           );
         }
 
-        const [result] = await db
+        const [result] = await dbRead
           .select({ count: sql<number>`COUNT(*)::int` })
           .from(organizations)
           .where(or(...conditions));

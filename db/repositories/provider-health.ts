@@ -1,5 +1,5 @@
 import { eq, desc } from "drizzle-orm";
-import { db } from "../client";
+import { dbRead, dbWrite } from "../helpers";
 import {
   providerHealth,
   type ProviderHealth,
@@ -12,11 +12,15 @@ export type { ProviderHealth, NewProviderHealth };
  * Repository for provider health monitoring database operations.
  */
 export class ProviderHealthRepository {
+  // ============================================================================
+  // READ OPERATIONS (use read replica)
+  // ============================================================================
+
   /**
    * Lists all provider health records, ordered by last checked time.
    */
   async listAll(): Promise<ProviderHealth[]> {
-    return await db.query.providerHealth.findMany({
+    return await dbRead.query.providerHealth.findMany({
       orderBy: desc(providerHealth.last_checked),
     });
   }
@@ -25,10 +29,14 @@ export class ProviderHealthRepository {
    * Finds provider health record by provider name.
    */
   async findByProvider(provider: string): Promise<ProviderHealth | undefined> {
-    return await db.query.providerHealth.findFirst({
+    return await dbRead.query.providerHealth.findFirst({
       where: eq(providerHealth.provider, provider),
     });
   }
+
+  // ============================================================================
+  // WRITE OPERATIONS (use NA primary)
+  // ============================================================================
 
   /**
    * Creates or updates a provider health record.
@@ -39,7 +47,7 @@ export class ProviderHealthRepository {
     const existing = await this.findByProvider(data.provider);
 
     if (existing) {
-      const [updated] = await db
+      const [updated] = await dbWrite
         .update(providerHealth)
         .set({
           ...data,
@@ -50,7 +58,7 @@ export class ProviderHealthRepository {
       return updated;
     }
 
-    const [created] = await db.insert(providerHealth).values(data).returning();
+    const [created] = await dbWrite.insert(providerHealth).values(data).returning();
     return created;
   }
 
@@ -63,7 +71,7 @@ export class ProviderHealthRepository {
     responseTime?: number,
     errorRate?: number,
   ): Promise<ProviderHealth | undefined> {
-    const [updated] = await db
+    const [updated] = await dbWrite
       .update(providerHealth)
       .set({
         status,

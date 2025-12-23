@@ -1,4 +1,4 @@
-import { db } from "../client";
+import { dbRead, dbWrite } from "../helpers";
 import {
   appCreditBalances,
   type AppCreditBalance,
@@ -10,13 +10,20 @@ export type { AppCreditBalance, NewAppCreditBalance };
 
 /**
  * Repository for app credit balance database operations.
+ *
+ * Read operations → dbRead (read replica)
+ * Write operations → dbWrite (NA primary)
  */
 export class AppCreditBalancesRepository {
+  // ============================================================================
+  // READ OPERATIONS (use read replica)
+  // ============================================================================
+
   /**
    * Finds an app credit balance by ID.
    */
   async findById(id: string): Promise<AppCreditBalance | undefined> {
-    return await db.query.appCreditBalances.findFirst({
+    return await dbRead.query.appCreditBalances.findFirst({
       where: eq(appCreditBalances.id, id),
     });
   }
@@ -28,7 +35,7 @@ export class AppCreditBalancesRepository {
     appId: string,
     userId: string,
   ): Promise<AppCreditBalance | undefined> {
-    return await db.query.appCreditBalances.findFirst({
+    return await dbRead.query.appCreditBalances.findFirst({
       where: and(
         eq(appCreditBalances.app_id, appId),
         eq(appCreditBalances.user_id, userId),
@@ -40,7 +47,7 @@ export class AppCreditBalancesRepository {
    * Lists all credit balances for an app, ordered by balance amount.
    */
   async listByApp(appId: string): Promise<AppCreditBalance[]> {
-    return await db.query.appCreditBalances.findMany({
+    return await dbRead.query.appCreditBalances.findMany({
       where: eq(appCreditBalances.app_id, appId),
       orderBy: [desc(appCreditBalances.credit_balance)],
     });
@@ -50,17 +57,58 @@ export class AppCreditBalancesRepository {
    * Lists all credit balances for a user across all apps.
    */
   async listByUser(userId: string): Promise<AppCreditBalance[]> {
-    return await db.query.appCreditBalances.findMany({
+    return await dbRead.query.appCreditBalances.findMany({
       where: eq(appCreditBalances.user_id, userId),
       orderBy: [desc(appCreditBalances.updated_at)],
     });
   }
 
   /**
+   * Gets current credit balance for an app user.
+   *
+   * Returns 0 if balance record doesn't exist.
+   */
+  async getBalance(appId: string, userId: string): Promise<number> {
+    const balance = await this.findByAppAndUser(appId, userId);
+    return balance ? Number(balance.credit_balance) : 0;
+  }
+
+  /**
+   * Gets aggregated balance statistics for an app across all users.
+   */
+  async getTotalAppBalance(appId: string): Promise<{
+    totalBalance: number;
+    totalPurchased: number;
+    totalSpent: number;
+    userCount: number;
+  }> {
+    const result = await dbRead
+      .select({
+        totalBalance: sql<string>`COALESCE(SUM(${appCreditBalances.credit_balance}), 0)`,
+        totalPurchased: sql<string>`COALESCE(SUM(${appCreditBalances.total_purchased}), 0)`,
+        totalSpent: sql<string>`COALESCE(SUM(${appCreditBalances.total_spent}), 0)`,
+        userCount: sql<number>`COUNT(*)`,
+      })
+      .from(appCreditBalances)
+      .where(eq(appCreditBalances.app_id, appId));
+
+    return {
+      totalBalance: Number(result[0]?.totalBalance || 0),
+      totalPurchased: Number(result[0]?.totalPurchased || 0),
+      totalSpent: Number(result[0]?.totalSpent || 0),
+      userCount: Number(result[0]?.userCount || 0),
+    };
+  }
+
+  // ============================================================================
+  // WRITE OPERATIONS (use NA primary)
+  // ============================================================================
+
+  /**
    * Creates a new app credit balance record.
    */
   async create(data: NewAppCreditBalance): Promise<AppCreditBalance> {
-    const [balance] = await db
+    const [balance] = await dbWrite
       .insert(appCreditBalances)
       .values(data)
       .returning();
@@ -101,7 +149,7 @@ export class AppCreditBalancesRepository {
     balance: AppCreditBalance;
     newBalance: number;
   }> {
-    return await db.transaction(async (tx) => {
+    return await dbWrite.transaction(async (tx) => {
       let balance = await tx.query.appCreditBalances.findFirst({
         where: and(
           eq(appCreditBalances.app_id, appId),
@@ -164,7 +212,7 @@ export class AppCreditBalancesRepository {
     balance: AppCreditBalance | null;
     newBalance: number;
   }> {
-    return await db.transaction(async (tx) => {
+    return await dbWrite.transaction(async (tx) => {
       const [balance] = await tx
         .select()
         .from(appCreditBalances)
@@ -216,43 +264,6 @@ export class AppCreditBalancesRepository {
         newBalance,
       };
     });
-  }
-
-  /**
-   * Gets current credit balance for an app user.
-   *
-   * Returns 0 if balance record doesn't exist.
-   */
-  async getBalance(appId: string, userId: string): Promise<number> {
-    const balance = await this.findByAppAndUser(appId, userId);
-    return balance ? Number(balance.credit_balance) : 0;
-  }
-
-  /**
-   * Gets aggregated balance statistics for an app across all users.
-   */
-  async getTotalAppBalance(appId: string): Promise<{
-    totalBalance: number;
-    totalPurchased: number;
-    totalSpent: number;
-    userCount: number;
-  }> {
-    const result = await db
-      .select({
-        totalBalance: sql<string>`COALESCE(SUM(${appCreditBalances.credit_balance}), 0)`,
-        totalPurchased: sql<string>`COALESCE(SUM(${appCreditBalances.total_purchased}), 0)`,
-        totalSpent: sql<string>`COALESCE(SUM(${appCreditBalances.total_spent}), 0)`,
-        userCount: sql<number>`COUNT(*)`,
-      })
-      .from(appCreditBalances)
-      .where(eq(appCreditBalances.app_id, appId));
-
-    return {
-      totalBalance: Number(result[0]?.totalBalance || 0),
-      totalPurchased: Number(result[0]?.totalPurchased || 0),
-      totalSpent: Number(result[0]?.totalSpent || 0),
-      userCount: Number(result[0]?.userCount || 0),
-    };
   }
 }
 

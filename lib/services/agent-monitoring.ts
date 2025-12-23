@@ -1,4 +1,4 @@
-import { db } from "@/db/client";
+import { dbRead } from "@/db/client";
 import { containers } from "@/db/schemas/containers";
 import { usageRecords } from "@/db/schemas/usage-records";
 import { userCharacters } from "@/db/schemas/user-characters";
@@ -379,7 +379,7 @@ class AgentMonitoringService {
       conditions.push(gte(usageRecords.created_at, options.since));
     }
 
-    return await db
+    return await dbRead
       .select()
       .from(usageRecords)
       .where(and(...conditions))
@@ -388,7 +388,7 @@ class AgentMonitoringService {
   }
 
   private async getInferenceStats(agentId: string, organizationId: string) {
-    const [result] = await db
+    const [result] = await dbRead
       .select({
         total: sql<number>`count(*)::int`,
         successful: sql<number>`count(*) filter (where ${usageRecords.is_successful} = true)::int`,
@@ -411,7 +411,7 @@ class AgentMonitoringService {
   }
 
   private async getLastInference(agentId: string, organizationId: string) {
-    const [result] = await db
+    const [result] = await dbRead
       .select()
       .from(usageRecords)
       .where(
@@ -446,7 +446,7 @@ class AgentMonitoringService {
       conditions.push(gte(usageRecords.created_at, options.since));
     }
 
-    return await db
+    return await dbRead
       .select()
       .from(usageRecords)
       .where(and(...conditions))
@@ -468,7 +468,7 @@ class AgentMonitoringService {
       conditions.push(gte(containers.updated_at, options.since));
     }
 
-    return await db
+    return await dbRead
       .select()
       .from(containers)
       .where(and(...conditions))

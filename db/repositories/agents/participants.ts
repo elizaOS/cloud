@@ -4,7 +4,7 @@
  * Handles all database operations for participants without spinning up runtime.
  */
 
-import { db } from "@/db/client";
+import { dbRead, dbWrite } from "@/db/helpers";
 import { participantTable } from "@/db/schemas/eliza";
 import { eq, and, inArray, sql } from "drizzle-orm";
 import type { Participant } from "@elizaos/core";
@@ -23,11 +23,15 @@ export interface CreateParticipantInput {
  * Repository for ElizaOS participant database operations.
  */
 export class ParticipantsRepository {
+  // ============================================================================
+  // READ OPERATIONS (use read replica)
+  // ============================================================================
+
   /**
    * Gets all participants for a room.
    */
   async findByRoomId(roomId: string): Promise<Participant[]> {
-    const results = await db
+    const results = await dbRead
       .select()
       .from(participantTable)
       .where(eq(participantTable.roomId, roomId));
@@ -41,7 +45,7 @@ export class ParticipantsRepository {
    * @param entityId - User's database ID (UUID).
    */
   async findRoomsByEntityId(entityId: string): Promise<string[]> {
-    const results = await db
+    const results = await dbRead
       .select({ roomId: participantTable.roomId })
       .from(participantTable)
       .where(eq(participantTable.entityId, entityId));
@@ -59,7 +63,7 @@ export class ParticipantsRepository {
   ): Promise<Map<string, string[]>> {
     if (entityIds.length === 0) return new Map();
 
-    const results = await db
+    const results = await dbRead
       .select({
         entityId: participantTable.entityId,
         roomId: participantTable.roomId,
@@ -81,7 +85,7 @@ export class ParticipantsRepository {
    * Checks if an entity is a participant in a room.
    */
   async isParticipant(roomId: string, entityId: string): Promise<boolean> {
-    const result = await db
+    const result = await dbRead
       .select({ id: participantTable.id })
       .from(participantTable)
       .where(
@@ -96,6 +100,34 @@ export class ParticipantsRepository {
   }
 
   /**
+   * Counts participants in a room.
+   */
+  async countByRoomId(roomId: string): Promise<number> {
+    const result = await dbRead
+      .select({ count: sql<number>`count(*)` })
+      .from(participantTable)
+      .where(eq(participantTable.roomId, roomId));
+
+    return Number(result[0]?.count || 0);
+  }
+
+  /**
+   * Gets all entity IDs for a room.
+   */
+  async getEntityIdsByRoomId(roomId: string): Promise<string[]> {
+    const results = await dbRead
+      .select({ entityId: participantTable.entityId })
+      .from(participantTable)
+      .where(eq(participantTable.roomId, roomId));
+
+    return results.map((r) => r.entityId);
+  }
+
+  // ============================================================================
+  // WRITE OPERATIONS (use NA primary)
+  // ============================================================================
+
+  /**
    * Adds a participant to a room.
    *
    * @param input - Participant creation input (entityId should be user's database UUID).
@@ -105,8 +137,8 @@ export class ParticipantsRepository {
     // Check if already exists
     const exists = await this.isParticipant(input.roomId, input.entityId);
     if (exists) {
-      // Return existing participant
-      const existing = await db
+      // Return existing participant - use dbWrite to avoid replication lag
+      const existing = await dbWrite
         .select()
         .from(participantTable)
         .where(
@@ -119,7 +151,7 @@ export class ParticipantsRepository {
       return existing[0];
     }
 
-    const [participant] = await db
+    const [participant] = await dbWrite
       .insert(participantTable)
       .values({
         roomId: input.roomId,
@@ -139,7 +171,7 @@ export class ParticipantsRepository {
    * @returns True if participant was removed, false if not found.
    */
   async delete(roomId: string, entityId: string): Promise<boolean> {
-    const result = await db
+    const result = await dbWrite
       .delete(participantTable)
       .where(
         and(
@@ -158,7 +190,7 @@ export class ParticipantsRepository {
    * @returns Number of participants deleted.
    */
   async deleteByRoomId(roomId: string): Promise<number> {
-    const result = await db
+    const result = await dbWrite
       .delete(participantTable)
       .where(eq(participantTable.roomId, roomId))
       .returning({ id: participantTable.id });
@@ -174,7 +206,7 @@ export class ParticipantsRepository {
     entityId: string,
     roomState: Record<string, unknown>,
   ): Promise<Participant> {
-    const [participant] = await db
+    const [participant] = await dbWrite
       .update(participantTable)
       .set({ roomState })
       .where(
@@ -186,30 +218,6 @@ export class ParticipantsRepository {
       .returning();
 
     return participant;
-  }
-
-  /**
-   * Counts participants in a room.
-   */
-  async countByRoomId(roomId: string): Promise<number> {
-    const result = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(participantTable)
-      .where(eq(participantTable.roomId, roomId));
-
-    return Number(result[0]?.count || 0);
-  }
-
-  /**
-   * Gets all entity IDs for a room.
-   */
-  async getEntityIdsByRoomId(roomId: string): Promise<string[]> {
-    const results = await db
-      .select({ entityId: participantTable.entityId })
-      .from(participantTable)
-      .where(eq(participantTable.roomId, roomId));
-
-    return results.map((r) => r.entityId);
   }
 }
 

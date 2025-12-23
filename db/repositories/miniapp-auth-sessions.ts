@@ -7,7 +7,7 @@
  */
 
 import { eq, and, gt, lt, isNull, sql } from "drizzle-orm";
-import { db } from "@/db/client";
+import { dbRead, dbWrite } from "@/db/helpers";
 import {
   miniappAuthSessions,
   type MiniappAuthSession,
@@ -18,22 +18,15 @@ import {
  * Repository for miniapp authentication session database operations.
  */
 class MiniappAuthSessionsRepository {
-  /**
-   * Creates a new miniapp auth session.
-   */
-  async create(data: NewMiniappAuthSession): Promise<MiniappAuthSession> {
-    const [session] = await db
-      .insert(miniappAuthSessions)
-      .values(data)
-      .returning();
-    return session;
-  }
+  // ============================================================================
+  // READ OPERATIONS (use read replica)
+  // ============================================================================
 
   /**
    * Gets a session by session ID.
    */
   async getBySessionId(sessionId: string): Promise<MiniappAuthSession | null> {
-    const [session] = await db
+    const [session] = await dbRead
       .select()
       .from(miniappAuthSessions)
       .where(eq(miniappAuthSessions.session_id, sessionId))
@@ -47,7 +40,7 @@ class MiniappAuthSessionsRepository {
   async getActiveSession(
     sessionId: string,
   ): Promise<MiniappAuthSession | null> {
-    const [session] = await db
+    const [session] = await dbRead
       .select()
       .from(miniappAuthSessions)
       .where(
@@ -58,6 +51,52 @@ class MiniappAuthSessionsRepository {
       )
       .limit(1);
     return session || null;
+  }
+
+  /**
+   * Verifies an auth token against stored hash.
+   *
+   * Only verifies non-expired sessions.
+   *
+   * @returns User ID and organization ID if token is valid, null otherwise.
+   */
+  async verifyAuthToken(
+    authTokenHash: string,
+  ): Promise<{ userId: string; organizationId: string } | null> {
+    const [session] = await dbRead
+      .select()
+      .from(miniappAuthSessions)
+      .where(
+        and(
+          eq(miniappAuthSessions.auth_token_hash, authTokenHash),
+          gt(miniappAuthSessions.expires_at, new Date()),
+        ),
+      )
+      .limit(1);
+
+    if (!session || !session.user_id || !session.organization_id) {
+      return null;
+    }
+
+    return {
+      userId: session.user_id,
+      organizationId: session.organization_id,
+    };
+  }
+
+  // ============================================================================
+  // WRITE OPERATIONS (use NA primary)
+  // ============================================================================
+
+  /**
+   * Creates a new miniapp auth session.
+   */
+  async create(data: NewMiniappAuthSession): Promise<MiniappAuthSession> {
+    const [session] = await dbWrite
+      .insert(miniappAuthSessions)
+      .values(data)
+      .returning();
+    return session;
   }
 
   /**
@@ -90,7 +129,7 @@ class MiniappAuthSessionsRepository {
       throw new Error("Token expiry date cannot be in the past");
     }
 
-    const [session] = await db
+    const [session] = await dbWrite
       .update(miniappAuthSessions)
       .set({
         status: "authenticated",
@@ -115,6 +154,7 @@ class MiniappAuthSessionsRepository {
    * Gets and clears auth token (one-time retrieval for security).
    *
    * Marks session as "used" after retrieval. Only works for authenticated sessions.
+   * Uses write DB for both read and write to ensure consistency.
    *
    * @returns Auth token, user ID, and organization ID, or null if not found.
    */
@@ -124,7 +164,8 @@ class MiniappAuthSessionsRepository {
     organizationId: string;
   } | null> {
     // First, get the session with the token (before we clear it)
-    const [existingSession] = await db
+    // Use write DB to ensure we get latest data and avoid replication lag
+    const [existingSession] = await dbWrite
       .select({
         auth_token: miniappAuthSessions.auth_token,
         user_id: miniappAuthSessions.user_id,
@@ -152,7 +193,7 @@ class MiniappAuthSessionsRepository {
 
     // Atomic update to prevent TOCTOU race condition
     // This ensures only one request can retrieve the token, even with concurrent calls
-    const result = await db
+    const result = await dbWrite
       .update(miniappAuthSessions)
       .set({
         auth_token: null,
@@ -181,43 +222,12 @@ class MiniappAuthSessionsRepository {
   }
 
   /**
-   * Verifies an auth token against stored hash.
-   *
-   * Only verifies non-expired sessions.
-   *
-   * @returns User ID and organization ID if token is valid, null otherwise.
-   */
-  async verifyAuthToken(
-    authTokenHash: string,
-  ): Promise<{ userId: string; organizationId: string } | null> {
-    const [session] = await db
-      .select()
-      .from(miniappAuthSessions)
-      .where(
-        and(
-          eq(miniappAuthSessions.auth_token_hash, authTokenHash),
-          gt(miniappAuthSessions.expires_at, new Date()),
-        ),
-      )
-      .limit(1);
-
-    if (!session || !session.user_id || !session.organization_id) {
-      return null;
-    }
-
-    return {
-      userId: session.user_id,
-      organizationId: session.organization_id,
-    };
-  }
-
-  /**
    * Deletes expired sessions that were never authenticated (cleanup).
    *
    * @returns Number of sessions deleted.
    */
   async deleteExpired(): Promise<number> {
-    const result = await db
+    const result = await dbWrite
       .delete(miniappAuthSessions)
       .where(
         and(
