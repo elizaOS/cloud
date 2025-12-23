@@ -135,8 +135,6 @@ async function checkTables() {
     "organizations",
     "usage_records",
     "generations",
-    "conversations",
-    "conversation_messages",
     "credit_transactions",
     "api_keys",
   ];

@@ -142,16 +142,6 @@ export interface RetrieveMemoriesResult {
 }
 
 /**
- * Conversation creation result
- */
-export interface CreateConversationResult {
-  conversationId: string;
-  title: string;
-  model: string;
-  cost: number;
-}
-
-/**
  * Container list result
  */
 export interface ListContainersResult {

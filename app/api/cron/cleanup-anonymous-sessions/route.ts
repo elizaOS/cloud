@@ -22,7 +22,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { dbRead, dbWrite } from "@/db/client";
-import { users, anonymousSessions, conversations } from "@/db/schemas";
+import { users, anonymousSessions } from "@/db/schemas";
 import { and, eq, lt } from "drizzle-orm";
 import { logger } from "@/lib/utils/logger";
 
@@ -35,7 +35,7 @@ export const dynamic = "force-dynamic";
  * Protected by CRON_SECRET authentication.
  *
  * @param request - Request with Bearer token containing CRON_SECRET.
- * @returns Summary of deleted sessions, users, and conversations.
+ * @returns Summary of deleted sessions and users.
  */
 export async function GET(request: NextRequest) {
   try {
@@ -62,7 +62,6 @@ export async function GET(request: NextRequest) {
     const now = new Date();
     let deletedUsers = 0;
     let deletedSessions = 0;
-    let deletedConversations = 0;
 
     // Step 1: Find expired anonymous users
     const expiredUsers = await dbRead
@@ -80,27 +79,14 @@ export async function GET(request: NextRequest) {
       `Found ${expiredUsers.length} expired anonymous users`,
     );
 
-    // Step 2: Delete conversations for expired users (optional - decide if you want to keep them)
+    // Step 2: Delete expired users (this will cascade to sessions)
     if (expiredUsers.length > 0) {
-      const userIds = expiredUsers.map((u) => u.id);
-
-      // Count conversations to be deleted
-      const conversationsToDelete = await dbRead.select().from(conversations).where(
-        eq(conversations.user_id, userIds[0]), // We'll delete one by one
-      );
-
-      deletedConversations = conversationsToDelete.length;
-
-      // Delete expired users (this will cascade to sessions and conversations)
       for (const user of expiredUsers) {
         await dbWrite.delete(users).where(eq(users.id, user.id));
         deletedUsers++;
       }
 
-      logger.info("cleanup-cron", `Deleted ${deletedUsers} expired users`, {
-        deletedUsers,
-        deletedConversations,
-      });
+      logger.info("cleanup-cron", `Deleted ${deletedUsers} expired users`);
     }
 
     // Step 3: Delete expired sessions (in case user wasn't deleted)
@@ -148,7 +134,6 @@ export async function GET(request: NextRequest) {
       stats: {
         deletedUsers: deletedUsers + deletedInactiveUsers,
         deletedSessions,
-        deletedConversations,
         timestamp: now.toISOString(),
       },
     });

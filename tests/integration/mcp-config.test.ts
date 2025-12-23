@@ -14,7 +14,6 @@ import {
   MEMORY_RETRIEVAL_COST_PER_ITEM,
   MEMORY_RETRIEVAL_MAX_COST,
   CONTEXT_RETRIEVAL_COST,
-  CONVERSATION_CREATE_COST,
   MCP_EVENT_TYPES,
 } from "@/lib/config/mcp";
 
@@ -38,12 +37,8 @@ const MCP_TOOLS = [
   "query_knowledge",
   "upload_knowledge",
   "get_conversation_context",
-  "create_conversation",
-  "search_conversations",
   "summarize_conversation",
   "optimize_context_window",
-  "export_conversation",
-  "clone_conversation",
   "chat_with_agent",
   "list_agents",
   "subscribe_agent_events",
@@ -101,7 +96,6 @@ describe("MCP Configuration", () => {
       MEMORY_RETRIEVAL_COST_PER_ITEM,
     );
     expect(CONTEXT_RETRIEVAL_COST).toBeGreaterThan(0);
-    expect(CONVERSATION_CREATE_COST).toBeGreaterThan(0);
   });
 
   test("event types are defined", () => {
@@ -112,8 +106,8 @@ describe("MCP Configuration", () => {
 });
 
 describe("MCP Tools", () => {
-  test("has 60 tools", () => {
-    expect(MCP_TOOLS.length).toBe(60);
+  test("has 56 tools", () => {
+    expect(MCP_TOOLS.length).toBe(56);
   });
 
   test("tool names are snake_case", () => {

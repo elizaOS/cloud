@@ -16,7 +16,6 @@ import {
   users,
   anonymousSessions,
   organizations,
-  conversations,
   userCharacters,
   elizaRoomCharactersTable,
 } from "@/db/schemas";
@@ -412,7 +411,6 @@ export async function incrementSessionMessageCount(
  *
  * Transfers:
  * - messageCount and metadata to org settings
- * - conversations
  * - characters
  * - room mappings
  */
@@ -423,7 +421,6 @@ export async function migrateAnonymousSession(
   success: boolean;
   mergedData: {
     messageCount: number;
-    conversationsTransferred: number;
     charactersTransferred: number;
     roomMappingsTransferred: number;
   };
@@ -437,7 +434,6 @@ export async function migrateAnonymousSession(
 
   const mergedData = {
     messageCount: 0,
-    conversationsTransferred: 0,
     charactersTransferred: 0,
     roomMappingsTransferred: 0,
   };
@@ -552,18 +548,6 @@ export async function migrateAnonymousSession(
 
       targetUserId = realUser.id;
       targetOrgId = realUser.organization_id;
-
-      const conversationResult = await tx
-        .update(conversations)
-        .set({
-          user_id: realUser.id,
-          organization_id: targetOrgId,
-          updated_at: new Date(),
-        })
-        .where(eq(conversations.user_id, anonymousUserId))
-        .returning();
-
-      mergedData.conversationsTransferred = conversationResult.length;
 
       const charResult = await tx
         .update(userCharacters)

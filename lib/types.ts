@@ -24,13 +24,6 @@ export type { CreditPack, NewCreditPack } from "@/db/schemas/credit-packs";
 export type { Generation, NewGeneration } from "@/db/schemas/generations";
 
 export type {
-  Conversation,
-  NewConversation,
-  ConversationMessage,
-  NewConversationMessage,
-} from "@/db/schemas/conversations";
-
-export type {
   UserCharacter,
   NewUserCharacter,
 } from "@/db/schemas/user-characters";
@@ -57,7 +50,6 @@ export type { Invoice, NewInvoice } from "@/db/schemas/invoices";
 
 // Repository-specific composite types
 export type { UserWithOrganization } from "@/db/repositories/users";
-export type { ConversationWithMessages } from "@/db/repositories/conversations";
 export type { UsageStats } from "@/db/repositories/usage-records";
 export type { Container } from "@/db/repositories/containers";
 
@@ -98,18 +90,6 @@ export type { LogLevel, ParsedLogEntry } from "./types/containers";
 
 // Shared video types
 export type { FalVideoData, FalVideoResponse } from "./types/video";
-
-/**
- * Settings for conversation configuration.
- */
-export interface ConversationSettings {
-  temperature?: number;
-  maxTokens?: number;
-  topP?: number;
-  frequencyPenalty?: number;
-  presencePenalty?: number;
-  systemPrompt?: string;
-}
 
 /**
  * Metadata associated with usage records.

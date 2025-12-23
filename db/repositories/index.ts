@@ -68,9 +68,8 @@ export * from "./agents/entities";
 export * from "./agents/memories";
 
 // ============================================
-// Conversation Domain
+// Generations Domain
 // ============================================
-export * from "./conversations";
 export * from "./generations";
 
 // ============================================

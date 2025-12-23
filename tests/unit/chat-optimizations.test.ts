@@ -4,8 +4,7 @@
  * Comprehensive tests for all chat performance optimizations:
  * 1. Model pricing cache layer
  * 2. Ban status caching
- * 3. Conversation batch message insert
- * 4. Developer role support in responses API
+ * 3. Developer role support in responses API
  */
 
 import { describe, test, expect, beforeEach, mock, spyOn } from "bun:test";
@@ -186,44 +185,7 @@ describe("Ban Status Caching", () => {
 });
 
 // ============================================================================
-// 3. CONVERSATION BATCH MESSAGE INSERT TESTS
-// ============================================================================
-
-describe("Conversation Batch Message Insert", () => {
-  test("addMessagesWithSequence method exists", async () => {
-    const { conversationsService } = await import(
-      "@/lib/services/conversations"
-    );
-
-    expect(typeof conversationsService.addMessagesWithSequence).toBe(
-      "function",
-    );
-  });
-
-  test("addMessagesWithSequence handles empty array", async () => {
-    const { ConversationsRepository } = await import(
-      "@/db/repositories/conversations"
-    );
-    const repo = new ConversationsRepository();
-
-    const result = await repo.addMessagesWithSequence("test-conversation-id", []);
-
-    expect(Array.isArray(result)).toBe(true);
-    expect(result.length).toBe(0);
-  });
-
-  test("addMessagesWithSequence function signature is correct", async () => {
-    const { conversationsService } = await import(
-      "@/lib/services/conversations"
-    );
-
-    const fn = conversationsService.addMessagesWithSequence;
-    expect(fn.length).toBeGreaterThanOrEqual(2);
-  });
-});
-
-// ============================================================================
-// 4. DEVELOPER ROLE SUPPORT TESTS
+// 3. DEVELOPER ROLE SUPPORT TESTS
 // ============================================================================
 
 describe("Developer Role Support in Responses API", () => {

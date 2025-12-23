@@ -11,7 +11,6 @@ import { creditsService } from "@/lib/services/credits";
 import { usageService } from "@/lib/services/usage";
 import { organizationsService } from "@/lib/services/organizations";
 import { generationsService } from "@/lib/services/generations";
-import { conversationsService } from "@/lib/services/conversations";
 import { memoryService } from "@/lib/services/memory";
 import { charactersService } from "@/lib/services/characters/characters";
 import { containersService } from "@/lib/services/containers";
@@ -32,7 +31,6 @@ import type {
   ChatWithAgentResult,
   SaveMemoryResult,
   RetrieveMemoriesResult,
-  CreateConversationResult,
   ListContainersResult,
   VideoGenerationResult,
 } from "./types";
@@ -410,44 +408,6 @@ export async function executeSkillRetrieveMemories(
 }
 
 /**
- * Create conversation skill
- */
-export async function executeSkillCreateConversation(
-  dataContent: Record<string, unknown>,
-  ctx: A2AContext,
-): Promise<CreateConversationResult> {
-  const title = dataContent.title as string;
-  const model = (dataContent.model as string) || "gpt-4o";
-  const systemPrompt = dataContent.systemPrompt as string | undefined;
-
-  if (!title) throw new Error("title required");
-
-  const COST = 1;
-  const deduction = await creditsService.deductCredits({
-    organizationId: ctx.user.organization_id,
-    amount: COST,
-    description: `A2A conversation: ${title}`,
-    metadata: { user_id: ctx.user.id },
-  });
-  if (!deduction.success) throw new Error("Insufficient credits");
-
-  const conv = await conversationsService.create({
-    organization_id: ctx.user.organization_id,
-    user_id: ctx.user.id,
-    title,
-    model,
-    settings: { systemPrompt },
-  });
-
-  return {
-    conversationId: conv.id,
-    title: conv.title,
-    model: conv.model,
-    cost: COST,
-  };
-}
-
-/**
  * List containers skill
  */
 export async function executeSkillListContainers(
@@ -486,36 +446,6 @@ export async function executeSkillDeleteMemory(
     memoryId,
   });
   return { success: true, memoryId };
-}
-
-/**
- * Get conversation context skill
- */
-export async function executeSkillGetConversationContext(
-  dataContent: Record<string, unknown>,
-  ctx: A2AContext,
-): Promise<{ context: Record<string, unknown> }> {
-  const conversationId = dataContent.conversationId as string;
-  if (!conversationId) throw new Error("conversationId required");
-
-  const conversation = await conversationsService.getById(conversationId);
-  if (
-    !conversation ||
-    conversation.organization_id !== ctx.user.organization_id
-  ) {
-    throw new Error("Conversation not found");
-  }
-
-  return {
-    context: {
-      id: conversation.id,
-      title: conversation.title,
-      model: conversation.model,
-      settings: conversation.settings,
-      createdAt: conversation.created_at,
-      updatedAt: conversation.updated_at,
-    },
-  };
 }
 
 /**

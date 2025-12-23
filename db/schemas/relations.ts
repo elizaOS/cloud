@@ -7,7 +7,6 @@ import { relations } from "drizzle-orm";
 import { organizations } from "./organizations";
 import { organizationInvites } from "./organization-invites";
 import { users } from "./users";
-import { conversations, conversationMessages } from "./conversations";
 import { userCharacters } from "./user-characters";
 import { apps, appUsers, appAnalytics } from "./apps";
 import { apiKeys } from "./api-keys";
@@ -28,44 +27,12 @@ export const organizationsRelations = relations(organizations, ({ many }) => ({
 /**
  * Users table relations.
  */
-export const usersRelations = relations(users, ({ one, many }) => ({
+export const usersRelations = relations(users, ({ one }) => ({
   organization: one(organizations, {
     fields: [users.organization_id],
     references: [organizations.id],
   }),
-  conversations: many(conversations),
 }));
-
-/**
- * Conversations table relations.
- */
-export const conversationsRelations = relations(
-  conversations,
-  ({ many, one }) => ({
-    messages: many(conversationMessages),
-    user: one(users, {
-      fields: [conversations.user_id],
-      references: [users.id],
-    }),
-    organization: one(organizations, {
-      fields: [conversations.organization_id],
-      references: [organizations.id],
-    }),
-  }),
-);
-
-/**
- * Conversation messages table relations.
- */
-export const conversationMessagesRelations = relations(
-  conversationMessages,
-  ({ one }) => ({
-    conversation: one(conversations, {
-      fields: [conversationMessages.conversation_id],
-      references: [conversations.id],
-    }),
-  }),
-);
 
 /**
  * User characters table relations.

@@ -8,7 +8,6 @@ import {
   memoriesRepository,
   participantsRepository,
   entitiesRepository,
-  conversationsRepository,
   type Room,
   type RoomWithPreview,
 } from "@/db/repositories";
@@ -322,8 +321,7 @@ export class RoomsService {
    * Check if entity has access to room
    * Grants access if:
    * 1. Entity is a participant in the room, OR
-   * 2. Entity is the room creator (stored in metadata), OR
-   * 3. Entity owns the conversation (for rooms created via conversations API)
+   * 2. Entity is the room creator (stored in metadata)
    */
   async hasAccess(roomId: string, entityId: string): Promise<boolean> {
     // First check if user is a participant
@@ -347,14 +345,6 @@ export class RoomsService {
       if (isCreator) {
         return true;
       }
-    }
-
-    // Fallback: Check if this is a conversation the user owns
-    // This handles the case where a conversation was created but the Eliza room
-    // hasn't been created yet (e.g., no messages sent yet)
-    const conversation = await conversationsRepository.findById(roomId);
-    if (conversation && conversation.user_id === entityId) {
-      return true;
     }
 
     return false;

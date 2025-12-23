@@ -36,10 +36,8 @@ import {
   executeSkillChatWithAgent,
   executeSkillSaveMemory,
   executeSkillRetrieveMemories,
-  executeSkillCreateConversation,
   executeSkillListContainers,
   executeSkillDeleteMemory,
-  executeSkillGetConversationContext,
   executeSkillVideoGeneration,
   executeSkillGetUserProfile,
 } from "./skills";
@@ -255,14 +253,8 @@ async function processA2AMessage(
   } else if (skillId === "list_containers") {
     const result = await executeSkillListContainers(dataContent, ctx);
     responseMessage = createMessage("agent", [createDataPart(result)]);
-  } else if (skillId === "create_conversation") {
-    const result = await executeSkillCreateConversation(dataContent, ctx);
-    responseMessage = createMessage("agent", [createDataPart(result)]);
   } else if (skillId === "delete_memory") {
     const result = await executeSkillDeleteMemory(dataContent, ctx);
-    responseMessage = createMessage("agent", [createDataPart(result)]);
-  } else if (skillId === "get_conversation_context") {
-    const result = await executeSkillGetConversationContext(dataContent, ctx);
     responseMessage = createMessage("agent", [createDataPart(result)]);
   } else if (skillId === "video_generation" || skillId === "generate_video") {
     const result = await executeSkillVideoGeneration(
@@ -382,14 +374,6 @@ export const AVAILABLE_SKILLS = [
   { id: "save_memory", description: "Save a memory (requires roomId)" },
   { id: "retrieve_memories", description: "Retrieve memories by query" },
   { id: "delete_memory", description: "Delete a memory (requires memoryId)" },
-  {
-    id: "create_conversation",
-    description: "Create a new conversation (requires title)",
-  },
-  {
-    id: "get_conversation_context",
-    description: "Get conversation details (requires conversationId)",
-  },
   { id: "list_containers", description: "List deployed containers" },
   { id: "get_user_profile", description: "Get current user profile" },
 ] as const;

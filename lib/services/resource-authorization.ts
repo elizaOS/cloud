@@ -7,7 +7,8 @@ import { dbRead } from "@/db/client";
 import { eq, and } from "drizzle-orm";
 import { containers } from "@/db/schemas/containers";
 import { organizations } from "@/db/schemas/organizations";
-import { conversations } from "@/db/schemas/conversations";
+import { participantTable, roomTable } from "@/db/schemas/eliza";
+import { users } from "@/db/schemas/users";
 
 /**
  * Parameters for resource access verification.
@@ -29,21 +30,55 @@ export interface ResourceAccessParams {
 export async function verifyResourceAccess(
   params: ResourceAccessParams,
 ): Promise<boolean> {
-  const { organizationId, eventType, resourceId } = params;
+  const { organizationId, userId, eventType, resourceId } = params;
 
   switch (eventType) {
     case "agent": {
-      // For agent events, resourceId is the roomId
-      // Verify the room/conversation belongs to the organization
-      const conversation = await dbRead.query.conversations.findFirst({
-        where: eq(conversations.id, resourceId),
-        columns: { id: true, organization_id: true },
-      });
+      // For agent events, resourceId is the roomId (Eliza room)
+      // Verify the user is a participant in the room
+      const participant = await dbRead
+        .select({ entityId: participantTable.entityId })
+        .from(participantTable)
+        .where(
+          and(
+            eq(participantTable.roomId, resourceId),
+            eq(participantTable.entityId, userId),
+          ),
+        )
+        .limit(1);
 
-      if (!conversation || conversation.organization_id !== organizationId) {
-        return false;
+      if (participant.length > 0) {
+        return true;
       }
-      return true;
+
+      // Fallback: Check if user is the room creator (stored in metadata)
+      const room = await dbRead
+        .select({ metadata: roomTable.metadata })
+        .from(roomTable)
+        .where(eq(roomTable.id, resourceId))
+        .limit(1);
+
+      if (room.length > 0) {
+        const metadata = room[0].metadata as { creatorUserId?: string } | null;
+        if (metadata?.creatorUserId === userId) {
+          return true;
+        }
+      }
+
+      // Also verify the room's agent belongs to the organization
+      const roomWithOrg = await dbRead
+        .select({ agentId: roomTable.agentId })
+        .from(roomTable)
+        .innerJoin(users, eq(users.id, userId))
+        .where(
+          and(
+            eq(roomTable.id, resourceId),
+            eq(users.organization_id, organizationId),
+          ),
+        )
+        .limit(1);
+
+      return roomWithOrg.length > 0;
     }
 
     case "credits": {

@@ -25,14 +25,12 @@ const createdResources: {
   agents: string[];
   rooms: string[];
   apiKeys: string[];
-  conversations: string[];
   mcps: string[];
   containers: string[];
 } = {
   agents: [],
   rooms: [],
   apiKeys: [],
-  conversations: [],
   mcps: [],
   containers: [],
 };
@@ -51,7 +49,7 @@ let apiKeyValid = false;
 async function fetchWithAuth(
   endpoint: string,
   method: "GET" | "POST" | "DELETE" = "GET",
-  body?: Record<string, unknown>,
+  body?: Record<string, unknown>
 ): Promise<Response> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -78,7 +76,7 @@ interface A2aResponse {
 
 async function mcpCall(
   toolName: string,
-  args: Record<string, unknown> = {},
+  args: Record<string, unknown> = {}
 ): Promise<McpResponse> {
   const response = await fetchWithAuth("/api/mcp", "POST", {
     jsonrpc: "2.0",
@@ -91,7 +89,7 @@ async function mcpCall(
 
 async function a2aCall(
   method: string,
-  params: Record<string, unknown> = {},
+  params: Record<string, unknown> = {}
 ): Promise<A2aResponse> {
   const response = await fetchWithAuth("/api/a2a", "POST", {
     jsonrpc: "2.0",
@@ -235,7 +233,7 @@ describe("MCP: Credits & Billing", () => {
     const result = parseMcpResult(data);
     // May error if no balance, but should return valid response
     expect(result.success !== undefined || result.error !== undefined).toBe(
-      true,
+      true
     );
   });
 });
@@ -302,7 +300,7 @@ describe("MCP: Agents", () => {
     const result = parseMcpResult(data);
     // May succeed or fail depending on agent setup
     expect(result.success !== undefined || result.error !== undefined).toBe(
-      true,
+      true
     );
   });
 
@@ -318,7 +316,7 @@ describe("MCP: Agents", () => {
     const agents = listResult.agents as Array<{ id: string }>;
     expect(agents.some((a) => a.id === testAgentId)).toBe(false);
     createdResources.agents = createdResources.agents.filter(
-      (id) => id !== testAgentId,
+      (id) => id !== testAgentId
     );
   });
 });
@@ -396,7 +394,7 @@ describe("MCP: API Keys", () => {
     const keys = listResult.apiKeys as Array<{ id: string }>;
     expect(keys.some((k) => k.id === testApiKeyId)).toBe(false);
     createdResources.apiKeys = createdResources.apiKeys.filter(
-      (id) => id !== testApiKeyId,
+      (id) => id !== testApiKeyId
     );
   });
 });
@@ -434,83 +432,6 @@ describe("MCP: Rooms", () => {
 });
 
 // ============================================================================
-// MCP Tools - Conversations (6 tools)
-// ============================================================================
-
-describe("MCP: Conversations", () => {
-  let testConvoId: string | null = null;
-
-  test("create_conversation", async () => {
-    if (skip()) return;
-    const data = await mcpCall("create_conversation", {
-      title: `Test ${Date.now()}`,
-      model: "gpt-4o-mini",
-    });
-    const result = parseMcpResult(data);
-    expect(result.success).toBe(true);
-    expect(typeof result.conversationId).toBe("string");
-    testConvoId = result.conversationId as string;
-    createdResources.conversations.push(testConvoId);
-  });
-
-  test("get_conversation_context", async () => {
-    if (skip() || !testConvoId) return;
-    const data = await mcpCall("get_conversation_context", {
-      conversationId: testConvoId,
-    });
-    const result = parseMcpResult(data);
-    expect(result.success !== undefined || result.error !== undefined).toBe(
-      true,
-    );
-  });
-
-  test("search_conversations", async () => {
-    if (skip()) return;
-    const data = await mcpCall("search_conversations", {
-      query: "test",
-      limit: 5,
-    });
-    const result = parseMcpResult(data);
-    expect(result.success !== undefined || result.error !== undefined).toBe(
-      true,
-    );
-  });
-
-  test("clone_conversation", async () => {
-    if (skip() || !testConvoId) return;
-    const data = await mcpCall("clone_conversation", {
-      conversationId: testConvoId,
-    });
-    const result = parseMcpResult(data);
-    expect(result.success !== undefined || result.error !== undefined).toBe(
-      true,
-    );
-  });
-
-  test("summarize_conversation", async () => {
-    if (skip() || !testConvoId) return;
-    const data = await mcpCall("summarize_conversation", {
-      conversationId: testConvoId,
-    });
-    const result = parseMcpResult(data);
-    expect(result.success !== undefined || result.error !== undefined).toBe(
-      true,
-    );
-  });
-
-  test("export_conversation", async () => {
-    if (skip() || !testConvoId) return;
-    const data = await mcpCall("export_conversation", {
-      conversationId: testConvoId,
-    });
-    const result = parseMcpResult(data);
-    expect(result.success !== undefined || result.error !== undefined).toBe(
-      true,
-    );
-  });
-});
-
-// ============================================================================
 // MCP Tools - Memory (5 tools)
 // ============================================================================
 
@@ -523,7 +444,7 @@ describe("MCP: Memory", () => {
     });
     const result = parseMcpResult(data);
     expect(result.success !== undefined || result.error !== undefined).toBe(
-      true,
+      true
     );
   });
 
@@ -535,7 +456,7 @@ describe("MCP: Memory", () => {
     });
     const result = parseMcpResult(data);
     expect(result.success !== undefined || result.error !== undefined).toBe(
-      true,
+      true
     );
   });
 
@@ -544,7 +465,7 @@ describe("MCP: Memory", () => {
     const data = await mcpCall("analyze_memory_patterns", {});
     const result = parseMcpResult(data);
     expect(result.success !== undefined || result.error !== undefined).toBe(
-      true,
+      true
     );
   });
 
@@ -553,7 +474,7 @@ describe("MCP: Memory", () => {
     const data = await mcpCall("optimize_context_window", { maxTokens: 4096 });
     const result = parseMcpResult(data);
     expect(result.success !== undefined || result.error !== undefined).toBe(
-      true,
+      true
     );
   });
 
@@ -565,7 +486,7 @@ describe("MCP: Memory", () => {
     });
     const result = parseMcpResult(data);
     expect(result.success !== undefined || result.error !== undefined).toBe(
-      true,
+      true
     );
   });
 });
@@ -580,7 +501,7 @@ describe("MCP: Knowledge", () => {
     const data = await mcpCall("query_knowledge", { query: "test", limit: 5 });
     const result = parseMcpResult(data);
     expect(result.success !== undefined || result.error !== undefined).toBe(
-      true,
+      true
     );
   });
 
@@ -592,7 +513,7 @@ describe("MCP: Knowledge", () => {
     });
     const result = parseMcpResult(data);
     expect(result.success !== undefined || result.error !== undefined).toBe(
-      true,
+      true
     );
   });
 });
@@ -682,7 +603,7 @@ describe("MCP: Analytics", () => {
     const data = await mcpCall("get_analytics", { period: "7d" });
     const result = parseMcpResult(data);
     expect(result.success !== undefined || result.error !== undefined).toBe(
-      true,
+      true
     );
   });
 });
@@ -709,7 +630,7 @@ describe("MCP: ERC-8004 Discovery", () => {
     const data = await mcpCall("get_service_details", { agentId: "1:1" });
     const result = parseMcpResult(data);
     expect(result.success !== undefined || result.error !== undefined).toBe(
-      true,
+      true
     );
   });
 
@@ -720,7 +641,7 @@ describe("MCP: ERC-8004 Discovery", () => {
     });
     const result = parseMcpResult(data);
     expect(result.success !== undefined || result.error !== undefined).toBe(
-      true,
+      true
     );
   });
 });
@@ -739,7 +660,7 @@ describe("MCP: Generation (cost-aware)", () => {
     });
     const result = parseMcpResult(data);
     expect(result.success !== undefined || result.error !== undefined).toBe(
-      true,
+      true
     );
   });
 
@@ -748,7 +669,7 @@ describe("MCP: Generation (cost-aware)", () => {
     const data = await mcpCall("generate_embeddings", { text: "test" });
     const result = parseMcpResult(data);
     expect(result.success !== undefined || result.error !== undefined).toBe(
-      true,
+      true
     );
   });
 
@@ -757,7 +678,7 @@ describe("MCP: Generation (cost-aware)", () => {
     const data = await mcpCall("generate_prompts", { topic: "test" });
     const result = parseMcpResult(data);
     expect(result.success !== undefined || result.error !== undefined).toBe(
-      true,
+      true
     );
   });
 
@@ -885,7 +806,7 @@ describe("A2A: Agents", () => {
     const agents = listData.result?.agents as Array<{ id: string }>;
     expect(agents.some((a) => a.id === testAgentId)).toBe(false);
     createdResources.agents = createdResources.agents.filter(
-      (id) => id !== testAgentId,
+      (id) => id !== testAgentId
     );
   });
 });
@@ -944,7 +865,7 @@ describe("A2A: API Keys", () => {
     expect(data.error).toBeUndefined();
     expect(data.result?.success).toBe(true);
     createdResources.apiKeys = createdResources.apiKeys.filter(
-      (id) => id !== testApiKeyId,
+      (id) => id !== testApiKeyId
     );
   });
 });
@@ -970,30 +891,6 @@ describe("A2A: Rooms", () => {
     expect(typeof data.result?.roomId).toBe("string");
     testRoomId = data.result?.roomId as string;
     createdResources.rooms.push(testRoomId);
-  });
-});
-
-// ============================================================================
-// A2A Methods - Conversations (2 methods)
-// ============================================================================
-
-describe("A2A: Conversations", () => {
-  test("a2a.createConversation", async () => {
-    if (skip()) return;
-    const data = await a2aCall("a2a.createConversation", {
-      title: `Test ${Date.now()}`,
-      model: "gpt-4o-mini",
-    });
-    expect(data.error !== undefined || data.result !== undefined).toBe(true);
-  });
-
-  test("a2a.getConversationContext", async () => {
-    if (skip()) return;
-    // Would need valid conversation ID
-    const data = await a2aCall("a2a.getConversationContext", {
-      conversationId: "00000000-0000-0000-0000-000000000000",
-    });
-    expect(data.error !== undefined || data.result !== undefined).toBe(true);
   });
 });
 

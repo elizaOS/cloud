@@ -2,7 +2,6 @@ import { streamText, type UIMessage, convertToModelMessages } from "ai";
 import { gateway } from "@ai-sdk/gateway";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { getAnonymousUser, checkAnonymousLimit } from "@/lib/auth-anonymous";
-import { conversationsService } from "@/lib/services/conversations";
 import { creditsService } from "@/lib/services/credits";
 import { usageService } from "@/lib/services/usage";
 import { generationsService } from "@/lib/services/generations";
@@ -76,14 +75,6 @@ async function handlePOST(req: NextRequest) {
     const selectedModel = modelConfig.modelId;
     const provider = modelConfig.provider;
     const lastMessage = messages[messages.length - 1];
-    interface MessageMetadata {
-      conversationId?: string;
-    }
-    const metadata =
-      lastMessage?.metadata && typeof lastMessage.metadata === "object"
-        ? (lastMessage.metadata as MessageMetadata)
-        : null;
-    const conversationId = metadata?.conversationId;
 
     // Check if user is blocked due to moderation violations
     if (await contentModerationService.shouldBlockUser(user.id)) {
@@ -111,7 +102,7 @@ async function handlePOST(req: NextRequest) {
       contentModerationService.moderateInBackground(
         lastMessageText,
         user.id,
-        conversationId,
+        undefined,
         (result) => {
           logger.warn("chat-api", "Async moderation detected violation", {
             userId: user.id,
@@ -318,31 +309,6 @@ async function handlePOST(req: NextRequest) {
             );
           }
 
-          // 2. Conversation messages (batch insert for efficiency)
-          if (conversationId) {
-            parallelOperations.push(
-              conversationsService.addMessagesWithSequence(conversationId, [
-                {
-                  role: "user",
-                  content: userMessage.parts
-                    .map((p) => (p.type === "text" ? p.text : ""))
-                    .join(""),
-                  model: selectedModel,
-                  tokens: usage.inputTokens,
-                  cost: String(inputCost),
-                },
-                {
-                  role: "assistant",
-                  content: text,
-                  model: selectedModel,
-                  tokens: usage.outputTokens,
-                  cost: String(outputCost),
-                },
-              ]),
-            );
-          }
-
-          // 3. Usage record creation
           const usageRecordPromise = usageService.create({
             organization_id: user.organization_id || null,
             user_id: user.id,
@@ -359,7 +325,7 @@ async function handlePOST(req: NextRequest) {
 
           parallelOperations.push(usageRecordPromise);
 
-          // 4. Generation record creation (depends on usage record)
+          // 3. Generation record creation (depends on usage record)
           if (apiKey || isAnonymous) {
             const userPrompt =
               messages[messages.length - 1]?.parts
