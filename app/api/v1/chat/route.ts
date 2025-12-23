@@ -86,7 +86,7 @@ async function handlePOST(req: NextRequest) {
           error:
             "Your account has been suspended due to policy violations. Please contact support.",
         },
-        { status: 403 },
+        { status: 403 }
       );
     }
 
@@ -109,7 +109,7 @@ async function handlePOST(req: NextRequest) {
             categories: result.flaggedCategories,
             action: result.action,
           });
-        },
+        }
       );
     }
 
@@ -117,7 +117,7 @@ async function handlePOST(req: NextRequest) {
     if (isAnonymous && anonymousSession) {
       // Check message limit for anonymous users
       const limitCheck = await checkAnonymousLimit(
-        anonymousSession.session_token,
+        anonymousSession.session_token
       );
 
       if (!limitCheck.allowed) {
@@ -141,7 +141,7 @@ async function handlePOST(req: NextRequest) {
             limit: limitCheck.limit,
             remaining: limitCheck.remaining,
           },
-          { status: 429 },
+          { status: 429 }
         );
       }
 
@@ -155,13 +155,17 @@ async function handlePOST(req: NextRequest) {
     // For authenticated users: Check credit balance BEFORE starting stream
     if (!isAnonymous) {
       if (!user.organization_id || !user.organization) {
-        logger.error("chat-api", "Organization not found for authenticated user", {
-          userId: user.id,
-          organizationId: user.organization_id,
-        });
+        logger.error(
+          "chat-api",
+          "Organization not found for authenticated user",
+          {
+            userId: user.id,
+            organizationId: user.organization_id,
+          }
+        );
         return NextResponse.json(
           { error: "Organization not found for authenticated user" },
-          { status: 500 },
+          { status: 500 }
         );
       }
 
@@ -178,14 +182,14 @@ async function handlePOST(req: NextRequest) {
             error: "Insufficient balance",
             details: `Your credit balance is $${balance.toFixed(2)}. Please add credits to continue.`,
           },
-          { status: 402 },
+          { status: 402 }
         );
       }
 
       // Also check against estimated cost for users with positive but low balance
       const messageText = messages
         .map((m) =>
-          m.parts.map((p) => (p.type === "text" ? p.text : "")).join(""),
+          m.parts.map((p) => (p.type === "text" ? p.text : "")).join("")
         )
         .join(" ");
       const estimatedInputTokens = estimateTokens(messageText);
@@ -195,7 +199,7 @@ async function handlePOST(req: NextRequest) {
         selectedModel,
         provider,
         estimatedInputTokens,
-        estimatedOutputTokens,
+        estimatedOutputTokens
       );
 
       // Ensure minimum cost of $0.01 to prevent bypass with 0-cost calculations
@@ -212,7 +216,7 @@ async function handlePOST(req: NextRequest) {
             error: "Insufficient balance",
             details: `Required: $${effectiveEstimatedCost.toFixed(4)}, Available: $${balance.toFixed(2)}`,
           },
-          { status: 402 },
+          { status: 402 }
         );
       }
     }
@@ -232,7 +236,7 @@ async function handlePOST(req: NextRequest) {
             selectedModel,
             provider,
             usage.inputTokens || 0,
-            usage.outputTokens || 0,
+            usage.outputTokens || 0
           );
 
           // CRITICAL PATH: Deduct credits first (blocking)
@@ -266,9 +270,10 @@ async function handlePOST(req: NextRequest) {
                   organizationId: user.organization_id,
                   cost: String(totalCost),
                   balance: deductionResult.newBalance,
-                },
+                }
               );
-              return;
+              // Continue execution to create audit records for manual review
+              // Stream has already completed, so we can't return an error to the client
             }
           }
 
@@ -287,13 +292,13 @@ async function handlePOST(req: NextRequest) {
                     {
                       sessionId: anonymousSession.id,
                       newCount: anonymousSession.message_count + 1,
-                    },
+                    }
                   );
                 }),
               anonymousSessionsService
                 .addTokenUsage(
                   anonymousSession.id,
-                  (usage.inputTokens || 0) + (usage.outputTokens || 0),
+                  (usage.inputTokens || 0) + (usage.outputTokens || 0)
                 )
                 .then(() => {
                   logger.info(
@@ -301,11 +306,12 @@ async function handlePOST(req: NextRequest) {
                     "Anonymous user token usage tracked",
                     {
                       userId: user.id,
-                      tokens: (usage.inputTokens || 0) + (usage.outputTokens || 0),
+                      tokens:
+                        (usage.inputTokens || 0) + (usage.outputTokens || 0),
                       model: selectedModel,
-                    },
+                    }
                   );
-                }),
+                })
             );
           }
 
@@ -356,13 +362,29 @@ async function handlePOST(req: NextRequest) {
                     totalTokens:
                       (usage.inputTokens || 0) + (usage.outputTokens || 0),
                   },
-                }),
-              ),
+                })
+              )
             );
           }
 
-          // Wait for all parallel operations to complete
-          await Promise.allSettled(parallelOperations);
+          // Wait for all parallel operations to complete and check for failures
+          const results = await Promise.allSettled(parallelOperations);
+
+          // Log any failures for debugging - these are critical for audit trail
+          const failures = results.filter(
+            (r): r is PromiseRejectedResult => r.status === "rejected"
+          );
+          if (failures.length > 0) {
+            logger.error("chat-api", "Some parallel operations failed", {
+              userId: user.id,
+              organizationId: user.organization_id,
+              failureCount: failures.length,
+              totalOperations: results.length,
+              errors: failures.map((f) =>
+                f.reason instanceof Error ? f.reason.message : String(f.reason)
+              ),
+            });
+          }
 
           logger.info("chat-api", "Cost charged", {
             totalCost,
@@ -374,7 +396,7 @@ async function handlePOST(req: NextRequest) {
           logger.error(
             "chat-api",
             "Error persisting messages or deducting credits",
-            { error: error instanceof Error ? error.message : "Unknown error" },
+            { error: error instanceof Error ? error.message : "Unknown error" }
           );
 
           if (usage) {
