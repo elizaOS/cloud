@@ -96,6 +96,18 @@ export class ConversationsService {
       data,
     );
   }
+
+  async addMessagesWithSequence(
+    conversationId: string,
+    messages: Array<
+      Omit<NewConversationMessage, "sequence_number" | "conversation_id">
+    >,
+  ): Promise<ConversationMessage[]> {
+    return await conversationsRepository.addMessagesWithSequence(
+      conversationId,
+      messages,
+    );
+  }
 }
 
 // Export singleton instance

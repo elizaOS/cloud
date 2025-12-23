@@ -136,6 +136,15 @@ export const CacheKeys = {
     pattern: () => `admin:*`,
   },
   /**
+   * Content moderation cache keys
+   * Used for caching ban status and violation counts
+   */
+  moderation: {
+    /** Cache user ban status to reduce DB load */
+    banStatus: (userId: string) => `moderation:ban:${userId}:v1`,
+    pattern: () => `moderation:*`,
+  },
+  /**
    * Gallery cache keys
    * Used for caching gallery media items and stats
    */
@@ -262,6 +271,13 @@ export const CacheTTL = {
    */
   admin: {
     status: 300, // 5 minutes - admin status rarely changes
+  },
+  /**
+   * Content moderation cache TTLs
+   * Moderate TTL since ban status changes infrequently
+   */
+  moderation: {
+    banStatus: 300, // 5 minutes - ban status rarely changes
   },
   /**
    * Gallery cache TTLs

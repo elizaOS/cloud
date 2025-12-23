@@ -1,4 +1,6 @@
-import { modelPricingRepository } from "@/db/repositories";
+import { modelPricingRepository, type ModelPricing } from "@/db/repositories";
+import { cache } from "@/lib/cache/client";
+import { logger } from "@/lib/utils/logger";
 
 // Re-export constants from pricing-constants (safe for client components)
 export {
@@ -12,6 +14,90 @@ export {
 // =============================================================================
 // COST CALCULATION INTERFACES & FUNCTIONS
 // =============================================================================
+
+/**
+ * Cache TTL for model pricing (24 hours).
+ * Pricing changes are infrequent (typically monthly), so aggressive caching is safe.
+ */
+const PRICING_CACHE_TTL = 86400;
+
+/**
+ * Get model pricing with caching to avoid redundant DB queries.
+ * Pricing data is cached for 24 hours since it rarely changes.
+ *
+ * @param model - Model identifier (e.g., "gpt-4o-mini").
+ * @param provider - Provider name (e.g., "openai").
+ * @returns Model pricing or null if not found.
+ */
+async function getCachedModelPricing(
+  model: string,
+  provider: string,
+): Promise<ModelPricing | null> {
+  const cacheKey = `pricing:${model}:${provider}:v1`;
+
+  try {
+    const cached = await cache.get<ModelPricing>(cacheKey);
+    if (cached) {
+      logger.debug(
+        `[Pricing] Cache HIT: ${model}/${provider}`,
+      );
+      return cached;
+    }
+
+    logger.debug(
+      `[Pricing] Cache MISS: ${model}/${provider}, fetching from DB`,
+    );
+  } catch (error) {
+    logger.warn(
+      `[Pricing] Cache read error for ${model}/${provider}:`,
+      error,
+    );
+  }
+
+  const pricing = await modelPricingRepository.findByModelAndProvider(
+    model,
+    provider,
+  );
+
+  if (pricing) {
+    try {
+      await cache.set(cacheKey, pricing, PRICING_CACHE_TTL);
+      logger.debug(
+        `[Pricing] Cached pricing for ${model}/${provider} (TTL: ${PRICING_CACHE_TTL}s)`,
+      );
+    } catch (error) {
+      logger.warn(
+        `[Pricing] Cache write error for ${model}/${provider}:`,
+        error,
+      );
+    }
+  }
+
+  return pricing || null;
+}
+
+/**
+ * Invalidate cached pricing for a specific model/provider combination.
+ * Call this after updating pricing in the database.
+ *
+ * @param model - Model identifier.
+ * @param provider - Provider name.
+ */
+export async function invalidatePricingCache(
+  model: string,
+  provider: string,
+): Promise<void> {
+  const cacheKey = `pricing:${model}:${provider}:v1`;
+  try {
+    await cache.del(cacheKey);
+    logger.info(`[Pricing] Invalidated cache for ${model}/${provider}`);
+  } catch (error) {
+    logger.error(
+      `[Pricing] Failed to invalidate cache for ${model}/${provider}:`,
+      error,
+    );
+  }
+}
 
 /**
  * Breakdown of costs for a model request.
@@ -40,12 +126,12 @@ export async function calculateCost(
   inputTokens: number,
   outputTokens: number,
 ): Promise<CostBreakdown> {
-  const pricing = await modelPricingRepository.findByModelAndProvider(
-    model,
-    provider,
-  );
+  const pricing = await getCachedModelPricing(model, provider);
 
   if (!pricing) {
+    logger.debug(
+      `[Pricing] No pricing found for ${model}/${provider}, using fallback`,
+    );
     const fallbackCosts = getFallbackPricing(model, inputTokens, outputTokens);
     return fallbackCosts;
   }

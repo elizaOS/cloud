@@ -163,31 +163,24 @@ async function handlePOST(req: NextRequest) {
 
     // For authenticated users: Check credit balance BEFORE starting stream
     if (!isAnonymous) {
-      if (!user.organization_id) {
+      if (!user.organization_id || !user.organization) {
+        logger.error("chat-api", "Organization not found for authenticated user", {
+          userId: user.id,
+          organizationId: user.organization_id,
+        });
         return NextResponse.json(
           { error: "Organization not found for authenticated user" },
           { status: 500 },
         );
       }
 
-      const org = await organizationsService.getById(user.organization_id);
-      if (!org) {
-        logger.error("chat-api", "Organization not found", {
-          organizationId: user.organization_id,
-        });
-        return NextResponse.json(
-          { error: "Organization not found" },
-          { status: 404 },
-        );
-      }
-
-      const balance = Number(org.credit_balance) || 0;
+      const balance = Number(user.organization.credit_balance) || 0;
 
       // STRICT CHECK: Block users with zero or negative balance immediately
       if (balance <= 0) {
         logger.warn("chat-api", "Zero or negative balance", {
           organizationId: user.organization_id,
-          balance: org.credit_balance,
+          balance: user.organization.credit_balance,
         });
         return NextResponse.json(
           {
@@ -242,22 +235,6 @@ async function handlePOST(req: NextRequest) {
         if (!usage) return;
 
         try {
-          // Increment message count AFTER successful completion (for anonymous users)
-          if (isAnonymous && anonymousSession) {
-            await anonymousSessionsService.incrementMessageCount(
-              anonymousSession.id,
-            );
-
-            logger.info(
-              "chat-api",
-              "Incremented anonymous message count after success",
-              {
-                sessionId: anonymousSession.id,
-                newCount: anonymousSession.message_count + 1,
-              },
-            );
-          }
-
           const userMessage = messages[messages.length - 1];
 
           const { inputCost, outputCost, totalCost } = await calculateCost(
@@ -267,7 +244,7 @@ async function handlePOST(req: NextRequest) {
             usage.outputTokens || 0,
           );
 
-          // Only deduct credits for authenticated users
+          // CRITICAL PATH: Deduct credits first (blocking)
           let deductionResult: { success: boolean; newBalance: string } = {
             success: true,
             newBalance: "0",
@@ -284,66 +261,89 @@ async function handlePOST(req: NextRequest) {
               },
             });
 
-            // Convert to expected type
             deductionResult = {
               success: result.success,
               newBalance: String(result.newBalance),
             };
-          } else if (isAnonymous && anonymousSession) {
-            // Track token usage for analytics (no billing)
-            await anonymousSessionsService.addTokenUsage(
-              anonymousSession.id,
-              (usage.inputTokens || 0) + (usage.outputTokens || 0),
-            );
 
-            logger.info("chat-api", "Anonymous user token usage tracked", {
-              userId: user.id,
-              tokens: (usage.inputTokens || 0) + (usage.outputTokens || 0),
-              model: selectedModel,
-            });
+            if (!deductionResult.success) {
+              logger.error(
+                "chat-api",
+                "CRITICAL: Failed to deduct credits after streaming - race condition detected",
+                {
+                  userId: user.id,
+                  organizationId: user.organization_id,
+                  cost: String(totalCost),
+                  balance: deductionResult.newBalance,
+                },
+              );
+              return;
+            }
           }
 
-          if (!deductionResult.success) {
-            // CRITICAL: This should rarely happen since we checked credits before streaming
-            // But it can happen if credits were spent elsewhere between check and stream completion
-            logger.error(
-              "chat-api",
-              "CRITICAL: Failed to deduct credits after streaming - race condition detected",
-              {
-                userId: user.id,
-                organizationId: user.organization_id,
-                cost: String(totalCost),
-                balance: deductionResult.newBalance,
-              },
+          // PARALLEL OPERATIONS: Run all non-critical operations in parallel
+          const parallelOperations = [];
+
+          // 1. Anonymous session tracking (if applicable)
+          if (isAnonymous && anonymousSession) {
+            parallelOperations.push(
+              anonymousSessionsService
+                .incrementMessageCount(anonymousSession.id)
+                .then(() => {
+                  logger.info(
+                    "chat-api",
+                    "Incremented anonymous message count",
+                    {
+                      sessionId: anonymousSession.id,
+                      newCount: anonymousSession.message_count + 1,
+                    },
+                  );
+                }),
+              anonymousSessionsService
+                .addTokenUsage(
+                  anonymousSession.id,
+                  (usage.inputTokens || 0) + (usage.outputTokens || 0),
+                )
+                .then(() => {
+                  logger.info(
+                    "chat-api",
+                    "Anonymous user token usage tracked",
+                    {
+                      userId: user.id,
+                      tokens: (usage.inputTokens || 0) + (usage.outputTokens || 0),
+                      model: selectedModel,
+                    },
+                  );
+                }),
             );
-            // Stream has already completed, so we can't return an error
-            // This should trigger an alert for manual review
           }
 
+          // 2. Conversation messages (batch insert for efficiency)
           if (conversationId) {
-            // Add user message
-            await conversationsService.addMessageWithSequence(conversationId, {
-              role: "user",
-              content: userMessage.parts
-                .map((p) => (p.type === "text" ? p.text : ""))
-                .join(""),
-              model: selectedModel,
-              tokens: usage.inputTokens,
-              cost: String(inputCost),
-            });
-
-            // Add assistant message
-            await conversationsService.addMessageWithSequence(conversationId, {
-              role: "assistant",
-              content: text,
-              model: selectedModel,
-              tokens: usage.outputTokens,
-              cost: String(outputCost),
-            });
+            parallelOperations.push(
+              conversationsService.addMessagesWithSequence(conversationId, [
+                {
+                  role: "user",
+                  content: userMessage.parts
+                    .map((p) => (p.type === "text" ? p.text : ""))
+                    .join(""),
+                  model: selectedModel,
+                  tokens: usage.inputTokens,
+                  cost: String(inputCost),
+                },
+                {
+                  role: "assistant",
+                  content: text,
+                  model: selectedModel,
+                  tokens: usage.outputTokens,
+                  cost: String(outputCost),
+                },
+              ]),
+            );
           }
 
-          // Create usage record (with NULL organization_id for anonymous users)
-          const usageRecord = await usageService.create({
+          // 3. Usage record creation
+          const usageRecordPromise = usageService.create({
             organization_id: user.organization_id || null,
             user_id: user.id,
             api_key_id: apiKey?.id || null,
@@ -357,35 +357,46 @@ async function handlePOST(req: NextRequest) {
             is_successful: true,
           });
 
+          parallelOperations.push(usageRecordPromise);
+
+          // 4. Generation record creation (depends on usage record)
           if (apiKey || isAnonymous) {
             const userPrompt =
               messages[messages.length - 1]?.parts
                 .map((p) => (p.type === "text" ? p.text : ""))
                 .join("") || "";
-            await generationsService.create({
-              organization_id: user.organization_id || null,
-              user_id: user.id,
-              api_key_id: apiKey?.id || null,
-              type: "chat",
-              model: selectedModel,
-              provider: provider,
-              prompt: userPrompt,
-              status: "completed",
-              content: text,
-              tokens: (usage.inputTokens || 0) + (usage.outputTokens || 0),
-              cost: String(isAnonymous ? 0 : totalCost),
-              credits: String(isAnonymous ? 0 : totalCost),
-              usage_record_id: usageRecord.id,
-              completed_at: new Date(),
-              result: {
-                text: text,
-                inputTokens: usage.inputTokens,
-                outputTokens: usage.outputTokens,
-                totalTokens:
-                  (usage.inputTokens || 0) + (usage.outputTokens || 0),
-              },
-            });
+
+            parallelOperations.push(
+              usageRecordPromise.then((usageRecord) =>
+                generationsService.create({
+                  organization_id: user.organization_id || null,
+                  user_id: user.id,
+                  api_key_id: apiKey?.id || null,
+                  type: "chat",
+                  model: selectedModel,
+                  provider: provider,
+                  prompt: userPrompt,
+                  status: "completed",
+                  content: text,
+                  tokens: (usage.inputTokens || 0) + (usage.outputTokens || 0),
+                  cost: String(isAnonymous ? 0 : totalCost),
+                  credits: String(isAnonymous ? 0 : totalCost),
+                  usage_record_id: usageRecord.id,
+                  completed_at: new Date(),
+                  result: {
+                    text: text,
+                    inputTokens: usage.inputTokens,
+                    outputTokens: usage.outputTokens,
+                    totalTokens:
+                      (usage.inputTokens || 0) + (usage.outputTokens || 0),
+                  },
+                }),
+              ),
+            );
           }
+
+          // Wait for all parallel operations to complete
+          await Promise.allSettled(parallelOperations);
 
           logger.info("chat-api", "Cost charged", {
             totalCost,

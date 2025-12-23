@@ -15,6 +15,8 @@ import { hasBadWords, minimalBadWordsArray } from "expletives";
 import { adminService } from "./admin";
 import { agentReputationService } from "./agent-reputation";
 import { logger } from "@/lib/utils/logger";
+import { cache } from "@/lib/cache/client";
+import { CacheKeys, CacheTTL } from "@/lib/cache/keys";
 
 // OpenAI Moderation API types
 interface ModerationCategory {
@@ -529,10 +531,59 @@ class ContentModerationService {
   }
 
   /**
-   * Check if user should be blocked based on violation history (from DB)
+   * Check if user should be blocked based on violation history.
+   * Uses caching to reduce DB load (5 min TTL).
    */
   async shouldBlockUser(userId: string): Promise<boolean> {
-    return adminService.shouldBlockUser(userId);
+    const cacheKey = CacheKeys.moderation.banStatus(userId);
+
+    try {
+      const cached = await cache.get<boolean>(cacheKey);
+      if (cached !== null) {
+        logger.debug(`[Moderation] Cache HIT for ban status: ${userId}`);
+        return cached;
+      }
+
+      logger.debug(`[Moderation] Cache MISS for ban status: ${userId}`);
+    } catch (error) {
+      logger.warn(
+        `[Moderation] Cache read error for ban status ${userId}:`,
+        error,
+      );
+    }
+
+    const isBanned = await adminService.shouldBlockUser(userId);
+
+    try {
+      await cache.set(cacheKey, isBanned, CacheTTL.moderation.banStatus);
+      logger.debug(
+        `[Moderation] Cached ban status for ${userId}: ${isBanned}`,
+      );
+    } catch (error) {
+      logger.warn(
+        `[Moderation] Cache write error for ban status ${userId}:`,
+        error,
+      );
+    }
+
+    return isBanned;
+  }
+
+  /**
+   * Invalidate ban status cache for a user.
+   * Call this after banning/unbanning a user.
+   */
+  async invalidateBanStatusCache(userId: string): Promise<void> {
+    const cacheKey = CacheKeys.moderation.banStatus(userId);
+    try {
+      await cache.del(cacheKey);
+      logger.info(`[Moderation] Invalidated ban status cache for ${userId}`);
+    } catch (error) {
+      logger.error(
+        `[Moderation] Failed to invalidate ban status cache for ${userId}:`,
+        error,
+      );
+    }
   }
 
   /**

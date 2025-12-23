@@ -195,6 +195,68 @@ export class ConversationsRepository {
       return message;
     });
   }
+
+  /**
+   * Adds multiple messages to a conversation in a single atomic transaction.
+   * More efficient than calling addMessageWithSequence multiple times.
+   *
+   * @param conversationId - ID of the conversation.
+   * @param messages - Array of message data (without sequence_number or conversation_id).
+   * @returns Array of created messages.
+   */
+  async addMessagesWithSequence(
+    conversationId: string,
+    messages: Array<
+      Omit<NewConversationMessage, "sequence_number" | "conversation_id">
+    >,
+  ): Promise<ConversationMessage[]> {
+    if (messages.length === 0) {
+      return [];
+    }
+
+    return await db.transaction(async (tx) => {
+      const lastMessage = await tx.query.conversationMessages.findFirst({
+        where: eq(conversationMessages.conversation_id, conversationId),
+        orderBy: desc(conversationMessages.sequence_number),
+      });
+
+      const startSequence = lastMessage ? lastMessage.sequence_number + 1 : 1;
+
+      const messagesWithSequence = messages.map((msg, index) => ({
+        ...msg,
+        conversation_id: conversationId,
+        sequence_number: startSequence + index,
+      }));
+
+      const createdMessages = await tx
+        .insert(conversationMessages)
+        .values(messagesWithSequence)
+        .returning();
+
+      const conversation = await tx.query.conversations.findFirst({
+        where: eq(conversations.id, conversationId),
+      });
+
+      if (conversation) {
+        const totalCost = messages.reduce(
+          (sum, msg) => sum + Number(msg.cost || 0),
+          0,
+        );
+
+        await tx
+          .update(conversations)
+          .set({
+            message_count: conversation.message_count + messages.length,
+            last_message_at: new Date(),
+            total_cost: String(Number(conversation.total_cost) + totalCost),
+            updated_at: new Date(),
+          })
+          .where(eq(conversations.id, conversationId));
+      }
+
+      return createdMessages;
+    });
+  }
 }
 
 /**
