@@ -41,6 +41,7 @@ yarn-error.log*
 #local llm guides
 guides
 plan-files
+project-engineering-prompts
 
 # typescript
 *.tsbuildinfo
