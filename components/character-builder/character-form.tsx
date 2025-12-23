@@ -34,7 +34,7 @@ interface CharacterFormProps {
   onChange: (character: ElizaCharacter) => void;
 }
 
-type TagType = "postExamples";
+type TagType = "postExamples" | "adjectives" | "topics";
 
 interface MessageExample {
   name: string;
@@ -43,6 +43,8 @@ interface MessageExample {
 
 export function CharacterForm({ character, onChange }: CharacterFormProps) {
   const [newTag, setNewTag] = useState("");
+  const [newAdjective, setNewAdjective] = useState("");
+  const [newTopic, setNewTopic] = useState("");
   const [newUserMessage, setNewUserMessage] = useState("");
   const [newAgentMessage, setNewAgentMessage] = useState("");
 
@@ -180,12 +182,32 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
             </div>
 
             <div className="space-y-2">
-              <label
-                htmlFor="system"
-                className="text-xs font-medium text-white/70 uppercase tracking-wide"
-              >
-                System Prompt
-              </label>
+              <div className="flex items-center gap-2">
+                <label
+                  htmlFor="system"
+                  className="text-xs font-medium text-white/70 uppercase tracking-wide"
+                >
+                  System Prompt
+                </label>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-3.5 w-3.5 text-white/40 hover:text-white/70 transition-colors cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent
+                    side="right"
+                    className="max-w-xs bg-black/95 border border-white/10 text-white"
+                  >
+                    <p className="font-medium mb-1">
+                      Core identity &amp; behavioral directives
+                    </p>
+                    <p className="text-white/70">
+                      The foundational prompt that defines who your agent is and
+                      how they should behave. This appears at the top of every
+                      conversation and sets the tone for all interactions.
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
               <Textarea
                 id="system"
                 value={character.system || ""}
@@ -213,6 +235,172 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
 
           {/* Personality Tab */}
           <BrandTabsContent value="personality" className="space-y-4">
+            {/* Adjectives */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <label className="text-xs font-medium text-white/70 uppercase tracking-wide">
+                  Personality Traits
+                </label>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-3.5 w-3.5 text-white/40 hover:text-white/70 transition-colors cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent
+                    side="right"
+                    className="max-w-xs bg-black/95 border border-white/10 text-white"
+                  >
+                    <p className="font-medium mb-1">
+                      Adjectives that describe your agent
+                    </p>
+                    <p className="text-white/70">
+                      A random trait is selected for each response to add
+                      variety and personality. Example: &quot;witty&quot;,
+                      &quot;sarcastic&quot;, &quot;thoughtful&quot;,
+                      &quot;enthusiastic&quot;
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  value={newAdjective}
+                  onChange={(e) => setNewAdjective(e.target.value)}
+                  placeholder="witty, sarcastic, thoughtful..."
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      if (!newAdjective.trim()) return;
+                      const currentAdjectives = character.adjectives || [];
+                      updateField("adjectives", [
+                        ...currentAdjectives,
+                        newAdjective.trim(),
+                      ]);
+                      setNewAdjective("");
+                    }
+                  }}
+                  className="rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
+                />
+                <BrandButton
+                  type="button"
+                  variant="icon-primary"
+                  size="icon"
+                  onClick={() => {
+                    if (!newAdjective.trim()) return;
+                    const currentAdjectives = character.adjectives || [];
+                    updateField("adjectives", [
+                      ...currentAdjectives,
+                      newAdjective.trim(),
+                    ]);
+                    setNewAdjective("");
+                  }}
+                >
+                  <Plus className="h-4 w-4" style={{ color: "#FF5800" }} />
+                </BrandButton>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {character.adjectives?.map((adj, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center gap-1.5 rounded-none bg-[#FF5800]/10 border border-[#FF5800]/30 px-2.5 py-1"
+                  >
+                    <span className="text-sm text-white">{adj}</span>
+                    <button
+                      onClick={() => {
+                        const currentAdjectives = character.adjectives || [];
+                        updateField(
+                          "adjectives",
+                          currentAdjectives.filter((_, i) => i !== index)
+                        );
+                      }}
+                      className="hover:text-rose-400 transition-colors"
+                    >
+                      <X className="h-3.5 w-3.5 text-white/70" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Topics */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <label className="text-xs font-medium text-white/70 uppercase tracking-wide">
+                  Topics of Interest
+                </label>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-3.5 w-3.5 text-white/40 hover:text-white/70 transition-colors cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent
+                    side="right"
+                    className="max-w-xs bg-black/95 border border-white/10 text-white"
+                  >
+                    <p className="font-medium mb-1">
+                      What your agent loves talking about
+                    </p>
+                    <p className="text-white/70">
+                      Topics add contextual relevance to conversations. A
+                      current interest is highlighted per response. Example:
+                      &quot;DeFi protocols&quot;, &quot;AI research&quot;,
+                      &quot;meme culture&quot;
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  value={newTopic}
+                  onChange={(e) => setNewTopic(e.target.value)}
+                  placeholder="DeFi protocols, AI research, meme culture..."
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      if (!newTopic.trim()) return;
+                      const currentTopics = character.topics || [];
+                      updateField("topics", [...currentTopics, newTopic.trim()]);
+                      setNewTopic("");
+                    }
+                  }}
+                  className="rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
+                />
+                <BrandButton
+                  type="button"
+                  variant="icon-primary"
+                  size="icon"
+                  onClick={() => {
+                    if (!newTopic.trim()) return;
+                    const currentTopics = character.topics || [];
+                    updateField("topics", [...currentTopics, newTopic.trim()]);
+                    setNewTopic("");
+                  }}
+                >
+                  <Plus className="h-4 w-4" style={{ color: "#FF5800" }} />
+                </BrandButton>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {character.topics?.map((topic, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center gap-1.5 rounded-none bg-[#FF5800]/10 border border-[#FF5800]/30 px-2.5 py-1"
+                  >
+                    <span className="text-sm text-white">{topic}</span>
+                    <button
+                      onClick={() => {
+                        const currentTopics = character.topics || [];
+                        updateField(
+                          "topics",
+                          currentTopics.filter((_, i) => i !== index)
+                        );
+                      }}
+                      className="hover:text-rose-400 transition-colors"
+                    >
+                      <X className="h-3.5 w-3.5 text-white/70" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
             {/* Message Examples */}
             <div className="space-y-2">
               <div className="flex items-center gap-2">
