@@ -83,141 +83,153 @@ export function sendStreamingMessage({
   timeoutMs = STREAM_TIMEOUT_MS,
 }: SendMessageOptions): AbortController {
   const controller = new AbortController();
+  let isTimeoutAbort = false;
+  
   const timeoutId = setTimeout(() => {
+    isTimeoutAbort = true; // Mark as timeout abort
     controller.abort();
   }, timeoutMs);
 
   // Start streaming in background (don't await - return controller immediately)
   (async () => {
-
     let response: Response;
     try {
       response = await fetch(`/api/eliza/rooms/${roomId}/messages/stream`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        // Include session token as header for anonymous users
-        // This ensures session tracking works even if the cookie race condition occurs
-        ...(sessionToken && { "X-Anonymous-Session": sessionToken }),
-      },
-      credentials: "include",
-      signal: controller.signal,
-      body: JSON.stringify({
-        text,
-        ...(model && { model }), // Include model if provided
-        // Also include in body as backup
-        ...(sessionToken && { sessionToken }),
-      }),
-    });
-  } catch (error) {
-    clearTimeout(timeoutId);
-    if (error instanceof Error && error.name === "AbortError") {
-      throw new Error("Stream timeout: Request took too long");
-    }
-    throw error;
-  }
-
-  if (!response.ok) {
-    clearTimeout(timeoutId);
-    let errorMessage = "Failed to send message";
-    const contentType = response.headers.get("content-type");
-
-    // Try to parse JSON error response, but handle empty/invalid responses gracefully
-    if (contentType?.includes("application/json")) {
-      try {
-        const text = await response.text();
-        if (text.trim()) {
-          const errorData = JSON.parse(text);
-          errorMessage = errorData.error || errorData.message || errorMessage;
-        } else {
-          errorMessage = `Server returned ${response.status} ${response.statusText}`;
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          // Include session token as header for anonymous users
+          // This ensures session tracking works even if the cookie race condition occurs
+          ...(sessionToken && { "X-Anonymous-Session": sessionToken }),
+        },
+        credentials: "include",
+        signal: controller.signal,
+        body: JSON.stringify({
+          text,
+          ...(model && { model }), // Include model if provided
+          // Also include in body as backup
+          ...(sessionToken && { sessionToken }),
+        }),
+      });
+    } catch (error) {
+      clearTimeout(timeoutId);
+      if (error instanceof Error && error.name === "AbortError") {
+        // Only throw error for timeout, silently return for user-initiated abort
+        if (isTimeoutAbort) {
+          throw new Error("Stream timeout: Request took too long");
         }
-      } catch {
-        // If JSON parsing fails, use status text
-        errorMessage = `Server returned ${response.status} ${response.statusText}`;
+        // User-initiated abort (character switch) - silently return
+        return;
       }
-    } else {
-      // Non-JSON error response
-      try {
-        const text = await response.text();
-        if (text.trim()) {
-          errorMessage = text.substring(0, 200); // Limit error message length
-        } else {
-          errorMessage = `Server returned ${response.status} ${response.statusText}`;
-        }
-      } catch {
-        errorMessage = `Server returned ${response.status} ${response.statusText}`;
-      }
+      throw error;
     }
 
-    throw new Error(errorMessage);
-  }
+    if (!response.ok) {
+      clearTimeout(timeoutId);
+      let errorMessage = "Failed to send message";
+      const contentType = response.headers.get("content-type");
 
-  if (!response.body) {
-    clearTimeout(timeoutId);
-    throw new Error("No response body");
-  }
+      // Try to parse JSON error response, but handle empty/invalid responses gracefully
+      if (contentType?.includes("application/json")) {
+        try {
+          const text = await response.text();
+          if (text.trim()) {
+            const errorData = JSON.parse(text);
+            errorMessage = errorData.error || errorData.message || errorMessage;
+          } else {
+            errorMessage = `Server returned ${response.status} ${response.statusText}`;
+          }
+        } catch {
+          // If JSON parsing fails, use status text
+          errorMessage = `Server returned ${response.status} ${response.statusText}`;
+        }
+      } else {
+        // Non-JSON error response
+        try {
+          const text = await response.text();
+          if (text.trim()) {
+            errorMessage = text.substring(0, 200); // Limit error message length
+          } else {
+            errorMessage = `Server returned ${response.status} ${response.statusText}`;
+          }
+        } catch {
+          errorMessage = `Server returned ${response.status} ${response.statusText}`;
+        }
+      }
 
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
+      throw new Error(errorMessage);
+    }
 
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
+    if (!response.body) {
+      clearTimeout(timeoutId);
+      throw new Error("No response body");
+    }
 
-      if (done) {
-        // Process any remaining data in buffer
-        if (buffer.trim()) {
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+
+        if (done) {
+          // Process any remaining data in buffer
+          if (buffer.trim()) {
+            try {
+              processSSEMessage(
+                buffer.trim(),
+                onMessage,
+                onChunk,
+                onError,
+                onComplete
+              );
+            } catch (err) {
+              console.error("[Stream] Error processing final buffer:", err);
+              onError?.("Stream ended unexpectedly");
+            }
+          }
+          break;
+        }
+
+        buffer += decoder.decode(value, { stream: true });
+
+        // Prevent unbounded buffer growth (potential DoS vector)
+        if (buffer.length > MAX_BUFFER_SIZE) {
+          throw new Error(
+            "Stream buffer exceeded maximum size - possible malformed SSE data"
+          );
+        }
+
+        // Process complete SSE messages (separated by double newline)
+        const messages = buffer.split("\n\n");
+        buffer = messages.pop() || ""; // Keep incomplete message in buffer
+
+        for (const message of messages) {
+          if (!message.trim()) continue;
+
           try {
             processSSEMessage(
-              buffer.trim(),
+              message.trim(),
               onMessage,
               onChunk,
               onError,
               onComplete
             );
           } catch (err) {
-            console.error("[Stream] Error processing final buffer:", err);
-            onError?.("Stream ended unexpectedly");
+            console.error("[Stream] Error parsing SSE message:", err, message);
+            // Continue processing other messages even if one fails
           }
         }
-        break;
       }
-
-      buffer += decoder.decode(value, { stream: true });
-
-      // Prevent unbounded buffer growth (potential DoS vector)
-      if (buffer.length > MAX_BUFFER_SIZE) {
-        throw new Error(
-          "Stream buffer exceeded maximum size - possible malformed SSE data"
-        );
-      }
-
-      // Process complete SSE messages (separated by double newline)
-      const messages = buffer.split("\n\n");
-      buffer = messages.pop() || ""; // Keep incomplete message in buffer
-
-      for (const message of messages) {
-        if (!message.trim()) continue;
-
-        try {
-          processSSEMessage(
-            message.trim(),
-            onMessage,
-            onChunk,
-            onError,
-            onComplete
-          );
-        } catch (err) {
-          console.error("[Stream] Error parsing SSE message:", err, message);
-          // Continue processing other messages even if one fails
-        }
-      }
-    }
-  } catch (error) {
+    } catch (error) {
       if (error instanceof Error && error.name === "AbortError") {
-        onError?.("Stream timeout: Connection took too long");
+        // Only show error for timeout aborts, not user-initiated aborts (character switching)
+        if (isTimeoutAbort) {
+          onError?.("Stream timeout: Connection took too long");
+        }
+        // Silently ignore user-initiated aborts (like ChatGPT/Claude)
+        return;
       }
       throw error;
     } finally {
