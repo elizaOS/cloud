@@ -299,8 +299,14 @@ export function ElizaChatInterface({
         const data = await response.json();
         console.log(`[Chat] ✅ Loaded ${data.messages?.length || 0} messages for character ${data.characterId}`);
 
-        // FINAL CHECK: Only update if character still matches
-        if (expectedCharacterIdRef.current === expectedCharId && data.characterId === expectedCharId) {
+        // FINAL CHECK: Only validate character match if we have an expected character
+        // When navigating directly to a room (e.g., /dashboard/chat?roomId=xxx),
+        // selectedCharacterId might be undefined, so we should accept any character
+        const shouldValidateCharacter = expectedCharId !== null && expectedCharId !== undefined;
+        const characterMatches = !shouldValidateCharacter ||
+          (data.characterId === expectedCharId && expectedCharacterIdRef.current === expectedCharId);
+
+        if (characterMatches) {
           // Only update messages if we're not in the middle of sending
           // This prevents overwriting optimistic messages with stale data
           if (!isSendingRef.current) {
