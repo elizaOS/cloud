@@ -172,8 +172,23 @@ async function handlePOST(req: NextRequest) {
   }
 
   // Queue large files for background processing
+  // Note: characterId from request takes priority; if not provided, we need to resolve it
+  // For large-only batches where runtime wasn't initialized, characterId should be provided by client
   for (const file of queuedFiles) {
-    const effectiveCharacterId = characterId ?? (runtime?.agentId as string) ?? "";
+    const effectiveCharacterId = characterId ?? (runtime?.agentId as string | undefined);
+    if (!effectiveCharacterId) {
+      results.push({
+        id: "",
+        filename: file.name,
+        size: file.size,
+        contentType: file.type || "application/octet-stream",
+        status: "failed",
+        isQueued: false,
+        error: "Character ID required for queued uploads",
+        uploadedAt: Date.now(),
+      });
+      continue;
+    }
     const result = await queueFileForProcessing(
       file,
       effectiveCharacterId,
@@ -362,6 +377,13 @@ async function handleGET(req: NextRequest) {
   const authResult = await requireAuthOrApiKey(req);
   const { user } = authResult;
 
+  if (!user.organization_id) {
+    return NextResponse.json(
+      { error: "User must belong to an organization" },
+      { status: 403 },
+    );
+  }
+
   const url = new URL(req.url);
   const characterId = url.searchParams.get("characterId");
   const jobId = url.searchParams.get("jobId");
@@ -385,10 +407,10 @@ async function handleGET(req: NextRequest) {
     });
   }
 
-  // Get all pending/processing jobs for user
+  // Get all pending/processing jobs for user's organization
   const jobs = await jobsRepository.findByFilters({
     type: KNOWLEDGE_JOB_TYPE,
-    organizationId: user.organization_id ?? undefined,
+    organizationId: user.organization_id,
     orderBy: "desc",
     limit: 50,
   });

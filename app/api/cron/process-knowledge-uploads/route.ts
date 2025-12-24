@@ -195,9 +195,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         }
 
         // Process the file
+        // Use deterministic clientDocumentId based on job ID to prevent duplicates on retry
         const result = await knowledgeService.addKnowledge({
           agentId: runtime.agentId,
-          clientDocumentId: "" as UUID,
+          clientDocumentId: job.id as UUID,
           content: base64Content,
           contentType: data.contentType,
           originalFilename: data.filename,
