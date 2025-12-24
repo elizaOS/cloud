@@ -23,8 +23,6 @@ import { logger } from "@/lib/utils/logger";
 import type { NextRequest } from "next/server";
 import { z } from "zod";
 import {
-  IMAGE_GENERATION_VIBES,
-  DEFAULT_VIBE,
   MAX_PROMPT_LENGTH,
   MAX_RESPONSE_STYLE_LENGTH,
 } from "@/lib/constants/image-generation";
@@ -252,10 +250,10 @@ export async function POST(
     // When web search is enabled, we need ASSISTANT mode for the web-search plugin
     const effectiveWebSearchEnabled = webSearchEnabled !== false;
 
-    // Determine agent mode based on web search and explicit mode
-    // Priority: BUILD mode (explicit) > web search toggle > default
+    // Determine agent mode based on explicit request, then web search toggle
+    // Priority: explicit mode (any) > web search toggle > default
     let agentModeConfig: AgentModeConfig;
-    
+
     // Validate explicit agentMode if provided
     if (agentMode && !isValidAgentModeConfig(agentMode)) {
       return new Response(
@@ -264,16 +262,16 @@ export async function POST(
       );
     }
 
-    // BUILD mode is explicit and should always be respected
-    if (agentMode?.mode === AgentMode.BUILD) {
+    // If user explicitly provided a mode, respect it
+    if (agentMode) {
       agentModeConfig = agentMode;
-      logger.info("[Stream] Using BUILD mode (explicit)");
+      logger.info(`[Stream] Using explicit mode: ${agentModeConfig.mode}`);
     } else if (effectiveWebSearchEnabled) {
-      // Web search enabled (default) - requires ASSISTANT mode for plugin support
+      // No explicit mode - web search enabled (default) requires ASSISTANT mode
       agentModeConfig = { mode: AgentMode.ASSISTANT };
       logger.info("[Stream] Web search enabled, using ASSISTANT mode");
     } else {
-      // Web search explicitly disabled - use lightweight CHAT mode
+      // No explicit mode - web search disabled, use lightweight CHAT mode
       agentModeConfig = { mode: AgentMode.CHAT };
       logger.info("[Stream] Web search disabled, using CHAT mode");
     }

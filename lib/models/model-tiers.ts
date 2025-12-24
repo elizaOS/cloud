@@ -62,7 +62,7 @@ export const MODEL_TIERS: Record<ModelTier, ModelTierConfig> = {
   fast: {
     id: "fast",
     name: "Fast",
-    description: "Quick responses, lower cost",
+    description: "Fastest for quick answers",
     modelId: FAST_MODEL_ID,
     provider: extractProvider(FAST_MODEL_ID),
     icon: "zap",
@@ -77,7 +77,7 @@ export const MODEL_TIERS: Record<ModelTier, ModelTierConfig> = {
   pro: {
     id: "pro",
     name: "Pro",
-    description: "Balanced speed and quality",
+    description: "Best for everyday tasks",
     modelId: PRO_MODEL_ID,
     provider: extractProvider(PRO_MODEL_ID),
     icon: "sparkles",
@@ -100,7 +100,7 @@ export const MODEL_TIERS: Record<ModelTier, ModelTierConfig> = {
   ultra: {
     id: "ultra",
     name: "Ultra",
-    description: "Best quality, complex tasks",
+    description: "Most capable for complex work",
     modelId: ULTRA_MODEL_ID,
     provider: extractProvider(ULTRA_MODEL_ID),
     icon: "crown",
@@ -125,6 +125,36 @@ export const MODEL_TIER_LIST: ModelTierConfig[] = [
   MODEL_TIERS.fast,
   MODEL_TIERS.pro,
   MODEL_TIERS.ultra,
+];
+
+/**
+ * Additional models available in "More models" submenu.
+ * Maps to ALLOWED_CHAT_MODELS from config.ts
+ */
+export interface AdditionalModel {
+  id: string;
+  name: string;
+  description: string;
+  modelId: string;
+  provider: string;
+}
+
+export const ADDITIONAL_MODELS: AdditionalModel[] = [
+  // Moonshot AI
+  { id: "kimi-k2", name: "Kimi K2", description: "Fast & capable", modelId: "moonshotai/kimi-k2-0905", provider: "moonshot" },
+  { id: "kimi-k2-turbo", name: "Kimi K2 Turbo", description: "Extra speed", modelId: "moonshotai/kimi-k2-turbo", provider: "moonshot" },
+  // OpenAI
+  { id: "gpt-5", name: "GPT-5", description: "Most capable OpenAI", modelId: "openai/gpt-5", provider: "openai" },
+  { id: "gpt-5-mini", name: "GPT-5 Mini", description: "Fast & affordable", modelId: "openai/gpt-5-mini", provider: "openai" },
+  // Anthropic
+  { id: "claude-opus", name: "Claude Opus 4.1", description: "Most powerful", modelId: "anthropic/claude-opus-4.1", provider: "anthropic" },
+  // Google
+  { id: "gemini-flash-lite", name: "Gemini 2.5 Flash Lite", description: "Fastest option", modelId: "google/gemini-2.5-flash-lite", provider: "google" },
+  { id: "gemini-flash", name: "Gemini 2.5 Flash", description: "Fast & smart", modelId: "google/gemini-2.5-flash", provider: "google" },
+  { id: "gemini-pro", name: "Gemini 3 Pro", description: "Advanced reasoning", modelId: "google/gemini-3-pro-preview", provider: "google" },
+  // DeepSeek
+  { id: "deepseek-v3", name: "DeepSeek V3.2", description: "Open & powerful", modelId: "deepseek/deepseek-v3.2-exp", provider: "deepseek" },
+  { id: "deepseek-r1", name: "DeepSeek R1", description: "Reasoning model", modelId: "deepseek/deepseek-r1", provider: "deepseek" },
 ];
 
 /**
