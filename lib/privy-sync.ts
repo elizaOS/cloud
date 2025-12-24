@@ -15,6 +15,7 @@ import { discordService } from "@/lib/services/discord";
 import { apiKeysService } from "@/lib/services/api-keys";
 import { creditsService } from "@/lib/services/credits";
 import { organizationInvitesRepository } from "@/db/repositories";
+import { logger } from "@/lib/utils/logger";
 import {
   abuseDetectionService,
   type SignupContext,
@@ -262,7 +263,7 @@ export async function syncUserFromPrivy(
           isNewOrganization: false,
         })
         .catch((error) => {
-          console.error("[SYNC] Discord log failed:", error);
+          logger.error("[SYNC] Discord log failed", { error });
         });
 
       return userWithOrg;
@@ -414,7 +415,7 @@ export async function syncUserFromPrivy(
             // Email is already registered with a different Privy account
             // This happens when user signs up with email, then tries OAuth with same email
             // TODO: Consider account linking instead of blocking
-            console.warn(
+            logger.warn(
               `User with email ${email} already exists with different Privy ID: ${existingUser.privy_user_id}`,
             );
             await organizationsService.delete(organization.id);
@@ -433,15 +434,15 @@ export async function syncUserFromPrivy(
       }
 
       // Couldn't find existing user even after retries - cleanup and rethrow
-      console.error(
+      logger.error(
         `Duplicate key error but user ${privyUserId} not found after ${maxRetries} retries - cleaning up and rethrowing`,
       );
       await organizationsService.delete(organization.id);
     }
     // Not a duplicate key error or couldn't find the existing user - rethrow
-    console.error(
-      `Failed to create user ${privyUserId}:`,
-      error instanceof Error ? error.message : error,
+    logger.error(
+      `Failed to create user ${privyUserId}`,
+      { error: error instanceof Error ? error.message : error },
     );
     throw error;
   }
@@ -462,10 +463,10 @@ export async function syncUserFromPrivy(
       organizationName: userWithOrg.organization?.name || "",
       creditBalance: initialCredits,
     }).catch((error) => {
-      console.error("[PrivySync] Failed to send welcome email:", error);
+      logger.error("[PrivySync] Failed to send welcome email", { error });
     });
   } else {
-    console.warn("[PrivySync] No email available for welcome email", {
+    logger.warn("[PrivySync] No email available for welcome email", {
       userId: userWithOrg.id,
       walletAddress: walletAddress,
     });
@@ -507,12 +508,12 @@ async function ensureUserHasApiKey(
 ): Promise<void> {
   // Validate inputs
   if (!userId || userId.trim() === "") {
-    console.warn("[PrivySync] Invalid userId, skipping API key creation");
+    logger.warn("[PrivySync] Invalid userId, skipping API key creation");
     return;
   }
 
   if (!organizationId || organizationId.trim() === "") {
-    console.warn(
+    logger.warn(
       `[PrivySync] No organization for user ${userId}, skipping API key creation`,
     );
     return;
@@ -536,9 +537,9 @@ async function ensureUserHasApiKey(
       is_active: true,
     });
   } catch (error) {
-    console.error(
-      `[PrivySync] Error creating API key for user ${userId}:`,
-      error,
+    logger.error(
+      `[PrivySync] Error creating API key for user ${userId}`,
+      { error },
     );
     throw error;
   }

@@ -1,10 +1,10 @@
 /**
  * elizaOS Cloud Documentation - Navigation Structure
- * 
+ *
  * Organized to match the dashboard sidebar structure for consistency
  * and ease of navigation between docs and the platform.
  */
-export default {
+const meta = {
   index: {
     title: 'Introduction',
     theme: {
@@ -148,4 +148,6 @@ export default {
   changelog: {
     title: 'Changelog',
   },
-}
+};
+
+export default meta;

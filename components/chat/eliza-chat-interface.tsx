@@ -223,13 +223,14 @@ export function ElizaChatInterface({
 
   // Cleanup refs on unmount to prevent memory leaks
   useEffect(() => {
+    const renderedMessages = renderedMessagesRef.current;
     return () => {
       if (thinkingTimeoutRef.current) {
         clearTimeout(thinkingTimeoutRef.current);
         thinkingTimeoutRef.current = null;
       }
       clearAllStreaming();
-      renderedMessagesRef.current.clear();
+      renderedMessages.clear();
     };
   }, [clearAllStreaming]);
 
