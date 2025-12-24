@@ -584,17 +584,33 @@ export async function POST(
       throw error;
     }
 
-    // Step 8: Create streaming response
+    // Step 8: Create streaming response with client disconnection detection
     const stream = new ReadableStream({
       async start(controller) {
+        // Track if client disconnected (for cleanup and early termination)
+        let clientDisconnected = false;
+
         const sendEvent = (event: string, data: unknown) => {
-          const message = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
-          controller.enqueue(encoder.encode(message));
+          try {
+            const message = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+            controller.enqueue(encoder.encode(message));
+          } catch (error) {
+            // Client disconnected - enqueue fails
+            clientDisconnected = true;
+            logger.info("[Stream] Client disconnected, stopping stream");
+          }
         };
 
         try {
           // Send connection confirmation
           sendEvent("connected", { roomId, timestamp: Date.now() });
+          
+          // Early exit if client already disconnected
+          if (clientDisconnected) {
+            logger.info("[Stream] Client disconnected before processing started");
+            controller.close();
+            return;
+          }
 
           // Send user message event
           sendEvent("message", {
@@ -620,6 +636,12 @@ export async function POST(
 
           // Create streaming callback to send chunks via SSE in real-time
           const onStreamChunk = async (chunk: string) => {
+            // Check if client disconnected before sending chunk
+            if (clientDisconnected) {
+              logger.info("[Stream] Client disconnected, skipping chunk");
+              throw new Error("Client disconnected"); // Abort processing
+            }
+            
             sendEvent("chunk", {
               messageId: responseMessageId,
               chunk,
@@ -703,13 +725,28 @@ export async function POST(
 
           controller.close();
         } catch (error) {
+          // Check if error is due to client disconnection
+          if (error instanceof Error && error.message === "Client disconnected") {
+            logger.info("[Stream] Client disconnected during processing - cleanup complete");
+            controller.close();
+            return;
+          }
+          
+          // Real error - try to send error event (may fail if client disconnected)
           logger.error("[Stream Messages] Error:", error);
-          sendEvent("error", {
-            message:
-              error instanceof Error ? error.message : "Processing failed",
-          });
+          if (!clientDisconnected) {
+            sendEvent("error", {
+              message:
+                error instanceof Error ? error.message : "Processing failed",
+            });
+          }
           controller.close();
         }
+      },
+      
+      // Detect when client disconnects the stream
+      cancel() {
+        logger.info("[Stream] Client cancelled stream connection");
       },
     });
 

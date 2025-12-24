@@ -84,7 +84,7 @@ export function sendStreamingMessage({
 }: SendMessageOptions): AbortController {
   const controller = new AbortController();
   let isTimeoutAbort = false;
-  
+
   const timeoutId = setTimeout(() => {
     isTimeoutAbort = true; // Mark as timeout abort
     controller.abort();
