@@ -30,7 +30,10 @@ import { useAudioRecorder } from "./hooks/use-audio-recorder";
 import { useAudioPlayer } from "./hooks/use-audio-player";
 import { useModelTier } from "./hooks/use-model-tier";
 import { sendStreamingMessage } from "@/lib/hooks/use-streaming-message";
-import type { StreamingMessage, StreamChunkData } from "@/lib/hooks/use-streaming-message";
+import type {
+  StreamingMessage,
+  StreamChunkData,
+} from "@/lib/hooks/use-streaming-message";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -152,12 +155,12 @@ export function ElizaChatInterface({
   // Get character name from prop (preferred), store, or agentInfo (memoized)
   const selectedCharacter = useMemo(
     () => availableCharacters.find((char) => char.id === selectedCharacterId),
-    [availableCharacters, selectedCharacterId],
+    [availableCharacters, selectedCharacterId]
   );
   const characterName = useMemo(
     () =>
       character?.name || selectedCharacter?.name || agentInfo?.name || "Agent",
-    [character?.name, selectedCharacter?.name, agentInfo?.name],
+    [character?.name, selectedCharacter?.name, agentInfo?.name]
   );
 
   // Get avatar URL from prop (preferred), store, or agentInfo
@@ -177,7 +180,7 @@ export function ElizaChatInterface({
       character?.character_data?.avatar_url,
       selectedCharacter?.avatarUrl,
       agentInfo?.avatarUrl,
-    ],
+    ]
   );
 
   // Consolidated loading states
@@ -254,100 +257,113 @@ export function ElizaChatInterface({
   // Poll knowledge processing status and show toast when complete
   useKnowledgeProcessingStatus(selectedCharacterId || null);
 
-  const loadMessages = useCallback(async (targetRoomId: string, skipLoadingState = false) => {
-    // CRITICAL: Cancel any in-flight message loading requests
-    if (loadMessagesAbortControllerRef.current) {
-      console.log(`[Chat] ⚠️  Cancelling previous loadMessages request`);
-      loadMessagesAbortControllerRef.current.abort();
-    }
-
-    // Create new AbortController for this request
-    const abortController = new AbortController();
-    loadMessagesAbortControllerRef.current = abortController;
-
-    // Track which character we expect messages for
-    const expectedCharId = selectedCharacterId;
-    expectedCharacterIdRef.current = expectedCharId;
-
-    console.log(`[Chat] Loading messages for room: ${targetRoomId}, character: ${expectedCharId}`);
-
-    // Don't show loading state if we're sending (prevents flicker) or explicitly skipped
-    if (!skipLoadingState && !isSendingRef.current) {
-      setLoadingState((prev) => ({ ...prev, isLoadingMessages: true }));
-    }
-
-    try {
-      // CRITICAL: Pass characterId to validate room ownership
-      const url = new URL(`/api/eliza/rooms/${targetRoomId}`, window.location.origin);
-      if (expectedCharId) {
-        url.searchParams.set("characterId", expectedCharId);
+  const loadMessages = useCallback(
+    async (targetRoomId: string, skipLoadingState = false) => {
+      // CRITICAL: Cancel any in-flight message loading requests
+      if (loadMessagesAbortControllerRef.current) {
+        console.log(`[Chat] ⚠️  Cancelling previous loadMessages request`);
+        loadMessagesAbortControllerRef.current.abort();
       }
 
-      console.log(`[Chat] Fetching: ${url.toString()}`);
-      const response = await fetch(url.toString(), {
-        credentials: "include",
-        signal: abortController.signal,
-      });
+      // Create new AbortController for this request
+      const abortController = new AbortController();
+      loadMessagesAbortControllerRef.current = abortController;
 
-      // CRITICAL: Verify this is still the expected character before updating state
-      if (expectedCharacterIdRef.current !== expectedCharId) {
-        console.log(
-          `[Chat] ⚠️  Ignoring response - character changed from ${expectedCharId} to ${expectedCharacterIdRef.current}`
+      // Track which character we expect messages for
+      const expectedCharId = selectedCharacterId;
+      expectedCharacterIdRef.current = expectedCharId;
+
+      console.log(
+        `[Chat] Loading messages for room: ${targetRoomId}, character: ${expectedCharId}`
+      );
+
+      // Don't show loading state if we're sending (prevents flicker) or explicitly skipped
+      if (!skipLoadingState && !isSendingRef.current) {
+        setLoadingState((prev) => ({ ...prev, isLoadingMessages: true }));
+      }
+
+      try {
+        // CRITICAL: Pass characterId to validate room ownership
+        const url = new URL(
+          `/api/eliza/rooms/${targetRoomId}`,
+          window.location.origin
         );
-        return;
-      }
+        if (expectedCharId) {
+          url.searchParams.set("characterId", expectedCharId);
+        }
 
-      if (response.ok) {
-        const data = await response.json();
-        console.log(`[Chat] ✅ Loaded ${data.messages?.length || 0} messages for character ${data.characterId}`);
+        console.log(`[Chat] Fetching: ${url.toString()}`);
+        const response = await fetch(url.toString(), {
+          credentials: "include",
+          signal: abortController.signal,
+        });
 
-        // FINAL CHECK: Only validate character match if we have an expected character
-        // When navigating directly to a room (e.g., /dashboard/chat?roomId=xxx),
-        // selectedCharacterId might be undefined, so we should accept any character
-        const shouldValidateCharacter = expectedCharId !== null && expectedCharId !== undefined;
-        const characterMatches = !shouldValidateCharacter ||
-          (data.characterId === expectedCharId && expectedCharacterIdRef.current === expectedCharId);
-
-        if (characterMatches) {
-          // Only update messages if we're not in the middle of sending
-          // This prevents overwriting optimistic messages with stale data
-          if (!isSendingRef.current) {
-            setMessages(data.messages || []);
-          }
-          if (data.agent) {
-            setAgentInfo(data.agent);
-          }
-        } else {
+        // CRITICAL: Verify this is still the expected character before updating state
+        if (expectedCharacterIdRef.current !== expectedCharId) {
           console.log(
-            `[Chat] ⚠️  Character mismatch - ignoring messages. Expected: ${expectedCharId}, Got: ${data.characterId}, Current: ${expectedCharacterIdRef.current}`
+            `[Chat] ⚠️  Ignoring response - character changed from ${expectedCharId} to ${expectedCharacterIdRef.current}`
           );
+          return;
         }
-      } else if (response.status === 400) {
-        // Character mismatch detected - this room is contaminated
-        const errorData = await response.json();
-        console.error("[Chat] ❌ CHARACTER MISMATCH!", errorData);
-        setError(
-          `This conversation belongs to a different character. Please select "New Chat" to start fresh.`
-        );
-        setMessages([]);
-      }
-    } catch (err: unknown) {
-      // Ignore abort errors - they're expected when cancelling requests
-      if (err instanceof Error && err.name === "AbortError") {
-        console.log(`[Chat] 🚫 Request aborted for room ${targetRoomId}`);
-        return;
-      }
-      console.error("[Chat] Error loading messages:", err);
-    } finally {
-      // Only clear loading state if this is still the current request
-      if (loadMessagesAbortControllerRef.current === abortController) {
-        if (!skipLoadingState && !isSendingRef.current) {
-          setLoadingState((prev) => ({ ...prev, isLoadingMessages: false }));
+
+        if (response.ok) {
+          const data = await response.json();
+          console.log(
+            `[Chat] ✅ Loaded ${data.messages?.length || 0} messages for character ${data.characterId}`
+          );
+
+          // FINAL CHECK: Only validate character match if we have an expected character
+          // When navigating directly to a room (e.g., /dashboard/chat?roomId=xxx),
+          // selectedCharacterId might be undefined, so we should accept any character
+          const shouldValidateCharacter =
+            expectedCharId !== null && expectedCharId !== undefined;
+          const characterMatches =
+            !shouldValidateCharacter ||
+            (data.characterId === expectedCharId &&
+              expectedCharacterIdRef.current === expectedCharId);
+
+          if (characterMatches) {
+            // Only update messages if we're not in the middle of sending
+            // This prevents overwriting optimistic messages with stale data
+            if (!isSendingRef.current) {
+              setMessages(data.messages || []);
+            }
+            if (data.agent) {
+              setAgentInfo(data.agent);
+            }
+          } else {
+            console.log(
+              `[Chat] ⚠️  Character mismatch - ignoring messages. Expected: ${expectedCharId}, Got: ${data.characterId}, Current: ${expectedCharacterIdRef.current}`
+            );
+          }
+        } else if (response.status === 400) {
+          // Character mismatch detected - this room is contaminated
+          const errorData = await response.json();
+          console.error("[Chat] ❌ CHARACTER MISMATCH!", errorData);
+          setError(
+            `This conversation belongs to a different character. Please select "New Chat" to start fresh.`
+          );
+          setMessages([]);
         }
-        loadMessagesAbortControllerRef.current = null;
+      } catch (err: unknown) {
+        // Ignore abort errors - they're expected when cancelling requests
+        if (err instanceof Error && err.name === "AbortError") {
+          console.log(`[Chat] 🚫 Request aborted for room ${targetRoomId}`);
+          return;
+        }
+        console.error("[Chat] Error loading messages:", err);
+      } finally {
+        // Only clear loading state if this is still the current request
+        if (loadMessagesAbortControllerRef.current === abortController) {
+          if (!skipLoadingState && !isSendingRef.current) {
+            setLoadingState((prev) => ({ ...prev, isLoadingMessages: false }));
+          }
+          loadMessagesAbortControllerRef.current = null;
+        }
       }
-    }
-  }, [selectedCharacterId]); // Add selectedCharacterId as dependency
+    },
+    [selectedCharacterId]
+  ); // Add selectedCharacterId as dependency
 
   // Clear messages immediately when character changes (prevents flickering old character's messages)
   useEffect(() => {
@@ -355,14 +371,18 @@ export function ElizaChatInterface({
 
     // Cancel any in-flight message loading for the previous character
     if (loadMessagesAbortControllerRef.current) {
-      console.log(`[Chat] 🚫 Aborting previous loadMessages due to character change`);
+      console.log(
+        `[Chat] 🚫 Aborting previous loadMessages due to character change`
+      );
       loadMessagesAbortControllerRef.current.abort();
       loadMessagesAbortControllerRef.current = null;
     }
 
     // CRITICAL: Cancel any in-flight streaming response for the previous character
     if (streamingAbortControllerRef.current) {
-      console.log(`[Chat] 🚫 Aborting previous streaming response due to character change`);
+      console.log(
+        `[Chat] 🚫 Aborting previous streaming response due to character change`
+      );
       streamingAbortControllerRef.current.abort();
       streamingAbortControllerRef.current = null;
     }
@@ -404,14 +424,18 @@ export function ElizaChatInterface({
     // Cleanup: Cancel any ongoing requests when roomId changes or component unmounts
     return () => {
       if (loadMessagesAbortControllerRef.current) {
-        console.log(`[Chat] 🧹 Cleanup: Aborting loadMessages for roomId change/unmount`);
+        console.log(
+          `[Chat] 🧹 Cleanup: Aborting loadMessages for roomId change/unmount`
+        );
         loadMessagesAbortControllerRef.current.abort();
         loadMessagesAbortControllerRef.current = null;
       }
-      
+
       // CRITICAL: Also abort any in-flight streaming response on unmount
       if (streamingAbortControllerRef.current) {
-        console.log(`[Chat] 🧹 Cleanup: Aborting streaming response on unmount`);
+        console.log(
+          `[Chat] 🧹 Cleanup: Aborting streaming response on unmount`
+        );
         streamingAbortControllerRef.current.abort();
         streamingAbortControllerRef.current = null;
       }
@@ -434,141 +458,149 @@ export function ElizaChatInterface({
       // New rooms are empty - skip loading to avoid race with optimistic messages
       return newRoomId;
     },
-    [createRoomInStore, selectedCharacterId],
+    [createRoomInStore, selectedCharacterId]
   );
 
-  const handleStreamMessage = useCallback((messageData: StreamingMessage) => {
-    setMessages((prev) => {
-      // Handle agent response - update streaming message in place to avoid flash
-      if (messageData.type === "agent") {
-        // Clean up streaming state
-        clearAllStreaming();
+  const handleStreamMessage = useCallback(
+    (messageData: StreamingMessage) => {
+      setMessages((prev) => {
+        // Handle agent response - update streaming message in place to avoid flash
+        if (messageData.type === "agent") {
+          // Clean up streaming state
+          clearAllStreaming();
 
-        // Clear thinking timeout
-        if (thinkingTimeoutRef.current) {
-          clearTimeout(thinkingTimeoutRef.current);
-          thinkingTimeoutRef.current = null;
-        }
+          // Clear thinking timeout
+          if (thinkingTimeoutRef.current) {
+            clearTimeout(thinkingTimeoutRef.current);
+            thinkingTimeoutRef.current = null;
+          }
 
-        // Check for duplicates
-        if (prev.some((m) => m.id === messageData.id)) {
-          return prev;
-        }
+          // Check for duplicates
+          if (prev.some((m) => m.id === messageData.id)) {
+            return prev;
+          }
 
-        // Find streaming message by prefix
-        const streamingIndex = prev.findIndex(
-          (m) => m.id === `streaming-${messageData.id}`
-        );
-        if (streamingIndex !== -1) {
-          const updated = [...prev];
-          updated[streamingIndex] = {
-            ...updated[streamingIndex],
-            id: messageData.id,
-            content: {
-              ...messageData.content,
-              text: updated[streamingIndex].content.text || messageData.content.text,
-            },
-          };
-          // Also remove any thinking/temp messages
-          return updated.filter(
-            (m) => !m.id.startsWith("thinking-") && !m.id.startsWith("temp-"),
+          // Find streaming message by prefix
+          const streamingIndex = prev.findIndex(
+            (m) => m.id === `streaming-${messageData.id}`
           );
+          if (streamingIndex !== -1) {
+            const updated = [...prev];
+            updated[streamingIndex] = {
+              ...updated[streamingIndex],
+              id: messageData.id,
+              content: {
+                ...messageData.content,
+                text:
+                  updated[streamingIndex].content.text ||
+                  messageData.content.text,
+              },
+            };
+            // Also remove any thinking/temp messages
+            return updated.filter(
+              (m) => !m.id.startsWith("thinking-") && !m.id.startsWith("temp-")
+            );
+          }
+
+          // No streaming message found - fallback to normal add
+          const filtered = prev.filter(
+            (m) =>
+              !m.id.startsWith("thinking-") &&
+              !m.id.startsWith("temp-") &&
+              !m.id.startsWith("streaming-")
+          );
+
+          return [...filtered, messageData];
         }
 
-        // No streaming message found - fallback to normal add
-        const filtered = prev.filter(
-          (m) =>
-            !m.id.startsWith("thinking-") &&
-            !m.id.startsWith("temp-") &&
-            !m.id.startsWith("streaming-"),
-        );
-
-        return [...filtered, messageData];
-      }
-
-      // Handle thinking indicator
-      if (messageData.type === "thinking") {
-        const withoutThinking = prev.filter(
-          (m) => !m.id.startsWith("thinking-"),
-        );
-        return [...withoutThinking, messageData];
-      }
-
-      // Handle user messages
-      if (messageData.type === "user") {
-        // Replace temp message with real one
-        const tempIndex = prev.findIndex(
-          (m) =>
-            m.id.startsWith("temp-") &&
-            m.content.text === messageData.content.text,
-        );
-
-        if (tempIndex !== -1) {
-          const updated = [...prev];
-          updated[tempIndex] = messageData;
-          return updated;
+        // Handle thinking indicator
+        if (messageData.type === "thinking") {
+          const withoutThinking = prev.filter(
+            (m) => !m.id.startsWith("thinking-")
+          );
+          return [...withoutThinking, messageData];
         }
 
-        // Check for duplicates
-        if (prev.some((m) => m.id === messageData.id)) {
-          return prev;
+        // Handle user messages
+        if (messageData.type === "user") {
+          // Replace temp message with real one
+          const tempIndex = prev.findIndex(
+            (m) =>
+              m.id.startsWith("temp-") &&
+              m.content.text === messageData.content.text
+          );
+
+          if (tempIndex !== -1) {
+            const updated = [...prev];
+            updated[tempIndex] = messageData;
+            return updated;
+          }
+
+          // Check for duplicates
+          if (prev.some((m) => m.id === messageData.id)) {
+            return prev;
+          }
+
+          return [...prev, messageData];
         }
 
-        return [...prev, messageData];
-      }
-
-      return prev;
-    });
-  }, [clearAllStreaming]);
+        return prev;
+      });
+    },
+    [clearAllStreaming]
+  );
 
   // Handle real-time streaming chunks - updates message text incrementally
-  const handleStreamChunk = useCallback((chunkData: StreamChunkData) => {
-    const { messageId, chunk } = chunkData;
+  const handleStreamChunk = useCallback(
+    (chunkData: StreamChunkData) => {
+      const { messageId, chunk } = chunkData;
 
-    // Accumulate text in hook (no re-render)
-    accumulateChunk(messageId, chunk);
+      // Accumulate text in hook (no re-render)
+      accumulateChunk(messageId, chunk);
 
-    // Schedule throttled UI update
-    scheduleUpdate(messageId, (newText) => {
-      setMessages((prev) => {
-        // Check if we already have a streaming message for this messageId
-        const streamingMsgIndex = prev.findIndex(
-          (m) => m.id === `streaming-${messageId}`
-        );
+      // Schedule throttled UI update
+      scheduleUpdate(messageId, (newText) => {
+        setMessages((prev) => {
+          // Check if we already have a streaming message for this messageId
+          const streamingMsgIndex = prev.findIndex(
+            (m) => m.id === `streaming-${messageId}`
+          );
 
-        if (streamingMsgIndex !== -1) {
-          // Update existing streaming message
-          const updated = [...prev];
-          updated[streamingMsgIndex] = {
-            ...updated[streamingMsgIndex],
-            content: { ...updated[streamingMsgIndex].content, text: newText },
+          if (streamingMsgIndex !== -1) {
+            // Update existing streaming message
+            const updated = [...prev];
+            updated[streamingMsgIndex] = {
+              ...updated[streamingMsgIndex],
+              content: { ...updated[streamingMsgIndex].content, text: newText },
+            };
+            return updated;
+          }
+
+          // First chunk - create a new streaming message and remove thinking indicator
+          const withoutThinking = prev.filter(
+            (m) => !m.id.startsWith("thinking-")
+          );
+
+          // Clear thinking timeout
+          if (thinkingTimeoutRef.current) {
+            clearTimeout(thinkingTimeoutRef.current);
+            thinkingTimeoutRef.current = null;
+          }
+
+          // Add new streaming message
+          const streamingMessage: Message = {
+            id: `streaming-${messageId}`,
+            content: { text: newText },
+            isAgent: true,
+            createdAt: Date.now(),
           };
-          return updated;
-        }
 
-        // First chunk - create a new streaming message and remove thinking indicator
-        const withoutThinking = prev.filter(
-          (m) => !m.id.startsWith("thinking-")
-        );
-
-        // Clear thinking timeout
-        if (thinkingTimeoutRef.current) {
-          clearTimeout(thinkingTimeoutRef.current);
-          thinkingTimeoutRef.current = null;
-        }
-
-        // Add new streaming message
-        const streamingMessage: Message = {
-          id: `streaming-${messageId}`,
-          content: { text: newText },
-          isAgent: true,
-          createdAt: Date.now(),
-        };
-
-        return [...withoutThinking, streamingMessage];
+          return [...withoutThinking, streamingMessage];
+        });
       });
-    });
-  }, [accumulateChunk, scheduleUpdate]);
+    },
+    [accumulateChunk, scheduleUpdate]
+  );
 
   const sendMessage = useCallback(
     async (textOverride?: string) => {
@@ -604,7 +636,10 @@ export function ElizaChatInterface({
             // Start new room creation and store the promise
             // Pass skipLoadRooms=true to prevent unnecessary room list reload
             isCreatingRoomRef.current = true;
-            roomCreationPromiseRef.current = createRoom(selectedCharacterId, true)
+            roomCreationPromiseRef.current = createRoom(
+              selectedCharacterId,
+              true
+            )
               .then((newRoomId) => {
                 isCreatingRoomRef.current = false;
                 roomCreationPromiseRef.current = null;
@@ -647,15 +682,15 @@ export function ElizaChatInterface({
         // Safety timeout: remove thinking indicator after 30 seconds if no response
         thinkingTimeoutRef.current = setTimeout(() => {
           setMessages((prev) =>
-            prev.filter((m) => !m.id.startsWith("thinking-")),
+            prev.filter((m) => !m.id.startsWith("thinking-"))
           );
           console.warn(
-            "[Chat] Thinking indicator timeout - agent took too long to respond",
+            "[Chat] Thinking indicator timeout - agent took too long to respond"
           );
         }, 30000);
 
-        // Stream the response using single endpoint
-        const streamController = await sendStreamingMessage({
+        // Stream the response using single endpoint (returns controller immediately)
+        const streamController = sendStreamingMessage({
           roomId: currentRoomId,
           text: messageText,
           model: selectedModelId, // Pass selected model from tier
@@ -672,8 +707,8 @@ export function ElizaChatInterface({
                 (msg) =>
                   msg.id !== tempUserMessage.id &&
                   !msg.id.startsWith("thinking-") &&
-                  !msg.id.startsWith("streaming-"),
-              ),
+                  !msg.id.startsWith("streaming-")
+              )
             );
             if (thinkingTimeoutRef.current) {
               clearTimeout(thinkingTimeoutRef.current);
@@ -697,14 +732,14 @@ export function ElizaChatInterface({
             streamingAbortControllerRef.current = null;
           },
         });
-        
+
         // Store the controller so it can be aborted if character changes
         streamingAbortControllerRef.current = streamController;
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to send message");
         console.error("Error sending message:", err);
         toast.error(
-          err instanceof Error ? err.message : "Failed to send message",
+          err instanceof Error ? err.message : "Failed to send message"
         );
         // Remove temp, thinking, and streaming messages on error
         clearAllStreaming();
@@ -713,8 +748,8 @@ export function ElizaChatInterface({
             (msg) =>
               !msg.id.startsWith("temp-") &&
               !msg.id.startsWith("thinking-") &&
-              !msg.id.startsWith("streaming-"),
-          ),
+              !msg.id.startsWith("streaming-")
+          )
         );
         if (thinkingTimeoutRef.current) {
           clearTimeout(thinkingTimeoutRef.current);
@@ -737,7 +772,7 @@ export function ElizaChatInterface({
       loadRooms,
       onMessageSent,
       clearAllStreaming,
-    ],
+    ]
   );
 
   // Handle pending message from landing page
@@ -848,7 +883,7 @@ export function ElizaChatInterface({
         throw error;
       }
     },
-    [player], // Only player is needed, audioState values accessed via refs
+    [player] // Only player is needed, audioState values accessed via refs
   );
 
   // Load custom voices on mount (only for authenticated users)
@@ -925,7 +960,7 @@ export function ElizaChatInterface({
 
       setIsUploadingFiles(false);
     },
-    [selectedCharacterId],
+    [selectedCharacterId]
   );
 
   // Process audio blob when it becomes available after recording stops
@@ -990,7 +1025,7 @@ export function ElizaChatInterface({
       (msg) =>
         msg.isAgent &&
         !msg.id.startsWith("thinking-") &&
-        !messageAudioUrls.current.has(msg.id),
+        !messageAudioUrls.current.has(msg.id)
     );
 
     newAgentMessages.forEach((msg) => {
@@ -1007,7 +1042,7 @@ export function ElizaChatInterface({
     if (scrollAreaRef.current) {
       // ScrollArea wraps content in a viewport div with data-radix-scroll-area-viewport
       const viewport = scrollAreaRef.current.querySelector(
-        "[data-radix-scroll-area-viewport]",
+        "[data-radix-scroll-area-viewport]"
       );
       if (viewport) {
         // Use requestAnimationFrame to ensure DOM has updated
@@ -1062,14 +1097,14 @@ export function ElizaChatInterface({
       url: string;
       title?: string;
       contentType: string;
-    }>,
+    }>
   ) => {
     // Check if there are image attachments
     const imageAttachment = attachments?.find(
       (att) =>
         att.contentType === "IMAGE" ||
         att.contentType === "image" ||
-        att.contentType.startsWith("image/"),
+        att.contentType.startsWith("image/")
     );
 
     if (imageAttachment) {
@@ -1189,13 +1224,13 @@ export function ElizaChatInterface({
                           const personalityLine = bioArray.find(
                             (line) =>
                               typeof line === "string" &&
-                              line.toLowerCase().includes("personality"),
+                              line.toLowerCase().includes("personality")
                           );
                           if (personalityLine) {
                             // Remove "Personality traits: " prefix for cleaner display
                             return personalityLine.replace(
                               /^personality traits?:\s*/i,
-                              "",
+                              ""
                             );
                           }
                           return bioArray[0];
@@ -1278,7 +1313,8 @@ export function ElizaChatInterface({
                 <div
                   className="absolute h-full w-24 bg-gradient-to-r from-transparent via-[#FF5800] to-transparent"
                   style={{
-                    animation: "visor-scan 4.8s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+                    animation:
+                      "visor-scan 4.8s cubic-bezier(0.4, 0, 0.6, 1) infinite",
                     boxShadow: "0 0 15px 3px rgba(255, 88, 0, 0.7)",
                     filter: "blur(0.5px)",
                   }}
@@ -1286,7 +1322,8 @@ export function ElizaChatInterface({
                 <div
                   className="absolute h-full w-16 bg-gradient-to-r from-transparent via-[#FF5800]/60 to-transparent"
                   style={{
-                    animation: "visor-scan-delayed 6.2s cubic-bezier(0.3, 0.1, 0.7, 0.9) infinite 1.5s",
+                    animation:
+                      "visor-scan-delayed 6.2s cubic-bezier(0.3, 0.1, 0.7, 0.9) infinite 1.5s",
                     boxShadow: "0 0 10px 2px rgba(255, 88, 0, 0.5)",
                     filter: "blur(1px)",
                   }}
@@ -1358,7 +1395,9 @@ export function ElizaChatInterface({
                               </span>
                             )}
                           </div>
-                          <span className="text-[10px] text-white/40 font-mono">{tier.modelId}</span>
+                          <span className="text-[10px] text-white/40 font-mono">
+                            {tier.modelId}
+                          </span>
                         </div>
                       </div>
                     </SelectItem>
@@ -1460,11 +1499,11 @@ export function ElizaChatInterface({
                                     if (newVoiceId) {
                                       localStorage.setItem(
                                         "eliza-selected-voice-id",
-                                        newVoiceId,
+                                        newVoiceId
                                       );
                                     } else {
                                       localStorage.removeItem(
-                                        "eliza-selected-voice-id",
+                                        "eliza-selected-voice-id"
                                       );
                                     }
                                   }
@@ -1472,7 +1511,7 @@ export function ElizaChatInterface({
                                   const voiceName = newVoiceId
                                     ? audioState.customVoices.find(
                                         (v) =>
-                                          v.elevenlabsVoiceId === newVoiceId,
+                                          v.elevenlabsVoiceId === newVoiceId
                                       )?.name || "Custom"
                                     : "Default";
 

@@ -69,9 +69,9 @@ interface SendMessageOptions {
  * Single endpoint handles everything - no cross-container issues!
  *
  * @param options - Message sending options including callbacks.
- * @returns An AbortController that can be used to cancel the stream
+ * @returns An AbortController that can be used to cancel the stream (returned immediately, not after completion)
  */
-export async function sendStreamingMessage({
+export function sendStreamingMessage({
   roomId,
   text,
   model,
@@ -81,15 +81,18 @@ export async function sendStreamingMessage({
   onError,
   onComplete,
   timeoutMs = STREAM_TIMEOUT_MS,
-}: SendMessageOptions): Promise<AbortController> {
+}: SendMessageOptions): AbortController {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => {
     controller.abort();
   }, timeoutMs);
 
-  let response: Response;
-  try {
-    response = await fetch(`/api/eliza/rooms/${roomId}/messages/stream`, {
+  // Start streaming in background (don't await - return controller immediately)
+  (async () => {
+
+    let response: Response;
+    try {
+      response = await fetch(`/api/eliza/rooms/${roomId}/messages/stream`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -213,15 +216,16 @@ export async function sendStreamingMessage({
       }
     }
   } catch (error) {
-    if (error instanceof Error && error.name === "AbortError") {
-      onError?.("Stream timeout: Connection took too long");
+      if (error instanceof Error && error.name === "AbortError") {
+        onError?.("Stream timeout: Connection took too long");
+      }
+      throw error;
+    } finally {
+      clearTimeout(timeoutId);
     }
-    throw error;
-  } finally {
-    clearTimeout(timeoutId);
-  }
+  })(); // End of async IIFE
 
-  // Return the controller so it can be aborted by the caller
+  // Return the controller immediately (before streaming completes)
   return controller;
 }
 

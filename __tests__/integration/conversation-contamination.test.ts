@@ -102,8 +102,8 @@ describe("Conversation Contamination Prevention", () => {
     const { sendStreamingMessage } =
       await import("@/lib/hooks/use-streaming-message");
 
-    // Mock minimal setup
-    const controller = await sendStreamingMessage({
+    // The function now returns the controller immediately (synchronously)
+    const controller = sendStreamingMessage({
       roomId: "test-room",
       text: "test",
       onMessage: () => {},
@@ -111,15 +111,14 @@ describe("Conversation Contamination Prevention", () => {
       onError: () => {},
       onComplete: () => {},
       timeoutMs: 100,
-    }).catch(() => {
-      // We expect this to fail since we don't have a real server
-      // But we should have gotten a controller before the fetch fails
-      return new AbortController(); // Return a mock controller
     });
 
     expect(controller).toBeDefined();
     expect(controller.signal).toBeDefined();
     expect(typeof controller.abort).toBe("function");
+    
+    // Cleanup: abort the controller to stop the background fetch
+    controller.abort();
   });
 });
 
