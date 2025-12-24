@@ -50,6 +50,8 @@ interface SendMessageOptions {
   model?: string;
   /** Anonymous session token from URL (for unauthenticated users). */
   sessionToken?: string;
+  /** Whether web search is enabled for this message. */
+  webSearchEnabled?: boolean;
   /** Callback invoked for each streamed message chunk. */
   onMessage: (message: StreamingMessage) => void;
   /** Callback invoked for each text chunk (real-time streaming). */
@@ -75,6 +77,7 @@ export async function sendStreamingMessage({
   text,
   model,
   sessionToken,
+  webSearchEnabled,
   onMessage,
   onChunk,
   onError,
@@ -103,6 +106,8 @@ export async function sendStreamingMessage({
         ...(model && { model }), // Include model if provided
         // Also include in body as backup
         ...(sessionToken && { sessionToken }),
+        // Always include webSearchEnabled (defaults to true, explicitly false disables)
+        webSearchEnabled: webSearchEnabled ?? true,
       }),
     });
   } catch (error) {

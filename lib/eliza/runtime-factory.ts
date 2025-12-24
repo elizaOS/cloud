@@ -57,11 +57,13 @@ export class RuntimeFactory {
     const isDefaultCharacter =
       !context.characterId ||
       context.characterId === this.DEFAULT_AGENT_ID_STRING;
+    const loaderOptions = { webSearchEnabled: context.webSearchEnabled };
     const { character, plugins, modeResolution } = isDefaultCharacter
-      ? await agentLoader.getDefaultCharacter(context.agentMode)
+      ? await agentLoader.getDefaultCharacter(context.agentMode, loaderOptions)
       : await agentLoader.loadCharacter(
           context.characterId!,
           context.agentMode,
+          loaderOptions,
         );
 
     // Log mode upgrade if it occurred
@@ -248,6 +250,10 @@ export class RuntimeFactory {
       // App-specific prompt config (for APP_CONFIG provider)
       ...(context.appPromptConfig
         ? { appPromptConfig: context.appPromptConfig }
+        : {}),
+      // Tavily API key for web search plugin (only when enabled)
+      ...(context.webSearchEnabled && process.env.TAVILY_API_KEY
+        ? { TAVILY_API_KEY: process.env.TAVILY_API_KEY }
         : {}),
     } as unknown as NonNullable<Character["settings"]>;
   }

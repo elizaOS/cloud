@@ -24,6 +24,7 @@ import {
   Sparkles,
   Crown,
   Paperclip,
+  Globe,
 } from "lucide-react";
 import { ElizaAvatar } from "./eliza-avatar";
 import { useAudioRecorder } from "./hooks/use-audio-recorder";
@@ -52,18 +53,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { usePrivy } from "@privy-io/react-auth";
 import { useKnowledgeProcessingStatus } from "@/components/chat/hooks/use-knowledge-processing-status";
+import { ContentType, type Media } from "@elizaos/core";
 
 interface Message {
   id: string;
   content: {
     text: string;
     clientMessageId?: string;
-    attachments?: Array<{
-      id: string;
-      url: string;
-      title?: string;
-      contentType: string;
-    }>;
+    attachments?: Media[];
   };
   isAgent: boolean;
   createdAt: number;
@@ -82,18 +79,18 @@ interface AgentInfoDisplay {
 interface CharacterData {
   id: string;
   name: string;
-  avatarUrl?: string;
-  avatar_url?: string;
+  avatarUrl?: string | null;
+  avatar_url?: string | null;
   character_data?: {
     bio?: string | string[];
     personality?: string;
     description?: string;
-    avatarUrl?: string;
-    avatar_url?: string;
+    avatarUrl?: string | null;
+    avatar_url?: string | null;
   };
 }
 
-interface ElizaChatInterfaceProps {
+interface ElizaChatInterfaceProps { 
   onMessageSent?: () => void | Promise<void>;
   character?: CharacterData;
 }
@@ -209,6 +206,7 @@ export function ElizaChatInterface({
   }));
 
   const [isUploadingFiles, setIsUploadingFiles] = useState(false);
+  const [webSearchEnabled, setWebSearchEnabled] = useState(true);
 
   const messageAudioUrls = useRef<Map<string, string>>(new Map());
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
@@ -540,6 +538,7 @@ export function ElizaChatInterface({
           text: messageText,
           model: selectedModelId, // Pass selected model from tier
           sessionToken: anonymousSessionToken || undefined, // Pass session token for anonymous users
+          webSearchEnabled, // Pass web search toggle state
           onMessage: handleStreamMessage,
           onChunk: handleStreamChunk, // Handle real-time streaming chunks
           onError: (errorMsg) => {
@@ -605,6 +604,7 @@ export function ElizaChatInterface({
       selectedCharacterId,
       selectedModelId,
       anonymousSessionToken,
+      webSearchEnabled,
       handleStreamMessage,
       handleStreamChunk,
       loadRooms,
@@ -930,19 +930,11 @@ export function ElizaChatInterface({
   const copyToClipboard = async (
     text: string,
     messageId: string,
-    attachments?: Array<{
-      id: string;
-      url: string;
-      title?: string;
-      contentType: string;
-    }>,
+    attachments?: Media[],
   ) => {
     // Check if there are image attachments
     const imageAttachment = attachments?.find(
-      (att) =>
-        att.contentType === "IMAGE" ||
-        att.contentType === "image" ||
-        att.contentType.startsWith("image/"),
+      (att) => att.contentType === ContentType.IMAGE,
     );
 
     if (imageAttachment) {
@@ -1255,6 +1247,20 @@ export function ElizaChatInterface({
                   }}
                   className="hidden"
                 />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setWebSearchEnabled(!webSearchEnabled)}
+                  className={`h-9 w-9 rounded-lg border transition-colors ${
+                    webSearchEnabled
+                      ? "border-[#FF5800]/50 bg-[#FF5800]/10 hover:bg-[#FF5800]/20"
+                      : "border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.06]"
+                  }`}
+                  title={webSearchEnabled ? "Web search enabled" : "Enable web search"}
+                >
+                  <Globe className={`h-4 w-4 ${webSearchEnabled ? "text-[#FF5800]" : "text-white/60"}`} />
+                </Button>
                 <Button
                   type="button"
                   variant="ghost"

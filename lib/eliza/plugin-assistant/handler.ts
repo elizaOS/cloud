@@ -1,30 +1,25 @@
 import {
   asUUID,
   composePromptFromState,
+  type Content,
+  ContentType,
   createUniqueUuid,
   EventType,
   logger,
-  MemoryType,
-  type Memory,
-  type Content,
   type Media,
+  type Memory,
   ModelType,
   parseKeyValueXml,
   runWithStreamingContext,
   XmlTagExtractor,
   type UUID,
 } from "@elizaos/core";
-import type { DialogueMetadata } from "@/lib/types/message-content";
 import { v4 } from "uuid";
 import {
   chatAssistantSystemPrompt,
   chatAssistantPlanningTemplate,
   chatAssistantFinalSystemPrompt,
   chatAssistantResponseTemplate,
-  affiliateSystemPrompt,
-  affiliatePlanningTemplate,
-  affiliateFinalSystemPrompt,
-  affiliateResponseTemplate,
 } from "./prompts/chat-assistant-prompts";
 import {
   setLatestResponseId,
@@ -35,13 +30,10 @@ import {
   generateResponseWithRetry,
   runEvaluatorsWithTimeout,
   extractAttachments,
+  getAndClearCachedAttachments,
   executeProviders,
   executeActions,
   cleanPrompt,
-  getAndClearCachedAttachments,
-  hasActionSentResponse,
-  clearActionResponseFlag,
-  postProcessResponse,
 } from "../shared/utils/helpers";
 import {
   parsePlannedItems,
@@ -49,44 +41,12 @@ import {
   type ParsedPlan,
 } from "../shared/utils/parsers";
 import type { MessageReceivedHandlerParams } from "../shared/types";
-import { MIN_IMAGE_INTERVAL_MS } from "@/lib/constants/image-generation";
-
-// Rate limiting for auto-image generation (prevents cost abuse)
-const imageGenerationTimestamps = new Map<string, number>();
-
-function canGenerateImage(roomId: string): boolean {
-  const lastGenerated = imageGenerationTimestamps.get(roomId);
-  const now = Date.now();
-
-  if (!lastGenerated || now - lastGenerated > MIN_IMAGE_INTERVAL_MS) {
-    imageGenerationTimestamps.set(roomId, now);
-    return true;
-  }
-
-  return false;
-}
-
-// Intent detection for explicit image requests
-function hasImageIntent(userMessage: string): boolean {
-  const imageKeywords = [
-    "pic",
-    "picture",
-    "photo",
-    "image",
-    "selfie",
-    "show me",
-    "send me",
-    "what do you look like",
-    "appearance",
-    "wearing",
-  ];
-
-  const lowerMessage = userMessage.toLowerCase();
-  return imageKeywords.some((keyword) => lowerMessage.includes(keyword));
-}
 
 /**
- * Planning-based message handler with action execution.
+ * Chat Assistant Workflow Handler
+ *
+ * Planning-based approach with action execution capabilities.
+ * Optimized for complex tasks requiring tools and context gathering.
  */
 export async function handleMessage({
   runtime,
@@ -103,24 +63,24 @@ export async function handleMessage({
   }
 
   await setLatestResponseId(runtime, message.roomId, responseId);
+
   await runtime.emitEvent(EventType.RUN_STARTED, {
     runtime,
-    source: "chatAssistantWorkflow",
     runId,
     messageId: message.id || asUUID(v4()),
     roomId: message.roomId,
     entityId: message.entityId,
     startTime,
     status: "started",
+    source: "chatAssistantWorkflow",
   });
 
   const originalSystemPrompt = runtime.character.system;
 
-  // Helper to create fresh streaming context for a specific call
-  // Each call needs its own XmlTagExtractor since they're single-use
+  // Helper to create fresh streaming context for response generation
   const createStreamingContext = () => {
     if (!onStreamChunk) return undefined;
-    const extractor = new XmlTagExtractor('text');
+    const extractor = new XmlTagExtractor("text");
     return {
       onStreamChunk: async (chunk: string, msgId?: UUID) => {
         if (extractor.done) return;
@@ -136,118 +96,52 @@ export async function handleMessage({
   try {
     await runtime.createMemory(message, "messages");
 
-    // Check for affiliate character (uses minimal providers to save tokens)
-    const affiliateData = runtime.character.settings?.affiliateData as
-      | {
-          vibe?: string;
-          affiliateId?: string;
-          autoImage?: boolean;
-          imageUrls?: string[];
-          [key: string]: unknown;
-        }
-      | undefined;
-    const isAffiliateChat = !!(
-      affiliateData && Object.keys(affiliateData).length > 0
-    );
-    // Auto-generate images on every response if autoImage is enabled
-    // Reference images are optional - without them, images are generated based on character bio
-    const shouldAutoGenerateImages = affiliateData?.autoImage === true;
-
     logger.info(
-      `[Assistant] Processing for ${runtime.character.name}, affiliate: ${isAffiliateChat}, autoImage: ${shouldAutoGenerateImages}`,
+      `[ChatAssistant] Processing message for character: ${runtime.character.name}`,
     );
 
-    const providers = isAffiliateChat
-      ? ["CHARACTER", "ACTIONS", "affiliateContext", "APP_CONFIG"]
-      : [
-          "SUMMARIZED_CONTEXT",
-          "RECENT_MESSAGES",
-          "LONG_TERM_MEMORY",
-          "AVAILABLE_DOCUMENTS",
-          "PROVIDERS",
-          "MCP",
-          "ACTIONS",
-          "CHARACTER",
-          "affiliateContext",
-          "APP_CONFIG",
-        ];
-
-    const initialState = await runtime.composeState(message, providers);
-
-    // Select prompts based on affiliate mode
-    const systemPromptTemplate = isAffiliateChat
-      ? affiliateSystemPrompt
-      : chatAssistantSystemPrompt;
-    const planningTemplate = isAffiliateChat
-      ? affiliatePlanningTemplate
-      : chatAssistantPlanningTemplate;
+    const initialState = await runtime.composeState(message, [
+      "SUMMARIZED_CONTEXT",
+      "RECENT_MESSAGES",
+      "LONG_TERM_MEMORY",
+      "AVAILABLE_DOCUMENTS",
+      "PROVIDERS",
+      "MCP",
+      "ACTIONS",
+      "CHARACTER",
+    ]);
 
     // Planning phase
     const planningPrompt = cleanPrompt(
       composePromptFromState({
         state: initialState,
         template:
-          runtime.character.templates?.planningTemplate || planningTemplate,
+          runtime.character.templates?.planningTemplate ||
+          chatAssistantPlanningTemplate,
       }),
     );
 
     runtime.character.system = composePromptFromState({
       state: initialState,
-      template: systemPromptTemplate,
+      template: chatAssistantSystemPrompt,
     });
 
     const planningResponse = await runtime.useModel(ModelType.TEXT_LARGE, {
       prompt: planningPrompt,
     });
+
     runtime.character.system = originalSystemPrompt;
 
-    let plan = parseKeyValueXml(planningResponse) as ParsedPlan | null;
-    let shouldRespondNow = canRespondImmediately(plan);
-
-    // Auto-generate images when autoImage is enabled
-    // Rate limited to prevent cost abuse (1 image per minute OR explicit user request)
-    if (shouldAutoGenerateImages) {
-      const userText = (message.content?.text || "").trim();
-      const hasExplicitRequest = hasImageIntent(userText);
-      const rateLimitAllows = canGenerateImage(message.roomId.toString());
-
-      // Only force image generation if:
-      // 1. User explicitly requested an image, OR
-      // 2. Rate limit allows it (hasn't generated in last minute)
-      if (hasExplicitRequest || rateLimitAllows) {
-        logger.info(
-          `[Assistant] Auto-generating image - explicit: ${hasExplicitRequest}, rateLimit: ${rateLimitAllows}`,
-        );
-
-        shouldRespondNow = false;
-        if (!plan) {
-          plan = {
-            thought: "Generating image with character appearance",
-            canRespondNow: "NO",
-            actions: "GENERATE_IMAGE",
-          };
-        } else {
-          const existingActions = plan.actions || "";
-          if (!existingActions.includes("GENERATE_IMAGE")) {
-            plan.actions = existingActions
-              ? `${existingActions}, GENERATE_IMAGE`
-              : "GENERATE_IMAGE";
-          }
-          plan.canRespondNow = "NO";
-        }
-      } else {
-        logger.info(
-          `[Assistant] Skipping auto-image (rate limited) - last generated < 1 min ago`,
-        );
-      }
-    }
+    const plan = parseKeyValueXml(planningResponse) as ParsedPlan | null;
+    const shouldRespondNow = canRespondImmediately(plan);
 
     logger.info(
-      `[Assistant] Plan: canRespondNow=${shouldRespondNow}, thought=${plan?.thought?.substring(0, 50)}`,
+      `[ChatAssistant] Plan - canRespondNow: ${shouldRespondNow}, thought: ${plan?.thought}`,
     );
 
     let responseContent = "";
     let thought = "";
+    const planningThought = plan?.thought || "";
 
     // Single-call optimization: use planning response if available
     if (shouldRespondNow && plan?.text) {
@@ -262,7 +156,6 @@ export async function handleMessage({
         "MCP",
         "ACTIONS",
         "CHARACTER",
-        "APP_CONFIG",
       ]);
 
       if (!shouldRespondNow) {
@@ -275,56 +168,32 @@ export async function handleMessage({
           plannedProviders,
           updatedState,
         );
+
         updatedState = await executeActions(
           runtime,
           message,
           plannedActions,
           plan,
           updatedState,
-          callback,
-          onStreamChunk,
         );
-
-        // Exit early if action already sent response
-        if (hasActionSentResponse(message.roomId as string)) {
-          clearActionResponseFlag(message.roomId as string);
-          getAndClearCachedAttachments(message.roomId as string);
-          await clearLatestResponseId(runtime, message.roomId);
-
-          await runtime.emitEvent(EventType.RUN_ENDED, {
-            runtime,
-            source: "chatAssistantWorkflow",
-            runId,
-            messageId: message.id || asUUID(v4()),
-            roomId: message.roomId,
-            entityId: message.entityId,
-            startTime,
-            status: "completed",
-            endTime: Date.now(),
-            duration: Date.now() - startTime,
-          });
-          return;
-        }
       }
 
-      // Generate final response
+      // Generate final response - include planning thought for context
       updatedState = await runtime.composeState(message, [
         "CURRENT_RUN_CONTEXT",
-        "APP_CONFIG",
       ]);
 
-      // Select final prompts based on affiliate mode
-      const finalSystemTemplate = isAffiliateChat
-        ? affiliateFinalSystemPrompt
-        : chatAssistantFinalSystemPrompt;
-      const responseTemplate = isAffiliateChat
-        ? affiliateResponseTemplate
-        : chatAssistantResponseTemplate;
+      // Add planning thought to state for the final response template
+      if (planningThought) {
+        updatedState.planningThought = `# Planning Reasoning\n${planningThought}`;
+      } else {
+        updatedState.planningThought = "";
+      }
 
       runtime.character.system = cleanPrompt(
         composePromptFromState({
           state: updatedState,
-          template: finalSystemTemplate,
+          template: chatAssistantFinalSystemPrompt,
         }),
       );
 
@@ -333,12 +202,11 @@ export async function handleMessage({
           state: updatedState,
           template:
             runtime.character.templates?.messageHandlerTemplate ||
-            responseTemplate,
+            chatAssistantResponseTemplate,
         }),
       );
 
-      // Wrap final response generation with streaming context
-      // This is where we actually want to stream to the user
+      // Wrap response generation with streaming context
       const streamingContext = createStreamingContext();
       const responseResult = await runWithStreamingContext(
         streamingContext,
@@ -352,7 +220,7 @@ export async function handleMessage({
 
     // Discard if superseded by newer message
     if (!(await isResponseStillValid(runtime, message.roomId, responseId))) {
-      logger.info(`[Assistant] Response discarded - superseded`);
+      logger.info(`[ChatAssistant] Response discarded - superseded`);
       return;
     }
 
@@ -368,68 +236,50 @@ export async function handleMessage({
     // Dedupe attachments by ID, preferring cached (validated HTTP URLs)
     const attachmentMap = new Map<
       string,
-      { id: string; url: string; contentType?: string }
+      { id: string; url: string; title?: string; contentType?: string }
     >();
     for (const att of [...actionResultAttachments, ...cachedAttachments]) {
       if (att && typeof att === "object" && "id" in att && "url" in att) {
-        const { id, url, contentType } = att as {
+        const { id, url, title, contentType } = att as {
           id?: string;
           url?: string;
+          title?: string;
           contentType?: string;
         };
-        if (id && url) attachmentMap.set(id, { id, url, contentType });
+        if (id && url) attachmentMap.set(id, { id, url, title, contentType });
       }
     }
 
     const mediaAttachments: Media[] = Array.from(attachmentMap.values())
       .filter((att) => att.url.length > 0)
-      .map((att) => ({
-        id: att.id,
-        url: att.url,
-        ...(att.contentType && { mimeType: att.contentType }),
-      }));
-
-    // Ensure we have a response - if generation failed, provide a fallback
-    if (!responseContent || responseContent.trim() === "") {
-      logger.warn(
-        "[Assistant] Response generation failed - using fallback response",
-      );
-      responseContent =
-        mediaAttachments.length > 0
-          ? "Here you go! 😊"
-          : "I'm having trouble thinking right now. Could you try asking that again?";
-    }
-
-    // Post-process response to remove AI-speak and track openings
-    const processedResponse = postProcessResponse(
-      responseContent,
-      message.roomId as string,
-    );
-    const finalText = processedResponse.text;
+      .map((att) => {
+        const contentType = att.contentType?.toUpperCase() as keyof typeof ContentType;
+        return {
+          id: att.id,
+          url: att.url,
+          ...(att.title && { title: att.title }),
+          ...(contentType && ContentType[contentType] && { contentType: ContentType[contentType] }),
+        };
+      });
 
     const content: Content = {
-      text: finalText,
+      text: responseContent,
       thought,
       source: "agent",
       inReplyTo: message.id,
       ...(mediaAttachments.length > 0 && { attachments: mediaAttachments }),
     };
 
-    if (callback) await callback(content);
+    if (callback) {
+      await callback(content);
+    }
 
     const responseMemory: Memory = {
       id: createUniqueUuid(runtime, (message.id ?? v4()) as UUID),
       entityId: runtime.agentId,
       roomId: message.roomId,
       worldId: message.worldId,
-      content: { ...content, text: finalText },
-      metadata: {
-        type: MemoryType.MESSAGE,
-        role: "agent",
-        dialogueType: "message",
-        visibility: "visible",
-        agentMode: "assistant",
-      } as DialogueMetadata,
+      content,
     };
 
     await runEvaluatorsWithTimeout(
@@ -443,7 +293,6 @@ export async function handleMessage({
     const endTime = Date.now();
     await runtime.emitEvent(EventType.RUN_ENDED, {
       runtime,
-      source: "chatAssistantWorkflow",
       runId,
       messageId: message.id || asUUID(v4()),
       roomId: message.roomId,
@@ -452,13 +301,13 @@ export async function handleMessage({
       status: "completed",
       endTime,
       duration: endTime - startTime,
+      source: "chatAssistantWorkflow",
     });
   } catch (error) {
     runtime.character.system = originalSystemPrompt;
     // @ts-expect-error - RUN_ENDED status should include "error" for proper analytics tracking
     await runtime.emitEvent(EventType.RUN_ENDED, {
       runtime,
-      source: "chatAssistantWorkflow",
       runId,
       messageId: message.id || asUUID(v4()),
       roomId: message.roomId,
@@ -468,6 +317,7 @@ export async function handleMessage({
       endTime: Date.now(),
       duration: Date.now() - startTime,
       error: error instanceof Error ? error.message : String(error),
+      source: "chatAssistantWorkflow",
     });
     throw error;
   }

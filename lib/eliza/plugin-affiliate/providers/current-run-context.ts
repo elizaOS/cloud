@@ -67,7 +67,7 @@ export const currentRunContextProvider: Provider = {
     const headerText = `**Current Run** (ID: ${runIdShort})\n\n${formattedActions}`;
 
     const currentRunActionResults = addHeader(
-      "# Current Run Action Results (Internal Agent Responses)",
+      "# Current Run Action Results",
       headerText,
     );
 
