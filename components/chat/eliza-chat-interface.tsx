@@ -98,6 +98,7 @@ interface CharacterData {
 interface ElizaChatInterfaceProps { 
   onMessageSent?: () => void | Promise<void>;
   character?: CharacterData;
+  expectedCharacterId?: string; // Used to validate room belongs to expected character during navigation
 }
 
 import type { Voice as CustomVoice } from "@/components/voices/types";
@@ -111,6 +112,7 @@ const tierIcons: Record<string, React.ReactNode> = {
 export function ElizaChatInterface({
   onMessageSent,
   character,
+  expectedCharacterId,
 }: ElizaChatInterfaceProps) {
   // Use chat store for room and character management
   const {
@@ -284,7 +286,18 @@ export function ElizaChatInterface({
 
   // Load messages when roomId from context changes
   useEffect(() => {
+    // Use expectedCharacterId (from URL/props) as source of truth, fallback to store's selectedCharacterId
+    const targetCharacterId = expectedCharacterId || selectedCharacterId;
+    
     if (roomId) {
+      // CRITICAL: Validate room belongs to expected character before loading
+      // This prevents loading stale room data during navigation race conditions
+      const rooms = useChatStore.getState().rooms;
+      const room = rooms.find(r => r.id === roomId);
+      if (room && room.characterId && targetCharacterId && room.characterId !== targetCharacterId) {
+        return; // Skip loading - room belongs to different character
+      }
+      
       // Skip loading for rooms we just created (they're empty, prevents flicker)
       if (justCreatedRoomIdRef.current === roomId) {
         justCreatedRoomIdRef.current = null; // Clear the flag
@@ -302,7 +315,7 @@ export function ElizaChatInterface({
       setError(null);
       setLoadingState((prev) => ({ ...prev, isLoadingMessages: false }));
     }
-  }, [roomId, loadMessages]); // loadMessages is stable, only roomId changes
+  }, [roomId, selectedCharacterId, expectedCharacterId, loadMessages]);
 
   const createRoom = useCallback(
     async (characterId?: string | null, skipLoadRooms = false) => {
