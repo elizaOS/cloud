@@ -11,7 +11,7 @@
 "use client";
 
 import * as React from "react";
-import { BrandButton, CornerBrackets } from "@/components/brand";
+import { BrandButton, LockOnButton, CornerBrackets } from "@/components/brand";
 import {
   Tooltip,
   TooltipContent,
@@ -85,7 +85,7 @@ export function AgentsSection({ agents, className }: AgentsSectionProps) {
               href="/dashboard/my-agents"
               className="text-xl font-semibold text-white transition-colors duration-200 hover:text-orange-500"
             >
-              Your AI Agents
+              My Agents
             </Link>
             <span className="text-sm text-white/30">({agents.length})</span>
             <Tooltip>
@@ -101,18 +101,18 @@ export function AgentsSection({ agents, className }: AgentsSectionProps) {
                 side="right"
                 className="max-w-[180px] text-xs bg-zinc-900 text-white/80 border border-white/10"
               >
-                Your AI characters. Chat, deploy, or integrate via API.
+                Your AI Agents. Chat, deploy, or integrate via API.
               </TooltipContent>
             </Tooltip>
           </div>
         </div>
         {agents.length != 0 && (
-          <BrandButton
+          <LockOnButton
             onClick={() => (window.location.href = "/dashboard/build")}
+            icon={<Plus className="h-4 w-4" />}
           >
-            <Plus className="h-4 w-4" />
-            Create New Agent
-          </BrandButton>
+            New Agent
+          </LockOnButton>
         )}
       </div>
 
@@ -235,7 +235,7 @@ function GettingStartedSection() {
         {/* Quick links */}
         <div className="flex items-center gap-4 mt-5 pt-4 border-t border-white/5">
           <a
-            href="/docs"
+            href="https://elizaos.ai/docs"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1.5 text-xs text-white/50 hover:text-[#FF5800] transition-colors"
@@ -506,10 +506,12 @@ function AgentsEmptyState() {
     <div className="flex flex-col items-center justify-center relative min-h-[240px] gap-4">
       <CornerBrackets size="md" color="#E1E1E1" />
       <h3 className="text-lg font-medium text-neutral-500">No agents yet</h3>
-      <BrandButton onClick={() => (window.location.href = "/dashboard/build")}>
-        <Plus className="h-4 w-4" />
-        Create New Agent
-      </BrandButton>
+      <LockOnButton
+        onClick={() => (window.location.href = "/dashboard/build")}
+        icon={<Plus className="h-4 w-4" />}
+      >
+        Create Agent
+      </LockOnButton>
     </div>
   );
 }
