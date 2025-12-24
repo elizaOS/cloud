@@ -423,13 +423,40 @@ export async function POST(
       );
     }
 
-    // Step 4.5: Check if this is an affiliate character
+    // Step 4.5: Check character access and affiliate status
+    // Access control: Characters are accessible if public, owned by user, or claimable affiliate
     // Affiliate characters use plugin-affiliate (no web search) with ASSISTANT mode
-    // Check both character_data.affiliate (legacy) and settings.affiliateData (miniapp)
     if (characterId) {
       try {
         const character = await charactersService.getById(characterId);
         if (character) {
+          // ACCESS CONTROL: Verify user can chat with this character
+          // This is important even for existing rooms - if character becomes private,
+          // users should no longer be able to send messages
+          const isOwner = character.user_id === userContext.userId;
+          const isPublic = character.is_public === true;
+          const claimCheck = await charactersService.isClaimableAffiliateCharacter(characterId);
+          const isClaimableAffiliate = claimCheck.claimable;
+
+          if (!isPublic && !isOwner && !isClaimableAffiliate) {
+            logger.warn(
+              "[Stream] Access denied to private character:",
+              {
+                characterId,
+                userId: userContext.userId,
+                characterOwnerId: character.user_id,
+                isPublic: character.is_public,
+              },
+            );
+            return new Response(
+              JSON.stringify({
+                error: "This agent is private. Only the owner can chat with it.",
+                accessDenied: true,
+              }),
+              { status: 403, headers: { "Content-Type": "application/json" } },
+            );
+          }
+
           // Check legacy location: character_data.affiliate
           const characterData = character.character_data as
             | Record<string, unknown>
@@ -464,7 +491,7 @@ export async function POST(
           }
         }
       } catch (error) {
-        logger.error("[Stream] Failed to check affiliate status:", error);
+        logger.error("[Stream] Failed to check character access/affiliate status:", error);
       }
     }
 
@@ -585,141 +612,150 @@ export async function POST(
       throw error;
     }
 
-    // Step 8: Create streaming response
-    const stream = new ReadableStream({
-      async start(controller) {
-        const sendEvent = (event: string, data: unknown) => {
-          const message = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
-          controller.enqueue(encoder.encode(message));
+    // Step 8: Create streaming response with TransformStream for better flush control
+    const { readable, writable } = new TransformStream();
+    const writer = writable.getWriter();
+    
+    // Helper to write SSE events - writes immediately and doesn't buffer
+    const sendEvent = async (event: string, data: unknown) => {
+      const message = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+      await writer.write(encoder.encode(message));
+    };
+
+    // Start processing in background - this allows the response to be returned immediately
+    // while chunks are streamed as they're generated
+    (async () => {
+
+      try {
+        // Send connection confirmation
+        await sendEvent("connected", { roomId, timestamp: Date.now() });
+
+        // Send user message event
+        await sendEvent("message", {
+          id: `user-${Date.now()}`,
+          entityId: userContext.userId,
+          content: { text, attachments: attachments || undefined },
+          createdAt: Date.now(),
+          isAgent: false,
+          type: "user",
+        });
+
+        const responseMessageId = `agent-${crypto.randomUUID()}`;
+
+        // Send thinking indicator
+        await sendEvent("message", {
+          id: `thinking-${Date.now()}`,
+          entityId: "agent",
+          content: { text: "" },
+          createdAt: Date.now(),
+          isAgent: true,
+          type: "thinking",
+        });
+
+        // Create streaming callback to send chunks via SSE in real-time
+        // Each chunk is written immediately - no buffering
+        const onStreamChunk = async (chunk: string) => {
+          await sendEvent("chunk", {
+            messageId: responseMessageId,
+            chunk,
+            timestamp: Date.now(),
+          });
         };
 
-        try {
-          // Send connection confirmation
-          sendEvent("connected", { roomId, timestamp: Date.now() });
+        // Process message and get response (using user's actual ID)
+        logger.info("[Stream Messages] Processing message with streaming...");
+        const result = await messageHandler.process({
+          roomId,
+          text,
+          model,
+          agentModeConfig,
+          attachments,
+          onStreamChunk,
+        });
 
-          // Send user message event
-          sendEvent("message", {
-            id: `user-${Date.now()}`,
-            entityId: userContext.userId,
-            content: { text, attachments: attachments || undefined },
-            createdAt: Date.now(),
-            isAgent: false,
-            type: "user",
-          });
+        // Extract content - the full Content object is now stored in memory
+        const messageContent = result.message.content;
+        const responseText =
+          typeof messageContent === "string"
+            ? messageContent
+            : messageContent?.text || "";
 
-          const responseMessageId = `agent-${crypto.randomUUID()}`;
+        // Build response content, preserving all Content fields
+        const responseContentPayload: Record<string, unknown> = {
+          text: responseText,
+          source: messageContent?.source || "agent",
+        };
 
-          // Send thinking indicator
-          sendEvent("message", {
-            id: `thinking-${Date.now()}`,
-            entityId: "agent",
-            content: { text: "" },
-            createdAt: Date.now(),
-            isAgent: true,
-            type: "thinking",
-          });
-
-          // Create streaming callback to send chunks via SSE in real-time
-          const onStreamChunk = async (chunk: string) => {
-            sendEvent("chunk", {
-              messageId: responseMessageId,
-              chunk,
-              timestamp: Date.now(),
-            });
-          };
-
-          // Process message and get response (using user's actual ID)
-          logger.info("[Stream Messages] Processing message with streaming...");
-          const result = await messageHandler.process({
-            roomId,
-            text,
-            model,
-            agentModeConfig,
-            attachments,
-            onStreamChunk,
-          });
-
-          // Extract content - the full Content object is now stored in memory
-          const messageContent = result.message.content;
-          const responseText =
-            typeof messageContent === "string"
-              ? messageContent
-              : messageContent?.text || "";
-
-          // Build response content, preserving all Content fields
-          const responseContentPayload: Record<string, unknown> = {
-            text: responseText,
-            source: messageContent?.source || "agent",
-          };
-
-          // Include attachments if present
-          if (
-            typeof messageContent === "object" &&
-            messageContent?.attachments
-          ) {
-            responseContentPayload.attachments = messageContent.attachments;
-          }
-
-          // Include actions if present (needed for frontend to detect APPLY_CHARACTER_CHANGES)
-          if (typeof messageContent === "object" && messageContent?.actions) {
-            responseContentPayload.actions = messageContent.actions;
-          }
-
-          // Include thought if present
-          if (typeof messageContent === "object" && messageContent?.thought) {
-            responseContentPayload.thought = messageContent.thought;
-          }
-
-          // Include metadata if present (for PROPOSE_CHARACTER_CHANGES with updatedCharacter)
-          if (typeof messageContent === "object" && messageContent?.metadata) {
-            responseContentPayload.metadata = messageContent.metadata;
-          }
-
-          sendEvent("message", {
-            id: responseMessageId,
-            entityId: result.message.entityId,
-            agentId: result.message.agentId,
-            content: responseContentPayload,
-            createdAt: result.message.createdAt || Date.now(),
-            isAgent: true,
-            type: "agent",
-          });
-
-          // Credits and side effects are handled by MessageHandler
-          // Check if we should send low credit warning
-          if (result.usage && !userContext.isAnonymous) {
-            // This is just for the warning event, actual credit deduction happened in MessageHandler
-            const remainingCredits = await checkUserCredits(
-              userContext.organizationId,
-            );
-            if (remainingCredits < 1.0) {
-              sendEvent("warning", {
-                message: "Low credits - please top up to continue",
-              });
-            }
-          }
-
-          // Send completion event
-          sendEvent("done", { timestamp: Date.now() });
-
-          controller.close();
-        } catch (error) {
-          logger.error("[Stream Messages] Error:", error);
-          sendEvent("error", {
-            message:
-              error instanceof Error ? error.message : "Processing failed",
-          });
-          controller.close();
+        // Include attachments if present
+        if (
+          typeof messageContent === "object" &&
+          messageContent?.attachments
+        ) {
+          responseContentPayload.attachments = messageContent.attachments;
         }
-      },
-    });
 
-    return new Response(stream, {
+        // Include actions if present (needed for frontend to detect APPLY_CHARACTER_CHANGES)
+        if (typeof messageContent === "object" && messageContent?.actions) {
+          responseContentPayload.actions = messageContent.actions;
+        }
+
+        // Include thought if present
+        if (typeof messageContent === "object" && messageContent?.thought) {
+          responseContentPayload.thought = messageContent.thought;
+        }
+
+        // Include metadata if present (for PROPOSE_CHARACTER_CHANGES with updatedCharacter)
+        if (typeof messageContent === "object" && messageContent?.metadata) {
+          responseContentPayload.metadata = messageContent.metadata;
+        }
+
+        await sendEvent("message", {
+          id: responseMessageId,
+          entityId: result.message.entityId,
+          agentId: result.message.agentId,
+          content: responseContentPayload,
+          createdAt: result.message.createdAt || Date.now(),
+          isAgent: true,
+          type: "agent",
+        });
+
+        // Credits and side effects are handled by MessageHandler
+        // Check if we should send low credit warning
+        if (result.usage && !userContext.isAnonymous) {
+          // This is just for the warning event, actual credit deduction happened in MessageHandler
+          const remainingCredits = await checkUserCredits(
+            userContext.organizationId,
+          );
+          if (remainingCredits < 1.0) {
+            await sendEvent("warning", {
+              message: "Low credits - please top up to continue",
+            });
+          }
+        }
+
+        // Send completion event
+        await sendEvent("done", { timestamp: Date.now() });
+      } catch (error) {
+        logger.error("[Stream Messages] Error:", error);
+        await sendEvent("error", {
+          message:
+            error instanceof Error ? error.message : "Processing failed",
+        });
+      } finally {
+        // Close the writer to signal stream completion
+        await writer.close();
+      }
+    })();
+
+    // Return the response immediately - chunks will stream as they're written
+    return new Response(readable, {
       headers: {
         "Content-Type": "text/event-stream",
         "Cache-Control": "no-cache, no-transform",
-        Connection: "keep-alive",
+        "Connection": "keep-alive",
         "X-Accel-Buffering": "no",
+        // Prevent any compression that could buffer the stream
+        "Content-Encoding": "none",
       },
     });
   } catch (error) {

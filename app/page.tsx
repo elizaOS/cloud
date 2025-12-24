@@ -6,7 +6,7 @@ import {
 } from "@/lib/seo";
 
 interface HomeProps {
-  searchParams: Promise<{ session_id?: string; from?: string }>;
+  searchParams: Promise<{ session_id?: string; from?: string; error?: string }>;
 }
 
 /**
@@ -34,6 +34,9 @@ export default async function Home({ searchParams }: HomeProps) {
   const organizationSchema = generateOrganizationSchema();
   const webAppSchema = generateWebApplicationSchema();
 
+  // Pass error parameter for displaying access denied messages
+  const accessError = params.error || undefined;
+
   return (
     <>
       <script
@@ -44,7 +47,7 @@ export default async function Home({ searchParams }: HomeProps) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(webAppSchema) }}
       />
-      <LandingPage />
+      <LandingPage accessError={accessError} />
     </>
   );
 }
