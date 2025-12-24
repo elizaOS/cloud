@@ -327,8 +327,9 @@ export class AgentLoader {
       ...conditionalPlugins,
     ];
 
-    // Add knowledge plugin if character has uploaded files
-    if (options?.hasKnowledge && agentMode === AgentMode.ASSISTANT) {
+    // Always add knowledge plugin for ASSISTANT mode
+    // This enables both knowledge queries (if docs exist) and uploading new docs
+    if (agentMode === AgentMode.ASSISTANT) {
       allPluginNames.push("@elizaos/plugin-knowledge");
     }
 
