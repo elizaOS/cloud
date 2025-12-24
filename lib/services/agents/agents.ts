@@ -20,7 +20,7 @@
  */
 
 import { agentsRepository, type AgentInfo } from "@/db/repositories/agents";
-import { participantsRepository, memoriesRepository } from "@/db/repositories";
+import { participantsRepository, memoriesRepository, entitiesRepository } from "@/db/repositories";
 import { charactersService } from "@/lib/services/characters/characters";
 import { logger } from "@/lib/utils/logger";
 import { agentRuntime } from "@/lib/eliza/agent-runtime";
@@ -165,6 +165,18 @@ class AgentsService {
       logger.info(
         `[Agents Service] Created default Eliza agent ${DEFAULT_AGENT_ID}`,
       );
+
+      // Create corresponding entity for the agent
+      await entitiesRepository.create({
+        id: DEFAULT_AGENT_ID,
+        agentId: DEFAULT_AGENT_ID,
+        names: [character.name, "Eliza", "Agent"],
+        metadata: { type: "agent", isDefault: true },
+      });
+
+      logger.info(
+        `[Agents Service] Created entity for default agent ${DEFAULT_AGENT_ID}`,
+      );
     } else {
       logger.debug(
         `[Agents Service] Default Eliza agent already exists (race condition)`,
@@ -218,6 +230,26 @@ class AgentsService {
     } else {
       logger.info(
         `[Agents Service] Created agent ${characterId} from character ${character.name}`,
+      );
+
+      // Create corresponding entity for the agent
+      const entityNames = [character.name];
+      if (character.username) entityNames.push(character.username);
+      entityNames.push("Agent");
+
+      await entitiesRepository.create({
+        id: characterId,
+        agentId: characterId,
+        names: entityNames,
+        metadata: {
+          type: "agent",
+          characterId,
+          username: character.username,
+        },
+      });
+
+      logger.info(
+        `[Agents Service] Created entity for agent ${characterId}`,
       );
     }
 
