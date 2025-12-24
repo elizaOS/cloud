@@ -460,17 +460,35 @@ export async function POST(
         `[Stream] BUILD mode - Using character from metadata: ${characterId}`,
       );
 
-      // Update room agentId for build mode (proper column, not metadata)
+      // Update room agentId for build mode ONLY if:
+      // 1. Room doesn't have an agentId yet (newly created), OR
+      // 2. Room is a BUILD/CREATOR room (not a regular chat room)
+      // This prevents conversation contamination where messages from Character A
+      // appear in Character B's chat due to agentId being overwritten
       if (characterId && room && room.agentId !== characterId) {
-        try {
-          await roomsRepository.update(roomId, { agentId: characterId });
-          logger.info(
-            `[Stream] BUILD mode - Updated room agentId: room ${roomId} → agent ${characterId}`,
-          );
-        } catch (error) {
-          logger.error(
-            "[Stream] BUILD mode - Failed to update room agentId:",
-            error,
+        const isBuildRoom =
+          room.name?.startsWith("[BUILD]") ||
+          room.name?.startsWith("[CREATOR]") ||
+          false;
+        const shouldUpdate = !room.agentId || isBuildRoom;
+
+        if (shouldUpdate) {
+          try {
+            await roomsRepository.update(roomId, { agentId: characterId });
+            logger.info(
+              `[Stream] BUILD mode - Updated room agentId: room ${roomId} → agent ${characterId}`,
+            );
+          } catch (error) {
+            logger.error(
+              "[Stream] BUILD mode - Failed to update room agentId:",
+              error,
+            );
+          }
+        } else {
+          logger.warn(
+            `[Stream] BUILD mode - Skipping agentId update for regular chat room ${roomId}. ` +
+              `Current agentId: ${room.agentId}, requested: ${characterId}. ` +
+              `This prevents conversation contamination.`,
           );
         }
       }

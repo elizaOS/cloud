@@ -45,6 +45,7 @@ export async function GET(
   const { roomId } = await ctx.params;
   const { searchParams } = new URL(request.url);
   const limit = searchParams.get("limit");
+  const expectedCharacterId = searchParams.get("characterId");
 
   if (!roomId) {
     return NextResponse.json({ error: "roomId is required" }, { status: 400 });
@@ -100,6 +101,25 @@ export async function GET(
 
   // Get character ID from room agentId (single source of truth)
   const characterId = roomData.room.agentId || undefined;
+
+  // CRITICAL: Validate that the room belongs to the expected character
+  // This prevents contaminated rooms (with wrong agentId) from being loaded
+  if (expectedCharacterId && characterId && characterId !== expectedCharacterId) {
+    logger.error(
+      `[Eliza Room API] ❌ CHARACTER MISMATCH DETECTED! ` +
+        `Room ${roomId} has characterId ${characterId} but expected ${expectedCharacterId}. ` +
+        `This indicates conversation contamination. Rejecting request.`,
+    );
+    return NextResponse.json(
+      {
+        error: "Character mismatch",
+        message: "This room belongs to a different character",
+        roomCharacterId: characterId,
+        expectedCharacterId: expectedCharacterId,
+      },
+      { status: 400 },
+    );
+  }
 
   if (characterId) {
     logger.info("[Eliza Room API] Loading room with character:", characterId);
