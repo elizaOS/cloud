@@ -26,8 +26,8 @@ import {
   UserCircle,
   SettingsIcon,
   Key,
-  User,
   BookOpen,
+  MessageSquare,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCredits } from "@/lib/providers/CreditsProvider";
@@ -311,6 +311,10 @@ export default function UserMenu() {
         <DropdownMenuItem onClick={() => router.push("/docs")}>
           <BookOpen className="mr-2 h-4 w-4" />
           <span>Docs</span>
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => {}}>
+          <MessageSquare className="mr-2 h-4 w-4" />
+          <span>Feedback</span>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
