@@ -335,7 +335,7 @@ function processSSEMessage(
 function isValidStreamingMessage(data: unknown): data is StreamingMessage {
   if (typeof data !== "object" || data === null) return false;
   const msg = data as Record<string, unknown>;
-  
+
   // Validate basic fields
   if (
     typeof msg.id !== "string" ||
@@ -348,13 +348,13 @@ function isValidStreamingMessage(data: unknown): data is StreamingMessage {
   ) {
     return false;
   }
-  
+
   // Validate content.text is a string (required by StreamingMessage interface)
   const content = msg.content as Record<string, unknown>;
   if (typeof content.text !== "string") {
     return false;
   }
-  
+
   return true;
 }
 
