@@ -305,8 +305,13 @@ export class AgentLoader {
     options?: { hasKnowledge?: boolean },
   ): Promise<Plugin[]> {
     const plugins: Plugin[] = [];
-    const conditionalPlugins = getConditionalPlugins(characterSettings);
     const isAffiliate = hasAffiliateData(characterSettings);
+
+    // Affiliate characters don't get conditional plugins (no web search)
+    // They use plugin-affiliate exclusively for their functionality
+    const conditionalPlugins = isAffiliate
+      ? []
+      : getConditionalPlugins(characterSettings);
 
     // Build plugin list, swapping assistant for affiliate when needed
     const modePlugins = AGENT_MODE_PLUGINS[agentMode].map((pluginName) => {

@@ -206,7 +206,7 @@ export function ElizaChatInterface({
   }));
 
   const [isUploadingFiles, setIsUploadingFiles] = useState(false);
-  const [webSearchEnabled, setWebSearchEnabled] = useState(false);
+  const [webSearchEnabled, setWebSearchEnabled] = useState(true);
 
   const messageAudioUrls = useRef<Map<string, string>>(new Map());
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);

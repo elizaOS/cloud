@@ -106,7 +106,8 @@ export async function sendStreamingMessage({
         ...(model && { model }), // Include model if provided
         // Also include in body as backup
         ...(sessionToken && { sessionToken }),
-        ...(webSearchEnabled && { webSearchEnabled }),
+        // Always include webSearchEnabled (defaults to true, explicitly false disables)
+        webSearchEnabled: webSearchEnabled ?? true,
       }),
     });
   } catch (error) {

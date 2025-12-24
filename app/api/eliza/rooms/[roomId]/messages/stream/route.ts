@@ -248,21 +248,34 @@ export async function POST(
       }
     }
 
-    // Validate agentMode if provided, default to CHAT
+    // Web search is enabled by default unless explicitly set to false
+    // When web search is enabled, we need ASSISTANT mode for the web-search plugin
+    const effectiveWebSearchEnabled = webSearchEnabled !== false;
+
+    // Determine agent mode based on web search and explicit mode
+    // Priority: BUILD mode (explicit) > web search toggle > default
     let agentModeConfig: AgentModeConfig;
-    if (agentMode) {
-      if (!isValidAgentModeConfig(agentMode)) {
-        return new Response(
-          JSON.stringify({ error: "Invalid agent mode configuration" }),
-          { status: 400, headers: { "Content-Type": "application/json" } },
-        );
-      }
+    
+    // Validate explicit agentMode if provided
+    if (agentMode && !isValidAgentModeConfig(agentMode)) {
+      return new Response(
+        JSON.stringify({ error: "Invalid agent mode configuration" }),
+        { status: 400, headers: { "Content-Type": "application/json" } },
+      );
+    }
+
+    // BUILD mode is explicit and should always be respected
+    if (agentMode?.mode === AgentMode.BUILD) {
       agentModeConfig = agentMode;
-      logger.info(`[Stream] Using agent mode: ${agentModeConfig.mode}`);
+      logger.info("[Stream] Using BUILD mode (explicit)");
+    } else if (effectiveWebSearchEnabled) {
+      // Web search enabled (default) - requires ASSISTANT mode for plugin support
+      agentModeConfig = { mode: AgentMode.ASSISTANT };
+      logger.info("[Stream] Web search enabled, using ASSISTANT mode");
     } else {
-      // Default to CHAT mode
+      // Web search explicitly disabled - use lightweight CHAT mode
       agentModeConfig = { mode: AgentMode.CHAT };
-      logger.info("[Stream] No agent mode specified, defaulting to CHAT");
+      logger.info("[Stream] Web search disabled, using CHAT mode");
     }
 
     if (model) {
@@ -279,9 +292,9 @@ export async function POST(
       { sessionToken, appId, appPromptConfig, webSearchEnabled },
     );
     
-    // Set webSearchEnabled on context if provided
-    if (webSearchEnabled) {
-      userContext.webSearchEnabled = true;
+    // Set webSearchEnabled on context (defaults to true)
+    userContext.webSearchEnabled = effectiveWebSearchEnabled;
+    if (effectiveWebSearchEnabled) {
       logger.info("[Stream] Web search enabled for this request");
     }
 
@@ -412,10 +425,10 @@ export async function POST(
       );
     }
 
-    // Step 4.5: Check if this is an affiliate character and switch to ASSISTANT mode
-    // Affiliate characters need ASSISTANT mode for image generation capability
+    // Step 4.5: Check if this is an affiliate character
+    // Affiliate characters use plugin-affiliate (no web search) with ASSISTANT mode
     // Check both character_data.affiliate (legacy) and settings.affiliateData (miniapp)
-    if (characterId && agentModeConfig.mode === AgentMode.CHAT) {
+    if (characterId) {
       try {
         const character = await charactersService.getById(characterId);
         if (character) {
@@ -440,15 +453,16 @@ export async function POST(
 
           if (affiliateData && Object.keys(affiliateData).length > 0) {
             logger.info(
-              "[Stream] 🎭 Detected affiliate character - switching to ASSISTANT mode for image generation",
+              "[Stream] 🎭 Detected affiliate character - using affiliate plugin only (no web search)",
               {
                 hasAutoImage: affiliateData.autoImage,
                 hasImageUrls: !!(affiliateData.imageUrls as unknown[])?.length,
               },
             );
             agentModeConfig = { mode: AgentMode.ASSISTANT };
-            // CRITICAL: Also update userContext so runtime loads correct plugins
             userContext.agentMode = AgentMode.ASSISTANT;
+            // Affiliate uses its own plugin - disable web search
+            userContext.webSearchEnabled = false;
           }
         }
       } catch (error) {
