@@ -39,10 +39,6 @@
     {
       "path": "/api/cron/cleanup-webhook-events",
       "schedule": "0 2 * * *"
-    },
-    {
-      "path": "/api/cron/process-knowledge-uploads",
-      "schedule": "*/2 * * * *"
     }
   ]
 }

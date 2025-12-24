@@ -39,7 +39,6 @@ interface QueuedUpload {
 }
 
 const MAX_BATCH_SIZE = 6 * 1024 * 1024; // 6MB total per batch
-const ASYNC_THRESHOLD = 1.5 * 1024 * 1024; // 1.5MB
 
 const getCorrectMimeType = (file: File): string => {
   const ext = file.name.toLowerCase().split(".").pop() || "";
@@ -222,8 +221,8 @@ export function DocumentUpload({ onUploadSuccess, characterId }: DocumentUploadP
     const fileInput = document.getElementById("file-input") as HTMLInputElement;
     if (fileInput) fileInput.value = "";
 
-    // Notify parent if any immediate uploads succeeded
-    if (data.summary.immediate > 0) {
+    // Notify parent if any uploads were queued (all uploads are now background processed)
+    if (data.summary.queued > 0) {
       onUploadSuccess();
     }
 
@@ -431,25 +430,21 @@ export function DocumentUpload({ onUploadSuccess, characterId }: DocumentUploadP
 
             {selectedFiles.length > 0 && (
               <div className="space-y-2">
-                {selectedFiles.map((file, index) => {
-                  const isLarge = file.size > ASYNC_THRESHOLD;
-                  return (
-                    <div
-                      key={index}
-                      className="flex items-center gap-2 p-3 bg-muted rounded-lg"
-                    >
-                      <FileText className="h-5 w-5 text-muted-foreground" />
-                      <div className="flex-1">
-                        <p className="text-sm font-medium">{file.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {formatFileSize(file.size)}
-                          {isLarge && " • Will be queued"}
-                        </p>
-                      </div>
-                      <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                {selectedFiles.map((file, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center gap-2 p-3 bg-muted rounded-lg"
+                  >
+                    <FileText className="h-5 w-5 text-muted-foreground" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">{file.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatFileSize(file.size)}
+                      </p>
                     </div>
-                  );
-                })}
+                    <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                  </div>
+                ))}
               </div>
             )}
           </div>

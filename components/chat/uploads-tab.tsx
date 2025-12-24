@@ -9,11 +9,17 @@ import {
   Trash2,
   Loader2,
   RefreshCw,
-  AlertCircle,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
-import type { KnowledgeDocument, PreUploadedFile } from "@/lib/types/knowledge";
+import type { KnowledgeDocument, PreUploadedFile, KnowledgeUploadBatchResponse } from "@/lib/types/knowledge";
+import { KNOWLEDGE_CONSTANTS } from "@/lib/constants/knowledge";
+
+interface ProcessingFile {
+  id: string;
+  filename: string;
+  uploadedAt: number;
+}
 
 interface UploadsTabProps {
   characterId: string | null;
@@ -32,6 +38,7 @@ export function UploadsTab({
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [processingFiles, setProcessingFiles] = useState<ProcessingFile[]>([]);
 
   // Track concurrent uploads to prevent premature "uploading = false" state
   const activeUploadsRef = useRef(0);
@@ -60,6 +67,18 @@ export function UploadsTab({
       return () => cancelAnimationFrame(rafId);
     }
   }, [characterId, fetchDocuments]);
+
+  // Clear processing files when documents are refreshed (they're now in the documents list)
+  useEffect(() => {
+    if (documents.length > 0 && processingFiles.length > 0) {
+      const docFilenames = new Set(
+        documents.map((d) => d.metadata?.fileName || d.metadata?.originalFilename)
+      );
+      setProcessingFiles((prev) =>
+        prev.filter((f) => !docFilenames.has(f.filename))
+      );
+    }
+  }, [documents, processingFiles.length]);
 
   const handleUpload = async (files: File[]) => {
     if (files.length === 0) return;
@@ -118,33 +137,89 @@ export function UploadsTab({
         return;
       }
 
+      // Validate batch size before upload
+      const totalSize = files.reduce((sum, f) => sum + f.size, 0);
+      if (totalSize > KNOWLEDGE_CONSTANTS.MAX_BATCH_SIZE) {
+        const maxMB = KNOWLEDGE_CONSTANTS.MAX_BATCH_SIZE / 1024 / 1024;
+        toast.error(`Batch size exceeds ${maxMB}MB limit`, {
+          description: "Upload fewer or smaller files",
+        });
+        setSelectedFiles([]);
+        activeUploadsRef.current--;
+        if (activeUploadsRef.current === 0) {
+          setUploading(false);
+        }
+        return;
+      }
+
       // Normal mode: process files through knowledge service
       formData.append("characterId", characterId);
       for (const file of files) {
         formData.append("files", file, file.name);
       }
 
-      const response = await fetch("/api/v1/knowledge/upload-file", {
+      const response = await fetch("/api/v1/knowledge/upload", {
         method: "POST",
         credentials: "include",
         body: formData,
       });
 
       if (response.ok) {
-        const data = await response.json();
-        toast.success("Files uploaded successfully", {
-          description: `${data.successCount} file(s) processed and ready to use`,
-        });
+        const data: KnowledgeUploadBatchResponse = await response.json();
+        const { summary, files: uploadedFiles } = data;
+        
+        if (summary.queued > 0) {
+          // Show files as processing in the list
+          const newProcessing: ProcessingFile[] = uploadedFiles
+            .filter((f) => f.isQueued)
+            .map((f) => ({
+              id: f.jobId || f.id,
+              filename: f.filename,
+              uploadedAt: f.uploadedAt,
+            }));
+          setProcessingFiles((prev) => [...prev, ...newProcessing]);
+          
+          toast.loading(`Processing ${summary.queued} file(s)...`, {
+            id: "knowledge-processing",
+            description: "This may take a moment for large files",
+          });
+          
+          // Wait for processing to complete
+          const processResponse = await fetch("/api/v1/knowledge/process-queue", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+          });
+          
+          if (processResponse.ok) {
+            const processResult = await processResponse.json();
+            toast.success("Files processed!", {
+              id: "knowledge-processing",
+              description: `${processResult.successCount} file(s) ready`,
+            });
+            setProcessingFiles([]);
+            fetchDocuments();
+          } else {
+            toast.error("Processing failed", {
+              id: "knowledge-processing",
+              description: "Some files may not have been processed",
+            });
+          }
+        }
+        
+        if (summary.failed > 0) {
+          toast.error(`${summary.failed} file(s) failed to upload`);
+        }
+        
         setSelectedFiles([]);
         const fileInput = document.getElementById(
           "uploads-tab-file-input",
         ) as HTMLInputElement;
         if (fileInput) fileInput.value = "";
-        fetchDocuments();
       } else {
         const data = await response.json().catch(() => ({}));
         toast.error("Upload failed", {
-          description: data.error || "Failed to upload files",
+          description: data.message || data.error || "Failed to upload files",
         });
         setSelectedFiles([]);
       }
@@ -246,8 +321,9 @@ export function UploadsTab({
 
   // Show pre-upload mode when no characterId
   const isPreUploadMode = !characterId;
-  const displayFiles = isPreUploadMode ? preUploadedFiles : documents;
-  const displayCount = displayFiles.length;
+  const totalCount = isPreUploadMode
+    ? preUploadedFiles.length
+    : documents.length + processingFiles.length;
 
   return (
     <div className="p-6 space-y-6">
@@ -323,9 +399,14 @@ export function UploadsTab({
       <div className="border-t border-white/10 pt-6">
         <div className="flex items-center justify-between mb-4">
           <span className="text-sm text-white/60">
-            {displayCount} {isPreUploadMode ? "file" : "document"}
-            {displayCount !== 1 ? "s" : ""}{" "}
-            {isPreUploadMode ? "ready to process" : "uploaded"}
+            {totalCount} {isPreUploadMode ? "file" : "document"}
+            {totalCount !== 1 ? "s" : ""}{" "}
+            {isPreUploadMode ? "ready to process" : ""}
+            {processingFiles.length > 0 && !isPreUploadMode && (
+              <span className="text-[#FF5800] ml-1">
+                ({processingFiles.length} processing)
+              </span>
+            )}
           </span>
           {!isPreUploadMode && (
             <Button
@@ -347,7 +428,7 @@ export function UploadsTab({
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-white/40" />
           </div>
-        ) : displayCount === 0 ? (
+        ) : totalCount === 0 ? (
           <div className="text-center py-12 border border-dashed border-white/10 rounded-lg">
             <FileText className="h-12 w-12 text-white/20 mx-auto mb-3" />
             <p className="text-white/40 mb-1">No files uploaded yet</p>
@@ -390,34 +471,60 @@ export function UploadsTab({
                     </Button>
                   </div>
                 ))
-              : documents.map((doc) => (
-                  <div
-                    key={doc.id}
-                    className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg group hover:border-white/20 transition-colors"
-                  >
-                    <div className="flex items-center gap-4 min-w-0">
-                      <div className="p-2 bg-white/5 rounded-lg">
-                        <FileText className="h-5 w-5 text-white/40" />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-white/90 truncate">
-                          {getDocumentName(doc)}
-                        </p>
-                        <p className="text-xs text-white/40">
-                          {getDocumentAge(doc)}
-                        </p>
+              : (
+                <>
+                  {/* Processing files (shown first with spinner) */}
+                  {processingFiles.map((file) => (
+                    <div
+                      key={file.id}
+                      className="flex items-center justify-between p-4 bg-[#FF5800]/5 border border-[#FF5800]/20 rounded-lg"
+                    >
+                      <div className="flex items-center gap-4 min-w-0">
+                        <div className="p-2 bg-[#FF5800]/10 rounded-lg">
+                          <Loader2 className="h-5 w-5 text-[#FF5800] animate-spin" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-white/90 truncate">
+                            {file.filename}
+                          </p>
+                          <p className="text-xs text-[#FF5800]">
+                            Processing...
+                          </p>
+                        </div>
                       </div>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDelete(doc.id)}
-                      className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-300 hover:bg-red-400/10 transition-all"
+                  ))}
+                  {/* Completed documents */}
+                  {documents.map((doc) => (
+                    <div
+                      key={doc.id}
+                      className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg group hover:border-white/20 transition-colors"
                     >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
+                      <div className="flex items-center gap-4 min-w-0">
+                        <div className="p-2 bg-white/5 rounded-lg">
+                          <FileText className="h-5 w-5 text-white/40" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-white/90 truncate">
+                            {getDocumentName(doc)}
+                          </p>
+                          <p className="text-xs text-white/40">
+                            {getDocumentAge(doc)}
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDelete(doc.id)}
+                        className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-300 hover:bg-red-400/10 transition-all"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </>
+              )}
           </div>
         )}
       </div>

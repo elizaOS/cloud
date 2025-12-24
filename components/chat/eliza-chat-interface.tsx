@@ -59,6 +59,8 @@ import { ADDITIONAL_MODELS } from "@/lib/models";
 import { usePrivy } from "@privy-io/react-auth";
 import { useKnowledgeProcessingStatus } from "@/components/chat/hooks/use-knowledge-processing-status";
 import { ContentType, type Media } from "@elizaos/core";
+import { KNOWLEDGE_CONSTANTS } from "@/lib/constants/knowledge";
+import type { KnowledgeUploadBatchResponse } from "@/lib/types/knowledge";
 
 interface Message {
   id: string;
@@ -792,6 +794,16 @@ export function ElizaChatInterface({
     async (files: File[]) => {
       if (!selectedCharacterId || files.length === 0) return;
 
+      // Validate batch size before upload
+      const totalSize = files.reduce((sum, f) => sum + f.size, 0);
+      if (totalSize > KNOWLEDGE_CONSTANTS.MAX_BATCH_SIZE) {
+        const maxMB = KNOWLEDGE_CONSTANTS.MAX_BATCH_SIZE / 1024 / 1024;
+        toast.error(`Batch size exceeds ${maxMB}MB limit`, {
+          description: "Upload fewer or smaller files",
+        });
+        return;
+      }
+
       setIsUploadingFiles(true);
 
       const formData = new FormData();
@@ -801,20 +813,44 @@ export function ElizaChatInterface({
         formData.append("files", file, file.name);
       }
 
-      const response = await fetch("/api/v1/knowledge/upload-file", {
+      const response = await fetch("/api/v1/knowledge/upload", {
         method: "POST",
+        credentials: "include",
         body: formData,
       });
 
       if (response.ok) {
-        const data = await response.json();
-        toast.success(`${files.length} file(s) uploaded`, {
-          description: "Files are now searchable",
-        });
+        const data: KnowledgeUploadBatchResponse = await response.json();
+        const { summary } = data;
+        
+        if (summary.queued > 0) {
+          toast.loading(`Processing ${summary.queued} file(s)...`, {
+            id: "knowledge-processing",
+          });
+          
+          // Wait for processing to complete
+          const processResponse = await fetch("/api/v1/knowledge/process-queue", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+          });
+          
+          if (processResponse.ok) {
+            const processResult = await processResponse.json();
+            toast.success("Files processed!", {
+              id: "knowledge-processing",
+              description: `${processResult.successCount} file(s) ready to use`,
+            });
+          } else {
+            toast.error("Processing failed", {
+              id: "knowledge-processing",
+            });
+          }
+        }
       } else {
         const data = await response.json();
         toast.error("Upload failed", {
-          description: data.error || "Failed to upload files",
+          description: data.message || data.error || "Failed to upload files",
         });
       }
 

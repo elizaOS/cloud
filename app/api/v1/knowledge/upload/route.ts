@@ -1,19 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/utils/logger";
 import { requireAuthOrApiKey } from "@/lib/auth";
-import { getKnowledgeService } from "@/lib/eliza/knowledge-service";
-import type { UUID } from "@elizaos/core";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
-import { userContextService } from "@/lib/eliza/user-context";
-import { RuntimeFactory } from "@/lib/eliza/runtime-factory";
-import { AgentMode } from "@/lib/eliza/agent-mode-types";
 import { uploadToBlob } from "@/lib/blob";
-import { jobsRepository } from "@/db/repositories/jobs";
 import {
   KNOWLEDGE_CONSTANTS,
-  KNOWLEDGE_JOB_TYPE,
   ALLOWED_EXTENSIONS,
-  ALLOWED_CONTENT_TYPES,
   TEXT_EXTENSIONS_FOR_OCTET_STREAM,
   isValidFilename,
 } from "@/lib/constants/knowledge";
@@ -22,17 +14,8 @@ import type {
   KnowledgeUploadBatchResponse,
 } from "@/lib/types/knowledge";
 import { fileTypeFromBuffer } from "file-type";
-
-interface KnowledgeUploadJobData {
-  filename: string;
-  blobUrl: string;
-  contentType: string;
-  size: number;
-  characterId: string;
-  uploadedBy: string;
-  uploadedAt: number;
-  [key: string]: unknown;
-}
+import { knowledgeProcessingService } from "@/lib/services/knowledge-processing";
+import { usersRepository } from "@/db/repositories/users";
 
 export const maxDuration = 60;
 
@@ -43,9 +26,9 @@ function getFileExtension(filename: string): string {
 
 /**
  * POST /api/v1/knowledge/upload
- * Uploads files to the knowledge base with smart routing:
- * - Files ≤ 1.5MB: Processed immediately
- * - Files > 1.5MB: Uploaded to blob storage and queued for background processing
+ * Uploads files to blob storage and queues them for background processing.
+ * All files are processed asynchronously to avoid Vercel timeouts.
+ * Uses the same job system as creator mode for consistency.
  *
  * Max 6MB total per batch. Upload next batch after current completes.
  */
@@ -81,7 +64,12 @@ async function handlePOST(req: NextRequest) {
     );
   }
 
-  const organizationId = user.organization_id;
+  if (!characterId) {
+    return NextResponse.json(
+      { error: "Character ID required", details: "Please provide characterId" },
+      { status: 400 },
+    );
+  }
 
   // Validate total batch size
   const totalSize = files.reduce((sum, f) => sum + f.size, 0);
@@ -119,64 +107,27 @@ async function handlePOST(req: NextRequest) {
     }
   }
 
-  // Separate files into immediate and queued
-  const immediateFiles: File[] = [];
-  const queuedFiles: File[] = [];
+  // Get user with organization for knowledge processing service
+  const userWithOrg = await usersRepository.findWithOrganization(user.id);
+  if (!userWithOrg) {
+    return NextResponse.json(
+      { error: "User not found" },
+      { status: 404 },
+    );
+  }
+
+  // Upload all files to blob storage first
+  const uploadedFiles: Array<{
+    filename: string;
+    blobUrl: string;
+    contentType: string;
+    size: number;
+  }> = [];
+  const results: KnowledgeUploadResult[] = [];
 
   for (const file of files) {
-    if (file.size <= KNOWLEDGE_CONSTANTS.ASYNC_PROCESSING_THRESHOLD) {
-      immediateFiles.push(file);
-    } else {
-      queuedFiles.push(file);
-    }
-  }
-
-  const results: KnowledgeUploadResult[] = [];
-  let runtime = null;
-  let knowledgeService = null;
-
-  // Process immediate files if any
-  if (immediateFiles.length > 0) {
-    const userContext = await userContextService.buildContext({
-      user,
-      apiKey: authResult.apiKey,
-      isAnonymous: false,
-      agentMode: AgentMode.ASSISTANT,
-    });
-
-    if (characterId) {
-      userContext.characterId = characterId;
-    }
-
-    const runtimeFactory = RuntimeFactory.getInstance();
-    runtime = await runtimeFactory.createRuntimeForUser(userContext);
-    knowledgeService = await getKnowledgeService(runtime);
-
-    if (!knowledgeService) {
-      return NextResponse.json(
-        { error: "Knowledge service not available" },
-        { status: 503 },
-      );
-    }
-
-    for (const file of immediateFiles) {
-      const result = await processFileImmediately(
-        file,
-        runtime,
-        knowledgeService,
-        user.id,
-        organizationId,
-      );
-      results.push(result);
-    }
-  }
-
-  // Queue large files for background processing
-  // Note: characterId from request takes priority; if not provided, we need to resolve it
-  // For large-only batches where runtime wasn't initialized, characterId should be provided by client
-  for (const file of queuedFiles) {
-    const effectiveCharacterId = characterId ?? (runtime?.agentId as string | undefined);
-    if (!effectiveCharacterId) {
+    const uploadResult = await uploadFileToBlob(file, user.id);
+    if (uploadResult.error) {
       results.push({
         id: "",
         filename: file.name,
@@ -184,23 +135,52 @@ async function handlePOST(req: NextRequest) {
         contentType: file.type || "application/octet-stream",
         status: "failed",
         isQueued: false,
-        error: "Character ID required for queued uploads",
+        error: uploadResult.error,
         uploadedAt: Date.now(),
       });
-      continue;
+    } else {
+      uploadedFiles.push({
+        filename: file.name,
+        blobUrl: uploadResult.blobUrl!,
+        contentType: uploadResult.contentType!,
+        size: file.size,
+      });
     }
-    const result = await queueFileForProcessing(
-      file,
-      effectiveCharacterId,
-      user.id,
-      organizationId,
-    );
-    results.push(result);
+  }
+
+  // Queue uploaded files using knowledgeProcessingService (same as creator mode)
+  if (uploadedFiles.length > 0) {
+    const jobIds = await knowledgeProcessingService.queueFiles({
+      characterId,
+      files: uploadedFiles,
+      user: userWithOrg,
+    });
+
+    // Add successful results
+    for (let i = 0; i < uploadedFiles.length; i++) {
+      const file = uploadedFiles[i];
+      results.push({
+        id: jobIds[i],
+        filename: file.filename,
+        size: file.size,
+        contentType: file.contentType,
+        status: "pending",
+        isQueued: true,
+        jobId: jobIds[i],
+        uploadedAt: Date.now(),
+      });
+    }
+
+    logger.info("[KnowledgeUpload] Files queued for processing", {
+      characterId,
+      fileCount: uploadedFiles.length,
+      jobIds,
+    });
   }
 
   const summary = {
     total: results.length,
-    immediate: results.filter((r) => !r.isQueued && r.status === "completed").length,
+    immediate: 0,
     queued: results.filter((r) => r.isQueued).length,
     failed: results.filter((r) => r.status === "failed").length,
   };
@@ -215,69 +195,10 @@ async function handlePOST(req: NextRequest) {
   return NextResponse.json(response);
 }
 
-async function processFileImmediately(
+async function uploadFileToBlob(
   file: File,
-  runtime: Awaited<ReturnType<typeof RuntimeFactory.prototype.createRuntimeForUser>>,
-  knowledgeService: NonNullable<Awaited<ReturnType<typeof getKnowledgeService>>>,
   userId: string,
-  organizationId: string,
-): Promise<KnowledgeUploadResult> {
-  try {
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-    const base64Content = buffer.toString("base64");
-    const contentType = file.type || "application/octet-stream";
-
-    const result = await knowledgeService.addKnowledge({
-      agentId: runtime.agentId,
-      clientDocumentId: "" as UUID,
-      content: base64Content,
-      contentType,
-      originalFilename: file.name,
-      worldId: runtime.agentId,
-      roomId: runtime.agentId,
-      entityId: runtime.agentId,
-      metadata: {
-        uploadedBy: userId,
-        uploadedAt: Date.now(),
-        organizationId,
-        fileSize: file.size,
-        fileName: file.name,
-        filename: file.name,
-      },
-    });
-
-    return {
-      id: result.clientDocumentId,
-      filename: file.name,
-      size: file.size,
-      contentType,
-      status: "completed",
-      isQueued: false,
-      fragmentCount: result.fragmentCount,
-      uploadedAt: Date.now(),
-    };
-  } catch (error) {
-    logger.error(`Error processing file ${file.name}:`, error);
-    return {
-      id: "",
-      filename: file.name,
-      size: file.size,
-      contentType: file.type || "application/octet-stream",
-      status: "failed",
-      isQueued: false,
-      error: error instanceof Error ? error.message : "Processing failed",
-      uploadedAt: Date.now(),
-    };
-  }
-}
-
-async function queueFileForProcessing(
-  file: File,
-  characterId: string,
-  userId: string,
-  organizationId: string,
-): Promise<KnowledgeUploadResult> {
+): Promise<{ blobUrl?: string; contentType?: string; error?: string }> {
   try {
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
@@ -302,53 +223,14 @@ async function queueFileForProcessing(
       userId,
     });
 
-    // Create job using existing jobs infrastructure
-    const jobData: KnowledgeUploadJobData = {
-      filename: file.name,
-      blobUrl: blobResult.url,
-      contentType: blobResult.contentType,
-      size: file.size,
-      characterId,
-      uploadedBy: userId,
-      uploadedAt: Date.now(),
-    };
-
-    const job = await jobsRepository.create({
-      type: KNOWLEDGE_JOB_TYPE,
-      status: "pending",
-      data: jobData,
-      organization_id: organizationId,
-      user_id: userId,
-    });
-
-    logger.info("[KnowledgeUpload] File queued for processing", {
-      jobId: job.id,
-      filename: file.name,
-      size: file.size,
-      blobUrl: blobResult.url,
-    });
-
     return {
-      id: job.id,
-      filename: file.name,
-      size: file.size,
+      blobUrl: blobResult.url,
       contentType: blobResult.contentType,
-      status: "pending",
-      isQueued: true,
-      jobId: job.id,
-      uploadedAt: Date.now(),
     };
   } catch (error) {
-    logger.error(`Error queuing file ${file.name}:`, error);
+    logger.error(`Error uploading file ${file.name} to blob:`, error);
     return {
-      id: "",
-      filename: file.name,
-      size: file.size,
-      contentType: file.type || "application/octet-stream",
-      status: "failed",
-      isQueued: false,
-      error: error instanceof Error ? error.message : "Failed to queue file",
-      uploadedAt: Date.now(),
+      error: error instanceof Error ? error.message : "Failed to upload file",
     };
   }
 }
@@ -356,11 +238,8 @@ async function queueFileForProcessing(
 function buildMessage(summary: { total: number; immediate: number; queued: number; failed: number }): string {
   const parts: string[] = [];
 
-  if (summary.immediate > 0) {
-    parts.push(`${summary.immediate} file${summary.immediate > 1 ? "s" : ""} processed`);
-  }
   if (summary.queued > 0) {
-    parts.push(`${summary.queued} large file${summary.queued > 1 ? "s" : ""} queued for background processing`);
+    parts.push(`${summary.queued} file${summary.queued > 1 ? "s" : ""} queued for background processing`);
   }
   if (summary.failed > 0) {
     parts.push(`${summary.failed} failed`);
@@ -386,54 +265,33 @@ async function handleGET(req: NextRequest) {
 
   const url = new URL(req.url);
   const characterId = url.searchParams.get("characterId");
-  const jobId = url.searchParams.get("jobId");
 
-  // Get single job status
-  if (jobId) {
-    const job = await jobsRepository.findById(jobId);
-    if (!job || job.organization_id !== user.organization_id) {
-      return NextResponse.json({ error: "Job not found" }, { status: 404 });
-    }
-
-    const data = job.data as unknown as KnowledgeUploadJobData;
-    return NextResponse.json({
-      id: job.id,
-      filename: data.filename,
-      size: data.size,
-      status: job.status,
-      error: job.error ?? undefined,
-      createdAt: job.created_at,
-      completedAt: job.completed_at,
-    });
+  if (!characterId) {
+    return NextResponse.json(
+      { error: "characterId is required" },
+      { status: 400 },
+    );
   }
 
-  // Get all pending/processing jobs for user's organization
-  const jobs = await jobsRepository.findByFilters({
-    type: KNOWLEDGE_JOB_TYPE,
-    organizationId: user.organization_id,
-    orderBy: "desc",
-    limit: 50,
-  });
+  // Get status from knowledge processing service
+  const status = await knowledgeProcessingService.getStatus(characterId, user.organization_id);
 
-  // Filter by characterId if provided
-  const filteredJobs = characterId
-    ? jobs.filter((j) => (j.data as unknown as KnowledgeUploadJobData).characterId === characterId)
-    : jobs;
-
-  const uploads = filteredJobs.map((job) => {
-    const data = job.data as unknown as KnowledgeUploadJobData;
-    return {
+  return NextResponse.json({
+    uploads: status.jobs.map((job) => ({
       id: job.id,
-      filename: data.filename,
-      size: data.size,
+      filename: job.filename,
       status: job.status,
-      error: job.error ?? undefined,
-      createdAt: job.created_at,
-      completedAt: job.completed_at,
-    };
+      error: job.error,
+      createdAt: job.createdAt,
+      completedAt: job.completedAt,
+    })),
+    summary: {
+      pending: status.pendingCount,
+      processing: status.processingCount,
+      completed: status.completedCount,
+      failed: status.failedCount,
+    },
   });
-
-  return NextResponse.json({ uploads });
 }
 
 export const POST = withRateLimit(handlePOST, RateLimitPresets.STANDARD);
