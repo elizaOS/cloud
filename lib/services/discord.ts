@@ -84,7 +84,7 @@ class DiscordService {
 
     if (!botToken || !channelId) {
       logger.warn(
-        "[DiscordService] Not configured. Set DISCORD_BOT_TOKEN and DISCORD_CHANNEL_ID",
+        "[DiscordService] Not configured. Set DISCORD_BOT_TOKEN and DISCORD_CHANNEL_ID"
       );
       this.initialized = false;
       return;
@@ -101,7 +101,7 @@ class DiscordService {
    */
   async send(
     options: DiscordMessageOptions,
-    channelId?: string,
+    channelId?: string
   ): Promise<boolean> {
     this.initialize();
 
@@ -128,7 +128,7 @@ class DiscordService {
    */
   async sendToChannel(
     channelId: string,
-    options: DiscordMessageOptions,
+    options: DiscordMessageOptions
   ): Promise<boolean> {
     return this.send(options, channelId);
   }
@@ -174,7 +174,7 @@ class DiscordService {
 
     const response = (await this.rest.post(
       Routes.threads(this.defaultChannelId),
-      { body: threadData },
+      { body: threadData }
     )) as { id: string };
 
     logger.info(`[DiscordService] Thread created: ${response.id}`);
@@ -277,7 +277,7 @@ class DiscordService {
           ? "✅ Yes"
           : "❌ No (Joined via invite)",
         inline: true,
-      },
+      }
     );
 
     const embed: DiscordEmbed = {
@@ -567,6 +567,161 @@ class DiscordService {
     return this.send({
       embeds: [embed],
     });
+  }
+
+  /**
+   * Log a payment received event with role mention for notifications
+   */
+  async logPaymentReceived(paymentData: {
+    paymentId: string;
+    amount: number;
+    currency: string;
+    credits: number;
+    organizationId: string;
+    organizationName?: string;
+    userId?: string;
+    userName?: string | null;
+    paymentMethod: "stripe" | "crypto";
+    paymentType: string;
+    network?: string;
+  }): Promise<boolean> {
+    // Get celebration level based on amount
+    const celebration = this.getPaymentCelebration(paymentData.amount);
+
+    const fields: DiscordEmbedField[] = [
+      {
+        name: "💵 Amount",
+        value: `**$${paymentData.amount.toFixed(2)}** ${paymentData.currency.toUpperCase()}`,
+        inline: true,
+      },
+      {
+        name: "✨ Credits Added",
+        value: `**$${paymentData.credits.toFixed(2)}**`,
+        inline: true,
+      },
+      {
+        name: "💳 Payment Method",
+        value: paymentData.paymentMethod === "stripe" ? "Stripe" : "🪙 Crypto",
+        inline: true,
+      },
+    ];
+
+    if (paymentData.network) {
+      fields.push({
+        name: "🌐 Network",
+        value: paymentData.network,
+        inline: true,
+      });
+    }
+
+    fields.push({
+      name: "📦 Type",
+      value: paymentData.paymentType,
+      inline: true,
+    });
+
+    if (paymentData.userName) {
+      fields.push({
+        name: "👤 User",
+        value: paymentData.userName,
+        inline: true,
+      });
+    }
+
+    if (paymentData.organizationName) {
+      fields.push({
+        name: "🏢 Organization",
+        value: paymentData.organizationName,
+        inline: false,
+      });
+    }
+
+    fields.push({
+      name: "🔗 Payment ID",
+      value: `\`${paymentData.paymentId.slice(0, 30)}...\``,
+      inline: false,
+    });
+
+    const embed: DiscordEmbed = {
+      title: `${celebration.emoji} ${celebration.title}`,
+      description: celebration.message.replace(
+        "{amount}",
+        paymentData.amount.toFixed(2)
+      ),
+      color: celebration.color,
+      fields,
+      timestamp: new Date().toISOString(),
+      footer: {
+        text: "Eliza Cloud • Ka-ching! 🔔",
+      },
+    };
+
+    // Build content with optional role mention for notification sound
+    const paymentAlertRoleId = process.env.DISCORD_PAYMENT_ALERT_ROLE_ID;
+    const roleMention = paymentAlertRoleId ? `<@&${paymentAlertRoleId}> ` : "";
+    const content = `${roleMention}${celebration.announcement}`;
+
+    return this.send({
+      content,
+      embeds: [embed],
+    });
+  }
+
+  /**
+   * Get celebration level based on payment amount
+   */
+  private getPaymentCelebration(amount: number): {
+    emoji: string;
+    title: string;
+    message: string;
+    announcement: string;
+    color: number;
+  } {
+    if (amount >= 500) {
+      return {
+        emoji: "🎰",
+        title: "MASSIVE PAYMENT RECEIVED!",
+        message:
+          "🚀 **HUGE WIN!** A payment of **$${amount}** just landed! 🎊🎉🎈",
+        announcement: "💎💎💎 **WHALE ALERT** 💎💎💎",
+        color: 0xffd700, // Gold
+      };
+    }
+    if (amount >= 100) {
+      return {
+        emoji: "🎉",
+        title: "Big Payment Received!",
+        message:
+          "🔥 A solid **$${amount}** payment just came through! Nice! 🔥",
+        announcement: "🎊 **Cha-ching!** Big money incoming!",
+        color: 0x00ff88, // Bright green
+      };
+    }
+    if (amount >= 50) {
+      return {
+        emoji: "💰",
+        title: "Payment Received!",
+        message: "💵 Sweet! **$${amount}** added to the treasury! 💵",
+        announcement: "💰 New payment received!",
+        color: 0x00ff00, // Green
+      };
+    }
+    if (amount >= 10) {
+      return {
+        emoji: "💵",
+        title: "Payment Received",
+        message: "A payment of **$${amount}** has been received!",
+        announcement: "💵 Payment incoming!",
+        color: DiscordColor.SUCCESS,
+      };
+    }
+    return {
+      emoji: "🪙",
+      title: "Payment Received",
+      message: "**$${amount}** received - every bit counts! 🙌",
+      announcement: "🪙 New payment!",
+      color: DiscordColor.SUCCESS,
+    };
   }
 }
 
