@@ -57,7 +57,7 @@ export function CharacterEditor({
   const [activeTab, setActiveTab] = useState<MainTab>(
     initialTab && ["character", "plugins", "files"].includes(initialTab)
       ? initialTab
-      : "character",
+      : "character"
   );
   const [showJson, setShowJson] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -139,7 +139,7 @@ export function CharacterEditor({
               data-onboarding="build-save"
             >
               <CloudUpload className="mr-2 h-4 w-4" />
-              {isSaving ? "Saving..." : "Deploy"}
+              {isSaving ? "Saving..." : character.id ? "Save" : "Deploy"}
             </Button>
           </div>
         </div>
@@ -174,13 +174,13 @@ export function CharacterEditor({
               onClick={() => setShowJson(!showJson)}
               className={cn(
                 "relative inline-flex h-5 w-9 items-center rounded-full transition-colors",
-                showJson ? "bg-[#FF5800]" : "bg-white/20",
+                showJson ? "bg-[#FF5800]" : "bg-white/20"
               )}
             >
               <span
                 className={cn(
                   "inline-block h-3 w-3 transform rounded-full bg-white transition-transform",
-                  showJson ? "translate-x-5" : "translate-x-1",
+                  showJson ? "translate-x-5" : "translate-x-1"
                 )}
               />
             </button>
