@@ -39,12 +39,11 @@ import rehypeHighlight from "rehype-highlight";
 import "highlight.js/styles/github-dark.css";
 import { Button } from "@/components/ui/button";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { AgentMode } from "@/lib/eliza/agent-mode-types";
 import {
@@ -1310,54 +1309,60 @@ export function BuildModeAssistant({
               />
 
               {/* Bottom bar with buttons inside input */}
-              <div className="flex items-center justify-between px-2 py-2">
-                {/* Model Tier Selector - Left */}
-                <Select
-                  value={selectedTier}
-                  onValueChange={(value) => {
-                    setSelectedTier(value as "fast" | "pro" | "ultra");
-                    const tier = BUILD_MODE_TIER_LIST.find((t) => t.id === value);
-                    if (tier) {
-                      toast.success(`Model: ${tier.name}`);
-                    }
-                  }}
-                >
-                  <SelectTrigger className="h-8 w-auto gap-1.5 border-0 bg-transparent px-2 text-sm text-white/50 hover:text-white/70 hover:bg-white/[0.06] rounded-lg transition-colors">
-                    <SelectValue placeholder="Select model">
-                      <span className="flex items-center gap-1.5">
+              <div className="flex items-center justify-end px-2 py-2">
+                {/* Model Selector */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="h-8 gap-1.5 px-2.5 rounded-lg hover:bg-white/[0.06] transition-colors"
+                    >
+                      <span className="flex items-center gap-1.5 text-sm text-white/50">
                         {tierIcons[selectedTier]}
                         {BUILD_MODE_TIER_LIST.find((t) => t.id === selectedTier)?.name || "Pro"}
                       </span>
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent className="rounded-lg border-white/[0.08]">
+                      <svg className="h-3.5 w-3.5 text-white/30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    className="w-72 rounded-xl border-white/[0.08] bg-[#252525] p-1.5"
+                    align="end"
+                    side="top"
+                    sideOffset={8}
+                  >
                     {BUILD_MODE_TIER_LIST.map((tier) => (
-                      <SelectItem key={tier.id} value={tier.id}>
-                        <div className="flex items-center gap-2">
-                          {tierIcons[tier.id]}
-                          <div className="flex flex-col">
-                            <div className="flex items-center gap-1.5">
-                              <span className="font-medium">{tier.name}</span>
-                              {tier.recommended && (
-                                <span className="text-[10px] px-1 py-0.5 rounded bg-[#FF5800]/20 text-[#FF5800]">
-                                  recommended
-                                </span>
-                              )}
+                      <DropdownMenuItem
+                        key={tier.id}
+                        className="flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer"
+                        onSelect={() => {
+                          setSelectedTier(tier.id as "fast" | "pro" | "ultra");
+                        }}
+                      >
+                        <div className="flex items-start gap-3">
+                          <span className="mt-0.5 text-white/50">{tierIcons[tier.id]}</span>
+                          <div className="flex flex-col gap-0.5">
+                            <div className="flex items-center gap-2">
+                              <span className="text-[14px] font-medium text-white">{tier.name}</span>
+                              <span className="text-[11px] text-white/30 font-mono">{tier.modelId.split("/")[1]}</span>
                             </div>
-                            <span className="text-[10px] text-white/40 font-mono">{tier.modelId}</span>
+                            <span className="text-[12px] text-white/40">{tier.description}</span>
                           </div>
                         </div>
-                      </SelectItem>
+                        {selectedTier === tier.id && <Check className="h-4 w-4 text-[#FF5800]" />}
+                      </DropdownMenuItem>
                     ))}
-                  </SelectContent>
-                </Select>
+                  </DropdownMenuContent>
+                </DropdownMenu>
 
-                {/* Send Button - Right */}
+                {/* Send Button */}
                 <Button
                   type="submit"
                   disabled={isLoading || !inputText.trim()}
                   size="icon"
-                  className="h-9 w-9 rounded-lg bg-[#FF5800]/20 border border-[#FF5800]/30 hover:bg-[#FF5800]/30 disabled:opacity-40 transition-colors"
+                  className="h-8 w-8 rounded-lg bg-transparent hover:bg-white/[0.06] disabled:opacity-40 border-0 transition-colors ml-1"
                 >
                   {isLoading ? (
                     <Loader2 className="h-4 w-4 animate-spin text-[#FF5800]" />

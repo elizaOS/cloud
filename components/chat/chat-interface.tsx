@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { usePrivy } from "@privy-io/react-auth";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -60,7 +59,6 @@ export function ChatInterface({
   theme,
 }: ChatInterfaceProps) {
   const router = useRouter();
-  const { login } = usePrivy();
   const [messageCount, setMessageCount] = useState(session?.messageCount || 0);
   const [isLoadingSessionData, setIsLoadingSessionData] = useState(false);
   const {
@@ -76,6 +74,7 @@ export function ChatInterface({
   // Use refs for initialization tracking to avoid re-renders and infinite loops
   const roomInitializedRef = useRef(false);
   const roomInitializingRef = useRef(false);
+  const lastCharacterIdRef = useRef<string | null>(null);
 
   // CRITICAL: Fetch the LATEST session data from server on mount and when token changes
   // This ensures the message count is accurate after page reload, not stale from SSR props
@@ -157,6 +156,39 @@ export function ChatInterface({
   const themeStyles = getThemeCSSVariables(theme);
 
 
+  // CRITICAL: Reset room state when character changes to prevent showing stale conversation
+  // This runs on mount AND when character changes
+  useEffect(() => {
+    const previousCharacterId = lastCharacterIdRef.current;
+    const currentRoomId = useChatStore.getState().roomId;
+    const currentRooms = useChatStore.getState().rooms;
+    
+    // Check if current roomId belongs to the current character
+    const currentRoom = currentRoomId 
+      ? currentRooms.find((room) => room.id === currentRoomId) 
+      : null;
+    
+    // Room is valid ONLY if we find it AND it belongs to current character
+    const roomIsValidForCharacter = currentRoom?.characterId === character.id;
+    
+    // Clear room if:
+    // 1. Character changed within same component instance, OR
+    // 2. On mount with a stale roomId (doesn't belong to current character)
+    const characterChanged = previousCharacterId && previousCharacterId !== character.id;
+    const hasStaleRoom = currentRoomId && !roomIsValidForCharacter;
+    
+    if (characterChanged || hasStaleRoom) {
+      // Clear the current room - it doesn't belong to this character
+      setRoomId(null);
+      // Reset initialization refs so we can initialize for the new character
+      roomInitializedRef.current = false;
+      roomInitializingRef.current = false;
+    }
+    
+    // Update the ref to track current character
+    lastCharacterIdRef.current = character.id;
+  }, [character.id, setRoomId]);
+
   // CRITICAL: Set the selected character ID so ElizaChatInterface knows which character to use
   useEffect(() => {
     setSelectedCharacterId(character.id);
@@ -179,15 +211,24 @@ export function ChatInterface({
       return;
     }
 
-    // Skip if we already have a room selected
-    if (roomId) {
-      roomInitializedRef.current = true;
-      return;
-    }
-
     // Skip if no character ID
     if (!character.id) {
       return;
+    }
+
+    // If we have a room selected, verify it belongs to the current character
+    if (roomId) {
+      const currentRooms = useChatStore.getState().rooms;
+      const currentRoom = currentRooms.find((room) => room.id === roomId);
+      
+      // If room exists and belongs to current character, we're good
+      if (currentRoom && currentRoom.characterId === character.id) {
+        roomInitializedRef.current = true;
+        return;
+      }
+      
+      // Room doesn't exist or belongs to different character - clear it
+      setRoomId(null);
     }
 
     const initializeRoom = async () => {
@@ -250,18 +291,6 @@ export function ChatInterface({
     router.push(
       `/login?redirect=/chat/${character.id}&session=${session?.token}`,
     );
-  };
-
-  const handleSignup = async () => {
-    try {
-      // Open Privy login modal
-      await login();
-      toast.success("Welcome! Your chat is now unlimited.");
-      // Page will refresh after successful auth via Privy
-    } catch (error) {
-      console.error("[ChatInterface] Signup error:", error);
-      toast.error("Failed to open signup. Please try again.");
-    }
   };
 
   // Paywall view
@@ -376,6 +405,7 @@ export function ChatInterface({
         <ElizaChatInterface
           onMessageSent={onMessageSent}
           character={character}
+          expectedCharacterId={character.id}
         />
       </div>
 
