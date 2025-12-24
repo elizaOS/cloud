@@ -139,34 +139,42 @@ class AgentsService {
   async ensureDefaultAgentExists(): Promise<void> {
     const DEFAULT_AGENT_ID = "b850bc30-45f8-0041-a00a-83df46d8555d";
 
-    // Check if default agent already exists
-    const exists = await agentsRepository.exists(DEFAULT_AGENT_ID);
-    if (exists) {
-      logger.debug(`[Agents Service] Default Eliza agent already exists`);
-      return;
-    }
-
     // Import default character from agent-loader
     const defaultAgent = await import("@/lib/eliza/agent");
     const character = defaultAgent.default.character;
 
-    // Create default agent in database
-    const avatarUrl = character.settings?.avatarUrl as string | undefined;
-    const created = await agentsRepository.create({
-      id: DEFAULT_AGENT_ID as `${string}-${string}-${string}-${string}-${string}`,
-      name: character.name,
-      bio: character.bio,
-      system: character.system,
-      settings: avatarUrl ? { avatarUrl } : {},
-      enabled: true,
-    });
+    // Check if default agent already exists
+    const agentExists = await agentsRepository.exists(DEFAULT_AGENT_ID);
+    
+    if (!agentExists) {
+      // Create default agent in database
+      const avatarUrl = character.settings?.avatarUrl as string | undefined;
+      const created = await agentsRepository.create({
+        id: DEFAULT_AGENT_ID as `${string}-${string}-${string}-${string}-${string}`,
+        name: character.name,
+        bio: character.bio,
+        system: character.system,
+        settings: avatarUrl ? { avatarUrl } : {},
+        enabled: true,
+      });
 
-    if (created) {
-      logger.info(
-        `[Agents Service] Created default Eliza agent ${DEFAULT_AGENT_ID}`,
-      );
+      if (created) {
+        logger.info(
+          `[Agents Service] Created default Eliza agent ${DEFAULT_AGENT_ID}`,
+        );
+      } else {
+        logger.debug(
+          `[Agents Service] Default Eliza agent already exists (race condition)`,
+        );
+      }
+    } else {
+      logger.debug(`[Agents Service] Default Eliza agent already exists`);
+    }
 
-      // Create corresponding entity for the agent
+    // Always ensure entity exists, even if agent existed (recovers orphaned agents)
+    const entityExists = await entitiesRepository.exists(DEFAULT_AGENT_ID);
+    
+    if (!entityExists) {
       try {
         await entitiesRepository.create({
           id: DEFAULT_AGENT_ID,
@@ -179,18 +187,13 @@ class AgentsService {
           `[Agents Service] Created entity for default agent ${DEFAULT_AGENT_ID}`,
         );
       } catch (error) {
-        // Entity repository already handles duplicates by returning existing entity
-        // This catches other errors (network, constraint violations, etc.)
+        // Log error but don't throw - entity creation failure shouldn't break existing agent
         logger.error(
           `[Agents Service] Failed to create entity for default agent:`,
           error,
         );
-        throw error; // Re-throw to prevent agent without entity
+        throw error;
       }
-    } else {
-      logger.debug(
-        `[Agents Service] Default Eliza agent already exists (race condition)`,
-      );
     }
   }
 
@@ -201,14 +204,7 @@ class AgentsService {
    * @returns The agent ID that was ensured to exist
    */
   async ensureAgentExists(characterId: string): Promise<string> {
-    // Check if agent already exists
-    const exists = await agentsRepository.exists(characterId);
-    if (exists) {
-      logger.debug(`[Agents Service] Agent ${characterId} already exists`);
-      return characterId;
-    }
-
-    // Load character data to create agent
+    // Load character data
     const character = await charactersService.getById(characterId);
 
     if (!character) {
@@ -220,29 +216,40 @@ class AgentsService {
       | Record<string, unknown>
       | undefined;
 
-    // Create agent from character
-    const created = await agentsRepository.create({
-      id: characterId as `${string}-${string}-${string}-${string}-${string}`,
-      name: character.name,
-      bio: characterData?.bio as string | string[] | undefined,
-      settings: {
-        ...(character.avatar_url ? { avatarUrl: character.avatar_url } : {}),
-        ...(characterData?.settings as Record<string, unknown> | undefined),
-      },
-      enabled: true,
-    });
+    // Check if agent already exists
+    const agentExists = await agentsRepository.exists(characterId);
+    
+    if (!agentExists) {
+      // Create agent from character
+      const created = await agentsRepository.create({
+        id: characterId as `${string}-${string}-${string}-${string}-${string}`,
+        name: character.name,
+        bio: characterData?.bio as string | string[] | undefined,
+        settings: {
+          ...(character.avatar_url ? { avatarUrl: character.avatar_url } : {}),
+          ...(characterData?.settings as Record<string, unknown> | undefined),
+        },
+        enabled: true,
+      });
 
-    if (!created) {
-      // Agent was created by another process (race condition), that's fine
-      logger.debug(
-        `[Agents Service] Agent ${characterId} already exists (race condition)`,
-      );
+      if (created) {
+        logger.info(
+          `[Agents Service] Created agent ${characterId} from character ${character.name}`,
+        );
+      } else {
+        // Agent was created by another process (race condition), that's fine
+        logger.debug(
+          `[Agents Service] Agent ${characterId} already exists (race condition)`,
+        );
+      }
     } else {
-      logger.info(
-        `[Agents Service] Created agent ${characterId} from character ${character.name}`,
-      );
+      logger.debug(`[Agents Service] Agent ${characterId} already exists`);
+    }
 
-      // Create corresponding entity for the agent
+    // Always ensure entity exists, even if agent existed (recovers orphaned agents)
+    const entityExists = await entitiesRepository.exists(characterId);
+    
+    if (!entityExists) {
       const entityNames = [character.name];
       if (character.username) entityNames.push(character.username);
       entityNames.push("Agent");
@@ -263,13 +270,11 @@ class AgentsService {
           `[Agents Service] Created entity for agent ${characterId}`,
         );
       } catch (error) {
-        // Entity repository already handles duplicates by returning existing entity
-        // This catches other errors (network, constraint violations, etc.)
         logger.error(
           `[Agents Service] Failed to create entity for agent ${characterId} (character: ${character.name}):`,
           error,
         );
-        throw error; // Re-throw to prevent agent without entity
+        throw error;
       }
     }
 
