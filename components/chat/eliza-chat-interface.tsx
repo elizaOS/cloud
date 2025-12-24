@@ -169,14 +169,22 @@ export function ElizaChatInterface({
     if (!targetId || fetchedCharacterRef.current === targetId) return;
     if (availableCharacters.some((c) => c.id === targetId)) return;
 
-    // Fetch character data from public API
+    // Track this fetch to prevent race conditions
+    const currentTargetId = targetId;
     fetchedCharacterRef.current = targetId;
-    fetch(`/api/characters/${targetId}/public`)
+    
+    const controller = new AbortController();
+
+    // Fetch character data from public API
+    fetch(`/api/characters/${targetId}/public`, { signal: controller.signal })
       .then((res) => {
         if (res.ok) return res.json();
         throw new Error("Failed to fetch character");
       })
       .then((data) => {
+        // Check if this is still the current target (prevents race condition)
+        if (fetchedCharacterRef.current !== currentTargetId) return;
+        
         if (data.success && data.data) {
           const charData = data.data;
           // Add to available characters in store
@@ -192,8 +200,14 @@ export function ElizaChatInterface({
         }
       })
       .catch((err) => {
+        // Ignore abort errors
+        if (err instanceof Error && err.name === 'AbortError') return;
         console.warn("[ElizaChat] Could not fetch shared character:", err);
       });
+
+    return () => {
+      controller.abort();
+    };
   }, [expectedCharacterId, selectedCharacterId, availableCharacters, setAvailableCharacters]);
 
   // Get avatar URL from prop (preferred), store, or agentInfo

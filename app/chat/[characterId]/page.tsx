@@ -311,7 +311,7 @@ export default async function ChatPage({
 }
 
 // Generate metadata for SEO with theme-aware branding
-// Only returns full metadata for public or claimable characters
+// Only returns full metadata for public, claimable, or owner-viewed characters
 export async function generateMetadata({
   params,
   searchParams,
@@ -327,14 +327,18 @@ export async function generateMetadata({
     };
   }
 
-  // Check access - only show metadata for public or claimable characters
+  // Check access - show full metadata if: public, claimable, or owned by current user
   const isPublic = character.is_public === true;
   const claimCheck = await charactersService.isClaimableAffiliateCharacter(characterId);
   const isClaimableAffiliate = claimCheck.claimable;
+  
+  // Check if current user is the owner (allows owners to see full metadata for their private chars)
+  const user = await getCurrentUser();
+  const isOwner = user && character.user_id === user.id;
 
-  // For private characters that aren't claimable, return generic metadata
-  // This prevents leaking character info in page title/meta tags
-  if (!isPublic && !isClaimableAffiliate) {
+  // For private characters that aren't claimable and not owned by viewer, return generic metadata
+  // This prevents leaking character info in page title/meta tags to unauthorized users
+  if (!isPublic && !isClaimableAffiliate && !isOwner) {
     return {
       title: "Chat | Eliza Cloud",
       robots: {

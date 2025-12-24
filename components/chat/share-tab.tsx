@@ -69,10 +69,19 @@ export function ShareTab({ characterId, characterName }: ShareTabProps) {
         const data = await response.json();
         if (data.success) {
           setShareStatus(data.data);
+        } else {
+          toast.error("Failed to load sharing settings");
         }
+      } else if (response.status === 404) {
+        // Character not found or user doesn't own it - this is expected for shared characters
+        // Don't show error, just leave status as null
+        console.debug("[ShareTab] Character not owned by user, share controls hidden");
+      } else {
+        toast.error("Failed to load sharing settings");
       }
     } catch (error) {
       console.error("[ShareTab] Failed to fetch share status:", error);
+      toast.error("An error occurred while loading sharing settings");
     } finally {
       setIsLoading(false);
     }

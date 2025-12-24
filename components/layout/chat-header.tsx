@@ -18,7 +18,6 @@ import {
   MessageSquare,
   Wrench,
   Plus,
-  Share2,
   Check,
   Copy,
   Globe,
@@ -65,25 +64,57 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
   );
 
   // Fetch share status when character changes
+  // Only shows share controls if user owns the character (API returns 404 otherwise)
   useEffect(() => {
     if (!selectedCharacterId) {
       setIsPublic(null);
       return;
     }
 
-    fetch(`/api/my-agents/characters/${selectedCharacterId}/share`)
-      .then((res) => {
-        if (res.ok) return res.json();
-        return null;
-      })
-      .then((data) => {
-        if (data?.success) {
+    let cancelled = false;
+    const controller = new AbortController();
+
+    const fetchShareStatus = async () => {
+      try {
+        const res = await fetch(
+          `/api/my-agents/characters/${selectedCharacterId}/share`,
+          { signal: controller.signal }
+        );
+        
+        if (cancelled) return;
+
+        // 403/404 means user doesn't own this character - hide share controls
+        if (res.status === 403 || res.status === 404) {
+          setIsPublic(null);
+          return;
+        }
+
+        if (!res.ok) {
+          setIsPublic(null);
+          return;
+        }
+
+        const data = await res.json();
+        if (!cancelled && data?.success) {
           setIsPublic(data.data.isPublic);
-        } else {
+        } else if (!cancelled) {
           setIsPublic(null);
         }
-      })
-      .catch(() => setIsPublic(null));
+      } catch (error) {
+        // Ignore abort errors
+        if (error instanceof Error && error.name === 'AbortError') return;
+        if (!cancelled) {
+          setIsPublic(null);
+        }
+      }
+    };
+
+    fetchShareStatus();
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
   }, [selectedCharacterId]);
 
   // Copy share link to clipboard
