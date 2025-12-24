@@ -167,16 +167,26 @@ class AgentsService {
       );
 
       // Create corresponding entity for the agent
-      await entitiesRepository.create({
-        id: DEFAULT_AGENT_ID,
-        agentId: DEFAULT_AGENT_ID,
-        names: [character.name, "Eliza", "Agent"],
-        metadata: { type: "agent", isDefault: true },
-      });
+      try {
+        await entitiesRepository.create({
+          id: DEFAULT_AGENT_ID,
+          agentId: DEFAULT_AGENT_ID,
+          names: [character.name, "Eliza", "Agent"],
+          metadata: { type: "agent", isDefault: true },
+        });
 
-      logger.info(
-        `[Agents Service] Created entity for default agent ${DEFAULT_AGENT_ID}`,
-      );
+        logger.info(
+          `[Agents Service] Created entity for default agent ${DEFAULT_AGENT_ID}`,
+        );
+      } catch (error) {
+        // Entity repository already handles duplicates by returning existing entity
+        // This catches other errors (network, constraint violations, etc.)
+        logger.error(
+          `[Agents Service] Failed to create entity for default agent:`,
+          error,
+        );
+        throw error; // Re-throw to prevent agent without entity
+      }
     } else {
       logger.debug(
         `[Agents Service] Default Eliza agent already exists (race condition)`,
@@ -237,20 +247,30 @@ class AgentsService {
       if (character.username) entityNames.push(character.username);
       entityNames.push("Agent");
 
-      await entitiesRepository.create({
-        id: characterId,
-        agentId: characterId,
-        names: entityNames,
-        metadata: {
-          type: "agent",
-          characterId,
-          username: character.username,
-        },
-      });
+      try {
+        await entitiesRepository.create({
+          id: characterId,
+          agentId: characterId,
+          names: entityNames,
+          metadata: {
+            type: "agent",
+            characterId,
+            username: character.username,
+          },
+        });
 
-      logger.info(
-        `[Agents Service] Created entity for agent ${characterId}`,
-      );
+        logger.info(
+          `[Agents Service] Created entity for agent ${characterId}`,
+        );
+      } catch (error) {
+        // Entity repository already handles duplicates by returning existing entity
+        // This catches other errors (network, constraint violations, etc.)
+        logger.error(
+          `[Agents Service] Failed to create entity for agent ${characterId} (character: ${character.name}):`,
+          error,
+        );
+        throw error; // Re-throw to prevent agent without entity
+      }
     }
 
     return characterId;
