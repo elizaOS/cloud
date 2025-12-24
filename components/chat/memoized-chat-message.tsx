@@ -11,6 +11,7 @@ import { Loader2, Copy, Check, Volume2, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ElizaAvatar } from "./eliza-avatar";
 import Image from "next/image";
+import { ContentType, type Media } from "@elizaos/core";
 
 // Dynamically import ReactMarkdown to reduce initial bundle (~150KB savings)
 // No loading fallback - we'll show plain text while it loads to avoid flicker
@@ -59,12 +60,7 @@ interface Message {
   content: {
     text: string;
     clientMessageId?: string;
-    attachments?: Array<{
-      id: string;
-      url: string;
-      title?: string;
-      contentType: string;
-    }>;
+    attachments?: Media[];
   };
   isAgent: boolean;
   createdAt: number;
@@ -233,10 +229,7 @@ function ChatMessageComponent({
                   message.content.attachments.length > 0 && (
                     <div className="mt-2 space-y-2">
                       {message.content.attachments.map((attachment) => {
-                        if (
-                          attachment.contentType === "IMAGE" ||
-                          attachment.contentType === "image"
-                        ) {
+                        if (attachment.contentType === ContentType.IMAGE) {
                           return (
                             <div
                               key={attachment.id}

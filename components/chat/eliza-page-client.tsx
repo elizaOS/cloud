@@ -145,7 +145,7 @@ export function ElizaPageClient({
 
       {/* Chat Interface */}
       <div className="flex flex-1 overflow-hidden">
-        <ElizaChatInterface />
+        <ElizaChatInterface expectedCharacterId={initialCharacterId} />
       </div>
     </div>
   );

@@ -50,6 +50,8 @@ interface SendMessageOptions {
   model?: string;
   /** Anonymous session token from URL (for unauthenticated users). */
   sessionToken?: string;
+  /** Whether web search is enabled for this message. */
+  webSearchEnabled?: boolean;
   /** Callback invoked for each streamed message chunk. */
   onMessage: (message: StreamingMessage) => void;
   /** Callback invoked for each text chunk (real-time streaming). */
@@ -76,6 +78,7 @@ export function sendStreamingMessage({
   text,
   model,
   sessionToken,
+  webSearchEnabled,
   onMessage,
   onChunk,
   onError,
@@ -109,19 +112,22 @@ export function sendStreamingMessage({
           ...(model && { model }), // Include model if provided
           // Also include in body as backup
           ...(sessionToken && { sessionToken }),
+          // Always include webSearchEnabled (defaults to true, explicitly false disables)
+          webSearchEnabled: webSearchEnabled ?? true,
         }),
       });
     } catch (error) {
       clearTimeout(timeoutId);
       if (error instanceof Error && error.name === "AbortError") {
-        // Only throw error for timeout, silently return for user-initiated abort
+        // Only show error for timeout, silently return for user-initiated abort
         if (isTimeoutAbort) {
-          throw new Error("Stream timeout: Request took too long");
+          onError?.("Stream timeout: Request took too long");
         }
         // User-initiated abort (character switch) - silently return
         return;
       }
-      throw error;
+      onError?.(error instanceof Error ? error.message : "Failed to connect");
+      return;
     }
 
     if (!response.ok) {
@@ -157,12 +163,14 @@ export function sendStreamingMessage({
         }
       }
 
-      throw new Error(errorMessage);
+      onError?.(errorMessage);
+      return;
     }
 
     if (!response.body) {
       clearTimeout(timeoutId);
-      throw new Error("No response body");
+      onError?.("No response body");
+      return;
     }
 
     const reader = response.body.getReader();
@@ -196,9 +204,10 @@ export function sendStreamingMessage({
 
         // Prevent unbounded buffer growth (potential DoS vector)
         if (buffer.length > MAX_BUFFER_SIZE) {
-          throw new Error(
+          onError?.(
             "Stream buffer exceeded maximum size - possible malformed SSE data"
           );
+          return;
         }
 
         // Process complete SSE messages (separated by double newline)
@@ -231,7 +240,7 @@ export function sendStreamingMessage({
         // Silently ignore user-initiated aborts (like ChatGPT/Claude)
         return;
       }
-      throw error;
+      onError?.(error instanceof Error ? error.message : "Stream error");
     } finally {
       clearTimeout(timeoutId);
     }
@@ -301,61 +310,51 @@ function processSSEMessage(
         onChunk(data as StreamChunkData);
       }
       break;
-    case "error":
+    case "error": {
       const errorData = data as SSEErrorData;
       const errorMessage =
         errorData?.message || errorData?.error || "Unknown error";
       onError?.(errorMessage);
       break;
+    }
     case "done":
       onComplete?.();
       break;
     case "connected":
-      // Connection confirmation - can be ignored or logged
-      console.debug("[Stream] Connected:", data);
-      break;
     case "warning":
-      // Warning event - log but don't treat as error
-      const warningData = data as SSEErrorData;
-      const warningMessage = warningData?.message || "Warning received";
-      console.warn("[Stream] Warning:", warningMessage);
+      // Ignore these events (connected is just confirmation, warning is handled separately)
       break;
     default:
-      console.debug(`[Stream] Unhandled event type: ${eventType}`, data);
+      console.warn("[Stream] Unknown event type:", eventType, data);
   }
 }
 
 /**
- * Type guard to validate StreamChunkData structure
+ * Type guard for StreamingMessage validation.
  */
-function isValidStreamChunkData(
-  data: StreamChunkData
-): data is StreamChunkData {
-  if (!data || typeof data !== "object") return false;
+function isValidStreamingMessage(data: unknown): data is StreamingMessage {
+  if (typeof data !== "object" || data === null) return false;
+  const msg = data as Record<string, unknown>;
   return (
-    typeof data.messageId === "string" &&
-    typeof data.chunk === "string" &&
-    typeof data.timestamp === "number"
+    typeof msg.id === "string" &&
+    typeof msg.entityId === "string" &&
+    typeof msg.content === "object" &&
+    msg.content !== null &&
+    typeof msg.createdAt === "number" &&
+    typeof msg.isAgent === "boolean" &&
+    ["user", "agent", "thinking", "error"].includes(msg.type as string)
   );
 }
 
 /**
- * Type guard to validate StreamingMessage structure
+ * Type guard for StreamChunkData validation.
  */
-function isValidStreamingMessage(data: unknown): data is StreamingMessage {
-  if (!data || typeof data !== "object") return false;
-  const msg = data as Record<string, unknown>;
-  if (
-    typeof msg.id !== "string" ||
-    typeof msg.entityId !== "string" ||
-    typeof msg.isAgent !== "boolean" ||
-    typeof msg.type !== "string" ||
-    typeof msg.createdAt !== "number" ||
-    !msg.content ||
-    typeof msg.content !== "object"
-  ) {
-    return false;
-  }
-  const content = msg.content as Record<string, unknown>;
-  return typeof content.text === "string";
+function isValidStreamChunkData(data: StreamChunkData): boolean {
+  return (
+    typeof data === "object" &&
+    data !== null &&
+    typeof data.messageId === "string" &&
+    typeof data.chunk === "string" &&
+    typeof data.timestamp === "number"
+  );
 }
