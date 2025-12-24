@@ -61,14 +61,31 @@ async function findContaminatedRooms(): Promise<ContaminatedRoom[]> {
 
   for (const row of results.rows) {
     const messageAgentIds = row.message_agent_ids || [];
+    const roomId = row.room_id;
 
-    // Determine the correct agentId based on message distribution
+    // Query actual message counts per agent ID for this room
+    const agentCountsResult = await db.execute<{
+      agent_id: string;
+      message_count: number;
+    }>(sql`
+      SELECT 
+        m.agent_id,
+        COUNT(*) as message_count
+      FROM ${memoryTable} m
+      WHERE m.room_id = ${roomId}
+        AND m.type = 'messages'
+        AND m.agent_id IS NOT NULL
+      GROUP BY m.agent_id
+      ORDER BY COUNT(*) DESC
+    `);
+
     const agentIdCounts: Record<string, number> = {};
+    let totalMessages = 0;
 
-    // Count messages per agentId (simplified - in reality we'd query counts)
-    for (const agentId of messageAgentIds) {
-      agentIdCounts[agentId] = agentIdCounts[agentId] || 0;
-      agentIdCounts[agentId]++;
+    for (const count of agentCountsResult.rows) {
+      const msgCount = Number(count.message_count);
+      agentIdCounts[count.agent_id] = msgCount;
+      totalMessages += msgCount;
     }
 
     // Find the most common agentId in messages
@@ -77,17 +94,19 @@ async function findContaminatedRooms(): Promise<ContaminatedRoom[]> {
     const mostCommonCount = sortedAgentIds[0]?.[1] || 0;
     const totalUniqueAgents = messageAgentIds.length;
 
-    // Determine confidence level
+    // Determine confidence level based on actual message distribution
     let confidence: "high" | "medium" | "low";
     if (totalUniqueAgents === 1) {
       // All messages from same agent, very clear
       confidence = "high";
-    } else if (mostCommonCount / totalUniqueAgents > 0.8) {
-      // >80% of unique agents point to one agent
+    } else if (mostCommonCount / totalMessages > 0.8) {
+      // >80% of messages from one agent
       confidence = "high";
-    } else if (mostCommonCount / totalUniqueAgents > 0.5) {
+    } else if (mostCommonCount / totalMessages > 0.5) {
+      // >50% of messages from one agent
       confidence = "medium";
     } else {
+      // No clear majority
       confidence = "low";
     }
 
