@@ -188,11 +188,11 @@ class AgentsService {
         );
       } catch (error) {
         // Log error but don't throw - entity creation failure shouldn't break existing agent
+        // The agent record already exists and is functional
         logger.error(
           `[Agents Service] Failed to create entity for default agent:`,
           error,
         );
-        throw error;
       }
     }
   }
@@ -270,11 +270,12 @@ class AgentsService {
           `[Agents Service] Created entity for agent ${characterId}`,
         );
       } catch (error) {
+        // Log error but don't throw - entity creation failure shouldn't break existing agent
+        // The agent record already exists and is functional
         logger.error(
           `[Agents Service] Failed to create entity for agent ${characterId} (character: ${character.name}):`,
           error,
         );
-        throw error;
       }
     }
 

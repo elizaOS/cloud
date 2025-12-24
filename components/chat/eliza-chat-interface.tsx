@@ -424,6 +424,8 @@ export function ElizaChatInterface({
         targetCharacterId &&
         room.characterId !== targetCharacterId
       ) {
+        // Reset loading state before returning - prevents stuck loading indicator
+        setLoadingState((prev) => ({ ...prev, isLoadingMessages: false }));
         return; // Skip loading - room belongs to different character
       }
 
