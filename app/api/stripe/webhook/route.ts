@@ -220,6 +220,35 @@ async function handleStripeWebhook(req: NextRequest) {
                 stripePaymentIntentId: paymentIntentId,
               });
             }
+
+            // Log app purchase to Discord (fire and forget)
+            organizationsRepository
+              .findById(organizationId)
+              .then((org) => {
+                const userPromise = userId
+                  ? usersRepository.findById(userId)
+                  : Promise.resolve(null);
+                return userPromise.then((userData) => {
+                  return discordService.logPaymentReceived({
+                    paymentId: paymentIntentId,
+                    amount: credits,
+                    currency: session.currency || "usd",
+                    credits,
+                    organizationId,
+                    organizationName: org?.name,
+                    userId: userId || undefined,
+                    userName: userData?.name || userData?.email,
+                    paymentMethod: "stripe",
+                    paymentType: `App Purchase (${appId})`,
+                  });
+                });
+              })
+              .catch((err) => {
+                logger.error(
+                  "[Stripe Webhook] Failed to log app payment to Discord",
+                  { error: err }
+                );
+              });
           } else {
             // Regular credit purchase (not app-specific)
             await creditsService.addCredits({
@@ -256,13 +285,14 @@ async function handleStripeWebhook(req: NextRequest) {
               });
 
             // Log payment to Discord (fire and forget)
-            organizationsRepository.findById(organizationId).then((org) => {
-              const user = userId
-                ? usersRepository.findById(userId)
-                : Promise.resolve(null);
-              user.then((userData) => {
-                discordService
-                  .logPaymentReceived({
+            organizationsRepository
+              .findById(organizationId)
+              .then((org) => {
+                const userPromise = userId
+                  ? usersRepository.findById(userId)
+                  : Promise.resolve(null);
+                return userPromise.then((userData) => {
+                  return discordService.logPaymentReceived({
                     paymentId: paymentIntentId,
                     amount: credits,
                     currency: session.currency || "usd",
@@ -276,15 +306,15 @@ async function handleStripeWebhook(req: NextRequest) {
                       purchaseType === "credit_pack"
                         ? "Credit Pack"
                         : "Balance Top-up",
-                  })
-                  .catch((err) => {
-                    logger.error(
-                      "[Stripe Webhook] Failed to log payment to Discord",
-                      { error: err }
-                    );
                   });
+                });
+              })
+              .catch((err) => {
+                logger.error(
+                  "[Stripe Webhook] Failed to log payment to Discord",
+                  { error: err }
+                );
               });
-            });
           }
 
           // Process referral commission if this user was referred
@@ -437,9 +467,10 @@ async function handleStripeWebhook(req: NextRequest) {
         );
 
         // Log payment to Discord (fire and forget)
-        organizationsRepository.findById(organizationId).then((org) => {
-          discordService
-            .logPaymentReceived({
+        organizationsRepository
+          .findById(organizationId)
+          .then((org) => {
+            return discordService.logPaymentReceived({
               paymentId: paymentIntent.id,
               amount: credits,
               currency: paymentIntent.currency,
@@ -451,14 +482,14 @@ async function handleStripeWebhook(req: NextRequest) {
                 purchaseType === "auto_top_up"
                   ? "Auto Top-up"
                   : "One-time Purchase",
-            })
-            .catch((err) => {
-              logger.error(
-                "[Stripe Webhook] Failed to log payment to Discord",
-                { error: err }
-              );
             });
-        });
+          })
+          .catch((err) => {
+            logger.error(
+              "[Stripe Webhook] Failed to log payment to Discord",
+              { error: err }
+            );
+          });
 
         try {
           // Type-safe handling of invoice property using type guard

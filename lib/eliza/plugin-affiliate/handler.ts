@@ -1,6 +1,7 @@
 import {
   asUUID,
   composePromptFromState,
+  ContentType,
   createUniqueUuid,
   EventType,
   logger,
@@ -383,11 +384,14 @@ export async function handleMessage({
 
     const mediaAttachments: Media[] = Array.from(attachmentMap.values())
       .filter((att) => att.url.length > 0)
-      .map((att) => ({
-        id: att.id,
-        url: att.url,
-        ...(att.contentType && { mimeType: att.contentType }),
-      }));
+      .map((att) => {
+        const contentType = att.contentType?.toUpperCase() as keyof typeof ContentType;
+        return {
+          id: att.id,
+          url: att.url,
+          ...(contentType && ContentType[contentType] && { contentType: ContentType[contentType] }),
+        };
+      });
 
     // Ensure we have a response - if generation failed, provide a fallback
     if (!responseContent || responseContent.trim() === "") {

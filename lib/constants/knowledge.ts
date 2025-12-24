@@ -5,11 +5,14 @@
 
 export const KNOWLEDGE_CONSTANTS = {
   MAX_FILES_PER_REQUEST: 10,
-  MAX_FILE_SIZE: 50 * 1024 * 1024, // 50MB
+  MAX_BATCH_SIZE: 6 * 1024 * 1024, // 6MB total per batch upload
+  ASYNC_PROCESSING_THRESHOLD: 1.5 * 1024 * 1024, // 1.5MB - files larger than this go to queue
   STALE_JOB_THRESHOLD_MS: 10 * 60 * 1000, // 10 minutes
   MAX_ATTEMPTS: 3,
   POLLING_INTERVAL_MS: 3000,
 } as const;
+
+export const KNOWLEDGE_JOB_TYPE = "knowledge_upload" as const;
 
 export const ALLOWED_EXTENSIONS = [
   ".pdf",
