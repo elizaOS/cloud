@@ -144,6 +144,8 @@ export function ElizaChatInterface({
   const isSendingRef = useRef(false);
   // CRITICAL: AbortController to cancel in-flight message loading requests
   const loadMessagesAbortControllerRef = useRef<AbortController | null>(null);
+  // CRITICAL: AbortController to cancel in-flight streaming responses
+  const streamingAbortControllerRef = useRef<AbortController | null>(null);
   // Track the expected character for loaded messages to prevent race conditions
   const expectedCharacterIdRef = useRef<string | null>(null);
 
@@ -356,6 +358,13 @@ export function ElizaChatInterface({
       console.log(`[Chat] 🚫 Aborting previous loadMessages due to character change`);
       loadMessagesAbortControllerRef.current.abort();
       loadMessagesAbortControllerRef.current = null;
+    }
+
+    // CRITICAL: Cancel any in-flight streaming response for the previous character
+    if (streamingAbortControllerRef.current) {
+      console.log(`[Chat] 🚫 Aborting previous streaming response due to character change`);
+      streamingAbortControllerRef.current.abort();
+      streamingAbortControllerRef.current = null;
     }
 
     // Update expected character
@@ -639,7 +648,7 @@ export function ElizaChatInterface({
         }, 30000);
 
         // Stream the response using single endpoint
-        await sendStreamingMessage({
+        const streamController = await sendStreamingMessage({
           roomId: currentRoomId,
           text: messageText,
           model: selectedModelId, // Pass selected model from tier
@@ -663,6 +672,8 @@ export function ElizaChatInterface({
               clearTimeout(thinkingTimeoutRef.current);
               thinkingTimeoutRef.current = null;
             }
+            // Clear the streaming controller ref on error
+            streamingAbortControllerRef.current = null;
           },
           onComplete: () => {
             // Always reload rooms to update lastText and lastTime
@@ -675,8 +686,13 @@ export function ElizaChatInterface({
             if (onMessageSent) {
               onMessageSent();
             }
+            // Clear the streaming controller ref on completion
+            streamingAbortControllerRef.current = null;
           },
         });
+        
+        // Store the controller so it can be aborted if character changes
+        streamingAbortControllerRef.current = streamController;
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to send message");
         console.error("Error sending message:", err);

@@ -69,6 +69,7 @@ interface SendMessageOptions {
  * Single endpoint handles everything - no cross-container issues!
  *
  * @param options - Message sending options including callbacks.
+ * @returns An AbortController that can be used to cancel the stream
  */
 export async function sendStreamingMessage({
   roomId,
@@ -80,7 +81,7 @@ export async function sendStreamingMessage({
   onError,
   onComplete,
   timeoutMs = STREAM_TIMEOUT_MS,
-}: SendMessageOptions): Promise<void> {
+}: SendMessageOptions): Promise<AbortController> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => {
     controller.abort();
@@ -205,6 +206,9 @@ export async function sendStreamingMessage({
   } finally {
     clearTimeout(timeoutId);
   }
+  
+  // Return the controller so it can be aborted by the caller
+  return controller;
 }
 
 /**
