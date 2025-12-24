@@ -1,7 +1,7 @@
 /**
  * API Reference - Navigation Structure
  */
-const meta = {
+export default {
   overview: {
     title: "API Explorer",
   },
@@ -73,6 +73,4 @@ const meta = {
   redemptions: {
     title: "Redemptions",
   },
-};
-
-export default meta;
+}

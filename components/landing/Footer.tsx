@@ -6,7 +6,6 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
 import { useState, useEffect, useRef } from "react";
 import { Copy, Check } from "lucide-react";
 
@@ -217,12 +216,12 @@ export default function Footer() {
                   Tokens
                 </button>
               </div>
-              <Link
+              <a
                 href="/docs"
                 className="text-base text-white transition-colors hover:text-[#FF5800]"
               >
                 Docs
-              </Link>
+              </a>
               <a
                 href="/privacy-policy"
                 className="text-base text-white transition-colors hover:text-[#FF5800]"

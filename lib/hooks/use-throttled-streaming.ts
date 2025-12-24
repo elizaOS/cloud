@@ -37,15 +37,13 @@ export function useThrottledStreamingUpdate() {
 
   // Cleanup on unmount
   useEffect(() => {
-    const pendingUpdates = pendingUpdatesRef.current;
-    const textMap = textMapRef.current;
     return () => {
       // Cancel all pending animation frames
-      pendingUpdates.forEach((frameId) => {
+      pendingUpdatesRef.current.forEach((frameId) => {
         cancelAnimationFrame(frameId);
       });
-      pendingUpdates.clear();
-      textMap.clear();
+      pendingUpdatesRef.current.clear();
+      textMapRef.current.clear();
     };
   }, []);
 
