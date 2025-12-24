@@ -98,7 +98,7 @@ interface CharacterData {
   };
 }
 
-interface ElizaChatInterfaceProps { 
+interface ElizaChatInterfaceProps {
   onMessageSent?: () => void | Promise<void>;
   character?: CharacterData;
   expectedCharacterId?: string; // Used to validate room belongs to expected character during navigation
@@ -223,9 +223,13 @@ export function ElizaChatInterface({
 
   const [isUploadingFiles, setIsUploadingFiles] = useState(false);
   const [webSearchEnabled, setWebSearchEnabled] = useState(true);
-  
+
   // Custom model selection (when user picks from "More models")
-  const [customModel, setCustomModel] = useState<{ id: string; name: string; modelId: string } | null>(null);
+  const [customModel, setCustomModel] = useState<{
+    id: string;
+    name: string;
+    modelId: string;
+  } | null>(null);
 
   const messageAudioUrls = useRef<Map<string, string>>(new Map());
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
@@ -408,16 +412,21 @@ export function ElizaChatInterface({
   useEffect(() => {
     // Use expectedCharacterId (from URL/props) as source of truth, fallback to store's selectedCharacterId
     const targetCharacterId = expectedCharacterId || selectedCharacterId;
-    
+
     if (roomId) {
       // CRITICAL: Validate room belongs to expected character before loading
       // This prevents loading stale room data during navigation race conditions
       const rooms = useChatStore.getState().rooms;
-      const room = rooms.find(r => r.id === roomId);
-      if (room && room.characterId && targetCharacterId && room.characterId !== targetCharacterId) {
+      const room = rooms.find((r) => r.id === roomId);
+      if (
+        room &&
+        room.characterId &&
+        targetCharacterId &&
+        room.characterId !== targetCharacterId
+      ) {
         return; // Skip loading - room belongs to different character
       }
-      
+
       // Skip loading for rooms we just created (they're empty, prevents flicker)
       if (justCreatedRoomIdRef.current === roomId) {
         justCreatedRoomIdRef.current = null; // Clear the flag
@@ -1114,11 +1123,11 @@ export function ElizaChatInterface({
   const copyToClipboard = async (
     text: string,
     messageId: string,
-    attachments?: Media[],
+    attachments?: Media[]
   ) => {
     // Check if there are image attachments
     const imageAttachment = attachments?.find(
-      (att) => att.contentType === ContentType.IMAGE,
+      (att) => att.contentType === ContentType.IMAGE
     );
 
     if (imageAttachment) {
@@ -1433,24 +1442,35 @@ export function ElizaChatInterface({
                       }}
                     >
                       <div className="flex items-center gap-3">
-                        <Globe className={`h-4 w-4 ${webSearchEnabled ? "text-[#FF5800]" : "text-white/50"}`} />
+                        <Globe
+                          className={`h-4 w-4 ${webSearchEnabled ? "text-[#FF5800]" : "text-white/50"}`}
+                        />
                         <span className="text-sm">Web search</span>
                       </div>
-                      {webSearchEnabled && <Check className="h-4 w-4 text-[#FF5800]" />}
+                      {webSearchEnabled && (
+                        <Check className="h-4 w-4 text-[#FF5800]" />
+                      )}
                     </DropdownMenuItem>
 
                     <DropdownMenuItem
                       className="flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer"
                       onSelect={(e) => {
                         e.preventDefault();
-                        setAudioState((prev) => ({ ...prev, autoPlayTTS: !prev.autoPlayTTS }));
+                        setAudioState((prev) => ({
+                          ...prev,
+                          autoPlayTTS: !prev.autoPlayTTS,
+                        }));
                       }}
                     >
                       <div className="flex items-center gap-3">
-                        <Volume2 className={`h-4 w-4 ${audioState.autoPlayTTS ? "text-[#FF5800]" : "text-white/50"}`} />
+                        <Volume2
+                          className={`h-4 w-4 ${audioState.autoPlayTTS ? "text-[#FF5800]" : "text-white/50"}`}
+                        />
                         <span className="text-sm">Auto-play voice</span>
                       </div>
-                      {audioState.autoPlayTTS && <Check className="h-4 w-4 text-[#FF5800]" />}
+                      {audioState.autoPlayTTS && (
+                        <Check className="h-4 w-4 text-[#FF5800]" />
+                      )}
                     </DropdownMenuItem>
 
                     {audioState.customVoices.length > 0 && (
@@ -1458,17 +1478,28 @@ export function ElizaChatInterface({
                         <Select
                           value={audioState.selectedVoiceId || "default"}
                           onValueChange={(value) => {
-                            const newVoiceId = value === "default" ? null : value;
-                            setAudioState((prev) => ({ ...prev, selectedVoiceId: newVoiceId }));
+                            const newVoiceId =
+                              value === "default" ? null : value;
+                            setAudioState((prev) => ({
+                              ...prev,
+                              selectedVoiceId: newVoiceId,
+                            }));
                             if (typeof window !== "undefined") {
                               if (newVoiceId) {
-                                localStorage.setItem("eliza-selected-voice-id", newVoiceId);
+                                localStorage.setItem(
+                                  "eliza-selected-voice-id",
+                                  newVoiceId
+                                );
                               } else {
-                                localStorage.removeItem("eliza-selected-voice-id");
+                                localStorage.removeItem(
+                                  "eliza-selected-voice-id"
+                                );
                               }
                             }
                             const voiceName = newVoiceId
-                              ? audioState.customVoices.find((v) => v.elevenlabsVoiceId === newVoiceId)?.name || "Custom"
+                              ? audioState.customVoices.find(
+                                  (v) => v.elevenlabsVoiceId === newVoiceId
+                                )?.name || "Custom"
                               : "Default";
                             toast.success(`Voice: ${voiceName}`);
                           }}
@@ -1477,9 +1508,14 @@ export function ElizaChatInterface({
                             <SelectValue placeholder="Select voice" />
                           </SelectTrigger>
                           <SelectContent className="rounded-lg border-white/[0.08]">
-                            <SelectItem value="default">Default Voice</SelectItem>
+                            <SelectItem value="default">
+                              Default Voice
+                            </SelectItem>
                             {audioState.customVoices.map((voice) => (
-                              <SelectItem key={voice.id} value={voice.elevenlabsVoiceId}>
+                              <SelectItem
+                                key={voice.id}
+                                value={voice.elevenlabsVoiceId}
+                              >
                                 {voice.name}
                               </SelectItem>
                             ))}
@@ -1498,7 +1534,9 @@ export function ElizaChatInterface({
                   disabled={loadingState.isSending}
                   onClick={handleVoiceInput}
                   className={`h-8 w-8 rounded-lg transition-colors ${
-                    recorder.isRecording ? "bg-red-500/10 hover:bg-red-500/20" : "hover:bg-white/[0.06]"
+                    recorder.isRecording
+                      ? "bg-red-500/10 hover:bg-red-500/20"
+                      : "hover:bg-white/[0.06]"
                   } disabled:opacity-40`}
                 >
                   {recorder.isRecording ? (
@@ -1522,10 +1560,23 @@ export function ElizaChatInterface({
                     >
                       <span className="flex items-center gap-1.5 text-sm text-white/50">
                         {!customModel && tierIcons[selectedTier]}
-                        {customModel ? customModel.name : tiers.find((t) => t.id === selectedTier)?.name || "Pro"}
+                        {customModel
+                          ? customModel.name
+                          : tiers.find((t) => t.id === selectedTier)?.name ||
+                            "Pro"}
                       </span>
-                      <svg className="h-3.5 w-3.5 text-white/30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      <svg
+                        className="h-3.5 w-3.5 text-white/30"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 9l-7 7-7-7"
+                        />
                       </svg>
                     </Button>
                   </DropdownMenuTrigger>
@@ -1545,16 +1596,26 @@ export function ElizaChatInterface({
                         }}
                       >
                         <div className="flex items-start gap-3">
-                          <span className="mt-0.5 text-white/50">{tierIcons[tier.id]}</span>
+                          <span className="mt-0.5 text-white/50">
+                            {tierIcons[tier.id]}
+                          </span>
                           <div className="flex flex-col gap-0.5">
                             <div className="flex items-center gap-2">
-                              <span className="text-[14px] font-medium text-white">{tier.name}</span>
-                              <span className="text-[11px] text-white/30 font-mono">{tier.modelId.split("/")[1]}</span>
+                              <span className="text-[14px] font-medium text-white">
+                                {tier.name}
+                              </span>
+                              <span className="text-[11px] text-white/30 font-mono">
+                                {tier.modelId.split("/")[1]}
+                              </span>
                             </div>
-                            <span className="text-[12px] text-white/40">{tier.description}</span>
+                            <span className="text-[12px] text-white/40">
+                              {tier.description}
+                            </span>
                           </div>
                         </div>
-                        {!customModel && selectedTier === tier.id && <Check className="h-4 w-4 text-[#FF5800]" />}
+                        {!customModel && selectedTier === tier.id && (
+                          <Check className="h-4 w-4 text-[#FF5800]" />
+                        )}
                       </DropdownMenuItem>
                     ))}
 
@@ -1572,17 +1633,29 @@ export function ElizaChatInterface({
                             key={model.id}
                             className="flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer"
                             onSelect={() => {
-                              setCustomModel({ id: model.id, name: model.name, modelId: model.modelId });
+                              setCustomModel({
+                                id: model.id,
+                                name: model.name,
+                                modelId: model.modelId,
+                              });
                             }}
                           >
                             <div className="flex flex-col">
                               <div className="flex items-center gap-2">
-                                <span className="text-[13px] font-medium text-white">{model.name}</span>
-                                <span className="text-[10px] text-white/30 font-mono">{model.modelId.split("/")[1]}</span>
+                                <span className="text-[13px] font-medium text-white">
+                                  {model.name}
+                                </span>
+                                <span className="text-[10px] text-white/30 font-mono">
+                                  {model.modelId.split("/")[1]}
+                                </span>
                               </div>
-                              <span className="text-[11px] text-white/40">{model.description}</span>
+                              <span className="text-[11px] text-white/40">
+                                {model.description}
+                              </span>
                             </div>
-                            {customModel?.id === model.id && <Check className="h-4 w-4 text-[#FF5800]" />}
+                            {customModel?.id === model.id && (
+                              <Check className="h-4 w-4 text-[#FF5800]" />
+                            )}
                           </DropdownMenuItem>
                         ))}
                       </DropdownMenuSubContent>
@@ -1593,7 +1666,11 @@ export function ElizaChatInterface({
                 {/* Send Button */}
                 <Button
                   type="submit"
-                  disabled={loadingState.isSending || !inputText.trim() || recorder.isRecording}
+                  disabled={
+                    loadingState.isSending ||
+                    !inputText.trim() ||
+                    recorder.isRecording
+                  }
                   size="icon"
                   className="h-8 w-8 rounded-lg bg-transparent hover:bg-white/[0.06] disabled:opacity-40 border-0 transition-colors"
                 >

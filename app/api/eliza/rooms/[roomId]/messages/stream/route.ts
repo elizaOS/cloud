@@ -258,7 +258,7 @@ export async function POST(
     if (agentMode && !isValidAgentModeConfig(agentMode)) {
       return new Response(
         JSON.stringify({ error: "Invalid agent mode configuration" }),
-        { status: 400, headers: { "Content-Type": "application/json" } },
+        { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
 
@@ -287,9 +287,9 @@ export async function POST(
     const userContext = await authenticateAndBuildContext(
       request,
       agentModeConfig.mode,
-      { sessionToken, appId, appPromptConfig, webSearchEnabled },
+      { sessionToken, appId, appPromptConfig, webSearchEnabled }
     );
-    
+
     // Set webSearchEnabled on context (defaults to true)
     userContext.webSearchEnabled = effectiveWebSearchEnabled;
     if (effectiveWebSearchEnabled) {
@@ -814,7 +814,7 @@ async function authenticateAndBuildContext(
     appId?: string;
     appPromptConfig?: Record<string, unknown>;
     webSearchEnabled?: boolean;
-  },
+  }
 ) {
   const headerToken = request.headers.get("X-Anonymous-Session");
   const bodyToken = body?.sessionToken;
