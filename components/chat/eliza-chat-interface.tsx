@@ -408,6 +408,13 @@ export function ElizaChatInterface({
         loadMessagesAbortControllerRef.current.abort();
         loadMessagesAbortControllerRef.current = null;
       }
+      
+      // CRITICAL: Also abort any in-flight streaming response on unmount
+      if (streamingAbortControllerRef.current) {
+        console.log(`[Chat] 🧹 Cleanup: Aborting streaming response on unmount`);
+        streamingAbortControllerRef.current.abort();
+        streamingAbortControllerRef.current = null;
+      }
     };
   }, [roomId, loadMessages]); // loadMessages is stable, only roomId changes
 

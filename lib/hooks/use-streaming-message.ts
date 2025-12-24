@@ -167,7 +167,13 @@ export async function sendStreamingMessage({
         // Process any remaining data in buffer
         if (buffer.trim()) {
           try {
-            processSSEMessage(buffer.trim(), onMessage, onChunk, onError, onComplete);
+            processSSEMessage(
+              buffer.trim(),
+              onMessage,
+              onChunk,
+              onError,
+              onComplete
+            );
           } catch (err) {
             console.error("[Stream] Error processing final buffer:", err);
             onError?.("Stream ended unexpectedly");
@@ -180,7 +186,9 @@ export async function sendStreamingMessage({
 
       // Prevent unbounded buffer growth (potential DoS vector)
       if (buffer.length > MAX_BUFFER_SIZE) {
-        throw new Error("Stream buffer exceeded maximum size - possible malformed SSE data");
+        throw new Error(
+          "Stream buffer exceeded maximum size - possible malformed SSE data"
+        );
       }
 
       // Process complete SSE messages (separated by double newline)
@@ -191,7 +199,13 @@ export async function sendStreamingMessage({
         if (!message.trim()) continue;
 
         try {
-          processSSEMessage(message.trim(), onMessage, onChunk, onError, onComplete);
+          processSSEMessage(
+            message.trim(),
+            onMessage,
+            onChunk,
+            onError,
+            onComplete
+          );
         } catch (err) {
           console.error("[Stream] Error parsing SSE message:", err, message);
           // Continue processing other messages even if one fails
@@ -206,7 +220,7 @@ export async function sendStreamingMessage({
   } finally {
     clearTimeout(timeoutId);
   }
-  
+
   // Return the controller so it can be aborted by the caller
   return controller;
 }
@@ -220,7 +234,7 @@ function processSSEMessage(
   onMessage: (message: StreamingMessage) => void,
   onChunk?: (chunk: StreamChunkData) => void,
   onError?: (error: string) => void,
-  onComplete?: () => void,
+  onComplete?: () => void
 ): void {
   const lines = message.split("\n");
   let eventType = "message"; // Default event type
@@ -251,7 +265,7 @@ function processSSEMessage(
   } catch (err) {
     console.error("[Stream] Failed to parse JSON data:", dataString, err);
     throw new Error(
-      `Invalid JSON in SSE data: ${err instanceof Error ? err.message : String(err)}`,
+      `Invalid JSON in SSE data: ${err instanceof Error ? err.message : String(err)}`
     );
   }
 
@@ -298,7 +312,9 @@ function processSSEMessage(
 /**
  * Type guard to validate StreamChunkData structure
  */
-function isValidStreamChunkData(data: StreamChunkData): data is StreamChunkData {
+function isValidStreamChunkData(
+  data: StreamChunkData
+): data is StreamChunkData {
   if (!data || typeof data !== "object") return false;
   return (
     typeof data.messageId === "string" &&
