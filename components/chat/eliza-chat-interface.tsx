@@ -53,18 +53,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { usePrivy } from "@privy-io/react-auth";
 import { useKnowledgeProcessingStatus } from "@/components/chat/hooks/use-knowledge-processing-status";
+import { ContentType, type Media } from "@elizaos/core";
 
 interface Message {
   id: string;
   content: {
     text: string;
     clientMessageId?: string;
-    attachments?: Array<{
-      id: string;
-      url: string;
-      title?: string;
-      contentType: string;
-    }>;
+    attachments?: Media[];
   };
   isAgent: boolean;
   createdAt: number;
@@ -83,18 +79,18 @@ interface AgentInfoDisplay {
 interface CharacterData {
   id: string;
   name: string;
-  avatarUrl?: string;
-  avatar_url?: string;
+  avatarUrl?: string | null;
+  avatar_url?: string | null;
   character_data?: {
     bio?: string | string[];
     personality?: string;
     description?: string;
-    avatarUrl?: string;
-    avatar_url?: string;
+    avatarUrl?: string | null;
+    avatar_url?: string | null;
   };
 }
 
-interface ElizaChatInterfaceProps {
+interface ElizaChatInterfaceProps { 
   onMessageSent?: () => void | Promise<void>;
   character?: CharacterData;
 }
@@ -934,19 +930,11 @@ export function ElizaChatInterface({
   const copyToClipboard = async (
     text: string,
     messageId: string,
-    attachments?: Array<{
-      id: string;
-      url: string;
-      title?: string;
-      contentType: string;
-    }>,
+    attachments?: Media[],
   ) => {
     // Check if there are image attachments
     const imageAttachment = attachments?.find(
-      (att) =>
-        att.contentType === "IMAGE" ||
-        att.contentType === "image" ||
-        att.contentType.startsWith("image/"),
+      (att) => att.contentType === ContentType.IMAGE,
     );
 
     if (imageAttachment) {

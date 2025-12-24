@@ -12,22 +12,29 @@ import {
   appConfigProvider,
 } from "../shared/providers";
 import { generateImageAction } from "./actions/image-generation";
+import { affiliateContextProvider } from "./providers/affiliate-context";
 import { currentRunContextProvider } from "./providers/current-run-context";
 import { handleMessage } from "./handler";
 import { roomTitleEvaluator } from "../shared/evaluators";
 import type { StreamChunkCallback } from "../shared/types";
 
-export const assistantPlugin: Plugin = {
-  name: "eliza-assistant",
-  description: "Planning-based assistant with action execution capabilities",
+/**
+ * Affiliate Plugin
+ * 
+ * Specialized handler for affiliate/miniapp characters.
+ * Uses minimal providers, auto-image generation, and immersive character prompts.
+ * Loaded instead of plugin-assistant when character has affiliateData settings.
+ */
+export const affiliatePlugin: Plugin = {
+  name: "eliza-affiliate",
+  description: "Affiliate character handler with auto-image generation for miniapps",
   events: {
     [EventType.MESSAGE_RECEIVED]: [
       async (payload: MessagePayload) => {
         if (!payload.callback) return;
-        // Extract onStreamChunk if present (added by eliza-cloud message handler)
         const onStreamChunk = (payload as MessagePayload & { onStreamChunk?: StreamChunkCallback }).onStreamChunk;
         logger.info(
-          `[Assistant] Message received in room ${payload.message.roomId}, streaming=${!!onStreamChunk}`,
+          `[Affiliate] Message received in room ${payload.message.roomId}, streaming=${!!onStreamChunk}`,
         );
         await handleMessage({
           runtime: payload.runtime,
@@ -42,6 +49,7 @@ export const assistantPlugin: Plugin = {
     providersProvider,
     actionsProvider,
     characterProvider,
+    affiliateContextProvider,
     currentRunContextProvider,
     recentMessagesProvider,
     appConfigProvider,
@@ -50,4 +58,4 @@ export const assistantPlugin: Plugin = {
   evaluators: [roomTitleEvaluator],
 };
 
-export default assistantPlugin;
+export default affiliatePlugin;

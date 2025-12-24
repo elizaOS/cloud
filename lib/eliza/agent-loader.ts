@@ -4,6 +4,7 @@ import { memoryPlugin } from "@elizaos/plugin-memory";
 import { elevenLabsPlugin } from "@elizaos/plugin-elevenlabs";
 import mcpPlugin from "@elizaos/plugin-mcp";
 import { assistantPlugin } from "./plugin-assistant";
+import { affiliatePlugin } from "./plugin-affiliate";
 import { chatPlaygroundPlugin } from "./plugin-chat-playground";
 import { characterBuilderPlugin } from "./plugin-character-builder";
 import { charactersService } from "@/lib/services/characters";
@@ -17,6 +18,7 @@ import {
   SETTINGS_PLUGIN_MAP,
   getConditionalPlugins,
   requiresAssistantMode,
+  hasAffiliateData,
 } from "./agent-mode-types";
 
 /**
@@ -123,6 +125,7 @@ const AVAILABLE_PLUGINS: Record<string, Plugin> = {
   "@elizaos/plugin-mcp": asPlugin(mcpPlugin),
   // Local plugins don't need casting - they use the same @elizaos/core
   "@eliza-cloud/plugin-assistant": assistantPlugin,
+  "@eliza-cloud/plugin-affiliate": affiliatePlugin,
   "@eliza-cloud/plugin-chat-playground": chatPlaygroundPlugin,
   "@eliza-cloud/plugin-character-builder": characterBuilderPlugin,
 };
@@ -303,8 +306,18 @@ export class AgentLoader {
   ): Promise<Plugin[]> {
     const plugins: Plugin[] = [];
     const conditionalPlugins = getConditionalPlugins(characterSettings);
+    const isAffiliate = hasAffiliateData(characterSettings);
+
+    // Build plugin list, swapping assistant for affiliate when needed
+    const modePlugins = AGENT_MODE_PLUGINS[agentMode].map((pluginName) => {
+      if (isAffiliate && pluginName === "@eliza-cloud/plugin-assistant") {
+        return "@eliza-cloud/plugin-affiliate";
+      }
+      return pluginName;
+    });
+
     const allPluginNames = [
-      ...AGENT_MODE_PLUGINS[agentMode],
+      ...modePlugins,
       ...characterPlugins,
       ...conditionalPlugins,
     ];

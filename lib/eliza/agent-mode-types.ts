@@ -109,6 +109,18 @@ interface McpServerConfig {
 }
 
 /**
+ * Affiliate character data configuration
+ * When present, swaps plugin-assistant for plugin-affiliate
+ */
+export interface AffiliateData {
+  vibe?: string;
+  affiliateId?: string;
+  autoImage?: boolean;
+  imageUrls?: string[];
+  [key: string]: unknown;
+}
+
+/**
  * Settings-based plugin configuration types
  * Used to detect which conditional plugins should be loaded
  */
@@ -185,4 +197,13 @@ export function requiresAssistantMode(
     }
   }
   return null;
+}
+
+/**
+ * Check if character has affiliate data configured.
+ * When true, plugin-affiliate should be loaded instead of plugin-assistant.
+ */
+export function hasAffiliateData(settings: Record<string, unknown>): boolean {
+  const affiliateData = settings.affiliateData as AffiliateData | undefined;
+  return affiliateData != null && Object.keys(affiliateData).length > 0;
 }
