@@ -147,7 +147,20 @@ export default async function ElizaPage({ searchParams }: PageProps) {
 
       const rooms = await roomsService.getRoomsForEntity(user.id);
       const characterRooms = rooms
-        .filter((room) => room.characterId === initialCharacterId)
+        .filter((room) => {
+          // Strict character isolation: only include rooms that match the requested character
+          // This prevents conversation contamination between different characters
+          const matchesCharacter = room.characterId === initialCharacterId;
+          const hasCharacterId = Boolean(room.characterId);
+
+          if (!hasCharacterId) {
+            logger.warn(
+              `[Dashboard Chat] Room ${room.id} has no characterId, skipping`,
+            );
+          }
+
+          return matchesCharacter && hasCharacterId;
+        })
         .sort((a, b) => (b.lastTime || 0) - (a.lastTime || 0));
 
       if (characterRooms.length > 0) {

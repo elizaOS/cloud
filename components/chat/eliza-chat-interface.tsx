@@ -142,6 +142,10 @@ export function ElizaChatInterface({
   const justCreatedRoomIdRef = useRef<string | null>(null);
   // Track if we're in the middle of sending to prevent loading state flicker
   const isSendingRef = useRef(false);
+  // CRITICAL: AbortController to cancel in-flight message loading requests
+  const loadMessagesAbortControllerRef = useRef<AbortController | null>(null);
+  // Track the expected character for loaded messages to prevent race conditions
+  const expectedCharacterIdRef = useRef<string | null>(null);
 
   // Get character name from prop (preferred), store, or agentInfo (memoized)
   const selectedCharacter = useMemo(
@@ -249,33 +253,113 @@ export function ElizaChatInterface({
   useKnowledgeProcessingStatus(selectedCharacterId || null);
 
   const loadMessages = useCallback(async (targetRoomId: string, skipLoadingState = false) => {
+    // CRITICAL: Cancel any in-flight message loading requests
+    if (loadMessagesAbortControllerRef.current) {
+      console.log(`[Chat] ⚠️  Cancelling previous loadMessages request`);
+      loadMessagesAbortControllerRef.current.abort();
+    }
+
+    // Create new AbortController for this request
+    const abortController = new AbortController();
+    loadMessagesAbortControllerRef.current = abortController;
+
+    // Track which character we expect messages for
+    const expectedCharId = selectedCharacterId;
+    expectedCharacterIdRef.current = expectedCharId;
+
+    console.log(`[Chat] Loading messages for room: ${targetRoomId}, character: ${expectedCharId}`);
+
     // Don't show loading state if we're sending (prevents flicker) or explicitly skipped
     if (!skipLoadingState && !isSendingRef.current) {
       setLoadingState((prev) => ({ ...prev, isLoadingMessages: true }));
     }
+
     try {
-      const response = await fetch(`/api/eliza/rooms/${targetRoomId}`, {
+      // CRITICAL: Pass characterId to validate room ownership
+      const url = new URL(`/api/eliza/rooms/${targetRoomId}`, window.location.origin);
+      if (expectedCharId) {
+        url.searchParams.set("characterId", expectedCharId);
+      }
+
+      console.log(`[Chat] Fetching: ${url.toString()}`);
+      const response = await fetch(url.toString(), {
         credentials: "include",
+        signal: abortController.signal,
       });
+
+      // CRITICAL: Verify this is still the expected character before updating state
+      if (expectedCharacterIdRef.current !== expectedCharId) {
+        console.log(
+          `[Chat] ⚠️  Ignoring response - character changed from ${expectedCharId} to ${expectedCharacterIdRef.current}`
+        );
+        return;
+      }
+
       if (response.ok) {
         const data = await response.json();
-        // Only update messages if we're not in the middle of sending
-        // This prevents overwriting optimistic messages with stale data
-        if (!isSendingRef.current) {
-          setMessages(data.messages || []);
+        console.log(`[Chat] ✅ Loaded ${data.messages?.length || 0} messages for character ${data.characterId}`);
+
+        // FINAL CHECK: Only update if character still matches
+        if (expectedCharacterIdRef.current === expectedCharId && data.characterId === expectedCharId) {
+          // Only update messages if we're not in the middle of sending
+          // This prevents overwriting optimistic messages with stale data
+          if (!isSendingRef.current) {
+            setMessages(data.messages || []);
+          }
+          if (data.agent) {
+            setAgentInfo(data.agent);
+          }
+        } else {
+          console.log(
+            `[Chat] ⚠️  Character mismatch - ignoring messages. Expected: ${expectedCharId}, Got: ${data.characterId}, Current: ${expectedCharacterIdRef.current}`
+          );
         }
-        if (data.agent) {
-          setAgentInfo(data.agent);
-        }
+      } else if (response.status === 400) {
+        // Character mismatch detected - this room is contaminated
+        const errorData = await response.json();
+        console.error("[Chat] ❌ CHARACTER MISMATCH!", errorData);
+        setError(
+          `This conversation belongs to a different character. Please select "New Chat" to start fresh.`
+        );
+        setMessages([]);
       }
-    } catch (err) {
-      console.error("Error loading messages:", err);
+    } catch (err: unknown) {
+      // Ignore abort errors - they're expected when cancelling requests
+      if (err instanceof Error && err.name === "AbortError") {
+        console.log(`[Chat] 🚫 Request aborted for room ${targetRoomId}`);
+        return;
+      }
+      console.error("[Chat] Error loading messages:", err);
     } finally {
-      if (!skipLoadingState && !isSendingRef.current) {
-        setLoadingState((prev) => ({ ...prev, isLoadingMessages: false }));
+      // Only clear loading state if this is still the current request
+      if (loadMessagesAbortControllerRef.current === abortController) {
+        if (!skipLoadingState && !isSendingRef.current) {
+          setLoadingState((prev) => ({ ...prev, isLoadingMessages: false }));
+        }
+        loadMessagesAbortControllerRef.current = null;
       }
     }
-  }, []); // Stable - no dependencies needed
+  }, [selectedCharacterId]); // Add selectedCharacterId as dependency
+
+  // Clear messages immediately when character changes (prevents flickering old character's messages)
+  useEffect(() => {
+    console.log(`[Chat] Character changed to: ${selectedCharacterId}`);
+
+    // Cancel any in-flight message loading for the previous character
+    if (loadMessagesAbortControllerRef.current) {
+      console.log(`[Chat] 🚫 Aborting previous loadMessages due to character change`);
+      loadMessagesAbortControllerRef.current.abort();
+      loadMessagesAbortControllerRef.current = null;
+    }
+
+    // Update expected character
+    expectedCharacterIdRef.current = selectedCharacterId;
+
+    // Clear old messages immediately
+    setMessages([]);
+    setError(null);
+    setLoadingState((prev) => ({ ...prev, isLoadingMessages: true }));
+  }, [selectedCharacterId]);
 
   // Load messages when roomId from context changes
   useEffect(() => {
@@ -283,12 +367,16 @@ export function ElizaChatInterface({
       // Skip loading for rooms we just created (they're empty, prevents flicker)
       if (justCreatedRoomIdRef.current === roomId) {
         justCreatedRoomIdRef.current = null; // Clear the flag
+        setLoadingState((prev) => ({ ...prev, isLoadingMessages: false }));
         return; // Skip loading - room is empty and we have optimistic messages
       }
       // Skip loading if we're currently sending (prevents flicker)
       if (isSendingRef.current) {
         return;
       }
+      // Clear old messages immediately to prevent showing stale data
+      setMessages([]);
+      setLoadingState((prev) => ({ ...prev, isLoadingMessages: true }));
       loadMessages(roomId);
     } else {
       // Room was deleted or cleared - reset to empty state
@@ -297,6 +385,15 @@ export function ElizaChatInterface({
       setError(null);
       setLoadingState((prev) => ({ ...prev, isLoadingMessages: false }));
     }
+
+    // Cleanup: Cancel any ongoing requests when roomId changes or component unmounts
+    return () => {
+      if (loadMessagesAbortControllerRef.current) {
+        console.log(`[Chat] 🧹 Cleanup: Aborting loadMessages for roomId change/unmount`);
+        loadMessagesAbortControllerRef.current.abort();
+        loadMessagesAbortControllerRef.current = null;
+      }
+    };
   }, [roomId, loadMessages]); // loadMessages is stable, only roomId changes
 
   const createRoom = useCallback(
