@@ -121,6 +121,7 @@ export function ElizaChatInterface({
     createRoom: createRoomInStore,
     selectedCharacterId,
     availableCharacters,
+    setAvailableCharacters,
     pendingMessage,
     setPendingMessage,
     anonymousSessionToken,
@@ -157,6 +158,43 @@ export function ElizaChatInterface({
       character?.name || selectedCharacter?.name || agentInfo?.name || "Agent",
     [character?.name, selectedCharacter?.name, agentInfo?.name],
   );
+
+  // Fetch shared character data if not available in store (for shared links)
+  // This is a client-side fallback in case server-side fetch wasn't performed
+  const fetchedCharacterRef = useRef<string | null>(null);
+  useEffect(() => {
+    const targetId = expectedCharacterId || selectedCharacterId;
+    
+    // Skip if no character ID or already fetched or character is in store
+    if (!targetId || fetchedCharacterRef.current === targetId) return;
+    if (availableCharacters.some((c) => c.id === targetId)) return;
+
+    // Fetch character data from public API
+    fetchedCharacterRef.current = targetId;
+    fetch(`/api/characters/${targetId}/public`)
+      .then((res) => {
+        if (res.ok) return res.json();
+        throw new Error("Failed to fetch character");
+      })
+      .then((data) => {
+        if (data.success && data.data) {
+          const charData = data.data;
+          // Add to available characters in store
+          setAvailableCharacters([
+            ...availableCharacters,
+            {
+              id: charData.id,
+              name: charData.name,
+              username: charData.username || undefined,
+              avatarUrl: charData.avatarUrl || undefined,
+            },
+          ]);
+        }
+      })
+      .catch((err) => {
+        console.warn("[ElizaChat] Could not fetch shared character:", err);
+      });
+  }, [expectedCharacterId, selectedCharacterId, availableCharacters, setAvailableCharacters]);
 
   // Get avatar URL from prop (preferred), store, or agentInfo
   // Check both top-level and nested character_data properties

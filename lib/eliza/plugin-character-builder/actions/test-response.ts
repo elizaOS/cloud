@@ -5,12 +5,16 @@ import {
   type IAgentRuntime,
   type Memory,
   type State,
+  type UUID,
   logger,
   composePromptFromState,
   parseKeyValueXml,
   ModelType,
+  runWithStreamingContext,
+  XmlTagExtractor,
 } from "@elizaos/core";
 import { cleanPrompt, isCreatorMode } from "../../shared/utils/helpers";
+import type { StreamChunkCallback } from "../../shared/types";
 
 /**
  * TEST_RESPONSE Action
@@ -77,10 +81,11 @@ export const testResponseAction = {
     runtime: IAgentRuntime,
     message: Memory,
     state: State,
-    _options: Record<string, unknown>,
+    options: Record<string, unknown>,
     callback: HandlerCallback,
   ): Promise<void> => {
-    logger.info("[TEST_RESPONSE] Generating character test response");
+    const onStreamChunk = options?.onStreamChunk as StreamChunkCallback | undefined;
+    logger.info(`[TEST_RESPONSE] Generating character test response, streaming=${!!onStreamChunk}`);
 
     // Verify we're in build mode
     if (isCreatorMode(runtime)) {
@@ -119,7 +124,26 @@ export const testResponseAction = {
       }),
     );
 
-    const response = await runtime.useModel(ModelType.TEXT_LARGE, { prompt });
+    // Create streaming context to extract <text> content and stream it
+    let streamingContext: { onStreamChunk: (chunk: string, messageId?: UUID) => Promise<void>; messageId?: UUID } | undefined;
+    if (onStreamChunk) {
+      const extractor = new XmlTagExtractor('text');
+      streamingContext = {
+        onStreamChunk: async (chunk: string, msgId?: UUID) => {
+          if (extractor.done) return;
+          const textToStream = extractor.push(chunk);
+          if (textToStream) {
+            await onStreamChunk(textToStream, msgId);
+          }
+        },
+        messageId: message.id as UUID,
+      };
+    }
+
+    const response = await runWithStreamingContext(
+      streamingContext,
+      () => runtime.useModel(ModelType.TEXT_LARGE, { prompt }),
+    );
 
     // Restore original system prompt
     runtime.character.system = originalSystemPrompt;

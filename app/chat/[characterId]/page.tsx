@@ -24,6 +24,16 @@ interface ChatPageProps {
  * Supports both authenticated and anonymous users.
  * Handles affiliate character claiming and session migration.
  *
+ * ACCESS CONTROL:
+ * - Public characters (is_public=true): Anyone can chat
+ * - Private characters (is_public=false): Only owner can chat
+ * - Claimable affiliate characters: Anyone can chat (ownership transfers on sign up)
+ *
+ * PRIVACY:
+ * - Character secrets are NEVER exposed to chat users
+ * - Only "shared" knowledge items are accessible publicly
+ * - Billing is charged to the user who chats (not the character owner)
+ *
  * @param params - Route parameters containing the character ID.
  * @param searchParams - Query parameters for source, session token, and vibe.
  * @returns Chat interface component with appropriate user context.
@@ -52,7 +62,49 @@ export default async function ChatPage({
     notFound();
   }
 
-  // 2. DYNAMIC THEME RESOLUTION
+  // 2. ACCESS CONTROL CHECK
+  // Get current user to check ownership
+  const user = await getCurrentUser();
+  
+  // Determine if user has access to this character
+  const isOwner = user && character.user_id === user.id;
+  const isPublic = character.is_public === true;
+  
+  // Check if this is a claimable affiliate character (anonymous users can still access)
+  const claimCheck = await charactersService.isClaimableAffiliateCharacter(characterId);
+  const isClaimableAffiliate = claimCheck.claimable;
+  
+  // Allow access if: character is public, user is owner, or it's a claimable affiliate character
+  if (!isPublic && !isOwner && !isClaimableAffiliate) {
+    logger.warn(
+      `[Chat Page] Access denied to private character: ${characterId}`,
+      {
+        userId: user?.id,
+        characterOwnerId: character.user_id,
+        isPublic: character.is_public,
+      },
+    );
+    
+    // Redirect to dashboard with error message
+    // For authenticated users: redirect to their dashboard chat
+    // For anonymous users: redirect to home page
+    if (user) {
+      redirect(`/dashboard/chat?error=private_character&name=${encodeURIComponent(character.name)}`);
+    } else {
+      redirect(`/?error=private_character`);
+    }
+  }
+
+  logger.debug(
+    `[Chat Page] Access granted to character: ${characterId}`,
+    {
+      isPublic,
+      isOwner,
+      isClaimableAffiliate,
+    },
+  );
+
+  // 4. DYNAMIC THEME RESOLUTION
   const characterData = character.character_data as
     | Record<string, unknown>
     | undefined;
@@ -62,12 +114,9 @@ export default async function ChatPage({
     `[Chat Page] Resolved theme: ${theme.id} for character ${characterId}`,
   );
 
-  // 3. Check authentication status
-  const user = await getCurrentUser();
+  // 5. DECISION TREE: Jump directly to chat
 
-  // 4. DECISION TREE: Jump directly to chat
-
-  // Case A: Anonymous user - create session if needed and show chat
+  // Case A: Anonymous or unauthenticated user - create session if needed and show chat
   if (!user) {
     // First check for URL-based session (for backward compatibility with affiliate links)
     const anonSession = sessionId
@@ -262,6 +311,7 @@ export default async function ChatPage({
 }
 
 // Generate metadata for SEO with theme-aware branding
+// Only returns full metadata for public or claimable characters
 export async function generateMetadata({
   params,
   searchParams,
@@ -274,6 +324,23 @@ export async function generateMetadata({
   if (!character) {
     return {
       title: "Character Not Found",
+    };
+  }
+
+  // Check access - only show metadata for public or claimable characters
+  const isPublic = character.is_public === true;
+  const claimCheck = await charactersService.isClaimableAffiliateCharacter(characterId);
+  const isClaimableAffiliate = claimCheck.claimable;
+
+  // For private characters that aren't claimable, return generic metadata
+  // This prevents leaking character info in page title/meta tags
+  if (!isPublic && !isClaimableAffiliate) {
+    return {
+      title: "Chat | Eliza Cloud",
+      robots: {
+        index: false,
+        follow: false,
+      },
     };
   }
 

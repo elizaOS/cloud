@@ -11,7 +11,7 @@
 
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { ElizaChatInterface } from "@/components/chat/eliza-chat-interface";
 import { SignupPromptBanner } from "@/components/chat/signup-prompt-banner";
@@ -19,12 +19,30 @@ import { useSetPageHeader } from "@/components/layout/page-header-context";
 import { useChatStore, type Character } from "@/lib/stores/chat-store";
 import type { ElizaCharacter } from "@/lib/types";
 import { getOrCreateAnonymousUserAction } from "@/app/actions/anonymous";
+import { toast } from "sonner";
+
+interface SharedCharacter {
+  id: string;
+  name: string;
+  username?: string | null;
+  avatarUrl?: string | null;
+  bio?: string;
+}
+
+interface AccessError {
+  type: string;
+  characterName?: string;
+}
 
 interface ElizaPageClientProps {
   initialCharacters: ElizaCharacter[];
   isAuthenticated: boolean;
   initialRoomId?: string;
   initialCharacterId?: string;
+  /** Pre-loaded character data for shared links (when character is not owned by user) */
+  sharedCharacter?: SharedCharacter | null;
+  /** Access error when trying to load a private character */
+  accessError?: AccessError;
 }
 
 export function ElizaPageClient({
@@ -32,6 +50,8 @@ export function ElizaPageClient({
   isAuthenticated,
   initialRoomId,
   initialCharacterId,
+  sharedCharacter,
+  accessError,
 }: ElizaPageClientProps) {
   const router = useRouter();
   const [anonymousSession, setAnonymousSession] = useState<{
@@ -40,10 +60,41 @@ export function ElizaPageClient({
     remainingMessages: number;
   } | null>(null);
   const [isLoadingSession, setIsLoadingSession] = useState(!isAuthenticated);
+  const errorShownRef = useRef(false);
 
   // Initialize store with characters (must be at top level)
   const { setAvailableCharacters, setRoomId, setSelectedCharacterId, selectedCharacterId } =
     useChatStore();
+
+  // Show access error toast when redirected from private character
+  useEffect(() => {
+    if (accessError && !errorShownRef.current) {
+      errorShownRef.current = true;
+      
+      if (accessError.type === "private_character") {
+        const characterName = accessError.characterName || "This agent";
+        toast.error(`Sorry, "${characterName}" is not your agent`, {
+          description: "This agent is private. Only the owner can chat with it. Ask the owner to make it public if you'd like to chat.",
+          duration: 6000,
+        });
+      } else {
+        toast.error("Access denied", {
+          description: "You don't have permission to access this agent.",
+          duration: 5000,
+        });
+      }
+      
+      // Clear error AND characterId from URL without navigation
+      // This prevents the URL from showing a characterId that the user can't access
+      if (typeof window !== "undefined") {
+        const url = new URL(window.location.href);
+        url.searchParams.delete("error");
+        url.searchParams.delete("name");
+        url.searchParams.delete("characterId"); // Also clear the inaccessible characterId
+        window.history.replaceState({}, "", url.toString());
+      }
+    }
+  }, [accessError]);
 
   // Redirect authenticated users without a selected character to the build page
   // Chat mode requires an agent - "Create New Agent" mode is only available in build mode
@@ -66,16 +117,27 @@ export function ElizaPageClient({
   });
 
   // Memoize transformed characters to prevent unnecessary re-renders
-  const characters = useMemo<Character[]>(
-    () =>
-      initialCharacters.map((char) => ({
-        id: char.id || "",
-        name: char.name || "Unknown",
-        username: char.username || undefined,
-        avatarUrl: char.avatarUrl || char.avatar_url || undefined,
-      })),
-    [initialCharacters],
-  );
+  // Include shared character data for shared links (when character is not owned by user)
+  const characters = useMemo<Character[]>(() => {
+    const chars = initialCharacters.map((char) => ({
+      id: char.id || "",
+      name: char.name || "Unknown",
+      username: char.username || undefined,
+      avatarUrl: char.avatarUrl || char.avatar_url || undefined,
+    }));
+
+    // Add shared character if provided and not already in the list
+    if (sharedCharacter && !chars.some((c) => c.id === sharedCharacter.id)) {
+      chars.push({
+        id: sharedCharacter.id,
+        name: sharedCharacter.name,
+        username: sharedCharacter.username || undefined,
+        avatarUrl: sharedCharacter.avatarUrl || undefined,
+      });
+    }
+
+    return chars;
+  }, [initialCharacters, sharedCharacter]);
 
   // Initialize store on mount (only when characters change)
   useEffect(() => {

@@ -253,6 +253,21 @@ export async function handleMessage({
     if (shouldRespondNow && plan?.text) {
       responseContent = plan.text;
       thought = plan.thought || "";
+      
+      // Stream the planning response text to client for real-time display
+      // Even though we already have the full text, we stream it in chunks
+      // so the user sees text appearing incrementally
+      if (onStreamChunk && responseContent) {
+        const chunkSize = 8; // Characters per chunk - small for smooth streaming
+        for (let i = 0; i < responseContent.length; i += chunkSize) {
+          const chunk = responseContent.slice(i, i + chunkSize);
+          await onStreamChunk(chunk, responseId as UUID);
+          // Small delay between chunks for natural streaming effect
+          if (i + chunkSize < responseContent.length) {
+            await new Promise(resolve => setTimeout(resolve, 10));
+          }
+        }
+      }
     } else {
       let updatedState = await runtime.composeState(message, [
         "SUMMARIZED_CONTEXT",

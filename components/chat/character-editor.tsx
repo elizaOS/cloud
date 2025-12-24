@@ -15,6 +15,7 @@ import { CharacterForm } from "@/components/character-builder";
 import { JsonEditor } from "@/components/character-creator/json-editor";
 import { PluginsTab } from "@/components/chat/plugins-tab";
 import { UploadsTab } from "@/components/chat/uploads-tab";
+import { ShareTab } from "@/components/chat/share-tab";
 import type { ElizaCharacter } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,6 +25,7 @@ import {
   Puzzle,
   CloudUpload,
   Upload,
+  Share2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -42,7 +44,7 @@ interface CharacterEditorProps {
   onPreUploadedFileRemove?: (fileId: string) => void;
 }
 
-type MainTab = "character" | "plugins" | "files";
+type MainTab = "character" | "plugins" | "files" | "share";
 
 export function CharacterEditor({
   character,
@@ -54,10 +56,9 @@ export function CharacterEditor({
 }: CharacterEditorProps) {
   const searchParams = useSearchParams();
   const initialTab = searchParams.get("tab") as MainTab | null;
+  const validTabs = ["character", "plugins", "files", "share"];
   const [activeTab, setActiveTab] = useState<MainTab>(
-    initialTab && ["character", "plugins", "files"].includes(initialTab)
-      ? initialTab
-      : "character",
+    initialTab && validTabs.includes(initialTab) ? initialTab : "character",
   );
   const [showJson, setShowJson] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -65,7 +66,7 @@ export function CharacterEditor({
   // Update tab when URL changes
   useEffect(() => {
     const tab = searchParams.get("tab") as MainTab | null;
-    if (tab && ["character", "plugins", "files"].includes(tab)) {
+    if (tab && validTabs.includes(tab)) {
       // Schedule state update to avoid synchronous setState in effect
       const rafId = requestAnimationFrame(() => setActiveTab(tab));
       return () => cancelAnimationFrame(rafId);
@@ -87,6 +88,11 @@ export function CharacterEditor({
       value: "files",
       label: "Files",
       icon: <BookOpen className="h-4 w-4" />,
+    },
+    {
+      value: "share",
+      label: "Share",
+      icon: <Share2 className="h-4 w-4" />,
     },
   ];
 
@@ -214,6 +220,12 @@ export function CharacterEditor({
                 preUploadedFiles={preUploadedFiles}
                 onPreUploadedFilesAdd={onPreUploadedFilesAdd}
                 onPreUploadedFileRemove={onPreUploadedFileRemove}
+              />
+            )}
+            {activeTab === "share" && (
+              <ShareTab
+                characterId={character.id || null}
+                characterName={character.name}
               />
             )}
           </>
