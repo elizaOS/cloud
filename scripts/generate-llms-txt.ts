@@ -220,14 +220,12 @@ async function main() {
     fs.writeFile(path.join(wellKnownDir, "llms-full.txt"), llmsFull, "utf8"),
   ]);
 
-  // eslint-disable-next-line no-console
   console.log(
     `Generated llms.txt + llms-full.txt with ${pages.length} pages -> public/{llms.txt,llms-full.txt} and public/.well-known/{llms.txt,llms-full.txt}`,
   );
 }
 
 main().catch((err) => {
-  // eslint-disable-next-line no-console
   console.error(err);
   process.exit(1);
 });
