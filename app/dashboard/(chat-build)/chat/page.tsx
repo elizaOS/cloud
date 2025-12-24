@@ -14,6 +14,7 @@ import { eq } from "drizzle-orm";
 import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
 import { migrateAnonymousSession } from "@/lib/session";
 import { logger } from "@/lib/utils/logger";
+import { roomsService } from "@/lib/services/agents/rooms";
 
 interface PageProps {
   searchParams: Promise<{ characterId?: string; roomId?: string }>;
@@ -133,8 +134,39 @@ export default async function ElizaPage({ searchParams }: PageProps) {
 
   // Get URL params
   const params = await searchParams ?? {};
-  const initialRoomId = params.roomId;
+  let initialRoomId = params.roomId;
   const initialCharacterId = params.characterId;
+
+  // If characterId is provided but no roomId, find the most recent room for this character
+  // This ensures clicking on a character from My Agents loads the latest conversation
+  if (!isAnonymous && user && initialCharacterId && !initialRoomId) {
+    try {
+      logger.info(
+        `[Dashboard Chat] No roomId provided for characterId ${initialCharacterId}, finding most recent room`,
+      );
+
+      const rooms = await roomsService.getRoomsForEntity(user.id);
+      const characterRooms = rooms
+        .filter((room) => room.characterId === initialCharacterId)
+        .sort((a, b) => (b.lastTime || 0) - (a.lastTime || 0));
+
+      if (characterRooms.length > 0) {
+        initialRoomId = characterRooms[0].id;
+        logger.info(
+          `[Dashboard Chat] Found most recent room ${initialRoomId} for character ${initialCharacterId}`,
+        );
+      } else {
+        logger.info(
+          `[Dashboard Chat] No existing rooms found for character ${initialCharacterId}, will create new room`,
+        );
+      }
+    } catch (error) {
+      logger.error(
+        `[Dashboard Chat] Error finding room for character ${initialCharacterId}:`,
+        error,
+      );
+    }
+  }
 
   return (
     <ElizaPageClient
