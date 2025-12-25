@@ -207,10 +207,10 @@ export default function AppCreatorPage() {
         // Include source context if available
         sourceContext: sourceContext
           ? {
-              type: sourceContext.type,
-              id: sourceContext.id,
-              name: sourceContext.name,
-            }
+            type: sourceContext.type,
+            id: sourceContext.id,
+            name: sourceContext.name,
+          }
           : undefined,
       }),
     });
@@ -281,11 +281,10 @@ What would you like to build?`,
       setInput("");
       setStatus("generating");
 
-      const response = await fetch("/api/v1/app-builder/prompt", {
+      const response = await fetch(`/api/v1/app-builder/sessions/${session.id}/prompts/stream`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          sessionId: session.id,
           prompt: text,
         }),
       });
@@ -642,15 +641,14 @@ What would you like to build?`,
                 className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
               >
                 <div
-                  className={`max-w-[85%] p-4 ${
-                    msg.role === "user"
-                      ? "bg-cyan-500/20 border border-cyan-500/30"
-                      : "bg-white/5 border border-white/10"
-                  }`}
+                  className={`max-w-[85%] p-4 ${msg.role === "user"
+                    ? "bg-cyan-500/20 border border-cyan-500/30"
+                    : "bg-white/5 border border-white/10"
+                    }`}
                 >
                   <ReactMarkdown
                     remarkPlugins={[remarkGfm]}
-                    className="prose prose-invert prose-sm max-w-none"
+                  // className="prose prose-invert prose-sm max-w-none"
                   >
                     {msg.content}
                   </ReactMarkdown>

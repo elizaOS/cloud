@@ -134,6 +134,18 @@ const nextConfig: NextConfig = {
     "buffer",
     // oxapay uses __dirname + fs.readFile for method info JSON
     "oxapay",
+    // AWS SDK packages - server-only with dynamic imports
+    "@aws-sdk/client-kms",
+    "@aws-sdk/client-cloudformation",
+    "@aws-sdk/client-cloudwatch",
+    "@aws-sdk/client-cloudwatch-logs",
+    "@aws-sdk/client-ecr",
+    "@aws-sdk/client-ecs",
+    "@aws-sdk/client-elastic-load-balancing-v2",
+    "@aws-sdk/client-s3",
+    "@aws-sdk/s3-request-presigner",
+    // Vercel Sandbox - dynamically imported for app builder
+    "@vercel/sandbox",
   ],
 
   webpack: (config, { isServer, dev }) => {

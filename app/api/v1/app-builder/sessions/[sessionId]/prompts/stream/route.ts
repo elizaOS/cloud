@@ -54,6 +54,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         const result = await aiAppBuilderService.sendPrompt(
           sessionId,
           validationResult.data.prompt,
+          user.id,
           {
             onThinking: async (text) => {
               // Send thinking/reasoning text

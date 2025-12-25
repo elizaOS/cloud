@@ -36,7 +36,7 @@ async function checkDocker() {
 async function cleanupDocker() {
   log("Cleaning up existing Docker resources...");
   try {
-    await execAsync("docker-compose down -v 2>&1");
+    await execAsync("docker compose down -v 2>&1");
     log("✓ Docker resources cleaned up");
   } catch {
     log("No existing resources to clean up");
@@ -55,7 +55,7 @@ async function cleanupDocker() {
 async function startDocker() {
   log("Starting Docker containers...");
   try {
-    await execAsync("docker-compose up -d");
+    await execAsync("docker compose up -d");
     log("✓ Docker containers started");
     return true;
   } catch (e) {
