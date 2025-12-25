@@ -8,6 +8,7 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -67,9 +68,12 @@ interface SessionData {
 }
 
 export function AppAIBuilder({ app }: AppAIBuilderProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const isRestoringSession = useRef(false);
 
   // Session state
   const [session, setSession] = useState<SessionData | null>(null);
@@ -84,6 +88,107 @@ export function AppAIBuilder({ app }: AppAIBuilderProps) {
     "preview",
   );
   const [consoleLogs, setConsoleLogs] = useState<string[]>([]);
+  const [isRestoring, setIsRestoring] = useState(false);
+
+  // Storage key for messages persistence
+  const messagesStorageKey = `app-builder-messages-${app.id}`;
+
+  // Check if we should restore session on mount
+  const sessionIdFromUrl = searchParams.get("sessionId");
+
+  // Restore session from URL on mount
+  useEffect(() => {
+    const sessionId = searchParams.get("sessionId");
+    if (!sessionId || isRestoringSession.current || session) return;
+
+    isRestoringSession.current = true;
+    setIsRestoring(true);
+
+    const restoreSession = async () => {
+      try {
+        const response = await fetch(
+          `/api/v1/app-builder/sessions/${sessionId}`,
+        );
+
+        if (!response.ok) {
+          // Session not found or expired, clear URL
+          const params = new URLSearchParams(searchParams.toString());
+          params.delete("sessionId");
+          router.replace(`/dashboard/apps/${app.id}?${params.toString()}`);
+          sessionStorage.removeItem(messagesStorageKey);
+          setIsRestoring(false);
+          return;
+        }
+
+        const data = await response.json();
+        if (data.success && data.session) {
+          console.log("[AppAIBuilder] Raw session data:", data.session);
+
+          const restoredSession = {
+            id: data.session.id,
+            sandboxId: data.session.sandboxId,
+            sandboxUrl: data.session.sandboxUrl,
+            status: data.session.status,
+            examplePrompts: data.session.examplePrompts || [],
+          };
+
+          console.log("[AppAIBuilder] Restored session:", restoredSession);
+
+          // Validate sandboxUrl
+          if (!restoredSession.sandboxUrl) {
+            console.warn(
+              "[AppAIBuilder] Session has no sandboxUrl, may be expired",
+            );
+            // Clear invalid session
+            const params = new URLSearchParams(searchParams.toString());
+            params.delete("sessionId");
+            router.replace(`/dashboard/apps/${app.id}?${params.toString()}`);
+            sessionStorage.removeItem(messagesStorageKey);
+            setIsRestoring(false);
+            toast.error("Session expired", {
+              description: "Please start a new build session.",
+            });
+            return;
+          }
+
+          setSession(restoredSession);
+          setStatus(data.session.status);
+
+          // Restore messages from sessionStorage
+          const stored = sessionStorage.getItem(messagesStorageKey);
+          if (stored) {
+            try {
+              const parsed = JSON.parse(stored);
+              setMessages(parsed);
+              console.log("[AppAIBuilder] Restored messages:", parsed.length);
+            } catch {
+              // Invalid stored data, ignore
+            }
+          }
+
+          console.log("[AppAIBuilder] Session restoration complete");
+        }
+      } catch (error) {
+        console.error("Failed to restore session:", error);
+        // Clear session on error
+        const params = new URLSearchParams(searchParams.toString());
+        params.delete("sessionId");
+        router.replace(`/dashboard/apps/${app.id}?${params.toString()}`);
+        sessionStorage.removeItem(messagesStorageKey);
+      } finally {
+        setIsRestoring(false);
+      }
+    };
+
+    restoreSession();
+  }, [searchParams, session, app.id, router, messagesStorageKey]);
+
+  // Persist messages to sessionStorage
+  useEffect(() => {
+    if (messages.length > 0) {
+      sessionStorage.setItem(messagesStorageKey, JSON.stringify(messages));
+    }
+  }, [messages, messagesStorageKey]);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -268,6 +373,15 @@ Some ideas:
                   `Sandbox ready at ${data.session.sandboxUrl}`,
                   "success",
                 );
+
+                // Update URL with session ID for persistence
+                const params = new URLSearchParams(searchParams.toString());
+                params.set("sessionId", data.session.id);
+                router.replace(
+                  `/dashboard/apps/${app.id}?${params.toString()}`,
+                  { scroll: false },
+                );
+
                 toast.success("Sandbox started!", {
                   description: "Your development environment is ready.",
                 });
@@ -292,7 +406,7 @@ Some ideas:
     } finally {
       setIsLoading(false);
     }
-  }, [app, addLog]);
+  }, [app, addLog, searchParams, router]);
 
   // Send a prompt
   const sendPrompt = useCallback(
@@ -553,12 +667,22 @@ Some ideas:
       setSession(null);
       setStatus("idle");
       setMessages([]);
+      setConsoleLogs([]);
+
+      // Clear URL and sessionStorage
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("sessionId");
+      router.replace(`/dashboard/apps/${app.id}?${params.toString()}`, {
+        scroll: false,
+      });
+      sessionStorage.removeItem(messagesStorageKey);
+
       addLog("Session stopped", "info");
       toast.success("Session stopped");
     } catch (error) {
       toast.error("Failed to stop session");
     }
-  }, [session, addLog]);
+  }, [session, addLog, searchParams, router, app.id, messagesStorageKey]);
 
   // Copy sandbox URL
   const copyUrl = async () => {
@@ -659,6 +783,26 @@ ANTHROPIC_API_KEY=your_key_here`}
                 Try Again
               </Button>
             </div>
+          </div>
+        </div>
+      </BrandCard>
+    );
+  }
+
+  // Render restoring state (when sessionId in URL but session not yet loaded)
+  if (isRestoring || (sessionIdFromUrl && !session && status === "idle")) {
+    return (
+      <BrandCard className="relative">
+        <CornerBrackets className="opacity-20" />
+        <div className="relative z-10 p-8">
+          <div className="max-w-md mx-auto text-center">
+            <Loader2 className="h-12 w-12 animate-spin text-[#FF5800] mx-auto mb-4" />
+            <h2 className="text-xl font-bold text-white mb-2">
+              Restoring Session
+            </h2>
+            <p className="text-white/60">
+              Loading your sandbox environment...
+            </p>
           </div>
         </div>
       </BrandCard>

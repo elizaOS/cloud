@@ -47,6 +47,11 @@ export function AppDetailsTabs({ app, showApiKey }: AppDetailsTabsProps) {
   const handleTabChange = (value: string) => {
     const params = new URLSearchParams(searchParams.toString());
     params.set("tab", value);
+    // Preserve sessionId when switching tabs
+    const sessionId = searchParams.get("sessionId");
+    if (sessionId) {
+      params.set("sessionId", sessionId);
+    }
     router.push(`/dashboard/apps/${app.id}?${params.toString()}`, {
       scroll: false,
     });
@@ -97,7 +102,7 @@ export function AppDetailsTabs({ app, showApiKey }: AppDetailsTabsProps) {
         <AppOverview app={app} showApiKey={showApiKey} />
       </TabsContent>
 
-      <TabsContent value="build">
+      <TabsContent value="build" forceMount className={tab === "build" ? "" : "hidden"}>
         <AppAIBuilder app={app} />
       </TabsContent>
 
