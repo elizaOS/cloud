@@ -238,16 +238,16 @@ export default function AppCreatorPage() {
       ? `\n\nI see you're building an app for **${sourceContext.name}** (${sourceContext.type}). I've pre-configured the template and settings to work with this integration.`
       : "";
 
-    setMessages([
-      {
-        role: "assistant",
-        content: `🚀 **Your sandbox is ready!**
+    const welcomeMessage = `🚀 **Your sandbox is ready!**
 
 I'll help you build your app. The live preview is loading on the right.${contextMessage}
 
-${data.session.examplePrompts?.length > 0 ? "**Try one of these prompts to get started:**" : ""}
+What would you like to build?`;
 
-What would you like to build?`,
+    setMessages([
+      {
+        role: "assistant",
+        content: welcomeMessage,
         timestamp: new Date().toISOString(),
       },
     ]);
@@ -281,34 +281,94 @@ What would you like to build?`,
       setInput("");
       setStatus("generating");
 
-      const response = await fetch(`/api/v1/app-builder/sessions/${session.id}/prompts/stream`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          prompt: text,
-        }),
-      });
+      try {
+        const response = await fetch(
+          `/api/v1/app-builder/sessions/${session.id}/prompts/stream`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              prompt: text,
+            }),
+          },
+        );
 
-      if (!response.ok) {
-        const error = await response.json();
-        toast.error(error.error || "Failed to process prompt");
+        if (!response.ok) {
+          const error = await response.json();
+          toast.error(error.error || "Failed to process prompt");
+          setStatus("ready");
+          return;
+        }
+
+        // Read SSE stream
+        const reader = response.body?.getReader();
+        if (!reader) {
+          toast.error("No response body");
+          setStatus("ready");
+          return;
+        }
+
+        const decoder = new TextDecoder();
+        let buffer = "";
+        let finalData: {
+          output?: string;
+          filesAffected?: string[];
+          success?: boolean;
+          error?: string;
+        } = {};
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || "";
+
+          let eventType = "";
+          for (const line of lines) {
+            if (line.startsWith("event: ")) {
+              eventType = line.slice(7);
+            } else if (line.startsWith("data: ") && eventType) {
+              try {
+                const data = JSON.parse(line.slice(6));
+
+                if (eventType === "complete") {
+                  finalData = data;
+                } else if (eventType === "error") {
+                  throw new Error(data.error || "Failed to process prompt");
+                }
+              } catch (e) {
+                if (e instanceof SyntaxError) continue;
+                throw e;
+              }
+              eventType = "";
+            }
+          }
+        }
+
+        if (!finalData.success) {
+          throw new Error(finalData.error || "Failed to process prompt");
+        }
+
+        const assistantMessage: Message = {
+          role: "assistant",
+          content: finalData.output || "",
+          filesAffected: finalData.filesAffected,
+          timestamp: new Date().toISOString(),
+        };
+        setMessages((prev) => [...prev, assistantMessage]);
         setStatus("ready");
-        return;
-      }
 
-      const data = await response.json();
-      const assistantMessage: Message = {
-        role: "assistant",
-        content: data.response,
-        filesAffected: data.filesAffected,
-        timestamp: new Date().toISOString(),
-      };
-      setMessages((prev) => [...prev, assistantMessage]);
-      setStatus("ready");
-
-      // Refresh iframe
-      if (iframeRef.current) {
-        iframeRef.current.src = session.sandboxUrl;
+        // Refresh iframe
+        if (iframeRef.current) {
+          iframeRef.current.src = session.sandboxUrl;
+        }
+      } catch (error) {
+        toast.error(
+          error instanceof Error ? error.message : "Failed to process prompt",
+        );
+        setStatus("ready");
       }
     },
     [input, session, status],
@@ -652,6 +712,29 @@ What would you like to build?`,
                   >
                     {msg.content}
                   </ReactMarkdown>
+                  {/* Show example prompts after first assistant message */}
+                  {i === 0 &&
+                    msg.role === "assistant" &&
+                    session?.examplePrompts &&
+                    session.examplePrompts.length > 0 && (
+                      <div className="mt-4 pt-4 border-t border-white/10">
+                        <p className="text-xs text-white/50 mb-2">
+                          Try one of these:
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {session.examplePrompts.map((prompt, idx) => (
+                            <button
+                              key={idx}
+                              onClick={() => sendPrompt(prompt)}
+                              disabled={status !== "ready"}
+                              className="px-3 py-1.5 text-xs bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-left"
+                            >
+                              {prompt}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   {msg.filesAffected && msg.filesAffected.length > 0 && (
                     <div className="mt-3 pt-3 border-t border-white/10">
                       <p className="text-xs text-white/50 mb-1">
