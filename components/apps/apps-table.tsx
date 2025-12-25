@@ -23,6 +23,7 @@ import {
   Key,
   Copy,
   Check,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -46,6 +47,16 @@ export function AppsTable({ apps }: AppsTableProps) {
     navigator.clipboard.writeText(text);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const isAIBuilderApp = (app: App) => {
+    const metadata = app.metadata as Record<string, unknown>;
+    return metadata?.type === "ai-builder";
+  };
+
+  const isBuilding = (app: App) => {
+    const metadata = app.metadata as Record<string, unknown>;
+    return metadata?.type === "ai-builder" && metadata?.status === "building";
   };
 
   if (apps.length === 0) {
@@ -98,7 +109,15 @@ export function AppsTable({ apps }: AppsTableProps) {
                 >
                   {app.name}
                 </Link>
-                {app.is_active ? (
+                {isBuilding(app) ? (
+                  <Badge
+                    variant="outline"
+                    className="bg-cyan-500/10 text-cyan-400 border-cyan-500/20 flex items-center gap-1"
+                  >
+                    <Sparkles className="h-3 w-3" />
+                    Building
+                  </Badge>
+                ) : app.is_active ? (
                   <Badge
                     variant="outline"
                     className="bg-green-500/10 text-green-400 border-green-500/20"
@@ -111,6 +130,15 @@ export function AppsTable({ apps }: AppsTableProps) {
                     className="bg-red-500/10 text-red-400 border-red-500/20"
                   >
                     Inactive
+                  </Badge>
+                )}
+                {isAIBuilderApp(app) && !isBuilding(app) && (
+                  <Badge
+                    variant="outline"
+                    className="bg-purple-500/10 text-purple-400 border-purple-500/20 flex items-center gap-1"
+                  >
+                    <Sparkles className="h-3 w-3" />
+                    AI Built
                   </Badge>
                 )}
                 {app.affiliate_code && (
@@ -187,6 +215,17 @@ export function AppsTable({ apps }: AppsTableProps) {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
+                {isBuilding(app) && (
+                  <>
+                    <DropdownMenuItem asChild>
+                      <Link href={`/dashboard/apps/${app.id}?tab=build`}>
+                        <Sparkles className="h-4 w-4 mr-2" />
+                        Continue Building
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                  </>
+                )}
                 <DropdownMenuItem asChild>
                   <Link href={`/dashboard/apps/${app.id}`}>
                     <Settings className="h-4 w-4 mr-2" />

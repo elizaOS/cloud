@@ -96,6 +96,43 @@ export function AppAIBuilder({ app }: AppAIBuilderProps) {
   // Check if we should restore session on mount
   const sessionIdFromUrl = searchParams.get("sessionId");
 
+  // Auto-fetch and link existing session if no sessionId in URL
+  useEffect(() => {
+    const sessionId = searchParams.get("sessionId");
+    if (sessionId || isRestoringSession.current || session) return;
+
+    // Check if there's an existing active session for this app
+    const fetchExistingSession = async () => {
+      try {
+        const response = await fetch(
+          `/api/v1/app-builder?appId=${app.id}&limit=1&includeInactive=false`,
+        );
+
+        if (!response.ok) return;
+
+        const data = await response.json();
+        if (data.success && data.sessions?.length > 0) {
+          const existingSession = data.sessions[0];
+          console.log(
+            "[AppAIBuilder] Found existing session for app:",
+            existingSession.id,
+          );
+
+          // Update URL to include sessionId
+          const params = new URLSearchParams(searchParams.toString());
+          params.set("sessionId", existingSession.id);
+          router.replace(`/dashboard/apps/${app.id}?${params.toString()}`);
+
+          // The session restoration useEffect will pick it up from here
+        }
+      } catch (error) {
+        console.error("Failed to fetch existing sessions:", error);
+      }
+    };
+
+    fetchExistingSession();
+  }, [searchParams, session, app.id, router]);
+
   // Restore session from URL on mount
   useEffect(() => {
     const sessionId = searchParams.get("sessionId");

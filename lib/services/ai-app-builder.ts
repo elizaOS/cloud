@@ -14,7 +14,8 @@ import {
   type NewAppSandboxSession,
   type NewAppBuilderPrompt,
 } from "@/db/schemas/app-sandboxes";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
+import { appsService } from "./apps";
 
 const EXAMPLE_PROMPTS = {
   chat: getExamplePrompts("chat"),
@@ -84,7 +85,7 @@ export class AIAppBuilderService {
     const {
       userId,
       organizationId,
-      appId,
+      appId: providedAppId,
       appName,
       appDescription,
       initialPrompt,
@@ -99,6 +100,27 @@ export class AIAppBuilderService {
       templateType,
       appName,
     });
+
+    let appId = providedAppId;
+    if (!appId && appName) {
+      const { app } = await appsService.create({
+        name: appName,
+        description: appDescription || "AI-built app",
+        organization_id: organizationId,
+        created_by_user_id: userId,
+        app_url: "https://placeholder.local",
+        allowed_origins: ["*"],
+        metadata: {
+          type: "ai-builder",
+          status: "building",
+          templateType,
+          includeMonetization,
+          includeAnalytics,
+        },
+      });
+      appId = app.id;
+      logger.info("Created app for AI builder session", { appId, appName });
+    }
 
     let templateUrl: string | undefined;
     if (templateType !== "blank") {
@@ -332,12 +354,17 @@ export class AIAppBuilderService {
 
   async listSessions(
     userId: string,
-    options: { limit?: number; includeInactive?: boolean } = {},
+    options: { limit?: number; includeInactive?: boolean; appId?: string } = {},
   ): Promise<AppSandboxSession[]> {
-    const { limit = 10, includeInactive = false } = options;
+    const { limit = 10, includeInactive = false, appId } = options;
+
+    const conditions = [eq(appSandboxSessions.user_id, userId)];
+    if (appId) {
+      conditions.push(eq(appSandboxSessions.app_id, appId));
+    }
 
     const sessions = await dbRead.query.appSandboxSessions.findMany({
-      where: eq(appSandboxSessions.user_id, userId),
+      where: conditions.length > 1 ? and(...conditions) : conditions[0],
       orderBy: [desc(appSandboxSessions.created_at)],
       limit,
     });

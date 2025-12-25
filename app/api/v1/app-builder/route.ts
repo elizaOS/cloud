@@ -27,10 +27,12 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const limit = parseInt(searchParams.get("limit") || "10", 10);
     const includeInactive = searchParams.get("includeInactive") === "true";
+    const appId = searchParams.get("appId") || undefined;
 
     const sessions = await aiAppBuilderService.listSessions(user.id, {
       limit,
       includeInactive,
+      appId,
     });
 
     return NextResponse.json({
