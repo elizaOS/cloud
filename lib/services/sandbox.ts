@@ -90,7 +90,7 @@ const TOOLS: Anthropic.Tool[] = [
   {
     name: "install_packages",
     description:
-      "Install packages (bun). Use this BEFORE writing files that import external packages.",
+      "Install packages (pnpm/npm). Use this BEFORE writing files that import external packages.",
     input_schema: {
       type: "object" as const,
       properties: {
@@ -284,7 +284,7 @@ export function useEliza(apiKey: string) {
 
 BUILD COMPLETE MULTI-PAGE APPS with proper architecture!`;
 
-const ALLOWED_PATHS = [
+const ALLOWED_DIRECTORIES = [
   "src/",
   "app/",
   "components/",
@@ -305,24 +305,52 @@ const ALLOWED_PATHS = [
   "modules/",
   "assets/",
   "config/",
-  "package.json",
-  "tsconfig.json",
-  "tailwind.config.ts",
-  "tailwind.config.js",
-  "next.config.ts",
-  "next.config.js",
-  "next.config.mjs",
-  "postcss.config.js",
-  "postcss.config.mjs",
-  ".env.local",
-  ".env.example",
+];
+
+const ALLOWED_ROOT_PATTERNS = [
+  /^package\.json$/,
+  /^package-lock\.json$/,
+  /^bun\.lockb$/,
+  /^pnpm-lock\.yaml$/,
+  /^yarn\.lock$/,
+  /^tsconfig.*\.json$/,
+  /^next\.config\.(ts|js|mjs)$/,
+  /^tailwind\.config\.(ts|js)$/,
+  /^postcss\.config\.(js|mjs)$/,
+  /^\.env(\.local|\.example|\.development|\.production)?$/,
+  /^.*\.md$/,
+  /^.*\.txt$/,
+  /^LICENSE.*$/,
+  /^\.gitignore$/,
+  /^\.eslintrc\.(js|json)$/,
+  /^eslint\.config\.(js|mjs)$/,
+  /^\.prettierrc(\.json)?$/,
+  /^prettier\.config\.(js|mjs)$/,
+  /^\.editorconfig$/,
+  /^\.nvmrc$/,
+  /^\.node-version$/,
 ];
 
 function isPathAllowed(filePath: string): boolean {
   const normalized = filePath.replace(/^\.\//, "").replace(/\.\.\//g, "");
-  return ALLOWED_PATHS.some(
-    (allowed) => normalized.startsWith(allowed) || normalized === allowed,
-  );
+
+  if (normalized.includes("..")) {
+    return false;
+  }
+
+  if (ALLOWED_DIRECTORIES.some((dir) => normalized.startsWith(dir))) {
+    return true;
+  }
+
+  if (normalized.includes(".env")) {
+    return true
+  }
+
+  if (!normalized.includes("/")) {
+    return ALLOWED_ROOT_PATTERNS.some((pattern) => pattern.test(normalized));
+  }
+
+  return false;
 }
 
 async function writeFileViaSh(
@@ -332,7 +360,7 @@ async function writeFileViaSh(
 ): Promise<void> {
   if (!isPathAllowed(filePath)) {
     throw new Error(
-      `Path not allowed: ${filePath}. Files must be in: ${ALLOWED_PATHS.join(", ")}`,
+      `Path not allowed: ${filePath}. Files must be in allowed directories (${ALLOWED_DIRECTORIES.join(", ")}) or match allowed root patterns (*.md, *.txt, config files, etc.)`,
     );
   }
 
@@ -376,7 +404,7 @@ async function listFilesViaSh(
 }
 
 /**
- * Install packages (bun)
+ * Install packages using pnpm or npm (fallback)
  */
 async function installPackages(
   sandbox: SandboxInstance,
@@ -387,13 +415,15 @@ async function installPackages(
   logger.info("Installing packages", { packages });
 
   let result = await sandbox.runCommand({
-    cmd: "bun",
+    cmd: "pnpm",
     args: ["add", ...packages],
   });
+
   if (result.exitCode !== 0) {
+    logger.info("pnpm failed, trying npm", { packages });
     result = await sandbox.runCommand({
-      cmd: "pnpm",
-      args: ["add", ...packages],
+      cmd: "npm",
+      args: ["install", ...packages],
     });
   }
 
