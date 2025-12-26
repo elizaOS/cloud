@@ -3,11 +3,7 @@ import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { aiAppBuilderService } from "@/lib/services/ai-app-builder";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
-import {
-  withRateLimit,
-  RateLimitPresets,
-  checkRateLimit,
-} from "@/lib/middleware/rate-limit";
+import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 
 const CreateSessionSchema = z.object({
   appId: z.string().uuid().optional(),

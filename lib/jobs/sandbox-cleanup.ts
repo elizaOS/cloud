@@ -1,6 +1,6 @@
 import { dbRead, dbWrite } from "@/db/client";
 import { appSandboxSessions } from "@/db/schemas/app-sandboxes";
-import { lt, and, notInArray } from "drizzle-orm";
+import { lt, and, notInArray, eq } from "drizzle-orm";
 import { sandboxService } from "@/lib/services/sandbox";
 import { logger } from "@/lib/utils/logger";
 
@@ -44,12 +44,7 @@ export async function cleanupExpiredSandboxes(): Promise<{
             stopped_at: now,
             updated_at: now,
           })
-          .where(
-            and(
-              lt(appSandboxSessions.expires_at, now),
-              notInArray(appSandboxSessions.status, ["stopped", "timeout"]),
-            ),
-          );
+          .where(eq(appSandboxSessions.id, session.id));
 
         cleaned++;
         logger.info("Cleaned up expired session", {
@@ -80,12 +75,7 @@ export async function cleanupExpiredSandboxes(): Promise<{
               stopped_at: now,
               updated_at: now,
             })
-            .where(
-              and(
-                lt(appSandboxSessions.expires_at, now),
-                notInArray(appSandboxSessions.status, ["stopped", "timeout"]),
-              ),
-            );
+            .where(eq(appSandboxSessions.id, session.id));
           cleaned++;
           logger.info("Marked orphaned session as timeout", {
             sessionId: session.id,

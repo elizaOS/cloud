@@ -1,6 +1,6 @@
 import { Templates, templatesToPrompt } from "./templates";
 import { buildApiContext } from "./api-context";
-import { ELIZA_SDK_COMPACT, ELIZA_SDK_REFERENCE } from "./eliza-sdk";
+import { ELIZA_SDK_REFERENCE } from "./eliza-sdk";
 
 // ============================================================================
 // QUICK MODE (Fragment Builder) - Single file generation
