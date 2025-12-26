@@ -248,7 +248,8 @@ function ChatPage() {
     setSending(true);
     setError(null);
     setStreamingContent("");
-    setIsThinking(false);
+    // Show thinking indicator immediately for instant feedback
+    setIsThinking(true);
 
     // Generate unique IDs without using Date.now() (avoiding purity issues)
     const messageId = generateId();

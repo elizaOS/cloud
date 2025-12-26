@@ -591,7 +591,16 @@ export function ElizaChatInterface({
           isAgent: false,
           createdAt: now,
         };
-        setMessages((prev) => [...prev, tempUserMessage]);
+        
+        // Add optimistic thinking indicator immediately for instant feedback
+        const optimisticThinkingMessage: Message = {
+          id: `thinking-${Date.now()}`,
+          content: { text: "" },
+          isAgent: true,
+          createdAt: now + 1, // Slightly after user message to ensure ordering
+        };
+        
+        setMessages((prev) => [...prev, tempUserMessage, optimisticThinkingMessage]);
         // Clear loading state immediately so chat interface shows right away
         setLoadingState((prev) => ({ ...prev, isLoadingMessages: false }));
 
