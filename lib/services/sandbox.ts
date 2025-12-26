@@ -210,6 +210,7 @@ const ALLOWED_ROOT_PATTERNS = [
   /^\.editorconfig$/,
   /^\.nvmrc$/,
   /^\.node-version$/,
+  /^\.env(\.[a-z]+)?\.example$/,
 ];
 
 const ALLOWED_COMMANDS = [
