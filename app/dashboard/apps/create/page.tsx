@@ -768,7 +768,65 @@ What would you like to build?`;
                 >
                   <ReactMarkdown
                     remarkPlugins={[remarkGfm]}
-                  // className="prose prose-invert prose-sm max-w-none"
+                    components={{
+                      h1: ({ children }) => (
+                        <h1 className="text-xl font-bold text-white mb-3 pb-2 border-b border-white/10">{children}</h1>
+                      ),
+                      h2: ({ children }) => (
+                        <h2 className="text-lg font-semibold text-white mt-4 mb-2 flex items-center gap-2">{children}</h2>
+                      ),
+                      h3: ({ children }) => (
+                        <h3 className="text-base font-medium text-cyan-300 mt-3 mb-1">{children}</h3>
+                      ),
+                      p: ({ children }) => (
+                        <p className="text-sm text-white/80 mb-2 leading-relaxed">{children}</p>
+                      ),
+                      ul: ({ children }) => (
+                        <ul className="space-y-1 mb-3 ml-1">{children}</ul>
+                      ),
+                      ol: ({ children }) => (
+                        <ol className="space-y-1 mb-3 ml-1 list-decimal list-inside">{children}</ol>
+                      ),
+                      li: ({ children }) => (
+                        <li className="text-sm text-white/70 flex items-start gap-2">
+                          <span className="text-cyan-400 mt-1.5">•</span>
+                          <span>{children}</span>
+                        </li>
+                      ),
+                      code: ({ className, children }) => {
+                        const isInline = !className;
+                        if (isInline) {
+                          return (
+                            <code className="px-1.5 py-0.5 bg-white/10 border border-white/20 text-cyan-300 text-xs font-mono rounded">
+                              {children}
+                            </code>
+                          );
+                        }
+                        return (
+                          <code className="block p-3 bg-black/40 border border-white/10 text-green-300 text-xs font-mono rounded overflow-x-auto my-2">
+                            {children}
+                          </code>
+                        );
+                      },
+                      pre: ({ children }) => (
+                        <pre className="bg-black/40 border border-white/10 rounded overflow-hidden my-3">{children}</pre>
+                      ),
+                      strong: ({ children }) => (
+                        <strong className="font-semibold text-white">{children}</strong>
+                      ),
+                      em: ({ children }) => (
+                        <em className="text-white/60 italic">{children}</em>
+                      ),
+                      a: ({ href, children }) => (
+                        <a href={href} className="text-cyan-400 hover:text-cyan-300 underline" target="_blank" rel="noopener noreferrer">
+                          {children}
+                        </a>
+                      ),
+                      blockquote: ({ children }) => (
+                        <blockquote className="border-l-2 border-cyan-500/50 pl-3 my-2 text-white/60 italic">{children}</blockquote>
+                      ),
+                      hr: () => <hr className="border-white/10 my-4" />,
+                    }}
                   >
                     {msg.content}
                   </ReactMarkdown>
