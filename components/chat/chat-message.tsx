@@ -24,18 +24,14 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
 import "highlight.js/styles/github-dark.css";
+import { ContentType, type Media } from "@elizaos/core";
 
 interface ChatMessageProps {
   message: {
     id: string;
     content: {
       text: string;
-      attachments?: Array<{
-        id: string;
-        url: string;
-        title?: string;
-        contentType: string;
-      }>;
+      attachments?: Media[];
     };
     isAgent: boolean;
     createdAt: number;
@@ -65,10 +61,7 @@ export function ChatMessage({
     try {
       // Check if there are image attachments
       const imageAttachment = message.content.attachments?.find(
-        (att) =>
-          att.contentType === "IMAGE" ||
-          att.contentType === "image" ||
-          att.contentType.startsWith("image/"),
+        (att) => att.contentType === ContentType.IMAGE,
       );
 
       if (imageAttachment) {

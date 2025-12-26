@@ -42,6 +42,9 @@ export interface UserContext {
 
   // App-specific prompt configuration
   appPromptConfig?: PromptConfig;
+
+  // Feature flags for this request
+  webSearchEnabled?: boolean;
 }
 
 export class UserContextService {

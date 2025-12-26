@@ -80,6 +80,7 @@ export function isValidAgentModeConfig(
 /**
  * Plugin sets for each agent mode
  * These define which plugins are loaded for each operational mode
+ * NOTE: Knowledge and WebSearch plugins are conditionally loaded - not included in base sets
  */
 export const AGENT_MODE_PLUGINS = {
   [AgentMode.CHAT]: [
@@ -96,7 +97,6 @@ export const AGENT_MODE_PLUGINS = {
     "@elizaos/plugin-elizacloud",
     "@eliza-cloud/plugin-assistant",
     "@elizaos/plugin-memory",
-    "@elizaos/plugin-knowledge",
   ],
 } as const;
 
@@ -109,6 +109,18 @@ interface McpServerConfig {
 }
 
 /**
+ * Affiliate character data configuration
+ * When present, swaps plugin-assistant for plugin-affiliate
+ */
+export interface AffiliateData {
+  vibe?: string;
+  affiliateId?: string;
+  autoImage?: boolean;
+  imageUrls?: string[];
+  [key: string]: unknown;
+}
+
+/**
  * Settings-based plugin configuration types
  * Used to detect which conditional plugins should be loaded
  */
@@ -116,7 +128,9 @@ export interface ConditionalPluginSettings {
   mcp?: {
     servers: Record<string, McpServerConfig>;
   };
-  // Future: webSearch?: WebSearchSettings;
+  webSearch?: {
+    enabled: boolean;
+  };
 }
 
 /**
@@ -125,7 +139,7 @@ export interface ConditionalPluginSettings {
  */
 export const SETTINGS_PLUGIN_MAP = {
   mcp: "@elizaos/plugin-mcp",
-  // Future: webSearch: "@elizaos/plugin-web-search",
+  webSearch: "@elizaos/plugin-web-search",
 } as const satisfies Record<keyof ConditionalPluginSettings, string>;
 
 /**
@@ -147,7 +161,10 @@ function hasValidConfiguration(
         Object.keys(mcpSettings.servers).length > 0
       );
     }
-    // Future: case "webSearch": { ... }
+    case "webSearch": {
+      const webSearchSettings = value as ConditionalPluginSettings["webSearch"];
+      return webSearchSettings?.enabled === true;
+    }
     default:
       return false;
   }
@@ -180,4 +197,13 @@ export function requiresAssistantMode(
     }
   }
   return null;
+}
+
+/**
+ * Check if character has affiliate data configured.
+ * When true, plugin-affiliate should be loaded instead of plugin-assistant.
+ */
+export function hasAffiliateData(settings: Record<string, unknown>): boolean {
+  const affiliateData = settings.affiliateData as AffiliateData | undefined;
+  return affiliateData != null && Object.keys(affiliateData).length > 0;
 }

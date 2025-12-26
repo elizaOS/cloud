@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { BuildPageClient } from "@/components/chat/build-page-client";
 import { listCharacters } from "@/app/actions/characters";
 import { generatePageMetadata, ROUTE_METADATA } from "@/lib/seo";
+import { logger } from "@/lib/utils/logger";
 
 interface PageProps {
   searchParams: Promise<{ characterId?: string; prompt?: string }>;
@@ -28,6 +29,9 @@ export async function generateMetadata(): Promise<Metadata> {
  * Build page for creating and configuring AI agents/characters.
  * Supports both authenticated and anonymous users.
  *
+ * ACCESS CONTROL: Build mode only allows editing your own characters.
+ * If a characterId is provided that the user doesn't own, it's ignored.
+ *
  * @param searchParams - Search parameters, including optional `characterId` for editing an existing character.
  * @returns The rendered build page client component with initial characters and character ID.
  */
@@ -41,8 +45,21 @@ export default async function BuildPage({ searchParams }: PageProps) {
 
   // Get URL params
   const params = await searchParams;
-  const initialCharacterId = params.characterId;
+  let initialCharacterId = params.characterId;
   const initialPrompt = params.prompt;
+
+  // ACCESS CONTROL: Only allow editing characters the user owns
+  // If characterId is provided but user doesn't own it, clear it
+  if (initialCharacterId) {
+    const isOwnCharacter = characters.some((c) => c.id === initialCharacterId);
+    if (!isOwnCharacter) {
+      logger.warn(
+        `[Build Page] User doesn't own character ${initialCharacterId}, clearing characterId`,
+        { userId: user?.id },
+      );
+      initialCharacterId = undefined;
+    }
+  }
 
   return (
     <BuildPageClient

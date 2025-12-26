@@ -10,6 +10,7 @@ import { memoryPlugin } from "@elizaos/plugin-memory";
 import { elevenLabsPlugin } from "@elizaos/plugin-elevenlabs";
 import mcpPlugin from "@elizaos/plugin-mcp";
 import { assistantPlugin } from "./plugin-assistant";
+import { affiliatePlugin } from "./plugin-affiliate";
 import { chatPlaygroundPlugin } from "./plugin-chat-playground";
 import { characterBuilderPlugin } from "./plugin-character-builder";
 import { charactersService } from "@/lib/services/characters";
@@ -24,6 +25,7 @@ import {
   SETTINGS_PLUGIN_MAP,
   getConditionalPlugins,
   requiresAssistantMode,
+  hasAffiliateData,
 } from "./agent-mode-types";
 import { loadAgentSecrets, isSecretsConfigured } from "@/lib/services/secrets";
 import {
@@ -114,6 +116,11 @@ async function loadKnowledgePlugin() {
   return knowledgePluginCore;
 }
 
+async function loadWebSearchPlugin() {
+  const { webSearchPlugin } = await import("@elizaos/plugin-web-search");
+  return webSearchPlugin;
+}
+
 /**
  * Cast external plugin to local Plugin type.
  * Required because external @elizaos plugins may be compiled against
@@ -133,6 +140,7 @@ const AVAILABLE_PLUGINS: Record<string, Plugin> = {
   "@elizaos/plugin-mcp": asPlugin(mcpPlugin),
   // Local plugins don't need casting - they use the same @elizaos/core
   "@eliza-cloud/plugin-assistant": assistantPlugin,
+  "@eliza-cloud/plugin-affiliate": affiliatePlugin,
   "@eliza-cloud/plugin-chat-playground": chatPlaygroundPlugin,
   "@eliza-cloud/plugin-character-builder": characterBuilderPlugin,
 };
@@ -144,6 +152,7 @@ export class AgentLoader {
   async loadCharacter(
     characterId: string,
     agentMode: AgentMode,
+    options?: { webSearchEnabled?: boolean },
   ): Promise<{
     character: Character;
     plugins: Plugin[];
@@ -169,6 +178,11 @@ export class AgentLoader {
     >;
     const characterPlugins = elizaCharacter.plugins || [];
 
+    // Inject webSearch settings if enabled via chat UI
+    if (options?.webSearchEnabled) {
+      characterSettings.webSearch = { enabled: true };
+    }
+
     // Resolve effective mode based on character capabilities
     const modeResolution = await resolveEffectiveMode(
       agentMode,
@@ -177,10 +191,19 @@ export class AgentLoader {
       characterPlugins,
     );
 
+    // Check if character has knowledge files (cached query, not runtime related)
+    const documentCount = await memoriesRepository.countByType(
+      characterId,
+      "documents",
+      characterId,
+    );
+    const hasKnowledge = documentCount > 0;
+
     const plugins = await this.resolvePlugins(
       modeResolution.mode,
       characterPlugins,
       characterSettings,
+      { hasKnowledge },
     );
     return { character, plugins, modeResolution };
   }
@@ -267,7 +290,10 @@ export class AgentLoader {
     return this.loadOrgCharacter(characterId, agentMode, organizationId);
   }
 
-  async getDefaultCharacter(agentMode: AgentMode): Promise<{
+  async getDefaultCharacter(
+    agentMode: AgentMode,
+    options?: { webSearchEnabled?: boolean },
+  ): Promise<{
     character: Character;
     plugins: Plugin[];
     modeResolution: ModeResolution;
@@ -277,7 +303,12 @@ export class AgentLoader {
       mode: agentMode,
       upgradeReason: "none",
     };
-    const plugins = await this.resolvePlugins(agentMode, [], {});
+    // Inject webSearch settings if enabled via chat UI
+    const characterSettings: Record<string, unknown> = {};
+    if (options?.webSearchEnabled) {
+      characterSettings.webSearch = { enabled: true };
+    }
+    const plugins = await this.resolvePlugins(agentMode, [], characterSettings);
     return { character: defaultAgent.character, plugins, modeResolution };
   }
 
@@ -401,20 +432,49 @@ export class AgentLoader {
     agentMode: AgentMode,
     characterPlugins: string[],
     characterSettings: Record<string, unknown>,
+    options?: { hasKnowledge?: boolean },
   ): Promise<Plugin[]> {
     const plugins: Plugin[] = [];
-    const conditionalPlugins = getConditionalPlugins(characterSettings);
+    const isAffiliate = hasAffiliateData(characterSettings);
+
+    // Affiliate characters don't get conditional plugins (no web search)
+    // They use plugin-affiliate exclusively for their functionality
+    const conditionalPlugins = isAffiliate
+      ? []
+      : getConditionalPlugins(characterSettings);
+
+    // Build plugin list, swapping assistant for affiliate when needed
+    const modePlugins = AGENT_MODE_PLUGINS[agentMode].map((pluginName) => {
+      if (isAffiliate && pluginName === "@eliza-cloud/plugin-assistant") {
+        return "@eliza-cloud/plugin-affiliate";
+      }
+      return pluginName;
+    });
+
     const allPluginNames = [
-      ...AGENT_MODE_PLUGINS[agentMode],
+      ...modePlugins,
       ...characterPlugins,
       ...conditionalPlugins,
     ];
+
+    // Always add knowledge plugin for ASSISTANT mode
+    // This enables both knowledge queries (if docs exist) and uploading new docs
+    if (agentMode === AgentMode.ASSISTANT) {
+      allPluginNames.push("@elizaos/plugin-knowledge");
+    }
 
     for (const pluginName of allPluginNames) {
       // Knowledge plugin lazy-loaded (SSR compatibility)
       if (pluginName === "@elizaos/plugin-knowledge") {
         const knowledgePlugin = await loadKnowledgePlugin();
         if (!plugins.includes(knowledgePlugin)) plugins.push(knowledgePlugin);
+        continue;
+      }
+
+      // Web search plugin lazy-loaded (SSR compatibility)
+      if (pluginName === "@elizaos/plugin-web-search") {
+        const webSearchPlugin = await loadWebSearchPlugin();
+        if (!plugins.includes(webSearchPlugin)) plugins.push(webSearchPlugin);
         continue;
       }
 

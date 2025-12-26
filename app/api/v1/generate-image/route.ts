@@ -41,6 +41,7 @@ interface GenerateImageRequest {
   numImages?: number;
   aspectRatio?: AspectRatio;
   stylePreset?: StylePreset;
+  sourceImage?: string; // Base64 data URL for image-to-image generation
 }
 
 interface AuthContext {
@@ -104,6 +105,7 @@ async function handlePOST(req: NextRequest) {
       numImages = 1,
       aspectRatio = "1:1",
       stylePreset,
+      sourceImage,
     }: GenerateImageRequest = await req.json();
 
     if (!prompt || typeof prompt !== "string" || prompt.trim().length === 0) {
@@ -178,7 +180,7 @@ async function handlePOST(req: NextRequest) {
     enhancedPrompt += `, ${aspectRatioDescriptions[aspectRatio]}`;
 
     logger.info(
-      `[Generate Image] Generating ${numImages} image(s) for ${isAnonymous ? "anonymous" : "authenticated"} user with prompt: ${enhancedPrompt.substring(0, 100)}...`
+      `[Generate Image] Generating ${numImages} image(s) for ${isAnonymous ? "anonymous" : "authenticated"} user${sourceImage ? " (with source image)" : ""} with prompt: ${enhancedPrompt.substring(0, 100)}...`
     );
 
     // Function to generate a single image
@@ -187,13 +189,43 @@ async function handlePOST(req: NextRequest) {
       textResponse: string;
       mimeType: string;
     } | null> {
-      const result = streamText({
+      // Build the request based on whether we have a source image
+      const streamConfig: Parameters<typeof streamText>[0] = {
         model: IMAGE_MODEL,
         providerOptions: {
           google: { responseModalities: ["TEXT", "IMAGE"] },
         },
-        prompt: `Generate an image: ${enhancedPrompt}`,
-      });
+      };
+
+      if (sourceImage) {
+        // Image-to-image: use messages format with source image
+        // Extract base64 data and media type from data URL
+        const mediaTypeMatch = sourceImage.match(/^data:([^;]+);base64,/);
+        const mediaType = mediaTypeMatch ? mediaTypeMatch[1] : "image/png";
+        const base64Data = sourceImage.replace(/^data:[^;]+;base64,/, "");
+
+        streamConfig.messages = [
+          {
+            role: "user",
+            content: [
+              {
+                type: "image",
+                image: base64Data,
+                mimeType: mediaType,
+              },
+              {
+                type: "text",
+                text: `Using the provided image as a reference, generate a new image: ${enhancedPrompt}`,
+              },
+            ],
+          },
+        ];
+      } else {
+        // Text-to-image: use simple prompt
+        streamConfig.prompt = `Generate an image: ${enhancedPrompt}`;
+      }
+
+      const result = streamText(streamConfig);
 
       let imageBase64: string | null = null;
       let textResponse = "";

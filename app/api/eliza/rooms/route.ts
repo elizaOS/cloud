@@ -7,6 +7,7 @@ import { roomsService } from "@/lib/services/agents/rooms";
 import { agentsService } from "@/lib/services/agents/agents";
 import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
 import { usersService } from "@/lib/services/users";
+import { charactersService } from "@/lib/services/characters";
 
 // Default agent ID - used when no character is selected
 // This is the ID of the built-in Eliza character
@@ -151,6 +152,54 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       { error: "characterId must be a string" },
       { status: 400 },
+    );
+  }
+
+  // ACCESS CONTROL: Check if user has permission to chat with this character
+  // Characters are accessible if: public, owned by user, or claimable affiliate
+  if (characterId && characterId !== DEFAULT_AGENT_ID) {
+    const character = await charactersService.getById(characterId);
+
+    if (!character) {
+      logger.warn(
+        "[Eliza Rooms API POST] Character not found:",
+        characterId,
+      );
+      return NextResponse.json(
+        { error: "Character not found" },
+        { status: 404 },
+      );
+    }
+
+    // Check access permissions
+    const isOwner = character.user_id === userId;
+    const isPublic = character.is_public === true;
+
+    // Check if this is a claimable affiliate character
+    const claimCheck =
+      await charactersService.isClaimableAffiliateCharacter(characterId);
+    const isClaimableAffiliate = claimCheck.claimable;
+
+    if (!isPublic && !isOwner && !isClaimableAffiliate) {
+      logger.warn(
+        "[Eliza Rooms API POST] Access denied to private character:",
+        {
+          characterId,
+          userId,
+          characterOwnerId: character.user_id,
+          isPublic: character.is_public,
+        },
+      );
+      return NextResponse.json(
+        { error: "Access denied - this character is private" },
+        { status: 403 },
+      );
+    }
+
+    logger.info(
+      "[Eliza Rooms API POST] Access granted to character:",
+      characterId,
+      { isPublic, isOwner, isClaimableAffiliate },
     );
   }
 

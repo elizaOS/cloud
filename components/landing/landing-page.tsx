@@ -20,12 +20,39 @@ import { Loader2 } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { usePlatform } from "@/lib/hooks/use-platform";
 import BayerDitheringBackground from "./BayerDitheringBackground";
+import { toast } from "sonner";
 
-export function LandingPage() {
+interface LandingPageProps {
+  accessError?: string;
+}
+
+export function LandingPage({ accessError }: LandingPageProps) {
   const { ready, authenticated } = usePrivy();
   const { isTauri, isLoading: platformLoading } = usePlatform();
   const router = useRouter();
   const hasRedirectedRef = useRef(false);
+  const errorShownRef = useRef(false);
+
+  // Show access error toast
+  useEffect(() => {
+    if (accessError && !errorShownRef.current) {
+      errorShownRef.current = true;
+      
+      if (accessError === "private_character") {
+        toast.error("This agent is private", {
+          description: "Sign in to access your agents, or ask the owner to make this agent public.",
+          duration: 6000,
+        });
+      }
+      
+      // Clear error from URL
+      if (typeof window !== "undefined") {
+        const url = new URL(window.location.href);
+        url.searchParams.delete("error");
+        window.history.replaceState({}, "", url.toString());
+      }
+    }
+  }, [accessError]);
 
   useEffect(() => {
     if (!ready || platformLoading || hasRedirectedRef.current) return;
