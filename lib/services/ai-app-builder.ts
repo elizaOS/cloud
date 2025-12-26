@@ -56,6 +56,7 @@ export interface BuilderSession {
     timestamp: string;
   }>;
   examplePrompts: string[];
+  expiresAt: string | null;
 }
 
 export interface PromptResult {
@@ -102,8 +103,10 @@ export class AIAppBuilderService {
     });
 
     let appId = providedAppId;
+    let appApiKey: string | undefined;
+
     if (!appId && appName) {
-      const { app } = await appsService.create({
+      const { app, apiKey } = await appsService.create({
         name: appName,
         description: appDescription || "AI-built app",
         organization_id: organizationId,
@@ -119,7 +122,11 @@ export class AIAppBuilderService {
         },
       });
       appId = app.id;
+      appApiKey = apiKey;
       logger.info("Created app for AI builder session", { appId, appName });
+    } else if (appId) {
+      appApiKey = await appsService.regenerateApiKey(appId);
+      logger.info("Regenerated API key for existing app", { appId });
     }
 
     let templateUrl: string | undefined;
@@ -128,6 +135,15 @@ export class AIAppBuilderService {
         where: eq(appTemplates.slug, templateType),
       });
       templateUrl = template?.git_repo_url;
+
+      if (!templateUrl) {
+        logger.info(
+          "Template not found in database, using prompt-based template guidance",
+          { templateType },
+        );
+      } else {
+        logger.info("Using template from database", { templateType, templateUrl });
+      }
     }
 
     const sandboxData = await sandboxService.create({
@@ -136,6 +152,7 @@ export class AIAppBuilderService {
       vcpus: 4,
       organizationId,
       projectId: appId,
+      env: appApiKey ? { ELIZA_API_KEY: appApiKey } : undefined,
       onProgress,
     });
 
@@ -143,6 +160,11 @@ export class AIAppBuilderService {
       templateType: templateType as FullAppTemplateType,
       includeMonetization,
       includeAnalytics,
+      customInstructions: appDescription
+        ? `Build an app with the following requirements:\n${appDescription}`
+        : initialPrompt
+          ? `Initial request:\n${initialPrompt}`
+          : undefined,
     });
 
     const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
@@ -191,6 +213,7 @@ export class AIAppBuilderService {
       status: session.status as BuilderSession["status"],
       messages: [],
       examplePrompts,
+      expiresAt: expiresAt.toISOString(),
     };
   }
 
@@ -232,8 +255,10 @@ export class AIAppBuilderService {
       .returning();
 
     const systemPromptRecord = await dbRead.query.appBuilderPrompts.findFirst({
-      where: eq(appBuilderPrompts.sandbox_session_id, sessionId),
-      orderBy: [desc(appBuilderPrompts.created_at)],
+      where: and(
+        eq(appBuilderPrompts.sandbox_session_id, sessionId),
+        eq(appBuilderPrompts.role, "system"),
+      ),
     });
 
     const startTime = Date.now();
@@ -323,6 +348,34 @@ export class AIAppBuilderService {
   ): Promise<BuilderSession | null> {
     const session = await this.verifyOwnership(sessionId, userId);
 
+    let currentStatus = session.status;
+
+    if (session.expires_at && new Date(session.expires_at) < new Date()) {
+      currentStatus = "timeout";
+      await dbWrite
+        .update(appSandboxSessions)
+        .set({ status: "timeout", updated_at: new Date() })
+        .where(eq(appSandboxSessions.id, sessionId));
+      logger.info("Session marked as timeout due to expiration", { sessionId });
+    } else if (
+      session.sandbox_id &&
+      currentStatus !== "stopped" &&
+      currentStatus !== "timeout"
+    ) {
+      const sandboxStatus = sandboxService.getStatus(session.sandbox_id);
+      if (sandboxStatus === "unknown") {
+        currentStatus = "timeout";
+        await dbWrite
+          .update(appSandboxSessions)
+          .set({ status: "timeout", updated_at: new Date() })
+          .where(eq(appSandboxSessions.id, sessionId));
+        logger.info("Session marked as timeout due to missing sandbox", {
+          sessionId,
+          sandboxId: session.sandbox_id,
+        });
+      }
+    }
+
     const prompts = await dbRead.query.appBuilderPrompts.findMany({
       where: eq(appBuilderPrompts.sandbox_session_id, sessionId),
       orderBy: [desc(appBuilderPrompts.created_at)],
@@ -346,9 +399,10 @@ export class AIAppBuilderService {
       id: session.id,
       sandboxId: session.sandbox_id || "",
       sandboxUrl: session.sandbox_url || "",
-      status: session.status as BuilderSession["status"],
+      status: currentStatus as BuilderSession["status"],
       messages,
       examplePrompts,
+      expiresAt: session.expires_at?.toISOString() || null,
     };
   }
 

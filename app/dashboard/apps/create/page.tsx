@@ -374,6 +374,37 @@ What would you like to build?`;
     [input, session, status],
   );
 
+  // Auto-scaffold when session is ready and has description/template
+  const hasAutoScaffoldedRef = useRef(false);
+  useEffect(() => {
+    if (
+      !session ||
+      status !== "ready" ||
+      hasAutoScaffoldedRef.current ||
+      messages.length > 1
+    )
+      return;
+
+    if (appDescription || templateType !== "blank") {
+      hasAutoScaffoldedRef.current = true;
+
+      const initialScaffoldPrompt = appDescription
+        ? `Set up the initial app structure based on these requirements:\n${appDescription}`
+        : `Set up the initial ${templateType} app structure with all the core features.`;
+
+      setTimeout(() => {
+        sendPrompt(initialScaffoldPrompt);
+      }, 500);
+    }
+  }, [
+    session,
+    status,
+    messages.length,
+    appDescription,
+    templateType,
+    sendPrompt,
+  ]);
+
   // Stop the session
   const stopSession = useCallback(async () => {
     if (!session) return;

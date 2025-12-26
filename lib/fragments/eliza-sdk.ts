@@ -288,8 +288,8 @@ export function useEliza(apiKey: string) {
 ### 🔑 Environment Variables
 
 \`\`\`typescript
-// Use in app: process.env.NEXT_PUBLIC_ELIZA_API_KEY
-// Or prompt user to enter their API key
+// API key is pre-configured - use directly:
+const apiKey = process.env.ELIZA_API_KEY!;
 \`\`\`
 
 ---
@@ -486,8 +486,8 @@ Your apps have FULL ACCESS to the Eliza Cloud platform. Always create \`lib/eliz
 - **A2A**: call any A2A skill directly
 
 ### API Key:
-- Use \`process.env.NEXT_PUBLIC_ELIZA_API_KEY\` if available
-- Or let users input their key (store in localStorage)
+- The API key is pre-configured as \`process.env.ELIZA_API_KEY\`
+- Always use this environment variable directly - NEVER prompt users for API key input
 
 ### Auth Header:
 All requests: \`X-Api-Key: YOUR_API_KEY\` or \`Authorization: Bearer YOUR_API_KEY\`

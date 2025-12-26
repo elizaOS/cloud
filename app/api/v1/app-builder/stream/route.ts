@@ -6,6 +6,12 @@ import {
 } from "@/lib/services/ai-app-builder";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
+import { checkRateLimit } from "@/lib/middleware/rate-limit";
+
+const SESSION_CREATE_LIMIT = {
+  windowMs: 3600000, // 1 hour
+  maxRequests: process.env.NODE_ENV === "production" ? 5 : 100,
+};
 
 const CreateSessionSchema = z.object({
   appId: z.string().uuid().optional(),
@@ -26,6 +32,24 @@ const CreateSessionSchema = z.object({
 export async function POST(request: NextRequest) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
+
+    const rateLimitResult = checkRateLimit(request, SESSION_CREATE_LIMIT);
+    if (!rateLimitResult.allowed) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "Rate limit exceeded. Maximum 5 sandbox sessions per hour.",
+          retryAfter: rateLimitResult.retryAfter,
+        }),
+        {
+          status: 429,
+          headers: {
+            "Content-Type": "application/json",
+            "Retry-After": rateLimitResult.retryAfter?.toString() || "3600",
+          },
+        },
+      );
+    }
 
     const body = await request.json();
     const validationResult = CreateSessionSchema.safeParse(body);

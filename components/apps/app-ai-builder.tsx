@@ -28,6 +28,8 @@ import {
   Bot,
   Terminal,
   Monitor,
+  Timer,
+  Plus,
 } from "lucide-react";
 import { toast } from "sonner";
 import { BrandCard, CornerBrackets } from "@/components/brand";
@@ -46,6 +48,7 @@ type SessionStatus =
   | "generating"
   | "error"
   | "stopped"
+  | "timeout"
   | "not_configured";
 
 type ProgressStep = "creating" | "installing" | "starting" | "ready" | "error";
@@ -65,6 +68,7 @@ interface SessionData {
   sandboxUrl: string;
   status: SessionStatus;
   examplePrompts: string[];
+  expiresAt: string | null;
 }
 
 export function AppAIBuilder({ app }: AppAIBuilderProps) {
@@ -89,6 +93,9 @@ export function AppAIBuilder({ app }: AppAIBuilderProps) {
   );
   const [consoleLogs, setConsoleLogs] = useState<string[]>([]);
   const [isRestoring, setIsRestoring] = useState(false);
+  const [expiresAt, setExpiresAt] = useState<Date | null>(null);
+  const [timeRemaining, setTimeRemaining] = useState<string>("");
+  const [isExtending, setIsExtending] = useState(false);
 
   // Storage key for messages persistence
   const messagesStorageKey = `app-builder-messages-${app.id}`;
@@ -161,12 +168,13 @@ export function AppAIBuilder({ app }: AppAIBuilderProps) {
         if (data.success && data.session) {
           console.log("[AppAIBuilder] Raw session data:", data.session);
 
-          const restoredSession = {
+          const restoredSession: SessionData = {
             id: data.session.id,
             sandboxId: data.session.sandboxId,
             sandboxUrl: data.session.sandboxUrl,
             status: data.session.status,
             examplePrompts: data.session.examplePrompts || [],
+            expiresAt: data.session.expiresAt || null,
           };
 
           console.log("[AppAIBuilder] Restored session:", restoredSession);
@@ -260,11 +268,81 @@ export function AppAIBuilder({ app }: AppAIBuilderProps) {
     return () => window.removeEventListener("message", handleMessage);
   }, []);
 
+  // Update expiresAt when session changes
+  useEffect(() => {
+    if (session?.expiresAt) {
+      setExpiresAt(new Date(session.expiresAt));
+    }
+  }, [session?.expiresAt]);
+
+  // Countdown timer
+  useEffect(() => {
+    if (!expiresAt || status === "stopped" || status === "timeout") {
+      setTimeRemaining("");
+      return;
+    }
+
+    const updateCountdown = () => {
+      const now = new Date();
+      const diff = expiresAt.getTime() - now.getTime();
+
+      if (diff <= 0) {
+        setTimeRemaining("Expired");
+        setStatus("timeout");
+        return;
+      }
+
+      const minutes = Math.floor(diff / 60000);
+      const seconds = Math.floor((diff % 60000) / 1000);
+      setTimeRemaining(`${minutes}:${seconds.toString().padStart(2, "0")}`);
+    };
+
+    updateCountdown();
+    const interval = setInterval(updateCountdown, 1000);
+    return () => clearInterval(interval);
+  }, [expiresAt, status]);
+
   // Add log helper
   const addLog = useCallback((message: string, level: string = "info") => {
     const timestamp = new Date().toLocaleTimeString();
     setConsoleLogs((prev) => [...prev, `[${timestamp}] [${level}] ${message}`]);
   }, []);
+
+  // Extend session
+  const extendSession = useCallback(async () => {
+    if (!session || isExtending) return;
+
+    setIsExtending(true);
+    try {
+      const response = await fetch(
+        `/api/v1/app-builder/sessions/${session.id}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ durationMs: 900000 }), // 15 minutes
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to extend session");
+      }
+
+      const newExpiresAt = new Date(Date.now() + 900000);
+      setExpiresAt(newExpiresAt);
+      addLog("Session extended by 15 minutes", "success");
+      toast.success("Session extended", {
+        description: "Your session has been extended by 15 minutes.",
+      });
+    } catch (error) {
+      toast.error("Failed to extend session");
+      addLog(
+        `Failed to extend: ${error instanceof Error ? error.message : "Unknown error"}`,
+        "error",
+      );
+    } finally {
+      setIsExtending(false);
+    }
+  }, [session, isExtending, addLog]);
 
   // Poll for sandbox logs when session is active
   const lastLogIndexRef = useRef<number>(0);
@@ -1171,11 +1249,37 @@ ANTHROPIC_API_KEY=your_key_here`}
         </div>
         {/* Status Bar */}
         <div className="relative z-10 flex items-center justify-between p-2 border-t border-white/10 flex-shrink-0">
-          <div className="flex items-center gap-4 text-xs text-white/40">
-            <span className="flex items-center gap-1">
-              <Clock className="h-3 w-3" />
-              Session expires in 30 min
+          <div className="flex items-center gap-4 text-xs">
+            <span
+              className={`flex items-center gap-1 ${
+                timeRemaining === "Expired"
+                  ? "text-red-400"
+                  : parseInt(timeRemaining.split(":")[0] || "30") <= 5
+                    ? "text-yellow-400"
+                    : "text-white/40"
+              }`}
+            >
+              <Timer className="h-3 w-3" />
+              {timeRemaining
+                ? timeRemaining === "Expired"
+                  ? "Session expired"
+                  : `Expires in ${timeRemaining}`
+                : "Loading..."}
             </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={extendSession}
+              disabled={isExtending || status !== "ready"}
+              className="h-6 text-xs text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10"
+            >
+              {isExtending ? (
+                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+              ) : (
+                <Plus className="h-3 w-3 mr-1" />
+              )}
+              Extend 15m
+            </Button>
           </div>
           <Button
             variant="ghost"

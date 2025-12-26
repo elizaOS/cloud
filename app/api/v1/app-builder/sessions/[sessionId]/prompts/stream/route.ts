@@ -3,6 +3,12 @@ import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { aiAppBuilderService } from "@/lib/services/ai-app-builder";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
+import { checkRateLimit } from "@/lib/middleware/rate-limit";
+
+const PROMPT_RATE_LIMIT = {
+  windowMs: 60000, // 1 minute
+  maxRequests: process.env.NODE_ENV === "production" ? 20 : 100, // 20 prompts/min in prod
+};
 
 interface RouteParams {
   params: Promise<{ sessionId: string }>;
@@ -23,6 +29,25 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     // Verify user owns this session
     await aiAppBuilderService.verifySessionOwnership(sessionId, user.id);
+
+    // Rate limit check
+    const rateLimitResult = checkRateLimit(request, PROMPT_RATE_LIMIT);
+    if (!rateLimitResult.allowed) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "Rate limit exceeded. Maximum 20 prompts per minute.",
+          retryAfter: rateLimitResult.retryAfter,
+        }),
+        {
+          status: 429,
+          headers: {
+            "Content-Type": "application/json",
+            "Retry-After": rateLimitResult.retryAfter?.toString() || "60",
+          },
+        },
+      );
+    }
 
     const body = await request.json();
     const validationResult = SendPromptSchema.safeParse(body);

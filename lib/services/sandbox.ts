@@ -5,6 +5,7 @@ import {
   loadSandboxSecrets,
   isSecretsConfigured,
 } from "@/lib/services/secrets";
+import { buildFullAppPrompt } from "@/lib/fragments/prompt";
 
 interface SandboxInstance {
   id?: string;
@@ -158,131 +159,12 @@ const TOOLS: Anthropic.Tool[] = [
   },
 ];
 
-const SYSTEM_PROMPT = `You are an expert Next.js developer building production-ready apps on Eliza Cloud.
-
-## Tech Stack
-Next.js 15 (App Router) | React 19 | TypeScript | Tailwind CSS 4
-
-## Project Structure
-\`\`\`
-src/
-├── app/           # Pages: layout.tsx, page.tsx, [routes]/
-├── components/
-│   ├── ui/        # button.tsx, card.tsx, input.tsx
-│   └── layout/    # header.tsx, sidebar.tsx
-├── lib/
-│   ├── eliza.ts   # Eliza Cloud API client ⭐
-│   └── utils.ts
-├── hooks/
-│   └── use-eliza.ts  # React hook for Eliza ⭐
-└── types/
-\`\`\`
-
-## ⚡ WORKFLOW
-1. install_packages (if needed)
-2. Create lib/eliza.ts (API client)
-3. Create hooks/use-eliza.ts
-4. Create components/ui/* 
-5. Create components/layout/*
-6. Create app pages
-7. check_build after each file → fix → repeat
-
-## 🎨 TAILWIND CSS 4
-- Standard classes ONLY: bg-gray-900, text-white, border-gray-700
-- NO custom utilities (border-border, bg-background)
-- globals.css: just @tailwind directives
-
-## 📁 REQUIRED: lib/eliza.ts
-\`\`\`typescript
-const API = '';
-class ElizaClient {
-  constructor(private apiKey: string) {}
-  private async fetch<T>(path: string, opts: RequestInit = {}): Promise<T> {
-    const res = await fetch(\`\${API}\${path}\`, {
-      ...opts,
-      headers: { 'Content-Type': 'application/json', 'X-Api-Key': this.apiKey, ...opts.headers },
-    });
-    if (!res.ok) throw new Error(await res.text());
-    return res.json();
-  }
-  chat = (messages: Array<{role: string; content: string}>, model = 'gpt-4o') =>
-    this.fetch('/api/v1/chat/completions', { method: 'POST', body: JSON.stringify({ messages, model }) });
-  async *chatStream(messages: Array<{role: string; content: string}>, model = 'gpt-4o') {
-    const res = await fetch('/api/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Api-Key': this.apiKey },
-      body: JSON.stringify({ messages, model, stream: true }),
-    });
-    const reader = res.body?.getReader();
-    const decoder = new TextDecoder();
-    while (reader) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      for (const line of decoder.decode(value).split('\\n')) {
-        if (line.startsWith('data: ') && !line.includes('[DONE]')) {
-          try { yield JSON.parse(line.slice(6)); } catch {}
-        }
-      }
-    }
-  }
-  generateImage = (prompt: string) => this.fetch<{url: string}>('/api/v1/generate-image', { method: 'POST', body: JSON.stringify({ prompt }) });
-  generateVideo = (prompt: string) => this.fetch<{jobId: string}>('/api/v1/generate-video', { method: 'POST', body: JSON.stringify({ prompt }) });
-  listFiles = () => this.fetch<{items: Array<{id: string; url: string}>}>('/api/v1/storage');
-  getBalance = () => this.fetch<{balance: number}>('/api/v1/credits/balance');
-  getUsage = (limit = 20) => this.fetch<{usage: Array<{type: string; cost: number}>}>(\`/api/v1/usage?limit=\${limit}\`);
-  listAgents = () => this.fetch<{agents: Array<{id: string; name: string}>}>('/api/v1/agents');
-  chatWithAgent = (agentId: string, message: string, roomId?: string) =>
-    this.fetch<{response: string; roomId: string}>('/api/v1/agents/chat', { method: 'POST', body: JSON.stringify({ agentId, message, roomId }) });
-  saveMemory = (content: string, roomId: string, type = 'fact') =>
-    this.fetch<{memoryId: string}>('/api/v1/memory', { method: 'POST', body: JSON.stringify({ content, roomId, type }) });
-  searchMemories = (query: string, roomId?: string) =>
-    this.fetch<{memories: Array<{id: string; content: string}>}>('/api/v1/memory/search', { method: 'POST', body: JSON.stringify({ query, roomId }) });
-  listWorkflows = () => this.fetch<{workflows: Array<{id: string; name: string}>}>('/api/v1/n8n/workflows');
-  executeWorkflow = (id: string, data: Record<string, unknown>) =>
-    this.fetch<{executionId: string}>(\`/api/v1/n8n/workflows/\${id}/execute\`, { method: 'POST', body: JSON.stringify({ data }) });
-}
-export const eliza = (apiKey: string) => new ElizaClient(apiKey);
-\`\`\`
-
-## 📁 REQUIRED: hooks/use-eliza.ts
-\`\`\`typescript
-'use client';
-import { useState, useMemo, useCallback } from 'react';
-import { eliza } from '@/lib/eliza';
-export function useEliza(apiKey: string) {
-  const client = useMemo(() => eliza(apiKey), [apiKey]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const call = useCallback(async <T>(fn: (c: ReturnType<typeof eliza>) => Promise<T>) => {
-    setLoading(true); setError(null);
-    try { return await fn(client); }
-    catch (e) { setError(e instanceof Error ? e.message : 'Error'); return null; }
-    finally { setLoading(false); }
-  }, [client]);
-  return { client, call, loading, error };
-}
-\`\`\`
-
-## 🔑 API Key
-- Use process.env.NEXT_PUBLIC_ELIZA_API_KEY
-- Or prompt user to enter (store in localStorage)
-
-## 📋 API Quick Reference
-| Endpoint | Method | Use |
-|----------|--------|-----|
-| /api/v1/chat/completions | POST | AI chat (stream: true) |
-| /api/v1/generate-image | POST | Images |
-| /api/v1/generate-video | POST | Videos |
-| /api/v1/storage | GET | List files |
-| /api/v1/credits/balance | GET | Check balance |
-| /api/v1/agents | GET | List agents |
-| /api/v1/agents/chat | POST | Chat with agent |
-| /api/v1/memory | POST | Save memory |
-| /api/v1/memory/search | POST | Search memories |
-| /api/v1/n8n/workflows | GET | List workflows |
-| /api/v1/n8n/workflows/:id/execute | POST | Run workflow |
-
-BUILD COMPLETE MULTI-PAGE APPS with proper architecture!`;
+const getDefaultSystemPrompt = () =>
+  buildFullAppPrompt({
+    templateType: "blank",
+    includeAnalytics: true,
+    includeMonetization: false,
+  });
 
 const ALLOWED_DIRECTORIES = [
   "src/",
@@ -317,7 +199,6 @@ const ALLOWED_ROOT_PATTERNS = [
   /^next\.config\.(ts|js|mjs)$/,
   /^tailwind\.config\.(ts|js)$/,
   /^postcss\.config\.(js|mjs)$/,
-  /^\.env(\.local|\.example|\.development|\.production)?$/,
   /^.*\.md$/,
   /^.*\.txt$/,
   /^LICENSE.*$/,
@@ -331,6 +212,62 @@ const ALLOWED_ROOT_PATTERNS = [
   /^\.node-version$/,
 ];
 
+const ALLOWED_COMMANDS = [
+  "pnpm",
+  "npm",
+  "npx",
+  "node",
+  "tsc",
+  "next",
+  "prettier",
+  "eslint",
+  "cat",
+  "ls",
+  "pwd",
+  "echo",
+  "head",
+  "tail",
+  "grep",
+  "find",
+  "wc",
+];
+
+const BLOCKED_COMMAND_PATTERNS = [
+  /rm\s+(-rf?|--recursive)/i,
+  /curl\s/i,
+  /wget\s/i,
+  /chmod\s/i,
+  /chown\s/i,
+  /sudo\s/i,
+  /eval\s/i,
+  /exec\s/i,
+  /\|\s*(bash|sh|zsh)/i,
+  />\s*\/etc\//i,
+  /\.env/i,
+  /process\.env/i,
+  /export\s+\w+=/i,
+];
+
+function isCommandAllowed(command: string): { allowed: boolean; reason?: string } {
+  const trimmed = command.trim();
+  const baseCommand = trimmed.split(/\s+/)[0];
+
+  for (const pattern of BLOCKED_COMMAND_PATTERNS) {
+    if (pattern.test(trimmed)) {
+      return { allowed: false, reason: `Command contains blocked pattern: ${pattern}` };
+    }
+  }
+
+  if (!ALLOWED_COMMANDS.includes(baseCommand)) {
+    return {
+      allowed: false,
+      reason: `Command '${baseCommand}' not in allowlist. Allowed: ${ALLOWED_COMMANDS.join(", ")}`
+    };
+  }
+
+  return { allowed: true };
+}
+
 function isPathAllowed(filePath: string): boolean {
   const normalized = filePath.replace(/^\.\//, "").replace(/\.\.\//g, "");
 
@@ -340,10 +277,6 @@ function isPathAllowed(filePath: string): boolean {
 
   if (ALLOWED_DIRECTORIES.some((dir) => normalized.startsWith(dir))) {
     return true;
-  }
-
-  if (normalized.includes(".env")) {
-    return true
   }
 
   if (!normalized.includes("/")) {
@@ -530,7 +463,7 @@ export class SandboxService {
 
     if (!creds.hasOIDC && !creds.hasAccessToken) {
       throw new Error(
-        "Vercel Sandbox credentials not configured. Set VERCEL_TOKEN, VERCEL_TEAM_ID, and VERCEL_PROJECT_ID.",
+        "Vercel Sandbox credentials not configured. Run 'vercel env pull' to get OIDC token, or set VERCEL_TOKEN, VERCEL_TEAM_ID, and VERCEL_PROJECT_ID.",
       );
     }
 
@@ -553,7 +486,17 @@ export class SandboxService {
       createOptions.token = creds.token;
     }
 
-    const sandbox = (await Sandbox.create(createOptions)) as SandboxInstance;
+    let sandbox: SandboxInstance;
+    try {
+      sandbox = (await Sandbox.create(createOptions)) as SandboxInstance;
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("OIDC")) {
+        throw new Error(
+          `OIDC token expired or invalid. Run 'vercel env pull' to refresh it. Original error: ${error.message}`,
+        );
+      }
+      throw error;
+    }
     const devServerUrl = sandbox.domain(3000);
     const sandboxId = sandbox.id ?? extractSandboxIdFromUrl(devServerUrl);
 
@@ -677,7 +620,7 @@ REMEMBER:
       const response = await anthropic.messages.create({
         model: "claude-sonnet-4-5-20250929",
         max_tokens: 8192,
-        system: options.systemPrompt || SYSTEM_PROMPT,
+        system: options.systemPrompt || getDefaultSystemPrompt(),
         tools: TOOLS,
         messages,
       });
@@ -740,12 +683,18 @@ REMEMBER:
             result = files.join("\n") || `Empty: ${path}`;
           } else if (block.name === "run_command") {
             const { command } = block.input as { command: string };
-            const r = await sandbox.runCommand({
-              cmd: "sh",
-              args: ["-c", command],
-            });
-            result =
-              `Exit ${r.exitCode}: ${await r.stdout()} ${await r.stderr()}`.trim();
+            const commandCheck = isCommandAllowed(command);
+            if (!commandCheck.allowed) {
+              result = `❌ Command blocked: ${commandCheck.reason}`;
+              logger.warn("Blocked command attempt", { sandboxId, command, reason: commandCheck.reason });
+            } else {
+              const r = await sandbox.runCommand({
+                cmd: "sh",
+                args: ["-c", command],
+              });
+              result =
+                `Exit ${r.exitCode}: ${await r.stdout()} ${await r.stderr()}`.trim();
+            }
           } else {
             result = `Unknown tool: ${block.name}`;
           }
