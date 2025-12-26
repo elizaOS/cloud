@@ -9,11 +9,14 @@ import {
   Trash2,
   Loader2,
   RefreshCw,
-  AlertCircle,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import type { KnowledgeDocument, PreUploadedFile } from "@/lib/types/knowledge";
+import {
+  useKnowledgeProcessingStatus,
+  markKnowledgeProcessingPending,
+} from "./hooks/use-knowledge-processing-status";
 
 interface UploadsTabProps {
   characterId: string | null;
@@ -51,6 +54,15 @@ export function UploadsTab({
     setLoading(false);
   }, [characterId]);
 
+  // Subscribe to real-time knowledge processing updates via SSE
+  const { startMonitoring } = useKnowledgeProcessingStatus(
+    characterId,
+    {
+      onComplete: fetchDocuments,
+      enabled: !!characterId,
+    },
+  );
+
   useEffect(() => {
     if (characterId) {
       // Schedule fetch to avoid synchronous setState in effect
@@ -61,8 +73,31 @@ export function UploadsTab({
     }
   }, [characterId, fetchDocuments]);
 
+  const MAX_TOTAL_SIZE = 10 * 1024 * 1024; // 10MB limit
+
   const handleUpload = async (files: File[]) => {
     if (files.length === 0) return;
+
+    // Validate total file size before upload (Next.js has 10MB body limit)
+    const totalSize = files.reduce((sum, file) => sum + file.size, 0);
+    if (totalSize > MAX_TOTAL_SIZE) {
+      const totalMB = (totalSize / (1024 * 1024)).toFixed(1);
+      toast.error("Files too large", {
+        description: `Total size (${totalMB}MB) exceeds 10MB limit. Please upload smaller files or fewer files at once.`,
+      });
+      return;
+    }
+
+    // Check individual file sizes for better error messages
+    for (const file of files) {
+      if (file.size > MAX_TOTAL_SIZE) {
+        const fileMB = (file.size / (1024 * 1024)).toFixed(1);
+        toast.error("File too large", {
+          description: `"${file.name}" (${fileMB}MB) exceeds 10MB limit.`,
+        });
+        return;
+      }
+    }
 
     // Validate pre-upload mode requirements BEFORE entering tracked upload state
     // This avoids incrementing counter and setting uploading=true for invalid operations
@@ -132,15 +167,26 @@ export function UploadsTab({
 
       if (response.ok) {
         const data = await response.json();
-        toast.success("Files uploaded successfully", {
-          description: `${data.successCount} file(s) processed and ready to use`,
-        });
+
+        // If processing is queued (async), start SSE monitoring
+        if (data.queued) {
+          markKnowledgeProcessingPending(characterId);
+          startMonitoring();
+          toast.success("Processing your files", {
+            description: "We'll notify you when processing is complete",
+          });
+        } else {
+          toast.success("Files uploaded successfully", {
+            description: `${data.successCount} file(s) processed and ready to use`,
+          });
+          fetchDocuments();
+        }
+
         setSelectedFiles([]);
         const fileInput = document.getElementById(
           "uploads-tab-file-input",
         ) as HTMLInputElement;
         if (fileInput) fileInput.value = "";
-        fetchDocuments();
       } else {
         const data = await response.json().catch(() => ({}));
         toast.error("Upload failed", {

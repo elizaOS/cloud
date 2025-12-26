@@ -46,11 +46,35 @@ function getFileExtension(filename: string): string {
  * @param req - Form data with files array.
  * @returns Pre-uploaded file metadata including blob URLs.
  */
+const MAX_BODY_SIZE = 10 * 1024 * 1024; // 10MB - Next.js default limit
+
 async function handlePOST(req: NextRequest) {
   const authResult = await requireAuthOrApiKey(req);
   const { user } = authResult;
 
-  const formData = await req.formData();
+  // Parse form data with proper error handling for size limits
+  let formData: FormData;
+  try {
+    formData = await req.formData();
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    
+    // Check if it's a body size limit error
+    if (errorMessage.includes("body") || errorMessage.includes("FormData") || errorMessage.includes("boundary")) {
+      logger.warn("[PreUpload] Request body too large or malformed", {
+        error: errorMessage,
+      });
+      return NextResponse.json(
+        {
+          error: "Upload too large",
+          details: `Total upload size must be under ${MAX_BODY_SIZE / (1024 * 1024)}MB. Please upload smaller files or fewer files at once.`,
+        },
+        { status: 413 },
+      );
+    }
+    throw error;
+  }
+
   const files = formData.getAll("files") as File[];
 
   if (!files || files.length === 0) {

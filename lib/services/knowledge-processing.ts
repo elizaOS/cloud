@@ -418,6 +418,33 @@ export class KnowledgeProcessingService {
   }
 
   /**
+   * Processes a single job by ID.
+   *
+   * @param jobId - ID of the job to process.
+   * @param user - User context.
+   * @param apiKey - Optional API key.
+   * @returns True if successful, false otherwise.
+   */
+  async processJobById(
+    jobId: string,
+    user: UserWithOrganization,
+    apiKey?: ApiKey,
+  ): Promise<boolean> {
+    const job = await jobsRepository.findById(jobId);
+    if (!job) {
+      logger.warn("[KnowledgeProcessing] Job not found for sync processing", {
+        jobId,
+      });
+      return false;
+    }
+
+    // Update status to in_progress
+    await jobsRepository.updateStatus(jobId, "in_progress");
+
+    return this.processJob(job, user, apiKey);
+  }
+
+  /**
    * Cleans up a blob file from storage.
    * Called when a job permanently fails to prevent storage leaks.
    *

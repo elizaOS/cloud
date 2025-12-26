@@ -189,7 +189,7 @@ export function CharacterBuildMode({
 
           let fileQueuingSucceeded = true;
           try {
-            const queueResponse = await fetch("/api/v1/knowledge/queue", {
+            const queueResponse = await fetch("/api/v1/knowledge/submit", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               credentials: "include",
@@ -256,7 +256,7 @@ export function CharacterBuildMode({
           // Queue pre-uploaded files for background processing
           if (filesToQueue.length > 0) {
             try {
-              const queueResponse = await fetch("/api/v1/knowledge/queue", {
+              const queueResponse = await fetch("/api/v1/knowledge/submit", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 credentials: "include",

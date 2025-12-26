@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { toast } from "sonner";
 
 interface KnowledgeProcessingStatus {
@@ -18,8 +18,28 @@ interface StatusWithCharacter {
   status: KnowledgeProcessingStatus;
 }
 
+interface KnowledgeSSEEvent {
+  type: string;
+  data: {
+    type?: string;
+    characterId?: string;
+    jobId?: string;
+    filename?: string;
+    data?: {
+      status?: string;
+      fragmentCount?: number;
+      documentId?: string;
+      error?: string;
+      completedCount?: number;
+      failedCount?: number;
+      totalFiles?: number;
+    };
+  };
+  timestamp: string;
+}
+
 const PENDING_KNOWLEDGE_KEY_PREFIX = "pendingKnowledge_";
-const PENDING_EXPIRY_MS = 5 * 60 * 1000; // 5 minutes - processing should complete within this time
+const PENDING_EXPIRY_MS = 5 * 60 * 1000; // 5 minutes
 
 /**
  * Marks a character as having pending knowledge processing.
@@ -35,7 +55,6 @@ export function markKnowledgeProcessingPending(characterId: string): void {
 
 /**
  * Checks if a character has pending knowledge processing that we should track.
- * Returns true if marked pending within the expiry window.
  */
 function hasPendingKnowledgeProcessing(characterId: string): boolean {
   if (typeof window === "undefined") return false;
@@ -64,21 +83,37 @@ function clearPendingKnowledgeProcessing(characterId: string): void {
 }
 
 /**
- * Hook to poll knowledge processing status for a character.
- * Polls every 3 seconds while files are processing.
- * Shows a toast notification when processing completes.
+ * Hook for real-time knowledge processing status updates via SSE.
+ * Subscribes to server-sent events for instant notifications when files finish processing.
+ * Falls back to polling if SSE is not available.
  *
- * Uses localStorage to track pending processing state across navigation,
- * ensuring completion toasts are shown even if processing finishes
- * before this hook mounts.
- *
- * @param characterId - The character ID to check processing status for.
+ * @param characterId - The character ID to monitor processing status for.
+ * @param options - Configuration options
+ * @param options.onComplete - Callback when all processing completes
+ * @param options.enabled - Whether to enable the subscription (default: true)
  */
-export function useKnowledgeProcessingStatus(characterId: string | null) {
+export function useKnowledgeProcessingStatus(
+  characterId: string | null,
+  options: {
+    onComplete?: () => void;
+    enabled?: boolean;
+  } = {},
+) {
+  const { onComplete, enabled = true } = options;
   const [statusData, setStatusData] = useState<StatusWithCharacter | null>(
     null,
   );
   const wasProcessingRef = useRef(false);
+  const eventSourceRef = useRef<EventSource | null>(null);
+  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+  const onCompleteRef = useRef(onComplete);
+
+  // Keep callback ref updated
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
 
   const status = useMemo(() => {
     if (!characterId || statusData?.characterId !== characterId) {
@@ -87,107 +122,203 @@ export function useKnowledgeProcessingStatus(characterId: string | null) {
     return statusData.status;
   }, [characterId, statusData]);
 
+  // Fetch initial status from REST API
+  const fetchStatus = useCallback(
+    async (currentCharacterId: string): Promise<KnowledgeProcessingStatus | null> => {
+      const response = await fetch(
+        `/api/v1/knowledge/jobs/${currentCharacterId}`,
+        { credentials: "include" },
+      );
+
+      if (response.status === 403 || response.status === 404) {
+        return null;
+      }
+
+      if (!response.ok) {
+        return null;
+      }
+
+      return response.json();
+    },
+    [],
+  );
+
+  // Handle SSE events
+  const handleSSEEvent = useCallback(
+    (event: MessageEvent, currentCharacterId: string) => {
+      const parsed: KnowledgeSSEEvent = JSON.parse(event.data);
+      const eventType = parsed.data?.type || parsed.type;
+
+      if (eventType === "heartbeat" || eventType === "connected") {
+        return;
+      }
+
+      // Handle knowledge processing events
+      if (
+        eventType === "processing_completed" ||
+        eventType === "processing_failed"
+      ) {
+        const eventData = parsed.data?.data;
+        const filename = parsed.data?.filename;
+
+        // Show toast for individual file completion
+        if (eventType === "processing_completed" && filename) {
+          toast.success(`Processed: ${filename}`, {
+            description: `${eventData?.fragmentCount || 0} fragments created`,
+            duration: 3000,
+          });
+        } else if (eventType === "processing_failed" && filename) {
+          toast.error(`Failed: ${filename}`, {
+            description: eventData?.error || "Processing failed",
+            duration: 5000,
+          });
+        }
+
+        // Fetch updated status to get accurate counts
+        fetchStatus(currentCharacterId).then((newStatus) => {
+          if (newStatus) {
+            setStatusData({
+              characterId: currentCharacterId,
+              status: newStatus,
+            });
+
+            // Check if all processing is complete
+            if (wasProcessingRef.current && !newStatus.isProcessing) {
+              if (newStatus.totalFiles > 0) {
+                if (newStatus.failedCount > 0) {
+                  toast.success("Knowledge files processed", {
+                    description: `${newStatus.completedCount} succeeded, ${newStatus.failedCount} failed`,
+                    duration: 5000,
+                  });
+                } else {
+                  toast.success("Knowledge base ready!", {
+                    description: `Successfully processed ${newStatus.completedCount} file(s)`,
+                    duration: 4000,
+                  });
+                }
+              }
+
+              wasProcessingRef.current = false;
+              clearPendingKnowledgeProcessing(currentCharacterId);
+              onCompleteRef.current?.();
+            }
+          }
+        });
+      }
+    },
+    [fetchStatus],
+  );
+
+  // Connect to SSE
+  const connectSSE = useCallback(
+    (currentCharacterId: string) => {
+      // Close existing connection
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+        eventSourceRef.current = null;
+      }
+
+      const url = `/api/v1/knowledge/sse?characterId=${encodeURIComponent(currentCharacterId)}`;
+      const eventSource = new EventSource(url, { withCredentials: true });
+      eventSourceRef.current = eventSource;
+
+      eventSource.onmessage = (event) => {
+        handleSSEEvent(event, currentCharacterId);
+      };
+
+      eventSource.onerror = () => {
+        eventSource.close();
+        eventSourceRef.current = null;
+
+        // Reconnect after a delay if still processing
+        if (wasProcessingRef.current) {
+          reconnectTimeoutRef.current = setTimeout(() => {
+            if (wasProcessingRef.current) {
+              connectSSE(currentCharacterId);
+            }
+          }, 3000);
+        }
+      };
+
+      return eventSource;
+    },
+    [handleSSEEvent],
+  );
+
   useEffect(() => {
-    if (!characterId) {
+    if (!characterId || !enabled) {
       return;
     }
 
     wasProcessingRef.current = false;
 
-    // Check if we have pending processing from a recent character creation.
-    // This handles the case where processing completes before this hook mounts.
+    // Check if we have pending processing
     const hadPendingProcessing = hasPendingKnowledgeProcessing(characterId);
     if (hadPendingProcessing) {
       wasProcessingRef.current = true;
     }
 
-    let isCurrentEffect = true;
+    // Fetch initial status
+    fetchStatus(characterId).then((initialStatus) => {
+      if (initialStatus) {
+        setStatusData({ characterId, status: initialStatus });
 
-    const fetchStatus = async (currentCharacterId: string) => {
-      try {
-        const response = await fetch(
-          `/api/v1/knowledge/jobs/${currentCharacterId}`,
-          {
-            credentials: "include",
-          },
-        );
-
-        if (!isCurrentEffect) return;
-
-        // For 403 (not owner) or 404 (not found), silently stop polling
-        // This is normal for shared characters the user doesn't own
-        if (response.status === 403 || response.status === 404) {
-          wasProcessingRef.current = false;
-          clearPendingKnowledgeProcessing(currentCharacterId);
-          return;
+        if (initialStatus.isProcessing) {
+          wasProcessingRef.current = true;
         }
 
-        if (!response.ok) {
-          wasProcessingRef.current = false;
-          return;
-        }
-
-        const data = (await response.json()) as KnowledgeProcessingStatus;
-        setStatusData({ characterId: currentCharacterId, status: data });
-
-        if (wasProcessingRef.current && !data.isProcessing) {
-          // Only show completion toast if there were actual files processed
-          // This prevents misleading toasts when localStorage has a pending marker but API returns no jobs
-          if (data.totalFiles > 0) {
-            if (data.failedCount > 0) {
+        // If we were marked as pending but API shows no processing,
+        // it means processing completed before we connected
+        if (hadPendingProcessing && !initialStatus.isProcessing) {
+          if (initialStatus.totalFiles > 0) {
+            if (initialStatus.failedCount > 0) {
               toast.success("Knowledge files processed", {
-                description: `${data.completedCount} succeeded, ${data.failedCount} failed`,
+                description: `${initialStatus.completedCount} succeeded, ${initialStatus.failedCount} failed`,
                 duration: 5000,
               });
             } else {
               toast.success("Knowledge base ready!", {
-                description: `Successfully processed ${data.completedCount} file(s)`,
+                description: `Successfully processed ${initialStatus.completedCount} file(s)`,
                 duration: 4000,
               });
             }
           }
-          // Clear pending state regardless of totalFiles to stop polling
-          wasProcessingRef.current = false;
-          clearPendingKnowledgeProcessing(currentCharacterId);
-        } else if (data.isProcessing) {
-          wasProcessingRef.current = true;
+          clearPendingKnowledgeProcessing(characterId);
+          onCompleteRef.current?.();
+          return;
         }
-      } catch {
-        // Silently handle fetch/parse errors - polling will retry
-        if (!isCurrentEffect) return;
-      }
-    };
-
-    void fetchStatus(characterId);
-
-    const capturedCharacterId = characterId;
-    let pollCount = 0;
-    const MAX_POLLS = 100; // 5 minutes max at 3s intervals
-
-    const interval = setInterval(() => {
-      if (!wasProcessingRef.current) {
-        // Processing completed - stop polling
-        clearInterval(interval);
-        return;
       }
 
-      if (pollCount < MAX_POLLS) {
-        pollCount++;
-        void fetchStatus(capturedCharacterId);
-      } else {
-        // Prevent unbounded polling - stop after max attempts
-        clearInterval(interval);
-        wasProcessingRef.current = false;
-        clearPendingKnowledgeProcessing(capturedCharacterId);
+      // Connect to SSE if processing is active
+      if (wasProcessingRef.current) {
+        connectSSE(characterId);
       }
-    }, 3000);
+    });
 
     return () => {
-      isCurrentEffect = false;
-      clearInterval(interval);
-      // Don't reset wasProcessingRef here - managed by effect body and localStorage
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+        eventSourceRef.current = null;
+      }
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
+      }
     };
-  }, [characterId]);
+  }, [characterId, enabled, fetchStatus, connectSSE]);
 
-  return status;
+  // Start SSE when processing begins
+  const startMonitoring = useCallback(() => {
+    if (characterId && !eventSourceRef.current) {
+      wasProcessingRef.current = true;
+      markKnowledgeProcessingPending(characterId);
+      connectSSE(characterId);
+    }
+  }, [characterId, connectSSE]);
+
+  return {
+    status,
+    isProcessing: status?.isProcessing ?? false,
+    startMonitoring,
+  };
 }

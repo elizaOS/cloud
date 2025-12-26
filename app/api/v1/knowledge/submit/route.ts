@@ -9,6 +9,7 @@ import {
   ALLOWED_CONTENT_TYPES,
   isValidFilename,
 } from "@/lib/constants/knowledge";
+import { logger } from "@/lib/utils/logger";
 
 const MAX_FILENAME_LENGTH = 255;
 
@@ -20,12 +21,9 @@ interface FileToQueue {
 }
 
 /**
- * POST /api/v1/knowledge/queue
- * Queues knowledge files for background processing.
- * Files are stored as jobs in the database and processed asynchronously.
- *
- * @param req - JSON body with characterId and files array.
- * @returns Success message with job IDs.
+ * POST /api/v1/knowledge/submit
+ * Submits knowledge files for processing.
+ * Creates job records for tracking and processes files immediately.
  */
 async function handlePOST(req: NextRequest) {
   const authResult = await requireAuthOrApiKey(req);
@@ -51,7 +49,6 @@ async function handlePOST(req: NextRequest) {
     );
   }
 
-  // Verify character belongs to user's organization
   const character = await userCharactersRepository.findById(characterId);
   if (!character || character.organization_id !== user.organization_id) {
     return NextResponse.json(
@@ -73,7 +70,6 @@ async function handlePOST(req: NextRequest) {
     );
   }
 
-  // Validate each file
   for (const file of files) {
     if (!file.blobUrl || !isValidBlobUrl(file.blobUrl)) {
       return NextResponse.json(
@@ -136,6 +132,23 @@ async function handlePOST(req: NextRequest) {
     characterId,
     files,
     user,
+  });
+
+  logger.info("[KnowledgeSubmit] Processing jobs", {
+    characterId,
+    jobCount: jobIds.length,
+  });
+
+  // Process jobs in background after returning response
+  setImmediate(async () => {
+    for (const jobId of jobIds) {
+      await knowledgeProcessingService.processJobById(jobId, user).catch((error) => {
+        logger.error("[KnowledgeSubmit] Processing error", {
+          jobId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      });
+    }
   });
 
   return NextResponse.json({
