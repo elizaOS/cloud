@@ -54,10 +54,9 @@ export function CharacterEditor({
 }: CharacterEditorProps) {
   const searchParams = useSearchParams();
   const initialTab = searchParams.get("tab") as MainTab | null;
+  const validTabs = ["character", "plugins", "files"];
   const [activeTab, setActiveTab] = useState<MainTab>(
-    initialTab && ["character", "plugins", "files"].includes(initialTab)
-      ? initialTab
-      : "character"
+    initialTab && validTabs.includes(initialTab) ? initialTab : "character",
   );
   const [showJson, setShowJson] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -65,7 +64,7 @@ export function CharacterEditor({
   // Update tab when URL changes
   useEffect(() => {
     const tab = searchParams.get("tab") as MainTab | null;
-    if (tab && ["character", "plugins", "files"].includes(tab)) {
+    if (tab && validTabs.includes(tab)) {
       // Schedule state update to avoid synchronous setState in effect
       const rafId = requestAnimationFrame(() => setActiveTab(tab));
       return () => cancelAnimationFrame(rafId);

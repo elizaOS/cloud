@@ -14,9 +14,15 @@ import { eq } from "drizzle-orm";
 import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
 import { migrateAnonymousSession } from "@/lib/session";
 import { logger } from "@/lib/utils/logger";
+import { charactersService } from "@/lib/services/characters";
 
 interface PageProps {
-  searchParams: Promise<{ characterId?: string; roomId?: string }>;
+  searchParams: Promise<{ 
+    characterId?: string; 
+    roomId?: string;
+    error?: string;
+    name?: string;
+  }>;
 }
 
 // Force dynamic rendering since we use server-side auth (cookies)
@@ -134,7 +140,82 @@ export default async function ElizaPage({ searchParams }: PageProps) {
   // Get URL params
   const params = await searchParams ?? {};
   const initialRoomId = params.roomId;
-  const initialCharacterId = params.characterId;
+  let initialCharacterId = params.characterId;
+  let errorType = params.error;
+  let errorCharacterName = params.name;
+
+  // For shared character links, fetch the character data server-side
+  // This ensures the character info is available immediately on page load
+  let sharedCharacter: {
+    id: string;
+    name: string;
+    username?: string | null;
+    avatarUrl?: string | null;
+    bio?: string;
+  } | null = null;
+
+  // ACCESS CONTROL: Check if user can access the character before loading
+  if (initialCharacterId && !errorType) {
+    // Check if character is already in user's list (user owns it)
+    const isOwnCharacter = characters.some((c) => c.id === initialCharacterId);
+
+    if (!isOwnCharacter) {
+      // Fetch character data to check access
+      try {
+        const character = await charactersService.getById(initialCharacterId);
+        
+        if (!character || character.source !== "cloud") {
+          // Character doesn't exist or wrong source - clear characterId
+          logger.warn(
+            `[Dashboard Chat] Character ${initialCharacterId} not found or invalid source`,
+          );
+          initialCharacterId = undefined;
+        } else {
+          const isOwner = user && character.user_id === user.id;
+          const isPublic = character.is_public === true;
+          
+          // Check if this is a claimable affiliate character
+          const claimCheck = await charactersService.isClaimableAffiliateCharacter(character.id);
+          const isClaimableAffiliate = claimCheck.claimable;
+          
+          if (isPublic || isOwner || isClaimableAffiliate) {
+            // Access granted - load the shared character
+            sharedCharacter = {
+              id: character.id,
+              name: character.name,
+              username: character.username,
+              avatarUrl: character.avatar_url,
+              bio: Array.isArray(character.bio) ? character.bio[0] : character.bio,
+            };
+            logger.debug(
+              `[Dashboard Chat] Loaded shared character: ${character.name} (${character.id})`,
+              { isPublic, isOwner, isClaimableAffiliate },
+            );
+          } else {
+            // ACCESS DENIED - character is private and not owned by user
+            logger.warn(
+              `[Dashboard Chat] Access denied to private character: ${initialCharacterId}`,
+              {
+                userId: user?.id,
+                characterOwnerId: character.user_id,
+                isPublic: character.is_public,
+              },
+            );
+            // Set error state instead of loading the character
+            errorType = "private_character";
+            errorCharacterName = character.name;
+            initialCharacterId = undefined;
+          }
+        }
+      } catch (error) {
+        logger.warn(
+          `[Dashboard Chat] Failed to load character ${initialCharacterId}:`,
+          error,
+        );
+        initialCharacterId = undefined;
+      }
+    }
+  }
 
   return (
     <ElizaPageClient
@@ -142,6 +223,8 @@ export default async function ElizaPage({ searchParams }: PageProps) {
       isAuthenticated={!isAnonymous}
       initialRoomId={initialRoomId}
       initialCharacterId={initialCharacterId}
+      sharedCharacter={sharedCharacter}
+      accessError={errorType ? { type: errorType, characterName: errorCharacterName } : undefined}
     />
   );
 }

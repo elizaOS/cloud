@@ -4703,9 +4703,46 @@ const mcpHandler = createMcpHandler(
       async ({ characterId }) => {
         try {
           const { user } = getAuthContext();
+          const DEFAULT_AGENT_ID = "b850bc30-45f8-0041-a00a-83df46d8555d";
+
+          // ACCESS CONTROL: Check if user has permission to chat with this character
+          if (characterId && characterId !== DEFAULT_AGENT_ID) {
+            const character = await charactersService.getById(characterId);
+            if (!character) {
+              return {
+                content: [
+                  {
+                    type: "text" as const,
+                    text: JSON.stringify({ error: "Character not found" }, null, 2),
+                  },
+                ],
+              };
+            }
+
+            const isOwner = character.user_id === user.id;
+            const isPublic = character.is_public === true;
+            const claimCheck = await charactersService.isClaimableAffiliateCharacter(characterId);
+            const isClaimableAffiliate = claimCheck.claimable;
+
+            if (!isPublic && !isOwner && !isClaimableAffiliate) {
+              return {
+                content: [
+                  {
+                    type: "text" as const,
+                    text: JSON.stringify(
+                      { error: "Access denied - this character is private" },
+                      null,
+                      2,
+                    ),
+                  },
+                ],
+              };
+            }
+          }
+
           const room = await roomsService.createRoom({
             entityId: user.id,
-            agentId: characterId || "b850bc30-45f8-0041-a00a-83df46d8555d",
+            agentId: characterId || DEFAULT_AGENT_ID,
             name: "New Chat",
           });
 
