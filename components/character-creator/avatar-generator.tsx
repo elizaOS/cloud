@@ -49,7 +49,7 @@ export function AvatarGenerator({
 
   const handleRandomize = () => {
     onAvatarChange(
-      generateDefaultAvatarUrl(characterName || `char-${Date.now()}`),
+      generateDefaultAvatarUrl(characterName || `char-${Date.now()}`)
     );
     toast.success("Random avatar selected");
   };
@@ -90,7 +90,7 @@ export function AvatarGenerator({
     } catch (error) {
       console.error("Error generating AI avatar:", error);
       toast.error(
-        error instanceof Error ? error.message : "Failed to generate AI avatar",
+        error instanceof Error ? error.message : "Failed to generate AI avatar"
       );
     } finally {
       setIsGeneratingAI(false);
@@ -105,7 +105,7 @@ export function AvatarGenerator({
           value={currentAvatarUrl}
           onChange={onAvatarChange}
           name={characterName}
-          size="sm"
+          size="lg"
         />
 
         <div className="flex flex-col gap-2">
@@ -154,10 +154,10 @@ export function AvatarGenerator({
                   key={avatar.id}
                   onClick={() => handleSelectAvatar(avatar.url)}
                   className={cn(
-                    "relative w-[52px] h-[52px] rounded-lg overflow-hidden border-2 transition-all",
+                    "relative w-[60px] h-[60px] rounded-lg overflow-hidden border-2 transition-all",
                     isSelected
                       ? "border-[#FF5800] ring-2 ring-[#FF5800]/30"
-                      : "border-transparent hover:border-white/30",
+                      : "border-transparent hover:border-white/30"
                   )}
                   title={avatar.name}
                 >
