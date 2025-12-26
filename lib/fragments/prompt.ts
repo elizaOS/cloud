@@ -1,6 +1,6 @@
 import { Templates, templatesToPrompt } from "./templates";
 import { buildApiContext } from "./api-context";
-import { ELIZA_SDK_REFERENCE, ELIZA_INTEGRATION_PROMPT } from "./eliza-sdk";
+import { ELIZA_SDK_COMPACT } from "./eliza-sdk";
 
 // ============================================================================
 // QUICK MODE (Fragment Builder) - Single file generation
@@ -140,9 +140,7 @@ src/
 - Standard Tailwind only (NO border-border, bg-background)
 - Mobile-first responsive
 
-${ELIZA_INTEGRATION_PROMPT}
-
-${ELIZA_SDK_REFERENCE}
+${ELIZA_SDK_COMPACT}
 `;
 
 /**

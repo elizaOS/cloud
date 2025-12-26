@@ -6,7 +6,86 @@
  */
 
 /**
+ * COMPACT SDK reference for system prompts (~2KB)
+ * Full SDK is written to lib/eliza.ts on sandbox creation
+ */
+export const ELIZA_SDK_COMPACT = `
+## Eliza Cloud SDK
+
+API Key: \`process.env.ELIZA_API_KEY\` (pre-configured)
+Auth: \`X-Api-Key: YOUR_KEY\` or \`Authorization: Bearer YOUR_KEY\`
+
+### Core APIs
+| Endpoint | Method | Use |
+|----------|--------|-----|
+| /api/v1/chat/completions | POST | AI chat (stream: true for streaming) |
+| /api/v1/generate-image | POST | Generate images |
+| /api/v1/generate-video | POST | Generate videos |
+| /api/v1/storage/upload | POST | Upload files |
+| /api/v1/credits/balance | GET | Check credits |
+| /api/v1/agents | GET | List agents |
+| /api/v1/agents/chat | POST | Chat with agent |
+
+### Quick Pattern
+\`\`\`typescript
+// lib/eliza.ts
+const apiKey = process.env.ELIZA_API_KEY!;
+
+export async function chat(messages: {role: string; content: string}[]) {
+  const res = await fetch('/api/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Api-Key': apiKey },
+    body: JSON.stringify({ messages, model: 'gpt-4o' }),
+  });
+  return res.json();
+}
+
+export async function* chatStream(messages: {role: string; content: string}[]) {
+  const res = await fetch('/api/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Api-Key': apiKey },
+    body: JSON.stringify({ messages, model: 'gpt-4o', stream: true }),
+  });
+  const reader = res.body?.getReader();
+  const decoder = new TextDecoder();
+  while (reader) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    for (const line of decoder.decode(value).split('\\n')) {
+      if (line.startsWith('data: ') && !line.includes('[DONE]')) {
+        try { yield JSON.parse(line.slice(6)); } catch {}
+      }
+    }
+  }
+}
+\`\`\`
+
+### hooks/use-eliza.ts
+\`\`\`typescript
+'use client';
+import { useState, useCallback } from 'react';
+
+export function useChat() {
+  const [loading, setLoading] = useState(false);
+  const send = useCallback(async (messages: {role: string; content: string}[]) => {
+    setLoading(true);
+    try {
+      const { chat } = await import('@/lib/eliza');
+      return await chat(messages);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+  return { send, loading };
+}
+\`\`\`
+
+Read \`lib/eliza.ts\` for full SDK with all methods (storage, agents, workflows, etc.)
+`;
+
+/**
  * Complete Eliza Cloud SDK documentation for Claude
+ * This is written to lib/eliza.ts on sandbox creation
  */
 export const ELIZA_SDK_REFERENCE = `
 ## 🚀 Eliza Cloud SDK - Quick Reference

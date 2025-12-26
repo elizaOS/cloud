@@ -7,6 +7,129 @@ import {
 } from "@/lib/services/secrets";
 import { buildFullAppPrompt } from "@/lib/fragments/prompt";
 
+const ELIZA_SDK_FILE = `const apiKey = process.env.ELIZA_API_KEY!;
+
+interface ChatMessage {
+  role: string;
+  content: string;
+}
+
+export async function chat(messages: ChatMessage[], model = 'gpt-4o') {
+  const res = await fetch('/api/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Api-Key': apiKey },
+    body: JSON.stringify({ messages, model }),
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export async function* chatStream(messages: ChatMessage[], model = 'gpt-4o') {
+  const res = await fetch('/api/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Api-Key': apiKey },
+    body: JSON.stringify({ messages, model, stream: true }),
+  });
+  const reader = res.body?.getReader();
+  const decoder = new TextDecoder();
+  while (reader) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    for (const line of decoder.decode(value).split('\\n')) {
+      if (line.startsWith('data: ') && !line.includes('[DONE]')) {
+        try { yield JSON.parse(line.slice(6)); } catch {}
+      }
+    }
+  }
+}
+
+export async function generateImage(prompt: string, options?: { model?: string; width?: number; height?: number }) {
+  const res = await fetch('/api/v1/generate-image', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Api-Key': apiKey },
+    body: JSON.stringify({ prompt, ...options }),
+  });
+  return res.json() as Promise<{ url: string; id: string }>;
+}
+
+export async function uploadFile(file: File | Blob, filename: string) {
+  const formData = new FormData();
+  formData.append('file', file, filename);
+  const res = await fetch('/api/v1/storage/upload', {
+    method: 'POST',
+    headers: { 'X-Api-Key': apiKey },
+    body: formData,
+  });
+  return res.json() as Promise<{ id: string; url: string }>;
+}
+
+export async function getBalance() {
+  const res = await fetch('/api/v1/credits/balance', {
+    headers: { 'X-Api-Key': apiKey },
+  });
+  return res.json() as Promise<{ balance: number }>;
+}
+
+export async function listAgents() {
+  const res = await fetch('/api/v1/agents', {
+    headers: { 'X-Api-Key': apiKey },
+  });
+  return res.json() as Promise<{ agents: Array<{ id: string; name: string; bio: string }> }>;
+}
+
+export async function chatWithAgent(agentId: string, message: string, roomId?: string) {
+  const res = await fetch('/api/v1/agents/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Api-Key': apiKey },
+    body: JSON.stringify({ agentId, message, roomId }),
+  });
+  return res.json() as Promise<{ response: string; roomId: string }>;
+}
+`;
+
+const ELIZA_HOOK_FILE = `'use client';
+import { useState, useCallback } from 'react';
+
+type ChatMessage = { role: string; content: string };
+
+export function useChat() {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const send = useCallback(async (messages: ChatMessage[]) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const { chat } = await import('@/lib/eliza');
+      return await chat(messages);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Unknown error');
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  return { send, loading, error };
+}
+
+export function useChatStream() {
+  const [loading, setLoading] = useState(false);
+
+  const stream = useCallback(async function* (messages: ChatMessage[]) {
+    setLoading(true);
+    try {
+      const { chatStream } = await import('@/lib/eliza');
+      yield* chatStream(messages);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  return { stream, loading };
+}
+`;
+
 interface SandboxInstance {
   id?: string;
   status: string;
@@ -517,6 +640,25 @@ export class SandboxService {
 
     onProgress?.({ step: "installing", message: "Dependencies installed" });
 
+    logger.info("Writing SDK files", { sandboxId });
+    onProgress?.({ step: "installing", message: "Setting up SDK..." });
+
+    await sandbox.runCommand({ cmd: "mkdir", args: ["-p", "lib", "hooks"] });
+
+    const sdkBase64 = Buffer.from(ELIZA_SDK_FILE, "utf-8").toString("base64");
+    await sandbox.runCommand({
+      cmd: "sh",
+      args: ["-c", `echo '${sdkBase64}' | base64 -d > lib/eliza.ts`],
+    });
+
+    const hookBase64 = Buffer.from(ELIZA_HOOK_FILE, "utf-8").toString("base64");
+    await sandbox.runCommand({
+      cmd: "sh",
+      args: ["-c", `echo '${hookBase64}' | base64 -d > hooks/use-eliza.ts`],
+    });
+
+    logger.info("SDK files written", { sandboxId });
+
     logger.info("Starting dev server", {
       sandboxId,
       envVarCount: Object.keys(mergedEnv).length,
@@ -652,6 +794,11 @@ REMEMBER:
               path: string;
               content: string;
             };
+            if (!path || !content) {
+              result = `❌ Error: Missing ${!path ? "path" : "content"} for write_file. Both path and content are required.`;
+              toolResults.push({ type: "tool_result", tool_use_id: block.id, content: result });
+              continue;
+            }
             await writeFileViaSh(sandbox, path, content);
             filesAffected.push(path);
 

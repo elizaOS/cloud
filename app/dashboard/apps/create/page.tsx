@@ -182,6 +182,8 @@ export default function AppCreatorPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [generatingMessage, setGeneratingMessage] = useState("Generating...");
+  const [generatingColor, setGeneratingColor] = useState("text-cyan-400");
   const [copied, setCopied] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
@@ -280,6 +282,8 @@ What would you like to build?`;
       setMessages((prev) => [...prev, userMessage]);
       setInput("");
       setStatus("generating");
+      setGeneratingMessage("Analyzing request...");
+      setGeneratingColor("text-cyan-400");
 
       try {
         const response = await fetch(
@@ -333,7 +337,32 @@ What would you like to build?`;
               try {
                 const data = JSON.parse(line.slice(6));
 
-                if (eventType === "complete") {
+                if (eventType === "thinking") {
+                  setGeneratingMessage("Planning changes...");
+                  setGeneratingColor("text-purple-400");
+                } else if (eventType === "tool_use") {
+                  const toolName = data.tool;
+                  if (toolName === "write_file") {
+                    const fileName = data.input?.path?.split("/").pop() || "file";
+                    setGeneratingMessage(`Writing ${fileName}...`);
+                    setGeneratingColor("text-green-400");
+                  } else if (toolName === "install_packages") {
+                    setGeneratingMessage("Installing packages...");
+                    setGeneratingColor("text-orange-400");
+                  } else if (toolName === "check_build") {
+                    setGeneratingMessage("Checking build...");
+                    setGeneratingColor("text-yellow-400");
+                  } else if (toolName === "read_file") {
+                    setGeneratingMessage("Reading files...");
+                    setGeneratingColor("text-blue-400");
+                  } else if (toolName === "list_files") {
+                    setGeneratingMessage("Exploring project...");
+                    setGeneratingColor("text-indigo-400");
+                  } else if (toolName === "run_command") {
+                    setGeneratingMessage("Running command...");
+                    setGeneratingColor("text-red-400");
+                  }
+                } else if (eventType === "complete") {
                   finalData = data;
                 } else if (eventType === "error") {
                   throw new Error(data.error || "Failed to process prompt");
@@ -790,8 +819,8 @@ What would you like to build?`;
               <div className="flex justify-start">
                 <div className="bg-white/5 border border-white/10 p-4">
                   <div className="flex items-center gap-2">
-                    <Loader2 className="h-4 w-4 animate-spin text-cyan-400" />
-                    <span className="text-sm text-white/60">Generating...</span>
+                    <Loader2 className={`h-4 w-4 animate-spin ${generatingColor}`} />
+                    <span className={`text-sm ${generatingColor}`}>{generatingMessage}</span>
                   </div>
                 </div>
               </div>

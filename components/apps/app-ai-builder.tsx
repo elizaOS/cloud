@@ -59,7 +59,7 @@ interface Message {
   filesAffected?: string[];
   timestamp: string;
   /** Internal tracking ID for thinking messages */
-  _thinkingId?: string;
+  _thinkingId?: number;
 }
 
 interface SessionData {
@@ -85,6 +85,8 @@ export function AppAIBuilder({ app }: AppAIBuilderProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [generatingMessage, setGeneratingMessage] = useState("Generating...");
+  const [generatingColor, setGeneratingColor] = useState("text-[#FF5800]");
   const [copied, setCopied] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [progressStep, setProgressStep] = useState<ProgressStep>("creating");
@@ -530,6 +532,8 @@ Some ideas:
 
       setIsLoading(true);
       setStatus("generating");
+      setGeneratingMessage("Analyzing request...");
+      setGeneratingColor("text-cyan-400");
 
       addLog(
         `Sending prompt: "${prompt.substring(0, 50)}${prompt.length > 50 ? "..." : ""}"`,
@@ -631,11 +635,11 @@ Some ideas:
                 const data = JSON.parse(line.slice(6));
 
                 if (eventType === "thinking") {
-                  // Update thinking content
                   thinkingContent = data.text || "";
                   updateThinking(thinkingContent, actionsContent);
+                  setGeneratingMessage("Planning changes...");
+                  setGeneratingColor("text-purple-400");
 
-                  // Also log to console (truncated)
                   const shortThinking = data.text?.substring(0, 100) || "";
                   if (shortThinking) {
                     addLog(
@@ -646,27 +650,44 @@ Some ideas:
                 } else if (eventType === "tool_use") {
                   const toolName = data.tool;
                   let toolDisplay = "";
+                  let statusMsg = "Working...";
+                  let statusColor = "text-cyan-400";
 
                   if (toolName === "write_file") {
                     const path = data.input?.path || "file";
+                    const fileName = path.split("/").pop() || path;
                     toolDisplay = `📝 Writing \`${path}\``;
+                    statusMsg = `Writing ${fileName}...`;
+                    statusColor = "text-green-400";
                   } else if (toolName === "read_file") {
                     const path = data.input?.path || "file";
                     toolDisplay = `👀 Reading \`${path}\``;
+                    statusMsg = "Reading files...";
+                    statusColor = "text-blue-400";
                   } else if (toolName === "install_packages") {
                     const packages =
                       data.input?.packages?.join(", ") || "packages";
                     toolDisplay = `📦 Installing ${packages}`;
+                    statusMsg = "Installing packages...";
+                    statusColor = "text-orange-400";
                   } else if (toolName === "check_build") {
                     toolDisplay = `🔍 Checking build...`;
+                    statusMsg = "Checking build...";
+                    statusColor = "text-yellow-400";
                   } else if (toolName === "list_files") {
                     toolDisplay = `📂 Listing files`;
+                    statusMsg = "Exploring project...";
+                    statusColor = "text-indigo-400";
                   } else if (toolName === "run_command") {
                     toolDisplay = `⚡ Running command`;
+                    statusMsg = "Running command...";
+                    statusColor = "text-red-400";
                   } else {
                     toolDisplay = `🔧 ${toolName}`;
                   }
 
+                  setGeneratingMessage(statusMsg);
+                  setGeneratingColor(statusColor);
                   actionsContent += `${toolDisplay}\n`;
                   updateThinking(thinkingContent, actionsContent);
 
@@ -1365,8 +1386,8 @@ ANTHROPIC_API_KEY=your_key_here`}
               <div className="flex gap-3">
                 <div className="bg-white/5 border border-white/10 rounded-lg px-3 py-2">
                   <div className="flex items-center gap-2">
-                    <Loader2 className="h-4 w-4 animate-spin text-[#FF5800]" />
-                    <span className="text-sm text-white/60">Generating...</span>
+                    <Loader2 className={`h-4 w-4 animate-spin ${generatingColor}`} />
+                    <span className={`text-sm ${generatingColor}`}>{generatingMessage}</span>
                   </div>
                 </div>
               </div>
