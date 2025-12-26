@@ -152,7 +152,7 @@ export class AIAppBuilderService {
       vcpus: 4,
       organizationId,
       projectId: appId,
-      env: appApiKey ? { ELIZA_API_KEY: appApiKey } : undefined,
+      env: appApiKey ? { NEXT_PUBLIC_ELIZA_API_KEY: appApiKey } : undefined,
       onProgress,
     });
 

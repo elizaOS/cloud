@@ -1,6 +1,6 @@
 import { Templates, templatesToPrompt } from "./templates";
 import { buildApiContext } from "./api-context";
-import { ELIZA_SDK_COMPACT } from "./eliza-sdk";
+import { ELIZA_SDK_COMPACT, ELIZA_SDK_REFERENCE } from "./eliza-sdk";
 
 // ============================================================================
 // QUICK MODE (Fragment Builder) - Single file generation
@@ -119,20 +119,28 @@ src/
 │   ├── ui/           # Reusable: button.tsx, card.tsx, input.tsx
 │   └── layout/       # Header, sidebar, footer
 ├── lib/
-│   ├── eliza.ts      # Eliza Cloud API client (REQUIRED)
+│   ├── eliza.ts      # ✅ PRE-BUILT - Eliza Cloud API client
 │   └── utils.ts      # Helper functions
 ├── hooks/
-│   └── use-eliza.ts  # Eliza React hook (REQUIRED)
+│   └── use-eliza.ts  # ✅ PRE-BUILT - Eliza React hook
 └── types/            # TypeScript types
 \`\`\`
 
 ## ⚡ WORKFLOW
 1. \`install_packages\` for dependencies
-2. Create \`lib/eliza.ts\` - API client
-3. Create \`hooks/use-eliza.ts\` - React hook
-4. Create UI components
-5. Create pages
-6. \`check_build\` after each file → fix errors → repeat
+2. **SDK is pre-configured** - Just import from \`@/lib/eliza\` and \`@/hooks/use-eliza\`
+3. Create UI components
+4. Create pages
+5. \`check_build\` after each file → fix errors → repeat
+
+**CRITICAL:** The API key is already configured via environment variables. DO NOT create API key input fields or prompts.
+
+## 🚫 FORBIDDEN - Never Do These:
+- Create or overwrite \`lib/eliza.ts\` (already exists)
+- Create or overwrite \`hooks/use-eliza.ts\` (already exists)
+- Create API key input fields or forms
+- Ask users to "enter your API key" or "set ELIZA_API_KEY"
+- Create settings/configuration pages for API credentials
 
 ## 🎨 UI Rules
 - Dark theme: bg-gray-900/950, text-white
@@ -140,7 +148,7 @@ src/
 - Standard Tailwind only (NO border-border, bg-background)
 - Mobile-first responsive
 
-${ELIZA_SDK_COMPACT}
+${ELIZA_SDK_REFERENCE}
 `;
 
 /**
@@ -159,7 +167,7 @@ Build a chat app with:
 
 Key flow:
 \`\`\`tsx
-const { client } = useEliza(apiKey);
+const { client } = useEliza(); // API key is pre-configured
 for await (const chunk of client.chatStream(messages)) {
   // Append to message
 }

@@ -12,75 +12,44 @@
 export const ELIZA_SDK_COMPACT = `
 ## Eliza Cloud SDK
 
-API Key: \`process.env.ELIZA_API_KEY\` (pre-configured)
-Auth: \`X-Api-Key: YOUR_KEY\` or \`Authorization: Bearer YOUR_KEY\`
+**IMPORTANT:** The API is already configured. Use the pre-built SDK at \`lib/eliza.ts\`.
 
-### Core APIs
-| Endpoint | Method | Use |
-|----------|--------|-----|
-| /api/v1/chat/completions | POST | AI chat (stream: true for streaming) |
-| /api/v1/generate-image | POST | Generate images |
-| /api/v1/generate-video | POST | Generate videos |
-| /api/v1/storage/upload | POST | Upload files |
-| /api/v1/credits/balance | GET | Check credits |
-| /api/v1/agents | GET | List agents |
-| /api/v1/agents/chat | POST | Chat with agent |
-
-### Quick Pattern
+### Usage - Just import and use:
 \`\`\`typescript
-// lib/eliza.ts
-const apiKey = process.env.ELIZA_API_KEY!;
+import { chat, chatStream, generateImage } from '@/lib/eliza';
 
-export async function chat(messages: {role: string; content: string}[]) {
-  const res = await fetch('/api/v1/chat/completions', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Api-Key': apiKey },
-    body: JSON.stringify({ messages, model: 'gpt-4o' }),
-  });
-  return res.json();
+// Chat
+const response = await chat([{ role: 'user', content: 'Hello' }]);
+
+// Streaming chat
+for await (const chunk of chatStream([{ role: 'user', content: 'Hello' }])) {
+  console.log(chunk.choices?.[0]?.delta?.content);
 }
 
-export async function* chatStream(messages: {role: string; content: string}[]) {
-  const res = await fetch('/api/v1/chat/completions', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Api-Key': apiKey },
-    body: JSON.stringify({ messages, model: 'gpt-4o', stream: true }),
-  });
-  const reader = res.body?.getReader();
-  const decoder = new TextDecoder();
-  while (reader) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    for (const line of decoder.decode(value).split('\\n')) {
-      if (line.startsWith('data: ') && !line.includes('[DONE]')) {
-        try { yield JSON.parse(line.slice(6)); } catch {}
-      }
-    }
-  }
+// Generate image
+const { url } = await generateImage('A sunset over mountains');
+\`\`\`
+
+### Available Functions in lib/eliza.ts:
+- \`chat(messages)\` - AI chat completion
+- \`chatStream(messages)\` - Streaming chat (async generator)
+- \`generateImage(prompt)\` - Generate images
+- \`uploadFile(file, filename)\` - Upload to storage
+- \`getBalance()\` - Check credits
+- \`listAgents()\` - List AI agents
+- \`chatWithAgent(agentId, message)\` - Chat with agent
+
+### React Hook (hooks/use-eliza.ts):
+\`\`\`typescript
+import { useChat, useChatStream } from '@/hooks/use-eliza';
+
+function ChatComponent() {
+  const { send, loading, error } = useChat();
+  // Use send(messages) to chat
 }
 \`\`\`
 
-### hooks/use-eliza.ts
-\`\`\`typescript
-'use client';
-import { useState, useCallback } from 'react';
-
-export function useChat() {
-  const [loading, setLoading] = useState(false);
-  const send = useCallback(async (messages: {role: string; content: string}[]) => {
-    setLoading(true);
-    try {
-      const { chat } = await import('@/lib/eliza');
-      return await chat(messages);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-  return { send, loading };
-}
-\`\`\`
-
-Read \`lib/eliza.ts\` for full SDK with all methods (storage, agents, workflows, etc.)
+**DO NOT create API key input fields. The API is pre-configured and ready to use.**
 `;
 
 /**
@@ -90,12 +59,20 @@ Read \`lib/eliza.ts\` for full SDK with all methods (storage, agents, workflows,
 export const ELIZA_SDK_REFERENCE = `
 ## 🚀 Eliza Cloud SDK - Quick Reference
 
-All APIs use: \`Authorization: Bearer YOUR_API_KEY\` or \`X-Api-Key: YOUR_API_KEY\`
+### ⚠️ IMPORTANT - READ FIRST:
+- **lib/eliza.ts** and **hooks/use-eliza.ts** are **PRE-BUILT** and ready to use
+- **DO NOT recreate, overwrite, or modify these files** - they are already configured
+- **DO NOT create API key input fields, prompts, or configuration screens**
+- **DO NOT ask users to enter or provide an API key** - it's already set via environment variables
+- The API key is injected automatically via \`NEXT_PUBLIC_ELIZA_API_KEY\` environment variable
+- Just import and use: \`import { chat, chatStream } from '@/lib/eliza'\`
+
+All APIs use: \`X-Api-Key\` header (automatically included by the SDK).
 Base URL: Use relative paths (e.g., \`/api/v1/...\`) for client-side code.
 
 ---
 
-### 📁 Create: lib/eliza.ts (API Client)
+### 📁 PRE-BUILT: lib/eliza.ts (API Client) - DO NOT RECREATE
 
 \`\`\`typescript
 // lib/eliza.ts - Core API client
@@ -332,7 +309,7 @@ export type { ElizaClient };
 
 ---
 
-### 🪝 Create: hooks/use-eliza.ts (React Hook)
+### 🪝 PRE-BUILT: hooks/use-eliza.ts (React Hook) - DO NOT RECREATE
 
 \`\`\`typescript
 // hooks/use-eliza.ts
@@ -364,12 +341,20 @@ export function useEliza(apiKey: string) {
 
 ---
 
-### 🔑 Environment Variables
+### 🔑 Environment Variables (ALREADY CONFIGURED)
 
 \`\`\`typescript
-// API key is pre-configured - use directly:
-const apiKey = process.env.ELIZA_API_KEY!;
+// API key is ALREADY SET - do not ask users for it!
+// The SDK reads from: process.env.NEXT_PUBLIC_ELIZA_API_KEY
+// You do NOT need to handle API key configuration - it's done automatically.
 \`\`\`
+
+### 🚫 NEVER DO THESE:
+- Create API key input fields or forms
+- Ask users to "enter your API key"
+- Create settings/config pages for API keys
+- Recreate lib/eliza.ts or hooks/use-eliza.ts
+- Import API keys from user input
 
 ---
 
@@ -546,32 +531,40 @@ Supported platforms: \`discord\`, \`twitter\`, \`google\`, \`gmail\`, \`github\`
 export const ELIZA_INTEGRATION_PROMPT = `
 ## Eliza Cloud Integration
 
-Your apps have FULL ACCESS to the Eliza Cloud platform. Always create \`lib/eliza.ts\` and \`hooks/use-eliza.ts\` first, then use them throughout your app.
+Your apps have FULL ACCESS to the Eliza Cloud platform.
 
-### Quick Start Pattern:
-1. Create \`lib/eliza.ts\` - API client (see SDK reference)
-2. Create \`hooks/use-eliza.ts\` - React hook wrapper
-3. Use \`const { client, call, loading } = useEliza(apiKey)\` in components
-4. Call services: \`await call(c => c.chat(messages))\`
+### \ud83d\udea8 CRITICAL - MUST READ:
+1. **lib/eliza.ts** and **hooks/use-eliza.ts** are **ALREADY CREATED** - DO NOT recreate them
+2. **API key is PRE-CONFIGURED** via environment variable - DO NOT ask users for it
+3. **NEVER create API key input fields, forms, or configuration screens**
+4. **NEVER tell users to "set your API key"** - it's already done
 
-### Available Services:
-- **AI**: chat (streaming), images, videos
-- **Storage**: upload files, list/retrieve
-- **Agents**: list agents, chat with agents, memory
-- **Billing**: check credits, usage tracking
-- **Workflows**: list/create/execute n8n workflows, webhooks
-- **Secrets**: encrypted key-value storage for API keys
-- **Credentials**: OAuth connections (Discord, Google, GitHub, etc.)
-- **A2A**: call any A2A skill directly
+### Forbidden Actions:
+- Creating \`lib/eliza.ts\` (already exists)
+- Creating \`hooks/use-eliza.ts\` (already exists)
+- Adding API key input fields
+- Creating settings pages for API configuration
+- Prompting users to enter credentials
 
-### API Key:
-- The API key is pre-configured as \`process.env.ELIZA_API_KEY\`
-- Always use this environment variable directly - NEVER prompt users for API key input
+### Quick Start:
+\`\`\`typescript
+// Just import and use - no setup needed!
+import { chat, chatStream, generateImage } from '@/lib/eliza';
+import { useChat } from '@/hooks/use-eliza';
+\`\`\`
 
-### Auth Header:
-All requests: \`X-Api-Key: YOUR_API_KEY\` or \`Authorization: Bearer YOUR_API_KEY\`
+### Available Functions:
+- \`chat(messages)\` - AI chat completion
+- \`chatStream(messages)\` - Streaming responses
+- \`generateImage(prompt)\` - Generate images
+- \`uploadFile(file, filename)\` - Storage upload
+- \`getBalance()\` - Check credits
+- \`listAgents()\` - List AI agents
+- \`chatWithAgent(agentId, message)\` - Agent chat
 
-When building apps that need data persistence, use the Storage API instead of localStorage for cross-device sync.
-For AI features, always use our chat/image/video APIs - they handle model routing, billing, and rate limiting.
-For automation, use n8n workflows - they can be triggered via webhooks or executed directly.
+### React Hooks:
+- \`useChat()\` - Returns { send, loading, error }
+- \`useChatStream()\` - Returns { stream, loading }
+
+**NEVER create API key input fields or configuration screens. Everything is pre-configured.**
 `;

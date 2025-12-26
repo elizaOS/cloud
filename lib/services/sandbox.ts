@@ -7,7 +7,7 @@ import {
 } from "@/lib/services/secrets";
 import { buildFullAppPrompt } from "@/lib/fragments/prompt";
 
-const ELIZA_SDK_FILE = `const apiKey = process.env.ELIZA_API_KEY!;
+const ELIZA_SDK_FILE = `const apiKey = process.env.NEXT_PUBLIC_ELIZA_API_KEY || '';
 
 interface ChatMessage {
   role: string;
@@ -643,21 +643,40 @@ export class SandboxService {
     logger.info("Writing SDK files", { sandboxId });
     onProgress?.({ step: "installing", message: "Setting up SDK..." });
 
-    await sandbox.runCommand({ cmd: "mkdir", args: ["-p", "lib", "hooks"] });
+    const srcCheck = await sandbox.runCommand({ cmd: "test", args: ["-d", "src"] });
+    const useSrc = srcCheck.exitCode === 0;
+    const libPath = useSrc ? "src/lib" : "lib";
+    const hooksPath = useSrc ? "src/hooks" : "hooks";
+
+    logger.info("SDK paths determined", { sandboxId, useSrc, libPath, hooksPath });
+
+    await sandbox.runCommand({ cmd: "mkdir", args: ["-p", libPath, hooksPath] });
 
     const sdkBase64 = Buffer.from(ELIZA_SDK_FILE, "utf-8").toString("base64");
     await sandbox.runCommand({
       cmd: "sh",
-      args: ["-c", `echo '${sdkBase64}' | base64 -d > lib/eliza.ts`],
+      args: ["-c", `echo '${sdkBase64}' | base64 -d > ${libPath}/eliza.ts`],
     });
 
     const hookBase64 = Buffer.from(ELIZA_HOOK_FILE, "utf-8").toString("base64");
     await sandbox.runCommand({
       cmd: "sh",
-      args: ["-c", `echo '${hookBase64}' | base64 -d > hooks/use-eliza.ts`],
+      args: ["-c", `echo '${hookBase64}' | base64 -d > ${hooksPath}/use-eliza.ts`],
     });
 
     logger.info("SDK files written", { sandboxId });
+
+    if (Object.keys(mergedEnv).length > 0) {
+      logger.info("Writing .env.local", { sandboxId, envCount: Object.keys(mergedEnv).length });
+      const envContent = Object.entries(mergedEnv)
+        .map(([key, value]) => `${key}=${value}`)
+        .join("\n");
+      const envBase64 = Buffer.from(envContent, "utf-8").toString("base64");
+      await sandbox.runCommand({
+        cmd: "sh",
+        args: ["-c", `echo '${envBase64}' | base64 -d > .env.local`],
+      });
+    }
 
     logger.info("Starting dev server", {
       sandboxId,
