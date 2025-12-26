@@ -8,7 +8,7 @@ import { userContextService } from "@/lib/eliza/user-context";
 import { RuntimeFactory } from "@/lib/eliza/runtime-factory";
 import { AgentMode } from "@/lib/eliza/agent-mode-types";
 
-export const maxDuration = 60;
+export const maxDuration = 300; // 5 minutes for large file processing
 
 interface UploadResult {
   id: string;

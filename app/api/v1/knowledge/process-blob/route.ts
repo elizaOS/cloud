@@ -15,7 +15,7 @@ import {
 } from "@/lib/constants/knowledge";
 import { isValidBlobUrl } from "@/lib/blob";
 
-export const maxDuration = 60;
+export const maxDuration = 300; // 5 minutes for large file processing
 
 const MAX_FILENAME_LENGTH = 255;
 
