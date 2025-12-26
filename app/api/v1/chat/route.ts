@@ -100,12 +100,9 @@ async function handlePOST(req: NextRequest) {
     }
 
     // Start async content moderation (runs in background, doesn't block)
-    const lastMessageText =
-      typeof lastMessage?.content === "string"
-        ? lastMessage.content
-        : (
-            lastMessage?.content as Array<{ type: string; text?: string }>
-          )?.find((c) => c.type === "text")?.text || "";
+    const lastMessageText = lastMessage?.parts
+      ?.map((p) => (p.type === "text" ? p.text : ""))
+      .join("") || "";
 
     if (lastMessageText) {
       contentModerationService.moderateInBackground(
@@ -237,7 +234,7 @@ async function handlePOST(req: NextRequest) {
       model: gateway.languageModel(selectedModel),
       system: `You are a helpful AI assistant powered by elizaOS. You provide clear, accurate, and helpful responses.
       You are knowledgeable about AI agents, development, and technology.`,
-      messages: convertToModelMessages(messages),
+      messages: await convertToModelMessages(messages),
       onFinish: async ({ text, usage }) => {
         if (!usage) return;
 
