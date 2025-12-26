@@ -122,7 +122,7 @@ export async function POST(request: Request) {
     const result = streamText({
       model: "gpt-4o-mini",
       system: systemPrompt,
-      messages: convertToModelMessages(messages),
+      messages: await convertToModelMessages(messages),
       temperature: 0.7,
       maxOutputTokens: 1000,
     });

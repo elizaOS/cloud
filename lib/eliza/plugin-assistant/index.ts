@@ -12,7 +12,6 @@ import {
   appConfigProvider,
 } from "../shared/providers";
 import { generateImageAction } from "./actions/image-generation";
-import { affiliateContextProvider } from "./providers/affiliate-context";
 import { currentRunContextProvider } from "./providers/current-run-context";
 import { handleMessage } from "./handler";
 import { roomTitleEvaluator } from "../shared/evaluators";
@@ -43,7 +42,6 @@ export const assistantPlugin: Plugin = {
     providersProvider,
     actionsProvider,
     characterProvider,
-    affiliateContextProvider,
     currentRunContextProvider,
     recentMessagesProvider,
     appConfigProvider,

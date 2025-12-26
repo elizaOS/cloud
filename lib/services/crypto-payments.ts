@@ -7,6 +7,8 @@ import { cryptoPayments } from "@/db/schemas/crypto-payments";
 import { eq } from "drizzle-orm";
 import { creditsService } from "./credits";
 import { invoicesService } from "./invoices";
+import { discordService } from "./discord";
+import { organizationsRepository } from "@/db/repositories/organizations";
 import {
   oxaPayService,
   isOxaPayConfigured,
@@ -492,6 +494,27 @@ class CryptoPaymentsService {
         expectedAmount: payment.expected_amount,
         receivedAmount,
         organizationId: redact.orgId(payment.organization_id),
+      });
+
+      // Log payment to Discord (fire and forget)
+      organizationsRepository.findById(payment.organization_id).then((org) => {
+        discordService
+          .logPaymentReceived({
+            paymentId: txHash,
+            amount: actualUserPaid.toNumber(),
+            currency: payment.token,
+            credits: actualUserPaid.toNumber(),
+            organizationId: payment.organization_id,
+            organizationName: org?.name,
+            paymentMethod: "crypto",
+            paymentType: "Crypto Payment",
+            network: payment.network,
+          })
+          .catch((err) => {
+            logger.error("[Crypto Payments] Failed to log payment to Discord", {
+              error: err,
+            });
+          });
       });
     });
   }

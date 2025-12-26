@@ -114,6 +114,14 @@ export function useKnowledgeProcessingStatus(characterId: string | null) {
 
         if (!isCurrentEffect) return;
 
+        // For 403 (not owner) or 404 (not found), silently stop polling
+        // This is normal for shared characters the user doesn't own
+        if (response.status === 403 || response.status === 404) {
+          wasProcessingRef.current = false;
+          clearPendingKnowledgeProcessing(currentCharacterId);
+          return;
+        }
+
         if (!response.ok) {
           wasProcessingRef.current = false;
           return;

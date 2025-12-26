@@ -23,7 +23,10 @@ import {
   Zap,
   Sparkles,
   Crown,
-  Paperclip,
+  Globe,
+  Volume2,
+  Check,
+  FileText,
 } from "lucide-react";
 import { ElizaAvatar } from "./eliza-avatar";
 import { useAudioRecorder } from "./hooks/use-audio-recorder";
@@ -32,8 +35,6 @@ import { useModelTier } from "./hooks/use-model-tier";
 import { sendStreamingMessage } from "@/lib/hooks/use-streaming-message";
 import type { StreamingMessage, StreamChunkData } from "@/lib/hooks/use-streaming-message";
 import { toast } from "sonner";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -49,21 +50,22 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuTrigger,
+  DropdownMenuItem,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
 } from "@/components/ui/dropdown-menu";
+import { ADDITIONAL_MODELS } from "@/lib/models";
 import { usePrivy } from "@privy-io/react-auth";
 import { useKnowledgeProcessingStatus } from "@/components/chat/hooks/use-knowledge-processing-status";
+import { ContentType, type Media } from "@elizaos/core";
 
 interface Message {
   id: string;
   content: {
     text: string;
     clientMessageId?: string;
-    attachments?: Array<{
-      id: string;
-      url: string;
-      title?: string;
-      contentType: string;
-    }>;
+    attachments?: Media[];
   };
   isAgent: boolean;
   createdAt: number;
@@ -82,20 +84,21 @@ interface AgentInfoDisplay {
 interface CharacterData {
   id: string;
   name: string;
-  avatarUrl?: string;
-  avatar_url?: string;
+  avatarUrl?: string | null;
+  avatar_url?: string | null;
   character_data?: {
     bio?: string | string[];
     personality?: string;
     description?: string;
-    avatarUrl?: string;
-    avatar_url?: string;
+    avatarUrl?: string | null;
+    avatar_url?: string | null;
   };
 }
 
-interface ElizaChatInterfaceProps {
+interface ElizaChatInterfaceProps { 
   onMessageSent?: () => void | Promise<void>;
   character?: CharacterData;
+  expectedCharacterId?: string; // Used to validate room belongs to expected character during navigation
 }
 
 import type { Voice as CustomVoice } from "@/components/voices/types";
@@ -109,6 +112,7 @@ const tierIcons: Record<string, React.ReactNode> = {
 export function ElizaChatInterface({
   onMessageSent,
   character,
+  expectedCharacterId,
 }: ElizaChatInterfaceProps) {
   // Use chat store for room and character management
   const {
@@ -117,6 +121,7 @@ export function ElizaChatInterface({
     createRoom: createRoomInStore,
     selectedCharacterId,
     availableCharacters,
+    setAvailableCharacters,
     pendingMessage,
     setPendingMessage,
     anonymousSessionToken,
@@ -153,6 +158,57 @@ export function ElizaChatInterface({
       character?.name || selectedCharacter?.name || agentInfo?.name || "Agent",
     [character?.name, selectedCharacter?.name, agentInfo?.name],
   );
+
+  // Fetch shared character data if not available in store (for shared links)
+  // This is a client-side fallback in case server-side fetch wasn't performed
+  const fetchedCharacterRef = useRef<string | null>(null);
+  useEffect(() => {
+    const targetId = expectedCharacterId || selectedCharacterId;
+    
+    // Skip if no character ID or already fetched or character is in store
+    if (!targetId || fetchedCharacterRef.current === targetId) return;
+    if (availableCharacters.some((c) => c.id === targetId)) return;
+
+    // Track this fetch to prevent race conditions
+    const currentTargetId = targetId;
+    fetchedCharacterRef.current = targetId;
+    
+    const controller = new AbortController();
+
+    // Fetch character data from public API
+    fetch(`/api/characters/${targetId}/public`, { signal: controller.signal })
+      .then((res) => {
+        if (res.ok) return res.json();
+        throw new Error("Failed to fetch character");
+      })
+      .then((data) => {
+        // Check if this is still the current target (prevents race condition)
+        if (fetchedCharacterRef.current !== currentTargetId) return;
+        
+        if (data.success && data.data) {
+          const charData = data.data;
+          // Add to available characters in store
+          setAvailableCharacters([
+            ...availableCharacters,
+            {
+              id: charData.id,
+              name: charData.name,
+              username: charData.username || undefined,
+              avatarUrl: charData.avatarUrl || undefined,
+            },
+          ]);
+        }
+      })
+      .catch((err) => {
+        // Ignore abort errors
+        if (err instanceof Error && err.name === 'AbortError') return;
+        console.warn("[ElizaChat] Could not fetch shared character:", err);
+      });
+
+    return () => {
+      controller.abort();
+    };
+  }, [expectedCharacterId, selectedCharacterId, availableCharacters, setAvailableCharacters]);
 
   // Get avatar URL from prop (preferred), store, or agentInfo
   // Check both top-level and nested character_data properties
@@ -209,6 +265,10 @@ export function ElizaChatInterface({
   }));
 
   const [isUploadingFiles, setIsUploadingFiles] = useState(false);
+  const [webSearchEnabled, setWebSearchEnabled] = useState(true);
+  
+  // Custom model selection (when user picks from "More models")
+  const [customModel, setCustomModel] = useState<{ id: string; name: string; modelId: string } | null>(null);
 
   const messageAudioUrls = useRef<Map<string, string>>(new Map());
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
@@ -278,7 +338,18 @@ export function ElizaChatInterface({
 
   // Load messages when roomId from context changes
   useEffect(() => {
+    // Use expectedCharacterId (from URL/props) as source of truth, fallback to store's selectedCharacterId
+    const targetCharacterId = expectedCharacterId || selectedCharacterId;
+    
     if (roomId) {
+      // CRITICAL: Validate room belongs to expected character before loading
+      // This prevents loading stale room data during navigation race conditions
+      const rooms = useChatStore.getState().rooms;
+      const room = rooms.find(r => r.id === roomId);
+      if (room && room.characterId && targetCharacterId && room.characterId !== targetCharacterId) {
+        return; // Skip loading - room belongs to different character
+      }
+      
       // Skip loading for rooms we just created (they're empty, prevents flicker)
       if (justCreatedRoomIdRef.current === roomId) {
         justCreatedRoomIdRef.current = null; // Clear the flag
@@ -296,7 +367,7 @@ export function ElizaChatInterface({
       setError(null);
       setLoadingState((prev) => ({ ...prev, isLoadingMessages: false }));
     }
-  }, [roomId, loadMessages]); // loadMessages is stable, only roomId changes
+  }, [roomId, selectedCharacterId, expectedCharacterId, loadMessages]);
 
   const createRoom = useCallback(
     async (characterId?: string | null, skipLoadRooms = false) => {
@@ -520,7 +591,16 @@ export function ElizaChatInterface({
           isAgent: false,
           createdAt: now,
         };
-        setMessages((prev) => [...prev, tempUserMessage]);
+        
+        // Add optimistic thinking indicator immediately for instant feedback
+        const optimisticThinkingMessage: Message = {
+          id: `thinking-${Date.now()}`,
+          content: { text: "" },
+          isAgent: true,
+          createdAt: now + 1, // Slightly after user message to ensure ordering
+        };
+        
+        setMessages((prev) => [...prev, tempUserMessage, optimisticThinkingMessage]);
         // Clear loading state immediately so chat interface shows right away
         setLoadingState((prev) => ({ ...prev, isLoadingMessages: false }));
 
@@ -538,8 +618,9 @@ export function ElizaChatInterface({
         await sendStreamingMessage({
           roomId: currentRoomId,
           text: messageText,
-          model: selectedModelId, // Pass selected model from tier
+          model: customModel?.modelId || selectedModelId, // Use custom model if selected, otherwise tier model
           sessionToken: anonymousSessionToken || undefined, // Pass session token for anonymous users
+          webSearchEnabled, // Pass web search toggle state
           onMessage: handleStreamMessage,
           onChunk: handleStreamChunk, // Handle real-time streaming chunks
           onError: (errorMsg) => {
@@ -604,7 +685,9 @@ export function ElizaChatInterface({
       createRoom,
       selectedCharacterId,
       selectedModelId,
+      customModel,
       anonymousSessionToken,
+      webSearchEnabled,
       handleStreamMessage,
       handleStreamChunk,
       loadRooms,
@@ -930,19 +1013,11 @@ export function ElizaChatInterface({
   const copyToClipboard = async (
     text: string,
     messageId: string,
-    attachments?: Array<{
-      id: string;
-      url: string;
-      title?: string;
-      contentType: string;
-    }>,
+    attachments?: Media[],
   ) => {
     // Check if there are image attachments
     const imageAttachment = attachments?.find(
-      (att) =>
-        att.contentType === "IMAGE" ||
-        att.contentType === "image" ||
-        att.contentType.startsWith("image/"),
+      (att) => att.contentType === ContentType.IMAGE,
     );
 
     if (imageAttachment) {
@@ -1197,50 +1272,8 @@ export function ElizaChatInterface({
 
             {/* Bottom bar with buttons inside input */}
             <div className="flex items-center justify-between px-2 py-2">
-              {/* Model Tier Selector - Left */}
-              <Select
-                value={selectedTier}
-                onValueChange={(value) => {
-                  setTier(value as "fast" | "pro" | "ultra");
-                  const tier = tiers.find((t) => t.id === value);
-                  if (tier) {
-                    toast.success(`Model: ${tier.name}`);
-                  }
-                }}
-                disabled={isLoadingModels}
-              >
-                <SelectTrigger className="h-8 w-auto gap-1.5 border-0 bg-transparent px-2 text-sm text-white/50 hover:text-white/70 hover:bg-white/[0.06] rounded-lg transition-colors">
-                  <SelectValue placeholder="Select model">
-                    <span className="flex items-center gap-1.5">
-                      {tierIcons[selectedTier]}
-                      {tiers.find((t) => t.id === selectedTier)?.name || "Pro"}
-                    </span>
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent className="rounded-lg border-white/[0.08]">
-                  {tiers.map((tier) => (
-                    <SelectItem key={tier.id} value={tier.id}>
-                      <div className="flex items-center gap-2">
-                        {tierIcons[tier.id]}
-                        <div className="flex flex-col">
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-medium">{tier.name}</span>
-                            {tier.recommended && (
-                              <span className="text-[10px] px-1 py-0.5 rounded bg-[#FF5800]/20 text-[#FF5800]">
-                                recommended
-                              </span>
-                            )}
-                          </div>
-                          <span className="text-[10px] text-white/40 font-mono">{tier.modelId}</span>
-                        </div>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              {/* Action Buttons - Right */}
-              <div className="flex items-center gap-1">
+              {/* Left side - Plus menu and Mic */}
+              <div className="flex items-center gap-1.5">
                 <input
                   type="file"
                   id="chat-file-upload"
@@ -1255,138 +1288,115 @@ export function ElizaChatInterface({
                   }}
                   className="hidden"
                 />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  disabled={isUploadingFiles || loadingState.isSending}
-                  onClick={() => {
-                    document.getElementById("chat-file-upload")?.click();
-                  }}
-                  className="h-9 w-9 rounded-lg border border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.06] disabled:opacity-40 transition-colors"
-                  title="Upload files"
-                >
-                  {isUploadingFiles ? (
-                    <Loader2 className="h-4 w-4 text-white/60 animate-spin" />
-                  ) : (
-                    <Paperclip className="h-4 w-4 text-white/60" />
-                  )}
-                </Button>
 
+                {/* Plus Menu */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
                       type="button"
                       variant="ghost"
                       size="icon"
-                      className="h-9 w-9 rounded-lg border border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.06] transition-colors"
+                      className="h-8 w-8 rounded-lg hover:bg-white/[0.06] transition-colors"
                     >
                       <Plus className="h-4 w-4 text-white/60" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent
-                    className="w-80 rounded-lg border-white/[0.08]"
-                    align="end"
+                    className="w-56 rounded-xl border-white/[0.08] bg-[#1a1a1a]/95 backdrop-blur-xl p-1"
+                    align="start"
                     side="top"
+                    sideOffset={8}
                   >
-                    <div className="space-y-4 p-2">
-                      <div>
-                        <h4 className="font-medium mb-3 text-sm">
-                          Voice Settings
-                        </h4>
-                        <div className="space-y-3">
-                          <div className="flex items-center justify-between">
-                            <Label htmlFor="auto-tts-pop" className="text-sm">
-                              Auto-play voice
-                            </Label>
-                            <Switch
-                              id="auto-tts-pop"
-                              checked={audioState.autoPlayTTS}
-                              onCheckedChange={(checked) =>
-                                setAudioState((prev) => ({
-                                  ...prev,
-                                  autoPlayTTS: checked,
-                                }))
-                              }
-                            />
-                          </div>
+                    <DropdownMenuItem
+                      className="flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer"
+                      disabled={isUploadingFiles || loadingState.isSending}
+                      onSelect={() => {
+                        document.getElementById("chat-file-upload")?.click();
+                      }}
+                    >
+                      {isUploadingFiles ? (
+                        <Loader2 className="h-4 w-4 text-white/50 animate-spin" />
+                      ) : (
+                        <FileText className="h-4 w-4 text-white/50" />
+                      )}
+                      <span className="text-sm">Upload files</span>
+                    </DropdownMenuItem>
 
-                          {audioState.customVoices.length > 0 && (
-                            <div className="space-y-2">
-                              <Label
-                                htmlFor="voice-select-pop"
-                                className="text-sm"
-                              >
-                                Voice Selection
-                              </Label>
-                              <Select
-                                value={audioState.selectedVoiceId || "default"}
-                                onValueChange={(value) => {
-                                  const newVoiceId =
-                                    value === "default" ? null : value;
-                                  setAudioState((prev) => ({
-                                    ...prev,
-                                    selectedVoiceId: newVoiceId,
-                                  }));
-
-                                  if (typeof window !== "undefined") {
-                                    if (newVoiceId) {
-                                      localStorage.setItem(
-                                        "eliza-selected-voice-id",
-                                        newVoiceId,
-                                      );
-                                    } else {
-                                      localStorage.removeItem(
-                                        "eliza-selected-voice-id",
-                                      );
-                                    }
-                                  }
-
-                                  const voiceName = newVoiceId
-                                    ? audioState.customVoices.find(
-                                        (v) =>
-                                          v.elevenlabsVoiceId === newVoiceId,
-                                      )?.name || "Custom"
-                                    : "Default";
-
-                                  toast.success(`Voice: ${voiceName}`);
-                                }}
-                              >
-                                <SelectTrigger
-                                  id="voice-select-pop"
-                                  className="w-full rounded-none"
-                                >
-                                  <SelectValue placeholder="Default" />
-                                </SelectTrigger>
-                                <SelectContent className="rounded-none">
-                                  <SelectItem value="default">
-                                    Default Voice
-                                  </SelectItem>
-                                  {audioState.customVoices.map((voice) => (
-                                    <SelectItem
-                                      key={voice.id}
-                                      value={voice.elevenlabsVoiceId}
-                                    >
-                                      {voice.name}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
-                          )}
-                        </div>
+                    <DropdownMenuItem
+                      className="flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer"
+                      onSelect={(e) => {
+                        e.preventDefault();
+                        setWebSearchEnabled(!webSearchEnabled);
+                      }}
+                    >
+                      <div className="flex items-center gap-3">
+                        <Globe className={`h-4 w-4 ${webSearchEnabled ? "text-[#FF5800]" : "text-white/50"}`} />
+                        <span className="text-sm">Web search</span>
                       </div>
-                    </div>
+                      {webSearchEnabled && <Check className="h-4 w-4 text-[#FF5800]" />}
+                    </DropdownMenuItem>
+
+                    <DropdownMenuItem
+                      className="flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer"
+                      onSelect={(e) => {
+                        e.preventDefault();
+                        setAudioState((prev) => ({ ...prev, autoPlayTTS: !prev.autoPlayTTS }));
+                      }}
+                    >
+                      <div className="flex items-center gap-3">
+                        <Volume2 className={`h-4 w-4 ${audioState.autoPlayTTS ? "text-[#FF5800]" : "text-white/50"}`} />
+                        <span className="text-sm">Auto-play voice</span>
+                      </div>
+                      {audioState.autoPlayTTS && <Check className="h-4 w-4 text-[#FF5800]" />}
+                    </DropdownMenuItem>
+
+                    {audioState.customVoices.length > 0 && (
+                      <div className="px-3 py-2">
+                        <Select
+                          value={audioState.selectedVoiceId || "default"}
+                          onValueChange={(value) => {
+                            const newVoiceId = value === "default" ? null : value;
+                            setAudioState((prev) => ({ ...prev, selectedVoiceId: newVoiceId }));
+                            if (typeof window !== "undefined") {
+                              if (newVoiceId) {
+                                localStorage.setItem("eliza-selected-voice-id", newVoiceId);
+                              } else {
+                                localStorage.removeItem("eliza-selected-voice-id");
+                              }
+                            }
+                            const voiceName = newVoiceId
+                              ? audioState.customVoices.find((v) => v.elevenlabsVoiceId === newVoiceId)?.name || "Custom"
+                              : "Default";
+                            toast.success(`Voice: ${voiceName}`);
+                          }}
+                        >
+                          <SelectTrigger className="w-full h-8 rounded-lg border-white/[0.08] bg-white/[0.02] text-sm">
+                            <SelectValue placeholder="Select voice" />
+                          </SelectTrigger>
+                          <SelectContent className="rounded-lg border-white/[0.08]">
+                            <SelectItem value="default">Default Voice</SelectItem>
+                            {audioState.customVoices.map((voice) => (
+                              <SelectItem key={voice.id} value={voice.elevenlabsVoiceId}>
+                                {voice.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
                   </DropdownMenuContent>
                 </DropdownMenu>
 
+                {/* Mic Button */}
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon"
                   disabled={loadingState.isSending}
                   onClick={handleVoiceInput}
-                  className="h-9 w-9 rounded-lg border border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.06] disabled:opacity-40 transition-colors"
+                  className={`h-8 w-8 rounded-lg transition-colors ${
+                    recorder.isRecording ? "bg-red-500/10 hover:bg-red-500/20" : "hover:bg-white/[0.06]"
+                  } disabled:opacity-40`}
                 >
                   {recorder.isRecording ? (
                     <Square className="h-4 w-4 text-red-400" />
@@ -1394,16 +1404,95 @@ export function ElizaChatInterface({
                     <Mic className="h-4 w-4 text-white/60" />
                   )}
                 </Button>
+              </div>
 
+              {/* Right side - Model selector and Send */}
+              <div className="flex items-center gap-1">
+                {/* Model Selector - Claude style */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      disabled={isLoadingModels}
+                      className="h-8 gap-1.5 px-2.5 rounded-lg hover:bg-white/[0.06] transition-colors"
+                    >
+                      <span className="flex items-center gap-1.5 text-sm text-white/50">
+                        {!customModel && tierIcons[selectedTier]}
+                        {customModel ? customModel.name : tiers.find((t) => t.id === selectedTier)?.name || "Pro"}
+                      </span>
+                      <svg className="h-3.5 w-3.5 text-white/30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    className="w-72 rounded-xl border-white/[0.08] bg-[#252525] p-1.5"
+                    align="end"
+                    side="top"
+                    sideOffset={8}
+                  >
+                    {tiers.map((tier) => (
+                      <DropdownMenuItem
+                        key={tier.id}
+                        className="flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer"
+                        onSelect={() => {
+                          setTier(tier.id as "fast" | "pro" | "ultra");
+                          setCustomModel(null);
+                        }}
+                      >
+                        <div className="flex items-start gap-3">
+                          <span className="mt-0.5 text-white/50">{tierIcons[tier.id]}</span>
+                          <div className="flex flex-col gap-0.5">
+                            <div className="flex items-center gap-2">
+                              <span className="text-[14px] font-medium text-white">{tier.name}</span>
+                              <span className="text-[11px] text-white/30 font-mono">{tier.modelId.split("/")[1]}</span>
+                            </div>
+                            <span className="text-[12px] text-white/40">{tier.description}</span>
+                          </div>
+                        </div>
+                        {!customModel && selectedTier === tier.id && <Check className="h-4 w-4 text-[#FF5800]" />}
+                      </DropdownMenuItem>
+                    ))}
+
+                    {/* More models submenu */}
+                    <DropdownMenuSub>
+                      <DropdownMenuSubTrigger className="flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer text-[14px] text-white/70">
+                        More models
+                      </DropdownMenuSubTrigger>
+                      <DropdownMenuSubContent
+                        className="w-64 rounded-xl border-white/[0.08] bg-[#252525] p-1.5 max-h-80 overflow-y-auto"
+                        sideOffset={8}
+                      >
+                        {ADDITIONAL_MODELS.map((model) => (
+                          <DropdownMenuItem
+                            key={model.id}
+                            className="flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer"
+                            onSelect={() => {
+                              setCustomModel({ id: model.id, name: model.name, modelId: model.modelId });
+                            }}
+                          >
+                            <div className="flex flex-col">
+                              <div className="flex items-center gap-2">
+                                <span className="text-[13px] font-medium text-white">{model.name}</span>
+                                <span className="text-[10px] text-white/30 font-mono">{model.modelId.split("/")[1]}</span>
+                              </div>
+                              <span className="text-[11px] text-white/40">{model.description}</span>
+                            </div>
+                            {customModel?.id === model.id && <Check className="h-4 w-4 text-[#FF5800]" />}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuSubContent>
+                    </DropdownMenuSub>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
+                {/* Send Button */}
                 <Button
                   type="submit"
-                  disabled={
-                    loadingState.isSending ||
-                    !inputText.trim() ||
-                    recorder.isRecording
-                  }
+                  disabled={loadingState.isSending || !inputText.trim() || recorder.isRecording}
                   size="icon"
-                  className="h-9 w-9 rounded-lg bg-[#FF5800]/20 border border-[#FF5800]/30 hover:bg-[#FF5800]/30 disabled:opacity-40 transition-colors"
+                  className="h-8 w-8 rounded-lg bg-transparent hover:bg-white/[0.06] disabled:opacity-40 border-0 transition-colors"
                 >
                   {loadingState.isSending ? (
                     <Loader2 className="h-4 w-4 animate-spin text-[#FF5800]" />

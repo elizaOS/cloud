@@ -5,8 +5,10 @@ import { invoicesService } from "@/lib/services/invoices";
 import { appCreditsService } from "@/lib/services/app-credits";
 import { referralsService } from "@/lib/services/referrals";
 import { agentReputationService } from "@/lib/services/agent-reputation";
+import { discordService } from "@/lib/services/discord";
 import { referralSignupsRepository } from "@/db/repositories/referrals";
 import { usersRepository } from "@/db/repositories/users";
+import { organizationsRepository } from "@/db/repositories/organizations";
 import { headers } from "next/headers";
 import type Stripe from "stripe";
 import { logger } from "@/lib/utils/logger";
@@ -252,6 +254,37 @@ async function handleStripeWebhook(req: NextRequest) {
                   { error: err }
                 );
               });
+
+            // Log payment to Discord (fire and forget)
+            organizationsRepository.findById(organizationId).then((org) => {
+              const user = userId
+                ? usersRepository.findById(userId)
+                : Promise.resolve(null);
+              user.then((userData) => {
+                discordService
+                  .logPaymentReceived({
+                    paymentId: paymentIntentId,
+                    amount: credits,
+                    currency: session.currency || "usd",
+                    credits,
+                    organizationId,
+                    organizationName: org?.name,
+                    userId: userId || undefined,
+                    userName: userData?.name || userData?.email,
+                    paymentMethod: "stripe",
+                    paymentType:
+                      purchaseType === "credit_pack"
+                        ? "Credit Pack"
+                        : "Balance Top-up",
+                  })
+                  .catch((err) => {
+                    logger.error(
+                      "[Stripe Webhook] Failed to log payment to Discord",
+                      { error: err }
+                    );
+                  });
+              });
+            });
           }
 
           // Process referral commission if this user was referred
@@ -402,6 +435,30 @@ async function handleStripeWebhook(req: NextRequest) {
         logger.info(
           `[Stripe Webhook] Credits added: ${credits} to org ${organizationId} (${purchaseType})`
         );
+
+        // Log payment to Discord (fire and forget)
+        organizationsRepository.findById(organizationId).then((org) => {
+          discordService
+            .logPaymentReceived({
+              paymentId: paymentIntent.id,
+              amount: credits,
+              currency: paymentIntent.currency,
+              credits,
+              organizationId,
+              organizationName: org?.name,
+              paymentMethod: "stripe",
+              paymentType:
+                purchaseType === "auto_top_up"
+                  ? "Auto Top-up"
+                  : "One-time Purchase",
+            })
+            .catch((err) => {
+              logger.error(
+                "[Stripe Webhook] Failed to log payment to Discord",
+                { error: err }
+              );
+            });
+        });
 
         try {
           // Type-safe handling of invoice property using type guard
@@ -570,4 +627,7 @@ async function handleStripeWebhook(req: NextRequest) {
 }
 
 // Export rate-limited handler
-export const POST = withRateLimit(handleStripeWebhook, RateLimitPresets.AGGRESSIVE);
+export const POST = withRateLimit(
+  handleStripeWebhook,
+  RateLimitPresets.AGGRESSIVE
+);

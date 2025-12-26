@@ -6,7 +6,7 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Slider } from "@/components/ui/slider";
 import {
   Carousel,
@@ -29,6 +29,8 @@ import {
   Heart,
   Share2,
   X,
+  Upload,
+  ImagePlus,
 } from "lucide-react";
 import Image from "next/image";
 import { EnhancedLoading } from "./enhanced-loading";
@@ -103,6 +105,11 @@ export function ImageGeneratorAdvanced({
   });
   const [numImages, setNumImages] = useState<number>(1);
 
+  // Source image state for image-to-image generation
+  const [sourceImage, setSourceImage] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const sourceImageInputRef = useRef<HTMLInputElement>(null);
+
   // Consolidated image state - current batch and selection (initialized with server history)
   const [imageState, setImageState] = useState<{
     currentImage: GeneratedImage | null;
@@ -139,6 +146,48 @@ export function ImageGeneratorAdvanced({
     isFullscreenOpen: false,
   });
 
+  // Source image upload handlers
+  const handleSourceImageSelect = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+
+    const file = files[0];
+    if (file.size > 10 * 1024 * 1024) {
+      setRequestState(prev => ({ ...prev, error: "Source image too large. Maximum size is 10MB." }));
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+      setRequestState(prev => ({ ...prev, error: "Invalid file type. Please upload an image." }));
+      return;
+    }
+
+    // Convert to base64
+    const reader = new FileReader();
+    reader.onload = () => {
+      setSourceImage(reader.result as string);
+    };
+    reader.onerror = () => {
+      setRequestState(prev => ({ ...prev, error: "Failed to read image file." }));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    handleSourceImageSelect(e.dataTransfer.files);
+  };
+
   const handleGenerate = async () => {
     if (!prompt.trim()) return;
 
@@ -154,6 +203,7 @@ export function ImageGeneratorAdvanced({
           prompt,
           ...settings,
           numImages,
+          ...(sourceImage && { sourceImage }),
         }),
       });
 
@@ -282,6 +332,71 @@ export function ImageGeneratorAdvanced({
                 </h3>
               </div>
             </div>
+            {/* Source Image Upload */}
+            <div className="space-y-2">
+              <label className="text-xs font-mono font-medium text-white/70 uppercase tracking-wide">
+                Reference Image <span className="text-white/40">(Optional)</span>
+              </label>
+              <div
+                onClick={() => sourceImageInputRef.current?.click()}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                className={`relative cursor-pointer border border-dashed transition-all duration-200 ${
+                  isDragging
+                    ? "border-[#FF5800] bg-[#FF5800]/10"
+                    : sourceImage
+                      ? "border-[#FF5800]/40 bg-[#FF5800]/5"
+                      : "border-white/20 hover:border-[#FF5800]/50 bg-black/20"
+                }`}
+              >
+                {sourceImage ? (
+                  <div className="relative h-20 w-full overflow-hidden flex items-center">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={sourceImage}
+                      alt="Source reference"
+                      className="h-full w-auto max-w-[40%] object-contain ml-2"
+                    />
+                    <div className="flex-1 px-3">
+                      <p className="text-[10px] font-mono text-white/70">
+                        Reference uploaded • Click to change
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSourceImage(null);
+                        if (sourceImageInputRef.current) {
+                          sourceImageInputRef.current.value = "";
+                        }
+                      }}
+                      className="absolute top-1.5 right-1.5 p-1 bg-black/60 border border-white/20 hover:bg-rose-500/80 hover:border-rose-500 transition-colors"
+                    >
+                      <X className="h-2.5 w-2.5 text-white" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-3 px-3 py-3">
+                    <div className="flex items-center justify-center w-8 h-8 bg-white/5 border border-white/10 shrink-0">
+                      <ImagePlus className="h-4 w-4 text-white/40" />
+                    </div>
+                    <p className="text-xs font-mono text-white/50">
+                      Drop or click to add reference
+                    </p>
+                  </div>
+                )}
+                <input
+                  ref={sourceImageInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => handleSourceImageSelect(e.target.files)}
+                  className="hidden"
+                />
+              </div>
+            </div>
+
             {/* Prompt Input */}
             <div className="space-y-3">
               <label
@@ -294,7 +409,7 @@ export function ImageGeneratorAdvanced({
                 id="prompt"
                 value={prompt}
                 onChange={(e) => setPrompt(e.currentTarget.value)}
-                placeholder="Describe your vision in detail..."
+                placeholder={sourceImage ? "Describe how to modify the reference image..." : "Describe your vision in detail..."}
                 rows={5}
                 className="w-full border border-white/10 bg-black/40 px-3 md:px-4 py-2 md:py-3 text-xs md:text-sm leading-relaxed text-white placeholder:text-white/40 focus:outline-none border-[0.1px] focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800] resize-none"
               />
@@ -425,6 +540,11 @@ export function ImageGeneratorAdvanced({
                   <>
                     <Loader2 className="h-5 w-5 animate-spin" />
                     Generating...
+                  </>
+                ) : sourceImage ? (
+                  <>
+                    <Wand2 className="h-5 w-5" />
+                    Transform Image
                   </>
                 ) : (
                   <>
