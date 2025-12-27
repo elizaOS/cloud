@@ -77,7 +77,7 @@ class AnonymousSessionsService {
   async checkIpAbuse(ipAddress: string): Promise<boolean> {
     const count =
       await anonymousSessionsRepository.countActiveSessionsByIp(ipAddress);
-    const maxSessionsPerIp = 5; // Configurable limit
+    const maxSessionsPerIp = parseInt(process.env.MAX_ANON_SESSIONS_PER_IP || "50", 10);
     return count >= maxSessionsPerIp;
   }
 }

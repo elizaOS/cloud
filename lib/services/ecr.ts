@@ -77,20 +77,39 @@ export class ECRManager {
    */
   async createRepository(repositoryName: string): Promise<RepositoryResult> {
     // Check if repository exists
-    const describeCommand = new DescribeRepositoriesCommand({
-      repositoryNames: [repositoryName],
-    });
+    // Note: DescribeRepositoriesCommand throws RepositoryNotFoundException if repo doesn't exist
+    try {
+      const describeCommand = new DescribeRepositoriesCommand({
+        repositoryNames: [repositoryName],
+      });
 
-    const describeResponse = await this.client.send(describeCommand);
-    const repository = describeResponse.repositories?.[0];
+      const describeResponse = await this.client.send(describeCommand);
+      const repository = describeResponse.repositories?.[0];
 
-    if (repository) {
-      logger.info("Repository already exists:", repository.repositoryUri);
-      return {
-        repositoryUri: repository.repositoryUri!,
-        repositoryArn: repository.repositoryArn!,
-        registryId: repository.registryId!,
-      };
+      if (repository) {
+        logger.info("Repository already exists:", repository.repositoryUri);
+        return {
+          repositoryUri: repository.repositoryUri!,
+          repositoryArn: repository.repositoryArn!,
+          registryId: repository.registryId!,
+        };
+      }
+    } catch (error: unknown) {
+      // RepositoryNotFoundException is expected when repo doesn't exist - proceed to create it
+      const isNotFoundError =
+        error instanceof Error &&
+        (error.name === "RepositoryNotFoundException" ||
+          error.message.includes("does not exist"));
+
+      if (!isNotFoundError) {
+        // Re-throw unexpected errors
+        throw error;
+      }
+
+      logger.info(
+        "Repository does not exist, will create:",
+        repositoryName,
+      );
     }
 
     logger.info("Creating new ECR repository:", repositoryName);

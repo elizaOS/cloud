@@ -50,31 +50,47 @@ function CliLoginContent() {
 
     setStatus("completing");
 
-    const response = await fetch(
-      `/api/auth/cli-session/${sessionId}/complete`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+    try {
+      const response = await fetch(
+        `/api/auth/cli-session/${sessionId}/complete`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
         },
-      },
-    );
+      );
 
-    if (!response.ok) {
-      const errorData = await response.json();
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        setStatus("error");
+        setErrorMessage(errorData.error || "Failed to complete authentication");
+        return;
+      }
+
+      const data = await response.json();
+
+      setApiKeyPrefix(data.keyPrefix);
+      setStatus("success");
+    } catch (error) {
+      console.error("CLI login error:", error);
       setStatus("error");
-      setErrorMessage(errorData.error || "Failed to complete authentication");
-      return;
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Network error. Please try again."
+      );
     }
-
-    const data = await response.json();
-
-    setApiKeyPrefix(data.keyPrefix);
-    setStatus("success");
   }, [sessionId]);
 
   // Update status when props change (avoiding synchronous setState)
   useEffect(() => {
+    // Don't override "completing" or "success" states - they represent process progress
+    // that shouldn't be reset by initial status changes
+    if (status === "completing" || status === "success") {
+      return;
+    }
+
     const nextStatus = initialStatus.status;
     const nextErrorMessage = initialStatus.errorMessage;
 
