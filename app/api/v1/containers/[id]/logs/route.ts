@@ -267,7 +267,7 @@ async function getCloudWatchLogs(
     const logStreams = streamsResponse.logStreams || [];
 
     if (logStreams.length === 0) {
-      console.warn(`No log streams found for ${logGroupName}`);
+      logger.debug("No log streams found", { logGroupName });
       return [];
     }
 
@@ -296,10 +296,10 @@ async function getCloudWatchLogs(
           })),
         );
       } catch (streamError) {
-        console.warn(
-          `Failed to fetch logs from stream ${stream.logStreamName}:`,
-          streamError,
-        );
+        logger.warn("Failed to fetch logs from stream", {
+          streamName: stream.logStreamName,
+          error: streamError,
+        });
         // Continue with other streams
       }
     }
@@ -318,9 +318,10 @@ async function getCloudWatchLogs(
       error.name === "ResourceNotFoundException" &&
       logGroupName === newLogGroupName
     ) {
-      console.warn(
-        `Log group ${newLogGroupName} not found, trying old format: ${oldLogGroupName}`,
-      );
+      logger.debug("Log group not found, trying old format", {
+        newLogGroupName,
+        oldLogGroupName,
+      });
       logGroupName = oldLogGroupName;
 
       // Retry with old format
@@ -339,7 +340,9 @@ async function getCloudWatchLogs(
 
         const logStreams = streamsResponse.logStreams || [];
         if (logStreams.length === 0) {
-          console.warn(`No log streams found for ${oldLogGroupName}`);
+          logger.debug("No log streams found", {
+            logGroupName: oldLogGroupName,
+          });
           return [];
         }
 
@@ -367,10 +370,10 @@ async function getCloudWatchLogs(
               })),
             );
           } catch (streamError) {
-            console.warn(
-              `Failed to fetch logs from stream ${stream.logStreamName}:`,
-              streamError,
-            );
+            logger.warn("Failed to fetch logs from stream", {
+              streamName: stream.logStreamName,
+              error: streamError,
+            });
           }
         }
 
@@ -381,7 +384,9 @@ async function getCloudWatchLogs(
           )
           .slice(0, options.limit || 100);
       } catch (oldFormatError) {
-        console.warn(`Old log group format also not found: ${oldLogGroupName}`);
+        logger.debug("Old log group format also not found", {
+          logGroupName: oldLogGroupName,
+        });
         return [];
       }
     }

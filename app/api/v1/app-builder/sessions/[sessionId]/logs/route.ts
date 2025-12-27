@@ -21,7 +21,7 @@ export async function GET(
     const url = new URL(request.url);
     const tail = parseInt(url.searchParams.get("tail") || "50", 10);
 
-    const logs = await aiAppBuilderService.getLogs(sessionId, tail);
+    const logs = await aiAppBuilderService.getLogs(sessionId, user.id, tail);
 
     return NextResponse.json({
       success: true,

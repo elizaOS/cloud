@@ -6,8 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
-import { adminService } from "@/lib/services/admin";
+import { requireAdmin } from "@/lib/auth";
 import { agentReputationService } from "@/lib/services/agent-reputation";
 import { logger } from "@/lib/utils/logger";
 
@@ -20,13 +19,7 @@ interface RouteContext {
  * Get detailed agent reputation info and moderation history
  */
 export async function GET(request: NextRequest, ctx: RouteContext) {
-  const { user } = await requireAuth(request);
-
-  // Check admin status
-  const isAdmin = await adminService.isUserAdmin(user.id);
-  if (!isAdmin) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-  }
+  const { user } = await requireAdmin(request);
 
   const { agentId } = await ctx.params;
 

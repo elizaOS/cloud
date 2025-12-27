@@ -38,12 +38,14 @@ interface CharacterBuildModeProps {
   initialCharacters: ElizaCharacter[];
   initialCharacterId?: string;
   onUnsavedChanges?: (hasChanges: boolean) => void;
+  initialPrompt?: string;
 }
 
 export function CharacterBuildMode({
   initialCharacters,
   initialCharacterId,
   onUnsavedChanges,
+  initialPrompt,
 }: CharacterBuildModeProps) {
   const { setRoomId, setSelectedCharacterId } = useChatStore();
 
@@ -440,6 +442,7 @@ export function CharacterBuildMode({
               onCharacterCreated={handleCharacterCreated}
               userId={userId}
               isCreatorMode={isCreatorMode}
+              initialPrompt={initialPrompt}
             />
           </div>
         ) : (
@@ -474,6 +477,7 @@ export function CharacterBuildMode({
                 onCharacterCreated={handleCharacterCreated}
                 userId={userId}
                 isCreatorMode={isCreatorMode}
+                initialPrompt={initialPrompt}
               />
             </div>
           </ResizablePanel>

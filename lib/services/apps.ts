@@ -14,6 +14,7 @@ import { logger } from "@/lib/utils/logger";
 import { cache } from "@/lib/cache/client";
 import { CacheKeys, CacheTTL } from "@/lib/cache/keys";
 import crypto from "crypto";
+import { eventEmitter } from "./events/event-emitter";
 
 /**
  * Service for app CRUD operations and app management.
@@ -107,6 +108,15 @@ export class AppsService {
     logo_url?: string;
     website_url?: string;
     contact_email?: string;
+    features_enabled?: {
+      chat?: boolean;
+      image?: boolean;
+      video?: boolean;
+      voice?: boolean;
+      agents?: boolean;
+      embedding?: boolean;
+    };
+    metadata?: Record<string, unknown>;
   }): Promise<{ app: App; apiKey: string }> {
     let slug = this.generateSlug(data.name);
     let slugAttempts = 0;
@@ -143,12 +153,25 @@ export class AppsService {
       logo_url: data.logo_url,
       website_url: data.website_url,
       contact_email: data.contact_email,
+      features_enabled: data.features_enabled || { chat: true },
+      metadata: data.metadata || {},
     });
 
     logger.info(`Created app: ${app.name} (${app.id})`, {
       appId: app.id,
       slug: app.slug,
       organizationId: app.organization_id,
+    });
+
+    await eventEmitter.emit({
+      eventType: "app.deployed",
+      organizationId: app.organization_id,
+      timestamp: new Date().toISOString(),
+      data: {
+        appId: app.id,
+        appName: app.name,
+        slug: app.slug,
+      },
     });
 
     return { app, apiKey: plainKey };
@@ -158,14 +181,25 @@ export class AppsService {
     // Get existing app to know the API key ID for cache invalidation
     const existing = await appsRepository.findById(id);
 
-    const updated = await appsRepository.update(id, data);
+    const app = await appsRepository.update(id, data);
 
-    // Invalidate cache after update
-    if (updated) {
+    if (app) {
+      // Invalidate cache after update
       await this.invalidateCache(id, existing?.api_key_id ?? undefined);
+
+      // Emit update event
+      await eventEmitter.emit({
+        eventType: "app.updated",
+        organizationId: app.organization_id,
+        timestamp: new Date().toISOString(),
+        data: {
+          appId: app.id,
+          appName: app.name,
+        },
+      });
     }
 
-    return updated;
+    return app;
   }
 
   async delete(id: string): Promise<void> {
@@ -181,6 +215,18 @@ export class AppsService {
     }
 
     await appsRepository.delete(id);
+
+    if (app) {
+      await eventEmitter.emit({
+        eventType: "app.stopped",
+        organizationId: app.organization_id,
+        timestamp: new Date().toISOString(),
+        data: {
+          appId: app.id,
+          appName: app.name,
+        },
+      });
+    }
 
     logger.info(`Deleted app: ${id}`);
   }

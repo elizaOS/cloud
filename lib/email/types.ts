@@ -94,3 +94,17 @@ export interface PurchaseConfirmationEmailData {
   invoiceUrl?: string;
   dashboardUrl: string;
 }
+
+/**
+ * Data for domain/app suspension notification email.
+ */
+export interface SuspensionNotificationEmailData {
+  email: string;
+  organizationName: string;
+  domain: string;
+  resourceType: "domain" | "app" | "agent" | "mcp";
+  suspensionReason: string;
+  violationCategories: string[];
+  appealEmail: string;
+  dashboardUrl: string;
+}

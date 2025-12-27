@@ -10,6 +10,7 @@ import {
   type UUID,
 } from "@elizaos/core";
 import { v4 } from "uuid";
+import { extractErrorMessage } from "@/lib/utils/error-handling";
 import {
   setLatestResponseId,
   clearLatestResponseId,

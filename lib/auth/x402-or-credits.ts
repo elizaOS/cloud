@@ -1,23 +1,5 @@
-/**
- * x402 or Credits Authentication Utilities
- *
- * IMPORTANT: For direct x402 payment verification on API routes, use:
- * - `withX402` from 'x402-next' - wraps handler with payment verification
- * - `createPaidMcpHandler` from 'x402-mcp' - for MCP servers
- *
- * This module provides helper functions for:
- * - Checking if x402 payment header is present
- * - Generating 402 responses with payment requirements
- * - Getting estimated prices for different models
- * - Credit-based authentication with x402 fallback messaging
- *
- * The recommended pattern is:
- * 1. For credit topup: use withX402 wrapper (see /api/v1/credits/topup)
- * 2. For paid MCP: use createPaidMcpHandler (see /api/mcp/demos/*)
- * 3. For credit-based routes: use requireAuthOrApiKeyWithOrg, return 402 with topup info on failure
- *
- * @see https://x402.org
- */
+// x402 or Credits Authentication
+// For direct x402 payment, use withX402 from 'x402-next' or createPaidMcpHandler from 'x402-mcp'
 
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
@@ -29,57 +11,54 @@ import {
   X402_RECIPIENT_ADDRESS,
 } from "@/lib/config/x402";
 import { creditsService } from "@/lib/services/credits";
-import { logger } from "@/lib/utils/logger";
 
-/**
- * Payment context returned by credits auth
- *
- * NOTE: x402 direct payment is handled by the `withX402` wrapper from 'x402-next'.
- * This module only deals with credit-based authentication.
- * The "x402" payment method type is kept for compatibility but is not used here.
- */
 export interface PaymentContext {
-  /** How the request was paid for (always "credits" from this module) */
   paymentMethod: "credits";
-  /** User context (required for credit-based auth) */
   auth: AuthResult;
-  /** Amount paid (in USD) */
   amountPaid: number;
 }
 
-/**
- * Check if request has x402 payment
- */
 export function hasX402Payment(request: NextRequest): boolean {
   return request.headers.has("X-PAYMENT");
 }
 
-/**
- * Get estimated price for x402 payment based on model
- * Returns price string like "$0.01"
- */
+// x402 pricing tiers based on model
 export function getX402Price(model: string): string {
-  // Pricing based on model tier
-  const modelLower = model.toLowerCase();
+  const m = model.toLowerCase();
 
-  // Premium models
-  if (modelLower.includes("gpt-4o") && !modelLower.includes("mini"))
+  // Enterprise ($0.20)
+  if (m.includes("gpt-5.2-pro")) return "$0.20";
+
+  // Premium ($0.10)
+  if (m.includes("claude-opus-4.5") || m.includes("claude-4-opus"))
+    return "$0.10";
+  if (m.includes("gpt-5.2") && !m.includes("pro")) return "$0.10";
+
+  // Standard ($0.05)
+  if (m.includes("gpt-4o") && !m.includes("mini")) return "$0.05";
+  if (m.includes("claude-sonnet-4") || m.includes("claude-3-5-sonnet"))
     return "$0.05";
-  if (modelLower.includes("claude-3-5-sonnet")) return "$0.05";
-  if (modelLower.includes("claude-3-opus")) return "$0.10";
+  if (m.includes("gemini") && m.includes("pro")) return "$0.05";
+  if (m.includes("grok-4.1") && !m.includes("fast")) return "$0.05";
+  if (m.includes("command-r-plus") || m.includes("command-r+")) return "$0.05";
 
-  // Standard models
-  if (modelLower.includes("gpt-4o-mini")) return "$0.02";
-  if (modelLower.includes("claude-3-haiku")) return "$0.01";
-  if (modelLower.includes("gemini")) return "$0.02";
+  // Budget ($0.02)
+  if (m.includes("gpt-4o-mini") || m.includes("gpt-5-mini")) return "$0.02";
+  if (m.includes("claude-haiku") || m.includes("claude-3-haiku"))
+    return "$0.02";
+  if (m.includes("gemini") && !m.includes("pro")) return "$0.02";
+  if (m.includes("grok") && m.includes("fast")) return "$0.02";
+  if (m.includes("command-r") && !m.includes("plus")) return "$0.02";
 
-  // Default for unknown models
+  // Ultra-cheap ($0.01)
+  if (m.includes("groq/") || m.includes("llama-3.1")) return "$0.01";
+  if (m.includes("cerebras/") || m.includes("qwen-3")) return "$0.01";
+  if (m.includes("fireworks/") || m.includes("gpt-oss")) return "$0.01";
+  if (m.includes("deepseek")) return "$0.01";
+
   return "$0.03";
 }
 
-/**
- * Generate 402 Payment Required response with x402 details
- */
 export function generate402Response(
   price: string,
   description: string,
@@ -119,33 +98,13 @@ export function generate402Response(
   );
 }
 
-/**
- * Authenticate via credits, with messaging about x402 as alternative
- *
- * NOTE: This does NOT accept x402 payments directly. For accepting x402 payments:
- * - Use `withX402` wrapper from 'x402-next' for your route handler
- * - Use `createPaidMcpHandler` from 'x402-mcp' for MCP servers
- *
- * This function:
- * 1. Requires API key or session authentication
- * 2. Deducts credits from the organization
- * 3. Returns helpful error messages mentioning x402 as an alternative if credits are insufficient
- *
- * @param request - The incoming request
- * @param estimatedCost - Estimated cost in USD for credit check
- * @param description - Description for credit transaction
- * @returns PaymentContext with payment method and auth info
- * @throws Error if auth fails or insufficient credits
- */
 export async function requireCreditsWithX402Fallback(
   request: NextRequest,
   estimatedCost: number,
   description: string,
 ): Promise<PaymentContext> {
-  // Require standard auth
   const auth = await requireAuthOrApiKeyWithOrg(request);
 
-  // Deduct credits
   const deductResult = await creditsService.deductCredits({
     organizationId: auth.user.organization_id,
     amount: estimatedCost,
@@ -155,7 +114,6 @@ export async function requireCreditsWithX402Fallback(
   });
 
   if (!deductResult.success) {
-    // If x402 is enabled, offer it as an alternative
     if (X402_ENABLED && isX402Configured()) {
       throw new Error(
         `Insufficient credits ($${deductResult.newBalance.toFixed(2)} available). ` +
@@ -163,21 +121,13 @@ export async function requireCreditsWithX402Fallback(
       );
     }
     throw new Error(
-      `Insufficient credits. Required: $${estimatedCost.toFixed(4)}, ` +
-        `Available: $${deductResult.newBalance.toFixed(2)}`,
+      `Insufficient credits. Required: $${estimatedCost.toFixed(4)}, Available: $${deductResult.newBalance.toFixed(2)}`,
     );
   }
 
-  return {
-    paymentMethod: "credits",
-    auth,
-    amountPaid: estimatedCost,
-  };
+  return { paymentMethod: "credits", auth, amountPaid: estimatedCost };
 }
 
-/**
- * Refund credits if using credit payment method
- */
 export async function refundIfCredits(
   ctx: PaymentContext,
   amount: number,
@@ -191,12 +141,8 @@ export async function refundIfCredits(
       metadata: { user_id: ctx.auth.user.id },
     });
   }
-  // x402 payments are non-refundable (already settled on-chain)
 }
 
-/**
- * Additional credit deduction if actual cost exceeds estimate
- */
 export async function chargeAdditionalIfCredits(
   ctx: PaymentContext,
   additionalAmount: number,
@@ -210,5 +156,4 @@ export async function chargeAdditionalIfCredits(
       metadata: { user_id: ctx.auth.user.id },
     });
   }
-  // x402 already paid fixed price
 }

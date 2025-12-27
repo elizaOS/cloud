@@ -317,9 +317,9 @@ describe("Double Redemption Prevention", () => {
     });
   });
 
-  describe("4. Only Miniapp/Agent/MCP Earnings Redeemable", () => {
+  describe("4. Only App/Agent/MCP Earnings Redeemable", () => {
     it("rejects non-earning credits", () => {
-      const earningsSources = ["miniapp", "agent", "mcp"];
+      const earningsSources = ["app", "agent", "mcp"];
       const nonEarningsSources = [
         "purchase",
         "referral",
@@ -337,14 +337,14 @@ describe("Double Redemption Prevention", () => {
         expect(canRedeem(source)).toBe(false);
       }
 
-      console.log("✅ Only earnings from miniapps/agents/MCPs are redeemable");
+      console.log("✅ Only earnings from apps/agents/MCPs are redeemable");
     });
 
     it("earnings are tracked separately from purchased credits", () => {
       const user = {
         // REDEEMABLE: Earnings from creating value
         redeemableEarnings: {
-          fromMiniapps: 100,
+          fromApps: 100,
           fromAgents: 50,
           fromMCPs: 25,
           total: 175,
@@ -383,7 +383,7 @@ describe("Double Redemption Prevention Summary", () => {
       "6. APPLICATION: SQL WHERE clause balance check",
       "7. APPLICATION: Idempotency key for duplicate requests",
       "8. APPLICATION: Immutable ledger audit trail",
-      "9. BUSINESS: Only miniapp/agent/mcp earnings are redeemable",
+      "9. BUSINESS: Only app/agent/mcp earnings are redeemable",
       "10. BUSINESS: Earnings tracked separately from purchased credits",
     ];
 

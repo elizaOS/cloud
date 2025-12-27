@@ -8,6 +8,85 @@ const privyClient = new PrivyClient(
   process.env.PRIVY_APP_SECRET!,
 );
 
+// ============================================================================
+// Subdomain/Custom Domain Configuration (merged from middleware.ts)
+// ============================================================================
+
+const APP_DOMAIN = process.env.APP_DOMAIN || "apps.elizacloud.ai";
+const MAIN_DOMAINS = [
+  "localhost",
+  "elizacloud.ai",
+  "www.elizacloud.ai",
+  "cloud.eliza.ai",
+  "eliza.ai",
+];
+
+// Reserved subdomains that cannot be used for apps
+const RESERVED_SUBDOMAINS = new Set([
+  "www",
+  "api",
+  "admin",
+  "dashboard",
+  "app",
+  "apps",
+  "auth",
+  "login",
+  "signup",
+  "register",
+  "account",
+  "settings",
+  "billing",
+  "docs",
+  "help",
+  "support",
+  "status",
+  "cdn",
+  "static",
+  "assets",
+  "media",
+  "images",
+  "files",
+  "mail",
+  "email",
+  "smtp",
+  "ftp",
+  "ssh",
+  "git",
+  "svn",
+  "blog",
+  "news",
+  "forum",
+  "community",
+  "store",
+  "shop",
+  "cart",
+  "checkout",
+  "pay",
+  "payments",
+  "webhook",
+  "webhooks",
+  "ws",
+  "wss",
+  "socket",
+  "graphql",
+  "rest",
+  "v1",
+  "v2",
+  "v3",
+  "staging",
+  "dev",
+  "test",
+  "demo",
+  "preview",
+  "beta",
+  "alpha",
+  "internal",
+  "private",
+  "public",
+  "sandbox",
+  "debug",
+]);
+
 // Paths that don't require authentication
 const publicPaths = [
   "/",
@@ -23,8 +102,8 @@ const publicPaths = [
   "/auth/error",
   "/auth/cli-login", // CLI login page
   "/api/auth/cli-session", // CLI session endpoints (public for polling)
-  "/api/auth/miniapp-session", // Miniapp session endpoints (public for pass-through auth flow)
-  "/auth/miniapp-login", // Miniapp login page
+  "/api/auth/app-session", // App session endpoints (public for pass-through auth flow)
+  "/auth/app-login", // App login page
   "/api/set-anonymous-session", // Anonymous session cookie setting
   "/api/anonymous-session", // Anonymous session data API (for polling message count)
   "/api/affiliate", // Affiliate API endpoints (public for anonymous users)
@@ -47,6 +126,8 @@ const publicPaths = [
   "/api/a2a", // A2A protocol endpoint (uses API key or x402 auth)
   "/api/agents", // Agent-specific A2A/MCP endpoints (handle their own auth)
   "/.well-known", // ERC-8004 and A2A discovery files
+  "/api/v1/discovery", // Public discovery endpoints for ERC-8004 marketplace
+  "/api/v1/erc8004", // ERC-8004 status endpoints
 ];
 
 // Paths that should be checked for authentication
@@ -62,6 +143,56 @@ const protectedPaths = [
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const hostname = request.headers.get("host") || "";
+  const url = request.nextUrl.clone();
+
+  // ============================================================================
+  // Subdomain/Custom Domain Routing (merged from middleware.ts)
+  // ============================================================================
+
+  // Skip subdomain routing for API routes and static files
+  const skipSubdomainRouting =
+    pathname.startsWith("/api/") ||
+    pathname.startsWith("/_next/") ||
+    pathname.startsWith("/static/") ||
+    pathname.includes(".");
+
+  if (!skipSubdomainRouting) {
+    // Check if this is an app subdomain request (e.g., myapp.apps.elizacloud.ai)
+    if (hostname.endsWith(`.${APP_DOMAIN}`)) {
+      const subdomain = hostname.replace(`.${APP_DOMAIN}`, "");
+
+      // Check for reserved subdomains
+      if (!RESERVED_SUBDOMAINS.has(subdomain.toLowerCase())) {
+        // Rewrite to app serving route
+        url.pathname = `/app/${subdomain}${pathname}`;
+        return NextResponse.rewrite(url);
+      }
+    }
+
+    // Check if this is a custom domain (not main domain or app domain)
+    const isMainDomain = MAIN_DOMAINS.some(
+      (d) =>
+        hostname === d ||
+        hostname.endsWith(`.${d}`) ||
+        hostname.includes("localhost"),
+    );
+
+    if (!isMainDomain && !hostname.includes(APP_DOMAIN)) {
+      // This could be a custom domain - rewrite to custom domain handler
+      url.pathname = `/app/_custom/${encodeURIComponent(hostname)}${pathname}`;
+      return NextResponse.rewrite(url);
+    }
+  }
+
+  // ============================================================================
+  // Authentication Logic
+  // ============================================================================
+
+  // Allow OPTIONS requests through for CORS preflight
+  if (request.method === "OPTIONS") {
+    return NextResponse.next();
+  }
 
   // Check if path is explicitly public
   const isPublicPath = publicPaths.some(
@@ -97,8 +228,15 @@ export async function proxy(request: NextRequest) {
     // Check for API key (support both X-API-Key header and Bearer token)
     const apiKey = request.headers.get("X-API-Key");
 
-    // If API key is provided, allow through (will be validated in the route handler)
-    if (apiKey || (bearerToken && bearerToken.startsWith("eliza_"))) {
+    // Check for app token
+    const appToken = request.headers.get("X-App-Token");
+
+    // If API key or app token is provided, allow through (will be validated in the route handler)
+    if (
+      apiKey ||
+      appToken ||
+      (bearerToken && bearerToken.startsWith("eliza_"))
+    ) {
       return NextResponse.next();
     }
 
@@ -174,3 +312,6 @@ export const config = {
     "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };
+
+// Export for use by other modules
+export { RESERVED_SUBDOMAINS };

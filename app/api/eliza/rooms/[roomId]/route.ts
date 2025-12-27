@@ -1,15 +1,12 @@
 import { NextResponse } from "next/server";
 import { requireAuthOrApiKey } from "@/lib/auth";
-import { getAnonymousUser } from "@/lib/auth-anonymous";
+import { getOrCreateSessionUser } from "@/lib/session";
 import type { NextRequest } from "next/server";
 import { roomsService } from "@/lib/services/agents/rooms";
 import { agentsService } from "@/lib/services/agents/agents";
 import { conversationsRepository, roomsRepository } from "@/db/repositories";
 import { logger } from "@/lib/utils/logger";
-import {
-  parseMessageContent,
-  type MessageContent,
-} from "@/lib/types/message-content";
+import { parseMessageContent } from "@/lib/types/message-content";
 import type { Memory } from "@elizaos/core";
 
 /**
@@ -30,16 +27,9 @@ export async function GET(
     const authResult = await requireAuthOrApiKey(request);
     userId = authResult.user.id;
   } catch {
-    // Fallback to anonymous user
-    const anonData = await getAnonymousUser();
-    if (!anonData) {
-      // Create new anonymous session if none exists
-      const { getOrCreateAnonymousUser } = await import("@/lib/auth-anonymous");
-      const newAnonData = await getOrCreateAnonymousUser();
-      userId = newAnonData.user.id;
-    } else {
-      userId = anonData.user.id;
-    }
+    // Fallback to session user (creates anonymous if needed)
+    const sessionUser = await getOrCreateSessionUser(request);
+    userId = sessionUser.userId;
   }
 
   const { roomId } = await ctx.params;
@@ -188,15 +178,18 @@ export async function PATCH(
     const authResult = await requireAuthOrApiKey(request);
     userId = authResult.user.id;
   } catch {
-    // Fallback to anonymous user
-    const anonData = await getAnonymousUser();
-    if (!anonData) {
+    // Fallback to session user - require existing session for PATCH
+    try {
+      const sessionUser = await getOrCreateSessionUser(request, {
+        createIfMissing: false,
+      });
+      userId = sessionUser.userId;
+    } catch {
       return NextResponse.json(
         { error: "Authentication required" },
         { status: 401 },
       );
     }
-    userId = anonData.user.id;
   }
 
   const { roomId } = await ctx.params;
@@ -275,15 +268,18 @@ export async function DELETE(
     const authResult = await requireAuthOrApiKey(request);
     userId = authResult.user.id;
   } catch {
-    // Fallback to anonymous user
-    const anonData = await getAnonymousUser();
-    if (!anonData) {
+    // Fallback to session user - require existing session for DELETE
+    try {
+      const sessionUser = await getOrCreateSessionUser(request, {
+        createIfMissing: false,
+      });
+      userId = sessionUser.userId;
+    } catch {
       return NextResponse.json(
         { error: "Authentication required" },
         { status: 401 },
       );
     }
-    userId = anonData.user.id;
   }
 
   const { roomId } = await ctx.params;

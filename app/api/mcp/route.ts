@@ -28,7 +28,7 @@ import { containersService } from "@/lib/services/containers";
 import { contentModerationService } from "@/lib/services/content-moderation";
 import { agentReputationService } from "@/lib/services/agent-reputation";
 import { characterDeploymentDiscoveryService as agentDiscoveryService } from "@/lib/services/deployments/discovery";
-import { agentService } from "@/lib/services/agents/agents";
+import { agentsService } from "@/lib/services/agents/agents";
 import { charactersService } from "@/lib/services/characters/characters";
 import { apiKeysService } from "@/lib/services/api-keys";
 import { secureTokenRedemptionService } from "@/lib/services/token-redemption-secure";
@@ -40,6 +40,14 @@ import { redeemableEarningsService } from "@/lib/services/redeemable-earnings";
 import { agentBudgetService } from "@/lib/services/agent-budgets";
 import { analyticsService } from "@/lib/services/analytics";
 import { getElevenLabsService } from "@/lib/services/elevenlabs";
+import {
+  storageService,
+  calculateUploadCost,
+  formatPrice,
+} from "@/lib/services/storage";
+import { ipfsService } from "@/lib/services/ipfs";
+import { seoService } from "@/lib/services/seo";
+import { webhookService } from "@/lib/services/webhooks/webhook-service";
 import { streamText } from "ai";
 import { gateway } from "@ai-sdk/gateway";
 import {
@@ -48,6 +56,7 @@ import {
   estimateRequestCost,
   IMAGE_GENERATION_COST,
 } from "@/lib/pricing";
+import { stripProviderPrefix } from "@/lib/utils/model-names";
 import { uploadBase64Image } from "@/lib/blob";
 import {
   MEMORY_SAVE_COST,
@@ -66,6 +75,12 @@ import {
   CONVERSATION_SUMMARY_BASE_COST,
   CONVERSATION_SUMMARY_MAX_COST,
 } from "@/lib/config/mcp";
+import {
+  seoArtifactsRepository,
+  seoProviderCallsRepository,
+  seoRequestsRepository,
+} from "@/db/repositories";
+import { seoRequestTypeEnum } from "@/db/schemas/seo";
 
 // Next.js requires literal values for segment config exports
 export const maxDuration = 60; // 60 seconds - matches default MCP_REQUEST_TIMEOUT
@@ -280,8 +295,13 @@ const mcpHandler = createMcpHandler(
             .enum([
               "gpt-4o",
               "gpt-4o-mini",
+              "gpt-4-turbo",
+              "claude-sonnet-4",
+              "claude-haiku-4",
               "claude-3-5-sonnet-20241022",
-              "gemini-2.0-flash-exp",
+              "gemini-2.0-flash",
+              "gemini-1.5-pro",
+              "gemini-1.5-flash",
             ])
             .optional()
             .default("gpt-4o")
@@ -2760,9 +2780,9 @@ const mcpHandler = createMcpHandler(
 
           const actualRoomId =
             roomId ||
-            (await agentService.getOrCreateRoom(entityId || user.id, org.id));
+            (await agentsService.getOrCreateRoom(entityId || user.id, org.id));
 
-          const response = await agentService.sendMessage({
+          const response = await agentsService.sendMessage({
             roomId: actualRoomId,
             entityId: entityId || user.id,
             message,
@@ -3311,14 +3331,17 @@ const mcpHandler = createMcpHandler(
           model: z
             .string()
             .optional()
-            .default("fal-ai/veo3")
-            .describe("Model to use for generation"),
+            .default("google/veo3")
+            .describe(
+              "Model to use (e.g., google/veo3, kling/v2.1-master, minimax/hailuo-standard)",
+            ),
         },
       },
       async ({ prompt, model }) => {
         try {
           const { user, apiKey } = getAuthContext();
           const VIDEO_COST = 5;
+          const displayModel = stripProviderPrefix(model);
 
           if (Number(user.organization.credit_balance) < VIDEO_COST) {
             throw new Error(
@@ -3329,8 +3352,8 @@ const mcpHandler = createMcpHandler(
           const deduction = await creditsService.deductCredits({
             organizationId: user.organization_id!,
             amount: VIDEO_COST,
-            description: `MCP video generation: ${model}`,
-            metadata: { user_id: user.id, model },
+            description: `MCP video generation: ${displayModel}`,
+            metadata: { user_id: user.id, model: displayModel },
           });
           if (!deduction.success) throw new Error("Credit deduction failed");
 
@@ -3339,8 +3362,8 @@ const mcpHandler = createMcpHandler(
             user_id: user.id,
             api_key_id: apiKey?.id || null,
             type: "video",
-            model,
-            provider: "fal",
+            model: displayModel,
+            provider: "video",
             prompt,
             status: "pending",
             credits: String(VIDEO_COST),
@@ -5434,6 +5457,110 @@ const mcpHandler = createMcpHandler(
       },
     );
 
+    // Tool 56: Get x402 Topup Payment Requirements
+    // NOTE: This tool does NOT require authentication - it's designed for permissionless access
+    // The MCP handler will still try to authenticate, but this tool works even if auth fails
+    server.registerTool(
+      "get_x402_topup_requirements",
+      {
+        description:
+          "Get x402 payment requirements for permissionless credit topup. Returns payment details needed to top up credits via x402. FREE tool - works without authentication.",
+        inputSchema: {},
+      },
+      async () => {
+        try {
+          const {
+            X402_ENABLED,
+            X402_RECIPIENT_ADDRESS,
+            getDefaultNetwork,
+            USDC_ADDRESSES,
+            TOPUP_PRICE,
+            CREDITS_PER_DOLLAR,
+            isX402Configured,
+          } = await import("@/lib/config/x402");
+
+          if (!isX402Configured()) {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify(
+                    {
+                      error: "x402 payments not configured",
+                      message: "x402 payments are not enabled on this server",
+                    },
+                    null,
+                    2,
+                  ),
+                },
+              ],
+              isError: true,
+            };
+          }
+
+          const network = getDefaultNetwork();
+          const baseUrl =
+            process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: true,
+                    x402: {
+                      enabled: X402_ENABLED,
+                      topupEndpoint: `${baseUrl}/api/v1/credits/topup`,
+                      network,
+                      asset: USDC_ADDRESSES[network],
+                      payTo: X402_RECIPIENT_ADDRESS,
+                      price: TOPUP_PRICE,
+                      creditsPerDollar: CREDITS_PER_DOLLAR,
+                      creditsPerTopup: Math.floor(
+                        parseFloat(TOPUP_PRICE.replace("$", "")) *
+                          CREDITS_PER_DOLLAR,
+                      ),
+                      instructions: [
+                        "1. Sign payment authorization with your wallet using x402 protocol",
+                        "2. Include X-PAYMENT header in POST request to topupEndpoint",
+                        "3. Credits will be added to your organization (created from wallet address if needed)",
+                        "4. Get API key from the organization to use for subsequent MCP/A2A calls",
+                        "5. Use the credits to call MCP tools or A2A skills",
+                      ],
+                      docs: "https://x402.org",
+                      note: "After topping up, you can get an API key from your organization to authenticate future requests",
+                    },
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to get x402 topup requirements",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+      },
+    );
+
     // Tool 56: Get Billing Usage
     server.registerTool(
       "get_billing_usage",
@@ -5973,6 +6100,6086 @@ const mcpHandler = createMcpHandler(
             isError: true,
           };
         }
+      },
+    );
+
+    // ============ STORAGE TOOLS ============
+
+    // Tool: Storage Upload
+    server.registerTool(
+      "storage_upload",
+      {
+        description:
+          "Upload file to decentralized storage (Vercel Blob + optional IPFS pinning)",
+        inputSchema: {
+          content: z.string().describe("Base64 encoded file content"),
+          filename: z.string().describe("Filename for the upload"),
+          contentType: z
+            .string()
+            .optional()
+            .describe("MIME type (default: application/octet-stream)"),
+          pinToIPFS: z
+            .boolean()
+            .optional()
+            .default(true)
+            .describe("Also pin to IPFS"),
+        },
+      },
+      async ({
+        content,
+        filename,
+        contentType = "application/octet-stream",
+        pinToIPFS = true,
+      }) => {
+        const { user } = getAuthContext();
+
+        const buffer = Buffer.from(content, "base64");
+        const cost = calculateUploadCost(buffer.length);
+
+        // Check balance
+        const org = await organizationsService.getById(user.organization_id);
+        if (!org || Number(org.credit_balance) < cost) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  { error: `Insufficient credits: need ${formatPrice(cost)}` },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        // Deduct credits
+        await creditsService.deductCredits({
+          organizationId: user.organization_id,
+          amount: cost,
+          description: `MCP storage upload: ${filename}`,
+          metadata: { user_id: user.id, filename, size: buffer.length },
+        });
+
+        const result = await storageService.upload(buffer, {
+          filename,
+          contentType,
+          ownerAddress: user.id,
+          pinToIPFS,
+        });
+
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                {
+                  id: result.id,
+                  url: result.url,
+                  cid: result.cid,
+                  ipfsGatewayUrl: result.ipfsGatewayUrl,
+                  size: result.size,
+                  contentType: result.contentType,
+                  cost: formatPrice(cost),
+                  pinned: result.pinned,
+                },
+                null,
+                2,
+              ),
+            },
+          ],
+        };
+      },
+    );
+
+    // Tool: Storage List
+    server.registerTool(
+      "storage_list",
+      {
+        description: "List your stored files",
+        inputSchema: {
+          limit: z
+            .number()
+            .int()
+            .min(1)
+            .max(100)
+            .optional()
+            .default(50)
+            .describe("Max files to return"),
+          cursor: z.string().optional().describe("Pagination cursor"),
+        },
+      },
+      async ({ limit = 50, cursor }) => {
+        const { user } = getAuthContext();
+
+        const result = await storageService.list({
+          ownerAddress: user.id,
+          limit,
+          cursor,
+        });
+
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                {
+                  items: result.items.map((item) => ({
+                    id: item.id,
+                    url: item.url,
+                    pathname: item.pathname,
+                    contentType: item.contentType,
+                    size: item.size,
+                    uploadedAt: item.uploadedAt.toISOString(),
+                  })),
+                  count: result.items.length,
+                  hasMore: result.hasMore,
+                  cursor: result.cursor,
+                },
+                null,
+                2,
+              ),
+            },
+          ],
+        };
+      },
+    );
+
+    // Tool: Storage Stats
+    server.registerTool(
+      "storage_stats",
+      {
+        description: "Get storage statistics and pricing",
+        inputSchema: {},
+      },
+      async () => {
+        const { user } = getAuthContext();
+
+        const stats = await storageService.getStats(user.id);
+        const pricing = storageService.getPricing();
+
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                {
+                  totalFiles: stats.totalFiles,
+                  totalSizeBytes: stats.totalSizeBytes,
+                  totalSizeGB: stats.totalSizeGB,
+                  pricing,
+                },
+                null,
+                2,
+              ),
+            },
+          ],
+        };
+      },
+    );
+
+    // Tool: Storage Calculate Cost
+    server.registerTool(
+      "storage_calculate_cost",
+      {
+        description: "Calculate storage cost for a given file size",
+        inputSchema: {
+          sizeBytes: z.number().int().positive().describe("File size in bytes"),
+        },
+      },
+      async ({ sizeBytes }) => {
+        const cost = calculateUploadCost(sizeBytes);
+        const pricing = storageService.getPricing();
+
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                {
+                  sizeBytes,
+                  sizeMB: (sizeBytes / (1024 * 1024)).toFixed(2),
+                  cost,
+                  costFormatted: formatPrice(cost),
+                  pricing,
+                },
+                null,
+                2,
+              ),
+            },
+          ],
+        };
+      },
+    );
+
+    // Tool: IPFS Pin
+    server.registerTool(
+      "ipfs_pin",
+      {
+        description: "Pin an existing CID to IPFS",
+        inputSchema: {
+          cid: z.string().describe("IPFS Content ID to pin"),
+          name: z.string().optional().describe("Name for the pin"),
+        },
+      },
+      async ({ cid, name }) => {
+        const health = await ipfsService.health().catch(() => null);
+        if (!health) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  { error: "IPFS service unavailable" },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        const result = await ipfsService.pin({ cid, name: name || cid });
+
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                {
+                  id: result.id,
+                  cid: result.cid,
+                  status: result.status,
+                  gatewayUrl: ipfsService.getGatewayUrl(result.cid),
+                },
+                null,
+                2,
+              ),
+            },
+          ],
+        };
+      },
+    );
+
+    // Tool: IPFS List Pins
+    server.registerTool(
+      "ipfs_list_pins",
+      {
+        description: "List pinned content on IPFS",
+        inputSchema: {
+          status: z
+            .string()
+            .optional()
+            .describe("Filter by status (pinning, pinned, failed)"),
+          limit: z.number().int().min(1).max(100).optional().default(50),
+        },
+      },
+      async ({ status, limit = 50 }) => {
+        const health = await ipfsService.health().catch(() => null);
+        if (!health) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  { error: "IPFS service unavailable" },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        const result = await ipfsService.listPins({ status, limit });
+
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                {
+                  count: result.count,
+                  pins: result.results.map((pin) => ({
+                    ...pin,
+                    gatewayUrl: ipfsService.getGatewayUrl(pin.cid),
+                  })),
+                },
+                null,
+                2,
+              ),
+            },
+          ],
+        };
+      },
+    );
+
+    // ============ N8N WORKFLOW TOOLS ============
+
+    // Tool: Create N8N Workflow
+    server.registerTool(
+      "n8n_create_workflow",
+      {
+        description:
+          "Create a new n8n workflow. Requires workflow name and workflow data (nodes, connections, etc.)",
+        inputSchema: {
+          name: z.string().describe("Workflow name"),
+          description: z.string().optional().describe("Workflow description"),
+          workflowData: z
+            .record(z.unknown())
+            .describe("n8n workflow JSON (nodes, connections, settings)"),
+          tags: z.array(z.string()).optional().describe("Workflow tags"),
+        },
+      },
+      async ({ name, description, workflowData, tags }) => {
+        const { n8nWorkflowsService } =
+          await import("@/lib/services/n8n-workflows");
+
+        if (!user.organization_id) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  { error: "User has no organization" },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        const validationResult =
+          await n8nWorkflowsService.validateWorkflow(workflowData);
+        if (!validationResult.valid) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error: "Invalid workflow structure",
+                    errors: validationResult.errors,
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        const workflow = await n8nWorkflowsService.createWorkflow({
+          organizationId: user.organization_id,
+          userId: user.id,
+          name,
+          description,
+          workflowData,
+          tags,
+        });
+
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                {
+                  success: true,
+                  workflow: {
+                    id: workflow.id,
+                    name: workflow.name,
+                    status: workflow.status,
+                    version: workflow.version,
+                    createdAt: workflow.created_at,
+                  },
+                },
+                null,
+                2,
+              ),
+            },
+          ],
+        };
+      },
+    );
+
+    // Tool: List N8N Workflows
+    server.registerTool(
+      "n8n_list_workflows",
+      {
+        description:
+          "List n8n workflows. Can filter by status (draft, active, archived).",
+        inputSchema: {
+          status: z
+            .enum(["draft", "active", "archived"])
+            .optional()
+            .describe("Filter by workflow status"),
+          limit: z.number().int().min(1).max(100).optional().default(20),
+        },
+      },
+      async ({ status, limit = 20 }) => {
+        const { n8nWorkflowsService } =
+          await import("@/lib/services/n8n-workflows");
+
+        if (!user.organization_id) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  { error: "User has no organization" },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        const workflows = await n8nWorkflowsService.listWorkflows(
+          user.organization_id,
+          {
+            status,
+            limit,
+          },
+        );
+
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                {
+                  success: true,
+                  workflows: workflows.map((w) => ({
+                    id: w.id,
+                    name: w.name,
+                    description: w.description,
+                    status: w.status,
+                    version: w.version,
+                    tags: w.tags,
+                    createdAt: w.created_at.toISOString(),
+                    updatedAt: w.updated_at.toISOString(),
+                  })),
+                  count: workflows.length,
+                },
+                null,
+                2,
+              ),
+            },
+          ],
+        };
+      },
+    );
+
+    // Tool: Generate N8N Workflow
+    server.registerTool(
+      "n8n_generate_workflow",
+      {
+        description:
+          "Generate an n8n workflow using AI from a natural language prompt. Uses Claude Opus 4.5.",
+        inputSchema: {
+          prompt: z
+            .string()
+            .describe("Natural language description of the desired workflow"),
+          context: z
+            .object({
+              availableNodes: z
+                .array(z.unknown())
+                .optional()
+                .describe("Available n8n nodes for context"),
+              existingWorkflows: z
+                .array(z.unknown())
+                .optional()
+                .describe("Existing workflows for reference"),
+              variables: z
+                .record(z.string())
+                .optional()
+                .describe("Available variables"),
+            })
+            .optional()
+            .describe("Additional context for generation"),
+          autoSave: z
+            .boolean()
+            .optional()
+            .default(false)
+            .describe("Automatically save the generated workflow"),
+          workflowName: z
+            .string()
+            .optional()
+            .describe("Name for the workflow (required if autoSave is true)"),
+          tags: z
+            .array(z.string())
+            .optional()
+            .describe("Tags for the workflow"),
+        },
+      },
+      async ({ prompt, context, autoSave, workflowName, tags }) => {
+        const { n8nWorkflowsService } =
+          await import("@/lib/services/n8n-workflows");
+        const { endpointDiscoveryService } =
+          await import("@/lib/services/endpoint-discovery");
+
+        if (!user.organization_id) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  { error: "User has no organization" },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        try {
+          // Discover available endpoints
+          const availableEndpoints =
+            await endpointDiscoveryService.discoverAllEndpoints();
+          const endpointNodes = availableEndpoints.map((e) => ({
+            id: e.id,
+            name: e.name,
+            description: e.description,
+            type: e.type,
+            category: e.category,
+            endpoint: e.endpoint,
+            method: e.method,
+          }));
+
+          // Get user's existing workflows for context
+          const existingWorkflows = await n8nWorkflowsService.listWorkflows(
+            user.organization_id,
+            { limit: 10 },
+          );
+          const workflowContext = existingWorkflows.map((w) => ({
+            id: w.id,
+            name: w.name,
+            description: w.description,
+            tags: w.tags,
+          }));
+
+          // Get global variables
+          const globalVariables = await n8nWorkflowsService.getGlobalVariables(
+            user.organization_id,
+          );
+          const variablesContext = Object.fromEntries(
+            globalVariables.map((v) => [v.name, v.is_secret ? "***" : v.value]),
+          );
+
+          // Call the generation endpoint via HTTP (using API key for internal calls)
+          const baseUrl =
+            process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+          const apiKey = process.env.ELIZA_CLOUD_API_KEY;
+
+          if (!apiKey) {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify(
+                    { error: "Cloud API key not configured" },
+                    null,
+                    2,
+                  ),
+                },
+              ],
+              isError: true,
+            };
+          }
+
+          const response = await fetch(
+            `${baseUrl}/api/v1/n8n/generate-workflow`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${apiKey}`,
+              },
+              body: JSON.stringify({
+                prompt,
+                context: {
+                  ...context,
+                  availableNodes: endpointNodes,
+                  existingWorkflows: workflowContext,
+                  variables: variablesContext,
+                },
+                autoSave,
+                workflowName,
+                tags,
+              }),
+            },
+          );
+
+          if (!response.ok) {
+            const error = await response
+              .json()
+              .catch(() => ({ error: "Unknown error" }));
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify(
+                    { error: error.error || response.statusText },
+                    null,
+                    2,
+                  ),
+                },
+              ],
+              isError: true,
+            };
+          }
+
+          const result = await response.json();
+
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: true,
+                    workflow: result.workflow,
+                    savedWorkflow: result.savedWorkflow,
+                    validation: result.validation,
+                    metadata: result.metadata,
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to generate workflow",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool: Get N8N Workflow
+    server.registerTool(
+      "n8n_get_workflow",
+      {
+        description: "Get details of a specific n8n workflow by ID",
+        inputSchema: {
+          workflowId: z.string().describe("Workflow ID"),
+        },
+      },
+      async ({ workflowId }) => {
+        const { n8nWorkflowsService } =
+          await import("@/lib/services/n8n-workflows");
+        const { appsService } = await import("@/lib/services/apps");
+
+        if (!user.organization_id) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  { error: "User has no organization" },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        const apps = await appsService.listByOrganization(user.organization_id);
+        if (apps.length === 0) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  { error: "No app found for this organization" },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        const workflow = await n8nWorkflowsService.getWorkflow(workflowId);
+        if (!workflow || workflow.app_id !== apps[0].id) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify({ error: "Workflow not found" }, null, 2),
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                {
+                  success: true,
+                  workflow: {
+                    id: workflow.id,
+                    name: workflow.name,
+                    description: workflow.description,
+                    workflowData: workflow.workflow_data,
+                    status: workflow.status,
+                    version: workflow.version,
+                    tags: workflow.tags,
+                    n8nWorkflowId: workflow.n8n_workflow_id,
+                    isActiveInN8n: workflow.is_active_in_n8n,
+                    createdAt: workflow.created_at.toISOString(),
+                    updatedAt: workflow.updated_at.toISOString(),
+                  },
+                },
+                null,
+                2,
+              ),
+            },
+          ],
+        };
+      },
+    );
+
+    // Tool: Update N8N Workflow
+    server.registerTool(
+      "n8n_update_workflow",
+      {
+        description: "Update an existing n8n workflow",
+        inputSchema: {
+          workflowId: z.string().describe("Workflow ID"),
+          name: z.string().optional().describe("New workflow name"),
+          description: z
+            .string()
+            .optional()
+            .describe("New workflow description"),
+          workflowData: z
+            .record(z.unknown())
+            .optional()
+            .describe("Updated workflow data"),
+          status: z
+            .enum(["draft", "active", "archived"])
+            .optional()
+            .describe("New workflow status"),
+          tags: z.array(z.string()).optional().describe("New workflow tags"),
+        },
+      },
+      async ({ workflowId, name, description, workflowData, status, tags }) => {
+        const { n8nWorkflowsService } =
+          await import("@/lib/services/n8n-workflows");
+        const { appsService } = await import("@/lib/services/apps");
+
+        if (!user.organization_id) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  { error: "User has no organization" },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        const apps = await appsService.listByOrganization(user.organization_id);
+        if (apps.length === 0) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  { error: "No app found for this organization" },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        if (workflowData) {
+          const validationResult =
+            await n8nWorkflowsService.validateWorkflow(workflowData);
+          if (!validationResult.valid) {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify(
+                    {
+                      error: "Invalid workflow structure",
+                      errors: validationResult.errors,
+                    },
+                    null,
+                    2,
+                  ),
+                },
+              ],
+              isError: true,
+            };
+          }
+        }
+
+        const workflow = await n8nWorkflowsService.updateWorkflow(workflowId, {
+          name,
+          description,
+          workflowData,
+          status,
+          tags,
+        });
+
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                {
+                  success: true,
+                  workflow: {
+                    id: workflow.id,
+                    name: workflow.name,
+                    status: workflow.status,
+                    version: workflow.version,
+                    updatedAt: workflow.updated_at.toISOString(),
+                  },
+                },
+                null,
+                2,
+              ),
+            },
+          ],
+        };
+      },
+    );
+
+    // Tool: List N8N Workflow Versions
+    server.registerTool(
+      "n8n_list_workflow_versions",
+      {
+        description: "List version history for a workflow",
+        inputSchema: {
+          workflowId: z.string().describe("Workflow ID"),
+          limit: z.number().int().min(1).max(100).optional().default(50),
+        },
+      },
+      async ({ workflowId, limit = 50 }) => {
+        const { n8nWorkflowsService } =
+          await import("@/lib/services/n8n-workflows");
+
+        const versions = await n8nWorkflowsService.getWorkflowVersions(
+          workflowId,
+          limit,
+        );
+
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                {
+                  success: true,
+                  versions: versions.map((v) => ({
+                    id: v.id,
+                    version: v.version,
+                    changeDescription: v.change_description,
+                    createdAt: v.created_at.toISOString(),
+                    createdBy: v.created_by,
+                  })),
+                  count: versions.length,
+                },
+                null,
+                2,
+              ),
+            },
+          ],
+        };
+      },
+    );
+
+    // Tool: Revert N8N Workflow
+    server.registerTool(
+      "n8n_revert_workflow",
+      {
+        description: "Revert a workflow to a specific version",
+        inputSchema: {
+          workflowId: z.string().describe("Workflow ID"),
+          version: z
+            .number()
+            .int()
+            .positive()
+            .describe("Version number to revert to"),
+        },
+      },
+      async ({ workflowId, version }) => {
+        const { n8nWorkflowsService } =
+          await import("@/lib/services/n8n-workflows");
+
+        if (!user.organization_id) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  { error: "User has no organization" },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        const workflow = await n8nWorkflowsService.revertWorkflowToVersion(
+          workflowId,
+          version,
+          user.id,
+        );
+
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                {
+                  success: true,
+                  workflow: {
+                    id: workflow.id,
+                    version: workflow.version,
+                    updatedAt: workflow.updated_at.toISOString(),
+                  },
+                },
+                null,
+                2,
+              ),
+            },
+          ],
+        };
+      },
+    );
+
+    // Tool: Test N8N Workflow
+    server.registerTool(
+      "n8n_test_workflow",
+      {
+        description: "Test execution of a workflow",
+        inputSchema: {
+          workflowId: z.string().describe("Workflow ID"),
+          inputData: z
+            .record(z.unknown())
+            .optional()
+            .describe("Input data for the workflow test"),
+        },
+      },
+      async ({ workflowId, inputData }) => {
+        const { n8nWorkflowsService } =
+          await import("@/lib/services/n8n-workflows");
+
+        if (!user.organization_id) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  { error: "User has no organization" },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        const execution = await n8nWorkflowsService.testWorkflow({
+          workflowId,
+          inputData,
+          userId: user.id,
+        });
+
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                {
+                  success: true,
+                  execution: {
+                    id: execution.id,
+                    status: execution.status,
+                    outputData: execution.output_data,
+                    errorMessage: execution.error_message,
+                    durationMs: execution.duration_ms,
+                    startedAt: execution.started_at.toISOString(),
+                    finishedAt: execution.finished_at?.toISOString(),
+                  },
+                },
+                null,
+                2,
+              ),
+            },
+          ],
+        };
+      },
+    );
+
+    // ============ N8N NODE DISCOVERY & GENERATION TOOLS ============
+
+    // Tool: Discover N8N Nodes
+    server.registerTool(
+      "n8n_discover_nodes",
+      {
+        description:
+          "Discover all available A2A, MCP, and REST endpoints that can be used as n8n workflow nodes. Search across the entire marketplace network.",
+        inputSchema: {
+          query: z
+            .string()
+            .optional()
+            .describe(
+              "Search query to filter endpoints by name, description, or category",
+            ),
+          types: z
+            .array(z.enum(["a2a", "mcp", "rest"]))
+            .optional()
+            .describe("Filter by endpoint type"),
+          categories: z
+            .array(z.string())
+            .optional()
+            .describe(
+              "Filter by category (e.g., 'ai', 'storage', 'infrastructure')",
+            ),
+          limit: z
+            .number()
+            .int()
+            .min(1)
+            .max(200)
+            .optional()
+            .default(100)
+            .describe("Maximum number of results"),
+        },
+      },
+      async ({ query, types, categories, limit }) => {
+        const { endpointDiscoveryService } =
+          await import("@/lib/services/endpoint-discovery");
+
+        const results = await endpointDiscoveryService.searchEndpoints(
+          query || "",
+          {
+            types,
+            categories,
+            limit,
+          },
+        );
+
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                {
+                  success: true,
+                  nodes: results.nodes,
+                  total: results.total,
+                  categories: results.categories,
+                },
+                null,
+                2,
+              ),
+            },
+          ],
+        };
+      },
+    );
+
+    // Tool: Generate N8N Node from Endpoint
+    server.registerTool(
+      "n8n_generate_node",
+      {
+        description:
+          "Generate an n8n workflow node from a discovered endpoint. Creates an HTTP Request node configured for the endpoint.",
+        inputSchema: {
+          endpointId: z.string().describe("Endpoint ID from discover_nodes"),
+          position: z
+            .tuple([z.number(), z.number()])
+            .optional()
+            .describe("Node position [x, y]"),
+          parameters: z
+            .record(z.unknown())
+            .optional()
+            .describe("Additional parameters for the node"),
+        },
+      },
+      async ({ endpointId, position, parameters }) => {
+        const { n8nNodeGeneratorService } =
+          await import("@/lib/services/n8n-node-generator");
+
+        const node = await n8nNodeGeneratorService.generateNode({
+          endpointId,
+          position,
+          parameters,
+        });
+
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                {
+                  success: true,
+                  node,
+                },
+                null,
+                2,
+              ),
+            },
+          ],
+        };
+      },
+    );
+
+    // Tool: Generate N8N Workflow from Endpoints
+    server.registerTool(
+      "n8n_generate_workflow_from_endpoints",
+      {
+        description:
+          "Generate a complete n8n workflow by connecting multiple endpoints as nodes.",
+        inputSchema: {
+          endpointIds: z
+            .array(z.string())
+            .min(1)
+            .describe("Array of endpoint IDs to include in the workflow"),
+          workflowName: z
+            .string()
+            .min(1)
+            .describe("Name for the generated workflow"),
+        },
+      },
+      async ({ endpointIds, workflowName }) => {
+        const { n8nNodeGeneratorService } =
+          await import("@/lib/services/n8n-node-generator");
+
+        const workflow =
+          await n8nNodeGeneratorService.generateWorkflowFromEndpoints(
+            endpointIds,
+            workflowName,
+          );
+
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                {
+                  success: true,
+                  workflow,
+                },
+                null,
+                2,
+              ),
+            },
+          ],
+        };
+      },
+    );
+
+    // Tool: Execute N8N Workflow via Trigger
+    server.registerTool(
+      "n8n_execute_trigger",
+      {
+        description:
+          "Execute an n8n workflow via its A2A or MCP trigger. Use this to run workflows that have been configured with triggers.",
+        inputSchema: {
+          triggerKey: z.string().optional().describe("Trigger key to execute"),
+          workflowId: z
+            .string()
+            .optional()
+            .describe("Workflow ID (finds active A2A/MCP trigger)"),
+          inputData: z
+            .record(z.unknown())
+            .optional()
+            .describe("Input data to pass to the workflow"),
+        },
+      },
+      async ({ triggerKey, workflowId, inputData }) => {
+        const { n8nWorkflowsService } =
+          await import("@/lib/services/n8n-workflows");
+
+        if (!user.organization_id) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify({ error: "No organization" }, null, 2),
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        if (!triggerKey && !workflowId) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  { error: "Either triggerKey or workflowId is required" },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        let trigger;
+        if (triggerKey) {
+          trigger = await n8nWorkflowsService.findTriggerByKey(triggerKey);
+        } else if (workflowId) {
+          const triggers = await n8nWorkflowsService.listTriggers(workflowId);
+          trigger = triggers.find(
+            (t) =>
+              t.is_active &&
+              (t.trigger_type === "a2a" || t.trigger_type === "mcp"),
+          );
+        }
+
+        if (!trigger) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  { error: "No active A2A/MCP trigger found" },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        if (trigger.organization_id !== user.organization_id) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify({ error: "Unauthorized" }, null, 2),
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        if (trigger.trigger_type !== "a2a" && trigger.trigger_type !== "mcp") {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  { error: "Use webhook endpoint for webhook triggers" },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        const execution = await n8nWorkflowsService.executeWorkflowTrigger(
+          trigger.id,
+          inputData,
+        );
+
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                {
+                  success: true,
+                  executionId: execution.id,
+                  status: execution.status,
+                  workflowId: trigger.workflow_id,
+                  triggerId: trigger.id,
+                },
+                null,
+                2,
+              ),
+            },
+          ],
+        };
+      },
+    );
+
+    // Tool: List N8N Workflow Triggers
+    server.registerTool(
+      "n8n_list_triggers",
+      {
+        description:
+          "List n8n workflow triggers for your organization. Can filter by workflow ID or trigger type.",
+        inputSchema: {
+          workflowId: z.string().optional().describe("Filter by workflow ID"),
+          triggerType: z
+            .enum(["cron", "webhook", "a2a", "mcp"])
+            .optional()
+            .describe("Filter by trigger type"),
+        },
+      },
+      async ({ workflowId, triggerType }) => {
+        const { n8nWorkflowTriggersRepository } =
+          await import("@/db/repositories/n8n-workflows");
+
+        if (!user.organization_id) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify({ error: "No organization" }, null, 2),
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        let triggers;
+        if (workflowId) {
+          triggers =
+            await n8nWorkflowTriggersRepository.findByWorkflow(workflowId);
+        } else {
+          triggers = await n8nWorkflowTriggersRepository.findByOrganization(
+            user.organization_id,
+          );
+        }
+
+        if (triggerType) {
+          triggers = triggers.filter((t) => t.trigger_type === triggerType);
+        }
+
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                {
+                  success: true,
+                  triggers: triggers.map((t) => ({
+                    id: t.id,
+                    workflowId: t.workflow_id,
+                    triggerType: t.trigger_type,
+                    triggerKey:
+                      t.trigger_type === "webhook"
+                        ? t.trigger_key.slice(0, 8) + "..."
+                        : t.trigger_key,
+                    isActive: t.is_active,
+                    executionCount: t.execution_count,
+                    lastExecutedAt: t.last_executed_at?.toISOString() || null,
+                  })),
+                  total: triggers.length,
+                },
+                null,
+                2,
+              ),
+            },
+          ],
+        };
+      },
+    );
+
+    // Tool: Create N8N Workflow Trigger
+    server.registerTool(
+      "n8n_create_trigger",
+      {
+        description:
+          "Create a new trigger for an n8n workflow. Supports cron, webhook, A2A, and MCP trigger types.",
+        inputSchema: {
+          workflowId: z.string().describe("Workflow ID to create trigger for"),
+          triggerType: z
+            .enum(["cron", "webhook", "a2a", "mcp"])
+            .describe("Type of trigger"),
+          triggerKey: z
+            .string()
+            .optional()
+            .describe("Custom trigger key (auto-generated if not provided)"),
+          config: z
+            .object({
+              cronExpression: z
+                .string()
+                .optional()
+                .describe("Cron expression (required for cron triggers)"),
+              maxExecutionsPerDay: z
+                .number()
+                .optional()
+                .describe("Maximum executions per day"),
+              estimatedCostPerExecution: z
+                .number()
+                .optional()
+                .describe("Estimated cost in credits per execution"),
+            })
+            .optional()
+            .describe("Trigger configuration"),
+        },
+      },
+      async ({ workflowId, triggerType, triggerKey, config }) => {
+        const { n8nWorkflowsService } =
+          await import("@/lib/services/n8n-workflows");
+
+        if (!user.organization_id) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify({ error: "No organization" }, null, 2),
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        const workflow = await n8nWorkflowsService.getWorkflow(workflowId);
+        if (!workflow || workflow.organization_id !== user.organization_id) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify({ error: "Workflow not found" }, null, 2),
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        if (triggerType === "cron" && !config?.cronExpression) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  { error: "cronExpression is required for cron triggers" },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        const trigger = await n8nWorkflowsService.createTrigger(
+          workflowId,
+          triggerType,
+          triggerKey,
+          config || {},
+        );
+
+        const result: Record<string, unknown> = {
+          success: true,
+          triggerId: trigger.id,
+          triggerType: trigger.trigger_type,
+          triggerKey: trigger.trigger_key,
+          isActive: trigger.is_active,
+        };
+
+        if (triggerType === "webhook") {
+          const baseUrl =
+            process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
+          result.webhookUrl = `${baseUrl}/api/v1/n8n/webhooks/${trigger.trigger_key}`;
+          result.webhookSecret = trigger.config.webhookSecret;
+          result.note = "Save webhookSecret now - it will not be shown again";
+        }
+
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      },
+    );
+
+    // ============ APPLICATION TRIGGERS (Apps, Agents, MCPs) ============
+
+    // Tool: Create Application Trigger
+    server.registerTool(
+      "create_app_trigger",
+      {
+        description:
+          "Create a trigger for an app (fragment project), agent (container), or MCP. Supports cron, webhook, and event triggers.",
+        inputSchema: {
+          targetType: z
+            .enum(["fragment_project", "container", "user_mcp"])
+            .describe(
+              "Type of target: fragment_project (app), container (agent), or user_mcp",
+            ),
+          targetId: z
+            .string()
+            .uuid()
+            .describe("ID of the target app, agent, or MCP"),
+          triggerType: z
+            .enum(["cron", "webhook", "event"])
+            .describe("Type of trigger"),
+          name: z.string().describe("Human-readable name for the trigger"),
+          description: z
+            .string()
+            .optional()
+            .describe("Description of what this trigger does"),
+          config: z
+            .object({
+              cronExpression: z
+                .string()
+                .optional()
+                .describe("Cron expression (required for cron triggers)"),
+              eventTypes: z
+                .array(z.string())
+                .optional()
+                .describe(
+                  "Event types to listen for (required for event triggers)",
+                ),
+              maxExecutionsPerDay: z
+                .number()
+                .optional()
+                .describe("Maximum executions per day"),
+              timeout: z.number().optional().describe("Timeout in seconds"),
+            })
+            .optional()
+            .describe("Trigger configuration"),
+          actionType: z
+            .enum(["call_endpoint", "restart", "execute_workflow", "notify"])
+            .optional()
+            .describe("Action to perform"),
+          actionConfig: z
+            .object({
+              endpoint: z.string().optional().describe("Endpoint to call"),
+              method: z
+                .enum(["GET", "POST", "PUT", "DELETE"])
+                .optional()
+                .describe("HTTP method"),
+              workflowId: z
+                .string()
+                .uuid()
+                .optional()
+                .describe("N8N workflow ID for execute_workflow action"),
+            })
+            .optional()
+            .describe("Action configuration"),
+        },
+      },
+      async ({
+        targetType,
+        targetId,
+        triggerType,
+        name,
+        description,
+        config,
+        actionType,
+        actionConfig,
+      }) => {
+        const { applicationTriggersService } =
+          await import("@/lib/services/application-triggers");
+
+        if (!user.organization_id) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify({ error: "No organization" }, null, 2),
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        if (triggerType === "cron" && !config?.cronExpression) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  { error: "cronExpression is required for cron triggers" },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        if (
+          triggerType === "event" &&
+          (!config?.eventTypes || config.eventTypes.length === 0)
+        ) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  { error: "eventTypes is required for event triggers" },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        const trigger = await applicationTriggersService.createTrigger({
+          organizationId: user.organization_id,
+          createdBy: user.id,
+          targetType,
+          targetId,
+          triggerType,
+          name,
+          description,
+          config,
+          actionType,
+          actionConfig,
+        });
+
+        const result: Record<string, unknown> = {
+          success: true,
+          triggerId: trigger.id,
+          triggerType: trigger.trigger_type,
+          triggerKey: trigger.trigger_key,
+          isActive: trigger.is_active,
+        };
+
+        if (triggerType === "webhook") {
+          const baseUrl =
+            process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
+          result.webhookUrl = `${baseUrl}/api/v1/triggers/webhooks/${trigger.trigger_key}`;
+          result.webhookSecret = trigger.config.webhookSecret;
+          result.note = "Save webhookSecret now - it will not be shown again";
+        }
+
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(result, null, 2),
+            },
+          ],
+        };
+      },
+    );
+
+    // Tool: List Application Triggers
+    server.registerTool(
+      "list_app_triggers",
+      {
+        description:
+          "List triggers for apps, agents, or MCPs in your organization.",
+        inputSchema: {
+          targetType: z
+            .enum(["fragment_project", "container", "user_mcp"])
+            .optional()
+            .describe("Filter by target type"),
+          targetId: z
+            .string()
+            .uuid()
+            .optional()
+            .describe("Filter by specific target ID"),
+          triggerType: z
+            .enum(["cron", "webhook", "event"])
+            .optional()
+            .describe("Filter by trigger type"),
+        },
+      },
+      async ({ targetType, targetId, triggerType }) => {
+        const { applicationTriggersService } =
+          await import("@/lib/services/application-triggers");
+
+        if (!user.organization_id) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify({ error: "No organization" }, null, 2),
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        let triggers;
+        if (targetId && targetType) {
+          triggers = await applicationTriggersService.listTriggersByTarget(
+            targetType,
+            targetId,
+          );
+          triggers = triggers.filter(
+            (t) => t.organization_id === user.organization_id,
+          );
+        } else {
+          triggers =
+            await applicationTriggersService.listTriggersByOrganization(
+              user.organization_id,
+              { targetType, triggerType },
+            );
+        }
+
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                {
+                  success: true,
+                  triggers: triggers.map((t) => ({
+                    id: t.id,
+                    name: t.name,
+                    targetType: t.target_type,
+                    targetId: t.target_id,
+                    triggerType: t.trigger_type,
+                    triggerKey:
+                      t.trigger_type === "webhook"
+                        ? t.trigger_key.slice(0, 8) + "..."
+                        : t.trigger_key,
+                    isActive: t.is_active,
+                    executionCount: t.execution_count,
+                    lastExecutedAt: t.last_executed_at?.toISOString() || null,
+                  })),
+                  total: triggers.length,
+                },
+                null,
+                2,
+              ),
+            },
+          ],
+        };
+      },
+    );
+
+    // Tool: Execute Application Trigger
+    server.registerTool(
+      "execute_app_trigger",
+      {
+        description: "Manually execute a trigger for an app, agent, or MCP.",
+        inputSchema: {
+          triggerId: z.string().uuid().describe("ID of the trigger to execute"),
+          inputData: z
+            .record(z.unknown())
+            .optional()
+            .describe("Input data to pass to the trigger"),
+        },
+      },
+      async ({ triggerId, inputData }) => {
+        const { applicationTriggersService } =
+          await import("@/lib/services/application-triggers");
+
+        if (!user.organization_id) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify({ error: "No organization" }, null, 2),
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        const trigger = await applicationTriggersService.getTrigger(triggerId);
+        if (!trigger) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify({ error: "Trigger not found" }, null, 2),
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        if (trigger.organization_id !== user.organization_id) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify({ error: "Unauthorized" }, null, 2),
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        const result = await applicationTriggersService.executeTrigger(
+          triggerId,
+          inputData,
+          "manual",
+        );
+
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                {
+                  success: result.status === "success",
+                  executionId: result.executionId,
+                  status: result.status,
+                  ...(result.output && { output: result.output }),
+                  ...(result.error && { error: result.error }),
+                },
+                null,
+                2,
+              ),
+            },
+          ],
+        };
+      },
+    );
+
+    // Tool: Generate Fragment
+    server.registerTool(
+      "fragments_generate",
+      {
+        description:
+          "Generate a code fragment from a natural language prompt. Supports Next.js, Vue, Streamlit, Gradio, and Python templates.",
+        inputSchema: {
+          prompt: z
+            .string()
+            .describe(
+              "Natural language description of the desired code fragment",
+            ),
+          template: z
+            .string()
+            .optional()
+            .describe(
+              "Template to use (auto, nextjs-developer, vue-developer, streamlit-developer, gradio-developer, code-interpreter-v1)",
+            ),
+          model: z
+            .string()
+            .optional()
+            .describe("Model to use for generation (default: gpt-4o)"),
+          temperature: z
+            .number()
+            .optional()
+            .describe("Temperature for generation (0-1)"),
+        },
+      },
+      async ({ prompt, template = "auto", model = "gpt-4o", temperature }) => {
+        const baseUrl =
+          process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+        const apiKey = process.env.ELIZA_CLOUD_API_KEY;
+
+        if (!apiKey) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  { error: "Cloud API key not configured" },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        try {
+          const response = await fetch(`${baseUrl}/api/fragments/chat`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${apiKey}`,
+            },
+            body: JSON.stringify({
+              messages: [{ role: "user", content: prompt }],
+              template,
+              model,
+              config: {
+                model,
+                temperature: temperature || 0.7,
+                maxTokens: 4000,
+              },
+            }),
+          });
+
+          if (!response.ok) {
+            const error = await response
+              .json()
+              .catch(() => ({ error: "Unknown error" }));
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify(
+                    { error: error.error || response.statusText },
+                    null,
+                    2,
+                  ),
+                },
+              ],
+              isError: true,
+            };
+          }
+
+          // Parse streaming response
+          const reader = response.body?.getReader();
+          if (!reader) {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify({ error: "No response body" }, null, 2),
+                },
+              ],
+              isError: true,
+            };
+          }
+
+          const decoder = new TextDecoder();
+          let buffer = "";
+          let fragment: unknown = null;
+
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split("\n");
+            buffer = lines.pop() || "";
+
+            for (const line of lines) {
+              if (line.startsWith("data: ")) {
+                const data = line.slice(6);
+                if (data === "[DONE]") continue;
+                if (!data.trim()) continue;
+
+                try {
+                  const parsed = JSON.parse(data);
+                  if (parsed.object) {
+                    fragment = parsed.object;
+                  }
+                } catch {
+                  // Ignore parse errors
+                }
+              }
+            }
+          }
+
+          if (!fragment) {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify(
+                    { error: "Failed to parse fragment" },
+                    null,
+                    2,
+                  ),
+                },
+              ],
+              isError: true,
+            };
+          }
+
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: true,
+                    fragment,
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to generate fragment",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool: Execute Fragment
+    server.registerTool(
+      "fragments_execute",
+      {
+        description:
+          "Execute a code fragment in a sandbox environment. Returns preview URL for web apps or execution results for Python.",
+        inputSchema: {
+          fragment: z
+            .object({
+              template: z.string(),
+              code: z.string(),
+              file_path: z.string(),
+              port: z.number().nullable().optional(),
+              additional_dependencies: z.array(z.string()).optional(),
+              has_additional_dependencies: z.boolean().optional(),
+              install_dependencies_command: z.string().optional(),
+            })
+            .describe("Fragment object to execute"),
+        },
+      },
+      async ({ fragment }) => {
+        const baseUrl =
+          process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+        const apiKey = process.env.ELIZA_CLOUD_API_KEY;
+
+        if (!apiKey) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  { error: "Cloud API key not configured" },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        try {
+          const response = await fetch(`${baseUrl}/api/fragments/sandbox`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${apiKey}`,
+            },
+            body: JSON.stringify({
+              fragment,
+            }),
+          });
+
+          if (!response.ok) {
+            const error = await response
+              .json()
+              .catch(() => ({ error: "Unknown error" }));
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify(
+                    { error: error.error || response.statusText },
+                    null,
+                    2,
+                  ),
+                },
+              ],
+              isError: true,
+            };
+          }
+
+          const result = await response.json();
+
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: true,
+                    result,
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to execute fragment",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool: List Fragment Projects
+    server.registerTool(
+      "fragments_list_projects",
+      {
+        description:
+          "List all fragment projects for the organization. Supports filtering by status and userId.",
+        inputSchema: {
+          status: z
+            .string()
+            .optional()
+            .describe("Filter by status (draft, deployed, archived)"),
+          userId: z.string().optional().describe("Filter by user ID"),
+        },
+      },
+      async ({ status, userId }) => {
+        const baseUrl =
+          process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+        const apiKey = process.env.ELIZA_CLOUD_API_KEY;
+
+        if (!apiKey) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  { error: "Cloud API key not configured" },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        try {
+          const searchParams = new URLSearchParams();
+          if (status) searchParams.set("status", status);
+          if (userId) searchParams.set("userId", userId);
+
+          const response = await fetch(
+            `${baseUrl}/api/v1/fragments/projects?${searchParams.toString()}`,
+            {
+              method: "GET",
+              headers: {
+                Authorization: `Bearer ${apiKey}`,
+              },
+            },
+          );
+
+          if (!response.ok) {
+            const error = await response
+              .json()
+              .catch(() => ({ error: "Unknown error" }));
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify(
+                    { error: error.error || response.statusText },
+                    null,
+                    2,
+                  ),
+                },
+              ],
+              isError: true,
+            };
+          }
+
+          const data = await response.json();
+
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: true,
+                    projects: data.projects,
+                    count: data.projects?.length || 0,
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to list projects",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool: Create Fragment Project
+    server.registerTool(
+      "fragments_create_project",
+      {
+        description:
+          "Create a new fragment project from a fragment. Saves the fragment for later use and deployment.",
+        inputSchema: {
+          name: z.string().describe("Project name"),
+          description: z.string().optional().describe("Project description"),
+          fragment: z
+            .object({
+              template: z.string(),
+              code: z.string(),
+              file_path: z.string(),
+              commentary: z.string().optional(),
+              title: z.string().optional(),
+              description: z.string().optional(),
+              additional_dependencies: z.array(z.string()).optional(),
+              has_additional_dependencies: z.boolean().optional(),
+              install_dependencies_command: z.string().optional(),
+              port: z.number().nullable().optional(),
+            })
+            .describe("Fragment object to save as project"),
+        },
+      },
+      async ({ name, description, fragment }) => {
+        const baseUrl =
+          process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+        const apiKey = process.env.ELIZA_CLOUD_API_KEY;
+
+        if (!apiKey) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  { error: "Cloud API key not configured" },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        try {
+          const response = await fetch(`${baseUrl}/api/v1/fragments/projects`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${apiKey}`,
+            },
+            body: JSON.stringify({
+              name,
+              description,
+              fragment,
+            }),
+          });
+
+          if (!response.ok) {
+            const error = await response
+              .json()
+              .catch(() => ({ error: "Unknown error" }));
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify(
+                    { error: error.error || response.statusText },
+                    null,
+                    2,
+                  ),
+                },
+              ],
+              isError: true,
+            };
+          }
+
+          const data = await response.json();
+
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: true,
+                    project: data.project,
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to create project",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool: Get Fragment Project
+    server.registerTool(
+      "fragments_get_project",
+      {
+        description:
+          "Get a fragment project by ID. Returns full project details including fragment data.",
+        inputSchema: {
+          projectId: z.string().describe("Project ID"),
+        },
+      },
+      async ({ projectId }) => {
+        const baseUrl =
+          process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+        const apiKey = process.env.ELIZA_CLOUD_API_KEY;
+
+        if (!apiKey) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  { error: "Cloud API key not configured" },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        try {
+          const response = await fetch(
+            `${baseUrl}/api/v1/fragments/projects/${projectId}`,
+            {
+              method: "GET",
+              headers: {
+                Authorization: `Bearer ${apiKey}`,
+              },
+            },
+          );
+
+          if (!response.ok) {
+            const error = await response
+              .json()
+              .catch(() => ({ error: "Unknown error" }));
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify(
+                    { error: error.error || response.statusText },
+                    null,
+                    2,
+                  ),
+                },
+              ],
+              isError: true,
+            };
+          }
+
+          const data = await response.json();
+
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: true,
+                    project: data.project,
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to get project",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool: Update Fragment Project
+    server.registerTool(
+      "fragments_update_project",
+      {
+        description:
+          "Update a fragment project. Can update name, description, fragment data, or status.",
+        inputSchema: {
+          projectId: z.string().describe("Project ID"),
+          name: z.string().optional().describe("New project name"),
+          description: z
+            .string()
+            .optional()
+            .describe("New project description"),
+          fragment: z
+            .object({
+              template: z.string(),
+              code: z.string(),
+              file_path: z.string(),
+              commentary: z.string().optional(),
+              title: z.string().optional(),
+              description: z.string().optional(),
+              additional_dependencies: z.array(z.string()).optional(),
+              has_additional_dependencies: z.boolean().optional(),
+              install_dependencies_command: z.string().optional(),
+              port: z.number().nullable().optional(),
+            })
+            .optional()
+            .describe("Updated fragment data"),
+          status: z
+            .enum(["draft", "deployed", "archived"])
+            .optional()
+            .describe("Project status"),
+        },
+      },
+      async ({ projectId, name, description, fragment, status }) => {
+        const baseUrl =
+          process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+        const apiKey = process.env.ELIZA_CLOUD_API_KEY;
+
+        if (!apiKey) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  { error: "Cloud API key not configured" },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        try {
+          const updateData: Record<string, unknown> = {};
+          if (name !== undefined) updateData.name = name;
+          if (description !== undefined) updateData.description = description;
+          if (fragment !== undefined) updateData.fragment = fragment;
+          if (status !== undefined) updateData.status = status;
+
+          const response = await fetch(
+            `${baseUrl}/api/v1/fragments/projects/${projectId}`,
+            {
+              method: "PUT",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${apiKey}`,
+              },
+              body: JSON.stringify(updateData),
+            },
+          );
+
+          if (!response.ok) {
+            const error = await response
+              .json()
+              .catch(() => ({ error: "Unknown error" }));
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify(
+                    { error: error.error || response.statusText },
+                    null,
+                    2,
+                  ),
+                },
+              ],
+              isError: true,
+            };
+          }
+
+          const data = await response.json();
+
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: true,
+                    project: data.project,
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to update project",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool: Delete Fragment Project
+    server.registerTool(
+      "fragments_delete_project",
+      {
+        description: "Delete a fragment project. This is a permanent action.",
+        inputSchema: {
+          projectId: z.string().describe("Project ID to delete"),
+        },
+      },
+      async ({ projectId }) => {
+        const baseUrl =
+          process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+        const apiKey = process.env.ELIZA_CLOUD_API_KEY;
+
+        if (!apiKey) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  { error: "Cloud API key not configured" },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        try {
+          const response = await fetch(
+            `${baseUrl}/api/v1/fragments/projects/${projectId}`,
+            {
+              method: "DELETE",
+              headers: {
+                Authorization: `Bearer ${apiKey}`,
+              },
+            },
+          );
+
+          if (!response.ok) {
+            const error = await response
+              .json()
+              .catch(() => ({ error: "Unknown error" }));
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify(
+                    { error: error.error || response.statusText },
+                    null,
+                    2,
+                  ),
+                },
+              ],
+              isError: true,
+            };
+          }
+
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: true,
+                    message: "Project deleted successfully",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to delete project",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool: Deploy Fragment Project
+    server.registerTool(
+      "fragments_deploy_project",
+      {
+        description:
+          "Deploy a fragment project as a app or container. Returns deployment details including app ID and API key.",
+        inputSchema: {
+          projectId: z.string().describe("Project ID to deploy"),
+          type: z.enum(["app", "container"]).describe("Deployment type"),
+          appUrl: z
+            .string()
+            .url()
+            .optional()
+            .describe(
+              "App URL for app deployment (auto-generated if not provided)",
+            ),
+          allowedOrigins: z
+            .array(z.string())
+            .optional()
+            .describe("Allowed origins for app"),
+          autoStorage: z
+            .boolean()
+            .optional()
+            .default(true)
+            .describe("Auto-create storage collections"),
+          autoInject: z
+            .boolean()
+            .optional()
+            .default(true)
+            .describe("Auto-inject app helpers"),
+          // Container deployment options
+          name: z
+            .string()
+            .optional()
+            .describe("Container name (for container deployment)"),
+          project_name: z
+            .string()
+            .optional()
+            .describe("Project name (for container deployment)"),
+          port: z
+            .number()
+            .optional()
+            .describe("Container port (for container deployment)"),
+        },
+      },
+      async ({
+        projectId,
+        type,
+        appUrl,
+        allowedOrigins,
+        autoStorage,
+        autoInject,
+        name,
+        project_name,
+        port,
+      }) => {
+        const baseUrl =
+          process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+        const apiKey = process.env.ELIZA_CLOUD_API_KEY;
+
+        if (!apiKey) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  { error: "Cloud API key not configured" },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        try {
+          const deployData: Record<string, unknown> = { type };
+          if (type === "app") {
+            if (appUrl) deployData.appUrl = appUrl;
+            if (allowedOrigins) deployData.allowedOrigins = allowedOrigins;
+            if (autoStorage !== undefined) deployData.autoStorage = autoStorage;
+            if (autoInject !== undefined) deployData.autoInject = autoInject;
+          } else {
+            if (name) deployData.name = name;
+            if (project_name) deployData.project_name = project_name;
+            if (port) deployData.port = port;
+          }
+
+          const response = await fetch(
+            `${baseUrl}/api/v1/fragments/projects/${projectId}/deploy`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${apiKey}`,
+              },
+              body: JSON.stringify(deployData),
+            },
+          );
+
+          if (!response.ok) {
+            const error = await response
+              .json()
+              .catch(() => ({ error: "Unknown error" }));
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify(
+                    { error: error.error || response.statusText },
+                    null,
+                    2,
+                  ),
+                },
+              ],
+              isError: true,
+            };
+          }
+
+          const data = await response.json();
+
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: true,
+                    deployment: data.deployment,
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to deploy project",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool: SEO Create Request
+    server.registerTool(
+      "seo_create_request",
+      {
+        description:
+          "Create an SEO request using DataForSEO, SerpApi, Claude, and IndexNow.",
+        inputSchema: {
+          type: z
+            .enum(seoRequestTypeEnum.enumValues)
+            .describe("SEO request type"),
+          pageUrl: z.string().url().optional().describe("Target page URL"),
+          keywords: z.array(z.string()).optional().describe("Seed keywords"),
+          locale: z.string().optional().describe("Locale, e.g., en-US"),
+          searchEngine: z
+            .string()
+            .optional()
+            .describe("Search engine (google, bing)"),
+          device: z
+            .string()
+            .optional()
+            .describe("Device type (desktop, mobile)"),
+          environment: z.string().optional().describe("App environment"),
+          agentIdentifier: z
+            .string()
+            .optional()
+            .describe("Agent identifier for attribution"),
+          promptContext: z
+            .string()
+            .optional()
+            .describe("Additional context for Claude"),
+          idempotencyKey: z
+            .string()
+            .optional()
+            .describe("Idempotency key for deduplication"),
+          locationCode: z
+            .number()
+            .int()
+            .optional()
+            .describe("DataForSEO location code (defaults to US 2840)"),
+          query: z
+            .string()
+            .optional()
+            .describe("Explicit query for SERP snapshot"),
+          appId: z
+            .string()
+            .optional()
+            .describe("App ID to associate the request"),
+        },
+      },
+      async (input) => {
+        try {
+          const { user } = getAuthContext();
+          const result = await seoService.createRequest({
+            organizationId: user.organization_id!,
+            userId: user.id,
+            apiKeyId: user.api_key_id || undefined,
+            appId: input.appId,
+            type: input.type,
+            pageUrl: input.pageUrl,
+            keywords: input.keywords,
+            locale: input.locale,
+            searchEngine: input.searchEngine,
+            device: input.device,
+            environment: input.environment,
+            agentIdentifier: input.agentIdentifier,
+            promptContext: input.promptContext,
+            idempotencyKey: input.idempotencyKey,
+            locationCode: input.locationCode,
+            query: input.query,
+          });
+
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    request: {
+                      id: result.request.id,
+                      status: result.request.status,
+                      type: result.request.type,
+                      pageUrl: result.request.page_url,
+                    },
+                    artifacts: result.artifacts.map((a) => ({
+                      id: a.id,
+                      type: a.type,
+                      provider: a.provider,
+                    })),
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to create SEO request",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool: SEO Get Request
+    server.registerTool(
+      "seo_get_request",
+      {
+        description: "Get SEO request status, artifacts, and provider calls.",
+        inputSchema: {
+          id: z.string().describe("SEO request ID"),
+        },
+      },
+      async ({ id }) => {
+        try {
+          const { user } = getAuthContext();
+          const request = await seoRequestsRepository.findById(id);
+
+          if (!request || request.organization_id !== user.organization_id) {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify(
+                    { error: "SEO request not found" },
+                    null,
+                    2,
+                  ),
+                },
+              ],
+              isError: true,
+            };
+          }
+
+          const [artifacts, providerCalls] = await Promise.all([
+            seoArtifactsRepository.listByRequest(request.id),
+            seoProviderCallsRepository.listByRequest(request.id),
+          ]);
+
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    request: {
+                      id: request.id,
+                      status: request.status,
+                      type: request.type,
+                      pageUrl: request.page_url,
+                      totalCost: request.total_cost,
+                    },
+                    artifacts: artifacts.map((a) => ({
+                      id: a.id,
+                      type: a.type,
+                      provider: a.provider,
+                    })),
+                    providerCalls: providerCalls.map((call) => ({
+                      id: call.id,
+                      provider: call.provider,
+                      status: call.status,
+                      operation: call.operation,
+                    })),
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to fetch SEO request",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // =========================================================================
+    // DOMAIN MANAGEMENT TOOLS
+    // =========================================================================
+
+    // Tool: Search Domains
+    server.registerTool(
+      "domains_search",
+      {
+        description:
+          "Search for available domain names. Returns availability status and pricing. " +
+          "Provide a keyword and optionally specific TLDs to check. FREE tool.",
+        inputSchema: {
+          query: z
+            .string()
+            .min(1)
+            .max(63)
+            .describe("Domain name keyword to search for"),
+          tlds: z
+            .array(z.string())
+            .optional()
+            .describe("TLDs to check (default: com, ai, io, co, app, dev)"),
+        },
+      },
+      async ({ query, tlds }) => {
+        try {
+          const { domainManagementService } =
+            await import("@/lib/services/domain-management");
+          const results = await domainManagementService.searchDomains(
+            query,
+            tlds,
+          );
+
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    query,
+                    results: results.map((r) => ({
+                      domain: r.domain,
+                      available: r.available,
+                      price: r.price
+                        ? {
+                            amount: r.price.price / 100, // Convert cents to dollars
+                            currency: r.price.currency,
+                            period: r.price.period,
+                          }
+                        : null,
+                    })),
+                    availableCount: results.filter((r) => r.available).length,
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to search domains",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool: Check Domain Availability
+    server.registerTool(
+      "domains_check",
+      {
+        description:
+          "Check if a specific domain is available for purchase. " +
+          "Returns availability, pricing, and any moderation concerns. FREE tool.",
+        inputSchema: {
+          domain: z
+            .string()
+            .min(3)
+            .max(253)
+            .describe("Full domain name to check (e.g., example.com)"),
+        },
+      },
+      async ({ domain }) => {
+        try {
+          const { domainManagementService } =
+            await import("@/lib/services/domain-management");
+          const { domainModerationService } =
+            await import("@/lib/services/domain-moderation");
+
+          const moderation =
+            await domainModerationService.validateDomainName(domain);
+          if (!moderation.allowed) {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify(
+                    {
+                      domain,
+                      available: false,
+                      reason: "Domain name not allowed by moderation policy",
+                      flags: moderation.flags,
+                    },
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+          }
+
+          const result =
+            await domainManagementService.checkAvailability(domain);
+
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    domain: result.domain,
+                    available: result.available,
+                    price: result.price
+                      ? {
+                          amount: result.price.price / 100,
+                          currency: result.price.currency,
+                          period: result.price.period,
+                          renewalAmount: result.price.renewalPrice / 100,
+                        }
+                      : null,
+                    moderationFlags: moderation.flags,
+                    requiresReview: moderation.requiresReview,
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to check domain",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool: List My Domains
+    server.registerTool(
+      "domains_list",
+      {
+        description:
+          "List all domains owned by your organization. " +
+          "Shows status, assignment, and expiration info. FREE tool.",
+        inputSchema: {
+          filter: z
+            .enum(["all", "unassigned", "assigned"])
+            .optional()
+            .default("all")
+            .describe("Filter domains by assignment status"),
+        },
+      },
+      async ({ filter }) => {
+        try {
+          const { user } = getAuthContext();
+          const { domainManagementService } =
+            await import("@/lib/services/domain-management");
+
+          let domains;
+          if (filter === "unassigned") {
+            domains = await domainManagementService.listUnassignedDomains(
+              user.organization_id,
+            );
+          } else {
+            domains = await domainManagementService.listDomains(
+              user.organization_id,
+            );
+            if (filter === "assigned") {
+              domains = domains.filter((d) => d.resourceType !== null);
+            }
+          }
+
+          const stats = await domainManagementService.getStats(
+            user.organization_id,
+          );
+
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    domains: domains.map((d) => ({
+                      id: d.id,
+                      domain: d.domain,
+                      status: d.status,
+                      verified: d.verified,
+                      resourceType: d.resourceType,
+                      resourceId:
+                        d.appId || d.containerId || d.agentId || d.mcpId,
+                      expiresAt: d.expiresAt?.toISOString(),
+                      sslStatus: d.sslStatus,
+                      isLive: d.isLive,
+                    })),
+                    stats,
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to list domains",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool: Register External Domain
+    server.registerTool(
+      "domains_register_external",
+      {
+        description:
+          "Register an external domain you already own. " +
+          "Returns DNS instructions for verification. Costs 1 credit.",
+        inputSchema: {
+          domain: z
+            .string()
+            .min(3)
+            .max(253)
+            .describe("Domain name to register"),
+          nameserverMode: z
+            .enum(["vercel", "external"])
+            .optional()
+            .default("external")
+            .describe(
+              "'vercel' = delegate nameservers to Vercel, 'external' = keep your nameservers and add DNS records",
+            ),
+        },
+      },
+      async ({ domain, nameserverMode }) => {
+        try {
+          const { user } = getAuthContext();
+
+          // Deduct credit
+          const creditResult = await creditsService.deduct({
+            organizationId: user.organization_id,
+            amount: 1,
+            description: `Register external domain: ${domain}`,
+            metadata: { tool: "domains_register_external", domain },
+          });
+
+          if (!creditResult.success) {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify(
+                    { error: "Insufficient credits", required: 1 },
+                    null,
+                    2,
+                  ),
+                },
+              ],
+              isError: true,
+            };
+          }
+
+          const { domainManagementService } =
+            await import("@/lib/services/domain-management");
+          const result = await domainManagementService.registerExternalDomain(
+            domain,
+            user.organization_id,
+            nameserverMode,
+          );
+
+          if (!result.success) {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify({ error: result.error }, null, 2),
+                },
+              ],
+              isError: true,
+            };
+          }
+
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: true,
+                    domain: {
+                      id: result.domain!.id,
+                      domain: result.domain!.domain,
+                      status: result.domain!.status,
+                      verificationToken: result.domain!.verificationToken,
+                    },
+                    dnsInstructions: result.dnsInstructions,
+                    message:
+                      "Add the DNS records below to verify domain ownership",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to register domain",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool: Verify Domain
+    server.registerTool(
+      "domains_verify",
+      {
+        description:
+          "Verify domain ownership by checking DNS records. " +
+          "Call this after adding the verification TXT record. FREE tool.",
+        inputSchema: {
+          domainId: z.string().uuid().describe("Domain ID to verify"),
+        },
+      },
+      async ({ domainId }) => {
+        try {
+          const { user } = getAuthContext();
+          const { domainManagementService } =
+            await import("@/lib/services/domain-management");
+
+          const domain = await domainManagementService.getDomain(
+            domainId,
+            user.organization_id,
+          );
+          if (!domain) {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify({ error: "Domain not found" }, null, 2),
+                },
+              ],
+              isError: true,
+            };
+          }
+
+          const result = await domainManagementService.verifyDomain(domainId);
+
+          if (result.verified) {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify(
+                    {
+                      success: true,
+                      verified: true,
+                      domain: domain.domain,
+                      message:
+                        "Domain verified successfully! You can now assign it to a resource.",
+                    },
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+          }
+
+          const dnsInstructions =
+            domainManagementService.generateDnsInstructions(
+              domain.domain,
+              domain.verificationToken || "",
+              domain.nameserverMode,
+            );
+
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: true,
+                    verified: false,
+                    error: result.error,
+                    dnsInstructions,
+                    message:
+                      "Verification failed. Please check your DNS configuration and try again.",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to verify domain",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool: Assign Domain
+    server.registerTool(
+      "domains_assign",
+      {
+        description:
+          "Assign a verified domain to an app, container, agent, or MCP. " +
+          "The domain must be verified first. Costs 1 credit.",
+        inputSchema: {
+          domainId: z.string().uuid().describe("Domain ID to assign"),
+          resourceType: z
+            .enum(["app", "container", "agent", "mcp"])
+            .describe("Type of resource to assign to"),
+          resourceId: z.string().uuid().describe("ID of the resource"),
+        },
+      },
+      async ({ domainId, resourceType, resourceId }) => {
+        try {
+          const { user } = getAuthContext();
+
+          // Deduct credit
+          const creditResult = await creditsService.deduct({
+            organizationId: user.organization_id,
+            amount: 1,
+            description: `Assign domain to ${resourceType}: ${resourceId}`,
+            metadata: {
+              tool: "domains_assign",
+              domainId,
+              resourceType,
+              resourceId,
+            },
+          });
+
+          if (!creditResult.success) {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify(
+                    { error: "Insufficient credits", required: 1 },
+                    null,
+                    2,
+                  ),
+                },
+              ],
+              isError: true,
+            };
+          }
+
+          const { domainManagementService } =
+            await import("@/lib/services/domain-management");
+
+          const updated = await domainManagementService.assignToResource(
+            domainId,
+            resourceType,
+            resourceId,
+            user.organization_id,
+          );
+          if (!updated) {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify(
+                    {
+                      error:
+                        "Failed to assign domain. Ensure the domain is verified and the resource exists.",
+                    },
+                    null,
+                    2,
+                  ),
+                },
+              ],
+              isError: true,
+            };
+          }
+
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: true,
+                    domain: {
+                      id: updated.id,
+                      domain: updated.domain,
+                      resourceType: updated.resourceType,
+                      resourceId:
+                        updated.appId ||
+                        updated.containerId ||
+                        updated.agentId ||
+                        updated.mcpId,
+                    },
+                    message: `Domain assigned to ${resourceType}`,
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to assign domain",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool: Unassign Domain
+    server.registerTool(
+      "domains_unassign",
+      {
+        description:
+          "Unassign a domain from its current resource. " +
+          "The domain will remain in your account but not point anywhere. FREE tool.",
+        inputSchema: {
+          domainId: z.string().uuid().describe("Domain ID to unassign"),
+        },
+      },
+      async ({ domainId }) => {
+        try {
+          const { user } = getAuthContext();
+          const { domainManagementService } =
+            await import("@/lib/services/domain-management");
+
+          const updated = await domainManagementService.unassignDomain(
+            domainId,
+            user.organization_id,
+          );
+
+          if (!updated) {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify(
+                    { error: "Domain not found or already unassigned" },
+                    null,
+                    2,
+                  ),
+                },
+              ],
+              isError: true,
+            };
+          }
+
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: true,
+                    domain: {
+                      id: updated.id,
+                      domain: updated.domain,
+                    },
+                    message: "Domain unassigned successfully",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to unassign domain",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool: Get DNS Records
+    server.registerTool(
+      "domains_get_dns",
+      {
+        description:
+          "Get DNS records for a domain. Only works for domains using Vercel nameservers. FREE tool.",
+        inputSchema: {
+          domainId: z.string().uuid().describe("Domain ID"),
+        },
+      },
+      async ({ domainId }) => {
+        try {
+          const { user } = getAuthContext();
+          const { domainManagementService } =
+            await import("@/lib/services/domain-management");
+
+          const domain = await domainManagementService.getDomain(
+            domainId,
+            user.organization_id,
+          );
+          if (!domain) {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify({ error: "Domain not found" }, null, 2),
+                },
+              ],
+              isError: true,
+            };
+          }
+
+          const records = await domainManagementService.getDnsRecords(domainId);
+
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    domain: domain.domain,
+                    manageable:
+                      domain.registrar === "vercel" &&
+                      domain.nameserverMode === "vercel",
+                    records,
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to get DNS records",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool: Add DNS Record
+    server.registerTool(
+      "domains_add_dns_record",
+      {
+        description:
+          "Add a DNS record to a domain. Only works for domains using Vercel nameservers. Costs 1 credit.",
+        inputSchema: {
+          domainId: z.string().uuid().describe("Domain ID"),
+          type: z
+            .enum(["A", "AAAA", "CNAME", "TXT", "MX"])
+            .describe("Record type"),
+          name: z.string().min(1).describe("Record name (subdomain or @)"),
+          value: z.string().min(1).describe("Record value"),
+          ttl: z
+            .number()
+            .int()
+            .min(60)
+            .max(86400)
+            .optional()
+            .describe("TTL in seconds"),
+          priority: z
+            .number()
+            .int()
+            .optional()
+            .describe("Priority for MX records"),
+        },
+      },
+      async ({ domainId, type, name, value, ttl, priority }) => {
+        try {
+          const { user } = getAuthContext();
+
+          // Deduct credit
+          const creditResult = await creditsService.deduct({
+            organizationId: user.organization_id,
+            amount: 1,
+            description: `Add DNS ${type} record`,
+            metadata: { tool: "domains_add_dns_record", domainId, type, name },
+          });
+
+          if (!creditResult.success) {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify(
+                    { error: "Insufficient credits", required: 1 },
+                    null,
+                    2,
+                  ),
+                },
+              ],
+              isError: true,
+            };
+          }
+
+          const { domainManagementService } =
+            await import("@/lib/services/domain-management");
+
+          const domain = await domainManagementService.getDomain(
+            domainId,
+            user.organization_id,
+          );
+          if (!domain) {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify({ error: "Domain not found" }, null, 2),
+                },
+              ],
+              isError: true,
+            };
+          }
+
+          const result = await domainManagementService.addDnsRecord(domainId, {
+            type,
+            name,
+            value,
+            ttl,
+            priority,
+          });
+
+          if (!result.success) {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify({ error: result.error }, null, 2),
+                },
+              ],
+              isError: true,
+            };
+          }
+
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: true,
+                    record: result.record,
+                    message: "DNS record added",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to add DNS record",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // =========================================================================
+    // SECRETS MANAGEMENT TOOLS
+    // =========================================================================
+
+    // Tool: List Secrets
+    server.registerTool(
+      "secrets_list",
+      {
+        description:
+          "List secrets (metadata only, no values). FREE tool. Use filters to narrow results.",
+        inputSchema: {
+          projectId: z
+            .string()
+            .uuid()
+            .optional()
+            .describe("Filter by project ID"),
+          projectType: z
+            .enum(["character", "app", "workflow", "container", "mcp"])
+            .optional()
+            .describe("Filter by project type"),
+          environment: z
+            .enum(["development", "preview", "production"])
+            .optional()
+            .describe("Filter by environment"),
+          provider: z
+            .enum([
+              "openai",
+              "anthropic",
+              "google",
+              "elevenlabs",
+              "fal",
+              "stripe",
+              "discord",
+              "telegram",
+              "twitter",
+              "github",
+              "slack",
+              "aws",
+              "vercel",
+              "custom",
+            ])
+            .optional()
+            .describe("Filter by provider"),
+          limit: z
+            .number()
+            .int()
+            .min(1)
+            .max(500)
+            .optional()
+            .default(100)
+            .describe("Max results"),
+          offset: z
+            .number()
+            .int()
+            .min(0)
+            .optional()
+            .default(0)
+            .describe("Offset for pagination"),
+        },
+      },
+      async ({
+        projectId,
+        projectType,
+        environment,
+        provider,
+        limit,
+        offset,
+      }) => {
+        try {
+          const { user } = getAuthContext();
+          const { secretsService } = await import("@/lib/services/secrets");
+
+          const result = await secretsService.listFiltered({
+            organizationId: user.organization_id!,
+            projectId,
+            projectType,
+            environment,
+            provider,
+            limit,
+            offset,
+          });
+
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    secrets: result.secrets.map((s) => ({
+                      id: s.id,
+                      name: s.name,
+                      description: s.description,
+                      scope: s.scope,
+                      projectId: s.projectId,
+                      projectType: s.projectType,
+                      environment: s.environment,
+                      provider: s.provider,
+                      version: s.version,
+                      createdAt: s.createdAt.toISOString(),
+                      lastAccessedAt: s.lastAccessedAt?.toISOString(),
+                      accessCount: s.accessCount,
+                    })),
+                    total: result.total,
+                    limit,
+                    offset,
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to list secrets",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool: Get Secret
+    server.registerTool(
+      "secrets_get",
+      {
+        description:
+          "Get a secret value by name. Retrieves the decrypted value.",
+        inputSchema: {
+          name: z.string().min(1).describe("Secret name"),
+          projectId: z
+            .string()
+            .uuid()
+            .optional()
+            .describe("Project ID for scoped secrets"),
+          environment: z
+            .enum(["development", "preview", "production"])
+            .optional()
+            .describe("Environment"),
+        },
+      },
+      async ({ name, projectId, environment }) => {
+        try {
+          const { user } = getAuthContext();
+          const { secretsService } = await import("@/lib/services/secrets");
+
+          const value = await secretsService.get(
+            user.organization_id!,
+            name,
+            projectId,
+            environment,
+            { actorType: "api_key", actorId: user.id, source: "mcp" },
+          );
+
+          if (!value) {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify({ name, found: false }, null, 2),
+                },
+              ],
+            };
+          }
+
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify({ name, value }, null, 2),
+              },
+            ],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to get secret",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool: Get Multiple Secrets
+    server.registerTool(
+      "secrets_get_bulk",
+      {
+        description:
+          "Get multiple secrets by names. Returns a key-value object of decrypted values.",
+        inputSchema: {
+          names: z
+            .array(z.string())
+            .min(1)
+            .max(50)
+            .describe("Secret names to retrieve"),
+          projectId: z
+            .string()
+            .uuid()
+            .optional()
+            .describe("Project ID for scoped secrets"),
+          projectType: z
+            .enum(["character", "app", "workflow", "container", "mcp"])
+            .optional()
+            .describe("Project type"),
+          environment: z
+            .enum(["development", "preview", "production"])
+            .optional()
+            .describe("Environment"),
+          includeBindings: z
+            .boolean()
+            .optional()
+            .default(true)
+            .describe("Include bound secrets"),
+        },
+      },
+      async ({
+        names,
+        projectId,
+        projectType,
+        environment,
+        includeBindings,
+      }) => {
+        try {
+          const { user } = getAuthContext();
+          const { secretsService } = await import("@/lib/services/secrets");
+
+          const secrets = await secretsService.getDecrypted(
+            {
+              organizationId: user.organization_id!,
+              projectId,
+              projectType,
+              environment,
+              names,
+              includeBindings,
+            },
+            { actorType: "api_key", actorId: user.id, source: "mcp" },
+          );
+
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  { secrets, count: Object.keys(secrets).length },
+                  null,
+                  2,
+                ),
+              },
+            ],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to get secrets",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool: Create Secret
+    server.registerTool(
+      "secrets_create",
+      {
+        description: "Create a new secret. Secrets are encrypted at rest.",
+        inputSchema: {
+          name: z
+            .string()
+            .min(1)
+            .max(255)
+            .describe("Secret name (unique within scope)"),
+          value: z.string().min(1).describe("Secret value"),
+          description: z.string().optional().describe("Description"),
+          provider: z
+            .enum([
+              "openai",
+              "anthropic",
+              "google",
+              "elevenlabs",
+              "fal",
+              "stripe",
+              "discord",
+              "telegram",
+              "twitter",
+              "github",
+              "slack",
+              "aws",
+              "vercel",
+              "custom",
+            ])
+            .optional()
+            .describe("Provider type"),
+          projectId: z
+            .string()
+            .uuid()
+            .optional()
+            .describe("Project ID for scoped secrets"),
+          projectType: z
+            .enum(["character", "app", "workflow", "container", "mcp"])
+            .optional()
+            .describe("Project type"),
+          environment: z
+            .enum(["development", "preview", "production"])
+            .optional()
+            .describe("Environment"),
+        },
+      },
+      async ({
+        name,
+        value,
+        description,
+        provider,
+        projectId,
+        projectType,
+        environment,
+      }) => {
+        try {
+          const { user } = getAuthContext();
+          const { secretsService } = await import("@/lib/services/secrets");
+
+          const secret = await secretsService.create(
+            {
+              organizationId: user.organization_id!,
+              name,
+              value,
+              description,
+              provider,
+              projectId,
+              projectType,
+              environment,
+              scope: projectId ? "project" : "organization",
+              createdBy: user.id,
+            },
+            { actorType: "api_key", actorId: user.id, source: "mcp" },
+          );
+
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  { success: true, id: secret.id, name: secret.name },
+                  null,
+                  2,
+                ),
+              },
+            ],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to create secret",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool: Update Secret
+    server.registerTool(
+      "secrets_update",
+      {
+        description: "Update an existing secret's value or description.",
+        inputSchema: {
+          secretId: z.string().uuid().describe("Secret ID"),
+          value: z.string().optional().describe("New secret value"),
+          description: z.string().optional().describe("New description"),
+        },
+      },
+      async ({ secretId, value, description }) => {
+        try {
+          const { user } = getAuthContext();
+          const { secretsService } = await import("@/lib/services/secrets");
+
+          const updated = await secretsService.update(
+            secretId,
+            user.organization_id!,
+            { value, description },
+            { actorType: "api_key", actorId: user.id, source: "mcp" },
+          );
+
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: true,
+                    id: updated.id,
+                    name: updated.name,
+                    version: updated.version,
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to update secret",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool: Delete Secret
+    server.registerTool(
+      "secrets_delete",
+      {
+        description: "Delete a secret permanently.",
+        inputSchema: {
+          secretId: z.string().uuid().describe("Secret ID to delete"),
+        },
+      },
+      async ({ secretId }) => {
+        try {
+          const { user } = getAuthContext();
+          const { secretsService } = await import("@/lib/services/secrets");
+
+          await secretsService.delete(secretId, user.organization_id!, {
+            actorType: "api_key",
+            actorId: user.id,
+            source: "mcp",
+          });
+
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify({ success: true, secretId }, null, 2),
+              },
+            ],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to delete secret",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool: Bind Secret to Project
+    server.registerTool(
+      "secrets_bind",
+      {
+        description:
+          "Bind an organization-level secret to a project. Allows reusing secrets across projects without duplication.",
+        inputSchema: {
+          secretId: z.string().uuid().describe("Secret ID to bind"),
+          projectId: z.string().uuid().describe("Project ID"),
+          projectType: z
+            .enum(["character", "app", "workflow", "container", "mcp"])
+            .describe("Project type"),
+        },
+      },
+      async ({ secretId, projectId, projectType }) => {
+        try {
+          const { user } = getAuthContext();
+          const { secretsService } = await import("@/lib/services/secrets");
+
+          const binding = await secretsService.bindSecret(
+            { secretId, projectId, projectType, createdBy: user.id },
+            { actorType: "api_key", actorId: user.id, source: "mcp" },
+          );
+
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: true,
+                    bindingId: binding.id,
+                    secretName: binding.secretName,
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to bind secret",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool: Unbind Secret from Project
+    server.registerTool(
+      "secrets_unbind",
+      {
+        description: "Remove a secret binding from a project.",
+        inputSchema: {
+          bindingId: z.string().uuid().describe("Binding ID to remove"),
+        },
+      },
+      async ({ bindingId }) => {
+        try {
+          const { user } = getAuthContext();
+          const { secretsService } = await import("@/lib/services/secrets");
+
+          await secretsService.unbindSecret(bindingId, user.organization_id!, {
+            actorType: "api_key",
+            actorId: user.id,
+            source: "mcp",
+          });
+
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify({ success: true, bindingId }, null, 2),
+              },
+            ],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to unbind secret",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool: List Secret Bindings
+    server.registerTool(
+      "secrets_list_bindings",
+      {
+        description:
+          "List secret bindings for a project or for a specific secret.",
+        inputSchema: {
+          projectId: z
+            .string()
+            .uuid()
+            .optional()
+            .describe("Project ID to list bindings for"),
+          projectType: z
+            .enum(["character", "app", "workflow", "container", "mcp"])
+            .optional()
+            .describe("Project type filter"),
+          secretId: z
+            .string()
+            .uuid()
+            .optional()
+            .describe("Secret ID to list bindings for"),
+        },
+      },
+      async ({ projectId, projectType, secretId }) => {
+        try {
+          const { user } = getAuthContext();
+          const { secretsService } = await import("@/lib/services/secrets");
+
+          if (!projectId && !secretId) {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify(
+                    { error: "Either projectId or secretId is required" },
+                    null,
+                    2,
+                  ),
+                },
+              ],
+              isError: true,
+            };
+          }
+
+          if (secretId) {
+            const bindings = await secretsService.listSecretBindings(secretId);
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify(
+                    { bindings, count: bindings.length },
+                    null,
+                    2,
+                  ),
+                },
+              ],
+            };
+          }
+
+          const result = await secretsService.listBindings(
+            user.organization_id,
+            projectId!,
+            projectType,
+          );
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  { bindings: result.bindings, total: result.total },
+                  null,
+                  2,
+                ),
+              },
+            ],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to list bindings",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // =========================================================================
+    // CODE AGENT TOOLS
+    // =========================================================================
+
+    // Tool: Create Code Agent Session
+    server.registerTool(
+      "code_agent_create_session",
+      {
+        description:
+          "Create a new code agent session for writing and executing code. " +
+          "Sessions provide an isolated environment with file system, git, and command execution. " +
+          "Cost: ~$0.01 to create, plus usage-based billing.",
+        inputSchema: {
+          name: z.string().max(200).optional().describe("Session name"),
+          description: z
+            .string()
+            .max(1000)
+            .optional()
+            .describe("Session description"),
+          templateUrl: z
+            .string()
+            .url()
+            .optional()
+            .describe("Git URL for template to clone"),
+          loadOrgSecrets: z
+            .boolean()
+            .optional()
+            .default(true)
+            .describe("Load organization secrets into environment"),
+          expiresInSeconds: z
+            .number()
+            .min(60)
+            .max(86400)
+            .optional()
+            .default(1800)
+            .describe("Session timeout in seconds (default: 30 min, max: 24h)"),
+        },
+      },
+      async ({
+        name,
+        description,
+        templateUrl,
+        loadOrgSecrets,
+        expiresInSeconds,
+      }) => {
+        try {
+          const { user } = getAuthContext();
+          const { codeAgentService } =
+            await import("@/lib/services/code-agent");
+
+          const session = await codeAgentService.createSession({
+            organizationId: user.organization_id!,
+            userId: user.id,
+            name,
+            description,
+            templateUrl,
+            loadOrgSecrets,
+            expiresInSeconds,
+          });
+
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: true,
+                    session: {
+                      id: session.id,
+                      name: session.name,
+                      status: session.status,
+                      runtimeUrl: session.runtimeUrl,
+                      expiresAt: session.expiresAt,
+                    },
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to create session",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool: Execute Code in Session
+    server.registerTool(
+      "code_agent_execute",
+      {
+        description:
+          "Execute code or shell commands in a code agent session. " +
+          "Supports Python, JavaScript, TypeScript, and shell commands.",
+        inputSchema: {
+          sessionId: z.string().uuid().describe("Session ID"),
+          type: z.enum(["code", "command"]).describe("Execution type"),
+          language: z
+            .enum(["python", "javascript", "typescript", "shell"])
+            .optional()
+            .describe("Language for code execution"),
+          code: z.string().max(100000).optional().describe("Code to execute"),
+          command: z
+            .string()
+            .max(10000)
+            .optional()
+            .describe("Shell command to run"),
+          args: z.array(z.string()).optional().describe("Command arguments"),
+          workingDirectory: z.string().optional().describe("Working directory"),
+          timeout: z
+            .number()
+            .min(1000)
+            .max(300000)
+            .optional()
+            .default(60000)
+            .describe("Timeout in milliseconds"),
+        },
+      },
+      async ({
+        sessionId,
+        type,
+        language,
+        code,
+        command,
+        args,
+        workingDirectory,
+        timeout,
+      }) => {
+        try {
+          const { user } = getAuthContext();
+          const { codeAgentService } =
+            await import("@/lib/services/code-agent");
+
+          // Verify session ownership
+          const session = await codeAgentService.getSession(
+            sessionId,
+            user.organization_id!,
+          );
+          if (!session) {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify({ error: "Session not found" }, null, 2),
+                },
+              ],
+              isError: true,
+            };
+          }
+
+          let result;
+          if (type === "code") {
+            if (!code || !language) {
+              return {
+                content: [
+                  {
+                    type: "text" as const,
+                    text: JSON.stringify(
+                      { error: "code and language required for type=code" },
+                      null,
+                      2,
+                    ),
+                  },
+                ],
+                isError: true,
+              };
+            }
+            result = await codeAgentService.executeCode({
+              sessionId,
+              language,
+              code,
+              options: { workingDirectory, timeout },
+            });
+          } else {
+            if (!command) {
+              return {
+                content: [
+                  {
+                    type: "text" as const,
+                    text: JSON.stringify(
+                      { error: "command required for type=command" },
+                      null,
+                      2,
+                    ),
+                  },
+                ],
+                isError: true,
+              };
+            }
+            result = await codeAgentService.runCommand({
+              sessionId,
+              command,
+              args,
+              options: { workingDirectory, timeout },
+            });
+          }
+
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: result.success,
+                    exitCode: result.exitCode,
+                    stdout: result.stdout,
+                    stderr: result.stderr,
+                    durationMs: result.durationMs,
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Execution failed",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool: Read File from Session
+    server.registerTool(
+      "code_agent_read_file",
+      {
+        description: "Read a file from a code agent session.",
+        inputSchema: {
+          sessionId: z.string().uuid().describe("Session ID"),
+          path: z.string().describe("File path to read"),
+        },
+      },
+      async ({ sessionId, path }) => {
+        try {
+          const { user } = getAuthContext();
+          const { codeAgentService } =
+            await import("@/lib/services/code-agent");
+
+          const session = await codeAgentService.getSession(
+            sessionId,
+            user.organization_id!,
+          );
+          if (!session) {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify({ error: "Session not found" }, null, 2),
+                },
+              ],
+              isError: true,
+            };
+          }
+
+          const result = await codeAgentService.readFile({ sessionId, path });
+
+          if (!result.success) {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify({ error: result.error }, null, 2),
+                },
+              ],
+              isError: true,
+            };
+          }
+
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  { path, content: result.content, size: result.size },
+                  null,
+                  2,
+                ),
+              },
+            ],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to read file",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool: Write File to Session
+    server.registerTool(
+      "code_agent_write_file",
+      {
+        description:
+          "Write a file to a code agent session. Creates directories as needed.",
+        inputSchema: {
+          sessionId: z.string().uuid().describe("Session ID"),
+          path: z.string().describe("File path to write"),
+          content: z.string().describe("File content"),
+        },
+      },
+      async ({ sessionId, path, content }) => {
+        try {
+          const { user } = getAuthContext();
+          const { codeAgentService } =
+            await import("@/lib/services/code-agent");
+
+          const session = await codeAgentService.getSession(
+            sessionId,
+            user.organization_id!,
+          );
+          if (!session) {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify({ error: "Session not found" }, null, 2),
+                },
+              ],
+              isError: true,
+            };
+          }
+
+          const result = await codeAgentService.writeFile({
+            sessionId,
+            path,
+            content,
+          });
+
+          if (!result.success) {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify({ error: result.error }, null, 2),
+                },
+              ],
+              isError: true,
+            };
+          }
+
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify({ success: true, path }, null, 2),
+              },
+            ],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to write file",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool: List Files in Session
+    server.registerTool(
+      "code_agent_list_files",
+      {
+        description: "List files and directories in a code agent session.",
+        inputSchema: {
+          sessionId: z.string().uuid().describe("Session ID"),
+          path: z.string().describe("Directory path to list"),
+          recursive: z
+            .boolean()
+            .optional()
+            .default(true)
+            .describe("List recursively"),
+          maxDepth: z
+            .number()
+            .min(1)
+            .max(10)
+            .optional()
+            .default(3)
+            .describe("Max directory depth"),
+        },
+      },
+      async ({ sessionId, path, recursive, maxDepth }) => {
+        try {
+          const { user } = getAuthContext();
+          const { codeAgentService } =
+            await import("@/lib/services/code-agent");
+
+          const session = await codeAgentService.getSession(
+            sessionId,
+            user.organization_id!,
+          );
+          if (!session) {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify({ error: "Session not found" }, null, 2),
+                },
+              ],
+              isError: true,
+            };
+          }
+
+          const result = await codeAgentService.listFiles({
+            sessionId,
+            path,
+            recursive,
+            maxDepth,
+          });
+
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    path,
+                    entries: result.entries,
+                    count: result.entries.length,
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to list files",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool: Git Clone in Session
+    server.registerTool(
+      "code_agent_git_clone",
+      {
+        description: "Clone a git repository into a code agent session.",
+        inputSchema: {
+          sessionId: z.string().uuid().describe("Session ID"),
+          url: z.string().url().describe("Git repository URL"),
+          branch: z.string().optional().describe("Branch to clone"),
+          depth: z
+            .number()
+            .min(1)
+            .optional()
+            .describe("Clone depth (shallow clone)"),
+          directory: z.string().optional().describe("Target directory"),
+        },
+      },
+      async ({ sessionId, url, branch, depth, directory }) => {
+        try {
+          const { user } = getAuthContext();
+          const { codeAgentService } =
+            await import("@/lib/services/code-agent");
+
+          const session = await codeAgentService.getSession(
+            sessionId,
+            user.organization_id!,
+          );
+          if (!session) {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify({ error: "Session not found" }, null, 2),
+                },
+              ],
+              isError: true,
+            };
+          }
+
+          const result = await codeAgentService.gitClone({
+            sessionId,
+            url,
+            branch,
+            depth,
+            directory,
+          });
+
+          if (!result.success) {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify({ error: result.error }, null, 2),
+                },
+              ],
+              isError: true,
+            };
+          }
+
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: true,
+                    message: result.message,
+                    gitState: result.gitState,
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Git clone failed",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool: Install Packages in Session
+    server.registerTool(
+      "code_agent_install_packages",
+      {
+        description:
+          "Install packages in a code agent session using npm, pip, bun, or cargo.",
+        inputSchema: {
+          sessionId: z.string().uuid().describe("Session ID"),
+          packages: z
+            .array(z.string())
+            .min(1)
+            .max(50)
+            .describe("Package names to install"),
+          manager: z
+            .enum(["npm", "pip", "bun", "cargo"])
+            .optional()
+            .default("npm")
+            .describe("Package manager"),
+          dev: z
+            .boolean()
+            .optional()
+            .default(false)
+            .describe("Install as dev dependency"),
+        },
+      },
+      async ({ sessionId, packages, manager, dev }) => {
+        try {
+          const { user } = getAuthContext();
+          const { codeAgentService } =
+            await import("@/lib/services/code-agent");
+
+          const session = await codeAgentService.getSession(
+            sessionId,
+            user.organization_id!,
+          );
+          if (!session) {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify({ error: "Session not found" }, null, 2),
+                },
+              ],
+              isError: true,
+            };
+          }
+
+          const result = await codeAgentService.installPackages({
+            sessionId,
+            packages,
+            manager,
+            dev,
+          });
+
+          if (!result.success) {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify(
+                    { error: result.error, output: result.output },
+                    null,
+                    2,
+                  ),
+                },
+              ],
+              isError: true,
+            };
+          }
+
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: true,
+                    packages: result.packages,
+                    installedCount: result.installedCount,
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Package installation failed",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool: Create Session Snapshot
+    server.registerTool(
+      "code_agent_snapshot",
+      {
+        description:
+          "Create a snapshot of a code agent session for later restoration.",
+        inputSchema: {
+          sessionId: z.string().uuid().describe("Session ID"),
+          name: z.string().max(200).optional().describe("Snapshot name"),
+          description: z
+            .string()
+            .max(1000)
+            .optional()
+            .describe("Snapshot description"),
+        },
+      },
+      async ({ sessionId, name, description }) => {
+        try {
+          const { user } = getAuthContext();
+          const { codeAgentService } =
+            await import("@/lib/services/code-agent");
+
+          const session = await codeAgentService.getSession(
+            sessionId,
+            user.organization_id!,
+          );
+          if (!session) {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify({ error: "Session not found" }, null, 2),
+                },
+              ],
+              isError: true,
+            };
+          }
+
+          const result = await codeAgentService.createSnapshot({
+            sessionId,
+            name,
+            description,
+          });
+
+          if (!result.success) {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: JSON.stringify({ error: result.error }, null, 2),
+                },
+              ],
+              isError: true,
+            };
+          }
+
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  { success: true, snapshot: result.snapshot },
+                  null,
+                  2,
+                ),
+              },
+            ],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Snapshot creation failed",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // Tool: Terminate Session
+    server.registerTool(
+      "code_agent_terminate",
+      {
+        description:
+          "Terminate a code agent session. Creates a final snapshot before termination.",
+        inputSchema: {
+          sessionId: z.string().uuid().describe("Session ID to terminate"),
+        },
+      },
+      async ({ sessionId }) => {
+        try {
+          const { user } = getAuthContext();
+          const { codeAgentService } =
+            await import("@/lib/services/code-agent");
+
+          await codeAgentService.terminateSession(
+            sessionId,
+            user.organization_id!,
+          );
+
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  { success: true, message: "Session terminated" },
+                  null,
+                  2,
+                ),
+              },
+            ],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to terminate session",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // =========================================================================
+    // CODE INTERPRETER TOOL (Quick Stateless Execution)
+    // =========================================================================
+
+    server.registerTool(
+      "code_interpreter",
+      {
+        description:
+          "Quick stateless code execution for fast evaluations. " +
+          "Supports Python, JavaScript, TypeScript, and shell. " +
+          "No session required - great for calculations, data processing, quick scripts. " +
+          "Cost: ~$0.001 per execution.",
+        inputSchema: {
+          language: z
+            .enum(["python", "javascript", "typescript", "shell"])
+            .describe("Programming language"),
+          code: z.string().min(1).max(50000).describe("Code to execute"),
+          packages: z
+            .array(z.string())
+            .max(20)
+            .optional()
+            .describe("Packages to install (Python/npm)"),
+          timeout: z
+            .number()
+            .min(1000)
+            .max(60000)
+            .optional()
+            .default(30000)
+            .describe("Timeout in milliseconds"),
+        },
+      },
+      async ({ language, code, packages, timeout }) => {
+        try {
+          const { user } = getAuthContext();
+          const { interpreterService } =
+            await import("@/lib/services/code-agent");
+
+          const result = await interpreterService.execute({
+            organizationId: user.organization_id!,
+            userId: user.id,
+            language,
+            code,
+            packages,
+            timeout,
+          });
+
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    success: result.success,
+                    output: result.output,
+                    error: result.error,
+                    exitCode: result.exitCode,
+                    durationMs: result.durationMs,
+                    costCents: result.costCents,
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+          };
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  {
+                    error:
+                      error instanceof Error
+                        ? error.message
+                        : "Execution failed",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+      },
+    );
+
+    // =========================================================================
+    // WEBHOOK MANAGEMENT TOOLS
+    // =========================================================================
+
+    server.registerTool(
+      "webhook_create",
+      {
+        description:
+          "Create a new webhook for receiving events. " +
+          "Returns webhook details including the webhook URL and secret.",
+        inputSchema: {
+          name: z.string().min(1).max(200).describe("Webhook name"),
+          description: z.string().optional().describe("Webhook description"),
+          targetType: z
+            .enum(["url", "agent", "application", "workflow", "a2a", "mcp"])
+            .describe("Target type for the webhook"),
+          targetId: z
+            .string()
+            .uuid()
+            .optional()
+            .describe("Target ID (required for non-url types)"),
+          targetUrl: z
+            .string()
+            .url()
+            .optional()
+            .describe("Target URL (required for url type)"),
+          eventTypes: z
+            .array(z.string())
+            .optional()
+            .describe("Event types to subscribe to (empty = all events)"),
+          requireSignature: z
+            .boolean()
+            .optional()
+            .default(true)
+            .describe("Require HMAC signature verification"),
+        },
+      },
+      async ({
+        name,
+        description,
+        targetType,
+        targetId,
+        targetUrl,
+        eventTypes,
+        requireSignature,
+      }) => {
+        const { user } = getAuthContext();
+
+        const webhook = await webhookService.createWebhook({
+          organizationId: user.organization_id!,
+          createdBy: user.id,
+          name,
+          description,
+          targetType,
+          targetId,
+          targetUrl,
+          config: {
+            eventTypes,
+            requireSignature,
+          },
+        });
+
+        const baseUrl =
+          process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
+        const webhookUrl = `${baseUrl}/api/webhooks/${webhook.webhook_key}`;
+
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                {
+                  success: true,
+                  webhook: {
+                    id: webhook.id,
+                    name: webhook.name,
+                    webhookUrl,
+                    webhookKey: webhook.webhook_key,
+                    targetType: webhook.target_type,
+                    isActive: webhook.is_active,
+                  },
+                },
+                null,
+                2,
+              ),
+            },
+          ],
+        };
+      },
+    );
+
+    server.registerTool(
+      "webhook_list",
+      {
+        description: "List webhooks for your organization",
+        inputSchema: {
+          targetType: z
+            .enum(["url", "agent", "application", "workflow", "a2a", "mcp"])
+            .optional()
+            .describe("Filter by target type"),
+          isActive: z
+            .boolean()
+            .optional()
+            .describe("Filter by active status"),
+          limit: z
+            .number()
+            .int()
+            .min(1)
+            .max(100)
+            .optional()
+            .default(50)
+            .describe("Maximum number of webhooks to return"),
+        },
+      },
+      async ({ targetType, isActive, limit }) => {
+        const { user } = getAuthContext();
+
+        const webhooks = await webhookService.listWebhooks(
+          user.organization_id!,
+          {
+            targetType,
+            isActive,
+            limit,
+          },
+        );
+
+        const baseUrl =
+          process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
+
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                {
+                  success: true,
+                  webhooks: webhooks.map((w) => ({
+                    id: w.id,
+                    name: w.name,
+                    webhookUrl: `${baseUrl}/api/webhooks/${w.webhook_key}`,
+                    targetType: w.target_type,
+                    isActive: w.is_active,
+                    executionCount: w.execution_count,
+                    successCount: w.success_count,
+                    errorCount: w.error_count,
+                    lastTriggeredAt: w.last_triggered_at?.toISOString(),
+                  })),
+                  count: webhooks.length,
+                },
+                null,
+                2,
+              ),
+            },
+          ],
+        };
+      },
+    );
+
+    server.registerTool(
+      "webhook_get",
+      {
+        description: "Get webhook details by ID",
+        inputSchema: {
+          webhookId: z.string().uuid().describe("Webhook ID"),
+        },
+      },
+      async ({ webhookId }) => {
+        const { user } = getAuthContext();
+
+        const webhook = await webhookService.getWebhookById(
+          webhookId,
+          user.organization_id!,
+        );
+
+        if (!webhook) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  { error: "Webhook not found" },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        const baseUrl =
+          process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
+
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                {
+                  success: true,
+                  webhook: {
+                    id: webhook.id,
+                    name: webhook.name,
+                    description: webhook.description,
+                    webhookUrl: `${baseUrl}/api/webhooks/${webhook.webhook_key}`,
+                    targetType: webhook.target_type,
+                    targetId: webhook.target_id,
+                    targetUrl: webhook.target_url,
+                    isActive: webhook.is_active,
+                    config: webhook.config,
+                    executionCount: webhook.execution_count,
+                    successCount: webhook.success_count,
+                    errorCount: webhook.error_count,
+                    lastTriggeredAt: webhook.last_triggered_at?.toISOString(),
+                    lastSuccessAt: webhook.last_success_at?.toISOString(),
+                    lastErrorAt: webhook.last_error_at?.toISOString(),
+                    createdAt: webhook.created_at.toISOString(),
+                  },
+                },
+                null,
+                2,
+              ),
+            },
+          ],
+        };
+      },
+    );
+
+    server.registerTool(
+      "webhook_update",
+      {
+        description: "Update webhook configuration",
+        inputSchema: {
+          webhookId: z.string().uuid().describe("Webhook ID"),
+          name: z.string().min(1).max(200).optional().describe("New name"),
+          description: z.string().optional().describe("New description"),
+          targetUrl: z.string().url().optional().describe("New target URL"),
+          isActive: z.boolean().optional().describe("Active status"),
+          eventTypes: z
+            .array(z.string())
+            .optional()
+            .describe("Event types to subscribe to"),
+        },
+      },
+      async ({ webhookId, name, description, targetUrl, isActive, eventTypes }) => {
+        const { user } = getAuthContext();
+
+        const existing = await webhookService.getWebhookById(
+          webhookId,
+          user.organization_id!,
+        );
+
+        if (!existing) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  { error: "Webhook not found" },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        const config: any = { ...existing.config };
+        if (eventTypes !== undefined) {
+          config.eventTypes = eventTypes;
+        }
+
+        const webhook = await webhookService.updateWebhook(
+          webhookId,
+          user.organization_id!,
+          {
+            name,
+            description,
+            targetUrl,
+            isActive,
+            config,
+          },
+        );
+
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                {
+                  success: true,
+                  webhook: {
+                    id: webhook.id,
+                    name: webhook.name,
+                    isActive: webhook.is_active,
+                  },
+                },
+                null,
+                2,
+              ),
+            },
+          ],
+        };
+      },
+    );
+
+    server.registerTool(
+      "webhook_delete",
+      {
+        description: "Delete a webhook",
+        inputSchema: {
+          webhookId: z.string().uuid().describe("Webhook ID"),
+        },
+      },
+      async ({ webhookId }) => {
+        const { user } = getAuthContext();
+
+        await webhookService.deleteWebhook(webhookId, user.organization_id!);
+
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                { success: true, message: "Webhook deleted" },
+                null,
+                2,
+              ),
+            },
+          ],
+        };
+      },
+    );
+
+    server.registerTool(
+      "webhook_test",
+      {
+        description: "Manually trigger a webhook for testing",
+        inputSchema: {
+          webhookId: z.string().uuid().describe("Webhook ID"),
+          eventType: z.string().optional().describe("Event type"),
+          payload: z
+            .record(z.unknown())
+            .optional()
+            .describe("Test payload (default: empty object)"),
+        },
+      },
+      async ({ webhookId, eventType, payload }) => {
+        const { user } = getAuthContext();
+
+        const webhook = await webhookService.getWebhookById(
+          webhookId,
+          user.organization_id!,
+        );
+
+        if (!webhook) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify(
+                  { error: "Webhook not found" },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        const result = await webhookService.executeWebhook({
+          webhookId,
+          eventType,
+          payload: payload || {},
+        });
+
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                {
+                  success: result.status === "success",
+                  executionId: result.executionId,
+                  status: result.status,
+                  responseStatus: result.responseStatus,
+                  durationMs: result.durationMs,
+                  error: result.error,
+                },
+                null,
+                2,
+              ),
+            },
+          ],
+        };
       },
     );
   },

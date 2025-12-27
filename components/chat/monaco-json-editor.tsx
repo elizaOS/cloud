@@ -16,14 +16,18 @@ import type * as monacoEditor from "monaco-editor";
 
 interface MonacoJsonEditorProps {
   value: string;
-  onChange: (value: string) => void;
-  isValid: boolean;
+  onChange?: (value: string) => void;
+  isValid?: boolean;
+  readOnly?: boolean;
+  height?: string;
 }
 
 export function MonacoJsonEditor({
   value,
   onChange,
-  isValid,
+  isValid = true,
+  readOnly = false,
+  height = "100%",
 }: MonacoJsonEditorProps) {
   const editorRef = useRef<monacoEditor.editor.IStandaloneCodeEditor | null>(
     null,
@@ -81,7 +85,7 @@ export function MonacoJsonEditor({
   };
 
   const handleEditorChange = (value: string | undefined) => {
-    if (value !== undefined) {
+    if (value !== undefined && onChange) {
       onChange(value);
     }
   };
@@ -90,7 +94,7 @@ export function MonacoJsonEditor({
   useEffect(() => {
     const editorElement = editorRef.current?.getDomNode();
     if (editorElement) {
-      if (!isValid) {
+      if (isValid === false) {
         editorElement.style.border = "1px solid #F43F5E";
       } else {
         editorElement.style.border = "none";
@@ -101,7 +105,7 @@ export function MonacoJsonEditor({
   return (
     <div className="h-full w-full">
       <Editor
-        height="100%"
+        height={height}
         defaultLanguage="json"
         value={value}
         onChange={handleEditorChange}
@@ -124,8 +128,10 @@ export function MonacoJsonEditor({
           smoothScrolling: true,
           cursorBlinking: "smooth",
           cursorSmoothCaretAnimation: "on",
-          renderLineHighlight: "all",
+          renderLineHighlight: readOnly ? "none" : "all",
           renderWhitespace: "selection",
+          readOnly,
+          domReadOnly: readOnly,
           bracketPairColorization: {
             enabled: true,
           },
@@ -134,12 +140,14 @@ export function MonacoJsonEditor({
             indentation: true,
           },
           suggest: {
-            showKeywords: true,
-            showSnippets: true,
+            showKeywords: !readOnly,
+            showSnippets: !readOnly,
           },
-          quickSuggestions: {
-            strings: true,
-          },
+          quickSuggestions: readOnly
+            ? false
+            : {
+                strings: true,
+              },
           folding: true,
           foldingStrategy: "indentation",
           showFoldingControls: "mouseover",

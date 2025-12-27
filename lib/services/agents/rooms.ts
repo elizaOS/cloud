@@ -23,11 +23,12 @@ import {
 
 /**
  * Input for creating a room.
+ * Re-exports the base type from repository and adds optional entityId for convenience.
  */
 export interface CreateRoomInput {
   id?: string; // Allow passing a pre-generated room ID
   agentId?: string; // Optional - will be set when runtime initializes
-  entityId: string;
+  entityId?: string; // Optional - creator's entity ID (stored in metadata)
   source?: string;
   type?: string;
   name?: string;

@@ -133,6 +133,310 @@ export async function GET() {
             }
           : {}),
       },
+      schemas: {
+        ChatCompletionRequest: {
+          type: "object",
+          required: ["model", "messages"],
+          properties: {
+            model: {
+              type: "string",
+              description: "Model to use",
+              example: "gpt-4o-mini",
+            },
+            messages: {
+              type: "array",
+              items: { $ref: "#/components/schemas/Message" },
+            },
+            stream: { type: "boolean", default: false },
+            temperature: { type: "number", minimum: 0, maximum: 2, default: 1 },
+            max_tokens: { type: "integer" },
+          },
+        },
+        ChatCompletionResponse: {
+          type: "object",
+          properties: {
+            id: { type: "string" },
+            object: { type: "string", enum: ["chat.completion"] },
+            created: { type: "integer" },
+            model: { type: "string" },
+            choices: {
+              type: "array",
+              items: { $ref: "#/components/schemas/Choice" },
+            },
+            usage: { $ref: "#/components/schemas/Usage" },
+          },
+        },
+        Message: {
+          type: "object",
+          required: ["role", "content"],
+          properties: {
+            role: {
+              type: "string",
+              enum: ["system", "user", "assistant"],
+            },
+            content: { type: "string" },
+          },
+        },
+        Choice: {
+          type: "object",
+          properties: {
+            index: { type: "integer" },
+            message: { $ref: "#/components/schemas/Message" },
+            finish_reason: { type: "string" },
+          },
+        },
+        Usage: {
+          type: "object",
+          properties: {
+            prompt_tokens: { type: "integer" },
+            completion_tokens: { type: "integer" },
+            total_tokens: { type: "integer" },
+          },
+        },
+        ImageGenerationRequest: {
+          type: "object",
+          required: ["prompt"],
+          properties: {
+            prompt: { type: "string" },
+            model: {
+              type: "string",
+              default: "flux/schnell",
+            },
+            size: {
+              type: "string",
+              enum: ["square_hd", "square", "portrait_4_3", "landscape_4_3"],
+              default: "square_hd",
+            },
+            num_images: { type: "integer", default: 1, minimum: 1, maximum: 4 },
+          },
+        },
+        ImageGenerationResponse: {
+          type: "object",
+          properties: {
+            images: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  url: { type: "string" },
+                  width: { type: "integer" },
+                  height: { type: "integer" },
+                },
+              },
+            },
+            cost: { type: "number" },
+          },
+        },
+        VideoGenerationRequest: {
+          type: "object",
+          required: ["prompt"],
+          properties: {
+            prompt: { type: "string" },
+            model: {
+              type: "string",
+              default: "google/veo3",
+              enum: [
+                "google/veo3",
+                "google/veo3-fast",
+                "kling/v2.1-master",
+                "kling/v2.1-pro",
+                "kling/v2.1-standard",
+                "minimax/hailuo-standard",
+                "minimax/hailuo-pro",
+              ],
+              description: "Video model (creator/model format)",
+            },
+            image_url: { type: "string", description: "Optional image input" },
+          },
+        },
+        VideoGenerationResponse: {
+          type: "object",
+          properties: {
+            video: {
+              type: "object",
+              properties: {
+                url: { type: "string" },
+              },
+            },
+            cost: { type: "number" },
+          },
+        },
+        EmbeddingRequest: {
+          type: "object",
+          required: ["input"],
+          properties: {
+            input: {
+              oneOf: [
+                { type: "string" },
+                { type: "array", items: { type: "string" } },
+              ],
+            },
+            model: {
+              type: "string",
+              default: "text-embedding-3-small",
+            },
+          },
+        },
+        EmbeddingResponse: {
+          type: "object",
+          properties: {
+            object: { type: "string", enum: ["list"] },
+            data: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  object: { type: "string", enum: ["embedding"] },
+                  embedding: {
+                    type: "array",
+                    items: { type: "number" },
+                  },
+                  index: { type: "integer" },
+                },
+              },
+            },
+            model: { type: "string" },
+            usage: { $ref: "#/components/schemas/Usage" },
+          },
+        },
+        TopupInfoResponse: {
+          type: "object",
+          properties: {
+            balance: { type: "number" },
+            x402Enabled: { type: "boolean" },
+            x402Configured: { type: "boolean" },
+            pricing: {
+              type: "object",
+              properties: {
+                rate: {
+                  type: "string",
+                  example: `${CREDITS_PER_DOLLAR} credits per $1 USDC`,
+                },
+                minimumPayment: { type: "string", example: TOPUP_PRICE },
+                networks: { type: "array", items: { type: "string" } },
+              },
+            },
+          },
+        },
+        TopupResponse: {
+          type: "object",
+          properties: {
+            success: { type: "boolean" },
+            creditsAdded: { type: "number" },
+            newBalance: { type: "number" },
+            transactionId: { type: "string" },
+            paymentSource: { type: "string", enum: ["x402"] },
+            network: { type: "string" },
+          },
+        },
+        AgentCard: {
+          type: "object",
+          properties: {
+            name: { type: "string" },
+            description: { type: "string" },
+            image: { type: "string" },
+            version: { type: "string" },
+            capabilities: {
+              type: "object",
+              properties: {
+                streaming: { type: "boolean" },
+                pushNotifications: { type: "boolean" },
+                stateTransitionHistory: { type: "boolean" },
+              },
+            },
+            authentication: {
+              type: "object",
+              properties: {
+                schemes: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      scheme: { type: "string" },
+                      description: { type: "string" },
+                    },
+                  },
+                },
+              },
+            },
+            skills: {
+              type: "array",
+              items: { $ref: "#/components/schemas/Skill" },
+            },
+          },
+        },
+        Skill: {
+          type: "object",
+          properties: {
+            id: { type: "string" },
+            name: { type: "string" },
+            description: { type: "string" },
+            inputModes: {
+              type: "array",
+              items: { type: "string" },
+            },
+            outputModes: {
+              type: "array",
+              items: { type: "string" },
+            },
+          },
+        },
+        MCPServerInfo: {
+          type: "object",
+          properties: {
+            name: { type: "string" },
+            version: { type: "string" },
+            protocol: { type: "string" },
+            capabilities: {
+              type: "object",
+              properties: {
+                tools: { type: "object" },
+                resources: { type: "object" },
+                prompts: { type: "object" },
+              },
+            },
+            tools: {
+              type: "array",
+              items: { $ref: "#/components/schemas/MCPTool" },
+            },
+          },
+        },
+        MCPTool: {
+          type: "object",
+          properties: {
+            name: { type: "string" },
+            description: { type: "string" },
+            inputSchema: { type: "object" },
+          },
+        },
+        JsonRpcRequest: {
+          type: "object",
+          required: ["jsonrpc", "method", "id"],
+          properties: {
+            jsonrpc: { type: "string", enum: ["2.0"] },
+            method: { type: "string" },
+            params: { type: "object" },
+            id: { oneOf: [{ type: "string" }, { type: "number" }] },
+          },
+        },
+        JsonRpcResponse: {
+          type: "object",
+          required: ["jsonrpc", "id"],
+          properties: {
+            jsonrpc: { type: "string", enum: ["2.0"] },
+            result: { type: "object" },
+            error: {
+              type: "object",
+              properties: {
+                code: { type: "integer" },
+                message: { type: "string" },
+                data: { type: "object" },
+              },
+            },
+            id: { oneOf: [{ type: "string" }, { type: "number" }] },
+          },
+        },
+      },
     },
     tags: [],
     externalDocs: {

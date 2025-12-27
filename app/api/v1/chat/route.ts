@@ -1,7 +1,7 @@
 import { streamText, type UIMessage, convertToModelMessages } from "ai";
 import { gateway } from "@ai-sdk/gateway";
 import { requireAuthOrApiKey } from "@/lib/auth";
-import { getAnonymousUser, checkAnonymousLimit } from "@/lib/auth-anonymous";
+import { getOrCreateSessionUser } from "@/lib/session";
 import { conversationsService } from "@/lib/services/conversations";
 import { creditsService } from "@/lib/services/credits";
 import { usageService } from "@/lib/services/usage";
@@ -46,22 +46,19 @@ async function handlePOST(req: NextRequest) {
       user = authResult.user;
       apiKey = authResult.apiKey;
       authMethod = authResult.authMethod;
-    } catch (error) {
-      // Fallback to anonymous user
-      const anonData = await getAnonymousUser();
-      if (!anonData) {
-        throw new Error("Authentication required");
-      }
-
-      user = anonData.user;
-      anonymousSession = anonData.session;
-      isAnonymous = true;
+    } catch {
+      // Fallback to session user (creates anonymous if needed)
+      const sessionUser = await getOrCreateSessionUser(req);
+      user = sessionUser.user;
+      anonymousSession = sessionUser.anonymousSession || null;
+      isAnonymous = sessionUser.isAnonymous;
       authMethod = "anonymous";
 
-      logger.info("chat-api", "Anonymous user request", {
+      logger.info("chat-api", "Session user request", {
         userId: user.id,
+        isAnonymous,
         sessionId: anonymousSession?.id,
-        messageCount: anonymousSession?.message_count,
+        messageCount: sessionUser.messageCount,
       });
     }
 
@@ -121,31 +118,47 @@ async function handlePOST(req: NextRequest) {
 
     // Handle anonymous user rate limiting
     if (isAnonymous && anonymousSession) {
-      // Check message limit for anonymous users
-      const limitCheck = await checkAnonymousLimit(
-        anonymousSession.session_token,
-      );
+      const remaining =
+        anonymousSession.messages_limit - anonymousSession.message_count;
 
-      if (!limitCheck.allowed) {
-        const errorMessage =
-          limitCheck.reason === "message_limit"
-            ? `You've reached your free message limit (${limitCheck.limit} messages). Sign up to continue chatting!`
-            : `You've reached the hourly rate limit. Please wait an hour or sign up for unlimited access.`;
-
-        logger.warn("chat-api", "Anonymous user limit reached", {
+      // Check message limit
+      if (remaining <= 0) {
+        logger.warn("chat-api", "Anonymous user message limit reached", {
           userId: user.id,
           sessionId: anonymousSession.id,
-          reason: limitCheck.reason,
-          limit: limitCheck.limit,
+          limit: anonymousSession.messages_limit,
         });
 
         return NextResponse.json(
           {
-            error: errorMessage,
+            error: `You've reached your free message limit (${anonymousSession.messages_limit} messages). Sign up to continue chatting!`,
             requiresSignup: true,
-            reason: limitCheck.reason,
-            limit: limitCheck.limit,
-            remaining: limitCheck.remaining,
+            reason: "message_limit",
+            limit: anonymousSession.messages_limit,
+            remaining: 0,
+          },
+          { status: 429 },
+        );
+      }
+
+      // Check hourly rate limit
+      const rateLimitResult = await anonymousSessionsService.checkRateLimit(
+        anonymousSession.id,
+      );
+      if (!rateLimitResult.allowed) {
+        logger.warn("chat-api", "Anonymous user hourly limit reached", {
+          userId: user.id,
+          sessionId: anonymousSession.id,
+        });
+
+        return NextResponse.json(
+          {
+            error:
+              "You've reached the hourly rate limit. Please wait an hour or sign up for unlimited access.",
+            requiresSignup: true,
+            reason: "hourly_limit",
+            limit: anonymousSession.messages_limit,
+            remaining: rateLimitResult.remaining,
           },
           { status: 429 },
         );
@@ -153,8 +166,8 @@ async function handlePOST(req: NextRequest) {
 
       logger.info("chat-api", "Anonymous user message allowed", {
         userId: user.id,
-        remaining: limitCheck.remaining,
-        limit: limitCheck.limit,
+        remaining,
+        limit: anonymousSession.messages_limit,
       });
     }
 

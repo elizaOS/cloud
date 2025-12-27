@@ -1,20 +1,62 @@
 {
   "$schema": "./x402.schema.json",
-  "_comment": "x402 Payment Configuration. Secrets (wallet private keys) go in .env.local",
+  "_comment": "x402 Payment Configuration - SINGLE SOURCE OF TRUTH for all contract addresses",
+  "_lastUpdated": "2025-12-09",
 
   "pricing": {
     "creditsPerDollar": 100,
-    "topupPrice": "$1.00"
+    "topupPrice": "$1.00",
+    "storage": {
+      "uploadPerMB": "$0.001",
+      "retrievalPerMB": "$0.0001",
+      "pinPerGBMonth": "$0.10",
+      "minUploadFee": "$0.01"
+    }
   },
 
   "networks": {
+    "jeju-localnet": {
+      "name": "Jeju Localnet",
+      "chainId": 1337,
+      "rpcUrl": "http://127.0.0.1:9545",
+      "blockExplorer": "http://127.0.0.1:4000",
+      "isTestnet": true,
+      "isLocalnet": true,
+      "usdc": "0x0000000000000000000000000000000000000000",
+      "l1ChainId": 1337,
+      "l1RpcUrl": "http://127.0.0.1:8545"
+    },
+    "jeju-testnet": {
+      "name": "Jeju Testnet",
+      "chainId": 420690,
+      "rpcUrl": "https://testnet-rpc.jeju.network",
+      "blockExplorer": "https://testnet-explorer.jeju.network",
+      "isTestnet": true,
+      "usdc": "0x0000000000000000000000000000000000000000",
+      "_note": "Deploy USDC when Jeju testnet RPC is live",
+      "l1ChainId": 11155111,
+      "l1RpcUrl": "https://ethereum-sepolia-rpc.publicnode.com"
+    },
+    "jeju": {
+      "name": "Jeju Mainnet",
+      "chainId": 420691,
+      "rpcUrl": "https://rpc.jeju.network",
+      "blockExplorer": "https://explorer.jeju.network",
+      "isTestnet": false,
+      "usdc": "0x0000000000000000000000000000000000000000",
+      "_note": "Deploy USDC when Jeju mainnet is live",
+      "l1ChainId": 1,
+      "l1RpcUrl": "https://eth.llamarpc.com"
+    },
     "base-sepolia": {
       "name": "Base Sepolia",
       "chainId": 84532,
       "rpcUrl": "https://sepolia.base.org",
       "blockExplorer": "https://sepolia.basescan.org",
       "isTestnet": true,
-      "usdc": "0x036CbD53842c5426634e7929541eC2318f3dCF7e"
+      "usdc": "0x953F6516E5d2864cE7f13186B45dE418EA665EB2",
+      "_usdcNote": "MockJejuUSDC - has faucet() for testing",
+      "l1ChainId": 11155111
     },
     "base": {
       "name": "Base Mainnet",
@@ -22,22 +64,126 @@
       "rpcUrl": "https://mainnet.base.org",
       "blockExplorer": "https://basescan.org",
       "isTestnet": false,
-      "usdc": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+      "usdc": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "_usdcNote": "Official Circle USDC",
+      "l1ChainId": 1
+    }
+  },
+
+  "facilitators": {
+    "_comment": "x402 facilitators for payment verification and settlement",
+    "coinbase": {
+      "name": "Coinbase CDP",
+      "type": "cdp",
+      "networks": ["base", "base-sepolia"],
+      "requiresCredentials": true,
+      "envKeys": ["CDP_API_KEY_ID", "CDP_API_KEY_SECRET"]
+    },
+    "jeju": {
+      "name": "Jeju Decentralized Facilitator",
+      "type": "decentralized",
+      "networks": ["jeju", "jeju-testnet", "jeju-localnet"],
+      "contractAddress": "0x0000000000000000000000000000000000000000",
+      "requiresCredentials": false
+    },
+    "public": {
+      "name": "Public Facilitator (Rate Limited)",
+      "type": "public",
+      "networks": ["base", "base-sepolia"],
+      "requiresCredentials": false,
+      "rateLimited": true
     }
   },
 
   "elizaToken": {
-    "_comment": "elizaOS Token addresses for payouts",
+    "_comment": "ElizaOS Token addresses - payout destinations",
     "evm": {
       "ethereum": "0xea17df5cf6d172224892b5477a16acb111182478",
       "base": "0xea17df5cf6d172224892b5477a16acb111182478",
-      "bnb": "0xea17df5cf6d172224892b5477a16acb111182478"
+      "base-sepolia": "0x7af64e6aE21076DE21EFe71F243A75664a17C34b",
+      "bnb": "0xea17df5cf6d172224892b5477a16acb111182478",
+      "jeju": "0x0000000000000000000000000000000000000000",
+      "jeju-testnet": "0x0000000000000000000000000000000000000000"
     },
     "solana": "DuMbhu7mvQvqQHGcnikDgb4XegXJRyhUBfdU22uELiZA"
   },
 
+  "oifContracts": {
+    "_comment": "Open Intents Framework contracts - deployed 2025-12-09",
+    "base-sepolia": {
+      "SolverRegistry": "0xecfE47302D941c8ce5B0009C0ac2E6D6ee2A42de",
+      "SimpleOracle": "0xE30218678a940d1553b285B0eB5C5364BBF70ed9",
+      "InputSettler": "0x9bb59d0329FcCEdD99f1753D20AF50347Ad2eB75",
+      "OutputSettler": "0xf7ef3C6a54dA3E03A96D23864e5865E7e3EBEcF5",
+      "_deployed": "2025-12-09",
+      "_deployer": "0x5dB1268e424da5C26451e4a8B9C221e6DE3C3064"
+    },
+    "jeju-testnet": {
+      "SolverRegistry": "0x0000000000000000000000000000000000000000",
+      "SimpleOracle": "0x0000000000000000000000000000000000000000",
+      "InputSettler": "0x0000000000000000000000000000000000000000",
+      "OutputSettler": "0x0000000000000000000000000000000000000000",
+      "_note": "Deploy when Jeju testnet RPC is live"
+    },
+    "jeju": {
+      "SolverRegistry": "0x0000000000000000000000000000000000000000",
+      "SuperchainOracle": "0x0000000000000000000000000000000000000000",
+      "InputSettler": "0x0000000000000000000000000000000000000000",
+      "OutputSettler": "0x0000000000000000000000000000000000000000",
+      "_note": "Deploy when Jeju mainnet is live"
+    }
+  },
+
+  "crossChainPayments": {
+    "_comment": "OIF/EIL-based cross-chain payment routing - requires JEJU_DEPLOYED=true and OIF contracts",
+    "enabled": false,
+    "supportedSourceChains": {
+      "mainnet": [1, 42161, 10, 8453, 420691],
+      "testnet": [11155111, 84532, 420690]
+    },
+    "oifIntegration": {
+      "enabled": true,
+      "aggregatorUrl": "http://localhost:4010",
+      "aggregatorUrlProduction": "https://intents.jeju.network"
+    },
+    "eilIntegration": {
+      "enabled": true,
+      "crossChainPaymaster": true,
+      "supportedPaymentTokens": ["USDC", "ETH", "WETH"]
+    },
+    "settlementChains": {
+      "primary": "jeju",
+      "fallback": "base",
+      "testnetPrimary": "jeju-testnet",
+      "testnetFallback": "base-sepolia"
+    }
+  },
+
+  "accountAbstraction": {
+    "_comment": "ERC-4337 and ERC-7702. Enable paymasterEnabled when paymaster deployed.",
+    "erc4337": {
+      "enabled": true,
+      "entryPoint": "0x0000000071727De22E5E9d8BAf0edAc6f37da032",
+      "paymasterEnabled": false
+    },
+    "erc7702": {
+      "enabled": false,
+      "_comment": "Enable when EIP-7702 is available on Jeju"
+    },
+    "batchTransactions": {
+      "enabled": true,
+      "maxBatchSize": 10
+    }
+  },
+
   "defaults": {
+    "_comment": "Defaults to Base until Jeju contracts are deployed. Set JEJU_DEPLOYED=true when ready.",
     "network": "base-sepolia",
-    "productionNetwork": "base"
+    "productionNetwork": "base",
+    "localnetNetwork": "jeju-localnet",
+    "jejuNetwork": "jeju-testnet",
+    "jejuProductionNetwork": "jeju",
+    "fallbackNetwork": "base-sepolia",
+    "fallbackProductionNetwork": "base"
   }
 }

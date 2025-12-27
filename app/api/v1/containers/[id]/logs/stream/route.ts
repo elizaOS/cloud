@@ -318,10 +318,10 @@ async function getCloudWatchLogs(
           })),
         );
       } catch (streamError) {
-        console.warn(
-          `Failed to fetch logs from stream ${stream.logStreamName}:`,
-          streamError,
-        );
+        logger.warn("Failed to fetch logs from stream", {
+          streamName: stream.logStreamName,
+          error: streamError,
+        });
       }
     }
 
@@ -340,9 +340,9 @@ async function getCloudWatchLogs(
   } catch (error) {
     logger.error("Error fetching CloudWatch logs:", error);
     if (error instanceof Error && error.name === "ResourceNotFoundException") {
-      console.warn(
-        `Log group ${logGroupName} not found - container may not be deployed yet`,
-      );
+      logger.debug("Log group not found - container may not be deployed yet", {
+        logGroupName,
+      });
     }
     return [];
   }

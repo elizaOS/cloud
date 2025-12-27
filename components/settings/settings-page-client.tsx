@@ -19,8 +19,10 @@ import {
   UsageTab,
   BillingTab,
   ApisTab,
+  SecretsTab,
   AnalyticsTab,
   OrganizationTab,
+  ConnectionsTab,
 } from "./tabs";
 
 interface SettingsPageClientProps {
@@ -30,9 +32,11 @@ interface SettingsPageClientProps {
 export type SettingsTab =
   | "general"
   | "account"
+  | "connections"
   | "usage"
   | "billing"
   | "apis"
+  | "secrets"
   | "analytics"
   | "organization";
 
@@ -45,12 +49,11 @@ export function SettingsPageClient({ user }: SettingsPageClientProps) {
   );
 
   useEffect(() => {
-    if (tabFromUrl) {
-      // Schedule state update to avoid synchronous setState in effect
-      const rafId = requestAnimationFrame(() => setActiveTab(tabFromUrl));
-      return () => cancelAnimationFrame(rafId);
+    if (tabFromUrl && tabFromUrl !== activeTab) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing URL state to local state
+      setActiveTab(tabFromUrl);
     }
-  }, [tabFromUrl]);
+  }, [tabFromUrl, activeTab]);
 
   useSetPageHeader({
     title: "Settings",
@@ -63,12 +66,16 @@ export function SettingsPageClient({ user }: SettingsPageClientProps) {
         return <GeneralTab user={user} />;
       case "account":
         return <AccountTab user={user} onTabChange={setActiveTab} />;
+      case "connections":
+        return <ConnectionsTab user={user} />;
       case "usage":
         return <UsageTab user={user} onTabChange={setActiveTab} />;
       case "billing":
         return <BillingTab user={user} />;
       case "apis":
         return <ApisTab user={user} />;
+      case "secrets":
+        return <SecretsTab user={user} />;
       case "analytics":
         return <AnalyticsTab user={user} />;
       case "organization":

@@ -45,12 +45,13 @@ import {
   createPublicClient,
   createWalletClient,
   http,
-  parseAbi,
   parseUnits,
   type Address,
   type Chain,
 } from "viem";
+import { ERC20_ABI } from "@/lib/utils/abis/erc20";
 import { mainnet, base, bsc } from "viem/chains";
+import { jeju, jejuTestnet } from "@/lib/config/chains";
 import { privateKeyToAccount } from "viem/accounts";
 import {
   Connection,
@@ -90,19 +91,16 @@ const PAYOUT_CONFIG = {
   MIN_HOT_WALLET_BALANCE: 1000,
 };
 
-// Chain configurations
+// Chain configurations - includes Jeju networks
 const EVM_CHAINS: Record<string, Chain> = {
   ethereum: mainnet,
   base: base,
   bnb: bsc,
+  jeju: jeju,
+  "jeju-testnet": jejuTestnet,
 };
 
-// ERC20 ABI for token transfers
-const ERC20_ABI = parseAbi([
-  "function transfer(address to, uint256 amount) returns (bool)",
-  "function balanceOf(address account) view returns (uint256)",
-  "function decimals() view returns (uint8)",
-]);
+// ERC20 ABI for token transfers - local definition
 
 // Token decimals (elizaOS uses 9 decimals on all networks)
 const ELIZA_DECIMALS = {

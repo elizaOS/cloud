@@ -1,14 +1,4 @@
-/**
- * Model Tiers Configuration
- *
- * Single source of truth for all model tier mappings.
- * Provides abstraction between user-friendly tier names and actual model IDs.
- *
- * Environment variables can override default model IDs:
- * - MODEL_TIER_FAST_ID
- * - MODEL_TIER_PRO_ID
- * - MODEL_TIER_ULTRA_ID
- */
+// Model tier configuration. Override via MODEL_TIER_FAST_ID, MODEL_TIER_PRO_ID, MODEL_TIER_ULTRA_ID
 
 export type ModelTier = "fast" | "pro" | "ultra";
 
@@ -51,6 +41,13 @@ function extractProvider(modelId: string): string {
   if (modelId.startsWith("gpt-")) return "openai";
   if (modelId.startsWith("claude-")) return "anthropic";
   if (modelId.startsWith("gemini-")) return "google";
+  if (modelId.startsWith("grok-")) return "xai";
+  if (modelId.startsWith("command-")) return "cohere";
+  if (modelId.startsWith("jamba-") || modelId.startsWith("jurassic-"))
+    return "ai21";
+  if (modelId.startsWith("deepseek-")) return "deepseek";
+  if (modelId.startsWith("llama")) return "meta";
+  if (modelId.startsWith("qwen-")) return "alibaba";
   return "openai";
 }
 
@@ -62,22 +59,23 @@ export const MODEL_TIERS: Record<ModelTier, ModelTierConfig> = {
   fast: {
     id: "fast",
     name: "Fast",
-    description: "Fastest for quick answers",
+    description: "Ultra-fast and cheap (Gemini 2.0 Flash)",
     modelId: FAST_MODEL_ID,
     provider: extractProvider(FAST_MODEL_ID),
     icon: "zap",
     pricing: {
+      // Gemini 2.0 Flash: ~$0.10/$0.40 per 1M tokens
       inputPer1k: 0.0001,
       outputPer1k: 0.0004,
       currency: "USD",
     },
-    capabilities: ["text", "code", "function_calling"],
-    contextWindow: 128000,
+    capabilities: ["text", "code", "vision", "function_calling"],
+    contextWindow: 1000000,
   },
   pro: {
     id: "pro",
     name: "Pro",
-    description: "Best for everyday tasks",
+    description: "Balanced speed and quality (Claude Haiku 4.5)",
     modelId: PRO_MODEL_ID,
     provider: extractProvider(PRO_MODEL_ID),
     icon: "sparkles",
@@ -94,19 +92,20 @@ export const MODEL_TIERS: Record<ModelTier, ModelTierConfig> = {
       "function_calling",
       "long_context",
     ],
-    contextWindow: 200000,
+    contextWindow: 128000,
     recommended: true,
   },
   ultra: {
     id: "ultra",
     name: "Ultra",
-    description: "Most capable for complex work",
+    description: "Best quality for complex tasks (Claude Sonnet 4.5)",
     modelId: ULTRA_MODEL_ID,
     provider: extractProvider(ULTRA_MODEL_ID),
     icon: "crown",
     pricing: {
-      inputPer1k: 0.015,
-      outputPer1k: 0.075,
+      // Claude Sonnet 4: $3/$15 per 1M tokens
+      inputPer1k: 0.003,
+      outputPer1k: 0.015,
       currency: "USD",
     },
     capabilities: [
@@ -183,20 +182,6 @@ export const BUILD_MODE_TIER_LIST: ModelTierConfig[] = [
 
 export const DEFAULT_MODEL_TIER: ModelTier = "pro";
 
-/**
- * Resolve a model tier or raw model ID to a full model configuration
- *
- * @param tierOrModelId - Either a tier name ("fast", "pro", "ultra") or a raw model ID
- * @returns The resolved model configuration, falling back to pro tier if invalid
- *
- * @example
- * // Using tier name
- * const config = resolveModel("fast");
- * logger.info(config.modelId); // "google/gemini-2.5-flash-lite"
- *
- * // Using raw model ID (returns matching tier or creates custom config)
- * const config = resolveModel("anthropic/claude-sonnet-4.5");
- */
 export function resolveModel(tierOrModelId?: string | null): ModelTierConfig {
   if (!tierOrModelId) {
     return MODEL_TIERS[DEFAULT_MODEL_TIER];
@@ -220,58 +205,36 @@ export function resolveModel(tierOrModelId?: string | null): ModelTierConfig {
   };
 }
 
-/**
- * Get the model ID for a given tier.
- *
- * @param tier - Model tier.
- * @returns Model ID string.
- */
 export function getModelIdFromTier(tier: ModelTier): string {
   return MODEL_TIERS[tier]?.modelId ?? MODEL_TIERS[DEFAULT_MODEL_TIER].modelId;
 }
 
-/**
- * Get the tier for a given model ID.
- *
- * @param modelId - Model ID string.
- * @returns Model tier or null if not found.
- */
 export function getTierFromModelId(modelId: string): ModelTier | null {
   for (const [tier, config] of Object.entries(MODEL_TIERS)) {
-    if (config.modelId === modelId) {
-      return tier as ModelTier;
-    }
+    if (config.modelId === modelId) return tier as ModelTier;
   }
   return null;
 }
 
-/**
- * Type guard to check if a string is a valid model tier.
- *
- * @param tier - String to check.
- * @returns True if the string is a valid model tier.
- */
 export function isValidModelTier(tier: string): tier is ModelTier {
   return tier in MODEL_TIERS;
 }
 
-/**
- * Get pricing estimate for a request
- */
 export function estimateTierCost(
   tier: ModelTier,
   inputTokens: number,
   outputTokens: number,
 ): number {
-  const config = MODEL_TIERS[tier];
-  const inputCost = (inputTokens / 1000) * config.pricing.inputPer1k;
-  const outputCost = (outputTokens / 1000) * config.pricing.outputPer1k;
-  return Math.ceil((inputCost + outputCost) * 100) / 100;
+  const { pricing } = MODEL_TIERS[tier];
+  return (
+    Math.ceil(
+      ((inputTokens / 1000) * pricing.inputPer1k +
+        (outputTokens / 1000) * pricing.outputPer1k) *
+        100,
+    ) / 100
+  );
 }
 
-/**
- * Check if a tier has a specific capability
- */
 export function tierHasCapability(
   tier: ModelTier,
   capability: ModelCapability,
@@ -279,34 +242,22 @@ export function tierHasCapability(
   return MODEL_TIERS[tier].capabilities.includes(capability);
 }
 
-/**
- * Get all tiers that have a specific capability
- */
 export function getTiersWithCapability(
   capability: ModelCapability,
 ): ModelTier[] {
-  return MODEL_TIER_LIST.filter((config) =>
-    config.capabilities.includes(capability),
-  ).map((config) => config.id);
+  return MODEL_TIER_LIST.filter((c) => c.capabilities.includes(capability)).map(
+    (c) => c.id,
+  );
 }
 
-/**
- * Get display info for UI components
- */
-export function getTierDisplayInfo(tier: ModelTier): {
-  name: string;
-  modelId: string;
-  description: string;
-  priceIndicator: "$" | "$$" | "$$$";
-} {
+export function getTierDisplayInfo(tier: ModelTier) {
   const config = MODEL_TIERS[tier];
-  const priceIndicator = tier === "fast" ? "$" : tier === "pro" ? "$$" : "$$$";
-
   return {
     name: config.name,
     modelId: config.modelId,
     description: config.description,
-    priceIndicator,
+    priceIndicator:
+      tier === "fast" ? "$" : tier === "pro" ? "$$" : ("$$$" as const),
   };
 }
 

@@ -35,7 +35,7 @@ export {
 } from "@/lib/types/a2a";
 
 /**
- * A2A execution context with authenticated user
+ * A2A execution context with authenticated user and secrets
  */
 export interface A2AContext {
   user: UserWithOrganization & {
@@ -44,6 +44,12 @@ export interface A2AContext {
   };
   apiKeyId: string | null;
   agentIdentifier: string;
+  /**
+   * Decrypted secrets available to this A2A session.
+   * Loaded from secrets service based on organization and optional agent/project.
+   * Access via ctx.secrets['SECRET_NAME']
+   */
+  secrets: Record<string, string>;
 }
 
 /**
@@ -172,6 +178,314 @@ export interface VideoGenerationResult {
   jobId: string;
   status: string;
   cost: number;
+}
+
+/**
+ * Fragment generation result
+ */
+export interface FragmentGenerationResult {
+  fragment: {
+    commentary: string;
+    template: string;
+    title: string;
+    description: string;
+    file_path: string;
+    code: string;
+    port: number | null;
+    additional_dependencies: string[];
+    has_additional_dependencies: boolean;
+    install_dependencies_command: string;
+  };
+  cost: number;
+}
+
+/**
+ * Fragment execution result
+ */
+export interface FragmentExecutionResult {
+  containerId: string;
+  template: string;
+  url?: string;
+  stdout?: string[];
+  stderr?: string[];
+  runtimeError?: {
+    message: string;
+    name: string;
+    traceback?: string;
+  };
+}
+
+/**
+ * Fragment project result
+ */
+export interface FragmentProjectResult {
+  project: {
+    id: string;
+    name: string;
+    description?: string;
+    organization_id: string;
+    user_id: string;
+    fragment_data: Record<string, unknown>;
+    template: string;
+    status: string;
+    deployed_app_id?: string;
+    deployed_container_id?: string;
+    metadata: Record<string, unknown>;
+    created_at: string;
+    updated_at: string;
+    deployed_at?: string;
+  };
+}
+
+/**
+ * Fragment project list result
+ */
+export interface FragmentProjectListResult {
+  projects: Array<FragmentProjectResult["project"]>;
+  count: number;
+}
+
+/**
+ * Fragment deployment result
+ */
+export interface FragmentDeploymentResult {
+  deployment: {
+    type: "app" | "container";
+    app?: {
+      id: string;
+      name: string;
+      slug: string;
+      app_url: string;
+    };
+    apiKey?: string;
+    containerId?: string;
+    collections?: Array<{
+      name: string;
+      schema: Record<string, unknown>;
+    }>;
+    injectedCode?: string;
+    proxyRouteCode?: string;
+  };
+}
+
+/**
+ * Full App Builder session result
+ */
+export interface FullAppBuilderSessionResult {
+  sessionId: string;
+  sandboxId: string;
+  sandboxUrl: string;
+  status: string;
+  examplePrompts: string[];
+}
+
+/**
+ * Full App Builder prompt result
+ */
+export interface FullAppBuilderPromptResult {
+  success: boolean;
+  output: string;
+  filesAffected: string[];
+  error?: string;
+}
+
+/**
+ * Full App Builder session status result
+ */
+export interface FullAppBuilderStatusResult {
+  sessionId: string;
+  sandboxId: string;
+  sandboxUrl: string;
+  status: string;
+  messages: Array<{
+    role: "user" | "assistant";
+    content: string;
+    timestamp: string;
+    filesAffected?: string[];
+  }>;
+  generatedFiles: string[];
+}
+
+// ============================================
+// Domain Management Types
+// ============================================
+
+/**
+ * Domain search result
+ */
+export interface DomainSearchResult {
+  query: string;
+  results: Array<{
+    domain: string;
+    available: boolean;
+    price: {
+      amount: number;
+      currency: string;
+      period: number;
+    } | null;
+  }>;
+  availableCount: number;
+}
+
+/**
+ * Domain check result
+ */
+export interface DomainCheckResult {
+  domain: string;
+  available: boolean;
+  price: {
+    amount: number;
+    currency: string;
+    period: number;
+    renewalAmount: number;
+  } | null;
+  moderationFlags: Array<{
+    type: string;
+    severity: string;
+    reason: string;
+  }>;
+  requiresReview: boolean;
+}
+
+/**
+ * Domain list result
+ */
+export interface DomainListResult {
+  domains: Array<{
+    id: string;
+    domain: string;
+    status: string;
+    verified: boolean;
+    resourceType: string | null;
+    resourceId: string | null;
+    expiresAt: string | null;
+    sslStatus: string | null;
+    isLive: boolean;
+  }>;
+  stats: {
+    total: number;
+    active: number;
+    pending: number;
+    suspended: number;
+    expiringSoon: number;
+  };
+}
+
+/**
+ * Domain registration result
+ */
+export interface DomainRegisterResult {
+  success: boolean;
+  domain: {
+    id: string;
+    domain: string;
+    status: string;
+    verificationToken?: string;
+  };
+  dnsInstructions?: Array<{
+    type: string;
+    name: string;
+    value: string;
+    description: string;
+  }>;
+  message: string;
+}
+
+/**
+ * Domain verification result
+ */
+export interface DomainVerifyResult {
+  verified: boolean;
+  domain: string;
+  error?: string;
+  dnsInstructions?: Array<{
+    type: string;
+    name: string;
+    value: string;
+    description: string;
+  }>;
+  message: string;
+}
+
+/**
+ * Domain assignment result
+ */
+export interface DomainAssignResult {
+  success: boolean;
+  domain: {
+    id: string;
+    domain: string;
+    resourceType: string;
+    resourceId: string;
+  };
+  message: string;
+}
+
+// ============================================
+// Code Agent Types
+// ============================================
+
+/**
+ * Code agent session creation result
+ */
+export interface CodeAgentSessionResult {
+  sessionId: string;
+  name: string | null;
+  status: string;
+  runtimeUrl: string | null;
+  expiresAt: string | null;
+}
+
+/**
+ * Code execution result
+ */
+export interface CodeExecutionResult {
+  success: boolean;
+  exitCode: number;
+  stdout: string;
+  stderr: string;
+  durationMs: number;
+  filesAffected?: string[];
+}
+
+/**
+ * Code interpreter result
+ */
+export interface CodeInterpreterResult {
+  success: boolean;
+  executionId: string;
+  output: string;
+  error?: string;
+  exitCode: number;
+  durationMs: number;
+  costCents: number;
+}
+
+/**
+ * File operation result
+ */
+export interface FileOperationResult {
+  success: boolean;
+  path: string;
+  content?: string;
+  size?: number;
+  error?: string;
+}
+
+/**
+ * Git operation result
+ */
+export interface GitOperationResult {
+  success: boolean;
+  message: string;
+  gitState?: {
+    isRepo: boolean;
+    branch?: string;
+    commitHash?: string;
+    remoteUrl?: string;
+    hasUncommittedChanges?: boolean;
+  };
+  error?: string;
 }
 
 /**

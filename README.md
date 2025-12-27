@@ -94,6 +94,21 @@ Eliza Cloud V2 is a full-stack AI-as-a-Service platform that combines:
   - EC2-based ECS (t4g.small ARM instances, 1 per user)
   - Health checks and monitoring via ECS
 
+- **MCP Playground** (NEW ⚡):
+  - Interactive explorer for Model Context Protocol (MCP) integrations
+  - Test and experiment with 4+ MCP servers (ElizaOS Cloud, CoinGecko, Twitter/X, OpenAI Image)
+  - Live parameter editor with validation and type checking
+  - Real-time execution with JSON response viewer
+  - Copy-to-clipboard for results and code examples
+  - Comprehensive tool documentation with pricing info
+  - Category filtering (Platform, Crypto, Social, AI)
+  - **x402 Protocol Integration**: Visual indicators and filtering for cryptocurrency-based payments
+    - Wallet badges on x402-enabled MCPs
+    - Credit card badges for credit-based MCPs
+    - Payment type filter dropdown
+    - Inline x402 protocol explanations
+  - Support for both credit-based and x402 payment protocols
+
 ### 📊 Management & Analytics
 
 - **Dashboard**:
@@ -101,6 +116,12 @@ Eliza Cloud V2 is a full-stack AI-as-a-Service platform that combines:
   - Provider health monitoring
   - Credit activity timeline
   - Model usage breakdown
+
+- **Social Media Automation**:
+  - Cross-platform posting (11 networks)
+  - Unified API for multi-platform content
+  - Analytics and engagement tracking
+  - Bidirectional feed monitoring
 
 - **Gallery**:
   - View all generated images and videos
@@ -234,6 +255,7 @@ eliza-cloud-v2/
 │   ├── DEPLOYMENT_TROUBLESHOOTING.md  # Troubleshooting
 │   ├── STRIPE_SETUP.md     # Stripe integration
 │   ├── ENV_VARIABLES.md    # Environment configuration
+│   ├── social-media-api-keys.md  # Social media platform credentials
 │   └── ...
 ├── scripts/                 # Utility scripts
 │   ├── seed-credit-packs.ts
@@ -685,12 +707,12 @@ Authorization: Bearer eliza_your_api_key
 
 **Features**:
 
-- Multiple Fal.ai models:
-  - `fal-ai/veo3` (Google Veo 3)
-  - `fal-ai/veo3/fast` (faster version)
-  - `fal-ai/kling-video/v2.1/pro/text-to-video` (Kling Pro)
-  - `fal-ai/minimax/hailuo-02/pro/text-to-video` (MiniMax)
-- Automatic Vercel Blob upload
+- Multiple video models:
+  - `google/veo3` (Google Veo 3)
+  - `google/veo3-fast` (faster version)
+  - `kling/v2.1-pro` (Kuaishou Kling Pro)
+  - `minimax/hailuo-pro` (MiniMax Hailuo Pro)
+- Automatic storage upload
 - Progress tracking with queue updates
 - Fallback video on errors
 
@@ -703,7 +725,7 @@ Authorization: Bearer eliza_your_api_key
 
 {
   "prompt": "A cinematic shot of a spaceship flying through stars",
-  "model": "fal-ai/veo3"
+  "model": "google/veo3"
 }
 ```
 
@@ -1095,7 +1117,131 @@ See `docs/STRIPE_SETUP.md` for detailed Stripe configuration.
 - Response time percentiles
 - Error rate calculation
 
-### 11. MCP (Model Context Protocol) API
+### 11. Social Media Automation
+
+**Location**: `/app/api/v1/social-media/` and `lib/services/social-media/`
+
+**Features**:
+
+- Cross-platform posting to 11 social networks
+- Unified API for multi-platform content distribution
+- Per-platform credential management via secrets manager
+- Analytics retrieval for posts and accounts
+- Rate limiting with automatic retry and backoff
+- Token refresh for OAuth platforms
+
+**Supported Platforms**:
+
+| Platform  | Post | Delete | Reply | Like | Repost | Analytics |
+| --------- | ---- | ------ | ----- | ---- | ------ | --------- |
+| Twitter/X | ✅   | ✅     | ✅    | ✅   | ✅     | ✅        |
+| Bluesky   | ✅   | ✅     | ✅    | ✅   | ✅     | ✅        |
+| Discord   | ✅   | ✅     | ✅    | ✅   | -      | -         |
+| Telegram  | ✅   | ✅     | -     | -    | -      | -         |
+| Slack     | ✅   | ✅     | ✅    | -    | -      | -         |
+| Reddit    | ✅   | ✅     | ✅    | ✅   | -      | ✅        |
+| Facebook  | ✅   | ✅     | ✅    | ✅   | -      | ✅        |
+| Instagram | ✅   | ✅     | -     | ✅   | -      | ✅        |
+| TikTok    | ✅   | ✅     | -     | -    | -      | ✅        |
+| LinkedIn  | ✅   | ✅     | ✅    | ✅   | -      | ✅        |
+| Mastodon  | ✅   | ✅     | ✅    | ✅   | ✅     | ✅        |
+
+**API**:
+
+```bash
+# Post to multiple platforms
+POST /api/v1/social-media
+{
+  "content": { "text": "Hello from ElizaCloud!" },
+  "platforms": ["twitter", "bluesky", "mastodon"]
+}
+
+# Post to single platform
+POST /api/v1/social-media/twitter
+{
+  "content": { "text": "Hello Twitter!" }
+}
+
+# Get supported platforms
+GET /api/v1/social-media
+
+# Validate credentials
+POST /api/v1/social-media/credentials/validate
+{
+  "platform": "twitter"
+}
+```
+
+**Required Environment Variables** (per platform):
+
+| Platform  | Required Variables                                                               |
+| --------- | -------------------------------------------------------------------------------- |
+| Twitter   | `TWITTER_ACCESS_TOKEN`, `TWITTER_REFRESH_TOKEN` (optional)                       |
+| Bluesky   | `BLUESKY_HANDLE`, `BLUESKY_APP_PASSWORD`                                         |
+| Discord   | `DISCORD_BOT_TOKEN` or `DISCORD_WEBHOOK_URL`                                     |
+| Telegram  | `TELEGRAM_BOT_TOKEN`                                                             |
+| Slack     | `SLACK_BOT_TOKEN` or `SLACK_WEBHOOK_URL`                                         |
+| Reddit    | `REDDIT_CLIENT_ID`, `REDDIT_CLIENT_SECRET`, `REDDIT_USERNAME`, `REDDIT_PASSWORD` |
+| Facebook  | `META_ACCESS_TOKEN`, `META_PAGE_ID`                                              |
+| Instagram | `META_ACCESS_TOKEN`, `META_IG_ACCOUNT_ID`                                        |
+| TikTok    | `TIKTOK_ACCESS_TOKEN`                                                            |
+| LinkedIn  | `LINKEDIN_ACCESS_TOKEN`                                                          |
+| Mastodon  | `MASTODON_ACCESS_TOKEN`, `MASTODON_INSTANCE_URL` (optional)                      |
+
+**Full Documentation**: See `docs/social-media-api-keys.md` for detailed setup instructions.
+
+**MCP Tools Available**:
+
+- `social_media_create_post` - Post to multiple platforms
+- `social_media_post_to_platform` - Post to a single platform
+- `social_media_delete_post` - Delete a post
+- `social_media_reply` - Reply to a post
+- `social_media_like` - Like/upvote a post
+- `social_media_repost` - Retweet/reblog a post
+- `social_media_get_post_analytics` - Get post metrics
+- `social_media_get_account_analytics` - Get account metrics
+
+**A2A Skills Available**:
+
+- `social_media_post` / `post_social` - Multi-platform posting
+- `social_media_reply` / `reply_to_post` - Reply to posts
+- `social_media_like` / `like_post` - Like posts
+- `social_media_repost` / `retweet` - Repost content
+- `social_media_get_platforms` / `list_social_platforms` - List supported platforms
+
+**OAuth Connection Flow**:
+
+Users can connect social accounts via Settings → Connections tab:
+
+1. **OAuth Platforms** (Twitter, Discord, Reddit, etc.):
+   - Click "Connect" → Redirect to platform OAuth
+   - User authorizes ElizaCloud → Tokens stored securely
+   - No need for manual API key configuration
+
+2. **Manual Platforms** (Bluesky, Telegram):
+   - Click "Connect" → Modal with setup instructions
+   - Bluesky: Enter handle + app password from bsky.app/settings
+   - Telegram: Enter bot token from @BotFather
+
+**Connection API**:
+
+```bash
+# List connections
+GET /api/v1/social-connections
+
+# Start OAuth flow
+POST /api/v1/social-connections/connect/twitter
+→ { authUrl: "https://twitter.com/oauth/..." }
+
+# Submit manual credentials
+POST /api/v1/social-connections
+{ "platform": "bluesky", "credentials": { "handle": "@user.bsky.social", "appPassword": "..." } }
+
+# Disconnect
+DELETE /api/v1/social-connections/{id}
+```
+
+### 12. MCP (Model Context Protocol) API
 
 **Location**: `/app/api/mcp/route.ts`
 
@@ -1394,7 +1540,7 @@ POST /api/v1/generate-image
 POST /api/v1/generate-video
 {
   "prompt": "Cinematic shot of spaceship",
-  "model": "fal-ai/veo3"
+  "model": "google/veo3"
 }
 
 # Available Models
@@ -1492,6 +1638,57 @@ GET /api/v1/user
   "name": "John Doe",
   "organization": {...},
   "credit_balance": 5000
+}
+```
+
+#### Social Media
+
+```bash
+# Post to multiple platforms
+POST /api/v1/social-media
+{
+  "content": {
+    "text": "Hello from ElizaCloud!",
+    "media": [{"type": "image", "url": "https://...", "mimeType": "image/jpeg"}]
+  },
+  "platforms": ["twitter", "bluesky", "mastodon"]
+}
+
+# Post to single platform
+POST /api/v1/social-media/twitter
+{
+  "content": {"text": "Hello Twitter!"}
+}
+
+# Get supported platforms and capabilities
+GET /api/v1/social-media
+
+# Delete a post
+DELETE /api/v1/social-media/twitter/posts/{postId}
+
+# Like a post
+POST /api/v1/social-media/twitter/posts/{postId}/like
+
+# Reply to a post
+POST /api/v1/social-media/twitter/posts/{postId}/reply
+{
+  "content": {"text": "Great post!"}
+}
+
+# Validate credentials
+POST /api/v1/social-media/credentials/validate
+{
+  "platform": "twitter"
+}
+
+# Store credentials
+POST /api/v1/social-media/credentials
+{
+  "platform": "bluesky",
+  "credentials": {
+    "handle": "user.bsky.social",
+    "appPassword": "xxxx-xxxx-xxxx-xxxx"
+  }
 }
 ```
 
@@ -1617,6 +1814,132 @@ DATABASE_URL=postgres://prod-url npm run db:migrate
 - **Provider Health**: Check `/dashboard/analytics`
 
 ## 🐛 Troubleshooting
+
+### Deployment Issues
+
+#### 1. Container Deployment Fails
+
+**Error**: "Container deployment failed" or "Deployment timeout"
+
+**Solutions**:
+
+- **Check Cloudflare credentials**: Verify `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` are correct
+- **Verify R2 configuration**: Ensure all R2 environment variables are set correctly:
+  - `R2_ACCOUNT_ID` (usually same as `CLOUDFLARE_ACCOUNT_ID`)
+  - `R2_ACCESS_KEY_ID`
+  - `R2_SECRET_ACCESS_KEY`
+  - `R2_ENDPOINT`
+  - `R2_BUCKET_NAME`
+- **Check API quotas**: Run `elizaos deploy` with `--verbose` to see quota status
+- **View deployment logs**: Check the container deployment log in the dashboard
+- **Verify bootstrapper image**: Ensure `elizaos/bootstrapper:latest` exists and is accessible
+
+**Debug Steps**:
+
+```bash
+# Check container status via API
+curl https://your-app.com/api/v1/containers/{container-id} \
+  -H "Authorization: Bearer YOUR_API_KEY"
+
+# Check health endpoint
+curl https://your-app.com/api/v1/containers/{container-id}/health \
+  -H "Authorization: Bearer YOUR_API_KEY"
+
+# View artifact stats
+curl https://your-app.com/api/v1/artifacts/stats \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+#### 2. Artifact Upload Fails
+
+**Error**: "Failed to upload artifact" or "Artifact upload timeout"
+
+**Solutions**:
+
+- **Check artifact size**: Maximum size is 500MB. Reduce project size if needed
+- **Verify R2 credentials**: Test R2 access using the AWS CLI:
+  ```bash
+  aws s3 ls --endpoint-url=$R2_ENDPOINT s3://eliza-artifacts/
+  ```
+- **Check network connection**: Ensure your network allows S3 API calls
+- **Verify presigned URL**: Check that URLs are being generated correctly
+- **Increase timeout**: Large artifacts may need more time to upload
+
+**Debug Steps**:
+
+```bash
+# Test R2 access directly
+aws s3 cp test.txt s3://eliza-artifacts/test/ \
+  --endpoint-url=$R2_ENDPOINT
+
+# Check artifact database records
+# Run in psql or Drizzle Studio
+SELECT id, project_id, version, size, created_at
+FROM artifacts
+WHERE organization_id = 'your-org-id'
+ORDER BY created_at DESC
+LIMIT 10;
+```
+
+#### 3. Bootstrapper Container Fails to Start
+
+**Error**: Container status stuck in "building" or "deploying"
+
+**Solutions**:
+
+- **Verify artifact is accessible**: Check that the artifact exists in R2
+- **Check R2 credentials expiration**: Temporary credentials expire after 1 hour
+- **Verify bootstrapper image**: Ensure the image is built and published:
+  ```bash
+  cd eliza-cloud-v2/bootstrapper
+  ./build.sh v1.0.0
+  docker push elizaos/bootstrapper:latest
+  ```
+- **Check container logs**: View Cloudflare Worker logs for error details
+- **Verify environment variables**: Ensure all required env vars are passed to container
+- **Test locally**: Run bootstrapper locally with same configuration:
+  ```bash
+  docker run -it --rm \
+    -e R2_ARTIFACT_URL="..." \
+    -e R2_ACCESS_KEY_ID="..." \
+    -e R2_SECRET_ACCESS_KEY="..." \
+    -e R2_SESSION_TOKEN="..." \
+    -e R2_ENDPOINT="..." \
+    elizaos/bootstrapper:latest
+  ```
+
+#### 4. "Insufficient Credits" Error
+
+**Error**: "Insufficient credits. Required: X, Available: Y"
+
+**Solutions**:
+
+- **Purchase credits**: Visit `/dashboard/credits` to buy more credits
+- **Check credit balance**: View current balance in the dashboard
+- **Review pricing**: Deployment costs are based on container instances and duration
+- **Contact support**: If you believe this is an error
+
+#### 5. "Quota Exceeded" Error
+
+**Error**: "Container limit reached (N). Delete unused containers or contact support."
+
+**Solutions**:
+
+- **Delete unused containers**: Remove stopped or failed containers
+- **Upgrade plan**: Contact sales for higher quotas
+- **Review container usage**: Check which containers are actually needed
+
+#### 6. Health Checks Failing
+
+**Error**: Container marked as "failed" after deployment
+
+**Solutions**:
+
+- **Check health endpoint**: Verify your app responds to `GET /health`
+- **Review health check path**: Default is `/health`, configure if different
+- **Check application logs**: The app may be crashing on startup
+- **Verify PORT environment variable**: Ensure app listens on the correct port
+- **Test locally**: Run your ElizaOS project locally to verify it works
 
 ### Common Issues
 

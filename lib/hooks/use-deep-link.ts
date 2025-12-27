@@ -12,6 +12,7 @@
 import { useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { isMobileApp } from "@/lib/api/mobile-client";
+import { logger } from "@/lib/utils/logger";
 
 /**
  * Deep link event data

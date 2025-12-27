@@ -9,7 +9,7 @@
  * - Escalation logic
  *
  * Run:
- *   bun test tests/e2e/admin-moderation.test.ts
+ *   bun test tests/integration/admin-moderation.test.ts
  *
  * Environment:
  *   TEST_API_URL - API endpoint. Default: http://localhost:3000
@@ -24,21 +24,12 @@ import {
   afterAll,
   setDefaultTimeout,
 } from "bun:test";
-import { config } from "dotenv";
-
-// Ensure environment is loaded before any database access
-config({ path: ".env" });
-config({ path: ".env.local", override: true });
-
-import { db } from "@/db/client";
 import {
-  users,
-  adminUsers,
-  moderationViolations,
-  userModerationStatus,
-  organizations,
-} from "@/db/schemas";
-import { eq, and } from "drizzle-orm";
+  setupIntegrationTest,
+  testContext,
+  requireSchema,
+  requireServer,
+} from "../test-utils";
 import { v4 as uuidv4 } from "uuid";
 
 // Increase timeout for e2e tests
@@ -56,28 +47,27 @@ let testAdminUserId: string;
 let testRegularUserId: string;
 let testOrgId: string;
 
-// Helper to check if database is available (including moderation tables)
-const isDatabaseAvailable = () =>
-  Boolean(db.query?.users && db.query?.userModerationStatus);
-
 // Check moderation tables at runtime (in beforeAll) not at module load time
 let moderationTablesExist = false;
+let dbAvailable = false;
 
 // Helper to skip test if moderation tables don't exist
-// Also ensures beforeAll has run by checking db connection
 async function requireModerationTables(): Promise<boolean> {
-  // If already checked and available, return true
-  if (moderationTablesExist) return true;
-
-  // Double-check tables exist (in case beforeAll hasn't run yet)
-  try {
-    await db.query.userModerationStatus?.findFirst();
-    moderationTablesExist = true;
-    return true;
-  } catch {
-    console.log("⏭️ Skipping - moderation tables not available");
+  if (!dbAvailable) {
+    console.log("⏭️ Skipping - database not available");
     return false;
   }
+  if (moderationTablesExist) return true;
+
+  // Check schema availability
+  const available = await requireSchema("userModerationStatus");
+  if (available) {
+    moderationTablesExist = true;
+    return true;
+  }
+
+  console.log("⏭️ Skipping - moderation tables not available");
+  return false;
 }
 
 // ===== Test Content Samples =====
@@ -98,7 +88,36 @@ const BORDERLINE_CONTENT =
 
 // ===== Helper Functions =====
 
+// Lazy import db to avoid errors at module load time
+let db: Awaited<typeof import("@/db/client")>["db"];
+let users: Awaited<typeof import("@/db/schemas")>["users"];
+let organizations: Awaited<typeof import("@/db/schemas")>["organizations"];
+let moderationViolations: Awaited<
+  typeof import("@/db/schemas")
+>["moderationViolations"];
+let userModerationStatus: Awaited<
+  typeof import("@/db/schemas")
+>["userModerationStatus"];
+let adminUsers: Awaited<typeof import("@/db/schemas")>["adminUsers"];
+let eq: Awaited<typeof import("drizzle-orm")>["eq"];
+
+async function loadDbModules() {
+  if (db) return;
+  const dbModule = await import("@/db/client");
+  const schemasModule = await import("@/db/schemas");
+  const drizzleModule = await import("drizzle-orm");
+  db = dbModule.db;
+  users = schemasModule.users;
+  organizations = schemasModule.organizations;
+  moderationViolations = schemasModule.moderationViolations;
+  userModerationStatus = schemasModule.userModerationStatus;
+  adminUsers = schemasModule.adminUsers;
+  eq = drizzleModule.eq;
+}
+
 async function createTestUsers() {
+  await loadDbModules();
+
   const timestamp = Date.now();
   const random = Math.random().toString(36).slice(2, 8);
 
@@ -188,6 +207,8 @@ async function createTestUsers() {
 }
 
 async function cleanupTestData() {
+  if (!db) return;
+
   // Clean up test violations (only if tables exist)
   if (testRegularUserId && moderationTablesExist) {
     try {
@@ -235,8 +256,13 @@ beforeAll(async () => {
   console.log(`   API URL: ${TEST_API_URL}`);
   console.log(`   Anvil Wallet: ${ANVIL_WALLET}`);
 
-  // Check if database is available
-  if (!db.query?.users) {
+  // Check database availability using test utils
+  dbAvailable = await setupIntegrationTest({
+    requireDb: true,
+    requireServer: false,
+  });
+
+  if (!dbAvailable) {
     console.log("   ⚠️  Database not available - tests will use mocked data");
     testAdminUserId = "mock-admin-user-id";
     testRegularUserId = "mock-regular-user-id";
@@ -244,27 +270,27 @@ beforeAll(async () => {
     return;
   }
 
-  // Check and set moderation table status (must happen in beforeAll, not at module load)
-  try {
-    await db.query.userModerationStatus?.findFirst();
-    moderationTablesExist = true;
+  // Check moderation schema availability
+  moderationTablesExist = await requireSchema("userModerationStatus");
+  if (moderationTablesExist) {
     console.log("   ✅ Moderation tables available");
-  } catch {
-    moderationTablesExist = false;
+  } else {
     console.log(
       "   ⚠️  Moderation tables not available - some tests will be skipped",
     );
   }
 
-  await createTestUsers();
-  console.log(`   Admin User ID: ${testAdminUserId}`);
-  console.log(`   Regular User ID: ${testRegularUserId}`);
+  // Only create test users if database is available
+  if (dbAvailable) {
+    await createTestUsers();
+    console.log(`   Admin User ID: ${testAdminUserId}`);
+    console.log(`   Regular User ID: ${testRegularUserId}`);
+  }
 });
 
 afterAll(async () => {
   console.log("\n🧹 Cleaning up test data...");
-  // Skip cleanup if database not available
-  if (!db.query?.users) {
+  if (!dbAvailable) {
     console.log("   ⚠️  Database not available - skipping cleanup");
     return;
   }
@@ -372,6 +398,7 @@ describe("Content Moderation Service", () => {
   describe("escalation logic", () => {
     test("first violation returns refused action", async () => {
       if (!(await requireModerationTables())) return;
+      await loadDbModules();
       const { contentModerationService } =
         await import("@/lib/services/content-moderation");
 
@@ -635,10 +662,21 @@ describe("Admin Service", () => {
 
 describe("Admin API Endpoints", () => {
   // Note: These tests require a running server with test authentication
-  // In a real E2E setup, we'd use proper auth tokens
+  let serverAvailable = false;
+
+  beforeAll(async () => {
+    const response = await fetch(`${TEST_API_URL}`).catch(() => null);
+    serverAvailable = response?.ok ?? false;
+    if (!serverAvailable) {
+      console.log(
+        `⚠️ Server not available at ${TEST_API_URL}. Skipping admin API endpoint tests.`,
+      );
+    }
+  });
 
   describe("HEAD /api/v1/admin/moderation", () => {
     test("endpoint exists", async () => {
+      if (!serverAvailable) return;
       const response = await fetch(`${TEST_API_URL}/api/v1/admin/moderation`, {
         method: "HEAD",
       });
@@ -649,6 +687,7 @@ describe("Admin API Endpoints", () => {
 
   describe("GET /api/v1/admin/moderation", () => {
     test("returns 401/403 without authentication", async () => {
+      if (!serverAvailable) return;
       const response = await fetch(
         `${TEST_API_URL}/api/v1/admin/moderation?view=overview`,
       );
@@ -658,6 +697,7 @@ describe("Admin API Endpoints", () => {
 
   describe("POST /api/v1/admin/moderation", () => {
     test("returns 401/403 without authentication", async () => {
+      if (!serverAvailable) return;
       const response = await fetch(`${TEST_API_URL}/api/v1/admin/moderation`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -671,6 +711,7 @@ describe("Admin API Endpoints", () => {
     });
 
     test("validates action schema", async () => {
+      if (!serverAvailable) return;
       const response = await fetch(`${TEST_API_URL}/api/v1/admin/moderation`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -687,7 +728,15 @@ describe("Admin API Endpoints", () => {
 // ===== Admin Panel Page Tests =====
 
 describe("Admin Panel Page", () => {
+  let serverAvailable = false;
+
+  beforeAll(async () => {
+    const response = await fetch(`${TEST_API_URL}`).catch(() => null);
+    serverAvailable = response?.ok ?? false;
+  });
+
   test("page exists at /dashboard/admin", async () => {
+    if (!serverAvailable) return;
     const response = await fetch(`${TEST_API_URL}/dashboard/admin`);
     // Should return 200 (renders page), redirect to login, or 500 if auth context fails
     // 500 is acceptable in test environment since the page requires full auth context
@@ -703,18 +752,21 @@ describe("Admin Panel Page", () => {
 describe("Database Schemas", () => {
   test("admin_users schema exists", async () => {
     if (!(await requireModerationTables())) return;
+    await loadDbModules();
     const result = await db.select().from(adminUsers).limit(1);
     expect(Array.isArray(result)).toBe(true);
   });
 
   test("moderation_violations schema exists", async () => {
     if (!(await requireModerationTables())) return;
+    await loadDbModules();
     const result = await db.select().from(moderationViolations).limit(1);
     expect(Array.isArray(result)).toBe(true);
   });
 
   test("user_moderation_status schema exists", async () => {
     if (!(await requireModerationTables())) return;
+    await loadDbModules();
     const result = await db.select().from(userModerationStatus).limit(1);
     expect(Array.isArray(result)).toBe(true);
   });
@@ -725,6 +777,7 @@ describe("Database Schemas", () => {
 describe("Integration", () => {
   test("content moderation and admin service work together", async () => {
     if (!(await requireModerationTables())) return;
+    await loadDbModules();
     const { contentModerationService } =
       await import("@/lib/services/content-moderation");
     const { adminService } = await import("@/lib/services/admin");
@@ -800,6 +853,13 @@ describe("Integration", () => {
 // ===== Error Handling Tests =====
 
 describe("Error Handling", () => {
+  let serverAvailable = false;
+
+  beforeAll(async () => {
+    const response = await fetch(`${TEST_API_URL}`).catch(() => null);
+    serverAvailable = response?.ok ?? false;
+  });
+
   test("moderation service throws on missing API key", async () => {
     // Temporarily unset the API key
     const originalKey = process.env.OPENAI_API_KEY;
@@ -817,6 +877,7 @@ describe("Error Handling", () => {
   });
 
   test("ban user requires reason", async () => {
+    if (!serverAvailable) return;
     const response = await fetch(`${TEST_API_URL}/api/v1/admin/moderation`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },

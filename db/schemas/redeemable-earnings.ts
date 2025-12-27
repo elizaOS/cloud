@@ -4,7 +4,7 @@
  * CRITICAL: This table tracks earnings that can be redeemed for elizaOS tokens.
  *
  * ONLY the following sources are redeemable:
- * 1. Miniapp creator earnings (inference markup, purchase shares)
+ * 1. App creator earnings (inference markup, purchase shares)
  * 2. Agent creator earnings (from public agents)
  * 3. MCP creator earnings (from published MCPs)
  *
@@ -37,7 +37,7 @@ import { sql } from "drizzle-orm";
  * Type of earning source - ONLY these are redeemable
  */
 export const earningsSourceEnum = pgEnum("earnings_source", [
-  "miniapp", // From owning a miniapp
+  "app", // From owning a app
   "agent", // From owning a public agent
   "mcp", // From owning a published MCP
 ]);
@@ -72,7 +72,7 @@ export const redeemableEarnings = pgTable(
       .references(() => users.id, { onDelete: "cascade" })
       .unique(), // One balance per user
 
-    // Total earned from ALL sources (miniapps + agents + mcps)
+    // Total earned from ALL sources (apps + agents + mcps)
     // This ONLY increases, never decreases
     total_earned: numeric("total_earned", { precision: 18, scale: 4 })
       .notNull()
@@ -97,10 +97,7 @@ export const redeemableEarnings = pgTable(
       .default("0.0000"),
 
     // Breakdown by source (for transparency)
-    earned_from_miniapps: numeric("earned_from_miniapps", {
-      precision: 18,
-      scale: 4,
-    })
+    earned_from_apps: numeric("earned_from_apps", { precision: 18, scale: 4 })
       .notNull()
       .default("0.0000"),
     earned_from_agents: numeric("earned_from_agents", {

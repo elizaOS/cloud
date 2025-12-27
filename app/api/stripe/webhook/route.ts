@@ -109,8 +109,7 @@ async function handleStripeWebhook(req: NextRequest) {
           const appId = session.metadata?.app_id;
 
           // Check if this is an app-specific purchase
-          const isAppPurchase =
-            purchaseSource === "miniapp_app" && appId && userId;
+          const isAppPurchase = purchaseSource === "app_app" && appId && userId;
 
           if (!organizationId || !credits) {
             logger.warn(

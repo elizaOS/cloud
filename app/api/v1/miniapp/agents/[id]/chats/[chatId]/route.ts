@@ -25,35 +25,20 @@ import { extractMessageText } from "@/lib/utils/message-text";
 import { dbRead, dbWrite } from "@/db/client";
 import { roomTable, memoryTable, participantTable } from "@/db/schemas/eliza";
 import { eq, and, asc } from "drizzle-orm";
-import type { Media, UUID } from "@elizaos/core";
+import type { UUID } from "@elizaos/core";
 import type { RoomMetadata } from "@/lib/types/message-content";
 import {
   parseMessageContent,
-  isVisibleDialogueMessage,
   type MessageAttachment,
 } from "@/lib/types/message-content";
 
-/**
- * OPTIONS /api/v1/miniapp/agents/[id]/chats/[chatId]
- * CORS preflight handler for miniapp chat management endpoint.
- *
- * @param request - The Next.js request object.
- * @returns Preflight response with CORS headers.
- */
 export async function OPTIONS(request: NextRequest) {
   const origin = request.headers.get("origin");
   return createPreflightResponse(origin, ["GET", "DELETE", "OPTIONS"]);
 }
 
 /**
- * Verifies that a user has access to a specific chat.
- * Checks agent ownership, room existence, and user participation/creation.
- *
- * @param chatId - The chat/room ID.
- * @param agentId - The agent ID.
- * @param userId - The user ID.
- * @param organizationId - The organization ID.
- * @returns Access verification result with error details if denied.
+ * Verify user has access to the chat
  */
 async function verifyAccess(
   chatId: string,
@@ -65,11 +50,6 @@ async function verifyAccess(
   const character = await charactersService.getById(agentId);
 
   if (!character) {
-    return { allowed: false, error: "Agent not found", status: 404 };
-  }
-
-  // Verify this is a miniapp agent - miniapp API can only access miniapp-created agents
-  if (character.source !== "miniapp") {
     return { allowed: false, error: "Agent not found", status: 404 };
   }
 
@@ -111,17 +91,7 @@ async function verifyAccess(
 
 /**
  * GET /api/v1/miniapp/agents/[id]/chats/[chatId]
- * Gets chat history (messages) for a specific chat.
- * Supports pagination via limit and before cursor parameters.
- * Includes message attachments if present.
- *
- * Query Parameters:
- * - `limit`: Maximum number of messages to return (default: 50, max: 100).
- * - `before`: Cursor for pagination (message ID).
- *
- * @param request - Request with optional pagination query parameters.
- * @param params - Route parameters containing the agent ID and chat ID.
- * @returns Chat messages with role, content, attachments, and metadata.
+ * Get chat history (messages)
  */
 export async function GET(
   request: NextRequest,
@@ -196,18 +166,10 @@ export async function GET(
       }),
     });
 
-    // Filter out action results and deduplicate messages
+    // Deduplicate messages by content hash (same text + same entityId within 5 seconds = duplicate)
     const seenMessages = new Map<string, (typeof messages)[0]>();
     const deduplicatedMessages = messages.filter((msg) => {
       const content = msg.content as Record<string, unknown>;
-      const metadata = msg.metadata as Record<string, unknown> | undefined;
-
-      // Use centralized visibility check (filters hidden and action_result messages)
-      if (!isVisibleDialogueMessage(metadata, content)) {
-        return false;
-      }
-
-      // Deduplicate by content hash (same text + same entityId within 5 seconds = duplicate)
       const text = (content?.text as string) || "";
       const createdAt = msg.createdAt
         ? new Date(msg.createdAt as string | number | Date).getTime()
@@ -237,33 +199,92 @@ export async function GET(
       const rawContent = msg.content;
       const content = parseMessageContent(rawContent);
 
-      // Extract text content using shared utility
+      // Extract text content - handle multiple possible structures
       // ElizaOS stores content differently for user vs agent messages
-      const textContent = extractMessageText(content, msg.metadata);
+      let textContent = "";
+      if (typeof content === "object" && content !== null) {
+        const c = content as Record<string, unknown>;
 
-      // Debug log to understand content structure (development only)
-      if (process.env.NODE_ENV !== "production") {
-        logger.debug("[Miniapp API] Message content structure", {
-          msgId: msg.id,
-          entityId: msg.entityId,
-          isAgent: msg.entityId === agentId,
-          extractedText: textContent
-            ? textContent.substring(0, 100)
-            : "(EMPTY - extraction failed)",
-        });
+        // Try direct text field first (if non-empty)
+        if (typeof c.text === "string" && c.text.length > 0) {
+          textContent = c.text;
+        }
+        // Check thought field (ElizaOS sometimes stores response in thought)
+        else if (typeof c.thought === "string" && c.thought.length > 0) {
+          textContent = c.thought;
+        }
+        // Check response field
+        else if (typeof c.response === "string" && c.response.length > 0) {
+          textContent = c.response;
+        }
+        // Check body field
+        else if (typeof c.body === "string" && c.body.length > 0) {
+          textContent = c.body;
+        }
+        // Fallback: check if content itself is the text
+        else if (typeof c.content === "string" && c.content.length > 0) {
+          textContent = c.content;
+        }
+        // Fallback: nested content.text structure
+        else if (
+          typeof c.content === "object" &&
+          c.content !== null &&
+          typeof (c.content as Record<string, unknown>).text === "string" &&
+          ((c.content as Record<string, unknown>).text as string).length > 0
+        ) {
+          textContent = (c.content as Record<string, unknown>).text as string;
+        }
+        // Check message field
+        else if (typeof c.message === "string" && c.message.length > 0) {
+          textContent = c.message;
+        }
+        // Last resort: find ANY non-empty string field
+        else {
+          const stringFields = Object.entries(c)
+            .filter(
+              ([key, v]) =>
+                typeof v === "string" &&
+                (v as string).length > 0 &&
+                key !== "source" &&
+                key !== "action" &&
+                key !== "inReplyTo",
+            )
+            .sort((a, b) => (b[1] as string).length - (a[1] as string).length); // Prefer longer strings
+          if (stringFields.length > 0) {
+            textContent = stringFields[0][1] as string;
+          }
+        }
+      }
+
+      // Also check metadata for text (ElizaOS sometimes stores there)
+      if (!textContent && msg.metadata && typeof msg.metadata === "object") {
+        const meta = msg.metadata as Record<string, unknown>;
+        if (typeof meta.text === "string" && meta.text.length > 0) {
+          textContent = meta.text;
+        } else if (
+          typeof meta.response === "string" &&
+          meta.response.length > 0
+        ) {
+          textContent = meta.response;
+        } else if (
+          typeof meta.content === "string" &&
+          meta.content.length > 0
+        ) {
+          textContent = meta.content;
+        }
       }
 
       // Extract attachments from content if present
       const attachments: MessageAttachment[] | undefined =
         Array.isArray(content.attachments) && content.attachments.length > 0
           ? content.attachments
-              .filter((att): att is Media => {
+              .filter((att): att is MessageAttachment => {
                 return (
                   typeof att === "object" &&
                   att !== null &&
                   "id" in att &&
                   "url" in att &&
-                  typeof (att as Media).url === "string"
+                  typeof (att as MessageAttachment).url === "string"
                 );
               })
               .map((att) => ({
@@ -279,11 +300,14 @@ export async function GET(
         msg.entityId === room?.agentId ||
         (msg.content as Record<string, unknown>)?.source === "agent";
 
+      // Safely convert createdAt to ISO string
+      const createdAtValue = safeToISOString(msg.createdAt);
+
       return {
         id: msg.id,
         content: textContent,
         role: isAgent ? ("assistant" as const) : ("user" as const),
-        createdAt: safeToISOString(msg.createdAt),
+        createdAt: createdAtValue,
         metadata: msg.metadata,
         attachments:
           attachments && attachments.length > 0 ? attachments : undefined,
@@ -326,12 +350,7 @@ export async function GET(
 
 /**
  * DELETE /api/v1/miniapp/agents/[id]/chats/[chatId]
- * Deletes a chat and all associated messages and participants.
- * Requires ownership verification. Rate limited with stricter limits for write operations.
- *
- * @param request - The Next.js request object.
- * @param params - Route parameters containing the agent ID and chat ID.
- * @returns Success confirmation.
+ * Delete a chat
  */
 export async function DELETE(
   request: NextRequest,

@@ -24,6 +24,7 @@ import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { userMcpsService } from "@/lib/services/user-mcps";
 import { creditsService } from "@/lib/services/credits";
 import { containersService } from "@/lib/services/containers";
+import { loadMcpSecrets, isSecretsConfigured } from "@/lib/services/secrets";
 import {
   X402_ENABLED,
   isX402Configured,
@@ -218,6 +219,14 @@ export async function POST(
     );
   }
 
+  // Load secrets for this MCP (org-level + MCP-scoped)
+  const mcpSecrets = isSecretsConfigured()
+    ? await loadMcpSecrets({
+        organizationId: mcp.organization_id,
+        mcpId: mcp.id,
+      })
+    : {};
+
   // Parse the request body to extract tool name
   let body: Record<string, unknown>;
   let toolName = "unknown";
@@ -238,19 +247,38 @@ export async function POST(
     body = {};
   }
 
+  // Prepare headers for the MCP request
+  const mcpHeaders: Record<string, string> = {
+    "Content-Type": "application/json",
+    // Forward relevant headers
+    ...(request.headers.get("accept") && {
+      Accept: request.headers.get("accept")!,
+    }),
+  };
+
+  // For container-based MCPs, inject secrets via X-Eliza-Secrets header
+  // The container can read this header to access secrets
+  if (mcp.endpoint_type === "container" && Object.keys(mcpSecrets).length > 0) {
+    // Encode secrets as base64 JSON for header transport
+    mcpHeaders["X-Eliza-Secrets"] = Buffer.from(
+      JSON.stringify(mcpSecrets),
+    ).toString("base64");
+  }
+
+  // For external MCPs, we include secrets in the request body under a special key
+  // This allows external MCPs to access organization secrets
+  const enrichedBody =
+    mcp.endpoint_type === "external" && Object.keys(mcpSecrets).length > 0
+      ? { ...body, $secrets: mcpSecrets }
+      : body;
+
   // Proxy the request to the MCP
   let mcpResponse: Response;
   try {
     mcpResponse = await fetch(targetUrl, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        // Forward relevant headers
-        ...(request.headers.get("accept") && {
-          Accept: request.headers.get("accept")!,
-        }),
-      },
-      body: JSON.stringify(body),
+      headers: mcpHeaders,
+      body: JSON.stringify(enrichedBody),
     });
   } catch (error) {
     logger.error("[MCP Proxy] Failed to reach MCP endpoint", {

@@ -50,13 +50,7 @@ function MiniappLoginContent() {
   const [errorMessage, setErrorMessage] = useState(initialStatus.errorMessage);
 
   // Track if login has been triggered to prevent infinite loop
-  // Use sessionStorage for persistence across component remounts (e.g., React Strict Mode, hot reload)
-  const LOGIN_TRIGGERED_KEY = `miniapp_login_triggered_${sessionId}`;
-  const loginTriggeredRef = useRef(
-    typeof window !== "undefined"
-      ? sessionStorage.getItem(LOGIN_TRIGGERED_KEY) === "true"
-      : false,
-  );
+  const loginTriggeredRef = useRef(false);
 
   const completeLogin = useCallback(async () => {
     if (!sessionId) {
@@ -78,9 +72,7 @@ function MiniappLoginContent() {
 
       if (!response.ok) {
         const errorData = await response.json();
-        setStatus("error");
-        setErrorMessage(errorData.error || "Failed to complete authentication");
-        return;
+        throw new Error(errorData.error || "Failed to complete authentication");
       }
 
       const data = await response.json();
@@ -91,6 +83,7 @@ function MiniappLoginContent() {
       callbackUrl.searchParams.set("session", sessionId);
       window.location.href = callbackUrl.toString();
     } catch (error) {
+      console.error("Error completing miniapp login:", error);
       setStatus("error");
       setErrorMessage(
         error instanceof Error
@@ -128,31 +121,20 @@ function MiniappLoginContent() {
   }, [initialStatus.status, authenticated, sessionId, completeLogin]);
 
   // Auto-trigger login when ready and waiting for auth
-  // Use ref + sessionStorage to ensure login is only called once (persistent across remounts)
+  // Use ref to ensure login is only called once to prevent infinite loop
   useEffect(() => {
     // Reset flag when authenticated (early return prevents race condition)
     if (authenticated) {
       loginTriggeredRef.current = false;
-      if (typeof window !== "undefined") {
-        sessionStorage.removeItem(LOGIN_TRIGGERED_KEY);
-      }
       return;
     }
 
     // Trigger login when conditions are met
     if (status === "waiting_auth" && ready && !loginTriggeredRef.current) {
       loginTriggeredRef.current = true;
-      if (typeof window !== "undefined") {
-        sessionStorage.setItem(LOGIN_TRIGGERED_KEY, "true");
-      }
       login();
     }
-
-    // NOTE: No cleanup function to clear the flag
-    // Cleanup would reset the flag during React Strict Mode's double-invoke,
-    // causing login to trigger multiple times. The flag is only cleared on
-    // successful authentication or component unmount (via dependency array change).
-  }, [status, ready, authenticated, login, LOGIN_TRIGGERED_KEY]);
+  }, [status, ready, authenticated, login]);
 
   // Loading state
   if (status === "loading") {
@@ -257,10 +239,6 @@ function MiniappLoginContent() {
   return null;
 }
 
-/**
- * Miniapp login page for authenticating miniapp users.
- * Handles Privy authentication and redirects back to the miniapp callback URL.
- */
 export default function MiniappLoginPage() {
   return (
     <Suspense

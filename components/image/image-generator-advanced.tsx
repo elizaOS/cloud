@@ -16,7 +16,12 @@ import {
   CarouselPrevious,
   type CarouselApi,
 } from "@/components/ui/carousel";
-import { Dialog, DialogContent, DialogClose, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogClose,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Wand2,
   Sparkles,
@@ -43,6 +48,8 @@ import {
   BrandButton,
   CornerBrackets,
 } from "@/components/brand";
+import { useGalleryData, invalidateGalleryItems } from "@/lib/hooks/use-gallery-data";
+import type { GalleryItem } from "@/app/actions/gallery";
 
 interface ImageGenerationSettings {
   width: number;
@@ -78,23 +85,25 @@ const SIZE_PRESETS = [
   { label: "Wide", width: 1280, height: 768 },
 ];
 
-export function ImageGeneratorAdvanced({
-  initialHistory = [],
-}: ImageGeneratorAdvancedProps) {
-  // Convert initial history to GeneratedImage format
-  const convertedHistory: GeneratedImage[] = initialHistory.map((item) => ({
+/**
+ * Converts a GalleryItem from the gallery API to the GeneratedImage format used by this component.
+ */
+function galleryItemToGeneratedImage(item: GalleryItem): GeneratedImage {
+  return {
     id: item.id,
     url: item.url,
-    prompt: item.prompt,
-    timestamp: new Date(item.createdAt),
+    prompt: item.prompt || "",
+    timestamp: item.createdAt,
     settings: {
       width: item.dimensions?.width || 1024,
       height: item.dimensions?.height || 1024,
-      steps: 30,
-      guidanceScale: 7.5,
+      steps: 30, // Default, not stored in gallery
+      guidanceScale: 7.5, // Default, not stored in gallery
     },
-  }));
+  };
+}
 
+export function ImageGeneratorAdvanced() {
   // Form state
   const [prompt, setPrompt] = useState("");
   const [settings, setSettings] = useState<ImageGenerationSettings>({
@@ -105,12 +114,25 @@ export function ImageGeneratorAdvanced({
   });
   const [numImages, setNumImages] = useState<number>(1);
 
+  // Fetch image generation history from gallery
+  const {
+    items: galleryItems,
+    isLoadingItems: isLoadingHistory,
+    refetchItems: refetchHistory,
+  } = useGalleryData({
+    type: "image",
+    source: "generation",
+    limit: 12,
+    skipStats: true,
+    skipCollections: true,
+  });
+
   // Source image state for image-to-image generation
   const [sourceImage, setSourceImage] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const sourceImageInputRef = useRef<HTMLInputElement>(null);
 
-  // Consolidated image state - current batch and selection (initialized with server history)
+  // Consolidated image state - current batch and selection
   const [imageState, setImageState] = useState<{
     currentImage: GeneratedImage | null;
     currentImages: GeneratedImage[];
@@ -120,8 +142,11 @@ export function ImageGeneratorAdvanced({
     currentImage: null,
     currentImages: [],
     currentIndex: 0,
-    history: convertedHistory,
+    history: [],
   });
+
+  // Track IDs of images generated in this session to avoid duplicates when merging with gallery
+  const [sessionImageIds, setSessionImageIds] = useState<Set<string>>(new Set());
 
   // Carousel API (external ref)
   const [carouselApi, setCarouselApi] = useState<CarouselApi | undefined>(
@@ -145,6 +170,33 @@ export function ImageGeneratorAdvanced({
     activeTab: "generate",
     isFullscreenOpen: false,
   });
+
+  // Merge gallery items with session-generated images for history
+  useEffect(() => {
+    if (galleryItems.length > 0) {
+      const galleryHistory = galleryItems.map(galleryItemToGeneratedImage);
+      
+      setImageState((prev) => {
+        // Keep session-generated images that aren't in gallery yet (they're new/pending)
+        const sessionOnlyImages = prev.history.filter(
+          (img) => sessionImageIds.has(img.id)
+        );
+        
+        // Merge: session images first (newest), then gallery items (excluding duplicates)
+        const galleryIds = new Set(galleryHistory.map((g) => g.id));
+        const uniqueSessionImages = sessionOnlyImages.filter(
+          (img) => !galleryIds.has(img.id)
+        );
+        
+        const mergedHistory = [...uniqueSessionImages, ...galleryHistory].slice(0, 12);
+        
+        return {
+          ...prev,
+          history: mergedHistory,
+        };
+      });
+    }
+  }, [galleryItems, sessionImageIds]);
 
   // Source image upload handlers
   const handleSourceImageSelect = async (files: FileList | null) => {
@@ -220,7 +272,7 @@ export function ImageGeneratorAdvanced({
       // Handle multiple images array response
       if (Array.isArray(data.images) && data.images.length > 0) {
         const generatedBatch: GeneratedImage[] = data.images
-          .map((img: { image?: string; url?: string }, index: number) => {
+          .map((img: { image?: string; url?: string; id?: string }, index: number) => {
             const base64OrData =
               img.image && img.image.startsWith("data:")
                 ? img.image
@@ -229,7 +281,7 @@ export function ImageGeneratorAdvanced({
                   : "";
             const finalUrl = img.url ?? base64OrData;
             return {
-              id: `${Date.now()}-${index}`,
+              id: img.id || `${Date.now()}-${index}`,
               url: finalUrl,
               prompt,
               timestamp: new Date(),
@@ -239,6 +291,10 @@ export function ImageGeneratorAdvanced({
           .filter((g: GeneratedImage) => Boolean(g.url));
 
         if (generatedBatch.length > 0) {
+          // Track session image IDs
+          const newIds = new Set(generatedBatch.map((img) => img.id));
+          setSessionImageIds((prev) => new Set([...prev, ...newIds]));
+          
           setImageState((prev) => ({
             ...prev,
             currentImages: generatedBatch,
@@ -246,6 +302,10 @@ export function ImageGeneratorAdvanced({
             currentIndex: 0,
             history: [...generatedBatch, ...prev.history].slice(0, 12),
           }));
+          
+          // Invalidate gallery cache so it refetches with the new images
+          invalidateGalleryItems();
+          refetchHistory();
         }
       } else if (data.image) {
         // Backward compatibility: single image response
@@ -253,13 +313,17 @@ export function ImageGeneratorAdvanced({
           ? data.image
           : `data:image/png;base64,${data.image}`;
 
+        const newId = data.id || Date.now().toString();
         const newImage: GeneratedImage = {
-          id: Date.now().toString(),
+          id: newId,
           url: imageData,
           prompt,
           timestamp: new Date(),
           settings: { ...settings },
         };
+
+        // Track session image ID
+        setSessionImageIds((prev) => new Set([...prev, newId]));
 
         setImageState((prev) => ({
           ...prev,
@@ -268,6 +332,10 @@ export function ImageGeneratorAdvanced({
           currentIndex: 0,
           history: [newImage, ...prev.history].slice(0, 12),
         }));
+        
+        // Invalidate gallery cache so it refetches with the new images
+        invalidateGalleryItems();
+        refetchHistory();
       }
     } catch (err) {
       setRequestState((prev) => ({
@@ -760,7 +828,24 @@ export function ImageGeneratorAdvanced({
 
           {/* History Tab */}
           <BrandTabsContent value="history" className="mt-3 md:mt-4">
-            {imageState.history.length > 0 ? (
+            {isLoadingHistory && imageState.history.length === 0 ? (
+              <BrandCard className="relative border-dashed">
+                <CornerBrackets size="md" className="opacity-50" />
+                <div className="relative z-10 p-8 md:p-12 lg:p-20 text-center">
+                  <div className="flex flex-col items-center space-y-3 md:space-y-4">
+                    <Loader2 className="h-8 md:h-10 lg:h-12 w-8 md:w-10 lg:w-12 text-[#FF5800] animate-spin" />
+                    <div className="space-y-2">
+                      <h3 className="text-base md:text-lg font-mono font-semibold text-white">
+                        Loading History
+                      </h3>
+                      <p className="text-xs md:text-sm font-mono text-white/60">
+                        Fetching your previous generations...
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </BrandCard>
+            ) : imageState.history.length > 0 ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
                 {imageState.history.map((image) => (
                   <div
@@ -831,11 +916,10 @@ export function ImageGeneratorAdvanced({
           className="!max-w-[99vw] !max-h-[99vh] !w-[99vw] !h-[99vh] p-0 bg-black/80 border-white/10 sm:!max-w-[99vw] md:!max-w-[99vw] lg:!max-w-[99vw]"
           showCloseButton={false}
         >
-          {/* Screen reader accessible title (visually hidden) */}
           <DialogTitle className="sr-only">
             {imageState.currentImages[imageState.currentIndex]?.prompt ??
               imageState.currentImage?.prompt ??
-              "Image preview"}
+              "Fullscreen Image Preview"}
           </DialogTitle>
           <div className="relative w-full h-full flex items-center justify-center p-4 md:p-6">
             {imageState.currentImage && (

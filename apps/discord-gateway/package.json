@@ -1,0 +1,32 @@
+{
+  "name": "@elizaos/discord-gateway",
+  "version": "1.0.0",
+  "description": "Multi-tenant Discord gateway service for Eliza Cloud",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "bun run --watch src/index.ts",
+    "build": "bun build src/index.ts --outdir dist --target node",
+    "start": "bun run src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test",
+    "docker:build": "docker build -t discord-gateway:local .",
+    "docker:run": "docker run -p 3001:3000 --env-file .env discord-gateway:local",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f discord-gateway",
+    "k8s:apply": "kubectl apply -f k8s/",
+    "k8s:delete": "kubectl delete -f k8s/"
+  },
+  "dependencies": {
+    "discord.js": "14.25.1",
+    "hono": "4.10.8",
+    "@hono/node-server": "1.19.7",
+    "@upstash/redis": "1.35.8",
+    "@vercel/blob": "^0.25.0"
+  },
+  "devDependencies": {
+    "@types/node": "22.19.2",
+    "typescript": "5.9.3"
+  }
+}

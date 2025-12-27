@@ -31,12 +31,9 @@ test.describe("Agent Status API", () => {
     request,
   }) => {
     // First get a list of agents
-    const listResponse = await request.get(
-      `${CLOUD_URL}/api/v1/miniapp/agents`,
-      {
-        headers: authHeaders(),
-      },
-    );
+    const listResponse = await request.get(`${CLOUD_URL}/api/v1/app/agents`, {
+      headers: authHeaders(),
+    });
 
     if (listResponse.status() !== 200) {
       console.log("ℹ️ Could not get agents list");
@@ -82,12 +79,9 @@ test.describe("Agent Events API", () => {
   test("GET /api/v1/agents/:agentId/events returns agent events", async ({
     request,
   }) => {
-    const listResponse = await request.get(
-      `${CLOUD_URL}/api/v1/miniapp/agents`,
-      {
-        headers: authHeaders(),
-      },
-    );
+    const listResponse = await request.get(`${CLOUD_URL}/api/v1/app/agents`, {
+      headers: authHeaders(),
+    });
 
     if (listResponse.status() !== 200) {
       return;
@@ -122,12 +116,9 @@ test.describe("Agent Events API", () => {
   });
 
   test("agent events support pagination", async ({ request }) => {
-    const listResponse = await request.get(
-      `${CLOUD_URL}/api/v1/miniapp/agents`,
-      {
-        headers: authHeaders(),
-      },
-    );
+    const listResponse = await request.get(`${CLOUD_URL}/api/v1/app/agents`, {
+      headers: authHeaders(),
+    });
 
     if (listResponse.status() !== 200) {
       return;
@@ -163,12 +154,9 @@ test.describe("Agent Logs API", () => {
   test("GET /api/v1/agents/:agentId/logs returns agent logs", async ({
     request,
   }) => {
-    const listResponse = await request.get(
-      `${CLOUD_URL}/api/v1/miniapp/agents`,
-      {
-        headers: authHeaders(),
-      },
-    );
+    const listResponse = await request.get(`${CLOUD_URL}/api/v1/app/agents`, {
+      headers: authHeaders(),
+    });
 
     if (listResponse.status() !== 200) {
       return;
@@ -203,12 +191,9 @@ test.describe("Agent Logs API", () => {
   });
 
   test("agent logs support level filter", async ({ request }) => {
-    const listResponse = await request.get(
-      `${CLOUD_URL}/api/v1/miniapp/agents`,
-      {
-        headers: authHeaders(),
-      },
-    );
+    const listResponse = await request.get(`${CLOUD_URL}/api/v1/app/agents`, {
+      headers: authHeaders(),
+    });
 
     if (listResponse.status() !== 200) {
       return;

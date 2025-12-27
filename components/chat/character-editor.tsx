@@ -1,6 +1,6 @@
 /**
  * Character editor component with tabbed interface for editing character properties.
- * Supports form-based editing, JSON editing, plugins management, and knowledge uploads.
+ * Supports form-based editing, JSON editing, plugins management, and stats display.
  *
  * @param props - Character editor configuration
  * @param props.character - Character data to edit
@@ -15,6 +15,7 @@ import { CharacterForm } from "@/components/character-builder";
 import { JsonEditor } from "@/components/character-creator/json-editor";
 import { PluginsTab } from "@/components/chat/plugins-tab";
 import { UploadsTab } from "@/components/chat/uploads-tab";
+import { AgentSecretsPanel } from "@/components/my-agents";
 import type { ElizaCharacter } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,6 +23,7 @@ import {
   BookOpen,
   Sparkles,
   Puzzle,
+  Lock,
   CloudUpload,
   Upload,
 } from "lucide-react";
@@ -42,7 +44,7 @@ interface CharacterEditorProps {
   onPreUploadedFileRemove?: (fileId: string) => void;
 }
 
-type MainTab = "character" | "plugins" | "files";
+type MainTab = "character" | "plugins" | "files" | "secrets";
 
 export function CharacterEditor({
   character,
@@ -54,22 +56,27 @@ export function CharacterEditor({
 }: CharacterEditorProps) {
   const searchParams = useSearchParams();
   const initialTab = searchParams.get("tab") as MainTab | null;
-  const validTabs = ["character", "plugins", "files"];
+  const validTabs = ["character", "plugins", "files", "secrets"];
   const [activeTab, setActiveTab] = useState<MainTab>(
     initialTab && validTabs.includes(initialTab) ? initialTab : "character",
   );
   const [showJson, setShowJson] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Update tab when URL changes
+  // Sync tab from URL when searchParams change
+  const urlTab = searchParams.get("tab") as MainTab | null;
+  const validUrlTab = urlTab && validTabs.includes(urlTab) ? urlTab : null;
+
   useEffect(() => {
-    const tab = searchParams.get("tab") as MainTab | null;
-    if (tab && validTabs.includes(tab)) {
+    if (validUrlTab && validUrlTab !== activeTab) {
       // Schedule state update to avoid synchronous setState in effect
-      const rafId = requestAnimationFrame(() => setActiveTab(tab));
+      const rafId = requestAnimationFrame(() => setActiveTab(validUrlTab));
       return () => cancelAnimationFrame(rafId);
     }
-  }, [searchParams]);
+  }, [validUrlTab, activeTab]);
+
+  // Only show secrets tab for saved characters (not new ones)
+  const hasSavedCharacter = !!character.id;
 
   const tabs: TabItem[] = [
     {
@@ -87,6 +94,15 @@ export function CharacterEditor({
       label: "Files",
       icon: <BookOpen className="h-4 w-4" />,
     },
+    ...(hasSavedCharacter
+      ? [
+          {
+            value: "secrets",
+            label: "Secrets",
+            icon: <Lock className="h-4 w-4" />,
+          },
+        ]
+      : []),
   ];
 
   const handleSave = async () => {
@@ -113,7 +129,6 @@ export function CharacterEditor({
 
   return (
     <div className="flex h-full flex-col bg-black/40">
-      {/* Header */}
       <div className="flex-shrink-0 border-b border-white/10 px-6 py-4">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
@@ -147,10 +162,8 @@ export function CharacterEditor({
         </p>
       </div>
 
-      {/* Responsive Tabs + JSON Toggle */}
       <div className="flex-shrink-0 border-b border-white/10 px-6">
         <div className="space-y-4 xl:space-y-0 flex flex-col xl:flex-row xl:items-center gap-3 py-3">
-          {/* Tabs - Dropdown on mobile, tabs on desktop with horizontal scroll */}
           <div className="flex-1 min-w-0 overflow-x-auto scrollbar-thin">
             <BrandTabsResponsive
               id="character-editor-tabs"
@@ -159,7 +172,6 @@ export function CharacterEditor({
               onValueChange={(value) => setActiveTab(value as MainTab)}
               breakpoint="md"
             >
-              {/* Empty children - content is rendered below */}
               <div className="hidden" />
             </BrandTabsResponsive>
           </div>
@@ -186,7 +198,7 @@ export function CharacterEditor({
           </div>
         </div>
       </div>
-      {/* Content Area - Full Height */}
+
       <div className="flex-1 overflow-y-auto overflow-x-hidden relative">
         {showJson ? (
           <JsonEditor
@@ -214,6 +226,14 @@ export function CharacterEditor({
                 onPreUploadedFilesAdd={onPreUploadedFilesAdd}
                 onPreUploadedFileRemove={onPreUploadedFileRemove}
               />
+            )}
+            {activeTab === "secrets" && hasSavedCharacter && (
+              <div className="p-6">
+                <AgentSecretsPanel
+                  characterId={character.id!}
+                  characterName={character.name || "This agent"}
+                />
+              </div>
             )}
           </>
         )}

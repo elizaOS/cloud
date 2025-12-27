@@ -1,7 +1,7 @@
 /**
  * Agent Monetization Service
  *
- * Handles monetization for public agents, matching the miniapp monetization flow.
+ * Handles monetization for public agents, matching the app monetization flow.
  *
  * When monetization is enabled on an agent:
  * 1. Users pay base cost + creator markup

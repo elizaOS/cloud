@@ -6,7 +6,7 @@ import { generatePageMetadata, ROUTE_METADATA } from "@/lib/seo";
 import { logger } from "@/lib/utils/logger";
 
 interface PageProps {
-  searchParams: Promise<{ characterId?: string }>;
+  searchParams: Promise<{ characterId?: string; prompt?: string }>;
 }
 
 // Force dynamic rendering since we use server-side auth (cookies)
@@ -46,6 +46,7 @@ export default async function BuildPage({ searchParams }: PageProps) {
   // Get URL params
   const params = await searchParams;
   let initialCharacterId = params.characterId;
+  const initialPrompt = params.prompt;
 
   // ACCESS CONTROL: Only allow editing characters the user owns
   // If characterId is provided but user doesn't own it, clear it
@@ -65,6 +66,7 @@ export default async function BuildPage({ searchParams }: PageProps) {
       initialCharacters={characters}
       isAuthenticated={!isAnonymous}
       initialCharacterId={initialCharacterId}
+      initialPrompt={initialPrompt}
     />
   );
 }

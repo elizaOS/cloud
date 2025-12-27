@@ -17,6 +17,7 @@
 import { useState } from "react";
 import { Clock, Volume2, Square, Copy, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { logger } from "@/lib/utils/logger";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
@@ -84,7 +85,7 @@ export function ChatMessage({
           setTimeout(() => setIsCopied(false), 2000);
           return;
         } catch (imageError) {
-          console.error(
+          logger.error(
             "Failed to copy image, falling back to text:",
             imageError,
           );
@@ -99,7 +100,7 @@ export function ChatMessage({
       toast.success("Message copied to clipboard");
       setTimeout(() => setIsCopied(false), 2000);
     } catch (error) {
-      console.error("Failed to copy:", error);
+      logger.error("Failed to copy:", error);
       toast.error("Failed to copy message");
     }
   };

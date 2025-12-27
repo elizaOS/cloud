@@ -19,6 +19,7 @@ import {
   type StackStatus,
 } from "@aws-sdk/client-cloudformation";
 import { logger } from "@/lib/utils/logger";
+import { extractErrorMessage } from "@/lib/utils/error-handling";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { dbPriorityManager } from "./alb-priority-manager";
@@ -187,8 +188,7 @@ export class CloudFormationService {
           throw error;
         }
 
-        const errorMessage =
-          error instanceof Error ? error.message : String(error);
+        const errorMessage = extractErrorMessage(error);
         logger.error(
           `[CloudFormation withRetry] Attempt ${attempt}/${maxRetries} failed:`,
           errorMessage,
@@ -202,9 +202,9 @@ export class CloudFormationService {
         }
 
         const backoffDelay = delayMs * Math.pow(2, attempt - 1);
-        console.warn(
-          `CloudFormation operation failed (attempt ${attempt}/${maxRetries}), retrying in ${backoffDelay}ms...`,
-          errorMessage,
+        logger.warn(
+          `CloudFormation operation failed (attempt ${attempt}/${maxRetries}), retrying in ${backoffDelay}ms`,
+          { error: errorMessage },
         );
         await new Promise((resolve) => setTimeout(resolve, backoffDelay));
       }
@@ -786,8 +786,7 @@ export class CloudFormationService {
         albSecurityGroupId: getOutput("ALBSecurityGroupId"),
       };
     } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
+      const errorMessage = extractErrorMessage(error);
       logger.error(
         "Failed to get shared infrastructure outputs:",
         errorMessage,
@@ -846,6 +845,180 @@ export class CloudFormationService {
 
       // Still in progress
       logger.info(`Stack ${stackName} status: ${status}, waiting...`);
+      await new Promise((resolve) => setTimeout(resolve, 10000));
+    }
+
+    throw new Error(
+      `Stack ${stackName} update timeout after ${timeoutMinutes} minutes`,
+    );
+  }
+
+  /**
+   * Update an existing CloudFormation stack with new parameters
+   * Allows updating: CPU, Memory, Container Image, Environment Variables
+   */
+  async updateUserStack(
+    userId: string,
+    updates: {
+      containerImage?: string;
+      containerCpu?: number;
+      containerMemory?: number;
+      containerPort?: number;
+    },
+  ): Promise<string> {
+    this.ensureCredentials();
+
+    return this.withRetry(async () => {
+      const stackName = this.getStackName(userId);
+
+      console.log(`Updating CloudFormation stack: ${stackName}`);
+
+      // Get current stack to preserve existing parameters
+      const stack = await this.getStack(userId);
+      if (!stack) {
+        throw new Error(`Stack ${stackName} not found`);
+      }
+
+      // Load template
+      const templateBody = fs.readFileSync(this.templatePath, "utf-8");
+
+      // Get shared infrastructure outputs
+      const sharedOutputs = await this.getSharedInfrastructureOutputs();
+
+      // Extract current parameters from stack
+      const currentParams = stack.Parameters || [];
+      const getParam = (key: string): string => {
+        const param = currentParams.find((p) => p.ParameterKey === key);
+        return param?.ParameterValue || "";
+      };
+
+      // Build parameters list - use new values or preserve existing
+      const parameters = [
+        { ParameterKey: "UserId", ParameterValue: getParam("UserId") },
+        { ParameterKey: "UserEmail", ParameterValue: getParam("UserEmail") },
+        {
+          ParameterKey: "ContainerImage",
+          ParameterValue: updates.containerImage || getParam("ContainerImage"),
+        },
+        {
+          ParameterKey: "ContainerPort",
+          ParameterValue: updates.containerPort
+            ? updates.containerPort.toString()
+            : getParam("ContainerPort"),
+        },
+        {
+          ParameterKey: "ContainerCpu",
+          ParameterValue: updates.containerCpu
+            ? updates.containerCpu.toString()
+            : getParam("ContainerCpu"),
+        },
+        {
+          ParameterKey: "ContainerMemory",
+          ParameterValue: updates.containerMemory
+            ? updates.containerMemory.toString()
+            : getParam("ContainerMemory"),
+        },
+        { ParameterKey: "SharedVPCId", ParameterValue: sharedOutputs.vpcId },
+        {
+          ParameterKey: "SharedSubnetId",
+          ParameterValue: sharedOutputs.subnetId,
+        },
+        { ParameterKey: "SharedALBArn", ParameterValue: sharedOutputs.albArn },
+        {
+          ParameterKey: "SharedListenerArn",
+          ParameterValue: sharedOutputs.listenerArn,
+        },
+        {
+          ParameterKey: "ECSExecutionRoleArn",
+          ParameterValue: sharedOutputs.executionRoleArn,
+        },
+        {
+          ParameterKey: "ECSTaskRoleArn",
+          ParameterValue: sharedOutputs.taskRoleArn,
+        },
+        {
+          ParameterKey: "SharedALBSecurityGroupId",
+          ParameterValue: sharedOutputs.albSecurityGroupId,
+        },
+        { ParameterKey: "KeyName", ParameterValue: getParam("KeyName") },
+        {
+          ParameterKey: "ListenerRulePriority",
+          ParameterValue: getParam("ListenerRulePriority"),
+        },
+      ];
+
+      const command = new UpdateStackCommand({
+        StackName: stackName,
+        TemplateBody: templateBody,
+        Capabilities: ["CAPABILITY_NAMED_IAM"], // Required for IAM role updates
+        Parameters: parameters,
+        Tags: [
+          { Key: "UserId", Value: getParam("UserId") },
+          { Key: "UserEmail", Value: getParam("UserEmail") },
+          { Key: "ManagedBy", Value: "ElizaOS" },
+          { Key: "Environment", Value: this.environment },
+          { Key: "BillingEntity", Value: "ElizaOS" },
+          { Key: "CostCenter", Value: getParam("UserId") },
+        ],
+      });
+
+      try {
+        const response = await this.client.send(command);
+        console.log(`Stack update initiated: ${response.StackId}`);
+        return response.StackId!;
+      } catch (error: unknown) {
+        // If no changes needed, CloudFormation throws an error
+        if (
+          error instanceof Error &&
+          error.message.includes("No updates are to be performed")
+        ) {
+          console.log(`No changes needed for stack ${stackName}`);
+          return stack.StackId || stackName;
+        }
+        throw error;
+      }
+    });
+  }
+
+  /**
+   * Wait for stack update to complete
+   */
+  async waitForStackUpdate(
+    userId: string,
+    timeoutMinutes: number = 15,
+  ): Promise<StackStatus> {
+    const stackName = this.getStackName(userId);
+    const maxAttempts = (timeoutMinutes * 60) / 10; // Check every 10 seconds
+
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      const stack = await this.getStack(userId);
+
+      if (!stack) {
+        throw new Error(`Stack ${stackName} not found during update`);
+      }
+
+      const status = stack.StackStatus;
+
+      // Complete states
+      if (status === "UPDATE_COMPLETE") {
+        console.log(`✅ Stack ${stackName} updated successfully`);
+        return status;
+      }
+
+      // Failure states
+      if (
+        status === "UPDATE_ROLLBACK_COMPLETE" ||
+        status === "UPDATE_ROLLBACK_FAILED" ||
+        status === "UPDATE_FAILED"
+      ) {
+        const failureReason = stack.StackStatusReason || "Unknown failure";
+        throw new Error(
+          `Stack ${stackName} update failed. Status: ${status}. Reason: ${failureReason}`,
+        );
+      }
+
+      // Still in progress
+      console.log(`Stack ${stackName} status: ${status}, waiting...`);
       await new Promise((resolve) => setTimeout(resolve, 10000));
     }
 

@@ -313,9 +313,10 @@ export class PurchasesService {
 
     // Verify the payment intent belongs to this organization
     if (paymentIntent.metadata?.organization_id !== organizationId) {
-      console.warn(
-        `Unauthorized access attempt to payment intent ${paymentIntentId} by org ${organizationId}`,
-      );
+      logger.warn("Unauthorized access attempt to payment intent", {
+        paymentIntentId,
+        organizationId,
+      });
       return null;
     }
 

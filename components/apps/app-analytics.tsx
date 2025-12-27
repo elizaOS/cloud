@@ -11,6 +11,7 @@
 import { useState, useEffect } from "react";
 import { BrandCard, CornerBrackets } from "@/components/brand";
 import { Button } from "@/components/ui/button";
+import { logger } from "@/lib/utils/logger";
 import {
   Select,
   SelectContent,
@@ -67,7 +68,7 @@ export function AppAnalytics({ appId }: AppAnalyticsProps) {
         setTotalStats(data.totalStats);
       }
     } catch (error) {
-      console.error("Failed to fetch analytics:", error);
+      logger.error("Failed to fetch analytics:", error);
     } finally {
       setIsLoading(false);
     }

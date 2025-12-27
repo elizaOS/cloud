@@ -1,3 +1,26 @@
+# Bun Test Configuration
+#
+# Test Categories (run separately to avoid mock.module contamination):
+#   bun run test:unit:secrets    - Secrets encryption/service tests
+#   bun run test:unit:domain     - Domain management tests  
+#   bun run test:unit:services   - Service-level unit tests
+#   bun run test:unit:misc       - Other unit tests
+#   bun run test:security        - Security regression tests
+#   bun run test:integration     - Database/API integration tests
+#   bun run test:e2e             - End-to-end tests
+#
+# Run playwright tests separately: bun run test:playwright
+#
+# IMPORTANT: Unit and integration tests must run in separate processes
+# because Bun's mock.module persists across files within a process.
+
 [test]
+# Load environment variables before tests
 preload = ["./tests/setup.ts"]
 
+# Test timeout in milliseconds (30 seconds default, some tests need longer)
+timeout = 30000
+
+# Limit concurrent tests to avoid resource contention
+# Individual test scripts can override with --max-concurrency
+smol = true

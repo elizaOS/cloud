@@ -469,7 +469,7 @@ export class CreditsService {
 
       const recipientEmail = org.billing_email;
       if (!recipientEmail) {
-        console.warn("[CreditsService] No billing email for organization", {
+        logger.debug("[CreditsService] No billing email for organization", {
           organizationId,
         });
         return;
@@ -559,6 +559,7 @@ export class CreditsService {
         return result;
       });
   }
+
 
   // Credit Packs
   async getCreditPackById(id: string): Promise<CreditPack | undefined> {

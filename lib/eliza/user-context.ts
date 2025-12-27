@@ -37,7 +37,7 @@ export interface UserContext {
   name?: string;
   email?: string;
 
-  // App monetization context (for miniapp billing)
+  // App monetization context (for app billing)
   appId?: string;
 
   // App-specific prompt configuration

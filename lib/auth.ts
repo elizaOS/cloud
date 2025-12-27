@@ -2,6 +2,7 @@ import { usersService } from "@/lib/services/users";
 import { apiKeysService } from "@/lib/services/api-keys";
 import { userSessionsService } from "@/lib/services/user-sessions";
 import { syncUserFromPrivy } from "./privy-sync";
+import { logger } from "@/lib/utils/logger";
 import type { UserWithOrganization, ApiKey } from "@/lib/types";
 import type { Organization } from "@/db/schemas/organizations";
 import { cache } from "react";
@@ -10,7 +11,6 @@ import type { NextRequest } from "next/server";
 import crypto from "crypto";
 import { cache as redisCache } from "@/lib/cache/client";
 import { CacheKeys, CacheTTL } from "@/lib/cache/keys";
-import { logger } from "@/lib/utils/logger";
 import {
   verifyAuthTokenCached,
   invalidatePrivyTokenCache,
@@ -67,12 +67,12 @@ async function ensureUserHasApiKey(
 ): Promise<void> {
   // Validate inputs
   if (!userId || userId.trim() === "") {
-    console.warn("[Auth] Invalid userId, skipping API key check");
+    logger.warn("[Auth] Invalid userId, skipping API key check");
     return;
   }
 
   if (!organizationId || organizationId.trim() === "") {
-    console.warn(
+    logger.warn(
       `[Auth] No organization for user ${userId}, skipping API key check`,
     );
     return;
@@ -195,16 +195,16 @@ export const getCurrentUser = cache(
 
           if (privyUser) {
             user = await syncUserFromPrivy(privyUser);
-            logger.info("[AUTH] ✓ JIT sync complete:", {
+            logger.info("[AUTH] JIT sync complete:", {
               userId: user.id,
               orgId: user.organization_id,
             });
           } else {
-            logger.error("[AUTH] ✗ Privy returned null for user");
+            logger.error("[AUTH] Privy returned null for user");
           }
         } catch (privyError) {
           logger.error(
-            "[AUTH] ✗ Failed to fetch user from Privy:",
+            "[AUTH] Failed to fetch user from Privy:",
             privyError instanceof Error ? privyError.message : privyError,
           );
         }
@@ -227,13 +227,13 @@ export const getCurrentUser = cache(
         );
         void ensureUserHasApiKey(user.id, user.organization_id);
       } else {
-        logger.error("[AUTH] ✗ User missing organization_id:", user.id);
+        logger.error("[AUTH] User missing organization_id:", user.id);
       }
 
       return user;
     } catch (error) {
       logger.error(
-        "[AUTH] ✗ Error:",
+        "[AUTH] Error:",
         error instanceof Error ? error.message : error,
       );
       return null;
@@ -383,22 +383,21 @@ export async function getUserFromApiKey(
 
 /**
  * Require authentication via session or API key
- * Supports X-API-Key header, Authorization: Bearer header, and X-Miniapp-Token header
+ * Supports X-API-Key header, Authorization: Bearer header, and X-App-Token header
  * Note: This allows anonymous users. Use requireAuthOrApiKeyWithOrg for paid features.
  */
 export async function requireAuthOrApiKey(
   request: NextRequest,
 ): Promise<AuthResult> {
-  // Check for miniapp token (pass-through auth from miniapps)
-  const miniappToken = request.headers.get("X-Miniapp-Token");
-  if (miniappToken) {
-    const { miniappAuthSessionsService } =
-      await import("@/lib/services/miniapp-auth-sessions");
-    const tokenData =
-      await miniappAuthSessionsService.verifyToken(miniappToken);
+  // Check for app token (pass-through auth from apps)
+  const appToken = request.headers.get("X-App-Token");
+  if (appToken) {
+    const { appAuthSessionsService } =
+      await import("@/lib/services/app-auth-sessions");
+    const tokenData = await appAuthSessionsService.verifyToken(appToken);
 
     if (!tokenData) {
-      throw new Error("Unauthorized: Invalid or expired miniapp token");
+      throw new Error("Unauthorized: Invalid or expired app token");
     }
 
     // IMPORTANT: Use getWithOrganization to include org data for billing/credits
@@ -583,15 +582,20 @@ export async function requireAdmin(
     throw new Error("Wallet connection required for admin access");
   }
 
-  const isAdmin = await adminService.isAdmin(user.wallet_address);
+  // Single cached call instead of two separate DB queries
+  const { isAdmin, role } = await adminService.getAdminStatus(
+    user.wallet_address,
+  );
+
   if (!isAdmin) {
     throw new Error("Admin access required");
   }
 
-  const role = await adminService.getAdminRole(user.wallet_address);
-
   return { user, isAdmin: true, role };
 }
+
+// Re-export app authentication utilities
+export { requireAppAuth, verifyAppToken } from "./middleware/app-auth";
 
 // Re-export Privy client utilities for advanced use cases
 export {

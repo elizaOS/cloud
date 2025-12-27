@@ -268,6 +268,17 @@ export class AgentStateCache {
         return null;
       }
 
+      // Check if cached data has the roomCount field (v2 schema)
+      // If not, treat as cache miss so we refetch fresh data
+      if (typeof cached.roomCount !== "number") {
+        logger.debug(
+          `[Agent State Cache] Stale cache data for ${agentId} (missing roomCount), treating as miss`,
+        );
+        // Invalidate the stale cache entry
+        await cacheClient.del(key);
+        return null;
+      }
+
       const stats: AgentStats = {
         ...cached,
         lastActiveAt: cached.lastActiveAt
@@ -293,6 +304,7 @@ export class AgentStateCache {
     const key = CacheKeys.agent.agentStats(agentId);
 
     await cacheClient.set(key, stats, CacheTTL.agent.agentStats);
+    // Note: cache client already logs SET operations
   }
 
   /**

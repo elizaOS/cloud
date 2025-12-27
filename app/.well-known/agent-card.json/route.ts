@@ -9,6 +9,13 @@
 
 import { NextResponse } from "next/server";
 import { X402_ENABLED, X402_DEFAULT_NETWORK } from "@/lib/config/x402";
+import {
+  getDefaultNetwork,
+  isAgentRegistered,
+  isERC8004Configured,
+  ELIZA_CLOUD_AGENT_ID,
+  CHAIN_IDS,
+} from "@/lib/config/erc8004";
 
 /**
  * A2A Protocol Types conforming to the specification
@@ -100,9 +107,9 @@ export async function GET() {
     name: "Eliza Cloud",
     description:
       "AI agent infrastructure service providing inference, generation, " +
-      "character creation/management, group chats, memory systems, knowledge bases, " +
-      "and containerized agent deployment. Supports OpenAI-compatible API, " +
-      "MCP protocol, and A2A protocol.",
+      "character creation/management, memory systems, knowledge bases, " +
+      "decentralized storage (Blob + IPFS), and containerized agent deployment. " +
+      "Supports OpenAI-compatible API, MCP protocol, A2A protocol, and x402 micropayments.",
     url: `${baseUrl}/api/a2a`,
     preferredTransport: "JSONRPC",
     additionalInterfaces: [{ url: `${baseUrl}/api/a2a`, transport: "JSONRPC" }],
@@ -128,6 +135,25 @@ export async function GET() {
                   networks: [X402_DEFAULT_NETWORK],
                   assets: ["USDC"],
                   topupEndpoint: "/api/v1/credits/topup",
+                },
+              },
+            ]
+          : []),
+        // ERC-8004 On-Chain Agent Registry
+        ...(isERC8004Configured()
+          ? [
+              {
+                uri: "https://eips.ethereum.org/EIPS/eip-8004",
+                description: "ERC-8004 on-chain agent identity and discovery",
+                required: false,
+                params: {
+                  registered: isAgentRegistered(),
+                  network: getDefaultNetwork(),
+                  chainId: CHAIN_IDS[getDefaultNetwork()],
+                  agentId: ELIZA_CLOUD_AGENT_ID[getDefaultNetwork()],
+                  discoverEndpoint: "/api/v1/erc8004/discover",
+                  tagsEndpoint: "/api/v1/erc8004/tags",
+                  statusEndpoint: "/api/v1/erc8004/status",
                 },
               },
             ]
@@ -281,6 +307,96 @@ export async function GET() {
         name: "List Containers",
         description: "List all deployed containers and their statuses.",
         tags: ["container", "management"],
+        inputModes: ["data"],
+        outputModes: ["data"],
+      },
+
+      // ===== Storage Skills =====
+      {
+        id: "storage_upload",
+        name: "Storage Upload",
+        description:
+          "Upload files to decentralized storage (Vercel Blob + IPFS pinning). Supports x402 micropayments.",
+        tags: ["storage", "ipfs", "upload", "x402"],
+        inputModes: ["file", "data"],
+        outputModes: ["data"],
+      },
+      {
+        id: "storage_list",
+        name: "List Stored Files",
+        description: "List your stored files with pagination.",
+        tags: ["storage", "management"],
+        inputModes: ["data"],
+        outputModes: ["data"],
+      },
+      {
+        id: "storage_stats",
+        name: "Storage Statistics",
+        description: "Get storage usage statistics and current pricing.",
+        tags: ["storage", "analytics", "billing"],
+        inputModes: ["data"],
+        outputModes: ["data"],
+      },
+      {
+        id: "storage_cost",
+        name: "Calculate Storage Cost",
+        description: "Calculate the cost to store a file of given size.",
+        tags: ["storage", "pricing"],
+        inputModes: ["data"],
+        outputModes: ["data"],
+      },
+      {
+        id: "storage_pin",
+        name: "Pin to IPFS",
+        description:
+          "Pin an existing CID to IPFS for decentralized persistence.",
+        tags: ["storage", "ipfs", "pinning"],
+        inputModes: ["data"],
+        outputModes: ["data"],
+      },
+
+      // ===== ERC-8004 Marketplace Discovery Skills =====
+      {
+        id: "marketplace_discover",
+        name: "Discover Marketplace",
+        description:
+          "Search the ERC-8004 marketplace for agents, MCPs, and services. " +
+          "Filter by tags, capabilities, protocols, x402 support, and more.",
+        tags: ["erc8004", "discovery", "marketplace", "search"],
+        inputModes: ["text", "data"],
+        outputModes: ["data"],
+      },
+      {
+        id: "marketplace_get_tags",
+        name: "Get Discovery Tags",
+        description:
+          "Get available tags for filtering marketplace items. " +
+          "Includes skill tags, domain tags, MCP categories, and capability tags.",
+        tags: ["erc8004", "discovery", "tags"],
+        inputModes: ["data"],
+        outputModes: ["data"],
+      },
+      {
+        id: "marketplace_find_by_tags",
+        name: "Find by Tags",
+        description: "Quick search for agents/MCPs matching specific tags.",
+        tags: ["erc8004", "discovery", "tags"],
+        inputModes: ["text", "data"],
+        outputModes: ["data"],
+      },
+      {
+        id: "marketplace_find_by_mcp_tools",
+        name: "Find by MCP Tools",
+        description: "Find MCPs that provide specific tools.",
+        tags: ["erc8004", "discovery", "mcp", "tools"],
+        inputModes: ["text", "data"],
+        outputModes: ["data"],
+      },
+      {
+        id: "marketplace_find_payable",
+        name: "Find Payable Services",
+        description: "Find agents and MCPs that accept x402 micropayments.",
+        tags: ["erc8004", "discovery", "x402", "payments"],
         inputModes: ["data"],
         outputModes: ["data"],
       },

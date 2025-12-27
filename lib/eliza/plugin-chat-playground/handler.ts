@@ -17,6 +17,7 @@ import {
   type HandlerCallback,
 } from "@elizaos/core";
 import type { DialogueMetadata } from "@/lib/types/message-content";
+import { extractErrorMessage } from "@/lib/utils/error-handling";
 import { v4 } from "uuid";
 import {
   chatPlaygroundSystemPrompt,
@@ -27,11 +28,7 @@ import {
   clearLatestResponseId,
   isResponseStillValid,
 } from "../shared/utils/response-tracking";
-import {
-  cleanPrompt,
-  runEvaluatorsWithTimeout,
-  postProcessResponse,
-} from "../shared/utils/helpers";
+import { cleanPrompt, runEvaluatorsWithTimeout } from "../shared/utils/helpers";
 import type { ParsedResponse } from "../shared/utils/parsers";
 import type { MessageReceivedHandlerParams } from "../shared/types";
 
@@ -309,7 +306,7 @@ async function checkAndRunMcpAction(
   } catch (error) {
     logger.error(
       "[ChatPlayground] Error checking/running MCP action",
-      error instanceof Error ? error.message : String(error),
+      extractErrorMessage(error),
     );
     return false;
   }

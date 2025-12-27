@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2, Sparkles, RefreshCw, Check } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { logger } from "@/lib/utils/logger";
 import {
   generateDefaultAvatarUrl,
   getAvailableAvatarStyles,
@@ -88,7 +89,7 @@ export function AvatarGenerator({
         throw new Error("No image returned");
       }
     } catch (error) {
-      console.error("Error generating AI avatar:", error);
+      logger.error("Error generating AI avatar:", error);
       toast.error(
         error instanceof Error ? error.message : "Failed to generate AI avatar"
       );

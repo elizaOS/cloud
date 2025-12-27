@@ -16,6 +16,9 @@ import { requireStripe } from "@/lib/stripe";
 import { creditsService } from "@/lib/services/credits";
 import { invoicesService } from "@/lib/services/invoices";
 
+// Force dynamic rendering since we use server-side auth (cookies)
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Purchase Successful",
   description: "Your credit purchase was successful",
@@ -23,6 +26,17 @@ export const metadata: Metadata = {
 
 interface BillingSuccessPageProps {
   searchParams: Promise<{ from?: string; session_id?: string }>;
+}
+
+/**
+ * Parses and validates a credit amount string.
+ */
+function parseAndValidateCredits(creditsStr: string): number | null {
+  const credits = parseFloat(creditsStr);
+  if (isNaN(credits) || credits <= 0) {
+    return null;
+  }
+  return credits;
 }
 
 /**
@@ -43,7 +57,7 @@ async function verifyAndProcessSession(sessionId: string): Promise<{
   const session = await requireStripe().checkout.sessions.retrieve(sessionId);
 
   if (session.payment_status !== "paid") {
-    console.warn(
+    logger.warn(
       `[BillingSuccess] Session ${sessionId} not paid: ${session.payment_status}`,
     );
     return {
@@ -60,7 +74,7 @@ async function verifyAndProcessSession(sessionId: string): Promise<{
   const paymentIntentId = session.payment_intent as string;
 
   if (!organizationId || !credits) {
-    console.warn("[BillingSuccess] Invalid metadata", {
+    logger.warn("[BillingSuccess] Invalid metadata", {
       hasOrgId: !!organizationId,
       hasValidCredits: !!credits,
     });
@@ -71,7 +85,7 @@ async function verifyAndProcessSession(sessionId: string): Promise<{
   }
 
   if (!paymentIntentId) {
-    console.warn("[BillingSuccess] No payment intent ID in session");
+    logger.warn("[BillingSuccess] No payment intent ID in session");
     return {
       success: false,
       error: "No payment intent found",
@@ -143,53 +157,6 @@ async function verifyAndProcessSession(sessionId: string): Promise<{
       "[BillingSuccess] Invoice creation error (non-critical):",
       invoiceError,
     );
-  }
-
-  await creditsService.addCredits({
-    organizationId,
-    amount: credits,
-    description: `Balance top-up - $${credits.toFixed(2)}`,
-    metadata: {
-      user_id: userId,
-      payment_intent_id: paymentIntentId,
-      session_id: sessionId,
-      type: purchaseType,
-      source: "success_page_fallback",
-    },
-    stripePaymentIntentId: paymentIntentId,
-  });
-
-  // Create invoice record
-  const existingInvoice = await invoicesService.getByStripeInvoiceId(
-    `cs_${sessionId}`,
-  );
-
-  if (!existingInvoice) {
-    const amountTotal = session.amount_total
-      ? (session.amount_total / 100).toString()
-      : credits.toString();
-
-    await invoicesService.create({
-      organization_id: organizationId,
-      stripe_invoice_id: `cs_${sessionId}`,
-      stripe_customer_id: session.customer as string,
-      stripe_payment_intent_id: paymentIntentId,
-      amount_due: amountTotal,
-      amount_paid: amountTotal,
-      currency: session.currency || "usd",
-      status: "paid",
-      invoice_type: purchaseType,
-      invoice_number: undefined,
-      invoice_pdf: undefined,
-      hosted_invoice_url: undefined,
-      credits_added: credits.toString(),
-      metadata: {
-        type: purchaseType,
-        session_id: sessionId,
-        source: "success_page_fallback",
-      },
-      paid_at: new Date(),
-    });
   }
 
   return {

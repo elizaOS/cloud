@@ -1,9 +1,6 @@
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { logger } from "@/lib/utils/logger";
-import {
-  getAnonymousUser,
-  getOrCreateAnonymousUser,
-} from "@/lib/auth-anonymous";
+import { getOrCreateSessionUser } from "@/lib/session";
 import { getProvider } from "@/lib/providers";
 import type { OpenAIModelsResponse } from "@/lib/providers/types";
 import type { NextRequest } from "next/server";
@@ -25,13 +22,9 @@ export async function GET(request: NextRequest) {
     // Support both authenticated and anonymous users
     try {
       await requireAuthOrApiKey(request);
-    } catch (error) {
-      // Fallback to anonymous user
-      const anonData = await getAnonymousUser();
-      if (!anonData) {
-        // Create new anonymous session if none exists
-        await getOrCreateAnonymousUser();
-      }
+    } catch {
+      // Fallback to session user (creates anonymous if needed)
+      await getOrCreateSessionUser(request);
     }
 
     const provider = getProvider();

@@ -23,13 +23,6 @@ import {
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
 
-/**
- * OPTIONS /api/v1/miniapp/agents
- * CORS preflight handler for miniapp agents endpoint.
- *
- * @param request - The Next.js request object.
- * @returns Preflight response with CORS headers.
- */
 export async function OPTIONS(request: NextRequest) {
   const origin = request.headers.get("origin");
   return createPreflightResponse(origin, ["GET", "POST", "OPTIONS"]);
@@ -37,16 +30,7 @@ export async function OPTIONS(request: NextRequest) {
 
 /**
  * GET /api/v1/miniapp/agents
- * Lists all agents for the authenticated user.
- * Supports pagination and search filtering. Only returns miniapp-created agents.
- *
- * Query Parameters:
- * - `page`: Page number (default: 1).
- * - `limit`: Results per page (default: 20, max: 50).
- * - `search`: Search term for filtering agents by name or bio.
- *
- * @param request - Request with optional pagination and search query parameters.
- * @returns Paginated list of agents with statistics.
+ * List all agents for the authenticated user
  */
 export async function GET(request: NextRequest) {
   const corsResult = await validateOrigin(request);
@@ -249,21 +233,7 @@ function affiliateDataToImageSettings(
 
 /**
  * POST /api/v1/miniapp/agents
- * Creates a new agent for the authenticated user.
- * Rate limited with stricter limits for write operations.
- *
- * Request Body:
- * - `name`: Agent name (required, 1-100 characters).
- * - `bio`: Agent biography (string or array of strings).
- * - `avatarUrl`: Optional avatar image URL.
- * - `topics`: Optional array of topic strings.
- * - `adjectives`: Optional array of personality adjectives.
- * - `style`: Optional style configuration object.
- * - `settings`: Optional settings object.
- * - `isPublic`: Optional boolean for public visibility.
- *
- * @param request - Request body with agent configuration.
- * @returns Created agent details.
+ * Create a new agent
  */
 export async function POST(request: NextRequest) {
   const corsResult = await validateOrigin(request);

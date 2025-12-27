@@ -18,6 +18,10 @@ import {
   Search,
   Clock,
   Activity,
+  ImageIcon,
+  FileWarning,
+  CheckCircle,
+  XCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -106,6 +110,35 @@ interface Violation {
   createdAt: string;
 }
 
+interface ContentModerationStats {
+  pending: number;
+  flagged: number;
+  deleted: number;
+  clean: number;
+  byType: Record<string, number>;
+}
+
+interface ContentModerationItem {
+  id: string;
+  contentType: string;
+  sourceTable: string;
+  sourceId: string;
+  status: string;
+  confidence: number;
+  flags: Array<{ type: string; severity: string; confidence: number }>;
+  contentUrl?: string;
+  createdAt: string;
+  userId?: string;
+}
+
+interface UserWithStrikes {
+  userId: string;
+  email?: string;
+  strikeCount: number;
+  lastStrikeAt: string;
+  riskLevel: "low" | "medium" | "high" | "critical";
+}
+
 export default function AdminPage() {
   const { ready, authenticated } = usePrivy();
   const { wallets } = useWallets();
@@ -119,6 +152,18 @@ export default function AdminPage() {
   const [flaggedUsers, setFlaggedUsers] = useState<FlaggedUser[]>([]);
   const [bannedUsers, setBannedUsers] = useState<FlaggedUser[]>([]);
   const [violations, setViolations] = useState<Violation[]>([]);
+
+  // Content moderation state
+  const [contentStats, setContentStats] =
+    useState<ContentModerationStats | null>(null);
+  const [pendingContent, setPendingContent] = useState<ContentModerationItem[]>(
+    [],
+  );
+  const [usersWithStrikes, setUsersWithStrikes] = useState<UserWithStrikes[]>(
+    [],
+  );
+  const [reviewingItem, setReviewingItem] =
+    useState<ContentModerationItem | null>(null);
 
   // Dialog states
   const [addAdminOpen, setAddAdminOpen] = useState(false);
@@ -211,6 +256,53 @@ export default function AdminPage() {
     const data = await response.json();
     setViolations(data.violations);
   }, []);
+
+  // Load content moderation stats
+  const loadContentStats = useCallback(async () => {
+    const response = await fetch("/api/v1/admin/content-moderation?view=stats");
+    if (!response.ok) {
+      toast.error("Failed to load content stats");
+      return;
+    }
+    const data = await response.json();
+    setContentStats(data.stats);
+    setUsersWithStrikes(data.topRiskUsers || []);
+  }, []);
+
+  // Load pending content for review
+  const loadPendingContent = useCallback(async () => {
+    const response = await fetch(
+      "/api/v1/admin/content-moderation?view=pending&limit=50",
+    );
+    if (!response.ok) {
+      toast.error("Failed to load pending content");
+      return;
+    }
+    const data = await response.json();
+    setPendingContent(data.items || []);
+  }, []);
+
+  // Review content item
+  const reviewContent = useCallback(
+    async (itemId: string, decision: "confirm" | "dismiss" | "escalate") => {
+      const response = await fetch("/api/v1/admin/content-moderation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "review", itemId, decision }),
+      });
+      if (!response.ok) {
+        toast.error("Failed to review content");
+        return;
+      }
+      toast.success(
+        `Content ${decision === "dismiss" ? "cleared" : decision === "confirm" ? "removed" : "escalated"}`,
+      );
+      setReviewingItem(null);
+      loadPendingContent();
+      loadContentStats();
+    },
+    [loadPendingContent, loadContentStats],
+  );
 
   // Load user detail
   const loadUserDetail = useCallback(async (userId: string) => {
@@ -378,6 +470,16 @@ export default function AdminPage() {
             <AlertTriangle className="mr-2 h-4 w-4" />
             Violations
           </TabsTrigger>
+          <TabsTrigger
+            value="content"
+            onClick={() => {
+              loadContentStats();
+              loadPendingContent();
+            }}
+          >
+            <ImageIcon className="mr-2 h-4 w-4" />
+            Content
+          </TabsTrigger>
           <TabsTrigger value="users" onClick={loadUsers}>
             <Users className="mr-2 h-4 w-4" />
             Users
@@ -468,6 +570,214 @@ export default function AdminPage() {
               </Table>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Content Moderation Tab */}
+        <TabsContent value="content" className="space-y-4">
+          {/* Stats */}
+          {contentStats && (
+            <div className="grid gap-4 md:grid-cols-5">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Pending</CardTitle>
+                  <Clock className="h-4 w-4 text-yellow-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {contentStats.pending}
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Flagged</CardTitle>
+                  <FileWarning className="h-4 w-4 text-orange-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {contentStats.flagged}
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Deleted</CardTitle>
+                  <Trash2 className="h-4 w-4 text-red-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {contentStats.deleted}
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Clean</CardTitle>
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{contentStats.clean}</div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">By Type</CardTitle>
+                  <ImageIcon className="h-4 w-4 text-blue-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-xs space-y-1">
+                    {Object.entries(contentStats.byType).map(
+                      ([type, count]) => (
+                        <div key={type} className="flex justify-between">
+                          <span className="capitalize">{type}</span>
+                          <span className="font-medium">{count}</span>
+                        </div>
+                      ),
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          <div className="grid gap-4 md:grid-cols-2">
+            {/* Pending Review */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FileWarning className="h-5 w-5 text-orange-500" />
+                  Pending Review
+                </CardTitle>
+                <CardDescription>
+                  Flagged content awaiting admin review
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                  {pendingContent.map((item) => (
+                    <div
+                      key={item.id}
+                      className="flex items-center justify-between rounded-lg border p-3"
+                    >
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="capitalize">
+                            {item.contentType}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground">
+                            {new Date(item.createdAt).toLocaleDateString()}
+                          </span>
+                        </div>
+                        <div className="flex gap-1 mt-1">
+                          {item.flags.map((flag, i) => (
+                            <Badge
+                              key={i}
+                              variant={
+                                flag.severity === "critical"
+                                  ? "destructive"
+                                  : "secondary"
+                              }
+                              className="text-xs"
+                            >
+                              {flag.type}
+                            </Badge>
+                          ))}
+                        </div>
+                        {item.contentUrl && (
+                          <p className="text-xs text-muted-foreground truncate mt-1">
+                            {item.contentUrl.slice(0, 50)}...
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setReviewingItem(item)}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => reviewContent(item.id, "dismiss")}
+                        >
+                          <CheckCircle className="h-4 w-4 text-green-500" />
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => reviewContent(item.id, "confirm")}
+                        >
+                          <XCircle className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                  {pendingContent.length === 0 && (
+                    <p className="text-center text-sm text-muted-foreground py-4">
+                      No content pending review
+                    </p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Users with Strikes */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <AlertTriangle className="h-5 w-5 text-amber-500" />
+                  Users with Strikes
+                </CardTitle>
+                <CardDescription>
+                  Users who have received moderation strikes
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                  {usersWithStrikes.map((user) => (
+                    <div
+                      key={user.userId}
+                      className="flex items-center justify-between rounded-lg border p-3"
+                    >
+                      <div>
+                        <p className="text-sm font-medium">
+                          {user.email || user.userId.slice(0, 12) + "..."}
+                        </p>
+                        <div className="flex gap-2 text-xs text-muted-foreground">
+                          <span>{user.strikeCount} strikes</span>
+                          <span>•</span>
+                          <span>
+                            Last:{" "}
+                            {new Date(user.lastStrikeAt).toLocaleDateString()}
+                          </span>
+                        </div>
+                      </div>
+                      <Badge
+                        variant={
+                          user.riskLevel === "critical"
+                            ? "destructive"
+                            : user.riskLevel === "high"
+                              ? "destructive"
+                              : user.riskLevel === "medium"
+                                ? "secondary"
+                                : "outline"
+                        }
+                      >
+                        {user.riskLevel}
+                      </Badge>
+                    </div>
+                  ))}
+                  {usersWithStrikes.length === 0 && (
+                    <p className="text-center text-sm text-muted-foreground py-4">
+                      No users with strikes
+                    </p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
 
         {/* Users Tab */}
@@ -840,6 +1150,100 @@ export default function AdminPage() {
           ) : (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-8 w-8 animate-spin" />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Content Review Dialog */}
+      <Dialog
+        open={!!reviewingItem}
+        onOpenChange={() => setReviewingItem(null)}
+      >
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Review Content</DialogTitle>
+            <DialogDescription>
+              Review flagged content and take action
+            </DialogDescription>
+          </DialogHeader>
+          {reviewingItem && (
+            <div className="space-y-4">
+              <div className="rounded-lg border p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Badge variant="outline" className="capitalize">
+                    {reviewingItem.contentType}
+                  </Badge>
+                  <span className="text-xs text-muted-foreground">
+                    {reviewingItem.sourceTable} /{" "}
+                    {reviewingItem.sourceId.slice(0, 8)}...
+                  </span>
+                </div>
+                {reviewingItem.contentUrl && (
+                  <div className="mb-4">
+                    {reviewingItem.contentType === "image" ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={reviewingItem.contentUrl}
+                        alt="Flagged content"
+                        className="max-w-full max-h-[300px] rounded border"
+                      />
+                    ) : (
+                      <a
+                        href={reviewingItem.contentUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-500 hover:underline text-sm"
+                      >
+                        {reviewingItem.contentUrl}
+                      </a>
+                    )}
+                  </div>
+                )}
+                <div className="space-y-2">
+                  <h4 className="font-medium">Flags:</h4>
+                  {reviewingItem.flags.map((flag, i) => (
+                    <div key={i} className="flex items-center gap-2 text-sm">
+                      <Badge
+                        variant={
+                          flag.severity === "critical"
+                            ? "destructive"
+                            : "secondary"
+                        }
+                      >
+                        {flag.type}
+                      </Badge>
+                      <span className="text-muted-foreground">
+                        {flag.severity} severity •{" "}
+                        {(flag.confidence * 100).toFixed(0)}% confidence
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <DialogFooter className="gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => reviewContent(reviewingItem.id, "dismiss")}
+                >
+                  <CheckCircle className="mr-2 h-4 w-4 text-green-500" />
+                  Dismiss (False Positive)
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => reviewContent(reviewingItem.id, "escalate")}
+                >
+                  <AlertTriangle className="mr-2 h-4 w-4 text-yellow-500" />
+                  Escalate
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={() => reviewContent(reviewingItem.id, "confirm")}
+                >
+                  <XCircle className="mr-2 h-4 w-4" />
+                  Confirm & Delete
+                </Button>
+              </DialogFooter>
             </div>
           )}
         </DialogContent>

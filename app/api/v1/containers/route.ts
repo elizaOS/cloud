@@ -19,6 +19,10 @@ import {
 import { isFeatureConfigured } from "@/lib/config/env-validator";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { z } from "zod";
+import {
+  loadContainerSecrets,
+  isSecretsConfigured,
+} from "@/lib/services/secrets";
 
 export const dynamic = "force-dynamic";
 // Set max duration to handle CloudFormation deployments
@@ -187,7 +191,7 @@ async function handleCreateContainer(request: NextRequest) {
     } catch (error) {
       logger.error("Failed to verify ECR image:", error);
       // Log but don't block deployment - image might exist but verification failed
-      console.warn(
+      logger.warn(
         "Proceeding with deployment despite image verification failure",
       );
     }
@@ -201,14 +205,12 @@ async function handleCreateContainer(request: NextRequest) {
 
     const isUpdate = !!existingProject;
 
-
     let container;
     let newBalance: number;
     let deploymentCost: number;
 
     if (isUpdate && existingProject) {
       // UPDATE: Update the existing container record
-
       const updateData = {
         name: validatedData.name,
         description: validatedData.description,
@@ -287,7 +289,6 @@ async function handleCreateContainer(request: NextRequest) {
       });
     } else {
       // FRESH: Create a new container record
-
       const containerData: NewContainer = {
         name: validatedData.name,
         project_name: validatedData.project_name,
@@ -584,12 +585,18 @@ async function initiateCloudFormationStack(
     deploymentLog: `Creating CloudFormation stack (1x ${instanceType} ${architecture === "arm64" ? "ARM" : "x86_64"} instance)...`,
   });
 
-  // Prepare environment variables
+  // Load encrypted secrets (org + container-scoped)
+  const encryptedSecrets = isSecretsConfigured()
+    ? await loadContainerSecrets({ organizationId, containerId })
+    : {};
+
+  // Priority: secrets (highest) > user env vars > platform defaults
   const environmentVars: Record<string, string> = {
     ...(process.env.OPENAI_API_KEY && {
       OPENAI_API_KEY: process.env.OPENAI_API_KEY,
     }),
     ...(config.environment_vars || {}),
+    ...encryptedSecrets,
   };
 
   // Get container to check if this is an update

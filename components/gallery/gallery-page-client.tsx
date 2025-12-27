@@ -1,23 +1,24 @@
 /**
- * Gallery page client component displaying user's AI-generated media.
- * Supports filtering by type (all, image, video) and displays stats and grid view.
- * Uses per-tab caching to prevent unnecessary refetches on tab switch.
+ * Gallery page client component displaying user's AI-generated and uploaded media.
+ * Supports filtering by type and source, displays stats, upload, and collection management.
  */
 "use client";
 
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useState, useCallback, useRef, useMemo } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
 import { GalleryGrid, GalleryGridSkeleton } from "./gallery-grid";
-import { listUserMedia, getUserMediaStats } from "@/app/actions/gallery";
+import { uploadMedia } from "@/app/actions/gallery";
 import type { GalleryItem } from "@/app/actions/gallery";
 import {
   ImageIcon,
   VideoIcon,
   LayoutGridIcon,
-  AlertCircle,
-  RefreshCw,
+  Upload,
+  Sparkles,
+  FolderOpen,
 } from "lucide-react";
+import { toast } from "sonner";
 import { useSetPageHeader } from "@/components/layout/page-header-context";
 import {
   BrandTabsResponsive,
@@ -26,24 +27,23 @@ import {
   BrandButton,
 } from "@/components/brand";
 import type { TabItem } from "@/components/brand";
+import { CollectionsTab } from "@/components/collections/collections-tab";
+import {
+  useGalleryData,
+  invalidateGalleryItems,
+} from "@/lib/hooks/use-gallery-data";
 
-type TabType = "all" | "image" | "video";
-
-const GALLERY_ITEMS_LIMIT = 100;
-const SLOW_LOADING_TIMEOUT_MS = 10000;
-
-type ItemsCache = {
-  [K in TabType]?: GalleryItem[];
-};
+type SourceFilter = "all" | "generation" | "upload";
+type TypeFilter = "all" | "image" | "video" | "collections";
 
 export function GalleryPageClient() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  
+
   // Get initial tab from URL query param
   const initialTab = useMemo(() => {
     const tabParam = searchParams.get("tab");
-    if (tabParam === "image" || tabParam === "video") {
+    if (tabParam === "image" || tabParam === "video" || tabParam === "collections") {
       return tabParam;
     }
     return "all";
@@ -51,32 +51,42 @@ export function GalleryPageClient() {
 
   useSetPageHeader({
     title: "Gallery",
-    description: "View and manage your AI-generated images and videos",
+    description: "View and manage your AI-generated images and uploads",
   });
 
-  const [activeTab, setActiveTab] = useState<TabType>(initialTab);
-  const [itemsCache, setItemsCache] = useState<ItemsCache>({});
-  const [loadingTabs, setLoadingTabs] = useState<Set<TabType>>(
-    new Set([initialTab]),
-  );
-  const [isLoadingStats, setIsLoadingStats] = useState(true);
-  const [stats, setStats] = useState<{
-    totalImages: number;
-    totalVideos: number;
-    totalSize: number;
-  } | null>(null);
-  const [errorTabs, setErrorTabs] = useState<Set<TabType>>(new Set());
-  const [slowLoadingTabs, setSlowLoadingTabs] = useState<Set<TabType>>(
-    new Set(),
+  const [activeTab, setActiveTab] = useState<TypeFilter>(initialTab);
+  const [sourceFilter, setSourceFilter] = useState<SourceFilter>("all");
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Use deduplicated gallery data hook
+  const galleryOptions = useMemo(
+    () => ({
+      type:
+        activeTab === "collections"
+          ? undefined
+          : activeTab === "all"
+            ? undefined
+            : activeTab,
+      source: sourceFilter === "all" ? undefined : sourceFilter,
+      limit: 100,
+      skipItems: activeTab === "collections",
+    }),
+    [activeTab, sourceFilter],
   );
 
-  const fetchingTabsRef = useRef<Set<TabType>>(new Set());
-  const loadingTimeoutRef = useRef<Map<TabType, NodeJS.Timeout>>(new Map());
-  const itemsCacheRef = useRef<ItemsCache>(itemsCache);
-  itemsCacheRef.current = itemsCache;
+  const {
+    items,
+    stats,
+    collections,
+    isLoadingItems,
+    isLoadingStats,
+    refetchItems,
+    refetchStats,
+  } = useGalleryData(galleryOptions);
 
   // Update URL when tab changes
-  const handleTabChange = useCallback((tab: TabType) => {
+  const handleTabChange = useCallback((tab: TypeFilter) => {
     setActiveTab(tab);
     const url = new URL(window.location.href);
     if (tab === "all") {
@@ -104,177 +114,248 @@ export function GalleryPageClient() {
         label: stats ? `Videos (${stats.totalVideos})` : "Videos",
         icon: <VideoIcon className="h-4 w-4" />,
       },
+      {
+        value: "collections",
+        label: "Collections",
+        icon: <FolderOpen className="h-4 w-4" />,
+      },
     ],
-    [stats]
+    [stats],
   );
 
-  const loadItemsForTab = useCallback(async (tab: TabType, force = false) => {
-    if (!force && itemsCacheRef.current[tab] !== undefined) return;
+  const refreshData = async () => {
+    invalidateGalleryItems();
+    await Promise.all([refetchItems(), refetchStats()]);
+  };
 
-    if (fetchingTabsRef.current.has(tab)) return;
-    fetchingTabsRef.current.add(tab);
+  const handleItemDeleted = () => {
+    void refreshData();
+  };
 
-    setLoadingTabs((prev) => new Set(prev).add(tab));
+  const handleUploadClick = () => {
+    fileInputRef.current?.click();
+  };
 
-    const timeoutId = setTimeout(() => {
-      setSlowLoadingTabs((prev) => new Set(prev).add(tab));
-    }, SLOW_LOADING_TIMEOUT_MS);
-    loadingTimeoutRef.current.set(tab, timeoutId);
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
 
-    try {
-      const type = tab === "all" ? undefined : tab;
-      const data = await listUserMedia({ type, limit: GALLERY_ITEMS_LIMIT });
-      setItemsCache((prev) => ({ ...prev, [tab]: data }));
-      setErrorTabs((prev) => {
-        const next = new Set(prev);
-        next.delete(tab);
-        return next;
-      });
-    } catch (error) {
-      console.error(`Failed to load items for tab ${tab}:`, error);
-      setErrorTabs((prev) => new Set(prev).add(tab));
-    } finally {
-      const timeoutId = loadingTimeoutRef.current.get(tab);
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-        loadingTimeoutRef.current.delete(tab);
-      }
-      setSlowLoadingTabs((prev) => {
-        const next = new Set(prev);
-        next.delete(tab);
-        return next;
-      });
-      fetchingTabsRef.current.delete(tab);
-      setLoadingTabs((prev) => {
-        const next = new Set(prev);
-        next.delete(tab);
-        return next;
-      });
+    setIsUploading(true);
+    const uploadPromises: Promise<GalleryItem>[] = [];
+
+    for (const file of Array.from(files)) {
+      const formData = new FormData();
+      formData.append("file", file);
+      uploadPromises.push(uploadMedia(formData));
     }
-  }, []);
 
-  const loadStats = useCallback(async () => {
-    setIsLoadingStats(true);
-    const data = await getUserMediaStats();
-    setStats(data);
-    setIsLoadingStats(false);
-  }, []);
+    const results = await Promise.allSettled(uploadPromises);
+    const successCount = results.filter((r) => r.status === "fulfilled").length;
+    const failCount = results.filter((r) => r.status === "rejected").length;
 
-  useEffect(() => {
-    loadItemsForTab(activeTab);
-  }, [activeTab, loadItemsForTab]);
+    if (successCount > 0) {
+      toast.success(
+        `Uploaded ${successCount} file${successCount > 1 ? "s" : ""}`,
+      );
+    }
+    if (failCount > 0) {
+      toast.error(
+        `Failed to upload ${failCount} file${failCount > 1 ? "s" : ""}`,
+      );
+    }
 
-  useEffect(() => {
-    loadStats();
-  }, [loadStats]);
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
 
-  useEffect(() => {
-    const timeoutRef = loadingTimeoutRef.current;
-    return () => {
-      timeoutRef.forEach((id) => clearTimeout(id));
-      timeoutRef.clear();
-    };
-  }, []);
-
-  const handleItemDeleted = useCallback(
-    (itemId: string, itemType: "image" | "video") => {
-      const tabsAffected: TabType[] = ["all", itemType];
-
-      setItemsCache((prev) => {
-        const next = { ...prev };
-        for (const tab of tabsAffected) {
-          if (next[tab]) {
-            next[tab] = next[tab]!.filter((item) => item.id !== itemId);
-          }
-        }
-        return next;
-      });
-
-      setStats((prev) => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          totalImages:
-            itemType === "image" ? prev.totalImages - 1 : prev.totalImages,
-          totalVideos:
-            itemType === "video" ? prev.totalVideos - 1 : prev.totalVideos,
-        };
-      });
-    },
-    [],
-  );
-
-  const currentItems = itemsCache[activeTab] ?? [];
-  const isLoading =
-    loadingTabs.has(activeTab) && itemsCache[activeTab] === undefined;
-  const hasError =
-    errorTabs.has(activeTab) && itemsCache[activeTab] === undefined;
-  const isSlowLoading = slowLoadingTabs.has(activeTab) && isLoading;
-
-  const handleRetry = useCallback(() => {
-    setErrorTabs((prev) => {
-      const next = new Set(prev);
-      next.delete(activeTab);
-      return next;
-    });
-    loadItemsForTab(activeTab, true);
-  }, [activeTab, loadItemsForTab]);
+    setIsUploading(false);
+    void refreshData();
+  };
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 px-4 py-4 md:px-6 md:py-6">
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        className="hidden"
+        accept="image/*,video/*,audio/*"
+        multiple
+        onChange={handleFileSelect}
+      />
+
+      {/* Stats Row - hide for collections tab */}
+      {activeTab !== "collections" && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          {isLoadingStats ? (
+            <>
+              <BrandCard corners={false} className="p-4">
+                <div className="flex items-center gap-3">
+                  <Skeleton className="w-9 h-9 rounded-full" />
+                  <div className="space-y-2">
+                    <Skeleton className="h-6 w-12" />
+                    <Skeleton className="h-3 w-10" />
+                  </div>
+                </div>
+              </BrandCard>
+              <BrandCard corners={false} className="p-4">
+                <div className="flex items-center gap-3">
+                  <Skeleton className="w-9 h-9 rounded-full" />
+                  <div className="space-y-2">
+                    <Skeleton className="h-6 w-12" />
+                    <Skeleton className="h-3 w-10" />
+                  </div>
+                </div>
+              </BrandCard>
+              <BrandCard corners={false} className="p-4">
+                <div className="flex items-center gap-3">
+                  <Skeleton className="w-9 h-9 rounded-full" />
+                  <div className="space-y-2">
+                    <Skeleton className="h-6 w-12" />
+                    <Skeleton className="h-3 w-10" />
+                  </div>
+                </div>
+              </BrandCard>
+              <BrandCard corners={false} className="p-4">
+                <div className="flex items-center gap-3">
+                  <Skeleton className="w-9 h-9 rounded-full" />
+                  <div className="space-y-2">
+                    <Skeleton className="h-6 w-16" />
+                    <Skeleton className="h-3 w-12" />
+                  </div>
+                </div>
+              </BrandCard>
+            </>
+          ) : stats ? (
+            <>
+              <BrandCard corners={false} className="p-3">
+                <div className="flex items-center gap-3">
+                  <div className="rounded-full bg-blue-500/20 border border-blue-500/40 p-2">
+                    <ImageIcon className="w-4 h-4 text-blue-400" />
+                  </div>
+                  <div>
+                    <p className="text-xl font-bold text-white">
+                      {stats.totalImages}
+                    </p>
+                    <p className="text-xs text-white/50 uppercase tracking-wide">
+                      Images
+                    </p>
+                  </div>
+                </div>
+              </BrandCard>
+
+              <BrandCard corners={false} className="p-3">
+                <div className="flex items-center gap-3">
+                  <div className="rounded-full bg-purple-500/20 border border-purple-500/40 p-2">
+                    <VideoIcon className="w-4 h-4 text-purple-400" />
+                  </div>
+                  <div>
+                    <p className="text-xl font-bold text-white">
+                      {stats.totalVideos}
+                    </p>
+                    <p className="text-xs text-white/50 uppercase tracking-wide">
+                      Videos
+                    </p>
+                  </div>
+                </div>
+              </BrandCard>
+
+              <BrandCard corners={false} className="p-3">
+                <div className="flex items-center gap-3">
+                  <div className="rounded-full bg-cyan-500/20 border border-cyan-500/40 p-2">
+                    <Upload className="w-4 h-4 text-cyan-400" />
+                  </div>
+                  <div>
+                    <p className="text-xl font-bold text-white">
+                      {stats.totalUploads}
+                    </p>
+                    <p className="text-xs text-white/50 uppercase tracking-wide">
+                      Uploads
+                    </p>
+                  </div>
+                </div>
+              </BrandCard>
+
+              <BrandCard corners={false} className="p-3">
+                <div className="flex items-center gap-3">
+                  <div className="rounded-full bg-green-500/20 border border-green-500/40 p-2">
+                    <LayoutGridIcon className="w-4 h-4 text-green-400" />
+                  </div>
+                  <div>
+                    <p className="text-xl font-bold text-white">
+                      {(stats.totalSize / 1024 / 1024).toFixed(1)} MB
+                    </p>
+                    <p className="text-xs text-white/50 uppercase tracking-wide">
+                      Total Size
+                    </p>
+                  </div>
+                </div>
+              </BrandCard>
+            </>
+          ) : null}
+        </div>
+      )}
+
+      {/* Source filter and Upload button - hide for collections tab */}
+      {activeTab !== "collections" && (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-white/50">Source:</span>
+            <div className="flex gap-1">
+              {(["all", "generation", "upload"] as const).map((source) => (
+                <button
+                  key={source}
+                  onClick={() => setSourceFilter(source)}
+                  className={`px-3 py-1 text-xs font-medium transition-colors ${
+                    sourceFilter === source
+                      ? "bg-[#FF5800] text-white"
+                      : "bg-white/5 text-white/60 hover:bg-white/10"
+                  }`}
+                >
+                  {source === "all" && "All"}
+                  {source === "generation" && (
+                    <>
+                      <Sparkles className="w-3 h-3 inline mr-1" />
+                      AI Generated
+                    </>
+                  )}
+                  {source === "upload" && (
+                    <>
+                      <Upload className="w-3 h-3 inline mr-1" />
+                      Uploads
+                    </>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+          <BrandButton
+            variant="outline"
+            onClick={handleUploadClick}
+            disabled={isUploading}
+          >
+            <Upload className="w-4 h-4 mr-2" />
+            {isUploading ? "Uploading..." : "Upload"}
+          </BrandButton>
+        </div>
+      )}
+
       <BrandTabsResponsive
         id="gallery-tabs"
         tabs={galleryTabs}
         value={activeTab}
-        onValueChange={(v) => handleTabChange(v as "all" | "image" | "video")}
+        onValueChange={(v) => handleTabChange(v as TypeFilter)}
       >
         <BrandTabsContent value={activeTab} className="mt-6">
-          {isLoading ? (
-            <>
-              <GalleryGridSkeleton />
-              {isSlowLoading && (
-                <div className="flex flex-col items-center justify-center mt-6 gap-3">
-                  <p className="text-sm text-white/60">
-                    Taking longer than expected...
-                  </p>
-                  <BrandButton
-                    variant="outline"
-                    size="sm"
-                    onClick={handleRetry}
-                  >
-                    <RefreshCw className="w-4 h-4 mr-2" />
-                    Retry
-                  </BrandButton>
-                </div>
-              )}
-            </>
-          ) : hasError ? (
-            <BrandCard corners={false} className="p-8">
-              <div className="flex flex-col items-center justify-center gap-4 text-center">
-                <div className="rounded-full bg-red-500/20 border border-red-500/40 p-3">
-                  <AlertCircle className="w-6 h-6 text-red-400" />
-                </div>
-                <div className="space-y-1">
-                  <p className="text-lg font-medium text-white">
-                    Failed to load media
-                  </p>
-                  <p className="text-sm text-white/50">
-                    There was an error loading your gallery items.
-                  </p>
-                </div>
-                <BrandButton
-                  variant="outline"
-                  onClick={handleRetry}
-                  className="mt-2"
-                >
-                  <RefreshCw className="w-4 h-4 mr-2" />
-                  Try Again
-                </BrandButton>
-              </div>
-            </BrandCard>
+          {activeTab === "collections" ? (
+            <CollectionsTab />
+          ) : isLoadingItems ? (
+            <GalleryGridSkeleton />
           ) : (
             <GalleryGrid
-              items={currentItems}
+              items={items}
+              collections={collections}
               onItemDeleted={handleItemDeleted}
             />
           )}

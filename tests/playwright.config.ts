@@ -82,7 +82,7 @@ export default defineConfig({
       },
       testIgnore: [
         /wallet-login\.spec\.ts$/,
-        /miniapp.*\.spec\.ts$/,
+        /app.*\.spec\.ts$/,
         /.*-api\.spec\.ts$/,
       ],
     },
@@ -92,15 +92,31 @@ export default defineConfig({
         ...devices["Desktop Chrome"],
         viewport: { width: 1280, height: 720 },
       },
-      testMatch: [/.*-api\.spec\.ts$/, /miniapp-authenticated\.spec\.ts$/],
+      testMatch: [/.*-api\.spec\.ts$/, /app-authenticated\.spec\.ts$/],
     },
     {
-      name: "miniapp",
+      name: "app",
       use: {
         ...devices["Desktop Chrome"],
         viewport: { width: 1280, height: 720 },
       },
-      testMatch: /miniapp.*\.spec\.ts$/,
+      testMatch: /app.*\.spec\.ts$/,
+    },
+    {
+      name: "todoapp",
+      use: {
+        ...devices["Desktop Chrome"],
+        viewport: { width: 1280, height: 720 },
+      },
+      testMatch: /todoapp.*\.spec\.ts$/,
+    },
+    {
+      name: "orgapp",
+      use: {
+        ...devices["Desktop Chrome"],
+        viewport: { width: 1280, height: 720 },
+      },
+      testMatch: /org-app.*\.spec\.ts$/,
     },
     {
       name: "cleanup",

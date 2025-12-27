@@ -1,0 +1,83 @@
+{
+  "$schema": "../../packages/config/jeju-manifest.schema.json",
+  "name": "cloud",
+  "displayName": "Cloud Platform Integration",
+  "version": "1.0.0",
+  "type": "vendor",
+  "description": "Cloud platform integration with agent marketplace, reputation management, and x402 payments",
+  "commands": {
+    "dev": "bun run dev",
+    "build": "bun run build",
+    "test": "bun test",
+    "deploy": "bun run scripts/deploy.ts"
+  },
+  "ports": {
+    "main": 3000
+  },
+  "dependencies": [],
+  "optional": true,
+  "enabled": true,
+  "autoStart": false,
+  "tags": ["cloud", "platform", "integration", "x402", "reputation"],
+  "jns": {
+    "name": "cloud.jeju",
+    "description": "Cloud Platform Integration Services",
+    "url": "https://cloud.jeju.network"
+  },
+  "healthCheck": {
+    "url": "http://localhost:3000/api/health",
+    "interval": 30000
+  },
+  "agent": {
+    "enabled": true,
+    "a2aEndpoint": "/api/a2a",
+    "mcpEndpoint": "/api/mcp",
+    "tags": ["jeju-app", "cloud", "platform", "x402"],
+    "metadata": {
+      "category": "infrastructure",
+      "provider": "cloud-platform"
+    },
+    "trustModels": ["open"],
+    "x402Support": true,
+    "jnsName": "cloud.jeju"
+  },
+  "contracts": {
+    "CloudReputationProvider": "contracts/CloudReputationProvider.sol"
+  },
+  "exports": {
+    "CloudIntegration": "./src/cloud-integration.ts",
+    "CloudSigning": "./src/cloud-signing.ts"
+  },
+  "decentralization": {
+    "cdn": {
+      "enabled": true,
+      "regions": ["global"],
+      "cacheRules": [
+        { "pattern": "/_next/static/**", "ttl": 31536000, "immutable": true },
+        { "pattern": "/api/**", "ttl": 0 },
+        { "pattern": "/**/*.html", "ttl": 60, "staleWhileRevalidate": 3600 }
+      ],
+      "serviceWorker": true
+    },
+    "frontend": {
+      "ipfs": true,
+      "arweave": true,
+      "jnsName": "cloud.jeju",
+      "buildDir": ".next",
+      "spa": false,
+      "fallbackOrigins": ["https://cloud.jeju.network"]
+    },
+    "robustness": {
+      "multiOrigin": true,
+      "offlineSupport": true,
+      "p2pFallback": true,
+      "contentAddressed": true
+    }
+  },
+  "testing": {
+    "unit": {
+      "command": "bun test",
+      "timeout": 120000
+    }
+  }
+}

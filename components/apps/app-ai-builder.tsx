@@ -54,6 +54,8 @@ interface Message {
   content: string;
   filesAffected?: string[];
   timestamp: string;
+  /** Internal tracking ID for thinking messages */
+  _thinkingId?: string;
 }
 
 interface SessionData {
@@ -130,11 +132,26 @@ export function AppAIBuilder({ app }: AppAIBuilderProps) {
       return;
     }
 
+    let isCancelled = false;
+
     const fetchLogs = async () => {
+      if (isCancelled) return;
+
       try {
         const res = await fetch(
           `/api/v1/app-builder/sessions/${session.id}/logs?tail=100`,
         );
+
+        // Handle session ownership errors - clear session and stop polling
+        if (res.status === 403 || res.status === 404) {
+          console.warn("Session no longer accessible, stopping log polling");
+          setSession(null);
+          setStatus("idle");
+          return;
+        }
+
+        if (!res.ok) return;
+
         const data = await res.json();
         if (data.success && data.logs?.length > 0) {
           // Only add new logs
@@ -151,7 +168,7 @@ export function AppAIBuilder({ app }: AppAIBuilderProps) {
           }
         }
       } catch (e) {
-        // Silently ignore polling errors
+        // Silently ignore network errors
       }
     };
 
@@ -159,7 +176,10 @@ export function AppAIBuilder({ app }: AppAIBuilderProps) {
     const interval = setInterval(fetchLogs, 3000);
     fetchLogs(); // Initial fetch
 
-    return () => clearInterval(interval);
+    return () => {
+      isCancelled = true;
+      clearInterval(interval);
+    };
   }, [session, status]);
   // Start a new builder session for this app using SSE streaming
   const startSession = useCallback(async () => {
@@ -315,7 +335,7 @@ Some ideas:
         setMessages((prev) => {
           const updated = [...prev];
           const thinkingIdx = updated.findIndex(
-            (m) => (m as any)._thinkingId === thinkingId,
+            (m) => m._thinkingId === thinkingId,
           );
           if (thinkingIdx >= 0) {
             updated[thinkingIdx] = {
@@ -446,9 +466,9 @@ Some ideas:
         // Finalize thinking message and add final response
         setMessages((prev) => {
           const updated = prev.map((m) => {
-            if ((m as any)._thinkingId === thinkingId) {
+            if (m._thinkingId === thinkingId) {
               // Finalize the thinking message - remove the _thinkingId and clean up content
-              const { _thinkingId, ...rest } = m as any;
+              const { _thinkingId: _, ...rest } = m;
               return {
                 ...rest,
                 content: actionsContent
@@ -487,8 +507,8 @@ Some ideas:
         // Finalize thinking message with error indicator and add error message
         setMessages((prev) => {
           const updated = prev.map((m) => {
-            if ((m as any)._thinkingId === thinkingId) {
-              const { _thinkingId, ...rest } = m as any;
+            if (m._thinkingId === thinkingId) {
+              const { _thinkingId: _, ...rest } = m;
               return {
                 ...rest,
                 content: actionsContent

@@ -11,7 +11,7 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -59,7 +59,9 @@ type TemplateType =
   | "agent-dashboard"
   | "landing-page"
   | "analytics"
-  | "blank";
+  | "blank"
+  | "mcp-service"
+  | "a2a-agent";
 type SessionStatus =
   | "idle"
   | "initializing"
@@ -86,6 +88,16 @@ interface SessionData {
 const TEMPLATE_OPTIONS = [
   { value: "blank", label: "Blank Project", description: "Start from scratch" },
   { value: "chat", label: "Chat App", description: "AI chat interface" },
+  {
+    value: "mcp-service",
+    label: "MCP Service",
+    description: "Model Context Protocol server",
+  },
+  {
+    value: "a2a-agent",
+    label: "A2A Agent",
+    description: "Agent-to-Agent protocol endpoint",
+  },
   {
     value: "agent-dashboard",
     label: "Agent Dashboard",
@@ -708,6 +720,7 @@ What would you like to build?`,
         className="max-w-[95vw] w-[95vw] h-[90vh] p-0 gap-0 overflow-hidden"
         showCloseButton={false}
       >
+        <DialogTitle className="sr-only">AI App Builder</DialogTitle>
         {step === "setup" ? renderSetup() : renderBuilding()}
       </DialogContent>
     </Dialog>

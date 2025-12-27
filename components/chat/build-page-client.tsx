@@ -24,12 +24,14 @@ interface BuildPageClientProps {
   initialCharacters: ElizaCharacter[];
   isAuthenticated: boolean;
   initialCharacterId?: string;
+  initialPrompt?: string;
 }
 
 export function BuildPageClient({
   initialCharacters,
   isAuthenticated,
   initialCharacterId,
+  initialPrompt,
 }: BuildPageClientProps) {
   const [anonymousSession, setAnonymousSession] = useState<{
     messageCount: number;
@@ -245,6 +247,7 @@ export function BuildPageClient({
           initialCharacters={initialCharacters}
           initialCharacterId={initialCharacterId}
           onUnsavedChanges={setHasUnsavedChanges}
+          initialPrompt={initialPrompt}
         />
       </div>
     </div>

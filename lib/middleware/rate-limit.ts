@@ -128,7 +128,7 @@ export function checkRateLimit(
     : Math.ceil((entry.resetAt - now) / 1000);
 
   if (!allowed) {
-    console.warn("Rate limit exceeded", {
+    logger.warn("Rate limit exceeded", {
       key,
       count: entry.count,
       max: config.maxRequests,
@@ -240,6 +240,12 @@ export function withRateLimit<T = Record<string, string>>(
 const isDevelopment = process.env.NODE_ENV !== "production";
 
 export const RateLimitPresets = {
+  // Relaxed limits for read-heavy operations
+  RELAXED: {
+    windowMs: 60000, // 1 minute
+    maxRequests: isDevelopment ? 10000 : 200, // Dev: virtually unlimited, Prod: 200/min
+  },
+
   // Generous limits for general API usage
   STANDARD: {
     windowMs: 60000, // 1 minute
@@ -321,7 +327,7 @@ export async function checkCostBasedRateLimit(
     : Math.ceil((entry.resetAt - now) / 1000);
 
   if (!allowed) {
-    console.warn("Cost-based rate limit exceeded", {
+    logger.warn("Cost-based rate limit exceeded", {
       key,
       cost,
       totalCost: entry.totalCost,

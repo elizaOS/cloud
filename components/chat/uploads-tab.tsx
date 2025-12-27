@@ -53,11 +53,8 @@ export function UploadsTab({
 
   useEffect(() => {
     if (characterId) {
-      // Schedule fetch to avoid synchronous setState in effect
-      const rafId = requestAnimationFrame(() => {
-        void fetchDocuments();
-      });
-      return () => cancelAnimationFrame(rafId);
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- data fetching on mount
+      fetchDocuments();
     }
   }, [characterId, fetchDocuments]);
 

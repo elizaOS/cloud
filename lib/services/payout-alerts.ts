@@ -13,10 +13,6 @@
 import { logger } from "@/lib/utils/logger";
 import { MONITORING } from "@/lib/config/redemption-security";
 
-// ============================================================================
-// TYPES
-// ============================================================================
-
 type AlertSeverity = "critical" | "high" | "medium" | "low";
 
 interface AlertPayload {
@@ -38,10 +34,6 @@ interface SlackMessage {
   }>;
 }
 
-// ============================================================================
-// SEVERITY COLORS
-// ============================================================================
-
 const SEVERITY_COLORS: Record<AlertSeverity, string> = {
   critical: "#FF0000", // Red
   high: "#FF8C00", // Orange
@@ -55,10 +47,6 @@ const SEVERITY_EMOJIS: Record<AlertSeverity, string> = {
   medium: "📊",
   low: "ℹ️",
 };
-
-// ============================================================================
-// PAYOUT ALERTS SERVICE
-// ============================================================================
 
 export class PayoutAlertsService {
   private slackWebhookUrl: string | undefined;
@@ -190,10 +178,6 @@ export class PayoutAlertsService {
       logger.error("[PayoutAlerts] Failed to send PagerDuty alert", { error });
     }
   }
-
-  // ========================================
-  // PREDEFINED ALERT METHODS
-  // ========================================
 
   /**
    * Alert: Hot wallet balance is low

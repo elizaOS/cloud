@@ -19,6 +19,7 @@ import {
   abuseDetectionService,
   type SignupContext,
 } from "@/lib/services/abuse-detection";
+import { logger } from "@/lib/utils/logger";
 import type { UserWithOrganization } from "@/lib/types";
 import { getRandomUserAvatar } from "@/lib/utils/default-user-avatar";
 
@@ -59,7 +60,7 @@ function generateSlugFromEmail(email: string): string {
  * @param walletAddress - Wallet address.
  * @returns Unique slug string.
  */
-function generateSlugFromWallet(walletAddress: string): string {
+export function generateSlugFromWallet(walletAddress: string): string {
   const shortAddress = walletAddress.substring(0, 8);
   const sanitized = shortAddress.toLowerCase().replace(/[^a-z0-9]/g, "-");
   const random = Math.random().toString(36).substring(2, 8);
@@ -262,7 +263,7 @@ export async function syncUserFromPrivy(
           isNewOrganization: false,
         })
         .catch((error) => {
-          console.error("[SYNC] Discord log failed:", error);
+          logger.error("[SYNC] Discord log failed:", error);
         });
 
       return userWithOrg;
@@ -413,9 +414,13 @@ export async function syncUserFromPrivy(
           if (existingUser.privy_user_id !== privyUserId) {
             // Email is already registered with a different Privy account
             // This happens when user signs up with email, then tries OAuth with same email
-            // TODO: Consider account linking instead of blocking
-            console.warn(
-              `User with email ${email} already exists with different Privy ID: ${existingUser.privy_user_id}`,
+            logger.warn(
+              "[PrivySync] Email conflict - different Privy account",
+              {
+                email,
+                existingPrivyId: existingUser.privy_user_id,
+                newPrivyId: privyUserId,
+              },
             );
             await organizationsService.delete(organization.id);
             throw new Error(
@@ -433,16 +438,20 @@ export async function syncUserFromPrivy(
       }
 
       // Couldn't find existing user even after retries - cleanup and rethrow
-      console.error(
-        `Duplicate key error but user ${privyUserId} not found after ${maxRetries} retries - cleaning up and rethrowing`,
+      logger.error(
+        "[PrivySync] Duplicate key error but user not found after retries",
+        {
+          privyUserId,
+          maxRetries,
+        },
       );
       await organizationsService.delete(organization.id);
     }
     // Not a duplicate key error or couldn't find the existing user - rethrow
-    console.error(
-      `Failed to create user ${privyUserId}:`,
-      error instanceof Error ? error.message : error,
-    );
+    logger.error("[PrivySync] Failed to create user", {
+      privyUserId,
+      error: error instanceof Error ? error.message : error,
+    });
     throw error;
   }
 
@@ -462,10 +471,10 @@ export async function syncUserFromPrivy(
       organizationName: userWithOrg.organization?.name || "",
       creditBalance: initialCredits,
     }).catch((error) => {
-      console.error("[PrivySync] Failed to send welcome email:", error);
+      logger.error("[PrivySync] Failed to send welcome email:", error);
     });
   } else {
-    console.warn("[PrivySync] No email available for welcome email", {
+    logger.debug("[PrivySync] No email available for welcome email", {
       userId: userWithOrg.id,
       walletAddress: walletAddress,
     });
@@ -507,41 +516,33 @@ async function ensureUserHasApiKey(
 ): Promise<void> {
   // Validate inputs
   if (!userId || userId.trim() === "") {
-    console.warn("[PrivySync] Invalid userId, skipping API key creation");
+    logger.warn("[PrivySync] Invalid userId, skipping API key creation");
     return;
   }
 
   if (!organizationId || organizationId.trim() === "") {
-    console.warn(
-      `[PrivySync] No organization for user ${userId}, skipping API key creation`,
+    logger.warn(
+      "[PrivySync] No organization for user, skipping API key creation",
+      { userId },
     );
     return;
   }
 
-  try {
-    // Check if user already has an API key
-    const existingKeys =
-      await apiKeysService.listByOrganization(organizationId);
-    const userHasKey = existingKeys.some((key) => key.user_id === userId);
+  // Check if user already has an API key
+  const existingKeys = await apiKeysService.listByOrganization(organizationId);
+  const userHasKey = existingKeys.some((key) => key.user_id === userId);
 
-    if (userHasKey) {
-      return;
-    }
-
-    // Create default API key
-    await apiKeysService.create({
-      user_id: userId,
-      organization_id: organizationId,
-      name: "Default API Key",
-      is_active: true,
-    });
-  } catch (error) {
-    console.error(
-      `[PrivySync] Error creating API key for user ${userId}:`,
-      error,
-    );
-    throw error;
+  if (userHasKey) {
+    return;
   }
+
+  // Create default API key
+  await apiKeysService.create({
+    user_id: userId,
+    organization_id: organizationId,
+    name: "Default API Key",
+    is_active: true,
+  });
 }
 
 /**

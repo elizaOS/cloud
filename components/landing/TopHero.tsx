@@ -1,6 +1,6 @@
 /**
  * Top hero section component for the landing page.
- * Displays CLI commands for creating and deploying agents with OS-specific tabs.
+ * Displays CLI commands for creating and deploying agents with animated terminal.
  * Includes copy-to-clipboard functionality and call-to-action buttons.
  */
 
@@ -11,7 +11,7 @@ import { Copy, Check, Terminal, Rocket, Code2, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BrandButton, CornerBrackets } from "@/components/brand";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 
 const TopHero = () => {
   const [activeOS, setActiveOS] = useState<"unix" | "windows">("unix");
@@ -138,9 +138,9 @@ const TopHero = () => {
     },
   };
 
-  const handleCopy = async (command: string, key: string) => {
-    await navigator.clipboard.writeText(command);
-    setCopied(key);
+  const handleCopy = (text: string, type: string) => {
+    navigator.clipboard.writeText(text);
+    setCopied(type);
     setTimeout(() => setCopied(null), 2000);
   };
 
@@ -353,30 +353,21 @@ const TopHero = () => {
               Docs
             </Button>
           </motion.div>
-
-          {/* Journey Steps */}
-          {/* <div className="grid grid-cols-3 gap-2 md:gap-4 max-w-xl mx-auto">
-            {steps.map((step, index) => (
-              <div key={step.title} className="relative group">
-                <div className="flex flex-col items-center text-center p-4">
-                  <div
-                    className="w-12 h-12 flex items-center justify-center mb-3 transition-colors"
-                    style={{
-                      backgroundColor: "rgba(255, 88, 0, 0.1)",
-                      border: "1px solid rgba(255, 88, 0, 0.3)",
-                    }}
-                  >
-                    <div style={{ color: "#FF5800" }}>{step.icon}</div>
-                  </div>
-                  <h3 className="text-lg font-semibold text-white">
-                    {step.title}
-                  </h3>
-                </div>
-              </div>
-            ))}
-          </div> */}
         </div>
       </div>
+
+      {/* Blink animation for cursor */}
+      <style jsx>{`
+        @keyframes blink {
+          0%,
+          100% {
+            opacity: 1;
+          }
+          50% {
+            opacity: 0;
+          }
+        }
+      `}</style>
     </section>
   );
 };

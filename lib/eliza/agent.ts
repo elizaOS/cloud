@@ -27,8 +27,7 @@ const character: Character = {
     ELEVENLABS_API_KEY: process.env.ELEVENLABS_API_KEY!,
     ELEVENLABS_VOICE_ID:
       process.env.ELEVENLABS_VOICE_ID || "EXAVITQu4vr4xnSDxMaL", // Rachel voice (default)
-    ELEVENLABS_MODEL_ID:
-      process.env.ELEVENLABS_MODEL_ID || "eleven_multilingual_v2",
+    ELEVENLABS_MODEL_ID: process.env.ELEVENLABS_MODEL_ID || "eleven_flash_v2_5",
     ELEVENLABS_VOICE_STABILITY: process.env.ELEVENLABS_VOICE_STABILITY || "0.5",
     ELEVENLABS_VOICE_SIMILARITY_BOOST:
       process.env.ELEVENLABS_VOICE_SIMILARITY_BOOST || "0.75",
@@ -54,6 +53,9 @@ const character: Character = {
       process.env.ELEVENLABS_STT_TAG_AUDIO_EVENTS || "false",
     avatarUrl:
       "https://raw.githubusercontent.com/elizaOS/eliza-avatars/refs/heads/master/Eliza/portrait.png",
+    // Multi-step reasoning configuration
+    USE_MULTI_STEP: true,
+    MAX_MULTISTEP_ITERATIONS: 6,
   },
   // ========================================
   // 1. SYSTEM: Identity & Core Delusion

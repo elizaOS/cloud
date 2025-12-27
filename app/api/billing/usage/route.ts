@@ -7,14 +7,9 @@ import { creditTransactions } from "@/db/schemas/credit-transactions";
 import { eq, sql, and, gte, desc } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";
-export const revalidate = 0;
 
 interface UsageResponse {
-  credits: {
-    remaining: number;
-    used: number;
-    initial: number;
-  };
+  credits: { remaining: number; used: number; initial: number };
   usage: {
     totalRequests: number;
     successfulRequests: number;
@@ -23,10 +18,7 @@ interface UsageResponse {
     inputTokens: number;
     outputTokens: number;
   };
-  period: {
-    start: string;
-    end: string;
-  };
+  period: { start: string; end: string };
   lastUpdated: string;
 }
 
@@ -34,9 +26,8 @@ export async function GET(req: NextRequest) {
   try {
     const user = await requireAuthWithOrg();
     const organizationId = user.organization_id!;
+    const days = parseInt(req.nextUrl.searchParams.get("days") || "30", 10);
 
-    const searchParams = req.nextUrl.searchParams;
-    const days = parseInt(searchParams.get("days") || "30", 10);
     const periodStart = new Date();
     periodStart.setDate(periodStart.getDate() - days);
 

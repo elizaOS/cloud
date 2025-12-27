@@ -44,7 +44,7 @@ export const assistantPlugin: Plugin = {
     characterProvider,
     currentRunContextProvider,
     recentMessagesProvider,
-    appConfigProvider,
+    characterProvider,
   ],
   actions: [generateImageAction],
   evaluators: [roomTitleEvaluator],

@@ -12,6 +12,8 @@
 
 # testing
 /coverage
+tests/load/results/*.json
+tests/load/dist/
 
 # next.js
 /.next/
@@ -56,3 +58,5 @@ src-tauri/Cargo.lock
 
 ignore/
 .env*.local
+vendor/
+docs/

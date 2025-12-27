@@ -1,5 +1,8 @@
 "use client";
 
+import { logger } from "@/lib/utils/logger";
+import { extractErrorMessage } from "@/lib/utils/error-handling";
+
 /**
  * Streaming message structure from SSE events.
  */
@@ -250,10 +253,8 @@ function processSSEMessage(
   try {
     data = JSON.parse(dataString);
   } catch (err) {
-    console.error("[Stream] Failed to parse JSON data:", dataString, err);
-    throw new Error(
-      `Invalid JSON in SSE data: ${err instanceof Error ? err.message : String(err)}`,
-    );
+    logger.error("[Stream] Failed to parse JSON data:", dataString, err);
+    throw new Error(`Invalid JSON in SSE data: ${extractErrorMessage(err)}`);
   }
 
   // Handle different event types
@@ -263,7 +264,7 @@ function processSSEMessage(
       if (isValidStreamingMessage(data)) {
         onMessage(data);
       } else {
-        console.warn("[Stream] Invalid message format:", data);
+        logger.warn("[Stream] Invalid message format:", data);
       }
       break;
     case "chunk":
@@ -283,16 +284,16 @@ function processSSEMessage(
       break;
     case "connected":
       // Connection confirmation - can be ignored or logged
-      console.debug("[Stream] Connected:", data);
+      logger.debug("[Stream] Connected:", data);
       break;
     case "warning":
       // Warning event - log but don't treat as error
       const warningData = data as SSEErrorData;
       const warningMessage = warningData?.message || "Warning received";
-      console.warn("[Stream] Warning:", warningMessage);
+      logger.warn("[Stream] Warning:", warningMessage);
       break;
     default:
-      console.debug(`[Stream] Unhandled event type: ${eventType}`, data);
+      logger.debug(`[Stream] Unhandled event type: ${eventType}`, data);
   }
 }
 

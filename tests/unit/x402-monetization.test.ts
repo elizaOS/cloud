@@ -201,14 +201,28 @@ describe("x402 Auth Utilities", () => {
   test("getX402Price returns price for models", async () => {
     const { getX402Price } = await import("@/lib/auth/x402-or-credits");
 
-    // Premium models
-    expect(getX402Price("gpt-4o")).toBe("$0.05");
-    expect(getX402Price("claude-3-5-sonnet-latest")).toBe("$0.05");
-    expect(getX402Price("claude-3-opus-latest")).toBe("$0.10");
+    // Enterprise tier
+    expect(getX402Price("gpt-5.2-pro")).toBe("$0.20");
 
-    // Standard models
+    // Premium tier
+    expect(getX402Price("claude-opus-4.5")).toBe("$0.10");
+    expect(getX402Price("gpt-5.2")).toBe("$0.10");
+
+    // Standard tier
+    expect(getX402Price("gpt-4o")).toBe("$0.05");
+    expect(getX402Price("claude-sonnet-4")).toBe("$0.05");
+    expect(getX402Price("claude-3-5-sonnet-latest")).toBe("$0.05");
+
+    // Budget tier
     expect(getX402Price("gpt-4o-mini")).toBe("$0.02");
-    expect(getX402Price("claude-3-haiku-20240307")).toBe("$0.01");
+    expect(getX402Price("gpt-5-mini")).toBe("$0.02");
+    expect(getX402Price("claude-haiku-4")).toBe("$0.02");
+    expect(getX402Price("claude-3-haiku-20240307")).toBe("$0.02");
+    expect(getX402Price("grok-4.1-fast")).toBe("$0.02");
+
+    // Ultra-cheap tier (fast inference)
+    expect(getX402Price("groq/llama-3.1-70b")).toBe("$0.01");
+    expect(getX402Price("deepseek-v3.2")).toBe("$0.01");
 
     // Unknown model defaults
     expect(getX402Price("unknown-model")).toBe("$0.03");

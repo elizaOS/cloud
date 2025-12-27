@@ -71,9 +71,19 @@ const nextConfig: NextConfig = {
   },
   outputFileTracingExcludes: {
     "*": [
-      "node_modules/thread-stream/**/*",
-      "node_modules/pino/**/*",
-      "node_modules/sonic-boom/**/*",
+      // Exclude pino ecosystem - has Node.js-only dependencies
+      "node_modules/**/thread-stream/**/*",
+      "node_modules/**/pino/**/*",
+      "node_modules/**/sonic-boom/**/*",
+      "node_modules/**/pino-pretty/**/*",
+      // Exclude test directories from all packages
+      "node_modules/**/test/**/*",
+      "node_modules/**/tests/**/*",
+      "node_modules/**/__tests__/**/*",
+      // Bun-specific paths
+      "node_modules/.bun/**/thread-stream/**/*",
+      "node_modules/.bun/**/pino/**/*",
+      "node_modules/.bun/**/sonic-boom/**/*",
     ],
   },
   serverExternalPackages: [
@@ -90,6 +100,38 @@ const nextConfig: NextConfig = {
     "ipfs-utils",
     "electron-fetch",
     "electron",
+    // pino and related packages cause SSR issues with Node.js-only dependencies
+    "pino",
+    "pino-pretty",
+    "thread-stream",
+    "sonic-boom",
+    "real-require",
+    "fast-redact",
+    "on-exit-leak-free",
+    "atomic-sleep",
+    // Test dependencies that leak from pino/thread-stream
+    "tape",
+    // DOMPurify uses jsdom which has browser-specific dependencies
+    "isomorphic-dompurify",
+    "jsdom",
+    // x402-mcp uses @modelcontextprotocol/sdk which is server-only
+    "x402-mcp",
+    // fs-related modules that shouldn't be in client bundles
+    "fs",
+    "fs/promises",
+    "path",
+    "os",
+    "child_process",
+    "crypto",
+    "stream",
+    "util",
+    "events",
+    "net",
+    "tls",
+    "http",
+    "https",
+    "zlib",
+    "buffer",
     // oxapay uses __dirname + fs.readFile for method info JSON
     "oxapay",
   ],
@@ -195,8 +237,9 @@ const nextConfig: NextConfig = {
               // Images - allow self, data URIs, blob URIs, Vercel storage, Instagram CDN, DiceBear avatars, Unsplash
               // Note: Fal.ai URLs are proxied through our storage, so not needed here
               "img-src 'self' data: blob: https://*.public.blob.vercel-storage.com https://raw.githubusercontent.com https://*.fbcdn.net https://*.cdninstagram.com https://api.dicebear.com https://images.unsplash.com",
-              // Fonts - allow self and Monaco Editor CDN
-              "font-src 'self' https://cdn.jsdelivr.net",
+              // Fonts - allow self, data URIs (for inline fonts like Monaco's Codicon), and Monaco Editor CDN
+              "font-src 'self' data: https://cdn.jsdelivr.net",
+              // Objects - block all (e.g., Flash, Java applets)
               "object-src 'none'",
               "base-uri 'self'",
               "form-action 'self'",

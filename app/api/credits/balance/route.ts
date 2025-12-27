@@ -4,7 +4,6 @@ import { requireAuthWithOrg } from "@/lib/auth";
 import { organizationsService } from "@/lib/services/organizations";
 
 export const dynamic = "force-dynamic";
-export const revalidate = 0;
 
 /**
  * GET /api/credits/balance
@@ -47,11 +46,9 @@ export async function GET(req: NextRequest) {
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : "Failed to fetch balance";
-
-    // Return 401 for authentication errors
     const isAuthError =
       errorMessage.includes("Unauthorized") ||
-      errorMessage.includes("Authentication required") ||
+      errorMessage.includes("Authentication") ||
       errorMessage.includes("Forbidden");
 
     if (isAuthError) {
@@ -64,7 +61,7 @@ export async function GET(req: NextRequest) {
             Pragma: "no-cache",
             Expires: "0",
           },
-        }
+        },
       );
     }
 
@@ -78,7 +75,7 @@ export async function GET(req: NextRequest) {
           Pragma: "no-cache",
           Expires: "0",
         },
-      }
+      },
     );
   }
 }

@@ -2,14 +2,18 @@
  * Payout Network Configuration
  *
  * Centralized configuration for elizaOS token payout across all networks.
- * Supports mainnet and testnet for both EVM and Solana chains.
+ * Supports mainnet and testnet for EVM chains (including Jeju), and Solana.
+ *
+ * With OIF integration, users can receive payouts on their preferred chain,
+ * even if payments were received on a different chain.
  *
  * NETWORKS:
- * - Mainnet: ethereum, base, bnb, solana
- * - Testnet: ethereum-sepolia, base-sepolia, bnb-testnet, solana-devnet
+ * - Mainnet: ethereum, base, bnb, jeju, solana
+ * - Testnet: ethereum-sepolia, base-sepolia, bnb-testnet, jeju-testnet, solana-devnet
  */
 
-import type { Address, Chain } from "viem";
+import type { Chain } from "viem";
+import { logger } from "@/lib/utils/logger";
 import {
   mainnet,
   base,
@@ -18,16 +22,18 @@ import {
   baseSepolia,
   bscTestnet,
 } from "viem/chains";
+import { jeju, jejuTestnet } from "./chains";
 
 // ============================================================================
 // NETWORK TYPES
 // ============================================================================
 
-export type MainnetNetwork = "ethereum" | "base" | "bnb" | "solana";
+export type MainnetNetwork = "ethereum" | "base" | "bnb" | "jeju" | "solana";
 export type TestnetNetwork =
   | "ethereum-sepolia"
   | "base-sepolia"
   | "bnb-testnet"
+  | "jeju-testnet"
   | "solana-devnet";
 export type PayoutNetwork = MainnetNetwork | TestnetNetwork;
 
@@ -67,10 +73,12 @@ export const ELIZA_TOKEN_ADDRESSES: Record<PayoutNetwork, string> = {
   ethereum: "0xea17df5cf6d172224892b5477a16acb111182478",
   base: "0xea17df5cf6d172224892b5477a16acb111182478",
   bnb: "0xea17df5cf6d172224892b5477a16acb111182478",
+  jeju:
+    process.env.ELIZA_TOKEN_JEJU ||
+    "0x0000000000000000000000000000000000000000",
   solana: "DuMbhu7mvQvqQHGcnikDgb4XegXJRyhUBfdU22uELiZA",
 
   // Testnet - Use test tokens or deploy your own for testing
-  // These are placeholder addresses - deploy test ERC20 for actual testing
   "ethereum-sepolia":
     process.env.ELIZA_TOKEN_SEPOLIA ||
     "0x0000000000000000000000000000000000000000",
@@ -79,6 +87,9 @@ export const ELIZA_TOKEN_ADDRESSES: Record<PayoutNetwork, string> = {
     "0x0000000000000000000000000000000000000000",
   "bnb-testnet":
     process.env.ELIZA_TOKEN_BNB_TESTNET ||
+    "0x0000000000000000000000000000000000000000",
+  "jeju-testnet":
+    process.env.ELIZA_TOKEN_JEJU_TESTNET ||
     "0x0000000000000000000000000000000000000000",
   "solana-devnet":
     process.env.ELIZA_TOKEN_SOLANA_DEVNET || "11111111111111111111111111111111", // Placeholder
@@ -135,6 +146,21 @@ export const NETWORK_CONFIGS: Record<PayoutNetwork, NetworkConfig> = {
     nativeCurrency: "BNB",
     confirmations: 3,
     gasLimitMultiplier: 1.3,
+  },
+
+  jeju: {
+    name: "Jeju",
+    chainId: 420691,
+    chain: jeju,
+    isTestnet: false,
+    rpcUrl: process.env.JEJU_RPC_URL || "https://rpc.jeju.network",
+    blockExplorer: "https://explorer.jeju.network",
+    tokenAddress: ELIZA_TOKEN_ADDRESSES.jeju,
+    tokenDecimals: 9,
+    tokenSymbol: "elizaOS",
+    nativeCurrency: "ETH",
+    confirmations: 2,
+    gasLimitMultiplier: 1.2,
   },
 
   solana: {
@@ -202,6 +228,22 @@ export const NETWORK_CONFIGS: Record<PayoutNetwork, NetworkConfig> = {
     gasLimitMultiplier: 1.5,
   },
 
+  "jeju-testnet": {
+    name: "Jeju Testnet",
+    chainId: 420690,
+    chain: jejuTestnet,
+    isTestnet: true,
+    rpcUrl:
+      process.env.JEJU_TESTNET_RPC_URL || "https://testnet-rpc.jeju.network",
+    blockExplorer: "https://testnet-explorer.jeju.network",
+    tokenAddress: ELIZA_TOKEN_ADDRESSES["jeju-testnet"],
+    tokenDecimals: 9,
+    tokenSymbol: "tELIZA",
+    nativeCurrency: "ETH",
+    confirmations: 1,
+    gasLimitMultiplier: 1.5,
+  },
+
   "solana-devnet": {
     name: "Solana Devnet",
     chainId: 0,
@@ -245,9 +287,15 @@ export function isTestnetMode(): boolean {
  */
 export function getAvailableNetworks(): PayoutNetwork[] {
   if (isTestnetMode()) {
-    return ["ethereum-sepolia", "base-sepolia", "bnb-testnet", "solana-devnet"];
+    return [
+      "ethereum-sepolia",
+      "base-sepolia",
+      "bnb-testnet",
+      "jeju-testnet",
+      "solana-devnet",
+    ];
   }
-  return ["ethereum", "base", "bnb", "solana"];
+  return ["ethereum", "base", "bnb", "jeju", "solana"];
 }
 
 /**
@@ -260,6 +308,7 @@ export function getTestnetEquivalent(
     ethereum: "ethereum-sepolia",
     base: "base-sepolia",
     bnb: "bnb-testnet",
+    jeju: "jeju-testnet",
     solana: "solana-devnet",
   };
   return mapping[mainnetNetwork];
@@ -275,6 +324,7 @@ export function getMainnetEquivalent(
     "ethereum-sepolia": "ethereum",
     "base-sepolia": "base",
     "bnb-testnet": "bnb",
+    "jeju-testnet": "jeju",
     "solana-devnet": "solana",
   };
   return mapping[testnetNetwork];
@@ -294,9 +344,7 @@ export function resolveNetwork(network: PayoutNetwork): PayoutNetwork {
 
   // If we're in mainnet mode and given a testnet network, warn but allow
   if (!isTestnetMode() && config.isTestnet) {
-    console.warn(
-      `[Payout] Warning: Using testnet network ${network} in mainnet mode`,
-    );
+    logger.warn("[Payout] Using testnet network in mainnet mode", { network });
   }
 
   return network;

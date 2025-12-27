@@ -495,11 +495,45 @@
   background: rgba(255, 88, 0, 0.3) !important;
   border-color: rgba(255, 88, 0, 0.5) !important;
 }
+
 /* All buttons should have cursor pointer */
 button:not(:disabled),
 [role="button"]:not(:disabled),
 [data-slot="button"]:not(:disabled) {
   cursor: pointer;
+}
+
+/* Custom Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0a0a0a;
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+::-webkit-scrollbar-thumb {
+  background: #ff5800;
+  border-radius: 0px;
+  border: 2px solid #0a0a0a;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #ff5800;
+  filter: brightness(1.2);
+}
+
+::-webkit-scrollbar-thumb:active {
+  background: #ff5800;
+  filter: brightness(1.4);
+}
+
+/* Firefox scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #ff5800 #0a0a0a;
 }
 
 /* OnChainTrust button hover */

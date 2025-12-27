@@ -15,10 +15,7 @@
  */
 
 import { requireAuthOrApiKey } from "@/lib/auth";
-import {
-  getAnonymousUser,
-  getOrCreateAnonymousUser,
-} from "@/lib/auth-anonymous";
+import { getOrCreateSessionUser } from "@/lib/session";
 import { getProvider } from "@/lib/providers";
 import { creditsService } from "@/lib/services/credits";
 import { usageService } from "@/lib/services/usage";
@@ -306,23 +303,16 @@ async function handlePOST(req: NextRequest) {
       const authResult = await requireAuthOrApiKey(req);
       user = authResult.user;
       apiKey = authResult.apiKey;
-    } catch (authError) {
-      // Fallback to anonymous user
-      logger.info("[Responses API] Privy auth failed, trying anonymous...");
-
-      const anonData = await getAnonymousUser();
-      if (anonData) {
-        user = anonData.user;
-        isAnonymous = true;
-        logger.info("[Responses API] Anonymous user authenticated:", user.id);
-      } else {
-        // Create new anonymous session if none exists
-        logger.info("[Responses API] Creating new anonymous session...");
-        const newAnonData = await getOrCreateAnonymousUser();
-        user = newAnonData.user;
-        isAnonymous = true;
-        logger.info("[Responses API] Created anonymous user:", user.id);
-      }
+    } catch {
+      // Fallback to session user (creates anonymous if needed)
+      logger.info("[Responses API] Privy auth failed, trying session...");
+      const sessionUser = await getOrCreateSessionUser(req);
+      user = sessionUser.user;
+      isAnonymous = sessionUser.isAnonymous;
+      logger.info("[Responses API] Session user:", {
+        userId: user.id,
+        isAnonymous,
+      });
     }
 
     // 2. Parse AI SDK request

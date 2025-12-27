@@ -34,7 +34,7 @@ export const chatPlaygroundPlugin: Plugin = {
       },
     ],
   },
-  providers: [characterProvider, recentMessagesProvider, appConfigProvider],
+  providers: [characterProvider, recentMessagesProvider],
   actions: [],
   evaluators: [roomTitleEvaluator],
 };

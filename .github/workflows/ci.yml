@@ -34,11 +34,36 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun run lint
 
-  unit-tests:
-    name: Unit Tests
+  lockfile-check:
+    name: Lockfile Integrity
     runs-on: ubuntu-latest
-    needs: lint
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - name: Verify lockfile matches package.json
+        run: bun install --frozen-lockfile
+
+  unit-tests:
+    name: Unit - ${{ matrix.suite }}
+    runs-on: ubuntu-latest
+    needs: [lint, lockfile-check]
     timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [secrets, domain, services, misc]
+        include:
+          - suite: secrets
+            env_vars: SECRETS_MASTER_KEY=0000000000000000000000000000000000000000000000000000000000000000
+          - suite: domain
+            env_vars: ""
+          - suite: services
+            env_vars: ""
+          - suite: misc
+            env_vars: ""
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
@@ -50,7 +75,7 @@ jobs:
           key: bun-${{ hashFiles('bun.lockb') }}
           restore-keys: bun-
       - run: bun install --frozen-lockfile
-      - run: bun run test:unit
+      - run: ${{ matrix.env_vars }} bun run test:unit:${{ matrix.suite }}
         env:
           NODE_ENV: test
 
@@ -93,6 +118,25 @@ jobs:
       - run: bun run test:integration
         env:
           NODE_ENV: test
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SECRETS_MASTER_KEY: ${{ secrets.SECRETS_MASTER_KEY }}
+
+  discord-gateway-tests:
+    name: Discord Gateway
+    runs-on: ubuntu-latest
+    needs: lint
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - name: Install dependencies
+        run: cd apps/discord-gateway && bun install --frozen-lockfile
+      - name: Type check
+        run: cd apps/discord-gateway && bun run typecheck
+      - name: Run tests
+        run: cd apps/discord-gateway && bun test
 
   build:
     name: Build
@@ -147,11 +191,24 @@ jobs:
           if-no-files-found: error
           include-hidden-files: true
 
-  e2e-ui:
-    name: E2E UI
+  e2e:
+    name: E2E - ${{ matrix.suite }}
     runs-on: ubuntu-latest
     needs: build
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [ui, api, pages, miniapp]
+        include:
+          - suite: ui
+            script: test:playwright:ui
+          - suite: api
+            script: test:playwright:api
+          - suite: pages
+            script: test:playwright:pages
+          - suite: miniapp
+            script: test:playwright:miniapp
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
@@ -173,7 +230,7 @@ jobs:
           key: playwright-${{ hashFiles('bun.lockb') }}
           restore-keys: playwright-
       - run: bunx playwright install chromium --with-deps
-      - run: bun run test:playwright:ui
+      - run: bun run ${{ matrix.script }}
         env:
           CI: "true"
           NODE_ENV: production
@@ -181,185 +238,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: e2e-ui-results
-          path: tests/playwright/test-results/
-          retention-days: 7
-
-  e2e-api:
-    name: E2E API
-    runs-on: ubuntu-latest
-    needs: build
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: ${{ env.BUN_VERSION }}
-      - uses: actions/cache@v4
-        with:
-          path: ~/.bun/install/cache
-          key: bun-${{ hashFiles('bun.lockb') }}
-          restore-keys: bun-
-      - run: bun install --frozen-lockfile
-      - uses: actions/download-artifact@v4
-        with:
-          name: nextjs-build
-          path: .next
-      - uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ hashFiles('bun.lockb') }}
-          restore-keys: playwright-
-      - run: bunx playwright install chromium --with-deps
-      - run: bun run test:playwright:api
-        env:
-          CI: "true"
-          NODE_ENV: production
-          TEST_API_KEY: ${{ secrets.TEST_API_KEY }}
-      - uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: e2e-api-results
-          path: tests/playwright/test-results/
-          retention-days: 7
-
-  e2e-pages:
-    name: E2E Pages
-    runs-on: ubuntu-latest
-    needs: build
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: ${{ env.BUN_VERSION }}
-      - uses: actions/cache@v4
-        with:
-          path: ~/.bun/install/cache
-          key: bun-${{ hashFiles('bun.lockb') }}
-          restore-keys: bun-
-      - run: bun install --frozen-lockfile
-      - uses: actions/download-artifact@v4
-        with:
-          name: nextjs-build
-          path: .next
-      - uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ hashFiles('bun.lockb') }}
-          restore-keys: playwright-
-      - run: bunx playwright install chromium --with-deps
-      - run: bun run test:playwright:pages
-        env:
-          CI: "true"
-          NODE_ENV: production
-      - uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: e2e-pages-results
-          path: tests/playwright/test-results/
-          retention-days: 7
-
-  e2e-miniapp:
-    name: E2E Miniapp
-    runs-on: ubuntu-latest
-    needs: build
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: ${{ env.BUN_VERSION }}
-      - uses: actions/cache@v4
-        with:
-          path: ~/.bun/install/cache
-          key: bun-${{ hashFiles('bun.lockb') }}
-          restore-keys: bun-
-      - run: bun install --frozen-lockfile
-      - uses: actions/download-artifact@v4
-        with:
-          name: nextjs-build
-          path: .next
-      - name: Install and build miniapp
-        run: |
-          cd miniapp
-          bun install --frozen-lockfile
-          bun run build
-      - uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ hashFiles('bun.lockb') }}
-          restore-keys: playwright-
-      - run: bunx playwright install chromium --with-deps
-      - name: Start servers and run tests
-        run: |
-          # Initialize PIDs
-          MAIN_PID=""
-          MINIAPP_PID=""
-
-          # Cleanup function for trap handler
-          cleanup() {
-            echo "Cleaning up server processes..."
-            if [ -n "$MAIN_PID" ] && kill -0 $MAIN_PID 2>/dev/null; then
-              kill $MAIN_PID 2>/dev/null || true
-            fi
-            if [ -n "$MINIAPP_PID" ] && kill -0 $MINIAPP_PID 2>/dev/null; then
-              kill $MINIAPP_PID 2>/dev/null || true
-            fi
-          }
-
-          # Set trap for cleanup on EXIT, INT, TERM
-          trap cleanup EXIT INT TERM
-
-          # Start main app on port 3000
-          bun run start &
-          MAIN_PID=$!
-
-          # Start miniapp on port 3001 (use subshell to preserve working directory)
-          (cd miniapp && bun run start -p 3001) &
-          MINIAPP_PID=$!
-
-          # Wait for servers to be ready (using -sf to fail on HTTP errors)
-          echo "Waiting for servers to start..."
-          for i in {1..30}; do
-            if curl -sf http://localhost:3000 > /dev/null 2>&1; then
-              echo "Main app is ready"
-              break
-            fi
-            sleep 2
-          done
-
-          for i in {1..30}; do
-            if curl -sf http://localhost:3001 > /dev/null 2>&1; then
-              echo "Miniapp is ready"
-              break
-            fi
-            sleep 2
-          done
-
-          # Verify servers actually started and returning successful responses
-          if ! curl -sf http://localhost:3000 > /dev/null 2>&1; then
-            echo "❌ Main app failed to start or returning errors"
-            exit 1
-          fi
-          if ! curl -sf http://localhost:3001 > /dev/null 2>&1; then
-            echo "❌ Miniapp failed to start or returning errors"
-            exit 1
-          fi
-          echo "✅ Both servers are running"
-
-          # Run tests from root directory (default to failure, set success only on pass)
-          TEST_EXIT=1
-          bun run test:playwright:miniapp && TEST_EXIT=0 || true
-
-          exit ${TEST_EXIT}
-        env:
-          CI: "true"
-          NODE_ENV: production
-      - uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: e2e-miniapp-results
+          name: e2e-${{ matrix.suite }}-results
           path: tests/playwright/test-results/
           retention-days: 7
 
@@ -369,21 +248,26 @@ jobs:
     needs:
       [
         lint,
+        lockfile-check,
         unit-tests,
         security-tests,
         integration-tests,
+        discord-gateway-tests,
         build,
-        e2e-ui,
-        e2e-api,
-        e2e-pages,
-        e2e-miniapp,
+        e2e,
       ]
     if: always()
     steps:
       - run: |
-          results="${{ needs.lint.result }},${{ needs.unit-tests.result }},${{ needs.security-tests.result }},${{ needs.integration-tests.result }},${{ needs.build.result }},${{ needs.e2e-ui.result }},${{ needs.e2e-api.result }},${{ needs.e2e-pages.result }},${{ needs.e2e-miniapp.result }}"
-          if echo "$results" | grep -qvE '^(success,)*success$'; then
-            echo "❌ CI failed: $results"
+          if [[ "${{ needs.lint.result }}" != "success" ]] || \
+             [[ "${{ needs.lockfile-check.result }}" != "success" ]] || \
+             [[ "${{ needs.unit-tests.result }}" != "success" ]] || \
+             [[ "${{ needs.security-tests.result }}" != "success" ]] || \
+             [[ "${{ needs.integration-tests.result }}" != "success" ]] || \
+             [[ "${{ needs.discord-gateway-tests.result }}" != "success" ]] || \
+             [[ "${{ needs.build.result }}" != "success" ]] || \
+             [[ "${{ needs.e2e.result }}" != "success" ]]; then
+            echo "❌ CI failed"
             exit 1
           fi
           echo "✅ CI passed"

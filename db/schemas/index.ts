@@ -10,7 +10,7 @@ export * from "./user-sessions";
 export * from "./anonymous-sessions";
 export * from "./api-keys";
 export * from "./cli-auth-sessions";
-export * from "./miniapp-auth-sessions";
+export * from "./app-auth-sessions";
 export * from "./usage-records";
 export * from "./usage-quotas";
 export * from "./credit-transactions";
@@ -40,6 +40,52 @@ export * from "./admin-users";
 export * from "./moderation-violations";
 export * from "./agent-reputation";
 export * from "./agent-budgets";
-export * from "./crypto-payments";
+export * from "./app-storage";
+export * from "./n8n-workflows";
+export * from "./fragment-projects";
+export * from "./app-bundles";
+export * from "./app-domains";
 export * from "./app-sandboxes";
+export * from "./secrets";
+export * from "./org-platforms";
+export * from "./org-agents";
+export * from "./org-community-moderation";
+export * from "./platform-credentials";
+export * from "./discord-gateway";
+export * from "./application-triggers";
+export * from "./social-feed";
+export * from "./seo";
+
+// Media & Collections
+export * from "./media-collections";
+export * from "./media-collection-items";
+export * from "./media-uploads";
+
+// Advertising
+export * from "./ad-accounts";
+export * from "./ad-campaigns";
+export * from "./ad-creatives";
+export * from "./ad-transactions";
+
+// Domain Management
+export * from "./managed-domains";
+export * from "./domain-moderation-events";
+
+// Code Agent & Interpreter
+export * from "./code-agent-sessions";
+
+// App Integrations (junction tables)
+export * from "./app-integrations";
+
+// Performance Monitoring
+export * from "./slow-query-log";
+
+// Content Moderation
+export * from "./content-moderation";
+
+// Webhooks
+export * from "./webhooks";
+
+// Crypto Payments
+export * from "./crypto-payments";
 export * from "./webhook-events";

@@ -1,5 +1,5 @@
 /**
- * Miniapp auth sessions schema.
+ * Miniapp Auth Sessions Schema
  *
  * Manages authentication sessions for the miniapp pass-through auth flow.
  * Similar to CLI auth sessions but for web-based miniapps that can't use Privy directly.

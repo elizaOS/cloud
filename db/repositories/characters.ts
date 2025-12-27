@@ -34,7 +34,7 @@ export class UserCharactersRepository {
    */
   async listByUser(
     userId: string,
-    source: "cloud" | "miniapp" = "cloud",
+    source: "cloud" | "app" = "cloud",
   ): Promise<UserCharacter[]> {
     const interactedCharacterIds = dbRead
       .selectDistinct({ character_id: elizaRoomCharactersTable.character_id })
@@ -64,7 +64,7 @@ export class UserCharactersRepository {
    */
   async listByOrganization(
     organizationId: string,
-    source: "cloud" | "miniapp" = "cloud",
+    source: "cloud" | "app" = "cloud",
   ): Promise<UserCharacter[]> {
     return await dbRead.query.userCharacters.findMany({
       where: and(
@@ -183,7 +183,7 @@ export class UserCharactersRepository {
       conditions.push(eq(userCharacters.featured, filters.featured));
     }
 
-    // Filter by source (cloud vs miniapp)
+    // Filter by source (cloud vs app)
     if (filters.source) {
       conditions.push(eq(userCharacters.source, filters.source));
     }
@@ -284,7 +284,7 @@ export class UserCharactersRepository {
       conditions.push(eq(userCharacters.featured, filters.featured));
     }
 
-    // Filter by source (cloud vs miniapp)
+    // Filter by source (cloud vs app)
     if (filters.source) {
       conditions.push(eq(userCharacters.source, filters.source));
     }
@@ -426,7 +426,7 @@ export class UserCharactersRepository {
       conditions.push(eq(userCharacters.featured, filters.featured));
     }
 
-    // Filter by source (cloud vs miniapp) - miniapp agents should never appear in public marketplace
+    // Filter by source (cloud vs app) - app agents should never appear in public marketplace
     if (filters.source) {
       conditions.push(eq(userCharacters.source, filters.source));
     }
@@ -513,7 +513,7 @@ export class UserCharactersRepository {
       conditions.push(eq(userCharacters.featured, filters.featured));
     }
 
-    // Filter by source (cloud vs miniapp) - miniapp agents should never appear in public marketplace
+    // Filter by source (cloud vs app) - app agents should never appear in public marketplace
     if (filters.source) {
       conditions.push(eq(userCharacters.source, filters.source));
     }
@@ -524,6 +524,150 @@ export class UserCharactersRepository {
       .where(and(...conditions));
 
     return result[0]?.count || 0;
+  }
+
+  /**
+   * Lists public characters registered on ERC-8004.
+   * Used for marketplace discovery by external agents.
+   */
+  async findPublicRegistered(
+    options: {
+      erc8004Only?: boolean;
+      category?: string;
+      limit?: number;
+    } = {},
+  ): Promise<UserCharacter[]> {
+    const { erc8004Only = false, category, limit = 100 } = options;
+
+    const conditions: SQL[] = [
+      eq(userCharacters.is_public, true),
+      eq(userCharacters.source, "cloud"),
+    ];
+
+    if (erc8004Only) {
+      conditions.push(eq(userCharacters.erc8004_registered, true));
+    }
+
+    if (category) {
+      conditions.push(eq(userCharacters.category, category));
+    }
+
+    return await db
+      .select()
+      .from(userCharacters)
+      .where(and(...conditions))
+      .orderBy(
+        desc(userCharacters.popularity_score),
+        desc(userCharacters.created_at),
+      )
+      .limit(limit);
+  }
+
+  /**
+   * Gets characters by ERC-8004 agent ID.
+   */
+  async getByERC8004AgentId(
+    network: string,
+    agentId: number,
+  ): Promise<UserCharacter | undefined> {
+    return await db.query.userCharacters.findFirst({
+      where: and(
+        eq(userCharacters.erc8004_network, network),
+        eq(userCharacters.erc8004_agent_id, agentId),
+      ),
+    });
+  }
+
+  /**
+   * Lists all ERC-8004 registered characters.
+   */
+  async listERC8004Registered(
+    options: {
+      network?: string;
+      limit?: number;
+    } = {},
+  ): Promise<UserCharacter[]> {
+    const { network, limit = 100 } = options;
+
+    const conditions: SQL[] = [eq(userCharacters.erc8004_registered, true)];
+
+    if (network) {
+      conditions.push(eq(userCharacters.erc8004_network, network));
+    }
+
+    return await db
+      .select()
+      .from(userCharacters)
+      .where(and(...conditions))
+      .orderBy(desc(userCharacters.erc8004_registered_at))
+      .limit(limit);
+  }
+
+  /**
+   * Records inference earnings for a character.
+   * Uses atomic SQL operations for safe concurrent updates.
+   */
+  async recordInferenceEarnings(
+    id: string,
+    creatorEarnings: string,
+    platformRevenue: string,
+  ): Promise<void> {
+    await db
+      .update(userCharacters)
+      .set({
+        total_inference_requests: sql`${userCharacters.total_inference_requests} + 1`,
+        total_creator_earnings: sql`${userCharacters.total_creator_earnings} + ${creatorEarnings}::numeric`,
+        total_platform_revenue: sql`${userCharacters.total_platform_revenue} + ${platformRevenue}::numeric`,
+        updated_at: new Date(),
+      })
+      .where(eq(userCharacters.id, id));
+  }
+
+  /**
+   * Updates ERC-8004 registration status for a character.
+   */
+  async updateERC8004Registration(
+    id: string,
+    data: {
+      erc8004_registered: boolean;
+      erc8004_network?: string;
+      erc8004_agent_id?: number;
+      erc8004_agent_uri?: string;
+      erc8004_tx_hash?: string;
+    },
+  ): Promise<UserCharacter | undefined> {
+    const [character] = await db
+      .update(userCharacters)
+      .set({
+        ...data,
+        erc8004_registered_at: data.erc8004_registered ? new Date() : null,
+        updated_at: new Date(),
+      })
+      .where(eq(userCharacters.id, id))
+      .returning();
+    return character;
+  }
+
+  /**
+   * Updates monetization settings for a character.
+   */
+  async updateMonetization(
+    id: string,
+    data: {
+      monetization_enabled: boolean;
+      inference_markup_percentage?: string;
+      payout_wallet_address?: string;
+    },
+  ): Promise<UserCharacter | undefined> {
+    const [character] = await db
+      .update(userCharacters)
+      .set({
+        ...data,
+        updated_at: new Date(),
+      })
+      .where(eq(userCharacters.id, id))
+      .returning();
+    return character;
   }
 }
 

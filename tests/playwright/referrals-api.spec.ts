@@ -14,15 +14,12 @@ test.describe("Referrals & Rewards API", () => {
   test.skip(() => !API_KEY, "TEST_API_KEY environment variable required");
 
   test.describe("Referral Code", () => {
-    test("GET /api/v1/miniapp/referral - should return referral code info", async ({
+    test("GET /api/v1/app/referral - should return referral code info", async ({
       request,
     }) => {
-      const response = await request.get(
-        `${CLOUD_URL}/api/v1/miniapp/referral`,
-        {
-          headers: authHeaders(),
-        },
-      );
+      const response = await request.get(`${CLOUD_URL}/api/v1/app/referral`, {
+        headers: authHeaders(),
+      });
 
       expect(response.status()).toBe(200);
       const data = await response.json();
@@ -40,34 +37,28 @@ test.describe("Referrals & Rewards API", () => {
       expect(data.referral.rewards.commissionRate).toBeGreaterThan(0);
     });
 
-    test("GET /api/v1/miniapp/referral - should return consistent code", async ({
+    test("GET /api/v1/app/referral - should return consistent code", async ({
       request,
     }) => {
-      const response1 = await request.get(
-        `${CLOUD_URL}/api/v1/miniapp/referral`,
-        {
-          headers: authHeaders(),
-        },
-      );
+      const response1 = await request.get(`${CLOUD_URL}/api/v1/app/referral`, {
+        headers: authHeaders(),
+      });
       const data1 = await response1.json();
 
-      const response2 = await request.get(
-        `${CLOUD_URL}/api/v1/miniapp/referral`,
-        {
-          headers: authHeaders(),
-        },
-      );
+      const response2 = await request.get(`${CLOUD_URL}/api/v1/app/referral`, {
+        headers: authHeaders(),
+      });
       const data2 = await response2.json();
 
       expect(data1.referral.code).toBe(data2.referral.code);
     });
 
-    test("POST /api/v1/miniapp/referral/apply - should reject own referral code", async ({
+    test("POST /api/v1/app/referral/apply - should reject own referral code", async ({
       request,
     }) => {
       // Get our own code
       const codeResponse = await request.get(
-        `${CLOUD_URL}/api/v1/miniapp/referral`,
+        `${CLOUD_URL}/api/v1/app/referral`,
         {
           headers: authHeaders(),
         },
@@ -76,7 +67,7 @@ test.describe("Referrals & Rewards API", () => {
 
       // Try to apply our own code
       const response = await request.post(
-        `${CLOUD_URL}/api/v1/miniapp/referral/apply`,
+        `${CLOUD_URL}/api/v1/app/referral/apply`,
         {
           headers: authHeaders(),
           data: { code: referral.code },
@@ -89,11 +80,11 @@ test.describe("Referrals & Rewards API", () => {
       expect(data.error).toContain("own referral code");
     });
 
-    test("POST /api/v1/miniapp/referral/apply - should reject invalid code", async ({
+    test("POST /api/v1/app/referral/apply - should reject invalid code", async ({
       request,
     }) => {
       const response = await request.post(
-        `${CLOUD_URL}/api/v1/miniapp/referral/apply`,
+        `${CLOUD_URL}/api/v1/app/referral/apply`,
         {
           headers: authHeaders(),
           data: { code: "INVALID-123456" },
@@ -106,11 +97,11 @@ test.describe("Referrals & Rewards API", () => {
       expect(data.error).toContain("Invalid");
     });
 
-    test("POST /api/v1/miniapp/referral/apply - should reject empty code", async ({
+    test("POST /api/v1/app/referral/apply - should reject empty code", async ({
       request,
     }) => {
       const response = await request.post(
-        `${CLOUD_URL}/api/v1/miniapp/referral/apply`,
+        `${CLOUD_URL}/api/v1/app/referral/apply`,
         {
           headers: authHeaders(),
           data: { code: "" },
@@ -120,12 +111,12 @@ test.describe("Referrals & Rewards API", () => {
       expect(response.status()).toBe(400);
     });
 
-    test("POST /api/v1/miniapp/referral/qualify - should handle qualification", async ({
+    test("POST /api/v1/app/referral/qualify - should handle qualification", async ({
       request,
     }) => {
       // Call the qualify endpoint - it should work even if user wasn't referred
       const response = await request.post(
-        `${CLOUD_URL}/api/v1/miniapp/referral/qualify`,
+        `${CLOUD_URL}/api/v1/app/referral/qualify`,
         {
           headers: authHeaders(),
         },
@@ -139,26 +130,23 @@ test.describe("Referrals & Rewards API", () => {
       expect(typeof data.qualified).toBe("boolean");
     });
 
-    test("POST /api/v1/miniapp/referral/qualify - should require authentication", async ({
+    test("POST /api/v1/app/referral/qualify - should require authentication", async ({
       request,
     }) => {
       const response = await request.post(
-        `${CLOUD_URL}/api/v1/miniapp/referral/qualify`,
+        `${CLOUD_URL}/api/v1/app/referral/qualify`,
       );
       expect(response.status()).toBe(401);
     });
   });
 
   test.describe("Social Rewards", () => {
-    test("GET /api/v1/miniapp/rewards - should return rewards status", async ({
+    test("GET /api/v1/app/rewards - should return rewards status", async ({
       request,
     }) => {
-      const response = await request.get(
-        `${CLOUD_URL}/api/v1/miniapp/rewards`,
-        {
-          headers: authHeaders(),
-        },
-      );
+      const response = await request.get(`${CLOUD_URL}/api/v1/app/rewards`, {
+        headers: authHeaders(),
+      });
 
       expect(response.status()).toBe(200);
       const data = await response.json();
@@ -179,11 +167,11 @@ test.describe("Referrals & Rewards API", () => {
       expect(data.rewards.rewardRates.qualifiedBonus).toBeGreaterThan(0);
     });
 
-    test("POST /api/v1/miniapp/rewards/share - should claim X share reward", async ({
+    test("POST /api/v1/app/rewards/share - should claim X share reward", async ({
       request,
     }) => {
       const response = await request.post(
-        `${CLOUD_URL}/api/v1/miniapp/rewards/share`,
+        `${CLOUD_URL}/api/v1/app/rewards/share`,
         {
           headers: authHeaders(),
           data: {
@@ -207,11 +195,11 @@ test.describe("Referrals & Rewards API", () => {
       }
     });
 
-    test("POST /api/v1/miniapp/rewards/share - should reject duplicate claim same day", async ({
+    test("POST /api/v1/app/rewards/share - should reject duplicate claim same day", async ({
       request,
     }) => {
       // First claim
-      await request.post(`${CLOUD_URL}/api/v1/miniapp/rewards/share`, {
+      await request.post(`${CLOUD_URL}/api/v1/app/rewards/share`, {
         headers: authHeaders(),
         data: {
           platform: "farcaster",
@@ -221,7 +209,7 @@ test.describe("Referrals & Rewards API", () => {
 
       // Second claim same day should fail with alreadyAwarded flag
       const response = await request.post(
-        `${CLOUD_URL}/api/v1/miniapp/rewards/share`,
+        `${CLOUD_URL}/api/v1/app/rewards/share`,
         {
           headers: authHeaders(),
           data: {
@@ -238,11 +226,11 @@ test.describe("Referrals & Rewards API", () => {
       expect(data.alreadyAwarded).toBe(true);
     });
 
-    test("POST /api/v1/miniapp/rewards/share - should reject invalid platform", async ({
+    test("POST /api/v1/app/rewards/share - should reject invalid platform", async ({
       request,
     }) => {
       const response = await request.post(
-        `${CLOUD_URL}/api/v1/miniapp/rewards/share`,
+        `${CLOUD_URL}/api/v1/app/rewards/share`,
         {
           headers: authHeaders(),
           data: {
@@ -255,11 +243,11 @@ test.describe("Referrals & Rewards API", () => {
       expect(response.status()).toBe(400);
     });
 
-    test("POST /api/v1/miniapp/rewards/share - should reject invalid share type", async ({
+    test("POST /api/v1/app/rewards/share - should reject invalid share type", async ({
       request,
     }) => {
       const response = await request.post(
-        `${CLOUD_URL}/api/v1/miniapp/rewards/share`,
+        `${CLOUD_URL}/api/v1/app/rewards/share`,
         {
           headers: authHeaders(),
           data: {
@@ -272,12 +260,12 @@ test.describe("Referrals & Rewards API", () => {
       expect(response.status()).toBe(400);
     });
 
-    test("POST /api/v1/miniapp/rewards/share - should handle concurrent requests (race condition protection)", async ({
+    test("POST /api/v1/app/rewards/share - should handle concurrent requests (race condition protection)", async ({
       request,
     }) => {
       // Send 5 concurrent requests for telegram platform (less likely to be already claimed)
       const promises = Array.from({ length: 5 }, () =>
-        request.post(`${CLOUD_URL}/api/v1/miniapp/rewards/share`, {
+        request.post(`${CLOUD_URL}/api/v1/app/rewards/share`, {
           headers: authHeaders(),
           data: {
             platform: "telegram",
@@ -311,11 +299,11 @@ test.describe("Referrals & Rewards API", () => {
       );
     });
 
-    test("GET /api/v1/miniapp/rewards - should reflect claimed status after share", async ({
+    test("GET /api/v1/app/rewards - should reflect claimed status after share", async ({
       request,
     }) => {
       // First claim discord (least likely to be used in other tests)
-      await request.post(`${CLOUD_URL}/api/v1/miniapp/rewards/share`, {
+      await request.post(`${CLOUD_URL}/api/v1/app/rewards/share`, {
         headers: authHeaders(),
         data: {
           platform: "discord",
@@ -324,12 +312,9 @@ test.describe("Referrals & Rewards API", () => {
       });
 
       // Get rewards status
-      const response = await request.get(
-        `${CLOUD_URL}/api/v1/miniapp/rewards`,
-        {
-          headers: authHeaders(),
-        },
-      );
+      const response = await request.get(`${CLOUD_URL}/api/v1/app/rewards`, {
+        headers: authHeaders(),
+      });
 
       expect(response.status()).toBe(200);
       const data = await response.json();
@@ -342,27 +327,25 @@ test.describe("Referrals & Rewards API", () => {
   });
 
   test.describe("Authentication", () => {
-    test("GET /api/v1/miniapp/referral - should require authentication", async ({
+    test("GET /api/v1/app/referral - should require authentication", async ({
       request,
     }) => {
-      const response = await request.get(
-        `${CLOUD_URL}/api/v1/miniapp/referral`,
-      );
+      const response = await request.get(`${CLOUD_URL}/api/v1/app/referral`);
       expect(response.status()).toBe(401);
     });
 
-    test("GET /api/v1/miniapp/rewards - should require authentication", async ({
+    test("GET /api/v1/app/rewards - should require authentication", async ({
       request,
     }) => {
-      const response = await request.get(`${CLOUD_URL}/api/v1/miniapp/rewards`);
+      const response = await request.get(`${CLOUD_URL}/api/v1/app/rewards`);
       expect(response.status()).toBe(401);
     });
 
-    test("POST /api/v1/miniapp/rewards/share - should require authentication", async ({
+    test("POST /api/v1/app/rewards/share - should require authentication", async ({
       request,
     }) => {
       const response = await request.post(
-        `${CLOUD_URL}/api/v1/miniapp/rewards/share`,
+        `${CLOUD_URL}/api/v1/app/rewards/share`,
         {
           data: {
             platform: "x",

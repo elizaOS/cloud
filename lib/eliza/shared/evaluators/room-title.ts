@@ -8,6 +8,7 @@ import {
   logger,
   type UUID,
 } from "@elizaos/core";
+import { extractErrorMessage } from "@/lib/utils/error-handling";
 
 /**
  * Room Title Generator Evaluator
@@ -168,7 +169,7 @@ async function generateTitleInBackground(
   } catch (error) {
     logger.error(
       "[RoomTitle] Error generating room title:",
-      error instanceof Error ? error.message : String(error),
+      extractErrorMessage(error),
     );
   }
 }

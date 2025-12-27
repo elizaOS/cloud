@@ -29,10 +29,6 @@ import { eq, and, desc, sql, gte } from "drizzle-orm";
 import { logger } from "@/lib/utils/logger";
 import reputationConfig from "@/config/agent-reputation.json";
 
-// ============================================================================
-// Types
-// ============================================================================
-
 type TrustLevel = "untrusted" | "low" | "neutral" | "trusted" | "verified";
 type AgentStatus = "new" | "trusted" | "warned" | "restricted" | "banned";
 type FlagType =
@@ -88,15 +84,7 @@ interface AdminFlagParams {
   autoBan?: boolean;
 }
 
-// ============================================================================
-// Configuration
-// ============================================================================
-
 const config = reputationConfig;
-
-// ============================================================================
-// Agent Reputation Service
-// ============================================================================
 
 class AgentReputationService {
   // ===== Agent Lookup & Creation =====

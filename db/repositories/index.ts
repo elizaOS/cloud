@@ -33,6 +33,7 @@ export * from "./user-sessions";
 export * from "./anonymous-sessions";
 export * from "./api-keys";
 export * from "./cli-auth-sessions";
+export * from "./app-auth-sessions";
 export * from "./credit-transactions";
 export * from "./credit-packs";
 export * from "./usage-records";
@@ -44,6 +45,7 @@ export * from "./provider-health";
 // Character Domain (User-created definitions)
 // ============================================
 export * from "./characters";
+// Note: user-characters.ts is deprecated, use characters.ts instead
 
 // ============================================
 // Deployment Domain (Infrastructure)
@@ -94,6 +96,53 @@ export * from "./user-mcps";
 // Token Redemptions (elizaOS payouts)
 // ============================================
 export * from "./token-redemptions";
+
+// ============================================
+// App Storage
+// ============================================
+export * from "./app-storage";
+
+// ============================================
+// N8N Workflows
+// ============================================
+export * from "./n8n-workflows";
+
+// ============================================
+// Fragment Projects
+// ============================================
+export * from "./fragment-projects";
+
+// ============================================
+// Media Collections & Uploads
+// ============================================
+export * from "./media-collections";
+export * from "./media-uploads";
+
+// ============================================
+// Advertising
+// ============================================
+export * from "./ad-accounts";
+export * from "./ad-campaigns";
+export * from "./ad-creatives";
+export * from "./ad-transactions";
+export * from "./seo-requests";
+export * from "./seo-artifacts";
+export * from "./seo-provider-calls";
+
+// ============================================
+// Discord Gateway (Multi-tenant Discord Service)
+// ============================================
+export * from "./discord-gateway";
+
+// ============================================
+// Managed Domains
+// ============================================
+export * from "./managed-domains";
+
+// ============================================
+// Community Moderation
+// ============================================
+export * from "./community-moderation";
 
 // ============================================
 // Crypto Payments (CDP wallet payments)

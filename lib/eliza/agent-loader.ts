@@ -1,4 +1,10 @@
-import type { Character, Plugin, Provider, Action } from "@elizaos/core";
+import {
+  elizaLogger,
+  type Character,
+  type Plugin,
+  type Provider,
+  type Action,
+} from "@elizaos/core";
 import { elizaOSCloudPlugin } from "@elizaos/plugin-elizacloud";
 import { memoryPlugin } from "@elizaos/plugin-memory";
 import { elevenLabsPlugin } from "@elizaos/plugin-elevenlabs";
@@ -10,6 +16,7 @@ import { characterBuilderPlugin } from "./plugin-character-builder";
 import { charactersService } from "@/lib/services/characters";
 import { memoriesRepository } from "@/db/repositories/agents/memories";
 import type { ElizaCharacter } from "@/lib/types";
+import type { UserCharacter } from "@/db/schemas/user-characters";
 import defaultAgent from "./agent";
 import { getElizaCloudApiUrl } from "./config";
 import {
@@ -20,6 +27,13 @@ import {
   requiresAssistantMode,
   hasAffiliateData,
 } from "./agent-mode-types";
+import { loadAgentSecrets, isSecretsConfigured } from "@/lib/services/secrets";
+import {
+  isOrgCharacter,
+  getOrgCharacter,
+  orgCharacters,
+} from "./characters/org";
+import { agentLifecycleService } from "@/lib/services/agent-lifecycle";
 
 /**
  * Reasons why mode was upgraded to ASSISTANT.
@@ -29,6 +43,7 @@ export type ModeUpgradeReason =
   | "settings_plugin"
   | "explicit_plugin"
   | "has_knowledge"
+  | "mcp_plugin"
   | "none";
 
 export interface ModeResolution {
@@ -143,14 +158,24 @@ export class AgentLoader {
     plugins: Plugin[];
     modeResolution: ModeResolution;
   }> {
+    // Check if this is an org character (built-in cloud agents)
+    if (isOrgCharacter(characterId)) {
+      return this.loadOrgCharacter(characterId, agentMode);
+    }
+
     const dbCharacter = await charactersService.getById(characterId);
     if (!dbCharacter) {
       throw new Error(`Character not found: ${characterId}`);
     }
 
     const elizaCharacter = charactersService.toElizaCharacter(dbCharacter);
-    const character = this.buildCharacter(elizaCharacter);
-    const characterSettings = (elizaCharacter.settings ?? {}) as Record<string, unknown>;
+
+    // Build character with secrets loaded from secrets service
+    const character = await this.buildCharacter(elizaCharacter, dbCharacter);
+    const characterSettings = (elizaCharacter.settings ?? {}) as Record<
+      string,
+      unknown
+    >;
     const characterPlugins = elizaCharacter.plugins || [];
 
     // Inject webSearch settings if enabled via chat UI
@@ -183,6 +208,88 @@ export class AgentLoader {
     return { character, plugins, modeResolution };
   }
 
+  /**
+   * Load a built-in org character (Jimmy, Eli5, Eddy, Ruby, Laura)
+   * These characters use org-tools MCP and are always in ASSISTANT mode.
+   *
+   * If organizationId is provided, attempts to load org-specific configuration
+   * from the database (custom settings, secrets, platform configs).
+   */
+  async loadOrgCharacter(
+    characterId: string,
+    _agentMode: AgentMode,
+    organizationId?: string,
+  ): Promise<{
+    character: Character;
+    plugins: Plugin[];
+    modeResolution: ModeResolution;
+  }> {
+    const baseCharacter = getOrgCharacter(characterId);
+    if (!baseCharacter) {
+      throw new Error(`Org character not found: ${characterId}`);
+    }
+
+    let character: Character = baseCharacter;
+
+    // If organization provided, try to load configured character
+    if (organizationId) {
+      const agentType = characterId as keyof typeof orgCharacters;
+      const instance = await agentLifecycleService.getInstance(
+        organizationId,
+        agentType,
+      );
+
+      if (instance && instance.enabled) {
+        // Load fully configured character with org-specific settings
+        character = await agentLifecycleService.buildConfiguredCharacter(
+          organizationId,
+          agentType,
+        );
+        elizaLogger.info(
+          `[AgentLoader] Loaded configured org agent: ${character.name} for org ${organizationId}`,
+        );
+      } else {
+        elizaLogger.info(
+          `[AgentLoader] Using base org character: ${character.name} (no org config)`,
+        );
+      }
+    }
+
+    // Org characters always use ASSISTANT mode (they have MCP tools)
+    const modeResolution: ModeResolution = {
+      mode: AgentMode.ASSISTANT,
+      upgradeReason: "mcp_plugin",
+    };
+
+    const characterSettings = (character.settings ?? {}) as Record<
+      string,
+      unknown
+    >;
+    const plugins = await this.resolvePlugins(
+      AgentMode.ASSISTANT,
+      character.plugins || [],
+      characterSettings,
+    );
+
+    return { character, plugins, modeResolution };
+  }
+
+  /**
+   * Load an org character for a specific organization.
+   * This is the preferred method when you have an organization context.
+   */
+  async loadOrgCharacterForOrg(
+    characterId: string,
+    organizationId: string,
+    agentMode: AgentMode = AgentMode.ASSISTANT,
+  ): Promise<{
+    character: Character;
+    plugins: Plugin[];
+    modeResolution: ModeResolution;
+  }> {
+    return this.loadOrgCharacter(characterId, agentMode, organizationId);
+  }
+
   async getDefaultCharacter(
     agentMode: AgentMode,
     options?: { webSearchEnabled?: boolean },
@@ -205,15 +312,37 @@ export class AgentLoader {
     return { character: defaultAgent.character, plugins, modeResolution };
   }
 
-  /** Build Character with merged settings (env + character config) */
-  private buildCharacter(elizaCharacter: ElizaCharacter): Character {
+  /**
+   * Build Character with merged settings from multiple sources:
+   * 1. Character settings from DB (elizaCharacter.settings)
+   * 2. Encrypted secrets from secrets service (org + project-scoped)
+   * 3. Environment variables (process.env)
+   *
+   * Priority: Secrets service > Character settings > Env vars
+   */
+  private async buildCharacter(
+    elizaCharacter: ElizaCharacter,
+    dbCharacter: UserCharacter,
+  ): Promise<Character> {
     const characterId =
       elizaCharacter.id || "b850bc30-45f8-0041-a00a-83df46d8555d";
     const charSettings = elizaCharacter.settings || {};
     const getSetting = (key: string, fallback: string) =>
       (charSettings[key] as string) || process.env[key] || fallback;
 
-    const settings: Record<string, string | boolean | number | Record<string, unknown>> = {
+    // Load secrets from secrets service (org + character-scoped)
+    const secrets = isSecretsConfigured()
+      ? await loadAgentSecrets({
+          organizationId: dbCharacter.organization_id,
+          characterId: dbCharacter.id,
+        })
+      : {};
+
+    // Merge settings - secrets take highest priority
+    const settings: Record<
+      string,
+      string | boolean | number | Record<string, unknown>
+    > = {
       ...charSettings,
       POSTGRES_URL: process.env.DATABASE_URL!,
       DATABASE_URL: process.env.DATABASE_URL!,
@@ -225,7 +354,7 @@ export class AgentLoader {
       ),
       ELEVENLABS_MODEL_ID: getSetting(
         "ELEVENLABS_MODEL_ID",
-        "eleven_multilingual_v2",
+        "eleven_flash_v2_5",
       ),
       ELEVENLABS_VOICE_STABILITY: getSetting(
         "ELEVENLABS_VOICE_STABILITY",
@@ -277,6 +406,7 @@ export class AgentLoader {
       ...(elizaCharacter.avatarUrl || elizaCharacter.avatar_url
         ? { avatarUrl: elizaCharacter.avatarUrl || elizaCharacter.avatar_url }
         : {}),
+      ...secrets,
     };
 
     return {

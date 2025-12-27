@@ -1,31 +1,89 @@
 {
   "$schema": "./erc8004.schema.json",
-  "_comment": "ERC-8004 Agent Registration Configuration. Secrets should be in .env, not here.",
+  "_comment": "ERC-8004 Agent Registration - SINGLE SOURCE OF TRUTH for identity contracts",
+  "_lastUpdated": "2025-12-09",
 
   "service": {
     "name": "Eliza Cloud",
-    "description": "AI agent infrastructure: inference, agents, memory, billing. Supports REST, MCP, A2A protocols with x402 or API key authentication.",
+    "description": "AI agent infrastructure: inference, agents, memory, storage, billing. Supports REST, MCP, A2A protocols with x402 or API key authentication.",
     "image": "/logo.png",
     "version": "1.0.0",
     "category": "ai-infrastructure",
     "protocols": ["openai", "mcp", "a2a"],
-    "supportedTrust": ["reputation", "crypto-economic"]
+    "supportedTrust": ["reputation", "crypto-economic"],
+    "capabilities": {
+      "storage": {
+        "providers": ["blob", "ipfs"],
+        "maxFileSizeMB": 100,
+        "supportedFormats": ["*"],
+        "x402Enabled": true
+      }
+    }
   },
 
   "networks": {
+    "jeju-localnet": {
+      "name": "Jeju Localnet",
+      "chainId": 1337,
+      "rpcUrl": "http://127.0.0.1:9545",
+      "blockExplorer": "http://127.0.0.1:4000",
+      "isTestnet": true,
+      "isLocalnet": true,
+      "contracts": {
+        "identity": "0x355281d1974BfB64F9d475d01936E5dB37396DA3",
+        "reputation": "0x0000000000000000000000000000000000000000",
+        "validation": "0x0000000000000000000000000000000000000000"
+      },
+      "agentId": 1,
+      "_agentNote": "Eliza Cloud registered as Agent ID 1 on Jeju Localnet - 2025-12-11",
+      "subgraphUrl": null,
+      "ecosystem": "jeju"
+    },
+    "jeju-testnet": {
+      "name": "Jeju Testnet",
+      "chainId": 420690,
+      "rpcUrl": "https://testnet-rpc.jejunetwork.org",
+      "blockExplorer": "https://testnet-explorer.jejunetwork.org",
+      "isTestnet": true,
+      "contracts": {
+        "identity": "0x0000000000000000000000000000000000000000",
+        "reputation": "0x0000000000000000000000000000000000000000",
+        "validation": "0x0000000000000000000000000000000000000000"
+      },
+      "agentId": null,
+      "subgraphUrl": null,
+      "ecosystem": "jeju"
+    },
+    "jeju": {
+      "name": "Jeju Mainnet",
+      "chainId": 420691,
+      "rpcUrl": "https://rpc.jeju.network",
+      "blockExplorer": "https://explorer.jeju.network",
+      "isTestnet": false,
+      "contracts": {
+        "identity": "0x0000000000000000000000000000000000000000",
+        "reputation": "0x0000000000000000000000000000000000000000",
+        "validation": "0x0000000000000000000000000000000000000000"
+      },
+      "agentId": null,
+      "subgraphUrl": null,
+      "ecosystem": "jeju"
+    },
     "anvil": {
-      "name": "Local Anvil",
+      "name": "Local Anvil (L1)",
       "chainId": 31337,
       "rpcUrl": "http://127.0.0.1:8545",
       "blockExplorer": "http://localhost:8545",
       "isTestnet": true,
+      "isLocalnet": true,
       "contracts": {
         "identity": "0xcf7ed3acca5a467e9e704c703e8d87f634fb0fc9",
         "reputation": "0x5fc8d32690cc91d4c39d9d3abcbd16989f875707",
         "validation": "0xa513e6e4b8f2a923d98304ec87f64353c4d5c853"
       },
       "agentId": 0,
-      "subgraphUrl": null
+      "subgraphUrl": null,
+      "ecosystem": "base"
     },
     "base-sepolia": {
       "name": "Base Sepolia",
@@ -34,12 +92,15 @@
       "blockExplorer": "https://sepolia.basescan.org",
       "isTestnet": true,
       "contracts": {
-        "identity": "0x8004AA63c570c570eBF15376c0dB199918BFe9Fb",
-        "reputation": "0x8004bd8daB57f14Ed299135749a5CB5c42d341BF",
-        "validation": "0x8004C269D0A5647E51E121FeB226200ECE932d55"
+        "identity": "0x759D602d8D2E4F1ccCa12E955420cC19e64a68bd",
+        "_identityNote": "Fresh IdentityRegistry for OIF testing - 2024-12-09",
+        "reputation": "0x0000000000000000000000000000000000000000",
+        "validation": "0x0000000000000000000000000000000000000000"
       },
-      "agentId": 1583,
-      "subgraphUrl": "https://gateway.thegraph.com/api/00a452ad3cd1900273ea62c1bf283f93/subgraphs/id/GjQEDgEKqoh5Yc8MUgxoQoRATEJdEiH7HbocfR1aFiHa"
+      "agentId": 1,
+      "_agentNote": "Eliza Cloud registered as Agent ID 1 on 2024-12-09",
+      "subgraphUrl": null,
+      "ecosystem": "base"
     },
     "base": {
       "name": "Base Mainnet",
@@ -48,13 +109,39 @@
       "blockExplorer": "https://basescan.org",
       "isTestnet": false,
       "contracts": {
-        "_comment": "Eliza Cloud deployed ERC-8004 contracts on Base Mainnet",
         "identity": "0x46e470b3655ff9efc772cfb927507ac65fee0267",
         "reputation": "0xecfe47302d941c8ce5b0009c0ac2e6d6ee2a42de",
         "validation": "0x43b16111e30d218444ac7ee8ad86210c589205ed"
       },
       "agentId": 0,
-      "subgraphUrl": null
+      "subgraphUrl": null,
+      "ecosystem": "base"
+    }
+  },
+
+  "multiRegistry": {
+    "_comment": "Multi-registry config: Set enabled=true when Jeju contracts are deployed. Will register to both Jeju AND Base.",
+    "enabled": true,
+    "primaryEcosystem": "jeju",
+    "secondaryEcosystem": "base",
+    "syncStrategy": "parallel",
+    "crossEcosystemSearch": true,
+    "registrationStrategy": {
+      "_comment": "Register to both registries with a single user signature via 4337/7702",
+      "batchRegistration": true,
+      "usePaymaster": true,
+      "gasSponsored": true
+    }
+  },
+
+  "accountAbstraction": {
+    "_comment": "ERC-4337 for gasless registration. Enable paymasterEnabled when paymaster deployed.",
+    "enabled": true,
+    "entryPoint": "0x0000000071727De22E5E9d8BAf0edAc6f37da032",
+    "paymasterEnabled": false,
+    "batchOperations": {
+      "multiChainRegistration": true,
+      "maxBatchSize": 5
     }
   },
 
@@ -75,11 +162,35 @@
     "openapi": {
       "path": "/api/openapi.json",
       "version": "3.1.0"
+    },
+    "storage": {
+      "path": "/api/v1/storage",
+      "version": "1.0.0",
+      "capabilities": {
+        "upload": true,
+        "download": true,
+        "ipfs": true,
+        "x402": true
+      }
     }
   },
 
+  "indexing": {
+    "_comment": "Multi-registry indexing: search and aggregate from both Jeju and Base registries",
+    "aggregateSearch": true,
+    "deduplication": true,
+    "preferredRegistry": "jeju",
+    "fallbackRegistry": "base"
+  },
+
   "defaults": {
-    "network": "base-sepolia",
-    "productionNetwork": "base"
+    "_comment": "Jeju is primary (when JEJU_DEPLOYED=true), Base is fallback. Multi-registry deploys to both.",
+    "network": "jeju-testnet",
+    "productionNetwork": "jeju",
+    "localnetNetwork": "jeju-localnet",
+    "jejuNetwork": "jeju-testnet",
+    "jejuProductionNetwork": "jeju",
+    "fallbackNetwork": "base-sepolia",
+    "fallbackProductionNetwork": "base"
   }
 }

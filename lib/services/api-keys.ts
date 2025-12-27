@@ -91,9 +91,11 @@ export class ApiKeysService {
   }> {
     const { key, hash, prefix } = this.generateApiKey();
 
+    // SECURITY: Store only the hash and prefix, not the plaintext key
+    // The plaintext key is returned ONCE at creation time and must be saved by the user
     const apiKey = await apiKeysRepository.create({
       ...data,
-      key,
+      key: `${prefix}${"*".repeat(20)}`, // Store masked version for display purposes only
       key_hash: hash,
       key_prefix: prefix,
     });

@@ -23,17 +23,10 @@ import { logger } from "@/lib/utils/logger";
 import { safeToISOString } from "@/lib/utils/date";
 import { dbRead, dbWrite } from "@/db/client";
 import { roomTable, memoryTable, participantTable } from "@/db/schemas/eliza";
-import { eq, and, desc, sql, or, inArray } from "drizzle-orm";
+import { eq, and, desc, sql } from "drizzle-orm";
 import type { UUID } from "@elizaos/core";
 import { parseMessageContent } from "@/lib/types/message-content";
 
-/**
- * OPTIONS /api/v1/miniapp/agents/[id]/chats
- * CORS preflight handler for miniapp agent chats endpoint.
- *
- * @param request - The Next.js request object.
- * @returns Preflight response with CORS headers.
- */
 export async function OPTIONS(request: NextRequest) {
   const origin = request.headers.get("origin");
   return createPreflightResponse(origin, ["GET", "POST", "OPTIONS"]);
@@ -41,17 +34,7 @@ export async function OPTIONS(request: NextRequest) {
 
 /**
  * GET /api/v1/miniapp/agents/[id]/chats
- * Lists all chats (rooms) for a specific agent.
- * Supports pagination and includes last message preview and message counts.
- * Only returns chats for miniapp-created agents.
- *
- * Query Parameters:
- * - `page`: Page number (default: 1).
- * - `limit`: Results per page (default: 20, max: 50).
- *
- * @param request - Request with optional pagination query parameters.
- * @param params - Route parameters containing the agent ID.
- * @returns Paginated list of chats with last message and metadata.
+ * List all chats (rooms) for an agent
  */
 export async function GET(
   request: NextRequest,
@@ -94,15 +77,6 @@ export async function GET(
       return addCorsHeaders(response, corsResult.origin);
     }
 
-    // Verify this is a miniapp agent - miniapp API can only access miniapp-created agents
-    if (character.source !== "miniapp") {
-      const response = NextResponse.json(
-        { success: false, error: "Agent not found" },
-        { status: 404 },
-      );
-      return addCorsHeaders(response, corsResult.origin);
-    }
-
     if (
       character.user_id !== user.id &&
       character.organization_id !== user.organization_id
@@ -130,7 +104,7 @@ export async function GET(
         and(
           eq(participantTable.entityId, user.id as UUID),
           eq(roomTable.agentId, agentId as UUID),
-          inArray(roomTable.type, ["DM", "DIRECT"]),
+          eq(roomTable.type, "DIRECT"),
         ),
       )
       .orderBy(desc(roomTable.createdAt))
@@ -145,7 +119,7 @@ export async function GET(
       .where(
         and(
           eq(roomTable.agentId, agentId as UUID),
-          inArray(roomTable.type, ["DM", "DIRECT"]),
+          eq(roomTable.type, "DIRECT"),
           sql`${roomTable.metadata}->>'creatorUserId' = ${user.id}`,
         ),
       )
@@ -199,15 +173,16 @@ export async function GET(
         return {
           id: room.id,
           agentId,
-          name: room.name || null,
-          createdAt: safeToISOString(room.createdAt),
-          updatedAt: safeToISOString(lastMessage?.createdAt || room.createdAt),
+          name: room.name || null, // Room title (generated after 2 rounds of conversation)
+          createdAt: room.createdAt,
+          // Use last message time as updatedAt if available, otherwise use createdAt
+          updatedAt: lastMessage?.createdAt || room.createdAt,
           lastMessage:
             lastMessage && lastMessageContent
               ? {
                   content: lastMessageContent.text || "",
                   role: lastMessage.entityId === agentId ? "assistant" : "user",
-                  createdAt: safeToISOString(lastMessage.createdAt),
+                  createdAt: lastMessage.createdAt,
                 }
               : null,
           messageCount: messageCount.length,
@@ -251,13 +226,7 @@ export async function GET(
 
 /**
  * POST /api/v1/miniapp/agents/[id]/chats
- * Creates a new chat (room) with an agent.
- * The room is created immediately, but entities/participants are set up when the first message is sent.
- * Rate limited with stricter limits for write operations.
- *
- * @param request - The Next.js request object.
- * @param params - Route parameters containing the agent ID.
- * @returns Created chat details including room ID and timestamps.
+ * Create a new chat (room) with an agent
  */
 export async function POST(
   request: NextRequest,
@@ -292,15 +261,6 @@ export async function POST(
       return addCorsHeaders(response, corsResult.origin);
     }
 
-    // Verify this is a miniapp agent - miniapp API can only access miniapp-created agents
-    if (character.source !== "miniapp") {
-      const response = NextResponse.json(
-        { success: false, error: "Agent not found" },
-        { status: 404 },
-      );
-      return addCorsHeaders(response, corsResult.origin);
-    }
-
     if (
       character.user_id !== user.id &&
       character.organization_id !== user.organization_id &&
@@ -323,7 +283,7 @@ export async function POST(
       .insert(roomTable)
       .values({
         source: "miniapp",
-        type: "DM",
+        type: "DIRECT",
         agentId: agentId as UUID,
         metadata: { creatorUserId: user.id },
         createdAt: new Date(),
@@ -342,8 +302,9 @@ export async function POST(
         chat: {
           id: room.id,
           agentId,
-          createdAt: safeToISOString(room.createdAt),
-          updatedAt: safeToISOString(room.createdAt),
+          createdAt: room.createdAt,
+          // New room, so updatedAt is same as createdAt
+          updatedAt: room.createdAt,
         },
       },
       { status: 201 },

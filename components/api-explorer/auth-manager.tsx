@@ -2,9 +2,8 @@
  * Auth manager component for API explorer authentication.
  * Manages API key display, creation, and validation with visibility toggle.
  *
- * @param props - Auth manager configuration
- * @param props.authToken - Current authentication token
- * @param props.onTokenChange - Callback when token changes
+ * SECURITY: Plaintext API keys are stored in localStorage (client-side only).
+ * The server never stores plaintext keys - only hashes for validation.
  */
 
 "use client";
@@ -24,12 +23,14 @@ import {
 import { toast } from "@/lib/utils/toast-adapter";
 import { BrandButton } from "@/components/brand";
 
+const EXPLORER_KEY_STORAGE_KEY = "elizacloud_explorer_key";
+
 interface ExplorerApiKey {
   id: string;
   name: string;
   description: string | null;
   key_prefix: string;
-  key: string;
+  key?: string; // Optional - only provided on creation
   created_at: string;
   is_active: boolean;
   usage_count: number;
@@ -44,38 +45,80 @@ interface AuthManagerProps {
 export function AuthManager({ authToken, onTokenChange }: AuthManagerProps) {
   const [showToken, setShowToken] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
   const [explorerKey, setExplorerKey] = useState<ExplorerApiKey | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [needsRegeneration, setNeedsRegeneration] = useState(false);
 
   const fetchExplorerKey = useCallback(async () => {
     setIsLoading(true);
     setError(null);
+    setNeedsRegeneration(false);
 
-    try {
-      const response = await fetch("/api/v1/api-keys/explorer");
-      const data = await response.json();
+    const response = await fetch("/api/v1/api-keys/explorer");
+    const data = await response.json();
 
-      if (!response.ok) {
-        setError(data.error || "Failed to fetch API key");
-        return;
-      }
-
-      setExplorerKey(data.apiKey);
-      onTokenChange(data.apiKey.key);
-
-      if (data.isNew) {
-        toast({
-          message:
-            "API Explorer key created! Usage will be billed to your account.",
-          mode: "success",
-        });
-      }
-    } catch (err) {
-      console.error("Failed to fetch explorer key:", err);
-      setError("Failed to connect to server");
-    } finally {
+    if (!response.ok) {
+      setError(data.error || "Failed to fetch API key");
       setIsLoading(false);
+      return;
     }
+
+    setExplorerKey(data.apiKey);
+
+    // Check for stored key in localStorage
+    const storedKey = localStorage.getItem(EXPLORER_KEY_STORAGE_KEY);
+
+    if (data.apiKey.key) {
+      // New key - store it and use it
+      localStorage.setItem(EXPLORER_KEY_STORAGE_KEY, data.apiKey.key);
+      onTokenChange(data.apiKey.key);
+      toast({
+        message:
+          "API Explorer key created! Save this key - it won't be shown again.",
+        mode: "success",
+      });
+    } else if (storedKey && storedKey.startsWith(data.apiKey.key_prefix)) {
+      // Existing key found in localStorage matching the prefix
+      onTokenChange(storedKey);
+    } else {
+      // No stored key or mismatched prefix - user needs to regenerate
+      setNeedsRegeneration(true);
+      onTokenChange("");
+    }
+
+    setIsLoading(false);
+  }, [onTokenChange]);
+
+  const regenerateKey = useCallback(async () => {
+    setIsRegenerating(true);
+    setError(null);
+
+    const response = await fetch("/api/v1/api-keys/explorer", {
+      method: "POST",
+    });
+    const data = await response.json();
+
+    if (!response.ok) {
+      setError(data.error || "Failed to regenerate API key");
+      setIsRegenerating(false);
+      return;
+    }
+
+    // Store new key
+    if (data.apiKey.key) {
+      localStorage.setItem(EXPLORER_KEY_STORAGE_KEY, data.apiKey.key);
+      onTokenChange(data.apiKey.key);
+      setExplorerKey(data.apiKey);
+      setNeedsRegeneration(false);
+      toast({
+        message:
+          "API key regenerated! Save this key - it won't be shown again.",
+        mode: "success",
+      });
+    }
+
+    setIsRegenerating(false);
   }, [onTokenChange]);
 
   // Auto-fetch explorer key on mount
@@ -125,6 +168,36 @@ export function AuthManager({ authToken, onTokenChange }: AuthManagerProps) {
           >
             <RefreshCwIcon className="h-3 w-3" />
             Retry
+          </BrandButton>
+        </div>
+      ) : needsRegeneration ? (
+        <div className="space-y-3">
+          {/* Key needs regeneration */}
+          <div className="flex items-start gap-2 p-3 rounded-none border border-amber-500/30 bg-amber-500/10">
+            <InfoIcon className="h-4 w-4 text-amber-400 mt-0.5 shrink-0" />
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-medium text-white mb-1">
+                API Key Not Found
+              </div>
+              <div className="text-xs text-white/50">
+                Your API key is not stored locally. Regenerate to create a new
+                one.
+              </div>
+            </div>
+          </div>
+          <BrandButton
+            variant="outline"
+            size="sm"
+            onClick={regenerateKey}
+            disabled={isRegenerating}
+            className="w-full gap-2"
+          >
+            {isRegenerating ? (
+              <LoaderIcon className="h-3 w-3 animate-spin" />
+            ) : (
+              <RefreshCwIcon className="h-3 w-3" />
+            )}
+            {isRegenerating ? "Regenerating..." : "Regenerate API Key"}
           </BrandButton>
         </div>
       ) : explorerKey ? (
@@ -177,6 +250,22 @@ export function AuthManager({ authToken, onTokenChange }: AuthManagerProps) {
               </span>
             )}
           </div>
+
+          {/* Regenerate Option */}
+          <BrandButton
+            variant="ghost"
+            size="sm"
+            onClick={regenerateKey}
+            disabled={isRegenerating}
+            className="w-full gap-2 text-xs"
+          >
+            {isRegenerating ? (
+              <LoaderIcon className="h-3 w-3 animate-spin" />
+            ) : (
+              <RefreshCwIcon className="h-3 w-3" />
+            )}
+            {isRegenerating ? "Regenerating..." : "Regenerate Key"}
+          </BrandButton>
 
           {/* Billing Notice */}
           <div className="flex items-start gap-2 p-3 rounded-none bg-[#FF580015] border border-[#FF580030]">

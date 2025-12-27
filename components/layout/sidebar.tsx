@@ -23,6 +23,7 @@ interface SidebarProps {
   className?: string;
   isOpen?: boolean;
   onToggle?: () => void;
+  isAnonymous?: boolean;
 }
 
 const TOKEN_ADDRESSES = [
@@ -52,6 +53,7 @@ function SidebarComponent({
   className,
   isOpen = false,
   onToggle,
+  isAnonymous = false,
 }: SidebarProps) {
   const [isMobile, setIsMobile] = useState(false);
   const [copiedAddress, setCopiedAddress] = useState<string | null>(null);

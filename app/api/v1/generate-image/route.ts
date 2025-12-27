@@ -1,24 +1,24 @@
 import { streamText } from "ai";
 import { requireAuthOrApiKey } from "@/lib/auth";
-import {
-  getAnonymousUser,
-  getOrCreateAnonymousUser,
-} from "@/lib/auth-anonymous";
+import { getOrCreateSessionUser } from "@/lib/session";
 import { usageService } from "@/lib/services/usage";
 import { creditsService } from "@/lib/services/credits";
 import { generationsService } from "@/lib/services/generations";
 import { discordService } from "@/lib/services/discord";
+import { contentModerationService } from "@/lib/services/moderation";
 import { IMAGE_GENERATION_COST } from "@/lib/pricing";
 import { uploadBase64Image } from "@/lib/blob";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { logger } from "@/lib/utils/logger";
+import { stripProviderPrefix } from "@/lib/utils/model-names";
 import type { NextRequest } from "next/server";
 import type { UserWithOrganization } from "@/lib/types";
 
-export const maxDuration = 30;
-
 const IMAGE_MODEL = "google/gemini-2.5-flash-image-preview";
+const DISPLAY_MODEL = stripProviderPrefix(IMAGE_MODEL);
 const IMAGE_PROVIDER = "google";
+
+export const maxDuration = 30;
 
 type AspectRatio = "1:1" | "16:9" | "9:16" | "4:3" | "3:4" | "21:9" | "9:21";
 type StylePreset =
@@ -64,36 +64,18 @@ async function authenticateUser(req: NextRequest): Promise<AuthContext> {
       session_token: authResult.session_token,
       isAnonymous: false,
     };
-  } catch (authError) {
-    // Fall back to anonymous user
-    logger.info("[Generate Image] Privy auth failed, trying anonymous...");
+  } catch {
+    // Fall back to session user (creates anonymous if needed)
+    logger.info("[Generate Image] Privy auth failed, trying session...");
 
-    let anonData = await getAnonymousUser();
-
-    if (!anonData) {
-      logger.info(
-        "[Generate Image] No session cookie - creating new anonymous session"
-      );
-      const newAnonData = await getOrCreateAnonymousUser();
-      anonData = {
-        user: newAnonData.user,
-        session: newAnonData.session,
-      };
-      logger.info("[Generate Image] Created anonymous user:", anonData.user.id);
-    } else {
-      logger.info("[Generate Image] Anonymous user found:", anonData.user.id);
-    }
-
-    // Create a minimal UserWithOrganization for anonymous users
-    const anonymousUser: UserWithOrganization = {
-      ...anonData.user,
-      organization_id: null,
-      organization: null,
-    };
+    const sessionUser = await getOrCreateSessionUser(req);
+    logger.info(
+      `[Generate Image] Session user: ${sessionUser.userId} (anonymous: ${sessionUser.isAnonymous})`,
+    );
 
     return {
-      user: anonymousUser,
-      isAnonymous: true,
+      user: sessionUser.user,
+      isAnonymous: sessionUser.isAnonymous,
     };
   }
 }
@@ -144,7 +126,7 @@ async function handlePOST(req: NextRequest) {
         user_id: user.id,
         api_key_id: apiKey?.id || null,
         type: "image",
-        model: IMAGE_MODEL,
+        model: DISPLAY_MODEL,
         provider: IMAGE_PROVIDER,
         prompt: prompt,
         status: "pending",
@@ -297,7 +279,7 @@ async function handlePOST(req: NextRequest) {
           user_id: user.id,
           api_key_id: apiKey?.id || null,
           type: "image",
-          model: IMAGE_MODEL,
+          model: DISPLAY_MODEL,
           provider: IMAGE_PROVIDER,
           input_tokens: 0,
           output_tokens: 0,
@@ -337,7 +319,7 @@ async function handlePOST(req: NextRequest) {
       deductionResult = await creditsService.deductCredits({
         organizationId: user.organization_id,
         amount: actualCost,
-        description: `Image generation (${successfulResults.length}x): ${IMAGE_MODEL}`,
+        description: `Image generation (${successfulResults.length}x): ${DISPLAY_MODEL}`,
         metadata: { user_id: user.id },
         session_token,
       });
@@ -376,7 +358,7 @@ async function handlePOST(req: NextRequest) {
         user_id: user.id,
         api_key_id: apiKey?.id || null,
         type: "image",
-        model: IMAGE_MODEL,
+        model: DISPLAY_MODEL,
         provider: IMAGE_PROVIDER,
         input_tokens: 0,
         output_tokens: 0,
@@ -481,7 +463,7 @@ async function handlePOST(req: NextRequest) {
             user_id: user.id,
             api_key_id: apiKey?.id || null,
             type: "image",
-            model: IMAGE_MODEL,
+            model: DISPLAY_MODEL,
             provider: IMAGE_PROVIDER,
             prompt: prompt,
             status: "completed",
@@ -554,13 +536,51 @@ async function handlePOST(req: NextRequest) {
           organizationName: user.organization.name,
           numImages: successfulResults.length,
           aspectRatio: aspectRatio,
-          model: IMAGE_MODEL,
+          model: DISPLAY_MODEL,
         })
         .catch((error) => {
           logger.error(
             "[Generate Image] Failed to log to Discord:",
             error instanceof Error ? error.message : String(error)
           );
+        });
+    }
+
+    // Moderate generated images in background
+    if (generationId && uploadResults.length > 0) {
+      const firstResult = uploadResults[0];
+      contentModerationService
+        .scan({
+          contentType: "image",
+          sourceTable: "generations",
+          sourceId: generationId,
+          organizationId: user.organization_id ?? undefined,
+          userId: user.id,
+          isPublic: true, // Generated images are public
+          contentUrl:
+            firstResult.blobUrl !== firstResult.imageBase64
+              ? firstResult.blobUrl
+              : undefined,
+          contentData: firstResult.imageBase64,
+          contentMimeType: firstResult.mimeType,
+          contentSizeBytes: firstResult.fileSize
+            ? Number(firstResult.fileSize)
+            : undefined,
+        })
+        .then((result) => {
+          if (result.status === "deleted" && generationId) {
+            generationsService
+              .update(generationId, { status: "deleted" })
+              .catch(() => {});
+            logger.warn("[Generate Image] Content deleted due to moderation", {
+              generationId,
+            });
+          }
+        })
+        .catch((err) => {
+          logger.error("[Generate Image] Moderation failed", {
+            error: String(err),
+          });
         });
     }
 

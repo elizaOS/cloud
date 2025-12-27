@@ -10,11 +10,8 @@ import { agentBudgetService } from "@/lib/services/agent-budgets";
 import { creditsService } from "@/lib/services/credits";
 import { organizationsService } from "@/lib/services/organizations";
 import { logger } from "@/lib/utils/logger";
+import { extractErrorMessage } from "@/lib/utils/error-handling";
 import { calculateCost, getProviderFromModel } from "@/lib/pricing";
-
-// ============================================================================
-// TYPES
-// ============================================================================
 
 export interface BillingContext {
   // Who to bill
@@ -220,10 +217,6 @@ export async function postBillOperation(
   };
 }
 
-// ============================================================================
-// INTEGRATED BILLING WRAPPER
-// ============================================================================
-
 /**
  * Execute an operation with integrated billing.
  * Pre-checks, executes, and bills in one flow.
@@ -257,7 +250,7 @@ export async function executeWithBilling<T>(params: {
   } catch (error) {
     logger.error("[AgentBilling] Operation failed", {
       context,
-      error: error instanceof Error ? error.message : String(error),
+      error: extractErrorMessage(error),
     });
     return {
       success: false,
@@ -281,10 +274,6 @@ export async function executeWithBilling<T>(params: {
     error: billing.error,
   };
 }
-
-// ============================================================================
-// COST ESTIMATION HELPERS
-// ============================================================================
 
 /**
  * Estimate cost for an LLM request

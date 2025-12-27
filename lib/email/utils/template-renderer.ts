@@ -11,6 +11,7 @@ import type {
   AutoTopUpSuccessEmailData,
   AutoTopUpDisabledEmailData,
   PurchaseConfirmationEmailData,
+  SuspensionNotificationEmailData,
 } from "@/lib/email/types";
 
 /**
@@ -348,4 +349,114 @@ export function renderPurchaseConfirmationTemplate(
     html: interpolate(htmlTemplate, templateData),
     text: interpolate(textTemplate, templateData),
   };
+}
+
+/**
+ * Renders the suspension notification email template.
+ *
+ * @param data - Suspension notification email data.
+ * @returns Rendered HTML and text versions.
+ */
+export function renderSuspensionNotificationTemplate(
+  data: SuspensionNotificationEmailData,
+): {
+  html: string;
+  text: string;
+} {
+  const resourceTypeLabel = {
+    domain: "Domain",
+    app: "Application",
+    agent: "Agent",
+    mcp: "MCP Server",
+  }[data.resourceType];
+
+  const templateData = {
+    organizationName: data.organizationName,
+    domain: data.domain,
+    resourceType: resourceTypeLabel,
+    suspensionReason: data.suspensionReason,
+    violationCategories: data.violationCategories.join(", "),
+    appealEmail: data.appealEmail,
+    dashboardUrl: data.dashboardUrl,
+    currentYear: new Date().getFullYear(),
+  };
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>${resourceTypeLabel} Suspended - Action Required</title>
+</head>
+<body style="font-family: monospace; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #1a1a1a;">
+  <div style="background-color: #0d0d0d; padding: 30px; border-radius: 8px; border: 1px solid #333;">
+    <h2 style="color: #ef4444; margin-top: 0;">⛔ ${resourceTypeLabel} Suspended</h2>
+    <p style="color: #e5e5e5; line-height: 1.6;">Hi ${templateData.organizationName} team,</p>
+    <p style="color: #e5e5e5; line-height: 1.6;">Your ${resourceTypeLabel.toLowerCase()} <strong style="color: #fff;">${templateData.domain}</strong> has been suspended due to a policy violation.</p>
+
+    <div style="background-color: #1f1f1f; padding: 20px; border-radius: 6px; margin: 20px 0; border-left: 4px solid #ef4444;">
+      <p style="margin: 0; color: #fca5a5;"><strong>Reason:</strong> ${templateData.suspensionReason}</p>
+      ${templateData.violationCategories ? `<p style="margin: 10px 0 0 0; color: #fca5a5;"><strong>Categories:</strong> ${templateData.violationCategories}</p>` : ""}
+    </div>
+
+    <h3 style="color: #e5e5e5; font-size: 16px; margin-top: 30px;">What this means:</h3>
+    <ul style="color: #a3a3a3; line-height: 1.8; padding-left: 20px;">
+      <li>Your ${resourceTypeLabel.toLowerCase()} is no longer accessible to users</li>
+      <li>Any associated services have been disabled</li>
+      <li>This action was taken automatically by our content moderation system</li>
+    </ul>
+
+    <h3 style="color: #e5e5e5; font-size: 16px; margin-top: 30px;">How to appeal:</h3>
+    <p style="color: #a3a3a3; line-height: 1.6;">
+      If you believe this suspension was made in error, please email us at 
+      <a href="mailto:${templateData.appealEmail}" style="color: #60a5fa;">${templateData.appealEmail}</a> 
+      with your domain name and a brief explanation.
+    </p>
+
+    <p style="color: #737373; font-size: 14px; line-height: 1.6; margin-top: 30px;">
+      We take content policy violations seriously to protect our platform and users. Appeals are typically reviewed within 24-48 hours.
+    </p>
+
+    <hr style="border: none; border-top: 1px solid #333; margin: 30px 0;">
+
+    <p style="color: #525252; font-size: 12px; text-align: center; margin-bottom: 0;">
+      © ${templateData.currentYear} Eliza Cloud. All rights reserved.
+    </p>
+  </div>
+</body>
+</html>`;
+
+  const text = `
+⛔ ${resourceTypeLabel} Suspended
+
+Hi ${templateData.organizationName} team,
+
+Your ${resourceTypeLabel.toLowerCase()} "${templateData.domain}" has been suspended due to a policy violation.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+DETAILS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Reason:      ${templateData.suspensionReason}
+${templateData.violationCategories ? `Categories:  ${templateData.violationCategories}` : ""}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+WHAT THIS MEANS:
+
+• Your ${resourceTypeLabel.toLowerCase()} is no longer accessible to users
+• Any associated services have been disabled
+• This action was taken automatically by our content moderation system
+
+HOW TO APPEAL:
+
+If you believe this suspension was made in error, please email us at ${templateData.appealEmail} with your domain name and a brief explanation.
+
+We take content policy violations seriously to protect our platform and users. Appeals are typically reviewed within 24-48 hours.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+© ${templateData.currentYear} Eliza Cloud. All rights reserved.`;
+
+  return { html, text };
 }

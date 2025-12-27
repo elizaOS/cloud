@@ -3,7 +3,7 @@
  */
 
 /**
- * Response data from Fal.ai video generation API.
+ * Response data from video generation API.
  */
 export interface FalVideoData {
   video: {
@@ -21,7 +21,7 @@ export interface FalVideoData {
 }
 
 /**
- * Extended Fal video response with additional fields for UI.
+ * Extended video response with additional fields for UI.
  * Video field is optional and may have slightly different structure.
  */
 export type FalVideoResponse = {
