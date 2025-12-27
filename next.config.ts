@@ -92,6 +92,16 @@ const nextConfig: NextConfig = {
     "electron",
     // oxapay uses __dirname + fs.readFile for method info JSON
     "oxapay",
+    // pino uses thread-stream for worker threads which creates dynamic module names
+    // that can't be resolved in serverless environments
+    "pino",
+    "pino-std-serializers",
+    "thread-stream",
+    "sonic-boom",
+    "on-exit-leak-free",
+    "process-warning",
+    // @elizaos/core uses pino internally
+    "@elizaos/core",
   ],
 
   webpack: (config, { isServer, dev }) => {
