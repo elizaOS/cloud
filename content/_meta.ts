@@ -1,151 +1,151 @@
 /**
  * elizaOS Cloud Documentation - Navigation Structure
- * 
+ *
  * Organized to match the dashboard sidebar structure for consistency
  * and ease of navigation between docs and the platform.
  */
 export default {
   index: {
-    title: 'Introduction',
+    title: "Introduction",
     theme: {
-      layout: 'full',
+      layout: "full",
       toc: false,
     },
   },
-  
+
   // ─────────────────────────────────────────────────────────────────────
   // Getting Started
   // ─────────────────────────────────────────────────────────────────────
-  '-- getting-started': {
-    type: 'separator',
-    title: 'Getting Started',
+  "-- getting-started": {
+    type: "separator",
+    title: "Getting Started",
   },
   quickstart: {
-    title: 'Quickstart Guide',
+    title: "Quickstart Guide",
   },
   installation: {
-    title: 'Installation',
+    title: "Installation",
   },
   authentication: {
-    title: 'Authentication',
+    title: "Authentication",
   },
-  
+
   // ─────────────────────────────────────────────────────────────────────
   // Core Features - Agents
   // ─────────────────────────────────────────────────────────────────────
-  '-- agents-section': {
-    type: 'separator',
-    title: 'Agents',
+  "-- agents-section": {
+    type: "separator",
+    title: "Agents",
   },
   agents: {
-    title: 'AI Agents',
+    title: "AI Agents",
   },
-  'agent-creator': {
-    title: 'Agent Creator',
+  "agent-creator": {
+    title: "Agent Creator",
   },
-  'character-json': {
-    title: 'Character JSON',
+  "character-json": {
+    title: "Character JSON",
   },
-  
+
   // ─────────────────────────────────────────────────────────────────────
   // Generation Studio
   // ─────────────────────────────────────────────────────────────────────
-  '-- generation-section': {
-    type: 'separator',
-    title: 'Generation Studio',
+  "-- generation-section": {
+    type: "separator",
+    title: "Generation Studio",
   },
-  'image-generation': {
-    title: 'Image Generation',
+  "image-generation": {
+    title: "Image Generation",
   },
-  'video-generation': {
-    title: 'Video Generation',
+  "video-generation": {
+    title: "Video Generation",
   },
-  'voice-cloning': {
-    title: 'Voice Cloning',
+  "voice-cloning": {
+    title: "Voice Cloning",
   },
   gallery: {
-    title: 'Gallery',
+    title: "Gallery",
   },
-  
+
   // ─────────────────────────────────────────────────────────────────────
   // Infrastructure
   // ─────────────────────────────────────────────────────────────────────
-  '-- infrastructure-section': {
-    type: 'separator',
-    title: 'Infrastructure',
+  "-- infrastructure-section": {
+    type: "separator",
+    title: "Infrastructure",
   },
   apps: {
-    title: 'Apps',
+    title: "Apps",
   },
   containers: {
-    title: 'Containers',
+    title: "Containers",
   },
   mcps: {
-    title: 'MCP Integration',
+    title: "MCP Integration",
   },
   knowledge: {
-    title: 'Knowledge Base',
+    title: "Knowledge Base",
   },
-  
+
   // ─────────────────────────────────────────────────────────────────────
   // Monetization
   // ─────────────────────────────────────────────────────────────────────
-  '-- monetization-section': {
-    type: 'separator',
-    title: 'Monetization',
+  "-- monetization-section": {
+    type: "separator",
+    title: "Monetization",
   },
   earnings: {
-    title: 'Earnings',
+    title: "Earnings",
   },
   billing: {
-    title: 'Billing & Credits',
+    title: "Billing & Credits",
   },
-  
+
   // ─────────────────────────────────────────────────────────────────────
   // API Reference (Nested folder with sidebar)
   // ─────────────────────────────────────────────────────────────────────
-  '-- api-section': {
-    type: 'separator',
-    title: 'API Reference',
+  "-- api-section": {
+    type: "separator",
+    title: "API Reference",
   },
   api: {
-    title: 'REST API',
+    title: "REST API",
   },
-  
+
   // ─────────────────────────────────────────────────────────────────────
   // Protocols
   // ─────────────────────────────────────────────────────────────────────
-  '-- protocols-section': {
-    type: 'separator',
-    title: 'Protocols',
+  "-- protocols-section": {
+    type: "separator",
+    title: "Protocols",
   },
   a2a: {
-    title: 'A2A Protocol',
+    title: "A2A Protocol",
   },
   mcp: {
-    title: 'MCP Protocol',
+    title: "MCP Protocol",
   },
   x402: {
-    title: 'x402 Payments',
+    title: "x402 Payments",
   },
-  
+
   // ─────────────────────────────────────────────────────────────────────
   // Reference
   // ─────────────────────────────────────────────────────────────────────
-  '-- reference-section': {
-    type: 'separator',
-    title: 'Reference',
+  "-- reference-section": {
+    type: "separator",
+    title: "Reference",
   },
-  'rate-limits': {
-    title: 'Rate Limits',
+  "rate-limits": {
+    title: "Rate Limits",
   },
   errors: {
-    title: 'Error Handling',
+    title: "Error Handling",
   },
   sdks: {
-    title: 'SDKs & Libraries',
+    title: "SDKs & Libraries",
   },
   changelog: {
-    title: 'Changelog',
+    title: "Changelog",
   },
-}
+};

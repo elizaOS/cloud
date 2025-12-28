@@ -70,7 +70,7 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
       : [];
     updateField(
       type,
-      currentArray.filter((_, i) => i !== index)
+      currentArray.filter((_, i) => i !== index),
     );
   };
 
@@ -95,7 +95,7 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
     const currentExamples = character.messageExamples || [];
     updateField(
       "messageExamples",
-      currentExamples.filter((_, i) => i !== index)
+      currentExamples.filter((_, i) => i !== index),
     );
   };
 
@@ -309,7 +309,7 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                         const currentAdjectives = character.adjectives || [];
                         updateField(
                           "adjectives",
-                          currentAdjectives.filter((_, i) => i !== index)
+                          currentAdjectives.filter((_, i) => i !== index),
                         );
                       }}
                       className="hover:text-rose-400 transition-colors"
@@ -357,7 +357,10 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                       e.preventDefault();
                       if (!newTopic.trim()) return;
                       const currentTopics = character.topics || [];
-                      updateField("topics", [...currentTopics, newTopic.trim()]);
+                      updateField("topics", [
+                        ...currentTopics,
+                        newTopic.trim(),
+                      ]);
                       setNewTopic("");
                     }
                   }}
@@ -389,7 +392,7 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                         const currentTopics = character.topics || [];
                         updateField(
                           "topics",
-                          currentTopics.filter((_, i) => i !== index)
+                          currentTopics.filter((_, i) => i !== index),
                         );
                       }}
                       className="hover:text-rose-400 transition-colors"

@@ -3,7 +3,7 @@ title: Video Generation
 description: Generate videos from text prompts using elizaOS Cloud.
 ---
 
-import { Callout, Tabs } from 'nextra/components'
+import { Callout, Tabs } from "nextra/components";
 
 # Video Generation
 
@@ -52,7 +52,8 @@ const response = await fetch('https://elizacloud.ai/api/v1/generate-video', {
 
 const data = await response.json();
 console.log(data.video.url);
-```
+
+````
   </Tabs.Tab>
   <Tabs.Tab>
 ```python
@@ -73,19 +74,20 @@ response = requests.post(
 
 data = response.json()
 print(data['video']['url'])
-```
+````
+
   </Tabs.Tab>
 </Tabs>
 
 ### Parameters
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `prompt` | string | ✓ | Description of the video |
-| `model` | string | | Model to use. Default: `minimax/video-01` |
-| `duration` | integer | | Duration in seconds (2-10) |
-| `aspect_ratio` | string | | `16:9`, `9:16`, or `1:1` |
-| `negative_prompt` | string | | What to avoid |
+| Parameter         | Type    | Required | Description                               |
+| ----------------- | ------- | -------- | ----------------------------------------- |
+| `prompt`          | string  | ✓        | Description of the video                  |
+| `model`           | string  |          | Model to use. Default: `minimax/video-01` |
+| `duration`        | integer |          | Duration in seconds (2-10)                |
+| `aspect_ratio`    | string  |          | `16:9`, `9:16`, or `1:1`                  |
+| `negative_prompt` | string  |          | What to avoid                             |
 
 ### Response
 
@@ -97,7 +99,7 @@ print(data['video']['url'])
     "width": 1280,
     "height": 720
   },
-  "cost": 0.50,
+  "cost": 0.5,
   "model": "minimax/video-01"
 }
 ```
@@ -106,17 +108,18 @@ print(data['video']['url'])
 
 ## Available Models
 
-| Model | Quality | Duration |
-|-------|---------|----------|
-| `minimax/video-01` | High | 2-10s |
-| `runway/gen-3` | Highest | 2-10s |
-| `haiper/haiper-video-2` | Medium | 2-8s |
+| Model                   | Quality | Duration |
+| ----------------------- | ------- | -------- |
+| `minimax/video-01`      | High    | 2-10s    |
+| `runway/gen-3`          | Highest | 2-10s    |
+| `haiper/haiper-video-2` | Medium  | 2-8s     |
 
 ---
 
 ## Camera Movements
 
 Include camera direction in prompts:
+
 - `camera pan left/right`
 - `zoom in/out`
 - `dolly forward/backward`
@@ -124,5 +127,6 @@ Include camera direction in prompts:
 - `aerial view`
 
 <Callout type="info">
-Video generation typically takes 30-120 seconds depending on model and duration.
+  Video generation typically takes 30-120 seconds depending on model and
+  duration.
 </Callout>

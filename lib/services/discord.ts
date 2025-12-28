@@ -84,7 +84,7 @@ class DiscordService {
 
     if (!botToken || !channelId) {
       logger.warn(
-        "[DiscordService] Not configured. Set DISCORD_BOT_TOKEN and DISCORD_CHANNEL_ID"
+        "[DiscordService] Not configured. Set DISCORD_BOT_TOKEN and DISCORD_CHANNEL_ID",
       );
       this.initialized = false;
       return;
@@ -101,7 +101,7 @@ class DiscordService {
    */
   async send(
     options: DiscordMessageOptions,
-    channelId?: string
+    channelId?: string,
   ): Promise<boolean> {
     this.initialize();
 
@@ -128,7 +128,7 @@ class DiscordService {
    */
   async sendToChannel(
     channelId: string,
-    options: DiscordMessageOptions
+    options: DiscordMessageOptions,
   ): Promise<boolean> {
     return this.send(options, channelId);
   }
@@ -174,7 +174,7 @@ class DiscordService {
 
     const response = (await this.rest.post(
       Routes.threads(this.defaultChannelId),
-      { body: threadData }
+      { body: threadData },
     )) as { id: string };
 
     logger.info(`[DiscordService] Thread created: ${response.id}`);
@@ -277,7 +277,7 @@ class DiscordService {
           ? "✅ Yes"
           : "❌ No (Joined via invite)",
         inline: true,
-      }
+      },
     );
 
     const embed: DiscordEmbed = {
@@ -646,7 +646,7 @@ class DiscordService {
       title: `${celebration.emoji} ${celebration.title}`,
       description: celebration.message.replace(
         "{amount}",
-        paymentData.amount.toFixed(2)
+        paymentData.amount.toFixed(2),
       ),
       color: celebration.color,
       fields,

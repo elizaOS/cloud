@@ -68,9 +68,14 @@ export async function handleMessage({
 
   // Wrap processing with streaming context for automatic streaming in useModel calls
   // Use XmlTagExtractor to extract and stream <text> content from responses
-  let streamingContext: { onStreamChunk: (chunk: string, messageId?: UUID) => Promise<void>; messageId?: UUID } | undefined;
+  let streamingContext:
+    | {
+        onStreamChunk: (chunk: string, messageId?: UUID) => Promise<void>;
+        messageId?: UUID;
+      }
+    | undefined;
   if (onStreamChunk) {
-    const extractor = new XmlTagExtractor('text');
+    const extractor = new XmlTagExtractor("text");
     streamingContext = {
       onStreamChunk: async (chunk: string, msgId?: UUID) => {
         if (extractor.done) return;
@@ -140,7 +145,9 @@ export async function handleMessage({
 
       runtime.character.system = originalSystemPrompt;
 
-      const parsedResponse = parseKeyValueXml(response) as ParsedResponse | null;
+      const parsedResponse = parseKeyValueXml(
+        response,
+      ) as ParsedResponse | null;
       if (!parsedResponse?.text) {
         throw new Error("Failed to generate valid response");
       }

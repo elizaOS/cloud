@@ -3,7 +3,7 @@ title: Gallery
 description: Manage your generated images and videos in the elizaOS Cloud Gallery.
 ---
 
-import { Callout, Cards } from 'nextra/components'
+import { Callout, Cards } from "nextra/components";
 
 # Gallery
 
@@ -58,14 +58,14 @@ curl -X GET "https://elizacloud.ai/api/v1/gallery?type=image&limit=20" \
 
 ### Query Parameters
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `type` | string | `image` or `video` |
-| `limit` | integer | Items per page (max 100) |
-| `page` | integer | Page number |
-| `tags` | string | Filter by tags (comma-separated) |
-| `collection` | string | Filter by collection ID |
-| `search` | string | Search prompts |
+| Parameter    | Type    | Description                      |
+| ------------ | ------- | -------------------------------- |
+| `type`       | string  | `image` or `video`               |
+| `limit`      | integer | Items per page (max 100)         |
+| `page`       | integer | Page number                      |
+| `tags`       | string  | Filter by tags (comma-separated) |
+| `collection` | string  | Filter by collection ID          |
+| `search`     | string  | Search prompts                   |
 
 ### Get Single Item
 
@@ -160,11 +160,11 @@ curl -X POST "https://elizacloud.ai/api/v1/gallery/gal_abc123/share" \
 
 ### Share Options
 
-| Option | Description |
-|--------|-------------|
-| `expiresIn` | Link expiration (1h, 1d, 7d, 30d, never) |
-| `password` | Optional password protection |
-| `allowDownload` | Allow visitors to download |
+| Option          | Description                              |
+| --------------- | ---------------------------------------- |
+| `expiresIn`     | Link expiration (1h, 1d, 7d, 30d, never) |
+| `password`      | Optional password protection             |
+| `allowDownload` | Allow visitors to download               |
 
 ### Revoke Share
 
@@ -177,10 +177,10 @@ curl -X DELETE "https://elizacloud.ai/api/v1/gallery/gal_abc123/share" \
 
 ### Storage Limits
 
-| Plan | Storage |
-|------|---------|
-| Free | 1 GB |
-| Pro | 50 GB |
+| Plan       | Storage   |
+| ---------- | --------- |
+| Free       | 1 GB      |
+| Pro        | 50 GB     |
 | Enterprise | Unlimited |
 
 ### Check Usage
@@ -252,9 +252,9 @@ Generated content is automatically saved to your gallery:
 
 ```javascript
 const image = await client.images.generate({
-  prompt: 'A beautiful sunset',
+  prompt: "A beautiful sunset",
   saveToGallery: true, // Default: true
-  galleryTags: ['sunset', 'landscape'],
+  galleryTags: ["sunset", "landscape"],
 });
 
 console.log(image.galleryId); // gal_abc123

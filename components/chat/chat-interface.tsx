@@ -155,28 +155,28 @@ export function ChatInterface({
   // Get CSS variables for theming
   const themeStyles = getThemeCSSVariables(theme);
 
-
   // CRITICAL: Reset room state when character changes to prevent showing stale conversation
   // This runs on mount AND when character changes
   useEffect(() => {
     const previousCharacterId = lastCharacterIdRef.current;
     const currentRoomId = useChatStore.getState().roomId;
     const currentRooms = useChatStore.getState().rooms;
-    
+
     // Check if current roomId belongs to the current character
-    const currentRoom = currentRoomId 
-      ? currentRooms.find((room) => room.id === currentRoomId) 
+    const currentRoom = currentRoomId
+      ? currentRooms.find((room) => room.id === currentRoomId)
       : null;
-    
+
     // Room is valid ONLY if we find it AND it belongs to current character
     const roomIsValidForCharacter = currentRoom?.characterId === character.id;
-    
+
     // Clear room if:
     // 1. Character changed within same component instance, OR
     // 2. On mount with a stale roomId (doesn't belong to current character)
-    const characterChanged = previousCharacterId && previousCharacterId !== character.id;
+    const characterChanged =
+      previousCharacterId && previousCharacterId !== character.id;
     const hasStaleRoom = currentRoomId && !roomIsValidForCharacter;
-    
+
     if (characterChanged || hasStaleRoom) {
       // Clear the current room - it doesn't belong to this character
       setRoomId(null);
@@ -184,7 +184,7 @@ export function ChatInterface({
       roomInitializedRef.current = false;
       roomInitializingRef.current = false;
     }
-    
+
     // Update the ref to track current character
     lastCharacterIdRef.current = character.id;
   }, [character.id, setRoomId]);
@@ -220,13 +220,13 @@ export function ChatInterface({
     if (roomId) {
       const currentRooms = useChatStore.getState().rooms;
       const currentRoom = currentRooms.find((room) => room.id === roomId);
-      
+
       // If room exists and belongs to current character, we're good
       if (currentRoom && currentRoom.characterId === character.id) {
         roomInitializedRef.current = true;
         return;
       }
-      
+
       // Room doesn't exist or belongs to different character - clear it
       setRoomId(null);
     }

@@ -383,7 +383,10 @@ export class ElizaTokenPricesRepository {
    * Caches a new price.
    */
   async cache(data: NewElizaTokenPrice): Promise<ElizaTokenPrice> {
-    const [price] = await dbWrite.insert(elizaTokenPrices).values(data).returning();
+    const [price] = await dbWrite
+      .insert(elizaTokenPrices)
+      .values(data)
+      .returning();
     return price;
   }
 

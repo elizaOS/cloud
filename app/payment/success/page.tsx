@@ -38,7 +38,10 @@ function PaymentSuccessContent() {
       router.replace(targetUrl.toString());
     } else {
       const loginUrl = new URL("/login", window.location.origin);
-      loginUrl.searchParams.set("returnTo", targetUrl.pathname + targetUrl.search);
+      loginUrl.searchParams.set(
+        "returnTo",
+        targetUrl.pathname + targetUrl.search,
+      );
       router.replace(loginUrl.toString());
     }
   }, [ready, authenticated, router, searchParams]);

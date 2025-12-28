@@ -46,7 +46,9 @@ export const characterBuilderPlugin: Plugin = {
     [EventType.MESSAGE_RECEIVED]: [
       async (payload: MessagePayload) => {
         if (!payload.callback) return;
-        const onStreamChunk = (payload as MessagePayload & { onStreamChunk?: StreamChunkCallback }).onStreamChunk;
+        const onStreamChunk = (
+          payload as MessagePayload & { onStreamChunk?: StreamChunkCallback }
+        ).onStreamChunk;
         logger.info(
           `[Builder] Message received in room ${payload.message.roomId}, streaming=${!!onStreamChunk}`,
         );

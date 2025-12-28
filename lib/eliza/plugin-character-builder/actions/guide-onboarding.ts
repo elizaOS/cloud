@@ -73,7 +73,9 @@ After running once, it's disabled - use BUILDER_CHAT for follow-up questions.`,
     callback: HandlerCallback,
   ): Promise<void> => {
     const entityId = message.entityId as string;
-    const onStreamChunk = options?.onStreamChunk as StreamChunkCallback | undefined;
+    const onStreamChunk = options?.onStreamChunk as
+      | StreamChunkCallback
+      | undefined;
 
     state = await runtime.composeState(message, ["RECENT_MESSAGES"]);
 
@@ -88,9 +90,14 @@ After running once, it's disabled - use BUILDER_CHAT for follow-up questions.`,
     );
 
     // Create streaming context to extract <text> content and stream it
-    let streamingContext: { onStreamChunk: (chunk: string, messageId?: UUID) => Promise<void>; messageId?: UUID } | undefined;
+    let streamingContext:
+      | {
+          onStreamChunk: (chunk: string, messageId?: UUID) => Promise<void>;
+          messageId?: UUID;
+        }
+      | undefined;
     if (onStreamChunk) {
-      const extractor = new XmlTagExtractor('text');
+      const extractor = new XmlTagExtractor("text");
       streamingContext = {
         onStreamChunk: async (chunk: string, msgId?: UUID) => {
           if (extractor.done) return;
@@ -103,9 +110,8 @@ After running once, it's disabled - use BUILDER_CHAT for follow-up questions.`,
       };
     }
 
-    const response = await runWithStreamingContext(
-      streamingContext,
-      () => runtime.useModel(ModelType.TEXT_LARGE, { prompt }),
+    const response = await runWithStreamingContext(streamingContext, () =>
+      runtime.useModel(ModelType.TEXT_LARGE, { prompt }),
     );
     runtime.character.system = originalSystemPrompt;
 

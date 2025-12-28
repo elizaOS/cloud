@@ -28,7 +28,7 @@ export function InvoiceDetailClient({ invoice }: InvoiceDetailClientProps) {
       day: "numeric",
       hour: "2-digit",
       minute: "2-digit",
-    }
+    },
   );
 
   const paidDate = invoice.paid_at

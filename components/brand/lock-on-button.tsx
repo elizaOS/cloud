@@ -37,36 +37,36 @@ export interface LockOnButtonProps extends React.ButtonHTMLAttributes<HTMLButton
 // Corner size configurations for scaling the bracket effect
 const CORNER_SIZES = {
   default: {
-    container: "w-3 h-3",      // 12px
+    container: "w-3 h-3", // 12px
     horizontal: "w-3 h-[2px]", // 12px × 2px
-    vertical: "w-[2px] h-3",   // 2px × 12px
+    vertical: "w-[2px] h-3", // 2px × 12px
     offset: "-top-[2px] -left-[2px]",
     offsetTR: "-top-[2px] -right-[2px]",
     offsetBL: "-bottom-[2px] -left-[2px]",
     offsetBR: "-bottom-[2px] -right-[2px]",
   },
   sm: {
-    container: "w-2 h-2",      // 8px
+    container: "w-2 h-2", // 8px
     horizontal: "w-2 h-[2px]", // 8px × 2px
-    vertical: "w-[2px] h-2",   // 2px × 8px
+    vertical: "w-[2px] h-2", // 2px × 8px
     offset: "-top-[2px] -left-[2px]",
     offsetTR: "-top-[2px] -right-[2px]",
     offsetBL: "-bottom-[2px] -left-[2px]",
     offsetBR: "-bottom-[2px] -right-[2px]",
   },
   xs: {
-    container: "w-1.5 h-1.5",      // 6px
+    container: "w-1.5 h-1.5", // 6px
     horizontal: "w-1.5 h-[1.5px]", // 6px × 1.5px
-    vertical: "w-[1.5px] h-1.5",   // 1.5px × 6px
+    vertical: "w-[1.5px] h-1.5", // 1.5px × 6px
     offset: "-top-[1.5px] -left-[1.5px]",
     offsetTR: "-top-[1.5px] -right-[1.5px]",
     offsetBL: "-bottom-[1.5px] -left-[1.5px]",
     offsetBR: "-bottom-[1.5px] -right-[1.5px]",
   },
   micro: {
-    container: "w-1 h-1",      // 4px
+    container: "w-1 h-1", // 4px
     horizontal: "w-1 h-[1px]", // 4px × 1px
-    vertical: "w-[1px] h-1",   // 1px × 4px
+    vertical: "w-[1px] h-1", // 1px × 4px
     offset: "-top-[1px] -left-[1px]",
     offsetTR: "-top-[1px] -right-[1px]",
     offsetBL: "-bottom-[1px] -left-[1px]",
@@ -74,10 +74,10 @@ const CORNER_SIZES = {
   },
   // Ultra-minimal for very petite buttons - very short brackets with subtle (non-stretch) motion
   petite: {
-    container: "w-1 h-1",              // 4px - petite but still readable
-    horizontal: "w-1 h-[1px]",         // 4px × 1px
-    vertical: "w-[1px] h-1",           // 1px × 4px
-    offset: "-top-px -left-px",        // 1px outside so it doesn't eat button space
+    container: "w-1 h-1", // 4px - petite but still readable
+    horizontal: "w-1 h-[1px]", // 4px × 1px
+    vertical: "w-[1px] h-1", // 1px × 4px
+    offset: "-top-px -left-px", // 1px outside so it doesn't eat button space
     offsetTR: "-top-px -right-px",
     offsetBL: "-bottom-px -left-px",
     offsetBR: "-bottom-px -right-px",

@@ -822,11 +822,9 @@ export const generateImageAction = {
   ): Promise<ActionResult> => {
     const allProviders =
       responses?.flatMap((res) => res.content?.providers ?? []) ?? [];
-
-    state = await runtime.composeState(message, [
-      ...(allProviders ?? []),
-      "RECENT_MESSAGES",
-    ]);
+    if (allProviders.length > 0) {
+      state.values = { ...state.values, additionalProviders: allProviders };
+    }
 
     const characterId =
       runtime.character?.id && typeof runtime.character.id === "string"

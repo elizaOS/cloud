@@ -58,7 +58,10 @@ export class ModelPricingRepository {
    * Creates a new model pricing record.
    */
   async create(data: NewModelPricing): Promise<ModelPricing> {
-    const [pricing] = await dbWrite.insert(modelPricing).values(data).returning();
+    const [pricing] = await dbWrite
+      .insert(modelPricing)
+      .values(data)
+      .returning();
     return pricing;
   }
 

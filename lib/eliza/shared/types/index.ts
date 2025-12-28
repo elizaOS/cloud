@@ -2,7 +2,12 @@
  * Shared Types for Eliza Plugin System
  */
 
-import type { IAgentRuntime, Memory, HandlerCallback, UUID } from "@elizaos/core";
+import type {
+  IAgentRuntime,
+  Memory,
+  HandlerCallback,
+  UUID,
+} from "@elizaos/core";
 
 /**
  * Callback for streaming text chunks.
@@ -12,6 +17,19 @@ import type { IAgentRuntime, Memory, HandlerCallback, UUID } from "@elizaos/core
  */
 export type StreamChunkCallback = (
   chunk: string,
+  messageId?: UUID,
+) => Promise<void>;
+
+/**
+ * Callback for streaming reasoning/chain-of-thought.
+ * Shows the LLM's planning process in real-time.
+ * @param chunk - The reasoning text chunk
+ * @param phase - Current phase of reasoning (planning, actions, response)
+ * @param messageId - Optional message ID for coordination
+ */
+export type ReasoningChunkCallback = (
+  chunk: string,
+  phase: "planning" | "actions" | "response",
   messageId?: UUID,
 ) => Promise<void>;
 
@@ -27,4 +45,9 @@ export interface MessageReceivedHandlerParams {
    * When provided, the handler should stream the response chunk-by-chunk.
    */
   onStreamChunk?: StreamChunkCallback;
+  /**
+   * Optional callback for streaming reasoning/chain-of-thought.
+   * When provided, shows the LLM's planning process to the user.
+   */
+  onReasoningChunk?: ReasoningChunkCallback;
 }

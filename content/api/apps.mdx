@@ -3,7 +3,7 @@ title: Apps
 description: Create and manage applications on elizaOS Cloud.
 ---
 
-import { Callout, Tabs } from 'nextra/components'
+import { Callout, Tabs } from "nextra/components";
 
 # Apps
 
@@ -79,7 +79,7 @@ Create a new application.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-get">GET</span>
-  <span className="path">/api/v1/apps/{'{id}'}</span>
+  <span className="path">/api/v1/apps/{"{id}"}</span>
 </div>
 
 Get application details.
@@ -90,7 +90,7 @@ Get application details.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-put">PUT</span>
-  <span className="path">/api/v1/apps/{'{id}'}</span>
+  <span className="path">/api/v1/apps/{"{id}"}</span>
 </div>
 
 Update an application.
@@ -101,7 +101,7 @@ Update an application.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-delete">DELETE</span>
-  <span className="path">/api/v1/apps/{'{id}'}</span>
+  <span className="path">/api/v1/apps/{"{id}"}</span>
 </div>
 
 Delete an application.
@@ -112,7 +112,7 @@ Delete an application.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-get">GET</span>
-  <span className="path">/api/v1/apps/{'{id}'}/analytics</span>
+  <span className="path">/api/v1/apps/{"{id}"}/analytics</span>
 </div>
 
 Get usage analytics for an app.
@@ -124,7 +124,7 @@ Get usage analytics for an app.
   "requests": 15000,
   "uniqueUsers": 500,
   "tokensUsed": 1250000,
-  "costUsd": 12.50,
+  "costUsd": 12.5,
   "period": "30d"
 }
 ```
@@ -135,13 +135,13 @@ Get usage analytics for an app.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-post">POST</span>
-  <span className="path">/api/v1/apps/{'{id}'}/regenerate-api-key</span>
+  <span className="path">/api/v1/apps/{"{id}"}/regenerate-api-key</span>
 </div>
 
 Generate a new API key for the app.
 
 <Callout type="warning">
-This invalidates the previous API key immediately.
+  This invalidates the previous API key immediately.
 </Callout>
 
 ---
@@ -150,7 +150,7 @@ This invalidates the previous API key immediately.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-get">GET</span>
-  <span className="path">/api/v1/apps/{'{id}'}/monetization</span>
+  <span className="path">/api/v1/apps/{"{id}"}/monetization</span>
 </div>
 
 Get monetization settings and earnings.

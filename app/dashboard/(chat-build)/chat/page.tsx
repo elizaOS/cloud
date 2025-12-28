@@ -17,8 +17,8 @@ import { logger } from "@/lib/utils/logger";
 import { charactersService } from "@/lib/services/characters";
 
 interface PageProps {
-  searchParams: Promise<{ 
-    characterId?: string; 
+  searchParams: Promise<{
+    characterId?: string;
     roomId?: string;
     error?: string;
     name?: string;
@@ -37,7 +37,7 @@ export const dynamic = "force-dynamic";
 export async function generateMetadata({
   searchParams,
 }: PageProps): Promise<Metadata> {
-  const params = await searchParams ?? {};
+  const params = (await searchParams) ?? {};
   const characterId = params.characterId;
 
   // If no characterId, use default metadata
@@ -138,7 +138,7 @@ export default async function ElizaPage({ searchParams }: PageProps) {
   const characters = isAnonymous ? [] : await listCharacters();
 
   // Get URL params
-  const params = await searchParams ?? {};
+  const params = (await searchParams) ?? {};
   const initialRoomId = params.roomId;
   let initialCharacterId = params.characterId;
   let errorType = params.error;
@@ -163,7 +163,7 @@ export default async function ElizaPage({ searchParams }: PageProps) {
       // Fetch character data to check access
       try {
         const character = await charactersService.getById(initialCharacterId);
-        
+
         if (!character || character.source !== "cloud") {
           // Character doesn't exist or wrong source - clear characterId
           logger.warn(
@@ -173,11 +173,12 @@ export default async function ElizaPage({ searchParams }: PageProps) {
         } else {
           const isOwner = user && character.user_id === user.id;
           const isPublic = character.is_public === true;
-          
+
           // Check if this is a claimable affiliate character
-          const claimCheck = await charactersService.isClaimableAffiliateCharacter(character.id);
+          const claimCheck =
+            await charactersService.isClaimableAffiliateCharacter(character.id);
           const isClaimableAffiliate = claimCheck.claimable;
-          
+
           if (isPublic || isOwner || isClaimableAffiliate) {
             // Access granted - load the shared character
             sharedCharacter = {
@@ -185,7 +186,9 @@ export default async function ElizaPage({ searchParams }: PageProps) {
               name: character.name,
               username: character.username,
               avatarUrl: character.avatar_url,
-              bio: Array.isArray(character.bio) ? character.bio[0] : character.bio,
+              bio: Array.isArray(character.bio)
+                ? character.bio[0]
+                : character.bio,
             };
             logger.debug(
               `[Dashboard Chat] Loaded shared character: ${character.name} (${character.id})`,
@@ -224,7 +227,11 @@ export default async function ElizaPage({ searchParams }: PageProps) {
       initialRoomId={initialRoomId}
       initialCharacterId={initialCharacterId}
       sharedCharacter={sharedCharacter}
-      accessError={errorType ? { type: errorType, characterName: errorCharacterName } : undefined}
+      accessError={
+        errorType
+          ? { type: errorType, characterName: errorCharacterName }
+          : undefined
+      }
     />
   );
 }

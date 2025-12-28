@@ -192,7 +192,9 @@ export function requiresAssistantMode(
   settings: Record<string, unknown>,
 ): keyof typeof SETTINGS_PLUGIN_MAP | null {
   for (const key of Object.keys(SETTINGS_PLUGIN_MAP)) {
-    if (hasValidConfiguration(key as keyof typeof SETTINGS_PLUGIN_MAP, settings)) {
+    if (
+      hasValidConfiguration(key as keyof typeof SETTINGS_PLUGIN_MAP, settings)
+    ) {
       return key as keyof typeof SETTINGS_PLUGIN_MAP;
     }
   }
