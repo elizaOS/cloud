@@ -38,18 +38,11 @@ export interface MessageResult {
   usage?: UsageInfo;
 }
 
-/**
- * Callback for streaming text chunks to the client in real-time.
- */
 export type StreamChunkCallback = (
   chunk: string,
   messageId?: UUID,
 ) => Promise<void>;
 
-/**
- * Callback for streaming reasoning/chain-of-thought chunks.
- * Shows the LLM's planning process in real-time.
- */
 export type ReasoningChunkCallback = (
   chunk: string,
   phase: "planning" | "actions" | "response",
@@ -63,9 +56,7 @@ export interface MessageOptions {
   characterId?: string;
   model?: string;
   agentModeConfig?: AgentModeConfig;
-  /** Optional callback for streaming text chunks to the client */
   onStreamChunk?: StreamChunkCallback;
-  /** Optional callback for streaming reasoning/chain-of-thought */
   onReasoningChunk?: ReasoningChunkCallback;
 }
 
@@ -97,7 +88,7 @@ export class MessageHandler {
       attachments,
     });
 
-    let responseContent: Content | undefined;
+    let responseMemory: Memory | undefined;
     let usage: MessageResult["usage"];
 
     await this.runtime.emitEvent(EventType.MESSAGE_RECEIVED, {
@@ -108,9 +99,7 @@ export class MessageHandler {
       onReasoningChunk,
       callback: async (content: Content) => {
         if (content.text) {
-          responseContent = content;
-
-          const responseMemory: Memory = {
+          responseMemory = {
             id: createUniqueUuid(
               this.runtime,
               (userMessage.id ?? uuidv4()) as UUID,
@@ -118,6 +107,7 @@ export class MessageHandler {
             entityId: this.runtime.agentId,
             agentId: this.runtime.agentId,
             roomId: roomId as UUID,
+            createdAt: Date.now(),
             content: {
               ...content,
               source: content.source || "agent",
@@ -141,30 +131,40 @@ export class MessageHandler {
       },
     });
 
-    const responseMemory = this.createResponseMemoryFromContent(
-      roomId,
-      responseContent || {
-        text: "I'm sorry, I couldn't generate a response.",
-        source: "agent",
-      },
-    );
+    // Fallback if no response was generated
+    if (!responseMemory) {
+      responseMemory = {
+        id: uuidv4() as UUID,
+        roomId: roomId as UUID,
+        entityId: this.runtime.agentId as UUID,
+        agentId: this.runtime.agentId as UUID,
+        createdAt: Date.now(),
+        content: {
+          text: "I'm sorry, I couldn't generate a response.",
+          source: "agent",
+        },
+      };
+    }
 
     if (this.userContext.isAnonymous && this.userContext.sessionToken) {
       await this.incrementAnonymousMessageCount();
     }
 
-    // Fire-and-forget side effects (Discord only - room titles handled by roomTitleEvaluator)
+    const responseText = typeof responseMemory.content === "string" 
+      ? responseMemory.content 
+      : responseMemory.content?.text || "";
     this.sendToDiscordThread(
       roomId,
       text,
-      responseContent?.text || "",
+      responseText,
       options.characterId,
-    ).catch(() => {});
+    ).catch((e) => {
+      elizaLogger.debug(`[MessageHandler] Discord send failed: ${e}`);
+    });
 
     return { message: responseMemory, usage };
   }
 
-  /** Sets up ElizaOS infrastructure (world, room, entities, participants) with caching */
   private async ensureConnectionForCloud(
     roomId: string,
     entityId: string,
@@ -187,24 +187,23 @@ export class MessageHandler {
       displayName,
     ].filter(Boolean) as string[];
 
-    // PERFORMANCE: Phase 1 - Create world and agent entity in parallel
+    // Batch all independent operations together.
+    // World/Agent entities have no deps. Room needs worldId/serverId (but we have them).
+    // User entity has no deps on room. Participants depend on room/user existing.
     await Promise.all([
       this.ensureWorldExists(worldId, serverId),
       this.ensureAgentEntity(),
-    ]);
-
-    // PERFORMANCE: Phase 2 - Create room and user entity in parallel
-    // Room depends on world existing, user entity is independent
-    await Promise.all([
       this.ensureRoomExistsWithFields(roomUuid, worldId, serverId),
       this.ensureUserEntity(entityUuid, names, displayName),
     ]);
 
-    // Phase 3 - Participants (depends on room and entities existing)
+    // Participants depend on room and user existing
     await this.ensureParticipants(roomUuid, entityUuid);
 
-    // Fire-and-forget cache mark
-    connectionCache.markEstablished(roomId, entityId).catch(() => {});
+    // Fire-and-forget cache update
+    connectionCache.markEstablished(roomId, entityId).catch((e) => {
+      elizaLogger.debug(`[MessageHandler] Cache mark failed: ${e}`);
+    });
   }
 
   private async ensureWorldExists(
@@ -323,7 +322,6 @@ export class MessageHandler {
         },
       };
 
-      // Non-critical update, ignore failures
       await this.runtime
         .updateEntity({
           id: entityUuid,
@@ -331,7 +329,9 @@ export class MessageHandler {
           names: mergedNames,
           metadata: mergedMetadata,
         })
-        .catch(() => {});
+        .catch((e) => {
+          elizaLogger.debug(`[MessageHandler] Entity update failed: ${e}`);
+        });
     }
   }
 
@@ -339,12 +339,15 @@ export class MessageHandler {
     roomId: UUID,
     entityUuid: UUID,
   ): Promise<void> {
-    // PERFORMANCE: Add both participants in parallel
     await Promise.all([
       this.runtime
         .ensureParticipantInRoom(this.runtime.agentId, roomId)
-        .catch(() => {}),
-      this.runtime.ensureParticipantInRoom(entityUuid, roomId).catch(() => {}),
+        .catch((e) => {
+          elizaLogger.debug(`[MessageHandler] Agent participant failed: ${e}`);
+        }),
+      this.runtime.ensureParticipantInRoom(entityUuid, roomId).catch((e) => {
+        elizaLogger.debug(`[MessageHandler] User participant failed: ${e}`);
+      }),
     ]);
   }
 
@@ -380,20 +383,6 @@ export class MessageHandler {
         dialogueType: "message",
         visibility: "visible",
       } as DialogueMetadata,
-    };
-  }
-
-  private createResponseMemoryFromContent(
-    roomId: string,
-    content: Content,
-  ): Memory {
-    return {
-      id: uuidv4() as UUID,
-      roomId: roomId as UUID,
-      entityId: this.runtime.agentId as UUID,
-      agentId: this.runtime.agentId as UUID,
-      createdAt: Date.now(),
-      content: { ...content, source: content.source || "agent" },
     };
   }
 

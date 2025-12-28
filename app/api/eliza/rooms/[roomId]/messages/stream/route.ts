@@ -446,10 +446,26 @@ export async function POST(
     const { readable, writable } = new TransformStream();
     const writer = writable.getWriter();
 
+    // Pre-compute static SSE prefixes to reduce allocations
+    const eventPrefixes = {
+      chunk: encoder.encode("event: chunk\ndata: "),
+      reasoning: encoder.encode("event: reasoning\ndata: "),
+    };
+    const sseEnd = encoder.encode("\n\n");
+
     // Helper to write SSE events - writes immediately and doesn't buffer
     const sendEvent = async (event: string, data: unknown) => {
-      const message = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
-      await writer.write(encoder.encode(message));
+      const jsonData = JSON.stringify(data);
+      // Use pre-computed prefixes for high-frequency events
+      const prefix = eventPrefixes[event as keyof typeof eventPrefixes];
+      if (prefix) {
+        await writer.write(prefix);
+        await writer.write(encoder.encode(jsonData));
+        await writer.write(sseEnd);
+      } else {
+        const message = `event: ${event}\ndata: ${jsonData}\n\n`;
+        await writer.write(encoder.encode(message));
+      }
     };
 
     // Start processing in background - this allows the response to be returned immediately

@@ -31,7 +31,7 @@ import {
   postProcessResponse,
 } from "../shared/utils/helpers";
 import type { ParsedResponse } from "../shared/utils/parsers";
-import type { MessageReceivedHandlerParams } from "../shared/types";
+import type { MessageReceivedHandlerParams, RunEndedEventPayload } from "../shared/types";
 
 /**
  * Simple chat handler with MCP tool support and optional streaming.
@@ -65,127 +65,115 @@ export async function handleMessage({
   const originalSystemPrompt = runtime.character.system;
 
   try {
-    await runtime.createMemory(message, "messages");
+    runtime.createMemory(message, "messages").catch((e) => {
+      logger.warn(`[ChatPlayground] Failed to create memory: ${e}`);
+    });
 
-      // Wait for MCP if available
-      const mcpService = runtime.getService("mcp") as
-        | { waitForInitialization?: () => Promise<void> }
-        | undefined;
-      if (mcpService?.waitForInitialization) {
-        await mcpService.waitForInitialization();
-      }
+    const state = await runtime.composeState(message, [
+      "SUMMARIZED_CONTEXT",
+      "RECENT_MESSAGES",
+      "LONG_TERM_MEMORY",
+      "CHARACTER",
+      "MCP",
+      "APP_CONFIG",
+    ]);
 
-      const state = await runtime.composeState(message, [
-        "SUMMARIZED_CONTEXT",
-        "RECENT_MESSAGES",
-        "LONG_TERM_MEMORY",
-        "CHARACTER",
-        "MCP",
-        "APP_CONFIG",
-      ]);
-
-      // Try MCP action first
-      if (await checkAndRunMcpAction(runtime, message, state, callback)) {
-        await clearLatestResponseId(runtime, message.roomId);
-        await runtime.emitEvent(EventType.RUN_ENDED, {
-          runtime,
-          runId,
-          messageId: message.id || asUUID(v4()),
-          roomId: message.roomId,
-          entityId: message.entityId,
-          startTime,
-          status: "completed",
-          endTime: Date.now(),
-          duration: Date.now() - startTime,
-          source: "chatPlaygroundWorkflow",
-        });
-        return;
-      }
-
-      runtime.character.system = cleanPrompt(
-        composePromptFromState({ state, template: chatPlaygroundSystemPrompt }),
-      );
-
-      const prompt = cleanPrompt(
-        composePromptFromState({
-          state,
-          template:
-            runtime.character.templates?.chatPlaygroundTemplate ||
-            chatPlaygroundTemplate,
-        }),
-      );
-
-      // Generate response with optional real-time streaming
-      // When onStreamChunk is provided, we enable streaming mode for smooth UX
-      const response = await runtime.useModel(ModelType.TEXT_LARGE, { 
-        prompt,
-        ...(onStreamChunk && {
-          stream: true,
-          onStreamChunk: async (chunk: string) => {
-            await onStreamChunk(chunk, responseId as UUID);
-          },
-        }),
-      });
-
-      runtime.character.system = originalSystemPrompt;
-
-      const parsedResponse = parseKeyValueXml(response) as ParsedResponse | null;
-      if (!parsedResponse?.text) {
-        throw new Error("Failed to generate valid response");
-      }
-
-      if (!(await isResponseStillValid(runtime, message.roomId, responseId)))
-        return;
+    // Try MCP action first
+    if (await checkAndRunMcpAction(runtime, message, state, callback)) {
       await clearLatestResponseId(runtime, message.roomId);
-
-      // Post-process response to remove AI-speak and track openings
-      const processedResponse = postProcessResponse(
-        parsedResponse.text,
-        message.roomId as string,
-      );
-      const finalText = processedResponse.text;
-      
-      // NOTE: No fake chunking here! When onStreamChunk is provided,
-      // the response has already been streamed as it was generated.
-
-      if (callback) {
-        await callback({
-          text: finalText,
-          thought: parsedResponse.thought || "",
-          source: "agent",
-          inReplyTo: message.id,
-        });
-      }
-
-      const responseMemory: Memory = {
-        id: createUniqueUuid(runtime, (message.id ?? v4()) as UUID),
-        entityId: runtime.agentId,
-        roomId: message.roomId,
-        worldId: message.worldId,
-        content: {
-          text: finalText,
-          thought: parsedResponse.thought || "",
-          source: "agent",
-          inReplyTo: message.id,
-        },
-        metadata: {
-          type: MemoryType.MESSAGE,
-          role: "agent",
-          dialogueType: "message",
-          visibility: "visible",
-          agentMode: "chat",
-        } as DialogueMetadata,
-      };
-
-      await runEvaluatorsWithTimeout(
-        runtime,
-        message,
-        state,
-        responseMemory,
-        callback,
-      );
-
       await runtime.emitEvent(EventType.RUN_ENDED, {
+        runtime,
+        runId,
+        messageId: message.id || asUUID(v4()),
+        roomId: message.roomId,
+        entityId: message.entityId,
+        startTime,
+        status: "completed",
+        endTime: Date.now(),
+        duration: Date.now() - startTime,
+        source: "chatPlaygroundWorkflow",
+      });
+      return;
+    }
+
+    runtime.character.system = cleanPrompt(
+      composePromptFromState({ state, template: chatPlaygroundSystemPrompt }),
+    );
+
+    const prompt = cleanPrompt(
+      composePromptFromState({
+        state,
+        template:
+          runtime.character.templates?.chatPlaygroundTemplate ||
+          chatPlaygroundTemplate,
+      }),
+    );
+
+    const response = await runtime.useModel(ModelType.TEXT_LARGE, { 
+      prompt,
+      ...(onStreamChunk && {
+        stream: true,
+        onStreamChunk: async (chunk: string) => {
+          await onStreamChunk(chunk, responseId as UUID);
+        },
+      }),
+    });
+
+    const parsedResponse = parseKeyValueXml(response) as ParsedResponse | null;
+    if (!parsedResponse?.text) {
+      throw new Error("Failed to generate valid response");
+    }
+
+    if (!(await isResponseStillValid(runtime, message.roomId, responseId)))
+      return;
+    await clearLatestResponseId(runtime, message.roomId);
+
+    const processedResponse = postProcessResponse(
+      parsedResponse.text,
+      message.roomId as string,
+    );
+    const finalText = processedResponse.text;
+
+    if (callback) {
+      await callback({
+        text: finalText,
+        thought: parsedResponse.thought || "",
+        source: "agent",
+        inReplyTo: message.id,
+      });
+    }
+
+    const responseMemory: Memory = {
+      id: createUniqueUuid(runtime, (message.id ?? v4()) as UUID),
+      entityId: runtime.agentId,
+      roomId: message.roomId,
+      worldId: message.worldId,
+      content: {
+        text: finalText,
+        thought: parsedResponse.thought || "",
+        source: "agent",
+        inReplyTo: message.id,
+      },
+      metadata: {
+        type: MemoryType.MESSAGE,
+        role: "agent",
+        dialogueType: "message",
+        visibility: "visible",
+        agentMode: "chat",
+      } as DialogueMetadata,
+    };
+
+    runEvaluatorsWithTimeout(
+      runtime,
+      message,
+      state,
+      responseMemory,
+      callback,
+    ).catch((e) => {
+      logger.warn(`[ChatPlayground] Evaluators failed: ${e}`);
+    });
+
+    runtime.emitEvent(EventType.RUN_ENDED, {
       runtime,
       source: "chatPlaygroundWorkflow",
       runId,
@@ -196,24 +184,26 @@ export async function handleMessage({
       status: "completed",
       endTime: Date.now(),
       duration: Date.now() - startTime,
-    });
+    }).catch((e) => logger.debug(`[ChatPlayground] RUN_ENDED emit failed: ${e}`));
   } catch (error) {
-    runtime.character.system = originalSystemPrompt;
-    // @ts-expect-error - RUN_ENDED status should include "error" for proper analytics tracking
-    await runtime.emitEvent(EventType.RUN_ENDED, {
+    const errorPayload: RunEndedEventPayload = {
       runtime,
-      source: "chatPlaygroundWorkflow",
       runId,
-      messageId: message.id || asUUID(v4()),
-      roomId: message.roomId,
-      entityId: message.entityId,
+      messageId: (message.id || asUUID(v4())) as UUID,
+      roomId: message.roomId as UUID,
+      entityId: message.entityId as UUID,
       startTime,
       status: "error",
       endTime: Date.now(),
       duration: Date.now() - startTime,
       error: error instanceof Error ? error.message : String(error),
-    });
+      source: "chatPlaygroundWorkflow",
+    };
+    await runtime.emitEvent(EventType.RUN_ENDED, errorPayload as never);
     throw error;
+  } finally {
+    // Always restore original system prompt, even on early returns or errors
+    runtime.character.system = originalSystemPrompt;
   }
 }
 

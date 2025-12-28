@@ -114,43 +114,30 @@ async function resolveEffectiveMode(
     return { mode: requestedMode, upgradeReason: "none", documentCount: 0 };
   }
 
-  // Already ASSISTANT mode - no upgrade needed, but still query document count for plugin resolution
+  // Query document count once - needed for multiple checks and plugin resolution
+  const documentCount = await memoriesRepository.countByType(
+    characterId,
+    "documents",
+    characterId,
+  );
+
+  // Already ASSISTANT mode - no upgrade needed
   if (requestedMode === AgentMode.ASSISTANT) {
-    const documentCount = await memoriesRepository.countByType(
-      characterId,
-      "documents",
-      characterId,
-    );
     return { mode: requestedMode, upgradeReason: "none", documentCount };
   }
 
   // Check 1: Settings-based plugins (mcp, webSearch, etc.) require ASSISTANT mode
   if (requiresAssistantMode(characterSettings)) {
-    const documentCount = await memoriesRepository.countByType(
-      characterId,
-      "documents",
-      characterId,
-    );
     return { mode: AgentMode.ASSISTANT, upgradeReason: "settings_plugin", documentCount };
   }
 
   // Check 2: Explicit settings-based plugins in character plugins require ASSISTANT mode
   // MCP plugin requires ASSISTANT mode for tool execution even when explicitly listed
   if (hasExplicitSettingsPlugin(characterPlugins)) {
-    const documentCount = await memoriesRepository.countByType(
-      characterId,
-      "documents",
-      characterId,
-    );
     return { mode: AgentMode.ASSISTANT, upgradeReason: "explicit_plugin", documentCount };
   }
 
   // Check 3: Knowledge documents require ASSISTANT mode for RAG
-  const documentCount = await memoriesRepository.countByType(
-    characterId,
-    "documents",
-    characterId,
-  );
   if (documentCount > 0) {
     return { mode: AgentMode.ASSISTANT, upgradeReason: "has_knowledge", documentCount };
   }

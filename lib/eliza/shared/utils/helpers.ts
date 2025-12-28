@@ -108,50 +108,72 @@ export function isRepetitiveGreeting(text: string): boolean {
 }
 
 /**
- * Track recent response openings to detect repetition
+ * Simple LRU cache implementation.
+ * When a key is accessed, it's moved to the end (most recently used).
+ * When capacity is exceeded, the oldest (least recently used) entry is evicted.
  */
-const recentOpenings = new Map<string, string[]>();
+class LRUCache<K, V> {
+  private cache = new Map<K, V>();
+  private readonly maxSize: number;
+
+  constructor(maxSize: number) {
+    this.maxSize = maxSize;
+  }
+
+  get(key: K): V | undefined {
+    const value = this.cache.get(key);
+    if (value !== undefined) {
+      // Move to end (most recently used)
+      this.cache.delete(key);
+      this.cache.set(key, value);
+    }
+    return value;
+  }
+
+  set(key: K, value: V): void {
+    // Delete first to ensure it goes to end
+    this.cache.delete(key);
+    this.cache.set(key, value);
+    
+    // Evict oldest (first entry) if over capacity
+    if (this.cache.size > this.maxSize) {
+      const oldestKey = this.cache.keys().next().value;
+      if (oldestKey !== undefined) this.cache.delete(oldestKey);
+    }
+  }
+
+  delete(key: K): boolean {
+    return this.cache.delete(key);
+  }
+
+  get size(): number {
+    return this.cache.size;
+  }
+}
+
+const recentOpenings = new LRUCache<string, string[]>(1000);
 const MAX_TRACKED_OPENINGS = 5;
 
-/**
- * Get the opening of a response (first ~50 chars or first sentence)
- */
 function getResponseOpening(text: string): string {
   const firstSentence = text.split(/[.!?]/)[0].trim();
   return firstSentence.substring(0, 50).toLowerCase();
 }
 
-/**
- * Check if this opening was used recently in this room
- */
 export function isRepeatedOpening(roomId: string, text: string): boolean {
   const opening = getResponseOpening(text);
   const recent = recentOpenings.get(roomId) || [];
   return recent.includes(opening);
 }
 
-/**
- * Track an opening for a room
- */
 export function trackOpening(roomId: string, text: string): void {
   const opening = getResponseOpening(text);
   const recent = recentOpenings.get(roomId) || [];
 
-  // Add new opening and keep only recent ones
   recent.push(opening);
-  if (recent.length > MAX_TRACKED_OPENINGS) {
-    recent.shift();
-  }
-
+  if (recent.length > MAX_TRACKED_OPENINGS) recent.shift();
   recentOpenings.set(roomId, recent);
 }
 
-/**
- * Post-process a response to ensure quality
- * - Removes AI-speak
- * - Flags repetitive openings
- * - Returns processing metadata
- */
 export interface ProcessedResponse {
   text: string;
   wasModified: boolean;
@@ -211,8 +233,8 @@ export interface CachedAttachment {
   contentType?: string;
 }
 
-const actionAttachmentCache = new Map<string, CachedAttachment[]>();
-const actionResponseSentCache = new Map<string, boolean>();
+const actionAttachmentCache = new LRUCache<string, CachedAttachment[]>(500);
+const actionResponseSentCache = new LRUCache<string, boolean>(500);
 
 export function hasActionSentResponse(roomId: string): boolean {
   return actionResponseSentCache.get(roomId) === true;
@@ -377,94 +399,60 @@ interface StreamingPlanOptions {
   messageId?: UUID;
 }
 
-/**
- * Creates a streaming filter for planning responses that extracts <thought> content in real-time.
- * This allows the chain-of-thought to stream as the LLM generates it, rather than waiting
- * for the entire planning response.
- * 
- * The LLM outputs XML like: <plan><thought>reasoning</thought><canRespondNow>YES/NO</canRespondNow>...</plan>
- * We stream the <thought> content as it arrives so users see the reasoning in real-time.
- * 
- * Note: Frontend handles the typewriter animation. Backend just streams chunks immediately.
- */
 function createPlanningStreamFilter(
   onThoughtChunk: (chunk: string, phase: "planning" | "actions" | "response", messageId?: UUID) => Promise<void>,
   phase: "planning" | "actions" | "response",
   messageId?: UUID,
 ) {
   let insideThought = false;
-  let insideTag = false;
-  let tagBuffer = "";
-  let pendingContent = "";
+  let buffer = "";
   
   return {
     processChunk: async (chunk: string) => {
-      for (const char of chunk) {
-        if (char === "<") {
-          insideTag = true;
-          tagBuffer = "<";
-          continue;
-        }
-        
-        if (insideTag) {
-          tagBuffer += char;
-          
-          if (char === ">") {
-            insideTag = false;
-            const tag = tagBuffer.toLowerCase();
-            
-            if (tag === "<thought>") {
-              insideThought = true;
-            } else if (tag === "</thought>") {
-              insideThought = false;
-              // Flush any pending content
-              if (pendingContent) {
-                await onThoughtChunk(pendingContent, phase, messageId);
-                pendingContent = "";
-              }
-            }
-            tagBuffer = "";
-            continue;
+      buffer += chunk;
+      
+      while (buffer.length > 0) {
+        if (!insideThought) {
+          const tagStart = buffer.indexOf("<thought>");
+          if (tagStart === -1) {
+            if (buffer.length > 8) buffer = buffer.slice(-8);
+            break;
           }
-          continue;
+          buffer = buffer.slice(tagStart + 9);
+          insideThought = true;
         }
         
-        // We're outside of tags
         if (insideThought) {
-          pendingContent += char;
-          
-          // Stream frequently for smooth display - every few chars or word boundary
-          if (pendingContent.length >= 4 || char === " " || char === "\n" || char === "," || char === ".") {
-            await onThoughtChunk(pendingContent, phase, messageId);
-            pendingContent = "";
+          const tagEnd = buffer.indexOf("</thought>");
+          if (tagEnd === -1) {
+            if (buffer.length > 10) {
+              await onThoughtChunk(buffer.slice(0, -10), phase, messageId);
+              buffer = buffer.slice(-10);
+            }
+            break;
           }
+          const content = buffer.slice(0, tagEnd);
+          if (content) await onThoughtChunk(content, phase, messageId);
+          buffer = buffer.slice(tagEnd + 10);
+          insideThought = false;
         }
       }
     },
     flush: async () => {
-      if (pendingContent) {
-        await onThoughtChunk(pendingContent, phase, messageId);
-        pendingContent = "";
+      if (insideThought && buffer) {
+        await onThoughtChunk(buffer, phase, messageId);
+        buffer = "";
       }
     },
   };
 }
 
-/**
- * Generate a planning response with real-time streaming of the <thought> content.
- * This allows chain-of-thought to appear immediately as the LLM generates it,
- * rather than waiting for the entire response.
- * 
- * @returns The complete planning response text (for XML parsing after)
- */
 export async function generatePlanningWithStreaming(
   runtime: IAgentRuntime,
   prompt: string,
   options?: StreamingPlanOptions,
 ): Promise<string> {
   const { onReasoningChunk, messageId } = options || {};
-  
-  // When streaming callback is provided, stream the thought content in real-time
   let streamFilter: ReturnType<typeof createPlanningStreamFilter> | null = null;
   
   if (onReasoningChunk) {
@@ -481,7 +469,6 @@ export async function generatePlanningWithStreaming(
     }),
   });
   
-  // Flush any remaining buffered content
   if (streamFilter) {
     await streamFilter.flush();
   }
@@ -490,117 +477,99 @@ export async function generatePlanningWithStreaming(
 }
 
 /**
- * Creates a streaming filter that strips XML tags and extracts content.
- * Handles partial tags that span multiple chunks.
- * 
- * The LLM outputs XML like: <response><thought>...</thought><text>content</text></response>
- * We want to stream only the content inside <text>...</text> to the user.
- * 
- * Note: Frontend handles the typewriter animation. Backend just streams chunks immediately.
+ * Creates a streaming XML filter that extracts content from <text> and <thought> tags.
+ * Each tag has its own independent state machine to handle interleaved content.
  */
 function createStreamingXmlFilter(
   onFilteredChunk: (chunk: string, messageId?: UUID) => Promise<void>,
   messageId?: UUID,
   onThoughtChunk?: (chunk: string, phase: "planning" | "actions" | "response", messageId?: UUID) => Promise<void>,
 ) {
-  // State for incremental XML parsing
-  let buffer = "";
-  let insideText = false;
-  let insideThought = false;
-  let insideTag = false;
-  let tagBuffer = "";
-  let pendingTextContent = "";
-  let pendingThoughtContent = "";
-  let isFirstTextChunk = true;
-  let isFirstThoughtChunk = true;
+  // Separate state machines for each tag type to prevent interference
+  const textState = { buffer: "", inside: false };
+  const thoughtState = { buffer: "", inside: false };
+  
+  /**
+   * Process a single tag type from a buffer.
+   * Returns remaining unprocessed content.
+   */
+  const processTag = async (
+    input: string,
+    startTag: string,
+    endTag: string,
+    onContent: (content: string) => Promise<void>,
+    state: { buffer: string; inside: boolean },
+  ): Promise<string> => {
+    state.buffer += input;
+    
+    while (state.buffer.length > 0) {
+      if (!state.inside) {
+        const tagStart = state.buffer.indexOf(startTag);
+        if (tagStart === -1) {
+          // Keep minimum buffer for partial tag detection
+          if (state.buffer.length > startTag.length) {
+            state.buffer = state.buffer.slice(-(startTag.length - 1));
+          }
+          break;
+        }
+        // Found start tag, enter content mode
+        state.buffer = state.buffer.slice(tagStart + startTag.length);
+        state.inside = true;
+      }
+      
+      if (state.inside) {
+        const tagEnd = state.buffer.indexOf(endTag);
+        if (tagEnd === -1) {
+          // No end tag yet - stream what we can safely emit
+          if (state.buffer.length > endTag.length) {
+            const safeContent = state.buffer.slice(0, -(endTag.length - 1));
+            if (safeContent) await onContent(safeContent);
+            state.buffer = state.buffer.slice(-(endTag.length - 1));
+          }
+          break;
+        }
+        // Found end tag - emit content and exit content mode
+        const content = state.buffer.slice(0, tagEnd);
+        if (content) await onContent(content);
+        state.buffer = state.buffer.slice(tagEnd + endTag.length);
+        state.inside = false;
+      }
+    }
+    
+    return state.buffer;
+  };
   
   return {
     processChunk: async (chunk: string) => {
-      buffer += chunk;
+      // Process text tag with its own state
+      await processTag(
+        chunk,
+        "<text>",
+        "</text>",
+        async (content) => onFilteredChunk(content, messageId),
+        textState,
+      );
       
-      // Process buffer character by character for streaming
-      while (buffer.length > 0) {
-        const char = buffer[0];
-        buffer = buffer.slice(1);
-        
-        if (char === "<") {
-          insideTag = true;
-          tagBuffer = "<";
-          continue;
-        }
-        
-        if (insideTag) {
-          tagBuffer += char;
-          
-          if (char === ">") {
-            insideTag = false;
-            const tag = tagBuffer.toLowerCase();
-            
-            if (tag === "<text>") {
-              insideText = true;
-              isFirstTextChunk = true;
-            } else if (tag === "</text>") {
-              insideText = false;
-              if (pendingTextContent) {
-                await onFilteredChunk(pendingTextContent, messageId);
-                pendingTextContent = "";
-              }
-            } else if (tag === "<thought>") {
-              insideThought = true;
-              isFirstThoughtChunk = true;
-            } else if (tag === "</thought>") {
-              insideThought = false;
-              if (pendingThoughtContent && onThoughtChunk) {
-                await onThoughtChunk(pendingThoughtContent, "response", messageId);
-                pendingThoughtContent = "";
-              }
-            }
-            tagBuffer = "";
-            continue;
-          }
-          continue;
-        }
-        
-        // Stream <text> content for main response
-        if (insideText) {
-          pendingTextContent += char;
-          
-          const shouldEmit = isFirstTextChunk || 
-            pendingTextContent.length >= 3 || 
-            char === " " || char === "\n" || char === "." || 
-            char === "," || char === "!" || char === "?";
-            
-          if (shouldEmit && pendingTextContent.length > 0) {
-            await onFilteredChunk(pendingTextContent, messageId);
-            pendingTextContent = "";
-            isFirstTextChunk = false;
-          }
-        }
-        
-        // Stream <thought> content for reasoning display (if callback provided)
-        if (insideThought && onThoughtChunk) {
-          pendingThoughtContent += char;
-          
-          const shouldEmit = isFirstThoughtChunk ||
-            pendingThoughtContent.length >= 4 || 
-            char === " " || char === "\n" || char === "," || char === ".";
-            
-          if (shouldEmit && pendingThoughtContent.length > 0) {
-            await onThoughtChunk(pendingThoughtContent, "response", messageId);
-            pendingThoughtContent = "";
-            isFirstThoughtChunk = false;
-          }
-        }
+      // Process thought tag with its own state (if callback provided)
+      if (onThoughtChunk) {
+        await processTag(
+          chunk,
+          "<thought>",
+          "</thought>",
+          async (content) => onThoughtChunk(content, "response", messageId),
+          thoughtState,
+        );
       }
     },
     flush: async () => {
-      if (pendingTextContent) {
-        await onFilteredChunk(pendingTextContent, messageId);
-        pendingTextContent = "";
+      // Emit any remaining buffered content
+      if (textState.inside && textState.buffer) {
+        await onFilteredChunk(textState.buffer, messageId);
+        textState.buffer = "";
       }
-      if (pendingThoughtContent && onThoughtChunk) {
-        await onThoughtChunk(pendingThoughtContent, "response", messageId);
-        pendingThoughtContent = "";
+      if (thoughtState.inside && thoughtState.buffer && onThoughtChunk) {
+        await onThoughtChunk(thoughtState.buffer, "response", messageId);
+        thoughtState.buffer = "";
       }
     },
   };
