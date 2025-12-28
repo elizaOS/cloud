@@ -662,6 +662,17 @@ export async function POST(
           });
         };
 
+        // Create reasoning callback to stream chain-of-thought
+        // Shows users the LLM's planning process in real-time
+        const onReasoningChunk = async (chunk: string, phase: string) => {
+          await sendEvent("reasoning", {
+            messageId: responseMessageId,
+            chunk,
+            phase,
+            timestamp: Date.now(),
+          });
+        };
+
         // Process message and get response (using user's actual ID)
         logger.info("[Stream Messages] Processing message with streaming...");
         const result = await messageHandler.process({
@@ -671,6 +682,7 @@ export async function POST(
           agentModeConfig,
           attachments,
           onStreamChunk,
+          onReasoningChunk,
         });
 
         // Extract content - the full Content object is now stored in memory

@@ -18,17 +18,25 @@ import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
 
+// Cache dashboard data for 30 seconds at edge/CDN level
+const CACHE_MAX_AGE = 30; // seconds
+const STALE_WHILE_REVALIDATE = 60; // serve stale for 60s while revalidating
+
 export async function GET() {
   const user = await requireAuthWithOrg();
   const organizationId = user.organization_id!;
 
-  const [generationStats, userCharacters, containers, apiKeys, userRooms] =
+  // PERFORMANCE: Parallelized all data fetches including 24h usage stats
+  const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  
+  const [generationStats, userCharacters, containers, apiKeys, userRooms, usageStats] =
     await Promise.all([
       generationsService.getStats(organizationId),
       charactersService.listByUser(user.id),
       listContainers(organizationId),
       apiKeysService.listByOrganization(organizationId),
       roomsService.getRoomsForEntity(user.id),
+      usageService.getStatsByOrganization(organizationId, twentyFourHoursAgo, new Date()),
     ]);
 
   const chatRoomCount = userRooms.length;
@@ -37,14 +45,6 @@ export async function GET() {
     generationStats.byType.find((t) => t.type === "image")?.count || 0;
   const videoGenerations =
     generationStats.byType.find((t) => t.type === "video")?.count || 0;
-
-  // Get 24h API call count
-  const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-  const usageStats = await usageService.getStatsByOrganization(
-    organizationId,
-    twentyFourHoursAgo,
-    new Date(),
-  );
   const apiCalls24h = usageStats.totalRequests;
 
   // Fetch agent stats in batch
@@ -121,5 +121,10 @@ export async function GET() {
     })),
   };
 
-  return NextResponse.json(data);
+  return NextResponse.json(data, {
+    headers: {
+      // Enable CDN caching with stale-while-revalidate for better perceived performance
+      'Cache-Control': `private, max-age=${CACHE_MAX_AGE}, stale-while-revalidate=${STALE_WHILE_REVALIDATE}`,
+    },
+  });
 }

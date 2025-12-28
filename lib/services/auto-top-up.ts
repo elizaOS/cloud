@@ -104,14 +104,23 @@ export class AutoTopUpService {
         ),
       );
 
-    logger.info(
-      `[AutoTopUp] Found ${orgsNeedingTopUp.length} organizations needing auto top-up`,
+    logger.info(`[AutoTopUp] Found ${orgsNeedingTopUp.length} organizations needing auto top-up`);
+
+    const settledResults = await Promise.allSettled(
+      orgsNeedingTopUp.map((org) => this.executeAutoTopUp(org))
     );
 
-    // Process each organization
-    for (const org of orgsNeedingTopUp) {
-      const result = await this.executeAutoTopUp(org);
-      results.push(result);
+    for (const settled of settledResults) {
+      if (settled.status === "fulfilled") {
+        results.push(settled.value);
+      } else {
+        logger.error(`[AutoTopUp] Unexpected error:`, settled.reason);
+        results.push({
+          organizationId: "unknown",
+          success: false,
+          error: settled.reason instanceof Error ? settled.reason.message : String(settled.reason),
+        });
+      }
     }
 
     const successful = results.filter((r) => r.success).length;

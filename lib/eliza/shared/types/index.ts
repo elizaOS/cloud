@@ -16,6 +16,19 @@ export type StreamChunkCallback = (
 ) => Promise<void>;
 
 /**
+ * Callback for streaming reasoning/chain-of-thought.
+ * Shows the LLM's planning process in real-time.
+ * @param chunk - The reasoning text chunk
+ * @param phase - Current phase of reasoning (planning, actions, response)
+ * @param messageId - Optional message ID for coordination
+ */
+export type ReasoningChunkCallback = (
+  chunk: string,
+  phase: "planning" | "actions" | "response",
+  messageId?: UUID,
+) => Promise<void>;
+
+/**
  * Parameters for message received handler.
  */
 export interface MessageReceivedHandlerParams {
@@ -27,4 +40,9 @@ export interface MessageReceivedHandlerParams {
    * When provided, the handler should stream the response chunk-by-chunk.
    */
   onStreamChunk?: StreamChunkCallback;
+  /**
+   * Optional callback for streaming reasoning/chain-of-thought.
+   * When provided, shows the LLM's planning process to the user.
+   */
+  onReasoningChunk?: ReasoningChunkCallback;
 }

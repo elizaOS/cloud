@@ -84,6 +84,10 @@ interface MemoizedChatMessageProps {
   ) => void;
   onPlayAudio?: (messageId: string) => void;
   onImageLoad?: () => void;
+  /** Chain-of-thought reasoning text to display while thinking */
+  reasoningText?: string;
+  /** Current phase of reasoning: planning, actions, or response */
+  reasoningPhase?: "planning" | "actions" | "response" | null;
 }
 
 // Markdown components configuration
@@ -143,8 +147,11 @@ function ChatMessageComponent({
   onCopy,
   onPlayAudio,
   onImageLoad,
+  reasoningText,
+  reasoningPhase,
 }: MemoizedChatMessageProps) {
   const isThinking = message.id.startsWith("thinking-");
+  const hasReasoning = isThinking && reasoningText && reasoningText.length > 0;
   // Use shared plugins cache - no flash since plugins are pre-loaded at module level
   const plugins = useMarkdownPlugins();
   
@@ -173,9 +180,31 @@ function ChatMessageComponent({
 
           <div className="flex flex-col gap-0.5">
             {isThinking ? (
-              <div className="flex items-center gap-2 py-2 px-3 bg-white/[0.03] border border-white/[0.06] rounded-lg">
-                <Loader2 className="h-4 w-4 animate-spin text-white/40" />
-                <span className="text-sm text-white/40">thinking...</span>
+              <div className="py-2 px-3 bg-white/[0.03] border border-white/[0.06] rounded-lg">
+                {hasReasoning ? (
+                  // Show chain-of-thought reasoning
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin text-[#FF5800]/60" />
+                      <span className="text-xs font-medium text-[#FF5800]/60 uppercase tracking-wider">
+                        {reasoningPhase === "planning" && "Planning..."}
+                        {reasoningPhase === "actions" && "Executing..."}
+                        {reasoningPhase === "response" && "Responding..."}
+                        {!reasoningPhase && "Thinking..."}
+                      </span>
+                    </div>
+                    <div className="text-sm text-white/50 italic leading-relaxed border-l-2 border-[#FF5800]/20 pl-3 ml-1">
+                      {reasoningText}
+                      <span className="inline-block w-1.5 h-3.5 bg-[#FF5800]/40 ml-0.5 animate-pulse" />
+                    </div>
+                  </div>
+                ) : (
+                  // Default thinking indicator
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin text-white/40" />
+                    <span className="text-sm text-white/40">thinking...</span>
+                  </div>
+                )}
               </div>
             ) : (
               <>
@@ -348,7 +377,9 @@ export const MemoizedChatMessage = memo(
       prevProps.currentPlayingId === nextProps.currentPlayingId &&
       prevProps.isPlaying === nextProps.isPlaying &&
       prevProps.hasAudioUrl === nextProps.hasAudioUrl &&
-      prevProps.isStreaming === nextProps.isStreaming
+      prevProps.isStreaming === nextProps.isStreaming &&
+      prevProps.reasoningText === nextProps.reasoningText &&
+      prevProps.reasoningPhase === nextProps.reasoningPhase
     );
   }
 );

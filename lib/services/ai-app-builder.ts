@@ -256,27 +256,27 @@ export class AIAppBuilderService {
 
       const durationMs = Date.now() - startTime;
 
-      // Update the prompt record with the result
-      await dbWrite
-        .update(appBuilderPrompts)
-        .set({
-          status: result.success ? "completed" : "error",
+      // PERFORMANCE: Update prompt record and add assistant response in parallel
+      await Promise.all([
+        dbWrite
+          .update(appBuilderPrompts)
+          .set({
+            status: result.success ? "completed" : "error",
+            files_affected: result.filesAffected,
+            error_message: result.success ? null : result.output,
+            completed_at: new Date(),
+            duration_ms: durationMs,
+          })
+          .where(eq(appBuilderPrompts.id, promptRecord.id)),
+        dbWrite.insert(appBuilderPrompts).values({
+          sandbox_session_id: sessionId,
+          role: "assistant",
+          content: result.output,
           files_affected: result.filesAffected,
-          error_message: result.success ? null : result.output,
+          status: "completed",
           completed_at: new Date(),
-          duration_ms: durationMs,
-        })
-        .where(eq(appBuilderPrompts.id, promptRecord.id));
-
-      // Add assistant response
-      await dbWrite.insert(appBuilderPrompts).values({
-        sandbox_session_id: sessionId,
-        role: "assistant",
-        content: result.output,
-        files_affected: result.filesAffected,
-        status: "completed",
-        completed_at: new Date(),
-      } satisfies NewAppBuilderPrompt);
+        } satisfies NewAppBuilderPrompt),
+      ]);
 
       // Update session
       const messages =
@@ -360,20 +360,23 @@ export class AIAppBuilderService {
   }
   /**
    * Get session details
+   * PERFORMANCE: Fetches session and prompts in parallel
    */
   async getSession(sessionId: string): Promise<BuilderSession | null> {
-    const session = await dbRead.query.appSandboxSessions.findFirst({
-      where: eq(appSandboxSessions.id, sessionId),
-    });
+    // PERFORMANCE: Fetch session and prompts in parallel
+    const [session, prompts] = await Promise.all([
+      dbRead.query.appSandboxSessions.findFirst({
+        where: eq(appSandboxSessions.id, sessionId),
+      }),
+      dbRead.query.appBuilderPrompts.findMany({
+        where: eq(appBuilderPrompts.sandbox_session_id, sessionId),
+        orderBy: [desc(appBuilderPrompts.created_at)],
+      }),
+    ]);
 
     if (!session) {
       return null;
     }
-
-    const prompts = await dbRead.query.appBuilderPrompts.findMany({
-      where: eq(appBuilderPrompts.sandbox_session_id, sessionId),
-      orderBy: [desc(appBuilderPrompts.created_at)],
-    });
 
     const messages = prompts
       .filter((p) => p.role !== "system")

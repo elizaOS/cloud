@@ -46,6 +46,16 @@ export type StreamChunkCallback = (
   messageId?: UUID,
 ) => Promise<void>;
 
+/**
+ * Callback for streaming reasoning/chain-of-thought chunks.
+ * Shows the LLM's planning process in real-time.
+ */
+export type ReasoningChunkCallback = (
+  chunk: string,
+  phase: "planning" | "actions" | "response",
+  messageId?: UUID,
+) => Promise<void>;
+
 export interface MessageOptions {
   roomId: string;
   text: string;
@@ -55,6 +65,8 @@ export interface MessageOptions {
   agentModeConfig?: AgentModeConfig;
   /** Optional callback for streaming text chunks to the client */
   onStreamChunk?: StreamChunkCallback;
+  /** Optional callback for streaming reasoning/chain-of-thought */
+  onReasoningChunk?: ReasoningChunkCallback;
 }
 
 export class MessageHandler {
@@ -64,7 +76,7 @@ export class MessageHandler {
   ) {}
 
   async process(options: MessageOptions): Promise<MessageResult> {
-    const { roomId, text, attachments, agentModeConfig, onStreamChunk } =
+    const { roomId, text, attachments, agentModeConfig, onStreamChunk, onReasoningChunk } =
       options;
     const entityId = this.userContext.userId;
     const modeConfig = agentModeConfig || DEFAULT_AGENT_MODE;
@@ -87,6 +99,7 @@ export class MessageHandler {
       message: userMessage,
       agentModeConfig: modeConfig,
       onStreamChunk,
+      onReasoningChunk,
       callback: async (content: Content) => {
         if (content.text) {
           responseContent = content;
@@ -168,13 +181,24 @@ export class MessageHandler {
       displayName,
     ].filter(Boolean) as string[];
 
-    await this.ensureWorldExists(worldId, serverId);
-    await this.ensureAgentEntity();
-    await this.ensureRoomExistsWithFields(roomUuid, worldId, serverId);
-    await this.ensureUserEntity(entityUuid, names, displayName);
+    // PERFORMANCE: Phase 1 - Create world and agent entity in parallel
+    await Promise.all([
+      this.ensureWorldExists(worldId, serverId),
+      this.ensureAgentEntity(),
+    ]);
+
+    // PERFORMANCE: Phase 2 - Create room and user entity in parallel
+    // Room depends on world existing, user entity is independent
+    await Promise.all([
+      this.ensureRoomExistsWithFields(roomUuid, worldId, serverId),
+      this.ensureUserEntity(entityUuid, names, displayName),
+    ]);
+
+    // Phase 3 - Participants (depends on room and entities existing)
     await this.ensureParticipants(roomUuid, entityUuid);
 
-    await connectionCache.markEstablished(roomId, entityId);
+    // Fire-and-forget cache mark
+    connectionCache.markEstablished(roomId, entityId).catch(() => {});
   }
 
   private async ensureWorldExists(
@@ -309,12 +333,11 @@ export class MessageHandler {
     roomId: UUID,
     entityUuid: UUID,
   ): Promise<void> {
-    await this.runtime
-      .ensureParticipantInRoom(this.runtime.agentId, roomId)
-      .catch(() => {});
-    await this.runtime
-      .ensureParticipantInRoom(entityUuid, roomId)
-      .catch(() => {});
+    // PERFORMANCE: Add both participants in parallel
+    await Promise.all([
+      this.runtime.ensureParticipantInRoom(this.runtime.agentId, roomId).catch(() => {}),
+      this.runtime.ensureParticipantInRoom(entityUuid, roomId).catch(() => {}),
+    ]);
   }
 
   private createMessage(

@@ -1,33 +1,89 @@
+/**
+ * Proxy Middleware - Auth caching and runtime pre-warming
+ */
+
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { PrivyClient } from "@privy-io/server-auth";
+import { Redis } from "@upstash/redis";
 
-// Initialize Privy client
 const privyClient = new PrivyClient(
   process.env.NEXT_PUBLIC_PRIVY_APP_ID!,
   process.env.PRIVY_APP_SECRET!,
 );
 
-// Paths that don't require authentication
+let redis: Redis | null = null;
+
+function getRedis(): Redis | null {
+  if (redis) return redis;
+  const url = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
+  const token = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
+  if (url && token) redis = new Redis({ url, token });
+  return redis;
+}
+
+const AUTH_CACHE_TTL = 300;
+
+interface CachedAuth {
+  valid: boolean;
+  userId?: string;
+  cachedAt: number;
+}
+
+function hashToken(token: string): string {
+  let hash = 0;
+  for (let i = 0; i < Math.min(token.length, 100); i++) {
+    hash = ((hash << 5) - hash) + token.charCodeAt(i);
+    hash = hash & hash;
+  }
+  return Math.abs(hash).toString(36);
+}
+
+async function getCachedAuth(token: string): Promise<CachedAuth | null> {
+  const client = getRedis();
+  if (!client) return null;
+  try {
+    const cached = await client.get<string>(`proxy:auth:${hashToken(token)}`);
+    return cached ? JSON.parse(cached) : null;
+  } catch { return null; }
+}
+
+async function setCachedAuth(token: string, auth: CachedAuth): Promise<void> {
+  const client = getRedis();
+  if (!client) return;
+  try {
+    await client.setex(`proxy:auth:${hashToken(token)}`, AUTH_CACHE_TTL, JSON.stringify(auth));
+  } catch { /* ignore */ }
+}
+
+async function signalRuntimePreWarm(agentId: string): Promise<void> {
+  const client = getRedis();
+  if (!client) return;
+  try {
+    const key = `proxy:prewarm:${agentId}`;
+    if (!(await client.get(key))) await client.setex(key, 30, "pending");
+  } catch { /* ignore */ }
+}
+
 const publicPaths = [
   "/",
   "/marketplace",
-  "/payment/success", // Payment callback from external providers (OxaPay)
-  "/dashboard/chat", // FREE MODE: Allow anonymous access to Chat
-  "/chat", // Public chat routes for anonymous users
-  "/api/eliza", // Allow anonymous access to Eliza API routes
+  "/payment/success",
+  "/dashboard/chat",
+  "/chat",
+  "/api/eliza",
   "/api/models",
   "/api/fal/proxy",
-  "/api/og", // OG image generation (must be public for social media crawlers)
-  "/api/public", // Public API endpoints (marketplace, etc.)
+  "/api/og",
+  "/api/public",
   "/auth/error",
-  "/auth/cli-login", // CLI login page
-  "/api/auth/cli-session", // CLI session endpoints (public for polling)
-  "/api/auth/miniapp-session", // Miniapp session endpoints (public for pass-through auth flow)
-  "/auth/miniapp-login", // Miniapp login page
-  "/api/set-anonymous-session", // Anonymous session cookie setting
-  "/api/anonymous-session", // Anonymous session data API (for polling message count)
-  "/api/affiliate", // Affiliate API endpoints (public for anonymous users)
+  "/auth/cli-login",
+  "/api/auth/cli-session",
+  "/api/auth/miniapp-session",
+  "/auth/miniapp-login",
+  "/api/set-anonymous-session",
+  "/api/anonymous-session",
+  "/api/affiliate",
   "/api/v1/generate-image",
   "/api/v1/generate-video",
   "/api/v1/chat",
@@ -35,21 +91,20 @@ const publicPaths = [
   "/api/v1/responses",
   "/api/v1/embeddings",
   "/api/v1/models",
-  "/api/v1/credits/topup", // x402 credit top-up (uses x402 or API key auth)
+  "/api/v1/credits/topup",
   "/api/stripe/webhook",
-  "/api/crypto/webhook", // OxaPay crypto payment webhook
-  "/api/privy/webhook", // Privy webhook endpoint
-  "/api/cron", // Cron endpoints (protected by CRON_SECRET)
-  "/api/v1/cron", // V1 Cron endpoints (protected by CRON_SECRET)
-  "/api/mcp/demos", // Public demo MCP servers (GET returns server info)
-  "/api/mcp/list", // Public MCP server list
-  "/api/mcp", // MCP protocol endpoint (uses API key or x402 auth)
-  "/api/a2a", // A2A protocol endpoint (uses API key or x402 auth)
-  "/api/agents", // Agent-specific A2A/MCP endpoints (handle their own auth)
-  "/.well-known", // ERC-8004 and A2A discovery files
+  "/api/crypto/webhook",
+  "/api/privy/webhook",
+  "/api/cron",
+  "/api/v1/cron",
+  "/api/mcp/demos",
+  "/api/mcp/list",
+  "/api/mcp",
+  "/api/a2a",
+  "/api/agents",
+  "/.well-known",
 ];
 
-// Paths that should be checked for authentication
 const protectedPaths = [
   "/dashboard",
   "/api/v1/user",
@@ -62,99 +117,84 @@ const protectedPaths = [
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const startTime = Date.now();
 
-  // Check if path is explicitly public
-  const isPublicPath = publicPaths.some(
-    (path) => pathname === path || pathname.startsWith(`${path}/`),
-  );
-
-  if (isPublicPath) {
-    return NextResponse.next();
+  // Pre-warm runtime for chat
+  if (pathname.includes("/api/eliza/rooms/") && pathname.includes("/messages")) {
+    const characterId = request.nextUrl.searchParams.get("characterId");
+    if (characterId) signalRuntimePreWarm(characterId).catch(() => {});
   }
 
-  // Check if path needs protection
-  const isProtectedPath = protectedPaths.some(
-    (path) => pathname === path || pathname.startsWith(`${path}/`),
-  );
+  const isPublicPath = publicPaths.some(p => pathname === p || pathname.startsWith(`${p}/`));
+  if (isPublicPath) {
+    const response = NextResponse.next();
+    response.headers.set("X-Proxy-Time", `${Date.now() - startTime}ms`);
+    return response;
+  }
 
-  // If not a protected path and not public, allow through
-  // This handles static files, etc.
+  const isProtectedPath = protectedPaths.some(p => pathname === p || pathname.startsWith(`${p}/`));
   if (!isProtectedPath && !pathname.startsWith("/api/")) {
     return NextResponse.next();
   }
 
-  // Try to verify authentication
   try {
-    // Check for auth token in cookies
     const authToken = request.cookies.get("privy-token");
-
-    // Check for Bearer token in Authorization header (for API routes)
     const authHeader = request.headers.get("Authorization");
-    const bearerToken = authHeader?.startsWith("Bearer ")
-      ? authHeader.slice(7)
-      : null;
-
-    // Check for API key (support both X-API-Key header and Bearer token)
+    const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
     const apiKey = request.headers.get("X-API-Key");
 
-    // If API key is provided, allow through (will be validated in the route handler)
     if (apiKey || (bearerToken && bearerToken.startsWith("eliza_"))) {
-      return NextResponse.next();
+      const response = NextResponse.next();
+      response.headers.set("X-Proxy-Time", `${Date.now() - startTime}ms`);
+      return response;
     }
 
     const token = bearerToken || authToken?.value;
 
     if (!token) {
-      // No token found - return 401 for all protected routes
       if (pathname.startsWith("/api/")) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
-
-      // For web pages, redirect to home page where they can use the login modal
       const url = request.nextUrl.clone();
       url.pathname = "/";
       return NextResponse.redirect(url);
     }
 
-    // Verify the token with Privy
+    const cachedAuth = await getCachedAuth(token);
+    if (cachedAuth?.valid && cachedAuth.userId) {
+      const requestHeaders = new Headers(request.headers);
+      requestHeaders.set("x-privy-user-id", cachedAuth.userId);
+      requestHeaders.set("x-auth-cached", "true");
+      const response = NextResponse.next({ request: { headers: requestHeaders } });
+      response.headers.set("X-Proxy-Time", `${Date.now() - startTime}ms`);
+      response.headers.set("X-Auth-Cached", "true");
+      return response;
+    }
+
     const user = await privyClient.verifyAuthToken(token);
 
     if (!user) {
-      // Invalid token
+      await setCachedAuth(token, { valid: false, cachedAt: Date.now() });
       if (pathname.startsWith("/api/")) {
-        return NextResponse.json(
-          { error: "Invalid authentication token" },
-          { status: 401 },
-        );
+        return NextResponse.json({ error: "Invalid authentication token" }, { status: 401 });
       }
-
-      // For web pages, redirect to home page where they can use the login modal
       const url = request.nextUrl.clone();
       url.pathname = "/";
       return NextResponse.redirect(url);
     }
 
-    // Token is valid - add user info to headers for downstream use
+    await setCachedAuth(token, { valid: true, userId: user.userId, cachedAt: Date.now() });
+
     const requestHeaders = new Headers(request.headers);
     requestHeaders.set("x-privy-user-id", user.userId);
-    // Note: Email is not available from token claims - it's synced via webhooks
-
-    return NextResponse.next({
-      request: {
-        headers: requestHeaders,
-      },
-    });
+    const response = NextResponse.next({ request: { headers: requestHeaders } });
+    response.headers.set("X-Proxy-Time", `${Date.now() - startTime}ms`);
+    return response;
   } catch (error) {
     console.error("Middleware auth error:", error);
-
-    // Return error response
     if (pathname.startsWith("/api/")) {
-      return NextResponse.json(
-        { error: "Authentication failed" },
-        { status: 401 },
-      );
+      return NextResponse.json({ error: "Authentication failed" }, { status: 401 });
     }
-
     const url = request.nextUrl.clone();
     url.pathname = "/auth/error";
     url.searchParams.set("reason", "auth_failed");
@@ -163,14 +203,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - public folder
-     */
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
-  ],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
 };

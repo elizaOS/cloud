@@ -58,6 +58,8 @@ const nextConfig: NextConfig = {
     serverActions: {
       bodySizeLimit: "2gb",
     },
+    // Enable instrumentation for runtime pre-warming
+    instrumentationHook: true,
   },
   turbopack: {},
   typescript: {

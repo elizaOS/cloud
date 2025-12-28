@@ -59,7 +59,11 @@ export const generateImageAction = {
     try {
       const allProviders = responses?.flatMap((res) => res.content?.providers ?? []) ?? [];
 
-      state = await runtime.composeState(message, [...(allProviders ?? []), 'RECENT_MESSAGES']);
+      if (!state) {
+        state = await runtime.composeState(message, [...(allProviders ?? []), 'RECENT_MESSAGES']);
+      } else if (allProviders.length > 0) {
+        state.values = { ...state.values, additionalProviders: allProviders };
+      }
 
       const prompt = composePromptFromState({
         state,

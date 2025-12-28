@@ -22,6 +22,52 @@ import {
 } from "./agent-mode-types";
 
 /**
+ * PERFORMANCE: Pre-loaded plugin cache
+ * Plugins are loaded once at module initialization and cached.
+ * This eliminates dynamic import latency (~50-200ms per plugin).
+ */
+let _knowledgePlugin: Plugin | null = null;
+let _webSearchPlugin: Plugin | null = null;
+let _pluginsPreloading = false;
+
+/**
+ * Pre-warm plugin cache at module load.
+ * This runs in the background during app startup.
+ */
+async function preloadPlugins(): Promise<void> {
+  if (_pluginsPreloading) return;
+  _pluginsPreloading = true;
+  
+  try {
+    // Load both plugins in parallel
+    const [knowledgeModule, webSearchModule] = await Promise.all([
+      import("@elizaos/plugin-knowledge").catch((e) => {
+        console.warn("[AgentLoader] Failed to preload knowledge plugin:", e);
+        return null;
+      }),
+      import("@elizaos/plugin-web-search").catch((e) => {
+        console.warn("[AgentLoader] Failed to preload web-search plugin:", e);
+        return null;
+      }),
+    ]);
+
+    if (knowledgeModule) {
+      _knowledgePlugin = knowledgeModule.knowledgePluginCore;
+    }
+    if (webSearchModule) {
+      _webSearchPlugin = webSearchModule.webSearchPlugin;
+    }
+    
+    console.log("[AgentLoader] ⚡ Plugins preloaded successfully");
+  } catch (e) {
+    console.error("[AgentLoader] Plugin preload failed:", e);
+  }
+}
+
+// Trigger preload immediately when module is imported
+preloadPlugins();
+
+/**
  * Reasons why mode was upgraded to ASSISTANT.
  * Used for logging and debugging.
  */
@@ -96,13 +142,29 @@ async function resolveEffectiveMode(
   return { mode: requestedMode, upgradeReason: "none" };
 }
 
-async function loadKnowledgePlugin() {
+/**
+ * Get knowledge plugin from cache or load if not ready.
+ * PERFORMANCE: Returns cached plugin instantly when preloaded.
+ */
+async function getKnowledgePlugin(): Promise<Plugin> {
+  if (_knowledgePlugin) return _knowledgePlugin;
+  
+  // Fallback to dynamic import if preload hasn't completed
   const { knowledgePluginCore } = await import("@elizaos/plugin-knowledge");
+  _knowledgePlugin = knowledgePluginCore;
   return knowledgePluginCore;
 }
 
-async function loadWebSearchPlugin() {
+/**
+ * Get web search plugin from cache or load if not ready.
+ * PERFORMANCE: Returns cached plugin instantly when preloaded.
+ */
+async function getWebSearchPlugin(): Promise<Plugin> {
+  if (_webSearchPlugin) return _webSearchPlugin;
+  
+  // Fallback to dynamic import if preload hasn't completed
   const { webSearchPlugin } = await import("@elizaos/plugin-web-search");
+  _webSearchPlugin = webSearchPlugin;
   return webSearchPlugin;
 }
 
@@ -334,16 +396,16 @@ export class AgentLoader {
     }
 
     for (const pluginName of allPluginNames) {
-      // Knowledge plugin lazy-loaded (SSR compatibility)
+      // Knowledge plugin - use preloaded cache for instant access
       if (pluginName === "@elizaos/plugin-knowledge") {
-        const knowledgePlugin = await loadKnowledgePlugin();
+        const knowledgePlugin = await getKnowledgePlugin();
         if (!plugins.includes(knowledgePlugin)) plugins.push(knowledgePlugin);
         continue;
       }
 
-      // Web search plugin lazy-loaded (SSR compatibility)
+      // Web search plugin - use preloaded cache for instant access
       if (pluginName === "@elizaos/plugin-web-search") {
-        const webSearchPlugin = await loadWebSearchPlugin();
+        const webSearchPlugin = await getWebSearchPlugin();
         if (!plugins.includes(webSearchPlugin)) plugins.push(webSearchPlugin);
         continue;
       }

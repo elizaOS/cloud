@@ -33,7 +33,7 @@ import { useAudioRecorder } from "./hooks/use-audio-recorder";
 import { useAudioPlayer } from "./hooks/use-audio-player";
 import { useModelTier } from "./hooks/use-model-tier";
 import { sendStreamingMessage } from "@/lib/hooks/use-streaming-message";
-import type { StreamingMessage, StreamChunkData } from "@/lib/hooks/use-streaming-message";
+import type { StreamingMessage, StreamChunkData, ReasoningChunkData } from "@/lib/hooks/use-streaming-message";
 import { toast } from "sonner";
 import {
   Select,
@@ -269,6 +269,13 @@ export function ElizaChatInterface({
   
   // Custom model selection (when user picks from "More models")
   const [customModel, setCustomModel] = useState<{ id: string; name: string; modelId: string } | null>(null);
+  
+  // Reasoning/chain-of-thought state - shows LLM's thinking process
+  const [reasoningState, setReasoningState] = useState<{
+    text: string;
+    phase: "planning" | "actions" | "response" | null;
+    isVisible: boolean;
+  }>({ text: "", phase: null, isVisible: false });
 
   const messageAudioUrls = useRef<Map<string, string>>(new Map());
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
@@ -389,27 +396,20 @@ export function ElizaChatInterface({
   );
 
   const handleStreamMessage = useCallback((messageData: StreamingMessage) => {
-    setMessages((prev) => {
-      // Handle agent response - update streaming message in place to avoid flash
-      if (messageData.type === "agent") {
-        // Clean up streaming state
-        clearAllStreaming();
+    if (messageData.type === "agent") {
+      setReasoningState({ text: "", phase: null, isVisible: false });
+    }
 
-        // Clear thinking timeout
+    setMessages((prev) => {
+      if (messageData.type === "agent") {
+        clearAllStreaming();
         if (thinkingTimeoutRef.current) {
           clearTimeout(thinkingTimeoutRef.current);
           thinkingTimeoutRef.current = null;
         }
+        if (prev.some((m) => m.id === messageData.id)) return prev;
 
-        // Check for duplicates
-        if (prev.some((m) => m.id === messageData.id)) {
-          return prev;
-        }
-
-        // Find streaming message by prefix
-        const streamingIndex = prev.findIndex(
-          (m) => m.id === `streaming-${messageData.id}`
-        );
+        const streamingIndex = prev.findIndex((m) => m.id === `streaming-${messageData.id}`);
         if (streamingIndex !== -1) {
           const updated = [...prev];
           updated[streamingIndex] = {
@@ -420,21 +420,13 @@ export function ElizaChatInterface({
               text: updated[streamingIndex].content.text || messageData.content.text,
             },
           };
-          // Also remove any thinking/temp messages
-          return updated.filter(
-            (m) => !m.id.startsWith("thinking-") && !m.id.startsWith("temp-"),
-          );
+          return updated.filter((m) => !m.id.startsWith("thinking-") && !m.id.startsWith("temp-"));
         }
 
-        // No streaming message found - fallback to normal add
-        const filtered = prev.filter(
-          (m) =>
-            !m.id.startsWith("thinking-") &&
-            !m.id.startsWith("temp-") &&
-            !m.id.startsWith("streaming-"),
-        );
-
-        return [...filtered, messageData];
+        return [
+          ...prev.filter((m) => !m.id.startsWith("thinking-") && !m.id.startsWith("temp-") && !m.id.startsWith("streaming-")),
+          messageData,
+        ];
       }
 
       // Handle thinking indicator
@@ -471,6 +463,16 @@ export function ElizaChatInterface({
       return prev;
     });
   }, [clearAllStreaming]);
+
+  // Handle reasoning/chain-of-thought chunks - shows LLM's planning
+  const handleReasoningChunk = useCallback((chunkData: ReasoningChunkData) => {
+    const { chunk, phase } = chunkData;
+    setReasoningState((prev) => ({
+      text: prev.text + chunk,
+      phase: phase as "planning" | "actions" | "response",
+      isVisible: true,
+    }));
+  }, []);
 
   // Handle real-time streaming chunks - updates message text incrementally
   const handleStreamChunk = useCallback((chunkData: StreamChunkData) => {
@@ -601,6 +603,9 @@ export function ElizaChatInterface({
         };
         
         setMessages((prev) => [...prev, tempUserMessage, optimisticThinkingMessage]);
+        
+        // Reset reasoning state for new message
+        setReasoningState({ text: "", phase: null, isVisible: false });
         // Clear loading state immediately so chat interface shows right away
         setLoadingState((prev) => ({ ...prev, isLoadingMessages: false }));
 
@@ -623,6 +628,7 @@ export function ElizaChatInterface({
           webSearchEnabled, // Pass web search toggle state
           onMessage: handleStreamMessage,
           onChunk: handleStreamChunk, // Handle real-time streaming chunks
+          onReasoning: handleReasoningChunk, // Handle chain-of-thought display
           onError: (errorMsg) => {
             setError(errorMsg);
             toast.error(errorMsg);
@@ -1182,6 +1188,9 @@ export function ElizaChatInterface({
                       isStreaming={isStreaming}
                       formatTimestamp={formatTimestamp}
                       onCopy={copyToClipboard}
+                      // Pass reasoning state to thinking messages
+                      reasoningText={message.id.startsWith("thinking-") ? reasoningState.text : undefined}
+                      reasoningPhase={message.id.startsWith("thinking-") ? reasoningState.phase : undefined}
                       onPlayAudio={(messageId) => {
                         const url = messageAudioUrls.current.get(messageId);
                         if (url) {
