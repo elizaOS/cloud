@@ -28,13 +28,15 @@ const MIN_UPDATE_INTERVAL_MS = 33; // ~30fps
  * flooding in or updating jerkily. The pacing feels natural and readable.
  *
  * @example
- * const { accumulateChunk, getAccumulatedText, scheduleUpdate, cleanup } = useThrottledStreamingUpdate();
+ * const { accumulateChunk, scheduleUpdate, clearAll } = useThrottledStreamingUpdate();
  *
  * // On each chunk:
  * accumulateChunk(messageId, chunk);
  * scheduleUpdate(messageId, (text) => {
  *   setMessages(prev => updateStreamingMessage(prev, messageId, text));
  * });
+ * // On completion:
+ * clearAll();
  */
 export function useThrottledStreamingUpdate() {
   // Map of messageId -> accumulated text (no re-renders when updated)
@@ -48,14 +50,19 @@ export function useThrottledStreamingUpdate() {
 
   // Cleanup on unmount
   useEffect(() => {
+    // Capture refs inside effect for cleanup
+    const pendingUpdates = pendingUpdatesRef.current;
+    const textMap = textMapRef.current;
+    const lastUpdateTime = lastUpdateTimeRef.current;
+    
     return () => {
       // Cancel all pending animation frames
-      pendingUpdatesRef.current.forEach((frameId) => {
+      pendingUpdates.forEach((frameId) => {
         cancelAnimationFrame(frameId);
       });
-      pendingUpdatesRef.current.clear();
-      textMapRef.current.clear();
-      lastUpdateTimeRef.current.clear();
+      pendingUpdates.clear();
+      textMap.clear();
+      lastUpdateTime.clear();
     };
   }, []);
 
@@ -67,26 +74,6 @@ export function useThrottledStreamingUpdate() {
     textMapRef.current.set(messageId, currentText + chunk);
   }, []);
 
-  /**
-   * Get the current accumulated text for a message.
-   */
-  const getAccumulatedText = useCallback((messageId: string): string => {
-    return textMapRef.current.get(messageId) || "";
-  }, []);
-
-  /**
-   * Clear accumulated text for a message (call when streaming completes).
-   */
-  const clearAccumulatedText = useCallback((messageId: string) => {
-    textMapRef.current.delete(messageId);
-    lastUpdateTimeRef.current.delete(messageId);
-    // Also cancel any pending update
-    const frameId = pendingUpdatesRef.current.get(messageId);
-    if (frameId !== undefined) {
-      cancelAnimationFrame(frameId);
-      pendingUpdatesRef.current.delete(messageId);
-    }
-  }, []);
 
   /**
    * Clear all accumulated text (call on error or reset).
@@ -151,8 +138,6 @@ export function useThrottledStreamingUpdate() {
 
   return {
     accumulateChunk,
-    getAccumulatedText,
-    clearAccumulatedText,
     clearAll,
     scheduleUpdate,
   };

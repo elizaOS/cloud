@@ -15,19 +15,29 @@ import { ContentType, type Media } from "@elizaos/core";
 
 /**
  * Hook for smooth typewriter animation of streaming text.
- * Handles burst input gracefully by revealing text at a consistent pace.
+ * Handles burst input gracefully by revealing text at a consistent, readable pace.
  * Uses requestAnimationFrame for smooth 60fps animation.
  * 
- * IMPORTANT: Animation always completes to the full text, even after streaming ends.
- * This prevents the jarring "snap to end" effect when the final message arrives.
+ * KEY DESIGN PRINCIPLES:
+ * 1. First chunk appears IMMEDIATELY - no delay
+ * 2. NEVER jumps to end - always types at visible speed
+ * 3. Catches up smoothly when behind, but max speed is capped
+ * 4. Animation continues after stream ends at same pace
  */
 function useTypewriterText(
   targetText: string,
   isActive: boolean,
-  config: { charsPerFrame?: number; frameDelay?: number; onReveal?: () => void } = {}
+  config: { onReveal?: () => void } = {}
 ) {
-  // Faster base speed and shorter delay for smoother animation
-  const { charsPerFrame = 5, frameDelay = 10, onReveal } = config;
+  const { onReveal } = config;
+  
+  // CONSISTENT SPEED APPROACH:
+  // - Never "jump" by revealing too much at once
+  // - Keep typing at a steady pace regardless of how much is buffered
+  // - Fast enough to not feel sluggish (6 chars per 10ms = ~600 chars/sec)
+  // - Slow enough to be readable and feel like typing
+  const CHARS_PER_FRAME = 6;
+  const FRAME_DELAY = 10; // ms between frames
   
   // Track animation state in ref (for animation logic)
   const animState = useRef({ 
@@ -35,7 +45,7 @@ function useTypewriterText(
     lastFrame: 0, 
     animationId: null as number | null,
     lastTargetLength: 0,
-    wasActive: false  // Track in ref to avoid state-in-effect issues
+    everActive: false
   });
   
   // Track display state in React state (for rendering)
@@ -47,38 +57,38 @@ function useTypewriterText(
     onRevealRef.current = onReveal;
   });
   
-  // Handle animation - runs when streaming OR when finishing animation after stream ends
+  // Handle animation
   useEffect(() => {
     const state = animState.current;
     
-    // Track if we've ever been active (for this message)
+    // Track if ever active
     if (isActive) {
-      state.wasActive = true;
+      state.everActive = true;
     }
     
     // Detect new message (target got shorter) and reset
     if (targetText.length < state.lastTargetLength) {
       state.visibleLength = 0;
       state.lastTargetLength = targetText.length;
-      state.wasActive = isActive;
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Intentional reset for new message
+      setDisplayLength(0);
     } else {
       state.lastTargetLength = targetText.length;
     }
     
-    // Skip animation if this message was never streamed (e.g., loaded from history)
-    // But continue if we have an in-progress animation (displayLength > 0)
-    if (!state.wasActive && !isActive && state.visibleLength === 0) {
+    // Skip animation for history messages (never activated)
+    if (!isActive && !state.everActive) {
       return;
     }
     
-    // If animation complete, nothing to do
-    if (state.visibleLength >= targetText.length) {
+    // Animation complete
+    if (state.visibleLength >= targetText.length && targetText.length > 0) {
       return;
     }
     
     const animate = (timestamp: number) => {
-      // Frame rate control - faster updates
-      if (timestamp - state.lastFrame < frameDelay) {
+      // Frame rate control
+      if (timestamp - state.lastFrame < FRAME_DELAY) {
         state.animationId = requestAnimationFrame(animate);
         return;
       }
@@ -91,23 +101,14 @@ function useTypewriterText(
         return;
       }
       
-      // Much more aggressive catch-up - stream should feel fast but smooth
-      // When finishing (stream ended), catch up very quickly
-      const isFinishing = !isActive;
-      let catchUp: number;
-      if (isFinishing) {
-        // Very aggressive catch-up when stream has ended
-        catchUp = remaining > 200 ? 8 : remaining > 100 ? 6 : remaining > 50 ? 4 : remaining > 20 ? 3 : 2;
-      } else {
-        // During streaming, still be aggressive to keep up
-        catchUp = remaining > 150 ? 5 : remaining > 80 ? 4 : remaining > 40 ? 3 : remaining > 20 ? 2 : 1.5;
-      }
-      const toReveal = Math.min(remaining, Math.ceil(charsPerFrame * catchUp));
+      // CONSISTENT TYPING: Always same speed, never jump
+      // This prevents the "streaming few lines then jumping" issue
+      const toReveal = Math.min(CHARS_PER_FRAME, remaining);
       
       state.visibleLength += toReveal;
       setDisplayLength(state.visibleLength);
       
-      // Notify parent to scroll - call on every reveal
+      // Notify parent to scroll
       onRevealRef.current?.();
       
       // Continue if more to reveal
@@ -118,7 +119,7 @@ function useTypewriterText(
       }
     };
     
-    // Start animation if needed
+    // Start animation immediately if we have text
     if (!state.animationId && targetText.length > state.visibleLength) {
       state.animationId = requestAnimationFrame(animate);
     }
@@ -132,36 +133,43 @@ function useTypewriterText(
         currentAnimState.animationId = null;
       }
     };
-  }, [isActive, targetText, charsPerFrame, frameDelay]);
+  }, [isActive, targetText]);
   
-  // Return animated text if animation is in progress (displayLength > 0 and < target)
-  // Otherwise return full text
-  // displayLength === 0 means either: animation hasn't started OR message was never animated
-  const isAnimating = displayLength > 0 && displayLength < targetText.length;
+  // RENDER LOGIC:
+  // - If displayLength > 0: animation is in progress, show animated portion
+  // - If displayLength === 0 but isActive: animation will start next frame, show empty
+  // - If displayLength === 0 and !isActive: not a streaming message, show full text
+  if (displayLength > 0 || isActive) {
+    return targetText.slice(0, displayLength);
+  }
   
-  return isAnimating ? targetText.slice(0, displayLength) : targetText;
+  return targetText;
 }
 
 /**
  * Hook for smooth typewriter animation of reasoning/CoT text.
- * Animation completes to full text even after the thinking phase ends.
+ * Slightly slower than main text for easier reading of thought process.
  */
 function useReasoningTypewriter(
   targetText: string,
   isActive: boolean,
   onReveal?: () => void
 ) {
+  // Slower for reasoning: 4 chars per 12ms = ~333 chars/sec
+  // Consistent speed - never jumps
+  const CHARS_PER_FRAME = 4;
+  const FRAME_DELAY = 12;
+  
   const animState = useRef({ 
     visibleLength: 0, 
     lastFrame: 0, 
     animationId: null as number | null,
     lastTargetLength: 0,
-    wasActive: false
+    everActive: false
   });
   
   const [displayLength, setDisplayLength] = useState(0);
   
-  // Store onReveal in ref so it doesn't cause effect re-runs
   const onRevealRef = useRef(onReveal);
   useEffect(() => {
     onRevealRef.current = onReveal;
@@ -170,56 +178,50 @@ function useReasoningTypewriter(
   useEffect(() => {
     const state = animState.current;
     
-    // Track if we've ever been active
     if (isActive && targetText) {
-      state.wasActive = true;
+      state.everActive = true;
     }
     
-    // Detect reset (new reasoning started or cleared)
+    // Detect reset
     if (!targetText || targetText.length < state.lastTargetLength) {
       state.visibleLength = 0;
       state.lastTargetLength = targetText?.length || 0;
-      state.wasActive = isActive && !!targetText;
-      // Don't call setDisplayLength here - let animation handle it
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Intentional reset for new reasoning
+      setDisplayLength(0);
+      if (!targetText) {
+        state.everActive = false;
+      }
       return;
     }
     state.lastTargetLength = targetText.length;
     
-    // Skip if never active or already caught up
-    if (!state.wasActive) {
+    if (!isActive && !state.everActive) {
       return;
     }
     
-    if (state.visibleLength >= targetText.length) {
+    if (state.visibleLength >= targetText.length && targetText.length > 0) {
       return;
     }
     
     const animate = (timestamp: number) => {
-      // Slightly slower pace for reasoning (easier to read)
-      if (timestamp - state.lastFrame < 18) {
+      if (timestamp - state.lastFrame < FRAME_DELAY) {
         state.animationId = requestAnimationFrame(animate);
         return;
       }
       state.lastFrame = timestamp;
       
       const remaining = targetText.length - state.visibleLength;
-      
       if (remaining <= 0) {
         state.animationId = null;
         return;
       }
       
-      // Catch-up for reasoning text - faster when finishing
-      const isFinishing = !isActive;
-      const catchUp = isFinishing
-        ? (remaining > 60 ? 3 : remaining > 20 ? 2.5 : 2)
-        : (remaining > 80 ? 2.5 : remaining > 30 ? 1.8 : 1);
-      const toReveal = Math.min(remaining, Math.ceil(2 * catchUp));
+      // Consistent speed - never jumps
+      const toReveal = Math.min(CHARS_PER_FRAME, remaining);
       
       state.visibleLength += toReveal;
       setDisplayLength(state.visibleLength);
       
-      // Notify parent to scroll
       onRevealRef.current?.();
       
       if (state.visibleLength < targetText.length) {
@@ -233,7 +235,6 @@ function useReasoningTypewriter(
       state.animationId = requestAnimationFrame(animate);
     }
     
-    // Capture ref value for cleanup
     const currentState = animState.current;
     
     return () => {
@@ -244,16 +245,9 @@ function useReasoningTypewriter(
     };
   }, [targetText, isActive]);
   
-  // Return animated text if in progress, otherwise full text (or empty if never started)
-  if (!targetText) {
-    return "";
-  }
-  
-  // displayLength === 0 means animation hasn't started - return empty for consistency
-  // once animation starts (displayLength > 0), continue even if not complete
-  const isAnimating = displayLength > 0 && displayLength < targetText.length;
-  
-  return isAnimating ? targetText.slice(0, displayLength) : (displayLength >= targetText.length ? targetText : "");
+  if (!targetText) return "";
+  if (displayLength > 0 || isActive) return targetText.slice(0, displayLength);
+  return targetText;
 }
 
 // Dynamically import ReactMarkdown to reduce initial bundle (~150KB savings)
@@ -265,7 +259,6 @@ const ReactMarkdown = dynamic(() => import("react-markdown"), {
 // Pre-load plugins at module level - shared across all message instances
 // This prevents the flash caused by loading plugins inside each component
 let pluginsCache: { remarkGfm: any; rehypeHighlight: any } | null = null;
-let pluginsLoading = false;
 const pluginsPromise = Promise.all([
   import("remark-gfm").then((mod) => mod.default),
   import("rehype-highlight").then((mod) => mod.default),
@@ -276,14 +269,14 @@ const pluginsPromise = Promise.all([
 
 // Hook to access shared plugins - all components share the same cache
 function useMarkdownPlugins() {
+  // Initialize with cache if available (avoids any async wait)
   const [plugins, setPlugins] = useState(pluginsCache);
 
   useEffect(() => {
-    // Only subscribe to promise if cache isn't already loaded
-    if (!pluginsCache && !pluginsLoading) {
-      pluginsLoading = true;
-    }
-    // Subscribe to the promise - it will resolve immediately if already loaded
+    // Already have plugins (from initial state or previous load)
+    if (plugins) return;
+    
+    // Subscribe to the promise - resolves immediately if already loaded
     let mounted = true;
     pluginsPromise.then((loaded) => {
       if (mounted) {
@@ -293,7 +286,7 @@ function useMarkdownPlugins() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [plugins]);
 
   return plugins;
 }
@@ -311,7 +304,6 @@ interface Message {
 
 interface MemoizedChatMessageProps {
   message: Message;
-  index: number;
   characterName: string;
   characterAvatarUrl?: string;
   copiedMessageId: string | null;
@@ -379,40 +371,42 @@ const markdownComponents = {
   ),
 };
 
-function ChatMessageComponent({
-  message,
-  characterName,
-  characterAvatarUrl,
-  copiedMessageId,
-  currentPlayingId,
-  isPlaying,
-  hasAudioUrl,
-  isStreaming = false,
-  formatTimestamp,
-  onCopy,
-  onPlayAudio,
-  onImageLoad,
-  reasoningText,
-  reasoningPhase,
-  onTextReveal,
-}: MemoizedChatMessageProps) {
+function ChatMessageComponent(props: MemoizedChatMessageProps) {
+  const {
+    message,
+    characterName,
+    characterAvatarUrl,
+    copiedMessageId,
+    currentPlayingId,
+    isPlaying,
+    hasAudioUrl,
+    isStreaming = false,
+    formatTimestamp,
+    onCopy,
+    onPlayAudio,
+    onImageLoad,
+    reasoningText,
+    reasoningPhase,
+    onTextReveal,
+  } = props;
   const isThinking = message.id.startsWith("thinking-");
-  const hasReasoning = isThinking && reasoningText && reasoningText.length > 0;
   // Use shared plugins cache - no flash since plugins are pre-loaded at module level
   const plugins = useMarkdownPlugins();
 
   // Detect streaming from message id if not explicitly passed
   const isStreamingMessage = isStreaming || message.id.startsWith("streaming-");
   
-  // Typewriter effect for streaming messages - reveals text smoothly regardless of burst input
-  // Calls onTextReveal on each animation frame to trigger scroll
-  const displayText = useTypewriterText(
-    message.content.text,
-    isStreamingMessage,
-    { onReveal: onTextReveal }
-  );
+  // Show reasoning for thinking messages OR streaming messages with "response" phase reasoning
+  // This keeps "Composing" visible above the text while it streams
+  const hasThinkingReasoning = isThinking && reasoningText && reasoningText.length > 0;
+  const hasStreamingReasoning = isStreamingMessage && reasoningPhase === "response" && reasoningText && reasoningText.length > 0;
+  const hasReasoning = hasThinkingReasoning || hasStreamingReasoning;
   
-  // Typewriter effect for reasoning/CoT text
+  // Typewriter effect for streaming messages
+  // Reveals text at consistent speed (never jumps) - handles bursty input gracefully
+  const displayText = useTypewriterText(message.content.text, isStreamingMessage, { onReveal: onTextReveal });
+  
+  // Typewriter effect for reasoning/CoT text - active for thinking OR streaming with response phase
   const displayReasoningText = useReasoningTypewriter(
     reasoningText || "",
     hasReasoning,
@@ -515,7 +509,7 @@ function ChatMessageComponent({
                         {!reasoningPhase && "Thinking"}
                       </span>
                     </div>
-                    <div className="reasoning-text reasoning-border text-sm text-white/75 italic leading-relaxed border-l-2 border-[#FF5800]/25 pl-3 ml-1 py-0.5">
+                    <div className="reasoning-text reasoning-border text-sm text-white/85 italic leading-relaxed border-l-2 border-[#FF5800]/30 pl-3 ml-1 py-0.5">
                       {displayReasoningText}
                       <span 
                         className="streaming-cursor inline-block w-[2px] h-[0.9em] bg-[#FF5800]/50 ml-0.5 rounded-sm align-text-bottom"
@@ -535,6 +529,22 @@ function ChatMessageComponent({
               </div>
             ) : (
               <>
+                {/* Response-phase reasoning shown above streaming text (Composing indicator) */}
+                {hasStreamingReasoning && (
+                  <div className="mb-2 py-2 px-3 bg-white/[0.02] border border-white/[0.05] rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <div className="relative">
+                        <Loader2 className="h-3 w-3 animate-spin text-[#FF5800]/60" />
+                      </div>
+                      <span className="text-[10px] font-medium text-[#FF5800]/60 uppercase tracking-wider">
+                        Composing
+                      </span>
+                    </div>
+                    <div className="text-xs text-white/70 italic leading-relaxed border-l-2 border-[#FF5800]/20 pl-2 mt-1.5 line-clamp-2">
+                      {displayReasoningText}
+                    </div>
+                  </div>
+                )}
                 {/* Message Text - Always show content immediately, upgrade to markdown when ready */}
                 <div className="overflow-hidden">
                   {/* Streaming text animation styles - smooth typewriter effect */}

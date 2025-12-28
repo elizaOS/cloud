@@ -65,6 +65,12 @@ class RuntimeCache {
   private readonly MAX_AGE_MS = 30 * 60 * 1000; // 30 minutes max age
   private readonly IDLE_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes idle timeout
 
+  /**
+   * Get a cached runtime if it exists and is healthy.
+   * Returns null if not cached, expired, or DB connection is stale.
+   * 
+   * NOTE: This is synchronous - async health check happens in getAsync()
+   */
   get(agentId: string): AgentRuntime | null {
     const entry = this.cache.get(agentId);
     if (!entry) return null;
@@ -77,6 +83,40 @@ class RuntimeCache {
     ) {
       this.cache.delete(agentId);
       elizaLogger.debug(`[RuntimeCache] Evicted stale runtime: ${agentId}`);
+      return null;
+    }
+
+    entry.lastUsed = now;
+    return entry.runtime;
+  }
+
+  /**
+   * Get a cached runtime with async DB health check.
+   * Returns null if not cached, expired, or DB connection is stale.
+   * 
+   * @param agentId - Cache key to look up
+   * @param dbPool - Reference to the DB adapter pool for health checking
+   */
+  async getWithHealthCheck(agentId: string, dbPool: DbAdapterPool): Promise<AgentRuntime | null> {
+    const entry = this.cache.get(agentId);
+    if (!entry) return null;
+
+    const now = Date.now();
+    // Check if expired by time
+    if (
+      now - entry.createdAt > this.MAX_AGE_MS ||
+      now - entry.lastUsed > this.IDLE_TIMEOUT_MS
+    ) {
+      this.cache.delete(agentId);
+      elizaLogger.debug(`[RuntimeCache] Evicted stale runtime: ${agentId}`);
+      return null;
+    }
+
+    // Check if DB connection is still alive via the adapter pool
+    const isHealthy = await dbPool.checkHealth(entry.agentId as UUID);
+    if (!isHealthy) {
+      elizaLogger.warn(`[RuntimeCache] Stale DB connection for ${agentId}, evicting runtime`);
+      this.cache.delete(agentId);
       return null;
     }
 
@@ -154,6 +194,7 @@ class RuntimeCache {
  * PERFORMANCE:
  * - Reuses DB connections across agents
  * - Pre-sets embedding dimension without API call
+ * - Health checks stale connections and recreates them
  */
 class DbAdapterPool {
   private adapters = new Map<string, IDatabaseAdapter>();
@@ -165,9 +206,20 @@ class DbAdapterPool {
   ): Promise<IDatabaseAdapter> {
     const key = agentId as string;
 
-    // Return existing adapter
+    // Check existing adapter - validate connection is still alive
     if (this.adapters.has(key)) {
-      return this.adapters.get(key)!;
+      const existingAdapter = this.adapters.get(key)!;
+      
+      // Health check: try a simple query to verify connection is alive
+      const isHealthy = await this.checkAdapterHealth(existingAdapter);
+      if (isHealthy) {
+        return existingAdapter;
+      }
+      
+      // Connection is stale - remove and recreate
+      elizaLogger.warn(`[DbAdapterPool] Stale connection detected for ${agentId}, recreating adapter`);
+      this.adapters.delete(key);
+      adapterEmbeddingDimensions.delete(key);
     }
 
     // Return in-flight initialization
@@ -186,6 +238,51 @@ class DbAdapterPool {
     } finally {
       this.initPromises.delete(key);
     }
+  }
+
+  /**
+   * Check if adapter's database connection is still alive
+   * Uses a simple query that should always succeed on a healthy connection
+   */
+  private async checkAdapterHealth(adapter: IDatabaseAdapter): Promise<boolean> {
+    try {
+      // Use getEntitiesByIds with a known-invalid UUID as a lightweight health check
+      // If the connection is dead, this will throw "Client was closed"
+      // If the connection is alive, it will return empty array (entity not found)
+      await adapter.getEntitiesByIds(["00000000-0000-0000-0000-000000000000" as UUID]);
+      return true;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      // Connection errors indicate stale adapter
+      if (errorMessage.includes("closed") || 
+          errorMessage.includes("terminated") ||
+          errorMessage.includes("connection")) {
+        return false;
+      }
+      // Other errors (like "not found") mean connection is actually working
+      return true;
+    }
+  }
+
+  /**
+   * Public health check for a specific agent's adapter
+   * Used by RuntimeCache to verify cached runtimes before returning them
+   */
+  async checkHealth(agentId: UUID): Promise<boolean> {
+    const key = agentId as string;
+    const adapter = this.adapters.get(key);
+    
+    if (!adapter) {
+      // No adapter means cache miss - not unhealthy, just needs creation
+      return true;
+    }
+    
+    const isHealthy = await this.checkAdapterHealth(adapter);
+    if (!isHealthy) {
+      // Invalidate stale adapter
+      this.invalidateAdapter(key);
+    }
+    return isHealthy;
   }
 
   private async createAdapter(
@@ -384,8 +481,9 @@ export class RuntimeFactory {
     const webSearchSuffix = context.webSearchEnabled ? ":ws" : "";
     const cacheKey = `${agentId}${webSearchSuffix}`;
 
-    // OPTIMIZATION: Check cache first
-    const cachedRuntime = runtimeCache.get(cacheKey);
+    // OPTIMIZATION: Check cache first with DB health check
+    // This ensures we don't return a runtime with a stale DB connection
+    const cachedRuntime = await runtimeCache.getWithHealthCheck(cacheKey, dbAdapterPool);
     if (cachedRuntime) {
       elizaLogger.info(
         `[RuntimeFactory] ⚡ Cache HIT: ${character.name} (webSearch=${context.webSearchEnabled}) (${Date.now() - startTime}ms)`,

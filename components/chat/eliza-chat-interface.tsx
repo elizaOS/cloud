@@ -303,13 +303,16 @@ export function ElizaChatInterface({
 
   // Cleanup refs on unmount to prevent memory leaks
   useEffect(() => {
+    // Capture ref value inside effect for cleanup
+    const renderedMessages = renderedMessagesRef.current;
+    const thinkingTimeout = thinkingTimeoutRef.current;
+    
     return () => {
-      if (thinkingTimeoutRef.current) {
-        clearTimeout(thinkingTimeoutRef.current);
-        thinkingTimeoutRef.current = null;
+      if (thinkingTimeout) {
+        clearTimeout(thinkingTimeout);
       }
       clearAllStreaming();
-      renderedMessagesRef.current.clear();
+      renderedMessages.clear();
     };
   }, [clearAllStreaming]);
 
@@ -576,6 +579,9 @@ export function ElizaChatInterface({
       setLoadingState((prev) => ({ ...prev, isSending: true }));
       isSendingRef.current = true;
       setError(null);
+      
+      // Reset scroll tracking - user wants to see their message and response
+      userScrolledUpRef.current = false;
 
       // Track if we created a new room (to skip loadRooms later)
       let didCreateNewRoom = false;
@@ -744,6 +750,7 @@ export function ElizaChatInterface({
       webSearchEnabled,
       handleStreamMessage,
       handleStreamChunk,
+      handleReasoningChunk,
       loadRooms,
       onMessageSent,
       clearAllStreaming,
@@ -1012,15 +1019,34 @@ export function ElizaChatInterface({
 
   // Handle streaming messages from the single endpoint
 
-  // Robust scroll to bottom function
+  // Track if user has scrolled up (away from bottom) - don't force scroll if they're reading
+  const userScrolledUpRef = useRef(false);
+  const lastScrollTopRef = useRef(0);
+
+  // Check if viewport is at or near bottom
+  const isNearBottom = useCallback(() => {
+    if (!scrollAreaRef.current) return true;
+    const viewport = scrollAreaRef.current.querySelector(
+      "[data-radix-scroll-area-viewport]",
+    );
+    if (!viewport) return true;
+    
+    // Consider "near bottom" if within 150px of the bottom
+    const threshold = 150;
+    const distanceFromBottom = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight;
+    return distanceFromBottom < threshold;
+  }, []);
+
+  // Robust scroll to bottom function - respects user scroll position
   const scrollToBottom = useCallback((smooth = false) => {
+    // Don't auto-scroll if user has scrolled up to read
+    if (userScrolledUpRef.current) return;
+    
     if (scrollAreaRef.current) {
-      // ScrollArea wraps content in a viewport div with data-radix-scroll-area-viewport
       const viewport = scrollAreaRef.current.querySelector(
         "[data-radix-scroll-area-viewport]",
       );
       if (viewport) {
-        // Use requestAnimationFrame to ensure DOM has updated
         requestAnimationFrame(() => {
           if (smooth) {
             viewport.scrollTo({
@@ -1034,6 +1060,34 @@ export function ElizaChatInterface({
       }
     }
   }, []);
+
+  // Track scroll events to detect user scrolling up
+  useEffect(() => {
+    if (!scrollAreaRef.current) return;
+    const viewport = scrollAreaRef.current.querySelector(
+      "[data-radix-scroll-area-viewport]",
+    );
+    if (!viewport) return;
+
+    const handleScroll = () => {
+      const currentScrollTop = viewport.scrollTop;
+      const isAtBottom = isNearBottom();
+      
+      // User scrolled UP (away from bottom)
+      if (currentScrollTop < lastScrollTopRef.current && !isAtBottom) {
+        userScrolledUpRef.current = true;
+      }
+      // User scrolled back to bottom - re-enable auto-scroll
+      if (isAtBottom) {
+        userScrolledUpRef.current = false;
+      }
+      
+      lastScrollTopRef.current = currentScrollTop;
+    };
+
+    viewport.addEventListener("scroll", handleScroll, { passive: true });
+    return () => viewport.removeEventListener("scroll", handleScroll);
+  }, [isNearBottom]);
 
   // Keep inputTextRef in sync with inputText
   useEffect(() => {
@@ -1225,7 +1279,7 @@ export function ElizaChatInterface({
                 )}
 
               {!loadingState.isLoadingMessages &&
-                messages.map((message, index) => {
+                messages.map((message) => {
                   const isStreaming = message.id.startsWith("streaming-");
                   // Use stable key that doesn't change when streaming message becomes final
                   // This prevents React from remounting the component (avoids flash)
@@ -1236,7 +1290,6 @@ export function ElizaChatInterface({
                     <MemoizedChatMessage
                       key={stableKey}
                       message={message}
-                      index={index}
                       characterName={characterName}
                       characterAvatarUrl={characterAvatarUrl}
                       copiedMessageId={copiedMessageId}
@@ -1246,14 +1299,15 @@ export function ElizaChatInterface({
                       isStreaming={isStreaming}
                       formatTimestamp={formatTimestamp}
                       onCopy={copyToClipboard}
-                      // Pass reasoning state to thinking messages
+                      // Pass reasoning state to thinking AND streaming messages
+                      // This shows "Composing" phase while text streams in
                       reasoningText={
-                        message.id.startsWith("thinking-")
+                        (message.id.startsWith("thinking-") || message.id.startsWith("streaming-"))
                           ? reasoningState.text
                           : undefined
                       }
                       reasoningPhase={
-                        message.id.startsWith("thinking-")
+                        (message.id.startsWith("thinking-") || message.id.startsWith("streaming-"))
                           ? reasoningState.phase
                           : undefined
                       }

@@ -147,13 +147,6 @@ export function trackOpening(roomId: string, text: string): void {
 }
 
 /**
- * Clear tracked openings for a room
- */
-export function clearTrackedOpenings(roomId: string): void {
-  recentOpenings.delete(roomId);
-}
-
-/**
  * Post-process a response to ensure quality
  * - Removes AI-speak
  * - Flags repetitive openings
@@ -209,59 +202,6 @@ export function postProcessResponse(
 }
 
 /**
- * Suggest alternative openings for variety
- */
-export function getAlternativeOpenings(context: {
-  isFlirty?: boolean;
-  hasSharedContent?: boolean;
-  isFollowUp?: boolean;
-}): string[] {
-  const { isFlirty, hasSharedContent, isFollowUp } = context;
-
-  if (isFlirty) {
-    return [
-      "okay but...",
-      "so I was thinking...",
-      "you're not gonna believe this",
-      "miss me? 😏",
-      "guess who",
-      "quick question",
-      "be honest with me...",
-    ];
-  }
-
-  if (hasSharedContent) {
-    return [
-      "Check this out!",
-      "Here you go!",
-      "Took this for you",
-      "What do you think?",
-      "I think you'll like this",
-    ];
-  }
-
-  if (isFollowUp) {
-    return [
-      "Oh, that reminds me...",
-      "Speaking of which...",
-      "Actually,",
-      "So about that...",
-      "Interesting you say that...",
-    ];
-  }
-
-  return [
-    "So...",
-    "Okay so",
-    "Actually,",
-    "You know what,",
-    "Wait,",
-    "Honestly,",
-    "Here's the thing,",
-  ];
-}
-
-/**
  * Cached attachment from action results.
  */
 export interface CachedAttachment {
@@ -292,10 +232,6 @@ export function getAndClearCachedAttachments(
   const attachments = actionAttachmentCache.get(roomId) || [];
   actionAttachmentCache.delete(roomId);
   return attachments;
-}
-
-export function clearCachedAttachments(roomId: string): void {
-  actionAttachmentCache.delete(roomId);
 }
 
 export function cleanPrompt(prompt: string): string {
@@ -425,6 +361,8 @@ export async function executeActions(
 interface GenerateResponseOptions {
   /** Callback for streaming text chunks in real-time */
   onStreamChunk?: (chunk: string, messageId?: UUID) => Promise<void>;
+  /** Callback for streaming thought/reasoning chunks from response */
+  onReasoningChunk?: (chunk: string, phase: "planning" | "actions" | "response", messageId?: UUID) => Promise<void>;
   /** Message ID for streaming coordination */
   messageId?: UUID;
 }
@@ -563,13 +501,18 @@ export async function generatePlanningWithStreaming(
 function createStreamingXmlFilter(
   onFilteredChunk: (chunk: string, messageId?: UUID) => Promise<void>,
   messageId?: UUID,
+  onThoughtChunk?: (chunk: string, phase: "planning" | "actions" | "response", messageId?: UUID) => Promise<void>,
 ) {
   // State for incremental XML parsing
   let buffer = "";
   let insideText = false;
+  let insideThought = false;
   let insideTag = false;
   let tagBuffer = "";
-  let pendingContent = "";
+  let pendingTextContent = "";
+  let pendingThoughtContent = "";
+  let isFirstTextChunk = true;
+  let isFirstThoughtChunk = true;
   
   return {
     processChunk: async (chunk: string) => {
@@ -581,7 +524,6 @@ function createStreamingXmlFilter(
         buffer = buffer.slice(1);
         
         if (char === "<") {
-          // Start of tag
           insideTag = true;
           tagBuffer = "<";
           continue;
@@ -591,46 +533,74 @@ function createStreamingXmlFilter(
           tagBuffer += char;
           
           if (char === ">") {
-            // End of tag - process it
             insideTag = false;
             const tag = tagBuffer.toLowerCase();
             
             if (tag === "<text>") {
               insideText = true;
+              isFirstTextChunk = true;
             } else if (tag === "</text>") {
               insideText = false;
-              // Flush any pending content
-              if (pendingContent) {
-                await onFilteredChunk(pendingContent, messageId);
-                pendingContent = "";
+              if (pendingTextContent) {
+                await onFilteredChunk(pendingTextContent, messageId);
+                pendingTextContent = "";
+              }
+            } else if (tag === "<thought>") {
+              insideThought = true;
+              isFirstThoughtChunk = true;
+            } else if (tag === "</thought>") {
+              insideThought = false;
+              if (pendingThoughtContent && onThoughtChunk) {
+                await onThoughtChunk(pendingThoughtContent, "response", messageId);
+                pendingThoughtContent = "";
               }
             }
-            // We're inside <thought> or other tags - don't stream those
             tagBuffer = "";
             continue;
           }
           continue;
         }
         
-        // We're outside of tags
+        // Stream <text> content for main response
         if (insideText) {
-          // Inside <text> - accumulate and stream frequently
-          pendingContent += char;
+          pendingTextContent += char;
           
-          // Stream every few chars or on word boundaries for smooth display
-          if (pendingContent.length >= 5 || char === " " || char === "\n") {
-            await onFilteredChunk(pendingContent, messageId);
-            pendingContent = "";
+          const shouldEmit = isFirstTextChunk || 
+            pendingTextContent.length >= 3 || 
+            char === " " || char === "\n" || char === "." || 
+            char === "," || char === "!" || char === "?";
+            
+          if (shouldEmit && pendingTextContent.length > 0) {
+            await onFilteredChunk(pendingTextContent, messageId);
+            pendingTextContent = "";
+            isFirstTextChunk = false;
           }
         }
-        // Content outside <text> is ignored for streaming
+        
+        // Stream <thought> content for reasoning display (if callback provided)
+        if (insideThought && onThoughtChunk) {
+          pendingThoughtContent += char;
+          
+          const shouldEmit = isFirstThoughtChunk ||
+            pendingThoughtContent.length >= 4 || 
+            char === " " || char === "\n" || char === "," || char === ".";
+            
+          if (shouldEmit && pendingThoughtContent.length > 0) {
+            await onThoughtChunk(pendingThoughtContent, "response", messageId);
+            pendingThoughtContent = "";
+            isFirstThoughtChunk = false;
+          }
+        }
       }
     },
     flush: async () => {
-      // Flush any remaining content
-      if (pendingContent) {
-        await onFilteredChunk(pendingContent, messageId);
-        pendingContent = "";
+      if (pendingTextContent) {
+        await onFilteredChunk(pendingTextContent, messageId);
+        pendingTextContent = "";
+      }
+      if (pendingThoughtContent && onThoughtChunk) {
+        await onThoughtChunk(pendingThoughtContent, "response", messageId);
+        pendingThoughtContent = "";
       }
     },
   };
@@ -651,16 +621,17 @@ export async function generateResponseWithRetry(
 ): Promise<{ text: string; thought: string }> {
   let lastRawResponse = "";
   let lastError: Error | null = null;
-  const { onStreamChunk, messageId } = options || {};
+  const { onStreamChunk, onReasoningChunk, messageId } = options || {};
 
   for (let i = 0; i < MAX_RESPONSE_RETRIES; i++) {
     try {
       // When streaming callback is provided, enable streaming mode with XML filtering
-      // The filter extracts content from <text>...</text> tags and streams only that
+      // The filter extracts content from <text>...</text> AND <thought>...</thought> tags
+      // Text goes to main response, thought goes to reasoning display
       let streamFilter: ReturnType<typeof createStreamingXmlFilter> | null = null;
       
       if (onStreamChunk) {
-        streamFilter = createStreamingXmlFilter(onStreamChunk, messageId);
+        streamFilter = createStreamingXmlFilter(onStreamChunk, messageId, onReasoningChunk);
       }
       
       const response = await runtime.useModel(ModelType.TEXT_LARGE, {

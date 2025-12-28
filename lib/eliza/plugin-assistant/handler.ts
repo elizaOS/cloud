@@ -188,10 +188,15 @@ export async function handleMessage({
 
       // Use real streaming when callback is provided
       // The model will stream tokens as they're generated for smooth UX
+      // Also stream response <thought> to reasoning display so users see activity
       const responseResult = await generateResponseWithRetry(
         runtime, 
         responsePrompt,
-        onStreamChunk ? { onStreamChunk, messageId: responseId as UUID } : undefined,
+        onStreamChunk ? { 
+          onStreamChunk, 
+          onReasoningChunk,  // Stream response thought as "response" phase reasoning
+          messageId: responseId as UUID 
+        } : undefined,
       );
       responseContent = responseResult.text;
       thought = responseResult.thought;
