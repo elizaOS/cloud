@@ -150,9 +150,10 @@ export class MessageHandler {
       await this.incrementAnonymousMessageCount();
     }
 
-    const responseText = typeof responseMemory.content === "string" 
-      ? responseMemory.content 
-      : responseMemory.content?.text || "";
+    const responseText =
+      typeof responseMemory.content === "string"
+        ? responseMemory.content
+        : responseMemory.content?.text || "";
     this.sendToDiscordThread(
       roomId,
       text,
@@ -405,7 +406,9 @@ export class MessageHandler {
     characterId?: string,
   ): Promise<void> {
     const room = await roomsRepository.findById(roomId);
-    const roomMetadata = room?.metadata as { discordThreadId?: string } | undefined;
+    const roomMetadata = room?.metadata as
+      | { discordThreadId?: string }
+      | undefined;
     const threadId = roomMetadata?.discordThreadId;
     if (!threadId) return;
 

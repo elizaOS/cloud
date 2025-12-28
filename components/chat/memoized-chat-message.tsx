@@ -17,7 +17,7 @@ import { ContentType, type Media } from "@elizaos/core";
  * Hook for smooth typewriter animation of streaming text.
  * Handles burst input gracefully by revealing text at a consistent, readable pace.
  * Uses requestAnimationFrame for smooth 60fps animation.
- * 
+ *
  * KEY DESIGN PRINCIPLES:
  * 1. First chunk appears IMMEDIATELY - no delay
  * 2. NEVER jumps to end - always types at visible speed
@@ -27,10 +27,10 @@ import { ContentType, type Media } from "@elizaos/core";
 function useTypewriterText(
   targetText: string,
   isActive: boolean,
-  config: { onReveal?: () => void } = {}
+  config: { onReveal?: () => void } = {},
 ) {
   const { onReveal } = config;
-  
+
   // CONSISTENT SPEED APPROACH:
   // - Never "jump" by revealing too much at once
   // - Keep typing at a steady pace regardless of how much is buffered
@@ -38,34 +38,34 @@ function useTypewriterText(
   // - Slow enough to be readable and feel like typing
   const CHARS_PER_FRAME = 6;
   const FRAME_DELAY = 10; // ms between frames
-  
+
   // Track animation state in ref (for animation logic)
-  const animState = useRef({ 
-    visibleLength: 0, 
-    lastFrame: 0, 
+  const animState = useRef({
+    visibleLength: 0,
+    lastFrame: 0,
     animationId: null as number | null,
     lastTargetLength: 0,
-    everActive: false
+    everActive: false,
   });
-  
+
   // Track display state in React state (for rendering)
   const [displayLength, setDisplayLength] = useState(0);
-  
+
   // Store onReveal in ref so it doesn't cause effect re-runs
   const onRevealRef = useRef(onReveal);
   useEffect(() => {
     onRevealRef.current = onReveal;
   });
-  
+
   // Handle animation
   useEffect(() => {
     const state = animState.current;
-    
+
     // Track if ever active
     if (isActive) {
       state.everActive = true;
     }
-    
+
     // Detect new message (target got shorter) and reset
     if (targetText.length < state.lastTargetLength) {
       state.visibleLength = 0;
@@ -75,17 +75,17 @@ function useTypewriterText(
     } else {
       state.lastTargetLength = targetText.length;
     }
-    
+
     // Skip animation for history messages (never activated)
     if (!isActive && !state.everActive) {
       return;
     }
-    
+
     // Animation complete
     if (state.visibleLength >= targetText.length && targetText.length > 0) {
       return;
     }
-    
+
     const animate = (timestamp: number) => {
       // Frame rate control
       if (timestamp - state.lastFrame < FRAME_DELAY) {
@@ -93,24 +93,24 @@ function useTypewriterText(
         return;
       }
       state.lastFrame = timestamp;
-      
+
       const remaining = targetText.length - state.visibleLength;
-      
+
       if (remaining <= 0) {
         state.animationId = null;
         return;
       }
-      
+
       // CONSISTENT TYPING: Always same speed, never jump
       // This prevents the "streaming few lines then jumping" issue
       const toReveal = Math.min(CHARS_PER_FRAME, remaining);
-      
+
       state.visibleLength += toReveal;
       setDisplayLength(state.visibleLength);
-      
+
       // Notify parent to scroll
       onRevealRef.current?.();
-      
+
       // Continue if more to reveal
       if (state.visibleLength < targetText.length) {
         state.animationId = requestAnimationFrame(animate);
@@ -118,15 +118,15 @@ function useTypewriterText(
         state.animationId = null;
       }
     };
-    
+
     // Start animation immediately if we have text
     if (!state.animationId && targetText.length > state.visibleLength) {
       state.animationId = requestAnimationFrame(animate);
     }
-    
+
     // Capture ref value for cleanup
     const currentAnimState = animState.current;
-    
+
     return () => {
       if (currentAnimState.animationId) {
         cancelAnimationFrame(currentAnimState.animationId);
@@ -134,7 +134,7 @@ function useTypewriterText(
       }
     };
   }, [isActive, targetText]);
-  
+
   // RENDER LOGIC:
   // - If displayLength > 0: animation is in progress, show animated portion
   // - If displayLength === 0 but isActive: animation will start next frame, show empty
@@ -142,7 +142,7 @@ function useTypewriterText(
   if (displayLength > 0 || isActive) {
     return targetText.slice(0, displayLength);
   }
-  
+
   return targetText;
 }
 
@@ -153,35 +153,35 @@ function useTypewriterText(
 function useReasoningTypewriter(
   targetText: string,
   isActive: boolean,
-  onReveal?: () => void
+  onReveal?: () => void,
 ) {
   // Slower for reasoning: 4 chars per 12ms = ~333 chars/sec
   // Consistent speed - never jumps
   const CHARS_PER_FRAME = 4;
   const FRAME_DELAY = 12;
-  
-  const animState = useRef({ 
-    visibleLength: 0, 
-    lastFrame: 0, 
+
+  const animState = useRef({
+    visibleLength: 0,
+    lastFrame: 0,
     animationId: null as number | null,
     lastTargetLength: 0,
-    everActive: false
+    everActive: false,
   });
-  
+
   const [displayLength, setDisplayLength] = useState(0);
-  
+
   const onRevealRef = useRef(onReveal);
   useEffect(() => {
     onRevealRef.current = onReveal;
   });
-  
+
   useEffect(() => {
     const state = animState.current;
-    
+
     if (isActive && targetText) {
       state.everActive = true;
     }
-    
+
     // Detect reset
     if (!targetText || targetText.length < state.lastTargetLength) {
       state.visibleLength = 0;
@@ -194,49 +194,49 @@ function useReasoningTypewriter(
       return;
     }
     state.lastTargetLength = targetText.length;
-    
+
     if (!isActive && !state.everActive) {
       return;
     }
-    
+
     if (state.visibleLength >= targetText.length && targetText.length > 0) {
       return;
     }
-    
+
     const animate = (timestamp: number) => {
       if (timestamp - state.lastFrame < FRAME_DELAY) {
         state.animationId = requestAnimationFrame(animate);
         return;
       }
       state.lastFrame = timestamp;
-      
+
       const remaining = targetText.length - state.visibleLength;
       if (remaining <= 0) {
         state.animationId = null;
         return;
       }
-      
+
       // Consistent speed - never jumps
       const toReveal = Math.min(CHARS_PER_FRAME, remaining);
-      
+
       state.visibleLength += toReveal;
       setDisplayLength(state.visibleLength);
-      
+
       onRevealRef.current?.();
-      
+
       if (state.visibleLength < targetText.length) {
         state.animationId = requestAnimationFrame(animate);
       } else {
         state.animationId = null;
       }
     };
-    
+
     if (!state.animationId && targetText.length > state.visibleLength) {
       state.animationId = requestAnimationFrame(animate);
     }
-    
+
     const currentState = animState.current;
-    
+
     return () => {
       if (currentState.animationId) {
         cancelAnimationFrame(currentState.animationId);
@@ -244,7 +244,7 @@ function useReasoningTypewriter(
       }
     };
   }, [targetText, isActive]);
-  
+
   if (!targetText) return "";
   if (displayLength > 0 || isActive) return targetText.slice(0, displayLength);
   return targetText;
@@ -275,7 +275,7 @@ function useMarkdownPlugins() {
   useEffect(() => {
     // Already have plugins (from initial state or previous load)
     if (plugins) return;
-    
+
     // Subscribe to the promise - resolves immediately if already loaded
     let mounted = true;
     pluginsPromise.then((loaded) => {
@@ -395,22 +395,31 @@ function ChatMessageComponent(props: MemoizedChatMessageProps) {
 
   // Detect streaming from message id if not explicitly passed
   const isStreamingMessage = isStreaming || message.id.startsWith("streaming-");
-  
+
   // Show reasoning for thinking messages OR streaming messages with "response" phase reasoning
   // This keeps "Composing" visible above the text while it streams
-  const hasThinkingReasoning = isThinking && reasoningText && reasoningText.length > 0;
-  const hasStreamingReasoning = isStreamingMessage && reasoningPhase === "response" && reasoningText && reasoningText.length > 0;
+  const hasThinkingReasoning =
+    isThinking && reasoningText && reasoningText.length > 0;
+  const hasStreamingReasoning =
+    isStreamingMessage &&
+    reasoningPhase === "response" &&
+    reasoningText &&
+    reasoningText.length > 0;
   const hasReasoning = hasThinkingReasoning || hasStreamingReasoning;
-  
+
   // Typewriter effect for streaming messages
   // Reveals text at consistent speed (never jumps) - handles bursty input gracefully
-  const displayText = useTypewriterText(message.content.text, isStreamingMessage, { onReveal: onTextReveal });
-  
+  const displayText = useTypewriterText(
+    message.content.text,
+    isStreamingMessage,
+    { onReveal: onTextReveal },
+  );
+
   // Typewriter effect for reasoning/CoT text - active for thinking OR streaming with response phase
   const displayReasoningText = useReasoningTypewriter(
     reasoningText || "",
     hasReasoning,
-    onTextReveal
+    onTextReveal,
   );
 
   return (
@@ -447,7 +456,7 @@ function ChatMessageComponent(props: MemoizedChatMessageProps) {
                       transform: translateY(0);
                     }
                   }
-                  
+
                   @keyframes reasoningTextAppear {
                     from {
                       opacity: 0.3;
@@ -456,43 +465,58 @@ function ChatMessageComponent(props: MemoizedChatMessageProps) {
                       opacity: 0.65;
                     }
                   }
-                  
+
                   @keyframes pulseGlow {
-                    0%, 100% { 
+                    0%,
+                    100% {
                       box-shadow: 0 0 0 0 rgba(255, 88, 0, 0);
                       border-color: rgba(255, 88, 0, 0.15);
                     }
-                    50% { 
+                    50% {
                       box-shadow: 0 0 8px 2px rgba(255, 88, 0, 0.1);
                       border-color: rgba(255, 88, 0, 0.25);
                     }
                   }
-                  
+
                   @keyframes dotPulse {
-                    0%, 80%, 100% { transform: scale(0.8); opacity: 0.4; }
-                    40% { transform: scale(1); opacity: 1; }
+                    0%,
+                    80%,
+                    100% {
+                      transform: scale(0.8);
+                      opacity: 0.4;
+                    }
+                    40% {
+                      transform: scale(1);
+                      opacity: 1;
+                    }
                   }
-                  
+
                   .reasoning-container {
                     animation: reasoningFadeIn 300ms ease-out forwards;
                   }
-                  
+
                   .reasoning-border {
                     animation: pulseGlow 2s ease-in-out infinite;
                   }
-                  
+
                   .reasoning-text {
                     animation: reasoningTextAppear 200ms ease-out forwards;
                     -webkit-font-smoothing: antialiased;
                   }
-                  
+
                   .thinking-dots span {
                     display: inline-block;
                     animation: dotPulse 1.4s ease-in-out infinite;
                   }
-                  .thinking-dots span:nth-child(1) { animation-delay: 0ms; }
-                  .thinking-dots span:nth-child(2) { animation-delay: 200ms; }
-                  .thinking-dots span:nth-child(3) { animation-delay: 400ms; }
+                  .thinking-dots span:nth-child(1) {
+                    animation-delay: 0ms;
+                  }
+                  .thinking-dots span:nth-child(2) {
+                    animation-delay: 200ms;
+                  }
+                  .thinking-dots span:nth-child(3) {
+                    animation-delay: 400ms;
+                  }
                 `}</style>
                 {hasReasoning ? (
                   // Show chain-of-thought reasoning with smooth animation
@@ -511,9 +535,9 @@ function ChatMessageComponent(props: MemoizedChatMessageProps) {
                     </div>
                     <div className="reasoning-text reasoning-border text-sm text-white/85 italic leading-relaxed border-l-2 border-[#FF5800]/30 pl-3 ml-1 py-0.5">
                       {displayReasoningText}
-                      <span 
+                      <span
                         className="streaming-cursor inline-block w-[2px] h-[0.9em] bg-[#FF5800]/50 ml-0.5 rounded-sm align-text-bottom"
-                        style={{ verticalAlign: 'text-bottom' }}
+                        style={{ verticalAlign: "text-bottom" }}
                       />
                     </div>
                   </div>
@@ -522,7 +546,12 @@ function ChatMessageComponent(props: MemoizedChatMessageProps) {
                   <div className="flex items-center gap-2.5">
                     <Loader2 className="h-4 w-4 animate-spin text-white/50" />
                     <span className="text-sm text-white/50">
-                      thinking<span className="thinking-dots"><span>.</span><span>.</span><span>.</span></span>
+                      thinking
+                      <span className="thinking-dots">
+                        <span>.</span>
+                        <span>.</span>
+                        <span>.</span>
+                      </span>
                     </span>
                   </div>
                 )}
@@ -559,46 +588,53 @@ function ChatMessageComponent(props: MemoizedChatMessageProps) {
                         filter: blur(0);
                       }
                     }
-                    
+
                     @keyframes cursorBlink {
-                      0%, 50% { opacity: 1; }
-                      51%, 100% { opacity: 0; }
+                      0%,
+                      50% {
+                        opacity: 1;
+                      }
+                      51%,
+                      100% {
+                        opacity: 0;
+                      }
                     }
-                    
+
                     @keyframes cursorPulse {
-                      0%, 100% { 
+                      0%,
+                      100% {
                         opacity: 0.9;
                         transform: scaleY(1);
                       }
-                      50% { 
+                      50% {
                         opacity: 0.5;
                         transform: scaleY(0.85);
                       }
                     }
-                    
+
                     .streaming-text-wrapper {
                       /* Smooth text rendering for animation */
                       -webkit-font-smoothing: antialiased;
                       -moz-osx-font-smoothing: grayscale;
                       text-rendering: optimizeLegibility;
                     }
-                    
+
                     .streaming-text-content {
                       animation: streamTextFadeIn 200ms ease-out forwards;
                     }
-                    
+
                     /* Smooth transitions for text changes */
                     .streaming-text-content p,
                     .streaming-text-content span,
                     .streaming-text-content div {
                       transition: opacity 150ms ease-out;
                     }
-                    
+
                     .streaming-cursor {
                       animation: cursorPulse 800ms ease-in-out infinite;
                       will-change: opacity, transform;
                     }
-                    
+
                     /* Non-streaming messages - subtle entrance */
                     .message-text-complete {
                       animation: streamTextFadeIn 300ms ease-out forwards;
@@ -613,20 +649,27 @@ function ChatMessageComponent(props: MemoizedChatMessageProps) {
                         rehypePlugins={[plugins.rehypeHighlight]}
                         components={markdownComponents}
                       >
-                        {isStreamingMessage ? displayText : message.content.text}
+                        {isStreamingMessage
+                          ? displayText
+                          : message.content.text}
                       </ReactMarkdown>
                     ) : (
                       // Plain text fallback - shown immediately while markdown loads
                       // Uses same styling to prevent layout shift
                       <div className="whitespace-pre-wrap">
-                        {isStreamingMessage ? displayText : message.content.text}
+                        {isStreamingMessage
+                          ? displayText
+                          : message.content.text}
                       </div>
                     )}
                     {/* Elegant blinking cursor for streaming messages */}
                     {isStreamingMessage && (
-                      <span 
-                        className="streaming-cursor inline-block w-[3px] h-[1.1em] bg-gradient-to-b from-[#FF5800] to-[#FF5800]/60 ml-0.5 rounded-sm align-text-bottom" 
-                        style={{ verticalAlign: 'text-bottom', marginBottom: '2px' }}
+                      <span
+                        className="streaming-cursor inline-block w-[3px] h-[1.1em] bg-gradient-to-b from-[#FF5800] to-[#FF5800]/60 ml-0.5 rounded-sm align-text-bottom"
+                        style={{
+                          verticalAlign: "text-bottom",
+                          marginBottom: "2px",
+                        }}
                       />
                     )}
                   </div>

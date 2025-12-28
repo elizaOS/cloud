@@ -138,9 +138,7 @@ async function handlePOST(req: NextRequest) {
     if (successCount > 0) {
       const agentIdStr = runtime.agentId as string;
       await invalidateRuntime(agentIdStr).catch((e) => {
-        logger.warn(
-          `[Knowledge Upload] Failed to invalidate runtime: ${e}`,
-        );
+        logger.warn(`[Knowledge Upload] Failed to invalidate runtime: ${e}`);
       });
       logger.info(
         `[Knowledge Upload] Invalidated runtime cache for agent ${agentIdStr} after uploading ${successCount} file(s)`,

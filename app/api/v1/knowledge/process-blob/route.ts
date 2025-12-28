@@ -249,9 +249,7 @@ async function handlePOST(req: NextRequest) {
   if (successCount > 0) {
     const agentIdStr = runtime.agentId as string;
     await invalidateRuntime(agentIdStr).catch((e) => {
-      logger.warn(
-        `[ProcessBlob] Failed to invalidate runtime: ${e}`,
-      );
+      logger.warn(`[ProcessBlob] Failed to invalidate runtime: ${e}`);
     });
     logger.info(
       `[ProcessBlob] Invalidated runtime cache for agent ${agentIdStr} after processing ${successCount} file(s)`,

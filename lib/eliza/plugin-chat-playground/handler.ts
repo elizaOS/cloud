@@ -31,7 +31,10 @@ import {
   postProcessResponse,
 } from "../shared/utils/helpers";
 import type { ParsedResponse } from "../shared/utils/parsers";
-import type { MessageReceivedHandlerParams, RunEndedEventPayload } from "../shared/types";
+import type {
+  MessageReceivedHandlerParams,
+  RunEndedEventPayload,
+} from "../shared/types";
 
 /**
  * Simple chat handler with MCP tool support and optional streaming.
@@ -109,7 +112,7 @@ export async function handleMessage({
       }),
     );
 
-    const response = await runtime.useModel(ModelType.TEXT_LARGE, { 
+    const response = await runtime.useModel(ModelType.TEXT_LARGE, {
       prompt,
       ...(onStreamChunk && {
         stream: true,
@@ -173,18 +176,22 @@ export async function handleMessage({
       logger.warn(`[ChatPlayground] Evaluators failed: ${e}`);
     });
 
-    runtime.emitEvent(EventType.RUN_ENDED, {
-      runtime,
-      source: "chatPlaygroundWorkflow",
-      runId,
-      messageId: message.id || asUUID(v4()),
-      roomId: message.roomId,
-      entityId: message.entityId,
-      startTime,
-      status: "completed",
-      endTime: Date.now(),
-      duration: Date.now() - startTime,
-    }).catch((e) => logger.debug(`[ChatPlayground] RUN_ENDED emit failed: ${e}`));
+    runtime
+      .emitEvent(EventType.RUN_ENDED, {
+        runtime,
+        source: "chatPlaygroundWorkflow",
+        runId,
+        messageId: message.id || asUUID(v4()),
+        roomId: message.roomId,
+        entityId: message.entityId,
+        startTime,
+        status: "completed",
+        endTime: Date.now(),
+        duration: Date.now() - startTime,
+      })
+      .catch((e) =>
+        logger.debug(`[ChatPlayground] RUN_ENDED emit failed: ${e}`),
+      );
   } catch (error) {
     const errorPayload: RunEndedEventPayload = {
       runtime,

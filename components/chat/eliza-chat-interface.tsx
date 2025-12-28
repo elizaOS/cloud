@@ -306,7 +306,7 @@ export function ElizaChatInterface({
     // Capture ref value inside effect for cleanup
     const renderedMessages = renderedMessagesRef.current;
     const thinkingTimeout = thinkingTimeoutRef.current;
-    
+
     return () => {
       if (thinkingTimeout) {
         clearTimeout(thinkingTimeout);
@@ -449,7 +449,9 @@ export function ElizaChatInterface({
                 ...messageData.content,
                 // Use final message text - it's properly parsed and may include
                 // post-processing like AI-speak removal
-                text: messageData.content.text || updated[streamingIndex].content.text,
+                text:
+                  messageData.content.text ||
+                  updated[streamingIndex].content.text,
               },
             };
             return updated.filter(
@@ -579,7 +581,7 @@ export function ElizaChatInterface({
       setLoadingState((prev) => ({ ...prev, isSending: true }));
       isSendingRef.current = true;
       setError(null);
-      
+
       // Reset scroll tracking - user wants to see their message and response
       userScrolledUpRef.current = false;
 
@@ -1030,10 +1032,11 @@ export function ElizaChatInterface({
       "[data-radix-scroll-area-viewport]",
     );
     if (!viewport) return true;
-    
+
     // Consider "near bottom" if within 150px of the bottom
     const threshold = 150;
-    const distanceFromBottom = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight;
+    const distanceFromBottom =
+      viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight;
     return distanceFromBottom < threshold;
   }, []);
 
@@ -1041,7 +1044,7 @@ export function ElizaChatInterface({
   const scrollToBottom = useCallback((smooth = false) => {
     // Don't auto-scroll if user has scrolled up to read
     if (userScrolledUpRef.current) return;
-    
+
     if (scrollAreaRef.current) {
       const viewport = scrollAreaRef.current.querySelector(
         "[data-radix-scroll-area-viewport]",
@@ -1072,7 +1075,7 @@ export function ElizaChatInterface({
     const handleScroll = () => {
       const currentScrollTop = viewport.scrollTop;
       const isAtBottom = isNearBottom();
-      
+
       // User scrolled UP (away from bottom)
       if (currentScrollTop < lastScrollTopRef.current && !isAtBottom) {
         userScrolledUpRef.current = true;
@@ -1081,7 +1084,7 @@ export function ElizaChatInterface({
       if (isAtBottom) {
         userScrolledUpRef.current = false;
       }
-      
+
       lastScrollTopRef.current = currentScrollTop;
     };
 
@@ -1099,13 +1102,13 @@ export function ElizaChatInterface({
   useEffect(() => {
     // Check if there's an active streaming message
     const isStreaming = messages.some(
-      (m) => m.id.startsWith("streaming-") || m.id.startsWith("thinking-")
+      (m) => m.id.startsWith("streaming-") || m.id.startsWith("thinking-"),
     );
-    
+
     // Use smooth scroll during streaming for fluid appearance
     // Use instant scroll for initial load and completed messages
     scrollToBottom(isStreaming);
-    
+
     // Delayed scroll for late-loading content (images, markdown rendering)
     const timer = setTimeout(() => scrollToBottom(isStreaming), 100);
     return () => clearTimeout(timer);
@@ -1302,12 +1305,14 @@ export function ElizaChatInterface({
                       // Pass reasoning state to thinking AND streaming messages
                       // This shows "Composing" phase while text streams in
                       reasoningText={
-                        (message.id.startsWith("thinking-") || message.id.startsWith("streaming-"))
+                        message.id.startsWith("thinking-") ||
+                        message.id.startsWith("streaming-")
                           ? reasoningState.text
                           : undefined
                       }
                       reasoningPhase={
-                        (message.id.startsWith("thinking-") || message.id.startsWith("streaming-"))
+                        message.id.startsWith("thinking-") ||
+                        message.id.startsWith("streaming-")
                           ? reasoningState.phase
                           : undefined
                       }

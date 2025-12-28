@@ -532,11 +532,12 @@ button:not(:disabled),
 
 /* Elegant cursor animation */
 @keyframes cursorBreathe {
-  0%, 100% { 
+  0%,
+  100% {
     opacity: 0.9;
     transform: scaleY(1);
   }
-  50% { 
+  50% {
     opacity: 0.4;
     transform: scaleY(0.9);
   }
@@ -561,7 +562,8 @@ button:not(:disabled),
 
 /* Subtle glow effect for thinking state */
 @keyframes thinkingGlow {
-  0%, 100% {
+  0%,
+  100% {
     box-shadow: 0 0 0 0 rgba(255, 88, 0, 0);
   }
   50% {

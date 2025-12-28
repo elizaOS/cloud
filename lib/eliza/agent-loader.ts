@@ -128,18 +128,30 @@ async function resolveEffectiveMode(
 
   // Check 1: Settings-based plugins (mcp, webSearch, etc.) require ASSISTANT mode
   if (requiresAssistantMode(characterSettings)) {
-    return { mode: AgentMode.ASSISTANT, upgradeReason: "settings_plugin", documentCount };
+    return {
+      mode: AgentMode.ASSISTANT,
+      upgradeReason: "settings_plugin",
+      documentCount,
+    };
   }
 
   // Check 2: Explicit settings-based plugins in character plugins require ASSISTANT mode
   // MCP plugin requires ASSISTANT mode for tool execution even when explicitly listed
   if (hasExplicitSettingsPlugin(characterPlugins)) {
-    return { mode: AgentMode.ASSISTANT, upgradeReason: "explicit_plugin", documentCount };
+    return {
+      mode: AgentMode.ASSISTANT,
+      upgradeReason: "explicit_plugin",
+      documentCount,
+    };
   }
 
   // Check 3: Knowledge documents require ASSISTANT mode for RAG
   if (documentCount > 0) {
-    return { mode: AgentMode.ASSISTANT, upgradeReason: "has_knowledge", documentCount };
+    return {
+      mode: AgentMode.ASSISTANT,
+      upgradeReason: "has_knowledge",
+      documentCount,
+    };
   }
 
   // No upgrade needed
@@ -274,7 +286,10 @@ export class AgentLoader {
   private buildCharacter(elizaCharacter: ElizaCharacter): Character {
     const characterId =
       elizaCharacter.id || "b850bc30-45f8-0041-a00a-83df46d8555d";
-    const charSettings = (elizaCharacter.settings || {}) as Record<string, unknown>;
+    const charSettings = (elizaCharacter.settings || {}) as Record<
+      string,
+      unknown
+    >;
 
     const settings: Record<
       string,

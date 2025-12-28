@@ -224,8 +224,12 @@ export const suggestChangesAction = {
     options: Record<string, unknown>,
     callback: HandlerCallback,
   ): Promise<void> => {
-    const onStreamChunk = options?.onStreamChunk as StreamChunkCallback | undefined;
-    logger.info(`[SUGGEST_CHANGES] Generating expert guidance, streaming=${!!onStreamChunk}`);
+    const onStreamChunk = options?.onStreamChunk as
+      | StreamChunkCallback
+      | undefined;
+    logger.info(
+      `[SUGGEST_CHANGES] Generating expert guidance, streaming=${!!onStreamChunk}`,
+    );
 
     // Include both guides - agent determines what's relevant from conversation context
     state = await runtime.composeState(message, [

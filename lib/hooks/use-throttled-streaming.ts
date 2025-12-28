@@ -54,7 +54,7 @@ export function useThrottledStreamingUpdate() {
     const pendingUpdates = pendingUpdatesRef.current;
     const textMap = textMapRef.current;
     const lastUpdateTime = lastUpdateTimeRef.current;
-    
+
     return () => {
       // Cancel all pending animation frames
       pendingUpdates.forEach((frameId) => {
@@ -73,7 +73,6 @@ export function useThrottledStreamingUpdate() {
     const currentText = textMapRef.current.get(messageId) || "";
     textMapRef.current.set(messageId, currentText + chunk);
   }, []);
-
 
   /**
    * Clear all accumulated text (call on error or reset).
@@ -106,10 +105,10 @@ export function useThrottledStreamingUpdate() {
       // If we updated recently, delay this update
       if (timeSinceLastUpdate < MIN_UPDATE_INTERVAL_MS) {
         const delay = MIN_UPDATE_INTERVAL_MS - timeSinceLastUpdate;
-        
+
         const timeoutId = window.setTimeout(() => {
           pendingUpdatesRef.current.delete(messageId);
-          
+
           // Use rAF for paint-synced update
           requestAnimationFrame(() => {
             lastUpdateTimeRef.current.set(messageId, performance.now());
@@ -117,7 +116,7 @@ export function useThrottledStreamingUpdate() {
             onUpdate(text);
           });
         }, delay);
-        
+
         // Store timeout as negative to distinguish from rAF
         pendingUpdatesRef.current.set(messageId, -timeoutId);
         return;

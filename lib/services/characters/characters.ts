@@ -60,9 +60,8 @@ export class CharactersService {
    */
   async invalidateCache(id: string): Promise<void> {
     // Import dynamically to avoid circular dependency
-    const { invalidateCharacterCache } = await import(
-      "@/lib/cache/character-cache"
-    );
+    const { invalidateCharacterCache } =
+      await import("@/lib/cache/character-cache");
 
     await Promise.all([
       // Invalidate the simple character cache key

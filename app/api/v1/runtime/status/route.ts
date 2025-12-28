@@ -21,8 +21,7 @@ export async function GET() {
   } catch (error) {
     return NextResponse.json(
       { error: "Failed to get runtime status", details: String(error) },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
-

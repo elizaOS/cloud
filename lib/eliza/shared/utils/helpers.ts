@@ -134,7 +134,7 @@ class LRUCache<K, V> {
     // Delete first to ensure it goes to end
     this.cache.delete(key);
     this.cache.set(key, value);
-    
+
     // Evict oldest (first entry) if over capacity
     if (this.cache.size > this.maxSize) {
       const oldestKey = this.cache.keys().next().value;
@@ -384,7 +384,11 @@ interface GenerateResponseOptions {
   /** Callback for streaming text chunks in real-time */
   onStreamChunk?: (chunk: string, messageId?: UUID) => Promise<void>;
   /** Callback for streaming thought/reasoning chunks from response */
-  onReasoningChunk?: (chunk: string, phase: "planning" | "actions" | "response", messageId?: UUID) => Promise<void>;
+  onReasoningChunk?: (
+    chunk: string,
+    phase: "planning" | "actions" | "response",
+    messageId?: UUID,
+  ) => Promise<void>;
   /** Message ID for streaming coordination */
   messageId?: UUID;
 }
@@ -394,23 +398,31 @@ interface GenerateResponseOptions {
  */
 interface StreamingPlanOptions {
   /** Callback for streaming reasoning/thought chunks in real-time */
-  onReasoningChunk?: (chunk: string, phase: "planning" | "actions" | "response", messageId?: UUID) => Promise<void>;
+  onReasoningChunk?: (
+    chunk: string,
+    phase: "planning" | "actions" | "response",
+    messageId?: UUID,
+  ) => Promise<void>;
   /** Message ID for streaming coordination */
   messageId?: UUID;
 }
 
 function createPlanningStreamFilter(
-  onThoughtChunk: (chunk: string, phase: "planning" | "actions" | "response", messageId?: UUID) => Promise<void>,
+  onThoughtChunk: (
+    chunk: string,
+    phase: "planning" | "actions" | "response",
+    messageId?: UUID,
+  ) => Promise<void>,
   phase: "planning" | "actions" | "response",
   messageId?: UUID,
 ) {
   let insideThought = false;
   let buffer = "";
-  
+
   return {
     processChunk: async (chunk: string) => {
       buffer += chunk;
-      
+
       while (buffer.length > 0) {
         if (!insideThought) {
           const tagStart = buffer.indexOf("<thought>");
@@ -421,7 +433,7 @@ function createPlanningStreamFilter(
           buffer = buffer.slice(tagStart + 9);
           insideThought = true;
         }
-        
+
         if (insideThought) {
           const tagEnd = buffer.indexOf("</thought>");
           if (tagEnd === -1) {
@@ -454,25 +466,30 @@ export async function generatePlanningWithStreaming(
 ): Promise<string> {
   const { onReasoningChunk, messageId } = options || {};
   let streamFilter: ReturnType<typeof createPlanningStreamFilter> | null = null;
-  
+
   if (onReasoningChunk) {
-    streamFilter = createPlanningStreamFilter(onReasoningChunk, "planning", messageId);
+    streamFilter = createPlanningStreamFilter(
+      onReasoningChunk,
+      "planning",
+      messageId,
+    );
   }
-  
+
   const response = await runtime.useModel(ModelType.TEXT_LARGE, {
     prompt,
-    ...(onReasoningChunk && streamFilter && {
-      stream: true,
-      onStreamChunk: async (chunk: string) => {
-        await streamFilter!.processChunk(chunk);
-      },
-    }),
+    ...(onReasoningChunk &&
+      streamFilter && {
+        stream: true,
+        onStreamChunk: async (chunk: string) => {
+          await streamFilter!.processChunk(chunk);
+        },
+      }),
   });
-  
+
   if (streamFilter) {
     await streamFilter.flush();
   }
-  
+
   return typeof response === "string" ? response : JSON.stringify(response);
 }
 
@@ -483,12 +500,16 @@ export async function generatePlanningWithStreaming(
 function createStreamingXmlFilter(
   onFilteredChunk: (chunk: string, messageId?: UUID) => Promise<void>,
   messageId?: UUID,
-  onThoughtChunk?: (chunk: string, phase: "planning" | "actions" | "response", messageId?: UUID) => Promise<void>,
+  onThoughtChunk?: (
+    chunk: string,
+    phase: "planning" | "actions" | "response",
+    messageId?: UUID,
+  ) => Promise<void>,
 ) {
   // Separate state machines for each tag type to prevent interference
   const textState = { buffer: "", inside: false };
   const thoughtState = { buffer: "", inside: false };
-  
+
   /**
    * Process a single tag type from a buffer.
    * Returns remaining unprocessed content.
@@ -501,7 +522,7 @@ function createStreamingXmlFilter(
     state: { buffer: string; inside: boolean },
   ): Promise<string> => {
     state.buffer += input;
-    
+
     while (state.buffer.length > 0) {
       if (!state.inside) {
         const tagStart = state.buffer.indexOf(startTag);
@@ -516,7 +537,7 @@ function createStreamingXmlFilter(
         state.buffer = state.buffer.slice(tagStart + startTag.length);
         state.inside = true;
       }
-      
+
       if (state.inside) {
         const tagEnd = state.buffer.indexOf(endTag);
         if (tagEnd === -1) {
@@ -535,10 +556,10 @@ function createStreamingXmlFilter(
         state.inside = false;
       }
     }
-    
+
     return state.buffer;
   };
-  
+
   return {
     processChunk: async (chunk: string) => {
       // Process text tag with its own state
@@ -549,7 +570,7 @@ function createStreamingXmlFilter(
         async (content) => onFilteredChunk(content, messageId),
         textState,
       );
-      
+
       // Process thought tag with its own state (if callback provided)
       if (onThoughtChunk) {
         await processTag(
@@ -577,7 +598,7 @@ function createStreamingXmlFilter(
 
 /**
  * Generate a response with retry logic and optional real-time streaming.
- * 
+ *
  * When onStreamChunk is provided, the response is streamed in real-time
  * as it's generated by the model. The XML structure is parsed incrementally
  * so only the actual response text (inside <text>...</text>) is streamed to
@@ -597,22 +618,28 @@ export async function generateResponseWithRetry(
       // When streaming callback is provided, enable streaming mode with XML filtering
       // The filter extracts content from <text>...</text> AND <thought>...</thought> tags
       // Text goes to main response, thought goes to reasoning display
-      let streamFilter: ReturnType<typeof createStreamingXmlFilter> | null = null;
-      
+      let streamFilter: ReturnType<typeof createStreamingXmlFilter> | null =
+        null;
+
       if (onStreamChunk) {
-        streamFilter = createStreamingXmlFilter(onStreamChunk, messageId, onReasoningChunk);
+        streamFilter = createStreamingXmlFilter(
+          onStreamChunk,
+          messageId,
+          onReasoningChunk,
+        );
       }
-      
+
       const response = await runtime.useModel(ModelType.TEXT_LARGE, {
         prompt,
-        ...(onStreamChunk && streamFilter && {
-          stream: true,
-          onStreamChunk: async (chunk: string) => {
-            await streamFilter!.processChunk(chunk);
-          },
-        }),
+        ...(onStreamChunk &&
+          streamFilter && {
+            stream: true,
+            onStreamChunk: async (chunk: string) => {
+              await streamFilter!.processChunk(chunk);
+            },
+          }),
       });
-      
+
       // Flush any remaining buffered content
       if (streamFilter) {
         await streamFilter.flush();

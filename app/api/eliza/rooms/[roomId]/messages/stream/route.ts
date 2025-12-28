@@ -69,10 +69,10 @@ export async function POST(
     // Validate appId format if provided (must be UUID)
     const appIdResult = validateAppId(rawAppId);
     if (!appIdResult.valid) {
-      return new Response(
-        JSON.stringify({ error: appIdResult.error }),
-        { status: 400, headers: { "Content-Type": "application/json" } },
-      );
+      return new Response(JSON.stringify({ error: appIdResult.error }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
     }
     const appId = appIdResult.appId;
 
@@ -636,14 +636,17 @@ async function authenticateAndBuildContext(
     webSearchEnabled?: boolean;
   },
 ) {
-  const anonymousSessionToken = request.headers.get("X-Anonymous-Session") || body?.sessionToken;
+  const anonymousSessionToken =
+    request.headers.get("X-Anonymous-Session") || body?.sessionToken;
 
   // Try Privy/API key auth first (ensures authenticated users aren't treated as anonymous)
   try {
     const authResult = await requireAuthOrApiKey(request);
-    
+
     if (authResult.user.is_anonymous) {
-      logger.warn("[Stream] User authenticated but marked anonymous - possible migration issue");
+      logger.warn(
+        "[Stream] User authenticated but marked anonymous - possible migration issue",
+      );
     }
 
     return await userContextService.buildContext({
@@ -659,11 +662,13 @@ async function authenticateAndBuildContext(
 
   // Try provided session token
   if (anonymousSessionToken) {
-    const session = await anonymousSessionsService.getByToken(anonymousSessionToken);
+    const session = await anonymousSessionsService.getByToken(
+      anonymousSessionToken,
+    );
 
     if (session && !session.converted_at && session.is_active) {
       const user = await usersService.getById(session.user_id);
-      
+
       if (user?.is_anonymous) {
         return await userContextService.buildContext({
           user: { ...user, organization: null as never },

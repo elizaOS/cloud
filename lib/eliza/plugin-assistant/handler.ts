@@ -39,7 +39,10 @@ import {
   canRespondImmediately,
   type ParsedPlan,
 } from "../shared/utils/parsers";
-import type { MessageReceivedHandlerParams, RunEndedEventPayload } from "../shared/types";
+import type {
+  MessageReceivedHandlerParams,
+  RunEndedEventPayload,
+} from "../shared/types";
 
 /**
  * Chat Assistant Workflow Handler - planning-based with action execution.
@@ -62,17 +65,21 @@ export async function handleMessage({
   setLatestResponseId(runtime, message.roomId, responseId).catch((e) => {
     logger.warn(`[ChatAssistant] Failed to set response ID: ${e}`);
   });
-  
-  runtime.emitEvent(EventType.RUN_STARTED, {
-    runtime,
-    runId,
-    messageId: message.id || asUUID(v4()),
-    roomId: message.roomId,
-    entityId: message.entityId,
-    startTime,
-    status: "started",
-    source: "chatAssistantWorkflow",
-  }).catch((e) => logger.debug(`[ChatAssistant] RUN_STARTED emit failed: ${e}`));
+
+  runtime
+    .emitEvent(EventType.RUN_STARTED, {
+      runtime,
+      runId,
+      messageId: message.id || asUUID(v4()),
+      roomId: message.roomId,
+      entityId: message.entityId,
+      startTime,
+      status: "started",
+      source: "chatAssistantWorkflow",
+    })
+    .catch((e) =>
+      logger.debug(`[ChatAssistant] RUN_STARTED emit failed: ${e}`),
+    );
 
   const initialState = await runtime.composeState(message, [
     "SUMMARIZED_CONTEXT",
@@ -96,7 +103,9 @@ export async function handleMessage({
     const planningPrompt = cleanPrompt(
       composePromptFromState({
         state: initialState,
-        template: runtime.character.templates?.planningTemplate || chatAssistantPlanningTemplate,
+        template:
+          runtime.character.templates?.planningTemplate ||
+          chatAssistantPlanningTemplate,
       }),
     );
 
@@ -108,7 +117,9 @@ export async function handleMessage({
     const planningResponse = await generatePlanningWithStreaming(
       runtime,
       planningPrompt,
-      onReasoningChunk ? { onReasoningChunk, messageId: responseId as UUID } : undefined,
+      onReasoningChunk
+        ? { onReasoningChunk, messageId: responseId as UUID }
+        : undefined,
     );
 
     const plan = parseKeyValueXml(planningResponse) as ParsedPlan | null;
@@ -122,7 +133,10 @@ export async function handleMessage({
       if (onStreamChunk) {
         const chunkSize = 20;
         for (let i = 0; i < responseContent.length; i += chunkSize) {
-          await onStreamChunk(responseContent.slice(i, i + chunkSize), responseId as UUID);
+          await onStreamChunk(
+            responseContent.slice(i, i + chunkSize),
+            responseId as UUID,
+          );
         }
       }
     } else {
@@ -171,13 +185,15 @@ export async function handleMessage({
       );
 
       const responseResult = await generateResponseWithRetry(
-        runtime, 
+        runtime,
         responsePrompt,
-        onStreamChunk ? { 
-          onStreamChunk, 
-          onReasoningChunk,
-          messageId: responseId as UUID 
-        } : undefined,
+        onStreamChunk
+          ? {
+              onStreamChunk,
+              onReasoningChunk,
+              messageId: responseId as UUID,
+            }
+          : undefined,
       );
       responseContent = responseResult.text;
       thought = responseResult.thought;
@@ -215,12 +231,16 @@ export async function handleMessage({
     const mediaAttachments: Media[] = Array.from(attachmentMap.values())
       .filter((att) => att.url.length > 0)
       .map((att) => {
-        const contentType = att.contentType?.toUpperCase() as keyof typeof ContentType;
+        const contentType =
+          att.contentType?.toUpperCase() as keyof typeof ContentType;
         return {
           id: att.id,
           url: att.url,
           ...(att.title && { title: att.title }),
-          ...(contentType && ContentType[contentType] && { contentType: ContentType[contentType] }),
+          ...(contentType &&
+            ContentType[contentType] && {
+              contentType: ContentType[contentType],
+            }),
         };
       });
 
@@ -257,18 +277,22 @@ export async function handleMessage({
     const endTime = Date.now();
     logger.info(`[ChatAssistant] ${endTime - startTime}ms`);
 
-    runtime.emitEvent(EventType.RUN_ENDED, {
-      runtime,
-      runId,
-      messageId: message.id || asUUID(v4()),
-      roomId: message.roomId,
-      entityId: message.entityId,
-      startTime,
-      status: "completed",
-      endTime,
-      duration: endTime - startTime,
-      source: "chatAssistantWorkflow",
-    }).catch((e) => logger.debug(`[ChatAssistant] RUN_ENDED emit failed: ${e}`));
+    runtime
+      .emitEvent(EventType.RUN_ENDED, {
+        runtime,
+        runId,
+        messageId: message.id || asUUID(v4()),
+        roomId: message.roomId,
+        entityId: message.entityId,
+        startTime,
+        status: "completed",
+        endTime,
+        duration: endTime - startTime,
+        source: "chatAssistantWorkflow",
+      })
+      .catch((e) =>
+        logger.debug(`[ChatAssistant] RUN_ENDED emit failed: ${e}`),
+      );
   } catch (error) {
     const errorPayload: RunEndedEventPayload = {
       runtime,

@@ -15,7 +15,11 @@ import {
 } from "@elizaos/core";
 import { createDatabaseAdapter } from "@elizaos/plugin-sql/node";
 import { agentLoader } from "./agent-loader";
-import { getElizaCloudApiUrl, getDefaultModels, buildElevenLabsSettings } from "./config";
+import {
+  getElizaCloudApiUrl,
+  getDefaultModels,
+  buildElevenLabsSettings,
+} from "./config";
 import type { UserContext } from "./user-context";
 import { logger } from "@/lib/utils/logger";
 import "@/lib/polyfills/dom-polyfills";
@@ -78,7 +82,10 @@ class RuntimeCache {
     return entry.runtime;
   }
 
-  async getWithHealthCheck(agentId: string, dbPool: DbAdapterPool): Promise<AgentRuntime | null> {
+  async getWithHealthCheck(
+    agentId: string,
+    dbPool: DbAdapterPool,
+  ): Promise<AgentRuntime | null> {
     const entry = this.cache.get(agentId);
     if (!entry) return null;
 
@@ -96,7 +103,9 @@ class RuntimeCache {
     // Check if DB connection is still alive via the adapter pool
     const isHealthy = await dbPool.checkHealth(entry.agentId as UUID);
     if (!isHealthy) {
-      elizaLogger.warn(`[RuntimeCache] Stale DB connection for ${agentId}, evicting runtime`);
+      elizaLogger.warn(
+        `[RuntimeCache] Stale DB connection for ${agentId}, evicting runtime`,
+      );
       this.cache.delete(agentId);
       return null;
     }
@@ -176,8 +185,10 @@ class DbAdapterPool {
       if (isHealthy) {
         return existingAdapter;
       }
-      
-      elizaLogger.warn(`[DbAdapterPool] Stale connection for ${agentId}, recreating`);
+
+      elizaLogger.warn(
+        `[DbAdapterPool] Stale connection for ${agentId}, recreating`,
+      );
       this.adapters.delete(key);
       adapterEmbeddingDimensions.delete(key);
     }
@@ -198,13 +209,21 @@ class DbAdapterPool {
     }
   }
 
-  private async checkAdapterHealth(adapter: IDatabaseAdapter): Promise<boolean> {
+  private async checkAdapterHealth(
+    adapter: IDatabaseAdapter,
+  ): Promise<boolean> {
     try {
-      await adapter.getEntitiesByIds(["00000000-0000-0000-0000-000000000000" as UUID]);
+      await adapter.getEntitiesByIds([
+        "00000000-0000-0000-0000-000000000000" as UUID,
+      ]);
       return true;
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      if (msg.includes("closed") || msg.includes("terminated") || msg.includes("connection")) {
+      if (
+        msg.includes("closed") ||
+        msg.includes("terminated") ||
+        msg.includes("connection")
+      ) {
         return false;
       }
       return true;
@@ -215,7 +234,7 @@ class DbAdapterPool {
     const key = agentId as string;
     const adapter = this.adapters.get(key);
     if (!adapter) return true;
-    
+
     const isHealthy = await this.checkAdapterHealth(adapter);
     if (!isHealthy) this.invalidateAdapter(key);
     return isHealthy;
@@ -357,9 +376,14 @@ export class RuntimeFactory {
     const webSearchSuffix = context.webSearchEnabled ? ":ws" : "";
     const cacheKey = `${agentId}${webSearchSuffix}`;
 
-    const cachedRuntime = await runtimeCache.getWithHealthCheck(cacheKey, dbAdapterPool);
+    const cachedRuntime = await runtimeCache.getWithHealthCheck(
+      cacheKey,
+      dbAdapterPool,
+    );
     if (cachedRuntime) {
-      elizaLogger.info(`[RuntimeFactory] Cache HIT: ${character.name} (${Date.now() - startTime}ms)`);
+      elizaLogger.info(
+        `[RuntimeFactory] Cache HIT: ${character.name} (${Date.now() - startTime}ms)`,
+      );
       this.applyUserContext(cachedRuntime, context);
       edgeRuntimeCache.incrementRequestCount(agentId as string).catch((e) => {
         elizaLogger.debug(`[RuntimeFactory] Edge cache increment failed: ${e}`);
@@ -427,9 +451,11 @@ export class RuntimeFactory {
 
     if (context.modelPreferences) {
       settings.ELIZAOS_CLOUD_SMALL_MODEL =
-        context.modelPreferences.smallModel || settings.ELIZAOS_CLOUD_SMALL_MODEL;
+        context.modelPreferences.smallModel ||
+        settings.ELIZAOS_CLOUD_SMALL_MODEL;
       settings.ELIZAOS_CLOUD_LARGE_MODEL =
-        context.modelPreferences.largeModel || settings.ELIZAOS_CLOUD_LARGE_MODEL;
+        context.modelPreferences.largeModel ||
+        settings.ELIZAOS_CLOUD_LARGE_MODEL;
     }
 
     if (context.appPromptConfig) {
@@ -528,7 +554,9 @@ export class RuntimeFactory {
         msg.includes("Failed to create agent") ||
         msg.includes("Failed to create room");
       if (!isDuplicate) throw e;
-      elizaLogger.warn(`[RuntimeFactory] Init error: ${msg.substring(0, 50)}...`);
+      elizaLogger.warn(
+        `[RuntimeFactory] Init error: ${msg.substring(0, 50)}...`,
+      );
       this.resolveInitPromise(runtime);
     }
 
@@ -565,7 +593,9 @@ export class RuntimeFactory {
     if (parallelOps.length > 0) {
       const parallelStart = Date.now();
       await Promise.all(parallelOps);
-      elizaLogger.debug(`[RuntimeFactory] Parallel ops: ${Date.now() - parallelStart}ms`);
+      elizaLogger.debug(
+        `[RuntimeFactory] Parallel ops: ${Date.now() - parallelStart}ms`,
+      );
     }
 
     if (initSucceeded) {
@@ -678,7 +708,7 @@ export class RuntimeFactory {
 
     // Check immediately first
     mcpService = runtime.getService("mcp") as McpService | null;
-    
+
     // Exponential backoff: 5, 10, 20, 40, 80, 160, 200, 200...
     while (!mcpService && Date.now() - startTime < maxWaitMs) {
       await new Promise((r) => setTimeout(r, waitMs));
@@ -688,7 +718,9 @@ export class RuntimeFactory {
 
     const elapsed = Date.now() - startTime;
     if (!mcpService) {
-      elizaLogger.warn(`[RuntimeFactory] MCP service not available after ${elapsed}ms`);
+      elizaLogger.warn(
+        `[RuntimeFactory] MCP service not available after ${elapsed}ms`,
+      );
       return;
     }
 

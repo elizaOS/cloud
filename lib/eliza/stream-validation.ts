@@ -161,33 +161,46 @@ export const appPromptConfigSchema = z
 /**
  * Validate appId format (must be UUID)
  */
-export function validateAppId(rawAppId: string | null): { valid: boolean; appId?: string; error?: string } {
+export function validateAppId(rawAppId: string | null): {
+  valid: boolean;
+  appId?: string;
+  error?: string;
+} {
   if (!rawAppId) {
     return { valid: true };
   }
-  
+
   const result = z.string().uuid().safeParse(rawAppId);
   if (!result.success) {
-    return { valid: false, error: "Invalid appId format - must be a valid UUID" };
+    return {
+      valid: false,
+      error: "Invalid appId format - must be a valid UUID",
+    };
   }
-  
+
   return { valid: true, appId: result.data };
 }
 
 /**
  * Validate app prompt config
  */
-export function validateAppPromptConfig(
-  config: unknown,
-): { valid: boolean; error?: string; details?: z.ZodIssue[] } {
+export function validateAppPromptConfig(config: unknown): {
+  valid: boolean;
+  error?: string;
+  details?: z.ZodIssue[];
+} {
   if (!config) {
     return { valid: true };
   }
-  
+
   const result = appPromptConfigSchema.safeParse(config);
   if (!result.success) {
-    return { valid: false, error: "Invalid appPromptConfig format", details: result.error.issues };
+    return {
+      valid: false,
+      error: "Invalid appPromptConfig format",
+      details: result.error.issues,
+    };
   }
-  
+
   return { valid: true };
 }
