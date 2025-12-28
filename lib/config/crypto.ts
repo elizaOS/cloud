@@ -49,12 +49,18 @@ export const WEBHOOK_CONFIG = {
 /**
  * OxaPay webhook payload structure.
  * Supports both camelCase (invoice API) and snake_case (white-label API) formats.
+ *
+ * NOTE: We always credit the invoice USD amount from the API, not webhook values.
+ * - Underpayments: Rejected by OxaPay (underPaidCover: 0)
+ * - Overpayments: User's responsibility
  */
 export interface OxaPayWebhookPayload {
   track_id?: string;
   trackId?: string;
   status: string;
+  /** Native currency amount (may NOT be USD for volatile coins!) */
   amount?: number;
+  /** Native currency amount user sent */
   pay_amount?: number;
   payAmount?: number;
   address?: string;
@@ -63,10 +69,13 @@ export interface OxaPayWebhookPayload {
   timestamp?: number | string;
   payCurrency?: string;
   network?: string;
+  receivedAmount?: number;
+  received_amount?: number;
 }
 
 /**
  * Normalize webhook payload to consistent format.
+ * Note: We use invoice amount from API for crediting, not these webhook values.
  */
 export function normalizeWebhookPayload(payload: OxaPayWebhookPayload): {
   trackId: string;
@@ -75,10 +84,14 @@ export function normalizeWebhookPayload(payload: OxaPayWebhookPayload): {
   payAmount?: number;
   txID?: string;
 } {
+  // Check for receivedAmount field (some OxaPay responses may include this)
+  const receivedAmount = payload.receivedAmount || payload.received_amount;
+
   return {
     trackId: payload.trackId || payload.track_id || "",
     status: payload.status,
-    amount: payload.amount,
+    // Prefer receivedAmount if available, otherwise use amount
+    amount: receivedAmount ?? payload.amount,
     payAmount: payload.payAmount || payload.pay_amount,
     txID: payload.txID,
   };
