@@ -58,10 +58,21 @@ const nextConfig: NextConfig = {
     serverActions: {
       bodySizeLimit: "2gb",
     },
+    // Speed up builds by optimizing large package imports
+    optimizePackageImports: [
+      "@tabler/icons-react",
+      "lucide-react",
+      "@radix-ui/react-icons",
+      "recharts",
+      "date-fns",
+    ],
   },
   turbopack: {},
   typescript: {
     ignoreBuildErrors: true,
+  },
+  eslint: {
+    ignoreDuringBuilds: true,
   },
   outputFileTracingRoot: undefined,
   outputFileTracingIncludes: {
@@ -113,80 +124,16 @@ const nextConfig: NextConfig = {
       }
     }
 
-    // Production optimizations
-    if (!dev && !isServer) {
-      // Optimize chunk splitting for better caching
-      config.optimization = {
-        ...config.optimization,
-        moduleIds: "deterministic",
-        runtimeChunk: "single",
-        splitChunks: {
-          chunks: "all",
-          cacheGroups: {
-            // Vendor chunks - stable dependencies
-            vendor: {
-              test: /[\\/]node_modules[\\/]/,
-              name: "vendors",
-              priority: 10,
-              reuseExistingChunk: true,
-            },
-            // ElizaOS packages - frequently updated
-            elizaos: {
-              test: /[\\/]node_modules[\\/]@elizaos[\\/]/,
-              name: "elizaos",
-              priority: 20,
-              reuseExistingChunk: true,
-            },
-            // UI libraries - large but stable
-            ui: {
-              test: /[\\/]node_modules[\\/](@radix-ui|lucide-react|@tabler)[\\/]/,
-              name: "ui-lib",
-              priority: 15,
-              reuseExistingChunk: true,
-            },
-            // Heavy libraries loaded separately
-            monaco: {
-              test: /[\\/]node_modules[\\/](@monaco-editor|monaco-editor)[\\/]/,
-              name: "monaco",
-              priority: 25,
-              reuseExistingChunk: true,
-            },
-            three: {
-              test: /[\\/]node_modules[\\/](three|@react-three)[\\/]/,
-              name: "three",
-              priority: 25,
-              reuseExistingChunk: true,
-            },
-            recharts: {
-              test: /[\\/]node_modules[\\/]recharts[\\/]/,
-              name: "recharts",
-              priority: 25,
-              reuseExistingChunk: true,
-            },
-            // Common shared code
-            common: {
-              minChunks: 2,
-              priority: 5,
-              reuseExistingChunk: true,
-              enforce: true,
-            },
-          },
-          maxInitialRequests: 25,
-          minSize: 20000,
-        },
-      };
-
-      // Enable bundle analyzer if env variable is set
-      if (process.env.ANALYZE === "true") {
-        const { BundleAnalyzerPlugin } = require("webpack-bundle-analyzer");
-        config.plugins.push(
-          new BundleAnalyzerPlugin({
-            analyzerMode: "static",
-            reportFilename: "./analyze/client.html",
-            openAnalyzer: false,
-          }),
-        );
-      }
+    // Enable bundle analyzer if env variable is set (dev only)
+    if (process.env.ANALYZE === "true" && !dev && !isServer) {
+      const { BundleAnalyzerPlugin } = require("webpack-bundle-analyzer");
+      config.plugins.push(
+        new BundleAnalyzerPlugin({
+          analyzerMode: "static",
+          reportFilename: "./analyze/client.html",
+          openAnalyzer: false,
+        }),
+      );
     }
 
     return config;

@@ -8,8 +8,6 @@ import {
   ModelType,
   type Memory,
   parseKeyValueXml,
-  runWithStreamingContext,
-  XmlTagExtractor,
   type UUID,
   type Action,
   type IAgentRuntime,
@@ -66,31 +64,8 @@ export async function handleMessage({
 
   const originalSystemPrompt = runtime.character.system;
 
-  // Wrap processing with streaming context for automatic streaming in useModel calls
-  // Use XmlTagExtractor to extract and stream <text> content from responses
-  let streamingContext:
-    | {
-        onStreamChunk: (chunk: string, messageId?: UUID) => Promise<void>;
-        messageId?: UUID;
-      }
-    | undefined;
-  if (onStreamChunk) {
-    const extractor = new XmlTagExtractor("text");
-    streamingContext = {
-      onStreamChunk: async (chunk: string, msgId?: UUID) => {
-        if (extractor.done) return;
-        const textToStream = extractor.push(chunk);
-        if (textToStream) {
-          await onStreamChunk(textToStream, msgId);
-        }
-      },
-      messageId: responseId as UUID,
-    };
-  }
-
   try {
-    await runWithStreamingContext(streamingContext, async () => {
-      await runtime.createMemory(message, "messages");
+    await runtime.createMemory(message, "messages");
 
       // Wait for MCP if available
       const mcpService = runtime.getService("mcp") as
@@ -145,9 +120,7 @@ export async function handleMessage({
 
       runtime.character.system = originalSystemPrompt;
 
-      const parsedResponse = parseKeyValueXml(
-        response,
-      ) as ParsedResponse | null;
+      const parsedResponse = parseKeyValueXml(response) as ParsedResponse | null;
       if (!parsedResponse?.text) {
         throw new Error("Failed to generate valid response");
       }
@@ -162,6 +135,13 @@ export async function handleMessage({
         message.roomId as string,
       );
       const finalText = processedResponse.text;
+      
+      // Stream response chunks if callback provided
+      if (onStreamChunk && finalText) {
+        for (let i = 0; i < finalText.length; i += 15) {
+          await onStreamChunk(finalText.slice(i, i + 15), responseId as UUID);
+        }
+      }
 
       if (callback) {
         await callback({
@@ -201,17 +181,16 @@ export async function handleMessage({
       );
 
       await runtime.emitEvent(EventType.RUN_ENDED, {
-        runtime,
-        source: "chatPlaygroundWorkflow",
-        runId,
-        messageId: message.id || asUUID(v4()),
-        roomId: message.roomId,
-        entityId: message.entityId,
-        startTime,
-        status: "completed",
-        endTime: Date.now(),
-        duration: Date.now() - startTime,
-      });
+      runtime,
+      source: "chatPlaygroundWorkflow",
+      runId,
+      messageId: message.id || asUUID(v4()),
+      roomId: message.roomId,
+      entityId: message.entityId,
+      startTime,
+      status: "completed",
+      endTime: Date.now(),
+      duration: Date.now() - startTime,
     });
   } catch (error) {
     runtime.character.system = originalSystemPrompt;

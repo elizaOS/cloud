@@ -1,6 +1,7 @@
-import { generateStaticParamsFor, importPage } from "nextra/pages";
+import { importPage } from "nextra/pages";
 
-export const generateStaticParams = generateStaticParamsFor("mdxPath");
+// Skip static generation - render docs on-demand to avoid 30+ min build times
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata(props: PageProps) {
   const params = await props.params;
