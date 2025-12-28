@@ -11,7 +11,7 @@ import { charactersService } from "@/lib/services/characters";
 import { memoriesRepository } from "@/db/repositories/agents/memories";
 import type { ElizaCharacter } from "@/lib/types";
 import defaultAgent from "./agent";
-import { getElizaCloudApiUrl } from "./config";
+import { getElizaCloudApiUrl, buildElevenLabsSettings } from "./config";
 import {
   AgentMode,
   AGENT_MODE_PLUGINS,
@@ -80,6 +80,8 @@ export type ModeUpgradeReason =
 export interface ModeResolution {
   mode: AgentMode;
   upgradeReason: ModeUpgradeReason;
+  /** Document count from mode resolution - reuse to avoid duplicate DB query */
+  documentCount?: number;
 }
 
 /**
@@ -99,7 +101,7 @@ function hasExplicitSettingsPlugin(characterPlugins: string[]): boolean {
  * @param characterId - The character ID to check capabilities for
  * @param characterSettings - Settings configured on the character
  * @param characterPlugins - Plugins explicitly listed on the character
- * @returns The effective mode and reason for any upgrade
+ * @returns The effective mode, reason for any upgrade, and document count (to avoid duplicate DB query)
  */
 async function resolveEffectiveMode(
   requestedMode: AgentMode,
@@ -109,23 +111,38 @@ async function resolveEffectiveMode(
 ): Promise<ModeResolution> {
   // BUILD mode is never upgraded - it's a specific workflow
   if (requestedMode === AgentMode.BUILD) {
-    return { mode: requestedMode, upgradeReason: "none" };
+    return { mode: requestedMode, upgradeReason: "none", documentCount: 0 };
   }
 
-  // Already ASSISTANT mode - no upgrade needed
+  // Already ASSISTANT mode - no upgrade needed, but still query document count for plugin resolution
   if (requestedMode === AgentMode.ASSISTANT) {
-    return { mode: requestedMode, upgradeReason: "none" };
+    const documentCount = await memoriesRepository.countByType(
+      characterId,
+      "documents",
+      characterId,
+    );
+    return { mode: requestedMode, upgradeReason: "none", documentCount };
   }
 
   // Check 1: Settings-based plugins (mcp, webSearch, etc.) require ASSISTANT mode
   if (requiresAssistantMode(characterSettings)) {
-    return { mode: AgentMode.ASSISTANT, upgradeReason: "settings_plugin" };
+    const documentCount = await memoriesRepository.countByType(
+      characterId,
+      "documents",
+      characterId,
+    );
+    return { mode: AgentMode.ASSISTANT, upgradeReason: "settings_plugin", documentCount };
   }
 
   // Check 2: Explicit settings-based plugins in character plugins require ASSISTANT mode
   // MCP plugin requires ASSISTANT mode for tool execution even when explicitly listed
   if (hasExplicitSettingsPlugin(characterPlugins)) {
-    return { mode: AgentMode.ASSISTANT, upgradeReason: "explicit_plugin" };
+    const documentCount = await memoriesRepository.countByType(
+      characterId,
+      "documents",
+      characterId,
+    );
+    return { mode: AgentMode.ASSISTANT, upgradeReason: "explicit_plugin", documentCount };
   }
 
   // Check 3: Knowledge documents require ASSISTANT mode for RAG
@@ -135,11 +152,11 @@ async function resolveEffectiveMode(
     characterId,
   );
   if (documentCount > 0) {
-    return { mode: AgentMode.ASSISTANT, upgradeReason: "has_knowledge" };
+    return { mode: AgentMode.ASSISTANT, upgradeReason: "has_knowledge", documentCount };
   }
 
   // No upgrade needed
-  return { mode: requestedMode, upgradeReason: "none" };
+  return { mode: requestedMode, upgradeReason: "none", documentCount };
 }
 
 /**
@@ -224,6 +241,7 @@ export class AgentLoader {
     }
 
     // Resolve effective mode based on character capabilities
+    // NOTE: modeResolution includes documentCount to avoid duplicate DB query
     const modeResolution = await resolveEffectiveMode(
       agentMode,
       characterId,
@@ -231,13 +249,8 @@ export class AgentLoader {
       characterPlugins,
     );
 
-    // Check if character has knowledge files (cached query, not runtime related)
-    const documentCount = await memoriesRepository.countByType(
-      characterId,
-      "documents",
-      characterId,
-    );
-    const hasKnowledge = documentCount > 0;
+    // Reuse documentCount from mode resolution (avoids duplicate DB query)
+    const hasKnowledge = (modeResolution.documentCount ?? 0) > 0;
 
     const plugins = await this.resolvePlugins(
       modeResolution.mode,
@@ -274,9 +287,7 @@ export class AgentLoader {
   private buildCharacter(elizaCharacter: ElizaCharacter): Character {
     const characterId =
       elizaCharacter.id || "b850bc30-45f8-0041-a00a-83df46d8555d";
-    const charSettings = elizaCharacter.settings || {};
-    const getSetting = (key: string, fallback: string) =>
-      (charSettings[key] as string) || process.env[key] || fallback;
+    const charSettings = (elizaCharacter.settings || {}) as Record<string, unknown>;
 
     const settings: Record<
       string,
@@ -286,62 +297,8 @@ export class AgentLoader {
       POSTGRES_URL: process.env.DATABASE_URL!,
       DATABASE_URL: process.env.DATABASE_URL!,
       ELIZAOS_CLOUD_BASE_URL: getElizaCloudApiUrl(),
-      ELEVENLABS_API_KEY: process.env.ELEVENLABS_API_KEY!,
-      ELEVENLABS_VOICE_ID: getSetting(
-        "ELEVENLABS_VOICE_ID",
-        "EXAVITQu4vr4xnSDxMaL",
-      ),
-      ELEVENLABS_MODEL_ID: getSetting(
-        "ELEVENLABS_MODEL_ID",
-        "eleven_multilingual_v2",
-      ),
-      ELEVENLABS_VOICE_STABILITY: getSetting(
-        "ELEVENLABS_VOICE_STABILITY",
-        "0.5",
-      ),
-      ELEVENLABS_VOICE_SIMILARITY_BOOST: getSetting(
-        "ELEVENLABS_VOICE_SIMILARITY_BOOST",
-        "0.75",
-      ),
-      ELEVENLABS_VOICE_STYLE: getSetting("ELEVENLABS_VOICE_STYLE", "0"),
-      ELEVENLABS_VOICE_USE_SPEAKER_BOOST: getSetting(
-        "ELEVENLABS_VOICE_USE_SPEAKER_BOOST",
-        "true",
-      ),
-      ELEVENLABS_OPTIMIZE_STREAMING_LATENCY: getSetting(
-        "ELEVENLABS_OPTIMIZE_STREAMING_LATENCY",
-        "0",
-      ),
-      ELEVENLABS_OUTPUT_FORMAT: getSetting(
-        "ELEVENLABS_OUTPUT_FORMAT",
-        "mp3_44100_128",
-      ),
-      ELEVENLABS_LANGUAGE_CODE: getSetting("ELEVENLABS_LANGUAGE_CODE", "en"),
-      ELEVENLABS_STT_MODEL_ID: getSetting(
-        "ELEVENLABS_STT_MODEL_ID",
-        "scribe_v1",
-      ),
-      ELEVENLABS_STT_LANGUAGE_CODE: getSetting(
-        "ELEVENLABS_STT_LANGUAGE_CODE",
-        "en",
-      ),
-      ELEVENLABS_STT_TIMESTAMPS_GRANULARITY: getSetting(
-        "ELEVENLABS_STT_TIMESTAMPS_GRANULARITY",
-        "word",
-      ),
-      ELEVENLABS_STT_DIARIZE: getSetting("ELEVENLABS_STT_DIARIZE", "false"),
-      ...(charSettings.ELEVENLABS_STT_NUM_SPEAKERS ||
-      process.env.ELEVENLABS_STT_NUM_SPEAKERS
-        ? {
-            ELEVENLABS_STT_NUM_SPEAKERS:
-              charSettings.ELEVENLABS_STT_NUM_SPEAKERS ||
-              process.env.ELEVENLABS_STT_NUM_SPEAKERS,
-          }
-        : {}),
-      ELEVENLABS_STT_TAG_AUDIO_EVENTS: getSetting(
-        "ELEVENLABS_STT_TAG_AUDIO_EVENTS",
-        "false",
-      ),
+      // ElevenLabs settings (shared config)
+      ...buildElevenLabsSettings(charSettings),
       ...(elizaCharacter.avatarUrl || elizaCharacter.avatar_url
         ? { avatarUrl: elizaCharacter.avatarUrl || elizaCharacter.avatar_url }
         : {}),

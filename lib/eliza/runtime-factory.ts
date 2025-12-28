@@ -23,7 +23,7 @@ import {
 } from "@elizaos/core";
 import { createDatabaseAdapter } from "@elizaos/plugin-sql/node";
 import { agentLoader } from "./agent-loader";
-import { getElizaCloudApiUrl, getDefaultModels } from "./config";
+import { getElizaCloudApiUrl, getDefaultModels, buildElevenLabsSettings } from "./config";
 import type { UserContext } from "./user-context";
 import { logger } from "@/lib/utils/logger";
 import "@/lib/polyfills/dom-polyfills";
@@ -39,6 +39,22 @@ const adapterEmbeddingDimensions = new Map<string, number>();
 
 interface GlobalWithEliza {
   logger?: Logger;
+}
+
+/**
+ * Runtime settings type for user context application.
+ * Avoids repeated type casting in applyUserContext.
+ */
+interface RuntimeSettings {
+  ELIZAOS_CLOUD_API_KEY?: string;
+  USER_ID?: string;
+  ENTITY_ID?: string;
+  ORGANIZATION_ID?: string;
+  IS_ANONYMOUS?: boolean;
+  ELIZAOS_CLOUD_SMALL_MODEL?: string;
+  ELIZAOS_CLOUD_LARGE_MODEL?: string;
+  appPromptConfig?: unknown;
+  [key: string]: unknown;
 }
 
 const globalAny = globalThis as GlobalWithEliza;
@@ -561,30 +577,27 @@ export class RuntimeFactory {
    * This allows reusing runtimes across users while maintaining proper context.
    */
   private applyUserContext(runtime: AgentRuntime, context: UserContext): void {
-    // Update user-specific settings
-    const settings = runtime.character.settings || {};
-    (settings as Record<string, unknown>).ELIZAOS_CLOUD_API_KEY =
-      context.apiKey;
-    (settings as Record<string, unknown>).USER_ID = context.userId;
-    (settings as Record<string, unknown>).ENTITY_ID = context.entityId;
-    (settings as Record<string, unknown>).ORGANIZATION_ID =
-      context.organizationId;
-    (settings as Record<string, unknown>).IS_ANONYMOUS = context.isAnonymous;
+    // Cast once to avoid repeated casts
+    const settings = (runtime.character.settings || {}) as RuntimeSettings;
+    
+    // User-specific settings
+    settings.ELIZAOS_CLOUD_API_KEY = context.apiKey;
+    settings.USER_ID = context.userId;
+    settings.ENTITY_ID = context.entityId;
+    settings.ORGANIZATION_ID = context.organizationId;
+    settings.IS_ANONYMOUS = context.isAnonymous;
 
     // Update model preferences if provided
     if (context.modelPreferences) {
-      (settings as Record<string, unknown>).ELIZAOS_CLOUD_SMALL_MODEL =
-        context.modelPreferences.smallModel ||
-        (settings as Record<string, unknown>).ELIZAOS_CLOUD_SMALL_MODEL;
-      (settings as Record<string, unknown>).ELIZAOS_CLOUD_LARGE_MODEL =
-        context.modelPreferences.largeModel ||
-        (settings as Record<string, unknown>).ELIZAOS_CLOUD_LARGE_MODEL;
+      settings.ELIZAOS_CLOUD_SMALL_MODEL =
+        context.modelPreferences.smallModel || settings.ELIZAOS_CLOUD_SMALL_MODEL;
+      settings.ELIZAOS_CLOUD_LARGE_MODEL =
+        context.modelPreferences.largeModel || settings.ELIZAOS_CLOUD_LARGE_MODEL;
     }
 
     // Update app-specific config if provided
     if (context.appPromptConfig) {
-      (settings as Record<string, unknown>).appPromptConfig =
-        context.appPromptConfig;
+      settings.appPromptConfig = context.appPromptConfig;
     }
   }
 
@@ -620,7 +633,7 @@ export class RuntimeFactory {
     character: Character,
     context: UserContext,
   ): NonNullable<Character["settings"]> {
-    const charSettings = character.settings || {};
+    const charSettings = (character.settings || {}) as Record<string, unknown>;
     const getSetting = (key: string, fallback: string) =>
       (charSettings[key] as string) || process.env[key] || fallback;
 
@@ -638,64 +651,8 @@ export class RuntimeFactory {
       ELIZAOS_CLOUD_LARGE_MODEL:
         context.modelPreferences?.largeModel ||
         getSetting("ELIZAOS_CLOUD_LARGE_MODEL", getDefaultModels().large),
-      // ElevenLabs TTS
-      ELEVENLABS_API_KEY: process.env.ELEVENLABS_API_KEY!,
-      ELEVENLABS_VOICE_ID: getSetting(
-        "ELEVENLABS_VOICE_ID",
-        "EXAVITQu4vr4xnSDxMaL",
-      ),
-      ELEVENLABS_MODEL_ID: getSetting(
-        "ELEVENLABS_MODEL_ID",
-        "eleven_multilingual_v2",
-      ),
-      ELEVENLABS_VOICE_STABILITY: getSetting(
-        "ELEVENLABS_VOICE_STABILITY",
-        "0.5",
-      ),
-      ELEVENLABS_VOICE_SIMILARITY_BOOST: getSetting(
-        "ELEVENLABS_VOICE_SIMILARITY_BOOST",
-        "0.75",
-      ),
-      ELEVENLABS_VOICE_STYLE: getSetting("ELEVENLABS_VOICE_STYLE", "0"),
-      ELEVENLABS_VOICE_USE_SPEAKER_BOOST: getSetting(
-        "ELEVENLABS_VOICE_USE_SPEAKER_BOOST",
-        "true",
-      ),
-      ELEVENLABS_OPTIMIZE_STREAMING_LATENCY: getSetting(
-        "ELEVENLABS_OPTIMIZE_STREAMING_LATENCY",
-        "0",
-      ),
-      ELEVENLABS_OUTPUT_FORMAT: getSetting(
-        "ELEVENLABS_OUTPUT_FORMAT",
-        "mp3_44100_128",
-      ),
-      ELEVENLABS_LANGUAGE_CODE: getSetting("ELEVENLABS_LANGUAGE_CODE", "en"),
-      // ElevenLabs STT
-      ELEVENLABS_STT_MODEL_ID: getSetting(
-        "ELEVENLABS_STT_MODEL_ID",
-        "scribe_v1",
-      ),
-      ELEVENLABS_STT_LANGUAGE_CODE: getSetting(
-        "ELEVENLABS_STT_LANGUAGE_CODE",
-        "en",
-      ),
-      ELEVENLABS_STT_TIMESTAMPS_GRANULARITY: getSetting(
-        "ELEVENLABS_STT_TIMESTAMPS_GRANULARITY",
-        "word",
-      ),
-      ELEVENLABS_STT_DIARIZE: getSetting("ELEVENLABS_STT_DIARIZE", "false"),
-      ...(charSettings.ELEVENLABS_STT_NUM_SPEAKERS ||
-      process.env.ELEVENLABS_STT_NUM_SPEAKERS
-        ? {
-            ELEVENLABS_STT_NUM_SPEAKERS:
-              charSettings.ELEVENLABS_STT_NUM_SPEAKERS ||
-              process.env.ELEVENLABS_STT_NUM_SPEAKERS,
-          }
-        : {}),
-      ELEVENLABS_STT_TAG_AUDIO_EVENTS: getSetting(
-        "ELEVENLABS_STT_TAG_AUDIO_EVENTS",
-        "false",
-      ),
+      // ElevenLabs settings (shared config)
+      ...buildElevenLabsSettings(charSettings),
       // MCP
       ...(charSettings.mcp
         ? {

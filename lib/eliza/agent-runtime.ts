@@ -1,6 +1,6 @@
 /**
- * Agent Runtime Manager - Simplified facade
- * Now delegates to RuntimeFactory and MessageHandler for cleaner architecture
+ * Agent Runtime Manager - Simplified facade for backward compatibility
+ * Delegates to RuntimeFactory which handles all caching centrally
  */
 
 import { AgentRuntime, type Media } from "@elizaos/core";
@@ -8,17 +8,11 @@ import { runtimeFactory } from "./runtime-factory";
 import { createMessageHandler, type MessageResult } from "./message-handler";
 import { userContextService, type UserContext } from "./user-context";
 import { AgentMode } from "./agent-mode-types";
-import { logger } from "@/lib/utils/logger";
+
 class AgentRuntimeManager {
   private static instance: AgentRuntimeManager;
 
-  // Cache for the default system runtime to avoid expensive re-initialization
-  private cachedSystemRuntime: AgentRuntime | null = null;
-  private systemRuntimePromise: Promise<AgentRuntime> | null = null;
-
-  private constructor() {
-    logger.info("[AgentRuntime] Initialized simplified runtime manager");
-  }
+  private constructor() {}
 
   public static getInstance(): AgentRuntimeManager {
     if (!AgentRuntimeManager.instance) {
@@ -27,40 +21,13 @@ class AgentRuntimeManager {
     return AgentRuntimeManager.instance;
   }
 
-  public isReady(): boolean {
-    return true;
-  }
-
   /**
-   * Get default runtime
-   * Creates a system context runtime with CHAT mode - CACHED to avoid expensive re-initialization
+   * Get default system runtime
+   * Delegates to RuntimeFactory which handles caching centrally
    */
   async getRuntime(): Promise<AgentRuntime> {
-    // Return cached runtime if available
-    if (this.cachedSystemRuntime) {
-      return this.cachedSystemRuntime;
-    }
-
-    // If already creating, wait for that promise
-    if (this.systemRuntimePromise) {
-      return this.systemRuntimePromise;
-    }
-
-    // Create new runtime and cache it
-    logger.info(
-      "[AgentRuntime] Creating default runtime with system context (will be cached)",
-    );
-    this.systemRuntimePromise = (async () => {
-      const systemContext = userContextService.createSystemContext(
-        AgentMode.CHAT,
-      );
-      const runtime = await runtimeFactory.createRuntimeForUser(systemContext);
-      this.cachedSystemRuntime = runtime;
-      this.systemRuntimePromise = null;
-      return runtime;
-    })();
-
-    return this.systemRuntimePromise;
+    const systemContext = userContextService.createSystemContext(AgentMode.CHAT);
+    return runtimeFactory.createRuntimeForUser(systemContext);
   }
 
   /**
@@ -80,9 +47,9 @@ class AgentRuntimeManager {
   }
 
   /**
-   * Handle message - Main entry point for processing messages
+   * Handle message - Backward compatibility entry point for non-streaming routes
    * Uses CHAT mode by default
-   * Note: entityId is now derived from userContext.userId inside MessageHandler
+   * Note: entityId is derived from userContext.userId inside MessageHandler
    */
   public async handleMessage(
     roomId: string,
@@ -97,11 +64,6 @@ class AgentRuntimeManager {
       };
     },
   ): Promise<MessageResult> {
-    logger.info("[AgentRuntime] Processing message via new architecture", {
-      roomId,
-      hasUserSettings: !!userSettings,
-    });
-
     // Build user context from settings
     let userContext: UserContext;
 

@@ -21,8 +21,8 @@ import { connectionCache } from "@/lib/cache/connection-cache";
 import type { UserContext } from "./user-context";
 import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
 import { discordService } from "@/lib/services/discord";
-import { db } from "@/db/client";
-import { sql } from "drizzle-orm";
+import { roomsRepository } from "@/db/repositories";
+import { charactersService } from "@/lib/services/characters";
 import type { AgentModeConfig } from "./agent-mode-types";
 import { DEFAULT_AGENT_MODE } from "./agent-mode-types";
 import type { DialogueMetadata } from "@/lib/types/message-content";
@@ -400,12 +400,12 @@ export class MessageHandler {
   private async incrementAnonymousMessageCount(): Promise<void> {
     if (!this.userContext.sessionToken) return;
 
-    const sessions = await db.execute<{ id: string }>(
-      sql`SELECT id FROM anonymous_sessions WHERE session_token = ${this.userContext.sessionToken} LIMIT 1`,
+    const session = await anonymousSessionsService.getByToken(
+      this.userContext.sessionToken,
     );
 
-    if (sessions.rows.length > 0) {
-      await anonymousSessionsService.incrementMessageCount(sessions.rows[0].id);
+    if (session) {
+      await anonymousSessionsService.incrementMessageCount(session.id);
     }
   }
 
@@ -415,19 +415,15 @@ export class MessageHandler {
     agentResponse: string,
     characterId?: string,
   ): Promise<void> {
-    const roomData = await db.execute<{
-      metadata: { discordThreadId?: string };
-    }>(sql`SELECT metadata FROM rooms WHERE id = ${roomId}::uuid LIMIT 1`);
-
-    const threadId = roomData.rows[0]?.metadata?.discordThreadId;
+    const room = await roomsRepository.findById(roomId);
+    const roomMetadata = room?.metadata as { discordThreadId?: string } | undefined;
+    const threadId = roomMetadata?.discordThreadId;
     if (!threadId) return;
 
     let characterName = "Agent";
     if (characterId) {
-      const character = await db.execute<{ name: string }>(
-        sql`SELECT name FROM characters WHERE id = ${characterId}::uuid LIMIT 1`,
-      );
-      characterName = character.rows[0]?.name || "Agent";
+      const character = await charactersService.getById(characterId);
+      characterName = character?.name || "Agent";
     }
 
     await discordService.sendToThread(
