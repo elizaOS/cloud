@@ -10,8 +10,6 @@ import {
   composePromptFromState,
   parseKeyValueXml,
   ModelType,
-  runWithStreamingContext,
-  XmlTagExtractor,
 } from "@elizaos/core";
 import { MESSAGE_EXAMPLES_FORMAT_INSTRUCTIONS } from "../providers/character-guide";
 import { cleanPrompt } from "../../shared/utils/helpers";
@@ -226,12 +224,8 @@ export const suggestChangesAction = {
     options: Record<string, unknown>,
     callback: HandlerCallback,
   ): Promise<void> => {
-    const onStreamChunk = options?.onStreamChunk as
-      | StreamChunkCallback
-      | undefined;
-    logger.info(
-      `[SUGGEST_CHANGES] Generating expert guidance, streaming=${!!onStreamChunk}`,
-    );
+    const onStreamChunk = options?.onStreamChunk as StreamChunkCallback | undefined;
+    logger.info(`[SUGGEST_CHANGES] Generating expert guidance, streaming=${!!onStreamChunk}`);
 
     // Include both guides - agent determines what's relevant from conversation context
     state = await runtime.composeState(message, [
@@ -264,31 +258,7 @@ export const suggestChangesAction = {
     );
     const prompt = composedPrompt + MESSAGE_EXAMPLES_FORMAT_INSTRUCTIONS;
 
-    // Create streaming context to extract <text> content and stream it
-    let streamingContext:
-      | {
-          onStreamChunk: (chunk: string, messageId?: UUID) => Promise<void>;
-          messageId?: UUID;
-        }
-      | undefined;
-    if (onStreamChunk) {
-      const extractor = new XmlTagExtractor("text");
-      streamingContext = {
-        onStreamChunk: async (chunk: string, msgId?: UUID) => {
-          if (extractor.done) return;
-          const textToStream = extractor.push(chunk);
-          if (textToStream) {
-            await onStreamChunk(textToStream, msgId);
-          }
-        },
-        messageId: message.id as UUID,
-      };
-    }
-
-    // Generate response with streaming if available
-    const response = await runWithStreamingContext(streamingContext, () =>
-      runtime.useModel(ModelType.TEXT_LARGE, { prompt }),
-    );
+    const response = await runtime.useModel(ModelType.TEXT_LARGE, { prompt });
 
     logger.debug("[SUGGEST_CHANGES] Raw LLM response:", response);
 

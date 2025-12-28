@@ -10,8 +10,6 @@ import {
   type Media,
   ModelType,
   parseKeyValueXml,
-  runWithStreamingContext,
-  XmlTagExtractor,
   type UUID,
 } from "@elizaos/core";
 import type { DialogueMetadata } from "@/lib/types/message-content";
@@ -117,78 +115,29 @@ export async function handleMessage({
 
   const originalSystemPrompt = runtime.character.system;
 
-  const createPlanningStreamContext = () => {
-    if (!onReasoningChunk) return undefined;
-    const extractor = new XmlTagExtractor("thought");
-    return {
-      onStreamChunk: async (chunk: string) => {
-        if (extractor.done) return;
-        const text = extractor.push(chunk);
-        if (text) await onReasoningChunk(text, "planning", responseId as UUID);
-      },
-      messageId: responseId as UUID,
-    };
-  };
-
-  const createResponseStreamContext = () => {
-    if (!onStreamChunk) return undefined;
-    const extractor = new XmlTagExtractor("text");
-    return {
-      onStreamChunk: async (chunk: string, msgId?: UUID) => {
-        if (extractor.done) return;
-        const text = extractor.push(chunk);
-        if (text) await onStreamChunk(text, msgId);
-      },
-      messageId: responseId as UUID,
-    };
-  };
 
   try {
     await runtime.createMemory(message, "messages");
 
     const affiliateData = runtime.character.settings?.affiliateData as
-      | {
-          vibe?: string;
-          affiliateId?: string;
-          autoImage?: boolean;
-          imageUrls?: string[];
-          [key: string]: unknown;
-        }
+      | { vibe?: string; affiliateId?: string; autoImage?: boolean; imageUrls?: string[]; [key: string]: unknown }
       | undefined;
-    const isAffiliateChat = !!(
-      affiliateData && Object.keys(affiliateData).length > 0
-    );
+    const isAffiliateChat = !!(affiliateData && Object.keys(affiliateData).length > 0);
     const shouldAutoGenerateImages = affiliateData?.autoImage === true;
 
     const providers = isAffiliateChat
       ? ["CHARACTER", "ACTIONS", "affiliateContext", "APP_CONFIG"]
-      : [
-          "SUMMARIZED_CONTEXT",
-          "RECENT_MESSAGES",
-          "LONG_TERM_MEMORY",
-          "AVAILABLE_DOCUMENTS",
-          "PROVIDERS",
-          "MCP",
-          "ACTIONS",
-          "CHARACTER",
-          "affiliateContext",
-          "APP_CONFIG",
-        ];
+      : ["SUMMARIZED_CONTEXT", "RECENT_MESSAGES", "LONG_TERM_MEMORY", "AVAILABLE_DOCUMENTS", "PROVIDERS", "MCP", "ACTIONS", "CHARACTER", "affiliateContext", "APP_CONFIG"];
 
     const initialState = await runtime.composeState(message, providers);
 
-    const systemPromptTemplate = isAffiliateChat
-      ? affiliateSystemPrompt
-      : chatAssistantSystemPrompt;
-    const planningTemplate = isAffiliateChat
-      ? affiliatePlanningTemplate
-      : chatAssistantPlanningTemplate;
+    const systemPromptTemplate = isAffiliateChat ? affiliateSystemPrompt : chatAssistantSystemPrompt;
+    const planningTemplate = isAffiliateChat ? affiliatePlanningTemplate : chatAssistantPlanningTemplate;
 
     const planningPrompt = cleanPrompt(
       composePromptFromState({
         state: initialState,
-        template:
-          runtime.character.templates?.planningTemplate || planningTemplate,
+        template: runtime.character.templates?.planningTemplate || planningTemplate,
       }),
     );
 
@@ -197,14 +146,16 @@ export async function handleMessage({
       template: systemPromptTemplate,
     });
 
-    const planningResponse = await runWithStreamingContext(
-      createPlanningStreamContext(),
-      () => runtime.useModel(ModelType.TEXT_LARGE, { prompt: planningPrompt }),
-    );
+    const planningResponse = await runtime.useModel(ModelType.TEXT_LARGE, { prompt: planningPrompt });
     runtime.character.system = originalSystemPrompt;
 
     let plan = parseKeyValueXml(planningResponse) as ParsedPlan | null;
     let shouldRespondNow = canRespondImmediately(plan);
+    
+    // Stream planning thought to frontend
+    if (onReasoningChunk && plan?.thought) {
+      await onReasoningChunk(plan.thought, "planning", responseId as UUID);
+    }
 
     // Auto-generate images (rate limited)
     if (shouldAutoGenerateImages) {
@@ -215,16 +166,10 @@ export async function handleMessage({
       if (hasExplicitRequest || rateLimitAllows) {
         shouldRespondNow = false;
         if (!plan) {
-          plan = {
-            thought: "Generating image",
-            canRespondNow: "NO",
-            actions: "GENERATE_IMAGE",
-          };
+          plan = { thought: "Generating image", canRespondNow: "NO", actions: "GENERATE_IMAGE" };
         } else {
           if (!plan.actions?.includes("GENERATE_IMAGE")) {
-            plan.actions = plan.actions
-              ? `${plan.actions}, GENERATE_IMAGE`
-              : "GENERATE_IMAGE";
+            plan.actions = plan.actions ? `${plan.actions}, GENERATE_IMAGE` : "GENERATE_IMAGE";
           }
           plan.canRespondNow = "NO";
         }
@@ -238,10 +183,7 @@ export async function handleMessage({
       responseContent = plan.text;
       if (onStreamChunk) {
         for (let i = 0; i < responseContent.length; i += 15) {
-          await onStreamChunk(
-            responseContent.slice(i, i + 15),
-            responseId as UUID,
-          );
+          await onStreamChunk(responseContent.slice(i, i + 15), responseId as UUID);
         }
       }
     } else {
@@ -316,13 +258,16 @@ export async function handleMessage({
         }),
       );
 
-      const streamingContext = createResponseStreamContext();
-      const responseResult = await runWithStreamingContext(
-        streamingContext,
-        () => generateResponseWithRetry(runtime, responsePrompt),
-      );
+      const responseResult = await generateResponseWithRetry(runtime, responsePrompt);
       responseContent = responseResult.text;
       thought = responseResult.thought;
+      
+      // Stream response chunks if callback provided
+      if (onStreamChunk && responseContent) {
+        for (let i = 0; i < responseContent.length; i += 15) {
+          await onStreamChunk(responseContent.slice(i, i + 15), responseId as UUID);
+        }
+      }
     }
 
     runtime.character.system = originalSystemPrompt;
