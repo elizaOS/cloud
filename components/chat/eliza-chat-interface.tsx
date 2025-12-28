@@ -436,14 +436,17 @@ export function ElizaChatInterface({
           );
           if (streamingIndex !== -1) {
             const updated = [...prev];
+            // Use final message content (properly parsed) but preserve streaming ID transition
+            // The streaming text should match the final text after XML filtering
+            // Prefer final message text as it's the authoritative parsed response
             updated[streamingIndex] = {
               ...updated[streamingIndex],
               id: messageData.id,
               content: {
                 ...messageData.content,
-                text:
-                  updated[streamingIndex].content.text ||
-                  messageData.content.text,
+                // Use final message text - it's properly parsed and may include
+                // post-processing like AI-speak removal
+                text: messageData.content.text || updated[streamingIndex].content.text,
               },
             };
             return updated.filter(

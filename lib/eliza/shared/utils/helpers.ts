@@ -419,18 +419,261 @@ export async function executeActions(
   return { ...currentState, ...actionState };
 }
 
+/**
+ * Options for generateResponseWithRetry
+ */
+interface GenerateResponseOptions {
+  /** Callback for streaming text chunks in real-time */
+  onStreamChunk?: (chunk: string, messageId?: UUID) => Promise<void>;
+  /** Message ID for streaming coordination */
+  messageId?: UUID;
+}
+
+/**
+ * Options for streaming planning generation
+ */
+interface StreamingPlanOptions {
+  /** Callback for streaming reasoning/thought chunks in real-time */
+  onReasoningChunk?: (chunk: string, phase: "planning" | "actions" | "response", messageId?: UUID) => Promise<void>;
+  /** Message ID for streaming coordination */
+  messageId?: UUID;
+}
+
+/**
+ * Creates a streaming filter for planning responses that extracts <thought> content in real-time.
+ * This allows the chain-of-thought to stream as the LLM generates it, rather than waiting
+ * for the entire planning response.
+ * 
+ * The LLM outputs XML like: <plan><thought>reasoning</thought><canRespondNow>YES/NO</canRespondNow>...</plan>
+ * We stream the <thought> content as it arrives so users see the reasoning in real-time.
+ */
+function createPlanningStreamFilter(
+  onThoughtChunk: (chunk: string, phase: "planning" | "actions" | "response", messageId?: UUID) => Promise<void>,
+  phase: "planning" | "actions" | "response",
+  messageId?: UUID,
+) {
+  let insideThought = false;
+  let insideTag = false;
+  let tagBuffer = "";
+  let pendingContent = "";
+  
+  return {
+    processChunk: async (chunk: string) => {
+      for (const char of chunk) {
+        if (char === "<") {
+          insideTag = true;
+          tagBuffer = "<";
+          continue;
+        }
+        
+        if (insideTag) {
+          tagBuffer += char;
+          
+          if (char === ">") {
+            insideTag = false;
+            const tag = tagBuffer.toLowerCase();
+            
+            if (tag === "<thought>") {
+              insideThought = true;
+            } else if (tag === "</thought>") {
+              insideThought = false;
+              // Flush any pending content
+              if (pendingContent) {
+                await onThoughtChunk(pendingContent, phase, messageId);
+                pendingContent = "";
+              }
+            }
+            tagBuffer = "";
+            continue;
+          }
+          continue;
+        }
+        
+        // We're outside of tags
+        if (insideThought) {
+          pendingContent += char;
+          
+          // Stream more frequently for responsive feel (every 3-5 chars or word boundary)
+          if (pendingContent.length >= 3 || char === " " || char === "\n" || char === "," || char === ".") {
+            await onThoughtChunk(pendingContent, phase, messageId);
+            pendingContent = "";
+          }
+        }
+      }
+    },
+    flush: async () => {
+      if (pendingContent) {
+        await onThoughtChunk(pendingContent, phase, messageId);
+        pendingContent = "";
+      }
+    },
+  };
+}
+
+/**
+ * Generate a planning response with real-time streaming of the <thought> content.
+ * This allows chain-of-thought to appear immediately as the LLM generates it,
+ * rather than waiting for the entire response.
+ * 
+ * @returns The complete planning response text (for XML parsing after)
+ */
+export async function generatePlanningWithStreaming(
+  runtime: IAgentRuntime,
+  prompt: string,
+  options?: StreamingPlanOptions,
+): Promise<string> {
+  const { onReasoningChunk, messageId } = options || {};
+  
+  // When streaming callback is provided, stream the thought content in real-time
+  let streamFilter: ReturnType<typeof createPlanningStreamFilter> | null = null;
+  
+  if (onReasoningChunk) {
+    streamFilter = createPlanningStreamFilter(onReasoningChunk, "planning", messageId);
+  }
+  
+  const response = await runtime.useModel(ModelType.TEXT_LARGE, {
+    prompt,
+    ...(onReasoningChunk && streamFilter && {
+      stream: true,
+      onStreamChunk: async (chunk: string) => {
+        await streamFilter!.processChunk(chunk);
+      },
+    }),
+  });
+  
+  // Flush any remaining buffered content
+  if (streamFilter) {
+    await streamFilter.flush();
+  }
+  
+  return typeof response === "string" ? response : JSON.stringify(response);
+}
+
+/**
+ * Creates a streaming filter that strips XML tags and extracts content.
+ * Handles partial tags that span multiple chunks.
+ * 
+ * The LLM outputs XML like: <response><thought>...</thought><text>content</text></response>
+ * We want to stream only the content inside <text>...</text> to the user.
+ */
+function createStreamingXmlFilter(
+  onFilteredChunk: (chunk: string, messageId?: UUID) => Promise<void>,
+  messageId?: UUID,
+) {
+  // State for incremental XML parsing
+  let buffer = "";
+  let insideText = false;
+  let insideTag = false;
+  let currentTagName = "";
+  let tagBuffer = "";
+  let pendingContent = "";
+  
+  return {
+    processChunk: async (chunk: string) => {
+      buffer += chunk;
+      
+      // Process buffer character by character for streaming
+      while (buffer.length > 0) {
+        const char = buffer[0];
+        buffer = buffer.slice(1);
+        
+        if (char === "<") {
+          // Start of tag
+          insideTag = true;
+          tagBuffer = "<";
+          continue;
+        }
+        
+        if (insideTag) {
+          tagBuffer += char;
+          
+          if (char === ">") {
+            // End of tag - process it
+            insideTag = false;
+            const tag = tagBuffer.toLowerCase();
+            
+            if (tag === "<text>") {
+              insideText = true;
+            } else if (tag === "</text>") {
+              insideText = false;
+              // Flush any pending content
+              if (pendingContent) {
+                await onFilteredChunk(pendingContent, messageId);
+                pendingContent = "";
+              }
+            }
+            // We're inside <thought> or other tags - don't stream those
+            tagBuffer = "";
+            continue;
+          }
+          continue;
+        }
+        
+        // We're outside of tags
+        if (insideText) {
+          // Inside <text> - this is the content we want to stream!
+          pendingContent += char;
+          
+          // Batch small amounts for efficiency (stream every ~4-8 chars)
+          if (pendingContent.length >= 4 || char === " " || char === "\n") {
+            await onFilteredChunk(pendingContent, messageId);
+            pendingContent = "";
+          }
+        }
+        // Content outside <text> is ignored for streaming
+      }
+    },
+    flush: async () => {
+      // Flush any remaining content
+      if (pendingContent) {
+        await onFilteredChunk(pendingContent, messageId);
+        pendingContent = "";
+      }
+    },
+  };
+}
+
+/**
+ * Generate a response with retry logic and optional real-time streaming.
+ * 
+ * When onStreamChunk is provided, the response is streamed in real-time
+ * as it's generated by the model. The XML structure is parsed incrementally
+ * so only the actual response text (inside <text>...</text>) is streamed to
+ * the user - no XML tags appear in the stream.
+ */
 export async function generateResponseWithRetry(
   runtime: IAgentRuntime,
   prompt: string,
+  options?: GenerateResponseOptions,
 ): Promise<{ text: string; thought: string }> {
   let lastRawResponse = "";
   let lastError: Error | null = null;
+  const { onStreamChunk, messageId } = options || {};
 
   for (let i = 0; i < MAX_RESPONSE_RETRIES; i++) {
     try {
+      // When streaming callback is provided, enable streaming mode with XML filtering
+      // The filter extracts content from <text>...</text> tags and streams only that
+      let streamFilter: ReturnType<typeof createStreamingXmlFilter> | null = null;
+      
+      if (onStreamChunk) {
+        streamFilter = createStreamingXmlFilter(onStreamChunk, messageId);
+      }
+      
       const response = await runtime.useModel(ModelType.TEXT_LARGE, {
         prompt,
+        ...(onStreamChunk && streamFilter && {
+          stream: true,
+          onStreamChunk: async (chunk: string) => {
+            await streamFilter!.processChunk(chunk);
+          },
+        }),
       });
+      
+      // Flush any remaining buffered content
+      if (streamFilter) {
+        await streamFilter.flush();
+      }
 
       if (
         !response ||

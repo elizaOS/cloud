@@ -8,7 +8,6 @@ import {
   type Memory,
   type Content,
   type Media,
-  ModelType,
   parseKeyValueXml,
   type UUID,
 } from "@elizaos/core";
@@ -31,6 +30,7 @@ import {
 } from "../shared/utils/response-tracking";
 import {
   generateResponseWithRetry,
+  generatePlanningWithStreaming,
   runEvaluatorsWithTimeout,
   extractAttachments,
   executeProviders,
@@ -146,16 +146,19 @@ export async function handleMessage({
       template: systemPromptTemplate,
     });
 
-    const planningResponse = await runtime.useModel(ModelType.TEXT_LARGE, { prompt: planningPrompt });
+    // Generate planning with real-time streaming of <thought> content
+    // This allows chain-of-thought to appear immediately as the LLM generates it
+    const planningResponse = await generatePlanningWithStreaming(
+      runtime,
+      planningPrompt,
+      onReasoningChunk ? { onReasoningChunk, messageId: responseId as UUID } : undefined,
+    );
     runtime.character.system = originalSystemPrompt;
 
     let plan = parseKeyValueXml(planningResponse) as ParsedPlan | null;
     let shouldRespondNow = canRespondImmediately(plan);
     
-    // Stream planning thought to frontend
-    if (onReasoningChunk && plan?.thought) {
-      await onReasoningChunk(plan.thought, "planning", responseId as UUID);
-    }
+    // NOTE: Chain-of-thought was already streamed in real-time during generatePlanningWithStreaming
 
     // Auto-generate images (rate limited)
     if (shouldAutoGenerateImages) {
@@ -181,9 +184,15 @@ export async function handleMessage({
 
     if (shouldRespondNow && plan?.text) {
       responseContent = plan.text;
+      // Stream the pre-planned response with proper pacing
       if (onStreamChunk) {
-        for (let i = 0; i < responseContent.length; i += 15) {
-          await onStreamChunk(responseContent.slice(i, i + 15), responseId as UUID);
+        const chunkSize = 8;
+        for (let i = 0; i < responseContent.length; i += chunkSize) {
+          await onStreamChunk(responseContent.slice(i, i + chunkSize), responseId as UUID);
+          // Small delay between chunks for readable streaming
+          if (i + chunkSize < responseContent.length) {
+            await new Promise(resolve => setTimeout(resolve, 15));
+          }
         }
       }
     } else {
@@ -258,16 +267,19 @@ export async function handleMessage({
         }),
       );
 
-      const responseResult = await generateResponseWithRetry(runtime, responsePrompt);
+      // Use real streaming when callback is provided
+      // The model will stream tokens as they're generated for smooth UX
+      const responseResult = await generateResponseWithRetry(
+        runtime, 
+        responsePrompt,
+        onStreamChunk ? { onStreamChunk, messageId: responseId as UUID } : undefined,
+      );
       responseContent = responseResult.text;
       thought = responseResult.thought;
       
-      // Stream response chunks if callback provided
-      if (onStreamChunk && responseContent) {
-        for (let i = 0; i < responseContent.length; i += 15) {
-          await onStreamChunk(responseContent.slice(i, i + 15), responseId as UUID);
-        }
-      }
+      // NOTE: No fake chunking here! When onStreamChunk is provided,
+      // generateResponseWithRetry uses real streaming via the model.
+      // The response has already been streamed as it was generated.
     }
 
     runtime.character.system = originalSystemPrompt;

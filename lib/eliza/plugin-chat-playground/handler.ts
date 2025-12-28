@@ -115,8 +115,17 @@ export async function handleMessage({
         }),
       );
 
-      // Generate response - streaming is automatic via context
-      const response = await runtime.useModel(ModelType.TEXT_LARGE, { prompt });
+      // Generate response with optional real-time streaming
+      // When onStreamChunk is provided, we enable streaming mode for smooth UX
+      const response = await runtime.useModel(ModelType.TEXT_LARGE, { 
+        prompt,
+        ...(onStreamChunk && {
+          stream: true,
+          onStreamChunk: async (chunk: string) => {
+            await onStreamChunk(chunk, responseId as UUID);
+          },
+        }),
+      });
 
       runtime.character.system = originalSystemPrompt;
 
@@ -136,12 +145,8 @@ export async function handleMessage({
       );
       const finalText = processedResponse.text;
       
-      // Stream response chunks if callback provided
-      if (onStreamChunk && finalText) {
-        for (let i = 0; i < finalText.length; i += 15) {
-          await onStreamChunk(finalText.slice(i, i + 15), responseId as UUID);
-        }
-      }
+      // NOTE: No fake chunking here! When onStreamChunk is provided,
+      // the response has already been streamed as it was generated.
 
       if (callback) {
         await callback({

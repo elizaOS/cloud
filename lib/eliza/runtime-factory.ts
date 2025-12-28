@@ -33,8 +33,9 @@ import {
   KNOWN_EMBEDDING_DIMENSIONS,
 } from "@/lib/cache/edge-runtime-cache";
 
-// Global flag to track if embedding dimension has been set for any adapter
-let globalEmbeddingDimensionSet = false;
+// Track which adapters have had their embedding dimension set
+// Key: agentId, Value: dimension that was set
+const adapterEmbeddingDimensions = new Map<string, number>();
 
 interface GlobalWithEliza {
   logger?: Logger;
@@ -100,6 +101,27 @@ class RuntimeCache {
     elizaLogger.debug(
       `[RuntimeCache] Cached runtime: ${characterName} (${agentId})`,
     );
+  }
+
+  /**
+   * Invalidate (delete) a specific runtime from cache.
+   * CRITICAL: Call this when character settings change (MCP, knowledge, web search, etc.)
+   * @returns true if runtime was cached and removed, false if not found
+   */
+  delete(agentId: string): boolean {
+    const existed = this.cache.has(agentId);
+    if (existed) {
+      this.cache.delete(agentId);
+      elizaLogger.info(`[RuntimeCache] Invalidated runtime: ${agentId}`);
+    }
+    return existed;
+  }
+
+  /**
+   * Check if a runtime is currently cached
+   */
+  has(agentId: string): boolean {
+    return this.cache.has(agentId);
   }
 
   private evictOldest(): void {
@@ -184,19 +206,27 @@ class DbAdapterPool {
     // PERFORMANCE: Set embedding dimension statically without API call
     // This is critical - the default ElizaOS initialize() calls the embedding API
     // just to get the dimension, which adds 100-500ms per cold start!
-    if (!globalEmbeddingDimensionSet) {
-      const dimension = getStaticEmbeddingDimension(embeddingModel);
+    //
+    // NOTE: We track per-adapter now (not global) to support different embedding models
+    // per character, and to properly re-set dimension if adapter is recreated.
+    const key = agentId as string;
+    const dimension = getStaticEmbeddingDimension(embeddingModel);
+    const existingDimension = adapterEmbeddingDimensions.get(key);
+
+    if (existingDimension !== dimension) {
       try {
         await adapter.ensureEmbeddingDimension(dimension);
-        globalEmbeddingDimensionSet = true;
+        adapterEmbeddingDimensions.set(key, dimension);
         elizaLogger.info(
-          `[DbAdapterPool] Pre-set embedding dimension: ${dimension}`,
+          `[DbAdapterPool] Set embedding dimension for ${agentId}: ${dimension}`,
         );
       } catch (e) {
-        // Ignore - dimension may already be set
+        // Ignore - dimension may already be set in DB
         elizaLogger.debug(
           `[DbAdapterPool] Embedding dimension already set or error: ${e}`,
         );
+        // Still track it to avoid repeated attempts
+        adapterEmbeddingDimensions.set(key, dimension);
       }
     }
 
@@ -204,6 +234,16 @@ class DbAdapterPool {
       `[DbAdapterPool] Created adapter for ${agentId} in ${Date.now() - startTime}ms`,
     );
     return adapter;
+  }
+
+  /**
+   * Clear adapter for an agent (call when runtime is invalidated)
+   * This allows the adapter to be recreated with potentially different settings
+   */
+  invalidateAdapter(agentId: string): void {
+    this.adapters.delete(agentId);
+    adapterEmbeddingDimensions.delete(agentId);
+    elizaLogger.debug(`[DbAdapterPool] Invalidated adapter for ${agentId}`);
   }
 }
 
@@ -245,16 +285,73 @@ export class RuntimeFactory {
   }
 
   /**
+   * Invalidate a specific runtime by agentId (characterId).
+   * CRITICAL: Call this when character configuration changes:
+   * - MCP settings updated
+   * - Knowledge uploaded/deleted
+   * - Web search enabled/disabled
+   * - Character settings changed
+   * - Plugins added/removed
+   *
+   * This ensures the next request creates a fresh runtime with updated config.
+   * Invalidates BOTH webSearch-enabled and disabled variants of the runtime.
+   *
+   * @param agentId - The agent/character ID to invalidate
+   * @returns true if any runtime was cached and invalidated
+   */
+  async invalidateRuntime(agentId: string): Promise<boolean> {
+    // Invalidate both web search enabled and disabled variants
+    // The cache key format is: agentId or agentId:ws
+    const wasInMemoryBase = runtimeCache.delete(agentId);
+    const wasInMemoryWs = runtimeCache.delete(`${agentId}:ws`);
+    const wasInMemory = wasInMemoryBase || wasInMemoryWs;
+
+    // Also invalidate the DB adapter pool for this agent
+    // This ensures embedding dimensions and connections are fresh
+    dbAdapterPool.invalidateAdapter(agentId);
+
+    // Also invalidate the distributed edge cache
+    try {
+      await edgeRuntimeCache.invalidateCharacter(agentId);
+      // Clear warm state so edge doesn't think runtime is ready
+      await edgeRuntimeCache.markRuntimeWarm(agentId, {
+        isWarm: false,
+        embeddingDimension: 0,
+        characterName: undefined,
+      });
+    } catch (e) {
+      // Non-critical - edge cache invalidation failure shouldn't break the flow
+      elizaLogger.warn(`[RuntimeFactory] Edge cache invalidation failed: ${e}`);
+    }
+
+    elizaLogger.info(
+      `[RuntimeFactory] Invalidated runtime for agent: ${agentId} (base: ${wasInMemoryBase}, ws: ${wasInMemoryWs})`,
+    );
+
+    return wasInMemory;
+  }
+
+  /**
+   * Check if a runtime is currently cached (for debugging/monitoring)
+   */
+  isRuntimeCached(agentId: string): boolean {
+    return runtimeCache.has(agentId);
+  }
+
+  /**
    * Create or retrieve cached runtime for user context.
    *
-   * PERFORMANCE: Runtimes are cached by agentId (character).
+   * PERFORMANCE: Runtimes are cached by a composite key of agentId + webSearchEnabled.
+   * This ensures different plugin configurations get separate cached runtimes.
    * User-specific settings are applied to the runtime per-request.
-   * This dramatically reduces cold-start latency for subsequent messages.
+   *
+   * NOTE: webSearchEnabled affects which plugins are loaded, so runtimes with
+   * different webSearchEnabled values cannot be reused.
    */
   async createRuntimeForUser(context: UserContext): Promise<AgentRuntime> {
     const startTime = Date.now();
     elizaLogger.info(
-      `[RuntimeFactory] Creating runtime: user=${context.userId}, mode=${context.agentMode}, char=${context.characterId || "default"}`,
+      `[RuntimeFactory] Creating runtime: user=${context.userId}, mode=${context.agentMode}, char=${context.characterId || "default"}, webSearch=${context.webSearchEnabled}`,
     );
 
     const isDefaultCharacter =
@@ -282,11 +379,16 @@ export class RuntimeFactory {
       character.id ? stringToUuid(character.id) : this.DEFAULT_AGENT_ID
     ) as UUID;
 
+    // Build cache key that includes webSearchEnabled state
+    // This ensures different plugin configurations get separate cached runtimes
+    const webSearchSuffix = context.webSearchEnabled ? ":ws" : "";
+    const cacheKey = `${agentId}${webSearchSuffix}`;
+
     // OPTIMIZATION: Check cache first
-    const cachedRuntime = runtimeCache.get(agentId as string);
+    const cachedRuntime = runtimeCache.get(cacheKey);
     if (cachedRuntime) {
       elizaLogger.info(
-        `[RuntimeFactory] ⚡ Cache HIT: ${character.name} (${Date.now() - startTime}ms)`,
+        `[RuntimeFactory] ⚡ Cache HIT: ${character.name} (webSearch=${context.webSearchEnabled}) (${Date.now() - startTime}ms)`,
       );
       // Update user-specific settings on cached runtime
       this.applyUserContext(cachedRuntime, context);
@@ -303,7 +405,6 @@ export class RuntimeFactory {
 
     // Get embedding model from settings for dimension calculation
     const embeddingModel =
-      context.modelPreferences?.embeddingModel ||
       (character.settings?.OPENAI_EMBEDDING_MODEL as string) ||
       (character.settings?.ELIZAOS_CLOUD_EMBEDDING_MODEL as string);
 
@@ -338,8 +439,8 @@ export class RuntimeFactory {
     ]);
     await this.waitForMcpServiceIfNeeded(runtime, filteredPlugins);
 
-    // Cache the runtime for future requests
-    runtimeCache.set(agentId as string, runtime, character.name);
+    // Cache the runtime for future requests (using composite key with webSearchEnabled)
+    runtimeCache.set(cacheKey, runtime, character.name);
 
     // EDGE: Mark runtime as warm in distributed cache
     // This allows Edge middleware to know the runtime is ready
@@ -352,7 +453,7 @@ export class RuntimeFactory {
       .catch(() => {}); // Fire-and-forget
 
     elizaLogger.success(
-      `[RuntimeFactory] Runtime ready: ${character.name} (${modeResolution.mode}) in ${Date.now() - startTime}ms`,
+      `[RuntimeFactory] Runtime ready: ${character.name} (${modeResolution.mode}, webSearch=${context.webSearchEnabled}) in ${Date.now() - startTime}ms`,
     );
     return runtime;
   }
@@ -772,73 +873,31 @@ export function getRuntimeCacheStats(): {
 export const runtimeFactory = RuntimeFactory.getInstance();
 
 /**
- * Pre-warm the runtime infrastructure.
- * Call this during server startup to reduce cold-start latency.
+ * Invalidate a runtime when character configuration changes.
+ * CRITICAL: Call this from any endpoint that modifies character settings.
  *
- * This does:
- * 1. Sets the global embedding dimension (avoids API call during first request)
- * 2. Checks for Edge pre-warm signals and processes them
- * 3. Pre-creates DB adapter connections
+ * This invalidates both the in-memory runtime cache AND the distributed edge cache,
+ * ensuring the next request creates a fresh runtime with updated configuration.
  *
- * @param options.embeddingModel - Optional embedding model to use for dimension
- * @param options.agentId - Optional agent ID to pre-warm specific runtime
+ * Use cases:
+ * - MCP servers added/removed/updated
+ * - Knowledge documents uploaded/deleted
+ * - Web search enabled/disabled
+ * - Character settings modified
+ * - Plugins enabled/disabled
+ *
+ * @param agentId - The agent/character ID to invalidate (can be characterId or UUID)
+ * @returns true if runtime was cached and invalidated
  */
-export async function preWarmRuntime(options?: {
-  embeddingModel?: string;
-  agentId?: string;
-}): Promise<void> {
-  const startTime = Date.now();
-  elizaLogger.info("[RuntimeFactory] Pre-warming runtime infrastructure...");
-
-  try {
-    // Set embedding dimension globally
-    if (!globalEmbeddingDimensionSet) {
-      const dimension = getStaticEmbeddingDimension(options?.embeddingModel);
-      globalEmbeddingDimensionSet = true; // Mark as set even without DB call
-      elizaLogger.info(
-        `[RuntimeFactory] Pre-set embedding dimension: ${dimension}`,
-      );
-    }
-
-    // Check for Edge pre-warm signal
-    if (options?.agentId) {
-      const shouldWarm = await edgeRuntimeCache.consumePreWarmSignal(
-        options.agentId,
-      );
-      if (shouldWarm) {
-        elizaLogger.info(
-          `[RuntimeFactory] Edge signaled pre-warm for agent: ${options.agentId}`,
-        );
-        // The actual runtime creation will happen on the next request
-        // This just ensures the dimension is set
-      }
-    }
-
-    elizaLogger.success(
-      `[RuntimeFactory] Pre-warm completed in ${Date.now() - startTime}ms`,
-    );
-  } catch (error) {
-    elizaLogger.warn(`[RuntimeFactory] Pre-warm failed: ${error}`);
-  }
+export async function invalidateRuntime(agentId: string): Promise<boolean> {
+  return runtimeFactory.invalidateRuntime(agentId);
 }
 
 /**
- * Check runtime warm status (for edge integration)
+ * Check if a runtime is cached (for debugging/monitoring)
  */
-export async function isRuntimeWarm(agentId: string): Promise<boolean> {
-  // First check local cache
-  const localCached = runtimeCache.get(agentId);
-  if (localCached) return true;
-
-  // Then check distributed edge cache
-  return edgeRuntimeCache.isRuntimeWarm(agentId);
-}
-
-/**
- * Get all warm runtime states (for monitoring)
- */
-export async function getWarmRuntimeStates() {
-  return edgeRuntimeCache.getAllWarmRuntimes();
+export function isRuntimeCached(agentId: string): boolean {
+  return runtimeFactory.isRuntimeCached(agentId);
 }
 
 /**
