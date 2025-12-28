@@ -276,10 +276,17 @@ async function handleWebhook(req: NextRequest) {
       });
     }
 
+    // Log ALL raw webhook data for debugging auto-conversion issues
+    // This helps verify what OxaPay actually sends for converted payments
     logger.info("[Crypto Webhook] Valid webhook received", {
       ip: redact.ip(ip),
       trackId: redact.trackId(normalizedPayload.trackId),
       status: normalizedPayload.status,
+      // CRITICAL: Log both amount fields to understand conversion behavior
+      // amount = should be the actual received/converted amount (e.g., 9.84 USDT)
+      // payAmount = native currency amount sent (e.g., 0.08 SOL)
+      amount: normalizedPayload.amount,
+      payAmount: normalizedPayload.payAmount,
       payloadHash,
       eventId,
     });

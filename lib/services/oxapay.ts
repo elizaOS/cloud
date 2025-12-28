@@ -25,11 +25,16 @@ export interface OxaPayPaymentStatus {
   currency: string;
   transactions: Array<{
     txHash: string;
+    /** The amount to credit (USD value when auto-converted, native value otherwise) */
     amount: number;
     currency: string;
     network: string;
     address: string;
     status: string;
+    /** Original amount in native currency (e.g., SOL) before conversion */
+    nativeAmount?: number;
+    /** USD equivalent amount from invoice */
+    usdAmount?: number;
   }>;
 }
 
@@ -229,20 +234,30 @@ class OxaPayService {
 
     // Note: OxaPay doesn't provide blockchain confirmation counts.
     // Confirmation is determined by status ("paid" = confirmed by network).
+    //
+    // Credit the invoice USD amount for ALL currencies.
+    // - Underpayments: Rejected by OxaPay (underPaidCover: 0)
+    // - Overpayments: User's responsibility, we credit invoice amount only
+    const invoiceAmount = Number.parseFloat(data.amount) || 0;
+    const nativePayAmount = Number.parseFloat(data.payAmount || "0");
+
     return {
       trackId: data.trackId,
       status: data.status,
-      amount: Number.parseFloat(data.amount) || 0,
+      amount: invoiceAmount,
       currency: data.currency,
       transactions: data.txID
         ? [
             {
               txHash: data.txID,
-              amount: Number.parseFloat(data.payAmount || "0"),
+              amount: invoiceAmount, // Always credit invoice amount
               currency: data.payCurrency || "",
               network: data.network || "",
               address: data.address || "",
               status: data.status,
+              // Store native amount for audit/debugging
+              nativeAmount: nativePayAmount,
+              usdAmount: invoiceAmount,
             },
           ]
         : [],
