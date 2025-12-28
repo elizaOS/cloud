@@ -25,7 +25,11 @@ const API_KEY = process.env.TEST_API_KEY;
 let cloudAvailable = false;
 let miniappAvailable = false;
 
-async function waitForServer(url: string, maxRetries = 10, delayMs = 2000): Promise<boolean> {
+async function waitForServer(
+  url: string,
+  maxRetries = 10,
+  delayMs = 2000,
+): Promise<boolean> {
   for (let i = 0; i < maxRetries; i++) {
     try {
       const response = await fetch(url, { signal: AbortSignal.timeout(5000) });
@@ -34,7 +38,7 @@ async function waitForServer(url: string, maxRetries = 10, delayMs = 2000): Prom
       }
     } catch (error) {
       if (i < maxRetries - 1) {
-        await new Promise(resolve => setTimeout(resolve, delayMs));
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
       }
     }
   }
@@ -182,7 +186,9 @@ test.describe("Pass-Through Authentication Flow", () => {
 
     // Find sign in button
     const signInButton = page.getByRole("button", { name: /sign in/i });
-    const buttonVisible = await signInButton.isVisible({ timeout: 10000 }).catch(() => false);
+    const buttonVisible = await signInButton
+      .isVisible({ timeout: 10000 })
+      .catch(() => false);
 
     if (!buttonVisible) {
       console.log("ℹ️ Sign in button not visible, skipping navigation test");
@@ -205,7 +211,9 @@ test.describe("Pass-Through Authentication Flow", () => {
       );
       console.log("✅ Sign in button navigates to Cloud login");
     } catch {
-      console.log("ℹ️ Navigation timeout (expected in CI without full auth setup)");
+      console.log(
+        "ℹ️ Navigation timeout (expected in CI without full auth setup)",
+      );
     }
   });
 

@@ -244,7 +244,7 @@ export async function PATCH(
     body.metadata && "metadata",
     body.name && "name",
   ].filter(Boolean);
-  
+
   logger.info("[Eliza Room API] ✓ Room updated successfully:", roomId);
 
   return NextResponse.json({

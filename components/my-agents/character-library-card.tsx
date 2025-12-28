@@ -51,7 +51,7 @@ export function CharacterLibraryCard({
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ name: `${character.name} (Copy)` }),
-        }
+        },
       );
 
       if (response.ok) {
@@ -64,7 +64,7 @@ export function CharacterLibraryCard({
         toast.error(error.error || "Failed to duplicate character");
       }
     },
-    [router, character.id, character.name]
+    [router, character.id, character.name],
   );
 
   const handleExport = useCallback(
@@ -83,7 +83,7 @@ export function CharacterLibraryCard({
       URL.revokeObjectURL(url);
       toast.success("Character exported successfully");
     },
-    [character]
+    [character],
   );
 
   const handleDeleteClick = (e: React.MouseEvent) => {
@@ -217,8 +217,8 @@ export function CharacterLibraryCard({
                 onClick={(e) => e.stopPropagation()}
               >
                 <p className="text-sm text-white mb-4">
-                  Delete{" "}
-                  <span className="font-semibold">{character.name}</span>?
+                  Delete <span className="font-semibold">{character.name}</span>
+                  ?
                 </p>
                 <div className="flex gap-2">
                   <button
@@ -292,10 +292,7 @@ export function CharacterLibraryCard({
               <Copy className="h-4 w-4 mr-2" />
               Duplicate
             </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={handleExport}
-              className="cursor-pointer"
-            >
+            <DropdownMenuItem onClick={handleExport} className="cursor-pointer">
               <Upload className="h-4 w-4 mr-2" />
               Export JSON
             </DropdownMenuItem>

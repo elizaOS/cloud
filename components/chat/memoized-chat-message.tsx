@@ -80,7 +80,7 @@ interface MemoizedChatMessageProps {
   onCopy: (
     text: string,
     messageId: string,
-    attachments?: Message["content"]["attachments"]
+    attachments?: Message["content"]["attachments"],
   ) => void;
   onPlayAudio?: (messageId: string) => void;
   onImageLoad?: () => void;
@@ -154,7 +154,7 @@ function ChatMessageComponent({
   const hasReasoning = isThinking && reasoningText && reasoningText.length > 0;
   // Use shared plugins cache - no flash since plugins are pre-loaded at module level
   const plugins = useMarkdownPlugins();
-  
+
   // Detect streaming from message id if not explicitly passed
   const isStreamingMessage = isStreaming || message.id.startsWith("streaming-");
 
@@ -230,7 +230,9 @@ function ChatMessageComponent({
                       }
                     `}</style>
                   )}
-                  <div className={`text-[15px] leading-relaxed text-white/90 prose prose-invert prose-sm max-w-none prose-p:my-2 prose-ul:my-2 prose-ol:my-2 prose-li:my-1 prose-headings:my-3 prose-pre:my-2 break-words [&_pre]:overflow-x-auto [&_pre_code]:whitespace-pre-wrap [&_pre_code]:break-words${isStreamingMessage ? " streaming-text-content" : ""}`}>
+                  <div
+                    className={`text-[15px] leading-relaxed text-white/90 prose prose-invert prose-sm max-w-none prose-p:my-2 prose-ul:my-2 prose-ol:my-2 prose-li:my-1 prose-headings:my-3 prose-pre:my-2 break-words [&_pre]:overflow-x-auto [&_pre_code]:whitespace-pre-wrap [&_pre_code]:break-words${isStreamingMessage ? " streaming-text-content" : ""}`}
+                  >
                     {plugins && ReactMarkdown ? (
                       <ReactMarkdown
                         remarkPlugins={[plugins.remarkGfm]}
@@ -283,44 +285,44 @@ function ChatMessageComponent({
 
                 {/* Time and Actions - hide during streaming */}
                 {!isStreamingMessage && (
-                <div className="flex items-center gap-2 opacity-0 group-hover/message:opacity-100 transition-opacity">
-                  <span className="text-xs text-white/40">
-                    {formatTimestamp(message.createdAt)}
-                  </span>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-6 w-6 p-0 hover:bg-white/10 rounded transition-colors"
-                    onClick={() =>
-                      onCopy(
-                        message.content.text,
-                        message.id,
-                        message.content.attachments
-                      )
-                    }
-                    title="Copy message"
-                  >
-                    {copiedMessageId === message.id ? (
-                      <Check className="h-3.5 w-3.5 text-green-500" />
-                    ) : (
-                      <Copy className="h-3.5 w-3.5 text-white/50 hover:text-white/80" />
-                    )}
-                  </Button>
-                  {hasAudioUrl && onPlayAudio && (
+                  <div className="flex items-center gap-2 opacity-0 group-hover/message:opacity-100 transition-opacity">
+                    <span className="text-xs text-white/40">
+                      {formatTimestamp(message.createdAt)}
+                    </span>
                     <Button
                       size="sm"
                       variant="ghost"
                       className="h-6 w-6 p-0 hover:bg-white/10 rounded transition-colors"
-                      onClick={() => onPlayAudio(message.id)}
+                      onClick={() =>
+                        onCopy(
+                          message.content.text,
+                          message.id,
+                          message.content.attachments,
+                        )
+                      }
+                      title="Copy message"
                     >
-                      {currentPlayingId === message.id && isPlaying ? (
-                        <Square className="h-3.5 w-3.5 text-white/50" />
+                      {copiedMessageId === message.id ? (
+                        <Check className="h-3.5 w-3.5 text-green-500" />
                       ) : (
-                        <Volume2 className="h-3.5 w-3.5 text-white/50 hover:text-white/80" />
+                        <Copy className="h-3.5 w-3.5 text-white/50 hover:text-white/80" />
                       )}
                     </Button>
-                  )}
-                </div>
+                    {hasAudioUrl && onPlayAudio && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 w-6 p-0 hover:bg-white/10 rounded transition-colors"
+                        onClick={() => onPlayAudio(message.id)}
+                      >
+                        {currentPlayingId === message.id && isPlaying ? (
+                          <Square className="h-3.5 w-3.5 text-white/50" />
+                        ) : (
+                          <Volume2 className="h-3.5 w-3.5 text-white/50 hover:text-white/80" />
+                        )}
+                      </Button>
+                    )}
+                  </div>
                 )}
               </>
             )}
@@ -347,7 +349,7 @@ function ChatMessageComponent({
                 onCopy(
                   message.content.text,
                   message.id,
-                  message.content.attachments
+                  message.content.attachments,
                 )
               }
               title="Copy message"
@@ -381,5 +383,5 @@ export const MemoizedChatMessage = memo(
       prevProps.reasoningText === nextProps.reasoningText &&
       prevProps.reasoningPhase === nextProps.reasoningPhase
     );
-  }
+  },
 );

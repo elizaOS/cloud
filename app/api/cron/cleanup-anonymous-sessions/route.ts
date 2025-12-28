@@ -85,9 +85,12 @@ export async function GET(request: NextRequest) {
       const userIds = expiredUsers.map((u) => u.id);
 
       // Count conversations to be deleted
-      const conversationsToDelete = await dbRead.select().from(conversations).where(
-        eq(conversations.user_id, userIds[0]), // We'll delete one by one
-      );
+      const conversationsToDelete = await dbRead
+        .select()
+        .from(conversations)
+        .where(
+          eq(conversations.user_id, userIds[0]), // We'll delete one by one
+        );
 
       deletedConversations = conversationsToDelete.length;
 

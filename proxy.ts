@@ -17,7 +17,8 @@ let redis: Redis | null = null;
 function getRedis(): Redis | null {
   if (redis) return redis;
   const url = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
+  const token =
+    process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
   if (url && token) redis = new Redis({ url, token });
   return redis;
 }
@@ -33,7 +34,7 @@ interface CachedAuth {
 function hashToken(token: string): string {
   let hash = 0;
   for (let i = 0; i < Math.min(token.length, 100); i++) {
-    hash = ((hash << 5) - hash) + token.charCodeAt(i);
+    hash = (hash << 5) - hash + token.charCodeAt(i);
     hash = hash & hash;
   }
   return Math.abs(hash).toString(36);
@@ -45,15 +46,23 @@ async function getCachedAuth(token: string): Promise<CachedAuth | null> {
   try {
     const cached = await client.get<string>(`proxy:auth:${hashToken(token)}`);
     return cached ? JSON.parse(cached) : null;
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
 async function setCachedAuth(token: string, auth: CachedAuth): Promise<void> {
   const client = getRedis();
   if (!client) return;
   try {
-    await client.setex(`proxy:auth:${hashToken(token)}`, AUTH_CACHE_TTL, JSON.stringify(auth));
-  } catch { /* ignore */ }
+    await client.setex(
+      `proxy:auth:${hashToken(token)}`,
+      AUTH_CACHE_TTL,
+      JSON.stringify(auth),
+    );
+  } catch {
+    /* ignore */
+  }
 }
 
 async function signalRuntimePreWarm(agentId: string): Promise<void> {
@@ -62,7 +71,9 @@ async function signalRuntimePreWarm(agentId: string): Promise<void> {
   try {
     const key = `proxy:prewarm:${agentId}`;
     if (!(await client.get(key))) await client.setex(key, 30, "pending");
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 }
 
 const publicPaths = [
@@ -120,19 +131,26 @@ export async function proxy(request: NextRequest) {
   const startTime = Date.now();
 
   // Pre-warm runtime for chat
-  if (pathname.includes("/api/eliza/rooms/") && pathname.includes("/messages")) {
+  if (
+    pathname.includes("/api/eliza/rooms/") &&
+    pathname.includes("/messages")
+  ) {
     const characterId = request.nextUrl.searchParams.get("characterId");
     if (characterId) signalRuntimePreWarm(characterId).catch(() => {});
   }
 
-  const isPublicPath = publicPaths.some(p => pathname === p || pathname.startsWith(`${p}/`));
+  const isPublicPath = publicPaths.some(
+    (p) => pathname === p || pathname.startsWith(`${p}/`),
+  );
   if (isPublicPath) {
     const response = NextResponse.next();
     response.headers.set("X-Proxy-Time", `${Date.now() - startTime}ms`);
     return response;
   }
 
-  const isProtectedPath = protectedPaths.some(p => pathname === p || pathname.startsWith(`${p}/`));
+  const isProtectedPath = protectedPaths.some(
+    (p) => pathname === p || pathname.startsWith(`${p}/`),
+  );
   if (!isProtectedPath && !pathname.startsWith("/api/")) {
     return NextResponse.next();
   }
@@ -140,7 +158,9 @@ export async function proxy(request: NextRequest) {
   try {
     const authToken = request.cookies.get("privy-token");
     const authHeader = request.headers.get("Authorization");
-    const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
+    const bearerToken = authHeader?.startsWith("Bearer ")
+      ? authHeader.slice(7)
+      : null;
     const apiKey = request.headers.get("X-API-Key");
 
     if (apiKey || (bearerToken && bearerToken.startsWith("eliza_"))) {
@@ -165,7 +185,9 @@ export async function proxy(request: NextRequest) {
       const requestHeaders = new Headers(request.headers);
       requestHeaders.set("x-privy-user-id", cachedAuth.userId);
       requestHeaders.set("x-auth-cached", "true");
-      const response = NextResponse.next({ request: { headers: requestHeaders } });
+      const response = NextResponse.next({
+        request: { headers: requestHeaders },
+      });
       response.headers.set("X-Proxy-Time", `${Date.now() - startTime}ms`);
       response.headers.set("X-Auth-Cached", "true");
       return response;
@@ -176,24 +198,36 @@ export async function proxy(request: NextRequest) {
     if (!user) {
       await setCachedAuth(token, { valid: false, cachedAt: Date.now() });
       if (pathname.startsWith("/api/")) {
-        return NextResponse.json({ error: "Invalid authentication token" }, { status: 401 });
+        return NextResponse.json(
+          { error: "Invalid authentication token" },
+          { status: 401 },
+        );
       }
       const url = request.nextUrl.clone();
       url.pathname = "/";
       return NextResponse.redirect(url);
     }
 
-    await setCachedAuth(token, { valid: true, userId: user.userId, cachedAt: Date.now() });
+    await setCachedAuth(token, {
+      valid: true,
+      userId: user.userId,
+      cachedAt: Date.now(),
+    });
 
     const requestHeaders = new Headers(request.headers);
     requestHeaders.set("x-privy-user-id", user.userId);
-    const response = NextResponse.next({ request: { headers: requestHeaders } });
+    const response = NextResponse.next({
+      request: { headers: requestHeaders },
+    });
     response.headers.set("X-Proxy-Time", `${Date.now() - startTime}ms`);
     return response;
   } catch (error) {
     console.error("Middleware auth error:", error);
     if (pathname.startsWith("/api/")) {
-      return NextResponse.json({ error: "Authentication failed" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Authentication failed" },
+        { status: 401 },
+      );
     }
     const url = request.nextUrl.clone();
     url.pathname = "/auth/error";
@@ -203,5 +237,7 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+  ],
 };

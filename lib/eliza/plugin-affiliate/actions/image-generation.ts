@@ -820,7 +820,8 @@ export const generateImageAction = {
     callback: HandlerCallback,
     responses?: Memory[],
   ): Promise<ActionResult> => {
-    const allProviders = responses?.flatMap((res) => res.content?.providers ?? []) ?? [];
+    const allProviders =
+      responses?.flatMap((res) => res.content?.providers ?? []) ?? [];
     if (allProviders.length > 0) {
       state.values = { ...state.values, additionalProviders: allProviders };
     }

@@ -2,7 +2,12 @@
  * Shared Types for Eliza Plugin System
  */
 
-import type { IAgentRuntime, Memory, HandlerCallback, UUID } from "@elizaos/core";
+import type {
+  IAgentRuntime,
+  Memory,
+  HandlerCallback,
+  UUID,
+} from "@elizaos/core";
 
 /**
  * Callback for streaming text chunks.

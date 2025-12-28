@@ -104,10 +104,12 @@ export class AutoTopUpService {
         ),
       );
 
-    logger.info(`[AutoTopUp] Found ${orgsNeedingTopUp.length} organizations needing auto top-up`);
+    logger.info(
+      `[AutoTopUp] Found ${orgsNeedingTopUp.length} organizations needing auto top-up`,
+    );
 
     const settledResults = await Promise.allSettled(
-      orgsNeedingTopUp.map((org) => this.executeAutoTopUp(org))
+      orgsNeedingTopUp.map((org) => this.executeAutoTopUp(org)),
     );
 
     for (const settled of settledResults) {
@@ -118,7 +120,10 @@ export class AutoTopUpService {
         results.push({
           organizationId: "unknown",
           success: false,
-          error: settled.reason instanceof Error ? settled.reason.message : String(settled.reason),
+          error:
+            settled.reason instanceof Error
+              ? settled.reason.message
+              : String(settled.reason),
         });
       }
     }

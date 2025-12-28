@@ -73,7 +73,10 @@ function SidebarComponent({
     if (!showTokens) return;
 
     const handleClickOutside = (event: MouseEvent) => {
-      if (tokensRef.current && !tokensRef.current.contains(event.target as Node)) {
+      if (
+        tokensRef.current &&
+        !tokensRef.current.contains(event.target as Node)
+      ) {
         setShowTokens(false);
       }
     };
@@ -116,7 +119,7 @@ function SidebarComponent({
       setCopiedAddress(network);
       setTimeout(() => setCopiedAddress(null), 2000);
     },
-    []
+    [],
   );
 
   return (
@@ -136,7 +139,7 @@ function SidebarComponent({
           isMobile
             ? `fixed inset-y-0 left-0 z-50 w-64 ${isOpen ? "translate-x-0" : "-translate-x-full"}`
             : "relative w-64",
-          className
+          className,
         )}
       >
         {/* Header with Logo */}
@@ -168,7 +171,10 @@ function SidebarComponent({
                   className="bg-[#0A0A0A] border border-white/10 p-4 sm:p-3 mt-2 w-[calc(100vw-1rem)] sm:w-[460px] max-w-[96vw] absolute top-full left-2 z-[60]"
                 >
                   <div className="space-y-3">
-                    <h3 id="token-title-sidebar" className="text-xl font-mono font-bold text-brand-orange text-start border-b border-white/10 pb-3 sm:px-3">
+                    <h3
+                      id="token-title-sidebar"
+                      className="text-xl font-mono font-bold text-brand-orange text-start border-b border-white/10 pb-3 sm:px-3"
+                    >
                       elizaOS Token Addresses
                     </h3>
                     <div className="space-y-4 sm:space-y-0 font-mono text-sm">

@@ -68,9 +68,13 @@ test.describe("Public Pages", () => {
       .catch(() => "");
 
     if ((hasContent?.length || 0) <= 50) {
-      console.log(`⚠️ Home page content too short (${hasContent?.length} chars): "${hasContent}"`);
+      console.log(
+        `⚠️ Home page content too short (${hasContent?.length} chars): "${hasContent}"`,
+      );
       // In CI, pages may show minimal error content due to missing env vars
-      console.log("ℹ️ Skipping content length check (likely missing configuration)");
+      console.log(
+        "ℹ️ Skipping content length check (likely missing configuration)",
+      );
       return;
     }
 
@@ -129,8 +133,12 @@ test.describe("Public Pages", () => {
     const hasContent = await page.locator("body").textContent();
 
     if ((hasContent?.length || 0) <= 100) {
-      console.log(`⚠️ Marketplace page content too short (${hasContent?.length} chars): "${hasContent}"`);
-      console.log("ℹ️ Skipping content length check (likely missing configuration)");
+      console.log(
+        `⚠️ Marketplace page content too short (${hasContent?.length} chars): "${hasContent}"`,
+      );
+      console.log(
+        "ℹ️ Skipping content length check (likely missing configuration)",
+      );
       return;
     }
 
@@ -144,8 +152,12 @@ test.describe("Public Pages", () => {
     const hasContent = await page.locator("body").textContent();
 
     if ((hasContent?.length || 0) <= 100) {
-      console.log(`⚠️ Terms page content too short (${hasContent?.length} chars): "${hasContent}"`);
-      console.log("ℹ️ Skipping content length check (likely missing configuration)");
+      console.log(
+        `⚠️ Terms page content too short (${hasContent?.length} chars): "${hasContent}"`,
+      );
+      console.log(
+        "ℹ️ Skipping content length check (likely missing configuration)",
+      );
       return;
     }
 
@@ -159,8 +171,12 @@ test.describe("Public Pages", () => {
     const hasContent = await page.locator("body").textContent();
 
     if ((hasContent?.length || 0) <= 100) {
-      console.log(`⚠️ Privacy page content too short (${hasContent?.length} chars): "${hasContent}"`);
-      console.log("ℹ️ Skipping content length check (likely missing configuration)");
+      console.log(
+        `⚠️ Privacy page content too short (${hasContent?.length} chars): "${hasContent}"`,
+      );
+      console.log(
+        "ℹ️ Skipping content length check (likely missing configuration)",
+      );
       return;
     }
 
@@ -174,8 +190,12 @@ test.describe("Public Pages", () => {
     const hasContent = await page.locator("body").textContent();
 
     if ((hasContent?.length || 0) <= 50) {
-      console.log(`⚠️ Auth error page content too short (${hasContent?.length} chars): "${hasContent}"`);
-      console.log("ℹ️ Skipping content length check (likely missing configuration)");
+      console.log(
+        `⚠️ Auth error page content too short (${hasContent?.length} chars): "${hasContent}"`,
+      );
+      console.log(
+        "ℹ️ Skipping content length check (likely missing configuration)",
+      );
       return;
     }
 
@@ -300,15 +320,19 @@ test.describe("Free Mode Pages (Anonymous Access)", () => {
     }
 
     if ((hasContent?.length || 0) <= 50) {
-      console.log(`⚠️ Chat page content too short (${hasContent?.length} chars): "${hasContent}"`);
-      console.log("ℹ️ Skipping content length check (likely missing configuration)");
+      console.log(
+        `⚠️ Chat page content too short (${hasContent?.length} chars): "${hasContent}"`,
+      );
+      console.log(
+        "ℹ️ Skipping content length check (likely missing configuration)",
+      );
       return;
     }
 
     expect(hasContent?.length).toBeGreaterThan(50);
   });
 
-  test("Build page allows anonymous access", async ({ page }) =>{
+  test("Build page allows anonymous access", async ({ page }) => {
     await page.goto(`${BASE_URL}/dashboard/build`);
     await page.waitForLoadState("domcontentloaded");
 
@@ -328,8 +352,12 @@ test.describe("Free Mode Pages (Anonymous Access)", () => {
     }
 
     if ((hasContent?.length || 0) <= 50) {
-      console.log(`⚠️ Build page content too short (${hasContent?.length} chars): "${hasContent}"`);
-      console.log("ℹ️ Skipping content length check (likely missing configuration)");
+      console.log(
+        `⚠️ Build page content too short (${hasContent?.length} chars): "${hasContent}"`,
+      );
+      console.log(
+        "ℹ️ Skipping content length check (likely missing configuration)",
+      );
       return;
     }
 
@@ -351,7 +379,11 @@ test.describe("Special Pages", () => {
     const hasContent = await page.locator("body").textContent();
 
     // May redirect or show error, both acceptable
-    if ((hasContent?.length || 0) === 0) { console.log("⚠️ Page content empty"); console.log("ℹ️ Skipping"); return; }
+    if ((hasContent?.length || 0) === 0) {
+      console.log("⚠️ Page content empty");
+      console.log("ℹ️ Skipping");
+      return;
+    }
     console.log("✅ Billing success page handles access");
   });
 
@@ -362,7 +394,11 @@ test.describe("Special Pages", () => {
     const currentUrl = page.url();
     const hasContent = await page.locator("body").textContent();
 
-    if ((hasContent?.length || 0) === 0) { console.log("⚠️ Page content empty"); console.log("ℹ️ Skipping"); return; }
+    if ((hasContent?.length || 0) === 0) {
+      console.log("⚠️ Page content empty");
+      console.log("ℹ️ Skipping");
+      return;
+    }
     console.log("✅ Dashboard billing success page handles access");
   });
 
@@ -372,7 +408,11 @@ test.describe("Special Pages", () => {
     await page.waitForLoadState("domcontentloaded");
 
     const hasContent = await page.locator("body").textContent();
-    if ((hasContent?.length || 0) === 0) { console.log("⚠️ Page content empty"); console.log("ℹ️ Skipping"); return; }
+    if ((hasContent?.length || 0) === 0) {
+      console.log("⚠️ Page content empty");
+      console.log("ℹ️ Skipping");
+      return;
+    }
     console.log("✅ Invite accept page handles access");
   });
 
@@ -381,7 +421,11 @@ test.describe("Special Pages", () => {
     await page.waitForLoadState("domcontentloaded");
 
     const hasContent = await page.locator("body").textContent();
-    if ((hasContent?.length || 0) === 0) { console.log("⚠️ Page content empty"); console.log("ℹ️ Skipping"); return; }
+    if ((hasContent?.length || 0) === 0) {
+      console.log("⚠️ Page content empty");
+      console.log("ℹ️ Skipping");
+      return;
+    }
     console.log("✅ Auth error subpage handles access");
   });
 });

@@ -12,8 +12,8 @@ import {
   parseKeyValueXml,
   type ActionResult,
   logger,
-} from '@elizaos/core';
-import { v4 } from 'uuid';
+} from "@elizaos/core";
+import { v4 } from "uuid";
 
 /**
  * Template for generating an image for the character using a prompt.
@@ -41,10 +41,10 @@ const imageGenerationTemplate = `# Task: Generate an image prompt based on the u
  * This action can be used in a chain where the agent needs to visualize or illustrate a concept, emotion, or scene.
  */
 export const generateImageAction = {
-  name: 'GENERATE_IMAGE',
-  similes: ['DRAW', 'CREATE_IMAGE', 'RENDER_IMAGE', 'VISUALIZE'],
+  name: "GENERATE_IMAGE",
+  similes: ["DRAW", "CREATE_IMAGE", "RENDER_IMAGE", "VISUALIZE"],
   description:
-    'Generates an image based on a generated prompt reflecting the current conversation. Use GENERATE_IMAGE when the agent needs to visualize, illustrate, or demonstrate something visually for the user.',
+    "Generates an image based on a generated prompt reflecting the current conversation. Use GENERATE_IMAGE when the agent needs to visualize, illustrate, or demonstrate something visually for the user.",
   validate: async (_runtime: IAgentRuntime) => {
     return true;
   },
@@ -54,20 +54,26 @@ export const generateImageAction = {
     state?: State,
     _options?: HandlerOptions,
     callback?: HandlerCallback,
-    responses?: Memory[]
+    responses?: Memory[],
   ): Promise<ActionResult> => {
     try {
-      const allProviders = responses?.flatMap((res) => res.content?.providers ?? []) ?? [];
+      const allProviders =
+        responses?.flatMap((res) => res.content?.providers ?? []) ?? [];
 
       if (!state) {
-        state = await runtime.composeState(message, [...(allProviders ?? []), 'RECENT_MESSAGES']);
+        state = await runtime.composeState(message, [
+          ...(allProviders ?? []),
+          "RECENT_MESSAGES",
+        ]);
       } else if (allProviders.length > 0) {
         state.values = { ...state.values, additionalProviders: allProviders };
       }
 
       const prompt = composePromptFromState({
         state,
-        template: runtime.character.templates?.imageGenerationTemplate || imageGenerationTemplate,
+        template:
+          runtime.character.templates?.imageGenerationTemplate ||
+          imageGenerationTemplate,
       });
 
       const promptResponse = await runtime.useModel(ModelType.TEXT_LARGE, {
@@ -78,32 +84,36 @@ export const generateImageAction = {
       const parsedXml = parseKeyValueXml(promptResponse);
 
       const imagePrompt: string =
-        typeof parsedXml?.prompt === 'string'
+        typeof parsedXml?.prompt === "string"
           ? parsedXml.prompt
-          : 'Unable to generate descriptive prompt for image';
+          : "Unable to generate descriptive prompt for image";
 
       const imageResponse = await runtime.useModel(ModelType.IMAGE, {
         prompt: imagePrompt,
       });
 
-      if (!imageResponse || imageResponse.length === 0 || !imageResponse[0]?.url) {
+      if (
+        !imageResponse ||
+        imageResponse.length === 0 ||
+        !imageResponse[0]?.url
+      ) {
         logger.error(
           {
-            src: 'plugin:bootstrap:action:image_generation',
+            src: "plugin:bootstrap:action:image_generation",
             agentId: runtime.agentId,
             imagePrompt,
           },
-          'Image generation failed - no valid response received'
+          "Image generation failed - no valid response received",
         );
         return {
-          text: 'Image generation failed',
+          text: "Image generation failed",
           values: {
             success: false,
-            error: 'IMAGE_GENERATION_FAILED',
+            error: "IMAGE_GENERATION_FAILED",
             prompt: imagePrompt,
           },
           data: {
-            actionName: 'GENERATE_IMAGE',
+            actionName: "GENERATE_IMAGE",
             prompt: imagePrompt,
             rawResponse: imageResponse,
           },
@@ -114,29 +124,39 @@ export const generateImageAction = {
       const imageUrl = imageResponse[0].url;
 
       logger.info(
-        { src: 'plugin:assistant:action:image_generation', agentId: runtime.agentId, imageUrl },
-        'Received image URL'
+        {
+          src: "plugin:assistant:action:image_generation",
+          agentId: runtime.agentId,
+          imageUrl,
+        },
+        "Received image URL",
       );
 
       // Determine file extension from URL or default to png
       const getFileExtension = (url: string): string => {
         try {
           const urlPath = new URL(url).pathname;
-          const extension = urlPath.split('.').pop()?.toLowerCase();
+          const extension = urlPath.split(".").pop()?.toLowerCase();
           // Common image extensions
-          if (extension && ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp'].includes(extension)) {
+          if (
+            extension &&
+            ["png", "jpg", "jpeg", "gif", "webp", "bmp"].includes(extension)
+          ) {
             return extension;
           }
           // Extension not in allowed list, fall through to default
         } catch (_e) {
           // URL parsing failed (malformed URL), fall back to png
         }
-        return 'png'; // Default fallback for invalid/unknown extensions
+        return "png"; // Default fallback for invalid/unknown extensions
       };
 
       // Create shared attachment data to avoid duplication
       const extension = getFileExtension(imageUrl);
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      const timestamp = new Date()
+        .toISOString()
+        .replace(/[:.]/g, "-")
+        .slice(0, 19);
       const fileName = `Generated_Image_${timestamp}.${extension}`;
       const attachmentId = v4();
 
@@ -150,7 +170,7 @@ export const generateImageAction = {
       const responseContent = {
         attachments: [attachment],
         thought: `Generated an image based on: "${imagePrompt}"`,
-        actions: ['GENERATE_IMAGE'],
+        actions: ["GENERATE_IMAGE"],
         text: imagePrompt,
       };
 
@@ -159,7 +179,7 @@ export const generateImageAction = {
       }
 
       return {
-        text: 'Generated image',
+        text: "Generated image",
         values: {
           success: true,
           imageGenerated: true,
@@ -167,7 +187,7 @@ export const generateImageAction = {
           prompt: imagePrompt,
         },
         data: {
-          actionName: 'GENERATE_IMAGE',
+          actionName: "GENERATE_IMAGE",
           imageUrl,
           prompt: imagePrompt,
           attachments: [attachment],
@@ -178,20 +198,20 @@ export const generateImageAction = {
       const err = error as Error;
       logger.error(
         {
-          src: 'plugin:bootstrap:action:image_generation',
+          src: "plugin:bootstrap:action:image_generation",
           agentId: runtime.agentId,
           error: err.message,
         },
-        'Exception during image generation'
+        "Exception during image generation",
       );
       return {
-        text: 'Image generation failed',
+        text: "Image generation failed",
         values: {
           success: false,
-          error: 'IMAGE_GENERATION_FAILED',
+          error: "IMAGE_GENERATION_FAILED",
         },
         data: {
-          actionName: 'GENERATE_IMAGE',
+          actionName: "GENERATE_IMAGE",
           errorMessage: err.message,
         },
         success: false,
@@ -201,61 +221,61 @@ export const generateImageAction = {
   examples: [
     [
       {
-        name: '{{name1}}',
+        name: "{{name1}}",
         content: {
-          text: 'Can you show me what a futuristic city looks like?',
+          text: "Can you show me what a futuristic city looks like?",
         },
       },
       {
-        name: '{{name2}}',
+        name: "{{name2}}",
         content: {
           text: "Sure, I'll create a futuristic city image for you. One moment...",
-          actions: ['GENERATE_IMAGE'],
+          actions: ["GENERATE_IMAGE"],
         },
       },
     ],
     [
       {
-        name: '{{name1}}',
+        name: "{{name1}}",
         content: {
-          text: 'What does a neural network look like visually?',
+          text: "What does a neural network look like visually?",
         },
       },
       {
-        name: '{{name2}}',
+        name: "{{name2}}",
         content: {
-          text: 'I’ll create a visualization of a neural network for you, one sec...',
-          actions: ['GENERATE_IMAGE'],
-        },
-      },
-    ],
-    [
-      {
-        name: '{{name1}}',
-        content: {
-          text: 'Can you visualize the feeling of calmness for me?',
-        },
-      },
-      {
-        name: '{{name2}}',
-        content: {
-          text: 'Creating an image to capture calmness for you, please wait a moment...',
-          actions: ['GENERATE_IMAGE'],
+          text: "I’ll create a visualization of a neural network for you, one sec...",
+          actions: ["GENERATE_IMAGE"],
         },
       },
     ],
     [
       {
-        name: '{{name1}}',
+        name: "{{name1}}",
         content: {
-          text: 'What does excitement look like as an image?',
+          text: "Can you visualize the feeling of calmness for me?",
         },
       },
       {
-        name: '{{name2}}',
+        name: "{{name2}}",
         content: {
-          text: 'Let me generate an image that represents excitement for you, give me a second...',
-          actions: ['GENERATE_IMAGE'],
+          text: "Creating an image to capture calmness for you, please wait a moment...",
+          actions: ["GENERATE_IMAGE"],
+        },
+      },
+    ],
+    [
+      {
+        name: "{{name1}}",
+        content: {
+          text: "What does excitement look like as an image?",
+        },
+      },
+      {
+        name: "{{name2}}",
+        content: {
+          text: "Let me generate an image that represents excitement for you, give me a second...",
+          actions: ["GENERATE_IMAGE"],
         },
       },
     ],

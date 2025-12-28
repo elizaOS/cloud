@@ -110,7 +110,10 @@ export class UserSessionsRepository {
    * Creates a new user session.
    */
   async create(data: NewUserSession): Promise<UserSession> {
-    const [session] = await dbWrite.insert(userSessions).values(data).returning();
+    const [session] = await dbWrite
+      .insert(userSessions)
+      .values(data)
+      .returning();
     return session;
   }
 

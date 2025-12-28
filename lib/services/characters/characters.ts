@@ -1,6 +1,6 @@
 /**
  * Service for managing user characters (CRUD operations).
- * 
+ *
  * PERFORMANCE: Character data is cached in Redis for fast runtime access.
  */
 
@@ -34,7 +34,7 @@ export class CharactersService {
    */
   async getById(id: string): Promise<UserCharacter | undefined> {
     const cacheKey = characterCacheKey(id);
-    
+
     // Try cache first
     const cached = await cache.get<UserCharacter>(cacheKey);
     if (cached) {
@@ -44,7 +44,7 @@ export class CharactersService {
 
     // Fetch from database
     const character = await userCharactersRepository.findById(id);
-    
+
     // Cache for future requests (1 hour)
     if (character) {
       await cache.set(cacheKey, character, CHARACTER_CACHE_TTL);

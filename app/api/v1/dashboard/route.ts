@@ -28,16 +28,26 @@ export async function GET() {
 
   // PERFORMANCE: Parallelized all data fetches including 24h usage stats
   const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-  
-  const [generationStats, userCharacters, containers, apiKeys, userRooms, usageStats] =
-    await Promise.all([
-      generationsService.getStats(organizationId),
-      charactersService.listByUser(user.id),
-      listContainers(organizationId),
-      apiKeysService.listByOrganization(organizationId),
-      roomsService.getRoomsForEntity(user.id),
-      usageService.getStatsByOrganization(organizationId, twentyFourHoursAgo, new Date()),
-    ]);
+
+  const [
+    generationStats,
+    userCharacters,
+    containers,
+    apiKeys,
+    userRooms,
+    usageStats,
+  ] = await Promise.all([
+    generationsService.getStats(organizationId),
+    charactersService.listByUser(user.id),
+    listContainers(organizationId),
+    apiKeysService.listByOrganization(organizationId),
+    roomsService.getRoomsForEntity(user.id),
+    usageService.getStatsByOrganization(
+      organizationId,
+      twentyFourHoursAgo,
+      new Date(),
+    ),
+  ]);
 
   const chatRoomCount = userRooms.length;
   const totalGenerations = generationStats.totalGenerations;
@@ -124,7 +134,7 @@ export async function GET() {
   return NextResponse.json(data, {
     headers: {
       // Enable CDN caching with stale-while-revalidate for better perceived performance
-      'Cache-Control': `private, max-age=${CACHE_MAX_AGE}, stale-while-revalidate=${STALE_WHILE_REVALIDATE}`,
+      "Cache-Control": `private, max-age=${CACHE_MAX_AGE}, stale-while-revalidate=${STALE_WHILE_REVALIDATE}`,
     },
   });
 }

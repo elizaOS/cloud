@@ -47,7 +47,7 @@ import type { MessageReceivedHandlerParams } from "../shared/types";
  * Chat Assistant Workflow Handler
  *
  * Planning-based approach with action execution capabilities.
- * 
+ *
  * PERFORMANCE OPTIMIZATIONS:
  * 1. Single composeState call - reuse initial state instead of calling 3 times
  * 2. Parallel createMemory - runs alongside state composition
@@ -71,16 +71,18 @@ export async function handleMessage({
   // OPTIMIZATION: Run these in parallel
   const [, initialState] = await Promise.all([
     setLatestResponseId(runtime, message.roomId, responseId),
-    runtime.emitEvent(EventType.RUN_STARTED, {
-      runtime,
-      runId,
-      messageId: message.id || asUUID(v4()),
-      roomId: message.roomId,
-      entityId: message.entityId,
-      startTime,
-      status: "started",
-      source: "chatAssistantWorkflow",
-    }).then(() => {}), // void return
+    runtime
+      .emitEvent(EventType.RUN_STARTED, {
+        runtime,
+        runId,
+        messageId: message.id || asUUID(v4()),
+        roomId: message.roomId,
+        entityId: message.entityId,
+        startTime,
+        status: "started",
+        source: "chatAssistantWorkflow",
+      })
+      .then(() => {}), // void return
     // OPTIMIZATION: Compose state ONCE with all needed providers
     runtime.composeState(message, [
       "SUMMARIZED_CONTEXT",
@@ -129,7 +131,9 @@ export async function handleMessage({
     const planningPrompt = cleanPrompt(
       composePromptFromState({
         state: initialState,
-        template: runtime.character.templates?.planningTemplate || chatAssistantPlanningTemplate,
+        template:
+          runtime.character.templates?.planningTemplate ||
+          chatAssistantPlanningTemplate,
       }),
     );
 
@@ -154,7 +158,10 @@ export async function handleMessage({
       responseContent = plan.text;
       if (onStreamChunk) {
         for (let i = 0; i < responseContent.length; i += 15) {
-          await onStreamChunk(responseContent.slice(i, i + 15), responseId as UUID);
+          await onStreamChunk(
+            responseContent.slice(i, i + 15),
+            responseId as UUID,
+          );
         }
       }
     } else {
@@ -250,12 +257,16 @@ export async function handleMessage({
     const mediaAttachments: Media[] = Array.from(attachmentMap.values())
       .filter((att) => att.url.length > 0)
       .map((att) => {
-        const contentType = att.contentType?.toUpperCase() as keyof typeof ContentType;
+        const contentType =
+          att.contentType?.toUpperCase() as keyof typeof ContentType;
         return {
           id: att.id,
           url: att.url,
           ...(att.title && { title: att.title }),
-          ...(contentType && ContentType[contentType] && { contentType: ContentType[contentType] }),
+          ...(contentType &&
+            ContentType[contentType] && {
+              contentType: ContentType[contentType],
+            }),
         };
       });
 
@@ -292,21 +303,25 @@ export async function handleMessage({
     });
 
     const endTime = Date.now();
-    logger.info(`[ChatAssistant] Response generated in ${endTime - startTime}ms`);
-    
+    logger.info(
+      `[ChatAssistant] Response generated in ${endTime - startTime}ms`,
+    );
+
     // Fire-and-forget event emission
-    runtime.emitEvent(EventType.RUN_ENDED, {
-      runtime,
-      runId,
-      messageId: message.id || asUUID(v4()),
-      roomId: message.roomId,
-      entityId: message.entityId,
-      startTime,
-      status: "completed",
-      endTime,
-      duration: endTime - startTime,
-      source: "chatAssistantWorkflow",
-    }).catch(() => {});
+    runtime
+      .emitEvent(EventType.RUN_ENDED, {
+        runtime,
+        runId,
+        messageId: message.id || asUUID(v4()),
+        roomId: message.roomId,
+        entityId: message.entityId,
+        startTime,
+        status: "completed",
+        endTime,
+        duration: endTime - startTime,
+        source: "chatAssistantWorkflow",
+      })
+      .catch(() => {});
   } catch (error) {
     runtime.character.system = originalSystemPrompt;
     // @ts-expect-error - RUN_ENDED status should include "error" for proper analytics tracking

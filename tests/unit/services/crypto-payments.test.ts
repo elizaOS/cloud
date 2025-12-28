@@ -39,7 +39,7 @@ const mockCreate = mock(() =>
     expires_at: new Date(Date.now() + 3600000),
     created_at: new Date(),
     metadata: { oxapay_track_id: TEST_TRACK_ID },
-  })
+  }),
 );
 const mockMarkAsExpired = mock(() => Promise.resolve());
 const mockMarkAsFailed = mock(() => Promise.resolve());
@@ -66,7 +66,7 @@ mock.module("@/db/client", () => ({
                       expires_at: new Date(Date.now() + 3600000),
                       metadata: { oxapay_track_id: TEST_TRACK_ID },
                     },
-                  ])
+                  ]),
                 ),
               })),
             })),
@@ -78,7 +78,7 @@ mock.module("@/db/client", () => ({
           })),
         };
         return callback(tx);
-      }
+      },
     ),
   },
 }));
@@ -104,14 +104,14 @@ const mockOxaPayCreateInvoice = mock(() =>
     trackId: TEST_TRACK_ID,
     payLink: "https://oxapay.com/pay/test123",
     expiresAt: new Date(Date.now() + 3600000),
-  })
+  }),
 );
 
 const mockOxaPayGetStatus = mock(() =>
   Promise.resolve({
     status: "Paid",
     transactions: [{ txHash: "0xabc123", amount: 100 }],
-  })
+  }),
 );
 
 mock.module("@/lib/services/oxapay", () => ({
@@ -149,7 +149,7 @@ const mockAddCredits = mock(() =>
   Promise.resolve({
     transaction: { id: "tx-123" },
     newBalance: 200,
-  })
+  }),
 );
 
 mock.module("@/lib/services/credits", () => ({
@@ -201,7 +201,7 @@ mock.module("@/lib/config/crypto", () => ({
   },
   validateReceivedAmount: (
     received: { greaterThanOrEqualTo: (threshold: unknown) => boolean },
-    expected: unknown
+    expected: unknown,
   ) => {
     // No tolerance - received must be >= expected (exact or overpayment only)
     return {
@@ -216,7 +216,7 @@ mock.module("@/lib/config/crypto", () => ({
 mock.module("uuid", () => ({
   validate: (id: string) =>
     /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-      id
+      id,
     ),
 }));
 
@@ -265,7 +265,7 @@ describe("CryptoPaymentsService", () => {
         cryptoPaymentsService.createPayment({
           organizationId: "invalid-id",
           amount: 100,
-        })
+        }),
       ).rejects.toThrow("Invalid organization ID");
     });
 
@@ -277,7 +277,7 @@ describe("CryptoPaymentsService", () => {
         cryptoPaymentsService.createPayment({
           organizationId: "550e8400-e29b-41d4-a716-446655440000",
           amount: 1, // Below $5 minimum
-        })
+        }),
       ).rejects.toThrow("Minimum payment");
     });
 
@@ -289,7 +289,7 @@ describe("CryptoPaymentsService", () => {
         cryptoPaymentsService.createPayment({
           organizationId: "550e8400-e29b-41d4-a716-446655440000",
           amount: 50000, // Above $10,000 maximum
-        })
+        }),
       ).rejects.toThrow("Maximum payment");
     });
 
@@ -345,7 +345,7 @@ describe("CryptoPaymentsService", () => {
         const sigBuffer = Buffer.from(invalidSignature, "hex");
         const expectedBuffer = Buffer.from(
           createHmac("sha512", secret).update(payload).digest("hex"),
-          "hex"
+          "hex",
         );
         // Length mismatch will fail
         if (sigBuffer.length !== expectedBuffer.length) {
@@ -430,7 +430,7 @@ describe("CryptoPaymentsService", () => {
           credits_to_add: "100.00",
           network: "ERC20",
           metadata: { oxapay_track_id: TEST_TRACK_ID },
-        })
+        }),
       );
 
       const { cryptoPaymentsService } =
@@ -453,7 +453,7 @@ describe("CryptoPaymentsService", () => {
         Promise.resolve({
           status: "Paid",
           transactions: [{ txHash, amount: 100 }],
-        })
+        }),
       );
 
       const { cryptoPaymentsService } =
@@ -463,7 +463,7 @@ describe("CryptoPaymentsService", () => {
       // The actual rejection message is "Transaction already processed for another payment"
       const result = await cryptoPaymentsService.verifyAndConfirmByTxHash(
         TEST_PAYMENT_ID,
-        txHash
+        txHash,
       );
 
       // The test passes if we get to the confirmation step
@@ -501,7 +501,7 @@ describe("CryptoPaymentsService", () => {
         Promise.resolve({
           status: "Paid",
           transactions: [{ txHash: "0xconfirmed123456789", amount: 100 }],
-        })
+        }),
       );
 
       const { cryptoPaymentsService } =
@@ -525,7 +525,7 @@ describe("CryptoPaymentsService", () => {
           credits_to_add: "100.00",
           network: "ERC20",
           metadata: { oxapay_track_id: TEST_TRACK_ID },
-        })
+        }),
       );
 
       const { cryptoPaymentsService } =
@@ -547,7 +547,7 @@ describe("CryptoPaymentsService", () => {
           expected_amount: "100.00",
           network: "ERC20",
           metadata: { oxapay_track_id: TEST_TRACK_ID },
-        })
+        }),
       );
 
       const { cryptoPaymentsService } =
@@ -576,7 +576,7 @@ describe("CryptoPaymentsService", () => {
           token: "USDT",
           expires_at: new Date(Date.now() + 3600000),
           metadata: { oxapay_track_id: TEST_TRACK_ID },
-        })
+        }),
       );
 
       const { cryptoPaymentsService } =
@@ -616,7 +616,7 @@ describe("CryptoPaymentsService", () => {
           organization_id: TEST_ORG_ID,
           network: "ERC20",
           metadata: { oxapay_track_id: TEST_TRACK_ID },
-        })
+        }),
       );
 
       const { cryptoPaymentsService } =
@@ -640,7 +640,7 @@ describe("CryptoPaymentsService", () => {
         cryptoPaymentsService.handleWebhook({
           track_id: undefined as unknown as string,
           status: "Paid",
-        })
+        }),
       ).rejects.toThrow("Invalid webhook payload");
 
       // Missing status
@@ -648,7 +648,7 @@ describe("CryptoPaymentsService", () => {
         cryptoPaymentsService.handleWebhook({
           track_id: TEST_TRACK_ID,
           status: undefined as unknown as string,
-        })
+        }),
       ).rejects.toThrow("Invalid webhook payload");
     });
   });
@@ -782,7 +782,7 @@ describe("Crypto Payment Modal Integration", () => {
 
       // Large amount
       expect(parseTokenAmount("999999999.999999", 6)).toBe(
-        BigInt("999999999999999")
+        BigInt("999999999999999"),
       );
     });
   });

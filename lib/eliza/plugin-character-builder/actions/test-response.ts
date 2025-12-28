@@ -84,8 +84,12 @@ export const testResponseAction = {
     options: Record<string, unknown>,
     callback: HandlerCallback,
   ): Promise<void> => {
-    const onStreamChunk = options?.onStreamChunk as StreamChunkCallback | undefined;
-    logger.info(`[TEST_RESPONSE] Generating character test response, streaming=${!!onStreamChunk}`);
+    const onStreamChunk = options?.onStreamChunk as
+      | StreamChunkCallback
+      | undefined;
+    logger.info(
+      `[TEST_RESPONSE] Generating character test response, streaming=${!!onStreamChunk}`,
+    );
 
     // Verify we're in build mode
     if (isCreatorMode(runtime)) {
@@ -125,9 +129,14 @@ export const testResponseAction = {
     );
 
     // Create streaming context to extract <text> content and stream it
-    let streamingContext: { onStreamChunk: (chunk: string, messageId?: UUID) => Promise<void>; messageId?: UUID } | undefined;
+    let streamingContext:
+      | {
+          onStreamChunk: (chunk: string, messageId?: UUID) => Promise<void>;
+          messageId?: UUID;
+        }
+      | undefined;
     if (onStreamChunk) {
-      const extractor = new XmlTagExtractor('text');
+      const extractor = new XmlTagExtractor("text");
       streamingContext = {
         onStreamChunk: async (chunk: string, msgId?: UUID) => {
           if (extractor.done) return;
@@ -140,9 +149,8 @@ export const testResponseAction = {
       };
     }
 
-    const response = await runWithStreamingContext(
-      streamingContext,
-      () => runtime.useModel(ModelType.TEXT_LARGE, { prompt }),
+    const response = await runWithStreamingContext(streamingContext, () =>
+      runtime.useModel(ModelType.TEXT_LARGE, { prompt }),
     );
 
     // Restore original system prompt

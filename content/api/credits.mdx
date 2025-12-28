@@ -3,7 +3,7 @@ title: Credits & Billing
 description: Manage credits and billing on elizaOS Cloud.
 ---
 
-import { Callout, Tabs } from 'nextra/components'
+import { Callout, Tabs } from "nextra/components";
 
 # Credits & Billing
 
@@ -24,11 +24,11 @@ Get your current credit balance.
 
 ```json
 {
-  "balance": 50.00,
+  "balance": 50.0,
   "currency": "USD",
   "usage": {
-    "today": 2.50,
-    "thisMonth": 45.00
+    "today": 2.5,
+    "thisMonth": 45.0
   }
 }
 ```
@@ -48,7 +48,7 @@ Add credits using x402 payment.
 
 ```json
 {
-  "amount": 100.00,
+  "amount": 100.0,
   "paymentMethod": "x402"
 }
 ```
@@ -58,10 +58,10 @@ Add credits using x402 payment.
 ```json
 {
   "success": true,
-  "newBalance": 150.00,
+  "newBalance": 150.0,
   "transaction": {
     "id": "txn_abc123",
-    "amount": 100.00,
+    "amount": 100.0,
     "createdAt": "2024-01-15T10:30:00Z"
   }
 }
@@ -80,11 +80,11 @@ Get transaction history.
 
 ### Query Parameters
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `limit` | integer | Results per page (default: 20) |
-| `offset` | integer | Pagination offset |
-| `type` | string | `topup`, `usage`, `refund` |
+| Parameter | Type    | Description                    |
+| --------- | ------- | ------------------------------ |
+| `limit`   | integer | Results per page (default: 20) |
+| `offset`  | integer | Pagination offset              |
+| `type`    | string  | `topup`, `usage`, `refund`     |
 
 ### Response
 
@@ -123,19 +123,19 @@ Get detailed usage breakdown.
     "chat": {
       "requests": 5000,
       "tokens": 2500000,
-      "cost": 25.00
+      "cost": 25.0
     },
     "embeddings": {
       "requests": 10000,
       "tokens": 1000000,
-      "cost": 2.00
+      "cost": 2.0
     },
     "images": {
       "count": 100,
-      "cost": 5.00
+      "cost": 5.0
     }
   },
-  "total": 32.00
+  "total": 32.0
 }
 ```
 
@@ -162,26 +162,27 @@ Configure auto top-up.
 ```json
 {
   "enabled": true,
-  "threshold": 10.00,
-  "amount": 50.00
+  "threshold": 10.0,
+  "amount": 50.0
 }
 ```
 
 <Callout type="info">
-Auto top-up automatically adds credits when your balance falls below the threshold.
+  Auto top-up automatically adds credits when your balance falls below the
+  threshold.
 </Callout>
 
 ---
 
 ## Pricing
 
-| Service | Unit | Price |
-|---------|------|-------|
-| GPT-4o | 1M tokens | $5.00 / $15.00 |
-| GPT-4o-mini | 1M tokens | $0.15 / $0.60 |
-| Claude 3.5 Sonnet | 1M tokens | $3.00 / $15.00 |
-| Embeddings | 1M tokens | $0.02 |
-| Image (Flux) | per image | $0.01 - $0.05 |
-| Video | per second | $0.10 |
+| Service           | Unit       | Price          |
+| ----------------- | ---------- | -------------- |
+| GPT-4o            | 1M tokens  | $5.00 / $15.00 |
+| GPT-4o-mini       | 1M tokens  | $0.15 / $0.60  |
+| Claude 3.5 Sonnet | 1M tokens  | $3.00 / $15.00 |
+| Embeddings        | 1M tokens  | $0.02          |
+| Image (Flux)      | per image  | $0.01 - $0.05  |
+| Video             | per second | $0.10          |
 
-*Input / Output token pricing shown for chat models*
+_Input / Output token pricing shown for chat models_

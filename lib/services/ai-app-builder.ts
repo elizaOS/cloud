@@ -237,10 +237,12 @@ export class AIAppBuilderService {
         .returning();
 
       // Get the system prompt
-      const systemPromptRecord = await dbRead.query.appBuilderPrompts.findFirst({
-        where: eq(appBuilderPrompts.sandbox_session_id, sessionId),
-        orderBy: [desc(appBuilderPrompts.created_at)],
-      });
+      const systemPromptRecord = await dbRead.query.appBuilderPrompts.findFirst(
+        {
+          where: eq(appBuilderPrompts.sandbox_session_id, sessionId),
+          orderBy: [desc(appBuilderPrompts.created_at)],
+        },
+      );
 
       // Execute Claude Code
       const startTime = Date.now();

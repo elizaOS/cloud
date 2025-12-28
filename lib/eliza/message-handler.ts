@@ -76,8 +76,14 @@ export class MessageHandler {
   ) {}
 
   async process(options: MessageOptions): Promise<MessageResult> {
-    const { roomId, text, attachments, agentModeConfig, onStreamChunk, onReasoningChunk } =
-      options;
+    const {
+      roomId,
+      text,
+      attachments,
+      agentModeConfig,
+      onStreamChunk,
+      onReasoningChunk,
+    } = options;
     const entityId = this.userContext.userId;
     const modeConfig = agentModeConfig || DEFAULT_AGENT_MODE;
 
@@ -335,7 +341,9 @@ export class MessageHandler {
   ): Promise<void> {
     // PERFORMANCE: Add both participants in parallel
     await Promise.all([
-      this.runtime.ensureParticipantInRoom(this.runtime.agentId, roomId).catch(() => {}),
+      this.runtime
+        .ensureParticipantInRoom(this.runtime.agentId, roomId)
+        .catch(() => {}),
       this.runtime.ensureParticipantInRoom(entityUuid, roomId).catch(() => {}),
     ]);
   }

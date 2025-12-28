@@ -196,4 +196,3 @@ export function useDashboardData(): UseDashboardDataReturn {
 
   return { data, isLoading, isValidating, error, mutate };
 }
-

@@ -15,7 +15,10 @@ import { generateImageAction } from "./actions/image-generation";
 import { currentRunContextProvider } from "./providers/current-run-context";
 import { handleMessage } from "./handler";
 import { roomTitleEvaluator } from "../shared/evaluators";
-import type { StreamChunkCallback, ReasoningChunkCallback } from "../shared/types";
+import type {
+  StreamChunkCallback,
+  ReasoningChunkCallback,
+} from "../shared/types";
 
 export const assistantPlugin: Plugin = {
   name: "eliza-assistant",
@@ -25,7 +28,7 @@ export const assistantPlugin: Plugin = {
       async (payload: MessagePayload) => {
         if (!payload.callback) return;
         // Extract streaming callbacks if present (added by eliza-cloud message handler)
-        const extendedPayload = payload as MessagePayload & { 
+        const extendedPayload = payload as MessagePayload & {
           onStreamChunk?: StreamChunkCallback;
           onReasoningChunk?: ReasoningChunkCallback;
         };

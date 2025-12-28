@@ -185,7 +185,14 @@ export async function sendStreamingMessage({
         // Process any remaining data in buffer
         if (buffer.trim()) {
           try {
-            processSSEMessage(buffer.trim(), onMessage, onChunk, onReasoning, onError, onComplete);
+            processSSEMessage(
+              buffer.trim(),
+              onMessage,
+              onChunk,
+              onReasoning,
+              onError,
+              onComplete,
+            );
           } catch (err) {
             console.error("[Stream] Error processing final buffer:", err);
             onError?.("Stream ended unexpectedly");
@@ -198,7 +205,9 @@ export async function sendStreamingMessage({
 
       // Prevent unbounded buffer growth (potential DoS vector)
       if (buffer.length > MAX_BUFFER_SIZE) {
-        throw new Error("Stream buffer exceeded maximum size - possible malformed SSE data");
+        throw new Error(
+          "Stream buffer exceeded maximum size - possible malformed SSE data",
+        );
       }
 
       // Process complete SSE messages (separated by double newline)
@@ -209,7 +218,14 @@ export async function sendStreamingMessage({
         if (!message.trim()) continue;
 
         try {
-          processSSEMessage(message.trim(), onMessage, onChunk, onReasoning, onError, onComplete);
+          processSSEMessage(
+            message.trim(),
+            onMessage,
+            onChunk,
+            onReasoning,
+            onError,
+            onComplete,
+          );
         } catch (err) {
           console.error("[Stream] Error parsing SSE message:", err, message);
           // Continue processing other messages even if one fails
@@ -289,7 +305,10 @@ function processSSEMessage(
       break;
     case "reasoning":
       // Chain-of-thought reasoning chunk - shows LLM's planning process
-      if (onReasoning && isValidReasoningChunkData(data as ReasoningChunkData)) {
+      if (
+        onReasoning &&
+        isValidReasoningChunkData(data as ReasoningChunkData)
+      ) {
         onReasoning(data as ReasoningChunkData);
       }
       break;
@@ -320,7 +339,9 @@ function processSSEMessage(
 /**
  * Type guard to validate StreamChunkData structure
  */
-function isValidStreamChunkData(data: StreamChunkData): data is StreamChunkData {
+function isValidStreamChunkData(
+  data: StreamChunkData,
+): data is StreamChunkData {
   if (!data || typeof data !== "object") return false;
   return (
     typeof data.messageId === "string" &&
@@ -332,7 +353,9 @@ function isValidStreamChunkData(data: StreamChunkData): data is StreamChunkData 
 /**
  * Type guard to validate ReasoningChunkData structure
  */
-function isValidReasoningChunkData(data: ReasoningChunkData): data is ReasoningChunkData {
+function isValidReasoningChunkData(
+  data: ReasoningChunkData,
+): data is ReasoningChunkData {
   if (!data || typeof data !== "object") return false;
   return (
     typeof data.messageId === "string" &&

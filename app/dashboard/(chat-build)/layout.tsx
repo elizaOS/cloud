@@ -26,7 +26,7 @@ export default function ChatBuildLayout({
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const pathname = usePathname();
-  
+
   // Hide sidebar on build pages (creator mode and edit mode)
   const isBuildPage = pathname?.startsWith("/dashboard/build");
 
@@ -45,7 +45,9 @@ export default function ChatBuildLayout({
       {/* Main Content */}
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Chat Header - mode toggle handled by pathname, sidebar toggle hidden in build mode */}
-        <ChatHeader onToggleSidebar={isBuildPage ? undefined : handleToggleSidebar} />
+        <ChatHeader
+          onToggleSidebar={isBuildPage ? undefined : handleToggleSidebar}
+        />
 
         {/* Content Area - Full Height */}
         <main className="flex-1 overflow-hidden bg-[#0A0A0A]">{children}</main>

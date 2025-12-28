@@ -289,7 +289,7 @@ export async function POST(
       agentModeConfig.mode,
       { sessionToken, appId, appPromptConfig, webSearchEnabled },
     );
-    
+
     // Set webSearchEnabled on context (defaults to true)
     userContext.webSearchEnabled = effectiveWebSearchEnabled;
     if (effectiveWebSearchEnabled) {
@@ -435,22 +435,21 @@ export async function POST(
           // users should no longer be able to send messages
           const isOwner = character.user_id === userContext.userId;
           const isPublic = character.is_public === true;
-          const claimCheck = await charactersService.isClaimableAffiliateCharacter(characterId);
+          const claimCheck =
+            await charactersService.isClaimableAffiliateCharacter(characterId);
           const isClaimableAffiliate = claimCheck.claimable;
 
           if (!isPublic && !isOwner && !isClaimableAffiliate) {
-            logger.warn(
-              "[Stream] Access denied to private character:",
-              {
-                characterId,
-                userId: userContext.userId,
-                characterOwnerId: character.user_id,
-                isPublic: character.is_public,
-              },
-            );
+            logger.warn("[Stream] Access denied to private character:", {
+              characterId,
+              userId: userContext.userId,
+              characterOwnerId: character.user_id,
+              isPublic: character.is_public,
+            });
             return new Response(
               JSON.stringify({
-                error: "This agent is private. Only the owner can chat with it.",
+                error:
+                  "This agent is private. Only the owner can chat with it.",
                 accessDenied: true,
               }),
               { status: 403, headers: { "Content-Type": "application/json" } },
@@ -491,7 +490,10 @@ export async function POST(
           }
         }
       } catch (error) {
-        logger.error("[Stream] Failed to check character access/affiliate status:", error);
+        logger.error(
+          "[Stream] Failed to check character access/affiliate status:",
+          error,
+        );
       }
     }
 
@@ -579,9 +581,10 @@ export async function POST(
       runtime.character.settings = {
         ...runtime.character.settings,
         clientCharacterState: validatedState.data,
-        isClientStateUnsaved: typeof agentModeConfig.metadata.isUnsaved === 'boolean'
-          ? agentModeConfig.metadata.isUnsaved
-          : true,
+        isClientStateUnsaved:
+          typeof agentModeConfig.metadata.isUnsaved === "boolean"
+            ? agentModeConfig.metadata.isUnsaved
+            : true,
       };
       logger.info(
         "[Stream] BUILD mode - Stored validated client character state in runtime settings",
@@ -615,7 +618,7 @@ export async function POST(
     // Step 8: Create streaming response with TransformStream for better flush control
     const { readable, writable } = new TransformStream();
     const writer = writable.getWriter();
-    
+
     // Helper to write SSE events - writes immediately and doesn't buffer
     const sendEvent = async (event: string, data: unknown) => {
       const message = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
@@ -625,7 +628,6 @@ export async function POST(
     // Start processing in background - this allows the response to be returned immediately
     // while chunks are streamed as they're generated
     (async () => {
-
       try {
         // Send connection confirmation
         await sendEvent("connected", { roomId, timestamp: Date.now() });
@@ -699,10 +701,7 @@ export async function POST(
         };
 
         // Include attachments if present
-        if (
-          typeof messageContent === "object" &&
-          messageContent?.attachments
-        ) {
+        if (typeof messageContent === "object" && messageContent?.attachments) {
           responseContentPayload.attachments = messageContent.attachments;
         }
 
@@ -750,8 +749,7 @@ export async function POST(
       } catch (error) {
         logger.error("[Stream Messages] Error:", error);
         await sendEvent("error", {
-          message:
-            error instanceof Error ? error.message : "Processing failed",
+          message: error instanceof Error ? error.message : "Processing failed",
         });
       } finally {
         // Close the writer to signal stream completion
@@ -764,7 +762,7 @@ export async function POST(
       headers: {
         "Content-Type": "text/event-stream",
         "Cache-Control": "no-cache, no-transform",
-        "Connection": "keep-alive",
+        Connection: "keep-alive",
         "X-Accel-Buffering": "no",
         // Prevent any compression that could buffer the stream
         "Content-Encoding": "none",

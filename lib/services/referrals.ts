@@ -165,9 +165,15 @@ export class ReferralsService {
 
     // PERFORMANCE: Mark signup bonus as credited and update stats in parallel
     await Promise.all([
-      referralSignupsRepository.markBonusCredited(signup.id, REWARDS.SIGNUP_BONUS),
+      referralSignupsRepository.markBonusCredited(
+        signup.id,
+        REWARDS.SIGNUP_BONUS,
+      ),
       referralCodesRepository.incrementReferrals(referralCode.id),
-      referralCodesRepository.addSignupEarnings(referralCode.id, REWARDS.SIGNUP_BONUS),
+      referralCodesRepository.addSignupEarnings(
+        referralCode.id,
+        REWARDS.SIGNUP_BONUS,
+      ),
     ]);
 
     logger.info("[Referrals] Referral code applied", {
@@ -211,7 +217,10 @@ export class ReferralsService {
     // PERFORMANCE: Update commission stats in parallel
     await Promise.all([
       referralSignupsRepository.addCommission(signup.id, commission),
-      referralCodesRepository.addCommissionEarnings(signup.referral_code_id, commission),
+      referralCodesRepository.addCommissionEarnings(
+        signup.referral_code_id,
+        commission,
+      ),
     ]);
 
     logger.info("[Referrals] Commission credited", {
@@ -311,8 +320,14 @@ export class ReferralsService {
 
     // PERFORMANCE: Mark signup as qualified and update earnings in parallel
     await Promise.all([
-      referralSignupsRepository.markQualified(signup.id, REWARDS.QUALIFIED_BONUS),
-      referralCodesRepository.addQualifiedEarnings(signup.referral_code_id, REWARDS.QUALIFIED_BONUS),
+      referralSignupsRepository.markQualified(
+        signup.id,
+        REWARDS.QUALIFIED_BONUS,
+      ),
+      referralCodesRepository.addQualifiedEarnings(
+        signup.referral_code_id,
+        REWARDS.QUALIFIED_BONUS,
+      ),
     ]);
 
     logger.info("[Referrals] Referral qualified", {
@@ -426,17 +441,20 @@ export class SocialRewardsService {
       "telegram",
       "discord",
     ];
-    
+
     // PERFORMANCE: Check all platforms in parallel instead of sequential loop
     const claimedStatuses = await Promise.all(
       platforms.map((platform) =>
-        socialShareRewardsRepository.hasClaimedToday(userId, platform)
-      )
+        socialShareRewardsRepository.hasClaimedToday(userId, platform),
+      ),
     );
 
     return {
       x: { claimed: claimedStatuses[0], amount: REWARDS.SHARE_X },
-      farcaster: { claimed: claimedStatuses[1], amount: REWARDS.SHARE_FARCASTER },
+      farcaster: {
+        claimed: claimedStatuses[1],
+        amount: REWARDS.SHARE_FARCASTER,
+      },
       telegram: { claimed: claimedStatuses[2], amount: REWARDS.SHARE_TELEGRAM },
       discord: { claimed: claimedStatuses[3], amount: REWARDS.SHARE_DISCORD },
     };

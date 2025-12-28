@@ -3,7 +3,7 @@ title: Authentication
 description: Learn how to authenticate with elizaOS Cloud APIs using API keys, session tokens, and x402 payments.
 ---
 
-import { Callout, Tabs, Cards } from 'nextra/components'
+import { Callout, Tabs, Cards } from "nextra/components";
 
 # Authentication
 
@@ -15,12 +15,12 @@ Secure your API requests with elizaOS Cloud authentication methods.
 
 elizaOS Cloud supports multiple authentication methods:
 
-| Method | Use Case | Header |
-|--------|----------|--------|
-| **API Key** | Server-to-server | `Authorization: Bearer ek_xxx` |
-| **X-API-Key** | Alternative header | `X-API-Key: ek_xxx` |
-| **Session** | Browser apps | Cookie-based |
-| **x402** | Crypto payments | `X-PAYMENT: ...` |
+| Method        | Use Case           | Header                         |
+| ------------- | ------------------ | ------------------------------ |
+| **API Key**   | Server-to-server   | `Authorization: Bearer ek_xxx` |
+| **X-API-Key** | Alternative header | `X-API-Key: ek_xxx`            |
+| **Session**   | Browser apps       | Cookie-based                   |
+| **x402**      | Crypto payments    | `X-PAYMENT: ...`               |
 
 ## API Keys
 
@@ -32,7 +32,7 @@ elizaOS Cloud supports multiple authentication methods:
 4. Copy and securely store the key
 
 <Callout type="warning">
-API keys are shown only once. Store them securely immediately after creation.
+  API keys are shown only once. Store them securely immediately after creation.
 </Callout>
 
 ### Using API Keys
@@ -58,10 +58,11 @@ const response = await fetch('https://elizacloud.ai/api/v1/dashboard', {
 import requests
 
 response = requests.get(
-    'https://elizacloud.ai/api/v1/dashboard',
-    headers={'Authorization': 'Bearer ek_live_xxxxxxxxxxxx'}
+'https://elizacloud.ai/api/v1/dashboard',
+headers={'Authorization': 'Bearer ek_live_xxxxxxxxxxxx'}
 )
-```
+
+````
   </Tabs.Tab>
 </Tabs>
 
@@ -86,21 +87,21 @@ Restrict keys to specific endpoints:
   ],
   "rateLimit": 100
 }
-```
+````
 
 ### Available Permissions
 
-| Permission | Description |
-|------------|-------------|
-| `chat:read` | Read chat history |
-| `chat:write` | Create chat completions |
-| `embeddings:read` | Create embeddings |
-| `agents:read` | List agents |
-| `agents:write` | Create/modify agents |
-| `knowledge:read` | Query knowledge |
-| `knowledge:write` | Upload documents |
-| `images:write` | Generate images |
-| `videos:write` | Generate videos |
+| Permission        | Description             |
+| ----------------- | ----------------------- |
+| `chat:read`       | Read chat history       |
+| `chat:write`      | Create chat completions |
+| `embeddings:read` | Create embeddings       |
+| `agents:read`     | List agents             |
+| `agents:write`    | Create/modify agents    |
+| `knowledge:read`  | Query knowledge         |
+| `knowledge:write` | Upload documents        |
+| `images:write`    | Generate images         |
+| `videos:write`    | Generate videos         |
 
 ## API Key Management
 
@@ -130,18 +131,18 @@ curl -X DELETE "https://elizacloud.ai/api/v1/api-keys/{id}" \
 For browser-based applications, use Privy authentication:
 
 ```javascript
-import { usePrivy } from '@privy-io/react-auth';
+import { usePrivy } from "@privy-io/react-auth";
 
 function MyComponent() {
   const { login, authenticated, getAccessToken } = usePrivy();
-  
+
   const makeApiCall = async () => {
     const token = await getAccessToken();
-    
-    const response = await fetch('https://elizacloud.ai/api/v1/dashboard', {
-      credentials: 'include',
+
+    const response = await fetch("https://elizacloud.ai/api/v1/dashboard", {
+      credentials: "include",
       headers: {
-        'Authorization': `Bearer ${token}`,
+        Authorization: `Bearer ${token}`,
       },
     });
   };
@@ -160,7 +161,7 @@ curl -X POST "https://elizacloud.ai/api/v1/chat/completions" \
 ```
 
 <Callout type="info">
-See [x402 Payments](/docs/x402) for detailed crypto payment setup.
+  See [x402 Payments](/docs/x402) for detailed crypto payment setup.
 </Callout>
 
 ## Security Best Practices
@@ -207,6 +208,7 @@ const apiKey = process.env.ELIZA_API_KEY;
 ```
 
 **Causes:**
+
 - Missing API key
 - Invalid API key
 - Expired session
@@ -223,6 +225,7 @@ const apiKey = process.env.ELIZA_API_KEY;
 ```
 
 **Causes:**
+
 - Key lacks required permission
 - Resource access denied
 
@@ -230,13 +233,14 @@ const apiKey = process.env.ELIZA_API_KEY;
 
 API keys have rate limits based on your plan:
 
-| Plan | Rate Limit |
-|------|------------|
-| Free | 60 req/min |
-| Pro | 300 req/min |
-| Enterprise | Custom |
+| Plan       | Rate Limit  |
+| ---------- | ----------- |
+| Free       | 60 req/min  |
+| Pro        | 300 req/min |
+| Enterprise | Custom      |
 
 Rate limit headers:
+
 ```
 X-RateLimit-Limit: 60
 X-RateLimit-Remaining: 45

@@ -37,7 +37,7 @@ let _pluginsPreloading = false;
 async function preloadPlugins(): Promise<void> {
   if (_pluginsPreloading) return;
   _pluginsPreloading = true;
-  
+
   try {
     // Load both plugins in parallel
     const [knowledgeModule, webSearchModule] = await Promise.all([
@@ -57,7 +57,7 @@ async function preloadPlugins(): Promise<void> {
     if (webSearchModule) {
       _webSearchPlugin = webSearchModule.webSearchPlugin;
     }
-    
+
     console.log("[AgentLoader] ⚡ Plugins preloaded successfully");
   } catch (e) {
     console.error("[AgentLoader] Plugin preload failed:", e);
@@ -148,7 +148,7 @@ async function resolveEffectiveMode(
  */
 async function getKnowledgePlugin(): Promise<Plugin> {
   if (_knowledgePlugin) return _knowledgePlugin;
-  
+
   // Fallback to dynamic import if preload hasn't completed
   const { knowledgePluginCore } = await import("@elizaos/plugin-knowledge");
   _knowledgePlugin = knowledgePluginCore;
@@ -161,7 +161,7 @@ async function getKnowledgePlugin(): Promise<Plugin> {
  */
 async function getWebSearchPlugin(): Promise<Plugin> {
   if (_webSearchPlugin) return _webSearchPlugin;
-  
+
   // Fallback to dynamic import if preload hasn't completed
   const { webSearchPlugin } = await import("@elizaos/plugin-web-search");
   _webSearchPlugin = webSearchPlugin;
@@ -212,7 +212,10 @@ export class AgentLoader {
 
     const elizaCharacter = charactersService.toElizaCharacter(dbCharacter);
     const character = this.buildCharacter(elizaCharacter);
-    const characterSettings = (elizaCharacter.settings ?? {}) as Record<string, unknown>;
+    const characterSettings = (elizaCharacter.settings ?? {}) as Record<
+      string,
+      unknown
+    >;
     const characterPlugins = elizaCharacter.plugins || [];
 
     // Inject webSearch settings if enabled via chat UI
@@ -275,7 +278,10 @@ export class AgentLoader {
     const getSetting = (key: string, fallback: string) =>
       (charSettings[key] as string) || process.env[key] || fallback;
 
-    const settings: Record<string, string | boolean | number | Record<string, unknown>> = {
+    const settings: Record<
+      string,
+      string | boolean | number | Record<string, unknown>
+    > = {
       ...charSettings,
       POSTGRES_URL: process.env.DATABASE_URL!,
       DATABASE_URL: process.env.DATABASE_URL!,

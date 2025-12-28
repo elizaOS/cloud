@@ -106,7 +106,7 @@ export function useThrottledStreamingUpdate() {
 
       pendingUpdatesRef.current.set(messageId, frameId);
     },
-    []
+    [],
   );
 
   return {
