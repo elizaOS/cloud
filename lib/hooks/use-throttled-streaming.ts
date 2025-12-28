@@ -3,7 +3,14 @@
 import { useRef, useCallback, useEffect } from "react";
 
 /**
- * Hook for throttled streaming updates using requestAnimationFrame.
+ * Minimum interval between UI updates in milliseconds.
+ * ~30fps feels smooth for text streaming while being efficient.
+ * Too fast (60fps) = jittery appearance, too slow (15fps) = laggy feel.
+ */
+const MIN_UPDATE_INTERVAL_MS = 33; // ~30fps
+
+/**
+ * Hook for throttled streaming updates with smooth visual pacing.
  *
  * WHY THIS EXISTS:
  * When streaming LLM responses, we receive many small chunks (often 1 token = ~4 chars each).
@@ -12,12 +19,13 @@ import { useRef, useCallback, useEffect } from "react";
  *
  * WHAT IT DOES:
  * - Accumulates chunks in a Map (no re-renders)
- * - Batches UI updates using requestAnimationFrame (~60fps max)
- * - Provides the latest text when update fires
+ * - Batches UI updates at ~30fps for smooth visual appearance
+ * - Uses requestAnimationFrame for paint-synced updates
+ * - Ensures minimum interval between updates for readable text flow
  *
  * VISUAL IMPACT:
- * None! The human eye can't perceive >60fps. The text appears just as smooth,
- * but React does 40-60% less work = smoother scrolling, less CPU on mobile.
+ * Text appears to flow smoothly like a typewriter effect rather than
+ * flooding in or updating jerkily. The pacing feels natural and readable.
  *
  * @example
  * const { accumulateChunk, getAccumulatedText, scheduleUpdate, cleanup } = useThrottledStreamingUpdate();
@@ -35,6 +43,9 @@ export function useThrottledStreamingUpdate() {
   // Map of messageId -> pending rAF frame ID (for throttling)
   const pendingUpdatesRef = useRef<Map<string, number>>(new Map());
 
+  // Map of messageId -> last update timestamp (for minimum interval enforcement)
+  const lastUpdateTimeRef = useRef<Map<string, number>>(new Map());
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -44,6 +55,7 @@ export function useThrottledStreamingUpdate() {
       });
       pendingUpdatesRef.current.clear();
       textMapRef.current.clear();
+      lastUpdateTimeRef.current.clear();
     };
   }, []);
 
@@ -67,6 +79,7 @@ export function useThrottledStreamingUpdate() {
    */
   const clearAccumulatedText = useCallback((messageId: string) => {
     textMapRef.current.delete(messageId);
+    lastUpdateTimeRef.current.delete(messageId);
     // Also cancel any pending update
     const frameId = pendingUpdatesRef.current.get(messageId);
     if (frameId !== undefined) {
@@ -80,6 +93,7 @@ export function useThrottledStreamingUpdate() {
    */
   const clearAll = useCallback(() => {
     textMapRef.current.clear();
+    lastUpdateTimeRef.current.clear();
     pendingUpdatesRef.current.forEach((frameId) => {
       cancelAnimationFrame(frameId);
     });
@@ -89,7 +103,7 @@ export function useThrottledStreamingUpdate() {
   /**
    * Schedule a throttled UI update for a message.
    * The callback receives the current accumulated text.
-   * Only fires once per animation frame (~16ms at 60fps).
+   * Updates are throttled to ~30fps for smooth visual appearance.
    */
   const scheduleUpdate = useCallback(
     (messageId: string, onUpdate: (text: string) => void) => {
@@ -98,8 +112,34 @@ export function useThrottledStreamingUpdate() {
         return;
       }
 
+      const now = performance.now();
+      const lastUpdate = lastUpdateTimeRef.current.get(messageId) || 0;
+      const timeSinceLastUpdate = now - lastUpdate;
+
+      // If we updated recently, delay this update
+      if (timeSinceLastUpdate < MIN_UPDATE_INTERVAL_MS) {
+        const delay = MIN_UPDATE_INTERVAL_MS - timeSinceLastUpdate;
+        
+        const timeoutId = window.setTimeout(() => {
+          pendingUpdatesRef.current.delete(messageId);
+          
+          // Use rAF for paint-synced update
+          requestAnimationFrame(() => {
+            lastUpdateTimeRef.current.set(messageId, performance.now());
+            const text = textMapRef.current.get(messageId) || "";
+            onUpdate(text);
+          });
+        }, delay);
+        
+        // Store timeout as negative to distinguish from rAF
+        pendingUpdatesRef.current.set(messageId, -timeoutId);
+        return;
+      }
+
+      // Schedule immediate rAF update
       const frameId = requestAnimationFrame(() => {
         pendingUpdatesRef.current.delete(messageId);
+        lastUpdateTimeRef.current.set(messageId, performance.now());
         const text = textMapRef.current.get(messageId) || "";
         onUpdate(text);
       });

@@ -1040,10 +1040,20 @@ export function ElizaChatInterface({
     inputTextRef.current = inputText;
   }, [inputText]);
 
-  // Auto-scroll to bottom when messages change (with delayed scroll for late-loading content)
+  // Auto-scroll to bottom when messages change
+  // Uses smooth scrolling during streaming for a polished feel
   useEffect(() => {
-    scrollToBottom();
-    const timer = setTimeout(() => scrollToBottom(), 100);
+    // Check if there's an active streaming message
+    const isStreaming = messages.some(
+      (m) => m.id.startsWith("streaming-") || m.id.startsWith("thinking-")
+    );
+    
+    // Use smooth scroll during streaming for fluid appearance
+    // Use instant scroll for initial load and completed messages
+    scrollToBottom(isStreaming);
+    
+    // Delayed scroll for late-loading content (images, markdown rendering)
+    const timer = setTimeout(() => scrollToBottom(isStreaming), 100);
     return () => clearTimeout(timer);
   }, [messages, scrollToBottom]); // scrollToBottom is stable
 
@@ -1269,6 +1279,7 @@ export function ElizaChatInterface({
                         }
                       }}
                       onImageLoad={scrollToBottom}
+                      onTextReveal={() => scrollToBottom(true)}
                     />
                   );
                 })}

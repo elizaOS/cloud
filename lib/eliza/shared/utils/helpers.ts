@@ -446,6 +446,8 @@ interface StreamingPlanOptions {
  * 
  * The LLM outputs XML like: <plan><thought>reasoning</thought><canRespondNow>YES/NO</canRespondNow>...</plan>
  * We stream the <thought> content as it arrives so users see the reasoning in real-time.
+ * 
+ * Note: Frontend handles the typewriter animation. Backend just streams chunks immediately.
  */
 function createPlanningStreamFilter(
   onThoughtChunk: (chunk: string, phase: "planning" | "actions" | "response", messageId?: UUID) => Promise<void>,
@@ -493,8 +495,8 @@ function createPlanningStreamFilter(
         if (insideThought) {
           pendingContent += char;
           
-          // Stream more frequently for responsive feel (every 3-5 chars or word boundary)
-          if (pendingContent.length >= 3 || char === " " || char === "\n" || char === "," || char === ".") {
+          // Stream frequently for smooth display - every few chars or word boundary
+          if (pendingContent.length >= 4 || char === " " || char === "\n" || char === "," || char === ".") {
             await onThoughtChunk(pendingContent, phase, messageId);
             pendingContent = "";
           }
@@ -555,6 +557,8 @@ export async function generatePlanningWithStreaming(
  * 
  * The LLM outputs XML like: <response><thought>...</thought><text>content</text></response>
  * We want to stream only the content inside <text>...</text> to the user.
+ * 
+ * Note: Frontend handles the typewriter animation. Backend just streams chunks immediately.
  */
 function createStreamingXmlFilter(
   onFilteredChunk: (chunk: string, messageId?: UUID) => Promise<void>,
@@ -564,7 +568,6 @@ function createStreamingXmlFilter(
   let buffer = "";
   let insideText = false;
   let insideTag = false;
-  let currentTagName = "";
   let tagBuffer = "";
   let pendingContent = "";
   
@@ -611,11 +614,11 @@ function createStreamingXmlFilter(
         
         // We're outside of tags
         if (insideText) {
-          // Inside <text> - this is the content we want to stream!
+          // Inside <text> - accumulate and stream frequently
           pendingContent += char;
           
-          // Batch small amounts for efficiency (stream every ~4-8 chars)
-          if (pendingContent.length >= 4 || char === " " || char === "\n") {
+          // Stream every few chars or on word boundaries for smooth display
+          if (pendingContent.length >= 5 || char === " " || char === "\n") {
             await onFilteredChunk(pendingContent, messageId);
             pendingContent = "";
           }

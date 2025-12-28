@@ -131,15 +131,12 @@ export async function handleMessage({
 
     if (shouldRespondNow && plan?.text) {
       responseContent = plan.text;
-      // Stream the pre-planned response with proper pacing
+      // Stream the pre-planned response - frontend handles smooth animation
       if (onStreamChunk) {
-        const chunkSize = 8;
+        // Stream in reasonable chunks - frontend typewriter will smooth it out
+        const chunkSize = 20;
         for (let i = 0; i < responseContent.length; i += chunkSize) {
           await onStreamChunk(responseContent.slice(i, i + chunkSize), responseId as UUID);
-          // Small delay between chunks for readable streaming
-          if (i + chunkSize < responseContent.length) {
-            await new Promise(resolve => setTimeout(resolve, 15));
-          }
         }
       }
     } else {
