@@ -1,5 +1,5 @@
 /**
- * Proxy Middleware - Auth caching and runtime pre-warming
+ * Proxy Middleware - Auth caching
  */
 
 import { NextResponse } from "next/server";
@@ -65,17 +65,6 @@ async function setCachedAuth(token: string, auth: CachedAuth): Promise<void> {
   }
 }
 
-async function signalRuntimePreWarm(agentId: string): Promise<void> {
-  const client = getRedis();
-  if (!client) return;
-  try {
-    const key = `proxy:prewarm:${agentId}`;
-    if (!(await client.get(key))) await client.setex(key, 30, "pending");
-  } catch {
-    /* ignore */
-  }
-}
-
 const publicPaths = [
   "/",
   "/marketplace",
@@ -129,15 +118,6 @@ const protectedPaths = [
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const startTime = Date.now();
-
-  // Pre-warm runtime for chat
-  if (
-    pathname.includes("/api/eliza/rooms/") &&
-    pathname.includes("/messages")
-  ) {
-    const characterId = request.nextUrl.searchParams.get("characterId");
-    if (characterId) signalRuntimePreWarm(characterId).catch(() => {});
-  }
 
   const isPublicPath = publicPaths.some(
     (p) => pathname === p || pathname.startsWith(`${p}/`),

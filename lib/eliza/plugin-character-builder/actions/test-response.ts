@@ -82,8 +82,12 @@ export const testResponseAction = {
     options: Record<string, unknown>,
     callback: HandlerCallback,
   ): Promise<void> => {
-    const onStreamChunk = options?.onStreamChunk as StreamChunkCallback | undefined;
-    logger.info(`[TEST_RESPONSE] Generating character test response, streaming=${!!onStreamChunk}`);
+    const onStreamChunk = options?.onStreamChunk as
+      | StreamChunkCallback
+      | undefined;
+    logger.info(
+      `[TEST_RESPONSE] Generating character test response, streaming=${!!onStreamChunk}`,
+    );
 
     // Verify we're in build mode
     if (isCreatorMode(runtime)) {

@@ -8,7 +8,6 @@ import {
   type Memory,
   type Content,
   type Media,
-  ModelType,
   parseKeyValueXml,
   type UUID,
 } from "@elizaos/core";
@@ -31,6 +30,7 @@ import {
 } from "../shared/utils/response-tracking";
 import {
   generateResponseWithRetry,
+  generatePlanningWithStreaming,
   runEvaluatorsWithTimeout,
   extractAttachments,
   executeProviders,
@@ -115,29 +115,52 @@ export async function handleMessage({
 
   const originalSystemPrompt = runtime.character.system;
 
-
   try {
     await runtime.createMemory(message, "messages");
 
     const affiliateData = runtime.character.settings?.affiliateData as
-      | { vibe?: string; affiliateId?: string; autoImage?: boolean; imageUrls?: string[]; [key: string]: unknown }
+      | {
+          vibe?: string;
+          affiliateId?: string;
+          autoImage?: boolean;
+          imageUrls?: string[];
+          [key: string]: unknown;
+        }
       | undefined;
-    const isAffiliateChat = !!(affiliateData && Object.keys(affiliateData).length > 0);
+    const isAffiliateChat = !!(
+      affiliateData && Object.keys(affiliateData).length > 0
+    );
     const shouldAutoGenerateImages = affiliateData?.autoImage === true;
 
     const providers = isAffiliateChat
       ? ["CHARACTER", "ACTIONS", "affiliateContext", "APP_CONFIG"]
-      : ["SUMMARIZED_CONTEXT", "RECENT_MESSAGES", "LONG_TERM_MEMORY", "AVAILABLE_DOCUMENTS", "PROVIDERS", "MCP", "ACTIONS", "CHARACTER", "affiliateContext", "APP_CONFIG"];
+      : [
+          "SUMMARIZED_CONTEXT",
+          "RECENT_MESSAGES",
+          "LONG_TERM_MEMORY",
+          "AVAILABLE_DOCUMENTS",
+          "PROVIDERS",
+          "MCP",
+          "ACTIONS",
+          "CHARACTER",
+          "affiliateContext",
+          "APP_CONFIG",
+        ];
 
     const initialState = await runtime.composeState(message, providers);
 
-    const systemPromptTemplate = isAffiliateChat ? affiliateSystemPrompt : chatAssistantSystemPrompt;
-    const planningTemplate = isAffiliateChat ? affiliatePlanningTemplate : chatAssistantPlanningTemplate;
+    const systemPromptTemplate = isAffiliateChat
+      ? affiliateSystemPrompt
+      : chatAssistantSystemPrompt;
+    const planningTemplate = isAffiliateChat
+      ? affiliatePlanningTemplate
+      : chatAssistantPlanningTemplate;
 
     const planningPrompt = cleanPrompt(
       composePromptFromState({
         state: initialState,
-        template: runtime.character.templates?.planningTemplate || planningTemplate,
+        template:
+          runtime.character.templates?.planningTemplate || planningTemplate,
       }),
     );
 
@@ -146,16 +169,21 @@ export async function handleMessage({
       template: systemPromptTemplate,
     });
 
-    const planningResponse = await runtime.useModel(ModelType.TEXT_LARGE, { prompt: planningPrompt });
+    // Generate planning with real-time streaming of <thought> content
+    // This allows chain-of-thought to appear immediately as the LLM generates it
+    const planningResponse = await generatePlanningWithStreaming(
+      runtime,
+      planningPrompt,
+      onReasoningChunk
+        ? { onReasoningChunk, messageId: responseId as UUID }
+        : undefined,
+    );
     runtime.character.system = originalSystemPrompt;
 
     let plan = parseKeyValueXml(planningResponse) as ParsedPlan | null;
     let shouldRespondNow = canRespondImmediately(plan);
-    
-    // Stream planning thought to frontend
-    if (onReasoningChunk && plan?.thought) {
-      await onReasoningChunk(plan.thought, "planning", responseId as UUID);
-    }
+
+    // NOTE: Chain-of-thought was already streamed in real-time during generatePlanningWithStreaming
 
     // Auto-generate images (rate limited)
     if (shouldAutoGenerateImages) {
@@ -166,10 +194,16 @@ export async function handleMessage({
       if (hasExplicitRequest || rateLimitAllows) {
         shouldRespondNow = false;
         if (!plan) {
-          plan = { thought: "Generating image", canRespondNow: "NO", actions: "GENERATE_IMAGE" };
+          plan = {
+            thought: "Generating image",
+            canRespondNow: "NO",
+            actions: "GENERATE_IMAGE",
+          };
         } else {
           if (!plan.actions?.includes("GENERATE_IMAGE")) {
-            plan.actions = plan.actions ? `${plan.actions}, GENERATE_IMAGE` : "GENERATE_IMAGE";
+            plan.actions = plan.actions
+              ? `${plan.actions}, GENERATE_IMAGE`
+              : "GENERATE_IMAGE";
           }
           plan.canRespondNow = "NO";
         }
@@ -181,9 +215,15 @@ export async function handleMessage({
 
     if (shouldRespondNow && plan?.text) {
       responseContent = plan.text;
+      // Stream the pre-planned response - frontend handles smooth animation
       if (onStreamChunk) {
-        for (let i = 0; i < responseContent.length; i += 15) {
-          await onStreamChunk(responseContent.slice(i, i + 15), responseId as UUID);
+        // Stream in reasonable chunks - frontend typewriter will smooth it out
+        const chunkSize = 20;
+        for (let i = 0; i < responseContent.length; i += chunkSize) {
+          await onStreamChunk(
+            responseContent.slice(i, i + chunkSize),
+            responseId as UUID,
+          );
         }
       }
     } else {
@@ -258,16 +298,26 @@ export async function handleMessage({
         }),
       );
 
-      const responseResult = await generateResponseWithRetry(runtime, responsePrompt);
+      // Use real streaming when callback is provided
+      // The model will stream tokens as they're generated for smooth UX
+      // Also stream response <thought> to reasoning display
+      const responseResult = await generateResponseWithRetry(
+        runtime,
+        responsePrompt,
+        onStreamChunk
+          ? {
+              onStreamChunk,
+              onReasoningChunk,
+              messageId: responseId as UUID,
+            }
+          : undefined,
+      );
       responseContent = responseResult.text;
       thought = responseResult.thought;
-      
-      // Stream response chunks if callback provided
-      if (onStreamChunk && responseContent) {
-        for (let i = 0; i < responseContent.length; i += 15) {
-          await onStreamChunk(responseContent.slice(i, i + 15), responseId as UUID);
-        }
-      }
+
+      // NOTE: No fake chunking here! When onStreamChunk is provided,
+      // generateResponseWithRetry uses real streaming via the model.
+      // The response has already been streamed as it was generated.
     }
 
     runtime.character.system = originalSystemPrompt;

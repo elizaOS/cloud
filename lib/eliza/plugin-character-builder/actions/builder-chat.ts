@@ -126,9 +126,13 @@ This is your main tool for understanding what the user wants before taking actio
   ): Promise<void> => {
     const creatorMode = isCreatorMode(runtime);
     const modeLabel = creatorMode ? "Creator" : "Build";
-    const onStreamChunk = options?.onStreamChunk as StreamChunkCallback | undefined;
+    const onStreamChunk = options?.onStreamChunk as
+      | StreamChunkCallback
+      | undefined;
 
-    logger.info(`[BUILDER_CHAT] ${modeLabel} mode conversation, streaming=${!!onStreamChunk}`);
+    logger.info(
+      `[BUILDER_CHAT] ${modeLabel} mode conversation, streaming=${!!onStreamChunk}`,
+    );
 
     state = await runtime.composeState(message, [
       "SUMMARIZED_CONTEXT",

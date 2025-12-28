@@ -71,7 +71,9 @@ After running once, it's disabled - use BUILDER_CHAT for follow-up questions.`,
     callback: HandlerCallback,
   ): Promise<void> => {
     const entityId = message.entityId as string;
-    const onStreamChunk = options?.onStreamChunk as StreamChunkCallback | undefined;
+    const onStreamChunk = options?.onStreamChunk as
+      | StreamChunkCallback
+      | undefined;
 
     state = await runtime.composeState(message, ["RECENT_MESSAGES"]);
 
