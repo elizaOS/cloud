@@ -3,7 +3,7 @@ title: Character JSON
 description: Complete reference for elizaOS character JSON configuration. Define agent personality, behavior, and settings.
 ---
 
-import { Callout, Cards } from 'nextra/components'
+import { Callout, Cards } from "nextra/components";
 
 # Character JSON
 
@@ -26,14 +26,8 @@ The character JSON is the core configuration for an elizaOS agent. It defines:
 {
   "name": "Agent Name",
   "description": "Brief description",
-  "bio": [
-    "First bio statement",
-    "Second bio statement"
-  ],
-  "lore": [
-    "Background story element",
-    "Another lore element"
-  ],
+  "bio": ["First bio statement", "Second bio statement"],
+  "lore": ["Background story element", "Another lore element"],
   "style": {
     "all": ["Global style instruction"],
     "chat": ["Chat-specific style"],
@@ -56,31 +50,31 @@ The character JSON is the core configuration for an elizaOS agent. It defines:
 
 ### Core Identity
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `name` | string | ✓ | Agent display name |
-| `description` | string | | Brief description |
-| `bio` | string[] | ✓ | Background statements |
-| `lore` | string[] | | Backstory elements |
+| Field         | Type     | Required | Description           |
+| ------------- | -------- | -------- | --------------------- |
+| `name`        | string   | ✓        | Agent display name    |
+| `description` | string   |          | Brief description     |
+| `bio`         | string[] | ✓        | Background statements |
+| `lore`        | string[] |          | Backstory elements    |
 
 ### Personality
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `style.all` | string[] | | Global style rules |
-| `style.chat` | string[] | | Chat interaction style |
-| `style.post` | string[] | | Social media style |
-| `topics` | string[] | | Expertise areas |
-| `adjectives` | string[] | | Personality traits |
+| Field        | Type     | Required | Description            |
+| ------------ | -------- | -------- | ---------------------- |
+| `style.all`  | string[] |          | Global style rules     |
+| `style.chat` | string[] |          | Chat interaction style |
+| `style.post` | string[] |          | Social media style     |
+| `topics`     | string[] |          | Expertise areas        |
+| `adjectives` | string[] |          | Personality traits     |
 
 ### Model Settings
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `modelProvider` | string | ✓ | AI provider |
-| `settings.model` | string | | Specific model |
-| `settings.temperature` | number | | Creativity (0-2) |
-| `settings.maxTokens` | number | | Max response length |
+| Field                  | Type   | Required | Description         |
+| ---------------------- | ------ | -------- | ------------------- |
+| `modelProvider`        | string | ✓        | AI provider         |
+| `settings.model`       | string |          | Specific model      |
+| `settings.temperature` | number |          | Creativity (0-2)    |
+| `settings.maxTokens`   | number |          | Max response length |
 
 ## Bio Guidelines
 
@@ -98,6 +92,7 @@ The bio array defines your agent's background:
 ```
 
 **Best Practices:**
+
 - 3-5 statements
 - Mix expertise and personality
 - Be specific about capabilities
@@ -160,11 +155,11 @@ For social media interactions:
 
 ### Available Providers
 
-| Provider | Models |
-|----------|--------|
-| `openai` | gpt-4o, gpt-4o-mini, gpt-4-turbo |
+| Provider    | Models                           |
+| ----------- | -------------------------------- |
+| `openai`    | gpt-4o, gpt-4o-mini, gpt-4-turbo |
 | `anthropic` | claude-3-5-sonnet, claude-3-opus |
-| `google` | gemini-pro, gemini-flash |
+| `google`    | gemini-pro, gemini-flash         |
 
 ### Provider Settings
 
@@ -210,9 +205,7 @@ Enable MCP servers:
   "settings": {
     "mcp": {
       "enabled": true,
-      "servers": [
-        { "id": "weather", "url": "https://mcp.eliza.ai/weather" }
-      ]
+      "servers": [{ "id": "weather", "url": "https://mcp.eliza.ai/weather" }]
     }
   }
 }
@@ -302,11 +295,11 @@ Configure voice synthesis:
 
 The character JSON is validated on upload. Common errors:
 
-| Error | Cause | Solution |
-|-------|-------|----------|
-| `name required` | Missing name field | Add name |
-| `invalid provider` | Unknown modelProvider | Use supported provider |
-| `invalid temperature` | Outside 0-2 range | Adjust temperature |
+| Error                 | Cause                 | Solution               |
+| --------------------- | --------------------- | ---------------------- |
+| `name required`       | Missing name field    | Add name               |
+| `invalid provider`    | Unknown modelProvider | Use supported provider |
+| `invalid temperature` | Outside 0-2 range     | Adjust temperature     |
 
 ## Best Practices
 

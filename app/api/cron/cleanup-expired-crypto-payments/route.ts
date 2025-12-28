@@ -8,7 +8,7 @@ import { logger } from "@/lib/utils/logger";
  * Should be scheduled to run every 5-10 minutes.
  *
  * Vercel Cron: schedule "0/10 * * * *" at path "/api/cron/cleanup-expired-crypto-payments"
- * 
+ *
  */
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
       try {
         await cryptoPaymentsRepository.markAsExpired(payment.id);
         markedExpired++;
-        
+
         logger.info("[Crypto Payments Cleanup] Marked payment as expired", {
           paymentId: payment.id,
           organizationId: payment.organization_id,
@@ -78,10 +78,6 @@ export async function GET(req: NextRequest) {
     });
   } catch (error) {
     logger.error("[Crypto Payments Cleanup] Cleanup job failed", { error });
-    return NextResponse.json(
-      { error: "Cleanup job failed" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Cleanup job failed" }, { status: 500 });
   }
 }
-

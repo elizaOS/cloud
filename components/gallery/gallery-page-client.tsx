@@ -39,7 +39,7 @@ type ItemsCache = {
 export function GalleryPageClient() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  
+
   // Get initial tab from URL query param
   const initialTab = useMemo(() => {
     const tabParam = searchParams.get("tab");
@@ -76,16 +76,19 @@ export function GalleryPageClient() {
   itemsCacheRef.current = itemsCache;
 
   // Update URL when tab changes
-  const handleTabChange = useCallback((tab: TabType) => {
-    setActiveTab(tab);
-    const url = new URL(window.location.href);
-    if (tab === "all") {
-      url.searchParams.delete("tab");
-    } else {
-      url.searchParams.set("tab", tab);
-    }
-    router.replace(url.pathname + url.search, { scroll: false });
-  }, [router]);
+  const handleTabChange = useCallback(
+    (tab: TabType) => {
+      setActiveTab(tab);
+      const url = new URL(window.location.href);
+      if (tab === "all") {
+        url.searchParams.delete("tab");
+      } else {
+        url.searchParams.set("tab", tab);
+      }
+      router.replace(url.pathname + url.search, { scroll: false });
+    },
+    [router],
+  );
 
   const galleryTabs: TabItem[] = useMemo(
     () => [
@@ -105,7 +108,7 @@ export function GalleryPageClient() {
         icon: <VideoIcon className="h-4 w-4" />,
       },
     ],
-    [stats]
+    [stats],
   );
 
   const loadItemsForTab = useCallback(async (tab: TabType, force = false) => {

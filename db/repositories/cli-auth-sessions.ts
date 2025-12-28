@@ -62,7 +62,10 @@ export class CliAuthSessionsRepository {
    * @throws Error if session creation fails.
    */
   async create(data: NewCliAuthSession): Promise<CliAuthSession> {
-    const [session] = await dbWrite.insert(cliAuthSessions).values(data).returning();
+    const [session] = await dbWrite
+      .insert(cliAuthSessions)
+      .values(data)
+      .returning();
 
     if (!session) {
       throw new Error("Failed to create CLI auth session");
@@ -139,7 +142,9 @@ export class CliAuthSessionsRepository {
    */
   async deleteExpiredSessions(): Promise<void> {
     const now = new Date();
-    await dbWrite.delete(cliAuthSessions).where(lt(cliAuthSessions.expires_at, now));
+    await dbWrite
+      .delete(cliAuthSessions)
+      .where(lt(cliAuthSessions.expires_at, now));
   }
 }
 

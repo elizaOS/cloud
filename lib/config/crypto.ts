@@ -16,7 +16,7 @@ export const OXAPAY_FEE_PERCENT = new Decimal("1.5");
  * userPaidAmount = receivedAmount / OXAPAY_FEE_MULTIPLIER
  */
 export const OXAPAY_FEE_MULTIPLIER = new Decimal(1).minus(
-  OXAPAY_FEE_PERCENT.dividedBy(100)
+  OXAPAY_FEE_PERCENT.dividedBy(100),
 );
 
 /**
@@ -209,11 +209,11 @@ export const NETWORK_CONFIGS: Record<OxaPayNetwork, NetworkConfig> = {
  */
 export function calculateTolerance(
   amount: Decimal,
-  network: OxaPayNetwork
+  network: OxaPayNetwork,
 ): Decimal {
   const config = NETWORK_CONFIGS[network];
   const toleranceMultiplier = new Decimal(1).minus(
-    new Decimal(config.tolerancePercent).dividedBy(100)
+    new Decimal(config.tolerancePercent).dividedBy(100),
   );
   return amount.times(toleranceMultiplier);
 }
@@ -250,7 +250,7 @@ export function validatePaymentAmount(amount: Decimal): {
 export function validateReceivedAmount(
   received: Decimal,
   expected: Decimal,
-  _network: OxaPayNetwork
+  _network: OxaPayNetwork,
 ): { valid: boolean; threshold: Decimal } {
   // No tolerance - received must be >= expected (exact or overpayment only)
   return {
@@ -294,7 +294,7 @@ function parseTimestamp(value: number | string): number | undefined {
  */
 export function extractWebhookTimestamp(
   header: string | null,
-  payload: OxaPayWebhookPayload
+  payload: OxaPayWebhookPayload,
 ): number | undefined {
   // Try header first
   if (header) {

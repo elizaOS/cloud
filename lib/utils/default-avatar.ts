@@ -153,7 +153,8 @@ export function getAvailableAvatarStyles(): Array<{
   url: string;
 }> {
   return CLOUD_AGENT_AVATARS.map((url, index) => {
-    const filename = url.split("/").pop()?.replace(".webp", "") ?? `agent-${index}`;
+    const filename =
+      url.split("/").pop()?.replace(".webp", "") ?? `agent-${index}`;
     return {
       id: `cloud-${filename}`,
       name: `Agent ${index + 1}`,

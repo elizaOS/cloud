@@ -3,7 +3,7 @@ title: Models
 description: List and discover available AI models on elizaOS Cloud.
 ---
 
-import { Callout, Tabs } from 'nextra/components'
+import { Callout, Tabs } from "nextra/components";
 
 # Models
 
@@ -56,58 +56,58 @@ curl -X GET "https://elizacloud.ai/api/v1/models" \
 
 ### OpenAI
 
-| Model | Context | Best For |
-|-------|---------|----------|
-| `gpt-4o` | 128K | General purpose, vision |
-| `gpt-4o-mini` | 128K | Fast, cost-effective |
-| `gpt-4-turbo` | 128K | Complex reasoning |
+| Model         | Context | Best For                |
+| ------------- | ------- | ----------------------- |
+| `gpt-4o`      | 128K    | General purpose, vision |
+| `gpt-4o-mini` | 128K    | Fast, cost-effective    |
+| `gpt-4-turbo` | 128K    | Complex reasoning       |
 
 ### Anthropic
 
-| Model | Context | Best For |
-|-------|---------|----------|
-| `claude-3-5-sonnet-20241022` | 200K | Balance of speed/quality |
-| `claude-3-opus-20240229` | 200K | Most capable |
-| `claude-3-haiku-20240307` | 200K | Fastest |
+| Model                        | Context | Best For                 |
+| ---------------------------- | ------- | ------------------------ |
+| `claude-3-5-sonnet-20241022` | 200K    | Balance of speed/quality |
+| `claude-3-opus-20240229`     | 200K    | Most capable             |
+| `claude-3-haiku-20240307`    | 200K    | Fastest                  |
 
 ### Google
 
-| Model | Context | Best For |
-|-------|---------|----------|
-| `gemini-1.5-pro` | 1M | Long context |
-| `gemini-1.5-flash` | 1M | Fast responses |
+| Model              | Context | Best For       |
+| ------------------ | ------- | -------------- |
+| `gemini-1.5-pro`   | 1M      | Long context   |
+| `gemini-1.5-flash` | 1M      | Fast responses |
 
 ---
 
 ## Embedding Models
 
-| Model | Dimensions | Description |
-|-------|------------|-------------|
-| `text-embedding-3-small` | 1536 | Fast, cost-effective |
-| `text-embedding-3-large` | 3072 | Higher quality |
+| Model                    | Dimensions | Description          |
+| ------------------------ | ---------- | -------------------- |
+| `text-embedding-3-small` | 1536       | Fast, cost-effective |
+| `text-embedding-3-large` | 3072       | Higher quality       |
 
 ---
 
 ## Image Models
 
-| Model | Resolution | Speed |
-|-------|------------|-------|
-| `fal-ai/flux/schnell` | 1024² | Fast |
-| `fal-ai/flux/dev` | 1024² | Medium |
-| `fal-ai/flux-pro` | 2048² | Slow |
+| Model                 | Resolution | Speed  |
+| --------------------- | ---------- | ------ |
+| `fal-ai/flux/schnell` | 1024²      | Fast   |
+| `fal-ai/flux/dev`     | 1024²      | Medium |
+| `fal-ai/flux-pro`     | 2048²      | Slow   |
 
 ---
 
 ## Model Selection Tips
 
 <Callout type="info">
-Start with `gpt-4o-mini` or `claude-3-5-sonnet-20241022` for a good balance.
+  Start with `gpt-4o-mini` or `claude-3-5-sonnet-20241022` for a good balance.
 </Callout>
 
-| Use Case | Recommended Model |
-|----------|-------------------|
-| General chat | `gpt-4o-mini` |
-| Complex reasoning | `gpt-4o` |
-| Code generation | `claude-3-5-sonnet` |
-| Long documents | `gemini-1.5-pro` |
-| Fast responses | `claude-3-haiku` |
+| Use Case          | Recommended Model   |
+| ----------------- | ------------------- |
+| General chat      | `gpt-4o-mini`       |
+| Complex reasoning | `gpt-4o`            |
+| Code generation   | `claude-3-5-sonnet` |
+| Long documents    | `gemini-1.5-pro`    |
+| Fast responses    | `claude-3-haiku`    |

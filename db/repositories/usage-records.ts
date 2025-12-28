@@ -649,7 +649,10 @@ export class UsageRecordsRepository {
    * Creates a new usage record.
    */
   async create(data: NewUsageRecord): Promise<UsageRecord> {
-    const [record] = await dbWrite.insert(usageRecords).values(data).returning();
+    const [record] = await dbWrite
+      .insert(usageRecords)
+      .values(data)
+      .returning();
     return record;
   }
 }

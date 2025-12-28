@@ -3,7 +3,7 @@ title: API Keys
 description: Manage API keys for elizaOS Cloud.
 ---
 
-import { Callout, Tabs } from 'nextra/components'
+import { Callout, Tabs } from "nextra/components";
 
 # API Keys
 
@@ -59,16 +59,16 @@ Create a new API key.
 
 ### Available Permissions
 
-| Permission | Description |
-|------------|-------------|
-| `chat` | Chat completions |
+| Permission   | Description         |
+| ------------ | ------------------- |
+| `chat`       | Chat completions    |
 | `embeddings` | Generate embeddings |
-| `images` | Image generation |
-| `video` | Video generation |
-| `voice` | Voice/TTS |
-| `knowledge` | Knowledge base |
-| `agents` | Agent management |
-| `apps` | App management |
+| `images`     | Image generation    |
+| `video`      | Video generation    |
+| `voice`      | Voice/TTS           |
+| `knowledge`  | Knowledge base      |
+| `agents`     | Agent management    |
+| `apps`       | App management      |
 
 ### Response
 
@@ -83,7 +83,7 @@ Create a new API key.
 ```
 
 <Callout type="warning">
-The full API key is only shown once. Store it securely.
+  The full API key is only shown once. Store it securely.
 </Callout>
 
 ---
@@ -92,7 +92,7 @@ The full API key is only shown once. Store it securely.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-get">GET</span>
-  <span className="path">/api/v1/api-keys/{'{id}'}</span>
+  <span className="path">/api/v1/api-keys/{"{id}"}</span>
 </div>
 
 Get API key details (without the secret).
@@ -103,7 +103,7 @@ Get API key details (without the secret).
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-put">PUT</span>
-  <span className="path">/api/v1/api-keys/{'{id}'}</span>
+  <span className="path">/api/v1/api-keys/{"{id}"}</span>
 </div>
 
 Update API key name or permissions.
@@ -123,14 +123,12 @@ Update API key name or permissions.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-delete">DELETE</span>
-  <span className="path">/api/v1/api-keys/{'{id}'}</span>
+  <span className="path">/api/v1/api-keys/{"{id}"}</span>
 </div>
 
 Revoke (delete) an API key.
 
-<Callout type="warning">
-Revoked keys stop working immediately.
-</Callout>
+<Callout type="warning">Revoked keys stop working immediately.</Callout>
 
 ---
 
@@ -138,7 +136,7 @@ Revoked keys stop working immediately.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-post">POST</span>
-  <span className="path">/api/v1/api-keys/{'{id}'}/regenerate</span>
+  <span className="path">/api/v1/api-keys/{"{id}"}/regenerate</span>
 </div>
 
 Generate a new secret for an existing key.

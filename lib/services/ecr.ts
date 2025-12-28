@@ -106,10 +106,7 @@ export class ECRManager {
         throw error;
       }
 
-      logger.info(
-        "Repository does not exist, will create:",
-        repositoryName,
-      );
+      logger.info("Repository does not exist, will create:", repositoryName);
     }
 
     logger.info("Creating new ECR repository:", repositoryName);

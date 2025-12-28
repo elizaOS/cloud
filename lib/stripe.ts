@@ -40,14 +40,14 @@ function initStripe(): Stripe | null {
 
   if (!secretKey) {
     stripeInitError = new Error(
-      "STRIPE_SECRET_KEY is not set in environment variables"
+      "STRIPE_SECRET_KEY is not set in environment variables",
     );
     return null;
   }
 
   if (!secretKey.startsWith("sk_")) {
     stripeInitError = new Error(
-      `STRIPE_SECRET_KEY appears invalid (should start with 'sk_', got '${secretKey.substring(0, 3)}...'). Please verify your Stripe configuration.`
+      `STRIPE_SECRET_KEY appears invalid (should start with 'sk_', got '${secretKey.substring(0, 3)}...'). Please verify your Stripe configuration.`,
     );
     return null;
   }

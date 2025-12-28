@@ -205,7 +205,8 @@ export class PurchasesService {
             await invoicesService.getByStripeInvoiceId(invoiceId);
 
           if (!existingInvoice) {
-            const stripeInvoice = await requireStripe().invoices.retrieve(invoiceId);
+            const stripeInvoice =
+              await requireStripe().invoices.retrieve(invoiceId);
 
             await invoicesService.create({
               organization_id: organizationId,
@@ -309,7 +310,8 @@ export class PurchasesService {
     paymentIntentId: string,
     organizationId: string,
   ): Promise<Stripe.PaymentIntent | null> {
-    const paymentIntent = await requireStripe().paymentIntents.retrieve(paymentIntentId);
+    const paymentIntent =
+      await requireStripe().paymentIntents.retrieve(paymentIntentId);
 
     // Verify the payment intent belongs to this organization
     if (paymentIntent.metadata?.organization_id !== organizationId) {
@@ -400,7 +402,8 @@ export class PurchasesService {
       return existingPaymentIntent;
     }
 
-    const cancelledIntent = await requireStripe().paymentIntents.cancel(paymentIntentId);
+    const cancelledIntent =
+      await requireStripe().paymentIntents.cancel(paymentIntentId);
     return cancelledIntent;
   }
 

@@ -16,7 +16,12 @@ import {
   CarouselPrevious,
   type CarouselApi,
 } from "@/components/ui/carousel";
-import { Dialog, DialogContent, DialogClose, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogClose,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Wand2,
   Sparkles,
@@ -152,12 +157,18 @@ export function ImageGeneratorAdvanced({
 
     const file = files[0];
     if (file.size > 10 * 1024 * 1024) {
-      setRequestState(prev => ({ ...prev, error: "Source image too large. Maximum size is 10MB." }));
+      setRequestState((prev) => ({
+        ...prev,
+        error: "Source image too large. Maximum size is 10MB.",
+      }));
       return;
     }
 
     if (!file.type.startsWith("image/")) {
-      setRequestState(prev => ({ ...prev, error: "Invalid file type. Please upload an image." }));
+      setRequestState((prev) => ({
+        ...prev,
+        error: "Invalid file type. Please upload an image.",
+      }));
       return;
     }
 
@@ -167,7 +178,10 @@ export function ImageGeneratorAdvanced({
       setSourceImage(reader.result as string);
     };
     reader.onerror = () => {
-      setRequestState(prev => ({ ...prev, error: "Failed to read image file." }));
+      setRequestState((prev) => ({
+        ...prev,
+        error: "Failed to read image file.",
+      }));
     };
     reader.readAsDataURL(file);
   };
@@ -335,7 +349,8 @@ export function ImageGeneratorAdvanced({
             {/* Source Image Upload */}
             <div className="space-y-2">
               <label className="text-xs font-mono font-medium text-white/70 uppercase tracking-wide">
-                Reference Image <span className="text-white/40">(Optional)</span>
+                Reference Image{" "}
+                <span className="text-white/40">(Optional)</span>
               </label>
               <div
                 onClick={() => sourceImageInputRef.current?.click()}
@@ -409,7 +424,11 @@ export function ImageGeneratorAdvanced({
                 id="prompt"
                 value={prompt}
                 onChange={(e) => setPrompt(e.currentTarget.value)}
-                placeholder={sourceImage ? "Describe how to modify the reference image..." : "Describe your vision in detail..."}
+                placeholder={
+                  sourceImage
+                    ? "Describe how to modify the reference image..."
+                    : "Describe your vision in detail..."
+                }
                 rows={5}
                 className="w-full border border-white/10 bg-black/40 px-3 md:px-4 py-2 md:py-3 text-xs md:text-sm leading-relaxed text-white placeholder:text-white/40 focus:outline-none border-[0.1px] focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800] resize-none"
               />

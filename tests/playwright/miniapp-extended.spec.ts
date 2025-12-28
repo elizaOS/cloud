@@ -353,8 +353,12 @@ test.describe("Miniapp Pages UI", () => {
 
     const content = await page.locator("body").textContent();
     if ((content?.length || 0) <= 100) {
-      console.log(`⚠️ Miniapp home page content too short (${content?.length} chars)`);
-      console.log("ℹ️ Skipping content length check (likely missing configuration)");
+      console.log(
+        `⚠️ Miniapp home page content too short (${content?.length} chars)`,
+      );
+      console.log(
+        "ℹ️ Skipping content length check (likely missing configuration)",
+      );
       return;
     }
     console.log("✅ Miniapp home page loads");
@@ -476,7 +480,11 @@ test.describe("Miniapp Agent Detail Page", () => {
     await page.waitForTimeout(2000);
 
     const content = await page.locator("body").textContent();
-    if ((content?.length || 0) === 0) { console.log("⚠️ Page content empty"); console.log("ℹ️ Skipping"); return; }
+    if ((content?.length || 0) === 0) {
+      console.log("⚠️ Page content empty");
+      console.log("ℹ️ Skipping");
+      return;
+    }
 
     // Should show error or redirect
     console.log("✅ Agent detail page handles invalid ID");

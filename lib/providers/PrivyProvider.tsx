@@ -27,12 +27,15 @@ type SolanaConnectors = ReturnType<typeof toSolanaWalletConnectors>;
 // Create Solana wallet connectors once globally to prevent
 // WalletConnect double-initialization in React Strict Mode and during HMR
 const getSolanaConnectors = (): SolanaConnectors => {
-  const globalCache = globalThis as unknown as Record<string, SolanaConnectors | undefined>;
-  
+  const globalCache = globalThis as unknown as Record<
+    string,
+    SolanaConnectors | undefined
+  >;
+
   if (globalCache[SOLANA_CONNECTORS_KEY]) {
     return globalCache[SOLANA_CONNECTORS_KEY];
   }
-  
+
   const connectors = toSolanaWalletConnectors();
   globalCache[SOLANA_CONNECTORS_KEY] = connectors;
   return connectors;

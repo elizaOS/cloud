@@ -80,10 +80,14 @@ interface MemoizedChatMessageProps {
   onCopy: (
     text: string,
     messageId: string,
-    attachments?: Message["content"]["attachments"]
+    attachments?: Message["content"]["attachments"],
   ) => void;
   onPlayAudio?: (messageId: string) => void;
   onImageLoad?: () => void;
+  /** Chain-of-thought reasoning text to display while thinking */
+  reasoningText?: string;
+  /** Current phase of reasoning: planning, actions, or response */
+  reasoningPhase?: "planning" | "actions" | "response" | null;
 }
 
 // Markdown components configuration
@@ -143,11 +147,14 @@ function ChatMessageComponent({
   onCopy,
   onPlayAudio,
   onImageLoad,
+  reasoningText,
+  reasoningPhase,
 }: MemoizedChatMessageProps) {
   const isThinking = message.id.startsWith("thinking-");
+  const hasReasoning = isThinking && reasoningText && reasoningText.length > 0;
   // Use shared plugins cache - no flash since plugins are pre-loaded at module level
   const plugins = useMarkdownPlugins();
-  
+
   // Detect streaming from message id if not explicitly passed
   const isStreamingMessage = isStreaming || message.id.startsWith("streaming-");
 
@@ -173,9 +180,31 @@ function ChatMessageComponent({
 
           <div className="flex flex-col gap-0.5">
             {isThinking ? (
-              <div className="flex items-center gap-2 py-2 px-3 bg-white/[0.03] border border-white/[0.06] rounded-lg">
-                <Loader2 className="h-4 w-4 animate-spin text-white/40" />
-                <span className="text-sm text-white/40">thinking...</span>
+              <div className="py-2 px-3 bg-white/[0.03] border border-white/[0.06] rounded-lg">
+                {hasReasoning ? (
+                  // Show chain-of-thought reasoning
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin text-[#FF5800]/60" />
+                      <span className="text-xs font-medium text-[#FF5800]/60 uppercase tracking-wider">
+                        {reasoningPhase === "planning" && "Planning..."}
+                        {reasoningPhase === "actions" && "Executing..."}
+                        {reasoningPhase === "response" && "Responding..."}
+                        {!reasoningPhase && "Thinking..."}
+                      </span>
+                    </div>
+                    <div className="text-sm text-white/50 italic leading-relaxed border-l-2 border-[#FF5800]/20 pl-3 ml-1">
+                      {reasoningText}
+                      <span className="inline-block w-1.5 h-3.5 bg-[#FF5800]/40 ml-0.5 animate-pulse" />
+                    </div>
+                  </div>
+                ) : (
+                  // Default thinking indicator
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin text-white/40" />
+                    <span className="text-sm text-white/40">thinking...</span>
+                  </div>
+                )}
               </div>
             ) : (
               <>
@@ -201,7 +230,9 @@ function ChatMessageComponent({
                       }
                     `}</style>
                   )}
-                  <div className={`text-[15px] leading-relaxed text-white/90 prose prose-invert prose-sm max-w-none prose-p:my-2 prose-ul:my-2 prose-ol:my-2 prose-li:my-1 prose-headings:my-3 prose-pre:my-2 break-words [&_pre]:overflow-x-auto [&_pre_code]:whitespace-pre-wrap [&_pre_code]:break-words${isStreamingMessage ? " streaming-text-content" : ""}`}>
+                  <div
+                    className={`text-[15px] leading-relaxed text-white/90 prose prose-invert prose-sm max-w-none prose-p:my-2 prose-ul:my-2 prose-ol:my-2 prose-li:my-1 prose-headings:my-3 prose-pre:my-2 break-words [&_pre]:overflow-x-auto [&_pre_code]:whitespace-pre-wrap [&_pre_code]:break-words${isStreamingMessage ? " streaming-text-content" : ""}`}
+                  >
                     {plugins && ReactMarkdown ? (
                       <ReactMarkdown
                         remarkPlugins={[plugins.remarkGfm]}
@@ -254,44 +285,44 @@ function ChatMessageComponent({
 
                 {/* Time and Actions - hide during streaming */}
                 {!isStreamingMessage && (
-                <div className="flex items-center gap-2 opacity-0 group-hover/message:opacity-100 transition-opacity">
-                  <span className="text-xs text-white/40">
-                    {formatTimestamp(message.createdAt)}
-                  </span>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-6 w-6 p-0 hover:bg-white/10 rounded transition-colors"
-                    onClick={() =>
-                      onCopy(
-                        message.content.text,
-                        message.id,
-                        message.content.attachments
-                      )
-                    }
-                    title="Copy message"
-                  >
-                    {copiedMessageId === message.id ? (
-                      <Check className="h-3.5 w-3.5 text-green-500" />
-                    ) : (
-                      <Copy className="h-3.5 w-3.5 text-white/50 hover:text-white/80" />
-                    )}
-                  </Button>
-                  {hasAudioUrl && onPlayAudio && (
+                  <div className="flex items-center gap-2 opacity-0 group-hover/message:opacity-100 transition-opacity">
+                    <span className="text-xs text-white/40">
+                      {formatTimestamp(message.createdAt)}
+                    </span>
                     <Button
                       size="sm"
                       variant="ghost"
                       className="h-6 w-6 p-0 hover:bg-white/10 rounded transition-colors"
-                      onClick={() => onPlayAudio(message.id)}
+                      onClick={() =>
+                        onCopy(
+                          message.content.text,
+                          message.id,
+                          message.content.attachments,
+                        )
+                      }
+                      title="Copy message"
                     >
-                      {currentPlayingId === message.id && isPlaying ? (
-                        <Square className="h-3.5 w-3.5 text-white/50" />
+                      {copiedMessageId === message.id ? (
+                        <Check className="h-3.5 w-3.5 text-green-500" />
                       ) : (
-                        <Volume2 className="h-3.5 w-3.5 text-white/50 hover:text-white/80" />
+                        <Copy className="h-3.5 w-3.5 text-white/50 hover:text-white/80" />
                       )}
                     </Button>
-                  )}
-                </div>
+                    {hasAudioUrl && onPlayAudio && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 w-6 p-0 hover:bg-white/10 rounded transition-colors"
+                        onClick={() => onPlayAudio(message.id)}
+                      >
+                        {currentPlayingId === message.id && isPlaying ? (
+                          <Square className="h-3.5 w-3.5 text-white/50" />
+                        ) : (
+                          <Volume2 className="h-3.5 w-3.5 text-white/50 hover:text-white/80" />
+                        )}
+                      </Button>
+                    )}
+                  </div>
                 )}
               </>
             )}
@@ -318,7 +349,7 @@ function ChatMessageComponent({
                 onCopy(
                   message.content.text,
                   message.id,
-                  message.content.attachments
+                  message.content.attachments,
                 )
               }
               title="Copy message"
@@ -348,7 +379,9 @@ export const MemoizedChatMessage = memo(
       prevProps.currentPlayingId === nextProps.currentPlayingId &&
       prevProps.isPlaying === nextProps.isPlaying &&
       prevProps.hasAudioUrl === nextProps.hasAudioUrl &&
-      prevProps.isStreaming === nextProps.isStreaming
+      prevProps.isStreaming === nextProps.isStreaming &&
+      prevProps.reasoningText === nextProps.reasoningText &&
+      prevProps.reasoningPhase === nextProps.reasoningPhase
     );
-  }
+  },
 );
