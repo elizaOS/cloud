@@ -459,7 +459,7 @@ function handleStreamingResponse(
     try {
       const reader = providerResponse.body?.getReader();
       if (!reader) throw new Error("No response body");
-      
+
       // Buffer for handling partial chunks that split across network boundaries
       let lineBuffer = "";
 
@@ -472,7 +472,7 @@ function handleStreamingResponse(
 
         // Parse chunk to extract usage info (buffering for partial lines)
         lineBuffer += decoder.decode(value, { stream: true });
-        
+
         // Split into lines, keeping last potentially incomplete line in buffer
         const lines = lineBuffer.split("\n");
         lineBuffer = lines.pop() ?? "";
@@ -504,13 +504,13 @@ function handleStreamingResponse(
           }
         }
       }
-      
+
       // Flush decoder and process any remaining buffered content
       const finalChunk = decoder.decode();
       if (finalChunk) {
         lineBuffer += finalChunk;
       }
-      
+
       if (lineBuffer.trim() && lineBuffer.startsWith("data: ")) {
         const data = lineBuffer.slice(6);
         if (data !== "[DONE]" && data.trim()) {

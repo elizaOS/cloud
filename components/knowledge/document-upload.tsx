@@ -320,10 +320,7 @@ export function DocumentUpload({
               />
             </div>
 
-            <Button
-              type="submit"
-              disabled={!textContent.trim() || uploading}
-            >
+            <Button type="submit" disabled={!textContent.trim() || uploading}>
               {uploading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />

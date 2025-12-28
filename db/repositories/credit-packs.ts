@@ -63,7 +63,10 @@ export class CreditPacksRepository {
    * Creates a new credit pack.
    */
   async create(data: NewCreditPack): Promise<CreditPack> {
-    const [creditPack] = await dbWrite.insert(creditPacks).values(data).returning();
+    const [creditPack] = await dbWrite
+      .insert(creditPacks)
+      .values(data)
+      .returning();
     return creditPack;
   }
 

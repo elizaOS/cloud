@@ -327,7 +327,13 @@ export function ImageUploader({
     return (
       <div className={`relative ${className}`}>
         <div className="relative h-20 w-20 overflow-hidden rounded-lg border border-white/10">
-          <Image src={previewUrl} alt="Preview" fill sizes="80px" className="object-cover" />
+          <Image
+            src={previewUrl}
+            alt="Preview"
+            fill
+            sizes="80px"
+            className="object-cover"
+          />
           <button
             type="button"
             onClick={handleRemove}

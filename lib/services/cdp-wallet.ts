@@ -1,14 +1,14 @@
 /**
  * CDP (Coinbase Developer Platform) Wallet Service
- * 
+ *
  * This service provides direct on-chain payment verification using CDP.
  * Currently not actively used in the crypto payment flow (OxaPay is the primary provider).
- * 
+ *
  * Maintained for potential future use cases:
  * - Direct USDC payments on Base/Base Sepolia
  * - Payment verification without third-party dependencies
  * - Custom wallet integrations
- * 
+ *
  * @deprecated Consider using OxaPay service for production workloads
  */
 import { logger } from "@/lib/utils/logger";
@@ -296,8 +296,7 @@ class CdpWalletService {
 
       const logs = receipt.logs.filter(
         (log) =>
-          log.address.toLowerCase() ===
-          networkConfig.usdcAddress.toLowerCase(),
+          log.address.toLowerCase() === networkConfig.usdcAddress.toLowerCase(),
       );
 
       for (const log of logs) {
@@ -310,7 +309,7 @@ class CdpWalletService {
             const amount = BigInt(log.data);
             const decimals = 6;
             const amountFormatted = formatUnits(amount, decimals);
-            
+
             const receivedDecimal = new Decimal(amountFormatted);
             const expectedDecimal = new Decimal(expectedAmount);
             const toleranceMultiplier = new Decimal(1).minus(

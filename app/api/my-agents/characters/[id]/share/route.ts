@@ -38,7 +38,9 @@ export async function GET(
       success: true,
       data: {
         isPublic: character.is_public,
-        shareUrl: character.is_public ? `${baseUrl}/chat/${character.id}` : null,
+        shareUrl: character.is_public
+          ? `${baseUrl}/chat/${character.id}`
+          : null,
         // Additional info for shared characters
         shareInfo: character.is_public
           ? {
@@ -65,13 +67,13 @@ export async function GET(
 /**
  * PUT /api/my-agents/characters/[id]/share
  * Toggle the public sharing status of a character.
- * 
+ *
  * This is a simpler alternative to the full /api/v1/agents/[agentId]/publish
  * endpoint which also handles ERC8004 registration and monetization.
- * 
+ *
  * Use this endpoint for basic sharing (make character accessible via share link).
  * Use /publish for full marketplace publishing with monetization.
- * 
+ *
  * Privacy notes:
  * - Character secrets are NEVER exposed publicly
  * - Only "shared" knowledge items are accessible to public users
@@ -97,10 +99,14 @@ export async function PUT(
     // Parse request body
     const body = await request.json();
     const validation = ShareSchema.safeParse(body);
-    
+
     if (!validation.success) {
       return NextResponse.json(
-        { success: false, error: "Invalid request body", details: validation.error.errors },
+        {
+          success: false,
+          error: "Invalid request body",
+          details: validation.error.errors,
+        },
         { status: 400 },
       );
     }
@@ -166,4 +172,3 @@ export async function PUT(
     );
   }
 }
-

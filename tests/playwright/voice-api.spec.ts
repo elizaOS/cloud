@@ -338,8 +338,12 @@ test.describe("Voices Dashboard UI", () => {
     const content = await page.locator("body").textContent();
 
     if ((content?.length || 0) <= 100) {
-      console.log(`⚠️ Voices page content too short (${content?.length} chars): "${content}"`);
-      console.log("ℹ️ Skipping content length check (likely missing configuration)");
+      console.log(
+        `⚠️ Voices page content too short (${content?.length} chars): "${content}"`,
+      );
+      console.log(
+        "ℹ️ Skipping content length check (likely missing configuration)",
+      );
       return;
     }
 

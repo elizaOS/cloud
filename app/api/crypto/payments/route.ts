@@ -29,14 +29,14 @@ async function handleCreatePayment(req: NextRequest) {
     if (!user.organization_id) {
       return NextResponse.json(
         { error: "Organization not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
     if (!isOxaPayConfigured()) {
       return NextResponse.json(
         { error: "Crypto payments not available" },
-        { status: 503 }
+        { status: 503 },
       );
     }
 
@@ -49,7 +49,7 @@ async function handleCreatePayment(req: NextRequest) {
           error: "Validation failed",
           details: validation.error.flatten().fieldErrors,
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -91,13 +91,13 @@ async function handleCreatePayment(req: NextRequest) {
       };
       return NextResponse.json(
         { error: response.message },
-        { status: response.status }
+        { status: response.status },
       );
     }
 
     return NextResponse.json(
       { error: "Failed to process payment request" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -109,12 +109,12 @@ async function handleListPayments(req: NextRequest) {
     if (!user.organization_id) {
       return NextResponse.json(
         { error: "Organization not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
     const payments = await cryptoPaymentsService.listPaymentsByOrganization(
-      user.organization_id
+      user.organization_id,
     );
 
     return NextResponse.json({ payments });
@@ -125,14 +125,14 @@ async function handleListPayments(req: NextRequest) {
       if (error.code === "INVALID_UUID") {
         return NextResponse.json(
           { error: "Invalid request format" },
-          { status: 400 }
+          { status: 400 },
         );
       }
     }
 
     return NextResponse.json(
       { error: "Failed to retrieve payments" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

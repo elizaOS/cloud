@@ -78,7 +78,7 @@ function CliLoginContent() {
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : "Network error. Please try again."
+          : "Network error. Please try again.",
       );
     }
   }, [sessionId]);

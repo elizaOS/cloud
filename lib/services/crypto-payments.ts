@@ -51,7 +51,7 @@ export type CryptoPaymentErrorCode =
 export class CryptoPaymentError extends Error {
   constructor(
     public readonly code: CryptoPaymentErrorCode,
-    message: string
+    message: string,
   ) {
     super(message);
     this.name = "CryptoPaymentError";
@@ -134,7 +134,7 @@ function validateUuid(id: string, fieldName: string): void {
   if (!uuidValidate(id)) {
     throw new CryptoPaymentError(
       "INVALID_UUID",
-      `Invalid ${fieldName}: must be a valid UUID`
+      `Invalid ${fieldName}: must be a valid UUID`,
     );
   }
 }
@@ -169,7 +169,7 @@ class CryptoPaymentsService {
     if (!isOxaPayConfigured()) {
       throw new CryptoPaymentError(
         "SERVICE_NOT_CONFIGURED",
-        "Payment service not configured"
+        "Payment service not configured",
       );
     }
 
@@ -182,7 +182,7 @@ class CryptoPaymentsService {
         : "AMOUNT_TOO_LARGE";
       throw new CryptoPaymentError(
         errorCode,
-        validation.error || "Invalid amount"
+        validation.error || "Invalid amount",
       );
     }
 
@@ -294,10 +294,10 @@ class CryptoPaymentsService {
             {
               paymentId: redact.paymentId(paymentId),
               trackId: redact.trackId(trackId),
-            }
+            },
           );
           throw new Error(
-            "Payment confirmed but no transaction data available"
+            "Payment confirmed but no transaction data available",
           );
         }
 
@@ -321,7 +321,7 @@ class CryptoPaymentsService {
         );
 
         const confirmedPayment = await cryptoPaymentsRepository.findById(
-          payment.id
+          payment.id,
         );
         if (!confirmedPayment) {
           throw new Error("Failed to retrieve confirmed payment");
@@ -336,7 +336,7 @@ class CryptoPaymentsService {
       if (oxaPayService.isPaymentExpired(oxaStatus.status)) {
         await cryptoPaymentsRepository.markAsExpired(payment.id);
         const expiredPayment = await cryptoPaymentsRepository.findById(
-          payment.id
+          payment.id,
         );
         if (!expiredPayment) {
           throw new Error("Failed to retrieve expired payment");
@@ -351,10 +351,10 @@ class CryptoPaymentsService {
       if (oxaPayService.isPaymentFailed(oxaStatus.status)) {
         await cryptoPaymentsRepository.markAsFailed(
           payment.id,
-          oxaStatus.status
+          oxaStatus.status,
         );
         const failedPayment = await cryptoPaymentsRepository.findById(
-          payment.id
+          payment.id,
         );
         if (!failedPayment) {
           throw new Error("Failed to retrieve failed payment");
@@ -533,7 +533,7 @@ class CryptoPaymentsService {
    */
   async verifyAndConfirmByTxHash(
     paymentId: string,
-    txHash: string
+    txHash: string,
   ): Promise<{ success: boolean; message: string }> {
     validateUuid(paymentId, "payment ID");
 
@@ -576,7 +576,7 @@ class CryptoPaymentsService {
             {
               paymentId: redact.paymentId(paymentId),
               txHash: redact.txHash(txHash),
-            }
+            },
           );
           return {
             success: false,
@@ -596,7 +596,7 @@ class CryptoPaymentsService {
               txHash: redact.txHash(txHash),
               trackId: redact.trackId(trackId),
               oxaPayStatus: oxaStatus.status,
-            }
+            },
           );
           return {
             success: false,
@@ -606,13 +606,13 @@ class CryptoPaymentsService {
 
         // Verify the provided transaction hash matches one from OxaPay
         const matchingTx = oxaStatus.transactions.find(
-          (txn) => txn.txHash.toLowerCase() === txHash.toLowerCase()
+          (txn) => txn.txHash.toLowerCase() === txHash.toLowerCase(),
         );
 
         if (!matchingTx) {
           // List the valid transaction hashes for debugging (redacted)
           const validHashes = oxaStatus.transactions.map((txn) =>
-            redact.txHash(txn.txHash)
+            redact.txHash(txn.txHash),
           );
           logger.warn(
             "[Crypto Payments] Transaction hash not found in OxaPay records",
@@ -621,7 +621,7 @@ class CryptoPaymentsService {
               providedTxHash: redact.txHash(txHash),
               trackId: redact.trackId(trackId),
               validTransactions: validHashes,
-            }
+            },
           );
           return {
             success: false,
@@ -812,7 +812,7 @@ class CryptoPaymentsService {
               track_id: redact.trackId(track_id),
               webhookStatus: status,
               apiStatus: oxaStatus.status,
-            }
+            },
           );
           return {
             success: false,
@@ -826,7 +826,7 @@ class CryptoPaymentsService {
             "[Crypto Payments] Webhook confirmed but no transaction data from API",
             {
               track_id: redact.trackId(track_id),
-            }
+            },
           );
           return { success: false, message: "No transaction data available" };
         }
@@ -876,7 +876,7 @@ class CryptoPaymentsService {
   }
 
   async listPaymentsByOrganization(
-    organizationId: string
+    organizationId: string,
   ): Promise<PaymentStatus[]> {
     validateUuid(organizationId, "organization ID");
 

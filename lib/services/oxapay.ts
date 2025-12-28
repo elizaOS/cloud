@@ -47,7 +47,7 @@ export class OxaPayApiError extends Error {
   constructor(
     message: string,
     public readonly statusCode?: number,
-    public readonly apiResult?: number
+    public readonly apiResult?: number,
   ) {
     super(message);
     this.name = "OxaPayApiError";
@@ -65,7 +65,7 @@ async function oxaPayFetch<T>(url: string, options: RequestInit): Promise<T> {
   } catch (error) {
     logger.error("[OxaPay] Network error", { url, error });
     throw new OxaPayApiError(
-      `Network error connecting to OxaPay: ${error instanceof Error ? error.message : "Unknown error"}`
+      `Network error connecting to OxaPay: ${error instanceof Error ? error.message : "Unknown error"}`,
     );
   }
 
@@ -73,7 +73,7 @@ async function oxaPayFetch<T>(url: string, options: RequestInit): Promise<T> {
     logger.error("[OxaPay] HTTP error", { url, status: response.status });
     throw new OxaPayApiError(
       `OxaPay API returned HTTP ${response.status}`,
-      response.status
+      response.status,
     );
   }
 
@@ -176,7 +176,7 @@ class OxaPayService {
       throw new OxaPayApiError(
         data.message || "Invoice creation failed",
         undefined,
-        data.result
+        data.result,
       );
     }
 
@@ -228,7 +228,7 @@ class OxaPayService {
       throw new OxaPayApiError(
         data.message || "Payment status check failed",
         undefined,
-        data.result
+        data.result,
       );
     }
 
@@ -281,7 +281,7 @@ class OxaPayService {
       {
         method: "GET",
         headers: { "Content-Type": "application/json" },
-      }
+      },
     );
 
     if (!data || typeof data !== "object") {
@@ -290,7 +290,8 @@ class OxaPayService {
 
     const currencies = Object.entries(data)
       .filter(
-        ([_, info]: [string, unknown]) => (info as { status?: boolean })?.status
+        ([_, info]: [string, unknown]) =>
+          (info as { status?: boolean })?.status,
       )
       .map(([_, info]: [string, unknown]) => {
         const currency = info as {
@@ -315,7 +316,7 @@ class OxaPayService {
                 depositMin: network.deposit_min,
                 withdrawFee: network.withdraw_fee,
               };
-            }
+            },
           ),
         };
       });
@@ -330,7 +331,7 @@ class OxaPayService {
         {
           method: "GET",
           headers: { "Content-Type": "application/json" },
-        }
+        },
       );
       return data?.status === true;
     } catch {

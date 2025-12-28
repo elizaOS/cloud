@@ -128,9 +128,13 @@ This is your main tool for understanding what the user wants before taking actio
   ): Promise<void> => {
     const creatorMode = isCreatorMode(runtime);
     const modeLabel = creatorMode ? "Creator" : "Build";
-    const onStreamChunk = options?.onStreamChunk as StreamChunkCallback | undefined;
+    const onStreamChunk = options?.onStreamChunk as
+      | StreamChunkCallback
+      | undefined;
 
-    logger.info(`[BUILDER_CHAT] ${modeLabel} mode conversation, streaming=${!!onStreamChunk}`);
+    logger.info(
+      `[BUILDER_CHAT] ${modeLabel} mode conversation, streaming=${!!onStreamChunk}`,
+    );
 
     state = await runtime.composeState(message, [
       "SUMMARIZED_CONTEXT",
@@ -160,9 +164,14 @@ This is your main tool for understanding what the user wants before taking actio
     );
 
     // Create streaming context to extract <text> content and stream it
-    let streamingContext: { onStreamChunk: (chunk: string, messageId?: UUID) => Promise<void>; messageId?: UUID } | undefined;
+    let streamingContext:
+      | {
+          onStreamChunk: (chunk: string, messageId?: UUID) => Promise<void>;
+          messageId?: UUID;
+        }
+      | undefined;
     if (onStreamChunk) {
-      const extractor = new XmlTagExtractor('text');
+      const extractor = new XmlTagExtractor("text");
       streamingContext = {
         onStreamChunk: async (chunk: string, msgId?: UUID) => {
           if (extractor.done) return;
@@ -176,9 +185,8 @@ This is your main tool for understanding what the user wants before taking actio
     }
 
     // Generate response with streaming if available
-    const response = await runWithStreamingContext(
-      streamingContext,
-      () => runtime.useModel(ModelType.TEXT_LARGE, { prompt }),
+    const response = await runWithStreamingContext(streamingContext, () =>
+      runtime.useModel(ModelType.TEXT_LARGE, { prompt }),
     );
     runtime.character.system = originalSystemPrompt;
 

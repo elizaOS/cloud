@@ -4713,7 +4713,11 @@ const mcpHandler = createMcpHandler(
                 content: [
                   {
                     type: "text" as const,
-                    text: JSON.stringify({ error: "Character not found" }, null, 2),
+                    text: JSON.stringify(
+                      { error: "Character not found" },
+                      null,
+                      2,
+                    ),
                   },
                 ],
               };
@@ -4721,7 +4725,10 @@ const mcpHandler = createMcpHandler(
 
             const isOwner = character.user_id === user.id;
             const isPublic = character.is_public === true;
-            const claimCheck = await charactersService.isClaimableAffiliateCharacter(characterId);
+            const claimCheck =
+              await charactersService.isClaimableAffiliateCharacter(
+                characterId,
+              );
             const isClaimableAffiliate = claimCheck.claimable;
 
             if (!isPublic && !isOwner && !isClaimableAffiliate) {

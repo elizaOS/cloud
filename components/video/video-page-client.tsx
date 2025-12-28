@@ -611,10 +611,13 @@ export function VideoPageClient({
                             : "Pending"}
                       </span>
                       <span className="flex-shrink-0">
-                        {new Date(video.createdAt).toLocaleTimeString(undefined, {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
+                        {new Date(video.createdAt).toLocaleTimeString(
+                          undefined,
+                          {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          },
+                        )}
                       </span>
                     </div>
                     {video.requestId ? (
@@ -698,7 +701,8 @@ export function VideoPageClient({
                       Generation failed
                     </p>
                     <p className="text-sm font-mono text-rose-400 max-w-md">
-                      {previewVideo.failureReason || "An error occurred during video generation."}
+                      {previewVideo.failureReason ||
+                        "An error occurred during video generation."}
                     </p>
                   </div>
                 ) : (
@@ -800,7 +804,8 @@ export function VideoPageClient({
 
                 {previewVideo.requestId && (
                   <div className="text-xs font-mono text-white/50">
-                    <span className="text-white/70">ID:</span> {previewVideo.requestId}
+                    <span className="text-white/70">ID:</span>{" "}
+                    {previewVideo.requestId}
                   </div>
                 )}
 

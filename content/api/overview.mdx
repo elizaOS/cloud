@@ -3,15 +3,17 @@ title: API Explorer
 description: Browse every public Cloud API route (mostly under /api/v1) with a full left-side explorer and OpenAPI-friendly paths.
 ---
 
-import { Callout } from "nextra/components"
-import { ApiRouteExplorer } from "@/components/docs/api-route-explorer"
+import { Callout } from "nextra/components";
+import { ApiRouteExplorer } from "@/components/docs/api-route-explorer";
 
 # API Explorer
 
 This page gives you a **complete route map** of the elizaOS Cloud REST API, generated directly from the codebase (`app/api/v1/**/route.ts`) so it stays in sync with production.
 
 <Callout type="info">
-Most public REST endpoints live under <code>/api/v1</code>. Some internal endpoints (admin/cron) are hidden by default — toggle “Show all” in the explorer if you need them.
+  Most public REST endpoints live under <code>/api/v1</code>. Some internal
+  endpoints (admin/cron) are hidden by default — toggle “Show all” in the
+  explorer if you need them.
 </Callout>
 
 ## Base URL
@@ -57,5 +59,3 @@ https://elizacloud.ai/api/openapi.json
 ```
 
 You can generate TypeScript types/clients from that spec using your preferred tooling (e.g. `openapi-typescript`, `orval`, or OpenAPI Generator).
-
-

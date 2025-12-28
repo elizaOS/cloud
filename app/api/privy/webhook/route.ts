@@ -190,4 +190,7 @@ async function handlePrivyWebhook(request: NextRequest) {
 }
 
 // Export rate-limited handler
-export const POST = withRateLimit(handlePrivyWebhook, RateLimitPresets.AGGRESSIVE);
+export const POST = withRateLimit(
+  handlePrivyWebhook,
+  RateLimitPresets.AGGRESSIVE,
+);
