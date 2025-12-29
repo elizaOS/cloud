@@ -106,6 +106,7 @@ export function BuildModeAssistant({
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const roomInitKeyRef = useRef<string | null>(null); // Track which room key we've initialized
   const messagesLoadedRef = useRef<string | null>(null); // Track which room we've loaded messages for
+  const renderedMessagesRef = useRef<Set<string>>(new Set()); // Track rendered messages for animation
   const [inputText, setInputText] = useState("");
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -146,8 +147,9 @@ export function BuildModeAssistant({
 
   // Detect stale messages during mode/character transitions
   const expectedRoomKey = isCreatorMode ? "creator" : `build-${character?.id}`;
-  const messagesAreStale = 
-    (roomInitKeyRef.current !== null && roomInitKeyRef.current !== expectedRoomKey) ||
+  const messagesAreStale =
+    (roomInitKeyRef.current !== null &&
+      roomInitKeyRef.current !== expectedRoomKey) ||
     (!isCreatorMode && !character?.id);
 
   // Cleanup refs on unmount to prevent memory leaks
@@ -240,12 +242,15 @@ export function BuildModeAssistant({
         const roomId = createData.roomId;
 
         // Store welcome message for new edit room
-        const welcomeResponse = await fetch(`/api/eliza/rooms/${roomId}/welcome`, {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text: welcomeText }),
-        });
+        const welcomeResponse = await fetch(
+          `/api/eliza/rooms/${roomId}/welcome`,
+          {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text: welcomeText }),
+          },
+        );
 
         if (!welcomeResponse.ok) {
           toast.error("Failed to initialize builder room");
@@ -283,12 +288,15 @@ export function BuildModeAssistant({
       const roomId = createData.roomId;
 
       // Store welcome message
-      const welcomeResponse = await fetch(`/api/eliza/rooms/${roomId}/welcome`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: welcomeText }),
-      });
+      const welcomeResponse = await fetch(
+        `/api/eliza/rooms/${roomId}/welcome`,
+        {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: welcomeText }),
+        },
+      );
 
       if (!welcomeResponse.ok) {
         toast.error("Failed to initialize builder room");
@@ -522,7 +530,9 @@ export function BuildModeAssistant({
                     const streamingId = `streaming-${chunkData.messageId}`;
                     scheduleUpdate(chunkData.messageId, (accumulatedText) => {
                       setMessages((prev) => {
-                        const existingIndex = prev.findIndex(m => m.id === streamingId);
+                        const existingIndex = prev.findIndex(
+                          (m) => m.id === streamingId,
+                        );
                         const streamingMsg: Message = {
                           id: streamingId,
                           role: "assistant",
@@ -644,18 +654,24 @@ export function BuildModeAssistant({
               // Handle done event - replace streaming message with final message
               if (eventType === "done") {
                 if (assistantMessage || messageAttachments.length > 0) {
-                  const finalId = assistantMessageId || `assistant-${Date.now()}`;
+                  const finalId =
+                    assistantMessageId || `assistant-${Date.now()}`;
                   const streamingId = `streaming-${assistantMessageId}`;
 
                   // Replace streaming message with final message
                   setMessages((prev) => {
-                    const existingIndex = prev.findIndex((m) => m.id === streamingId);
+                    const existingIndex = prev.findIndex(
+                      (m) => m.id === streamingId,
+                    );
                     const finalMessage: Message = {
                       id: finalId,
                       role: "assistant",
                       content: assistantMessage,
                       timestamp: Date.now(),
-                      attachments: messageAttachments.length > 0 ? messageAttachments : undefined,
+                      attachments:
+                        messageAttachments.length > 0
+                          ? messageAttachments
+                          : undefined,
                     };
 
                     if (existingIndex >= 0) {
@@ -699,7 +715,9 @@ export function BuildModeAssistant({
                       );
                     } else {
                       toast.success("Character preview updated!", {
-                        description: isCreatorMode ? undefined : "Save to persist changes",
+                        description: isCreatorMode
+                          ? undefined
+                          : "Save to persist changes",
                         duration: 4000,
                       });
                     }
@@ -890,246 +908,308 @@ export function BuildModeAssistant({
         <ScrollArea className="h-full py-6" ref={scrollAreaRef}>
           <div className="space-y-6 pl-[56px] md:pl-[64px] pr-4 md:pr-6">
             {/* Only render messages if they're not stale (from a different mode/character) */}
-            {!messagesAreStale && messages.map((message, index) => {
-              const content = message.content;
-              const isAgent = message.role === "assistant";
+            {!messagesAreStale &&
+              messages.map((message, index) => {
+                const content = message.content;
+                const isAgent = message.role === "assistant";
+                const isStreamingMsg = message.id.startsWith("streaming-");
+                // Use stable key that doesn't change when streaming message becomes final
+                const stableKey = isStreamingMsg
+                  ? message.id.replace("streaming-", "")
+                  : message.id;
+                // Only animate messages that haven't been rendered before
+                const wasAlreadyRendered =
+                  renderedMessagesRef.current.has(stableKey);
+                const shouldAnimate = !wasAlreadyRendered && !isStreamingMsg;
+                renderedMessagesRef.current.add(stableKey);
 
-              return (
-                <div
-                  key={message.id}
-                  className={`flex ${
-                    isAgent ? "justify-start" : "justify-end"
-                  } animate-in fade-in slide-in-from-bottom-4 duration-500`}
-                  style={{ animationDelay: `${index * 50}ms` }}
-                >
-                  {isAgent ? (
-                    <div className="flex flex-col gap-1.5 max-w-[85%] sm:max-w-[75%] group/message">
-                      {/* Agent Name Row with Avatar */}
-                      <div className="flex items-center gap-2 pl-1">
-                        <ElizaAvatar
-                          avatarUrl={displayAvatar}
-                          name={displayName}
-                          className="flex-shrink-0 w-5 h-5"
-                          iconClassName="h-3 w-3"
-                          fallbackClassName="bg-[#FF5800]"
-                        />
-                        <span className="text-xs font-medium text-white/50">
-                          {displayName}
-                        </span>
-                      </div>
+                return (
+                  <div
+                    key={stableKey}
+                    className={`flex ${isAgent ? "justify-start" : "justify-end"}${shouldAnimate ? " animate-in fade-in slide-in-from-bottom-4 duration-500" : ""}`}
+                    style={
+                      shouldAnimate
+                        ? { animationDelay: `${index * 50}ms` }
+                        : undefined
+                    }
+                  >
+                    {isAgent ? (
+                      <div className="flex flex-col gap-1.5 max-w-[85%] sm:max-w-[75%] group/message">
+                        {/* Agent Name Row with Avatar */}
+                        <div className="flex items-center gap-2 pl-1">
+                          <ElizaAvatar
+                            avatarUrl={displayAvatar}
+                            name={displayName}
+                            className="flex-shrink-0 w-5 h-5"
+                            iconClassName="h-3 w-3"
+                            fallbackClassName="bg-[#FF5800]"
+                          />
+                          <span className="text-xs font-medium text-white/50">
+                            {displayName}
+                          </span>
+                        </div>
 
-                      <div className="flex flex-col gap-1.5">
-                        {/* Message Attachments (Images) */}
-                        {message.attachments &&
-                          message.attachments.length > 0 && (
-                            <div className="flex flex-wrap gap-2">
-                              {message.attachments.map((attachment) => (
-                                <div
-                                  key={attachment.id}
-                                  className="relative rounded-lg overflow-hidden border border-white/[0.08] bg-white/[0.02]"
-                                >
-                                  <Image
-                                    src={attachment.url}
-                                    alt={attachment.title || "Generated image"}
-                                    width={280}
-                                    height={280}
-                                    className="max-w-[280px] max-h-[280px] object-cover"
-                                    unoptimized
-                                  />
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        {/* Message Text */}
-                        {content && (
-                          <div className="overflow-hidden">
-                            <style jsx>{`
-                              .build-mode-content :global(pre) {
-                                background: rgba(0, 0, 0, 0.4) !important;
-                                padding: 12px !important;
-                                border-radius: 8px !important;
-                                overflow-x: auto !important;
-                                margin: 8px 0 !important;
-                              }
-                              .build-mode-content
-                                :global(pre)::-webkit-scrollbar {
-                                height: 8px;
-                              }
-                              .build-mode-content
-                                :global(pre)::-webkit-scrollbar-track {
-                                background: rgba(0, 0, 0, 0.2);
-                              }
-                              .build-mode-content
-                                :global(pre)::-webkit-scrollbar-thumb {
-                                background: rgba(255, 88, 0, 0.4);
-                                border-radius: 4px;
-                              }
-                              .build-mode-content
-                                :global(pre)::-webkit-scrollbar-thumb:hover {
-                                background: rgba(255, 88, 0, 0.6);
-                              }
-                              .build-mode-content :global(pre code) {
-                                font-family:
-                                  "Monaco", "Menlo", "Ubuntu Mono", "Consolas",
-                                  monospace !important;
-                                font-size: 13px !important;
-                                white-space: pre-wrap !important;
-                                word-break: break-word !important;
-                              }
-                              .build-mode-content :global(code) {
-                                font-family:
-                                  "Monaco", "Menlo", "Ubuntu Mono", "Consolas",
-                                  monospace !important;
-                                font-size: 13px !important;
-                              }
-                              /* JSON property keys */
-                              .build-mode-content :global(.token.property),
-                              .build-mode-content :global(.token.key) {
-                                color: #fe9f6d !important;
-                              }
-                              /* JSON punctuation (brackets, braces, commas, colons) */
-                              .build-mode-content :global(.token.punctuation) {
-                                color: #e434bb !important;
-                              }
-                              /* JSON string values */
-                              .build-mode-content :global(.token.string) {
-                                color: #d4d4d4 !important;
-                              }
-                              /* JSON numbers */
-                              .build-mode-content :global(.token.number) {
-                                color: #d4d4d4 !important;
-                              }
-                              /* JSON booleans and null */
-                              .build-mode-content :global(.token.boolean),
-                              .build-mode-content :global(.token.null) {
-                                color: #d4d4d4 !important;
-                              }
-                              /* Remove prose margins for tighter spacing */
-                              .build-mode-content :global(p) {
-                                margin: 0 !important;
-                                word-break: break-word !important;
-                              }
-                              .build-mode-content :global(p + p) {
-                                margin-top: 8px !important;
-                              }
-                              .build-mode-content :global(ul),
-                              .build-mode-content :global(ol) {
-                                margin: 8px 0 !important;
-                                padding-left: 24px !important;
-                                list-style-position: outside !important;
-                              }
-                              .build-mode-content :global(li) {
-                                margin: 6px 0 !important;
-                                padding-left: 4px !important;
-                              }
-                              .build-mode-content :global(li > p) {
-                                display: inline !important;
-                                margin: 0 !important;
-                              }
-                              .build-mode-content :global(li > p:first-child) {
-                                display: inline !important;
-                              }
-                              .build-mode-content :global(h1),
-                              .build-mode-content :global(h2),
-                              .build-mode-content :global(h3),
-                              .build-mode-content :global(h4) {
-                                margin: 12px 0 4px 0 !important;
-                                font-weight: 600 !important;
-                              }
-                              .build-mode-content :global(h1) {
-                                font-size: 18px !important;
-                              }
-                              .build-mode-content :global(h2) {
-                                font-size: 16px !important;
-                              }
-                              .build-mode-content :global(h3),
-                              .build-mode-content :global(h4) {
-                                font-size: 14px !important;
-                              }
-                              /* Streaming text animation for smoother chunk appearance */
-                              @keyframes streamFadeIn {
-                                from {
-                                  opacity: 0.7;
+                        <div className="flex flex-col gap-1.5">
+                          {/* Message Attachments (Images) */}
+                          {message.attachments &&
+                            message.attachments.length > 0 && (
+                              <div className="flex flex-wrap gap-2">
+                                {message.attachments.map((attachment) => (
+                                  <div
+                                    key={attachment.id}
+                                    className="relative rounded-lg overflow-hidden border border-white/[0.08] bg-white/[0.02]"
+                                  >
+                                    <Image
+                                      src={attachment.url}
+                                      alt={
+                                        attachment.title || "Generated image"
+                                      }
+                                      width={280}
+                                      height={280}
+                                      className="max-w-[280px] max-h-[280px] object-cover"
+                                      unoptimized
+                                    />
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          {/* Message Text */}
+                          {content && (
+                            <div className="overflow-hidden">
+                              <style jsx>{`
+                                .build-mode-content :global(pre) {
+                                  background: rgba(0, 0, 0, 0.4) !important;
+                                  padding: 12px !important;
+                                  border-radius: 8px !important;
+                                  overflow-x: auto !important;
+                                  margin: 8px 0 !important;
                                 }
-                                to {
-                                  opacity: 1;
+                                .build-mode-content
+                                  :global(pre)::-webkit-scrollbar {
+                                  height: 8px;
                                 }
-                              }
-                              .streaming-text {
-                                animation: streamFadeIn 150ms ease-out forwards;
-                              }
-                              .streaming-text p:last-child,
-                              .streaming-text > *:last-child {
-                                animation: streamFadeIn 120ms ease-out forwards;
-                              }
-                            `}</style>
-                            <div className={`text-[15px] leading-relaxed text-white/90 build-mode-content break-words${message.id.startsWith("streaming-") ? " streaming-text" : ""}`}>
-                              <ReactMarkdown
-                                remarkPlugins={[remarkGfm]}
-                                rehypePlugins={[rehypeHighlight]}
-                                components={{
-                                  code: ({ className, children, ...props }) => {
-                                    const isInline = !className;
-                                    return isInline ? (
-                                      <code
-                                        className="bg-white/10 px-1.5 py-0.5 rounded text-xs break-all"
-                                        {...props}
+                                .build-mode-content
+                                  :global(pre)::-webkit-scrollbar-track {
+                                  background: rgba(0, 0, 0, 0.2);
+                                }
+                                .build-mode-content
+                                  :global(pre)::-webkit-scrollbar-thumb {
+                                  background: rgba(255, 88, 0, 0.4);
+                                  border-radius: 4px;
+                                }
+                                .build-mode-content
+                                  :global(pre)::-webkit-scrollbar-thumb:hover {
+                                  background: rgba(255, 88, 0, 0.6);
+                                }
+                                .build-mode-content :global(pre code) {
+                                  font-family:
+                                    "Monaco", "Menlo", "Ubuntu Mono",
+                                    "Consolas", monospace !important;
+                                  font-size: 13px !important;
+                                  white-space: pre-wrap !important;
+                                  word-break: break-word !important;
+                                }
+                                .build-mode-content :global(code) {
+                                  font-family:
+                                    "Monaco", "Menlo", "Ubuntu Mono",
+                                    "Consolas", monospace !important;
+                                  font-size: 13px !important;
+                                }
+                                /* JSON property keys */
+                                .build-mode-content :global(.token.property),
+                                .build-mode-content :global(.token.key) {
+                                  color: #fe9f6d !important;
+                                }
+                                /* JSON punctuation (brackets, braces, commas, colons) */
+                                .build-mode-content
+                                  :global(.token.punctuation) {
+                                  color: #e434bb !important;
+                                }
+                                /* JSON string values */
+                                .build-mode-content :global(.token.string) {
+                                  color: #d4d4d4 !important;
+                                }
+                                /* JSON numbers */
+                                .build-mode-content :global(.token.number) {
+                                  color: #d4d4d4 !important;
+                                }
+                                /* JSON booleans and null */
+                                .build-mode-content :global(.token.boolean),
+                                .build-mode-content :global(.token.null) {
+                                  color: #d4d4d4 !important;
+                                }
+                                /* Remove prose margins for tighter spacing */
+                                .build-mode-content :global(p) {
+                                  margin: 0 !important;
+                                  word-break: break-word !important;
+                                }
+                                .build-mode-content :global(p + p) {
+                                  margin-top: 8px !important;
+                                }
+                                .build-mode-content :global(ul),
+                                .build-mode-content :global(ol) {
+                                  margin: 8px 0 !important;
+                                  padding-left: 24px !important;
+                                  list-style-position: outside !important;
+                                }
+                                .build-mode-content :global(li) {
+                                  margin: 6px 0 !important;
+                                  padding-left: 4px !important;
+                                }
+                                .build-mode-content :global(li > p) {
+                                  display: inline !important;
+                                  margin: 0 !important;
+                                }
+                                .build-mode-content
+                                  :global(li > p:first-child) {
+                                  display: inline !important;
+                                }
+                                .build-mode-content :global(h1),
+                                .build-mode-content :global(h2),
+                                .build-mode-content :global(h3),
+                                .build-mode-content :global(h4) {
+                                  margin: 12px 0 4px 0 !important;
+                                  font-weight: 600 !important;
+                                }
+                                .build-mode-content :global(h1) {
+                                  font-size: 18px !important;
+                                }
+                                .build-mode-content :global(h2) {
+                                  font-size: 16px !important;
+                                }
+                                .build-mode-content :global(h3),
+                                .build-mode-content :global(h4) {
+                                  font-size: 14px !important;
+                                }
+                                /* Streaming text animation for smoother chunk appearance */
+                                @keyframes streamFadeIn {
+                                  from {
+                                    opacity: 0.7;
+                                  }
+                                  to {
+                                    opacity: 1;
+                                  }
+                                }
+                                .streaming-text {
+                                  animation: streamFadeIn 150ms ease-out
+                                    forwards;
+                                }
+                                .streaming-text p:last-child,
+                                .streaming-text > *:last-child {
+                                  animation: streamFadeIn 120ms ease-out
+                                    forwards;
+                                }
+                              `}</style>
+                              <div
+                                className={`text-[15px] leading-relaxed text-white/90 build-mode-content break-words${isStreamingMsg ? " streaming-text" : ""}`}
+                              >
+                                <ReactMarkdown
+                                  remarkPlugins={[remarkGfm]}
+                                  rehypePlugins={[rehypeHighlight]}
+                                  components={{
+                                    code: ({
+                                      className,
+                                      children,
+                                      ...props
+                                    }) => {
+                                      const isInline = !className;
+                                      return isInline ? (
+                                        <code
+                                          className="bg-white/10 px-1.5 py-0.5 rounded text-xs break-all"
+                                          {...props}
+                                        >
+                                          {children}
+                                        </code>
+                                      ) : (
+                                        <code className={className} {...props}>
+                                          {children}
+                                        </code>
+                                      );
+                                    },
+                                    pre: ({ children }) => (
+                                      <pre className="bg-black/40 border border-white/10 rounded-lg p-3 overflow-x-auto my-2">
+                                        {children}
+                                      </pre>
+                                    ),
+                                    a: ({ href, children }) => (
+                                      <a
+                                        href={href}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-[#FF5800] hover:text-[#FF5800]/80 underline break-all"
                                       >
                                         {children}
-                                      </code>
-                                    ) : (
-                                      <code className={className} {...props}>
+                                      </a>
+                                    ),
+                                    ul: ({ children }) => (
+                                      <ul className="list-disc my-2 pl-6">
                                         {children}
-                                      </code>
-                                    );
-                                  },
-                                  pre: ({ children }) => (
-                                    <pre className="bg-black/40 border border-white/10 rounded-lg p-3 overflow-x-auto my-2">
-                                      {children}
-                                    </pre>
-                                  ),
-                                  a: ({ href, children }) => (
-                                    <a
-                                      href={href}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="text-[#FF5800] hover:text-[#FF5800]/80 underline break-all"
-                                    >
-                                      {children}
-                                    </a>
-                                  ),
-                                  ul: ({ children }) => (
-                                    <ul className="list-disc my-2 pl-6">
-                                      {children}
-                                    </ul>
-                                  ),
-                                  ol: ({ children }) => (
-                                    <ol className="list-decimal my-2 pl-6">
-                                      {children}
-                                    </ol>
-                                  ),
-                                  li: ({
-                                    children,
-                                    ...props
-                                  }: React.HTMLProps<HTMLLIElement>) => (
-                                    <li className="my-1.5 pl-1" {...props}>
-                                      {children}
-                                    </li>
-                                  ),
-                                  p: ({ children }) => (
-                                    <p className="my-2 first:mt-0 last:mb-0">
-                                      {children}
-                                    </p>
-                                  ),
-                                }}
-                              >
-                                {content}
-                              </ReactMarkdown>
+                                      </ul>
+                                    ),
+                                    ol: ({ children }) => (
+                                      <ol className="list-decimal my-2 pl-6">
+                                        {children}
+                                      </ol>
+                                    ),
+                                    li: ({
+                                      children,
+                                      ...props
+                                    }: React.HTMLProps<HTMLLIElement>) => (
+                                      <li className="my-1.5 pl-1" {...props}>
+                                        {children}
+                                      </li>
+                                    ),
+                                    p: ({ children }) => (
+                                      <p className="my-2 first:mt-0 last:mb-0">
+                                        {children}
+                                      </p>
+                                    ),
+                                  }}
+                                >
+                                  {content}
+                                </ReactMarkdown>
+                                {/* Blinking cursor for streaming messages */}
+                                {isStreamingMsg && (
+                                  <span className="inline-block w-2 h-4 bg-[#FF5800]/70 ml-0.5 animate-pulse" />
+                                )}
+                              </div>
                             </div>
+                          )}
+                          {/* Time and Actions - hide during streaming */}
+                          {!isStreamingMsg && (
+                            <div className="flex items-center gap-2 pl-1 opacity-0 group-hover/message:opacity-100 transition-opacity">
+                              <span className="text-xs text-white/40">
+                                {formatTimestamp(message.timestamp)}
+                              </span>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-6 w-6 p-0 hover:bg-white/10 rounded transition-colors"
+                                onClick={() =>
+                                  copyToClipboard(content, message.id)
+                                }
+                                title="Copy message"
+                              >
+                                {copiedMessageId === message.id ? (
+                                  <Check className="h-3.5 w-3.5 text-green-500" />
+                                ) : (
+                                  <Copy className="h-3.5 w-3.5 text-white/50 hover:text-white/80" />
+                                )}
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col gap-1.5 max-w-[85%] sm:max-w-[75%] group/message items-end">
+                        {/* User Message */}
+                        <div className="py-3 px-4 bg-[#FF5800]/10 border border-[#FF5800]/20 rounded-lg transition-colors hover:bg-[#FF5800]/15 hover:border-[#FF5800]/30 ml-auto">
+                          <div className="whitespace-pre-wrap text-[15px] leading-relaxed text-white/95">
+                            {content}
                           </div>
-                        )}
+                        </div>
                         {/* Time and Actions */}
-                        <div className="flex items-center gap-2 pl-1 opacity-0 group-hover/message:opacity-100 transition-opacity">
+                        <div className="flex items-center gap-2 justify-end pr-1 opacity-0 group-hover/message:opacity-100 transition-opacity">
                           <span className="text-xs text-white/40">
                             {formatTimestamp(message.timestamp)}
                           </span>
@@ -1148,65 +1228,38 @@ export function BuildModeAssistant({
                           </Button>
                         </div>
                       </div>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col gap-1.5 max-w-[85%] sm:max-w-[75%] group/message items-end">
-                      {/* User Message */}
-                      <div className="py-3 px-4 bg-[#FF5800]/10 border border-[#FF5800]/20 rounded-lg transition-colors hover:bg-[#FF5800]/15 hover:border-[#FF5800]/30 ml-auto">
-                        <div className="whitespace-pre-wrap text-[15px] leading-relaxed text-white/95">
-                          {content}
-                        </div>
-                      </div>
-                      {/* Time and Actions */}
-                      <div className="flex items-center gap-2 justify-end pr-1 opacity-0 group-hover/message:opacity-100 transition-opacity">
-                        <span className="text-xs text-white/40">
-                          {formatTimestamp(message.timestamp)}
-                        </span>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-6 w-6 p-0 hover:bg-white/10 rounded transition-colors"
-                          onClick={() => copyToClipboard(content, message.id)}
-                          title="Copy message"
-                        >
-                          {copiedMessageId === message.id ? (
-                            <Check className="h-3.5 w-3.5 text-green-500" />
-                          ) : (
-                            <Copy className="h-3.5 w-3.5 text-white/50 hover:text-white/80" />
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+                    )}
+                  </div>
+                );
+              })}
 
             {/* Show thinking indicator when loading, initializing, or transitioning between modes */}
-            {(isLoading || messagesAreStale || (isInitializing && messages.length === 0)) && 
-             !isStreaming && (
-              <div className="flex justify-start animate-in fade-in slide-in-from-bottom-4 duration-500">
-                <div className="flex flex-col gap-1.5 max-w-[85%] sm:max-w-[75%]">
-                  <div className="flex items-center gap-2 pl-1">
-                    <ElizaAvatar
-                      avatarUrl={displayAvatar}
-                      name={displayName}
-                      className="flex-shrink-0 w-5 h-5"
-                      iconClassName="h-3 w-3"
-                      fallbackClassName="bg-[#FF5800]"
-                      animate={true}
-                    />
-                    <span className="text-xs font-medium text-white/50">
-                      {displayName}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 py-3 px-4 bg-white/[0.03] border border-white/[0.06] rounded-lg">
-                    <Loader2 className="h-4 w-4 animate-spin text-white/40" />
-                    <span className="text-sm text-white/40">thinking...</span>
+            {(isLoading ||
+              messagesAreStale ||
+              (isInitializing && messages.length === 0)) &&
+              !isStreaming && (
+                <div className="flex justify-start animate-in fade-in slide-in-from-bottom-4 duration-500">
+                  <div className="flex flex-col gap-1.5 max-w-[85%] sm:max-w-[75%]">
+                    <div className="flex items-center gap-2 pl-1">
+                      <ElizaAvatar
+                        avatarUrl={displayAvatar}
+                        name={displayName}
+                        className="flex-shrink-0 w-5 h-5"
+                        iconClassName="h-3 w-3"
+                        fallbackClassName="bg-[#FF5800]"
+                        animate={true}
+                      />
+                      <span className="text-xs font-medium text-white/50">
+                        {displayName}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 py-3 px-4 bg-white/[0.03] border border-white/[0.06] rounded-lg">
+                      <Loader2 className="h-4 w-4 animate-spin text-white/40" />
+                      <span className="text-sm text-white/40">thinking...</span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
 
             <div ref={messagesEndRef} />
           </div>
@@ -1257,7 +1310,8 @@ export function BuildModeAssistant({
                   <div
                     className="absolute h-full w-24 bg-gradient-to-r from-transparent via-[#FF5800] to-transparent"
                     style={{
-                      animation: "visor-scan 4.8s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+                      animation:
+                        "visor-scan 4.8s cubic-bezier(0.4, 0, 0.6, 1) infinite",
                       boxShadow: "0 0 15px 3px rgba(255, 88, 0, 0.7)",
                       filter: "blur(0.5px)",
                     }}
@@ -1265,7 +1319,8 @@ export function BuildModeAssistant({
                   <div
                     className="absolute h-full w-16 bg-gradient-to-r from-transparent via-[#FF5800]/60 to-transparent"
                     style={{
-                      animation: "visor-scan-delayed 6.2s cubic-bezier(0.3, 0.1, 0.7, 0.9) infinite 1.5s",
+                      animation:
+                        "visor-scan-delayed 6.2s cubic-bezier(0.3, 0.1, 0.7, 0.9) infinite 1.5s",
                       boxShadow: "0 0 10px 2px rgba(255, 88, 0, 0.5)",
                       filter: "blur(1px)",
                     }}
@@ -1289,7 +1344,8 @@ export function BuildModeAssistant({
                 onInput={(e) => {
                   const target = e.currentTarget;
                   target.style.height = "52px";
-                  target.style.height = Math.min(target.scrollHeight, 200) + "px";
+                  target.style.height =
+                    Math.min(target.scrollHeight, 200) + "px";
                 }}
                 placeholder="Describe your agent or ask for help..."
                 className="w-full bg-transparent px-4 pt-3 pb-3 text-[15px] text-white placeholder:text-white/40 focus:outline-none resize-none leading-relaxed"
@@ -1308,10 +1364,21 @@ export function BuildModeAssistant({
                     >
                       <span className="flex items-center gap-1.5 text-sm text-white/50">
                         {tierIcons[selectedTier]}
-                        {BUILD_MODE_TIER_LIST.find((t) => t.id === selectedTier)?.name || "Pro"}
+                        {BUILD_MODE_TIER_LIST.find((t) => t.id === selectedTier)
+                          ?.name || "Pro"}
                       </span>
-                      <svg className="h-3.5 w-3.5 text-white/30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      <svg
+                        className="h-3.5 w-3.5 text-white/30"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 9l-7 7-7-7"
+                        />
                       </svg>
                     </Button>
                   </DropdownMenuTrigger>
@@ -1330,16 +1397,26 @@ export function BuildModeAssistant({
                         }}
                       >
                         <div className="flex items-start gap-3">
-                          <span className="mt-0.5 text-white/50">{tierIcons[tier.id]}</span>
+                          <span className="mt-0.5 text-white/50">
+                            {tierIcons[tier.id]}
+                          </span>
                           <div className="flex flex-col gap-0.5">
                             <div className="flex items-center gap-2">
-                              <span className="text-[14px] font-medium text-white">{tier.name}</span>
-                              <span className="text-[11px] text-white/30 font-mono">{tier.modelId.split("/")[1]}</span>
+                              <span className="text-[14px] font-medium text-white">
+                                {tier.name}
+                              </span>
+                              <span className="text-[11px] text-white/30 font-mono">
+                                {tier.modelId.split("/")[1]}
+                              </span>
                             </div>
-                            <span className="text-[12px] text-white/40">{tier.description}</span>
+                            <span className="text-[12px] text-white/40">
+                              {tier.description}
+                            </span>
                           </div>
                         </div>
-                        {selectedTier === tier.id && <Check className="h-4 w-4 text-[#FF5800]" />}
+                        {selectedTier === tier.id && (
+                          <Check className="h-4 w-4 text-[#FF5800]" />
+                        )}
                       </DropdownMenuItem>
                     ))}
                   </DropdownMenuContent>

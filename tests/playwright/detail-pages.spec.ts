@@ -58,7 +58,11 @@ test.describe("Container Detail Page", () => {
     const url = page.url();
     const hasContent = await page.locator("body").textContent();
 
-    if ((hasContent?.length || 0) === 0) { console.log("⚠️ Page content empty"); console.log("ℹ️ Skipping"); return; }
+    if ((hasContent?.length || 0) === 0) {
+      console.log("⚠️ Page content empty");
+      console.log("ℹ️ Skipping");
+      return;
+    }
     console.log(`✅ Container detail page loaded for container ${containerId}`);
   });
 });
@@ -98,7 +102,11 @@ test.describe("Invoice Detail Page", () => {
     const url = page.url();
     const hasContent = await page.locator("body").textContent();
 
-    if ((hasContent?.length || 0) === 0) { console.log("⚠️ Page content empty"); console.log("ℹ️ Skipping"); return; }
+    if ((hasContent?.length || 0) === 0) {
+      console.log("⚠️ Page content empty");
+      console.log("ℹ️ Skipping");
+      return;
+    }
     console.log(`✅ Invoice detail page loaded for invoice ${invoiceId}`);
   });
 });
@@ -134,7 +142,11 @@ test.describe("Marketplace Character Detail Page", () => {
     const url = page.url();
     const hasContent = await page.locator("body").textContent();
 
-    if ((hasContent?.length || 0) === 0) { console.log("⚠️ Page content empty"); console.log("ℹ️ Skipping"); return; }
+    if ((hasContent?.length || 0) === 0) {
+      console.log("⚠️ Page content empty");
+      console.log("ℹ️ Skipping");
+      return;
+    }
     console.log(
       `✅ Marketplace character detail page loaded for character ${characterId}`,
     );

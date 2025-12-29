@@ -9,5 +9,3 @@ export async function ApiRouteExplorer() {
   const routes = await discoverApiV1Routes();
   return <ApiRouteExplorerClient routes={routes} />;
 }
-
-

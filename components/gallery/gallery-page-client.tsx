@@ -86,16 +86,19 @@ export function GalleryPageClient() {
   } = useGalleryData(galleryOptions);
 
   // Update URL when tab changes
-  const handleTabChange = useCallback((tab: TypeFilter) => {
-    setActiveTab(tab);
-    const url = new URL(window.location.href);
-    if (tab === "all") {
-      url.searchParams.delete("tab");
-    } else {
-      url.searchParams.set("tab", tab);
-    }
-    router.replace(url.pathname + url.search, { scroll: false });
-  }, [router]);
+  const handleTabChange = useCallback(
+    (tab: TypeFilter) => {
+      setActiveTab(tab);
+      const url = new URL(window.location.href);
+      if (tab === "all") {
+        url.searchParams.delete("tab");
+      } else {
+        url.searchParams.set("tab", tab);
+      }
+      router.replace(url.pathname + url.search, { scroll: false });
+    },
+    [router],
+  );
 
   const galleryTabs: TabItem[] = useMemo(
     () => [

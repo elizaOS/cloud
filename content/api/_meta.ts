@@ -8,7 +8,7 @@ const meta = {
   index: {
     title: "API Reference",
   },
-  
+
   "-- core": {
     type: "separator",
     title: "Core APIs",
@@ -22,7 +22,7 @@ const meta = {
   models: {
     title: "Models",
   },
-  
+
   "-- generation": {
     type: "separator",
     title: "Generation",
@@ -36,7 +36,7 @@ const meta = {
   voice: {
     title: "Voice & TTS",
   },
-  
+
   "-- resources": {
     type: "separator",
     title: "Resources",
@@ -59,7 +59,7 @@ const meta = {
   gallery: {
     title: "Gallery",
   },
-  
+
   "-- account": {
     type: "separator",
     title: "Account",

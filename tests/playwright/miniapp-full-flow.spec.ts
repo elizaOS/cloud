@@ -25,7 +25,11 @@ const API_KEY = process.env.TEST_API_KEY;
 let cloudAvailable = false;
 let miniappAvailable = false;
 
-async function waitForServer(url: string, maxRetries = 10, delayMs = 2000): Promise<boolean> {
+async function waitForServer(
+  url: string,
+  maxRetries = 10,
+  delayMs = 2000,
+): Promise<boolean> {
   for (let i = 0; i < maxRetries; i++) {
     try {
       const response = await fetch(url, { signal: AbortSignal.timeout(5000) });
@@ -34,7 +38,7 @@ async function waitForServer(url: string, maxRetries = 10, delayMs = 2000): Prom
       }
     } catch {
       if (i < maxRetries - 1) {
-        await new Promise(resolve => setTimeout(resolve, delayMs));
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
       }
     }
   }

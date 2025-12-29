@@ -366,7 +366,9 @@ test.describe("Login Page Navigation", () => {
     const pageContent = await page.textContent("body").catch(() => "");
 
     if ((pageContent?.length || 0) < 50) {
-      console.log(`⚠️ Signup intent page content too short (${pageContent?.length} chars)`);
+      console.log(
+        `⚠️ Signup intent page content too short (${pageContent?.length} chars)`,
+      );
       console.log("ℹ️ Skipping - likely Privy not configured in CI");
       test.skip();
       return;

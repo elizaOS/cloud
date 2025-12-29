@@ -151,8 +151,8 @@ const MCP_REGISTRY: McpRegistryEntry[] = [
     configTemplate: {
       servers: {
         "crypto-prices": {
-          type: "streamable-http",
-          url: "${BASE_URL}/api/mcp/demos/crypto/sse",
+          type: "sse",
+          url: "/api/mcp/demos/crypto/sse",
         },
       },
     },
@@ -186,8 +186,8 @@ const MCP_REGISTRY: McpRegistryEntry[] = [
     configTemplate: {
       servers: {
         "time-server": {
-          type: "streamable-http",
-          url: "${BASE_URL}/api/mcp/demos/time/sse",
+          type: "sse",
+          url: "/api/mcp/demos/time/sse",
         },
       },
     },
@@ -198,7 +198,7 @@ const MCP_REGISTRY: McpRegistryEntry[] = [
     description:
       "Current weather conditions and forecasts for locations worldwide. Temperature, humidity, wind, and more.",
     category: "utilities",
-    endpoint: "/api/mcp/demos/weather/mcp",
+    endpoint: "/api/mcp/demos/weather/sse",
     type: "streamable-http",
     version: "1.0.0",
     status: "coming_soon",
@@ -215,8 +215,8 @@ const MCP_REGISTRY: McpRegistryEntry[] = [
     configTemplate: {
       servers: {
         weather: {
-          type: "streamable-http",
-          url: "${BASE_URL}/api/mcp/demos/weather/mcp",
+          type: "sse",
+          url: "/api/mcp/demos/weather/sse",
         },
       },
     },
@@ -227,8 +227,8 @@ const MCP_REGISTRY: McpRegistryEntry[] = [
     description:
       "Access ElizaOS platform features: credits, usage, generations, conversations, and agent management via MCP.",
     category: "platform",
-    endpoint: "/api/mcp/sse",
-    type: "streamable-http",
+    endpoint: "/api/mcp",
+    type: "http",
     version: "1.0.0",
     status: "live",
     icon: "puzzle",
@@ -244,15 +244,15 @@ const MCP_REGISTRY: McpRegistryEntry[] = [
     ],
     pricing: {
       type: "credits",
-      description: "Uses your credit balance",
+      description: "Uses your credit balance (requires authentication)",
     },
     x402Enabled: false,
     documentation: "https://docs.elizaos.ai/mcps/platform",
     configTemplate: {
       servers: {
         "eliza-platform": {
-          type: "streamable-http",
-          url: "${BASE_URL}/api/mcp/sse",
+          type: "http",
+          url: "${BASE_URL}/api/mcp",
         },
       },
     },

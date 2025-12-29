@@ -92,12 +92,7 @@ export const generations = pgTable(
     // Composite index for gallery queries: org + status + user + created_at ordering
     org_status_user_created_idx: index(
       "generations_org_status_user_created_idx",
-    ).on(
-      table.organization_id,
-      table.status,
-      table.user_id,
-      table.created_at,
-    ),
+    ).on(table.organization_id, table.status, table.user_id, table.created_at),
   }),
 );
 

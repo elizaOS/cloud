@@ -87,7 +87,7 @@ export interface ApiErrorResponse {
  */
 export function createErrorResponse(
   errorCode: ApiErrorCode,
-  details?: Record<string, unknown>
+  details?: Record<string, unknown>,
 ): ApiErrorResponse {
   const response: ApiErrorResponse = {
     error: API_ERRORS[errorCode],
@@ -112,7 +112,7 @@ export function createErrorResponse(
 export function createCustomErrorResponse(
   message: string,
   code?: string,
-  details?: Record<string, unknown>
+  details?: Record<string, unknown>,
 ): ApiErrorResponse {
   const response: ApiErrorResponse = {
     error: message,
@@ -157,10 +157,7 @@ export function getErrorCodeFromException(error: unknown): ApiErrorCode {
   }
 
   // Service configuration errors
-  if (
-    message.includes("not configured") ||
-    message.includes("service not")
-  ) {
+  if (message.includes("not configured") || message.includes("service not")) {
     return "SERVICE_NOT_CONFIGURED";
   }
 
@@ -230,4 +227,3 @@ export function getStatusCodeForError(errorCode: ApiErrorCode): number {
       return 500;
   }
 }
-

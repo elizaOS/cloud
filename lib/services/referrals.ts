@@ -163,16 +163,18 @@ export class ReferralsService {
       },
     });
 
-    // Mark signup bonus as credited and update stats
-    await referralSignupsRepository.markBonusCredited(
-      signup.id,
-      REWARDS.SIGNUP_BONUS,
-    );
-    await referralCodesRepository.incrementReferrals(referralCode.id);
-    await referralCodesRepository.addSignupEarnings(
-      referralCode.id,
-      REWARDS.SIGNUP_BONUS,
-    );
+    // PERFORMANCE: Mark signup bonus as credited and update stats in parallel
+    await Promise.all([
+      referralSignupsRepository.markBonusCredited(
+        signup.id,
+        REWARDS.SIGNUP_BONUS,
+      ),
+      referralCodesRepository.incrementReferrals(referralCode.id),
+      referralCodesRepository.addSignupEarnings(
+        referralCode.id,
+        REWARDS.SIGNUP_BONUS,
+      ),
+    ]);
 
     logger.info("[Referrals] Referral code applied", {
       referredUserId,
@@ -212,11 +214,14 @@ export class ReferralsService {
       },
     });
 
-    await referralSignupsRepository.addCommission(signup.id, commission);
-    await referralCodesRepository.addCommissionEarnings(
-      signup.referral_code_id,
-      commission,
-    );
+    // PERFORMANCE: Update commission stats in parallel
+    await Promise.all([
+      referralSignupsRepository.addCommission(signup.id, commission),
+      referralCodesRepository.addCommissionEarnings(
+        signup.referral_code_id,
+        commission,
+      ),
+    ]);
 
     logger.info("[Referrals] Commission credited", {
       purchaserUserId,
@@ -237,7 +242,11 @@ export class ReferralsService {
     commissionEarnings: number;
     recentReferrals: ReferralSignup[];
   }> {
-    const referralCode = await referralCodesRepository.findByUserId(userId);
+    // PERFORMANCE: Fetch code and recent referrals in parallel
+    const [referralCode, recentReferrals] = await Promise.all([
+      referralCodesRepository.findByUserId(userId),
+      referralSignupsRepository.listByReferrerId(userId, 10),
+    ]);
 
     if (!referralCode) {
       return {
@@ -250,11 +259,6 @@ export class ReferralsService {
         recentReferrals: [],
       };
     }
-
-    const recentReferrals = await referralSignupsRepository.listByReferrerId(
-      userId,
-      10,
-    );
 
     return {
       code: referralCode.code,
@@ -314,15 +318,17 @@ export class ReferralsService {
       },
     });
 
-    // Mark signup as qualified
-    await referralSignupsRepository.markQualified(
-      signup.id,
-      REWARDS.QUALIFIED_BONUS,
-    );
-    await referralCodesRepository.addQualifiedEarnings(
-      signup.referral_code_id,
-      REWARDS.QUALIFIED_BONUS,
-    );
+    // PERFORMANCE: Mark signup as qualified and update earnings in parallel
+    await Promise.all([
+      referralSignupsRepository.markQualified(
+        signup.id,
+        REWARDS.QUALIFIED_BONUS,
+      ),
+      referralCodesRepository.addQualifiedEarnings(
+        signup.referral_code_id,
+        REWARDS.QUALIFIED_BONUS,
+      ),
+    ]);
 
     logger.info("[Referrals] Referral qualified", {
       referredUserId,
@@ -435,20 +441,23 @@ export class SocialRewardsService {
       "telegram",
       "discord",
     ];
-    const result: Record<SocialPlatform, { claimed: boolean; amount: number }> =
-      {
-        x: { claimed: false, amount: REWARDS.SHARE_X },
-        farcaster: { claimed: false, amount: REWARDS.SHARE_FARCASTER },
-        telegram: { claimed: false, amount: REWARDS.SHARE_TELEGRAM },
-        discord: { claimed: false, amount: REWARDS.SHARE_DISCORD },
-      };
 
-    for (const platform of platforms) {
-      result[platform].claimed =
-        await socialShareRewardsRepository.hasClaimedToday(userId, platform);
-    }
+    // PERFORMANCE: Check all platforms in parallel instead of sequential loop
+    const claimedStatuses = await Promise.all(
+      platforms.map((platform) =>
+        socialShareRewardsRepository.hasClaimedToday(userId, platform),
+      ),
+    );
 
-    return result;
+    return {
+      x: { claimed: claimedStatuses[0], amount: REWARDS.SHARE_X },
+      farcaster: {
+        claimed: claimedStatuses[1],
+        amount: REWARDS.SHARE_FARCASTER,
+      },
+      telegram: { claimed: claimedStatuses[2], amount: REWARDS.SHARE_TELEGRAM },
+      discord: { claimed: claimedStatuses[3], amount: REWARDS.SHARE_DISCORD },
+    };
   }
 
   async getTotalEarnings(userId: string): Promise<number> {

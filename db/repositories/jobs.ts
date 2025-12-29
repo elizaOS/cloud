@@ -28,7 +28,11 @@ export class JobsRepository {
    * @returns Job record or undefined.
    */
   async findById(id: string): Promise<Job | undefined> {
-    const [job] = await dbRead.select().from(jobs).where(eq(jobs.id, id)).limit(1);
+    const [job] = await dbRead
+      .select()
+      .from(jobs)
+      .where(eq(jobs.id, id))
+      .limit(1);
     return job;
   }
 

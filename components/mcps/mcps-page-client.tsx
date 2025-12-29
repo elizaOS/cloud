@@ -83,20 +83,91 @@ export function MCPsPageClient({ servers }: MCPsPageClientProps) {
     setTestingServer(server.id);
     setTestResult(null);
 
-    const response = await fetch(server.endpoint, {
-      method: "GET",
-      headers: {
-        Accept: "application/json",
-      },
-    });
+    try {
+      // Determine the metadata URL based on the endpoint
+      // Demo MCPs: /api/mcp/demos/crypto/sse -> /api/mcp/demos/crypto
+      // Platform MCP: /api/mcp -> /api/mcp/info
+      let metadataUrl: string;
+      if (server.endpoint === "/api/mcp") {
+        metadataUrl = "/api/mcp/info";
+      } else {
+        metadataUrl = server.endpoint.replace(/\/(sse|mcp|http)$/, "");
+      }
 
-    if (response.ok) {
-      const data = await response.json();
-      setTestResult(JSON.stringify(data, null, 2));
-      toast.success(`${server.name} is responding`);
-    } else {
-      setTestResult(`Error: ${response.status} ${response.statusText}`);
-      toast.error(`Server returned ${response.status}`);
+      // First, try to get server metadata via GET
+      const metadataResponse = await fetch(metadataUrl, {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+        },
+      });
+
+      if (metadataResponse.ok) {
+        const contentType = metadataResponse.headers.get("content-type") || "";
+        if (contentType.includes("application/json")) {
+          const data = await metadataResponse.json();
+          setTestResult(JSON.stringify(data, null, 2));
+          toast.success(`${server.name} is responding`);
+          setTestingServer(null);
+          return;
+        }
+      }
+
+      // If metadata endpoint failed, try JSON-RPC initialize on the actual endpoint
+      // This tests if the MCP protocol endpoint is working
+      const mcpRequest = {
+        jsonrpc: "2.0",
+        method: "initialize",
+        params: {
+          protocolVersion: "2024-11-05",
+          capabilities: {},
+          clientInfo: {
+            name: "eliza-cloud-test",
+            version: "1.0.0",
+          },
+        },
+        id: "test-" + Date.now(),
+      };
+
+      const mcpResponse = await fetch(server.endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify(mcpRequest),
+      });
+
+      if (mcpResponse.status === 401 || mcpResponse.status === 402) {
+        // Server is responding but requires authentication
+        const data = await mcpResponse.json().catch(() => ({}));
+        setTestResult(JSON.stringify({
+          status: "Server is online",
+          note: "This MCP requires authentication. The server is responding correctly.",
+          authRequired: true,
+          statusCode: mcpResponse.status,
+          ...data,
+        }, null, 2));
+        toast.success(`${server.name} is online (requires auth)`);
+      } else if (mcpResponse.ok) {
+        const data = await mcpResponse.json();
+        setTestResult(JSON.stringify(data, null, 2));
+        toast.success(`${server.name} is responding`);
+      } else {
+        const errorText = await mcpResponse.text().catch(() => "");
+        setTestResult(JSON.stringify({
+          error: `Server returned ${mcpResponse.status} ${mcpResponse.statusText}`,
+          details: errorText,
+        }, null, 2));
+        toast.error(`Server returned ${mcpResponse.status}`);
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Connection failed";
+      setTestResult(JSON.stringify({
+        error: errorMessage,
+        hint: "The server may be offline or unreachable",
+      }, null, 2));
+      toast.error(`Failed to connect: ${errorMessage}`);
     }
     setTestingServer(null);
   };

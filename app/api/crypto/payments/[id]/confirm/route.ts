@@ -81,7 +81,7 @@ const confirmSchema = z.object({
 
 async function handleConfirmPayment(
   req: NextRequest,
-  context?: { params: Promise<{ id: string }> }
+  context?: { params: Promise<{ id: string }> },
 ) {
   const ip =
     req.headers.get("x-forwarded-for")?.split(",")[0].trim() ||
@@ -99,7 +99,7 @@ async function handleConfirmPayment(
     if (!user.organization_id) {
       return NextResponse.json(
         { error: "Organization not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -136,7 +136,7 @@ async function handleConfirmPayment(
     if (payment.status === "expired") {
       return NextResponse.json(
         { error: "Payment has expired" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -154,7 +154,7 @@ async function handleConfirmPayment(
         {
           error: "Invalid transaction hash format",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -170,13 +170,13 @@ async function handleConfirmPayment(
           userId: redact.userId(user.id),
           network: payment.network,
           txHashLength: transactionHash.length,
-        }
+        },
       );
       return NextResponse.json(
         {
           error: `Invalid transaction hash format for ${payment.network} network`,
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -190,7 +190,7 @@ async function handleConfirmPayment(
 
     const result = await cryptoPaymentsService.verifyAndConfirmByTxHash(
       id,
-      transactionHash
+      transactionHash,
     );
 
     if (result.success) {
@@ -219,7 +219,7 @@ async function handleConfirmPayment(
         message: "Unable to confirm payment",
         status: payment.status,
       },
-      { status: 400 }
+      { status: 400 },
     );
   } catch (error) {
     logger.error("[Crypto Payments API] Confirm payment error", {
@@ -228,12 +228,12 @@ async function handleConfirmPayment(
     });
     return NextResponse.json(
       { error: "Failed to process confirmation" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
 export const POST = withRateLimit(
   handleConfirmPayment,
-  RateLimitPresets.STRICT
+  RateLimitPresets.STRICT,
 );

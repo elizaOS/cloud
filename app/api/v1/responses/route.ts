@@ -816,7 +816,7 @@ function handleStreamingResponse(
       let sentOutputItemAdded = false;
       const itemId = `msg_${Date.now()}`;
       let outputIndex = 0;
-      
+
       // Buffer for handling partial chunks that split across network boundaries
       let lineBuffer = "";
 
@@ -826,7 +826,7 @@ function handleStreamingResponse(
 
         // Append to buffer using streaming mode to handle multi-byte chars properly
         lineBuffer += decoder.decode(value, { stream: true });
-        
+
         // Split into lines, keeping last potentially incomplete line in buffer
         const lines = lineBuffer.split("\n");
         lineBuffer = lines.pop() ?? "";
@@ -843,7 +843,9 @@ function handleStreamingResponse(
                   type: "message",
                   id: itemId,
                   role: "assistant",
-                  content: [{ type: "output_text", text: fullContent, annotations: [] }],
+                  content: [
+                    { type: "output_text", text: fullContent, annotations: [] },
+                  ],
                   status: "completed",
                 },
               });
@@ -858,13 +860,21 @@ function handleStreamingResponse(
                   model: responseModel,
                   status: "completed",
                   incomplete_details: null,
-                  output: [{
-                    type: "message",
-                    id: itemId,
-                    role: "assistant",
-                    content: [{ type: "output_text", text: fullContent, annotations: [] }],
-                    status: "completed",
-                  }],
+                  output: [
+                    {
+                      type: "message",
+                      id: itemId,
+                      role: "assistant",
+                      content: [
+                        {
+                          type: "output_text",
+                          text: fullContent,
+                          annotations: [],
+                        },
+                      ],
+                      status: "completed",
+                    },
+                  ],
                   usage: {
                     input_tokens: inputTokens,
                     output_tokens: outputTokens,
@@ -945,19 +955,22 @@ function handleStreamingResponse(
               // Log parsing failures as warnings - silent failures are hard to debug
               logger.warn("[Responses API] Failed to parse streaming chunk", {
                 line: line.substring(0, 200), // Truncate to avoid log spam
-                error: parseError instanceof Error ? parseError.message : String(parseError),
+                error:
+                  parseError instanceof Error
+                    ? parseError.message
+                    : String(parseError),
               });
             }
           }
         }
       }
-      
+
       // Flush decoder and process any remaining buffered content
       const finalChunk = decoder.decode();
       if (finalChunk) {
         lineBuffer += finalChunk;
       }
-      
+
       // Process any remaining complete line in buffer
       if (lineBuffer.trim() && lineBuffer.startsWith("data: ")) {
         const data = lineBuffer.slice(6);

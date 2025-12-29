@@ -17,14 +17,23 @@ Summary: Build, deploy, and scale intelligent AI agents with elizaOS Cloud.
 <div className="docs-hero">
 
 <div className="relative z-10">
-  <h1><strong>Build</strong> Agents, <br/> <strong>Make</strong> Magic</h1>
-  
-  <p>
-    The complete platform for building, deploying, and scaling intelligent AI agents. 
-    Production-ready infrastructure with enterprise-grade reliability.
-  </p>
-  
-  <div className="hero-buttons"><a href="/docs/quickstart" className="hero-btn-primary">Get Started →</a><a href="/dashboard" className="hero-btn-secondary">Open Dashboard</a></div>
+  <h1>
+    <strong>Build</strong> Agents, <br /> <strong>Make</strong> Magic
+  </h1>
+
+<p>
+  The complete platform for building, deploying, and scaling intelligent AI
+  agents. Production-ready infrastructure with enterprise-grade reliability.
+</p>
+
+  <div className="hero-buttons">
+    <a href="/docs/quickstart" className="hero-btn-primary">
+      Get Started →
+    </a>
+    <a href="/dashboard" className="hero-btn-secondary">
+      Open Dashboard
+    </a>
+  </div>
 </div>
 
 </div>
@@ -34,52 +43,86 @@ Summary: Build, deploy, and scale intelligent AI agents with elizaOS Cloud.
 ### Quick Start
 
 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mt-6 mb-8">
-  <a href="/docs/quickstart#using-the-agent-creator" className="docs-quickstart-card no-underline group" style={{"--card-accent-color": "#ff5800"}}>
+  <a
+    href="/docs/quickstart#using-the-agent-creator"
+    className="docs-quickstart-card no-underline group"
+    style={{ "--card-accent-color": "#ff5800" }}
+  >
     <span className="corner-tl" aria-hidden="true"></span>
     <span className="corner-tr" aria-hidden="true"></span>
     <span className="corner-bl" aria-hidden="true"></span>
     <span className="corner-br" aria-hidden="true"></span>
     <div className="relative z-10">
-      <div className="docs-quickstart-icon" aria-hidden="true">🎨</div>
+      <div className="docs-quickstart-icon" aria-hidden="true">
+        🎨
+      </div>
       <div className="docs-quickstart-title">Visual Builder</div>
-      <div className="docs-quickstart-desc">Create agents with the no-code editor</div>
-      <div className="docs-quickstart-arrow" aria-hidden="true">→</div>
+      <div className="docs-quickstart-desc">
+        Create agents with the no-code editor
+      </div>
+      <div className="docs-quickstart-arrow" aria-hidden="true">
+        →
+      </div>
     </div>
   </a>
-  <a href="/docs/quickstart#using-the-api" className="docs-quickstart-card no-underline group" style={{"--card-accent-color": "#0b35f1"}}>
+  <a
+    href="/docs/quickstart#using-the-api"
+    className="docs-quickstart-card no-underline group"
+    style={{ "--card-accent-color": "#0b35f1" }}
+  >
     <span className="corner-tl" aria-hidden="true"></span>
     <span className="corner-tr" aria-hidden="true"></span>
     <span className="corner-bl" aria-hidden="true"></span>
     <span className="corner-br" aria-hidden="true"></span>
     <div className="relative z-10">
-      <div className="docs-quickstart-icon" aria-hidden="true">⚡</div>
+      <div className="docs-quickstart-icon" aria-hidden="true">
+        ⚡
+      </div>
       <div className="docs-quickstart-title">REST API</div>
       <div className="docs-quickstart-desc">OpenAI-compatible endpoints</div>
-      <div className="docs-quickstart-arrow" aria-hidden="true">→</div>
+      <div className="docs-quickstart-arrow" aria-hidden="true">
+        →
+      </div>
     </div>
   </a>
-  <a href="/docs/quickstart#using-the-cli" className="docs-quickstart-card no-underline group" style={{"--card-accent-color": "#22c55e"}}>
+  <a
+    href="/docs/quickstart#using-the-cli"
+    className="docs-quickstart-card no-underline group"
+    style={{ "--card-accent-color": "#22c55e" }}
+  >
     <span className="corner-tl" aria-hidden="true"></span>
     <span className="corner-tr" aria-hidden="true"></span>
     <span className="corner-bl" aria-hidden="true"></span>
     <span className="corner-br" aria-hidden="true"></span>
     <div className="relative z-10">
-      <div className="docs-quickstart-icon" aria-hidden="true">💻</div>
+      <div className="docs-quickstart-icon" aria-hidden="true">
+        💻
+      </div>
       <div className="docs-quickstart-title">CLI Deployment</div>
       <div className="docs-quickstart-desc">Deploy from your local project</div>
-      <div className="docs-quickstart-arrow" aria-hidden="true">→</div>
+      <div className="docs-quickstart-arrow" aria-hidden="true">
+        →
+      </div>
     </div>
   </a>
-  <a href="/docs/mcp" className="docs-quickstart-card no-underline group" style={{"--card-accent-color": "#a855f7"}}>
+  <a
+    href="/docs/mcp"
+    className="docs-quickstart-card no-underline group"
+    style={{ "--card-accent-color": "#a855f7" }}
+  >
     <span className="corner-tl" aria-hidden="true"></span>
     <span className="corner-tr" aria-hidden="true"></span>
     <span className="corner-bl" aria-hidden="true"></span>
     <span className="corner-br" aria-hidden="true"></span>
     <div className="relative z-10">
-      <div className="docs-quickstart-icon" aria-hidden="true">🔌</div>
+      <div className="docs-quickstart-icon" aria-hidden="true">
+        🔌
+      </div>
       <div className="docs-quickstart-title">MCP Protocol</div>
       <div className="docs-quickstart-desc">Connect with external tools</div>
-      <div className="docs-quickstart-arrow" aria-hidden="true">→</div>
+      <div className="docs-quickstart-arrow" aria-hidden="true">
+        →
+      </div>
     </div>
   </a>
 </div>
@@ -98,7 +141,10 @@ Summary: Build, deploy, and scale intelligent AI agents with elizaOS Cloud.
       </div>
       <div className="font-bold text-white">Agent Runtime</div>
     </div>
-    <div className="text-white/50 text-sm leading-relaxed">Managed runtime with auto-scaling, zero-downtime deployments, and built-in monitoring.</div>
+    <div className="text-white/50 text-sm leading-relaxed">
+      Managed runtime with auto-scaling, zero-downtime deployments, and built-in
+      monitoring.
+    </div>
   </div>
   <div className="docs-feature-card">
     <div className="flex items-center gap-3 mb-4">
@@ -107,7 +153,10 @@ Summary: Build, deploy, and scale intelligent AI agents with elizaOS Cloud.
       </div>
       <div className="font-bold text-white">Chat Completions</div>
     </div>
-    <div className="text-white/50 text-sm leading-relaxed">OpenAI-compatible API with streaming, function calling, and structured outputs.</div>
+    <div className="text-white/50 text-sm leading-relaxed">
+      OpenAI-compatible API with streaming, function calling, and structured
+      outputs.
+    </div>
   </div>
   <div className="docs-feature-card">
     <div className="flex items-center gap-3 mb-4">
@@ -116,7 +165,10 @@ Summary: Build, deploy, and scale intelligent AI agents with elizaOS Cloud.
       </div>
       <div className="font-bold text-white">Model Gateway</div>
     </div>
-    <div className="text-white/50 text-sm leading-relaxed">Access OpenAI, Anthropic, Google, and more through a unified API interface.</div>
+    <div className="text-white/50 text-sm leading-relaxed">
+      Access OpenAI, Anthropic, Google, and more through a unified API
+      interface.
+    </div>
   </div>
   <div className="docs-feature-card">
     <div className="flex items-center gap-3 mb-4">
@@ -125,7 +177,10 @@ Summary: Build, deploy, and scale intelligent AI agents with elizaOS Cloud.
       </div>
       <div className="font-bold text-white">Knowledge Base</div>
     </div>
-    <div className="text-white/50 text-sm leading-relaxed">Vector storage for RAG-powered agents with automatic embedding and retrieval.</div>
+    <div className="text-white/50 text-sm leading-relaxed">
+      Vector storage for RAG-powered agents with automatic embedding and
+      retrieval.
+    </div>
   </div>
   <div className="docs-feature-card">
     <div className="flex items-center gap-3 mb-4">
@@ -134,7 +189,9 @@ Summary: Build, deploy, and scale intelligent AI agents with elizaOS Cloud.
       </div>
       <div className="font-bold text-white">MCP Integration</div>
     </div>
-    <div className="text-white/50 text-sm leading-relaxed">Connect to Model Context Protocol servers for tools and external data.</div>
+    <div className="text-white/50 text-sm leading-relaxed">
+      Connect to Model Context Protocol servers for tools and external data.
+    </div>
   </div>
   <div className="docs-feature-card">
     <div className="flex items-center gap-3 mb-4">
@@ -143,7 +200,9 @@ Summary: Build, deploy, and scale intelligent AI agents with elizaOS Cloud.
       </div>
       <div className="font-bold text-white">Containers</div>
     </div>
-    <div className="text-white/50 text-sm leading-relaxed">Deploy custom Docker containers with full control over your environment.</div>
+    <div className="text-white/50 text-sm leading-relaxed">
+      Deploy custom Docker containers with full control over your environment.
+    </div>
   </div>
 </div>
 
@@ -153,36 +212,62 @@ Summary: Build, deploy, and scale intelligent AI agents with elizaOS Cloud.
 
 ### Generation Studio
 
-<p className="text-white/50 mb-6">Create rich media content with AI-powered generation tools.</p>
+<p className="text-white/50 mb-6">
+  Create rich media content with AI-powered generation tools.
+</p>
 
 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4 mb-8">
-  <a href="/docs/image-generation" className="docs-generation-card no-underline group" style={{"--card-accent-color": "#ff5800"}}>
+  <a
+    href="/docs/image-generation"
+    className="docs-generation-card no-underline group"
+    style={{ "--card-accent-color": "#ff5800" }}
+  >
     <div className="relative z-10">
       <div className="flex items-center justify-between mb-3">
         <span className="text-[#ff5800] text-2xl">🖼️</span>
-        <span className="text-[10px] font-bold uppercase tracking-wider text-[#ff5800]/60 px-2 py-1 bg-[#ff5800]/10 border border-[#ff5800]/20">FLUX • SD</span>
+        <span className="text-[10px] font-bold uppercase tracking-wider text-[#ff5800]/60 px-2 py-1 bg-[#ff5800]/10 border border-[#ff5800]/20">
+          FLUX • SD
+        </span>
       </div>
-      <div className="font-bold text-white mb-1 group-hover:text-[#ff5800] transition-colors">Image Generation</div>
+      <div className="font-bold text-white mb-1 group-hover:text-[#ff5800] transition-colors">
+        Image Generation
+      </div>
       <div className="text-white/40 text-sm">Powered by Fal.ai</div>
     </div>
   </a>
-  <a href="/docs/video-generation" className="docs-generation-card no-underline group" style={{"--card-accent-color": "#0b35f1"}}>
+  <a
+    href="/docs/video-generation"
+    className="docs-generation-card no-underline group"
+    style={{ "--card-accent-color": "#0b35f1" }}
+  >
     <div className="relative z-10">
       <div className="flex items-center justify-between mb-3">
         <span className="text-[#0b35f1] text-2xl">🎬</span>
-        <span className="text-[10px] font-bold uppercase tracking-wider text-[#0b35f1]/60 px-2 py-1 bg-[#0b35f1]/10 border border-[#0b35f1]/20">MiniMax • Runway</span>
+        <span className="text-[10px] font-bold uppercase tracking-wider text-[#0b35f1]/60 px-2 py-1 bg-[#0b35f1]/10 border border-[#0b35f1]/20">
+          MiniMax • Runway
+        </span>
       </div>
-      <div className="font-bold text-white mb-1 group-hover:text-[#0b35f1] transition-colors">Video Generation</div>
+      <div className="font-bold text-white mb-1 group-hover:text-[#0b35f1] transition-colors">
+        Video Generation
+      </div>
       <div className="text-white/40 text-sm">Text & image to video</div>
     </div>
   </a>
-  <a href="/docs/voice-cloning" className="docs-generation-card no-underline group" style={{"--card-accent-color": "#22c55e"}}>
+  <a
+    href="/docs/voice-cloning"
+    className="docs-generation-card no-underline group"
+    style={{ "--card-accent-color": "#22c55e" }}
+  >
     <div className="relative z-10">
       <div className="flex items-center justify-between mb-3">
         <span className="text-[#22c55e] text-2xl">🎙️</span>
-        <span className="text-[10px] font-bold uppercase tracking-wider text-[#22c55e]/60 px-2 py-1 bg-[#22c55e]/10 border border-[#22c55e]/20">ElevenLabs</span>
+        <span className="text-[10px] font-bold uppercase tracking-wider text-[#22c55e]/60 px-2 py-1 bg-[#22c55e]/10 border border-[#22c55e]/20">
+          ElevenLabs
+        </span>
       </div>
-      <div className="font-bold text-white mb-1 group-hover:text-[#22c55e] transition-colors">Voice Cloning</div>
+      <div className="font-bold text-white mb-1 group-hover:text-[#22c55e] transition-colors">
+        Voice Cloning
+      </div>
       <div className="text-white/40 text-sm">Custom voice synthesis</div>
     </div>
   </a>
@@ -208,16 +293,24 @@ curl https://elizacloud.ai/api/v1/chat/completions \
 
 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-6">
   <a href="/docs/api" className="docs-api-card no-underline group">
-    <div className="font-semibold text-white text-sm group-hover:text-[#ff5800] transition-colors">REST API</div>
+    <div className="font-semibold text-white text-sm group-hover:text-[#ff5800] transition-colors">
+      REST API
+    </div>
   </a>
   <a href="/docs/a2a" className="docs-api-card no-underline group">
-    <div className="font-semibold text-white text-sm group-hover:text-[#ff5800] transition-colors">A2A Protocol</div>
+    <div className="font-semibold text-white text-sm group-hover:text-[#ff5800] transition-colors">
+      A2A Protocol
+    </div>
   </a>
   <a href="/docs/mcp" className="docs-api-card no-underline group">
-    <div className="font-semibold text-white text-sm group-hover:text-[#ff5800] transition-colors">MCP Protocol</div>
+    <div className="font-semibold text-white text-sm group-hover:text-[#ff5800] transition-colors">
+      MCP Protocol
+    </div>
   </a>
   <a href="/docs/x402" className="docs-api-card no-underline group">
-    <div className="font-semibold text-white text-sm group-hover:text-[#ff5800] transition-colors">x402 Payments</div>
+    <div className="font-semibold text-white text-sm group-hover:text-[#ff5800] transition-colors">
+      x402 Payments
+    </div>
   </a>
 </div>
 
@@ -229,19 +322,27 @@ curl https://elizacloud.ai/api/v1/chat/completions \
 
 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
   <a href="/docs/sdks" className="docs-resource-card no-underline group">
-    <div className="font-semibold text-white mb-0.5 group-hover:text-[#ff5800] transition-colors">SDKs & Libraries</div>
+    <div className="font-semibold text-white mb-0.5 group-hover:text-[#ff5800] transition-colors">
+      SDKs & Libraries
+    </div>
     <div className="text-white/40 text-sm">TypeScript, Python, and more</div>
   </a>
   <a href="/docs/errors" className="docs-resource-card no-underline group">
-    <div className="font-semibold text-white mb-0.5 group-hover:text-[#ff5800] transition-colors">Error Handling</div>
+    <div className="font-semibold text-white mb-0.5 group-hover:text-[#ff5800] transition-colors">
+      Error Handling
+    </div>
     <div className="text-white/40 text-sm">Error codes and troubleshooting</div>
   </a>
   <a href="/docs/rate-limits" className="docs-resource-card no-underline group">
-    <div className="font-semibold text-white mb-0.5 group-hover:text-[#ff5800] transition-colors">Rate Limits</div>
+    <div className="font-semibold text-white mb-0.5 group-hover:text-[#ff5800] transition-colors">
+      Rate Limits
+    </div>
     <div className="text-white/40 text-sm">Usage quotas and limits</div>
   </a>
   <a href="/docs/changelog" className="docs-resource-card no-underline group">
-    <div className="font-semibold text-white mb-0.5 group-hover:text-[#ff5800] transition-colors">Changelog</div>
+    <div className="font-semibold text-white mb-0.5 group-hover:text-[#ff5800] transition-colors">
+      Changelog
+    </div>
     <div className="text-white/40 text-sm">Latest updates and releases</div>
   </a>
 </div>
@@ -251,9 +352,48 @@ curl https://elizacloud.ai/api/v1/chat/completions \
 <div className="docs-section">
 
 <div className="docs-help-box">
-  <h3 className="!mt-0 !mb-4 !border-0 !text-base font-bold text-white !p-0">Need Help?</h3>
-  <p className="!mb-4 text-white/50 text-sm">Join our community for support, share feedback, or contribute to the project.</p>
-  <div className="social-links"><a href="https://discord.gg/elizaos" target="_blank" rel="noopener noreferrer" className="social-link social-link-primary"><svg className="social-icon" fill="currentColor" viewBox="0 0 24 24"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg><span>Discord</span></a><a href="https://github.com/elizaOS/eliza" target="_blank" rel="noopener noreferrer" className="social-link"><svg className="social-icon" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg><span>GitHub</span></a><a href="https://twitter.com/elizaOS" target="_blank" rel="noopener noreferrer" className="social-link"><svg className="social-icon" fill="currentColor" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg><span>Twitter</span></a></div>
+  <h3 className="!mt-0 !mb-4 !border-0 !text-base font-bold text-white !p-0">
+    Need Help?
+  </h3>
+  <p className="!mb-4 text-white/50 text-sm">
+    Join our community for support, share feedback, or contribute to the
+    project.
+  </p>
+  <div className="social-links">
+    <a
+      href="https://discord.gg/elizaos"
+      target="_blank"
+      rel="noopener noreferrer"
+      className="social-link social-link-primary"
+    >
+      <svg className="social-icon" fill="currentColor" viewBox="0 0 24 24">
+        <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z" />
+      </svg>
+      <span>Discord</span>
+    </a>
+    <a
+      href="https://github.com/elizaOS/eliza"
+      target="_blank"
+      rel="noopener noreferrer"
+      className="social-link"
+    >
+      <svg className="social-icon" fill="currentColor" viewBox="0 0 24 24">
+        <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
+      </svg>
+      <span>GitHub</span>
+    </a>
+    <a
+      href="https://twitter.com/elizaOS"
+      target="_blank"
+      rel="noopener noreferrer"
+      className="social-link"
+    >
+      <svg className="social-icon" fill="currentColor" viewBox="0 0 24 24">
+        <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+      </svg>
+      <span>Twitter</span>
+    </a>
+  </div>
 </div>
 
 </div>
@@ -397,36 +537,36 @@ curl -X POST "https://elizacloud.ai/api/a2a" \
 
 ## Task States
 
-| State | Description |
-|-------|-------------|
-| `pending` | Task received, not started |
-| `working` | Task in progress |
+| State       | Description                |
+| ----------- | -------------------------- |
+| `pending`   | Task received, not started |
+| `working`   | Task in progress           |
 | `completed` | Task finished successfully |
-| `failed` | Task failed |
-| `cancelled` | Task was cancelled |
+| `failed`    | Task failed                |
+| `cancelled` | Task was cancelled         |
 
 ## Streaming Tasks
 
 For long-running tasks, use streaming:
 
 ```javascript
-const response = await fetch('https://elizacloud.ai/api/a2a', {
-  method: 'POST',
+const response = await fetch("https://elizacloud.ai/api/a2a", {
+  method: "POST",
   headers: {
-    'Authorization': 'Bearer YOUR_API_KEY',
-    'Content-Type': 'application/json',
-    'Accept': 'text/event-stream',
+    Authorization: "Bearer YOUR_API_KEY",
+    "Content-Type": "application/json",
+    Accept: "text/event-stream",
   },
   body: JSON.stringify({
-    jsonrpc: '2.0',
-    method: 'tasks/sendSubscribe',
+    jsonrpc: "2.0",
+    method: "tasks/sendSubscribe",
     params: {
       message: {
-        role: 'user',
-        parts: [{ type: 'text', text: 'Analyze this data...' }]
-      }
+        role: "user",
+        parts: [{ type: "text", text: "Analyze this data..." }],
+      },
     },
-    id: 1
+    id: 1,
   }),
 });
 
@@ -458,11 +598,11 @@ Enable your agent to communicate with others:
 ```javascript
 // Agent A delegates to Agent B
 const result = await agentA.delegateTask({
-  targetAgent: 'agent_b_id',
+  targetAgent: "agent_b_id",
   task: {
-    type: 'summarize',
-    input: 'Long document content...'
-  }
+    type: "summarize",
+    input: "Long document content...",
+  },
 });
 ```
 
@@ -513,7 +653,8 @@ A2A follows the Google A2A specification with extensions:
 - Standard task lifecycle
 - Artifact types for multi-modal output
 
-See the [A2A specification](https://github.com/google/a2a) for full protocol details.
+  See the [A2A specification](https://github.com/google/a2a) for full protocol
+  details.
 
 ## Best Practices
 
@@ -547,7 +688,7 @@ The Agent Creator is a visual editor for building AI agents without writing code
 
 <div className="status-badge status-stable">Stable</div>
 
-Access the Agent Creator at [Dashboard → Agent Creator](/dashboard/build)
+  Access the Agent Creator at [Dashboard → Agent Creator](/dashboard/build)
 
 ## Overview
 
@@ -565,22 +706,28 @@ The Agent Creator provides a streamlined interface for:
 Navigate to [Dashboard → Build](/dashboard/build) to access the creator.
 
 ### Enter Basic Info
+
 - **Name**: Your agent's display name
 - **Description**: Brief summary of what your agent does
 
 ### Define Personality
+
 Fill in the personality fields:
+
 - **Bio**: Background and expertise
 - **Style**: Communication tone
 - **Topics**: Areas of knowledge
 
 ### Generate Avatar (Optional)
+
 Click "Generate Avatar" to create an AI-generated profile image.
 
 ### Preview & Test
+
 Use the built-in chat to test your agent's responses.
 
 ### Deploy
+
 Click "Deploy" to make your agent live.
 
 ## Character Fields
@@ -607,6 +754,7 @@ The bio defines your agent's background. Use multiple statements for comprehensi
 Style instructions shape how your agent communicates:
 
 **All Contexts:**
+
 ```
 - Professional and academic tone
 - Evidence-based reasoning
@@ -614,6 +762,7 @@ Style instructions shape how your agent communicates:
 ```
 
 **Chat-Specific:**
+
 ```
 - Conversational yet informative
 - Ask clarifying questions when needed
@@ -625,7 +774,7 @@ Style instructions shape how your agent communicates:
 Define areas of expertise:
 
 ```
-machine learning, data science, research methodology, 
+machine learning, data science, research methodology,
 statistics, academic writing, literature review
 ```
 
@@ -641,21 +790,22 @@ knowledgeable, thorough, patient, analytical, helpful
 
 ### Supported Providers
 
-| Provider | Models | Best For |
-|----------|--------|----------|
-| **OpenAI** | GPT-4o, GPT-4o-mini, GPT-4-turbo | General purpose, coding |
+| Provider      | Models                           | Best For                    |
+| ------------- | -------------------------------- | --------------------------- |
+| **OpenAI**    | GPT-4o, GPT-4o-mini, GPT-4-turbo | General purpose, coding     |
 | **Anthropic** | Claude 3.5 Sonnet, Claude 3 Opus | Long-form content, analysis |
-| **Google** | Gemini Pro, Gemini Flash | Multimodal, fast responses |
+| **Google**    | Gemini Pro, Gemini Flash         | Multimodal, fast responses  |
 
 ### Temperature Settings
 
-| Temperature | Behavior |
-|-------------|----------|
-| **0.0 - 0.3** | More focused, deterministic |
+| Temperature   | Behavior                            |
+| ------------- | ----------------------------------- |
+| **0.0 - 0.3** | More focused, deterministic         |
 | **0.4 - 0.7** | Balanced creativity and consistency |
-| **0.8 - 1.0** | More creative, varied responses |
+| **0.8 - 1.0** | More creative, varied responses     |
 
-Higher temperatures may produce less predictable outputs. Start with 0.7 for most use cases.
+  Higher temperatures may produce less predictable outputs. Start with 0.7 for
+  most use cases.
 
 ## Avatar Generation
 
@@ -670,6 +820,7 @@ The Agent Creator includes AI-powered avatar generation.
 ### Custom Upload
 
 You can also upload a custom avatar image:
+
 - Supported formats: PNG, JPG, WebP
 - Recommended size: 512x512 pixels
 - Maximum file size: 2MB
@@ -715,19 +866,27 @@ Start from pre-built templates:
 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
   <div className="p-4 border border-white/10 bg-white/[0.02]">
     <h4 className="font-semibold mb-2">💼 Business Assistant</h4>
-    <p className="text-white/60 text-sm">Professional agent for business queries, scheduling, and communication.</p>
+    <p className="text-white/60 text-sm">
+      Professional agent for business queries, scheduling, and communication.
+    </p>
   </div>
   <div className="p-4 border border-white/10 bg-white/[0.02]">
     <h4 className="font-semibold mb-2">📚 Research Helper</h4>
-    <p className="text-white/60 text-sm">Academic-focused agent for research and analysis.</p>
+    <p className="text-white/60 text-sm">
+      Academic-focused agent for research and analysis.
+    </p>
   </div>
   <div className="p-4 border border-white/10 bg-white/[0.02]">
     <h4 className="font-semibold mb-2">💻 Code Reviewer</h4>
-    <p className="text-white/60 text-sm">Technical agent for code review and debugging.</p>
+    <p className="text-white/60 text-sm">
+      Technical agent for code review and debugging.
+    </p>
   </div>
   <div className="p-4 border border-white/10 bg-white/[0.02]">
     <h4 className="font-semibold mb-2">🎨 Creative Writer</h4>
-    <p className="text-white/60 text-sm">Creative agent for writing, brainstorming, and content creation.</p>
+    <p className="text-white/60 text-sm">
+      Creative agent for writing, brainstorming, and content creation.
+    </p>
   </div>
 </div>
 
@@ -810,18 +969,23 @@ An agent in elizaOS Cloud consists of:
 Go to [Dashboard → My Agents](/dashboard/my-agents) and click "Create Agent".
 
 ### Configure Character
+
 Fill in the agent's personality:
+
 - **Name**: Display name for your agent
 - **Bio**: Background and expertise
 - **Style**: Communication tone and formatting
 
 ### Select Model
+
 Choose your AI model provider and model:
+
 - OpenAI (GPT-4o, GPT-4o-mini)
 - Anthropic (Claude 3.5 Sonnet)
 - Google (Gemini Pro)
 
 ### Deploy
+
 Click "Deploy" to launch your agent.
 
   
@@ -848,6 +1012,7 @@ curl -X POST "https://elizacloud.ai/api/v1/my-agents/characters" \
 ```
 
 Response:
+
 ```json
 {
   "id": "agent_abc123",
@@ -856,6 +1021,7 @@ Response:
   "createdAt": "2024-01-15T10:30:00Z"
 }
 ```
+
   
   
 ### Using the CLI
@@ -870,6 +1036,7 @@ elizaos login
 # Deploy from character file
 elizaos deploy --character ./character.json
 ```
+
   
 
 ## Character Configuration
@@ -894,27 +1061,11 @@ The character JSON defines your agent's personality and behavior.
       "Evidence-based reasoning",
       "Clear and structured responses"
     ],
-    "chat": [
-      "Concise yet thorough",
-      "Ask clarifying questions when needed"
-    ],
-    "post": [
-      "Formal academic style",
-      "Include citations"
-    ]
+    "chat": ["Concise yet thorough", "Ask clarifying questions when needed"],
+    "post": ["Formal academic style", "Include citations"]
   },
-  "topics": [
-    "science",
-    "research",
-    "data analysis",
-    "academic writing"
-  ],
-  "adjectives": [
-    "knowledgeable",
-    "thorough",
-    "precise",
-    "helpful"
-  ],
+  "topics": ["science", "research", "data analysis", "academic writing"],
+  "adjectives": ["knowledgeable", "thorough", "precise", "helpful"],
   "modelProvider": "openai",
   "settings": {
     "model": "gpt-4o",
@@ -926,18 +1077,18 @@ The character JSON defines your agent's personality and behavior.
 
 ### Character Fields
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `name` | string | Display name of the agent |
-| `bio` | string[] | Array of background/expertise statements |
-| `lore` | string[] | Additional context and backstory |
-| `style.all` | string[] | Global style instructions |
-| `style.chat` | string[] | Chat-specific instructions |
-| `style.post` | string[] | Social media post instructions |
-| `topics` | string[] | Areas of expertise |
-| `adjectives` | string[] | Personality descriptors |
-| `modelProvider` | string | AI provider (openai, anthropic, google) |
-| `settings` | object | Model-specific settings |
+| Field           | Type     | Description                              |
+| --------------- | -------- | ---------------------------------------- |
+| `name`          | string   | Display name of the agent                |
+| `bio`           | string[] | Array of background/expertise statements |
+| `lore`          | string[] | Additional context and backstory         |
+| `style.all`     | string[] | Global style instructions                |
+| `style.chat`    | string[] | Chat-specific instructions               |
+| `style.post`    | string[] | Social media post instructions           |
+| `topics`        | string[] | Areas of expertise                       |
+| `adjectives`    | string[] | Personality descriptors                  |
+| `modelProvider` | string   | AI provider (openai, anthropic, google)  |
+| `settings`      | object   | Model-specific settings                  |
 
 ## Agent Management
 
@@ -980,12 +1131,12 @@ curl -X DELETE "https://elizacloud.ai/api/v1/my-agents/characters/{agentId}" \
 
 Agents can be in one of these states:
 
-| Status | Description |
-|--------|-------------|
-| `active` | Agent is running and accepting requests |
-| `paused` | Agent is temporarily disabled |
-| `deploying` | Agent deployment in progress |
-| `error` | Agent encountered an error |
+| Status      | Description                             |
+| ----------- | --------------------------------------- |
+| `active`    | Agent is running and accepting requests |
+| `paused`    | Agent is temporarily disabled           |
+| `deploying` | Agent deployment in progress            |
+| `error`     | Agent encountered an error              |
 
 ## Monetization
 
@@ -1006,7 +1157,8 @@ curl -X POST "https://elizacloud.ai/api/v1/agents/{agentId}/publish" \
   }'
 ```
 
-Learn more about agent monetization in the [Earnings](/docs/earnings) documentation.
+  Learn more about agent monetization in the [Earnings](/docs/earnings)
+  documentation.
 
 ## Best Practices
 
@@ -1043,7 +1195,8 @@ elizaOS Cloud provides a comprehensive REST API for all platform features.
 
 <div className="status-badge status-stable">Stable</div>
 
-Looking for a full, route-by-route explorer? Go to [API Explorer →](/docs/api/overview)
+  Looking for a full, route-by-route explorer? Go to [API Explorer
+  →](/docs/api/overview)
 
 ## Base URL
 
@@ -1060,15 +1213,15 @@ curl -X GET "https://elizacloud.ai/api/v1/dashboard" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
-Get your API key from [Dashboard → API Keys](/dashboard/api-keys)
+  Get your API key from [Dashboard → API Keys](/dashboard/api-keys)
 
 ### Authentication Methods
 
-| Method | Header | Use Case |
-|--------|--------|----------|
-| API Key | `Authorization: Bearer ek_xxx` | Server-to-server |
-| X-API-Key | `X-API-Key: ek_xxx` | Alternative header |
-| Session | Cookie-based | Browser applications |
+| Method    | Header                         | Use Case             |
+| --------- | ------------------------------ | -------------------- |
+| API Key   | `Authorization: Bearer ek_xxx` | Server-to-server     |
+| X-API-Key | `X-API-Key: ek_xxx`            | Alternative header   |
+| Session   | Cookie-based                   | Browser applications |
 
 ## API Categories
 
@@ -1113,25 +1266,25 @@ All errors follow a consistent format:
 
 ### Error Codes
 
-| Code | HTTP Status | Description |
-|------|-------------|-------------|
-| `UNAUTHORIZED` | 401 | Invalid or missing authentication |
-| `FORBIDDEN` | 403 | Insufficient permissions |
-| `NOT_FOUND` | 404 | Resource not found |
-| `RATE_LIMITED` | 429 | Too many requests |
-| `INSUFFICIENT_CREDITS` | 402 | Not enough credits |
-| `INTERNAL_ERROR` | 500 | Server error |
+| Code                   | HTTP Status | Description                       |
+| ---------------------- | ----------- | --------------------------------- |
+| `UNAUTHORIZED`         | 401         | Invalid or missing authentication |
+| `FORBIDDEN`            | 403         | Insufficient permissions          |
+| `NOT_FOUND`            | 404         | Resource not found                |
+| `RATE_LIMITED`         | 429         | Too many requests                 |
+| `INSUFFICIENT_CREDITS` | 402         | Not enough credits                |
+| `INTERNAL_ERROR`       | 500         | Server error                      |
 
 ## Rate Limits
 
-| Endpoint | Rate Limit |
-|----------|------------|
-| Chat completions | 60 req/min |
-| Embeddings | 100 req/min |
-| Image generation | 20 req/min |
-| Video generation | 5 req/min |
+| Endpoint         | Rate Limit  |
+| ---------------- | ----------- |
+| Chat completions | 60 req/min  |
+| Embeddings       | 100 req/min |
+| Image generation | 20 req/min  |
+| Video generation | 5 req/min   |
 
-Rate limits can be increased for enterprise plans. Contact sales for details.
+  Rate limits can be increased for enterprise plans. Contact sales for details.
 
 ## OpenAPI Specification
 
@@ -1217,14 +1370,14 @@ Create a new agent.
 
 ### Parameters
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `name` | string | ✓ | Agent name |
-| `bio` | array | | Array of bio lines |
-| `modelProvider` | string | | `openai`, `anthropic`, etc. |
-| `settings.model` | string | | Model to use |
-| `system` | string | | System prompt |
-| `style` | object | | Communication styles |
+| Parameter        | Type   | Required | Description                 |
+| ---------------- | ------ | -------- | --------------------------- |
+| `name`           | string | ✓        | Agent name                  |
+| `bio`            | array  |          | Array of bio lines          |
+| `modelProvider`  | string |          | `openai`, `anthropic`, etc. |
+| `settings.model` | string |          | Model to use                |
+| `system`         | string |          | System prompt               |
+| `style`          | object |          | Communication styles        |
 
 ### Response
 
@@ -1244,7 +1397,7 @@ Create a new agent.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-get">GET</span>
-  <span className="path">/api/v1/my-agents/characters/{'{id}'}</span>
+  <span className="path">/api/v1/my-agents/characters/{"{id}"}</span>
 </div>
 
 Get details about a specific agent.
@@ -1255,7 +1408,7 @@ Get details about a specific agent.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-put">PUT</span>
-  <span className="path">/api/v1/my-agents/characters/{'{id}'}</span>
+  <span className="path">/api/v1/my-agents/characters/{"{id}"}</span>
 </div>
 
 Update an agent's configuration.
@@ -1278,7 +1431,7 @@ Update an agent's configuration.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-delete">DELETE</span>
-  <span className="path">/api/v1/my-agents/characters/{'{id}'}</span>
+  <span className="path">/api/v1/my-agents/characters/{"{id}"}</span>
 </div>
 
 Delete an agent.
@@ -1289,7 +1442,7 @@ Delete an agent.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-post">POST</span>
-  <span className="path">/api/v1/my-agents/characters/{'{id}'}/clone</span>
+  <span className="path">/api/v1/my-agents/characters/{"{id}"}/clone</span>
 </div>
 
 Create a copy of an existing agent.
@@ -1300,7 +1453,7 @@ Create a copy of an existing agent.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-get">GET</span>
-  <span className="path">/api/v1/my-agents/characters/{'{id}'}/stats</span>
+  <span className="path">/api/v1/my-agents/characters/{"{id}"}/stats</span>
 </div>
 
 Get usage statistics for an agent.
@@ -1322,12 +1475,12 @@ Get usage statistics for an agent.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-post">POST</span>
-  <span className="path">/api/v1/agents/{'{agentId}'}/publish</span>
+  <span className="path">/api/v1/agents/{"{agentId}"}/publish</span>
 </div>
 
 Publish an agent to the marketplace.
 
-Published agents can be discovered and used by other users in the marketplace.
+  Published agents can be discovered and used by other users in the marketplace.
 
 ---
 
@@ -1391,16 +1544,16 @@ Create a new API key.
 
 ### Available Permissions
 
-| Permission | Description |
-|------------|-------------|
-| `chat` | Chat completions |
+| Permission   | Description         |
+| ------------ | ------------------- |
+| `chat`       | Chat completions    |
 | `embeddings` | Generate embeddings |
-| `images` | Image generation |
-| `video` | Video generation |
-| `voice` | Voice/TTS |
-| `knowledge` | Knowledge base |
-| `agents` | Agent management |
-| `apps` | App management |
+| `images`     | Image generation    |
+| `video`      | Video generation    |
+| `voice`      | Voice/TTS           |
+| `knowledge`  | Knowledge base      |
+| `agents`     | Agent management    |
+| `apps`       | App management      |
 
 ### Response
 
@@ -1414,7 +1567,7 @@ Create a new API key.
 }
 ```
 
-The full API key is only shown once. Store it securely.
+  The full API key is only shown once. Store it securely.
 
 ---
 
@@ -1422,7 +1575,7 @@ The full API key is only shown once. Store it securely.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-get">GET</span>
-  <span className="path">/api/v1/api-keys/{'{id}'}</span>
+  <span className="path">/api/v1/api-keys/{"{id}"}</span>
 </div>
 
 Get API key details (without the secret).
@@ -1433,7 +1586,7 @@ Get API key details (without the secret).
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-put">PUT</span>
-  <span className="path">/api/v1/api-keys/{'{id}'}</span>
+  <span className="path">/api/v1/api-keys/{"{id}"}</span>
 </div>
 
 Update API key name or permissions.
@@ -1453,7 +1606,7 @@ Update API key name or permissions.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-delete">DELETE</span>
-  <span className="path">/api/v1/api-keys/{'{id}'}</span>
+  <span className="path">/api/v1/api-keys/{"{id}"}</span>
 </div>
 
 Revoke (delete) an API key.
@@ -1466,7 +1619,7 @@ Revoked keys stop working immediately.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-post">POST</span>
-  <span className="path">/api/v1/api-keys/{'{id}'}/regenerate</span>
+  <span className="path">/api/v1/api-keys/{"{id}"}/regenerate</span>
 </div>
 
 Generate a new secret for an existing key.
@@ -1573,7 +1726,7 @@ Create a new application.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-get">GET</span>
-  <span className="path">/api/v1/apps/{'{id}'}</span>
+  <span className="path">/api/v1/apps/{"{id}"}</span>
 </div>
 
 Get application details.
@@ -1584,7 +1737,7 @@ Get application details.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-put">PUT</span>
-  <span className="path">/api/v1/apps/{'{id}'}</span>
+  <span className="path">/api/v1/apps/{"{id}"}</span>
 </div>
 
 Update an application.
@@ -1595,7 +1748,7 @@ Update an application.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-delete">DELETE</span>
-  <span className="path">/api/v1/apps/{'{id}'}</span>
+  <span className="path">/api/v1/apps/{"{id}"}</span>
 </div>
 
 Delete an application.
@@ -1606,7 +1759,7 @@ Delete an application.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-get">GET</span>
-  <span className="path">/api/v1/apps/{'{id}'}/analytics</span>
+  <span className="path">/api/v1/apps/{"{id}"}/analytics</span>
 </div>
 
 Get usage analytics for an app.
@@ -1618,7 +1771,7 @@ Get usage analytics for an app.
   "requests": 15000,
   "uniqueUsers": 500,
   "tokensUsed": 1250000,
-  "costUsd": 12.50,
+  "costUsd": 12.5,
   "period": "30d"
 }
 ```
@@ -1629,12 +1782,12 @@ Get usage analytics for an app.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-post">POST</span>
-  <span className="path">/api/v1/apps/{'{id}'}/regenerate-api-key</span>
+  <span className="path">/api/v1/apps/{"{id}"}/regenerate-api-key</span>
 </div>
 
 Generate a new API key for the app.
 
-This invalidates the previous API key immediately.
+  This invalidates the previous API key immediately.
 
 ---
 
@@ -1642,7 +1795,7 @@ This invalidates the previous API key immediately.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-get">GET</span>
-  <span className="path">/api/v1/apps/{'{id}'}/monetization</span>
+  <span className="path">/api/v1/apps/{"{id}"}/monetization</span>
 </div>
 
 Get monetization settings and earnings.
@@ -1707,7 +1860,8 @@ const response = await fetch('https://elizacloud.ai/api/v1/chat/completions', {
 
 const data = await response.json();
 console.log(data.choices[0].message.content);
-```
+
+````
   
   
 ```python
@@ -1730,31 +1884,32 @@ response = requests.post(
 
 data = response.json()
 print(data['choices'][0]['message']['content'])
-```
+````
+
   
 
 ### Parameters
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `model` | string | ✓ | Model ID or agent ID |
-| `messages` | array | ✓ | Array of message objects |
-| `temperature` | number | | Sampling temperature (0-2). Default: 1 |
-| `max_tokens` | integer | | Maximum tokens to generate |
-| `stream` | boolean | | Stream response chunks. Default: false |
-| `top_p` | number | | Nucleus sampling parameter (0-1) |
-| `frequency_penalty` | number | | Frequency penalty (-2 to 2) |
-| `presence_penalty` | number | | Presence penalty (-2 to 2) |
-| `stop` | string/array | | Stop sequences |
-| `user` | string | | Unique user identifier |
+| Parameter           | Type         | Required | Description                            |
+| ------------------- | ------------ | -------- | -------------------------------------- |
+| `model`             | string       | ✓        | Model ID or agent ID                   |
+| `messages`          | array        | ✓        | Array of message objects               |
+| `temperature`       | number       |          | Sampling temperature (0-2). Default: 1 |
+| `max_tokens`        | integer      |          | Maximum tokens to generate             |
+| `stream`            | boolean      |          | Stream response chunks. Default: false |
+| `top_p`             | number       |          | Nucleus sampling parameter (0-1)       |
+| `frequency_penalty` | number       |          | Frequency penalty (-2 to 2)            |
+| `presence_penalty`  | number       |          | Presence penalty (-2 to 2)             |
+| `stop`              | string/array |          | Stop sequences                         |
+| `user`              | string       |          | Unique user identifier                 |
 
 ### Message Object
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `role` | string | ✓ | `system`, `user`, `assistant`, or `tool` |
-| `content` | string | ✓ | Message content |
-| `name` | string | | Optional name for the participant |
+| Field     | Type   | Required | Description                              |
+| --------- | ------ | -------- | ---------------------------------------- |
+| `role`    | string | ✓        | `system`, `user`, `assistant`, or `tool` |
+| `content` | string | ✓        | Message content                          |
+| `name`    | string |          | Optional name for the participant        |
 
 ### Response
 
@@ -1791,15 +1946,15 @@ Enable streaming for real-time responses by setting `stream: true`.
 ### Streaming Request
 
 ```javascript
-const response = await fetch('https://elizacloud.ai/api/v1/chat/completions', {
-  method: 'POST',
+const response = await fetch("https://elizacloud.ai/api/v1/chat/completions", {
+  method: "POST",
   headers: {
-    'Authorization': 'Bearer YOUR_API_KEY',
-    'Content-Type': 'application/json',
+    Authorization: "Bearer YOUR_API_KEY",
+    "Content-Type": "application/json",
   },
   body: JSON.stringify({
-    model: 'gpt-4o',
-    messages: [{ role: 'user', content: 'Tell me a story' }],
+    model: "gpt-4o",
+    messages: [{ role: "user", content: "Tell me a story" }],
     stream: true,
   }),
 });
@@ -1810,15 +1965,15 @@ const decoder = new TextDecoder();
 while (true) {
   const { done, value } = await reader.read();
   if (done) break;
-  
+
   const chunk = decoder.decode(value);
-  const lines = chunk.split('\n').filter(line => line.startsWith('data: '));
-  
+  const lines = chunk.split("\n").filter((line) => line.startsWith("data: "));
+
   for (const line of lines) {
     const data = line.slice(6);
-    if (data === '[DONE]') continue;
+    if (data === "[DONE]") continue;
     const parsed = JSON.parse(data);
-    process.stdout.write(parsed.choices[0]?.delta?.content || '');
+    process.stdout.write(parsed.choices[0]?.delta?.content || "");
   }
 }
 ```
@@ -1832,24 +1987,23 @@ You can use an agent ID as the model to chat with your custom AI agents:
 ```json
 {
   "model": "agent_abc123",
-  "messages": [
-    {"role": "user", "content": "Hello!"}
-  ]
+  "messages": [{ "role": "user", "content": "Hello!" }]
 }
 ```
 
-The agent's personality, system prompt, and configured model will be used automatically.
+  The agent's personality, system prompt, and configured model will be used
+  automatically.
 
 ---
 
 ## Available Models
 
-| Model | Provider | Description |
-|-------|----------|-------------|
-| `gpt-4o` | OpenAI | Most capable GPT-4 model |
-| `gpt-4o-mini` | OpenAI | Fast and efficient |
-| `claude-3-5-sonnet-20241022` | Anthropic | Latest Claude model |
-| `gemini-1.5-pro` | Google | Gemini Pro model |
+| Model                        | Provider  | Description              |
+| ---------------------------- | --------- | ------------------------ |
+| `gpt-4o`                     | OpenAI    | Most capable GPT-4 model |
+| `gpt-4o-mini`                | OpenAI    | Fast and efficient       |
+| `claude-3-5-sonnet-20241022` | Anthropic | Latest Claude model      |
+| `gemini-1.5-pro`             | Google    | Gemini Pro model         |
 
 See the [Models API](/docs/api/models) for a complete list.
 
@@ -1932,7 +2086,7 @@ Deploy a new container.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-get">GET</span>
-  <span className="path">/api/v1/containers/{'{id}'}</span>
+  <span className="path">/api/v1/containers/{"{id}"}</span>
 </div>
 
 Get container details.
@@ -1943,7 +2097,7 @@ Get container details.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-delete">DELETE</span>
-  <span className="path">/api/v1/containers/{'{id}'}</span>
+  <span className="path">/api/v1/containers/{"{id}"}</span>
 </div>
 
 Stop and delete a container.
@@ -1954,17 +2108,17 @@ Stop and delete a container.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-get">GET</span>
-  <span className="path">/api/v1/containers/{'{id}'}/logs</span>
+  <span className="path">/api/v1/containers/{"{id}"}/logs</span>
 </div>
 
 Get container logs.
 
 ### Query Parameters
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `tail` | integer | Number of lines (default: 100) |
-| `since` | string | Start time (ISO 8601) |
+| Parameter | Type    | Description                    |
+| --------- | ------- | ------------------------------ |
+| `tail`    | integer | Number of lines (default: 100) |
+| `since`   | string  | Start time (ISO 8601)          |
 
 ### Response
 
@@ -1985,7 +2139,7 @@ Get container logs.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-get">GET</span>
-  <span className="path">/api/v1/containers/{'{id}'}/metrics</span>
+  <span className="path">/api/v1/containers/{"{id}"}/metrics</span>
 </div>
 
 Get container resource metrics.
@@ -2016,7 +2170,7 @@ Get container resource metrics.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-get">GET</span>
-  <span className="path">/api/v1/containers/{'{id}'}/health</span>
+  <span className="path">/api/v1/containers/{"{id}"}/health</span>
 </div>
 
 Get container health status.
@@ -2040,7 +2194,7 @@ Get container health status.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-get">GET</span>
-  <span className="path">/api/v1/containers/{'{id}'}/logs/stream</span>
+  <span className="path">/api/v1/containers/{"{id}"}/logs/stream</span>
 </div>
 
 Stream logs in real-time using Server-Sent Events.
@@ -2074,11 +2228,11 @@ Get your current credit balance.
 
 ```json
 {
-  "balance": 50.00,
+  "balance": 50.0,
   "currency": "USD",
   "usage": {
-    "today": 2.50,
-    "thisMonth": 45.00
+    "today": 2.5,
+    "thisMonth": 45.0
   }
 }
 ```
@@ -2098,7 +2252,7 @@ Add credits using x402 payment.
 
 ```json
 {
-  "amount": 100.00,
+  "amount": 100.0,
   "paymentMethod": "x402"
 }
 ```
@@ -2108,10 +2262,10 @@ Add credits using x402 payment.
 ```json
 {
   "success": true,
-  "newBalance": 150.00,
+  "newBalance": 150.0,
   "transaction": {
     "id": "txn_abc123",
-    "amount": 100.00,
+    "amount": 100.0,
     "createdAt": "2024-01-15T10:30:00Z"
   }
 }
@@ -2130,11 +2284,11 @@ Get transaction history.
 
 ### Query Parameters
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `limit` | integer | Results per page (default: 20) |
-| `offset` | integer | Pagination offset |
-| `type` | string | `topup`, `usage`, `refund` |
+| Parameter | Type    | Description                    |
+| --------- | ------- | ------------------------------ |
+| `limit`   | integer | Results per page (default: 20) |
+| `offset`  | integer | Pagination offset              |
+| `type`    | string  | `topup`, `usage`, `refund`     |
 
 ### Response
 
@@ -2173,19 +2327,19 @@ Get detailed usage breakdown.
     "chat": {
       "requests": 5000,
       "tokens": 2500000,
-      "cost": 25.00
+      "cost": 25.0
     },
     "embeddings": {
       "requests": 10000,
       "tokens": 1000000,
-      "cost": 2.00
+      "cost": 2.0
     },
     "images": {
       "count": 100,
-      "cost": 5.00
+      "cost": 5.0
     }
   },
-  "total": 32.00
+  "total": 32.0
 }
 ```
 
@@ -2212,27 +2366,28 @@ Configure auto top-up.
 ```json
 {
   "enabled": true,
-  "threshold": 10.00,
-  "amount": 50.00
+  "threshold": 10.0,
+  "amount": 50.0
 }
 ```
 
-Auto top-up automatically adds credits when your balance falls below the threshold.
+  Auto top-up automatically adds credits when your balance falls below the
+  threshold.
 
 ---
 
 ## Pricing
 
-| Service | Unit | Price |
-|---------|------|-------|
-| GPT-4o | 1M tokens | $5.00 / $15.00 |
-| GPT-4o-mini | 1M tokens | $0.15 / $0.60 |
-| Claude 3.5 Sonnet | 1M tokens | $3.00 / $15.00 |
-| Embeddings | 1M tokens | $0.02 |
-| Image (Flux) | per image | $0.01 - $0.05 |
-| Video | per second | $0.10 |
+| Service           | Unit       | Price          |
+| ----------------- | ---------- | -------------- |
+| GPT-4o            | 1M tokens  | $5.00 / $15.00 |
+| GPT-4o-mini       | 1M tokens  | $0.15 / $0.60  |
+| Claude 3.5 Sonnet | 1M tokens  | $3.00 / $15.00 |
+| Embeddings        | 1M tokens  | $0.02          |
+| Image (Flux)      | per image  | $0.01 - $0.05  |
+| Video             | per second | $0.10          |
 
-*Input / Output token pricing shown for chat models*
+_Input / Output token pricing shown for chat models_
 
 ---
 
@@ -2286,7 +2441,8 @@ const response = await fetch('https://elizacloud.ai/api/v1/embeddings', {
 
 const data = await response.json();
 console.log(data.data[0].embedding);
-```
+
+````
   
   
 ```python
@@ -2305,17 +2461,18 @@ response = requests.post(
 
 data = response.json()
 print(data['data'][0]['embedding'])
-```
+````
+
   
 
 ### Parameters
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `input` | string/array | ✓ | Text to embed (string or array of strings) |
-| `model` | string | | Embedding model. Default: `text-embedding-3-small` |
-| `encoding_format` | string | | Output format: `float` or `base64` |
-| `dimensions` | integer | | Number of dimensions for output |
+| Parameter         | Type         | Required | Description                                        |
+| ----------------- | ------------ | -------- | -------------------------------------------------- |
+| `input`           | string/array | ✓        | Text to embed (string or array of strings)         |
+| `model`           | string       |          | Embedding model. Default: `text-embedding-3-small` |
+| `encoding_format` | string       |          | Output format: `float` or `base64`                 |
+| `dimensions`      | integer      |          | Number of dimensions for output                    |
 
 ### Response
 
@@ -2354,17 +2511,17 @@ Embed multiple texts in a single request:
 }
 ```
 
-Batch requests are more efficient. You can embed up to 100 texts per request.
+  Batch requests are more efficient. You can embed up to 100 texts per request.
 
 ---
 
 ## Available Models
 
-| Model | Dimensions | Description |
-|-------|------------|-------------|
-| `text-embedding-3-small` | 1536 | Fast, cost-effective (default) |
-| `text-embedding-3-large` | 3072 | Higher quality embeddings |
-| `text-embedding-ada-002` | 1536 | Legacy model |
+| Model                    | Dimensions | Description                    |
+| ------------------------ | ---------- | ------------------------------ |
+| `text-embedding-3-small` | 1536       | Fast, cost-effective (default) |
+| `text-embedding-3-large` | 3072       | Higher quality embeddings      |
+| `text-embedding-ada-002` | 1536       | Legacy model                   |
 
 ---
 
@@ -2374,15 +2531,15 @@ Batch requests are more efficient. You can embed up to 100 texts per request.
 
 ```javascript
 // Embed your query
-const queryResponse = await fetch('https://elizacloud.ai/api/v1/embeddings', {
-  method: 'POST',
+const queryResponse = await fetch("https://elizacloud.ai/api/v1/embeddings", {
+  method: "POST",
   headers: {
-    'Authorization': 'Bearer YOUR_API_KEY',
-    'Content-Type': 'application/json',
+    Authorization: "Bearer YOUR_API_KEY",
+    "Content-Type": "application/json",
   },
   body: JSON.stringify({
-    input: 'How do I reset my password?',
-    model: 'text-embedding-3-small',
+    input: "How do I reset my password?",
+    model: "text-embedding-3-small",
   }),
 });
 
@@ -2426,11 +2583,11 @@ Get all items in your gallery.
 
 ### Query Parameters
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `type` | string | `image` or `video` |
-| `limit` | integer | Results per page |
-| `offset` | integer | Pagination offset |
+| Parameter | Type    | Description        |
+| --------- | ------- | ------------------ |
+| `type`    | string  | `image` or `video` |
+| `limit`   | integer | Results per page   |
+| `offset`  | integer | Pagination offset  |
 
 ### Response
 
@@ -2458,7 +2615,7 @@ Get all items in your gallery.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-get">GET</span>
-  <span className="path">/api/v1/gallery/{'{id}'}</span>
+  <span className="path">/api/v1/gallery/{"{id}"}</span>
 </div>
 
 Get details about a specific item.
@@ -2487,7 +2644,7 @@ Get details about a specific item.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-delete">DELETE</span>
-  <span className="path">/api/v1/gallery/{'{id}'}</span>
+  <span className="path">/api/v1/gallery/{"{id}"}</span>
 </div>
 
 Delete an item from your gallery.
@@ -2498,13 +2655,13 @@ Deleted items cannot be recovered.
 
 ## Storage Limits
 
-| Plan | Storage |
-|------|---------|
-| Free | 1 GB |
-| Pro | 50 GB |
+| Plan       | Storage   |
+| ---------- | --------- |
+| Free       | 1 GB      |
+| Pro        | 50 GB     |
 | Enterprise | Unlimited |
 
-Gallery items are automatically deleted after 30 days on the free plan.
+  Gallery items are automatically deleted after 30 days on the free plan.
 
 ---
 
@@ -2562,7 +2719,8 @@ const response = await fetch('https://elizacloud.ai/api/v1/generate-image', {
 
 const data = await response.json();
 console.log(data.images[0].url);
-```
+
+````
   
   
 ```python
@@ -2583,31 +2741,32 @@ response = requests.post(
 
 data = response.json()
 print(data['images'][0]['url'])
-```
+````
+
   
 
 ### Parameters
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `prompt` | string | ✓ | Description of the image to generate |
-| `model` | string | | Model to use. Default: `fal-ai/flux/schnell` |
-| `size` | string | | Output size |
-| `num_images` | integer | | Number of images (1-4). Default: 1 |
-| `negative_prompt` | string | | What to avoid in the image |
-| `seed` | integer | | Random seed for reproducibility |
-| `guidance_scale` | number | | Prompt adherence (1-20) |
+| Parameter         | Type    | Required | Description                                  |
+| ----------------- | ------- | -------- | -------------------------------------------- |
+| `prompt`          | string  | ✓        | Description of the image to generate         |
+| `model`           | string  |          | Model to use. Default: `fal-ai/flux/schnell` |
+| `size`            | string  |          | Output size                                  |
+| `num_images`      | integer |          | Number of images (1-4). Default: 1           |
+| `negative_prompt` | string  |          | What to avoid in the image                   |
+| `seed`            | integer |          | Random seed for reproducibility              |
+| `guidance_scale`  | number  |          | Prompt adherence (1-20)                      |
 
 ### Available Sizes
 
-| Size | Dimensions |
-|------|------------|
-| `square` | 512×512 |
-| `square_hd` | 1024×1024 |
-| `portrait_4_3` | 768×1024 |
-| `portrait_16_9` | 576×1024 |
-| `landscape_4_3` | 1024×768 |
-| `landscape_16_9` | 1024×576 |
+| Size             | Dimensions |
+| ---------------- | ---------- |
+| `square`         | 512×512    |
+| `square_hd`      | 1024×1024  |
+| `portrait_4_3`   | 768×1024   |
+| `portrait_16_9`  | 576×1024   |
+| `landscape_4_3`  | 1024×768   |
+| `landscape_16_9` | 1024×576   |
 
 ### Response
 
@@ -2631,16 +2790,17 @@ print(data['images'][0]['url'])
 
 ## Available Models
 
-| Model | Quality | Speed | Credits | Best For |
-|-------|---------|-------|---------|----------|
-| `fal-ai/flux/schnell` | High | ~2s | 2 | General use, prototyping |
-| `fal-ai/flux/dev` | Higher | ~8s | 5 | Detailed images, fine art |
-| `fal-ai/flux-pro` | Highest | ~15s | 10 | Professional, production |
-| `fal-ai/flux-pro/v1.1` | Highest | ~12s | 12 | Latest pro model |
-| `fal-ai/flux-realism` | Photorealistic | ~10s | 8 | Photo-realistic images |
-| `fal-ai/stable-diffusion-v3-medium` | High | ~5s | 3 | Stable Diffusion 3 |
+| Model                               | Quality        | Speed | Credits | Best For                  |
+| ----------------------------------- | -------------- | ----- | ------- | ------------------------- |
+| `fal-ai/flux/schnell`               | High           | ~2s   | 2       | General use, prototyping  |
+| `fal-ai/flux/dev`                   | Higher         | ~8s   | 5       | Detailed images, fine art |
+| `fal-ai/flux-pro`                   | Highest        | ~15s  | 10      | Professional, production  |
+| `fal-ai/flux-pro/v1.1`              | Highest        | ~12s  | 12      | Latest pro model          |
+| `fal-ai/flux-realism`               | Photorealistic | ~10s  | 8       | Photo-realistic images    |
+| `fal-ai/stable-diffusion-v3-medium` | High           | ~5s   | 3       | Stable Diffusion 3        |
 
-  **Tip:** Start with `flux/schnell` for quick iterations, then switch to `flux-pro` for final production images.
+  **Tip:** Start with `flux/schnell` for quick iterations, then switch to
+  `flux-pro` for final production images.
 
 ---
 
@@ -2671,24 +2831,24 @@ Exclude unwanted elements from your generation:
 
 Enhance your prompts with these style modifiers:
 
-| Category | Keywords |
-|----------|----------|
-| Photography | `professional photo`, `DSLR`, `35mm film`, `macro`, `portrait` |
-| Art Styles | `oil painting`, `watercolor`, `digital art`, `concept art`, `anime` |
-| Lighting | `golden hour`, `studio lighting`, `dramatic shadows`, `soft light` |
-| Quality | `highly detailed`, `8K`, `masterpiece`, `award winning` |
+| Category    | Keywords                                                            |
+| ----------- | ------------------------------------------------------------------- |
+| Photography | `professional photo`, `DSLR`, `35mm film`, `macro`, `portrait`      |
+| Art Styles  | `oil painting`, `watercolor`, `digital art`, `concept art`, `anime` |
+| Lighting    | `golden hour`, `studio lighting`, `dramatic shadows`, `soft light`  |
+| Quality     | `highly detailed`, `8K`, `masterpiece`, `award winning`             |
 
 ---
 
 ## Error Handling
 
-| Code | Error | Solution |
-|------|-------|----------|
-| 400 | Invalid prompt | Check prompt is non-empty string |
-| 400 | Invalid model | Use a supported model from the list above |
-| 402 | Insufficient credits | Add credits to your account |
-| 429 | Rate limited | Wait and retry with exponential backoff |
-| 500 | Generation failed | Retry, or try a different model |
+| Code | Error                | Solution                                  |
+| ---- | -------------------- | ----------------------------------------- |
+| 400  | Invalid prompt       | Check prompt is non-empty string          |
+| 400  | Invalid model        | Use a supported model from the list above |
+| 402  | Insufficient credits | Add credits to your account               |
+| 429  | Rate limited         | Wait and retry with exponential backoff   |
+| 500  | Generation failed    | Retry, or try a different model           |
 
 ### Example Error Response
 
@@ -2782,13 +2942,13 @@ curl -X POST "https://elizacloud.ai/api/v1/knowledge/upload-file" \
 
 ### Supported Formats
 
-| Format | Extensions |
-|--------|------------|
-| PDF | `.pdf` |
-| Text | `.txt`, `.md` |
+| Format    | Extensions      |
+| --------- | --------------- |
+| PDF       | `.pdf`          |
+| Text      | `.txt`, `.md`   |
 | Documents | `.doc`, `.docx` |
-| Web | `.html` |
-| Data | `.json`, `.csv` |
+| Web       | `.html`         |
+| Data      | `.json`, `.csv` |
 
 ### Response
 
@@ -2853,11 +3013,11 @@ Search your knowledge base.
 
 ### Parameters
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `query` | string | ✓ | Search query |
-| `limit` | integer | | Max results (default: 5) |
-| `minScore` | number | | Minimum similarity (0-1) |
+| Parameter  | Type    | Required | Description              |
+| ---------- | ------- | -------- | ------------------------ |
+| `query`    | string  | ✓        | Search query             |
+| `limit`    | integer |          | Max results (default: 5) |
+| `minScore` | number  |          | Minimum similarity (0-1) |
 
 ### Response
 
@@ -2880,7 +3040,7 @@ Search your knowledge base.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-get">GET</span>
-  <span className="path">/api/v1/knowledge/{'{id}'}</span>
+  <span className="path">/api/v1/knowledge/{"{id}"}</span>
 </div>
 
 Get document details.
@@ -2891,7 +3051,7 @@ Get document details.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-delete">DELETE</span>
-  <span className="path">/api/v1/knowledge/{'{id}'}</span>
+  <span className="path">/api/v1/knowledge/{"{id}"}</span>
 </div>
 
 Remove a document from your knowledge base.
@@ -2907,7 +3067,7 @@ Remove a document from your knowledge base.
 
 Check if a document exists (by hash).
 
-Documents are automatically chunked and embedded for semantic search.
+  Documents are automatically chunked and embedded for semantic search.
 
 ---
 
@@ -2978,7 +3138,7 @@ Add a new MCP server.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-get">GET</span>
-  <span className="path">/api/v1/mcps/{'{mcpId}'}</span>
+  <span className="path">/api/v1/mcps/{"{mcpId}"}</span>
 </div>
 
 Get MCP details and available tools.
@@ -3009,7 +3169,7 @@ Get MCP details and available tools.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-put">PUT</span>
-  <span className="path">/api/v1/mcps/{'{mcpId}'}</span>
+  <span className="path">/api/v1/mcps/{"{mcpId}"}</span>
 </div>
 
 Update MCP configuration.
@@ -3020,7 +3180,7 @@ Update MCP configuration.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-delete">DELETE</span>
-  <span className="path">/api/v1/mcps/{'{mcpId}'}</span>
+  <span className="path">/api/v1/mcps/{"{mcpId}"}</span>
 </div>
 
 Remove an MCP server.
@@ -3031,7 +3191,7 @@ Remove an MCP server.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-post">POST</span>
-  <span className="path">/api/v1/mcps/{'{mcpId}'}/publish</span>
+  <span className="path">/api/v1/mcps/{"{mcpId}"}/publish</span>
 </div>
 
 Publish MCP to the registry.
@@ -3069,13 +3229,13 @@ Browse available MCPs in the registry.
 
 Pre-configured demo MCPs for testing:
 
-| MCP | Endpoint | Description |
-|-----|----------|-------------|
-| Weather | `/api/mcp/demos/weather` | Weather data |
-| Time | `/api/mcp/demos/time` | Time zones |
-| Crypto | `/api/mcp/demos/crypto` | Crypto prices |
+| MCP     | Endpoint                 | Description   |
+| ------- | ------------------------ | ------------- |
+| Weather | `/api/mcp/demos/weather` | Weather data  |
+| Time    | `/api/mcp/demos/time`    | Time zones    |
+| Crypto  | `/api/mcp/demos/crypto`  | Crypto prices |
 
-MCPs enable your agents to use external tools and data sources.
+  MCPs enable your agents to use external tools and data sources.
 
 ---
 
@@ -3136,59 +3296,59 @@ curl -X GET "https://elizacloud.ai/api/v1/models" \
 
 ### OpenAI
 
-| Model | Context | Best For |
-|-------|---------|----------|
-| `gpt-4o` | 128K | General purpose, vision |
-| `gpt-4o-mini` | 128K | Fast, cost-effective |
-| `gpt-4-turbo` | 128K | Complex reasoning |
+| Model         | Context | Best For                |
+| ------------- | ------- | ----------------------- |
+| `gpt-4o`      | 128K    | General purpose, vision |
+| `gpt-4o-mini` | 128K    | Fast, cost-effective    |
+| `gpt-4-turbo` | 128K    | Complex reasoning       |
 
 ### Anthropic
 
-| Model | Context | Best For |
-|-------|---------|----------|
-| `claude-3-5-sonnet-20241022` | 200K | Balance of speed/quality |
-| `claude-3-opus-20240229` | 200K | Most capable |
-| `claude-3-haiku-20240307` | 200K | Fastest |
+| Model                        | Context | Best For                 |
+| ---------------------------- | ------- | ------------------------ |
+| `claude-3-5-sonnet-20241022` | 200K    | Balance of speed/quality |
+| `claude-3-opus-20240229`     | 200K    | Most capable             |
+| `claude-3-haiku-20240307`    | 200K    | Fastest                  |
 
 ### Google
 
-| Model | Context | Best For |
-|-------|---------|----------|
-| `gemini-1.5-pro` | 1M | Long context |
-| `gemini-1.5-flash` | 1M | Fast responses |
+| Model              | Context | Best For       |
+| ------------------ | ------- | -------------- |
+| `gemini-1.5-pro`   | 1M      | Long context   |
+| `gemini-1.5-flash` | 1M      | Fast responses |
 
 ---
 
 ## Embedding Models
 
-| Model | Dimensions | Description |
-|-------|------------|-------------|
-| `text-embedding-3-small` | 1536 | Fast, cost-effective |
-| `text-embedding-3-large` | 3072 | Higher quality |
+| Model                    | Dimensions | Description          |
+| ------------------------ | ---------- | -------------------- |
+| `text-embedding-3-small` | 1536       | Fast, cost-effective |
+| `text-embedding-3-large` | 3072       | Higher quality       |
 
 ---
 
 ## Image Models
 
-| Model | Resolution | Speed |
-|-------|------------|-------|
-| `fal-ai/flux/schnell` | 1024² | Fast |
-| `fal-ai/flux/dev` | 1024² | Medium |
-| `fal-ai/flux-pro` | 2048² | Slow |
+| Model                 | Resolution | Speed  |
+| --------------------- | ---------- | ------ |
+| `fal-ai/flux/schnell` | 1024²      | Fast   |
+| `fal-ai/flux/dev`     | 1024²      | Medium |
+| `fal-ai/flux-pro`     | 2048²      | Slow   |
 
 ---
 
 ## Model Selection Tips
 
-Start with `gpt-4o-mini` or `claude-3-5-sonnet-20241022` for a good balance.
+  Start with `gpt-4o-mini` or `claude-3-5-sonnet-20241022` for a good balance.
 
-| Use Case | Recommended Model |
-|----------|-------------------|
-| General chat | `gpt-4o-mini` |
-| Complex reasoning | `gpt-4o` |
-| Code generation | `claude-3-5-sonnet` |
-| Long documents | `gemini-1.5-pro` |
-| Fast responses | `claude-3-haiku` |
+| Use Case          | Recommended Model   |
+| ----------------- | ------------------- |
+| General chat      | `gpt-4o-mini`       |
+| Complex reasoning | `gpt-4o`            |
+| Code generation   | `claude-3-5-sonnet` |
+| Long documents    | `gemini-1.5-pro`    |
+| Fast responses    | `claude-3-haiku`    |
 
 ---
 
@@ -3202,7 +3362,9 @@ Summary: Browse every public Cloud API route (mostly under /api/v1) with a full 
 
 This page gives you a **complete route map** of the elizaOS Cloud REST API, generated directly from the codebase (`app/api/v1/**/route.ts`) so it stays in sync with production.
 
-Most public REST endpoints live under `/api/v1`. Some internal endpoints (admin/cron) are hidden by default — toggle “Show all” in the explorer if you need them.
+  Most public REST endpoints live under `/api/v1`. Some internal
+  endpoints (admin/cron) are hidden by default — toggle “Show all” in the
+  explorer if you need them.
 
 ## Base URL
 
@@ -3273,9 +3435,9 @@ Get your available balance for redemption.
 
 ```json
 {
-  "available": 125.50,
-  "pending": 24.00,
-  "lifetime": 500.00,
+  "available": 125.5,
+  "pending": 24.0,
+  "lifetime": 500.0,
   "currency": "USD"
 }
 ```
@@ -3298,7 +3460,7 @@ Get redemption history.
   "redemptions": [
     {
       "id": "red_abc123",
-      "amount": 100.00,
+      "amount": 100.0,
       "status": "completed",
       "method": "crypto",
       "address": "0x...",
@@ -3324,7 +3486,7 @@ Request a redemption.
 
 ```json
 {
-  "amount": 100.00,
+  "amount": 100.0,
   "method": "crypto",
   "address": "0x1234..."
 }
@@ -3335,7 +3497,7 @@ Request a redemption.
 ```json
 {
   "id": "red_abc123",
-  "amount": 100.00,
+  "amount": 100.0,
   "status": "pending",
   "estimatedCompletion": "2024-01-16T10:30:00Z"
 }
@@ -3356,7 +3518,7 @@ Get a quote for redemption.
 
 ```json
 {
-  "amount": 100.00,
+  "amount": 100.0,
   "method": "crypto"
 }
 ```
@@ -3365,9 +3527,9 @@ Get a quote for redemption.
 
 ```json
 {
-  "amount": 100.00,
-  "fee": 2.50,
-  "netAmount": 97.50,
+  "amount": 100.0,
+  "fee": 2.5,
+  "netAmount": 97.5,
   "rate": 1.0,
   "expiresAt": "2024-01-15T10:35:00Z"
 }
@@ -3389,8 +3551,8 @@ Check overall redemption status.
 ```json
 {
   "eligible": true,
-  "minAmount": 10.00,
-  "maxAmount": 10000.00,
+  "minAmount": 10.0,
+  "maxAmount": 10000.0,
   "methods": ["crypto", "bank"]
 }
 ```
@@ -3401,7 +3563,7 @@ Check overall redemption status.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-get">GET</span>
-  <span className="path">/api/v1/redemptions/{'{id}'}</span>
+  <span className="path">/api/v1/redemptions/{"{id}"}</span>
 </div>
 
 Get details about a specific redemption.
@@ -3413,9 +3575,9 @@ Redemptions are processed within 24-48 hours.
 ## Minimum Redemption
 
 | Method | Minimum |
-|--------|---------|
-| Crypto | $10 |
-| Bank | $100 |
+| ------ | ------- |
+| Crypto | $10     |
+| Bank   | $100    |
 
 ---
 
@@ -3471,7 +3633,8 @@ const response = await fetch('https://elizacloud.ai/api/v1/generate-video', {
 
 const data = await response.json();
 console.log(data.video.url);
-```
+
+````
   
   
 ```python
@@ -3491,18 +3654,19 @@ response = requests.post(
 
 data = response.json()
 print(data['video']['url'])
-```
+````
+
   
 
 ### Parameters
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `prompt` | string | ✓ | Description of the video |
-| `model` | string | | Model to use. Default: `minimax/video-01` |
-| `duration` | integer | | Duration in seconds (2-10) |
-| `aspect_ratio` | string | | `16:9`, `9:16`, or `1:1` |
-| `negative_prompt` | string | | What to avoid |
+| Parameter         | Type    | Required | Description                               |
+| ----------------- | ------- | -------- | ----------------------------------------- |
+| `prompt`          | string  | ✓        | Description of the video                  |
+| `model`           | string  |          | Model to use. Default: `minimax/video-01` |
+| `duration`        | integer |          | Duration in seconds (2-10)                |
+| `aspect_ratio`    | string  |          | `16:9`, `9:16`, or `1:1`                  |
+| `negative_prompt` | string  |          | What to avoid                             |
 
 ### Response
 
@@ -3514,7 +3678,7 @@ print(data['video']['url'])
     "width": 1280,
     "height": 720
   },
-  "cost": 0.50,
+  "cost": 0.5,
   "model": "minimax/video-01"
 }
 ```
@@ -3523,24 +3687,26 @@ print(data['video']['url'])
 
 ## Available Models
 
-| Model | Quality | Duration |
-|-------|---------|----------|
-| `minimax/video-01` | High | 2-10s |
-| `runway/gen-3` | Highest | 2-10s |
-| `haiper/haiper-video-2` | Medium | 2-8s |
+| Model                   | Quality | Duration |
+| ----------------------- | ------- | -------- |
+| `minimax/video-01`      | High    | 2-10s    |
+| `runway/gen-3`          | Highest | 2-10s    |
+| `haiper/haiper-video-2` | Medium  | 2-8s     |
 
 ---
 
 ## Camera Movements
 
 Include camera direction in prompts:
+
 - `camera pan left/right`
 - `zoom in/out`
 - `dolly forward/backward`
 - `tracking shot`
 - `aerial view`
 
-Video generation typically takes 30-120 seconds depending on model and duration.
+  Video generation typically takes 30-120 seconds depending on model and
+  duration.
 
 ---
 
@@ -3556,7 +3722,8 @@ Summary: Text-to-speech and voice cloning on elizaOS Cloud.
 
 Text-to-speech generation and voice cloning capabilities powered by ElevenLabs.
 
-  Voice APIs are available at `/api/elevenlabs/` rather than `/api/v1/`. This is a dedicated integration path for voice services.
+  Voice APIs are available at `/api/elevenlabs/` rather than `/api/v1/`. This is
+  a dedicated integration path for voice services.
 
 ## Text to Speech
 
@@ -3597,7 +3764,8 @@ const response = await fetch('https://elizacloud.ai/api/elevenlabs/tts', {
 
 const audioBlob = await response.blob();
 const audioUrl = URL.createObjectURL(audioBlob);
-```
+
+````
   
   
 ```python
@@ -3617,26 +3785,27 @@ response = requests.post(
 
 with open('speech.mp3', 'wb') as f:
     f.write(response.content)
-```
+````
+
   
 
 ### Parameters
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `text` | string | ✓ | Text to convert to speech (max 5000 chars) |
-| `voiceId` | string | ✓ | Voice ID to use (see List Voices) |
-| `modelId` | string | | Model ID. Default: `eleven_multilingual_v2` |
-| `stability` | number | | Voice stability (0-1). Default: 0.5 |
-| `similarity_boost` | number | | Voice similarity (0-1). Default: 0.75 |
+| Parameter          | Type   | Required | Description                                 |
+| ------------------ | ------ | -------- | ------------------------------------------- |
+| `text`             | string | ✓        | Text to convert to speech (max 5000 chars)  |
+| `voiceId`          | string | ✓        | Voice ID to use (see List Voices)           |
+| `modelId`          | string |          | Model ID. Default: `eleven_multilingual_v2` |
+| `stability`        | number |          | Voice stability (0-1). Default: 0.5         |
+| `similarity_boost` | number |          | Voice similarity (0-1). Default: 0.75       |
 
 ### Available Models
 
-| Model | Languages | Quality | Speed | Credits |
-|-------|-----------|---------|-------|---------|
-| `eleven_multilingual_v2` | 29 | Highest | Medium | 3 |
-| `eleven_turbo_v2_5` | 32 | High | Fast | 2 |
-| `eleven_monolingual_v1` | English | Good | Fastest | 1 |
+| Model                    | Languages | Quality | Speed   | Credits |
+| ------------------------ | --------- | ------- | ------- | ------- |
+| `eleven_multilingual_v2` | 29        | Highest | Medium  | 3       |
+| `eleven_turbo_v2_5`      | 32        | High    | Fast    | 2       |
+| `eleven_monolingual_v1`  | English   | Good    | Fastest | 1       |
 
 ### Response
 
@@ -3746,11 +3915,10 @@ curl -X POST "https://elizacloud.ai/api/elevenlabs/voices/clone" \
 }
 ```
 
-  **Voice Cloning Tips:**
-  - Provide 1-5 minutes of clear audio for best results
-  - Use high-quality recordings with minimal background noise
-  - Speaking clearly and at a natural pace produces better clones
-  - Multiple samples in different contexts improve voice quality
+  **Voice Cloning Tips:** - Provide 1-5 minutes of clear audio for best results
+  - Use high-quality recordings with minimal background noise - Speaking clearly
+  and at a natural pace produces better clones - Multiple samples in different
+  contexts improve voice quality
 
 ---
 
@@ -3758,7 +3926,7 @@ curl -X POST "https://elizacloud.ai/api/elevenlabs/voices/clone" \
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-delete">DELETE</span>
-  <span className="path">/api/elevenlabs/voices/{'{id}'}</span>
+  <span className="path">/api/elevenlabs/voices/{"{id}"}</span>
 </div>
 
 Delete a cloned voice from your account.
@@ -3783,7 +3951,7 @@ curl -X DELETE "https://elizacloud.ai/api/elevenlabs/voices/voice_xyz789" \
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-get">GET</span>
-  <span className="path">/api/elevenlabs/voices/verify/{'{id}'}</span>
+  <span className="path">/api/elevenlabs/voices/verify/{"{id}"}</span>
 </div>
 
 Check voice cloning status. Cloning typically takes 30-60 seconds.
@@ -3800,33 +3968,33 @@ Check voice cloning status. Cloning typically takes 30-60 seconds.
 
 ### Status Values
 
-| Status | Description |
-|--------|-------------|
-| `processing` | Voice clone is being generated |
-| `ready` | Voice is ready to use |
-| `failed` | Cloning failed (check audio quality) |
+| Status       | Description                          |
+| ------------ | ------------------------------------ |
+| `processing` | Voice clone is being generated       |
+| `ready`      | Voice is ready to use                |
+| `failed`     | Cloning failed (check audio quality) |
 
 ---
 
 ## Pricing
 
-| Operation | Credits |
-|-----------|---------|
-| Text-to-Speech (per 1K chars) | 1 |
-| Speech-to-Text (per minute) | 2 |
-| Voice Clone (one-time) | 10 |
+| Operation                     | Credits |
+| ----------------------------- | ------- |
+| Text-to-Speech (per 1K chars) | 1       |
+| Speech-to-Text (per minute)   | 2       |
+| Voice Clone (one-time)        | 10      |
 
 ---
 
 ## Error Handling
 
-| Code | Error | Solution |
-|------|-------|----------|
-| 400 | Invalid voice ID | Use a valid voice from List Voices |
-| 400 | Text too long | Split text into chunks under 5000 chars |
-| 402 | Insufficient credits | Add credits to your account |
-| 404 | Voice not found | Voice may have been deleted |
-| 429 | Rate limited | Wait and retry |
+| Code | Error                | Solution                                |
+| ---- | -------------------- | --------------------------------------- |
+| 400  | Invalid voice ID     | Use a valid voice from List Voices      |
+| 400  | Text too long        | Split text into chunks under 5000 chars |
+| 402  | Insufficient credits | Add credits to your account             |
+| 404  | Voice not found      | Voice may have been deleted             |
+| 429  | Rate limited         | Wait and retry                          |
 
 ---
 
@@ -3877,14 +4045,17 @@ curl -X POST "https://elizacloud.ai/api/v1/apps" \
 Go to [Dashboard → Apps](/dashboard/apps) and click "Create App".
 
 ### Configure App
+
 - **Name**: Display name for your app
 - **Description**: What your app does
 - **Website**: (Optional) Your app's website
 
 ### Get API Key
+
 Your app receives a unique API key for authentication.
 
 ### Integrate
+
 Use the API key to make requests on behalf of your app.
 
 ### Response
@@ -3898,26 +4069,26 @@ Use the API key to make requests on behalf of your app.
 }
 ```
 
-Save your API key securely. It will only be shown once.
+  Save your API key securely. It will only be shown once.
 
 ## App Configuration
 
 ### Basic Settings
 
-| Field | Description |
-|-------|-------------|
-| `name` | Display name for your app |
+| Field         | Description                        |
+| ------------- | ---------------------------------- |
+| `name`        | Display name for your app          |
 | `description` | Brief description of functionality |
-| `website` | Public website URL |
-| `logo` | App icon/logo image |
+| `website`     | Public website URL                 |
+| `logo`        | App icon/logo image                |
 
 ### API Settings
 
-| Field | Description |
-|-------|-------------|
-| `rateLimit` | Requests per minute |
+| Field              | Description                   |
+| ------------------ | ----------------------------- |
+| `rateLimit`        | Requests per minute           |
 | `allowedEndpoints` | Which APIs the app can access |
-| `webhookUrl` | URL for event notifications |
+| `webhookUrl`       | URL for event notifications   |
 
 ## Usage Tracking
 
@@ -3941,11 +4112,11 @@ curl -X GET "https://elizacloud.ai/api/v1/apps/{appId}/analytics" \
     "images": 500
   },
   "costs": {
-    "total": 125.50,
+    "total": 125.5,
     "byEndpoint": {
-      "chat": 100.00,
-      "embeddings": 15.00,
-      "images": 10.50
+      "chat": 100.0,
+      "embeddings": 15.0,
+      "images": 10.5
     }
   },
   "uniqueUsers": 234
@@ -4006,13 +4177,13 @@ curl -X GET "https://elizacloud.ai/api/v1/apps/{appId}/earnings" \
 
 ```json
 {
-  "total": 1250.00,
-  "pending": 150.00,
-  "available": 1100.00,
+  "total": 1250.0,
+  "pending": 150.0,
+  "available": 1100.0,
   "history": [
     {
       "date": "2024-01-15",
-      "amount": 45.00,
+      "amount": 45.0,
       "requests": 45000
     }
   ]
@@ -4026,11 +4197,7 @@ Receive real-time notifications:
 ```json
 {
   "webhookUrl": "https://your-server.com/webhook",
-  "events": [
-    "user.created",
-    "usage.threshold",
-    "error.occurred"
-  ]
+  "events": ["user.created", "usage.threshold", "error.occurred"]
 }
 ```
 
@@ -4057,7 +4224,8 @@ curl -X POST "https://elizacloud.ai/api/v1/apps/{appId}/regenerate-api-key" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
-Regenerating invalidates the old key immediately. Update your integrations promptly.
+  Regenerating invalidates the old key immediately. Update your integrations
+  promptly.
 
 ### Key Permissions
 
@@ -4065,12 +4233,7 @@ Restrict what your app key can access:
 
 ```json
 {
-  "permissions": [
-    "chat:read",
-    "chat:write",
-    "embeddings:read",
-    "agents:read"
-  ]
+  "permissions": ["chat:read", "chat:write", "embeddings:read", "agents:read"]
 }
 ```
 
@@ -4110,12 +4273,12 @@ Secure your API requests with elizaOS Cloud authentication methods.
 
 elizaOS Cloud supports multiple authentication methods:
 
-| Method | Use Case | Header |
-|--------|----------|--------|
-| **API Key** | Server-to-server | `Authorization: Bearer ek_xxx` |
-| **X-API-Key** | Alternative header | `X-API-Key: ek_xxx` |
-| **Session** | Browser apps | Cookie-based |
-| **x402** | Crypto payments | `X-PAYMENT: ...` |
+| Method        | Use Case           | Header                         |
+| ------------- | ------------------ | ------------------------------ |
+| **API Key**   | Server-to-server   | `Authorization: Bearer ek_xxx` |
+| **X-API-Key** | Alternative header | `X-API-Key: ek_xxx`            |
+| **Session**   | Browser apps       | Cookie-based                   |
+| **x402**      | Crypto payments    | `X-PAYMENT: ...`               |
 
 ## API Keys
 
@@ -4126,7 +4289,7 @@ elizaOS Cloud supports multiple authentication methods:
 3. Name your key and set permissions
 4. Copy and securely store the key
 
-API keys are shown only once. Store them securely immediately after creation.
+  API keys are shown only once. Store them securely immediately after creation.
 
 ### Using API Keys
 
@@ -4149,10 +4312,11 @@ const response = await fetch('https://elizacloud.ai/api/v1/dashboard', {
 ```python
 
 response = requests.get(
-    'https://elizacloud.ai/api/v1/dashboard',
-    headers={'Authorization': 'Bearer ek_live_xxxxxxxxxxxx'}
+'https://elizacloud.ai/api/v1/dashboard',
+headers={'Authorization': 'Bearer ek_live_xxxxxxxxxxxx'}
 )
-```
+
+````
   
 
 ### Key Types
@@ -4176,21 +4340,21 @@ Restrict keys to specific endpoints:
   ],
   "rateLimit": 100
 }
-```
+````
 
 ### Available Permissions
 
-| Permission | Description |
-|------------|-------------|
-| `chat:read` | Read chat history |
-| `chat:write` | Create chat completions |
-| `embeddings:read` | Create embeddings |
-| `agents:read` | List agents |
-| `agents:write` | Create/modify agents |
-| `knowledge:read` | Query knowledge |
-| `knowledge:write` | Upload documents |
-| `images:write` | Generate images |
-| `videos:write` | Generate videos |
+| Permission        | Description             |
+| ----------------- | ----------------------- |
+| `chat:read`       | Read chat history       |
+| `chat:write`      | Create chat completions |
+| `embeddings:read` | Create embeddings       |
+| `agents:read`     | List agents             |
+| `agents:write`    | Create/modify agents    |
+| `knowledge:read`  | Query knowledge         |
+| `knowledge:write` | Upload documents        |
+| `images:write`    | Generate images         |
+| `videos:write`    | Generate videos         |
 
 ## API Key Management
 
@@ -4223,14 +4387,14 @@ For browser-based applications, use Privy authentication:
 
 function MyComponent() {
   const { login, authenticated, getAccessToken } = usePrivy();
-  
+
   const makeApiCall = async () => {
     const token = await getAccessToken();
-    
-    const response = await fetch('https://elizacloud.ai/api/v1/dashboard', {
-      credentials: 'include',
+
+    const response = await fetch("https://elizacloud.ai/api/v1/dashboard", {
+      credentials: "include",
       headers: {
-        'Authorization': `Bearer ${token}`,
+        Authorization: `Bearer ${token}`,
       },
     });
   };
@@ -4248,7 +4412,7 @@ curl -X POST "https://elizacloud.ai/api/v1/chat/completions" \
   -d '{"model": "gpt-4o", "messages": [...]}'
 ```
 
-See [x402 Payments](/docs/x402) for detailed crypto payment setup.
+  See [x402 Payments](/docs/x402) for detailed crypto payment setup.
 
 ## Security Best Practices
 
@@ -4294,6 +4458,7 @@ const apiKey = process.env.ELIZA_API_KEY;
 ```
 
 **Causes:**
+
 - Missing API key
 - Invalid API key
 - Expired session
@@ -4310,6 +4475,7 @@ const apiKey = process.env.ELIZA_API_KEY;
 ```
 
 **Causes:**
+
 - Key lacks required permission
 - Resource access denied
 
@@ -4317,13 +4483,14 @@ const apiKey = process.env.ELIZA_API_KEY;
 
 API keys have rate limits based on your plan:
 
-| Plan | Rate Limit |
-|------|------------|
-| Free | 60 req/min |
-| Pro | 300 req/min |
-| Enterprise | Custom |
+| Plan       | Rate Limit  |
+| ---------- | ----------- |
+| Free       | 60 req/min  |
+| Pro        | 300 req/min |
+| Enterprise | Custom      |
 
 Rate limit headers:
+
 ```
 X-RateLimit-Limit: 60
 X-RateLimit-Remaining: 45
@@ -4355,7 +4522,8 @@ Summary: Understand elizaOS Cloud pricing, credits system, and billing managemen
 
 elizaOS Cloud uses a credit-based system for flexible, pay-as-you-go pricing.
 
-This page is the **authoritative source** for all pricing information. Credit costs shown elsewhere in the docs link back here.
+  This page is the **authoritative source** for all pricing information. Credit
+  costs shown elsewhere in the docs link back here.
 
 ## Overview
 
@@ -4368,51 +4536,51 @@ This page is the **authoritative source** for all pricing information. Credit co
 
 ### Chat & Language Models
 
-| Model | Cost per 1K tokens |
-|-------|-------------------|
-| GPT-4o | 0.015 credits |
-| GPT-4o-mini | 0.0015 credits |
-| Claude 3.5 Sonnet | 0.018 credits |
-| Claude 3 Haiku | 0.003 credits |
-| Gemini Pro | 0.0035 credits |
+| Model             | Cost per 1K tokens |
+| ----------------- | ------------------ |
+| GPT-4o            | 0.015 credits      |
+| GPT-4o-mini       | 0.0015 credits     |
+| Claude 3.5 Sonnet | 0.018 credits      |
+| Claude 3 Haiku    | 0.003 credits      |
+| Gemini Pro        | 0.0035 credits     |
 
 ### Embeddings
 
-| Model | Cost per 1K tokens |
-|-------|-------------------|
-| text-embedding-3-small | 0.0001 credits |
-| text-embedding-3-large | 0.0003 credits |
+| Model                  | Cost per 1K tokens |
+| ---------------------- | ------------------ |
+| text-embedding-3-small | 0.0001 credits     |
+| text-embedding-3-large | 0.0003 credits     |
 
 ### Image Generation
 
-| Model | Cost per image |
-|-------|---------------|
-| FLUX Schnell | 0.02 credits |
-| FLUX Pro | 0.05 credits |
-| FLUX Dev | 0.03 credits |
-| SD3 | 0.03 credits |
+| Model        | Cost per image |
+| ------------ | -------------- |
+| FLUX Schnell | 0.02 credits   |
+| FLUX Pro     | 0.05 credits   |
+| FLUX Dev     | 0.03 credits   |
+| SD3          | 0.03 credits   |
 
 ### Video Generation
 
-| Model | Cost per video |
-|-------|---------------|
-| MiniMax Video-01 | 0.50 credits |
-| Runway Gen-3 | 0.75 credits |
-| Kling Video | 0.30 credits |
+| Model            | Cost per video |
+| ---------------- | -------------- |
+| MiniMax Video-01 | 0.50 credits   |
+| Runway Gen-3     | 0.75 credits   |
+| Kling Video      | 0.30 credits   |
 
 ### Voice
 
-| Feature | Cost |
-|---------|------|
-| Voice cloning | 5.00 credits |
-| TTS (per 1K chars) | 0.1 credits |
-| STT (per minute) | 0.1 credits |
+| Feature            | Cost         |
+| ------------------ | ------------ |
+| Voice cloning      | 5.00 credits |
+| TTS (per 1K chars) | 0.1 credits  |
+| STT (per minute)   | 0.1 credits  |
 
 ### Infrastructure
 
-| Resource | Cost |
-|----------|------|
-| Container CPU (per core/hour) | 0.05 credits |
+| Resource                       | Cost         |
+| ------------------------------ | ------------ |
+| Container CPU (per core/hour)  | 0.05 credits |
 | Container Memory (per GB/hour) | 0.01 credits |
 | Knowledge storage (per GB/day) | 0.01 credits |
 
@@ -4420,12 +4588,12 @@ This page is the **authoritative source** for all pricing information. Credit co
 
 Purchase credit packs from the dashboard:
 
-| Pack | Credits | Price | Bonus |
-|------|---------|-------|-------|
-| Starter | 1,000 | $10 | - |
-| Growth | 5,000 | $45 | 10% |
-| Pro | 20,000 | $160 | 20% |
-| Enterprise | 100,000 | $700 | 30% |
+| Pack       | Credits | Price | Bonus |
+| ---------- | ------- | ----- | ----- |
+| Starter    | 1,000   | $10   | -     |
+| Growth     | 5,000   | $45   | 10%   |
+| Pro        | 20,000  | $160  | 20%   |
+| Enterprise | 100,000 | $700  | 30%   |
 
 ## Checking Balance
 
@@ -4442,11 +4610,11 @@ curl -X GET "https://elizacloud.ai/api/v1/credits/summary" \
 
 ```json
 {
-  "balance": 4523.50,
+  "balance": 4523.5,
   "pending": 0,
   "usage": {
-    "today": 45.20,
-    "thisMonth": 1250.00
+    "today": 45.2,
+    "thisMonth": 1250.0
   }
 }
 ```
@@ -4476,7 +4644,7 @@ curl -X POST "https://elizacloud.ai/api/v1/credits/topup" \
   -H "X-PAYMENT: <x402-payment-header>"
 ```
 
-See [x402 Payments](/docs/x402) for details on crypto payments.
+  See [x402 Payments](/docs/x402) for details on crypto payments.
 
 ## Auto Top-Up
 
@@ -4493,11 +4661,11 @@ curl -X POST "https://elizacloud.ai/api/auto-top-up/settings" \
   }'
 ```
 
-| Setting | Description |
-|---------|-------------|
-| `enabled` | Enable auto top-up |
+| Setting     | Description                      |
+| ----------- | -------------------------------- |
+| `enabled`   | Enable auto top-up               |
 | `threshold` | Trigger when balance falls below |
-| `amount` | Credits to add |
+| `amount`    | Credits to add                   |
 
 ## Usage Analytics
 
@@ -4511,17 +4679,17 @@ curl -X GET "https://elizacloud.ai/api/billing/usage?period=month" \
 ```json
 {
   "period": "2024-01",
-  "total": 1250.50,
+  "total": 1250.5,
   "breakdown": {
-    "chat": 800.00,
-    "embeddings": 150.00,
-    "images": 200.00,
-    "videos": 50.00,
-    "containers": 50.50
+    "chat": 800.0,
+    "embeddings": 150.0,
+    "images": 200.0,
+    "videos": 50.0,
+    "containers": 50.5
   },
   "daily": [
-    { "date": "2024-01-01", "usage": 42.50 },
-    { "date": "2024-01-02", "usage": 38.00 }
+    { "date": "2024-01-01", "usage": 42.5 },
+    { "date": "2024-01-02", "usage": 38.0 }
   ]
 }
 ```
@@ -4636,12 +4804,14 @@ Stay up to date with the latest changes to elizaOS Cloud.
 <div className="status-badge status-new">New</div>
 
 **Documentation Redesign**
+
 - Completely redesigned documentation with AAA pro quality styling
 - New sidebar organization matching dashboard structure
 - Comprehensive API reference with real endpoint documentation
 - Added protocol documentation (A2A, MCP, x402)
 
 **Features**
+
 - Agent monetization and earnings system
 - x402 crypto payment integration
 - Improved API Explorer
@@ -4653,6 +4823,7 @@ Stay up to date with the latest changes to elizaOS Cloud.
 ### Nov 28, 2024
 
 **MCP Integration**
+
 - Full MCP protocol support
 - MCP registry with curated servers
 - Custom MCP server hosting
@@ -4661,6 +4832,7 @@ Stay up to date with the latest changes to elizaOS Cloud.
 ### Nov 15, 2024
 
 **Video Generation**
+
 - MiniMax Video-01 integration
 - Runway Gen-3 support
 - Image-to-video generation
@@ -4669,6 +4841,7 @@ Stay up to date with the latest changes to elizaOS Cloud.
 ### Nov 5, 2024
 
 **Knowledge Base Improvements**
+
 - Increased document size limits
 - Better chunking algorithms
 - Improved retrieval accuracy
@@ -4681,6 +4854,7 @@ Stay up to date with the latest changes to elizaOS Cloud.
 ### Oct 25, 2024
 
 **Voice Cloning**
+
 - ElevenLabs integration
 - Voice cloning from samples
 - Multi-language TTS
@@ -4689,6 +4863,7 @@ Stay up to date with the latest changes to elizaOS Cloud.
 ### Oct 15, 2024
 
 **Container Deployment**
+
 - Custom Docker container support
 - Auto-scaling
 - Health monitoring
@@ -4697,6 +4872,7 @@ Stay up to date with the latest changes to elizaOS Cloud.
 ### Oct 5, 2024
 
 **Apps & API Keys**
+
 - App creation and management
 - Scoped API keys
 - Usage analytics per app
@@ -4709,6 +4885,7 @@ Stay up to date with the latest changes to elizaOS Cloud.
 ### Sep 20, 2024
 
 **A2A Protocol**
+
 - Agent-to-Agent communication
 - Agent discovery
 - Task delegation
@@ -4717,6 +4894,7 @@ Stay up to date with the latest changes to elizaOS Cloud.
 ### Sep 10, 2024
 
 **Image Generation**
+
 - Fal.ai integration
 - FLUX model support
 - Multiple aspect ratios
@@ -4725,6 +4903,7 @@ Stay up to date with the latest changes to elizaOS Cloud.
 ### Sep 1, 2024
 
 **Initial Release**
+
 - Chat completions API
 - OpenAI compatibility
 - Multi-model gateway
@@ -4770,14 +4949,8 @@ The character JSON is the core configuration for an elizaOS agent. It defines:
 {
   "name": "Agent Name",
   "description": "Brief description",
-  "bio": [
-    "First bio statement",
-    "Second bio statement"
-  ],
-  "lore": [
-    "Background story element",
-    "Another lore element"
-  ],
+  "bio": ["First bio statement", "Second bio statement"],
+  "lore": ["Background story element", "Another lore element"],
   "style": {
     "all": ["Global style instruction"],
     "chat": ["Chat-specific style"],
@@ -4800,31 +4973,31 @@ The character JSON is the core configuration for an elizaOS agent. It defines:
 
 ### Core Identity
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `name` | string | ✓ | Agent display name |
-| `description` | string | | Brief description |
-| `bio` | string[] | ✓ | Background statements |
-| `lore` | string[] | | Backstory elements |
+| Field         | Type     | Required | Description           |
+| ------------- | -------- | -------- | --------------------- |
+| `name`        | string   | ✓        | Agent display name    |
+| `description` | string   |          | Brief description     |
+| `bio`         | string[] | ✓        | Background statements |
+| `lore`        | string[] |          | Backstory elements    |
 
 ### Personality
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `style.all` | string[] | | Global style rules |
-| `style.chat` | string[] | | Chat interaction style |
-| `style.post` | string[] | | Social media style |
-| `topics` | string[] | | Expertise areas |
-| `adjectives` | string[] | | Personality traits |
+| Field        | Type     | Required | Description            |
+| ------------ | -------- | -------- | ---------------------- |
+| `style.all`  | string[] |          | Global style rules     |
+| `style.chat` | string[] |          | Chat interaction style |
+| `style.post` | string[] |          | Social media style     |
+| `topics`     | string[] |          | Expertise areas        |
+| `adjectives` | string[] |          | Personality traits     |
 
 ### Model Settings
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `modelProvider` | string | ✓ | AI provider |
-| `settings.model` | string | | Specific model |
-| `settings.temperature` | number | | Creativity (0-2) |
-| `settings.maxTokens` | number | | Max response length |
+| Field                  | Type   | Required | Description         |
+| ---------------------- | ------ | -------- | ------------------- |
+| `modelProvider`        | string | ✓        | AI provider         |
+| `settings.model`       | string |          | Specific model      |
+| `settings.temperature` | number |          | Creativity (0-2)    |
+| `settings.maxTokens`   | number |          | Max response length |
 
 ## Bio Guidelines
 
@@ -4842,6 +5015,7 @@ The bio array defines your agent's background:
 ```
 
 **Best Practices:**
+
 - 3-5 statements
 - Mix expertise and personality
 - Be specific about capabilities
@@ -4904,11 +5078,11 @@ For social media interactions:
 
 ### Available Providers
 
-| Provider | Models |
-|----------|--------|
-| `openai` | gpt-4o, gpt-4o-mini, gpt-4-turbo |
+| Provider    | Models                           |
+| ----------- | -------------------------------- |
+| `openai`    | gpt-4o, gpt-4o-mini, gpt-4-turbo |
 | `anthropic` | claude-3-5-sonnet, claude-3-opus |
-| `google` | gemini-pro, gemini-flash |
+| `google`    | gemini-pro, gemini-flash         |
 
 ### Provider Settings
 
@@ -4954,9 +5128,7 @@ Enable MCP servers:
   "settings": {
     "mcp": {
       "enabled": true,
-      "servers": [
-        { "id": "weather", "url": "https://mcp.eliza.ai/weather" }
-      ]
+      "servers": [{ "id": "weather", "url": "https://mcp.eliza.ai/weather" }]
     }
   }
 }
@@ -5046,11 +5218,11 @@ Configure voice synthesis:
 
 The character JSON is validated on upload. Common errors:
 
-| Error | Cause | Solution |
-|-------|-------|----------|
-| `name required` | Missing name field | Add name |
-| `invalid provider` | Unknown modelProvider | Use supported provider |
-| `invalid temperature` | Outside 0-2 range | Adjust temperature |
+| Error                 | Cause                 | Solution               |
+| --------------------- | --------------------- | ---------------------- |
+| `name required`       | Missing name field    | Add name               |
+| `invalid provider`    | Unknown modelProvider | Use supported provider |
+| `invalid temperature` | Outside 0-2 range     | Adjust temperature     |
 
 ## Best Practices
 
@@ -5122,12 +5294,15 @@ curl -X POST "https://elizacloud.ai/api/v1/containers" \
 Build and push your Docker image to a registry.
 
 ### Configure Deployment
+
 Set container settings via dashboard or API.
 
 ### Deploy
+
 Launch your container on elizaOS Cloud.
 
 ### Monitor
+
 Track logs, metrics, and health status.
 
 ### Deployment Configuration
@@ -5158,18 +5333,18 @@ Track logs, metrics, and health status.
 
 ### Basic Settings
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `name` | string | Container name (unique) |
-| `image` | string | Docker image URL |
-| `port` | integer | Container port to expose |
-| `replicas` | integer | Number of instances |
+| Field      | Type    | Description              |
+| ---------- | ------- | ------------------------ |
+| `name`     | string  | Container name (unique)  |
+| `image`    | string  | Docker image URL         |
+| `port`     | integer | Container port to expose |
+| `replicas` | integer | Number of instances      |
 
 ### Resources
 
-| Field | Options | Description |
-|-------|---------|-------------|
-| `cpu` | 0.25, 0.5, 1, 2, 4 | CPU cores |
+| Field    | Options                     | Description  |
+| -------- | --------------------------- | ------------ |
+| `cpu`    | 0.25, 0.5, 1, 2, 4          | CPU cores    |
 | `memory` | 256Mi, 512Mi, 1Gi, 2Gi, 4Gi | Memory limit |
 
 ### Environment Variables
@@ -5229,10 +5404,10 @@ Configure health monitoring:
 
 ### Health Check Types
 
-| Type | Description |
-|------|-------------|
+| Type   | Description              |
+| ------ | ------------------------ |
 | `http` | HTTP GET request to path |
-| `tcp` | TCP connection to port |
+| `tcp`  | TCP connection to port   |
 | `exec` | Run command in container |
 
 ## Logs & Metrics
@@ -5397,12 +5572,15 @@ Earn credits from:
 Build and test your agent using the Agent Creator.
 
 ### Publish to Marketplace
+
 Set pricing and publish to the elizaOS marketplace.
 
 ### Track Earnings
+
 Monitor usage and earnings in the dashboard.
 
 ### Redeem
+
 Convert earned credits to USDC or other currencies.
 
 ## Publishing Agents
@@ -5426,12 +5604,12 @@ curl -X POST "https://elizacloud.ai/api/v1/agents/{agentId}/publish" \
 
 ### Pricing Options
 
-| Model | Description |
-|-------|-------------|
-| `perMessage` | Charge per message sent |
-| `perMinute` | Charge per conversation minute |
-| `perSession` | Flat fee per session |
-| `subscription` | Monthly subscription |
+| Model          | Description                    |
+| -------------- | ------------------------------ |
+| `perMessage`   | Charge per message sent        |
+| `perMinute`    | Charge per conversation minute |
+| `perSession`   | Flat fee per session           |
+| `subscription` | Monthly subscription           |
 
 ## Earnings Dashboard
 
@@ -5446,24 +5624,24 @@ curl -X GET "https://elizacloud.ai/api/v1/redemptions/balance" \
 
 ```json
 {
-  "available": 1250.00,
-  "pending": 150.00,
-  "lifetime": 5000.00,
+  "available": 1250.0,
+  "pending": 150.0,
+  "lifetime": 5000.0,
   "breakdown": {
-    "agents": 4000.00,
-    "apps": 800.00,
-    "marketplace": 200.00
+    "agents": 4000.0,
+    "apps": 800.0,
+    "marketplace": 200.0
   }
 }
 ```
 
 ## Revenue Split
 
-| Source | Your Share | Platform Fee |
-|--------|------------|--------------|
-| Agent Usage | 80% | 20% |
-| App Revenue | 85% | 15% |
-| Marketplace Sales | 70% | 30% |
+| Source            | Your Share | Platform Fee |
+| ----------------- | ---------- | ------------ |
+| Agent Usage       | 80%        | 20%          |
+| App Revenue       | 85%        | 15%          |
+| Marketplace Sales | 70%        | 30%          |
 
 ## Redemptions
 
@@ -5482,11 +5660,11 @@ curl -X POST "https://elizacloud.ai/api/v1/redemptions" \
 
 ### Redemption Methods
 
-| Method | Minimum | Processing Time |
-|--------|---------|-----------------|
-| USDC (Base) | 50 credits | 1-3 days |
-| USDC (Ethereum) | 100 credits | 1-3 days |
-| Bank Transfer | 500 credits | 5-7 days |
+| Method          | Minimum     | Processing Time |
+| --------------- | ----------- | --------------- |
+| USDC (Base)     | 50 credits  | 1-3 days        |
+| USDC (Ethereum) | 100 credits | 1-3 days        |
+| Bank Transfer   | 500 credits | 5-7 days        |
 
 ### Check Status
 
@@ -5523,7 +5701,7 @@ curl -X GET "https://elizacloud.ai/api/v1/my-agents/characters/{id}/stats" \
   "views": 15000,
   "interactions": 5000,
   "uniqueUsers": 1200,
-  "revenue": 450.00,
+  "revenue": 450.0,
   "rating": 4.7,
   "period": "30d"
 }
@@ -5541,11 +5719,7 @@ Publish to the public marketplace:
   "listing": {
     "title": "Research Assistant Pro",
     "description": "Expert AI for academic research...",
-    "features": [
-      "Literature review",
-      "Data analysis",
-      "Citation formatting"
-    ],
+    "features": ["Literature review", "Data analysis", "Citation formatting"],
     "screenshots": ["url1", "url2"],
     "demo": true
   }
@@ -5560,7 +5734,7 @@ Let users clone your agent template:
 {
   "cloneSettings": {
     "enabled": true,
-    "price": 50.00,
+    "price": 50.0,
     "includesKnowledge": false
   }
 }
@@ -5593,7 +5767,8 @@ curl -X GET "https://elizacloud.ai/api/v1/apps/{appId}/earnings/history" \
 
 ## Tax Information
 
-You may need to provide tax information for payouts above certain thresholds. Check your local regulations.
+  You may need to provide tax information for payouts above certain thresholds.
+  Check your local regulations.
 
 ## Best Practices
 
@@ -5644,70 +5819,70 @@ All errors follow a consistent JSON format:
 
 ## HTTP Status Codes
 
-| Status | Meaning | Action |
-|--------|---------|--------|
-| `400` | Bad Request | Fix request parameters |
-| `401` | Unauthorized | Check authentication |
-| `402` | Payment Required | Add credits or payment |
-| `403` | Forbidden | Check permissions |
-| `404` | Not Found | Verify resource exists |
-| `409` | Conflict | Resolve conflict |
-| `422` | Unprocessable | Fix validation errors |
-| `429` | Rate Limited | Slow down, retry later |
-| `500` | Server Error | Retry, contact support |
-| `503` | Service Unavailable | Wait, retry later |
+| Status | Meaning             | Action                 |
+| ------ | ------------------- | ---------------------- |
+| `400`  | Bad Request         | Fix request parameters |
+| `401`  | Unauthorized        | Check authentication   |
+| `402`  | Payment Required    | Add credits or payment |
+| `403`  | Forbidden           | Check permissions      |
+| `404`  | Not Found           | Verify resource exists |
+| `409`  | Conflict            | Resolve conflict       |
+| `422`  | Unprocessable       | Fix validation errors  |
+| `429`  | Rate Limited        | Slow down, retry later |
+| `500`  | Server Error        | Retry, contact support |
+| `503`  | Service Unavailable | Wait, retry later      |
 
 ## Error Codes
 
 ### Authentication Errors
 
-| Code | Description | Solution |
-|------|-------------|----------|
-| `UNAUTHORIZED` | Invalid/missing auth | Check API key |
-| `INVALID_API_KEY` | API key not recognized | Verify key is correct |
-| `EXPIRED_TOKEN` | Session expired | Re-authenticate |
-| `FORBIDDEN` | Insufficient permissions | Check key permissions |
+| Code              | Description              | Solution              |
+| ----------------- | ------------------------ | --------------------- |
+| `UNAUTHORIZED`    | Invalid/missing auth     | Check API key         |
+| `INVALID_API_KEY` | API key not recognized   | Verify key is correct |
+| `EXPIRED_TOKEN`   | Session expired          | Re-authenticate       |
+| `FORBIDDEN`       | Insufficient permissions | Check key permissions |
 
 ### Request Errors
 
-| Code | Description | Solution |
-|------|-------------|----------|
-| `INVALID_REQUEST` | Malformed request | Check request format |
-| `MISSING_FIELD` | Required field missing | Add required field |
-| `INVALID_FIELD` | Field value invalid | Fix field value |
-| `VALIDATION_ERROR` | Schema validation failed | Check all fields |
+| Code               | Description              | Solution             |
+| ------------------ | ------------------------ | -------------------- |
+| `INVALID_REQUEST`  | Malformed request        | Check request format |
+| `MISSING_FIELD`    | Required field missing   | Add required field   |
+| `INVALID_FIELD`    | Field value invalid      | Fix field value      |
+| `VALIDATION_ERROR` | Schema validation failed | Check all fields     |
 
 ### Resource Errors
 
-| Code | Description | Solution |
-|------|-------------|----------|
-| `NOT_FOUND` | Resource doesn't exist | Verify resource ID |
-| `ALREADY_EXISTS` | Duplicate resource | Use existing resource |
-| `CONFLICT` | State conflict | Resolve conflict |
+| Code             | Description            | Solution              |
+| ---------------- | ---------------------- | --------------------- |
+| `NOT_FOUND`      | Resource doesn't exist | Verify resource ID    |
+| `ALREADY_EXISTS` | Duplicate resource     | Use existing resource |
+| `CONFLICT`       | State conflict         | Resolve conflict      |
 
 ### Rate Limiting
 
-| Code | Description | Solution |
-|------|-------------|----------|
-| `RATE_LIMITED` | Too many requests | Wait and retry |
-| `QUOTA_EXCEEDED` | Plan quota exceeded | Upgrade plan |
+| Code             | Description         | Solution       |
+| ---------------- | ------------------- | -------------- |
+| `RATE_LIMITED`   | Too many requests   | Wait and retry |
+| `QUOTA_EXCEEDED` | Plan quota exceeded | Upgrade plan   |
 
 ### Payment Errors
 
-| Code | Description | Solution |
-|------|-------------|----------|
-| `INSUFFICIENT_CREDITS` | Not enough credits | Top up account |
-| `PAYMENT_REQUIRED` | Payment needed | Add payment method |
-| `PAYMENT_FAILED` | Payment declined | Check payment method |
+| Code                   | Description        | Solution             |
+| ---------------------- | ------------------ | -------------------- |
+| `INSUFFICIENT_CREDITS` | Not enough credits | Top up account       |
+| `PAYMENT_REQUIRED`     | Payment needed     | Add payment method   |
+| `PAYMENT_FAILED`       | Payment declined   | Check payment method |
 
 ### Generation Errors
 
-| Code | Description | Solution |
-|------|-------------|----------|
-| `CONTENT_POLICY` | Content policy violation | Modify content |
-| `GENERATION_FAILED` | Generation error | Retry with different input |
-| `MODEL_UNAVAILABLE` | Model offline | Try different model |
-| `CONTEXT_LENGTH` | Input too long | Reduce input size |
+| Code                | Description              | Solution                   |
+| ------------------- | ------------------------ | -------------------------- |
+| `CONTENT_POLICY`    | Content policy violation | Modify content             |
+| `GENERATION_FAILED` | Generation error         | Retry with different input |
+| `MODEL_UNAVAILABLE` | Model offline            | Try different model        |
+| `CONTEXT_LENGTH`    | Input too long           | Reduce input size          |
 
 ## Handling Errors
 
@@ -5717,31 +5892,31 @@ All errors follow a consistent JSON format:
 async function makeRequest(url, options) {
   try {
     const response = await fetch(url, options);
-    
+
     if (!response.ok) {
       const error = await response.json();
-      
+
       switch (error.error.code) {
-        case 'RATE_LIMITED':
-          const retryAfter = response.headers.get('Retry-After');
+        case "RATE_LIMITED":
+          const retryAfter = response.headers.get("Retry-After");
           await sleep(retryAfter * 1000);
           return makeRequest(url, options); // Retry
-          
-        case 'UNAUTHORIZED':
-          throw new AuthError('Invalid API key');
-          
-        case 'INSUFFICIENT_CREDITS':
-          throw new PaymentError('Please top up your account');
-          
+
+        case "UNAUTHORIZED":
+          throw new AuthError("Invalid API key");
+
+        case "INSUFFICIENT_CREDITS":
+          throw new PaymentError("Please top up your account");
+
         default:
           throw new ApiError(error.error.message, error.error.code);
       }
     }
-    
+
     return response.json();
   } catch (error) {
     if (error instanceof ApiError) throw error;
-    throw new NetworkError('Network request failed');
+    throw new NetworkError("Network request failed");
   }
 }
 ```
@@ -5759,18 +5934,18 @@ def make_request(url, headers, data=None, retries=3):
     for attempt in range(retries):
         try:
             response = requests.post(url, headers=headers, json=data)
-            
+
             if response.status_code == 429:
                 retry_after = int(response.headers.get('Retry-After', 60))
                 time.sleep(retry_after)
                 continue
-                
+
             if not response.ok:
                 error = response.json()['error']
                 raise ElizaAPIError(error['code'], error['message'])
-                
+
             return response.json()
-            
+
         except requests.RequestException as e:
             if attempt == retries - 1:
                 raise
@@ -5809,7 +5984,7 @@ async function retryWithBackoff(fn, maxRetries = 5) {
       if (!isRetryable(error) || i === maxRetries - 1) {
         throw error;
       }
-      
+
       const delay = Math.min(1000 * Math.pow(2, i), 30000);
       const jitter = Math.random() * 1000;
       await sleep(delay + jitter);
@@ -5855,6 +6030,7 @@ curl -X POST "https://elizacloud.ai/api/v1/chat/completions" \
 **Problem**: Getting 401 errors on every request.
 
 **Solutions**:
+
 1. Verify your API key starts with `ek_live_` or `ek_test_`
 2. Check the key hasn't been revoked in [Dashboard → API Keys](/dashboard/api-keys)
 3. Ensure you're using `Authorization: Bearer YOUR_KEY` (not `X-API-Key`)
@@ -5864,6 +6040,7 @@ curl -X POST "https://elizacloud.ai/api/v1/chat/completions" \
 **Problem**: Getting 429 errors during normal usage.
 
 **Solutions**:
+
 1. Implement exponential backoff (see code example above)
 2. Check your rate limit headers: `X-RateLimit-Remaining`
 3. Upgrade your plan for higher limits at [Dashboard → Billing](/dashboard/billing)
@@ -5873,6 +6050,7 @@ curl -X POST "https://elizacloud.ai/api/v1/chat/completions" \
 **Problem**: Getting 402 errors.
 
 **Solutions**:
+
 1. Check your balance at [Dashboard → Billing](/dashboard/billing)
 2. Enable auto top-up to avoid interruptions
 3. Top up credits via Stripe or [x402 crypto payments](/docs/x402)
@@ -5882,6 +6060,7 @@ curl -X POST "https://elizacloud.ai/api/v1/chat/completions" \
 **Problem**: Stream responses come as a single chunk.
 
 **Solutions**:
+
 1. Ensure `stream: true` is set in your request body
 2. Don't buffer the response—read chunks as they arrive
 3. Check your proxy/CDN isn't buffering SSE responses
@@ -5891,6 +6070,7 @@ curl -X POST "https://elizacloud.ai/api/v1/chat/completions" \
 **Problem**: Agent ignores personality/style settings.
 
 **Solutions**:
+
 1. Verify character JSON is valid with the [API Explorer](/dashboard/api-explorer)
 2. Check you're using the agent ID (not model name) as the `model` parameter
 3. Clear conversation history and start fresh
@@ -5967,14 +6147,14 @@ curl -X GET "https://elizacloud.ai/api/v1/gallery?type=image&limit=20" \
 
 ### Query Parameters
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `type` | string | `image` or `video` |
-| `limit` | integer | Items per page (max 100) |
-| `page` | integer | Page number |
-| `tags` | string | Filter by tags (comma-separated) |
-| `collection` | string | Filter by collection ID |
-| `search` | string | Search prompts |
+| Parameter    | Type    | Description                      |
+| ------------ | ------- | -------------------------------- |
+| `type`       | string  | `image` or `video`               |
+| `limit`      | integer | Items per page (max 100)         |
+| `page`       | integer | Page number                      |
+| `tags`       | string  | Filter by tags (comma-separated) |
+| `collection` | string  | Filter by collection ID          |
+| `search`     | string  | Search prompts                   |
 
 ### Get Single Item
 
@@ -6069,11 +6249,11 @@ curl -X POST "https://elizacloud.ai/api/v1/gallery/gal_abc123/share" \
 
 ### Share Options
 
-| Option | Description |
-|--------|-------------|
-| `expiresIn` | Link expiration (1h, 1d, 7d, 30d, never) |
-| `password` | Optional password protection |
-| `allowDownload` | Allow visitors to download |
+| Option          | Description                              |
+| --------------- | ---------------------------------------- |
+| `expiresIn`     | Link expiration (1h, 1d, 7d, 30d, never) |
+| `password`      | Optional password protection             |
+| `allowDownload` | Allow visitors to download               |
 
 ### Revoke Share
 
@@ -6086,10 +6266,10 @@ curl -X DELETE "https://elizacloud.ai/api/v1/gallery/gal_abc123/share" \
 
 ### Storage Limits
 
-| Plan | Storage |
-|------|---------|
-| Free | 1 GB |
-| Pro | 50 GB |
+| Plan       | Storage   |
+| ---------- | --------- |
+| Free       | 1 GB      |
+| Pro        | 50 GB     |
 | Enterprise | Unlimited |
 
 ### Check Usage
@@ -6161,9 +6341,9 @@ Generated content is automatically saved to your gallery:
 
 ```javascript
 const image = await client.images.generate({
-  prompt: 'A beautiful sunset',
+  prompt: "A beautiful sunset",
   saveToGallery: true, // Default: true
-  galleryTags: ['sunset', 'landscape'],
+  galleryTags: ["sunset", "landscape"],
 });
 
 console.log(image.galleryId); // gal_abc123
@@ -6249,7 +6429,8 @@ const response = await fetch('https://elizacloud.ai/api/v1/generate-image', {
 
 const result = await response.json();
 console.log(result.images[0].url);
-```
+
+````
   
   
 ```python
@@ -6270,7 +6451,8 @@ response = requests.post(
 
 result = response.json()
 print(result['images'][0]['url'])
-```
+````
+
   
 
 ### Response
@@ -6291,35 +6473,35 @@ print(result['images'][0]['url'])
 
 ## Available Models
 
-| Model | Speed | Quality | Best For |
-|-------|-------|---------|----------|
-| `fal-ai/flux/schnell` | ⚡ Fast | High | Quick iterations, prototyping |
-| `fal-ai/flux/pro` | Medium | Highest | Final production images |
-| `fal-ai/flux/dev` | Medium | High | Development and testing |
-| `fal-ai/stable-diffusion-v3` | Medium | High | Versatile, good for most use cases |
+| Model                        | Speed   | Quality | Best For                           |
+| ---------------------------- | ------- | ------- | ---------------------------------- |
+| `fal-ai/flux/schnell`        | ⚡ Fast | High    | Quick iterations, prototyping      |
+| `fal-ai/flux/pro`            | Medium  | Highest | Final production images            |
+| `fal-ai/flux/dev`            | Medium  | High    | Development and testing            |
+| `fal-ai/stable-diffusion-v3` | Medium  | High    | Versatile, good for most use cases |
 
 ## Request Parameters
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `prompt` | string | ✓ | Text description of the image |
-| `model` | string | | Model to use (default: `fal-ai/flux/schnell`) |
-| `size` | string | | Output size (see sizes below) |
-| `num_images` | integer | | Number of images (1-4, default: 1) |
-| `seed` | integer | | Random seed for reproducibility |
-| `guidance_scale` | number | | How closely to follow the prompt (1-20) |
-| `negative_prompt` | string | | What to avoid in the image |
+| Parameter         | Type    | Required | Description                                   |
+| ----------------- | ------- | -------- | --------------------------------------------- |
+| `prompt`          | string  | ✓        | Text description of the image                 |
+| `model`           | string  |          | Model to use (default: `fal-ai/flux/schnell`) |
+| `size`            | string  |          | Output size (see sizes below)                 |
+| `num_images`      | integer |          | Number of images (1-4, default: 1)            |
+| `seed`            | integer |          | Random seed for reproducibility               |
+| `guidance_scale`  | number  |          | How closely to follow the prompt (1-20)       |
+| `negative_prompt` | string  |          | What to avoid in the image                    |
 
 ### Available Sizes
 
-| Size | Dimensions | Aspect Ratio |
-|------|------------|--------------|
-| `square` | 512x512 | 1:1 |
-| `square_hd` | 1024x1024 | 1:1 |
-| `portrait_4_3` | 768x1024 | 3:4 |
-| `portrait_16_9` | 576x1024 | 9:16 |
-| `landscape_4_3` | 1024x768 | 4:3 |
-| `landscape_16_9` | 1024x576 | 16:9 |
+| Size             | Dimensions | Aspect Ratio |
+| ---------------- | ---------- | ------------ |
+| `square`         | 512x512    | 1:1          |
+| `square_hd`      | 1024x1024  | 1:1          |
+| `portrait_4_3`   | 768x1024   | 3:4          |
+| `portrait_16_9`  | 576x1024   | 9:16         |
+| `landscape_4_3`  | 1024x768   | 4:3          |
+| `landscape_16_9` | 1024x576   | 16:9         |
 
 ## Prompt Engineering
 
@@ -6332,20 +6514,23 @@ print(result['images'][0]['url'])
 ### Example Prompts
 
 **Photorealistic:**
+
 ```
-Portrait of a woman with silver hair, professional photography, 
+Portrait of a woman with silver hair, professional photography,
 soft studio lighting, shallow depth of field, 8k quality
 ```
 
 **Artistic:**
+
 ```
-Abstract painting of ocean waves, impressionist style, 
+Abstract painting of ocean waves, impressionist style,
 vibrant blues and teals, textured brushstrokes
 ```
 
 **Product:**
+
 ```
-Minimalist product shot of a smartwatch on white marble, 
+Minimalist product shot of a smartwatch on white marble,
 clean lighting, commercial photography, high detail
 ```
 
@@ -6367,14 +6552,14 @@ Use negative prompts to exclude unwanted elements:
 Generate multiple variations:
 
 ```javascript
-const response = await fetch('https://elizacloud.ai/api/v1/generate-image', {
-  method: 'POST',
+const response = await fetch("https://elizacloud.ai/api/v1/generate-image", {
+  method: "POST",
   headers: {
-    'Authorization': 'Bearer YOUR_API_KEY',
-    'Content-Type': 'application/json',
+    Authorization: "Bearer YOUR_API_KEY",
+    "Content-Type": "application/json",
   },
   body: JSON.stringify({
-    prompt: 'A serene mountain landscape',
+    prompt: "A serene mountain landscape",
     num_images: 4,
     seed: 42, // Same seed for consistency
   }),
@@ -6393,7 +6578,7 @@ Use a seed for consistent outputs:
 }
 ```
 
-Using the same prompt, seed, and parameters will produce identical results.
+  Using the same prompt, seed, and parameters will produce identical results.
 
 ## Gallery
 
@@ -6409,18 +6594,18 @@ Generated images are automatically saved to your [Gallery](/dashboard/gallery) f
 
 See [Billing & Credits](/docs/billing) for current pricing. Image generation costs range from 0.02-0.05 credits per image depending on model.
 
-Monitor your usage in the [billing dashboard](/dashboard/billing).
+  Monitor your usage in the [billing dashboard](/dashboard/billing).
 
 ## Error Handling
 
 ### Common Errors
 
-| Error | Cause | Solution |
-|-------|-------|----------|
-| `CONTENT_POLICY` | Prompt violates content policy | Modify prompt to comply |
-| `RATE_LIMITED` | Too many requests | Wait and retry with backoff |
-| `INSUFFICIENT_CREDITS` | Not enough credits | Top up your account |
-| `INVALID_MODEL` | Model not available | Use a supported model |
+| Error                  | Cause                          | Solution                    |
+| ---------------------- | ------------------------------ | --------------------------- |
+| `CONTENT_POLICY`       | Prompt violates content policy | Modify prompt to comply     |
+| `RATE_LIMITED`         | Too many requests              | Wait and retry with backoff |
+| `INSUFFICIENT_CREDITS` | Not enough credits             | Top up your account         |
+| `INVALID_MODEL`        | Model not available            | Use a supported model       |
 
 ### Error Response
 
@@ -6471,19 +6656,13 @@ Set up your development environment for elizaOS Cloud integration.
 Install the official elizaOS packages:
 
   
-```bash
-bun add @elizaos/core @elizaos/plugin-elizacloud
-```
+    ```bash bun add @elizaos/core @elizaos/plugin-elizacloud ```
   
   
-```bash
-pnpm add @elizaos/core @elizaos/plugin-elizacloud
-```
+    ```bash pnpm add @elizaos/core @elizaos/plugin-elizacloud ```
   
   
-```bash
-yarn add @elizaos/core @elizaos/plugin-elizacloud
-```
+    ```bash yarn add @elizaos/core @elizaos/plugin-elizacloud ```
   
 
 ## CLI Installation
@@ -6502,11 +6681,11 @@ elizaos --version
 
 ## Requirements
 
-| Requirement | Version |
-|-------------|---------|
-| Node.js | 18.0+ |
-| Bun | Latest |
-| TypeScript | 5.0+ (recommended) |
+| Requirement | Version            |
+| ----------- | ------------------ |
+| Node.js     | 18.0+              |
+| Bun         | Latest             |
+| TypeScript  | 5.0+ (recommended) |
 
 ## Project Setup
 
@@ -6568,7 +6747,8 @@ Install the latest stable versions:
 bun add @elizaos/core@latest @elizaos/plugin-elizacloud@latest
 ```
 
-Always use matching versions of elizaOS packages to avoid compatibility issues. Run `bun update` regularly to get the latest fixes.
+  Always use matching versions of elizaOS packages to avoid compatibility
+  issues. Run `bun update` regularly to get the latest fixes.
 
 ## Next Steps
 
@@ -6622,16 +6802,17 @@ formData.append('file', file);
 formData.append('agentId', 'agent_abc123');
 
 const response = await fetch('https://elizacloud.ai/api/v1/knowledge/upload-file', {
-  method: 'POST',
-  headers: {
-    'Authorization': 'Bearer YOUR_API_KEY',
-  },
-  body: formData,
+method: 'POST',
+headers: {
+'Authorization': 'Bearer YOUR_API_KEY',
+},
+body: formData,
 });
 
 const result = await response.json();
 console.log('Document uploaded:', result.id);
-```
+
+````
   
   
 ```python
@@ -6646,19 +6827,20 @@ with open('document.pdf', 'rb') as f:
 
 result = response.json()
 print(f'Document uploaded: {result["id"]}')
-```
+````
+
   
 
 ## Supported Formats
 
-| Format | Extension | Max Size |
-|--------|-----------|----------|
-| PDF | `.pdf` | 50MB |
-| Text | `.txt` | 10MB |
-| Markdown | `.md` | 10MB |
-| Word | `.docx` | 25MB |
-| HTML | `.html` | 10MB |
-| CSV | `.csv` | 25MB |
+| Format   | Extension | Max Size |
+| -------- | --------- | -------- |
+| PDF      | `.pdf`    | 50MB     |
+| Text     | `.txt`    | 10MB     |
+| Markdown | `.md`     | 10MB     |
+| Word     | `.docx`   | 25MB     |
+| HTML     | `.html`   | 10MB     |
+| CSV      | `.csv`    | 25MB     |
 
 ## Upload Documents
 
@@ -6666,12 +6848,15 @@ print(f'Document uploaded: {result["id"]}')
 Ensure documents are in a supported format and within size limits.
 
 ### Upload via Dashboard or API
+
 Use the Knowledge dashboard or the upload API endpoint.
 
 ### Wait for Processing
+
 Documents are automatically chunked and embedded.
 
 ### Connect to Agent
+
 Link the knowledge base to your agent for RAG.
 
 ### Upload Response
@@ -6773,21 +6958,21 @@ curl -X DELETE "https://elizacloud.ai/api/v1/knowledge/doc_abc123" \
 
 Configure how documents are split:
 
-| Setting | Default | Description |
-|---------|---------|-------------|
-| `chunkSize` | 1000 | Characters per chunk |
-| `chunkOverlap` | 200 | Overlap between chunks |
-| `minChunkSize` | 100 | Minimum chunk size |
+| Setting        | Default | Description            |
+| -------------- | ------- | ---------------------- |
+| `chunkSize`    | 1000    | Characters per chunk   |
+| `chunkOverlap` | 200     | Overlap between chunks |
+| `minChunkSize` | 100     | Minimum chunk size     |
 
 ### Retrieval Settings
 
 Configure query behavior:
 
-| Setting | Default | Description |
-|---------|---------|-------------|
-| `limit` | 5 | Number of results |
-| `minScore` | 0.7 | Minimum relevance score |
-| `rerank` | true | Re-rank results for relevance |
+| Setting    | Default | Description                   |
+| ---------- | ------- | ----------------------------- |
+| `limit`    | 5       | Number of results             |
+| `minScore` | 0.7     | Minimum relevance score       |
+| `rerank`   | true    | Re-rank results for relevance |
 
 ## Agent Integration
 
@@ -6797,17 +6982,15 @@ When knowledge is connected to an agent, relevant context is automatically retri
 
 ```javascript
 // Agent with knowledge base
-const response = await fetch('https://elizacloud.ai/api/v1/chat/completions', {
-  method: 'POST',
+const response = await fetch("https://elizacloud.ai/api/v1/chat/completions", {
+  method: "POST",
   headers: {
-    'Authorization': 'Bearer YOUR_API_KEY',
-    'Content-Type': 'application/json',
+    Authorization: "Bearer YOUR_API_KEY",
+    "Content-Type": "application/json",
   },
   body: JSON.stringify({
-    model: 'agent_abc123', // Agent with connected knowledge
-    messages: [
-      { role: 'user', content: 'How do I reset my password?' }
-    ],
+    model: "agent_abc123", // Agent with connected knowledge
+    messages: [{ role: "user", content: "How do I reset my password?" }],
   }),
 });
 ```
@@ -6820,32 +7003,32 @@ Query knowledge and inject context manually:
 
 ```javascript
 // 1. Query knowledge
-const knowledge = await fetch('https://elizacloud.ai/api/v1/knowledge/query', {
-  method: 'POST',
+const knowledge = await fetch("https://elizacloud.ai/api/v1/knowledge/query", {
+  method: "POST",
   headers: {
-    'Authorization': 'Bearer YOUR_API_KEY',
-    'Content-Type': 'application/json',
+    Authorization: "Bearer YOUR_API_KEY",
+    "Content-Type": "application/json",
   },
   body: JSON.stringify({
-    query: 'password reset',
+    query: "password reset",
     limit: 3,
   }),
-}).then(r => r.json());
+}).then((r) => r.json());
 
 // 2. Include in chat
-const context = knowledge.results.map(r => r.content).join('\n\n');
+const context = knowledge.results.map((r) => r.content).join("\n\n");
 
-const response = await fetch('https://elizacloud.ai/api/v1/chat/completions', {
-  method: 'POST',
+const response = await fetch("https://elizacloud.ai/api/v1/chat/completions", {
+  method: "POST",
   headers: {
-    'Authorization': 'Bearer YOUR_API_KEY',
-    'Content-Type': 'application/json',
+    Authorization: "Bearer YOUR_API_KEY",
+    "Content-Type": "application/json",
   },
   body: JSON.stringify({
-    model: 'gpt-4o',
+    model: "gpt-4o",
     messages: [
-      { role: 'system', content: `Use this context:\n\n${context}` },
-      { role: 'user', content: 'How do I reset my password?' }
+      { role: "system", content: `Use this context:\n\n${context}` },
+      { role: "user", content: "How do I reset my password?" },
     ],
   }),
 });
@@ -6887,7 +7070,8 @@ Deep dive into the Model Context Protocol implementation on elizaOS Cloud.
 
 <div className="status-badge status-stable">Stable</div>
 
-This page covers the **MCP protocol specification**. To connect MCP servers to your agents, see [MCP Integration](/docs/mcps).
+  This page covers the **MCP protocol specification**. To connect MCP servers to
+  your agents, see [MCP Integration](/docs/mcps).
 
 ## Overview
 
@@ -7121,14 +7305,14 @@ Coming soon for bidirectional communication.
 
 elizaOS Cloud provides these built-in MCP tools:
 
-| Tool | Description |
-|------|-------------|
-| `generate_image` | Create images from prompts |
-| `generate_video` | Create videos from prompts |
-| `search_knowledge` | Query knowledge base |
-| `get_weather` | Current weather data |
-| `get_time` | Time and timezone info |
-| `get_crypto_price` | Cryptocurrency prices |
+| Tool               | Description                |
+| ------------------ | -------------------------- |
+| `generate_image`   | Create images from prompts |
+| `generate_video`   | Create videos from prompts |
+| `search_knowledge` | Query knowledge base       |
+| `get_weather`      | Current weather data       |
+| `get_time`         | Time and timezone info     |
+| `get_crypto_price` | Cryptocurrency prices      |
 
 ## Connecting External MCPs
 
@@ -7174,7 +7358,7 @@ const app = express();
 
 app.post('/mcp', (req, res) => {
   const { method, params, id } = req.body;
-  
+
   switch (method) {
     case 'initialize':
       return res.json({
@@ -7186,14 +7370,14 @@ app.post('/mcp', (req, res) => {
         },
         id
       });
-      
+
     case 'tools/list':
       return res.json({
         jsonrpc: '2.0',
         result: { tools: myTools },
         id
       });
-      
+
     case 'tools/call':
       const result = await handleToolCall(params);
       return res.json({
@@ -7209,13 +7393,13 @@ app.post('/mcp', (req, res) => {
 
 ### Error Codes
 
-| Code | Name | Description |
-|------|------|-------------|
-| -32700 | Parse error | Invalid JSON |
-| -32600 | Invalid request | Invalid JSON-RPC |
-| -32601 | Method not found | Unknown method |
-| -32602 | Invalid params | Invalid parameters |
-| -32603 | Internal error | Server error |
+| Code   | Name             | Description        |
+| ------ | ---------------- | ------------------ |
+| -32700 | Parse error      | Invalid JSON       |
+| -32600 | Invalid request  | Invalid JSON-RPC   |
+| -32601 | Method not found | Unknown method     |
+| -32602 | Invalid params   | Invalid parameters |
+| -32603 | Internal error   | Server error       |
 
 ### Error Response
 
@@ -7263,7 +7447,8 @@ Extend your agents with external tools and services using the Model Context Prot
 
 <div className="status-badge status-stable">Stable</div>
 
-This page covers **connecting MCP servers to your agents**. For protocol details and building your own MCP server, see [MCP Protocol](/docs/mcp).
+  This page covers **connecting MCP servers to your agents**. For protocol
+  details and building your own MCP server, see [MCP Protocol](/docs/mcp).
 
 ## Overview
 
@@ -7296,13 +7481,13 @@ curl -X POST "https://elizacloud.ai/api/v1/mcps" \
 
 elizaOS Cloud provides a curated registry of MCP servers:
 
-| Server | Description | Tools |
-|--------|-------------|-------|
-| **Weather** | Current weather and forecasts | `get_weather`, `get_forecast` |
-| **Search** | Web search capabilities | `search_web`, `search_images` |
-| **Crypto** | Cryptocurrency data | `get_price`, `get_market_data` |
-| **Calculator** | Math operations | `calculate`, `convert_units` |
-| **Time** | Time and timezone tools | `get_time`, `convert_timezone` |
+| Server         | Description                   | Tools                          |
+| -------------- | ----------------------------- | ------------------------------ |
+| **Weather**    | Current weather and forecasts | `get_weather`, `get_forecast`  |
+| **Search**     | Web search capabilities       | `search_web`, `search_images`  |
+| **Crypto**     | Cryptocurrency data           | `get_price`, `get_market_data` |
+| **Calculator** | Math operations               | `calculate`, `convert_units`   |
+| **Time**       | Time and timezone tools       | `get_time`, `convert_timezone` |
 
 ### Browse Registry
 
@@ -7342,12 +7527,15 @@ curl -X GET "https://elizacloud.ai/api/mcp/registry" \
 Browse the MCP registry or use a custom server URL.
 
 ### Configure Connection
+
 Provide the server URL and any required authentication.
 
 ### Link to Agent
+
 Connect the MCP server to your agent.
 
 ### Test
+
 Verify the tools are available in the agent.
 
 ### Connect via API
@@ -7372,17 +7560,15 @@ curl -X POST "https://elizacloud.ai/api/v1/mcps" \
 When MCP servers are connected, agents can use their tools automatically:
 
 ```javascript
-const response = await fetch('https://elizacloud.ai/api/v1/chat/completions', {
-  method: 'POST',
+const response = await fetch("https://elizacloud.ai/api/v1/chat/completions", {
+  method: "POST",
   headers: {
-    'Authorization': 'Bearer YOUR_API_KEY',
-    'Content-Type': 'application/json',
+    Authorization: "Bearer YOUR_API_KEY",
+    "Content-Type": "application/json",
   },
   body: JSON.stringify({
-    model: 'agent_abc123', // Agent with MCP connected
-    messages: [
-      { role: 'user', content: "What's the weather in Tokyo?" }
-    ],
+    model: "agent_abc123", // Agent with MCP connected
+    messages: [{ role: "user", content: "What's the weather in Tokyo?" }],
   }),
 });
 ```
@@ -7408,14 +7594,14 @@ curl -X POST "https://elizacloud.ai/api/mcp" \
 
 ### Available Methods
 
-| Method | Description |
-|--------|-------------|
-| `tools/list` | List available tools |
-| `tools/call` | Execute a tool |
+| Method           | Description              |
+| ---------------- | ------------------------ |
+| `tools/list`     | List available tools     |
+| `tools/call`     | Execute a tool           |
 | `resources/list` | List available resources |
-| `resources/read` | Read a resource |
-| `prompts/list` | List available prompts |
-| `prompts/get` | Get a prompt |
+| `resources/read` | Read a resource          |
+| `prompts/list`   | List available prompts   |
+| `prompts/get`    | Get a prompt             |
 
 ### Execute Tool
 
@@ -7434,6 +7620,7 @@ curl -X POST "https://elizacloud.ai/api/mcp" \
 ```
 
 Response:
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -7463,53 +7650,53 @@ Your MCP server must implement:
 
 ```javascript
 // Simple MCP server with Express
-const express = require('express');
+const express = require("express");
 const app = express();
 
 app.use(express.json());
 
 const tools = [
   {
-    name: 'greet',
-    description: 'Greet a person',
+    name: "greet",
+    description: "Greet a person",
     inputSchema: {
-      type: 'object',
+      type: "object",
       properties: {
-        name: { type: 'string' }
+        name: { type: "string" },
       },
-      required: ['name']
-    }
-  }
+      required: ["name"],
+    },
+  },
 ];
 
-app.post('/mcp', (req, res) => {
+app.post("/mcp", (req, res) => {
   const { method, params, id } = req.body;
-  
-  if (method === 'tools/list') {
+
+  if (method === "tools/list") {
     return res.json({
-      jsonrpc: '2.0',
+      jsonrpc: "2.0",
       result: { tools },
-      id
+      id,
     });
   }
-  
-  if (method === 'tools/call') {
+
+  if (method === "tools/call") {
     const { name, arguments: args } = params;
-    if (name === 'greet') {
+    if (name === "greet") {
       return res.json({
-        jsonrpc: '2.0',
+        jsonrpc: "2.0",
         result: {
-          content: [{ type: 'text', text: `Hello, ${args.name}!` }]
+          content: [{ type: "text", text: `Hello, ${args.name}!` }],
         },
-        id
+        id,
       });
     }
   }
-  
+
   res.json({
-    jsonrpc: '2.0',
-    error: { code: -32601, message: 'Method not found' },
-    id
+    jsonrpc: "2.0",
+    error: { code: -32601, message: "Method not found" },
+    id,
   });
 });
 
@@ -7520,11 +7707,11 @@ app.listen(3000);
 
 elizaOS Cloud provides demo MCP servers for testing:
 
-| Server | URL | Description |
-|--------|-----|-------------|
-| Weather | `/api/mcp/demos/weather` | Weather data demo |
-| Time | `/api/mcp/demos/time` | Time and timezone demo |
-| Crypto | `/api/mcp/demos/crypto` | Cryptocurrency data demo |
+| Server  | URL                      | Description              |
+| ------- | ------------------------ | ------------------------ |
+| Weather | `/api/mcp/demos/weather` | Weather data demo        |
+| Time    | `/api/mcp/demos/time`    | Time and timezone demo   |
+| Crypto  | `/api/mcp/demos/crypto`  | Cryptocurrency data demo |
 
 ### Test Demo Server
 
@@ -7606,45 +7793,72 @@ Summary: Get started with elizaOS Cloud in 5 minutes. Deploy your first AI agent
 
 Get your first AI agent running in 5 minutes with elizaOS Cloud.
 
-This guide assumes you have a elizaOS Cloud account. [Sign up here](/login) if you haven't already.
+  This guide assumes you have a elizaOS Cloud account. [Sign up here](/login) if
+  you haven't already.
 
 ## Choose Your Path
 
 <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mt-6 mb-8">
-  <a href="#using-the-agent-creator" className="docs-quickstart-card no-underline group" style={{"--card-accent-color": "#ff5800"}}>
+  <a
+    href="#using-the-agent-creator"
+    className="docs-quickstart-card no-underline group"
+    style={{ "--card-accent-color": "#ff5800" }}
+  >
     <span className="corner-tl" aria-hidden="true"></span>
     <span className="corner-tr" aria-hidden="true"></span>
     <span className="corner-bl" aria-hidden="true"></span>
     <span className="corner-br" aria-hidden="true"></span>
     <div className="relative z-10">
-      <div className="docs-quickstart-icon" aria-hidden="true">🎨</div>
+      <div className="docs-quickstart-icon" aria-hidden="true">
+        🎨
+      </div>
       <div className="docs-quickstart-title">Visual Builder</div>
-      <div className="docs-quickstart-desc">Build agents with our no-code editor</div>
-      <div className="docs-quickstart-arrow" aria-hidden="true">→</div>
+      <div className="docs-quickstart-desc">
+        Build agents with our no-code editor
+      </div>
+      <div className="docs-quickstart-arrow" aria-hidden="true">
+        →
+      </div>
     </div>
   </a>
-  <a href="#using-the-api" className="docs-quickstart-card no-underline group" style={{"--card-accent-color": "#0b35f1"}}>
+  <a
+    href="#using-the-api"
+    className="docs-quickstart-card no-underline group"
+    style={{ "--card-accent-color": "#0b35f1" }}
+  >
     <span className="corner-tl" aria-hidden="true"></span>
     <span className="corner-tr" aria-hidden="true"></span>
     <span className="corner-bl" aria-hidden="true"></span>
     <span className="corner-br" aria-hidden="true"></span>
     <div className="relative z-10">
-      <div className="docs-quickstart-icon" aria-hidden="true">⚡</div>
+      <div className="docs-quickstart-icon" aria-hidden="true">
+        ⚡
+      </div>
       <div className="docs-quickstart-title">API Integration</div>
       <div className="docs-quickstart-desc">Integrate via REST API</div>
-      <div className="docs-quickstart-arrow" aria-hidden="true">→</div>
+      <div className="docs-quickstart-arrow" aria-hidden="true">
+        →
+      </div>
     </div>
   </a>
-  <a href="#using-the-cli" className="docs-quickstart-card no-underline group" style={{"--card-accent-color": "#22c55e"}}>
+  <a
+    href="#using-the-cli"
+    className="docs-quickstart-card no-underline group"
+    style={{ "--card-accent-color": "#22c55e" }}
+  >
     <span className="corner-tl" aria-hidden="true"></span>
     <span className="corner-tr" aria-hidden="true"></span>
     <span className="corner-bl" aria-hidden="true"></span>
     <span className="corner-br" aria-hidden="true"></span>
     <div className="relative z-10">
-      <div className="docs-quickstart-icon" aria-hidden="true">💻</div>
+      <div className="docs-quickstart-icon" aria-hidden="true">
+        💻
+      </div>
       <div className="docs-quickstart-title">CLI Deployment</div>
       <div className="docs-quickstart-desc">Deploy with the elizaOS CLI</div>
-      <div className="docs-quickstart-arrow" aria-hidden="true">→</div>
+      <div className="docs-quickstart-arrow" aria-hidden="true">
+        →
+      </div>
     </div>
   </a>
 </div>
@@ -7734,7 +7948,8 @@ const response = await fetch('https://elizacloud.ai/api/v1/agents', {
 
 const agent = await response.json();
 console.log('Created agent:', agent.id);
-```
+
+````
   
   
 ```python
@@ -7758,7 +7973,8 @@ response = requests.post(
 
 agent = response.json()
 print(f'Created agent: {agent["id"]}')
-```
+````
+
   
 
 ### Step 3: Send a Message
@@ -7794,7 +8010,8 @@ const response = await fetch('https://elizacloud.ai/api/v1/chat/completions', {
 
 const completion = await response.json();
 console.log(completion.choices[0].message.content);
-```
+
+````
   
   
 ```python
@@ -7814,7 +8031,8 @@ response = requests.post(
 
 completion = response.json()
 print(completion['choices'][0]['message']['content'])
-```
+````
+
   
 
 ## Using the CLI
@@ -7854,52 +8072,90 @@ ELIZA_API_URL=https://elizacloud.ai/api/v1
 ## What's Next?
 
 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mt-6 mb-8">
-  <a href="/docs/api/overview" className="docs-quickstart-card no-underline group" style={{"--card-accent-color": "#0b35f1"}}>
+  <a
+    href="/docs/api/overview"
+    className="docs-quickstart-card no-underline group"
+    style={{ "--card-accent-color": "#0b35f1" }}
+  >
     <span className="corner-tl" aria-hidden="true"></span>
     <span className="corner-tr" aria-hidden="true"></span>
     <span className="corner-bl" aria-hidden="true"></span>
     <span className="corner-br" aria-hidden="true"></span>
     <div className="relative z-10">
-      <div className="docs-quickstart-icon" aria-hidden="true">📡</div>
+      <div className="docs-quickstart-icon" aria-hidden="true">
+        📡
+      </div>
       <div className="docs-quickstart-title">API Reference</div>
-      <div className="docs-quickstart-desc">Explore all available endpoints</div>
-      <div className="docs-quickstart-arrow" aria-hidden="true">→</div>
+      <div className="docs-quickstart-desc">
+        Explore all available endpoints
+      </div>
+      <div className="docs-quickstart-arrow" aria-hidden="true">
+        →
+      </div>
     </div>
   </a>
-  <a href="/docs/agents" className="docs-quickstart-card no-underline group" style={{"--card-accent-color": "#a855f7"}}>
+  <a
+    href="/docs/agents"
+    className="docs-quickstart-card no-underline group"
+    style={{ "--card-accent-color": "#a855f7" }}
+  >
     <span className="corner-tl" aria-hidden="true"></span>
     <span className="corner-tr" aria-hidden="true"></span>
     <span className="corner-bl" aria-hidden="true"></span>
     <span className="corner-br" aria-hidden="true"></span>
     <div className="relative z-10">
-      <div className="docs-quickstart-icon" aria-hidden="true">🤖</div>
+      <div className="docs-quickstart-icon" aria-hidden="true">
+        🤖
+      </div>
       <div className="docs-quickstart-title">Features</div>
-      <div className="docs-quickstart-desc">Learn about platform capabilities</div>
-      <div className="docs-quickstart-arrow" aria-hidden="true">→</div>
+      <div className="docs-quickstart-desc">
+        Learn about platform capabilities
+      </div>
+      <div className="docs-quickstart-arrow" aria-hidden="true">
+        →
+      </div>
     </div>
   </a>
-  <a href="/docs/containers" className="docs-quickstart-card no-underline group" style={{"--card-accent-color": "#22c55e"}}>
+  <a
+    href="/docs/containers"
+    className="docs-quickstart-card no-underline group"
+    style={{ "--card-accent-color": "#22c55e" }}
+  >
     <span className="corner-tl" aria-hidden="true"></span>
     <span className="corner-tr" aria-hidden="true"></span>
     <span className="corner-bl" aria-hidden="true"></span>
     <span className="corner-br" aria-hidden="true"></span>
     <div className="relative z-10">
-      <div className="docs-quickstart-icon" aria-hidden="true">🚀</div>
+      <div className="docs-quickstart-icon" aria-hidden="true">
+        🚀
+      </div>
       <div className="docs-quickstart-title">Deployment</div>
-      <div className="docs-quickstart-desc">Configure production deployments</div>
-      <div className="docs-quickstart-arrow" aria-hidden="true">→</div>
+      <div className="docs-quickstart-desc">
+        Configure production deployments
+      </div>
+      <div className="docs-quickstart-arrow" aria-hidden="true">
+        →
+      </div>
     </div>
   </a>
-  <a href="/docs/sdks" className="docs-quickstart-card no-underline group" style={{"--card-accent-color": "#f97316"}}>
+  <a
+    href="/docs/sdks"
+    className="docs-quickstart-card no-underline group"
+    style={{ "--card-accent-color": "#f97316" }}
+  >
     <span className="corner-tl" aria-hidden="true"></span>
     <span className="corner-tr" aria-hidden="true"></span>
     <span className="corner-bl" aria-hidden="true"></span>
     <span className="corner-br" aria-hidden="true"></span>
     <div className="relative z-10">
-      <div className="docs-quickstart-icon" aria-hidden="true">📦</div>
+      <div className="docs-quickstart-icon" aria-hidden="true">
+        📦
+      </div>
       <div className="docs-quickstart-title">SDKs</div>
       <div className="docs-quickstart-desc">Use official client libraries</div>
-      <div className="docs-quickstart-arrow" aria-hidden="true">→</div>
+      <div className="docs-quickstart-arrow" aria-hidden="true">
+        →
+      </div>
     </div>
   </a>
 </div>
@@ -7930,23 +8186,23 @@ Rate limits are applied per API key and vary by:
 
 ### Free Tier
 
-| Endpoint | Rate Limit |
-|----------|------------|
-| Chat Completions | 60/min |
-| Embeddings | 100/min |
-| Image Generation | 20/min |
-| Video Generation | 5/min |
-| Knowledge Query | 60/min |
+| Endpoint         | Rate Limit |
+| ---------------- | ---------- |
+| Chat Completions | 60/min     |
+| Embeddings       | 100/min    |
+| Image Generation | 20/min     |
+| Video Generation | 5/min      |
+| Knowledge Query  | 60/min     |
 
 ### Pro Tier
 
-| Endpoint | Rate Limit |
-|----------|------------|
-| Chat Completions | 300/min |
-| Embeddings | 500/min |
-| Image Generation | 100/min |
-| Video Generation | 20/min |
-| Knowledge Query | 300/min |
+| Endpoint         | Rate Limit |
+| ---------------- | ---------- |
+| Chat Completions | 300/min    |
+| Embeddings       | 500/min    |
+| Image Generation | 100/min    |
+| Video Generation | 20/min     |
+| Knowledge Query  | 300/min    |
 
 ### Enterprise
 
@@ -7963,12 +8219,12 @@ X-RateLimit-Reset: 1705312860
 X-RateLimit-Reset-After: 42
 ```
 
-| Header | Description |
-|--------|-------------|
-| `X-RateLimit-Limit` | Max requests in window |
-| `X-RateLimit-Remaining` | Requests remaining |
-| `X-RateLimit-Reset` | Unix timestamp when limit resets |
-| `X-RateLimit-Reset-After` | Seconds until reset |
+| Header                    | Description                      |
+| ------------------------- | -------------------------------- |
+| `X-RateLimit-Limit`       | Max requests in window           |
+| `X-RateLimit-Remaining`   | Requests remaining               |
+| `X-RateLimit-Reset`       | Unix timestamp when limit resets |
+| `X-RateLimit-Reset-After` | Seconds until reset              |
 
 ## Handling Rate Limits
 
@@ -7994,20 +8250,22 @@ Implement exponential backoff:
 async function fetchWithRetry(url, options, maxRetries = 3) {
   for (let i = 0; i < maxRetries; i++) {
     const response = await fetch(url, options);
-    
+
     if (response.status === 429) {
-      const retryAfter = response.headers.get('X-RateLimit-Reset-After');
-      const waitTime = retryAfter ? parseInt(retryAfter) * 1000 : Math.pow(2, i) * 1000;
-      
+      const retryAfter = response.headers.get("X-RateLimit-Reset-After");
+      const waitTime = retryAfter
+        ? parseInt(retryAfter) * 1000
+        : Math.pow(2, i) * 1000;
+
       console.log(`Rate limited. Waiting ${waitTime}ms...`);
-      await new Promise(resolve => setTimeout(resolve, waitTime));
+      await new Promise((resolve) => setTimeout(resolve, waitTime));
       continue;
     }
-    
+
     return response;
   }
-  
-  throw new Error('Max retries exceeded');
+
+  throw new Error("Max retries exceeded");
 }
 ```
 
@@ -8030,33 +8288,35 @@ class RequestQueue {
     this.windowMs = windowMs;
     this.requestTimes = [];
   }
-  
+
   async add(request) {
     return new Promise((resolve, reject) => {
       this.queue.push({ request, resolve, reject });
       this.process();
     });
   }
-  
+
   async process() {
     if (this.queue.length === 0) return;
-    
+
     // Clean old request times
     const now = Date.now();
-    this.requestTimes = this.requestTimes.filter(t => now - t < this.windowMs);
-    
+    this.requestTimes = this.requestTimes.filter(
+      (t) => now - t < this.windowMs,
+    );
+
     // Check if we can make a request
     if (this.requestTimes.length < this.rateLimit) {
       const { request, resolve, reject } = this.queue.shift();
       this.requestTimes.push(now);
-      
+
       try {
         const result = await request();
         resolve(result);
       } catch (error) {
         reject(error);
       }
-      
+
       this.process();
     } else {
       // Wait until we can make another request
@@ -8085,11 +8345,11 @@ For specific use cases, contact support to request a limit increase:
 
 Some endpoints have additional burst limits:
 
-| Endpoint | Burst Limit |
-|----------|-------------|
-| Chat Completions | 10/sec |
-| Embeddings | 20/sec |
-| Image Generation | 3/sec |
+| Endpoint         | Burst Limit |
+| ---------------- | ----------- |
+| Chat Completions | 10/sec      |
+| Embeddings       | 20/sec      |
+| Image Generation | 3/sec       |
 
 Burst limits prevent sudden traffic spikes even within the per-minute limits.
 
@@ -8145,17 +8405,18 @@ Since elizaOS Cloud is **100% OpenAI API compatible**, you can use any existing 
 ```typescript
 
 const client = new OpenAI({
-  apiKey: process.env.ELIZA_API_KEY,
-  baseURL: 'https://elizacloud.ai/api/v1',
+apiKey: process.env.ELIZA_API_KEY,
+baseURL: 'https://elizacloud.ai/api/v1',
 });
 
 const response = await client.chat.completions.create({
-  model: 'gpt-4o',
-  messages: [{ role: 'user', content: 'Hello!' }],
+model: 'gpt-4o',
+messages: [{ role: 'user', content: 'Hello!' }],
 });
 
 console.log(response.choices[0].message.content);
-```
+
+````
   
   
 ```python
@@ -8172,7 +8433,8 @@ response = client.chat.completions.create(
 )
 
 print(response.choices[0].message.content)
-```
+````
+
   
   
 ```bash
@@ -8202,7 +8464,7 @@ bun add openai
 
 const client = new OpenAI({
   apiKey: process.env.ELIZA_API_KEY,
-  baseURL: 'https://elizacloud.ai/api/v1',
+  baseURL: "https://elizacloud.ai/api/v1",
 });
 ```
 
@@ -8210,13 +8472,13 @@ const client = new OpenAI({
 
 ```typescript
 const stream = await client.chat.completions.create({
-  model: 'gpt-4o',
-  messages: [{ role: 'user', content: 'Tell me a story' }],
+  model: "gpt-4o",
+  messages: [{ role: "user", content: "Tell me a story" }],
   stream: true,
 });
 
 for await (const chunk of stream) {
-  process.stdout.write(chunk.choices[0]?.delta?.content || '');
+  process.stdout.write(chunk.choices[0]?.delta?.content || "");
 }
 ```
 
@@ -8224,8 +8486,8 @@ for await (const chunk of stream) {
 
 ```typescript
 const embedding = await client.embeddings.create({
-  input: 'Hello world',
-  model: 'text-embedding-3-small',
+  input: "Hello world",
+  model: "text-embedding-3-small",
 });
 ```
 
@@ -8276,15 +8538,15 @@ For APIs that extend beyond OpenAI compatibility (images, video, voice), use dir
 ### Image Generation
 
 ```typescript
-const response = await fetch('https://elizacloud.ai/api/v1/generate-image', {
-  method: 'POST',
+const response = await fetch("https://elizacloud.ai/api/v1/generate-image", {
+  method: "POST",
   headers: {
-    'Authorization': `Bearer ${process.env.ELIZA_API_KEY}`,
-    'Content-Type': 'application/json',
+    Authorization: `Bearer ${process.env.ELIZA_API_KEY}`,
+    "Content-Type": "application/json",
   },
   body: JSON.stringify({
-    prompt: 'A sunset over mountains',
-    model: 'fal-ai/flux/schnell',
+    prompt: "A sunset over mountains",
+    model: "fal-ai/flux/schnell",
   }),
 });
 
@@ -8295,14 +8557,14 @@ console.log(data.images[0].url);
 ### Video Generation
 
 ```typescript
-const response = await fetch('https://elizacloud.ai/api/v1/generate-video', {
-  method: 'POST',
+const response = await fetch("https://elizacloud.ai/api/v1/generate-video", {
+  method: "POST",
   headers: {
-    'Authorization': `Bearer ${process.env.ELIZA_API_KEY}`,
-    'Content-Type': 'application/json',
+    Authorization: `Bearer ${process.env.ELIZA_API_KEY}`,
+    "Content-Type": "application/json",
   },
   body: JSON.stringify({
-    prompt: 'A cat playing piano',
+    prompt: "A cat playing piano",
     duration: 5,
   }),
 });
@@ -8320,12 +8582,12 @@ console.log(data.video_url);
 const model = new ChatOpenAI({
   openAIApiKey: process.env.ELIZA_API_KEY,
   configuration: {
-    baseURL: 'https://elizacloud.ai/api/v1',
+    baseURL: "https://elizacloud.ai/api/v1",
   },
-  modelName: 'gpt-4o',
+  modelName: "gpt-4o",
 });
 
-const response = await model.invoke('Hello!');
+const response = await model.invoke("Hello!");
 ```
 
 ### Vercel AI SDK
@@ -8334,12 +8596,12 @@ const response = await model.invoke('Hello!');
 
 const openai = createOpenAI({
   apiKey: process.env.ELIZA_API_KEY,
-  baseURL: 'https://elizacloud.ai/api/v1',
+  baseURL: "https://elizacloud.ai/api/v1",
 });
 
 const { text } = await generateText({
-  model: openai('gpt-4o'),
-  prompt: 'Hello!',
+  model: openai("gpt-4o"),
+  prompt: "Hello!",
 });
 ```
 
@@ -8364,17 +8626,17 @@ Connect to elizaOS Cloud MCP endpoint:
 ```typescript
 
 const client = new Client({
-  url: 'https://elizacloud.ai/api/mcp',
+  url: "https://elizacloud.ai/api/mcp",
   headers: {
-    'Authorization': `Bearer ${process.env.ELIZA_API_KEY}`,
+    Authorization: `Bearer ${process.env.ELIZA_API_KEY}`,
   },
 });
 
 await client.initialize();
 
 const tools = await client.listTools();
-const result = await client.callTool('generate_image', {
-  prompt: 'A sunset',
+const result = await client.callTool("generate_image", {
+  prompt: "A sunset",
 });
 ```
 
@@ -8382,30 +8644,31 @@ const result = await client.callTool('generate_image', {
 
 Since elizaOS Cloud is OpenAI-compatible, you can use any OpenAI SDK in your preferred language:
 
-| Language | Library | Installation |
-|----------|---------|--------------|
-| Go | `sashabaranov/go-openai` | `go get github.com/sashabaranov/go-openai` |
-| Rust | `async-openai` | `cargo add async-openai` |
-| Ruby | `ruby-openai` | `gem install ruby-openai` |
-| PHP | `openai-php/client` | `composer require openai-php/client` |
+| Language | Library                  | Installation                               |
+| -------- | ------------------------ | ------------------------------------------ |
+| Go       | `sashabaranov/go-openai` | `go get github.com/sashabaranov/go-openai` |
+| Rust     | `async-openai`           | `cargo add async-openai`                   |
+| Ruby     | `ruby-openai`            | `gem install ruby-openai`                  |
+| PHP      | `openai-php/client`      | `composer require openai-php/client`       |
 
 Simply configure the base URL to `https://elizacloud.ai/api/v1` and use your elizaOS API key.
 
 ## Feature Support
 
-| Feature | OpenAI SDK | Direct REST |
-|---------|------------|-------------|
-| Chat Completions | ✅ | ✅ |
-| Streaming | ✅ | ✅ |
-| Embeddings | ✅ | ✅ |
-| Image Generation | ❌ | ✅ |
-| Video Generation | ❌ | ✅ |
-| Voice / TTS | ❌ | ✅ |
-| Knowledge Base | ❌ | ✅ |
-| MCP Tools | ❌ | ✅ |
-| Agents API | ❌ | ✅ |
+| Feature          | OpenAI SDK | Direct REST |
+| ---------------- | ---------- | ----------- |
+| Chat Completions | ✅         | ✅          |
+| Streaming        | ✅         | ✅          |
+| Embeddings       | ✅         | ✅          |
+| Image Generation | ❌         | ✅          |
+| Video Generation | ❌         | ✅          |
+| Voice / TTS      | ❌         | ✅          |
+| Knowledge Base   | ❌         | ✅          |
+| MCP Tools        | ❌         | ✅          |
+| Agents API       | ❌         | ✅          |
 
-  OpenAI SDK compatibility covers chat, embeddings, and streaming. For elizaOS-specific features like image/video generation, use direct REST calls.
+  OpenAI SDK compatibility covers chat, embeddings, and streaming. For
+  elizaOS-specific features like image/video generation, use direct REST calls.
 
 ## Contributing
 
@@ -8479,7 +8742,8 @@ const response = await fetch('https://elizacloud.ai/api/v1/generate-video', {
 
 const result = await response.json();
 console.log(result.video.url);
-```
+
+````
   
   
 ```python
@@ -8498,7 +8762,8 @@ response = requests.post(
 
 result = response.json()
 print(result['video']['url'])
-```
+````
+
   
 
 ### Response
@@ -8511,38 +8776,38 @@ print(result['video']['url'])
     "width": 1280,
     "height": 720
   },
-  "cost": 0.50,
+  "cost": 0.5,
   "model": "minimax/video-01"
 }
 ```
 
 ## Available Models
 
-| Model | Duration | Quality | Best For |
-|-------|----------|---------|----------|
-| `minimax/video-01` | 5-10s | High | Realistic scenes, product videos |
-| `fal-ai/runway-gen3` | 5s | High | Creative, artistic content |
-| `fal-ai/kling-video` | 5s | Medium | Fast iterations |
+| Model                | Duration | Quality | Best For                         |
+| -------------------- | -------- | ------- | -------------------------------- |
+| `minimax/video-01`   | 5-10s    | High    | Realistic scenes, product videos |
+| `fal-ai/runway-gen3` | 5s       | High    | Creative, artistic content       |
+| `fal-ai/kling-video` | 5s       | Medium  | Fast iterations                  |
 
 ## Request Parameters
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `prompt` | string | ✓ | Text description of the video |
-| `model` | string | | Model to use (default: `minimax/video-01`) |
-| `image_url` | string | | Source image for image-to-video |
-| `duration` | integer | | Video length in seconds |
-| `aspect_ratio` | string | | Output aspect ratio |
-| `seed` | integer | | Random seed for reproducibility |
+| Parameter      | Type    | Required | Description                                |
+| -------------- | ------- | -------- | ------------------------------------------ |
+| `prompt`       | string  | ✓        | Text description of the video              |
+| `model`        | string  |          | Model to use (default: `minimax/video-01`) |
+| `image_url`    | string  |          | Source image for image-to-video            |
+| `duration`     | integer |          | Video length in seconds                    |
+| `aspect_ratio` | string  |          | Output aspect ratio                        |
+| `seed`         | integer |          | Random seed for reproducibility            |
 
 ### Aspect Ratios
 
-| Ratio | Dimensions | Use Case |
-|-------|------------|----------|
-| `16:9` | 1280x720 | Standard video, YouTube |
-| `9:16` | 720x1280 | Vertical video, TikTok |
-| `1:1` | 1024x1024 | Square video, Instagram |
-| `4:3` | 1024x768 | Classic aspect |
+| Ratio  | Dimensions | Use Case                |
+| ------ | ---------- | ----------------------- |
+| `16:9` | 1280x720   | Standard video, YouTube |
+| `9:16` | 720x1280   | Vertical video, TikTok  |
+| `1:1`  | 1024x1024  | Square video, Instagram |
+| `4:3`  | 1024x768   | Classic aspect          |
 
 ## Image-to-Video
 
@@ -8556,38 +8821,42 @@ Generate videos from a source image:
 }
 ```
 
-Image-to-video maintains consistency with the source image while adding motion.
+  Image-to-video maintains consistency with the source image while adding
+  motion.
 
 ## Prompt Engineering
 
 ### Effective Video Prompts
 
 **Be specific about motion:**
+
 ```
-A golden retriever running through autumn leaves, 
+A golden retriever running through autumn leaves,
 slow motion, leaves flying in the air
 ```
 
 **Describe camera movement:**
+
 ```
-Drone shot flying over a tropical beach, 
+Drone shot flying over a tropical beach,
 golden hour lighting, waves crashing on shore
 ```
 
 **Include temporal progression:**
+
 ```
-Time lapse of a flower blooming, from bud to full bloom, 
+Time lapse of a flower blooming, from bud to full bloom,
 soft natural lighting
 ```
 
 ### Example Prompts
 
-| Category | Example |
-|----------|---------|
-| **Nature** | A waterfall cascading into a crystal clear pool, mist rising |
-| **Product** | A luxury watch rotating on a dark surface, dramatic lighting |
-| **Abstract** | Colorful paint swirling in water, macro shot, slow motion |
-| **Character** | A knight drawing a sword, dramatic pose, cinematic lighting |
+| Category      | Example                                                      |
+| ------------- | ------------------------------------------------------------ |
+| **Nature**    | A waterfall cascading into a crystal clear pool, mist rising |
+| **Product**   | A luxury watch rotating on a dark surface, dramatic lighting |
+| **Abstract**  | Colorful paint swirling in water, macro shot, slow motion    |
+| **Character** | A knight drawing a sword, dramatic pose, cinematic lighting  |
 
 ## Gallery
 
@@ -8602,19 +8871,20 @@ Generated videos are saved to your [Gallery](/dashboard/gallery) for management:
 
 See [Billing & Credits](/docs/billing) for current pricing. Video generation costs range from 0.30-0.75 credits per video depending on model.
 
-Video generation costs more than images due to computational requirements. Monitor usage in the [billing dashboard](/dashboard/billing).
+  Video generation costs more than images due to computational requirements.
+  Monitor usage in the [billing dashboard](/dashboard/billing).
 
 ## Generation Time
 
 Video generation takes longer than images:
 
-| Model | Typical Time |
-|-------|--------------|
-| MiniMax Video-01 | 2-5 minutes |
-| Runway Gen-3 | 1-3 minutes |
-| Kling Video | 1-2 minutes |
+| Model            | Typical Time |
+| ---------------- | ------------ |
+| MiniMax Video-01 | 2-5 minutes  |
+| Runway Gen-3     | 1-3 minutes  |
+| Kling Video      | 1-2 minutes  |
 
-Use webhooks or polling to check generation status for longer operations.
+  Use webhooks or polling to check generation status for longer operations.
 
 ## Polling for Status
 
@@ -8623,30 +8893,33 @@ For longer generations, poll the status endpoint:
 ```javascript
 async function generateVideo(prompt) {
   // Start generation
-  const startResponse = await fetch('https://elizacloud.ai/api/v1/generate-video', {
-    method: 'POST',
-    headers: {
-      'Authorization': 'Bearer YOUR_API_KEY',
-      'Content-Type': 'application/json',
+  const startResponse = await fetch(
+    "https://elizacloud.ai/api/v1/generate-video",
+    {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer YOUR_API_KEY",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ prompt }),
     },
-    body: JSON.stringify({ prompt }),
-  });
-  
+  );
+
   const { jobId } = await startResponse.json();
-  
+
   // Poll for completion
   while (true) {
     const statusResponse = await fetch(
       `https://elizacloud.ai/api/v1/generate-video/${jobId}`,
-      { headers: { 'Authorization': 'Bearer YOUR_API_KEY' } }
+      { headers: { Authorization: "Bearer YOUR_API_KEY" } },
     );
-    
+
     const { status, video } = await statusResponse.json();
-    
-    if (status === 'completed') return video;
-    if (status === 'failed') throw new Error('Generation failed');
-    
-    await new Promise(r => setTimeout(r, 5000)); // Wait 5s
+
+    if (status === "completed") return video;
+    if (status === "failed") throw new Error("Generation failed");
+
+    await new Promise((r) => setTimeout(r, 5000)); // Wait 5s
   }
 }
 ```
@@ -8655,12 +8928,12 @@ async function generateVideo(prompt) {
 
 ### Common Errors
 
-| Error | Cause | Solution |
-|-------|-------|----------|
-| `CONTENT_POLICY` | Prompt violates policy | Modify prompt content |
-| `GENERATION_FAILED` | Model failed to generate | Retry with different prompt |
-| `TIMEOUT` | Generation took too long | Use a faster model |
-| `INSUFFICIENT_CREDITS` | Not enough credits | Top up account |
+| Error                  | Cause                    | Solution                    |
+| ---------------------- | ------------------------ | --------------------------- |
+| `CONTENT_POLICY`       | Prompt violates policy   | Modify prompt content       |
+| `GENERATION_FAILED`    | Model failed to generate | Retry with different prompt |
+| `TIMEOUT`              | Generation took too long | Use a faster model          |
+| `INSUFFICIENT_CREDITS` | Not enough credits       | Top up account              |
 
 ## Best Practices
 
@@ -8749,46 +9022,51 @@ curl -X GET "https://elizacloud.ai/api/elevenlabs/voices/user" \
 Gather 1-3 minutes of clean audio from the target voice.
 
 **Requirements:**
+
 - Clear speech without background noise
 - Single speaker only
 - High quality (WAV or MP3, 44.1kHz+)
 
 ### Upload Samples
+
 Upload audio files via dashboard or API.
 
 ### Create Clone
+
 Submit the cloning request and wait for processing.
 
 ### Verify Quality
+
 Test the cloned voice with sample text.
 
 ### Sample Requirements
 
-| Requirement | Recommendation |
-|-------------|----------------|
-| **Duration** | 1-3 minutes total |
-| **Format** | WAV, MP3, M4A |
-| **Quality** | 44.1kHz, 16-bit minimum |
-| **Content** | Natural speech, varied intonation |
-| **Noise** | Minimal background noise |
+| Requirement  | Recommendation                    |
+| ------------ | --------------------------------- |
+| **Duration** | 1-3 minutes total                 |
+| **Format**   | WAV, MP3, M4A                     |
+| **Quality**  | 44.1kHz, 16-bit minimum           |
+| **Content**  | Natural speech, varied intonation |
+| **Noise**    | Minimal background noise          |
 
-Using someone's voice without permission may violate their rights. Only clone voices you have rights to use.
+  Using someone's voice without permission may violate their rights. Only clone
+  voices you have rights to use.
 
 ## Text-to-Speech
 
 ### Generate Speech
 
 ```javascript
-const response = await fetch('https://elizacloud.ai/api/elevenlabs/tts', {
-  method: 'POST',
+const response = await fetch("https://elizacloud.ai/api/elevenlabs/tts", {
+  method: "POST",
   headers: {
-    'Authorization': 'Bearer YOUR_API_KEY',
-    'Content-Type': 'application/json',
+    Authorization: "Bearer YOUR_API_KEY",
+    "Content-Type": "application/json",
   },
   body: JSON.stringify({
-    text: 'Welcome to elizaOS Cloud!',
-    voice_id: 'voice_abc123',
-    model_id: 'eleven_multilingual_v2',
+    text: "Welcome to elizaOS Cloud!",
+    voice_id: "voice_abc123",
+    model_id: "eleven_multilingual_v2",
     voice_settings: {
       stability: 0.5,
       similarity_boost: 0.75,
@@ -8802,20 +9080,20 @@ const audioUrl = URL.createObjectURL(audioBlob);
 
 ### Voice Settings
 
-| Setting | Range | Description |
-|---------|-------|-------------|
-| `stability` | 0-1 | Higher = more consistent, lower = more expressive |
-| `similarity_boost` | 0-1 | How closely to match the original voice |
-| `style` | 0-1 | Style exaggeration (v2 models only) |
-| `use_speaker_boost` | bool | Enhance speaker similarity |
+| Setting             | Range | Description                                       |
+| ------------------- | ----- | ------------------------------------------------- |
+| `stability`         | 0-1   | Higher = more consistent, lower = more expressive |
+| `similarity_boost`  | 0-1   | How closely to match the original voice           |
+| `style`             | 0-1   | Style exaggeration (v2 models only)               |
+| `use_speaker_boost` | bool  | Enhance speaker similarity                        |
 
 ### Available Models
 
-| Model | Languages | Quality | Speed |
-|-------|-----------|---------|-------|
-| `eleven_multilingual_v2` | 29 | Highest | Medium |
-| `eleven_monolingual_v1` | English | High | Fast |
-| `eleven_turbo_v2` | English | Good | Fastest |
+| Model                    | Languages | Quality | Speed   |
+| ------------------------ | --------- | ------- | ------- |
+| `eleven_multilingual_v2` | 29        | Highest | Medium  |
+| `eleven_monolingual_v1`  | English   | High    | Fast    |
+| `eleven_turbo_v2`        | English   | Good    | Fastest |
 
 ## Pre-built Voices
 
@@ -8910,7 +9188,7 @@ curl -X POST "https://elizacloud.ai/api/elevenlabs/stt" \
 
 See [Billing & Credits](/docs/billing) for current pricing. Voice cloning costs 5 credits, TTS/STT are usage-based.
 
-Monitor your voice usage in the [billing dashboard](/dashboard/billing).
+  Monitor your voice usage in the [billing dashboard](/dashboard/billing).
 
 ## Best Practices
 
@@ -8955,10 +9233,10 @@ x402 enables:
 
 ## Supported Networks
 
-| Network | Token | Address |
-|---------|-------|---------|
-| Base | USDC | `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913` |
-| Ethereum | USDC | `0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48` |
+| Network  | Token | Address                                      |
+| -------- | ----- | -------------------------------------------- |
+| Base     | USDC  | `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913` |
+| Ethereum | USDC  | `0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48` |
 
 ## How It Works
 
@@ -8992,6 +9270,7 @@ curl -X POST "https://elizacloud.ai/api/v1/chat/completions" \
 ```
 
 Headers:
+
 ```
 X-Payment-Requirement: {
   "accepts": [{
@@ -9070,7 +9349,7 @@ curl -X POST "https://elizacloud.ai/api/v1/credits/topup" \
 ```javascript
 
 // Set up wallet
-const account = privateKeyToAccount('0x...');
+const account = privateKeyToAccount("0x...");
 const wallet = createWalletClient({
   account,
   chain: base,
@@ -9081,14 +9360,17 @@ const wallet = createWalletClient({
 const x402Fetch = wrapFetch(fetch, wallet);
 
 // Make request - payment handled automatically
-const response = await x402Fetch('https://elizacloud.ai/api/v1/chat/completions', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    model: 'gpt-4o',
-    messages: [{ role: 'user', content: 'Hello!' }],
-  }),
-});
+const response = await x402Fetch(
+  "https://elizacloud.ai/api/v1/chat/completions",
+  {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: "gpt-4o",
+      messages: [{ role: "user", content: "Hello!" }],
+    }),
+  },
+);
 ```
 
 ## Payment Header Format
@@ -9099,21 +9381,21 @@ The `X-PAYMENT` header contains a signed payment proof:
 X-PAYMENT: x402;scheme=exact;network=base;amount=10000;signature=0x...;txHash=0x...
 ```
 
-| Field | Description |
-|-------|-------------|
-| `scheme` | Payment scheme (exact) |
-| `network` | Blockchain network |
-| `amount` | Payment amount in wei |
-| `signature` | Payment signature |
-| `txHash` | Transaction hash (optional) |
+| Field       | Description                 |
+| ----------- | --------------------------- |
+| `scheme`    | Payment scheme (exact)      |
+| `network`   | Blockchain network          |
+| `amount`    | Payment amount in wei       |
+| `signature` | Payment signature           |
+| `txHash`    | Transaction hash (optional) |
 
 ## Pricing
 
 | Amount (USDC) | Credits |
-|---------------|---------|
-| $1 | 100 |
-| $10 | 1,000 |
-| $100 | 10,000 |
+| ------------- | ------- |
+| $1            | 100     |
+| $10           | 1,000   |
+| $100          | 10,000  |
 
 Minimum payment: $1 USDC (100 credits)
 
@@ -9153,7 +9435,8 @@ curl -X GET "https://elizacloud.ai/api/v1/erc8004/status"
 
 ## Security
 
-**Private Key Security**: Never expose your private keys in client-side code. Use a secure backend to sign payments.
+  **Private Key Security**: Never expose your private keys in client-side code.
+  Use a secure backend to sign payments.
 
 ### Best Practices
 
@@ -9164,12 +9447,12 @@ curl -X GET "https://elizacloud.ai/api/v1/erc8004/status"
 
 ## Error Handling
 
-| Error | Cause | Solution |
-|-------|-------|----------|
-| `INVALID_PAYMENT` | Invalid payment proof | Check signature |
-| `INSUFFICIENT_PAYMENT` | Amount too low | Increase payment |
-| `EXPIRED_PAYMENT` | Payment expired | Generate new proof |
-| `WRONG_NETWORK` | Network mismatch | Use correct network |
+| Error                  | Cause                 | Solution            |
+| ---------------------- | --------------------- | ------------------- |
+| `INVALID_PAYMENT`      | Invalid payment proof | Check signature     |
+| `INSUFFICIENT_PAYMENT` | Amount too low        | Increase payment    |
+| `EXPIRED_PAYMENT`      | Payment expired       | Generate new proof  |
+| `WRONG_NETWORK`        | Network mismatch      | Use correct network |
 
 ## Best Practices
 

@@ -97,9 +97,10 @@ async function handlePOST(req: NextRequest) {
     }
 
     // Start async content moderation (runs in background, doesn't block)
-    const lastMessageText = lastMessage?.parts
-      ?.map((p) => (p.type === "text" ? p.text : ""))
-      .join("") || "";
+    const lastMessageText =
+      lastMessage?.parts
+        ?.map((p) => (p.type === "text" ? p.text : ""))
+        .join("") || "";
 
     if (lastMessageText) {
       contentModerationService.moderateInBackground(

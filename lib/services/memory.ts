@@ -14,7 +14,7 @@ import { ChannelType, stringToUuid } from "@elizaos/core";
 import { createHash } from "crypto";
 import { conversationsService } from "@/lib/services/conversations";
 import type { ConversationMessage } from "@/db/repositories";
-import { db, dbRead } from "@/db/client";
+import { dbRead } from "@/db/client";
 import { eq, and, desc, inArray } from "drizzle-orm";
 import { users } from "@/db/schemas/users";
 import { participantTable, memoryTable } from "@/db/schemas/eliza";
@@ -358,8 +358,9 @@ export class MemoryService {
       const limit = input.limit || 10;
       const roomIdArray = Array.from(allowedRoomIds);
 
-      // Single query with inArray instead of N+1 loop
-      const results = await db
+      // PERFORMANCE FIX: Use single batched query with IN clause instead of N+1 queries
+      // This reduces N database round-trips to just 1
+      const results = await dbRead
         .select()
         .from(memoryTable)
         .where(
@@ -385,8 +386,9 @@ export class MemoryService {
             unique: row.unique,
           }) as Memory,
       );
+
       logger.info(
-        `[Memory Service] Fetched ${memories.length} memories from ${roomIdArray.length} rooms`,
+        `[Memory Service] Batched query returned ${memories.length} memories from ${roomIdArray.length} rooms`,
       );
     }
 

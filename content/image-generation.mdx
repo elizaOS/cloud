@@ -3,7 +3,7 @@ title: Image Generation
 description: Generate images with AI on elizaOS Cloud using FLUX, Stable Diffusion, and other models via Fal.ai integration.
 ---
 
-import { Callout, Tabs, Cards } from 'nextra/components'
+import { Callout, Tabs, Cards } from "nextra/components";
 
 # Image Generation
 
@@ -60,7 +60,8 @@ const response = await fetch('https://elizacloud.ai/api/v1/generate-image', {
 
 const result = await response.json();
 console.log(result.images[0].url);
-```
+
+````
   </Tabs.Tab>
   <Tabs.Tab>
 ```python
@@ -82,7 +83,8 @@ response = requests.post(
 
 result = response.json()
 print(result['images'][0]['url'])
-```
+````
+
   </Tabs.Tab>
 </Tabs>
 
@@ -104,35 +106,35 @@ print(result['images'][0]['url'])
 
 ## Available Models
 
-| Model | Speed | Quality | Best For |
-|-------|-------|---------|----------|
-| `fal-ai/flux/schnell` | ⚡ Fast | High | Quick iterations, prototyping |
-| `fal-ai/flux/pro` | Medium | Highest | Final production images |
-| `fal-ai/flux/dev` | Medium | High | Development and testing |
-| `fal-ai/stable-diffusion-v3` | Medium | High | Versatile, good for most use cases |
+| Model                        | Speed   | Quality | Best For                           |
+| ---------------------------- | ------- | ------- | ---------------------------------- |
+| `fal-ai/flux/schnell`        | ⚡ Fast | High    | Quick iterations, prototyping      |
+| `fal-ai/flux/pro`            | Medium  | Highest | Final production images            |
+| `fal-ai/flux/dev`            | Medium  | High    | Development and testing            |
+| `fal-ai/stable-diffusion-v3` | Medium  | High    | Versatile, good for most use cases |
 
 ## Request Parameters
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `prompt` | string | ✓ | Text description of the image |
-| `model` | string | | Model to use (default: `fal-ai/flux/schnell`) |
-| `size` | string | | Output size (see sizes below) |
-| `num_images` | integer | | Number of images (1-4, default: 1) |
-| `seed` | integer | | Random seed for reproducibility |
-| `guidance_scale` | number | | How closely to follow the prompt (1-20) |
-| `negative_prompt` | string | | What to avoid in the image |
+| Parameter         | Type    | Required | Description                                   |
+| ----------------- | ------- | -------- | --------------------------------------------- |
+| `prompt`          | string  | ✓        | Text description of the image                 |
+| `model`           | string  |          | Model to use (default: `fal-ai/flux/schnell`) |
+| `size`            | string  |          | Output size (see sizes below)                 |
+| `num_images`      | integer |          | Number of images (1-4, default: 1)            |
+| `seed`            | integer |          | Random seed for reproducibility               |
+| `guidance_scale`  | number  |          | How closely to follow the prompt (1-20)       |
+| `negative_prompt` | string  |          | What to avoid in the image                    |
 
 ### Available Sizes
 
-| Size | Dimensions | Aspect Ratio |
-|------|------------|--------------|
-| `square` | 512x512 | 1:1 |
-| `square_hd` | 1024x1024 | 1:1 |
-| `portrait_4_3` | 768x1024 | 3:4 |
-| `portrait_16_9` | 576x1024 | 9:16 |
-| `landscape_4_3` | 1024x768 | 4:3 |
-| `landscape_16_9` | 1024x576 | 16:9 |
+| Size             | Dimensions | Aspect Ratio |
+| ---------------- | ---------- | ------------ |
+| `square`         | 512x512    | 1:1          |
+| `square_hd`      | 1024x1024  | 1:1          |
+| `portrait_4_3`   | 768x1024   | 3:4          |
+| `portrait_16_9`  | 576x1024   | 9:16         |
+| `landscape_4_3`  | 1024x768   | 4:3          |
+| `landscape_16_9` | 1024x576   | 16:9         |
 
 ## Prompt Engineering
 
@@ -145,20 +147,23 @@ print(result['images'][0]['url'])
 ### Example Prompts
 
 **Photorealistic:**
+
 ```
-Portrait of a woman with silver hair, professional photography, 
+Portrait of a woman with silver hair, professional photography,
 soft studio lighting, shallow depth of field, 8k quality
 ```
 
 **Artistic:**
+
 ```
-Abstract painting of ocean waves, impressionist style, 
+Abstract painting of ocean waves, impressionist style,
 vibrant blues and teals, textured brushstrokes
 ```
 
 **Product:**
+
 ```
-Minimalist product shot of a smartwatch on white marble, 
+Minimalist product shot of a smartwatch on white marble,
 clean lighting, commercial photography, high detail
 ```
 
@@ -180,14 +185,14 @@ Use negative prompts to exclude unwanted elements:
 Generate multiple variations:
 
 ```javascript
-const response = await fetch('https://elizacloud.ai/api/v1/generate-image', {
-  method: 'POST',
+const response = await fetch("https://elizacloud.ai/api/v1/generate-image", {
+  method: "POST",
   headers: {
-    'Authorization': 'Bearer YOUR_API_KEY',
-    'Content-Type': 'application/json',
+    Authorization: "Bearer YOUR_API_KEY",
+    "Content-Type": "application/json",
   },
   body: JSON.stringify({
-    prompt: 'A serene mountain landscape',
+    prompt: "A serene mountain landscape",
     num_images: 4,
     seed: 42, // Same seed for consistency
   }),
@@ -207,7 +212,7 @@ Use a seed for consistent outputs:
 ```
 
 <Callout type="info">
-Using the same prompt, seed, and parameters will produce identical results.
+  Using the same prompt, seed, and parameters will produce identical results.
 </Callout>
 
 ## Gallery
@@ -225,19 +230,19 @@ Generated images are automatically saved to your [Gallery](/dashboard/gallery) f
 See [Billing & Credits](/docs/billing) for current pricing. Image generation costs range from 0.02-0.05 credits per image depending on model.
 
 <Callout type="info">
-Monitor your usage in the [billing dashboard](/dashboard/billing).
+  Monitor your usage in the [billing dashboard](/dashboard/billing).
 </Callout>
 
 ## Error Handling
 
 ### Common Errors
 
-| Error | Cause | Solution |
-|-------|-------|----------|
-| `CONTENT_POLICY` | Prompt violates content policy | Modify prompt to comply |
-| `RATE_LIMITED` | Too many requests | Wait and retry with backoff |
-| `INSUFFICIENT_CREDITS` | Not enough credits | Top up your account |
-| `INVALID_MODEL` | Model not available | Use a supported model |
+| Error                  | Cause                          | Solution                    |
+| ---------------------- | ------------------------------ | --------------------------- |
+| `CONTENT_POLICY`       | Prompt violates content policy | Modify prompt to comply     |
+| `RATE_LIMITED`         | Too many requests              | Wait and retry with backoff |
+| `INSUFFICIENT_CREDITS` | Not enough credits             | Top up your account         |
+| `INVALID_MODEL`        | Model not available            | Use a supported model       |
 
 ### Error Response
 

@@ -3,7 +3,7 @@ title: SDKs & Libraries
 description: Official and community SDKs for integrating with elizaOS Cloud in your preferred language.
 ---
 
-import { Callout, Tabs, Cards } from 'nextra/components'
+import { Callout, Tabs, Cards } from "nextra/components";
 
 # SDKs & Libraries
 
@@ -21,17 +21,18 @@ Since elizaOS Cloud is **100% OpenAI API compatible**, you can use any existing 
 import OpenAI from 'openai';
 
 const client = new OpenAI({
-  apiKey: process.env.ELIZA_API_KEY,
-  baseURL: 'https://elizacloud.ai/api/v1',
+apiKey: process.env.ELIZA_API_KEY,
+baseURL: 'https://elizacloud.ai/api/v1',
 });
 
 const response = await client.chat.completions.create({
-  model: 'gpt-4o',
-  messages: [{ role: 'user', content: 'Hello!' }],
+model: 'gpt-4o',
+messages: [{ role: 'user', content: 'Hello!' }],
 });
 
 console.log(response.choices[0].message.content);
-```
+
+````
   </Tabs.Tab>
   <Tabs.Tab>
 ```python
@@ -48,7 +49,8 @@ response = client.chat.completions.create(
 )
 
 print(response.choices[0].message.content)
-```
+````
+
   </Tabs.Tab>
   <Tabs.Tab>
 ```bash
@@ -76,11 +78,11 @@ bun add openai
 ### Basic Usage
 
 ```typescript
-import OpenAI from 'openai';
+import OpenAI from "openai";
 
 const client = new OpenAI({
   apiKey: process.env.ELIZA_API_KEY,
-  baseURL: 'https://elizacloud.ai/api/v1',
+  baseURL: "https://elizacloud.ai/api/v1",
 });
 ```
 
@@ -88,13 +90,13 @@ const client = new OpenAI({
 
 ```typescript
 const stream = await client.chat.completions.create({
-  model: 'gpt-4o',
-  messages: [{ role: 'user', content: 'Tell me a story' }],
+  model: "gpt-4o",
+  messages: [{ role: "user", content: "Tell me a story" }],
   stream: true,
 });
 
 for await (const chunk of stream) {
-  process.stdout.write(chunk.choices[0]?.delta?.content || '');
+  process.stdout.write(chunk.choices[0]?.delta?.content || "");
 }
 ```
 
@@ -102,8 +104,8 @@ for await (const chunk of stream) {
 
 ```typescript
 const embedding = await client.embeddings.create({
-  input: 'Hello world',
-  model: 'text-embedding-3-small',
+  input: "Hello world",
+  model: "text-embedding-3-small",
 });
 ```
 
@@ -154,15 +156,15 @@ For APIs that extend beyond OpenAI compatibility (images, video, voice), use dir
 ### Image Generation
 
 ```typescript
-const response = await fetch('https://elizacloud.ai/api/v1/generate-image', {
-  method: 'POST',
+const response = await fetch("https://elizacloud.ai/api/v1/generate-image", {
+  method: "POST",
   headers: {
-    'Authorization': `Bearer ${process.env.ELIZA_API_KEY}`,
-    'Content-Type': 'application/json',
+    Authorization: `Bearer ${process.env.ELIZA_API_KEY}`,
+    "Content-Type": "application/json",
   },
   body: JSON.stringify({
-    prompt: 'A sunset over mountains',
-    model: 'fal-ai/flux/schnell',
+    prompt: "A sunset over mountains",
+    model: "fal-ai/flux/schnell",
   }),
 });
 
@@ -173,14 +175,14 @@ console.log(data.images[0].url);
 ### Video Generation
 
 ```typescript
-const response = await fetch('https://elizacloud.ai/api/v1/generate-video', {
-  method: 'POST',
+const response = await fetch("https://elizacloud.ai/api/v1/generate-video", {
+  method: "POST",
   headers: {
-    'Authorization': `Bearer ${process.env.ELIZA_API_KEY}`,
-    'Content-Type': 'application/json',
+    Authorization: `Bearer ${process.env.ELIZA_API_KEY}`,
+    "Content-Type": "application/json",
   },
   body: JSON.stringify({
-    prompt: 'A cat playing piano',
+    prompt: "A cat playing piano",
     duration: 5,
   }),
 });
@@ -194,33 +196,33 @@ console.log(data.video_url);
 ### LangChain
 
 ```typescript
-import { ChatOpenAI } from '@langchain/openai';
+import { ChatOpenAI } from "@langchain/openai";
 
 const model = new ChatOpenAI({
   openAIApiKey: process.env.ELIZA_API_KEY,
   configuration: {
-    baseURL: 'https://elizacloud.ai/api/v1',
+    baseURL: "https://elizacloud.ai/api/v1",
   },
-  modelName: 'gpt-4o',
+  modelName: "gpt-4o",
 });
 
-const response = await model.invoke('Hello!');
+const response = await model.invoke("Hello!");
 ```
 
 ### Vercel AI SDK
 
 ```typescript
-import { generateText } from 'ai';
-import { createOpenAI } from '@ai-sdk/openai';
+import { generateText } from "ai";
+import { createOpenAI } from "@ai-sdk/openai";
 
 const openai = createOpenAI({
   apiKey: process.env.ELIZA_API_KEY,
-  baseURL: 'https://elizacloud.ai/api/v1',
+  baseURL: "https://elizacloud.ai/api/v1",
 });
 
 const { text } = await generateText({
-  model: openai('gpt-4o'),
-  prompt: 'Hello!',
+  model: openai("gpt-4o"),
+  prompt: "Hello!",
 });
 ```
 
@@ -243,20 +245,20 @@ response = llm.complete("Hello!")
 Connect to elizaOS Cloud MCP endpoint:
 
 ```typescript
-import { Client } from '@modelcontextprotocol/sdk';
+import { Client } from "@modelcontextprotocol/sdk";
 
 const client = new Client({
-  url: 'https://elizacloud.ai/api/mcp',
+  url: "https://elizacloud.ai/api/mcp",
   headers: {
-    'Authorization': `Bearer ${process.env.ELIZA_API_KEY}`,
+    Authorization: `Bearer ${process.env.ELIZA_API_KEY}`,
   },
 });
 
 await client.initialize();
 
 const tools = await client.listTools();
-const result = await client.callTool('generate_image', {
-  prompt: 'A sunset',
+const result = await client.callTool("generate_image", {
+  prompt: "A sunset",
 });
 ```
 
@@ -264,31 +266,32 @@ const result = await client.callTool('generate_image', {
 
 Since elizaOS Cloud is OpenAI-compatible, you can use any OpenAI SDK in your preferred language:
 
-| Language | Library | Installation |
-|----------|---------|--------------|
-| Go | `sashabaranov/go-openai` | `go get github.com/sashabaranov/go-openai` |
-| Rust | `async-openai` | `cargo add async-openai` |
-| Ruby | `ruby-openai` | `gem install ruby-openai` |
-| PHP | `openai-php/client` | `composer require openai-php/client` |
+| Language | Library                  | Installation                               |
+| -------- | ------------------------ | ------------------------------------------ |
+| Go       | `sashabaranov/go-openai` | `go get github.com/sashabaranov/go-openai` |
+| Rust     | `async-openai`           | `cargo add async-openai`                   |
+| Ruby     | `ruby-openai`            | `gem install ruby-openai`                  |
+| PHP      | `openai-php/client`      | `composer require openai-php/client`       |
 
 Simply configure the base URL to `https://elizacloud.ai/api/v1` and use your elizaOS API key.
 
 ## Feature Support
 
-| Feature | OpenAI SDK | Direct REST |
-|---------|------------|-------------|
-| Chat Completions | ✅ | ✅ |
-| Streaming | ✅ | ✅ |
-| Embeddings | ✅ | ✅ |
-| Image Generation | ❌ | ✅ |
-| Video Generation | ❌ | ✅ |
-| Voice / TTS | ❌ | ✅ |
-| Knowledge Base | ❌ | ✅ |
-| MCP Tools | ❌ | ✅ |
-| Agents API | ❌ | ✅ |
+| Feature          | OpenAI SDK | Direct REST |
+| ---------------- | ---------- | ----------- |
+| Chat Completions | ✅         | ✅          |
+| Streaming        | ✅         | ✅          |
+| Embeddings       | ✅         | ✅          |
+| Image Generation | ❌         | ✅          |
+| Video Generation | ❌         | ✅          |
+| Voice / TTS      | ❌         | ✅          |
+| Knowledge Base   | ❌         | ✅          |
+| MCP Tools        | ❌         | ✅          |
+| Agents API       | ❌         | ✅          |
 
 <Callout type="info">
-  OpenAI SDK compatibility covers chat, embeddings, and streaming. For elizaOS-specific features like image/video generation, use direct REST calls.
+  OpenAI SDK compatibility covers chat, embeddings, and streaming. For
+  elizaOS-specific features like image/video generation, use direct REST calls.
 </Callout>
 
 ## Contributing
@@ -304,7 +307,10 @@ We welcome SDK contributions! See our [GitHub](https://github.com/elizaOS/eliza)
   <Cards.Card title="Quickstart" href="/docs/quickstart">
     Get started quickly
   </Cards.Card>
-  <Cards.Card title="Examples" href="https://github.com/elizaOS/eliza/tree/main/examples">
+  <Cards.Card
+    title="Examples"
+    href="https://github.com/elizaOS/eliza/tree/main/examples"
+  >
     Code examples
   </Cards.Card>
 </Cards>

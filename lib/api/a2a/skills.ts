@@ -190,7 +190,7 @@ export async function executeSkillImageGeneration(
     user_id: ctx.user.id,
     api_key_id: ctx.apiKeyId,
     type: "image",
-    model: "google/gemini-2.5-flash-image-preview",
+    model: "google/gemini-2.5-flash-image",
     provider: "google",
     prompt,
     status: "pending",
@@ -207,7 +207,7 @@ export async function executeSkillImageGeneration(
   };
 
   const result = streamText({
-    model: "google/gemini-2.5-flash-image-preview",
+    model: "google/gemini-2.5-flash-image",
     providerOptions: { google: { responseModalities: ["TEXT", "IMAGE"] } },
     prompt: `Generate an image: ${prompt}, ${aspectDesc[aspectRatio] || "square"} composition`,
   });

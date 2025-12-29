@@ -64,15 +64,16 @@ export default async function ChatPage({
   // 2. ACCESS CONTROL CHECK
   // Get current user to check ownership
   const user = await getCurrentUser();
-  
+
   // Determine if user has access to this character
   const isOwner = user && character.user_id === user.id;
   const isPublic = character.is_public === true;
-  
+
   // Check if this is a claimable affiliate character (anonymous users can still access)
-  const claimCheck = await charactersService.isClaimableAffiliateCharacter(characterId);
+  const claimCheck =
+    await charactersService.isClaimableAffiliateCharacter(characterId);
   const isClaimableAffiliate = claimCheck.claimable;
-  
+
   // Allow access if: character is public, user is owner, or it's a claimable affiliate character
   if (!isPublic && !isOwner && !isClaimableAffiliate) {
     logger.warn(
@@ -83,25 +84,24 @@ export default async function ChatPage({
         isPublic: character.is_public,
       },
     );
-    
+
     // Redirect to dashboard with error message
     // For authenticated users: redirect to their dashboard chat
     // For anonymous users: redirect to home page
     if (user) {
-      redirect(`/dashboard/chat?error=private_character&name=${encodeURIComponent(character.name)}`);
+      redirect(
+        `/dashboard/chat?error=private_character&name=${encodeURIComponent(character.name)}`,
+      );
     } else {
       redirect(`/?error=private_character`);
     }
   }
 
-  logger.debug(
-    `[Chat Page] Access granted to character: ${characterId}`,
-    {
-      isPublic,
-      isOwner,
-      isClaimableAffiliate,
-    },
-  );
+  logger.debug(`[Chat Page] Access granted to character: ${characterId}`, {
+    isPublic,
+    isOwner,
+    isClaimableAffiliate,
+  });
 
   // 4. DYNAMIC THEME RESOLUTION
   const characterData = character.character_data as
@@ -428,9 +428,10 @@ export async function generateMetadata({
 
   // Check access - show full metadata if: public, claimable, or owned by current user
   const isPublic = character.is_public === true;
-  const claimCheck = await charactersService.isClaimableAffiliateCharacter(characterId);
+  const claimCheck =
+    await charactersService.isClaimableAffiliateCharacter(characterId);
   const isClaimableAffiliate = claimCheck.claimable;
-  
+
   // Check if current user is the owner (allows owners to see full metadata for their private chars)
   const user = await getCurrentUser();
   const isOwner = user && character.user_id === user.id;

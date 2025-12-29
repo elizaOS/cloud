@@ -81,9 +81,9 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
       try {
         const res = await fetch(
           `/api/my-agents/characters/${selectedCharacterId}/share`,
-          { signal: controller.signal }
+          { signal: controller.signal },
         );
-        
+
         if (cancelled) return;
 
         // 403/404 means user doesn't own this character - hide share controls
@@ -105,7 +105,7 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
         }
       } catch (error) {
         // Ignore abort errors
-        if (error instanceof Error && error.name === 'AbortError') return;
+        if (error instanceof Error && error.name === "AbortError") return;
         if (!cancelled) {
           setIsPublic(null);
         }
@@ -129,8 +129,7 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
   const handleCopyShareLink = async () => {
     if (!selectedCharacterId) return;
 
-    const baseUrl =
-      typeof window !== "undefined" ? window.location.origin : "";
+    const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
     const shareUrl = `${baseUrl}/chat/${selectedCharacterId}`;
 
     try {

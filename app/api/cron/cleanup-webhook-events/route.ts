@@ -31,12 +31,15 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    logger.info("[Webhook Events Cleanup] Starting old webhook events cleanup", {
-      retentionDays: WEBHOOK_EVENT_RETENTION_DAYS,
-    });
+    logger.info(
+      "[Webhook Events Cleanup] Starting old webhook events cleanup",
+      {
+        retentionDays: WEBHOOK_EVENT_RETENTION_DAYS,
+      },
+    );
 
     const deletedCount = await webhookEventsRepository.cleanupOldEvents(
-      WEBHOOK_EVENT_RETENTION_DAYS
+      WEBHOOK_EVENT_RETENTION_DAYS,
     );
 
     logger.info("[Webhook Events Cleanup] Cleanup completed", {
@@ -55,10 +58,6 @@ export async function GET(req: NextRequest) {
     });
   } catch (error) {
     logger.error("[Webhook Events Cleanup] Cleanup job failed", { error });
-    return NextResponse.json(
-      { error: "Cleanup job failed" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Cleanup job failed" }, { status: 500 });
   }
 }
-

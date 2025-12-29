@@ -3,7 +3,7 @@ title: Redemptions
 description: Redeem earnings on elizaOS Cloud.
 ---
 
-import { Callout, Tabs } from 'nextra/components'
+import { Callout, Tabs } from "nextra/components";
 
 # Redemptions
 
@@ -24,9 +24,9 @@ Get your available balance for redemption.
 
 ```json
 {
-  "available": 125.50,
-  "pending": 24.00,
-  "lifetime": 500.00,
+  "available": 125.5,
+  "pending": 24.0,
+  "lifetime": 500.0,
   "currency": "USD"
 }
 ```
@@ -49,7 +49,7 @@ Get redemption history.
   "redemptions": [
     {
       "id": "red_abc123",
-      "amount": 100.00,
+      "amount": 100.0,
       "status": "completed",
       "method": "crypto",
       "address": "0x...",
@@ -75,7 +75,7 @@ Request a redemption.
 
 ```json
 {
-  "amount": 100.00,
+  "amount": 100.0,
   "method": "crypto",
   "address": "0x1234..."
 }
@@ -86,7 +86,7 @@ Request a redemption.
 ```json
 {
   "id": "red_abc123",
-  "amount": 100.00,
+  "amount": 100.0,
   "status": "pending",
   "estimatedCompletion": "2024-01-16T10:30:00Z"
 }
@@ -107,7 +107,7 @@ Get a quote for redemption.
 
 ```json
 {
-  "amount": 100.00,
+  "amount": 100.0,
   "method": "crypto"
 }
 ```
@@ -116,9 +116,9 @@ Get a quote for redemption.
 
 ```json
 {
-  "amount": 100.00,
-  "fee": 2.50,
-  "netAmount": 97.50,
+  "amount": 100.0,
+  "fee": 2.5,
+  "netAmount": 97.5,
   "rate": 1.0,
   "expiresAt": "2024-01-15T10:35:00Z"
 }
@@ -140,8 +140,8 @@ Check overall redemption status.
 ```json
 {
   "eligible": true,
-  "minAmount": 10.00,
-  "maxAmount": 10000.00,
+  "minAmount": 10.0,
+  "maxAmount": 10000.0,
   "methods": ["crypto", "bank"]
 }
 ```
@@ -152,20 +152,18 @@ Check overall redemption status.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-get">GET</span>
-  <span className="path">/api/v1/redemptions/{'{id}'}</span>
+  <span className="path">/api/v1/redemptions/{"{id}"}</span>
 </div>
 
 Get details about a specific redemption.
 
-<Callout type="info">
-Redemptions are processed within 24-48 hours.
-</Callout>
+<Callout type="info">Redemptions are processed within 24-48 hours.</Callout>
 
 ---
 
 ## Minimum Redemption
 
 | Method | Minimum |
-|--------|---------|
-| Crypto | $10 |
-| Bank | $100 |
+| ------ | ------- |
+| Crypto | $10     |
+| Bank   | $100    |

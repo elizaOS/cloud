@@ -60,7 +60,9 @@ test.describe("Billing Page UI", () => {
     const hasCredit = await creditText.isVisible().catch(() => false);
 
     if (!hasBalance && !hasCredit) {
-      console.log("⚠️ No balance or credit information found (billing not configured in CI)");
+      console.log(
+        "⚠️ No balance or credit information found (billing not configured in CI)",
+      );
       return;
     }
 
@@ -93,7 +95,9 @@ test.describe("Billing Page UI", () => {
     // Only check if we're actually on the billing page
     if (url.includes("/billing")) {
       if (cardCount + buttonCount === 0) {
-        console.log("⚠️ No credit packs or purchase buttons found (Stripe not configured)");
+        console.log(
+          "⚠️ No credit packs or purchase buttons found (Stripe not configured)",
+        );
         console.log("ℹ️ Skipping test - billing features not available");
         return;
       }

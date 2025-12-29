@@ -154,7 +154,7 @@ export function CreditsProvider({ children }: { children: ReactNode }) {
 
         if (authErrorCountRef.current >= MAX_AUTH_ERRORS) {
           logger.warn(
-            "[CreditsProvider] Too many auth errors after refresh, logging out"
+            "[CreditsProvider] Too many auth errors after refresh, logging out",
           );
           // Set logout flag BEFORE stopping polling to prevent race conditions
           isLoggingOutRef.current = true;
@@ -285,7 +285,7 @@ export function CreditsProvider({ children }: { children: ReactNode }) {
       lastUpdate,
       refreshBalance: fetchBalance,
     }),
-    [creditBalance, isConnected, isLoading, error, lastUpdate, fetchBalance]
+    [creditBalance, isConnected, isLoading, error, lastUpdate, fetchBalance],
   );
 
   return (

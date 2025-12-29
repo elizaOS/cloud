@@ -318,7 +318,10 @@ export class AppsRepository {
    * Creates a new app analytics record.
    */
   async createAnalytics(data: NewAppAnalytics): Promise<AppAnalytics> {
-    const [analytics] = await dbWrite.insert(appAnalytics).values(data).returning();
+    const [analytics] = await dbWrite
+      .insert(appAnalytics)
+      .values(data)
+      .returning();
     return analytics;
   }
 }

@@ -1,10 +1,4 @@
-import {
-  index,
-  pgTable,
-  text,
-  timestamp,
-  uuid,
-} from "drizzle-orm/pg-core";
+import { index, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
 
 /**
@@ -36,15 +30,16 @@ export const webhookEvents = pgTable(
   (table) => ({
     event_id_idx: index("webhook_events_event_id_idx").on(table.event_id),
     provider_idx: index("webhook_events_provider_idx").on(table.provider),
-    processed_at_idx: index("webhook_events_processed_at_idx").on(table.processed_at),
+    processed_at_idx: index("webhook_events_processed_at_idx").on(
+      table.processed_at,
+    ),
     // Composite index for cleanup queries
     provider_processed_idx: index("webhook_events_provider_processed_idx").on(
       table.provider,
-      table.processed_at
+      table.processed_at,
     ),
-  })
+  }),
 );
 
 export type WebhookEvent = InferSelectModel<typeof webhookEvents>;
 export type NewWebhookEvent = InferInsertModel<typeof webhookEvents>;
-

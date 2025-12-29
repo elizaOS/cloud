@@ -94,7 +94,7 @@ export class CacheClient {
     // Check for corrupted cache values
     if (typeof value === "string" && value === "[object Object]") {
       logger.warn(
-        `[Cache] Corrupted cache value detected for key ${key}, deleting`
+        `[Cache] Corrupted cache value detected for key ${key}, deleting`,
       );
       await this.del(key);
       return null;
@@ -121,7 +121,7 @@ export class CacheClient {
     key: string,
     staleTTL: number,
     revalidate: () => Promise<T>,
-    ttl?: number
+    ttl?: number,
   ): Promise<T | null> {
     const effectiveTTL = ttl ?? staleTTL * 2;
     this.initialize();
@@ -144,7 +144,7 @@ export class CacheClient {
             cachedAt: Date.now(),
             staleAt: Date.now() + staleTTL * 1000,
           } as CachedValue<T>,
-          effectiveTTL
+          effectiveTTL,
         );
       }
       return fresh;
@@ -164,7 +164,7 @@ export class CacheClient {
       if (this.revalidationQueue.size >= this.MAX_REVALIDATION_QUEUE_SIZE) {
         logger.warn(
           `[Cache] Revalidation queue full (${this.revalidationQueue.size}/${this.MAX_REVALIDATION_QUEUE_SIZE}). ` +
-            `Skipping background revalidation for key: ${key}`
+            `Skipping background revalidation for key: ${key}`,
         );
         return staleData;
       }
@@ -173,7 +173,7 @@ export class CacheClient {
         const timeoutPromise = new Promise<T | null>((_, reject) => {
           setTimeout(
             () => reject(new Error("Revalidation timeout")),
-            this.REVALIDATION_TIMEOUT_MS
+            this.REVALIDATION_TIMEOUT_MS,
           );
         });
 
@@ -187,7 +187,7 @@ export class CacheClient {
                   cachedAt: Date.now(),
                   staleAt: Date.now() + staleTTL * 1000,
                 } as CachedValue<T>,
-                effectiveTTL
+                effectiveTTL,
               );
             }
           })
@@ -248,7 +248,7 @@ export class CacheClient {
   async delPattern(
     pattern: string,
     batchSize = 100,
-    maxIterations = 1000
+    maxIterations = 1000,
   ): Promise<void> {
     this.initialize();
     if (!this.enabled || !this.dwsCache) return;
@@ -297,7 +297,7 @@ export class CacheClient {
       logger.debug(`[Cache] DEL_PATTERN: ${pattern} (no keys found)`);
     } else {
       logger.info(
-        `[Cache] DEL_PATTERN: ${pattern} (deleted ${totalDeleted} keys in ${duration}ms, ${iterations} iterations)`
+        `[Cache] DEL_PATTERN: ${pattern} (deleted ${totalDeleted} keys in ${duration}ms, ${iterations} iterations)`,
       );
     }
 
@@ -320,14 +320,14 @@ export class CacheClient {
 
         if (typeof value === "string" && value === "[object Object]") {
           logger.warn(
-            `[Cache] Corrupted cache value in mget for key ${keys[index]}, skipping`
+            `[Cache] Corrupted cache value in mget for key ${keys[index]}, skipping`,
           );
           await this.del(keys[index]);
           return null;
         }
 
         return typeof value === "string" ? JSON.parse(value) : value;
-      })
+      }),
     );
 
     const hitCount = parsed.filter((v) => v !== null).length;
@@ -348,14 +348,14 @@ export class CacheClient {
     const timeSinceLastFailure = Date.now() - this.lastFailureTime;
     if (timeSinceLastFailure > this.CIRCUIT_BREAKER_TIMEOUT) {
       logger.info(
-        "[Cache] Circuit breaker timeout expired, attempting to reconnect"
+        "[Cache] Circuit breaker timeout expired, attempting to reconnect",
       );
       this.failureCount = 0;
       return false;
     }
 
     logger.warn(
-      `[Cache] Circuit breaker OPEN (${this.failureCount} failures, retry in ${Math.ceil((this.CIRCUIT_BREAKER_TIMEOUT - timeSinceLastFailure) / 1000)}s)`
+      `[Cache] Circuit breaker OPEN (${this.failureCount} failures, retry in ${Math.ceil((this.CIRCUIT_BREAKER_TIMEOUT - timeSinceLastFailure) / 1000)}s)`,
     );
     return true;
   }
@@ -366,7 +366,7 @@ export class CacheClient {
 
     if (this.failureCount === this.MAX_FAILURES) {
       logger.error(
-        `[Cache] Circuit breaker OPENED after ${this.MAX_FAILURES} failures`
+        `[Cache] Circuit breaker OPENED after ${this.MAX_FAILURES} failures`,
       );
     }
   }
@@ -403,7 +403,7 @@ export class CacheClient {
     _key: string,
     _operation: "hit" | "miss" | "set" | "del" | "del_pattern" | "stale",
     _durationMs: number,
-    _metadata?: Record<string, unknown>
+    _metadata?: Record<string, unknown>,
   ): void {
     // Metrics logging disabled to reduce console noise
   }

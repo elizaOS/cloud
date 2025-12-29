@@ -37,14 +37,15 @@ export function LandingPage({ accessError }: LandingPageProps) {
   useEffect(() => {
     if (accessError && !errorShownRef.current) {
       errorShownRef.current = true;
-      
+
       if (accessError === "private_character") {
         toast.error("This agent is private", {
-          description: "Sign in to access your agents, or ask the owner to make this agent public.",
+          description:
+            "Sign in to access your agents, or ask the owner to make this agent public.",
           duration: 6000,
         });
       }
-      
+
       // Clear error from URL
       if (typeof window !== "undefined") {
         const url = new URL(window.location.href);
