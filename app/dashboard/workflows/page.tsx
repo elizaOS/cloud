@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { usePrivy } from "@privy-io/react-auth";
-import { Loader2, Workflow, Sparkles, Search } from "lucide-react";
-import { BrandButton } from "@/components/brand";
+import { Loader2, Workflow, Sparkles, Search, Construction } from "lucide-react";
+import { BrandButton, BrandCard, CornerBrackets } from "@/components/brand";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   WorkflowGenerator,
@@ -12,6 +12,9 @@ import {
   WorkflowTester,
 } from "@/components/workflows";
 import { EndpointDiscovery } from "@/components/workflows/endpoint-discovery";
+import Link from "next/link";
+
+const COMING_SOON = true;
 
 type View = "list" | "view" | "test";
 
@@ -57,6 +60,49 @@ export default function WorkflowsPage() {
             Log In
           </BrandButton>
         </div>
+      </div>
+    );
+  }
+
+  if (COMING_SOON) {
+    return (
+      <div className="w-full max-w-4xl mx-auto px-4 md:px-6 py-8 md:py-12">
+        <BrandCard className="relative overflow-hidden">
+          <CornerBrackets size="md" className="opacity-30" />
+          <div className="relative z-10 flex flex-col items-center justify-center py-16 px-8 text-center space-y-6">
+            <div className="p-4 rounded-full bg-[#FF5800]/20 border border-[#FF5800]/40">
+              <Construction className="h-12 w-12 text-[#FF5800]" />
+            </div>
+            <div className="space-y-3">
+              <h1
+                className="text-3xl md:text-4xl font-normal text-white"
+                style={{ fontFamily: "var(--font-roboto-mono)" }}
+              >
+                Workflows
+              </h1>
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/10 border border-white/20">
+                <span
+                  className="text-sm font-medium uppercase tracking-wider text-white/60"
+                  style={{ fontFamily: "var(--font-roboto-mono)" }}
+                >
+                  Coming Soon
+                </span>
+              </div>
+            </div>
+            <p className="text-white/60 max-w-md text-sm md:text-base">
+              AI-powered n8n workflow generation and management is currently under
+              development. Check back soon for automated workflow creation and testing.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3 pt-4">
+              <Link href="/dashboard">
+                <BrandButton variant="primary">
+                  <Workflow className="h-4 w-4 mr-2" />
+                  Back to Dashboard
+                </BrandButton>
+              </Link>
+            </div>
+          </div>
+        </BrandCard>
       </div>
     );
   }

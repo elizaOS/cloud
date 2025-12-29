@@ -12,6 +12,7 @@ import {
   Plus,
   Trash2,
   Loader2,
+  Construction,
 } from "lucide-react";
 import { toast } from "sonner";
 import { BrandCard, CornerBrackets, BrandButton } from "@/components/brand";
@@ -30,6 +31,8 @@ import {
   PostCreationAppPrompt,
   type EntityType,
 } from "@/components/builders/post-creation-app-prompt";
+
+const COMING_SOON = true;
 
 interface ServiceTool {
   name: string;
@@ -182,6 +185,49 @@ export default function CreateServicePage() {
       router.push(`/dashboard/services`);
     }
   };
+
+  if (COMING_SOON) {
+    return (
+      <div className="w-full max-w-4xl mx-auto px-4 md:px-6 py-8 md:py-12">
+        <BrandCard className="relative overflow-hidden">
+          <CornerBrackets size="md" className="opacity-30" />
+          <div className="relative z-10 flex flex-col items-center justify-center py-16 px-8 text-center space-y-6">
+            <div className="p-4 rounded-full bg-cyan-500/20 border border-cyan-500/40">
+              <Construction className="h-12 w-12 text-cyan-400" />
+            </div>
+            <div className="space-y-3">
+              <h1
+                className="text-3xl md:text-4xl font-normal text-white"
+                style={{ fontFamily: "var(--font-roboto-mono)" }}
+              >
+                Create Service
+              </h1>
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/10 border border-white/20">
+                <span
+                  className="text-sm font-medium uppercase tracking-wider text-white/60"
+                  style={{ fontFamily: "var(--font-roboto-mono)" }}
+                >
+                  Coming Soon
+                </span>
+              </div>
+            </div>
+            <p className="text-white/60 max-w-md text-sm md:text-base">
+              Service creation is currently under development. Check back soon
+              to build your own MCP, A2A, and REST services.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3 pt-4">
+              <Link href="/dashboard">
+                <BrandButton variant="primary">
+                  <Puzzle className="h-4 w-4 mr-2" />
+                  Back to Dashboard
+                </BrandButton>
+              </Link>
+            </div>
+          </div>
+        </BrandCard>
+      </div>
+    );
+  }
 
   return (
     <>

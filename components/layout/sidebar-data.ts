@@ -136,7 +136,7 @@ export const sidebarSections: SidebarSection[] = [
         href: "/dashboard/services",
         icon: Puzzle,
         freeAllowed: false,
-        isNew: true,
+        comingSoon: true,
       },
       {
         id: "workflows",
@@ -144,6 +144,7 @@ export const sidebarSections: SidebarSection[] = [
         href: "/dashboard/workflows",
         icon: Workflow,
         freeAllowed: false,
+        comingSoon: true,
       },
     ],
   },
