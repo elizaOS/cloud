@@ -90,7 +90,7 @@ export default function OnChainTrust() {
                 color: "#FFFFFF",
               }}
             >
-              Onchain discovery, trust and payments
+              Onchain discovery, trust and payments.
             </motion.h2>
 
             <motion.p

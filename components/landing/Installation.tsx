@@ -36,9 +36,7 @@ export default function Installation() {
             color: "#FFFFFF",
           }}
         >
-          From Your Terminal To The Cloud.
-          <br />
-          In Seconds.
+         From your terminal to the cloud in seconds.
         </motion.h2>
 
         {/* Terminal command section */}
