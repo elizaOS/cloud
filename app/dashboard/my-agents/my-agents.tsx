@@ -123,9 +123,9 @@ export function MyAgentsClient() {
   useSetPageHeader(
     {
       title: "My Agents",
-      description: `Manage your ${characters.length} AI agent${characters.length !== 1 ? "s" : ""}`,
+      description: "Manage your AI agents",
     },
-    [characters.length],
+    [],
   );
 
   if (isLoading) {
