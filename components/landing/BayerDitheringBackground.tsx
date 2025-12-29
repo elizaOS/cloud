@@ -197,7 +197,7 @@ function BayerDitheringMaterial({
       uMousePos: { value: new THREE.Vector2(-1, -1) },
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [] // Only create once - we update values in useFrame
+    [], // Only create once - we update values in useFrame
   );
 
   // Update resolution when it changes
@@ -255,11 +255,11 @@ export default function BayerDitheringBackground({
   const [resolution, setResolution] = useState(
     typeof window !== "undefined"
       ? new THREE.Vector2(window.innerWidth, window.innerHeight)
-      : new THREE.Vector2(1920, 1080)
+      : new THREE.Vector2(1920, 1080),
   );
   const [clicks, setClicks] = useState<ClickData[]>([]);
   const [mousePos, setMousePos] = useState<THREE.Vector2>(
-    new THREE.Vector2(-1, -1)
+    new THREE.Vector2(-1, -1),
   );
   const clickIndexRef = useRef(0);
   const currentTimeRef = useRef<number>(0);

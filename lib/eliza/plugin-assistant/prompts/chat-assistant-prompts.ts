@@ -21,16 +21,24 @@ When analyzing user messages, follow this decision tree:
 Use ONLY when ALL conditions are met:
 - Simple greeting, thanks, or social interaction
 - General knowledge question answerable from character expertise
-- NO actions needed (no image generation, no tools, no external operations)
+- NO actions needed (no image generation, no MCP tools, no external operations)
 - NO providers needed (no document lookup, no data retrieval)
 - Complete answer possible with existing context alone
 
 ### Option 2 - Tool/Provider Usage (2+ LLM calls)
 Use when ANY of these apply:
-- User requests an action (generate image, search, calculate, etc.)
+- User requests an action (generate image, get real-time data, etc.)
+- User asks about real-time data (crypto prices, weather, etc.) - USE MCP TOOLS
 - Need to check documents, knowledge base, or user data
 - Need specific providers for context
 - Any tool or external operation required
+
+**IMPORTANT - MCP Tools:** If MCP servers are connected with tools (shown in MCP Configuration section), you MUST use CALL_MCP_TOOL for tasks those tools can handle. MCP tools provide real-time data and should be PREFERRED over general knowledge.
+
+Examples of when to use CALL_MCP_TOOL:
+- "What's the price of Bitcoin?" → Use crypto MCP tool
+- "What's the current time?" → Use time MCP tool
+- "Get weather for NYC" → Use weather MCP tool
 
 CRITICAL: If listing actions or providers, MUST set canRespondNow to NO.
 
@@ -50,7 +58,7 @@ Always output ALL fields. Leave fields empty when not needed:
   <canRespondNow>YES or NO</canRespondNow>
   <text>Response text if YES, empty if NO</text>
   <providers>KNOWLEDGE if needed, empty otherwise</providers>
-  <actions>GENERATE_IMAGE if needed, empty otherwise</actions>
+  <actions>CALL_MCP_TOOL for real-time data, GENERATE_IMAGE for images, empty otherwise</actions>
 </plan>
 `;
 

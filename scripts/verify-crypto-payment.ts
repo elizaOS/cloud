@@ -19,7 +19,7 @@ async function main() {
   if (!trackId) {
     console.error("Usage: bun run scripts/verify-crypto-payment.ts <trackId>");
     console.error(
-      "Example: bun run scripts/verify-crypto-payment.ts 159363568"
+      "Example: bun run scripts/verify-crypto-payment.ts 159363568",
     );
     process.exit(1);
   }
@@ -50,7 +50,7 @@ async function main() {
 
   if (payment.status === "confirmed") {
     console.log(
-      "✅ Payment already confirmed! Credits should have been added."
+      "✅ Payment already confirmed! Credits should have been added.",
     );
     process.exit(0);
   }
@@ -91,7 +91,7 @@ async function main() {
     console.log("🔄 Attempting to confirm payment and add credits...\n");
 
     const result = await cryptoPaymentsService.checkAndConfirmPayment(
-      payment.id
+      payment.id,
     );
 
     if (result.confirmed) {

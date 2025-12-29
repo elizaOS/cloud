@@ -6,7 +6,7 @@ import type { UUID } from "@elizaos/core";
 import { stringToUuid } from "@elizaos/core";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { userContextService } from "@/lib/eliza/user-context";
-import { RuntimeFactory } from "@/lib/eliza/runtime-factory";
+import { RuntimeFactory, invalidateRuntime } from "@/lib/eliza/runtime-factory";
 import { AgentMode } from "@/lib/eliza/agent-mode-types";
 
 export const maxDuration = 60;
@@ -181,6 +181,20 @@ async function handlePOST(req: NextRequest) {
         ...metadata,
       },
     });
+
+    // CRITICAL: Invalidate runtime cache after knowledge upload
+    // This ensures the next request creates a fresh runtime that:
+    // 1. Reflects the new hasKnowledge state for mode resolution
+    // 2. Properly loads the updated knowledge plugin state
+    const agentIdStr = runtime.agentId as string;
+    await invalidateRuntime(agentIdStr).catch((e) => {
+      logger.warn(
+        `[Knowledge API] Failed to invalidate runtime after upload: ${e}`,
+      );
+    });
+    logger.info(
+      `[Knowledge API] Invalidated runtime cache for agent ${agentIdStr} after knowledge upload`,
+    );
 
     return NextResponse.json({
       success: true,

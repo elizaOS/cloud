@@ -201,7 +201,6 @@ async function handleCreateContainer(request: NextRequest) {
 
     const isUpdate = !!existingProject;
 
-
     let container;
     let newBalance: number;
     let deploymentCost: number;

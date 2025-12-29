@@ -8,7 +8,7 @@ export default {
   index: {
     title: "API Reference",
   },
-  
+
   "-- core": {
     type: "separator",
     title: "Core APIs",
@@ -22,7 +22,7 @@ export default {
   models: {
     title: "Models",
   },
-  
+
   "-- generation": {
     type: "separator",
     title: "Generation",
@@ -36,7 +36,7 @@ export default {
   voice: {
     title: "Voice & TTS",
   },
-  
+
   "-- resources": {
     type: "separator",
     title: "Resources",
@@ -59,7 +59,7 @@ export default {
   gallery: {
     title: "Gallery",
   },
-  
+
   "-- account": {
     type: "separator",
     title: "Account",
@@ -73,4 +73,4 @@ export default {
   redemptions: {
     title: "Redemptions",
   },
-}
+};

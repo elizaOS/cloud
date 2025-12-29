@@ -28,7 +28,14 @@
  * @module db/helpers
  */
 
-import { dbRead, dbWrite, db, type Database, getCurrentRegion, getDbConnectionInfo } from "./client";
+import {
+  dbRead,
+  dbWrite,
+  db,
+  type Database,
+  getCurrentRegion,
+  getDbConnectionInfo,
+} from "./client";
 
 // ============================================================================
 // Core Read/Write Helpers
@@ -80,7 +87,9 @@ export function useDb<T>(fn: (db: Database) => T): T {
  *   return db.query.users.findMany({ limit: 100 });
  * });
  */
-export async function readQuery<T>(fn: (db: Database) => Promise<T>): Promise<T> {
+export async function readQuery<T>(
+  fn: (db: Database) => Promise<T>,
+): Promise<T> {
   return fn(dbRead);
 }
 
@@ -93,7 +102,9 @@ export async function readQuery<T>(fn: (db: Database) => Promise<T>): Promise<T>
  *   return created;
  * });
  */
-export async function writeQuery<T>(fn: (db: Database) => Promise<T>): Promise<T> {
+export async function writeQuery<T>(
+  fn: (db: Database) => Promise<T>,
+): Promise<T> {
   return fn(dbWrite);
 }
 
@@ -112,7 +123,11 @@ export async function writeQuery<T>(fn: (db: Database) => Promise<T>): Promise<T
  * });
  */
 export async function writeTransaction<T>(
-  fn: (tx: Parameters<Database["transaction"]>[0] extends (tx: infer U) => unknown ? U : never) => Promise<T>
+  fn: (
+    tx: Parameters<Database["transaction"]>[0] extends (tx: infer U) => unknown
+      ? U
+      : never,
+  ) => Promise<T>,
 ): Promise<T> {
   // @ts-expect-error - Transaction type is complex, but this works
   return dbWrite.transaction(fn);
@@ -172,4 +187,3 @@ export function getDbRoutingInfo() {
 
 export { dbRead, dbWrite, db, getCurrentRegion, getDbConnectionInfo };
 export type { Database };
-

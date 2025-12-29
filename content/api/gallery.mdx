@@ -3,7 +3,7 @@ title: Gallery
 description: Store and manage generated media on elizaOS Cloud.
 ---
 
-import { Callout, Tabs } from 'nextra/components'
+import { Callout, Tabs } from "nextra/components";
 
 # Gallery
 
@@ -22,11 +22,11 @@ Get all items in your gallery.
 
 ### Query Parameters
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `type` | string | `image` or `video` |
-| `limit` | integer | Results per page |
-| `offset` | integer | Pagination offset |
+| Parameter | Type    | Description        |
+| --------- | ------- | ------------------ |
+| `type`    | string  | `image` or `video` |
+| `limit`   | integer | Results per page   |
+| `offset`  | integer | Pagination offset  |
 
 ### Response
 
@@ -54,7 +54,7 @@ Get all items in your gallery.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-get">GET</span>
-  <span className="path">/api/v1/gallery/{'{id}'}</span>
+  <span className="path">/api/v1/gallery/{"{id}"}</span>
 </div>
 
 Get details about a specific item.
@@ -83,25 +83,23 @@ Get details about a specific item.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-delete">DELETE</span>
-  <span className="path">/api/v1/gallery/{'{id}'}</span>
+  <span className="path">/api/v1/gallery/{"{id}"}</span>
 </div>
 
 Delete an item from your gallery.
 
-<Callout type="warning">
-Deleted items cannot be recovered.
-</Callout>
+<Callout type="warning">Deleted items cannot be recovered.</Callout>
 
 ---
 
 ## Storage Limits
 
-| Plan | Storage |
-|------|---------|
-| Free | 1 GB |
-| Pro | 50 GB |
+| Plan       | Storage   |
+| ---------- | --------- |
+| Free       | 1 GB      |
+| Pro        | 50 GB     |
 | Enterprise | Unlimited |
 
 <Callout type="info">
-Gallery items are automatically deleted after 30 days on the free plan.
+  Gallery items are automatically deleted after 30 days on the free plan.
 </Callout>

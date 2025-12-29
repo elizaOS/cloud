@@ -3,7 +3,7 @@ title: MCPs
 description: Model Context Protocol servers on elizaOS Cloud.
 ---
 
-import { Callout, Tabs } from 'nextra/components'
+import { Callout, Tabs } from "nextra/components";
 
 # MCPs
 
@@ -66,7 +66,7 @@ Add a new MCP server.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-get">GET</span>
-  <span className="path">/api/v1/mcps/{'{mcpId}'}</span>
+  <span className="path">/api/v1/mcps/{"{mcpId}"}</span>
 </div>
 
 Get MCP details and available tools.
@@ -97,7 +97,7 @@ Get MCP details and available tools.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-put">PUT</span>
-  <span className="path">/api/v1/mcps/{'{mcpId}'}</span>
+  <span className="path">/api/v1/mcps/{"{mcpId}"}</span>
 </div>
 
 Update MCP configuration.
@@ -108,7 +108,7 @@ Update MCP configuration.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-delete">DELETE</span>
-  <span className="path">/api/v1/mcps/{'{mcpId}'}</span>
+  <span className="path">/api/v1/mcps/{"{mcpId}"}</span>
 </div>
 
 Remove an MCP server.
@@ -119,7 +119,7 @@ Remove an MCP server.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-post">POST</span>
-  <span className="path">/api/v1/mcps/{'{mcpId}'}/publish</span>
+  <span className="path">/api/v1/mcps/{"{mcpId}"}/publish</span>
 </div>
 
 Publish MCP to the registry.
@@ -157,12 +157,12 @@ Browse available MCPs in the registry.
 
 Pre-configured demo MCPs for testing:
 
-| MCP | Endpoint | Description |
-|-----|----------|-------------|
-| Weather | `/api/mcp/demos/weather` | Weather data |
-| Time | `/api/mcp/demos/time` | Time zones |
-| Crypto | `/api/mcp/demos/crypto` | Crypto prices |
+| MCP     | Endpoint                 | Description   |
+| ------- | ------------------------ | ------------- |
+| Weather | `/api/mcp/demos/weather` | Weather data  |
+| Time    | `/api/mcp/demos/time`    | Time zones    |
+| Crypto  | `/api/mcp/demos/crypto`  | Crypto prices |
 
 <Callout type="info">
-MCPs enable your agents to use external tools and data sources.
+  MCPs enable your agents to use external tools and data sources.
 </Callout>

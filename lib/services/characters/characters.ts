@@ -1,5 +1,7 @@
 /**
  * Service for managing user characters (CRUD operations).
+ *
+ * PERFORMANCE: Character data is cached in Redis for fast runtime access.
  */
 
 import {
@@ -16,14 +18,60 @@ import { eq, and } from "drizzle-orm";
 import type { ElizaCharacter } from "@/lib/types";
 import type { Agent } from "@elizaos/core";
 import { cache } from "@/lib/cache/client";
-import { CacheKeys } from "@/lib/cache/keys";
+import { CacheKeys, CacheTTL } from "@/lib/cache/keys";
+
+// Cache key for character data (longer TTL since characters rarely change)
+const characterCacheKey = (id: string) => `character:data:${id}`;
+const CHARACTER_CACHE_TTL = CacheTTL.agent.characterData; // 1 hour
 
 /**
  * Service for character CRUD operations.
  */
 export class CharactersService {
+  /**
+   * Get character by ID with caching.
+   * PERFORMANCE: Cache hit reduces latency from ~50ms to ~5ms
+   */
   async getById(id: string): Promise<UserCharacter | undefined> {
-    return await userCharactersRepository.findById(id);
+    const cacheKey = characterCacheKey(id);
+
+    // Try cache first
+    const cached = await cache.get<UserCharacter>(cacheKey);
+    if (cached) {
+      logger.debug(`[Characters] ⚡ Cache HIT: ${id}`);
+      return cached;
+    }
+
+    // Fetch from database
+    const character = await userCharactersRepository.findById(id);
+
+    // Cache for future requests (1 hour)
+    if (character) {
+      await cache.set(cacheKey, character, CHARACTER_CACHE_TTL);
+      logger.debug(`[Characters] Cache MISS, cached: ${id}`);
+    }
+
+    return character;
+  }
+
+  /**
+   * Invalidate character cache (call after updates)
+   * CRITICAL: This now also invalidates the in-memory runtime cache
+   */
+  async invalidateCache(id: string): Promise<void> {
+    // Import dynamically to avoid circular dependency
+    const { invalidateCharacterCache } =
+      await import("@/lib/cache/character-cache");
+
+    await Promise.all([
+      // Invalidate the simple character cache key
+      cache.del(characterCacheKey(id)),
+      // CRITICAL: Invalidate ALL character-related caches including runtime
+      // This ensures MCP, knowledge, web search changes take effect immediately
+      invalidateCharacterCache(id),
+    ]);
+
+    logger.info(`[Characters] Cache invalidated for character: ${id}`);
   }
 
   async getByIdForUser(
@@ -110,7 +158,12 @@ export class CharactersService {
     id: string,
     data: Partial<NewUserCharacter>,
   ): Promise<UserCharacter | undefined> {
-    return await userCharactersRepository.update(id, data);
+    const updated = await userCharactersRepository.update(id, data);
+    // Invalidate cache on update
+    if (updated) {
+      await this.invalidateCache(id);
+    }
+    return updated;
   }
 
   async updateForUser(
@@ -125,6 +178,13 @@ export class CharactersService {
     }
 
     const updated = await userCharactersRepository.update(characterId, updates);
+
+    // CRITICAL: Invalidate cache after update (including runtime cache)
+    // This ensures the next request creates a fresh runtime with updated config
+    if (updated) {
+      await this.invalidateCache(characterId);
+    }
+
     return updated || null;
   }
 
@@ -132,7 +192,10 @@ export class CharactersService {
     const character = await this.getById(id);
     await userCharactersRepository.delete(id);
     if (character) {
-      await cache.del(CacheKeys.org.dashboard(character.organization_id));
+      await Promise.all([
+        cache.del(CacheKeys.org.dashboard(character.organization_id)),
+        this.invalidateCache(id),
+      ]);
     }
   }
 
@@ -144,6 +207,13 @@ export class CharactersService {
     }
 
     await userCharactersRepository.delete(characterId);
+
+    // CRITICAL: Invalidate cache after delete (including runtime cache)
+    await Promise.all([
+      cache.del(CacheKeys.org.dashboard(character.organization_id)),
+      this.invalidateCache(characterId),
+    ]);
+
     return true;
   }
 

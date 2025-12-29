@@ -49,7 +49,10 @@ interface ChatState {
   updateRoom: (roomId: string, updates: Partial<Omit<RoomItem, "id">>) => void;
   updateCharacterAvatar: (characterId: string, avatarUrl: string) => void;
   loadRooms: (force?: boolean) => Promise<void>;
-  createRoom: (characterId?: string | null, skipLoadRooms?: boolean) => Promise<string | null>;
+  createRoom: (
+    characterId?: string | null,
+    skipLoadRooms?: boolean,
+  ) => Promise<string | null>;
   deleteRoom: (roomId: string) => Promise<void>;
   clearChatData: () => void;
 }

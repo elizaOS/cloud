@@ -174,7 +174,9 @@ export class OrganizationInvitesRepository {
    * Deletes an organization invite by ID.
    */
   async delete(id: string): Promise<void> {
-    await dbWrite.delete(organizationInvites).where(eq(organizationInvites.id, id));
+    await dbWrite
+      .delete(organizationInvites)
+      .where(eq(organizationInvites.id, id));
   }
 }
 

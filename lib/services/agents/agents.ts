@@ -362,6 +362,7 @@ class AgentsService {
 
   /**
    * Get cached room context or fetch from database
+   * PERFORMANCE: Uses Promise.all for parallel DB queries
    */
   async getRoomContext(roomId: string): Promise<RoomContext> {
     const cached = await agentStateCache.getRoomContext(roomId);
@@ -374,11 +375,11 @@ class AgentsService {
       `[Agents Service] Cache miss for room ${roomId}, fetching from DB`,
     );
 
-    const messages = await memoriesRepository.findMessages(roomId, {
-      limit: 20,
-    });
-    const participantIds =
-      await participantsRepository.getEntityIdsByRoomId(roomId);
+    // PERFORMANCE: Fetch messages and participants in parallel
+    const [messages, participantIds] = await Promise.all([
+      memoriesRepository.findMessages(roomId, { limit: 20 }),
+      participantsRepository.getEntityIdsByRoomId(roomId),
+    ]);
 
     const context: RoomContext = {
       roomId,
@@ -388,7 +389,8 @@ class AgentsService {
       lastActivity: new Date(),
     };
 
-    await agentStateCache.setRoomContext(roomId, context);
+    // Fire-and-forget cache set
+    agentStateCache.setRoomContext(roomId, context).catch(() => {});
 
     return context;
   }

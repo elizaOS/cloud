@@ -3,7 +3,7 @@ title: Installation
 description: Install the elizaOS SDK and CLI tools for local development.
 ---
 
-import { Tabs, Callout, Steps } from 'nextra/components'
+import { Tabs, Callout, Steps } from "nextra/components";
 
 # Installation
 
@@ -15,21 +15,15 @@ Set up your development environment for elizaOS Cloud integration.
 
 Install the official elizaOS packages:
 
-<Tabs items={['bun', 'pnpm', 'yarn']}>
+<Tabs items={["bun", "pnpm", "yarn"]}>
   <Tabs.Tab>
-```bash
-bun add @elizaos/core @elizaos/plugin-elizacloud
-```
+    ```bash bun add @elizaos/core @elizaos/plugin-elizacloud ```
   </Tabs.Tab>
   <Tabs.Tab>
-```bash
-pnpm add @elizaos/core @elizaos/plugin-elizacloud
-```
+    ```bash pnpm add @elizaos/core @elizaos/plugin-elizacloud ```
   </Tabs.Tab>
   <Tabs.Tab>
-```bash
-yarn add @elizaos/core @elizaos/plugin-elizacloud
-```
+    ```bash yarn add @elizaos/core @elizaos/plugin-elizacloud ```
   </Tabs.Tab>
 </Tabs>
 
@@ -49,11 +43,11 @@ elizaos --version
 
 ## Requirements
 
-| Requirement | Version |
-|-------------|---------|
-| Node.js | 18.0+ |
-| Bun | Latest |
-| TypeScript | 5.0+ (recommended) |
+| Requirement | Version            |
+| ----------- | ------------------ |
+| Node.js     | 18.0+              |
+| Bun         | Latest             |
+| TypeScript  | 5.0+ (recommended) |
 
 ## Project Setup
 
@@ -90,6 +84,7 @@ ANTHROPIC_API_KEY=sk-ant-...
 ```bash
 bun run dev
 ```
+
 </Steps>
 
 ## TypeScript Configuration
@@ -118,7 +113,8 @@ bun add @elizaos/core@latest @elizaos/plugin-elizacloud@latest
 ```
 
 <Callout type="warning">
-Always use matching versions of elizaOS packages to avoid compatibility issues. Run `bun update` regularly to get the latest fixes.
+  Always use matching versions of elizaOS packages to avoid compatibility
+  issues. Run `bun update` regularly to get the latest fixes.
 </Callout>
 
 ## Next Steps

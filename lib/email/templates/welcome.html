@@ -1,334 +1,689 @@
-<!doctype html>
-<html lang="en">
-
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Welcome to Cloud - Powered by elizaOS</title>
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
-    body {
-      font-family:
-        -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-        "Helvetica Neue", Arial, "Segoe UI Emoji", "Segoe UI Symbol", monospace;
-      line-height: 1.6;
-      color: #e5e5e5;
-      background-color: #000000;
-      padding: 40px 20px;
-    }
-
-    .email-wrapper {
-      max-width: 600px;
-      margin: 0 auto;
-      background: #0a0a0a;
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      overflow: hidden;
-    }
-
-    .header-banner {
-      background: #0a0a0a;
-      padding: 50px 40px;
-      text-align: center;
-      color: white;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    }
-
-    .header-banner h1 {
-      font-size: 32px;
-      font-weight: 700;
-      margin-bottom: 12px;
-      letter-spacing: -0.5px;
-      color: #ffffff;
-    }
-
-    .header-banner p {
-      font-size: 18px;
-      opacity: 0.8;
-      margin: 0;
-      color: rgba(255, 255, 255, 0.7);
-    }
-
-    .celebration-icon {
-      font-size: 56px;
-      margin-bottom: 20px;
-    }
-
-    .content {
-      background: #0a0a0a;
-      padding: 40px;
-    }
-
-    .welcome-text {
-      font-size: 16px;
-      color: rgba(255, 255, 255, 0.8);
-      margin-bottom: 30px;
-      line-height: 1.8;
-    }
-
-    .organization-name {
-      color: #FF5800;
-      font-weight: 600;
-    }
-
-    .credit-card {
-      background: linear-gradient(135deg, #FF5800 0%, #FF5800 100%);
-      border: 1px solid #FF5800;
-      padding: 30px;
-      text-align: center;
-      margin: 30px 0;
-      color: white;
-    }
-
-    .credit-label {
-      font-size: 14px;
-      opacity: 0.7;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      margin-bottom: 8px;
-      color: rgba(255, 255, 255, 0.7);
-    }
-
-    .credit-amount {
-      font-size: 42px;
-      font-weight: 700;
-      margin: 10px 0;
-      color: #ffffff;
-    }
-
-    .credit-subtitle {
-      font-size: 14px;
-      opacity: 0.7;
-      color: rgba(255, 255, 255, 0.7);
-    }
-
-    .steps-section {
-      margin: 40px 0;
-    }
-
-    .steps-title {
-      font-size: 22px;
-      font-weight: 700;
-      color: #ffffff;
-      margin-bottom: 25px;
-      text-align: center;
-    }
-
-    .step-card {
-      background: #252527;
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      padding: 24px;
-      margin-bottom: 16px;
-      display: flex;
-      align-items: flex-start;
-      gap: 20px;
-    }
-
-    .step-content {
-      flex: 1;
-    }
-
-    .step-title {
-      font-size: 17px;
-      font-weight: 600;
-      color: #ffffff;
-      margin-bottom: 6px;
-    }
-
-    .step-description {
-      font-size: 14px;
-      color: rgba(255, 255, 255, 0.6);
-      line-height: 1.6;
-    }
-
-    .cta-section {
-      text-align: center;
-      margin: 40px 0;
-      padding: 30px 0;
-    }
-
-    .cta-button {
-      display: inline-block;
-      background: #FF5800;
-      color: #ffffff !important;
-      padding: 16px 36px;
-      text-decoration: none;
-      margin: 8px;
-      font-weight: 600;
-      font-size: 16px;
-      transition: background 0.2s;
-    }
-
-    .cta-button:hover {
-      background: #ff6b1a;
-      color: #ffffff !important;
-    }
-
-    .cta-button.secondary {
-      background: #252527;
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      color: #ffffff !important;
-    }
-
-    .cta-button.secondary:hover {
-      background: #2a2a2c;
-      border-color: rgba(255, 255, 255, 0.3);
-      color: #ffffff !important;
-    }
-
-    .help-section {
-      background: rgba(255, 88, 0, 0.1);
-      border-left: 3px solid #FF5800;
-      padding: 20px;
-      margin: 30px 0;
-    }
-
-    .help-section strong {
-      color: #FF5800;
-      font-size: 15px;
-    }
-
-    .help-section p {
-      color: rgba(255, 255, 255, 0.7);
-      font-size: 14px;
-      margin: 8px 0 0 0;
-    }
-
-    .help-section a {
-      color: #FF5800;
-      text-decoration: underline;
-      font-weight: 600;
-    }
-
-    .footer {
-      background: #0a0a0a;
-      padding: 30px 40px;
-      text-align: center;
-      border-top: 1px solid rgba(255, 255, 255, 0.1);
-    }
-
-    .footer p {
-      color: rgba(255, 255, 255, 0.5);
-      font-size: 13px;
-      margin: 8px 0;
-    }
-
-    .footer-logo {
-      font-size: 20px;
-      font-weight: 700;
-      color: #FF5800;
-      margin-bottom: 12px;
-    }
-
-    @media only screen and (max-width: 600px) {
-      .header-banner {
-        padding: 40px 24px;
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Welcome to Cloud</title>
+    <style type="text/css">
+      /* Resets */
+      body,
+      table,
+      td,
+      a {
+        -webkit-text-size-adjust: 100%;
+        -ms-text-size-adjust: 100%;
+      }
+      table,
+      td {
+        mso-table-lspace: 0pt;
+        mso-table-rspace: 0pt;
+      }
+      img {
+        -ms-interpolation-mode: bicubic;
+        border: 0;
+        height: auto;
+        line-height: 100%;
+        outline: none;
+        text-decoration: none;
+      }
+      table {
+        border-collapse: collapse !important;
+      }
+      body {
+        height: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+        background-color: #000000;
       }
 
-      .header-banner h1 {
-        font-size: 26px;
+      /* Client-specific styles */
+      a[x-apple-data-detectors] {
+        color: inherit !important;
+        text-decoration: none !important;
+        font-size: inherit !important;
+        font-family: inherit !important;
+        font-weight: inherit !important;
+        line-height: inherit !important;
       }
 
-      .content {
-        padding: 30px 24px;
+      /* Responsive styles for arrow images */
+      @media only screen and (max-width: 480px) {
+        .feature-text-cell {
+          padding: 10px 0px 10px 0 !important;
+          font-size: 14px !important;
+        }
+        .feature-icon-cell {
+          width: 50px !important;
+        }
+        .feature-icon {
+          width: 40px !important;
+          height: 40px !important;
+        }
+        .welcome-text {
+          font-size: 14px !important;
+        }
+        .email-container {
+          padding: 5px !important;
+        }
+        .account-notice {
+          padding-left: 50px !important;
+          padding-right: 50px !important;
+        }
+        .main-heading {
+          font-size: 20px !important;
+        }
+        .feature-table {
+          margin-bottom: 10px !important;
+        }
       }
+    </style>
+  </head>
+  <body style="margin: 0; padding: 0; background-color: #000000">
+    <table
+      role="presentation"
+      border="0"
+      cellpadding="0"
+      cellspacing="0"
+      width="100%"
+      style="
+        background-color: #000000;
+        background-image: url(&quot;https://pub-dd7a0f26356c48ddaabc61bcc94f4988.r2.dev/cloud/bgthree.png&quot;);
+        background-position: top right;
+        background-repeat: no-repeat;
+      "
+    >
+      <tr>
+        <td class="email-container" align="center" style="padding: 10px">
+          <table
+            role="presentation"
+            border="0"
+            cellpadding="0"
+            cellspacing="0"
+            width="100%"
+            style="max-width: 440px; border-radius: 8px"
+          >
+            <tr>
+              <td align="center" style="padding: 20px 0 40px 0">
+                <img
+                  src="https://pub-dd7a0f26356c48ddaabc61bcc94f4988.r2.dev/cloud/cloudicon.png"
+                  alt="Cloud"
+                  width="100"
+                  height="39"
+                  style="display: block; width: 100px; height: auto"
+                />
+              </td>
+            </tr>
 
-      .credit-amount {
-        font-size: 36px;
-      }
+            <tr>
+              <td
+                align="center"
+                style="
+                  padding: 10px 30px 20px 30px;
+                  color: #ffffff;
+                  font-family: Helvetica, Arial, sans-serif;
+                "
+              >
+                <h1
+                  style="
+                    margin: 0;
+                    font-size: 32px;
+                    font-weight: 400;
+                    line-height: 1.2;
+                  "
+                >
+                  Welcome to Cloud
+                </h1>
+              </td>
+            </tr>
 
-      .cta-button {
-        display: block;
-        margin: 12px 0;
-      }
-    }
-  </style>
-</head>
+            <tr>
+              <td
+                class="welcome-text"
+                align="center"
+                style="
+                  padding: 0 20px 40px 20px;
+                  color: #ffffff;
+                  font-family: Helvetica, Arial, sans-serif;
+                  font-size: 18px;
+                  line-height: 1.6;
+                "
+              >
+                <p style="margin: 0">
+                  We've added
+                  <span style="color: #ff6b00; font-weight: bold">$5</span> in
+                  credits to your account.<br />
+                  You're ready to start building Power AI agents.
+                </p>
+              </td>
+            </tr>
 
-<body>
-  <div class="email-wrapper">
-    <div class="header-banner">
-      <div class="celebration-icon">🎉</div>
-      <div style="text-align: center; margin-bottom: 16px;">
-        <h1 style="display: inline-block; vertical-align: middle; margin: 0; font-size: 32px; font-weight: 700; color: #ffffff;">Welcome to</h1>
-        <img src="https://l5fpqchmvmrcwa0k.public.blob.vercel-storage.com/email-assets/1766415366787-cloudlogo.png" alt="Cloud" width="120" height="47" style="display: inline-block; vertical-align: middle; margin-left: 8px;" />
-      </div>
-      <img src="https://l5fpqchmvmrcwa0k.public.blob.vercel-storage.com/email-assets/1766415367975-poweredby.png" alt="Powered by elizaOS" width="138" height="54" style="display: block; margin: 16px auto 0 auto;" />
-    </div>
+            <tr>
+              <td align="center">
+                <table
+                  class="feature-table"
+                  role="presentation"
+                  border="0"
+                  cellpadding="0"
+                  cellspacing="0"
+                  width="100%"
+                  style="max-width: 440px; margin-bottom: 10px"
+                >
+                  <tr>
+                    <td style="padding: 0">
+                      <div
+                        style="
+                          border: 1px solid #333333;
+                          -webkit-border-radius: 16px;
+                          -moz-border-radius: 16px;
+                          border-radius: 16px;
+                          overflow: hidden;
+                          display: block;
+                          width: 100%;
+                        "
+                      >
+                        <a
+                          href="https://dev.elizacloud.ai/dashboard/build"
+                          style="
+                            text-decoration: none;
+                            color: inherit;
+                            display: block;
+                          "
+                          target="_blank"
+                        >
+                          <table
+                            role="presentation"
+                            border="0"
+                            cellpadding="0"
+                            cellspacing="0"
+                            width="100%"
+                          >
+                            <tr>
+                              <td
+                                class="feature-icon-cell"
+                                width="65"
+                                align="center"
+                                valign="middle"
+                                style="padding: 10px"
+                              >
+                                <img
+                                  class="feature-icon"
+                                  src="https://pub-dd7a0f26356c48ddaabc61bcc94f4988.r2.dev/cloud/agents.png"
+                                  alt="AI Agent Icon"
+                                  width="50"
+                                  height="50"
+                                  style="display: block; border-radius: 8px"
+                                />
+                              </td>
+                              <td
+                                class="feature-text-cell"
+                                align="left"
+                                valign="middle"
+                                style="
+                                  padding: 15px 10px 15px 0;
+                                  color: #ffffff;
+                                  font-family: Helvetica, Arial, sans-serif;
+                                  font-size: 16px;
+                                  line-height: 1.5;
+                                "
+                              >
+                                Deploy AI agents with custom personalities,
+                                capabilities, and integrations tailored to your
+                                needs.
+                              </td>
+                              <td
+                                align="right"
+                                valign="bottom"
+                                style="padding: 0 10px 10px 0"
+                              >
+                                <img
+                                  class="arrow-icon"
+                                  src="https://pub-dd7a0f26356c48ddaabc61bcc94f4988.r2.dev/cloud/linkto.png"
+                                  alt="Arrow"
+                                  width="32"
+                                  height="32"
+                                  style="display: block; border-radius: 50%"
+                                />
+                              </td>
+                            </tr>
+                          </table>
+                        </a>
+                      </div>
+                    </td>
+                  </tr>
+                </table>
 
-    <div class="content">
-      <p class="welcome-text">
-        You're ready to start building powerful AI agents that will transform how you work.
-      </p>
+                <table
+                  class="feature-table"
+                  role="presentation"
+                  border="0"
+                  cellpadding="0"
+                  cellspacing="0"
+                  width="100%"
+                  style="max-width: 440px; margin-bottom: 10px"
+                >
+                  <tr>
+                    <td style="padding: 0">
+                      <div
+                        style="
+                          border: 1px solid #333333;
+                          -webkit-border-radius: 16px;
+                          -moz-border-radius: 16px;
+                          border-radius: 16px;
+                          overflow: hidden;
+                          display: block;
+                          width: 100%;
+                        "
+                      >
+                        <a
+                          href="https://dev.elizacloud.ai/dashboard/api-explorer"
+                          style="
+                            text-decoration: none;
+                            color: inherit;
+                            display: block;
+                          "
+                          target="_blank"
+                        >
+                          <table
+                            role="presentation"
+                            border="0"
+                            cellpadding="0"
+                            cellspacing="0"
+                            width="100%"
+                          >
+                            <tr>
+                              <td
+                                class="feature-icon-cell"
+                                width="65"
+                                align="center"
+                                valign="middle"
+                                style="padding: 10px"
+                              >
+                                <img
+                                  class="feature-icon"
+                                  src="https://pub-dd7a0f26356c48ddaabc61bcc94f4988.r2.dev/cloud/api.png"
+                                  alt="API Icon"
+                                  width="50"
+                                  height="50"
+                                  style="display: block; border-radius: 8px"
+                                />
+                              </td>
+                              <td
+                                class="feature-text-cell"
+                                align="left"
+                                valign="middle"
+                                style="
+                                  padding: 15px 10px 15px 0;
+                                  color: #ffffff;
+                                  font-family: Helvetica, Arial, sans-serif;
+                                  font-size: 16px;
+                                  line-height: 1.5;
+                                "
+                              >
+                                Use our API to seamlessly connect Eliza agents
+                                to your apps, workflows, and existing systems.
+                              </td>
+                              <td
+                                width="50"
+                                align="right"
+                                valign="bottom"
+                                style="padding: 0 10px 10px 0"
+                              >
+                                <img
+                                  class="arrow-icon"
+                                  src="https://pub-dd7a0f26356c48ddaabc61bcc94f4988.r2.dev/cloud/linkto.png"
+                                  alt="Arrow"
+                                  width="32"
+                                  height="32"
+                                  style="display: block; border-radius: 50%"
+                                />
+                              </td>
+                            </tr>
+                          </table>
+                        </a>
+                      </div>
+                    </td>
+                  </tr>
+                </table>
 
-      <div class="credit-card">
-        <div class="credit-label">YOUR STARTING BALANCE</div>
-        <div class="credit-amount">${{creditBalance}}</div>
-        <div class="credit-subtitle">
-          Enough to get started and explore what you can build.
-        </div>
-      </div>
+                <table
+                  role="presentation"
+                  border="0"
+                  cellpadding="0"
+                  cellspacing="0"
+                  width="100%"
+                  style="max-width: 440px; margin-bottom: 40px"
+                >
+                  <tr>
+                    <td>
+                      <div
+                        style="
+                          border: 1px solid #333333;
+                          -webkit-border-radius: 16px;
+                          -moz-border-radius: 16px;
+                          border-radius: 16px;
+                          overflow: hidden;
+                          display: block;
+                          width: 100%;
+                        "
+                      >
+                        <a
+                          href="https://dev.elizacloud.ai/dashboard"
+                          style="
+                            text-decoration: none;
+                            color: inherit;
+                            display: block;
+                          "
+                          target="_blank"
+                        >
+                          <table
+                            role="presentation"
+                            border="0"
+                            cellpadding="0"
+                            cellspacing="0"
+                            width="100%"
+                          >
+                            <tr>
+                              <td
+                                class="feature-icon-cell"
+                                width="65"
+                                align="center"
+                                valign="middle"
+                                style="padding: 10px"
+                              >
+                                <img
+                                  class="feature-icon"
+                                  src="https://pub-dd7a0f26356c48ddaabc61bcc94f4988.r2.dev/cloud/dashboard.png"
+                                  alt="Dashboard Icon"
+                                  width="50"
+                                  height="50"
+                                  style="display: block; border-radius: 8px"
+                                />
+                              </td>
+                              <td
+                                class="feature-text-cell"
+                                align="left"
+                                valign="middle"
+                                style="
+                                  padding: 15px 10px 15px 0;
+                                  color: #ffffff;
+                                  font-family: Helvetica, Arial, sans-serif;
+                                  font-size: 16px;
+                                  line-height: 1.5;
+                                "
+                              >
+                                Easily monitor your balance, track usage, and
+                                manage all your account settings in dashboard.
+                              </td>
+                              <td
+                                width="50"
+                                align="right"
+                                valign="bottom"
+                                style="padding: 0 10px 10px 0"
+                              >
+                                <img
+                                  class="arrow-icon"
+                                  src="https://pub-dd7a0f26356c48ddaabc61bcc94f4988.r2.dev/cloud/linkto.png"
+                                  alt="Arrow"
+                                  width="32"
+                                  height="32"
+                                  style="display: block; border-radius: 50%"
+                                />
+                              </td>
+                            </tr>
+                          </table>
+                        </a>
+                      </div>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
 
-      <div class="steps-section">
-        <h2 class="steps-title">Get Started in 3 Steps</h2>
+            <tr>
+              <td
+                align="center"
+                style="
+                  padding: 0 30px 25px 30px;
+                  color: #ffffff;
+                  font-family: Helvetica, Arial, sans-serif;
+                "
+              >
+                <h2
+                  class="main-heading"
+                  style="margin: 0; font-size: 28px; font-weight: 400"
+                >
+                  Build AI agents in seconds
+                </h2>
+              </td>
+            </tr>
+            <tr>
+              <td align="center" style="padding: 0 30px 60px 30px">
+                <table
+                  role="presentation"
+                  border="0"
+                  cellspacing="0"
+                  cellpadding="0"
+                >
+                  <tr>
+                    <td
+                      align="center"
+                      bgcolor="#ff6b00"
+                      style="border-radius: 50px"
+                    >
+                      <a
+                        href="https://dev.elizacloud.ai/dashboard/build"
+                        target="_blank"
+                        class="button"
+                        style="
+                          font-size: 18px;
+                          font-family: Helvetica, Arial, sans-serif;
+                          color: #ffffff;
+                          text-decoration: none;
+                          padding: 15px 40px;
+                          border-radius: 50px;
+                          border: 1px solid #ff6b00;
+                          display: inline-block;
+                          font-weight: 500;
+                        "
+                        >Get Started</a
+                      >
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
 
-        <div class="step-card">
-          <div class="step-content">
-            <div class="step-title">Create Your First Agent</div>
-            <div class="step-description">
-              Deploy AI agents with custom personalities, capabilities, and integrations tailored to your needs.
-            </div>
-          </div>
-        </div>
+            <tr>
+              <td>
+                <table
+                  role="presentation"
+                  border="0"
+                  cellpadding="0"
+                  cellspacing="0"
+                  width="100%"
+                >
+                  <tr>
+                    <td style="padding: 0">
+                      <div
+                        style="
+                          border: 1px solid #222222;
+                          -webkit-border-radius: 12px;
+                          -moz-border-radius: 12px;
+                          border-radius: 12px;
+                          background-color: #141414;
+                          overflow: hidden;
+                          display: block;
+                          width: 100%;
+                        "
+                      >
+                        <table
+                          role="presentation"
+                          border="0"
+                          cellpadding="0"
+                          cellspacing="0"
+                          width="100%"
+                        >
+                          <tr>
+                            <td style="padding: 15px">
+                              <table
+                                role="presentation"
+                                border="0"
+                                cellpadding="0"
+                                cellspacing="0"
+                                width="100%"
+                                style="
+                                  border-bottom: 1px solid #333333;
+                                  margin-bottom: 15px;
+                                "
+                              >
+                                <tr>
+                                  <td
+                                    class="account-notice"
+                                    align="center"
+                                    style="
+                                      color: #888888;
+                                      font-family: Helvetica, Arial, sans-serif;
+                                      font-size: 12px;
+                                      padding: 0 0 15px 0;
+                                      line-height: 1.5;
+                                    "
+                                  >
+                                    You received this email because you created
+                                    an account at Eliza Cloud.
+                                  </td>
+                                </tr>
+                              </table>
 
-        <div class="step-card">
-          <div class="step-content">
-            <div class="step-title">Integrate with Your Apps</div>
-            <div class="step-description">
-              Use our API to connect Eliza agents to your applications and workflows.
-            </div>
-          </div>
-        </div>
+                              <table
+                                role="presentation"
+                                border="0"
+                                cellpadding="0"
+                                cellspacing="0"
+                                width="100%"
+                                style="
+                                  padding-bottom: 30px;
+                                  margin-bottom: 20px;
+                                "
+                              >
+                                <tr>
+                                  <td align="left" valign="middle">
+                                    <img
+                                      src="https://pub-dd7a0f26356c48ddaabc61bcc94f4988.r2.dev/cloud/poweredby.png"
+                                      alt="Powered by ElizaOS"
+                                      width="100"
+                                      style="display: block"
+                                    />
+                                  </td>
+                                  <td align="right" valign="middle">
+                                    <a
+                                      href="https://github.com/elizaos"
+                                      style="
+                                        text-decoration: none;
+                                        margin-left: 12px;
+                                      "
+                                    >
+                                      <img
+                                        src="https://pub-dd7a0f26356c48ddaabc61bcc94f4988.r2.dev/cloud/github.png"
+                                        alt="GitHub"
+                                        width="24"
+                                        height="24"
+                                        style="display: inline-block"
+                                      />
+                                    </a>
+                                    <a
+                                      href="https://discord.gg/mPsBnEXJuA"
+                                      style="
+                                        text-decoration: none;
+                                        margin-left: 12px;
+                                      "
+                                    >
+                                      <img
+                                        src="https://pub-dd7a0f26356c48ddaabc61bcc94f4988.r2.dev/cloud/discord.png"
+                                        alt="Discord"
+                                        width="24"
+                                        height="24"
+                                        style="display: inline-block"
+                                      />
+                                    </a>
+                                    <a
+                                      href="https://x.com/elizaos"
+                                      style="
+                                        text-decoration: none;
+                                        margin-left: 12px;
+                                      "
+                                    >
+                                      <img
+                                        src="https://pub-dd7a0f26356c48ddaabc61bcc94f4988.r2.dev/cloud/x.png"
+                                        alt="X"
+                                        width="24"
+                                        height="24"
+                                        style="display: inline-block"
+                                      />
+                                    </a>
+                                  </td>
+                                </tr>
+                              </table>
 
-        <div class="step-card">
-          <div class="step-content">
-            <div class="step-title">Explore Your Dashboard</div>
-            <div class="step-description">
-              Monitor your balance, track usage, and manage your account settings in one place.
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="cta-section">
-        <a href="{{dashboardUrl}}" class="cta-button">View Dashboard →</a>
-        <a href="{{docsUrl}}" class="cta-button secondary">Read Documentation →</a>
-      </div>
-
-      <div class="help-section">
-        <strong>Need Help?</strong>
-        <p>
-          Check out our <a href="{{docsUrl}}">documentation</a> or reach out to support if you get stuck.
-        </p>
-      </div>
-    </div>
-
-    <div class="footer">
-      <div class="footer-logo" style="text-align: center; margin-bottom: 12px;">
-        <img src="https://l5fpqchmvmrcwa0k.public.blob.vercel-storage.com/email-assets/1766415366787-cloudlogo.png" alt="Cloud" width="80" height="31" style="display: inline-block; vertical-align: middle;" />
-        <span style="display: inline-block; vertical-align: middle; margin: 0 8px; color: rgba(255, 255, 255, 0.5); font-size: 16px; line-height: 1;">-</span>
-        <img src="https://l5fpqchmvmrcwa0k.public.blob.vercel-storage.com/email-assets/1766415367975-poweredby.png" alt="Powered by elizaOS" width="92" height="36" style="display: inline-block; vertical-align: middle; opacity: 0.7;" />
-      </div>
-      <p>© {{currentYear}} Eliza Cloud. All rights reserved.</p>
-      <p style="margin-top: 12px">
-        You received this email because you created an account at Eliza Cloud.
-      </p>
-    </div>
-  </div>
-</body>
-
+                              <table
+                                role="presentation"
+                                border="0"
+                                cellpadding="0"
+                                cellspacing="0"
+                                width="100%"
+                                style="padding-top: 20px"
+                              >
+                                <tr>
+                                  <td
+                                    align="left"
+                                    style="
+                                      color: #888888;
+                                      font-family: Helvetica, Arial, sans-serif;
+                                      font-size: 11px;
+                                    "
+                                  >
+                                    <a
+                                      href="https://dev.elizacloud.ai/privacy-policy"
+                                      style="
+                                        color: #888888;
+                                        text-decoration: underline;
+                                      "
+                                      >Privacy</a
+                                    >
+                                    <span style="margin: 0 5px">•</span>
+                                    <a
+                                      href="https://dev.elizacloud.ai/terms-of-service"
+                                      style="
+                                        color: #888888;
+                                        text-decoration: underline;
+                                      "
+                                      >Term</a
+                                    >
+                                  </td>
+                                  <td
+                                    align="right"
+                                    style="
+                                      color: #888888;
+                                      font-family: Helvetica, Arial, sans-serif;
+                                      font-size: 11px;
+                                    "
+                                  >
+                                    Cloud © 2025 Eliza Cloud
+                                  </td>
+                                </tr>
+                              </table>
+                            </td>
+                          </tr>
+                        </table>
+                      </div>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
 </html>

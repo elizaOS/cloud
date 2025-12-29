@@ -23,7 +23,9 @@ export const cryptoPayments = pgTable(
     organization_id: uuid("organization_id")
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
-    user_id: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
+    user_id: uuid("user_id").references(() => users.id, {
+      onDelete: "cascade",
+    }),
 
     // Payment address provided by OxaPay for receiving funds
     payment_address: text("payment_address").notNull(),
@@ -56,26 +58,27 @@ export const cryptoPayments = pgTable(
   },
   (table) => ({
     org_idx: index("crypto_payments_organization_id_idx").on(
-      table.organization_id
+      table.organization_id,
     ),
     user_idx: index("crypto_payments_user_id_idx").on(table.user_id),
     payment_address_idx: index("crypto_payments_payment_address_idx").on(
-      table.payment_address
+      table.payment_address,
     ),
     status_idx: index("crypto_payments_status_idx").on(table.status),
     // Unique constraint to prevent duplicate transaction processing
-    tx_hash_unique_idx: uniqueIndex("crypto_payments_transaction_hash_unique_idx").on(
-      table.transaction_hash
-    ),
+    tx_hash_unique_idx: uniqueIndex(
+      "crypto_payments_transaction_hash_unique_idx",
+    ).on(table.transaction_hash),
     network_idx: index("crypto_payments_network_idx").on(table.network),
     created_idx: index("crypto_payments_created_at_idx").on(table.created_at),
     expires_idx: index("crypto_payments_expires_at_idx").on(table.expires_at),
     // GIN index for efficient JSONB queries on oxapay_track_id
-    metadata_gin_idx: index("crypto_payments_metadata_gin_idx")
-      .using("gin", table.metadata),
-  })
+    metadata_gin_idx: index("crypto_payments_metadata_gin_idx").using(
+      "gin",
+      table.metadata,
+    ),
+  }),
 );
 
 export type CryptoPayment = InferSelectModel<typeof cryptoPayments>;
 export type NewCryptoPayment = InferInsertModel<typeof cryptoPayments>;
-

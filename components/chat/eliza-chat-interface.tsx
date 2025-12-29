@@ -33,7 +33,11 @@ import { useAudioRecorder } from "./hooks/use-audio-recorder";
 import { useAudioPlayer } from "./hooks/use-audio-player";
 import { useModelTier } from "./hooks/use-model-tier";
 import { sendStreamingMessage } from "@/lib/hooks/use-streaming-message";
-import type { StreamingMessage, StreamChunkData } from "@/lib/hooks/use-streaming-message";
+import type {
+  StreamingMessage,
+  StreamChunkData,
+  ReasoningChunkData,
+} from "@/lib/hooks/use-streaming-message";
 import { toast } from "sonner";
 import {
   Select,
@@ -95,7 +99,7 @@ interface CharacterData {
   };
 }
 
-interface ElizaChatInterfaceProps { 
+interface ElizaChatInterfaceProps {
   onMessageSent?: () => void | Promise<void>;
   character?: CharacterData;
   expectedCharacterId?: string; // Used to validate room belongs to expected character during navigation
@@ -164,7 +168,7 @@ export function ElizaChatInterface({
   const fetchedCharacterRef = useRef<string | null>(null);
   useEffect(() => {
     const targetId = expectedCharacterId || selectedCharacterId;
-    
+
     // Skip if no character ID or already fetched or character is in store
     if (!targetId || fetchedCharacterRef.current === targetId) return;
     if (availableCharacters.some((c) => c.id === targetId)) return;
@@ -172,7 +176,7 @@ export function ElizaChatInterface({
     // Track this fetch to prevent race conditions
     const currentTargetId = targetId;
     fetchedCharacterRef.current = targetId;
-    
+
     const controller = new AbortController();
 
     // Fetch character data from public API
@@ -184,7 +188,7 @@ export function ElizaChatInterface({
       .then((data) => {
         // Check if this is still the current target (prevents race condition)
         if (fetchedCharacterRef.current !== currentTargetId) return;
-        
+
         if (data.success && data.data) {
           const charData = data.data;
           // Add to available characters in store
@@ -201,14 +205,19 @@ export function ElizaChatInterface({
       })
       .catch((err) => {
         // Ignore abort errors
-        if (err instanceof Error && err.name === 'AbortError') return;
+        if (err instanceof Error && err.name === "AbortError") return;
         console.warn("[ElizaChat] Could not fetch shared character:", err);
       });
 
     return () => {
       controller.abort();
     };
-  }, [expectedCharacterId, selectedCharacterId, availableCharacters, setAvailableCharacters]);
+  }, [
+    expectedCharacterId,
+    selectedCharacterId,
+    availableCharacters,
+    setAvailableCharacters,
+  ]);
 
   // Get avatar URL from prop (preferred), store, or agentInfo
   // Check both top-level and nested character_data properties
@@ -266,9 +275,20 @@ export function ElizaChatInterface({
 
   const [isUploadingFiles, setIsUploadingFiles] = useState(false);
   const [webSearchEnabled, setWebSearchEnabled] = useState(true);
-  
+
   // Custom model selection (when user picks from "More models")
-  const [customModel, setCustomModel] = useState<{ id: string; name: string; modelId: string } | null>(null);
+  const [customModel, setCustomModel] = useState<{
+    id: string;
+    name: string;
+    modelId: string;
+  } | null>(null);
+
+  // Reasoning/chain-of-thought state - shows LLM's thinking process
+  const [reasoningState, setReasoningState] = useState<{
+    text: string;
+    phase: "planning" | "actions" | "response" | null;
+    isVisible: boolean;
+  }>({ text: "", phase: null, isVisible: false });
 
   const messageAudioUrls = useRef<Map<string, string>>(new Map());
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
@@ -283,13 +303,16 @@ export function ElizaChatInterface({
 
   // Cleanup refs on unmount to prevent memory leaks
   useEffect(() => {
+    // Capture ref value inside effect for cleanup
+    const renderedMessages = renderedMessagesRef.current;
+    const thinkingTimeout = thinkingTimeoutRef.current;
+
     return () => {
-      if (thinkingTimeoutRef.current) {
-        clearTimeout(thinkingTimeoutRef.current);
-        thinkingTimeoutRef.current = null;
+      if (thinkingTimeout) {
+        clearTimeout(thinkingTimeout);
       }
       clearAllStreaming();
-      renderedMessagesRef.current.clear();
+      renderedMessages.clear();
     };
   }, [clearAllStreaming]);
 
@@ -307,49 +330,57 @@ export function ElizaChatInterface({
   // Poll knowledge processing status and show toast when complete
   useKnowledgeProcessingStatus(selectedCharacterId || null);
 
-  const loadMessages = useCallback(async (targetRoomId: string, skipLoadingState = false) => {
-    // Don't show loading state if we're sending (prevents flicker) or explicitly skipped
-    if (!skipLoadingState && !isSendingRef.current) {
-      setLoadingState((prev) => ({ ...prev, isLoadingMessages: true }));
-    }
-    try {
-      const response = await fetch(`/api/eliza/rooms/${targetRoomId}`, {
-        credentials: "include",
-      });
-      if (response.ok) {
-        const data = await response.json();
-        // Only update messages if we're not in the middle of sending
-        // This prevents overwriting optimistic messages with stale data
-        if (!isSendingRef.current) {
-          setMessages(data.messages || []);
-        }
-        if (data.agent) {
-          setAgentInfo(data.agent);
-        }
-      }
-    } catch (err) {
-      console.error("Error loading messages:", err);
-    } finally {
+  const loadMessages = useCallback(
+    async (targetRoomId: string, skipLoadingState = false) => {
+      // Don't show loading state if we're sending (prevents flicker) or explicitly skipped
       if (!skipLoadingState && !isSendingRef.current) {
-        setLoadingState((prev) => ({ ...prev, isLoadingMessages: false }));
+        setLoadingState((prev) => ({ ...prev, isLoadingMessages: true }));
       }
-    }
-  }, []); // Stable - no dependencies needed
+      try {
+        const response = await fetch(`/api/eliza/rooms/${targetRoomId}`, {
+          credentials: "include",
+        });
+        if (response.ok) {
+          const data = await response.json();
+          // Only update messages if we're not in the middle of sending
+          // This prevents overwriting optimistic messages with stale data
+          if (!isSendingRef.current) {
+            setMessages(data.messages || []);
+          }
+          if (data.agent) {
+            setAgentInfo(data.agent);
+          }
+        }
+      } catch (err) {
+        console.error("Error loading messages:", err);
+      } finally {
+        if (!skipLoadingState && !isSendingRef.current) {
+          setLoadingState((prev) => ({ ...prev, isLoadingMessages: false }));
+        }
+      }
+    },
+    [],
+  ); // Stable - no dependencies needed
 
   // Load messages when roomId from context changes
   useEffect(() => {
     // Use expectedCharacterId (from URL/props) as source of truth, fallback to store's selectedCharacterId
     const targetCharacterId = expectedCharacterId || selectedCharacterId;
-    
+
     if (roomId) {
       // CRITICAL: Validate room belongs to expected character before loading
       // This prevents loading stale room data during navigation race conditions
       const rooms = useChatStore.getState().rooms;
-      const room = rooms.find(r => r.id === roomId);
-      if (room && room.characterId && targetCharacterId && room.characterId !== targetCharacterId) {
+      const room = rooms.find((r) => r.id === roomId);
+      if (
+        room &&
+        room.characterId &&
+        targetCharacterId &&
+        room.characterId !== targetCharacterId
+      ) {
         return; // Skip loading - room belongs to different character
       }
-      
+
       // Skip loading for rooms we just created (they're empty, prevents flicker)
       if (justCreatedRoomIdRef.current === roomId) {
         justCreatedRoomIdRef.current = null; // Clear the flag
@@ -388,138 +419,155 @@ export function ElizaChatInterface({
     [createRoomInStore, selectedCharacterId],
   );
 
-  const handleStreamMessage = useCallback((messageData: StreamingMessage) => {
-    setMessages((prev) => {
-      // Handle agent response - update streaming message in place to avoid flash
+  const handleStreamMessage = useCallback(
+    (messageData: StreamingMessage) => {
       if (messageData.type === "agent") {
-        // Clean up streaming state
-        clearAllStreaming();
+        setReasoningState({ text: "", phase: null, isVisible: false });
+      }
 
-        // Clear thinking timeout
-        if (thinkingTimeoutRef.current) {
-          clearTimeout(thinkingTimeoutRef.current);
-          thinkingTimeoutRef.current = null;
-        }
+      setMessages((prev) => {
+        if (messageData.type === "agent") {
+          clearAllStreaming();
+          if (thinkingTimeoutRef.current) {
+            clearTimeout(thinkingTimeoutRef.current);
+            thinkingTimeoutRef.current = null;
+          }
+          if (prev.some((m) => m.id === messageData.id)) return prev;
 
-        // Check for duplicates
-        if (prev.some((m) => m.id === messageData.id)) {
-          return prev;
-        }
-
-        // Find streaming message by prefix
-        const streamingIndex = prev.findIndex(
-          (m) => m.id === `streaming-${messageData.id}`
-        );
-        if (streamingIndex !== -1) {
-          const updated = [...prev];
-          updated[streamingIndex] = {
-            ...updated[streamingIndex],
-            id: messageData.id,
-            content: {
-              ...messageData.content,
-              text: updated[streamingIndex].content.text || messageData.content.text,
-            },
-          };
-          // Also remove any thinking/temp messages
-          return updated.filter(
-            (m) => !m.id.startsWith("thinking-") && !m.id.startsWith("temp-"),
+          const streamingIndex = prev.findIndex(
+            (m) => m.id === `streaming-${messageData.id}`,
           );
+          if (streamingIndex !== -1) {
+            const updated = [...prev];
+            // Use final message content (properly parsed) but preserve streaming ID transition
+            // The streaming text should match the final text after XML filtering
+            // Prefer final message text as it's the authoritative parsed response
+            updated[streamingIndex] = {
+              ...updated[streamingIndex],
+              id: messageData.id,
+              content: {
+                ...messageData.content,
+                // Use final message text - it's properly parsed and may include
+                // post-processing like AI-speak removal
+                text:
+                  messageData.content.text ||
+                  updated[streamingIndex].content.text,
+              },
+            };
+            return updated.filter(
+              (m) => !m.id.startsWith("thinking-") && !m.id.startsWith("temp-"),
+            );
+          }
+
+          return [
+            ...prev.filter(
+              (m) =>
+                !m.id.startsWith("thinking-") &&
+                !m.id.startsWith("temp-") &&
+                !m.id.startsWith("streaming-"),
+            ),
+            messageData,
+          ];
         }
 
-        // No streaming message found - fallback to normal add
-        const filtered = prev.filter(
-          (m) =>
-            !m.id.startsWith("thinking-") &&
-            !m.id.startsWith("temp-") &&
-            !m.id.startsWith("streaming-"),
-        );
-
-        return [...filtered, messageData];
-      }
-
-      // Handle thinking indicator
-      if (messageData.type === "thinking") {
-        const withoutThinking = prev.filter(
-          (m) => !m.id.startsWith("thinking-"),
-        );
-        return [...withoutThinking, messageData];
-      }
-
-      // Handle user messages
-      if (messageData.type === "user") {
-        // Replace temp message with real one
-        const tempIndex = prev.findIndex(
-          (m) =>
-            m.id.startsWith("temp-") &&
-            m.content.text === messageData.content.text,
-        );
-
-        if (tempIndex !== -1) {
-          const updated = [...prev];
-          updated[tempIndex] = messageData;
-          return updated;
+        // Handle thinking indicator
+        if (messageData.type === "thinking") {
+          const withoutThinking = prev.filter(
+            (m) => !m.id.startsWith("thinking-"),
+          );
+          return [...withoutThinking, messageData];
         }
 
-        // Check for duplicates
-        if (prev.some((m) => m.id === messageData.id)) {
-          return prev;
+        // Handle user messages
+        if (messageData.type === "user") {
+          // Replace temp message with real one
+          const tempIndex = prev.findIndex(
+            (m) =>
+              m.id.startsWith("temp-") &&
+              m.content.text === messageData.content.text,
+          );
+
+          if (tempIndex !== -1) {
+            const updated = [...prev];
+            updated[tempIndex] = messageData;
+            return updated;
+          }
+
+          // Check for duplicates
+          if (prev.some((m) => m.id === messageData.id)) {
+            return prev;
+          }
+
+          return [...prev, messageData];
         }
 
-        return [...prev, messageData];
-      }
+        return prev;
+      });
+    },
+    [clearAllStreaming],
+  );
 
-      return prev;
-    });
-  }, [clearAllStreaming]);
+  // Handle reasoning/chain-of-thought chunks - shows LLM's planning
+  const handleReasoningChunk = useCallback((chunkData: ReasoningChunkData) => {
+    const { chunk, phase } = chunkData;
+    setReasoningState((prev) => ({
+      text: prev.text + chunk,
+      phase: phase as "planning" | "actions" | "response",
+      isVisible: true,
+    }));
+  }, []);
 
   // Handle real-time streaming chunks - updates message text incrementally
-  const handleStreamChunk = useCallback((chunkData: StreamChunkData) => {
-    const { messageId, chunk } = chunkData;
+  const handleStreamChunk = useCallback(
+    (chunkData: StreamChunkData) => {
+      const { messageId, chunk } = chunkData;
 
-    // Accumulate text in hook (no re-render)
-    accumulateChunk(messageId, chunk);
+      // Accumulate text in hook (no re-render)
+      accumulateChunk(messageId, chunk);
 
-    // Schedule throttled UI update
-    scheduleUpdate(messageId, (newText) => {
-      setMessages((prev) => {
-        // Check if we already have a streaming message for this messageId
-        const streamingMsgIndex = prev.findIndex(
-          (m) => m.id === `streaming-${messageId}`
-        );
+      // Schedule throttled UI update
+      scheduleUpdate(messageId, (newText) => {
+        setMessages((prev) => {
+          // Check if we already have a streaming message for this messageId
+          const streamingMsgIndex = prev.findIndex(
+            (m) => m.id === `streaming-${messageId}`,
+          );
 
-        if (streamingMsgIndex !== -1) {
-          // Update existing streaming message
-          const updated = [...prev];
-          updated[streamingMsgIndex] = {
-            ...updated[streamingMsgIndex],
-            content: { ...updated[streamingMsgIndex].content, text: newText },
+          if (streamingMsgIndex !== -1) {
+            // Update existing streaming message
+            const updated = [...prev];
+            updated[streamingMsgIndex] = {
+              ...updated[streamingMsgIndex],
+              content: { ...updated[streamingMsgIndex].content, text: newText },
+            };
+            return updated;
+          }
+
+          // First chunk - create a new streaming message and remove thinking indicator
+          const withoutThinking = prev.filter(
+            (m) => !m.id.startsWith("thinking-"),
+          );
+
+          // Clear thinking timeout
+          if (thinkingTimeoutRef.current) {
+            clearTimeout(thinkingTimeoutRef.current);
+            thinkingTimeoutRef.current = null;
+          }
+
+          // Add new streaming message
+          const streamingMessage: Message = {
+            id: `streaming-${messageId}`,
+            content: { text: newText },
+            isAgent: true,
+            createdAt: Date.now(),
           };
-          return updated;
-        }
 
-        // First chunk - create a new streaming message and remove thinking indicator
-        const withoutThinking = prev.filter(
-          (m) => !m.id.startsWith("thinking-")
-        );
-
-        // Clear thinking timeout
-        if (thinkingTimeoutRef.current) {
-          clearTimeout(thinkingTimeoutRef.current);
-          thinkingTimeoutRef.current = null;
-        }
-
-        // Add new streaming message
-        const streamingMessage: Message = {
-          id: `streaming-${messageId}`,
-          content: { text: newText },
-          isAgent: true,
-          createdAt: Date.now(),
-        };
-
-        return [...withoutThinking, streamingMessage];
+          return [...withoutThinking, streamingMessage];
+        });
       });
-    });
-  }, [accumulateChunk, scheduleUpdate]);
+    },
+    [accumulateChunk, scheduleUpdate],
+  );
 
   const sendMessage = useCallback(
     async (textOverride?: string) => {
@@ -533,6 +581,9 @@ export function ElizaChatInterface({
       setLoadingState((prev) => ({ ...prev, isSending: true }));
       isSendingRef.current = true;
       setError(null);
+
+      // Reset scroll tracking - user wants to see their message and response
+      userScrolledUpRef.current = false;
 
       // Track if we created a new room (to skip loadRooms later)
       let didCreateNewRoom = false;
@@ -555,7 +606,10 @@ export function ElizaChatInterface({
             // Start new room creation and store the promise
             // Pass skipLoadRooms=true to prevent unnecessary room list reload
             isCreatingRoomRef.current = true;
-            roomCreationPromiseRef.current = createRoom(selectedCharacterId, true)
+            roomCreationPromiseRef.current = createRoom(
+              selectedCharacterId,
+              true,
+            )
               .then((newRoomId) => {
                 isCreatingRoomRef.current = false;
                 roomCreationPromiseRef.current = null;
@@ -591,7 +645,23 @@ export function ElizaChatInterface({
           isAgent: false,
           createdAt: now,
         };
-        setMessages((prev) => [...prev, tempUserMessage]);
+
+        // Add optimistic thinking indicator immediately for instant feedback
+        const optimisticThinkingMessage: Message = {
+          id: `thinking-${Date.now()}`,
+          content: { text: "" },
+          isAgent: true,
+          createdAt: now + 1, // Slightly after user message to ensure ordering
+        };
+
+        setMessages((prev) => [
+          ...prev,
+          tempUserMessage,
+          optimisticThinkingMessage,
+        ]);
+
+        // Reset reasoning state for new message
+        setReasoningState({ text: "", phase: null, isVisible: false });
         // Clear loading state immediately so chat interface shows right away
         setLoadingState((prev) => ({ ...prev, isLoadingMessages: false }));
 
@@ -614,6 +684,7 @@ export function ElizaChatInterface({
           webSearchEnabled, // Pass web search toggle state
           onMessage: handleStreamMessage,
           onChunk: handleStreamChunk, // Handle real-time streaming chunks
+          onReasoning: handleReasoningChunk, // Handle chain-of-thought display
           onError: (errorMsg) => {
             setError(errorMsg);
             toast.error(errorMsg);
@@ -681,6 +752,7 @@ export function ElizaChatInterface({
       webSearchEnabled,
       handleStreamMessage,
       handleStreamChunk,
+      handleReasoningChunk,
       loadRooms,
       onMessageSent,
       clearAllStreaming,
@@ -949,15 +1021,35 @@ export function ElizaChatInterface({
 
   // Handle streaming messages from the single endpoint
 
-  // Robust scroll to bottom function
+  // Track if user has scrolled up (away from bottom) - don't force scroll if they're reading
+  const userScrolledUpRef = useRef(false);
+  const lastScrollTopRef = useRef(0);
+
+  // Check if viewport is at or near bottom
+  const isNearBottom = useCallback(() => {
+    if (!scrollAreaRef.current) return true;
+    const viewport = scrollAreaRef.current.querySelector(
+      "[data-radix-scroll-area-viewport]",
+    );
+    if (!viewport) return true;
+
+    // Consider "near bottom" if within 150px of the bottom
+    const threshold = 150;
+    const distanceFromBottom =
+      viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight;
+    return distanceFromBottom < threshold;
+  }, []);
+
+  // Robust scroll to bottom function - respects user scroll position
   const scrollToBottom = useCallback((smooth = false) => {
+    // Don't auto-scroll if user has scrolled up to read
+    if (userScrolledUpRef.current) return;
+
     if (scrollAreaRef.current) {
-      // ScrollArea wraps content in a viewport div with data-radix-scroll-area-viewport
       const viewport = scrollAreaRef.current.querySelector(
         "[data-radix-scroll-area-viewport]",
       );
       if (viewport) {
-        // Use requestAnimationFrame to ensure DOM has updated
         requestAnimationFrame(() => {
           if (smooth) {
             viewport.scrollTo({
@@ -972,15 +1064,53 @@ export function ElizaChatInterface({
     }
   }, []);
 
+  // Track scroll events to detect user scrolling up
+  useEffect(() => {
+    if (!scrollAreaRef.current) return;
+    const viewport = scrollAreaRef.current.querySelector(
+      "[data-radix-scroll-area-viewport]",
+    );
+    if (!viewport) return;
+
+    const handleScroll = () => {
+      const currentScrollTop = viewport.scrollTop;
+      const isAtBottom = isNearBottom();
+
+      // User scrolled UP (away from bottom)
+      if (currentScrollTop < lastScrollTopRef.current && !isAtBottom) {
+        userScrolledUpRef.current = true;
+      }
+      // User scrolled back to bottom - re-enable auto-scroll
+      if (isAtBottom) {
+        userScrolledUpRef.current = false;
+      }
+
+      lastScrollTopRef.current = currentScrollTop;
+    };
+
+    viewport.addEventListener("scroll", handleScroll, { passive: true });
+    return () => viewport.removeEventListener("scroll", handleScroll);
+  }, [isNearBottom]);
+
   // Keep inputTextRef in sync with inputText
   useEffect(() => {
     inputTextRef.current = inputText;
   }, [inputText]);
 
-  // Auto-scroll to bottom when messages change (with delayed scroll for late-loading content)
+  // Auto-scroll to bottom when messages change
+  // Uses smooth scrolling during streaming for a polished feel
   useEffect(() => {
-    scrollToBottom();
-    const timer = setTimeout(() => scrollToBottom(), 100);
+    // Check if there's an active streaming message
+    const isStreaming = messages.some(
+      (m) => m.id.startsWith("streaming-") || m.id.startsWith("thinking-"),
+    );
+
+    // Use smooth scroll during streaming for fluid appearance
+    // Use instant scroll for initial load and completed messages
+    scrollToBottom(isStreaming);
+
+    // Delayed scroll for late-loading content (images, markdown rendering)
+    const timer = setTimeout(() => scrollToBottom(isStreaming), 100);
     return () => clearTimeout(timer);
   }, [messages, scrollToBottom]); // scrollToBottom is stable
 
@@ -1152,7 +1282,7 @@ export function ElizaChatInterface({
                 )}
 
               {!loadingState.isLoadingMessages &&
-                messages.map((message, index) => {
+                messages.map((message) => {
                   const isStreaming = message.id.startsWith("streaming-");
                   // Use stable key that doesn't change when streaming message becomes final
                   // This prevents React from remounting the component (avoids flash)
@@ -1163,7 +1293,6 @@ export function ElizaChatInterface({
                     <MemoizedChatMessage
                       key={stableKey}
                       message={message}
-                      index={index}
                       characterName={characterName}
                       characterAvatarUrl={characterAvatarUrl}
                       copiedMessageId={copiedMessageId}
@@ -1173,6 +1302,20 @@ export function ElizaChatInterface({
                       isStreaming={isStreaming}
                       formatTimestamp={formatTimestamp}
                       onCopy={copyToClipboard}
+                      // Pass reasoning state to thinking AND streaming messages
+                      // This shows "Composing" phase while text streams in
+                      reasoningText={
+                        message.id.startsWith("thinking-") ||
+                        message.id.startsWith("streaming-")
+                          ? reasoningState.text
+                          : undefined
+                      }
+                      reasoningPhase={
+                        message.id.startsWith("thinking-") ||
+                        message.id.startsWith("streaming-")
+                          ? reasoningState.phase
+                          : undefined
+                      }
                       onPlayAudio={(messageId) => {
                         const url = messageAudioUrls.current.get(messageId);
                         if (url) {
@@ -1195,6 +1338,7 @@ export function ElizaChatInterface({
                         }
                       }}
                       onImageLoad={scrollToBottom}
+                      onTextReveal={() => scrollToBottom(true)}
                     />
                   );
                 })}
@@ -1217,7 +1361,8 @@ export function ElizaChatInterface({
                 <div
                   className="absolute h-full w-24 bg-gradient-to-r from-transparent via-[#FF5800] to-transparent"
                   style={{
-                    animation: "visor-scan 4.8s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+                    animation:
+                      "visor-scan 4.8s cubic-bezier(0.4, 0, 0.6, 1) infinite",
                     boxShadow: "0 0 15px 3px rgba(255, 88, 0, 0.7)",
                     filter: "blur(0.5px)",
                   }}
@@ -1225,7 +1370,8 @@ export function ElizaChatInterface({
                 <div
                   className="absolute h-full w-16 bg-gradient-to-r from-transparent via-[#FF5800]/60 to-transparent"
                   style={{
-                    animation: "visor-scan-delayed 6.2s cubic-bezier(0.3, 0.1, 0.7, 0.9) infinite 1.5s",
+                    animation:
+                      "visor-scan-delayed 6.2s cubic-bezier(0.3, 0.1, 0.7, 0.9) infinite 1.5s",
                     boxShadow: "0 0 10px 2px rgba(255, 88, 0, 0.5)",
                     filter: "blur(1px)",
                   }}
@@ -1321,24 +1467,35 @@ export function ElizaChatInterface({
                       }}
                     >
                       <div className="flex items-center gap-3">
-                        <Globe className={`h-4 w-4 ${webSearchEnabled ? "text-[#FF5800]" : "text-white/50"}`} />
+                        <Globe
+                          className={`h-4 w-4 ${webSearchEnabled ? "text-[#FF5800]" : "text-white/50"}`}
+                        />
                         <span className="text-sm">Web search</span>
                       </div>
-                      {webSearchEnabled && <Check className="h-4 w-4 text-[#FF5800]" />}
+                      {webSearchEnabled && (
+                        <Check className="h-4 w-4 text-[#FF5800]" />
+                      )}
                     </DropdownMenuItem>
 
                     <DropdownMenuItem
                       className="flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer"
                       onSelect={(e) => {
                         e.preventDefault();
-                        setAudioState((prev) => ({ ...prev, autoPlayTTS: !prev.autoPlayTTS }));
+                        setAudioState((prev) => ({
+                          ...prev,
+                          autoPlayTTS: !prev.autoPlayTTS,
+                        }));
                       }}
                     >
                       <div className="flex items-center gap-3">
-                        <Volume2 className={`h-4 w-4 ${audioState.autoPlayTTS ? "text-[#FF5800]" : "text-white/50"}`} />
+                        <Volume2
+                          className={`h-4 w-4 ${audioState.autoPlayTTS ? "text-[#FF5800]" : "text-white/50"}`}
+                        />
                         <span className="text-sm">Auto-play voice</span>
                       </div>
-                      {audioState.autoPlayTTS && <Check className="h-4 w-4 text-[#FF5800]" />}
+                      {audioState.autoPlayTTS && (
+                        <Check className="h-4 w-4 text-[#FF5800]" />
+                      )}
                     </DropdownMenuItem>
 
                     {audioState.customVoices.length > 0 && (
@@ -1346,17 +1503,28 @@ export function ElizaChatInterface({
                         <Select
                           value={audioState.selectedVoiceId || "default"}
                           onValueChange={(value) => {
-                            const newVoiceId = value === "default" ? null : value;
-                            setAudioState((prev) => ({ ...prev, selectedVoiceId: newVoiceId }));
+                            const newVoiceId =
+                              value === "default" ? null : value;
+                            setAudioState((prev) => ({
+                              ...prev,
+                              selectedVoiceId: newVoiceId,
+                            }));
                             if (typeof window !== "undefined") {
                               if (newVoiceId) {
-                                localStorage.setItem("eliza-selected-voice-id", newVoiceId);
+                                localStorage.setItem(
+                                  "eliza-selected-voice-id",
+                                  newVoiceId,
+                                );
                               } else {
-                                localStorage.removeItem("eliza-selected-voice-id");
+                                localStorage.removeItem(
+                                  "eliza-selected-voice-id",
+                                );
                               }
                             }
                             const voiceName = newVoiceId
-                              ? audioState.customVoices.find((v) => v.elevenlabsVoiceId === newVoiceId)?.name || "Custom"
+                              ? audioState.customVoices.find(
+                                  (v) => v.elevenlabsVoiceId === newVoiceId,
+                                )?.name || "Custom"
                               : "Default";
                             toast.success(`Voice: ${voiceName}`);
                           }}
@@ -1365,9 +1533,14 @@ export function ElizaChatInterface({
                             <SelectValue placeholder="Select voice" />
                           </SelectTrigger>
                           <SelectContent className="rounded-lg border-white/[0.08]">
-                            <SelectItem value="default">Default Voice</SelectItem>
+                            <SelectItem value="default">
+                              Default Voice
+                            </SelectItem>
                             {audioState.customVoices.map((voice) => (
-                              <SelectItem key={voice.id} value={voice.elevenlabsVoiceId}>
+                              <SelectItem
+                                key={voice.id}
+                                value={voice.elevenlabsVoiceId}
+                              >
                                 {voice.name}
                               </SelectItem>
                             ))}
@@ -1386,7 +1559,9 @@ export function ElizaChatInterface({
                   disabled={loadingState.isSending}
                   onClick={handleVoiceInput}
                   className={`h-8 w-8 rounded-lg transition-colors ${
-                    recorder.isRecording ? "bg-red-500/10 hover:bg-red-500/20" : "hover:bg-white/[0.06]"
+                    recorder.isRecording
+                      ? "bg-red-500/10 hover:bg-red-500/20"
+                      : "hover:bg-white/[0.06]"
                   } disabled:opacity-40`}
                 >
                   {recorder.isRecording ? (
@@ -1410,10 +1585,23 @@ export function ElizaChatInterface({
                     >
                       <span className="flex items-center gap-1.5 text-sm text-white/50">
                         {!customModel && tierIcons[selectedTier]}
-                        {customModel ? customModel.name : tiers.find((t) => t.id === selectedTier)?.name || "Pro"}
+                        {customModel
+                          ? customModel.name
+                          : tiers.find((t) => t.id === selectedTier)?.name ||
+                            "Pro"}
                       </span>
-                      <svg className="h-3.5 w-3.5 text-white/30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      <svg
+                        className="h-3.5 w-3.5 text-white/30"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 9l-7 7-7-7"
+                        />
                       </svg>
                     </Button>
                   </DropdownMenuTrigger>
@@ -1433,16 +1621,26 @@ export function ElizaChatInterface({
                         }}
                       >
                         <div className="flex items-start gap-3">
-                          <span className="mt-0.5 text-white/50">{tierIcons[tier.id]}</span>
+                          <span className="mt-0.5 text-white/50">
+                            {tierIcons[tier.id]}
+                          </span>
                           <div className="flex flex-col gap-0.5">
                             <div className="flex items-center gap-2">
-                              <span className="text-[14px] font-medium text-white">{tier.name}</span>
-                              <span className="text-[11px] text-white/30 font-mono">{tier.modelId.split("/")[1]}</span>
+                              <span className="text-[14px] font-medium text-white">
+                                {tier.name}
+                              </span>
+                              <span className="text-[11px] text-white/30 font-mono">
+                                {tier.modelId.split("/")[1]}
+                              </span>
                             </div>
-                            <span className="text-[12px] text-white/40">{tier.description}</span>
+                            <span className="text-[12px] text-white/40">
+                              {tier.description}
+                            </span>
                           </div>
                         </div>
-                        {!customModel && selectedTier === tier.id && <Check className="h-4 w-4 text-[#FF5800]" />}
+                        {!customModel && selectedTier === tier.id && (
+                          <Check className="h-4 w-4 text-[#FF5800]" />
+                        )}
                       </DropdownMenuItem>
                     ))}
 
@@ -1460,17 +1658,29 @@ export function ElizaChatInterface({
                             key={model.id}
                             className="flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer"
                             onSelect={() => {
-                              setCustomModel({ id: model.id, name: model.name, modelId: model.modelId });
+                              setCustomModel({
+                                id: model.id,
+                                name: model.name,
+                                modelId: model.modelId,
+                              });
                             }}
                           >
                             <div className="flex flex-col">
                               <div className="flex items-center gap-2">
-                                <span className="text-[13px] font-medium text-white">{model.name}</span>
-                                <span className="text-[10px] text-white/30 font-mono">{model.modelId.split("/")[1]}</span>
+                                <span className="text-[13px] font-medium text-white">
+                                  {model.name}
+                                </span>
+                                <span className="text-[10px] text-white/30 font-mono">
+                                  {model.modelId.split("/")[1]}
+                                </span>
                               </div>
-                              <span className="text-[11px] text-white/40">{model.description}</span>
+                              <span className="text-[11px] text-white/40">
+                                {model.description}
+                              </span>
                             </div>
-                            {customModel?.id === model.id && <Check className="h-4 w-4 text-[#FF5800]" />}
+                            {customModel?.id === model.id && (
+                              <Check className="h-4 w-4 text-[#FF5800]" />
+                            )}
                           </DropdownMenuItem>
                         ))}
                       </DropdownMenuSubContent>
@@ -1481,7 +1691,11 @@ export function ElizaChatInterface({
                 {/* Send Button */}
                 <Button
                   type="submit"
-                  disabled={loadingState.isSending || !inputText.trim() || recorder.isRecording}
+                  disabled={
+                    loadingState.isSending ||
+                    !inputText.trim() ||
+                    recorder.isRecording
+                  }
                   size="icon"
                   className="h-8 w-8 rounded-lg bg-transparent hover:bg-white/[0.06] disabled:opacity-40 border-0 transition-colors"
                 >

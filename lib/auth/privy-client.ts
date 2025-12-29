@@ -230,4 +230,3 @@ export async function getUserById(userId: string) {
 
 // Re-export the client for advanced use cases
 export { getPrivyClient as privyClient };
-

@@ -19,25 +19,25 @@ export default function OnChainTrust() {
       name: "Sage",
       description: "Your default AI companion",
       address: "0xA9E3...C14",
-      image: "/avatars/amara.png",
+      image: "/cloud-agent-samples/1.png",
     },
     {
       name: "Nova",
       description: "Creative writing assistant",
       address: "0xB2F4...A27",
-      image: "/avatars/codementor.png",
+      image: "/cloud-agent-samples/2.png",
     },
     {
       name: "Atlas",
       description: "Data analysis expert",
       address: "0xC8D1...F93",
-      image: "/avatars/comedybot.png",
+      image: "/cloud-agent-samples/3.png",
     },
     {
       name: "echo",
       description: "Voice interaction specialist",
       address: "0xD4E2...B61",
-      image: "/avatars/creativespark.png",
+      image: "/cloud-agent-samples/4.png",
     },
     {
       name: "Eliza",
@@ -49,25 +49,25 @@ export default function OnChainTrust() {
       name: "Pixel",
       description: "Image generation AI",
       address: "0xF1B8...E52",
-      image: "/avatars/prof_ada.png",
+      image: "/cloud-agent-samples/5.png",
     },
     {
       name: "Cipher",
       description: "Code optimization tool",
       address: "0xA3C9...F17",
-      image: "/avatars/gamemaster.png",
+      image: "/cloud-agent-samples/6.png",
     },
     {
       name: "Muse",
       description: "Music composition helper",
       address: "0xB6D2...C83",
-      image: "/avatars/luna.png",
+      image: "/cloud-agent-samples/7.png",
     },
     {
       name: "Scout",
       description: "Research aggregator",
       address: "0xC9E4...A94",
-      image: "/avatars/voiceai.png",
+      image: "/cloud-agent-samples/8.png",
     },
   ];
   return (
@@ -77,7 +77,9 @@ export default function OnChainTrust() {
         <div className="mb-8 md:mb-8 flex flex-col md:flex-row items-start md:justify-between gap-6">
           <div className="max-w-4xl">
             <motion.div className="mb-1 md:mb-2">
-              <SectionLabel><span className="normal-case">Build Autonomous Agents</span></SectionLabel>
+              <SectionLabel>
+                <span className="normal-case">Build Autonomous Agents</span>
+              </SectionLabel>
             </motion.div>
 
             <motion.h2
@@ -88,7 +90,7 @@ export default function OnChainTrust() {
                 color: "#FFFFFF",
               }}
             >
-              Onchain discovery, trust and payments
+              Onchain discovery, trust and payments.
             </motion.h2>
 
             <motion.p

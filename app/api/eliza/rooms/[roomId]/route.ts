@@ -139,23 +139,19 @@ export async function GET(
   );
 
   // Get agent display info from database (no runtime needed!)
-  let agentInfo: { id: string; name: string; avatarUrl?: string } | null = null;
-
-  if (characterId) {
-    agentInfo = await agentsService.getDisplayInfo(characterId);
-  }
-
-  if (!agentInfo && roomData.room.agentId) {
-    agentInfo = await agentsService.getDisplayInfo(roomData.room.agentId);
-  }
-
-  if (!agentInfo) {
-    agentInfo = {
-      id: characterId || roomData.room.agentId || "default",
-      name: "Eliza",
-      avatarUrl: undefined,
-    };
-  }
+  // PERFORMANCE: Try character ID first, fallback to room's agentId
+  const agentIdToLookup = characterId || roomData.room.agentId;
+  const agentInfo = agentIdToLookup
+    ? (await agentsService.getDisplayInfo(agentIdToLookup)) || {
+        id: agentIdToLookup,
+        name: "Eliza",
+        avatarUrl: undefined,
+      }
+    : {
+        id: "default",
+        name: "Eliza",
+        avatarUrl: undefined,
+      };
 
   return NextResponse.json(
     {
@@ -248,7 +244,7 @@ export async function PATCH(
     body.metadata && "metadata",
     body.name && "name",
   ].filter(Boolean);
-  
+
   logger.info("[Eliza Room API] ✓ Room updated successfully:", roomId);
 
   return NextResponse.json({

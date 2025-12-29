@@ -431,7 +431,7 @@ export function ContainersTable({ containers }: ContainersTableProps) {
                           {container.last_deployed_at && (
                             <div className="text-xs text-muted-foreground">
                               {new Date(
-                                container.last_deployed_at
+                                container.last_deployed_at,
                               ).toLocaleTimeString([], {
                                 hour: "2-digit",
                                 minute: "2-digit",
@@ -464,7 +464,7 @@ export function ContainersTable({ containers }: ContainersTableProps) {
                                   onClick={() => {
                                     window.open(
                                       container.load_balancer_url!,
-                                      "_blank"
+                                      "_blank",
                                     );
                                   }}
                                 >

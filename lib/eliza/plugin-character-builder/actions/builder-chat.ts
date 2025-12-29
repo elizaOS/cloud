@@ -10,8 +10,6 @@ import {
   composePromptFromState,
   parseKeyValueXml,
   ModelType,
-  runWithStreamingContext,
-  XmlTagExtractor,
 } from "@elizaos/core";
 import { cleanPrompt, isCreatorMode } from "../../shared/utils/helpers";
 import type { StreamChunkCallback } from "../../shared/types";
@@ -128,9 +126,13 @@ This is your main tool for understanding what the user wants before taking actio
   ): Promise<void> => {
     const creatorMode = isCreatorMode(runtime);
     const modeLabel = creatorMode ? "Creator" : "Build";
-    const onStreamChunk = options?.onStreamChunk as StreamChunkCallback | undefined;
+    const onStreamChunk = options?.onStreamChunk as
+      | StreamChunkCallback
+      | undefined;
 
-    logger.info(`[BUILDER_CHAT] ${modeLabel} mode conversation, streaming=${!!onStreamChunk}`);
+    logger.info(
+      `[BUILDER_CHAT] ${modeLabel} mode conversation, streaming=${!!onStreamChunk}`,
+    );
 
     state = await runtime.composeState(message, [
       "SUMMARIZED_CONTEXT",
@@ -159,27 +161,7 @@ This is your main tool for understanding what the user wants before taking actio
       composePromptFromState({ state, template: chatTemplate }),
     );
 
-    // Create streaming context to extract <text> content and stream it
-    let streamingContext: { onStreamChunk: (chunk: string, messageId?: UUID) => Promise<void>; messageId?: UUID } | undefined;
-    if (onStreamChunk) {
-      const extractor = new XmlTagExtractor('text');
-      streamingContext = {
-        onStreamChunk: async (chunk: string, msgId?: UUID) => {
-          if (extractor.done) return;
-          const textToStream = extractor.push(chunk);
-          if (textToStream) {
-            await onStreamChunk(textToStream, msgId);
-          }
-        },
-        messageId: message.id as UUID,
-      };
-    }
-
-    // Generate response with streaming if available
-    const response = await runWithStreamingContext(
-      streamingContext,
-      () => runtime.useModel(ModelType.TEXT_LARGE, { prompt }),
-    );
+    const response = await runtime.useModel(ModelType.TEXT_LARGE, { prompt });
     runtime.character.system = originalSystemPrompt;
 
     const parsed = parseKeyValueXml(response) as {

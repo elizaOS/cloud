@@ -138,7 +138,7 @@ export function CharacterEditor({
               data-onboarding="build-save"
             >
               <CloudUpload className="mr-2 h-4 w-4" />
-              {isSaving ? "Saving..." : "Deploy"}
+              {isSaving ? "Saving..." : character.id ? "Save" : "Deploy"}
             </Button>
           </div>
         </div>

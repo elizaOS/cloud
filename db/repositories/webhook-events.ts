@@ -54,7 +54,7 @@ export class WebhookEventsRepository {
    * This eliminates race conditions by using the database's unique constraint.
    */
   async tryCreate(
-    data: NewWebhookEvent
+    data: NewWebhookEvent,
   ): Promise<{ created: true; event: WebhookEvent } | { created: false }> {
     try {
       const [event] = await dbWrite
@@ -100,7 +100,7 @@ export class WebhookEventsRepository {
    */
   async cleanupOldEventsForProvider(
     provider: string,
-    retentionDays = 30
+    retentionDays = 30,
   ): Promise<number> {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
@@ -110,8 +110,8 @@ export class WebhookEventsRepository {
       .where(
         and(
           eq(webhookEvents.provider, provider),
-          lt(webhookEvents.processed_at, cutoffDate)
-        )
+          lt(webhookEvents.processed_at, cutoffDate),
+        ),
       )
       .returning();
 

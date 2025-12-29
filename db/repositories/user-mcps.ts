@@ -23,7 +23,10 @@ export const userMcpsRepository = {
    * Get MCP by ID
    */
   async getById(id: string): Promise<UserMcp | null> {
-    const [mcp] = await dbRead.select().from(userMcps).where(eq(userMcps.id, id));
+    const [mcp] = await dbRead
+      .select()
+      .from(userMcps)
+      .where(eq(userMcps.id, id));
     return mcp ?? null;
   },
 
