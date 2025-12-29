@@ -71,7 +71,10 @@ export function FeedbackModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md bg-black/80 backdrop-blur-xl border-white/10 rounded-xl">
+      <DialogContent
+        className="sm:max-w-md bg-black/80 backdrop-blur-xl border-white/10 rounded-xl"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-white">
             <MessageSquare className="h-5 w-5 text-[#FF5800]" />
