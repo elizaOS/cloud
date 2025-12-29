@@ -256,6 +256,31 @@ const ReactMarkdown = dynamic(() => import("react-markdown"), {
   ssr: false,
 });
 
+/**
+ * Normalize markdown list formatting.
+ * Fixes LLM output that puts extra newlines between numbered list items,
+ * which causes markdown to render them as separate paragraphs instead of a list.
+ */
+function normalizeMarkdownLists(text: string): string {
+  // Pattern 1: Fix paragraph breaks between numbered list items
+  // "11. **Item**...\n\n12. **Item**..." → "11. **Item**...\n12. **Item**..."
+  // This ensures markdown recognizes consecutive numbered items as a list
+  let result = text.replace(
+    /(\d+\.\s+[^\n]+)\n\n+(?=\d+\.\s)/g,
+    "$1\n"
+  );
+
+  // Pattern 2: Fix numbered lists where number is on its own line
+  // "1.\n\nVisit..." → "1. Visit..."
+  result = result.replace(/^(\d+\.)\s*[\r\n]+\s*(?=\S)/gm, "$1 ");
+
+  // Pattern 3: Fix bold numbers on their own line
+  // "**1.**\nVisit..." → "1. Visit..."
+  result = result.replace(/^\*\*(\d+)\.\*\*\s*[\r\n]+\s*/gm, "$1. ");
+
+  return result;
+}
+
 // Pre-load plugins at module level - shared across all message instances
 // This prevents the flash caused by loading plugins inside each component
 let pluginsCache: { remarkGfm: any; rehypeHighlight: any } | null = null;
@@ -649,17 +674,21 @@ function ChatMessageComponent(props: MemoizedChatMessageProps) {
                         rehypePlugins={[plugins.rehypeHighlight]}
                         components={markdownComponents}
                       >
-                        {isStreamingMessage
-                          ? displayText
-                          : message.content.text}
+                        {normalizeMarkdownLists(
+                          isStreamingMessage
+                            ? displayText
+                            : message.content.text,
+                        )}
                       </ReactMarkdown>
                     ) : (
                       // Plain text fallback - shown immediately while markdown loads
                       // Uses same styling to prevent layout shift
                       <div className="whitespace-pre-wrap">
-                        {isStreamingMessage
-                          ? displayText
-                          : message.content.text}
+                        {normalizeMarkdownLists(
+                          isStreamingMessage
+                            ? displayText
+                            : message.content.text,
+                        )}
                       </div>
                     )}
                     {/* Elegant blinking cursor for streaming messages */}

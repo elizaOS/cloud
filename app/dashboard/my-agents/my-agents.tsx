@@ -5,8 +5,7 @@ import { useRouter } from "next/navigation";
 import { useSetPageHeader } from "@/components/layout/page-header-context";
 import { CharacterLibraryGrid } from "@/components/my-agents/character-library-grid";
 import { CharacterFilters } from "@/components/my-agents/character-filters";
-import { BrandButton } from "@/components/brand";
-import { Plus, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { logger } from "@/lib/utils/logger";
 import type { ElizaCharacter } from "@/lib/types";
@@ -124,15 +123,9 @@ export function MyAgentsClient() {
   useSetPageHeader(
     {
       title: "My Agents",
-      description: `Manage your ${characters.length} AI agent${characters.length !== 1 ? "s" : ""}`,
-      actions: (
-        <BrandButton onClick={handleCreateNew}>
-          <Plus className="h-4 w-4" />
-          Create Agent
-        </BrandButton>
-      ),
+      description: "Manage your AI agents",
     },
-    [characters.length, handleCreateNew],
+    [],
   );
 
   if (isLoading) {

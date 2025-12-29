@@ -142,10 +142,10 @@ export function AvatarGenerator({
       {/* Avatar Selection Grid */}
       <div className="space-y-2">
         <p className="text-sm text-white/60">
-          Choose from the built-in avatars:
+          Choose from built-in avatars:
         </p>
 
-        <div className="border border-white/10 rounded-xl p-2 max-h-[300px] overflow-y-auto w-fit">
+        <div className="p-2">
           <div className="grid grid-cols-[repeat(10,_auto)] gap-1">
             {availableAvatars.map((avatar) => {
               const isSelected = currentAvatarUrl === avatar.url;
