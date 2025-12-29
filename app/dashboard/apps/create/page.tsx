@@ -376,35 +376,50 @@ export default function AppCreatorPage() {
   }, []);
 
   useEffect(() => {
-    if (session?.expiresAt) {
+    if (session?.expiresAt && !expiresAt) {
       setExpiresAt(new Date(session.expiresAt));
     }
-  }, [session?.expiresAt]);
+  }, [session?.expiresAt, expiresAt]);
 
   useEffect(() => {
-    if (!expiresAt || status === "stopped" || status === "timeout") {
+    if (status === "stopped" || status === "timeout") {
+      setTimeRemaining(status === "timeout" ? "Expired" : "");
+      return;
+    }
+
+    if (!expiresAt) {
       setTimeRemaining("");
       return;
     }
 
-    const updateCountdown = () => {
-      const now = new Date();
-      const diff = expiresAt.getTime() - now.getTime();
+    let animationFrameId: number;
+    let lastUpdate = 0;
 
-      if (diff <= 0) {
-        setTimeRemaining("Expired");
-        setStatus("timeout");
-        return;
+    const updateCountdown = (timestamp: number) => {
+      if (timestamp - lastUpdate >= 1000 || lastUpdate === 0) {
+        lastUpdate = timestamp;
+        const now = Date.now();
+        const diff = expiresAt.getTime() - now;
+
+        if (diff <= 0) {
+          setTimeRemaining("Expired");
+          setStatus("timeout");
+          return;
+        }
+
+        const minutes = Math.floor(diff / 60000);
+        const seconds = Math.floor((diff % 60000) / 1000);
+        setTimeRemaining(`${minutes}:${seconds.toString().padStart(2, "0")}`);
       }
-
-      const minutes = Math.floor(diff / 60000);
-      const seconds = Math.floor((diff % 60000) / 1000);
-      setTimeRemaining(`${minutes}:${seconds.toString().padStart(2, "0")}`);
+      animationFrameId = requestAnimationFrame(updateCountdown);
     };
 
-    updateCountdown();
-    const interval = setInterval(updateCountdown, 1000);
-    return () => clearInterval(interval);
+    animationFrameId = requestAnimationFrame(updateCountdown);
+    return () => {
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+      }
+    };
   }, [expiresAt, status]);
 
   const addLog = useCallback((message: string, level: string = "info") => {
@@ -578,6 +593,10 @@ export default function AppCreatorPage() {
                 setSession(data.session);
                 setStep("building");
                 setStatus(data.hasInitialPrompt ? "generating" : "ready");
+
+                if (data.session.expiresAt) {
+                  setExpiresAt(new Date(data.session.expiresAt));
+                }
 
                 const displayName = isEditMode ? appData?.name || appName : appName;
 
@@ -1580,22 +1599,20 @@ ANTHROPIC_API_KEY=your_key_here`}
           )}
         </div>
         <div className="flex items-center gap-2">
-          <span
-            className={`flex items-center gap-1 text-xs ${
-              timeRemaining === "Expired"
-                ? "text-red-400"
-                : parseInt(timeRemaining.split(":")[0] || "30") <= 5
-                  ? "text-yellow-400"
-                  : "text-white/40"
-            }`}
-          >
-            <Timer className="h-3 w-3" />
-            {timeRemaining
-              ? timeRemaining === "Expired"
-                ? "Expired"
-                : timeRemaining
-              : "..."}
-          </span>
+          {timeRemaining && (
+            <span
+              className={`flex items-center gap-1.5 text-xs font-mono px-2 py-1 rounded ${
+                timeRemaining === "Expired"
+                  ? "text-red-400 bg-red-500/10"
+                  : parseInt(timeRemaining.split(":")[0] || "30") <= 5
+                    ? "text-yellow-400 bg-yellow-500/10"
+                    : "text-white/60 bg-white/5"
+              }`}
+            >
+              <Timer className="h-3 w-3" />
+              {timeRemaining}
+            </span>
+          )}
           <Button
             variant="ghost"
             size="sm"

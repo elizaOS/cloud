@@ -102,6 +102,7 @@ export async function POST(request: NextRequest) {
                 sandboxUrl: readySession.sandboxUrl,
                 status: readySession.status,
                 examplePrompts: readySession.examplePrompts,
+                expiresAt: readySession.expiresAt,
               },
               hasInitialPrompt: !!data.initialPrompt,
             });
