@@ -1436,8 +1436,8 @@ ANTHROPIC_API_KEY=your_key_here`}
   }
 
   return (
-    <div className="h-[calc(100vh-4rem)] flex flex-col">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-black/40">
+    <div className="fixed top-16 left-0 md:left-64 right-0 bottom-0 flex flex-col overflow-hidden bg-[#0A0A0A] z-10">
+      <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-white/10 bg-black/40">
         <div className="flex items-center gap-4">
           <Link
             href={backLink}
@@ -1553,7 +1553,7 @@ ANTHROPIC_API_KEY=your_key_here`}
 
       <div className="flex-1 flex overflow-hidden">
         <div
-          className={`flex flex-col border-r border-white/10 bg-black/20 transition-all ${isFullscreen ? "w-0 overflow-hidden" : "w-1/2"}`}
+          className={`flex flex-col border-r border-white/10 bg-black/20 transition-all overflow-hidden ${isFullscreen ? "w-0" : "w-1/2"}`}
         >
           <div
             ref={messagesContainerRef}
@@ -1757,7 +1757,7 @@ ANTHROPIC_API_KEY=your_key_here`}
             <div ref={messagesEndRef} />
           </div>
 
-          <div className="p-4 border-t border-white/10">
+          <div className="flex-shrink-0 p-4 border-t border-white/10">
             <div className="flex gap-2">
               <Input
                 value={input}
@@ -1780,8 +1780,8 @@ ANTHROPIC_API_KEY=your_key_here`}
           </div>
         </div>
 
-        <div className={`flex-1 flex flex-col ${isFullscreen ? "w-full" : ""}`}>
-          <div className="flex items-center gap-2 px-3 py-2 border-b border-white/10 bg-black/20">
+        <div className={`flex-1 flex flex-col overflow-hidden ${isFullscreen ? "w-full" : ""}`}>
+          <div className="flex-shrink-0 flex items-center gap-2 px-3 py-2 border-b border-white/10 bg-black/20">
             <div className="flex bg-white/5 rounded-md p-0.5">
               <button
                 onClick={() => setPreviewTab("preview")}
@@ -1839,7 +1839,7 @@ ANTHROPIC_API_KEY=your_key_here`}
             )}
           </div>
 
-          <div className="flex-1 bg-white/5">
+          <div className="flex-1 bg-white/5 overflow-hidden">
             {previewTab === "preview" ? (
               session?.sandboxUrl ? (
                 <iframe
@@ -1858,7 +1858,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                 </div>
               )
             ) : (
-              <div className="h-full bg-[#1a1a1a] overflow-auto font-mono text-xs">
+              <div className="h-full bg-[#1a1a1a] overflow-y-auto overflow-x-hidden font-mono text-xs">
                 {consoleLogs.length === 0 ? (
                   <div className="flex items-center justify-center h-full text-white/30">
                     <div className="text-center">
