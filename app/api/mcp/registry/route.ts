@@ -191,8 +191,8 @@ const MCP_REGISTRY: McpRegistryEntry[] = [
     description:
       "Access ElizaOS platform features: credits, usage, generations, conversations, and agent management via MCP.",
     category: "platform",
-    endpoint: "/api/mcp/sse",
-    type: "streamable-http",
+    endpoint: "/api/mcp",
+    type: "http",
     version: "1.0.0",
     status: "live",
     icon: "puzzle",
@@ -208,15 +208,15 @@ const MCP_REGISTRY: McpRegistryEntry[] = [
     ],
     pricing: {
       type: "credits",
-      description: "Uses your credit balance",
+      description: "Uses your credit balance (requires authentication)",
     },
     x402Enabled: false,
     documentation: "https://docs.elizaos.ai/mcps/platform",
     configTemplate: {
       servers: {
         "eliza-platform": {
-          type: "streamable-http",
-          url: "${BASE_URL}/api/mcp/sse",
+          type: "http",
+          url: "${BASE_URL}/api/mcp",
         },
       },
     },
