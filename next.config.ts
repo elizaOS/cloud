@@ -1,5 +1,9 @@
 import type { NextConfig } from "next";
 import nextra from "nextra";
+import { config } from "dotenv";
+
+// Load .env.local with override to ensure it takes precedence over system env
+config({ path: ".env.local", override: true });
 
 const withNextra = nextra({
   // Only scan the content directory for MDX files
@@ -228,7 +232,7 @@ const nextConfig: NextConfig = {
             analyzerMode: "static",
             reportFilename: "./analyze/client.html",
             openAnalyzer: false,
-          }),
+          })
         );
       }
     }
@@ -292,13 +296,16 @@ const nextConfig: NextConfig = {
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           { key: "X-XSS-Protection", value: "1; mode=block" },
-          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+          {
+            key: "Permissions-Policy",
+            value: "camera=(), microphone=(), geolocation=()",
+          },
         ],
       },
     ];
   },
   // Exclude auth-error from page generation to avoid naming conflict
-  pageExtensions: ['tsx', 'ts', 'jsx', 'js', 'mdx', 'md'],
+  pageExtensions: ["tsx", "ts", "jsx", "js", "mdx", "md"],
 };
 
 export default withNextra(nextConfig);

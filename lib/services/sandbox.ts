@@ -372,20 +372,26 @@ const BLOCKED_COMMAND_PATTERNS = [
   /export\s+\w+=/i,
 ];
 
-function isCommandAllowed(command: string): { allowed: boolean; reason?: string } {
+function isCommandAllowed(command: string): {
+  allowed: boolean;
+  reason?: string;
+} {
   const trimmed = command.trim();
   const baseCommand = trimmed.split(/\s+/)[0];
 
   for (const pattern of BLOCKED_COMMAND_PATTERNS) {
     if (pattern.test(trimmed)) {
-      return { allowed: false, reason: `Command contains blocked pattern: ${pattern}` };
+      return {
+        allowed: false,
+        reason: `Command contains blocked pattern: ${pattern}`,
+      };
     }
   }
 
   if (!ALLOWED_COMMANDS.includes(baseCommand)) {
     return {
       allowed: false,
-      reason: `Command '${baseCommand}' not in allowlist. Allowed: ${ALLOWED_COMMANDS.join(", ")}`
+      reason: `Command '${baseCommand}' not in allowlist. Allowed: ${ALLOWED_COMMANDS.join(", ")}`,
     };
   }
 
@@ -413,11 +419,11 @@ function isPathAllowed(filePath: string): boolean {
 async function writeFileViaSh(
   sandbox: SandboxInstance,
   filePath: string,
-  content: string,
+  content: string
 ): Promise<void> {
   if (!isPathAllowed(filePath)) {
     throw new Error(
-      `Path not allowed: ${filePath}. Files must be in allowed directories (${ALLOWED_DIRECTORIES.join(", ")}) or match allowed root patterns (*.md, *.txt, config files, etc.)`,
+      `Path not allowed: ${filePath}. Files must be in allowed directories (${ALLOWED_DIRECTORIES.join(", ")}) or match allowed root patterns (*.md, *.txt, config files, etc.)`
     );
   }
 
@@ -441,7 +447,7 @@ async function writeFileViaSh(
 
 async function readFileViaSh(
   sandbox: SandboxInstance,
-  filePath: string,
+  filePath: string
 ): Promise<string | null> {
   const result = await sandbox.runCommand({ cmd: "cat", args: [filePath] });
   return result.exitCode === 0 ? await result.stdout() : null;
@@ -449,7 +455,7 @@ async function readFileViaSh(
 
 async function listFilesViaSh(
   sandbox: SandboxInstance,
-  dirPath: string,
+  dirPath: string
 ): Promise<string[]> {
   const result = await sandbox.runCommand({
     cmd: "sh",
@@ -465,7 +471,7 @@ async function listFilesViaSh(
  */
 async function installPackages(
   sandbox: SandboxInstance,
-  packages: string[],
+  packages: string[]
 ): Promise<string> {
   if (!packages || packages.length === 0) return "No packages specified";
 
@@ -587,7 +593,7 @@ export class SandboxService {
 
     if (!creds.hasOIDC && !creds.hasAccessToken) {
       throw new Error(
-        "Vercel Sandbox credentials not configured. Run 'vercel env pull' to get OIDC token, or set VERCEL_TOKEN, VERCEL_TEAM_ID, and VERCEL_PROJECT_ID.",
+        "Vercel Sandbox credentials not configured. Run 'vercel env pull' to get OIDC token, or set VERCEL_TOKEN, VERCEL_TEAM_ID, and VERCEL_PROJECT_ID."
       );
     }
 
@@ -616,7 +622,7 @@ export class SandboxService {
     } catch (error) {
       if (error instanceof Error && error.message.includes("OIDC")) {
         throw new Error(
-          `OIDC token expired or invalid. Run 'vercel env pull' to refresh it. Original error: ${error.message}`,
+          `OIDC token expired or invalid. Run 'vercel env pull' to refresh it. Original error: ${error.message}`
         );
       }
       throw error;
@@ -707,7 +713,7 @@ export class SandboxService {
   private async waitForDevServer(
     sandbox: SandboxInstance,
     port: number,
-    maxAttempts = 45,
+    maxAttempts = 45
   ): Promise<void> {
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       const result = await sandbox.runCommand({
@@ -735,7 +741,7 @@ export class SandboxService {
       systemPrompt?: string;
       onToolUse?: (tool: string, input: unknown, result: string) => void;
       onThinking?: (text: string) => void;
-    } = {},
+    } = {}
   ): Promise<{ output: string; filesAffected: string[]; success: boolean }> {
     const sandbox = getActiveSandboxes().get(sandboxId);
     if (!sandbox) throw new Error(`Sandbox ${sandboxId} not found`);
@@ -813,9 +819,14 @@ REMEMBER:
               path: string;
               content: string;
             };
-            if (!path || !content) {
-              result = `❌ Error: Missing ${!path ? "path" : "content"} for write_file. Both path and content are required.`;
-              toolResults.push({ type: "tool_result", tool_use_id: block.id, content: result });
+
+            if (content === undefined || content === null) {
+              result = `❌ Error: write_file called with empty content for ${path}. Please provide the file content.`;
+              toolResults.push({
+                type: "tool_result",
+                tool_use_id: block.id,
+                content: result,
+              });
               continue;
             }
             await writeFileViaSh(sandbox, path, content);
@@ -853,7 +864,11 @@ REMEMBER:
             const commandCheck = isCommandAllowed(command);
             if (!commandCheck.allowed) {
               result = `❌ Command blocked: ${commandCheck.reason}`;
-              logger.warn("Blocked command attempt", { sandboxId, command, reason: commandCheck.reason });
+              logger.warn("Blocked command attempt", {
+                sandboxId,
+                command,
+                reason: commandCheck.reason,
+              });
             } else {
               const r = await sandbox.runCommand({
                 cmd: "sh",
@@ -917,7 +932,7 @@ REMEMBER:
   async writeFile(
     sandboxId: string,
     path: string,
-    content: string,
+    content: string
   ): Promise<void> {
     const sandbox = getActiveSandboxes().get(sandboxId);
     if (!sandbox) throw new Error(`Sandbox ${sandboxId} not found`);
@@ -938,7 +953,7 @@ REMEMBER:
 
   async installPackages(
     sandboxId: string,
-    packages: string[],
+    packages: string[]
   ): Promise<string> {
     const sandbox = getActiveSandboxes().get(sandboxId);
     if (!sandbox) throw new Error(`Sandbox ${sandboxId} not found`);
