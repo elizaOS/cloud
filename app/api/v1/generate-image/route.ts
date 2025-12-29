@@ -17,7 +17,7 @@ import type { UserWithOrganization } from "@/lib/types";
 
 export const maxDuration = 30;
 
-const IMAGE_MODEL = "google/gemini-2.5-flash-image-preview";
+const IMAGE_MODEL = "google/gemini-2.5-flash-image";
 const IMAGE_PROVIDER = "google";
 
 type AspectRatio = "1:1" | "16:9" | "9:16" | "4:3" | "3:4" | "21:9" | "9:21";
