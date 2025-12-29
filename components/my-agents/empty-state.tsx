@@ -24,7 +24,7 @@ export function EmptyState({ onCreateNew }: EmptyStateProps) {
         onClick={() => (window.location.href = "/dashboard/build")}
         icon={<Plus className="h-4 w-4" />}
       >
-        Create Agent
+        Create New Agent
       </LockOnButton>
     </div>
   );
