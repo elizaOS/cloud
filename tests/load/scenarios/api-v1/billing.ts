@@ -55,6 +55,6 @@ export function billingOperationsCycle() {
   sleep(1);
 }
 
-export default function () {
+export default function main() {
   billingOperationsCycle();
 }

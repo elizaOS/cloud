@@ -66,21 +66,49 @@ export type OAuth3AuthResult = {
  * Verify an OAuth3 session token
  */
 async function verifyOAuth3Token(token: string): Promise<OAuth3Session | null> {
-  const response = await fetch(`${OAUTH3_AGENT_URL}/session/${token}`, {
-    headers: { "Content-Type": "application/json" },
-  });
+  try {
+    // Use the public verify endpoint
+    const response = await fetch(`${OAUTH3_AGENT_URL}/session/verify?token=${encodeURIComponent(token)}`, {
+      headers: { "Content-Type": "application/json" },
+    });
 
-  if (!response.ok) {
+    if (!response.ok) {
+      return null;
+    }
+
+    const data = await response.json();
+    
+    if (!data.valid) {
+      return null;
+    }
+
+    // Map the verify response to OAuth3Session format
+    const session: OAuth3Session = {
+      sessionId: token as Hex,
+      identityId: keccak256(toBytes(`user:${data.userId}`)),
+      smartAccount: (data.address || "0x0000000000000000000000000000000000000000") as Address,
+      expiresAt: data.expiresAt,
+      provider: data.provider as OAuth3Provider,
+      providerId: data.userId,
+      providerHandle: data.address || data.fid || data.userId,
+      attestation: {
+        quote: "0x" as Hex,
+        measurement: "0x" as Hex,
+        reportData: "0x" as Hex,
+        timestamp: Date.now(),
+        provider: data.provider,
+        verified: true,
+      },
+    };
+
+    if (session.expiresAt < Date.now()) {
+      return null;
+    }
+
+    return session;
+  } catch {
     return null;
   }
-
-  const session = (await response.json()) as OAuth3Session;
-
-  if (session.expiresAt < Date.now()) {
-    return null;
-  }
-
-  return session;
 }
 
 /**

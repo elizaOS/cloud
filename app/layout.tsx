@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { Analytics } from "@vercel/analytics/next";
+
+// Force dynamic rendering to avoid React version conflicts during prerendering
+export const dynamic = 'force-dynamic';
+import { Analytics } from "@/lib/services/dws/analytics";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 import { Toaster } from "sonner";
 import NextTopLoader from "nextjs-toploader";
-import PrivyProvider from "@/lib/providers/PrivyProvider";
+import OAuth3Provider, { OAuth3AuthWrapper } from "@/lib/providers/OAuth3Provider";
 import { CreditsProvider } from "@/lib/providers/CreditsProvider";
 import localFont from "next/font/local";
 
@@ -136,34 +139,36 @@ export default function RootLayout({
       <body
         className={`${sfPro.variable} antialiased selection:bg-[#FF5800] selection:text-white`}
       >
-        <PrivyProvider>
-          <CreditsProvider>
-            <ThemeProvider
-              attribute="class"
-              defaultTheme="system"
-              enableSystem
-              disableTransitionOnChange
-            >
-              <NextTopLoader showSpinner={false} color="#FF5800" />
-              {children}
-              <Toaster
-                richColors
-                theme="dark"
-                position="top-right"
-                toastOptions={{
-                  style: {
-                    background: "rgba(0, 0, 0, 0.8)",
-                    border: "1px solid rgba(255, 255, 255, 0.1)",
-                    color: "white",
-                    backdropFilter: "blur(12px)",
-                    borderRadius: "0px",
-                  },
-                  className: "font-sf-pro",
-                }}
-              />
-            </ThemeProvider>
-          </CreditsProvider>
-        </PrivyProvider>
+        <OAuth3Provider>
+          <OAuth3AuthWrapper>
+            <CreditsProvider>
+              <ThemeProvider
+                attribute="class"
+                defaultTheme="system"
+                enableSystem
+                disableTransitionOnChange
+              >
+                <NextTopLoader showSpinner={false} color="#FF5800" />
+                {children}
+                <Toaster
+                  richColors
+                  theme="dark"
+                  position="top-right"
+                  toastOptions={{
+                    style: {
+                      background: "rgba(0, 0, 0, 0.8)",
+                      border: "1px solid rgba(255, 255, 255, 0.1)",
+                      color: "white",
+                      backdropFilter: "blur(12px)",
+                      borderRadius: "0px",
+                    },
+                    className: "font-sf-pro",
+                  }}
+                />
+              </ThemeProvider>
+            </CreditsProvider>
+          </OAuth3AuthWrapper>
+        </OAuth3Provider>
         <Analytics />
       </body>
     </html>

@@ -56,7 +56,7 @@ import {
   DropdownMenuSubContent,
 } from "@/components/ui/dropdown-menu";
 import { ADDITIONAL_MODELS } from "@/lib/models";
-import { usePrivy } from "@privy-io/react-auth";
+import { usePrivy } from "@/lib/providers/PrivyProvider";
 import { useKnowledgeProcessingStatus } from "@/components/chat/hooks/use-knowledge-processing-status";
 import { ContentType, type Media } from "@elizaos/core";
 
@@ -283,13 +283,14 @@ export function ElizaChatInterface({
 
   // Cleanup refs on unmount to prevent memory leaks
   useEffect(() => {
+    const thinkingTimeout = thinkingTimeoutRef.current;
+    const renderedMessages = renderedMessagesRef.current;
     return () => {
-      if (thinkingTimeoutRef.current) {
-        clearTimeout(thinkingTimeoutRef.current);
-        thinkingTimeoutRef.current = null;
+      if (thinkingTimeout) {
+        clearTimeout(thinkingTimeout);
       }
       clearAllStreaming();
-      renderedMessagesRef.current.clear();
+      renderedMessages.clear();
     };
   }, [clearAllStreaming]);
 

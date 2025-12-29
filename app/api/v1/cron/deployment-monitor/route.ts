@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { dbRead } from "@/db/client";
 import { containers } from "@/db/schemas/containers";
 import { inArray } from "drizzle-orm";
-import { cloudFormationService } from "@/lib/services/cloudformation";
+import { dwsContainerService } from "@/lib/services/dws/containers";
 import { updateContainerStatus } from "@/lib/services/containers";
 import { creditsService } from "@/lib/services/credits";
 import { logger } from "@/lib/utils/logger";
@@ -14,10 +14,7 @@ export const maxDuration = 60; // 1 minute max
  * Deployment Monitor Cron Handler
  *
  * Monitors containers in "building" or "deploying" status and updates
- * their status based on CloudFormation stack progress.
- *
- * This replaces the long-running wait in deployContainerAsync, making
- * the deployment flow compatible with Vercel serverless function limits.
+ * their status based on DWS container deployment progress.
  *
  * Schedule: Every minute
  */
@@ -73,7 +70,7 @@ async function handleDeploymentMonitor(request: NextRequest) {
 
     const results: Array<{
       containerId: string;
-      stackName: string | null;
+      dwsContainerId: string | null;
       previousStatus: string;
       newStatus: string | null;
       error?: string;
@@ -81,108 +78,75 @@ async function handleDeploymentMonitor(request: NextRequest) {
 
     for (const container of deployingContainers) {
       try {
-        const stackName = container.cloudformation_stack_name;
+        const dwsContainerId = container.dws_container_id;
 
-        if (!stackName) {
-          // Stack not yet created, skip this container
+        if (!dwsContainerId) {
+          // DWS container not yet created, skip
           logger.debug(
-            `[Deployment Monitor] Container ${container.id} has no stack name yet, skipping`,
+            `[Deployment Monitor] Container ${container.id} has no DWS container ID yet, skipping`,
           );
           results.push({
             containerId: container.id,
-            stackName: null,
+            dwsContainerId: null,
             previousStatus: container.status,
             newStatus: null,
-            error: "No stack name stored",
+            error: "No DWS container ID stored",
           });
           continue;
         }
 
-        // Get stack status directly by name
-        const stackStatus = await getStackStatusByName(stackName);
+        // Get DWS container status
+        const dwsStatus = await dwsContainerService.getContainerStatus(dwsContainerId);
 
-        if (!stackStatus) {
+        if (!dwsStatus) {
           logger.warn(
-            `[Deployment Monitor] Stack ${stackName} not found for container ${container.id}`,
+            `[Deployment Monitor] DWS container ${dwsContainerId} not found for container ${container.id}`,
           );
           results.push({
             containerId: container.id,
-            stackName,
+            dwsContainerId,
             previousStatus: container.status,
             newStatus: null,
-            error: "Stack not found",
+            error: "DWS container not found",
           });
           continue;
         }
 
         logger.info(
-          `[Deployment Monitor] Container ${container.id}: Stack ${stackName} is ${stackStatus.status}`,
+          `[Deployment Monitor] Container ${container.id}: DWS status is ${dwsStatus.status}`,
         );
 
-        if (
-          stackStatus.status === "CREATE_COMPLETE" ||
-          stackStatus.status === "UPDATE_COMPLETE"
-        ) {
-          // Stack completed successfully!
-          const outputs = await cloudFormationService.getStackOutputs(
-            container.organization_id,
-            container.project_name,
+        if (dwsStatus.status === "running") {
+          // Container deployed successfully
+          await updateContainerStatus(container.id, "running", {
+            dwsContainerId,
+            dwsEndpointUrl: dwsStatus.endpointUrl,
+            dwsRegion: dwsStatus.region,
+            deploymentLog: `Deployed successfully. URL: ${dwsStatus.endpointUrl}`,
+          });
+
+          logger.info(
+            `[Deployment Monitor] Container ${container.id} deployed successfully: ${dwsStatus.endpointUrl}`,
           );
 
-          if (outputs) {
-            await updateContainerStatus(container.id, "running", {
-              ecsServiceArn: outputs.serviceArn,
-              ecsTaskDefinitionArn: outputs.taskDefinitionArn,
-              ecsClusterArn: outputs.clusterArn,
-              loadBalancerUrl: outputs.containerUrl,
-              deploymentLog: `Deployed successfully! EC2: ${outputs.instancePublicIp}, URL: ${outputs.containerUrl}`,
-            });
-
-            logger.info(
-              `[Deployment Monitor] ✅ Container ${container.id} deployed successfully: ${outputs.containerUrl}`,
-            );
-
-            results.push({
-              containerId: container.id,
-              stackName,
-              previousStatus: container.status,
-              newStatus: "running",
-            });
-          } else {
-            // Stack complete but no outputs - unusual
-            await updateContainerStatus(container.id, "running", {
-              deploymentLog:
-                "Stack completed but outputs not available. Container may still be starting.",
-            });
-            results.push({
-              containerId: container.id,
-              stackName,
-              previousStatus: container.status,
-              newStatus: "running",
-              error: "No outputs available",
-            });
-          }
-        } else if (
-          stackStatus.status === "CREATE_FAILED" ||
-          stackStatus.status === "ROLLBACK_COMPLETE" ||
-          stackStatus.status === "ROLLBACK_FAILED" ||
-          stackStatus.status === "DELETE_COMPLETE" ||
-          stackStatus.status === "UPDATE_ROLLBACK_COMPLETE"
-        ) {
-          // Stack failed
-          const failureReason =
-            stackStatus.statusReason || "Stack creation failed";
+          results.push({
+            containerId: container.id,
+            dwsContainerId,
+            previousStatus: container.status,
+            newStatus: "running",
+          });
+        } else if (dwsStatus.status === "failed" || dwsStatus.status === "error") {
+          // Container failed
+          const failureReason = dwsStatus.error || "Container deployment failed";
 
           await updateContainerStatus(container.id, "failed", {
             errorMessage: failureReason,
-            deploymentLog: `CloudFormation stack failed: ${failureReason}`,
+            deploymentLog: `DWS container failed: ${failureReason}`,
           });
 
           // Refund credits
           try {
-            // Calculate deployment cost (should match what was charged)
-            const deploymentCost = 15; // Default cost - ideally retrieve from container metadata
-
+            const deploymentCost = 15; // Default cost
             await creditsService.addCredits({
               organizationId: container.organization_id,
               amount: deploymentCost,
@@ -191,48 +155,45 @@ async function handleDeploymentMonitor(request: NextRequest) {
             });
 
             logger.info(
-              `[Deployment Monitor] ✅ Refunded ${deploymentCost} credits for failed container ${container.id}`,
+              `[Deployment Monitor] Refunded ${deploymentCost} credits for failed container ${container.id}`,
             );
           } catch (refundError) {
             logger.error(
-              `[Deployment Monitor] ❌ Failed to refund credits for container ${container.id}:`,
+              `[Deployment Monitor] Failed to refund credits for container ${container.id}:`,
               refundError,
             );
           }
 
-          // Cleanup the failed stack
+          // Cleanup the failed container
           try {
-            await cloudFormationService.deleteUserStack(
-              container.organization_id,
-              container.project_name,
-            );
+            await dwsContainerService.deleteContainer(dwsContainerId);
             logger.info(
-              `[Deployment Monitor] Initiated cleanup of failed stack ${stackName}`,
+              `[Deployment Monitor] Cleaned up failed DWS container ${dwsContainerId}`,
             );
           } catch (cleanupError) {
             logger.warn(
-              `[Deployment Monitor] Failed to cleanup stack ${stackName}:`,
+              `[Deployment Monitor] Failed to cleanup DWS container ${dwsContainerId}:`,
               cleanupError,
             );
           }
 
           results.push({
             containerId: container.id,
-            stackName,
+            dwsContainerId,
             previousStatus: container.status,
             newStatus: "failed",
             error: failureReason,
           });
         } else {
-          // Stack still in progress (CREATE_IN_PROGRESS, etc.)
+          // Container still deploying
           logger.debug(
-            `[Deployment Monitor] Container ${container.id}: Stack still in progress (${stackStatus.status})`,
+            `[Deployment Monitor] Container ${container.id}: Still deploying (${dwsStatus.status})`,
           );
           results.push({
             containerId: container.id,
-            stackName,
+            dwsContainerId,
             previousStatus: container.status,
-            newStatus: null, // No change
+            newStatus: null,
           });
         }
       } catch (containerError) {
@@ -242,7 +203,7 @@ async function handleDeploymentMonitor(request: NextRequest) {
         );
         results.push({
           containerId: container.id,
-          stackName: container.cloudformation_stack_name,
+          dwsContainerId: container.dws_container_id,
           previousStatus: container.status,
           newStatus: null,
           error:
@@ -286,51 +247,9 @@ async function handleDeploymentMonitor(request: NextRequest) {
 }
 
 /**
- * Get CloudFormation stack status by stack name directly
- */
-async function getStackStatusByName(
-  stackName: string,
-): Promise<{ status: string; statusReason?: string } | null> {
-  try {
-    const { DescribeStacksCommand, CloudFormationClient } =
-      await import("@aws-sdk/client-cloudformation");
-
-    const client = new CloudFormationClient({
-      region: process.env.AWS_REGION || "us-east-1",
-    });
-
-    const command = new DescribeStacksCommand({
-      StackName: stackName,
-    });
-
-    const response = await client.send(command);
-    const stack = response.Stacks?.[0];
-
-    if (!stack) {
-      return null;
-    }
-
-    return {
-      status: stack.StackStatus || "UNKNOWN",
-      statusReason: stack.StackStatusReason,
-    };
-  } catch (error) {
-    // Stack doesn't exist
-    if (error instanceof Error && error.message.includes("does not exist")) {
-      return null;
-    }
-    throw error;
-  }
-}
-
-/**
  * GET /api/v1/cron/deployment-monitor
  * Cron job endpoint for monitoring container deployment status.
- * Checks CloudFormation stacks and updates container status accordingly.
- * Protected by CRON_SECRET. Can be called via GET (Vercel cron) or POST (manual testing).
- *
- * @param request - Request with Bearer token authorization header.
- * @returns Deployment monitoring results with updated container statuses.
+ * Protected by CRON_SECRET.
  */
 export async function GET(request: NextRequest) {
   return handleDeploymentMonitor(request);
@@ -340,13 +259,7 @@ export async function GET(request: NextRequest) {
  * POST /api/v1/cron/deployment-monitor
  * Cron job endpoint for monitoring container deployment status (POST variant).
  * Protected by CRON_SECRET.
- *
- * @param request - Request with Bearer token authorization header.
- * @returns Deployment monitoring results with updated container statuses.
  */
 export async function POST(request: NextRequest) {
   return handleDeploymentMonitor(request);
 }
-
-
-

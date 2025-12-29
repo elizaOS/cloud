@@ -14,7 +14,7 @@ import TopHero from "@/components/landing/TopHero";
 import OnChainTrust from "@/components/landing/OnChainTrust";
 import Installation from "@/components/landing/Installation";
 import Footer from "@/components/landing/Footer";
-import { usePrivy } from "@privy-io/react-auth";
+import { usePrivy } from "@/lib/providers/PrivyProvider";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { useEffect, useRef } from "react";

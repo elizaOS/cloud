@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { usePrivy } from "@privy-io/react-auth";
+import { usePrivy } from "@/lib/providers/PrivyProvider";
 import { Loader2, Workflow, Sparkles, Search } from "lucide-react";
 import { BrandButton } from "@/components/brand";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";

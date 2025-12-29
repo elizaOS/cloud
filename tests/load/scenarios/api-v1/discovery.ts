@@ -66,6 +66,6 @@ export function discoveryOperationsCycle() {
   sleep(1);
 }
 
-export default function () {
+export default function main() {
   discoveryOperationsCycle();
 }

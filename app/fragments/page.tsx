@@ -5,7 +5,7 @@ import { ChatInput } from "@/components/fragments/chat-input";
 import { ChatPicker } from "@/components/fragments/chat-picker";
 import { ChatSettings } from "@/components/fragments/chat-settings";
 import { Preview } from "@/components/fragments/preview";
-import { usePrivy } from "@privy-io/react-auth";
+import { usePrivy } from "@/lib/providers/PrivyProvider";
 import { BrandCard, CornerBrackets, BrandButton } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import { Save, Rocket, FolderOpen } from "lucide-react";

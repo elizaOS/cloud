@@ -50,8 +50,10 @@ export const CacheKeys = {
     pattern: () => `app:*`,
   },
   session: {
-    /** Cache session token validation results */
+    /** Cache session token validation results (Privy - legacy) */
     privy: (tokenHash: string) => `session:privy:${tokenHash}:v1`,
+    /** Cache OAuth3 session token validation results */
+    oauth3: (tokenHash: string) => `session:oauth3:${tokenHash}:v1`,
     /** Cache user data by session token */
     user: (tokenHash: string) => `session:user:${tokenHash}:v1`,
     pattern: () => `session:*`,
@@ -206,7 +208,8 @@ export const CacheTTL = {
     byApiKeyId: 600, // 10 minutes - app lookup by API key
   },
   session: {
-    privy: 300, // 5 minutes - Privy token validation
+    privy: 300, // 5 minutes - Privy token validation (legacy)
+    oauth3: 300, // 5 minutes - OAuth3 token validation
     user: 300, // 5 minutes - User data by session
   },
   user: {

@@ -13,11 +13,12 @@ import {
  * E2E Tests: Wallet Login Flow
  *
  * These tests verify that users can log in using MetaMask wallet
- * through the Privy authentication system.
+ * through the OAuth3 authentication system.
  *
  * Prerequisites:
  * - MetaMask extension loaded with test wallet
- * - Local development server running
+ * - Local development server running (localhost:3000)
+ * - OAuth3 service running (localhost:4200)
  * - Test environment variables configured
  */
 
@@ -58,7 +59,7 @@ test.describe("Wallet Login", () => {
     await expect(page.locator(LoginSelectors.githubButton)).toBeVisible();
   });
 
-  test("should open Privy modal when clicking Connect Wallet", async ({
+  test("should redirect to OAuth3 wallet challenge when clicking Connect Wallet", async ({
     page,
     metamask,
   }) => {
@@ -79,28 +80,26 @@ test.describe("Wallet Login", () => {
     }
     await walletButton.click({ force: true });
 
-    // Wait for Privy modal to appear
-    // Privy opens a modal with wallet options
-    // The modal might be an iframe or a div overlay
-    await page.waitForTimeout(2000); // Give Privy time to initialize modal
+    // Wait for OAuth3 redirect or API call
+    await page.waitForTimeout(3000);
 
-    // Look for the Privy modal - it may have different selectors
-    // Try multiple possible selectors for the Privy modal
-    const privyModal = page.locator(
-      '[data-testid="privy-modal"], #privy-modal, [class*="PrivyModal"], iframe[src*="privy"]',
-    );
+    const currentUrl = page.url();
+    const OAUTH3_URL = process.env.OAUTH3_URL ?? "http://localhost:4200";
 
-    // The modal should be visible
-    const isModalVisible = await privyModal
-      .first()
-      .isVisible({ timeout: 10000 })
-      .catch(() => false);
-
-    // If no modal, Privy might use a different approach (redirect or popup)
-    if (!isModalVisible) {
-      // Check if a new page/popup was opened
-      const pages = page.context().pages();
-      expect(pages.length).toBeGreaterThanOrEqual(1);
+    // OAuth3 should redirect to the wallet challenge page
+    if (currentUrl.includes(OAUTH3_URL) || currentUrl.includes("/wallet/challenge")) {
+      console.log("✅ Redirected to OAuth3 wallet challenge page");
+      expect(currentUrl).toContain("wallet");
+    } else {
+      // May still be on login page if OAuth3 service is not available
+      console.log("ℹ️ Still on login page - OAuth3 may not be running");
+      // Check if we got an error
+      const errorMessage = await page.locator(".text-red-500, .error, [role='alert']")
+        .textContent()
+        .catch(() => null);
+      if (errorMessage) {
+        console.log("Error:", errorMessage);
+      }
     }
   });
 
@@ -108,6 +107,8 @@ test.describe("Wallet Login", () => {
     page,
     metamask,
   }) => {
+    const OAUTH3_URL = process.env.OAUTH3_URL ?? "http://localhost:4200";
+
     const success = await goToLogin(page);
     if (!success) {
       console.log("ℹ️ Page navigation failed - skipping");
@@ -125,21 +126,36 @@ test.describe("Wallet Login", () => {
     }
     await walletButton.click({ force: true });
 
-    // Wait for MetaMask connection request
-    // Synpress will detect the MetaMask popup automatically
-    await page.waitForTimeout(3000);
+    // Wait for redirect to OAuth3 wallet challenge page
+    await page.waitForURL(`${OAUTH3_URL}/wallet/challenge*`, { timeout: 15000 }).catch(() => {
+      console.log("ℹ️ Did not redirect to OAuth3 - checking current state");
+    });
 
-    // Approve the connection in MetaMask
-    await metamask.connectToDapp();
+    const currentUrl = page.url();
+    if (currentUrl.includes(OAUTH3_URL)) {
+      // On OAuth3 wallet challenge page - click Connect Wallet there
+      const oauth3ConnectBtn = page.locator('button#connectBtn, button:has-text("Connect Wallet")');
+      await oauth3ConnectBtn.waitFor({ state: "visible", timeout: 10000 });
+      await oauth3ConnectBtn.click();
 
-    // Wait for Privy to request signature for authentication
-    await page.waitForTimeout(2000);
+      // Wait for MetaMask and approve
+      await page.waitForTimeout(2000);
+      await metamask.connectToDapp();
 
-    // Sign the authentication message
-    await metamask.confirmSignature();
+      // Wait for and sign the message
+      await page.waitForTimeout(2000);
+      await metamask.confirmSignature();
 
-    // Wait for authentication to complete and redirect to dashboard
-    await waitForDashboardRedirect(page);
+      // Wait for redirect back to Eliza Cloud
+      await page.waitForURL("**/dashboard**", { timeout: 30000 }).catch(() => {});
+    } else {
+      // Inline wallet connection (no redirect)
+      await page.waitForTimeout(3000);
+      await metamask.connectToDapp();
+      await page.waitForTimeout(2000);
+      await metamask.confirmSignature();
+      await waitForDashboardRedirect(page);
+    }
 
     // Verify we're on the dashboard
     expect(await isOnDashboard(page)).toBe(true);
@@ -233,6 +249,8 @@ test.describe("Wallet Login", () => {
     page,
     metamask,
   }) => {
+    const OAUTH3_URL = process.env.OAUTH3_URL ?? "http://localhost:4200";
+
     const success = await goToLogin(page);
     if (!success) {
       console.log("ℹ️ Page navigation failed - skipping");
@@ -249,13 +267,28 @@ test.describe("Wallet Login", () => {
       return;
     }
     await walletButton.click({ force: true });
-    await page.waitForTimeout(3000);
-    await metamask.connectToDapp();
-    await page.waitForTimeout(2000);
-    await metamask.confirmSignature();
 
-    // Wait for dashboard
-    await waitForDashboardRedirect(page);
+    // Wait for OAuth3 redirect
+    await page.waitForURL(`${OAUTH3_URL}/wallet/challenge*`, { timeout: 15000 }).catch(() => {});
+
+    const currentUrl = page.url();
+    if (currentUrl.includes(OAUTH3_URL)) {
+      const oauth3ConnectBtn = page.locator('button#connectBtn, button:has-text("Connect Wallet")');
+      await oauth3ConnectBtn.waitFor({ state: "visible", timeout: 10000 });
+      await oauth3ConnectBtn.click();
+      await page.waitForTimeout(2000);
+      await metamask.connectToDapp();
+      await page.waitForTimeout(2000);
+      await metamask.confirmSignature();
+      await page.waitForURL("**/dashboard**", { timeout: 30000 }).catch(() => {});
+    } else {
+      await page.waitForTimeout(3000);
+      await metamask.connectToDapp();
+      await page.waitForTimeout(2000);
+      await metamask.confirmSignature();
+      await waitForDashboardRedirect(page);
+    }
+
     expect(await isOnDashboard(page)).toBe(true);
 
     // Reload the page

@@ -65,6 +65,6 @@ export function containerReadOperations() {
   sleep(1);
 }
 
-export default function () {
+export default function main() {
   containerReadOperations();
 }

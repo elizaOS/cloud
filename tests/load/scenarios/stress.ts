@@ -22,7 +22,7 @@ export function setup() {
   );
 }
 
-export default function () {
+export default function main() {
   const op = __ITER % 5;
   switch (op) {
     case 0:

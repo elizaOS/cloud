@@ -1,10 +1,10 @@
 /**
  * Agent event emitter for Eliza agent runtime events.
  *
- * Publishes events to Redis for real-time updates across serverless instances.
+ * Publishes events to DWS cache for real-time updates across serverless instances.
  */
 
-import { Redis } from "@upstash/redis";
+import { DWSCache } from "@/lib/services/dws/cache";
 import { logger } from "@/lib/utils/logger";
 import type { Memory, UUID } from "@elizaos/core";
 
@@ -24,11 +24,11 @@ export interface AgentEvent {
 }
 
 /**
- * Event emitter for agent runtime events using Redis pub/sub.
+ * Event emitter for agent runtime events using DWS cache pub/sub.
  */
 class AgentEventEmitter {
   private static instance: AgentEventEmitter;
-  private redis: Redis | null = null;
+  private dwsCache: DWSCache | null = null;
   private enabled: boolean = false;
 
   private constructor() {
@@ -36,17 +36,20 @@ class AgentEventEmitter {
   }
 
   private initialize(): void {
-    if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
+    if (process.env.CACHE_ENABLED === "false") {
       this.enabled = false;
       return;
     }
 
-    this.redis = new Redis({
-      url: process.env.KV_REST_API_URL,
-      token: process.env.KV_REST_API_TOKEN,
-    });
-
-    this.enabled = true;
+    try {
+      this.dwsCache = new DWSCache({
+        namespace: "agent-events",
+        defaultTTL: 300,
+      });
+      this.enabled = true;
+    } catch {
+      this.enabled = false;
+    }
   }
 
   public static getInstance(): AgentEventEmitter {
@@ -57,7 +60,7 @@ class AgentEventEmitter {
   }
 
   async emitMessageReceived(roomId: string, message: Memory): Promise<void> {
-    if (!this.enabled || !this.redis) return;
+    if (!this.enabled || !this.dwsCache) return;
 
     const event: AgentEvent = {
       type: "message_received",
@@ -74,7 +77,7 @@ class AgentEventEmitter {
   }
 
   async emitResponseStarted(roomId: string, agentId: UUID): Promise<void> {
-    if (!this.enabled || !this.redis) return;
+    if (!this.enabled || !this.dwsCache) return;
 
     const event: AgentEvent = {
       type: "response_started",
@@ -86,7 +89,7 @@ class AgentEventEmitter {
       },
     };
 
-    // Fire-and-forget: don't await Redis operations
+    // Fire-and-forget: don't await cache operations
     void this.publishEvent(roomId, event);
   }
 
@@ -95,7 +98,7 @@ class AgentEventEmitter {
     chunk: string,
     tokenIndex: number,
   ): Promise<void> {
-    if (!this.enabled || !this.redis) return;
+    if (!this.enabled || !this.dwsCache) return;
 
     const event: AgentEvent = {
       type: "response_chunk",
@@ -115,7 +118,7 @@ class AgentEventEmitter {
     response: Memory,
     usage?: { inputTokens: number; outputTokens: number; model: string },
   ): Promise<void> {
-    if (!this.enabled || !this.redis) return;
+    if (!this.enabled || !this.dwsCache) return;
 
     const event: AgentEvent = {
       type: "response_complete",
@@ -128,12 +131,12 @@ class AgentEventEmitter {
       },
     };
 
-    // Fire-and-forget: don't await Redis operations
+    // Fire-and-forget: don't await cache operations
     void this.publishEvent(roomId, event);
   }
 
   async emitError(roomId: string, error: Error): Promise<void> {
-    if (!this.enabled || !this.redis) return;
+    if (!this.enabled || !this.dwsCache) return;
 
     const event: AgentEvent = {
       type: "error",
@@ -149,7 +152,7 @@ class AgentEventEmitter {
   }
 
   private async publishEvent(roomId: string, event: AgentEvent): Promise<void> {
-    if (!this.redis) return;
+    if (!this.dwsCache) return;
 
     const channel = `agent:events:${roomId}:queue`;
     const message = JSON.stringify({
@@ -157,8 +160,8 @@ class AgentEventEmitter {
       timestamp: event.timestamp.toISOString(),
     });
 
-    await this.redis.rpush(channel, message);
-    await this.redis.expire(channel, 300);
+    await this.dwsCache.rpush(channel, message);
+    await this.dwsCache.expire(channel, 300);
 
     logger.debug(`[Agent Events] Published ${event.type} to ${channel}`);
   }

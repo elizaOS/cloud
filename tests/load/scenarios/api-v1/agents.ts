@@ -90,6 +90,6 @@ export function agentReadOnly() {
   sleep(0.5);
 }
 
-export default function () {
+export default function main() {
   agentCrudCycle();
 }

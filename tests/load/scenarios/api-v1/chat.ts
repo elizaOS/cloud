@@ -90,6 +90,6 @@ export function fullAiCoverage() {
   embeddingsTest();
 }
 
-export default function () {
+export default function main() {
   minimalChatCompletion();
 }

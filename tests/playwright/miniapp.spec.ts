@@ -20,26 +20,29 @@ const MINIAPP_URL = process.env.MINIAPP_URL ?? "http://localhost:3001";
 
 // Check if services are running - skip tests if not available
 let miniappAvailable = false;
+let cloudAvailable = false;
 
-test.beforeAll(async ({ request }) => {
-  const cloudResponse = await request.get(CLOUD_URL).catch(() => null);
-  if (!cloudResponse?.ok()) {
-    throw new Error(
-      `Cloud not available at ${CLOUD_URL}. Start with: bun run dev`,
-    );
-  }
+test.describe("Miniapp E2E Tests", () => {
+  test.beforeAll(async () => {
+    const cloudResponse = await fetch(CLOUD_URL).then(r => ({ ok: () => r.ok })).catch(() => null);
+    cloudAvailable = cloudResponse?.ok() ?? false;
+    if (!cloudAvailable) {
+      console.log(
+        `⚠️ Cloud not available at ${CLOUD_URL}. Start with: bun run dev`,
+      );
+    }
 
-  const miniappResponse = await request.get(MINIAPP_URL).catch(() => null);
-  miniappAvailable = miniappResponse?.ok() ?? false;
+    const miniappResponse = await fetch(MINIAPP_URL).then(r => ({ ok: () => r.ok })).catch(() => null);
+    miniappAvailable = miniappResponse?.ok() ?? false;
 
-  if (!miniappAvailable) {
-    console.log(
-      `⚠️ Miniapp not available at ${MINIAPP_URL}. Skipping miniapp tests. Start with: cd miniapp && bun run dev`,
-    );
-  }
-});
+    if (!miniappAvailable) {
+      console.log(
+        `⚠️ Miniapp not available at ${MINIAPP_URL}. Skipping miniapp tests. Start with: cd miniapp && bun run dev`,
+      );
+    }
+  });
 
-test.describe("Miniapp Pages", () => {
+  test.describe("Miniapp Pages", () => {
   test("home page renders with hero section", async ({ page }) => {
     if (!miniappAvailable) {
       test.skip();
@@ -490,4 +493,5 @@ test.describe("Anonymous Message Limits", () => {
       // Session ID indicates anonymous creation with limits
     }
   });
+});
 });

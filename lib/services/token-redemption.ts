@@ -78,10 +78,19 @@ import { privateKeyToAccount } from "viem/accounts";
 import { ERC20_ABI } from "@/lib/utils/abis/erc20";
 import { mainnet, base, bsc } from "viem/chains";
 import { jeju, jejuTestnet } from "@/lib/config/chains";
-import { PublicKey, Connection } from "@solana/web3.js";
 import nacl from "tweetnacl";
-import { getAssociatedTokenAddress, getAccount } from "@solana/spl-token";
-import bs58 from "bs58";
+
+// Solana imports are dynamic to avoid build issues with native dependencies
+let solanaWeb3: typeof import("@solana/web3.js") | null = null;
+let solanaSplToken: typeof import("@solana/spl-token") | null = null;
+let bs58Module: typeof import("bs58").default | null = null;
+
+async function getSolanaModulesRedemption() {
+  if (!solanaWeb3) solanaWeb3 = await import("@solana/web3.js");
+  if (!solanaSplToken) solanaSplToken = await import("@solana/spl-token");
+  if (!bs58Module) bs58Module = (await import("bs58")).default;
+  return { solanaWeb3, solanaSplToken, bs58: bs58Module };
+}
 
 // Configuration
 const CONFIG = {
@@ -189,7 +198,7 @@ export class TokenRedemptionService {
     const solanaPrivateKey = process.env.SOLANA_PAYOUT_PRIVATE_KEY;
     const solanaWalletAddress =
       process.env.SOLANA_PAYOUT_WALLET_ADDRESS ||
-      (solanaPrivateKey ? this.deriveSolanaAddress(solanaPrivateKey) : null);
+      (solanaPrivateKey ? await this.deriveSolanaAddress(solanaPrivateKey) : null);
 
     if (network === "solana") {
       if (!solanaWalletAddress) {
@@ -234,11 +243,12 @@ export class TokenRedemptionService {
    * Derive Solana address from base58-encoded private key.
    * Returns the public key as a base58 string.
    */
-  private deriveSolanaAddress(privateKey: string): string {
+  private async deriveSolanaAddress(privateKey: string): Promise<string> {
+    const { solanaWeb3, bs58 } = await getSolanaModulesRedemption();
     const decoded = bs58.decode(privateKey);
     // Extract public key from secret key (last 32 bytes of 64-byte secret key, or use nacl)
     const keypair = nacl.sign.keyPair.fromSecretKey(decoded);
-    return new PublicKey(keypair.publicKey).toBase58();
+    return new solanaWeb3.PublicKey(keypair.publicKey).toBase58();
   }
 
   /**
@@ -294,6 +304,10 @@ export class TokenRedemptionService {
     walletAddress: string,
     requiredAmount: number,
   ): Promise<{ available: boolean; balance: number; error?: string }> {
+    const { solanaWeb3, solanaSplToken } = await getSolanaModulesRedemption();
+    const { Connection, PublicKey } = solanaWeb3;
+    const { getAssociatedTokenAddress, getAccount } = solanaSplToken;
+    
     const solanaRpc =
       process.env.SOLANA_RPC_URL || "https://api.mainnet-beta.solana.com";
     const connection = new Connection(solanaRpc, "confirmed");
@@ -349,7 +363,7 @@ export class TokenRedemptionService {
     }
 
     // Validate address format
-    const addressValidation = this.validateAddress(payoutAddress, network);
+    const addressValidation = await this.validateAddress(payoutAddress, network);
     if (!addressValidation.valid) {
       return { success: false, error: addressValidation.error };
     }
@@ -530,14 +544,15 @@ export class TokenRedemptionService {
   /**
    * Validate payout address format.
    */
-  private validateAddress(
+  private async validateAddress(
     address: string,
     network: SupportedNetwork,
-  ): ValidationResult {
+  ): Promise<ValidationResult> {
     if (network === "solana") {
       // Solana address validation
       try {
-        new PublicKey(address);
+        const { solanaWeb3 } = await getSolanaModulesRedemption();
+        new solanaWeb3.PublicKey(address);
         return { valid: true };
       } catch {
         return { valid: false, error: "Invalid Solana address format" };

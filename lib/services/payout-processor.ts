@@ -53,21 +53,24 @@ import { ERC20_ABI } from "@/lib/utils/abis/erc20";
 import { mainnet, base, bsc } from "viem/chains";
 import { jeju, jejuTestnet } from "@/lib/config/chains";
 import { privateKeyToAccount } from "viem/accounts";
-import {
-  Connection,
-  Keypair,
-  PublicKey,
-  Transaction,
-  sendAndConfirmTransaction,
-} from "@solana/web3.js";
-import {
-  createTransferInstruction,
-  getAssociatedTokenAddress,
-  createAssociatedTokenAccountInstruction,
-  getAccount,
-  TokenAccountNotFoundError,
-} from "@solana/spl-token";
-import bs58 from "bs58";
+// Solana imports are dynamic to avoid build issues with native dependencies
+// These will be loaded only when needed for Solana payouts
+let solanaWeb3: typeof import("@solana/web3.js") | null = null;
+let solanaSplToken: typeof import("@solana/spl-token") | null = null;
+let bs58: typeof import("bs58").default | null = null;
+
+async function getSolanaModules() {
+  if (!solanaWeb3) {
+    solanaWeb3 = await import("@solana/web3.js");
+  }
+  if (!solanaSplToken) {
+    solanaSplToken = await import("@solana/spl-token");
+  }
+  if (!bs58) {
+    bs58 = (await import("bs58")).default;
+  }
+  return { solanaWeb3, solanaSplToken, bs58 };
+}
 import { payoutAlertsService } from "./payout-alerts";
 
 // Configuration
@@ -134,10 +137,15 @@ interface ProcessingStats {
  * These should NEVER be committed to code or logs.
  * In production, use AWS KMS, HashiCorp Vault, or similar.
  */
+// Type aliases for Solana types (loaded dynamically)
+type SolanaKeypair = Awaited<ReturnType<typeof getSolanaModules>>["solanaWeb3"]["Keypair"] extends new (...args: unknown[]) => infer T ? T : never;
+type SolanaConnection = InstanceType<Awaited<ReturnType<typeof getSolanaModules>>["solanaWeb3"]["Connection"]>;
+
 export class PayoutProcessorService {
   private readonly evmPrivateKey: `0x${string}` | null;
-  private readonly solanaKeypair: Keypair | null;
-  private readonly solanaConnection: Connection | null;
+  private solanaKeypair: SolanaKeypair | null = null;
+  private solanaConnection: SolanaConnection | null = null;
+  private solanaInitialized = false;
 
   constructor() {
     // Load EVM private key (support both naming conventions)
@@ -155,29 +163,52 @@ export class PayoutProcessorService {
       );
     }
 
-    // Load Solana keypair
-    const solanaKey = process.env.SOLANA_PAYOUT_PRIVATE_KEY;
-    if (solanaKey) {
-      const decoded = bs58.decode(solanaKey);
-      this.solanaKeypair = Keypair.fromSecretKey(decoded);
-      logger.info("[PayoutProcessor] Solana hot wallet configured");
+    // Solana is initialized lazily to avoid build-time issues with native modules
+    if (process.env.SOLANA_PAYOUT_PRIVATE_KEY) {
+      logger.info("[PayoutProcessor] Solana hot wallet will be configured on first use");
     } else {
-      this.solanaKeypair = null;
       logger.warn(
         "[PayoutProcessor] SOLANA_PAYOUT_PRIVATE_KEY not set - Solana payouts disabled",
       );
     }
+  }
 
-    // Solana RPC connection
-    const solanaRpc =
-      process.env.SOLANA_RPC_URL || "https://api.mainnet-beta.solana.com";
-    this.solanaConnection = new Connection(solanaRpc, "confirmed");
+  /**
+   * Lazily initialize Solana modules to avoid build-time issues
+   */
+  private async initSolana(): Promise<boolean> {
+    if (this.solanaInitialized) return !!this.solanaKeypair;
+    
+    const solanaKey = process.env.SOLANA_PAYOUT_PRIVATE_KEY;
+    if (!solanaKey) {
+      this.solanaInitialized = true;
+      return false;
+    }
+
+    try {
+      const { solanaWeb3, bs58 } = await getSolanaModules();
+      const decoded = bs58.decode(solanaKey);
+      this.solanaKeypair = solanaWeb3.Keypair.fromSecretKey(decoded) as SolanaKeypair;
+      
+      const solanaRpc =
+        process.env.SOLANA_RPC_URL || "https://api.mainnet-beta.solana.com";
+      this.solanaConnection = new solanaWeb3.Connection(solanaRpc, "confirmed") as SolanaConnection;
+      
+      logger.info("[PayoutProcessor] Solana hot wallet configured");
+      this.solanaInitialized = true;
+      return true;
+    } catch (error) {
+      logger.error("[PayoutProcessor] Failed to initialize Solana:", error);
+      this.solanaInitialized = true;
+      return false;
+    }
   }
 
   /**
    * Check if the processor is configured and ready to process payouts.
    */
-  isConfigured(): { evm: boolean; solana: boolean; any: boolean } {
+  async isConfigured(): Promise<{ evm: boolean; solana: boolean; any: boolean }> {
+    await this.initSolana();
     return {
       evm: !!this.evmPrivateKey,
       solana: !!this.solanaKeypair,
@@ -445,6 +476,9 @@ export class PayoutProcessorService {
   private async executeSolanaPayout(
     redemption: typeof tokenRedemptions.$inferSelect,
   ): Promise<PayoutResult> {
+    // Ensure Solana is initialized
+    await this.initSolana();
+    
     if (!this.solanaKeypair || !this.solanaConnection) {
       return {
         success: false,
@@ -452,6 +486,17 @@ export class PayoutProcessorService {
         retryable: false,
       };
     }
+
+    // Load Solana modules dynamically
+    const { solanaWeb3, solanaSplToken } = await getSolanaModules();
+    const { PublicKey, Transaction, sendAndConfirmTransaction } = solanaWeb3;
+    const {
+      getAssociatedTokenAddress,
+      createAssociatedTokenAccountInstruction,
+      createTransferInstruction,
+      getAccount,
+      TokenAccountNotFoundError,
+    } = solanaSplToken;
 
     const mintAddress = new PublicKey(ELIZA_TOKEN_ADDRESSES.solana);
     const toAddress = new PublicKey(redemption.payout_address);
@@ -462,9 +507,10 @@ export class PayoutProcessorService {
     );
 
     // Get source token account (hot wallet's ATA)
+    const keypair = this.solanaKeypair as unknown as { publicKey: InstanceType<typeof PublicKey> };
     const sourceAta = await getAssociatedTokenAddress(
       mintAddress,
-      this.solanaKeypair.publicKey,
+      keypair.publicKey,
     );
 
     // Get or create destination token account
@@ -478,7 +524,7 @@ export class PayoutProcessorService {
     // Check if destination ATA exists
     let destinationExists = false;
     try {
-      await getAccount(this.solanaConnection, destinationAta);
+      await getAccount(this.solanaConnection as Parameters<typeof getAccount>[0], destinationAta);
       destinationExists = true;
     } catch (error) {
       if (!(error instanceof TokenAccountNotFoundError)) {
@@ -490,7 +536,7 @@ export class PayoutProcessorService {
     if (!destinationExists) {
       transaction.add(
         createAssociatedTokenAccountInstruction(
-          this.solanaKeypair.publicKey,
+          keypair.publicKey,
           destinationAta,
           toAddress,
           mintAddress,
@@ -503,16 +549,16 @@ export class PayoutProcessorService {
       createTransferInstruction(
         sourceAta,
         destinationAta,
-        this.solanaKeypair.publicKey,
+        keypair.publicKey,
         amount,
       ),
     );
 
     // Send and confirm transaction
     const signature = await sendAndConfirmTransaction(
-      this.solanaConnection,
+      this.solanaConnection as Parameters<typeof sendAndConfirmTransaction>[0],
       transaction,
-      [this.solanaKeypair],
+      [this.solanaKeypair as Parameters<typeof sendAndConfirmTransaction>[2][0]],
       { commitment: "confirmed" },
     );
 
@@ -648,20 +694,27 @@ export class PayoutProcessorService {
     }
 
     // Check Solana wallet
+    await this.initSolana();
     if (this.solanaKeypair && this.solanaConnection) {
+      const { solanaWeb3, solanaSplToken } = await getSolanaModules();
+      const { PublicKey } = solanaWeb3;
+      const { getAssociatedTokenAddress, getAccount } = solanaSplToken;
+      
+      const keypair = this.solanaKeypair as unknown as { publicKey: { toBase58(): string } };
       const mintAddress = new PublicKey(ELIZA_TOKEN_ADDRESSES.solana);
       const ata = await getAssociatedTokenAddress(
         mintAddress,
-        this.solanaKeypair.publicKey,
+        keypair.publicKey as unknown as InstanceType<typeof PublicKey>,
       );
 
-      const account = await getAccount(this.solanaConnection, ata).catch(
-        () => null,
-      );
+      const account = await getAccount(
+        this.solanaConnection as Parameters<typeof getAccount>[0],
+        ata,
+      ).catch(() => null);
 
       if (!account) {
         logger.warn("[PayoutProcessor] Solana token account not found", {
-          wallet: this.solanaKeypair.publicKey.toBase58(),
+          wallet: keypair.publicKey.toBase58(),
         });
         result.solana.balance = 0;
       } else {
@@ -674,7 +727,7 @@ export class PayoutProcessorService {
             network: "solana",
             balance: balanceFormatted,
             threshold: PAYOUT_CONFIG.MIN_HOT_WALLET_BALANCE,
-            address: this.solanaKeypair.publicKey.toBase58(),
+            address: keypair.publicKey.toBase58(),
           });
           // Send alert to ops team
           void payoutAlertsService.alertLowBalance(
@@ -695,4 +748,8 @@ export class PayoutProcessorService {
 }
 
 // Export singleton instance
+// Note: Solana payouts require @solana/web3.js and @solana/spl-token at runtime
 export const payoutProcessorService = new PayoutProcessorService();
+
+// Re-export for type checking
+export type { PayoutProcessorService };

@@ -6,7 +6,8 @@ import {
   CloudWatchLogsClient,
   GetLogEventsCommand,
   type OutputLogEvent,
-} from "@aws-sdk/client-cloudwatch-logs";
+  createObservabilityClient,
+} from "@/lib/services/dws/observability";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +15,7 @@ import type { LogLevel, ParsedLogEntry } from "@/lib/types/containers";
 
 /**
  * GET /api/v1/containers/[id]/logs
- * Retrieves container logs from AWS CloudWatch.
+ * Retrieves container logs from DWS Observability.
  * Supports filtering by log level, time range, and pagination.
  *
  * @param request - Request with optional limit, since, and level query parameters.
@@ -42,13 +43,13 @@ export async function GET(
       );
     }
 
-    // Check if container has been deployed to ECS
+    // Check if container has been deployed
     if (!container.ecs_service_arn) {
       return NextResponse.json(
         {
           success: false,
           error:
-            "Container has not been deployed to ECS yet. Logs will be available once deployment is complete.",
+            "Container has not been deployed yet. Logs will be available once deployment is complete.",
         },
         { status: 400 },
       );
@@ -60,14 +61,15 @@ export async function GET(
     const since = searchParams.get("since"); // ISO timestamp
     const level = searchParams.get("level") || "all"; // Log level filter
 
-    // Get logs from CloudWatch
-    // Log group uses organization_id + project_name to match CloudFormation naming
-    const rawLogs = await getCloudWatchLogs(
+    // Get logs from DWS Observability
+    const rawLogs = await getDWSLogs(
       container.organization_id,
       container.project_name,
+      container.id,
       {
         limit,
         since: since ? new Date(since) : undefined,
+        level: level !== "all" ? (level as LogLevel) : undefined,
       },
     );
 
@@ -101,7 +103,13 @@ export async function GET(
       },
     });
   } catch (error) {
+    const isAuthError =
+      error instanceof Error &&
+      (error.message.includes("authentication") ||
+        error.message.includes("Unauthorized"));
+
     logger.error("Error fetching container logs:", error);
+
     return NextResponse.json(
       {
         success: false,
@@ -110,93 +118,101 @@ export async function GET(
             ? error.message
             : "Failed to fetch container logs",
       },
-      { status: 500 },
+      { status: isAuthError ? 401 : 500 },
     );
   }
 }
 
 /**
- * Parse a log message to extract level, clean message, and metadata
- * Handles various log formats:
- * - [ERROR] message
- * - ERROR: message
- * - {"level":"error","message":"..."}
- * - Plain text (defaults to info)
+ * Parse a raw log message into a structured log entry
  */
-function parseLogMessage(log: {
+function parseLogMessage(raw: {
   timestamp: string;
   message: string;
 }): ParsedLogEntry {
-  const { timestamp, message } = log;
-  let level: LogLevel = "info";
-  let cleanMessage = message.trim();
-  let metadata: Record<string, unknown> | undefined;
+  const timestamp = new Date(raw.timestamp);
+  const message = raw.message.trim();
 
-  // Try to parse as JSON first
-  if (cleanMessage.startsWith("{")) {
-    try {
-      const parsed = JSON.parse(cleanMessage);
-      if (parsed.level) {
-        level = normalizeLogLevel(parsed.level);
-      }
-      if (parsed.message) {
-        cleanMessage = parsed.message;
-      }
-      // Extract other fields as metadata
-      const { level: _levelField, message: _messageField, ...rest } = parsed;
-      if (Object.keys(rest).length > 0) {
-        metadata = rest;
-      }
-      return { timestamp, level, message: cleanMessage, metadata };
-    } catch {
-      // Not valid JSON, continue with text parsing
+  // Try to extract log level from message
+  const level = detectLogLevel(message);
+
+  // Try to parse as JSON for structured logs
+  try {
+    // Check if the message looks like JSON
+    if (message.startsWith("{") && message.endsWith("}")) {
+      const parsed = JSON.parse(message);
+      return {
+        timestamp,
+        message: parsed.message || parsed.msg || message,
+        level: parsed.level || parsed.severity || level,
+        raw: message,
+        source: parsed.source || parsed.service || undefined,
+        metadata: {
+          ...parsed,
+          message: undefined,
+          msg: undefined,
+          level: undefined,
+          severity: undefined,
+          source: undefined,
+          service: undefined,
+          timestamp: undefined,
+        },
+      };
+    }
+  } catch {
+    // Not JSON, continue with plain text parsing
+  }
+
+  // Handle common log formats like "[INFO] message" or "2024-01-01 INFO: message"
+  const logPatterns = [
+    // [LEVEL] message
+    /^\[?(DEBUG|INFO|WARN|WARNING|ERROR|FATAL)\]?\s*:?\s*(.+)/i,
+    // timestamp LEVEL message
+    /^\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})?\s*(DEBUG|INFO|WARN|WARNING|ERROR|FATAL)\s*:?\s*(.+)/i,
+    // Pino-style
+    /^\{"level":"?(DEBUG|INFO|WARN|WARNING|ERROR|FATAL)"?.*"msg":"([^"]+)"/i,
+  ];
+
+  for (const pattern of logPatterns) {
+    const match = message.match(pattern);
+    if (match) {
+      return {
+        timestamp,
+        message: match[2],
+        level: normalizeLogLevel(match[1]),
+        raw: message,
+      };
     }
   }
 
-  // Check for [LEVEL] prefix (e.g., [ERROR], [INFO])
-  const bracketMatch = cleanMessage.match(/^\[(\w+)\]\s*(.*)$/);
-  if (bracketMatch) {
-    level = normalizeLogLevel(bracketMatch[1]);
-    cleanMessage = bracketMatch[2];
-    return { timestamp, level, message: cleanMessage };
-  }
-
-  // Check for LEVEL: prefix (e.g., ERROR:, INFO:)
-  const colonMatch = cleanMessage.match(/^(\w+):\s*(.*)$/);
-  if (colonMatch && colonMatch[1].length <= 8) {
-    // Avoid matching URLs
-    level = normalizeLogLevel(colonMatch[1]);
-    cleanMessage = colonMatch[2];
-    return { timestamp, level, message: cleanMessage };
-  }
-
-  // Check for common error patterns
-  if (
-    cleanMessage.toLowerCase().includes("error") ||
-    cleanMessage.toLowerCase().includes("exception") ||
-    cleanMessage.toLowerCase().includes("failed")
-  ) {
-    level = "error";
-  } else if (
-    cleanMessage.toLowerCase().includes("warn") ||
-    cleanMessage.toLowerCase().includes("warning")
-  ) {
-    level = "warn";
-  } else if (
-    cleanMessage.toLowerCase().includes("debug") ||
-    cleanMessage.toLowerCase().includes("trace")
-  ) {
-    level = "debug";
-  }
-
-  return { timestamp, level, message: cleanMessage };
+  // Default: return as-is with detected level
+  return {
+    timestamp,
+    message,
+    level,
+    raw: message,
+  };
 }
 
 /**
- * Normalize various log level strings to our standard levels
+ * Normalize log level string to standard format
  */
-function normalizeLogLevel(levelStr: string): LogLevel {
-  const normalized = levelStr.toLowerCase();
+function normalizeLogLevel(level: string): LogLevel {
+  const normalized = level.toLowerCase();
+  if (normalized === "warning") return "warn";
+  if (normalized === "fatal") return "error";
+  if (["debug", "info", "warn", "error"].includes(normalized)) {
+    return normalized as LogLevel;
+  }
+  return "info";
+}
+
+/**
+ * Detect log level from message content
+ */
+function detectLogLevel(message: string): LogLevel {
+  const normalized = message.toLowerCase();
+
   if (normalized.includes("err") || normalized.includes("fatal")) {
     return "error";
   }
@@ -210,16 +226,16 @@ function normalizeLogLevel(levelStr: string): LogLevel {
 }
 
 /**
- * Get logs from CloudWatch for a container
- * PRODUCTION FIX: Dynamically discovers log streams instead of hardcoding
- * Uses organization ID + project name to match CloudFormation log group naming
+ * Get logs from DWS Observability for a container
  */
-async function getCloudWatchLogs(
+async function getDWSLogs(
   organizationId: string,
   projectName: string,
+  containerId: string,
   options: {
     limit?: number;
     since?: Date;
+    level?: LogLevel;
   },
 ): Promise<
   Array<{
@@ -227,171 +243,22 @@ async function getCloudWatchLogs(
     message: string;
   }>
 > {
-  const region = process.env.AWS_REGION || "us-east-1";
-  const accessKeyId = process.env.AWS_ACCESS_KEY_ID;
-  const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
-
-  if (!region || !accessKeyId || !secretAccessKey) {
-    throw new Error("AWS credentials not configured");
-  }
-
-  const client = new CloudWatchLogsClient({
-    region,
-    credentials: {
-      accessKeyId,
-      secretAccessKey,
-    },
-  });
-
-  // Log group names - try new format first, then old format for backwards compatibility
-  const newLogGroupName = `/ecs/elizaos-${organizationId}-${projectName}`;
-  const oldLogGroupName = `/ecs/elizaos-user-${organizationId}`;
-
-  // Try new format first
-  let logGroupName = newLogGroupName;
+  const obs = createObservabilityClient();
 
   try {
-    // First, discover the latest log streams
-    const { DescribeLogStreamsCommand } =
-      await import("@aws-sdk/client-cloudwatch-logs");
+    const result = await obs.getLogs({
+      containerId: `${organizationId}-${projectName}-${containerId}`,
+      startTime: options.since,
+      limit: options.limit ?? 100,
+      level: options.level?.toUpperCase() as 'DEBUG' | 'INFO' | 'WARN' | 'ERROR' | undefined,
+    });
 
-    const streamsResponse = await client.send(
-      new DescribeLogStreamsCommand({
-        logGroupName,
-        orderBy: "LastEventTime",
-        descending: true,
-        limit: 5, // Get up to 5 most recent streams
-      }),
-    );
-
-    const logStreams = streamsResponse.logStreams || [];
-
-    if (logStreams.length === 0) {
-      logger.debug("No log streams found", { logGroupName });
-      return [];
-    }
-
-    // Aggregate logs from all recent streams (in case of task restarts)
-    const allLogs: Array<{ timestamp: string; message: string }> = [];
-
-    for (const stream of logStreams) {
-      if (!stream.logStreamName) continue;
-
-      try {
-        const command = new GetLogEventsCommand({
-          logGroupName,
-          logStreamName: stream.logStreamName,
-          limit: Math.ceil((options.limit || 100) / logStreams.length),
-          startTime: options.since?.getTime(),
-          startFromHead: false, // Get most recent logs first
-        });
-
-        const response = await client.send(command);
-        const events = response.events || [];
-
-        allLogs.push(
-          ...events.map((event: OutputLogEvent) => ({
-            timestamp: new Date(event.timestamp || 0).toISOString(),
-            message: event.message || "",
-          })),
-        );
-      } catch (streamError) {
-        logger.warn("Failed to fetch logs from stream", {
-          streamName: stream.logStreamName,
-          error: streamError,
-        });
-        // Continue with other streams
-      }
-    }
-
-    // Sort by timestamp descending and limit
-    return allLogs
-      .sort(
-        (a, b) =>
-          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
-      )
-      .slice(0, options.limit || 100);
+    return result.logs.map((log) => ({
+      timestamp: log.timestamp.toISOString(),
+      message: log.message,
+    }));
   } catch (error) {
-    // If new log group format not found, try old format for backwards compatibility
-    if (
-      error instanceof Error &&
-      error.name === "ResourceNotFoundException" &&
-      logGroupName === newLogGroupName
-    ) {
-      logger.debug("Log group not found, trying old format", {
-        newLogGroupName,
-        oldLogGroupName,
-      });
-      logGroupName = oldLogGroupName;
-
-      // Retry with old format
-      try {
-        const { DescribeLogStreamsCommand } =
-          await import("@aws-sdk/client-cloudwatch-logs");
-
-        const streamsResponse = await client.send(
-          new DescribeLogStreamsCommand({
-            logGroupName: oldLogGroupName,
-            orderBy: "LastEventTime",
-            descending: true,
-            limit: 5,
-          }),
-        );
-
-        const logStreams = streamsResponse.logStreams || [];
-        if (logStreams.length === 0) {
-          logger.debug("No log streams found", {
-            logGroupName: oldLogGroupName,
-          });
-          return [];
-        }
-
-        const allLogs: Array<{ timestamp: string; message: string }> = [];
-
-        for (const stream of logStreams) {
-          if (!stream.logStreamName) continue;
-
-          try {
-            const command = new GetLogEventsCommand({
-              logGroupName: oldLogGroupName,
-              logStreamName: stream.logStreamName,
-              limit: Math.ceil((options.limit || 100) / logStreams.length),
-              startTime: options.since?.getTime(),
-              startFromHead: false,
-            });
-
-            const response = await client.send(command);
-            const events = response.events || [];
-
-            allLogs.push(
-              ...events.map((event: OutputLogEvent) => ({
-                timestamp: new Date(event.timestamp || 0).toISOString(),
-                message: event.message || "",
-              })),
-            );
-          } catch (streamError) {
-            logger.warn("Failed to fetch logs from stream", {
-              streamName: stream.logStreamName,
-              error: streamError,
-            });
-          }
-        }
-
-        return allLogs
-          .sort(
-            (a, b) =>
-              new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
-          )
-          .slice(0, options.limit || 100);
-      } catch (oldFormatError) {
-        logger.debug("Old log group format also not found", {
-          logGroupName: oldLogGroupName,
-        });
-        return [];
-      }
-    }
-
-    logger.error("Error fetching CloudWatch logs:", error);
+    logger.error("Error fetching DWS logs:", error);
     return [];
   }
 }

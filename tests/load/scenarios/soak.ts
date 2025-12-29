@@ -21,7 +21,7 @@ export function setup() {
   console.log(`\n🕐 SOAK TEST | ${config.name} | Duration: ${DURATION}\n`);
 }
 
-export default function () {
+export default function main() {
   const ops = [
     creditOperationsCycle,
     lightMcpTools,

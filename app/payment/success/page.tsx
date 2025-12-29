@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { usePrivy } from "@privy-io/react-auth";
+import { usePrivy } from "@/lib/providers/PrivyProvider";
 import { Loader2, CheckCircle } from "lucide-react";
 
 /**

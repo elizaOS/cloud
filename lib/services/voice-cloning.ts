@@ -11,7 +11,7 @@ import type {
 import { eq, and, desc } from "drizzle-orm";
 import { getElevenLabsService } from "./elevenlabs";
 import { logger } from "@/lib/utils/logger";
-import { put } from "@vercel/blob";
+import { put } from "@/lib/services/dws/storage";
 import {
   VOICE_CLONE_INSTANT_COST,
   VOICE_CLONE_PROFESSIONAL_COST,

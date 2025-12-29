@@ -8,7 +8,7 @@
 
 "use client";
 
-import { usePrivy } from "@privy-io/react-auth";
+import { usePrivy } from "@/lib/providers/PrivyProvider";
 import { useRouter, usePathname } from "next/navigation";
 import { UserPlus, LogIn, Settings, LogOut, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";

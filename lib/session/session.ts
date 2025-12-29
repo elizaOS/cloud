@@ -2,10 +2,10 @@
  * Session Management
  *
  * Single source of truth for all session operations.
- * Handles both authenticated (Privy) and anonymous sessions.
+ * Handles both authenticated (OAuth3) and anonymous sessions.
  *
  * Performance: Uses cached getCurrentUser from auth.ts for authenticated users
- * to avoid redundant Privy API calls.
+ * to avoid redundant OAuth3 API calls.
  */
 
 import { nanoid } from "nanoid";
@@ -136,14 +136,18 @@ export async function getOrCreateSessionUser(
     createIfMissing,
   });
 
-  // Step 1: Try Privy authentication first using cached getCurrentUser
-  // This leverages Redis caching to avoid redundant Privy API calls
+  // Step 1: Try OAuth3 authentication first using cached getCurrentUser
+  // This leverages Redis caching to avoid redundant OAuth3 API calls
   try {
     const user = await getCurrentUser();
 
     if (user && user.organization_id) {
       const cookieStore = await cookies();
-      const privyToken = cookieStore.get("privy-token")?.value;
+      // Check OAuth3 token first, then legacy Privy token
+      let sessionToken = cookieStore.get("oauth3-token")?.value;
+      if (!sessionToken) {
+        sessionToken = cookieStore.get("privy-token")?.value;
+      }
 
       logger.info(`${logPrefix} Authenticated user session (cached)`, {
         userId: user.id,
@@ -154,7 +158,7 @@ export async function getOrCreateSessionUser(
         userId: user.id,
         isAnonymous: false,
         organizationId: user.organization_id,
-        sessionToken: privyToken || null,
+        sessionToken: sessionToken || null,
         messageCount: 0,
         messagesLimit: Infinity,
         messagesRemaining: Infinity,
@@ -165,7 +169,7 @@ export async function getOrCreateSessionUser(
       };
     }
   } catch (error) {
-    logger.debug(`${logPrefix} Privy auth failed:`, error);
+    logger.debug(`${logPrefix} OAuth3 auth failed:`, error);
   }
 
   // Step 2: Try provided session tokens (in priority order)

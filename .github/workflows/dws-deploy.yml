@@ -1,0 +1,236 @@
+name: DWS Deploy
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+env:
+  DWS_NETWORK: ${{ github.ref == 'refs/heads/main' && 'mainnet' || github.ref == 'refs/heads/master' && 'mainnet' || 'testnet' }}
+  DWS_API_URL: ${{ secrets.DWS_API_URL || 'https://dws.jejunetwork.org' }}
+
+jobs:
+  deploy:
+    name: Deploy to DWS
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      deployments: write
+
+    outputs:
+      deployment-url: ${{ steps.deploy.outputs.url }}
+      deployment-id: ${{ steps.deploy.outputs.id }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Create GitHub Deployment
+        id: deployment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const deployment = await github.rest.repos.createDeployment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: context.sha,
+              environment: context.eventName === 'pull_request' ? 'preview' : 'production',
+              auto_merge: false,
+              required_contexts: [],
+              description: 'DWS Deployment',
+            });
+            return deployment.data.id;
+
+      - name: Set Deployment Status - In Progress
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.repos.createDeploymentStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              deployment_id: ${{ steps.deployment.outputs.result }},
+              state: 'in_progress',
+              description: 'Building and deploying to DWS...',
+            });
+
+      - name: Build
+        run: bun run build:dws
+        env:
+          NODE_ENV: production
+          # Pass all secrets as build-time environment variables
+          NEXT_PUBLIC_PRIVY_APP_ID: ${{ secrets.NEXT_PUBLIC_PRIVY_APP_ID }}
+          NEXT_PUBLIC_PRIVY_CLIENT_ID: ${{ secrets.NEXT_PUBLIC_PRIVY_CLIENT_ID }}
+          NEXT_PUBLIC_APP_URL: ${{ secrets.NEXT_PUBLIC_APP_URL }}
+          NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY }}
+
+      - name: Deploy to DWS
+        id: deploy
+        run: |
+          # Determine deployment target
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            TARGET="preview"
+            SUBDOMAIN="pr-${{ github.event.pull_request.number }}"
+          else
+            TARGET="production"
+            SUBDOMAIN="${{ github.event.repository.name }}"
+          fi
+
+          # Create deployment via DWS API
+          RESPONSE=$(curl -s -X POST "${{ env.DWS_API_URL }}/deploy/github" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${{ secrets.DWS_DEPLOY_TOKEN }}" \
+            -d @- << EOF
+          {
+            "projectId": "${{ secrets.DWS_PROJECT_ID }}",
+            "target": "${TARGET}",
+            "subdomain": "${SUBDOMAIN}",
+            "gitBranch": "${{ github.head_ref || github.ref_name }}",
+            "gitCommit": "${{ github.sha }}",
+            "gitMessage": $(echo '${{ github.event.head_commit.message || github.event.pull_request.title }}' | jq -Rs .),
+            "gitRepo": "${{ github.repository }}",
+            "gitAuthor": "${{ github.actor }}"
+          }
+          EOF
+          )
+
+          echo "Response: $RESPONSE"
+
+          # Extract deployment URL and ID
+          DEPLOY_URL=$(echo $RESPONSE | jq -r '.url // empty')
+          DEPLOY_ID=$(echo $RESPONSE | jq -r '.id // empty')
+
+          if [[ -z "$DEPLOY_URL" ]]; then
+            echo "Deployment failed"
+            exit 1
+          fi
+
+          echo "url=$DEPLOY_URL" >> $GITHUB_OUTPUT
+          echo "id=$DEPLOY_ID" >> $GITHUB_OUTPUT
+
+          # Upload build artifacts
+          tar -czf deployment.tar.gz -C .dws-bundle .
+
+          curl -X POST "${{ env.DWS_API_URL }}/deploy/${DEPLOY_ID}/upload" \
+            -H "Authorization: Bearer ${{ secrets.DWS_DEPLOY_TOKEN }}" \
+            -F "artifact=@deployment.tar.gz"
+
+          # Wait for deployment to be ready
+          for i in {1..60}; do
+            STATUS=$(curl -s "${{ env.DWS_API_URL }}/deploy/${DEPLOY_ID}" \
+              -H "Authorization: Bearer ${{ secrets.DWS_DEPLOY_TOKEN }}" \
+              | jq -r '.state')
+
+            echo "Deployment status: $STATUS"
+
+            if [[ "$STATUS" == "READY" ]]; then
+              echo "Deployment successful!"
+              break
+            elif [[ "$STATUS" == "ERROR" ]]; then
+              echo "Deployment failed!"
+              exit 1
+            fi
+
+            sleep 5
+          done
+
+      - name: Set Deployment Status - Success
+        if: success()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.repos.createDeploymentStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              deployment_id: ${{ steps.deployment.outputs.result }},
+              state: 'success',
+              environment_url: '${{ steps.deploy.outputs.url }}',
+              description: 'Deployed to DWS',
+            });
+
+      - name: Set Deployment Status - Failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.repos.createDeploymentStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              deployment_id: ${{ steps.deployment.outputs.result }},
+              state: 'failure',
+              description: 'Deployment to DWS failed',
+            });
+
+      - name: Comment PR with Preview URL
+        if: github.event_name == 'pull_request' && success()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = `## 🚀 DWS Preview Deployment
+
+            | Name | Status | URL |
+            |------|--------|-----|
+            | **Preview** | ✅ Ready | [${{ steps.deploy.outputs.url }}](${{ steps.deploy.outputs.url }}) |
+
+            ---
+            **Deployment ID:** \`${{ steps.deploy.outputs.id }}\`
+            **Branch:** \`${{ github.head_ref }}\`
+            **Commit:** \`${{ github.sha }}\`
+
+            <sub>Built with [DWS](https://dws.jejunetwork.org) • Decentralized Web Services</sub>
+            `;
+
+            // Find existing comment
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+            });
+
+            const botComment = comments.find(c => 
+              c.user.type === 'Bot' && c.body.includes('DWS Preview Deployment')
+            );
+
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.payload.pull_request.number,
+                body,
+              });
+            }
+
+  # Cleanup preview deployments when PR is closed
+  cleanup:
+    name: Cleanup Preview
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' && github.event.action == 'closed'
+
+    steps:
+      - name: Delete Preview Deployment
+        run: |
+          curl -X DELETE "${{ env.DWS_API_URL }}/deploy/preview/pr-${{ github.event.pull_request.number }}" \
+            -H "Authorization: Bearer ${{ secrets.DWS_DEPLOY_TOKEN }}" \
+            || echo "Preview may already be deleted"
+
+

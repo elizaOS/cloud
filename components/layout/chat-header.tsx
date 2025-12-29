@@ -66,15 +66,18 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
   // Fetch share status when character changes
   // Only shows share controls if user owns the character (API returns 404 otherwise)
   useEffect(() => {
-    if (!selectedCharacterId) {
-      setIsPublic(null);
-      return;
-    }
-
+    // Reset to null when no character is selected (handled via callback to avoid synchronous setState)
     let cancelled = false;
     const controller = new AbortController();
 
     const fetchShareStatus = async () => {
+      if (!selectedCharacterId) {
+        if (!cancelled) {
+          setIsPublic(null);
+        }
+        return;
+      }
+
       try {
         const res = await fetch(
           `/api/my-agents/characters/${selectedCharacterId}/share`,
@@ -109,7 +112,12 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
       }
     };
 
-    fetchShareStatus();
+    // Use microtask to avoid synchronous setState in effect body
+    queueMicrotask(() => {
+      if (!cancelled) {
+        fetchShareStatus();
+      }
+    });
 
     return () => {
       cancelled = true;

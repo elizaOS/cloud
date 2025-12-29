@@ -28,15 +28,6 @@ const VIEWPORTS = {
 // Check if todo app is available
 let todoappAvailable = false;
 
-test.beforeAll(async ({ request }) => {
-  const response = await request.get(TODOAPP_URL).catch(() => null);
-  todoappAvailable = response?.ok() ?? false;
-
-  if (!todoappAvailable) {
-    console.log(`⚠️ Todo app not available at ${TODOAPP_URL}`);
-  }
-});
-
 // Helper to set viewport
 async function setViewport(
   page: Page,
@@ -45,7 +36,17 @@ async function setViewport(
   await page.setViewportSize(viewport);
 }
 
-test.describe("Landing Page - Responsive", () => {
+test.describe("Todo App Responsive E2E Tests", () => {
+  test.beforeAll(async () => {
+    const response = await fetch(TODOAPP_URL).then(r => ({ ok: () => r.ok })).catch(() => null);
+    todoappAvailable = response?.ok() ?? false;
+
+    if (!todoappAvailable) {
+      console.log(`⚠️ Todo app not available at ${TODOAPP_URL}`);
+    }
+  });
+
+  test.describe("Landing Page - Responsive", () => {
   for (const [, viewport] of Object.entries(VIEWPORTS)) {
     test(`renders correctly on ${viewport.name}`, async ({ page }) => {
       if (!todoappAvailable) {
@@ -523,4 +524,5 @@ test.describe("Orientation Changes", () => {
 
     console.log("✅ Landscape orientation works");
   });
+});
 });

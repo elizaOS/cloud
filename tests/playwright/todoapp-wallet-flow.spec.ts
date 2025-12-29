@@ -31,23 +31,24 @@ const TEST_WALLET_ADDRESS = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
 let cloudAvailable = false;
 let todoappAvailable = false;
 
-test.beforeAll(async ({ request }) => {
-  const cloudResponse = await request.get(CLOUD_URL).catch(() => null);
-  cloudAvailable = cloudResponse?.ok() ?? false;
+test.describe("Todo App Wallet Flow E2E Tests", () => {
+  test.beforeAll(async () => {
+    const cloudResponse = await fetch(CLOUD_URL).then(r => ({ ok: () => r.ok })).catch(() => null);
+    cloudAvailable = cloudResponse?.ok() ?? false;
 
-  if (!cloudAvailable) {
-    console.log(`⚠️ Cloud not available at ${CLOUD_URL}`);
-  }
+    if (!cloudAvailable) {
+      console.log(`⚠️ Cloud not available at ${CLOUD_URL}`);
+    }
 
-  const todoappResponse = await request.get(TODOAPP_URL).catch(() => null);
-  todoappAvailable = todoappResponse?.ok() ?? false;
+    const todoappResponse = await fetch(TODOAPP_URL).then(r => ({ ok: () => r.ok })).catch(() => null);
+    todoappAvailable = todoappResponse?.ok() ?? false;
 
-  if (!todoappAvailable) {
-    console.log(`⚠️ Todo app not available at ${TODOAPP_URL}`);
-  }
-});
+    if (!todoappAvailable) {
+      console.log(`⚠️ Todo app not available at ${TODOAPP_URL}`);
+    }
+  });
 
-test.describe("Todo App - Wallet Login Flow", () => {
+  test.describe("Todo App - Wallet Login Flow", () => {
   test.beforeEach(async ({ page }) => {
     await clearAuthState(page);
   });
@@ -726,4 +727,5 @@ test.describe("Todo App - Performance", () => {
     expect(responseTime).toBeLessThan(1000);
     console.log(`✅ MCP metadata in ${responseTime}ms`);
   });
+});
 });

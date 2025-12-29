@@ -128,6 +128,6 @@ export function criticalA2aMethods() {
   sleep(0.5);
 }
 
-export default function () {
+export default function main() {
   fullA2aMethodsCoverage();
 }

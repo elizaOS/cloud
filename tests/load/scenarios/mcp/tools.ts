@@ -104,6 +104,6 @@ export function fullMcpToolsCoverage() {
   sleep(1);
 }
 
-export default function () {
+export default function main() {
   fullMcpToolsCoverage();
 }

@@ -62,6 +62,6 @@ export function balancePolling() {
   });
 }
 
-export default function () {
+export default function main() {
   creditOperationsCycle();
 }

@@ -3,12 +3,12 @@
  *
  * Handles deploying fragments/apps as serverless apps:
  * 1. Builds fragment into static bundle
- * 2. Uploads to Vercel Blob storage
- * 3. Sets up subdomain routing
- * 4. Optionally configures custom domain via Vercel API
+ * 2. Uploads to DWS storage
+ * 3. Sets up subdomain routing via DWS DNS
+ * 4. Optionally configures custom domain via DWS
  */
 
-import { put } from "@vercel/blob";
+import { put } from "@/lib/services/dws/storage";
 import { db } from "@/db";
 import { appBundles, type AppRuntimeConfig } from "@/db/schemas/app-bundles";
 import {
@@ -19,7 +19,7 @@ import { apps } from "@/db/schemas/apps";
 import { eq, and, desc } from "drizzle-orm";
 import { logger } from "@/lib/utils/logger";
 import { nanoid } from "nanoid";
-import { vercelDomainsService } from "./vercel-domains";
+import { dwsDomainsService as vercelDomainsService } from "@/lib/services/dws/domains";
 import { mediaCollectionsService } from "./media-collections";
 import type { FragmentSchema } from "@/lib/fragments/schema";
 

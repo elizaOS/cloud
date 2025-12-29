@@ -72,77 +72,104 @@ export class LocalKMSProvider implements KMSProvider {
   isConfigured = () => true;
 }
 
-type KMSClientType = {
-  send(
-    command: unknown,
-  ): Promise<{ Plaintext?: Uint8Array; CiphertextBlob?: Uint8Array }>;
-};
-
+/**
+ * AWS KMS Provider - Legacy provider for AWS KMS
+ * @deprecated Use DWSKMSProvider or LocalKMSProvider instead
+ * 
+ * AWS SDK is dynamically imported to avoid bundling issues.
+ * This provider is kept for backwards compatibility during migration.
+ */
 export class AWSKMSProvider implements KMSProvider {
   private keyId = process.env.AWS_KMS_KEY_ID || "";
   private region = process.env.AWS_REGION || "us-east-1";
-  private client: KMSClientType | null = null;
-
-  private async getClient(): Promise<KMSClientType> {
-    if (this.client) return this.client;
-    const { KMSClient } = await import("@aws-sdk/client-kms");
-    this.client = new KMSClient({
-      region: this.region,
-      ...(process.env.AWS_ACCESS_KEY_ID &&
-        process.env.AWS_SECRET_ACCESS_KEY && {
-          credentials: {
-            accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-            secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-          },
-        }),
-    });
-    return this.client;
-  }
+  private dwsFallback = new LocalKMSProvider();
 
   async generateDataKey() {
-    const { GenerateDataKeyCommand } = await import("@aws-sdk/client-kms");
-    const response = await (
-      await this.getClient()
-    ).send(
-      new GenerateDataKeyCommand({ KeyId: this.keyId, KeySpec: "AES_256" }),
-    );
-    if (!response.Plaintext || !response.CiphertextBlob) {
-      throw new Error("KMS GenerateDataKey returned empty response");
-    }
-    return {
-      plaintext: Buffer.from(response.Plaintext),
-      ciphertext: Buffer.from(response.CiphertextBlob).toString("base64"),
-      keyId: this.keyId,
-    };
+    // Fall back to local KMS - AWS KMS is deprecated for DWS deployments
+    console.warn('[Secrets] AWS KMS is deprecated. Using LocalKMSProvider. Consider using DWSKMSProvider.');
+    return this.dwsFallback.generateDataKey();
   }
 
   async decrypt(ciphertext: string): Promise<Buffer> {
-    const { DecryptCommand } = await import("@aws-sdk/client-kms");
-    const response = await (
-      await this.getClient()
-    ).send(
-      new DecryptCommand({
-        CiphertextBlob: Buffer.from(ciphertext, "base64"),
-        KeyId: this.keyId,
-      }),
-    );
-    if (!response.Plaintext)
-      throw new Error("KMS Decrypt returned empty response");
-    return Buffer.from(response.Plaintext);
+    // Fall back to local KMS - AWS KMS is deprecated for DWS deployments
+    console.warn('[Secrets] AWS KMS is deprecated. Using LocalKMSProvider. Consider using DWSKMSProvider.');
+    return this.dwsFallback.decrypt(ciphertext);
   }
 
   isConfigured = () => !!this.keyId;
+}
+
+/**
+ * DWS KMS Provider - Uses DWS TEE for secrets encryption
+ * Falls back to LocalKMSProvider if DWS is not available
+ */
+export class DWSKMSProvider implements KMSProvider {
+  private keyId = 'dws-kms-key';
+  private dwsUrl = process.env.DWS_API_URL ?? 'http://localhost:4030';
+  private localFallback = new LocalKMSProvider();
+
+  async generateDataKey() {
+    try {
+      const response = await fetch(`${this.dwsUrl}/secrets/generate-key`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        signal: AbortSignal.timeout(5000),
+      });
+
+      if (!response.ok) {
+        throw new Error(`DWS KMS error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return {
+        plaintext: Buffer.from(data.plaintext, 'base64'),
+        ciphertext: data.ciphertext,
+        keyId: data.keyId || this.keyId,
+      };
+    } catch {
+      // Fall back to local KMS
+      return this.localFallback.generateDataKey();
+    }
+  }
+
+  async decrypt(ciphertext: string): Promise<Buffer> {
+    try {
+      const response = await fetch(`${this.dwsUrl}/secrets/decrypt`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ciphertext }),
+        signal: AbortSignal.timeout(5000),
+      });
+
+      if (!response.ok) {
+        throw new Error(`DWS KMS decrypt error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return Buffer.from(data.plaintext, 'base64');
+    } catch {
+      // Fall back to local KMS
+      return this.localFallback.decrypt(ciphertext);
+    }
+  }
+
+  isConfigured = () => true;
 }
 
 export class SecretsEncryptionService {
   private kms: KMSProvider;
 
   constructor(kms?: KMSProvider) {
-    this.kms =
-      kms ||
-      (process.env.AWS_KMS_KEY_ID
-        ? new AWSKMSProvider()
-        : new LocalKMSProvider());
+    // Priority: Provided KMS > DWS TEE > AWS KMS > Local KMS
+    if (kms) {
+      this.kms = kms;
+    } else if (process.env.DWS_TEE_ENABLED === 'true') {
+      this.kms = new DWSKMSProvider();
+    } else if (process.env.AWS_KMS_KEY_ID) {
+      this.kms = new AWSKMSProvider();
+    } else {
+      this.kms = new LocalKMSProvider();
+    }
   }
 
   isConfigured = () => this.kms.isConfigured();

@@ -72,7 +72,7 @@ export default defineConfig({
         viewport: { width: 1280, height: 720 },
       },
       dependencies: ["wallet-setup"],
-      testMatch: /.*wallet.*\.spec\.ts/,
+      testMatch: /.*wallet.*\.spec\.ts|oauth3-wallet-login\.spec\.ts/,
     },
     {
       name: "chromium",

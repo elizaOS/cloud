@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { usePrivy } from "@privy-io/react-auth";
+import { usePrivy } from "@/lib/providers/PrivyProvider";
 import { useRouter, usePathname } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import Sidebar from "@/components/layout/sidebar";

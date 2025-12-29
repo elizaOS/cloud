@@ -64,6 +64,6 @@ export function testCriticalCronEndpoints() {
   });
 }
 
-export default function () {
+export default function main() {
   testCriticalCronEndpoints();
 }

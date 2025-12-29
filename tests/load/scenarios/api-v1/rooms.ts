@@ -66,6 +66,6 @@ export function roomOperationsCycle() {
   sleep(1);
 }
 
-export default function () {
+export default function main() {
   roomOperationsCycle();
 }

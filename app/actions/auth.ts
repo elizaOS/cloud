@@ -1,22 +1,16 @@
-"use server";
+/**
+ * Auth actions.
+ *
+ * This module re-exports client API functions for auth operations.
+ * Previously used "use server" directives, now uses client API routes.
+ */
 
-import { requireAuthWithOrg } from "@/lib/auth";
-import { organizationsService } from "@/lib/services/organizations";
+import { creditsApi } from "@/lib/api/client";
 
 /**
  * Gets the credit balance for the authenticated user's organization.
- *
- * @returns The organization's credit balance as a number, or 0 if not found.
- * @throws If the user is not authenticated or doesn't have an organization.
  */
 export async function getCreditBalance(): Promise<number> {
-  const user = await requireAuthWithOrg();
-
-  const organization = await organizationsService.getById(
-    user.organization_id!,
-  );
-  // Convert numeric type (string) to number for UI display
-  return organization?.credit_balance
-    ? Number.parseFloat(String(organization.credit_balance))
-    : 0;
+  const response = await creditsApi.getBalance();
+  return response.balance;
 }

@@ -1,7 +1,7 @@
 /**
  * Production-ready container management endpoints with proper teardown
  *
- * DELETE endpoint now properly tears down CloudFormation stacks
+ * DELETE endpoint now properly tears down DWS container stacks
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -13,7 +13,7 @@ import {
   updateContainerStatus,
   containersService,
 } from "@/lib/services/containers";
-import { cloudFormationService } from "@/lib/services/cloudformation";
+import { getDWSContainerService } from "@/lib/services/dws/containers";
 import { dbPriorityManager } from "@/lib/services/alb-priority-manager";
 import { creditsService } from "@/lib/services/credits";
 import { calculateDeploymentCost } from "@/lib/constants/pricing";
@@ -63,11 +63,11 @@ export async function GET(
 
 /**
  * DELETE /api/v1/containers/[id]
- * Delete container and tear down CloudFormation stack
+ * Delete container and tear down DWS container stack
  *
  * PRODUCTION READY:
- * - Tears down CloudFormation stack
- * - Releases ALB priority
+ * - Tears down DWS container stack
+ * - Releases ALB priority (if used)
  * - Refunds remaining credits (prorated)
  * - Cleans up database records
  */
@@ -108,31 +108,39 @@ export async function DELETE(
       deploymentLog: "Teardown initiated...",
     });
 
-    // Step 2: Delete CloudFormation stack
+    // Step 2: Delete DWS container stack
     try {
-      await cloudFormationService.deleteUserStack(
-        containerId,
+      const dwsContainerService = getDWSContainerService();
+      await dwsContainerService.deleteStack(
+        container.organization_id,
         container.project_name,
       );
 
       // Wait for deletion with timeout
-      const DELETION_TIMEOUT_MINUTES = 15;
-      await cloudFormationService.waitForStackDeletion(
-        containerId,
-        container.project_name,
-        DELETION_TIMEOUT_MINUTES,
-      );
-    } catch (cfError) {
-      logger.error(`Failed to delete CloudFormation stack:`, cfError);
+      const DELETION_TIMEOUT_MINUTES = 5;
+      const startTime = Date.now();
+      const timeoutMs = DELETION_TIMEOUT_MINUTES * 60 * 1000;
+
+      while (Date.now() - startTime < timeoutMs) {
+        const stack = await dwsContainerService.getStack(
+          container.organization_id,
+          container.project_name,
+        );
+        if (!stack || stack.status === "deleted") {
+          break;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 5000));
+      }
+    } catch (dwsError) {
+      logger.error(`Failed to delete DWS container stack:`, dwsError);
 
       // Log error but continue with cleanup
-      // Stack may have been manually deleted or may not exist
       await updateContainerStatus(containerId, "deleting", {
-        deploymentLog: `Warning: CloudFormation stack deletion failed: ${cfError instanceof Error ? cfError.message : "Unknown error"}`,
+        deploymentLog: `Warning: DWS container deletion failed: ${dwsError instanceof Error ? dwsError.message : "Unknown error"}`,
       });
     }
 
-    // Step 3: Release ALB priority
+    // Step 3: Release ALB priority (if applicable)
     try {
       await dbPriorityManager.releasePriority(containerId);
     } catch (priorityError) {
@@ -159,7 +167,6 @@ export async function DELETE(
         });
 
         // Prorated refund: if container ran less than 1 hour, refund 50%
-        // This is generous to users but prevents abuse
         if (runtimeHours < 1) {
           refundAmount = Math.floor(deploymentCost * 0.5);
         }
@@ -217,15 +224,15 @@ export async function DELETE(
 
 /**
  * PATCH /api/v1/containers/[id]
- * Update container configuration via CloudFormation stack update
+ * Update container configuration via DWS stack update
  *
  * Updatable parameters:
  * - cpu: Container CPU units (256-2048)
  * - memory: Container memory in MB (512-2048)
- * - ecr_image_uri: New Docker image URI
+ * - container_image: New Docker image URI or IPFS CID
  * - port: Container port (1-65535)
  *
- * Note: Updates trigger a CloudFormation stack update which takes 5-10 minutes
+ * Note: Updates trigger a DWS stack update which takes 1-3 minutes
  */
 export async function PATCH(
   request: NextRequest,
@@ -266,6 +273,8 @@ export async function PATCH(
       containerCpu?: number;
       containerMemory?: number;
       containerPort?: number;
+      minInstances?: number;
+      maxInstances?: number;
     } = {};
 
     // Validate CPU
@@ -313,19 +322,35 @@ export async function PATCH(
       updates.containerPort = port;
     }
 
-    // Validate ECR Image URI
-    if (body.ecr_image_uri !== undefined) {
-      const imageUri = String(body.ecr_image_uri);
-      if (!imageUri || !imageUri.includes(".dkr.ecr.")) {
+    // Validate Container Image
+    if (body.container_image !== undefined) {
+      const imageUri = String(body.container_image);
+      if (!imageUri) {
         return NextResponse.json(
           {
             success: false,
-            error: "Invalid ECR image URI format",
+            error: "Invalid container image format",
           },
           { status: 400 },
         );
       }
       updates.containerImage = imageUri;
+    }
+
+    // Validate desired_count (scaling)
+    if (body.desired_count !== undefined) {
+      const count = Number(body.desired_count);
+      if (isNaN(count) || count < 1 || count > 10) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "desired_count must be between 1 and 10",
+          },
+          { status: 400 },
+        );
+      }
+      updates.minInstances = count;
+      updates.maxInstances = Math.min(count * 3, 10);
     }
 
     // Check if any updates were provided
@@ -334,7 +359,7 @@ export async function PATCH(
         {
           success: false,
           error:
-            "No valid updates provided. Updatable fields: cpu, memory, port, ecr_image_uri",
+            "No valid updates provided. Updatable fields: cpu, memory, port, container_image, desired_count",
         },
         { status: 400 },
       );
@@ -342,32 +367,25 @@ export async function PATCH(
 
     // Update status to deploying
     await updateContainerStatus(containerId, "deploying", {
-      deploymentLog: "Initiating container update via CloudFormation...",
+      deploymentLog: "Initiating container update via DWS...",
     });
 
-    // Update CloudFormation stack
+    // Update DWS container stack
     try {
-      // Build the update config
-      const updateConfig = {
-        userId: containerId,
-        projectName: container.project_name,
-        userEmail: container.name,
-        containerImage:
-          updates.containerImage ||
-          (container.metadata?.ecr_image_uri as string),
-        containerPort: updates.containerPort || container.port,
-        containerCpu: updates.containerCpu || container.cpu,
-        containerMemory: updates.containerMemory || container.memory,
-        environmentVars: container.environment_vars || {},
-      };
+      const dwsContainerService = getDWSContainerService();
 
-      await cloudFormationService.updateUserStack(updateConfig);
-
-      // Wait for update to complete (with timeout)
-      await cloudFormationService.waitForStackUpdate(
-        containerId,
+      await dwsContainerService.updateStack(
+        container.organization_id,
         container.project_name,
-        15,
+        updates,
+      );
+
+      // Wait for update to complete
+      await dwsContainerService.waitForStack(
+        container.organization_id,
+        container.project_name,
+        ["running"],
+        5,
       );
 
       // Update database with new values
@@ -375,13 +393,15 @@ export async function PATCH(
         cpu: number;
         memory: number;
         port: number;
-        ecr_image_uri: string;
+        dws_image_cid: string;
+        desired_count: number;
       }> = {};
       if (updates.containerCpu) dbUpdates.cpu = updates.containerCpu;
       if (updates.containerMemory) dbUpdates.memory = updates.containerMemory;
       if (updates.containerPort) dbUpdates.port = updates.containerPort;
       if (updates.containerImage)
-        dbUpdates.ecr_image_uri = updates.containerImage;
+        dbUpdates.dws_image_cid = updates.containerImage;
+      if (updates.minInstances) dbUpdates.desired_count = updates.minInstances;
 
       // Update container in database
       const updatedContainer = await containersService.update(
@@ -404,23 +424,23 @@ export async function PATCH(
         message: "Container updated successfully",
         data: updatedContainer,
       });
-    } catch (cfError) {
-      logger.error(`Failed to update CloudFormation stack:`, cfError);
+    } catch (dwsError) {
+      logger.error(`Failed to update DWS container stack:`, dwsError);
 
       // Mark as failed
       await updateContainerStatus(containerId, "failed", {
         errorMessage:
-          cfError instanceof Error ? cfError.message : "Update failed",
-        deploymentLog: `CloudFormation update failed: ${cfError instanceof Error ? cfError.message : "Unknown error"}`,
+          dwsError instanceof Error ? dwsError.message : "Update failed",
+        deploymentLog: `DWS update failed: ${dwsError instanceof Error ? dwsError.message : "Unknown error"}`,
       });
 
       return NextResponse.json(
         {
           success: false,
           error:
-            cfError instanceof Error
-              ? cfError.message
-              : "CloudFormation update failed",
+            dwsError instanceof Error
+              ? dwsError.message
+              : "DWS container update failed",
         },
         { status: 500 },
       );

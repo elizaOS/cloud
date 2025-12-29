@@ -1,39 +1,25 @@
 /**
- * AWS ECR (Elastic Container Registry) Integration
- * Handles Docker image storage and management
+ * DWS Container Registry Integration
+ *
+ * Replaces AWS ECR with DWS-native container registry.
+ * Provides backwards-compatible API for existing code.
  */
 
-import {
-  ECRClient,
-  CreateRepositoryCommand,
-  GetAuthorizationTokenCommand,
-  DescribeRepositoriesCommand,
-  DescribeImagesCommand,
-  BatchDeleteImageCommand,
-  PutLifecyclePolicyCommand,
-  type Repository,
-  type ImageIdentifier,
-  type AuthorizationData,
-} from "@aws-sdk/client-ecr";
 import { logger } from "@/lib/utils/logger";
+import { getDWSConfig } from "@/lib/services/dws/config";
 
 /**
- * Configuration for ECR client
- */
-/**
- * Configuration for ECR client.
+ * Configuration for container registry client
  */
 export interface ECRConfig {
-  region: string;
-  accessKeyId: string;
-  secretAccessKey: string;
+  region?: string;
+  // DWS doesn't need AWS credentials
+  accessKeyId?: string;
+  secretAccessKey?: string;
 }
 
 /**
- * Result of image push operation
- */
-/**
- * Result of pushing an image to ECR.
+ * Result of pushing an image to the registry
  */
 export interface ImagePushResult {
   repositoryUri: string;
@@ -43,10 +29,7 @@ export interface ImagePushResult {
 }
 
 /**
- * Repository creation result
- */
-/**
- * Result of creating an ECR repository.
+ * Result of creating a repository
  */
 export interface RepositoryResult {
   repositoryUri: string;
@@ -55,167 +38,182 @@ export interface RepositoryResult {
 }
 
 /**
- * AWS ECR Manager for handling container image operations
+ * Docker auth credentials
+ */
+export interface AuthorizationData {
+  authorizationToken?: string;
+  expiresAt?: Date;
+  proxyEndpoint?: string;
+}
+
+/**
+ * Image identifier
+ */
+export interface ImageIdentifier {
+  imageDigest?: string;
+  imageTag?: string;
+}
+
+/**
+ * DWS Container Registry Manager
+ * 
+ * Provides a drop-in replacement for AWS ECR that uses DWS container registry.
  */
 export class ECRManager {
-  private client: ECRClient;
-  private config: ECRConfig;
+  private config = getDWSConfig();
+  private baseUrl: string;
+  private registryUrl: string;
 
-  constructor(config: ECRConfig) {
-    this.config = config;
-    this.client = new ECRClient({
-      region: config.region,
-      credentials: {
-        accessKeyId: config.accessKeyId,
-        secretAccessKey: config.secretAccessKey,
-      },
-    });
+  constructor(_config?: ECRConfig) {
+    // Config parameter kept for API compatibility
+    this.baseUrl = this.config.apiUrl;
+    this.registryUrl = this.config.containerRegistry ?? `${this.baseUrl}/registry`;
   }
 
   /**
-   * Create a new ECR repository if it doesn't exist
+   * Create a container repository
    */
-  async createRepository(repositoryName: string): Promise<RepositoryResult> {
-    // Check if repository exists
-    const describeCommand = new DescribeRepositoriesCommand({
-      repositoryNames: [repositoryName],
+  async createRepository(
+    repositoryName: string,
+    options?: {
+      imageTagMutability?: "MUTABLE" | "IMMUTABLE";
+      imageScanOnPush?: boolean;
+    }
+  ): Promise<RepositoryResult> {
+    logger.info("[DWS Registry] Creating repository", { repositoryName });
+
+    const response = await fetch(`${this.registryUrl}/repositories`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: repositoryName,
+        tagMutability: options?.imageTagMutability ?? "MUTABLE",
+        scanOnPush: options?.imageScanOnPush ?? true,
+      }),
     });
 
-    const describeResponse = await this.client.send(describeCommand);
-    const repository = describeResponse.repositories?.[0];
-
-    if (repository) {
-      logger.info("Repository already exists:", repository.repositoryUri);
-      return {
-        repositoryUri: repository.repositoryUri!,
-        repositoryArn: repository.repositoryArn!,
-        registryId: repository.registryId!,
-      };
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to create repository: ${errorText}`);
     }
 
-    logger.info("Creating new ECR repository:", repositoryName);
-    const createCommand = new CreateRepositoryCommand({
-      repositoryName,
-      imageScanningConfiguration: {
-        scanOnPush: true,
-      },
-      imageTagMutability: "MUTABLE",
-      encryptionConfiguration: {
-        encryptionType: "AES256",
-      },
-    });
-
-    const createResponse = await this.client.send(createCommand);
-    const createdRepository = createResponse.repository!;
-
-    logger.info("Repository created:", createdRepository.repositoryUri);
-
-    // Set lifecycle policy to prevent storage bloat
-    await this.setLifecyclePolicy(repositoryName);
+    const data = await response.json();
 
     return {
-      repositoryUri: createdRepository.repositoryUri!,
-      repositoryArn: createdRepository.repositoryArn!,
-      registryId: createdRepository.registryId!,
+      repositoryUri: data.uri,
+      repositoryArn: `dws:registry:${this.config.network}:repository/${repositoryName}`,
+      registryId: this.config.nodeId,
     };
   }
 
   /**
-   * Set lifecycle policy to automatically clean up old images
-   * Keeps last 10 images per repository to prevent storage costs from exploding
-   */
-  async setLifecyclePolicy(repositoryName: string): Promise<void> {
-    const policy = {
-      rules: [
-        {
-          rulePriority: 1,
-          description: "Keep last 10 tagged images only",
-          selection: {
-            tagStatus: "tagged",
-            tagPrefixList: ["v", "latest", "prod", "staging"],
-            countType: "imageCountMoreThan",
-            countNumber: 10,
-          },
-          action: {
-            type: "expire",
-          },
-        },
-        {
-          rulePriority: 2,
-          description: "Delete untagged images after 7 days",
-          selection: {
-            tagStatus: "untagged",
-            countType: "sinceImagePushed",
-            countUnit: "days",
-            countNumber: 7,
-          },
-          action: {
-            type: "expire",
-          },
-        },
-        {
-          rulePriority: 3,
-          description: "Keep last 3 images for all other tags",
-          selection: {
-            tagStatus: "any",
-            countType: "imageCountMoreThan",
-            countNumber: 3,
-          },
-          action: {
-            type: "expire",
-          },
-        },
-      ],
-    };
-
-    const command = new PutLifecyclePolicyCommand({
-      repositoryName,
-      lifecyclePolicyText: JSON.stringify(policy),
-    });
-
-    await this.client.send(command);
-    logger.info(
-      `✅ ECR lifecycle policy set for repository: ${repositoryName}`,
-    );
-  }
-
-  /**
-   * Get Docker login credentials for ECR
+   * Get authentication token for Docker
    */
   async getAuthorizationToken(): Promise<AuthorizationData> {
-    const command = new GetAuthorizationTokenCommand({});
-    const response = await this.client.send(command);
+    logger.info("[DWS Registry] Getting auth token");
 
-    const authData = response.authorizationData?.[0];
-    if (!authData || !authData.authorizationToken) {
-      throw new Error("Failed to get ECR authorization token");
-    }
-
-    return authData;
-  }
-
-  /**
-   * Get the full image URI for a repository and tag
-   */
-  getImageUri(repositoryUri: string, tag: string): string {
-    return `${repositoryUri}:${tag}`;
-  }
-
-  /**
-   * List images in a repository
-   */
-  async listImages(repositoryName: string): Promise<ImageIdentifier[]> {
-    const command = new DescribeImagesCommand({
-      repositoryName,
+    const response = await fetch(`${this.registryUrl}/auth/token`, {
+      method: "POST",
     });
 
-    const response = await this.client.send(command);
-    return (
-      response.imageDetails?.map((detail) => ({
-        imageDigest: detail.imageDigest,
-        imageTag: detail.imageTags?.[0],
-      })) || []
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to get auth token: ${errorText}`);
+    }
+
+    const data = await response.json();
+
+    return {
+      authorizationToken: data.token,
+      expiresAt: new Date(data.expiresAt),
+      proxyEndpoint: this.registryUrl,
+    };
+  }
+
+  /**
+   * Check if a repository exists
+   */
+  async repositoryExists(repositoryName: string): Promise<boolean> {
+    const response = await fetch(
+      `${this.registryUrl}/repositories/${repositoryName}`,
+      { method: "HEAD" }
     );
+    return response.ok;
+  }
+
+  /**
+   * Describe repository
+   */
+  async describeRepository(repositoryName: string): Promise<{
+    repositoryName: string;
+    repositoryUri: string;
+    repositoryArn: string;
+    createdAt: Date;
+    imageCount: number;
+  } | null> {
+    const response = await fetch(
+      `${this.registryUrl}/repositories/${repositoryName}`
+    );
+
+    if (response.status === 404) {
+      return null;
+    }
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to describe repository: ${errorText}`);
+    }
+
+    const data = await response.json();
+
+    return {
+      repositoryName: data.name,
+      repositoryUri: data.uri,
+      repositoryArn: `dws:registry:${this.config.network}:repository/${data.name}`,
+      createdAt: new Date(data.createdAt),
+      imageCount: data.imageCount,
+    };
+  }
+
+  /**
+   * Describe images in a repository
+   */
+  async describeImages(
+    repositoryName: string,
+    imageIds?: ImageIdentifier[]
+  ): Promise<Array<{
+    imageTags?: string[];
+    imageDigest: string;
+    imagePushedAt: Date;
+    imageSizeInBytes: number;
+  }>> {
+    const params = new URLSearchParams();
+    if (imageIds) {
+      params.set("imageIds", JSON.stringify(imageIds));
+    }
+
+    const response = await fetch(
+      `${this.registryUrl}/repositories/${repositoryName}/images?${params}`
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to describe images: ${errorText}`);
+    }
+
+    const data = await response.json();
+
+    return (data.images || []).map((img: {
+      tags?: string[];
+      digest: string;
+      pushedAt: string;
+      sizeBytes: number;
+    }) => ({
+      imageTags: img.tags,
+      imageDigest: img.digest,
+      imagePushedAt: new Date(img.pushedAt),
+      imageSizeInBytes: img.sizeBytes,
+    }));
   }
 
   /**
@@ -223,111 +221,118 @@ export class ECRManager {
    */
   async deleteImages(
     repositoryName: string,
-    imageIds: ImageIdentifier[],
-  ): Promise<void> {
-    if (imageIds.length === 0) {
-      return;
-    }
-
-    const command = new BatchDeleteImageCommand({
+    imageIds: ImageIdentifier[]
+  ): Promise<{
+    imageIds: ImageIdentifier[];
+    failures: Array<{ imageId: ImageIdentifier; failureCode: string; failureReason: string }>;
+  }> {
+    logger.info("[DWS Registry] Deleting images", {
       repositoryName,
-      imageIds,
+      count: imageIds.length,
     });
 
-    await this.client.send(command);
-    logger.info(`Deleted ${imageIds.length} images from ${repositoryName}`);
-  }
-
-  /**
-   * Get repository details
-   */
-  async getRepository(repositoryName: string): Promise<Repository | null> {
-    const command = new DescribeRepositoriesCommand({
-      repositoryNames: [repositoryName],
-    });
-
-    const response = await this.client.send(command);
-    return response.repositories?.[0] || null;
-  }
-
-  /**
-   * Generate repository name from project details
-   * Includes project name for multi-project support per user
-   */
-  static generateRepositoryName(
-    organizationId: string,
-    userId: string,
-    projectName: string,
-  ): string {
-    // ECR repository names must be lowercase and support multiple projects per user
-    const sanitized = `${organizationId}/${userId}/${projectName}`
-      .toLowerCase()
-      .replace(/[^a-z0-9/_-]/g, "-")
-      .replace(/^-+|-+$/g, "")
-      .replace(/-+/g, "-");
-
-    return `elizaos/${sanitized}`;
-  }
-
-  /**
-   * Decode ECR authorization token
-   */
-  static decodeAuthToken(authorizationToken: string): {
-    username: string;
-    password: string;
-  } {
-    const decoded = Buffer.from(authorizationToken, "base64").toString("utf-8");
-    const [username, password] = decoded.split(":");
-    return { username, password };
-  }
-
-  /**
-   * Get registry hostname from repository URI
-   */
-  static getRegistryHostname(repositoryUri: string): string {
-    return repositoryUri.split("/")[0];
-  }
-
-  /**
-   * Verify that an ECR image exists before attempting deployment
-   * Critical for preventing failed deployments due to missing images
-   */
-  async verifyImageExists(imageUri: string): Promise<boolean> {
-    // Parse image URI: registry/repository:tag
-    const [repoWithRegistry, tag] = imageUri.split(":");
-    const repositoryName = repoWithRegistry.split("/").slice(1).join("/");
-
-    if (!tag) {
-      throw new Error("Image URI must include a tag");
-    }
-
-    const command = new DescribeImagesCommand({
-      repositoryName,
-      imageIds: [{ imageTag: tag }],
-    });
-
-    const response = await this.client.send(command);
-    return !!(response.imageDetails && response.imageDetails.length > 0);
-  }
-}
-
-/**
- * Get ECR manager instance with configuration from environment
- */
-export function getECRManager(): ECRManager {
-  const region = process.env.AWS_REGION;
-  const accessKeyId = process.env.AWS_ACCESS_KEY_ID;
-  const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
-
-  if (!region || !accessKeyId || !secretAccessKey) {
-    throw new Error(
-      "AWS ECR configuration missing. Required: AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY",
+    const response = await fetch(
+      `${this.registryUrl}/repositories/${repositoryName}/images`,
+      {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageIds }),
+      }
     );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to delete images: ${errorText}`);
+    }
+
+    const data = await response.json();
+
+    return {
+      imageIds: data.deleted || [],
+      failures: data.failures || [],
+    };
   }
 
-  return new ECRManager({
-    region,
-    accessKeyId,
-    secretAccessKey,
-  });
+  /**
+   * Set lifecycle policy for a repository
+   */
+  async setLifecyclePolicy(
+    repositoryName: string,
+    policy: {
+      rules: Array<{
+        rulePriority: number;
+        description?: string;
+        selection: {
+          tagStatus: "tagged" | "untagged" | "any";
+          countType: "imageCountMoreThan" | "sinceImagePushed";
+          countNumber: number;
+          countUnit?: "days";
+        };
+        action: {
+          type: "expire";
+        };
+      }>;
+    }
+  ): Promise<void> {
+    logger.info("[DWS Registry] Setting lifecycle policy", { repositoryName });
+
+    const response = await fetch(
+      `${this.registryUrl}/repositories/${repositoryName}/lifecycle`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(policy),
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to set lifecycle policy: ${errorText}`);
+    }
+  }
+
+  /**
+   * Get the registry URL for docker commands
+   */
+  getRegistryUrl(): string {
+    return this.registryUrl;
+  }
+
+  /**
+   * Get the full image URI for a repository and tag
+   */
+  getImageUri(repositoryName: string, tag: string = "latest"): string {
+    const host = new URL(this.registryUrl).host;
+    return `${host}/${repositoryName}:${tag}`;
+  }
+
+  /**
+   * Get Docker login command
+   */
+  async getDockerLoginCommand(): Promise<string> {
+    const auth = await this.getAuthorizationToken();
+    if (!auth.authorizationToken) {
+      throw new Error("No authorization token available");
+    }
+    const host = new URL(this.registryUrl).host;
+    return `echo "${auth.authorizationToken}" | docker login -u dws --password-stdin ${host}`;
+  }
 }
+
+// Singleton instance
+let ecrManagerInstance: ECRManager | null = null;
+
+export function getECRManager(config?: ECRConfig): ECRManager {
+  if (!ecrManagerInstance) {
+    ecrManagerInstance = new ECRManager(config);
+  }
+  return ecrManagerInstance;
+}
+
+export function resetECRManager(): void {
+  ecrManagerInstance = null;
+}
+
+// Legacy exports for compatibility
+export type Repository = Awaited<ReturnType<ECRManager["describeRepository"]>>;
+export { ECRManager as ECRClient };

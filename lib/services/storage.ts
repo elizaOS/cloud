@@ -2,7 +2,7 @@
  * Decentralized Storage Service
  *
  * Provides x402-payable permissionless storage via:
- * - Vercel Blob (fast CDN storage)
+ * - DWS Storage (decentralized CDN)
  * - IPFS pinning (decentralized persistence)
  *
  * Payment methods:
@@ -10,7 +10,7 @@
  * - Credit balance (authenticated users)
  */
 
-import { put, del, list, head } from "@vercel/blob";
+import { put, del, list, head } from "@/lib/services/dws/storage";
 import { logger } from "@/lib/utils/logger";
 import { ipfsService, IPFSPaymentRequiredError } from "./ipfs";
 import configJson from "@/config/x402.json";

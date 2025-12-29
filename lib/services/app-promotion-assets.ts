@@ -3,7 +3,7 @@ import { extractErrorMessage } from "@/lib/utils/error-handling";
 import { parseAiJson } from "@/lib/utils/ai-json-parse";
 import { generateText, streamText } from "ai";
 import { gateway } from "@ai-sdk/gateway";
-import { put } from "@vercel/blob";
+import { put } from "@/lib/services/dws/storage";
 import { z } from "zod";
 import type { App } from "@/db/repositories";
 

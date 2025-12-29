@@ -2,11 +2,7 @@ import { NextRequest } from "next/server";
 import { logger } from "@/lib/utils/logger";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { getContainer } from "@/lib/services/containers";
-import {
-  CloudWatchLogsClient,
-  GetLogEventsCommand,
-  type OutputLogEvent,
-} from "@aws-sdk/client-cloudwatch-logs";
+import { DWSObservability, type LogEntry } from "@/lib/services/dws/observability";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -16,11 +12,7 @@ import type { LogLevel, ParsedLogEntry } from "@/lib/types/containers";
 /**
  * GET /api/v1/containers/[id]/logs/stream
  * Streams container logs in real-time using Server-Sent Events (SSE).
- * Polls CloudWatch logs every 2 seconds and sends new entries to the client.
- *
- * @param request - Request with optional level query parameter for log filtering.
- * @param params - Route parameters containing the container ID.
- * @returns SSE stream with log entries and keepalive messages.
+ * Uses DWS observability service for log retrieval.
  */
 export async function GET(
   request: NextRequest,
@@ -46,13 +38,13 @@ export async function GET(
       );
     }
 
-    // Check if container has been deployed to ECS
-    if (!container.ecs_service_arn) {
+    // Check if container has been deployed
+    if (!container.dws_container_id && !container.ecs_service_arn) {
       return new Response(
         JSON.stringify({
           success: false,
           error:
-            "Container has not been deployed to ECS yet. Logs will be available once deployment is complete.",
+            "Container has not been deployed yet. Logs will be available once deployment is complete.",
         }),
         {
           status: 400,
@@ -65,11 +57,15 @@ export async function GET(
     const searchParams = request.nextUrl.searchParams;
     const level = searchParams.get("level") || "all";
 
+    // Create observability client
+    const observability = new DWSObservability();
+    const containerId = container.dws_container_id || container.id;
+
     // Create a ReadableStream for Server-Sent Events
     const stream = new ReadableStream({
       async start(controller) {
         const encoder = new TextEncoder();
-        let lastTimestamp: number | undefined;
+        let lastTimestamp: Date | undefined;
 
         const sendEvent = (data: unknown) => {
           const message = `data: ${JSON.stringify(data)}\n\n`;
@@ -86,31 +82,32 @@ export async function GET(
         // Poll for new logs every 2 seconds
         const pollInterval = setInterval(async () => {
           try {
-            const newLogs = await getCloudWatchLogs(
-              container.name,
-              {
-                limit: 50,
-                since: lastTimestamp ? new Date(lastTimestamp + 1) : undefined,
-              },
-              level,
-            );
+            const result = await observability.getLogs({
+              containerId,
+              startTime: lastTimestamp,
+              level: level !== "all" ? (level.toUpperCase() as LogEntry["level"]) : undefined,
+              limit: 50,
+            });
 
-            if (newLogs.length > 0) {
+            if (result.logs.length > 0) {
               // Update last timestamp
-              const timestamps = newLogs
-                .map((log) => new Date(log.timestamp).getTime())
+              const timestamps = result.logs
+                .map((log) => log.timestamp.getTime())
                 .filter((t) => !isNaN(t));
 
               if (timestamps.length > 0) {
-                lastTimestamp = Math.max(...timestamps);
+                lastTimestamp = new Date(Math.max(...timestamps) + 1);
               }
 
               // Send each log as a separate event
-              for (const log of newLogs) {
-                sendEvent({
-                  type: "log",
-                  data: log,
-                });
+              for (const log of result.logs) {
+                const parsedLog = parseLogEntry(log);
+                if (level === "all" || parsedLog.level === level) {
+                  sendEvent({
+                    type: "log",
+                    data: parsedLog,
+                  });
+                }
               }
             }
           } catch (error) {
@@ -159,81 +156,22 @@ export async function GET(
 }
 
 /**
- * Parse a log message to extract level, clean message, and metadata
+ * Parse a DWS log entry to our standard format
  */
-function parseLogMessage(log: {
-  timestamp: string;
-  message: string;
-}): ParsedLogEntry {
-  const { timestamp, message } = log;
-  let level: LogLevel = "info";
-  let cleanMessage = message.trim();
-  let metadata: Record<string, unknown> | undefined;
-
-  // Try to parse as JSON first
-  if (cleanMessage.startsWith("{")) {
-    try {
-      const parsed = JSON.parse(cleanMessage);
-      if (parsed.level) {
-        level = normalizeLogLevel(parsed.level);
-      }
-      if (parsed.message) {
-        cleanMessage = parsed.message;
-      }
-      // Extract other fields as metadata
-      const { level: _levelField, message: _messageField, ...rest } = parsed;
-      if (Object.keys(rest).length > 0) {
-        metadata = rest;
-      }
-      return { timestamp, level, message: cleanMessage, metadata };
-    } catch {
-      // Not valid JSON, continue with text parsing
-    }
-  }
-
-  // Check for [LEVEL] prefix (e.g., [ERROR], [INFO])
-  const bracketMatch = cleanMessage.match(/^\[(\w+)\]\s*(.*)$/);
-  if (bracketMatch) {
-    level = normalizeLogLevel(bracketMatch[1]);
-    cleanMessage = bracketMatch[2];
-    return { timestamp, level, message: cleanMessage };
-  }
-
-  // Check for LEVEL: prefix (e.g., ERROR:, INFO:)
-  const colonMatch = cleanMessage.match(/^(\w+):\s*(.*)$/);
-  if (colonMatch && colonMatch[1].length <= 8) {
-    level = normalizeLogLevel(colonMatch[1]);
-    cleanMessage = colonMatch[2];
-    return { timestamp, level, message: cleanMessage };
-  }
-
-  // Check for common error patterns
-  if (
-    cleanMessage.toLowerCase().includes("error") ||
-    cleanMessage.toLowerCase().includes("exception") ||
-    cleanMessage.toLowerCase().includes("failed")
-  ) {
-    level = "error";
-  } else if (
-    cleanMessage.toLowerCase().includes("warn") ||
-    cleanMessage.toLowerCase().includes("warning")
-  ) {
-    level = "warn";
-  } else if (
-    cleanMessage.toLowerCase().includes("debug") ||
-    cleanMessage.toLowerCase().includes("trace")
-  ) {
-    level = "debug";
-  }
-
-  return { timestamp, level, message: cleanMessage };
+function parseLogEntry(log: LogEntry): ParsedLogEntry {
+  return {
+    timestamp: log.timestamp.toISOString(),
+    level: normalizeLogLevel(log.level),
+    message: log.message,
+    metadata: log.metadata,
+  };
 }
 
 /**
- * Normalize various log level strings to our standard levels
+ * Normalize log level to our standard levels
  */
-function normalizeLogLevel(levelStr: string): LogLevel {
-  const normalized = levelStr.toLowerCase();
+function normalizeLogLevel(level: string): LogLevel {
+  const normalized = level.toLowerCase();
   if (normalized.includes("err") || normalized.includes("fatal")) {
     return "error";
   }
@@ -244,106 +182,4 @@ function normalizeLogLevel(levelStr: string): LogLevel {
     return "debug";
   }
   return "info";
-}
-
-/**
- * Get logs from CloudWatch for a container
- */
-async function getCloudWatchLogs(
-  containerName: string,
-  options: {
-    limit?: number;
-    since?: Date;
-  },
-  levelFilter: string = "all",
-): Promise<ParsedLogEntry[]> {
-  const region = process.env.AWS_REGION || "us-east-1";
-  const accessKeyId = process.env.AWS_ACCESS_KEY_ID;
-  const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
-
-  if (!region || !accessKeyId || !secretAccessKey) {
-    throw new Error("AWS credentials not configured");
-  }
-
-  const client = new CloudWatchLogsClient({
-    region,
-    credentials: {
-      accessKeyId,
-      secretAccessKey,
-    },
-  });
-
-  const logGroupName = `/ecs/elizaos-user-${containerName}`;
-
-  try {
-    const { DescribeLogStreamsCommand } =
-      await import("@aws-sdk/client-cloudwatch-logs");
-
-    const streamsResponse = await client.send(
-      new DescribeLogStreamsCommand({
-        logGroupName,
-        orderBy: "LastEventTime",
-        descending: true,
-        limit: 5,
-      }),
-    );
-
-    const logStreams = streamsResponse.logStreams || [];
-
-    if (logStreams.length === 0) {
-      return [];
-    }
-
-    const allLogs: Array<{ timestamp: string; message: string }> = [];
-
-    for (const stream of logStreams) {
-      if (!stream.logStreamName) continue;
-
-      try {
-        const command = new GetLogEventsCommand({
-          logGroupName,
-          logStreamName: stream.logStreamName,
-          limit: Math.ceil((options.limit || 50) / logStreams.length),
-          startTime: options.since?.getTime(),
-          startFromHead: false,
-        });
-
-        const response = await client.send(command);
-        const events = response.events || [];
-
-        allLogs.push(
-          ...events.map((event: OutputLogEvent) => ({
-            timestamp: new Date(event.timestamp || 0).toISOString(),
-            message: event.message || "",
-          })),
-        );
-      } catch (streamError) {
-        logger.warn("Failed to fetch logs from stream", {
-          streamName: stream.logStreamName,
-          error: streamError,
-        });
-      }
-    }
-
-    // Parse logs and filter by level
-    const parsedLogs = allLogs
-      .map((log) => parseLogMessage(log))
-      .filter((log) => levelFilter === "all" || log.level === levelFilter);
-
-    // Sort by timestamp descending
-    return parsedLogs
-      .sort(
-        (a, b) =>
-          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
-      )
-      .slice(0, options.limit || 50);
-  } catch (error) {
-    logger.error("Error fetching CloudWatch logs:", error);
-    if (error instanceof Error && error.name === "ResourceNotFoundException") {
-      logger.debug("Log group not found - container may not be deployed yet", {
-        logGroupName,
-      });
-    }
-    return [];
-  }
 }

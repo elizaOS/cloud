@@ -17,7 +17,7 @@
  */
 
 import { useEffect, useState, useCallback, useRef } from "react";
-import { usePrivy } from "@privy-io/react-auth";
+import { usePrivy } from "@/lib/providers/PrivyProvider";
 
 /**
  * Return value from useCreditsStream hook.

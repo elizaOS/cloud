@@ -1,0 +1,167 @@
+# E2E Tests Workflow for Eliza Cloud
+# Runs OAuth3 integration tests and optionally MetaMask/Synpress tests
+
+name: E2E Tests
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'vendor/eliza-cloud-v2/**'
+      - '.github/workflows/e2e-tests.yml'
+  pull_request:
+    branches: [main, master]
+    paths:
+      - 'vendor/eliza-cloud-v2/**'
+  workflow_dispatch:
+    inputs:
+      run_synpress:
+        description: 'Run Synpress/MetaMask tests'
+        required: false
+        default: 'true'
+        type: boolean
+
+env:
+  WORKING_DIR: vendor/eliza-cloud-v2
+
+jobs:
+  oauth3-tests:
+    name: OAuth3 Integration Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+          
+      - name: Install dependencies
+        run: bun install
+        
+      - name: Install Playwright browsers
+        working-directory: ${{ env.WORKING_DIR }}
+        run: bunx playwright install chromium
+        
+      - name: Start test services
+        run: |
+          # Start OAuth3 service
+          cd apps/oauth3 && bun run dev &
+          
+          # Start Eliza Cloud
+          cd ${{ env.WORKING_DIR }} && bun run dev &
+          
+          # Wait for services
+          sleep 30
+          
+          # Health check
+          curl -f http://localhost:4200/health || exit 1
+          curl -f http://localhost:3000 || exit 1
+          
+      - name: Run OAuth3 integration tests
+        working-directory: ${{ env.WORKING_DIR }}
+        run: bunx playwright test tests/playwright/oauth3-integration.spec.ts tests/playwright/oauth3-full-flow.spec.ts --reporter=html
+        
+      - name: Upload test report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: oauth3-test-report
+          path: ${{ env.WORKING_DIR }}/playwright-report/
+          retention-days: 7
+
+  synpress-tests:
+    name: MetaMask/Synpress E2E Tests
+    runs-on: ubuntu-latest
+    needs: oauth3-tests
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_synpress || github.event_name != 'workflow_dispatch' }}
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+          
+      - name: Install dependencies
+        run: bun install
+        
+      - name: Install Playwright browsers with dependencies
+        working-directory: ${{ env.WORKING_DIR }}
+        run: bunx playwright install --with-deps chromium
+        
+      - name: Build Synpress cache
+        working-directory: ${{ env.WORKING_DIR }}
+        run: |
+          # xvfb is pre-installed on GitHub Actions runners
+          xvfb-run --auto-servernum bunx synpress tests/wallet-setup --force
+          
+      - name: Cache Synpress wallet
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.WORKING_DIR }}/.cache-synpress
+          key: synpress-cache-${{ hashFiles('**/wallet-setup/*.ts') }}
+          restore-keys: |
+            synpress-cache-
+            
+      - name: Start test services
+        run: |
+          # Start Anvil (local blockchain)
+          anvil --fork-block-number 1 &
+          
+          # Start OAuth3 service
+          cd apps/oauth3 && bun run dev &
+          
+          # Start Eliza Cloud
+          cd ${{ env.WORKING_DIR }} && bun run dev &
+          
+          # Wait for services
+          sleep 30
+          
+      - name: Run Synpress tests
+        working-directory: ${{ env.WORKING_DIR }}
+        run: |
+          xvfb-run --auto-servernum bunx playwright test tests/wallet/ --reporter=html
+          
+      - name: Upload test report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: synpress-test-report
+          path: ${{ env.WORKING_DIR }}/playwright-report/
+          retention-days: 7
+
+  build-synpress-cache:
+    name: Build Synpress Cache (Manual)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+          
+      - name: Install dependencies
+        run: bun install
+        
+      - name: Install Playwright with deps
+        working-directory: ${{ env.WORKING_DIR }}
+        run: bunx playwright install --with-deps chromium
+        
+      - name: Build Synpress MetaMask cache
+        working-directory: ${{ env.WORKING_DIR }}
+        run: |
+          xvfb-run --auto-servernum --server-args='-screen 0 1920x1080x24' \
+            bunx synpress tests/wallet-setup --force
+            
+      - name: Upload Synpress cache
+        uses: actions/upload-artifact@v4
+        with:
+          name: synpress-cache
+          path: ${{ env.WORKING_DIR }}/.cache-synpress/
+          retention-days: 30
+
+
+

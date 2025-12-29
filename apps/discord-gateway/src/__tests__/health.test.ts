@@ -1,4 +1,7 @@
 import { describe, expect, it } from "bun:test";
+import { join } from "path";
+
+const packageJsonPath = join(import.meta.dir, "../../package.json");
 
 describe("Discord Gateway Health", () => {
   it("should build successfully", () => {
@@ -7,7 +10,7 @@ describe("Discord Gateway Health", () => {
   });
 
   it("should have valid package.json", async () => {
-    const pkg = await Bun.file("./package.json").json();
+    const pkg = await Bun.file(packageJsonPath).json();
     expect(pkg.name).toBe("@elizaos/discord-gateway");
     expect(pkg.scripts.dev).toBeDefined();
     expect(pkg.scripts.build).toBeDefined();
@@ -15,10 +18,10 @@ describe("Discord Gateway Health", () => {
   });
 
   it("should have required dependencies", async () => {
-    const pkg = await Bun.file("./package.json").json();
+    const pkg = await Bun.file(packageJsonPath).json();
     expect(pkg.dependencies["discord.js"]).toBeDefined();
     expect(pkg.dependencies["hono"]).toBeDefined();
     expect(pkg.dependencies["@hono/node-server"]).toBeDefined();
-    expect(pkg.dependencies["@upstash/redis"]).toBeDefined();
+    // Note: @upstash/redis replaced with DWS cache (dws-cache.ts)
   });
 });

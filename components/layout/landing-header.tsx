@@ -9,7 +9,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { LockOnButton } from "@/components/brand";
-import { usePrivy } from "@privy-io/react-auth";
+import { usePrivy } from "@/lib/providers/PrivyProvider";
 import { useRouter } from "next/navigation";
 import UserMenu from "@/components/layout/user-menu";
 import { motion } from "framer-motion";

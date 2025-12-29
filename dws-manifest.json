@@ -1,0 +1,178 @@
+{
+  "name": "eliza-cloud",
+  "displayName": "Eliza Cloud",
+  "version": "2.0.0",
+  "type": "service",
+  "description": "AI agent development platform - fully decentralized on DWS",
+  "commands": {
+    "dev": "bun run dev",
+    "build": "bun run build:dws",
+    "start": "bun run start",
+    "test": "bun test"
+  },
+  "ports": {
+    "http": 3000
+  },
+  "dependencies": [],
+  "dws": {
+    "backend": {
+      "enabled": true,
+      "runtime": "workerd",
+      "entrypoint": ".open-next/worker.mjs",
+      "memory": 1024,
+      "timeout": 60000,
+      "minInstances": 1,
+      "maxInstances": 10,
+      "teeRequired": false,
+      "regions": ["na-east", "eu-west", "apac"]
+    },
+    "database": {
+      "type": "postgres",
+      "name": "eliza-platform",
+      "version": "15",
+      "resources": {
+        "cpuCores": 2,
+        "memoryMb": 4096,
+        "storageMb": 102400
+      }
+    },
+    "services": [
+      {
+        "type": "redis",
+        "name": "eliza-cache",
+        "version": "7",
+        "port": 6379,
+        "resources": {
+          "memoryMb": 1024
+        }
+      },
+      {
+        "type": "minio",
+        "name": "eliza-storage",
+        "port": 9000,
+        "resources": {
+          "storageMb": 1048576
+        }
+      }
+    ],
+    "tee": {
+      "enabled": false,
+      "required": false,
+      "platforms": ["dstack", "simulator"]
+    },
+    "scaling": {
+      "minInstances": 1,
+      "maxInstances": 10,
+      "scaleToZero": false
+    }
+  },
+  "cron": [
+    {
+      "name": "auto-top-up",
+      "schedule": "*/15 * * * *",
+      "endpoint": "/api/cron/auto-top-up",
+      "timeout": 60000
+    },
+    {
+      "name": "deployment-monitor",
+      "schedule": "* * * * *",
+      "endpoint": "/api/v1/cron/deployment-monitor",
+      "timeout": 60000
+    },
+    {
+      "name": "health-check",
+      "schedule": "* * * * *",
+      "endpoint": "/api/v1/cron/health-check",
+      "timeout": 60000
+    },
+    {
+      "name": "sample-eliza-price",
+      "schedule": "*/5 * * * *",
+      "endpoint": "/api/cron/sample-eliza-price",
+      "timeout": 30000
+    },
+    {
+      "name": "process-redemptions",
+      "schedule": "*/5 * * * *",
+      "endpoint": "/api/cron/process-redemptions",
+      "timeout": 60000
+    },
+    {
+      "name": "agent-budgets",
+      "schedule": "*/15 * * * *",
+      "endpoint": "/api/cron/agent-budgets",
+      "timeout": 60000
+    },
+    {
+      "name": "release-pending-earnings",
+      "schedule": "0 0 * * *",
+      "endpoint": "/api/cron/release-pending-earnings",
+      "timeout": 120000
+    },
+    {
+      "name": "cleanup-anonymous-sessions",
+      "schedule": "0 */6 * * *",
+      "endpoint": "/api/cron/cleanup-anonymous-sessions",
+      "timeout": 60000
+    },
+    {
+      "name": "n8n-workflow-triggers",
+      "schedule": "* * * * *",
+      "endpoint": "/api/cron/n8n-workflow-triggers",
+      "timeout": 60000
+    },
+    {
+      "name": "domain-health",
+      "schedule": "0 */6 * * *",
+      "endpoint": "/api/cron/domain-health",
+      "timeout": 120000
+    },
+    {
+      "name": "content-scan",
+      "schedule": "0 4 * * *",
+      "endpoint": "/api/cron/content-scan",
+      "timeout": 300000
+    },
+    {
+      "name": "agent-moderation",
+      "schedule": "0 2 * * 0",
+      "endpoint": "/api/cron/agent-moderation",
+      "timeout": 300000
+    },
+    {
+      "name": "cleanup-code-sessions",
+      "schedule": "*/15 * * * *",
+      "endpoint": "/api/cron/cleanup-code-sessions",
+      "timeout": 60000
+    },
+    {
+      "name": "webhook-triggers",
+      "schedule": "* * * * *",
+      "endpoint": "/api/cron/webhook-triggers",
+      "timeout": 60000
+    },
+    {
+      "name": "cleanup-expired-crypto-payments",
+      "schedule": "*/10 * * * *",
+      "endpoint": "/api/cron/cleanup-expired-crypto-payments",
+      "timeout": 60000
+    },
+    {
+      "name": "cleanup-webhook-events",
+      "schedule": "0 2 * * *",
+      "endpoint": "/api/cron/cleanup-webhook-events",
+      "timeout": 60000
+    }
+  ],
+  "decentralization": {
+    "database": {
+      "type": "eqlite-sync"
+    },
+    "cdn": {
+      "enabled": true,
+      "regions": ["na-east", "na-west", "eu-west", "eu-central", "apac"]
+    }
+  }
+}
+
+

@@ -1,4 +1,4 @@
-import { Redis } from "@upstash/redis";
+import { DWSCache } from "@/lib/services/dws/cache";
 import { logger } from "@/lib/utils/logger";
 import type { BotConnectionState, PodHeartbeatState } from "./types";
 
@@ -8,30 +8,35 @@ const HEARTBEAT_INTERVAL_MS = 30000;
 
 export class DiscordStateManager {
   private static instance: DiscordStateManager;
-  private redis: Redis | null = null;
+  private dwsCache: DWSCache | null = null;
   private heartbeatInterval: NodeJS.Timeout | null = null;
   private podId: string;
 
   private constructor() {
     this.podId =
       process.env.POD_NAME ?? process.env.HOSTNAME ?? `pod-${Date.now()}`;
-    this.initializeRedis();
+    this.initializeCache();
   }
 
-  private initializeRedis(): void {
-    const redisUrl = process.env.REDIS_URL || process.env.KV_URL;
-    const restUrl = process.env.KV_REST_API_URL;
-    const restToken = process.env.KV_REST_API_TOKEN;
-
-    if (redisUrl) {
-      this.redis = Redis.fromEnv();
-    } else if (restUrl && restToken) {
-      this.redis = new Redis({ url: restUrl, token: restToken });
+  private initializeCache(): void {
+    if (process.env.CACHE_ENABLED === "false") {
+      this.dwsCache = null;
+      logger.info("[Discord State Manager] Initialized (cache disabled)");
+      return;
     }
 
-    logger.info("[Discord State Manager] Initialized", {
-      enabled: !!this.redis,
-    });
+    try {
+      this.dwsCache = new DWSCache({
+        namespace: "discord",
+        defaultTTL: STATE_TTL,
+      });
+      logger.info("[Discord State Manager] Initialized", {
+        enabled: true,
+      });
+    } catch {
+      this.dwsCache = null;
+      logger.info("[Discord State Manager] Initialized (cache unavailable)");
+    }
   }
 
   static getInstance(): DiscordStateManager {
@@ -46,19 +51,19 @@ export class DiscordStateManager {
   }
 
   private get isEnabled(): boolean {
-    return !!this.redis;
+    return !!this.dwsCache;
   }
 
   async saveConnectionState(state: BotConnectionState): Promise<void> {
-    if (!this.redis) {
+    if (!this.dwsCache) {
       logger.warn(
-        "[Discord State Manager] Cannot save state - Redis unavailable",
+        "[Discord State Manager] Cannot save state - cache unavailable",
         { connectionId: state.connectionId },
       );
       return;
     }
-    await this.redis.setex(
-      `discord:state:${state.connectionId}`,
+    await this.dwsCache.setex(
+      `state:${state.connectionId}`,
       STATE_TTL,
       JSON.stringify(state),
     );
@@ -70,26 +75,26 @@ export class DiscordStateManager {
   async getConnectionState(
     connectionId: string,
   ): Promise<BotConnectionState | null> {
-    if (!this.redis) {
+    if (!this.dwsCache) {
       logger.debug(
-        "[Discord State Manager] Cannot get state - Redis unavailable",
+        "[Discord State Manager] Cannot get state - cache unavailable",
         { connectionId },
       );
       return null;
     }
-    const data = await this.redis.get<string>(`discord:state:${connectionId}`);
+    const data = await this.dwsCache.get<string>(`state:${connectionId}`);
     return data ? this.parseJson<BotConnectionState>(data) : null;
   }
 
   async clearConnectionState(connectionId: string): Promise<void> {
-    if (!this.redis) {
+    if (!this.dwsCache) {
       logger.debug(
-        "[Discord State Manager] Cannot clear state - Redis unavailable",
+        "[Discord State Manager] Cannot clear state - cache unavailable",
         { connectionId },
       );
       return;
     }
-    await this.redis.del(`discord:state:${connectionId}`);
+    await this.dwsCache.del(`state:${connectionId}`);
   }
 
   async updateSequence(connectionId: string, sequence: number): Promise<void> {
@@ -174,10 +179,10 @@ export class DiscordStateManager {
   }
 
   private async sendPodHeartbeat(): Promise<void> {
-    if (!this.redis) return;
+    if (!this.dwsCache) return;
 
     const connections = await this.getPodConnections();
-    const existing = await this.redis.get<string>(`discord:pod:${this.podId}`);
+    const existing = await this.dwsCache.get<string>(`pod:${this.podId}`);
     const startedAt = existing
       ? this.parseJson<PodHeartbeatState>(existing).startedAt
       : Date.now();
@@ -189,31 +194,31 @@ export class DiscordStateManager {
       startedAt,
     };
 
-    await this.redis.setex(
-      `discord:pod:${this.podId}`,
+    await this.dwsCache.setex(
+      `pod:${this.podId}`,
       HEARTBEAT_TTL,
       JSON.stringify(state),
     );
-    await this.redis.sadd("discord:active_pods", this.podId);
-    await this.redis.expire("discord:active_pods", HEARTBEAT_TTL);
+    await this.dwsCache.sadd("active_pods", this.podId);
+    await this.dwsCache.expire("active_pods", HEARTBEAT_TTL);
   }
 
   private async getPodConnections(): Promise<string[]> {
-    if (!this.redis) return [];
+    if (!this.dwsCache) return [];
 
     const connections: string[] = [];
     let cursor = 0;
 
     do {
-      const [newCursor, keys] = await this.redis.scan(cursor, {
-        match: "discord:state:*",
+      const [newCursor, keys] = await this.dwsCache.scan(cursor, {
+        match: "state:*",
         count: 100,
       });
       cursor =
-        typeof newCursor === "string" ? parseInt(newCursor, 10) : newCursor;
+        typeof newCursor === "string" ? parseInt(newCursor, 10) : parseInt(newCursor, 10);
 
       for (const key of keys) {
-        const data = await this.redis.get<string>(key);
+        const data = await this.dwsCache.get<string>(key);
         if (data) {
           const state = this.parseJson<BotConnectionState>(data);
           if (state.podId === this.podId) connections.push(state.connectionId);
@@ -225,13 +230,13 @@ export class DiscordStateManager {
   }
 
   async getActivePods(): Promise<string[]> {
-    if (!this.redis) return [];
-    return (await this.redis.smembers("discord:active_pods")) ?? [];
+    if (!this.dwsCache) return [];
+    return (await this.dwsCache.smembers("active_pods")) ?? [];
   }
 
   async getPodStatus(podId: string): Promise<PodHeartbeatState | null> {
-    if (!this.redis) return null;
-    const data = await this.redis.get<string>(`discord:pod:${podId}`);
+    if (!this.dwsCache) return null;
+    const data = await this.dwsCache.get<string>(`pod:${podId}`);
     return data ? this.parseJson<PodHeartbeatState>(data) : null;
   }
 
@@ -251,21 +256,21 @@ export class DiscordStateManager {
   }
 
   async claimOrphanedConnections(deadPodId: string): Promise<string[]> {
-    if (!this.redis) return [];
+    if (!this.dwsCache) return [];
 
     const claimed: string[] = [];
     let cursor = 0;
 
     do {
-      const [newCursor, keys] = await this.redis.scan(cursor, {
-        match: "discord:state:*",
+      const [newCursor, keys] = await this.dwsCache.scan(cursor, {
+        match: "state:*",
         count: 100,
       });
       cursor =
-        typeof newCursor === "string" ? parseInt(newCursor, 10) : newCursor;
+        typeof newCursor === "string" ? parseInt(newCursor, 10) : parseInt(newCursor, 10);
 
       for (const key of keys) {
-        const data = await this.redis.get<string>(key);
+        const data = await this.dwsCache.get<string>(key);
         if (data) {
           const state = this.parseJson<BotConnectionState>(data);
           if (state.podId === deadPodId) {
@@ -281,8 +286,8 @@ export class DiscordStateManager {
       }
     } while (cursor !== 0);
 
-    await this.redis.srem("discord:active_pods", deadPodId);
-    await this.redis.del(`discord:pod:${deadPodId}`);
+    await this.dwsCache.srem("active_pods", deadPodId);
+    await this.dwsCache.del(`pod:${deadPodId}`);
     return claimed;
   }
 
@@ -292,9 +297,9 @@ export class DiscordStateManager {
     limit: number,
     windowMs: number,
   ): Promise<{ allowed: boolean; remaining: number; resetAt: number }> {
-    if (!this.redis) {
+    if (!this.dwsCache) {
       logger.warn(
-        "[Discord State Manager] Rate limiting bypassed - Redis unavailable",
+        "[Discord State Manager] Rate limiting bypassed - cache unavailable",
         {
           connectionId,
           route,
@@ -308,9 +313,9 @@ export class DiscordStateManager {
       };
     }
 
-    const key = `discord:ratelimit:${connectionId}:${route}`;
+    const key = `ratelimit:${connectionId}:${route}`;
     const now = Date.now();
-    const data = await this.redis.get<string>(key);
+    const data = await this.dwsCache.get<string>(key);
 
     let count = 0;
     let windowStart = now;
@@ -328,7 +333,7 @@ export class DiscordStateManager {
     const allowed = count < limit;
     const newCount = allowed ? count + 1 : count;
 
-    await this.redis.setex(
+    await this.dwsCache.setex(
       key,
       Math.ceil(windowMs / 1000),
       JSON.stringify({ count: newCount, windowStart }),
@@ -345,7 +350,7 @@ export class DiscordStateManager {
     return this.podId;
   }
 
-  isRedisEnabled(): boolean {
+  isCacheEnabled(): boolean {
     return this.isEnabled;
   }
 }

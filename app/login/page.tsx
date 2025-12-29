@@ -5,7 +5,7 @@ import {
   usePrivy,
   useLoginWithEmail,
   useLoginWithOAuth,
-} from "@privy-io/react-auth";
+} from "@/lib/providers/PrivyProvider";
 import { useRouter, useSearchParams } from "next/navigation";
 import { BrandButton, BrandCard, CornerBrackets } from "@/components/brand";
 import { Input } from "@/components/ui/input";
@@ -168,21 +168,28 @@ function LoginPageContent() {
     lastLoginAttemptRef.current = now;
     setLoadingButton("wallet");
 
-    // Use login() instead of connectWallet() for authentication
-    // This opens the Privy modal (non-blocking, returns immediately)
-    // Authentication state changes are handled via the authenticated state in useEffect
-    login();
+    try {
+      // Use login("wallet") for direct wallet authentication
+      // This initiates OAuth3 wallet login flow directly
+      await login("wallet");
+    } catch (error) {
+      console.error("[Login] Wallet connect failed:", error);
+      toast.error("Failed to connect wallet. Please try again.");
+      loginInProgressRef.current = false;
+      setLoadingButton(null);
+      return;
+    }
 
-    // Reset the guard after a short delay to allow modal to open
+    // Reset the guard after a short delay
     // If authentication succeeds, the useEffect will handle redirect
-    // If user closes modal, this timeout resets the guard for retry
+    // If user closes wallet modal, this timeout resets the guard for retry
     setTimeout(() => {
       // Only reset if still in progress (not authenticated yet)
       if (loginInProgressRef.current) {
         loginInProgressRef.current = false;
         setLoadingButton(null);
       }
-    }, 2000); // 2 second timeout
+    }, 30000); // 30 second timeout for wallet signing
   };
 
   const handleBackToEmail = () => {

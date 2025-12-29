@@ -40,23 +40,26 @@ export async function waitForPageLoad(page: Page): Promise<void> {
 }
 
 /**
- * Wait for Privy to be ready
- * Privy shows a loading state until it's initialized
+ * Wait for OAuth3 to be ready
+ * The auth system shows a loading state until initialized
  */
-export async function waitForPrivyReady(page: Page): Promise<void> {
+export async function waitForAuthReady(page: Page): Promise<void> {
   // Wait for any loading spinners to disappear
-  const loadingSpinner = page.locator('[data-testid="loading-spinner"]');
+  const loadingSpinner = page.locator('[data-testid="loading-spinner"], .animate-spin');
   if (await loadingSpinner.isVisible({ timeout: 1000 }).catch(() => false)) {
     await loadingSpinner.waitFor({ state: "hidden", timeout: 10000 });
   }
 
-  // Alternative: wait for the login form to be visible (short timeout - may not exist in CI)
+  // Wait for the login form to be visible (short timeout - may not exist in CI)
   await page
-    .waitForSelector('[data-testid="login-form"]', { timeout: 5000 })
+    .waitForSelector('[data-testid="login-form"], form, .login-card', { timeout: 5000 })
     .catch(() => {
-      // If login form not found, Privy may not be configured
+      // If login form not found, auth may not be configured
     });
 }
+
+// Alias for backward compatibility
+export const waitForPrivyReady = waitForAuthReady;
 
 /**
  * Check if user is on the dashboard
@@ -75,7 +78,7 @@ export async function goToLogin(page: Page): Promise<boolean> {
     return false;
   }
   await waitForPageLoad(page);
-  await waitForPrivyReady(page);
+  await waitForAuthReady(page);
   return true;
 }
 
@@ -97,14 +100,18 @@ export async function goToDashboard(page: Page): Promise<boolean> {
  */
 export async function getAuthState(page: Page): Promise<{
   isAuthenticated: boolean;
-  hasPrivyToken: boolean;
+  hasOAuth3Token: boolean;
+  hasPrivyToken: boolean; // Alias for backward compatibility
 }> {
   const cookies = await page.context().cookies();
-  const privyToken = cookies.find((c) => c.name === "privy-token");
+  const oauth3Token = cookies.find(
+    (c) => c.name === "oauth3-token" || c.name === "oauth3-id-token" || c.name === "jeju_session"
+  );
 
   return {
-    isAuthenticated: !!privyToken,
-    hasPrivyToken: !!privyToken,
+    isAuthenticated: !!oauth3Token,
+    hasOAuth3Token: !!oauth3Token,
+    hasPrivyToken: !!oauth3Token, // Alias for backward compatibility
   };
 }
 
@@ -137,7 +144,7 @@ export const LoginSelectors = {
   // Main containers
   loginPage: "body",
   loginForm: "form",
-  loginCard: "form",
+  loginCard: "form, .login-card, [data-testid='login-card']",
   loadingSpinner: ".animate-spin",
 
   // Email login
@@ -156,14 +163,18 @@ export const LoginSelectors = {
   // Wallet connect
   walletButton: 'button:has-text("Connect Wallet")',
 
-  // Privy modal (when using login() method)
+  // OAuth3 elements (on OAuth3 challenge pages)
+  oauth3WalletConnect: 'button#connectBtn, button:has-text("Connect Wallet")',
+  oauth3StatusMessage: '#status, .status',
+
+  // Legacy Privy selectors (kept for backward compatibility)
   privyModal: '[class*="privy"], [id*="privy"], iframe[src*="privy"]',
   privyWalletOption: '[class*="privy"] button:has-text("Wallet")',
   privyMetamaskOption: '[class*="privy"] button:has-text("MetaMask")',
 
   // Success/redirect states
   signingInMessage: "text=Signing you in",
-  redirectingMessage: "text=Taking you to your dashboard",
+  redirectingMessage: "text=Taking you to your dashboard, text=Success. Redirecting",
 } as const;
 
 /**

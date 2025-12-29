@@ -12,7 +12,7 @@
 
 import { memo, useCallback, useState } from "react";
 import { Menu, LogIn, Plus } from "lucide-react";
-import { usePrivy } from "@privy-io/react-auth";
+import { usePrivy } from "@/lib/providers/PrivyProvider";
 import { BrandButton } from "@/components/brand";
 import UserMenu from "./user-menu";
 import { usePageHeader } from "./page-header-context";

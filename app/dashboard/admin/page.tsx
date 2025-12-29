@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { usePrivy, useWallets } from "@privy-io/react-auth";
+import { usePrivy, useWallets } from "@/lib/providers/PrivyProvider";
 import { useRouter } from "next/navigation";
 import {
   Shield,

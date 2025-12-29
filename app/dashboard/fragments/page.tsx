@@ -7,7 +7,7 @@ import { ChatSettings } from "@/components/fragments/chat-settings";
 import { Preview } from "@/components/fragments/preview";
 import { AIAppBuilderDialog } from "@/components/apps/ai-app-builder-dialog";
 import { ServiceBuilder } from "@/components/builders/service-builder";
-import { usePrivy } from "@privy-io/react-auth";
+import { usePrivy } from "@/lib/providers/PrivyProvider";
 import { BrandCard, CornerBrackets, BrandButton } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import {

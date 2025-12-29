@@ -61,7 +61,7 @@ export function criticalPath() {
   sleep(2);
 }
 
-export default function () {
+export default function main() {
   mainLoad();
 }
 

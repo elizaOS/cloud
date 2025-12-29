@@ -20,26 +20,29 @@ const APP_URL = process.env.APP_URL ?? "http://localhost:3001";
 
 // Check if services are running - skip tests if not available
 let appAvailable = false;
+let cloudAvailable = false;
 
-test.beforeAll(async ({ request }) => {
-  const cloudResponse = await request.get(CLOUD_URL).catch(() => null);
-  if (!cloudResponse?.ok()) {
-    throw new Error(
-      `Cloud not available at ${CLOUD_URL}. Start with: bun run dev`,
-    );
-  }
+test.describe("App E2E Tests", () => {
+  test.beforeAll(async () => {
+    const cloudResponse = await fetch(CLOUD_URL).then(r => ({ ok: () => r.ok })).catch(() => null);
+    cloudAvailable = cloudResponse?.ok() ?? false;
+    if (!cloudAvailable) {
+      console.log(
+        `⚠️ Cloud not available at ${CLOUD_URL}. Start with: bun run dev`,
+      );
+    }
 
-  const appResponse = await request.get(APP_URL).catch(() => null);
-  appAvailable = appResponse?.ok() ?? false;
+    const appResponse = await fetch(APP_URL).then(r => ({ ok: () => r.ok })).catch(() => null);
+    appAvailable = appResponse?.ok() ?? false;
 
-  if (!appAvailable) {
-    console.log(
-      `⚠️ App not available at ${APP_URL}. Skipping app tests. Start with: cd app && bun run dev`,
-    );
-  }
-});
+    if (!appAvailable) {
+      console.log(
+        `⚠️ App not available at ${APP_URL}. Skipping app tests. Start with: cd app && bun run dev`,
+      );
+    }
+  });
 
-test.describe("App Pages", () => {
+  test.describe("App Pages", () => {
   test("home page renders with hero section", async ({ page }) => {
     if (!appAvailable) {
       test.skip();
@@ -439,4 +442,5 @@ test.describe("Anonymous Message Limits", () => {
       // Session ID indicates anonymous creation with limits
     }
   });
+});
 });

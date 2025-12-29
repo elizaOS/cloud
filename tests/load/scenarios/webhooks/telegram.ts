@@ -102,6 +102,6 @@ export function telegramWebhookCycle() {
   ops[__ITER % ops.length]();
 }
 
-export default function () {
+export default function main() {
   telegramWebhookCycle();
 }

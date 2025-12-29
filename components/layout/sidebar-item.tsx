@@ -10,7 +10,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { usePrivy } from "@privy-io/react-auth";
+import { usePrivy } from "@/lib/providers/PrivyProvider";
 import { Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { SidebarItem } from "./sidebar-data";

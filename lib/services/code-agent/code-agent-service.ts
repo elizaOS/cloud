@@ -1,6 +1,6 @@
 /**
- * Code Agent Service - Persistent sandbox sessions via Vercel Sandbox.
- * Requires: VERCEL_TOKEN/TEAM_ID/PROJECT_ID or VERCEL_OIDC_TOKEN, BLOB_READ_WRITE_TOKEN.
+ * Code Agent Service - Persistent sandbox sessions via DWS Workerd.
+ * Decentralized code execution with snapshot/restore support.
  * Note: instances Map is in-memory; use getSession() + connect() after cold starts.
  */
 import { db } from "@/db";
@@ -26,8 +26,8 @@ import { CacheKeys, CacheTTL } from "@/lib/cache/keys";
 import { CacheInvalidation } from "@/lib/cache/invalidation";
 import { logger } from "@/lib/utils/logger";
 import { extractErrorMessage } from "@/lib/utils/error-handling";
-import { put, del } from "@vercel/blob";
-import { vercelSandboxRuntime } from "./runtimes/vercel-sandbox";
+import { put, del } from "@/lib/services/dws/storage";
+import { dwsSandboxRuntime as vercelSandboxRuntime } from "@/lib/services/dws/sandbox";
 import { dispatchWebhook, generateWebhookSecret } from "./webhooks";
 import type {
   CreateSessionParams,

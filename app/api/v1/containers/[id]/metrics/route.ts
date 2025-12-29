@@ -1,16 +1,13 @@
 /**
  * Container Metrics API
- * Fetches CloudWatch metrics for ECS containers
+ * Fetches metrics for DWS containers using DWS observability service
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/utils/logger";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { getContainer } from "@/lib/services/containers";
-import {
-  CloudWatchClient,
-  GetMetricStatisticsCommand,
-} from "@aws-sdk/client-cloudwatch";
+import { DWSObservability } from "@/lib/services/dws/observability";
 
 export const dynamic = "force-dynamic";
 
@@ -26,11 +23,7 @@ interface ContainerMetrics {
 
 /**
  * GET /api/v1/containers/[id]/metrics
- * Retrieves CloudWatch metrics for a container including CPU, memory, network, and task counts.
- *
- * @param request - Request with optional period query parameter (minutes, default: 60).
- * @param params - Route parameters containing the container ID.
- * @returns Container metrics with utilization data.
+ * Retrieves metrics for a container using DWS observability service.
  */
 export async function GET(
   request: NextRequest,
@@ -54,11 +47,12 @@ export async function GET(
     }
 
     // Check if container has been deployed
-    if (!container.ecs_service_arn || !container.ecs_cluster_arn) {
+    const containerId = container.dws_container_id || container.id;
+    if (!container.dws_container_id && !container.ecs_service_arn) {
       return NextResponse.json(
         {
           success: false,
-          error: "Container has not been deployed to ECS yet",
+          error: "Container has not been deployed yet",
         },
         { status: 400 },
       );
@@ -68,16 +62,10 @@ export async function GET(
     const searchParams = request.nextUrl.searchParams;
     const periodMinutes = parseInt(searchParams.get("period") || "60");
 
-    // Fetch metrics from CloudWatch
+    // Fetch metrics using DWS observability
     const metrics = await getContainerMetrics(
-      {
-        id: container.id,
-        name: container.name,
-        user_id: container.user_id,
-        ecs_cluster_arn: container.ecs_cluster_arn,
-        ecs_service_arn: container.ecs_service_arn,
-        desired_count: container.desired_count || 1,
-      },
+      containerId,
+      container.desired_count || 1,
       periodMinutes,
     );
 
@@ -109,157 +97,66 @@ export async function GET(
 }
 
 /**
- * Get CloudWatch metrics for a container
+ * Get metrics for a container using DWS observability
  */
 async function getContainerMetrics(
-  container: {
-    id: string;
-    name: string;
-    user_id: string;
-    ecs_cluster_arn: string;
-    ecs_service_arn: string;
-    desired_count: number;
-  },
+  containerId: string,
+  desiredCount: number,
   periodMinutes: number,
 ): Promise<ContainerMetrics> {
-  const region = process.env.AWS_REGION || "us-east-1";
-  const accessKeyId = process.env.AWS_ACCESS_KEY_ID;
-  const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
+  const observability = new DWSObservability();
 
-  if (!accessKeyId || !secretAccessKey) {
-    throw new Error("AWS credentials not configured");
+  // Get current container metrics
+  const currentMetrics = await observability.getContainerMetrics(containerId);
+
+  if (currentMetrics) {
+    return {
+      cpu_utilization: currentMetrics.cpu.usagePercent,
+      memory_utilization: currentMetrics.memory.usagePercent,
+      network_rx_bytes: currentMetrics.network.rxBytes,
+      network_tx_bytes: currentMetrics.network.txBytes,
+      task_count: desiredCount,
+      healthy_task_count: desiredCount,
+      timestamp: currentMetrics.timestamp.toISOString(),
+    };
   }
 
-  const client = new CloudWatchClient({
-    region,
-    credentials: {
-      accessKeyId,
-      secretAccessKey,
-    },
-  });
-
+  // If no current metrics, try to get historical data
   const now = new Date();
   const startTime = new Date(now.getTime() - periodMinutes * 60 * 1000);
 
-  // Extract cluster and service names from ARNs
-  const clusterName = container.ecs_cluster_arn.split("/").pop() || "";
-  const serviceName = container.ecs_service_arn.split("/").pop() || "";
+  const [cpuData, memoryData] = await Promise.allSettled([
+    observability.getMetricData({
+      containerId,
+      metricName: "cpu_utilization",
+      startTime,
+      endTime: now,
+      period: 300,
+      stat: "Average",
+    }),
+    observability.getMetricData({
+      containerId,
+      metricName: "memory_utilization",
+      startTime,
+      endTime: now,
+      period: 300,
+      stat: "Average",
+    }),
+  ]);
 
-  // Fetch multiple metrics in parallel
-  const [cpuData, memoryData, networkRxData, networkTxData] =
-    await Promise.allSettled([
-      fetchMetric(
-        client,
-        "CPUUtilization",
-        clusterName,
-        serviceName,
-        startTime,
-        now,
-      ),
-      fetchMetric(
-        client,
-        "MemoryUtilization",
-        clusterName,
-        serviceName,
-        startTime,
-        now,
-      ),
-      fetchMetric(
-        client,
-        "NetworkRxBytes",
-        clusterName,
-        serviceName,
-        startTime,
-        now,
-      ),
-      fetchMetric(
-        client,
-        "NetworkTxBytes",
-        clusterName,
-        serviceName,
-        startTime,
-        now,
-      ),
-    ]);
+  const cpuPoints = cpuData.status === "fulfilled" ? cpuData.value : [];
+  const memoryPoints = memoryData.status === "fulfilled" ? memoryData.value : [];
 
-  // Extract values with fallbacks
-  const cpu_utilization =
-    cpuData.status === "fulfilled" && cpuData.value ? cpuData.value : 0;
-  const memory_utilization =
-    memoryData.status === "fulfilled" && memoryData.value
-      ? memoryData.value
-      : 0;
-  const network_rx_bytes =
-    networkRxData.status === "fulfilled" && networkRxData.value
-      ? networkRxData.value
-      : 0;
-  const network_tx_bytes =
-    networkTxData.status === "fulfilled" && networkTxData.value
-      ? networkTxData.value
-      : 0;
+  const latestCpu = cpuPoints.length > 0 ? cpuPoints[cpuPoints.length - 1].value : 0;
+  const latestMemory = memoryPoints.length > 0 ? memoryPoints[memoryPoints.length - 1].value : 0;
 
   return {
-    cpu_utilization,
-    memory_utilization,
-    network_rx_bytes,
-    network_tx_bytes,
-    task_count: container.desired_count,
-    // Healthy task count approximation: assumes all tasks are healthy if no CloudWatch alarms
-    // For accurate health status, query ECS DescribeServices API or check ALB target health
-    healthy_task_count: container.desired_count,
+    cpu_utilization: latestCpu,
+    memory_utilization: latestMemory,
+    network_rx_bytes: 0,
+    network_tx_bytes: 0,
+    task_count: desiredCount,
+    healthy_task_count: desiredCount,
     timestamp: now.toISOString(),
   };
-}
-
-/**
- * Fetch a specific CloudWatch metric
- */
-async function fetchMetric(
-  client: CloudWatchClient,
-  metricName: string,
-  clusterName: string,
-  serviceName: string,
-  startTime: Date,
-  endTime: Date,
-): Promise<number> {
-  try {
-    const command = new GetMetricStatisticsCommand({
-      Namespace: "AWS/ECS",
-      MetricName: metricName,
-      Dimensions: [
-        {
-          Name: "ServiceName",
-          Value: serviceName,
-        },
-        {
-          Name: "ClusterName",
-          Value: clusterName,
-        },
-      ],
-      StartTime: startTime,
-      EndTime: endTime,
-      Period: 300, // 5 minutes
-      Statistics: ["Average"],
-    });
-
-    const response = await client.send(command);
-    const datapoints = response.Datapoints || [];
-
-    if (datapoints.length === 0) {
-      return 0;
-    }
-
-    // Get the latest datapoint
-    const latest = datapoints.reduce((prev, current) => {
-      return (current.Timestamp || new Date(0)) >
-        (prev.Timestamp || new Date(0))
-        ? current
-        : prev;
-    });
-
-    return latest.Average || 0;
-  } catch (error) {
-    logger.error(`Failed to fetch ${metricName}:`, error);
-    return 0;
-  }
 }

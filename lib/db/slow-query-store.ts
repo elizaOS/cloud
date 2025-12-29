@@ -1,25 +1,25 @@
 /**
  * Slow Query Store - Multi-tier storage for slow query tracking
  * 
- * Architecture: Memory → Redis → PostgreSQL
+ * Architecture: Memory → DWS Cache → PostgreSQL
  * - Memory: Immediate access, bounded to MAX_MEMORY_ENTRIES (default 1000)
- * - Redis: Persistent cache with TTL (default 24h), fire-and-forget writes
+ * - DWS Cache: Persistent cache with TTL (default 24h), fire-and-forget writes
  * - PostgreSQL: Permanent storage, batched writes every FLUSH_INTERVAL (default 5s)
  * 
  * Limitations:
  * - Memory store is per-process (serverless: each instance has its own)
- * - Redis writes are async/fire-and-forget (may be lost on crash)
+ * - Cache writes are async/fire-and-forget (may be lost on crash)
  * - PostgreSQL flush interval means up to 5s of data loss on crash
  * - LRU eviction discards oldest entries when over limit
  * 
  * Configuration (env vars):
  * - SLOW_QUERY_THRESHOLD_MS: Min duration to track (default 50)
- * - SLOW_QUERY_REDIS_TTL: Redis TTL in seconds (default 86400)
+ * - SLOW_QUERY_CACHE_TTL: Cache TTL in seconds (default 86400)
  * - SLOW_QUERY_FLUSH_INTERVAL: PG flush interval ms (default 5000)
  * - SLOW_QUERY_MAX_MEMORY: Max in-memory entries (default 1000)
  */
 
-import { Redis } from "@upstash/redis";
+import { DWSCache } from "@/lib/services/dws/cache";
 import { db } from "@/db/client";
 import { sql } from "drizzle-orm";
 
@@ -38,9 +38,9 @@ export interface SlowQueryEntry {
   lastSeenAt: Date;
 }
 
-const REDIS_KEY_PREFIX = "slow_query:";
-const REDIS_TTL_SECONDS = parseInt(
-  process.env.SLOW_QUERY_REDIS_TTL || "86400",
+const CACHE_KEY_PREFIX = "slow_query:";
+const CACHE_TTL_SECONDS = parseInt(
+  process.env.SLOW_QUERY_CACHE_TTL || "86400",
   10,
 );
 const POSTGRES_FLUSH_INTERVAL = parseInt(
@@ -57,7 +57,6 @@ const postgresQueue = new Map<string, SlowQueryEntry>();
 let memoryWarningLogged = false;
 
 function evictOldestEntries(): void {
-  // Warn at 80% capacity (once per process)
   if (!memoryWarningLogged && memoryStore.size > MAX_MEMORY_ENTRIES * 0.8) {
     console.warn(`[SlowQueryStore] Memory store at ${memoryStore.size}/${MAX_MEMORY_ENTRIES} entries`);
     memoryWarningLogged = true;
@@ -75,27 +74,28 @@ function evictOldestEntries(): void {
   }
 }
 
-let redis: Redis | null = null;
-let redisInitialized = false;
+let dwsCache: DWSCache | null = null;
+let cacheInitialized = false;
 let flushTimeout: ReturnType<typeof setTimeout> | null = null;
 
-function getRedis(): Redis | null {
-  if (redisInitialized) return redis;
-  redisInitialized = true;
+function getCache(): DWSCache | null {
+  if (cacheInitialized) return dwsCache;
+  cacheInitialized = true;
 
-  const nativeUrl = process.env.REDIS_URL || process.env.KV_URL;
-  const restUrl = process.env.KV_REST_API_URL;
-  const restToken = process.env.KV_REST_API_TOKEN;
-
-  if (nativeUrl) {
-    redis = Redis.fromEnv();
-    console.info("[SlowQueryStore] Redis initialized (native protocol)");
-  } else if (restUrl && restToken) {
-    redis = new Redis({ url: restUrl, token: restToken });
-    console.info("[SlowQueryStore] Redis initialized (REST API)");
+  if (process.env.CACHE_ENABLED === "false") {
+    return null;
   }
 
-  return redis;
+  try {
+    dwsCache = new DWSCache({
+      namespace: "slow-queries",
+      defaultTTL: CACHE_TTL_SECONDS,
+    });
+    console.info("[SlowQueryStore] DWS cache initialized");
+    return dwsCache;
+  } catch {
+    return null;
+  }
 }
 
 export function hashQuery(sqlText: string): string {
@@ -152,17 +152,17 @@ export async function recordSlowQuery(
     evictOldestEntries();
   }
 
-  const redisClient = getRedis();
+  const cache = getCache();
   const entry = memoryStore.get(queryHash);
-  if (redisClient && entry) {
-    redisClient
+  if (cache && entry) {
+    cache
       .setex(
-        `${REDIS_KEY_PREFIX}${queryHash}`,
-        REDIS_TTL_SECONDS,
+        `${CACHE_KEY_PREFIX}${queryHash}`,
+        CACHE_TTL_SECONDS,
         JSON.stringify(entry),
       )
       .catch((e: Error) =>
-        console.warn("[SlowQueryStore] Redis write failed:", e.message),
+        console.warn("[SlowQueryStore] Cache write failed:", e.message),
       );
   }
 
@@ -216,43 +216,41 @@ export function getSlowQueriesFromMemory(): SlowQueryEntry[] {
   return Array.from(memoryStore.values());
 }
 
-export function isRedisAvailable(): boolean {
-  return getRedis() !== null;
+export function isCacheAvailable(): boolean {
+  return getCache() !== null;
 }
 
-export async function getSlowQueryKeysFromRedis(): Promise<string[]> {
-  const redisClient = getRedis();
-  if (!redisClient) return [];
+export async function getSlowQueryKeysFromCache(): Promise<string[]> {
+  const cache = getCache();
+  if (!cache) return [];
 
   try {
-    // Use SCAN instead of KEYS to handle large datasets
     const keys: string[] = [];
     let cursor: string | number = 0;
     do {
-      const [nextCursor, batch] = await redisClient.scan(cursor, {
-        match: `${REDIS_KEY_PREFIX}*`,
-        count: 100,
-      });
-      cursor =
-        typeof nextCursor === "string" ? parseInt(nextCursor, 10) : nextCursor;
+      const [nextCursor, batch] = await cache.scan(
+        typeof cursor === "string" ? parseInt(cursor, 10) : cursor,
+        { match: `${CACHE_KEY_PREFIX}*`, count: 100 }
+      );
+      cursor = typeof nextCursor === "string" ? parseInt(nextCursor, 10) : parseInt(nextCursor, 10);
       keys.push(...batch);
     } while (cursor !== 0);
-    return keys.map((k) => k.replace(REDIS_KEY_PREFIX, ""));
+    return keys.map((k) => k.replace(CACHE_KEY_PREFIX, ""));
   } catch (e) {
-    console.debug("[SlowQueryStore] Redis scan failed:", (e as Error).message);
+    console.debug("[SlowQueryStore] Cache scan failed:", (e as Error).message);
     return [];
   }
 }
 
-export async function getSlowQueryFromRedis(
+export async function getSlowQueryFromCache(
   queryHash: string,
 ): Promise<SlowQueryEntry | null> {
-  const redisClient = getRedis();
-  if (!redisClient) return null;
+  const cache = getCache();
+  if (!cache) return null;
 
   try {
-    const data = await redisClient.get<string>(
-      `${REDIS_KEY_PREFIX}${queryHash}`,
+    const data = await cache.get<string>(
+      `${CACHE_KEY_PREFIX}${queryHash}`,
     );
     if (!data) return null;
 
@@ -261,22 +259,22 @@ export async function getSlowQueryFromRedis(
     entry.lastSeenAt = new Date(entry.lastSeenAt);
     return entry;
   } catch (e) {
-    console.debug("[SlowQueryStore] Redis get failed:", (e as Error).message);
+    console.debug("[SlowQueryStore] Cache get failed:", (e as Error).message);
     return null;
   }
 }
 
-export async function getSlowQueriesFromRedis(): Promise<SlowQueryEntry[]> {
-  const redisClient = getRedis();
-  if (!redisClient) return [];
+export async function getSlowQueriesFromCache(): Promise<SlowQueryEntry[]> {
+  const cache = getCache();
+  if (!cache) return [];
 
   try {
-    const keys = await redisClient.keys(`${REDIS_KEY_PREFIX}*`);
+    const keys = await cache.keys(`${CACHE_KEY_PREFIX}*`);
     if (keys.length === 0) return [];
 
     const entries: SlowQueryEntry[] = [];
     for (const key of keys) {
-      const data = await redisClient.get<string>(key);
+      const data = await cache.get<string>(key);
       if (data) {
         const entry = typeof data === "string" ? JSON.parse(data) : data;
         entry.firstSeenAt = new Date(entry.firstSeenAt);
@@ -286,7 +284,7 @@ export async function getSlowQueriesFromRedis(): Promise<SlowQueryEntry[]> {
     }
     return entries;
   } catch (e) {
-    console.debug("[SlowQueryStore] Redis read failed:", (e as Error).message);
+    console.debug("[SlowQueryStore] Cache read failed:", (e as Error).message);
     return [];
   }
 }
@@ -334,7 +332,7 @@ export async function forceFlush(): Promise<void> {
   await flushToPostgres();
 }
 
-export function resetRedisState(): void {
-  redis = null;
-  redisInitialized = false;
+export function resetCacheState(): void {
+  dwsCache = null;
+  cacheInitialized = false;
 }

@@ -24,17 +24,6 @@ const API_KEY = process.env.TEST_TODOAPP_API_KEY;
 // Check if todo app is available
 let todoappAvailable = false;
 
-test.beforeAll(async ({ request }) => {
-  const todoappResponse = await request.get(TODOAPP_URL).catch(() => null);
-  todoappAvailable = todoappResponse?.ok() ?? false;
-
-  if (!todoappAvailable) {
-    console.log(
-      `⚠️ Todo app not available at ${TODOAPP_URL}. Skipping full-flow tests.`,
-    );
-  }
-});
-
 function authHeaders() {
   return {
     "X-Api-Key": API_KEY!,
@@ -42,7 +31,19 @@ function authHeaders() {
   };
 }
 
-test.describe("Landing Page Experience", () => {
+test.describe("Todo App Full Flow E2E Tests", () => {
+  test.beforeAll(async () => {
+    const todoappResponse = await fetch(TODOAPP_URL).then(r => ({ ok: () => r.ok })).catch(() => null);
+    todoappAvailable = todoappResponse?.ok() ?? false;
+
+    if (!todoappAvailable) {
+      console.log(
+        `⚠️ Todo app not available at ${TODOAPP_URL}. Skipping full-flow tests.`,
+      );
+    }
+  });
+
+  test.describe("Landing Page Experience", () => {
   test("landing page loads with branding", async ({ page }) => {
     if (!todoappAvailable) {
       test.skip();
@@ -642,4 +643,5 @@ test.describe("Performance and Reliability", () => {
     expect(responseTime).toBeLessThan(1000);
     console.log(`✅ MCP metadata response in ${responseTime}ms`);
   });
+});
 });

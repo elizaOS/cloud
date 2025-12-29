@@ -1,12 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { PrivyClient } from "@privy-io/server-auth";
-
-// Initialize Privy client
-const privyClient = new PrivyClient(
-  process.env.NEXT_PUBLIC_PRIVY_APP_ID!,
-  process.env.PRIVY_APP_SECRET!,
-);
+import { verifyOAuth3Token } from "./lib/auth/oauth3-client";
 
 // ============================================================================
 // Subdomain/Custom Domain Configuration (merged from middleware.ts)
@@ -103,6 +97,7 @@ const publicPaths = [
   "/auth/cli-login", // CLI login page
   "/api/auth/cli-session", // CLI session endpoints (public for polling)
   "/api/auth/app-session", // App session endpoints (public for pass-through auth flow)
+  "/api/auth/oauth3", // OAuth3 session endpoints
   "/auth/app-login", // App login page
   "/api/set-anonymous-session", // Anonymous session cookie setting
   "/api/anonymous-session", // Anonymous session data API (for polling message count)
@@ -117,7 +112,7 @@ const publicPaths = [
   "/api/v1/credits/topup", // x402 credit top-up (uses x402 or API key auth)
   "/api/stripe/webhook",
   "/api/crypto/webhook", // OxaPay crypto payment webhook
-  "/api/privy/webhook", // Privy webhook endpoint
+  "/api/privy/webhook", // Privy webhook endpoint (legacy)
   "/api/cron", // Cron endpoints (protected by CRON_SECRET)
   "/api/v1/cron", // V1 Cron endpoints (protected by CRON_SECRET)
   "/api/mcp/demos", // Public demo MCP servers (GET returns server info)
@@ -216,8 +211,11 @@ export async function proxy(request: NextRequest) {
 
   // Try to verify authentication
   try {
-    // Check for auth token in cookies
-    const authToken = request.cookies.get("privy-token");
+    // Check for OAuth3 token in cookies first, then legacy Privy token
+    let authToken = request.cookies.get("oauth3-token");
+    if (!authToken) {
+      authToken = request.cookies.get("privy-token");
+    }
 
     // Check for Bearer token in Authorization header (for API routes)
     const authHeader = request.headers.get("Authorization");
@@ -254,10 +252,10 @@ export async function proxy(request: NextRequest) {
       return NextResponse.redirect(url);
     }
 
-    // Verify the token with Privy
-    const user = await privyClient.verifyAuthToken(token);
+    // Verify the token with OAuth3
+    const claims = await verifyOAuth3Token(token);
 
-    if (!user) {
+    if (!claims) {
       // Invalid token
       if (pathname.startsWith("/api/")) {
         return NextResponse.json(
@@ -274,8 +272,10 @@ export async function proxy(request: NextRequest) {
 
     // Token is valid - add user info to headers for downstream use
     const requestHeaders = new Headers(request.headers);
-    requestHeaders.set("x-privy-user-id", user.userId);
-    // Note: Email is not available from token claims - it's synced via webhooks
+    requestHeaders.set("x-oauth3-identity-id", claims.identityId);
+    requestHeaders.set("x-oauth3-session-id", claims.sessionId);
+    // Legacy header for backwards compatibility
+    requestHeaders.set("x-privy-user-id", `oauth3:${claims.identityId}`);
 
     return NextResponse.next({
       request: {

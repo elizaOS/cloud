@@ -7,7 +7,7 @@
 
 import { isMobileApp, isIOS, isAndroid } from "@/lib/api/mobile-client";
 import { logger } from "@/lib/utils/logger";
-import type { PrivyClientConfig } from "@privy-io/react-auth";
+import type { PrivyClientConfig } from "@/lib/providers/PrivyProvider";
 
 /**
  * Deep link scheme for the app

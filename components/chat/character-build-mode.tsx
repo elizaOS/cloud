@@ -28,7 +28,7 @@ import {
 import { MessageSquare, FileCode2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
-import { usePrivy } from "@privy-io/react-auth";
+import { usePrivy } from "@/lib/providers/PrivyProvider";
 import { createDefaultCharacter } from "@/lib/utils/character-names";
 import { useRouter } from "next/navigation";
 import type { PreUploadedFile } from "@/lib/types/knowledge";

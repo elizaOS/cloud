@@ -3,13 +3,13 @@
  *
  * Handles processing of Discord voice message attachments:
  * - Downloads audio files from Discord
- * - Uploads to blob storage
+ * - Uploads to DWS storage
  * - Generates pre-signed URLs for agents
  * - Cleans up expired audio files
  */
 
 import { MessageFlags, type Attachment } from "discord.js";
-import { put, del, list } from "@vercel/blob";
+import { put, del, list } from "./dws-storage";
 import { logger } from "./logger";
 
 const VOICE_AUDIO_TTL_SECONDS = parseInt(

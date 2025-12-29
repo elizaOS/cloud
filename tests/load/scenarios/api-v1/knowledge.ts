@@ -67,7 +67,7 @@ export function memoryOperationsCycle() {
   sleep(1);
 }
 
-export default function () {
+export default function main() {
   knowledgeOperationsCycle();
   memoryOperationsCycle();
 }

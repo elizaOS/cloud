@@ -5,7 +5,7 @@ import {
   Message,
   type ClientOptions,
 } from "discord.js";
-import { Redis } from "@upstash/redis";
+import { DWSCache } from "./dws-cache";
 import { logger } from "./logger";
 import {
   VoiceMessageHandler,
@@ -34,8 +34,6 @@ interface GatewayConfig {
   podName: string;
   elizaCloudUrl: string;
   internalApiKey: string;
-  redisUrl?: string;
-  redisToken?: string;
 }
 
 interface BotConnection {
@@ -64,7 +62,7 @@ interface HealthStatus {
 
 export class GatewayManager {
   private config: GatewayConfig;
-  private redis: Redis | null = null;
+  private dwsCache: DWSCache | null = null;
   private connections: Map<string, BotConnection> = new Map();
   private startTime: Date = new Date();
   private pollInterval: NodeJS.Timeout | null = null;
@@ -76,13 +74,15 @@ export class GatewayManager {
     this.config = config;
     this.voiceHandler = new VoiceMessageHandler();
 
-    if (config.redisUrl && config.redisToken) {
-      this.redis = new Redis({
-        url: config.redisUrl,
-        token: config.redisToken,
-      });
-    } else if (config.redisUrl) {
-      this.redis = Redis.fromEnv();
+    if (process.env.CACHE_ENABLED !== "false") {
+      try {
+        this.dwsCache = new DWSCache({
+          namespace: "discord-gateway",
+          defaultTTL: 3600,
+        });
+      } catch {
+        this.dwsCache = null;
+      }
     }
   }
 
@@ -97,7 +97,7 @@ export class GatewayManager {
     this.heartbeatInterval = setInterval(() => this.sendHeartbeat(), 30000);
 
     // Start failover check (claim orphaned connections from dead pods)
-    if (this.redis) {
+    if (this.dwsCache) {
       this.failoverInterval = setInterval(
         () => this.checkForDeadPods(),
         FAILOVER_CHECK_INTERVAL_MS,
@@ -133,10 +133,10 @@ export class GatewayManager {
       logger.info("Disconnected bot", { connectionId });
     }
 
-    // Clear pod heartbeat from Redis
-    if (this.redis) {
-      await this.redis.del(`discord:pod:${this.config.podName}`);
-      await this.redis.srem("discord:active_pods", this.config.podName);
+    // Clear pod heartbeat from cache
+    if (this.dwsCache) {
+      await this.dwsCache.del(`pod:${this.config.podName}`);
+      await this.dwsCache.srem("active_pods", this.config.podName);
     }
 
     this.connections.clear();
@@ -178,7 +178,7 @@ export class GatewayManager {
 
     // Disconnect bots no longer assigned
     const assignedIds = new Set(data.assignments.map((a) => a.connectionId));
-    for (const [connectionId, conn] of this.connections) {
+    for (const [connectionId] of this.connections) {
       if (!assignedIds.has(connectionId)) {
         await this.disconnectBot(connectionId);
       }
@@ -473,7 +473,7 @@ export class GatewayManager {
         logger.warn("Voice attachments detected but none processed successfully", {
           connectionId,
           messageId: message.id,
-          attachmentCount: message.attachments.length,
+          attachmentCount: message.attachments.size,
         });
       }
     }
@@ -549,7 +549,7 @@ export class GatewayManager {
     connectionId: string,
     conn: BotConnection,
   ): Promise<void> {
-    if (!this.redis) return;
+    if (!this.dwsCache) return;
 
     const state = {
       connectionId,
@@ -562,43 +562,43 @@ export class GatewayManager {
       savedAt: Date.now(),
     };
 
-    await this.redis.setex(
-      `discord:session:${connectionId}`,
+    await this.dwsCache.setex(
+      `session:${connectionId}`,
       3600,
       JSON.stringify(state),
     );
   }
 
   private async sendHeartbeat(): Promise<void> {
-    for (const [connectionId, conn] of this.connections) {
+    for (const [, conn] of this.connections) {
       conn.lastHeartbeat = new Date();
     }
 
-    if (this.redis) {
+    if (this.dwsCache) {
       const podState = {
         podId: this.config.podName,
         connections: Array.from(this.connections.keys()),
         lastHeartbeat: Date.now(),
       };
-      await this.redis.setex(
-        `discord:pod:${this.config.podName}`,
+      await this.dwsCache.setex(
+        `pod:${this.config.podName}`,
         300,
         JSON.stringify(podState),
       );
-      await this.redis.sadd("discord:active_pods", this.config.podName);
+      await this.dwsCache.sadd("active_pods", this.config.podName);
     }
   }
 
   private async checkForDeadPods(): Promise<void> {
-    if (!this.redis) return;
+    if (!this.dwsCache) return;
 
-    const activePods = await this.redis.smembers("discord:active_pods");
+    const activePods = await this.dwsCache.smembers("active_pods");
     if (!activePods || activePods.length === 0) return;
 
     for (const podId of activePods) {
       if (podId === this.config.podName) continue;
 
-      const podState = await this.redis.get<string>(`discord:pod:${podId}`);
+      const podState = await this.dwsCache.get<string>(`pod:${podId}`);
       if (!podState) {
         // Pod state expired, it's dead
         await this.claimOrphanedConnections(podId);
@@ -617,7 +617,7 @@ export class GatewayManager {
   }
 
   private async claimOrphanedConnections(deadPodId: string): Promise<void> {
-    if (!this.redis) return;
+    if (!this.dwsCache) return;
 
     logger.info("Claiming orphaned connections from dead pod", { deadPodId });
 
@@ -650,9 +650,9 @@ export class GatewayManager {
       });
     }
 
-    // Clean up dead pod's Redis state
-    await this.redis.srem("discord:active_pods", deadPodId);
-    await this.redis.del(`discord:pod:${deadPodId}`);
+    // Clean up dead pod's cache state
+    await this.dwsCache.srem("active_pods", deadPodId);
+    await this.dwsCache.del(`pod:${deadPodId}`);
   }
 
   getHealth(): HealthStatus {

@@ -117,7 +117,7 @@ export function heavyEndpoints() {
   throughputAchieved.add(1);
 }
 
-export default function () {
+export default function main() {
   mediumEndpoints();
 }
 

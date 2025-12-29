@@ -15,7 +15,7 @@ import type { UserWithOrganization } from "@/lib/types";
 import type { SettingsTab } from "../settings-page-client";
 import { ArrowUpRight, Copy } from "lucide-react";
 import { toast } from "sonner";
-import { usePrivy } from "@privy-io/react-auth";
+import { usePrivy } from "@/lib/providers/PrivyProvider";
 import { useRouter } from "next/navigation";
 import { useChatStore } from "@/lib/stores/chat-store";
 

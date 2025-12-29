@@ -121,6 +121,13 @@ export const updateContainerStatus = async (
     | {
         errorMessage?: string;
         deploymentLog?: string;
+        // DWS fields (primary)
+        dwsContainerId?: string;
+        dwsDeploymentId?: string;
+        dwsEndpointUrl?: string;
+        dwsRegion?: string;
+        dwsImageCid?: string;
+        // Legacy ECS fields (for backwards compatibility)
         ecsServiceArn?: string;
         ecsTaskDefinitionArn?: string;
         ecsTaskArn?: string;
@@ -150,7 +157,28 @@ export const updateContainerStatus = async (
     updateData.deployment_log = options.deploymentLog;
   }
 
-  // ECS fields
+  // DWS fields (primary)
+  if (options?.dwsContainerId) {
+    updateData.dws_container_id = options.dwsContainerId;
+  }
+
+  if (options?.dwsDeploymentId) {
+    updateData.dws_deployment_id = options.dwsDeploymentId;
+  }
+
+  if (options?.dwsEndpointUrl) {
+    updateData.dws_endpoint_url = options.dwsEndpointUrl;
+  }
+
+  if (options?.dwsRegion) {
+    updateData.dws_region = options.dwsRegion;
+  }
+
+  if (options?.dwsImageCid) {
+    updateData.dws_image_cid = options.dwsImageCid;
+  }
+
+  // Legacy ECS fields (for backwards compatibility)
   if (options?.ecsServiceArn) {
     updateData.ecs_service_arn = options.ecsServiceArn;
   }

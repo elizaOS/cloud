@@ -21,26 +21,29 @@ const TODOAPP_URL = process.env.TODOAPP_URL ?? "http://localhost:3002";
 
 // Check if services are running
 let todoappAvailable = false;
+let cloudAvailable = false;
 
-test.beforeAll(async ({ request }) => {
-  const cloudResponse = await request.get(CLOUD_URL).catch(() => null);
-  if (!cloudResponse?.ok()) {
-    throw new Error(
-      `Cloud not available at ${CLOUD_URL}. Start with: bun run dev`,
-    );
-  }
+test.describe("Todo App E2E Tests", () => {
+  test.beforeAll(async () => {
+    const cloudResponse = await fetch(CLOUD_URL).then(r => ({ ok: () => r.ok })).catch(() => null);
+    cloudAvailable = cloudResponse?.ok() ?? false;
+    if (!cloudAvailable) {
+      console.log(
+        `⚠️ Cloud not available at ${CLOUD_URL}. Start with: bun run dev`,
+      );
+    }
 
-  const todoappResponse = await request.get(TODOAPP_URL).catch(() => null);
-  todoappAvailable = todoappResponse?.ok() ?? false;
+    const todoappResponse = await fetch(TODOAPP_URL).then(r => ({ ok: () => r.ok })).catch(() => null);
+    todoappAvailable = todoappResponse?.ok() ?? false;
 
-  if (!todoappAvailable) {
-    console.log(
-      `⚠️ Todo app not available at ${TODOAPP_URL}. Skipping todo-app tests. Start with: cd todo-app && bun run dev`,
-    );
-  }
-});
+    if (!todoappAvailable) {
+      console.log(
+        `⚠️ Todo app not available at ${TODOAPP_URL}. Skipping todo-app tests. Start with: cd todo-app && bun run dev`,
+      );
+    }
+  });
 
-test.describe("Todo App Pages", () => {
+  test.describe("Todo App Pages", () => {
   test("home page renders with hero section", async ({ page }) => {
     if (!todoappAvailable) {
       test.skip();
@@ -456,4 +459,5 @@ test.describe("Agent A2A/MCP Endpoints", () => {
 
     expect([403, 404]).toContain(response.status());
   });
+});
 });

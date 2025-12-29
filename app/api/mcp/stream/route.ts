@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { requireAuthOrApiKey } from "@/lib/auth";
-import { Redis } from "@upstash/redis";
+import { DWSCache } from "@/lib/services/dws/cache";
 import { logger } from "@/lib/utils/logger";
 import { verifyResourceAccess } from "@/lib/services/resource-authorization";
 import {
@@ -23,14 +23,10 @@ interface SSEMessage {
   timestamp: string;
 }
 
-async function getRedisSubscriber(): Promise<Redis> {
-  if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
-    throw new Error("Redis credentials not configured");
-  }
-
-  return new Redis({
-    url: process.env.KV_REST_API_URL,
-    token: process.env.KV_REST_API_TOKEN,
+function createCacheClient(): DWSCache {
+  return new DWSCache({
+    namespace: "sse-stream",
+    defaultTTL: 600,
   });
 }
 
@@ -42,9 +38,6 @@ function formatSSE(data: SSEMessage): string {
  * GET /api/mcp/stream?eventType=xxx&resourceId=xxx
  * Server-Sent Events endpoint for streaming real-time updates for agents, credits, or containers.
  * Implements exponential backoff and connection limits per organization.
- *
- * @param request - Request with eventType and resourceId query parameters.
- * @returns SSE stream with real-time updates and heartbeat events.
  */
 export async function GET(request: NextRequest) {
   try {
@@ -61,7 +54,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // SECURITY FIX: Verify the authenticated user has access to this resource
+    // Verify the authenticated user has access to this resource
     const hasAccess = await verifyResourceAccess({
       organizationId: auth.user.organization_id!,
       userId: auth.user.id,
@@ -82,14 +75,14 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // SECURITY FIX: Check connection limits per organization to prevent resource exhaustion
-    const redis = await getRedisSubscriber();
-    const connectionKey = `sse:connections:${auth.user.organization_id}`;
-    const connectionCount = await redis.incr(connectionKey);
-    await redis.expire(connectionKey, maxDuration + 60); // Auto-cleanup
+    // Check connection limits per organization to prevent resource exhaustion
+    const dwsCache = createCacheClient();
+    const connectionKey = `connections:${auth.user.organization_id}`;
+    const connectionCount = await dwsCache.incr(connectionKey);
+    await dwsCache.expire(connectionKey, maxDuration + 60);
 
     if (connectionCount > SSE_MAX_CONNECTIONS_PER_ORG) {
-      await redis.decr(connectionKey); // Rollback the increment
+      await dwsCache.decr(connectionKey);
       logger.warn(
         `[SSE Stream] Connection limit exceeded for org ${auth.user.organization_id}: ${connectionCount}/${SSE_MAX_CONNECTIONS_PER_ORG}`,
       );
@@ -110,7 +103,6 @@ export async function GET(request: NextRequest) {
 
     const encoder = new TextEncoder();
 
-    // Use ReturnType to be environment-agnostic (DOM returns number, Node returns Timeout)
     type TimerId = ReturnType<typeof setTimeout>;
 
     const stream = new ReadableStream({
@@ -119,11 +111,9 @@ export async function GET(request: NextRequest) {
         let pollCount = 0;
         let pollInterval: TimerId | null = null;
         let timeoutHandle: TimerId | null = null;
-        // PERFORMANCE FIX: Implement exponential backoff to reduce Redis load when no messages
         let currentBackoff = SSE_BACKOFF_INITIAL_MS;
         let consecutiveEmptyPolls = 0;
 
-        // MEMORY LEAK FIX: Cleanup function to ensure all resources are released
         const cleanup = async () => {
           if (pollInterval) {
             clearInterval(pollInterval);
@@ -135,9 +125,8 @@ export async function GET(request: NextRequest) {
           }
           isActive = false;
 
-          // SECURITY FIX: Decrement connection count on cleanup
           try {
-            await redis.decr(connectionKey);
+            await dwsCache.decr(connectionKey);
             logger.debug(
               `[SSE Stream] Decremented connection count for org ${auth.user.organization_id}`,
             );
@@ -171,14 +160,13 @@ export async function GET(request: NextRequest) {
 
             try {
               pollCount++;
-              const messages = await redis.lrange(channel, 0, -1);
+              const messages = await dwsCache.lrange(channel, 0, -1);
 
               if (messages && messages.length > 0) {
                 logger.debug(
                   `[SSE Stream] Found ${messages.length} messages in ${channel}`,
                 );
 
-                // PERFORMANCE FIX: Reset backoff when messages are found
                 consecutiveEmptyPolls = 0;
                 currentBackoff = SSE_BACKOFF_INITIAL_MS;
 
@@ -193,9 +181,8 @@ export async function GET(request: NextRequest) {
                   controller.enqueue(encoder.encode(sseData));
                 }
 
-                await redis.del(channel);
+                await dwsCache.del(channel);
               } else {
-                // PERFORMANCE FIX: Implement exponential backoff when no messages
                 consecutiveEmptyPolls++;
                 if (consecutiveEmptyPolls > 3) {
                   currentBackoff = Math.min(
@@ -208,7 +195,6 @@ export async function GET(request: NextRequest) {
                 }
               }
 
-              // Send heartbeat based on configured interval
               if (pollCount % SSE_HEARTBEAT_INTERVAL === 0) {
                 controller.enqueue(
                   encoder.encode(
@@ -225,13 +211,11 @@ export async function GET(request: NextRequest) {
                 );
               }
 
-              // Schedule next poll with current backoff
               if (isActive) {
                 pollInterval = setTimeout(poll, currentBackoff);
               }
             } catch (error) {
               logger.error("[SSE Stream] Polling error:", error);
-              // MEMORY LEAK FIX: Ensure cleanup on error
               try {
                 controller.enqueue(
                   encoder.encode(
@@ -248,7 +232,6 @@ export async function GET(request: NextRequest) {
                   ),
                 );
               } catch (enqueueError) {
-                // Controller might be closed, cleanup and exit
                 logger.error(
                   "[SSE Stream] Failed to enqueue error:",
                   enqueueError,
@@ -256,23 +239,18 @@ export async function GET(request: NextRequest) {
                 await cleanup();
                 try {
                   controller.close();
-                } catch {
-                  /* already closed */
-                }
-                return; // Exit poll loop
+                } catch { /* already closed */ }
+                return;
               }
 
-              // Retry poll after backoff on error
               if (isActive) {
                 pollInterval = setTimeout(poll, currentBackoff);
               }
             }
           };
 
-          // Start polling
           poll();
 
-          // Handle client disconnect
           request.signal.addEventListener("abort", async () => {
             await cleanup();
             logger.info(
@@ -280,12 +258,9 @@ export async function GET(request: NextRequest) {
             );
             try {
               controller.close();
-            } catch {
-              /* already closed */
-            }
+            } catch { /* already closed */ }
           });
 
-          // MEMORY LEAK FIX: Set timeout with proper cleanup
           timeoutHandle = setTimeout(async () => {
             await cleanup();
             logger.info(
@@ -293,19 +268,14 @@ export async function GET(request: NextRequest) {
             );
             try {
               controller.close();
-            } catch {
-              /* already closed */
-            }
+            } catch { /* already closed */ }
           }, SSE_CONNECTION_TIMEOUT_MS);
         } catch (error) {
-          // MEMORY LEAK FIX: Ensure cleanup on any error during setup
           cleanup();
           logger.error("[SSE Stream] Stream setup error:", error);
           try {
             controller.error(error);
-          } catch {
-            /* already closed */
-          }
+          } catch { /* already closed */ }
         }
       },
     });

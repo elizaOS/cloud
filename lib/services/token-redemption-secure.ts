@@ -60,8 +60,19 @@ import {
   VESTING_CONFIG,
   FRAUD_THRESHOLDS,
 } from "@/lib/config/redemption-addresses";
-import { PublicKey, Connection } from "@solana/web3.js";
-import { getAssociatedTokenAddress, getAccount } from "@solana/spl-token";
+// Solana imports are dynamic to avoid build issues with native dependencies
+let solanaWeb3: typeof import("@solana/web3.js") | null = null;
+let solanaSplToken: typeof import("@solana/spl-token") | null = null;
+
+async function getSolanaModulesSecure() {
+  if (!solanaWeb3) {
+    solanaWeb3 = await import("@solana/web3.js");
+  }
+  if (!solanaSplToken) {
+    solanaSplToken = await import("@solana/spl-token");
+  }
+  return { solanaWeb3, solanaSplToken };
+}
 import { randomUUID } from "crypto";
 import Decimal from "decimal.js";
 import {
@@ -666,7 +677,8 @@ export class SecureTokenRedemptionService {
 
     if (network === "solana") {
       try {
-        new PublicKey(address);
+        const { solanaWeb3 } = await getSolanaModulesSecure();
+        new solanaWeb3.PublicKey(address);
         return { valid: true };
       } catch {
         return {
@@ -1007,6 +1019,10 @@ export class SecureTokenRedemptionService {
     walletAddress: string,
     requiredAmount: number,
   ): Promise<{ available: boolean; balance: number; error?: string }> {
+    const { solanaWeb3, solanaSplToken } = await getSolanaModulesSecure();
+    const { Connection, PublicKey } = solanaWeb3;
+    const { getAssociatedTokenAddress, getAccount } = solanaSplToken;
+    
     const solanaRpc =
       process.env.SOLANA_RPC_URL || "https://api.mainnet-beta.solana.com";
     const connection = new Connection(solanaRpc, "confirmed");

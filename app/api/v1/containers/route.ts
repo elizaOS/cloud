@@ -23,12 +23,12 @@ import {
   loadContainerSecrets,
   isSecretsConfigured,
 } from "@/lib/services/secrets";
+import { getDWSContainerService } from "@/lib/services/dws/containers";
 
 export const dynamic = "force-dynamic";
-// Set max duration to handle CloudFormation deployments
-// CloudFormation typically takes 5-12 minutes for EC2+ECS provisioning
-// Vercel limits: Hobby=300s, Pro/Enterprise=800s (configurable)
-export const maxDuration = 780; // 13 minutes - allows full CloudFormation deployment
+// Set max duration for container deployments
+// DWS deployments typically take 2-5 minutes
+export const maxDuration = 300; // 5 minutes
 
 const createContainerSchema = z.object({
   name: z.string().min(1).max(100),
@@ -36,18 +36,21 @@ const createContainerSchema = z.object({
   description: z.string().optional(),
   port: z.number().int().min(1).max(65535).default(3000),
   desired_count: z.number().int().min(1).max(10).default(1),
-  cpu: z.number().int().min(256).max(2048).default(1792), // CPU units (1792 = 1.75 vCPU, 87.5% of t4g.small's 2 vCPUs)
-  memory: z.number().int().min(256).max(2048).default(1792), // Memory in MB (1792 MB = 1.75 GiB, 87.5% of t4g.small's 2 GiB)
+  cpu: z.number().int().min(256).max(2048).default(1792), // CPU units
+  memory: z.number().int().min(256).max(2048).default(1792), // Memory in MB
   environment_vars: z.record(z.string(), z.string()).optional(),
   health_check_path: z.string().default("/health"),
 
-  // ECR image fields
-  ecr_image_uri: z.string(), // Required: Full ECR image URI with tag
-  ecr_repository_uri: z.string().optional(),
+  // Container image fields (DWS supports Docker images or IPFS CIDs)
+  container_image: z.string(), // Required: Docker image URI or IPFS CID
+  dws_image_cid: z.string().optional(), // Optional: Direct IPFS CID
   image_tag: z.string().optional(),
 
   // Architecture field for multi-platform support
   architecture: z.enum(["arm64", "x86_64"]).optional().default("arm64"),
+
+  // TEE configuration
+  tee_required: z.boolean().optional().default(false),
 });
 
 /**
@@ -82,10 +85,10 @@ export async function GET(request: NextRequest) {
 
 /**
  * POST /api/v1/containers
- * Creates and deploys a new container to AWS ECS.
+ * Creates and deploys a new container to DWS.
  * Rate limited: 5 deployments per 5 minutes.
  *
- * @param request - Request body with container configuration including ECR image URI, CPU, memory, and environment variables.
+ * @param request - Request body with container configuration.
  * @returns Created container details and deployment status.
  */
 async function handleCreateContainer(request: NextRequest) {
@@ -96,7 +99,7 @@ async function handleCreateContainer(request: NextRequest) {
         {
           success: false,
           error:
-            "Container deployments are not configured. Please set AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, and ECS configuration.",
+            "Container deployments are not configured. Please set DWS_API_URL and DWS_NETWORK.",
         },
         { status: 503 },
       );
@@ -154,45 +157,17 @@ async function handleCreateContainer(request: NextRequest) {
       }
     }
 
-    // Validate ECR image URI
-    if (!validatedData.ecr_image_uri) {
+    // Validate container image
+    if (!validatedData.container_image) {
       return NextResponse.json(
         {
           success: false,
-          error: "ecr_image_uri is required",
+          error: "container_image is required",
           details: {
-            hint: "Call POST /api/v1/containers/credentials to get ECR credentials and push your Docker image to ECR first",
+            hint: "Provide a Docker image URI or use dws_image_cid for IPFS-stored images",
           },
         },
         { status: 400 },
-      );
-    }
-
-    // Verify ECR image exists before deployment (prevents expensive failed deployments)
-    try {
-      const { getECRManager } = await import("@/lib/services/ecr");
-      const ecrManager = getECRManager();
-      const imageExists = await ecrManager.verifyImageExists(
-        validatedData.ecr_image_uri,
-      );
-
-      if (!imageExists) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: `ECR image not found: ${validatedData.ecr_image_uri}`,
-            details: {
-              hint: "Ensure the Docker image was successfully pushed to ECR before deploying",
-            },
-          },
-          { status: 404 },
-        );
-      }
-    } catch (error) {
-      logger.error("Failed to verify ECR image:", error);
-      // Log but don't block deployment - image might exist but verification failed
-      logger.warn(
-        "Proceeding with deployment despite image verification failure",
       );
     }
 
@@ -214,8 +189,7 @@ async function handleCreateContainer(request: NextRequest) {
       const updateData = {
         name: validatedData.name,
         description: validatedData.description,
-        ecr_repository_uri: validatedData.ecr_repository_uri,
-        ecr_image_tag: validatedData.image_tag,
+        dws_image_cid: validatedData.dws_image_cid,
         image_tag: validatedData.image_tag,
         port: validatedData.port,
         desired_count: validatedData.desired_count,
@@ -227,10 +201,11 @@ async function handleCreateContainer(request: NextRequest) {
         status: "pending",
         is_update: "true",
         metadata: {
-          ecr_image_uri: validatedData.ecr_image_uri,
+          container_image: validatedData.container_image,
           is_update: true,
-          previous_image: existingProject.metadata?.ecr_image_uri,
+          previous_image: existingProject.metadata?.container_image,
           architecture: validatedData.architecture,
+          tee_required: validatedData.tee_required,
         },
       };
 
@@ -296,8 +271,7 @@ async function handleCreateContainer(request: NextRequest) {
         organization_id: user.organization_id!!,
         user_id: user.id,
         api_key_id: apiKey?.id || null,
-        ecr_repository_uri: validatedData.ecr_repository_uri,
-        ecr_image_tag: validatedData.image_tag,
+        dws_image_cid: validatedData.dws_image_cid,
         image_tag: validatedData.image_tag,
         port: validatedData.port,
         desired_count: validatedData.desired_count,
@@ -309,22 +283,22 @@ async function handleCreateContainer(request: NextRequest) {
         status: "pending",
         is_update: "false",
         metadata: {
-          ecr_image_uri: validatedData.ecr_image_uri,
+          container_image: validatedData.container_image,
           is_update: false,
           architecture: validatedData.architecture,
+          tee_required: validatedData.tee_required,
         },
       };
 
-      // Calculate deployment cost upfront (ECS is more expensive than Cloudflare)
+      // Calculate deployment cost
       deploymentCost = calculateDeploymentCost({
         desiredCount: validatedData.desired_count,
         cpu: validatedData.cpu,
         memory: validatedData.memory,
-        includeUpload: false, // Image build/push is charged separately
+        includeUpload: false,
       });
 
       // CRITICAL: Wrap container creation AND credit deduction in a single transaction
-      // This prevents race condition where container exists but credits fail to deduct
       try {
         const result =
           await containersService.createContainerWithCreditDeduction(
@@ -346,7 +320,6 @@ async function handleCreateContainer(request: NextRequest) {
           timestamp: new Date(),
         });
       } catch (error) {
-        // Transaction rolled back - no orphaned container or credit inconsistency
         const errorMessage =
           error instanceof Error ? error.message : "Unknown error";
 
@@ -357,11 +330,11 @@ async function handleCreateContainer(request: NextRequest) {
               error: errorMessage,
               requiredCredits: deploymentCost,
             },
-            { status: 402 }, // Payment Required
+            { status: 402 },
           );
         }
 
-        throw error; // Re-throw for outer error handler
+        throw error;
       }
 
       // Create usage record for audit trail
@@ -370,7 +343,7 @@ async function handleCreateContainer(request: NextRequest) {
         user_id: user.id,
         api_key_id: apiKey?.id,
         type: "container_deployment",
-        provider: "aws_ecs",
+        provider: "dws",
         input_cost: String(deploymentCost),
         output_cost: String(0),
         is_successful: true,
@@ -401,7 +374,7 @@ async function handleCreateContainer(request: NextRequest) {
         user_id: user.id,
         api_key_id: apiKey?.id,
         type: "container_update",
-        provider: "aws_ecs",
+        provider: "dws",
         input_cost: String(deploymentCost),
         output_cost: String(0),
         is_successful: true,
@@ -418,11 +391,9 @@ async function handleCreateContainer(request: NextRequest) {
       });
     }
 
-    // Create CloudFormation stack SYNCHRONOUSLY
-    // The CreateStack API call itself is fast (milliseconds) - it just initiates the stack
-    // Only the wait for completion takes 8-12 minutes, which the cron job handles
+    // Create DWS container stack
     try {
-      const stackName = await initiateCloudFormationStack(
+      const dwsContainerId = await initiateDWSContainerDeployment(
         container.id,
         validatedData,
         user.organization_id!,
@@ -434,21 +405,21 @@ async function handleCreateContainer(request: NextRequest) {
           success: true,
           data: container,
           message:
-            "Container deployment started. Poll GET /api/v1/containers/:id to check status. CloudFormation deployment typically takes 8-12 minutes.",
+            "Container deployment started. Poll GET /api/v1/containers/:id to check status. DWS deployment typically takes 2-5 minutes.",
           creditsDeducted: deploymentCost,
           creditsRemaining: newBalance,
-          stackName,
+          dwsContainerId,
           polling: {
             endpoint: `/api/v1/containers/${container.id}`,
-            intervalMs: 10000, // Suggest polling every 10 seconds
-            expectedDurationMs: 600000, // 10 minutes
+            intervalMs: 5000, // Poll every 5 seconds
+            expectedDurationMs: 180000, // 3 minutes
           },
         },
-        { status: 202 }, // 202 Accepted - request accepted, processing asynchronously
+        { status: 202 },
       );
     } catch (stackError) {
       logger.error(
-        `❌ [handleCreateContainer] CloudFormation stack creation failed:`,
+        `[handleCreateContainer] DWS container creation failed:`,
         stackError,
       );
 
@@ -457,7 +428,7 @@ async function handleCreateContainer(request: NextRequest) {
         errorMessage:
           stackError instanceof Error
             ? stackError.message
-            : "CloudFormation stack creation failed",
+            : "DWS container creation failed",
       });
 
       // Refund credits
@@ -469,7 +440,7 @@ async function handleCreateContainer(request: NextRequest) {
           metadata: { type: "refund" },
         });
       } catch (refundError) {
-        logger.error(`❌ Failed to refund credits:`, refundError);
+        logger.error(`Failed to refund credits:`, refundError);
       }
 
       return NextResponse.json(
@@ -478,7 +449,7 @@ async function handleCreateContainer(request: NextRequest) {
           error:
             stackError instanceof Error
               ? stackError.message
-              : "CloudFormation stack creation failed",
+              : "DWS container creation failed",
           containerId: container.id,
         },
         { status: 500 },
@@ -514,7 +485,7 @@ async function handleCreateContainer(request: NextRequest) {
       );
     }
 
-    // Handle duplicate container name errors (from unique constraint)
+    // Handle duplicate container name errors
     if (
       error instanceof Error &&
       (error.message.includes("unique constraint") ||
@@ -549,40 +520,27 @@ export const POST = withRateLimit(
 );
 
 /**
- * Initiates CloudFormation stack creation SYNCHRONOUSLY
- * This is fast (just the API call) - the actual stack creation takes 8-12 minutes
- * and is monitored by the deployment-monitor cron job
+ * Initiates DWS container deployment
+ * This creates the container stack in DWS and returns the container ID
  */
-async function initiateCloudFormationStack(
+async function initiateDWSContainerDeployment(
   containerId: string,
   config: z.infer<typeof createContainerSchema>,
   organizationId: string,
 ): Promise<string> {
-  const { cloudFormationService } =
-    await import("@/lib/services/cloudformation");
+  const dwsContainerService = getDWSContainerService();
 
   // Update status to building
   await updateContainerStatus(containerId, "building", {
-    deploymentLog: "Provisioning dedicated EC2 instance and ECS cluster...",
+    deploymentLog: "Provisioning DWS container...",
   });
 
-  // Check if shared infrastructure is deployed
-  const sharedInfraExists =
-    await cloudFormationService.isSharedInfrastructureDeployed();
-
-  if (!sharedInfraExists) {
-    throw new Error(
-      "Shared infrastructure not deployed. Contact support or deploy infrastructure first.",
-    );
-  }
-
-  // Determine architecture and instance type
+  // Determine architecture
   const architecture = config.architecture || "arm64";
-  const instanceType = architecture === "arm64" ? "t4g.small" : "t3.small";
 
   // Update status to deploying
   await updateContainerStatus(containerId, "deploying", {
-    deploymentLog: `Creating CloudFormation stack (1x ${instanceType} ${architecture === "arm64" ? "ARM" : "x86_64"} instance)...`,
+    deploymentLog: `Creating DWS container stack (${architecture} architecture)...`,
   });
 
   // Load encrypted secrets (org + container-scoped)
@@ -607,35 +565,36 @@ async function initiateCloudFormationStack(
     userId: organizationId,
     projectName: config.project_name,
     userEmail: config.name,
-    containerImage: config.ecr_image_uri,
+    containerImage: config.container_image,
     containerPort: config.port,
     containerCpu: config.cpu,
     containerMemory: config.memory,
     architecture: architecture,
-    keyName: process.env.EC2_KEY_NAME,
     environmentVars: environmentVars,
+    teeRequired: config.tee_required ?? false,
+    minInstances: config.desired_count,
+    maxInstances: Math.min(config.desired_count * 3, 10),
+    healthCheckPath: config.health_check_path,
   };
 
-  // Create or update CloudFormation stack
-  // This API call is FAST (milliseconds) - it just initiates the stack
-  let stackId: string;
+  // Create or update DWS container stack
+  let result;
   if (isUpdate) {
-    stackId = await cloudFormationService.updateUserStack(stackConfig);
+    result = await dwsContainerService.updateStack(
+      organizationId,
+      config.project_name,
+      stackConfig,
+    );
   } else {
-    stackId = await cloudFormationService.createUserStack(stackConfig);
+    result = await dwsContainerService.createStack(stackConfig);
   }
 
-  // Get the stack name for storage
-  const stackName = cloudFormationService.getStackName(
-    organizationId,
-    config.project_name,
-  );
-
-  // Update container with stack name
+  // Update container with DWS container ID
   await updateContainerStatus(containerId, "deploying", {
-    cloudformationStackName: stackName,
-    deploymentLog: `CloudFormation stack "${stackName}" creation initiated. Monitoring for completion...`,
+    dwsContainerId: result.stackId,
+    dwsDeploymentId: result.stackId,
+    deploymentLog: `DWS container "${result.stackName}" deployment initiated. Monitoring for completion...`,
   });
 
-  return stackName;
+  return result.stackId;
 }

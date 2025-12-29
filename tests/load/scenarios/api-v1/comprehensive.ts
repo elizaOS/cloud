@@ -33,7 +33,7 @@ export function setup() {
   console.log(`\n🔬 COMPREHENSIVE API TEST | ${config.name} | ${baseUrl}\n`);
 }
 
-export default function () {
+export default function main() {
   // 1. Public - Agent Card
   group("Discovery", () => {
     const card = httpGet<{ name: string; protocolVersion: string }>("/.well-known/agent-card.json", { public: true });

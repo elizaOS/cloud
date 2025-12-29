@@ -10,7 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { AlertCircle, Loader2 } from "lucide-react";
-import { useLogin, usePrivy } from "@privy-io/react-auth";
+import { useLogin, usePrivy } from "@/lib/providers/PrivyProvider";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 

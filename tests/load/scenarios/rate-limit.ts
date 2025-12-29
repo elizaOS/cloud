@@ -80,7 +80,7 @@ export function recoveryTest() {
   sleep(10);
 }
 
-export default function () {
+export default function main() {
   makeRequest();
 }
 

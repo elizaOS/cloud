@@ -6,8 +6,16 @@ import { z } from "zod3";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { AsyncLocalStorage } from "node:async_hooks";
-import DOMPurify from "isomorphic-dompurify";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
+
+// Dynamic import for DOMPurify to avoid jsdom build issues with Turbopack
+let domPurifyModule: typeof import("isomorphic-dompurify") | null = null;
+async function getDOMPurify() {
+  if (!domPurifyModule) {
+    domPurifyModule = await import("isomorphic-dompurify");
+  }
+  return domPurifyModule.default;
+}
 import type { AuthResult, Organization } from "@/lib/auth";
 import type { UserWithOrganization } from "@/lib/types";
 
@@ -1006,6 +1014,7 @@ const mcpHandler = createMcpHandler(
           // SECURITY FIX: Validate and sanitize inputs to prevent XSS and data corruption
 
           // 1. Sanitize content to prevent stored XSS
+          const DOMPurify = await getDOMPurify();
           const sanitizedContent = DOMPurify.sanitize(content, {
             ALLOWED_TAGS: [], // Strip all HTML tags
             ALLOWED_ATTR: [], // Strip all attributes

@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { Loader2, Copy, CheckCircle, AlertCircle, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import Image from "next/image";
-import { useWallets, usePrivy } from "@privy-io/react-auth";
+import { useWallets, usePrivy } from "@/lib/providers/PrivyProvider";
 
 interface CryptoPaymentModalProps {
   paymentId: string;

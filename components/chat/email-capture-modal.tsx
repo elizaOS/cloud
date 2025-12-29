@@ -14,7 +14,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { usePrivy } from "@privy-io/react-auth";
+import { usePrivy } from "@/lib/providers/PrivyProvider";
 import {
   Dialog,
   DialogContent,

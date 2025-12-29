@@ -8,7 +8,7 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
-import { usePrivy } from "@privy-io/react-auth";
+import { usePrivy } from "@/lib/providers/PrivyProvider";
 import { toast } from "sonner";
 import { isMobileApp, isIOS, isAndroid } from "@/lib/api/mobile-client";
 import {

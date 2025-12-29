@@ -60,3 +60,7 @@ ignore/
 .env*.local
 vendor/
 docs/
+
+.cache-synpress/
+.dws/
+.dws-bundle/

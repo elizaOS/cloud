@@ -1,39 +1,15 @@
-import { describe, it, expect, beforeEach, mock, spyOn } from "bun:test";
+import { describe, it, expect, beforeEach } from "bun:test";
 import { AWSKMSProvider } from "@/lib/services/secrets/encryption";
 
-// Mock AWS SDK
-const mockSend = mock(() =>
-  Promise.resolve({
-    Plaintext: new Uint8Array(32).fill(1),
-    CiphertextBlob: new Uint8Array(48).fill(2),
-  }),
-);
+/**
+ * AWS KMS Provider Tests
+ * 
+ * Note: AWSKMSProvider is deprecated and now falls back to LocalKMSProvider.
+ * These tests verify the deprecation behavior and fallback logic.
+ */
 
-const MockKMSClient = mock(function () {
-  return { send: mockSend };
-});
-
-const MockGenerateDataKeyCommand = mock(function (params: unknown) {
-  return { type: "GenerateDataKey", params };
-});
-
-const MockDecryptCommand = mock(function (params: unknown) {
-  return { type: "Decrypt", params };
-});
-
-mock.module("@aws-sdk/client-kms", () => ({
-  KMSClient: MockKMSClient,
-  GenerateDataKeyCommand: MockGenerateDataKeyCommand,
-  DecryptCommand: MockDecryptCommand,
-}));
-
-describe("AWSKMSProvider", () => {
+describe("AWSKMSProvider (Deprecated)", () => {
   beforeEach(() => {
-    mockSend.mockClear();
-    MockKMSClient.mockClear();
-    MockGenerateDataKeyCommand.mockClear();
-    MockDecryptCommand.mockClear();
-
     // Reset env
     process.env.AWS_KMS_KEY_ID = "test-key-id";
     process.env.AWS_REGION = "us-west-2";
@@ -60,94 +36,42 @@ describe("AWSKMSProvider", () => {
     });
   });
 
-  describe("generateDataKey", () => {
-    it("calls KMS with correct parameters", async () => {
+  describe("Fallback to LocalKMSProvider", () => {
+    it("generateDataKey falls back to LocalKMSProvider", async () => {
       process.env.AWS_KMS_KEY_ID = "test-key-id";
       const provider = new AWSKMSProvider();
 
       const result = await provider.generateDataKey();
 
-      expect(mockSend).toHaveBeenCalledTimes(1);
-      expect(MockGenerateDataKeyCommand).toHaveBeenCalledWith({
-        KeyId: "test-key-id",
-        KeySpec: "AES_256",
-      });
-      expect(result.keyId).toBe("test-key-id");
+      // Should return a valid result from LocalKMSProvider
+      expect(result.keyId).toBe("local-kms-key");
       expect(result.plaintext).toBeInstanceOf(Buffer);
+      expect(result.plaintext.length).toBe(32);
       expect(result.ciphertext).toBeDefined();
     });
 
-    it("throws on empty response", async () => {
-      mockSend.mockResolvedValueOnce({});
-      process.env.AWS_KMS_KEY_ID = "test-key";
-      const provider = new AWSKMSProvider();
-
-      await expect(provider.generateDataKey()).rejects.toThrow(
-        "empty response",
-      );
-    });
-
-    it("reuses KMS client across calls", async () => {
-      process.env.AWS_KMS_KEY_ID = "test-key";
-      const provider = new AWSKMSProvider();
-
-      await provider.generateDataKey();
-      await provider.generateDataKey();
-
-      // Client should only be created once
-      expect(MockKMSClient).toHaveBeenCalledTimes(1);
-      expect(mockSend).toHaveBeenCalledTimes(2);
-    });
-  });
-
-  describe("decrypt", () => {
-    it("calls KMS decrypt with correct parameters", async () => {
+    it("decrypt falls back to LocalKMSProvider", async () => {
       process.env.AWS_KMS_KEY_ID = "test-key-id";
       const provider = new AWSKMSProvider();
 
-      const testCiphertext = Buffer.from("test-encrypted-data").toString(
-        "base64",
-      );
-      const result = await provider.decrypt(testCiphertext);
+      // Generate a key and then decrypt the ciphertext
+      const { plaintext, ciphertext } = await provider.generateDataKey();
+      const decrypted = await provider.decrypt(ciphertext);
 
-      expect(mockSend).toHaveBeenCalledTimes(1);
-      expect(MockDecryptCommand).toHaveBeenCalled();
-      expect(result).toBeInstanceOf(Buffer);
+      expect(decrypted).toBeInstanceOf(Buffer);
+      expect(decrypted.length).toBe(32);
+      // The decrypted key should match the original plaintext
+      expect(decrypted.toString("hex")).toBe(plaintext.toString("hex"));
     });
 
-    it("throws on empty plaintext response", async () => {
-      mockSend.mockResolvedValueOnce({ Plaintext: undefined });
-      process.env.AWS_KMS_KEY_ID = "test-key";
+    it("decrypt rejects invalid ciphertext gracefully", async () => {
+      process.env.AWS_KMS_KEY_ID = "test-key-id";
       const provider = new AWSKMSProvider();
 
-      await expect(provider.decrypt("dGVzdA==")).rejects.toThrow(
-        "empty response",
-      );
-    });
-  });
-
-  describe("Credential handling", () => {
-    it("uses explicit credentials when provided", async () => {
-      process.env.AWS_KMS_KEY_ID = "test-key";
-      process.env.AWS_ACCESS_KEY_ID = "AKIATEST";
-      process.env.AWS_SECRET_ACCESS_KEY = "secret123";
-
-      const provider = new AWSKMSProvider();
-      await provider.generateDataKey();
-
-      // KMSClient should be constructed with credentials
-      expect(MockKMSClient).toHaveBeenCalled();
-    });
-
-    it("works without explicit credentials (uses IAM role)", async () => {
-      process.env.AWS_KMS_KEY_ID = "test-key";
-      delete process.env.AWS_ACCESS_KEY_ID;
-      delete process.env.AWS_SECRET_ACCESS_KEY;
-
-      const provider = new AWSKMSProvider();
-      await provider.generateDataKey();
-
-      expect(MockKMSClient).toHaveBeenCalled();
+      // Invalid base64 that decodes to something too short
+      const invalidCiphertext = Buffer.from("invalid").toString("base64");
+      
+      await expect(provider.decrypt(invalidCiphertext)).rejects.toThrow();
     });
   });
 });

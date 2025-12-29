@@ -135,6 +135,6 @@ export function discordWebhookCycle() {
   ops[__ITER % ops.length]();
 }
 
-export default function () {
+export default function main() {
   discordWebhookCycle();
 }

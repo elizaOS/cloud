@@ -1,10 +1,10 @@
 /**
  * Distributed locking service for preventing concurrent operations.
  *
- * Uses Redis to coordinate locks across multiple serverless instances.
+ * Uses DWS cache to coordinate locks across multiple serverless instances.
  */
 
-import { Redis } from "@upstash/redis";
+import { DWSCache } from "@/lib/services/dws/cache";
 import { logger } from "@/lib/utils/logger";
 import { v4 as uuidv4 } from "uuid";
 
@@ -20,11 +20,11 @@ export interface Lock {
 }
 
 /**
- * Service for managing distributed locks using Redis.
+ * Service for managing distributed locks using DWS cache.
  */
 export class DistributedLockService {
   private static instance: DistributedLockService;
-  private redis: Redis | null = null;
+  private dwsCache: DWSCache | null = null;
   private enabled = false;
 
   private constructor() {
@@ -32,17 +32,20 @@ export class DistributedLockService {
   }
 
   private initialize(): void {
-    if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
+    if (process.env.CACHE_ENABLED === "false") {
       this.enabled = false;
       return;
     }
 
-    this.redis = new Redis({
-      url: process.env.KV_REST_API_URL,
-      token: process.env.KV_REST_API_TOKEN,
-    });
-
-    this.enabled = true;
+    try {
+      this.dwsCache = new DWSCache({
+        namespace: "locks",
+        defaultTTL: 300,
+      });
+      this.enabled = true;
+    } catch {
+      this.enabled = false;
+    }
   }
 
   public static getInstance(): DistributedLockService {
@@ -56,7 +59,6 @@ export class DistributedLockService {
    * Acquire a lock for a room with retry logic for concurrent requests
    * @param roomId - Room to lock
    * @param ttl - Lock TTL in milliseconds (default: 90000ms = 90s)
-   * PERFORMANCE FIX: Increased from 30s to 90s to accommodate long-running LLM calls
    * @param options - Retry options
    * @returns Lock object if acquired, null if failed after all retries
    */
@@ -95,7 +97,6 @@ export class DistributedLockService {
           `[Distributed Locks] Lock acquisition attempt ${attempt + 1}/${maxRetries + 1} failed for ${roomId}, retrying in ${delayMs}ms`,
         );
 
-        // Wait before retrying
         await new Promise((resolve) => setTimeout(resolve, delayMs));
 
         // Exponential backoff with jitter
@@ -115,14 +116,13 @@ export class DistributedLockService {
    * Acquire a lock for a room to prevent concurrent message processing
    * @param roomId - Room to lock
    * @param ttl - Lock TTL in milliseconds (default: 90000ms = 90s)
-   * PERFORMANCE FIX: Increased from 30s to 90s to accommodate long-running LLM calls
    * @returns Lock object if acquired, null if already locked
    */
   async acquireRoomLock(
     roomId: string,
     ttl: number = 90000,
   ): Promise<Lock | null> {
-    if (!this.enabled || !this.redis) {
+    if (!this.enabled || !this.dwsCache) {
       logger.warn(
         "[Distributed Locks] Service disabled, skipping lock acquisition",
       );
@@ -130,12 +130,12 @@ export class DistributedLockService {
     }
 
     const lockId = uuidv4();
-    const key = `agent:room:${roomId}:lock`;
+    const key = `room:${roomId}:lock`;
 
     // Try to acquire lock using SET NX (set if not exists) with expiry
-    const acquired = await this.redis.set(key, lockId, {
-      nx: true, // Only set if key doesn't exist
-      px: ttl, // TTL in milliseconds
+    const acquired = await this.dwsCache.set(key, lockId, {
+      nx: true,
+      px: ttl,
     });
 
     if (!acquired) {
@@ -169,14 +169,14 @@ export class DistributedLockService {
    * @returns true if released, false if not owned or doesn't exist
    */
   async releaseRoomLock(roomId: string, lockId: string): Promise<boolean> {
-    if (!this.enabled || !this.redis) {
+    if (!this.enabled || !this.dwsCache) {
       return true;
     }
 
-    const key = `agent:room:${roomId}:lock`;
+    const key = `room:${roomId}:lock`;
 
     // Only release if we own the lock (check lockId matches)
-    const currentLockId = await this.redis.get(key);
+    const currentLockId = await this.dwsCache.get(key);
 
     if (currentLockId !== lockId) {
       logger.warn(
@@ -185,7 +185,7 @@ export class DistributedLockService {
       return false;
     }
 
-    await this.redis.del(key);
+    await this.dwsCache.del(key);
     logger.debug(`[Distributed Locks] Released lock ${lockId} for ${roomId}`);
     return true;
   }
@@ -202,14 +202,14 @@ export class DistributedLockService {
     lockId: string,
     ms: number,
   ): Promise<boolean> {
-    if (!this.enabled || !this.redis) {
+    if (!this.enabled || !this.dwsCache) {
       return true;
     }
 
-    const key = `agent:room:${roomId}:lock`;
+    const key = `room:${roomId}:lock`;
 
     // Verify ownership
-    const currentLockId = await this.redis.get(key);
+    const currentLockId = await this.dwsCache.get(key);
 
     if (currentLockId !== lockId) {
       logger.warn(
@@ -219,7 +219,7 @@ export class DistributedLockService {
     }
 
     // Get current TTL
-    const ttl = await this.redis.pttl(key);
+    const ttl = await this.dwsCache.ttl(key);
     if (ttl <= 0) {
       logger.warn(
         `[Distributed Locks] Cannot extend lock ${lockId} for ${roomId} - already expired`,
@@ -227,12 +227,12 @@ export class DistributedLockService {
       return false;
     }
 
-    // Set new TTL (current + extension)
-    const newTtl = ttl + ms;
-    await this.redis.pexpire(key, newTtl);
+    // Set new TTL (current + extension) - convert ms to seconds for expire
+    const newTtlSeconds = ttl + Math.ceil(ms / 1000);
+    await this.dwsCache.expire(key, newTtlSeconds);
 
     logger.debug(
-      `[Distributed Locks] Extended lock ${lockId} for ${roomId} by ${ms}ms (new TTL: ${newTtl}ms)`,
+      `[Distributed Locks] Extended lock ${lockId} for ${roomId} by ${ms}ms (new TTL: ${newTtlSeconds * 1000}ms)`,
     );
     return true;
   }
@@ -243,13 +243,13 @@ export class DistributedLockService {
    * @returns true if locked, false otherwise
    */
   async isLocked(roomId: string): Promise<boolean> {
-    if (!this.enabled || !this.redis) {
+    if (!this.enabled || !this.dwsCache) {
       return false;
     }
 
-    const key = `agent:room:${roomId}:lock`;
+    const key = `room:${roomId}:lock`;
 
-    const lockId = await this.redis.get(key);
+    const lockId = await this.dwsCache.get(key);
     return lockId !== null;
   }
 
@@ -261,19 +261,19 @@ export class DistributedLockService {
   async getLockInfo(
     roomId: string,
   ): Promise<{ lockId: string; ttl: number } | null> {
-    if (!this.enabled || !this.redis) {
+    if (!this.enabled || !this.dwsCache) {
       return null;
     }
 
-    const key = `agent:room:${roomId}:lock`;
+    const key = `room:${roomId}:lock`;
 
-    const lockId = await this.redis.get<string>(key);
+    const lockId = await this.dwsCache.get<string>(key);
     if (!lockId) {
       return null;
     }
 
-    const ttl = await this.redis.pttl(key);
-    return { lockId, ttl };
+    const ttl = await this.dwsCache.ttl(key);
+    return { lockId, ttl: ttl * 1000 }; // Convert to milliseconds
   }
 
   /**
@@ -282,13 +282,13 @@ export class DistributedLockService {
    * @returns true if released, false on error
    */
   async forceRelease(roomId: string): Promise<boolean> {
-    if (!this.enabled || !this.redis) {
+    if (!this.enabled || !this.dwsCache) {
       return true;
     }
 
-    const key = `agent:room:${roomId}:lock`;
+    const key = `room:${roomId}:lock`;
 
-    await this.redis.del(key);
+    await this.dwsCache.del(key);
     logger.info(`[Distributed Locks] Force released lock for ${roomId}`);
     return true;
   }

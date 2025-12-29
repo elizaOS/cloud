@@ -24,3 +24,6 @@ timeout = 30000
 # Limit concurrent tests to avoid resource contention
 # Individual test scripts can override with --max-concurrency
 smol = true
+
+# Exclude Playwright tests (run with: bunx playwright test)
+ignore = ["**/playwright/**", "**/tests/playwright/**"]

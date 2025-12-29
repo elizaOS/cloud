@@ -6,14 +6,8 @@
  * 2. Delete old interpreter executions
  * 3. Clean up orphaned snapshots
  *
- * Setup with Vercel Cron:
- * Add to vercel.json:
- * {
- *   "crons": [{
- *     "path": "/api/cron/cleanup-code-sessions",
- *     "schedule": "0,15,30,45 * * * *"  // Every 15 minutes
- *   }]
- * }
+ * Setup with DWS Cron:
+ * Configured in dws-manifest.json cron section.
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -26,7 +20,8 @@ import {
 } from "@/db/schemas/code-agent-sessions";
 import { codeAgentService } from "@/lib/services/code-agent";
 import { logger } from "@/lib/utils/logger";
-import { del } from "@vercel/blob";
+import { del } from "@/lib/services/dws/storage";
+import { verifyCronRequest } from "@/lib/services/dws/cron";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -37,16 +32,8 @@ export const maxDuration = 60;
  * Cleanup expired code agent sessions and related data.
  */
 export async function GET(request: NextRequest) {
-  const authHeader = request.headers.get("authorization");
-  const cronSecret = process.env.CRON_SECRET;
-
-  if (!cronSecret) {
-    logger.error("[Cleanup Code Sessions] CRON_SECRET not configured");
-    return NextResponse.json({ error: "Cron not configured" }, { status: 500 });
-  }
-
-  const providedSecret = authHeader?.replace("Bearer ", "");
-  if (providedSecret !== cronSecret) {
+  // Verify cron request using DWS cron service
+  if (!verifyCronRequest(request)) {
     logger.warn("[Cleanup Code Sessions] Invalid cron secret");
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -169,4 +156,9 @@ export async function GET(request: NextRequest) {
       timestamp: now.toISOString(),
     },
   });
+}
+
+// DWS cron jobs call POST by default
+export async function POST(request: NextRequest) {
+  return GET(request);
 }

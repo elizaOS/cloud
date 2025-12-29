@@ -1,4 +1,4 @@
-import { put, del, list } from "@vercel/blob";
+import { put, del, list, head } from "@/lib/services/dws/storage";
 import { logger } from "@/lib/utils/logger";
 
 /**
@@ -6,6 +6,13 @@ import { logger } from "@/lib/utils/logger";
  * Used to prevent SSRF attacks by ensuring URLs point to our storage.
  */
 export const TRUSTED_BLOB_HOSTS = [
+  "storage.dws.local",
+  "storage.testnet.jejunetwork.org",
+  "storage.jejunetwork.org",
+  "ipfs.io",
+  "w3s.link",
+  "dweb.link",
+  // Legacy Vercel hosts for backwards compatibility
   "blob.vercel-storage.com",
   "public.blob.vercel-storage.com",
 ];
@@ -64,21 +71,16 @@ export interface BlobUploadResult {
 }
 
 /**
- * Uploads a file to Vercel Blob storage.
+ * Uploads a file to DWS storage.
  *
  * @param content - File content as Buffer or string.
  * @param options - Upload options including filename and metadata.
  * @returns Upload result with URL and metadata.
- * @throws Error if BLOB_READ_WRITE_TOKEN is not configured.
  */
 export async function uploadToBlob(
   content: Buffer | string,
   options: BlobUploadOptions,
 ): Promise<BlobUploadResult> {
-  if (!process.env.BLOB_READ_WRITE_TOKEN) {
-    throw new Error("BLOB_READ_WRITE_TOKEN is not configured");
-  }
-
   const { filename, contentType, folder = "media", userId } = options;
 
   // Create a hierarchical pathname: folder/userId/timestamp-filename
@@ -293,13 +295,8 @@ export const ensureElizaCloudUrl = ensureLocalStorageUrl;
  * Deletes a blob from storage.
  *
  * @param url - URL of the blob to delete.
- * @throws Error if BLOB_READ_WRITE_TOKEN is not configured.
  */
 export async function deleteBlob(url: string): Promise<void> {
-  if (!process.env.BLOB_READ_WRITE_TOKEN) {
-    throw new Error("BLOB_READ_WRITE_TOKEN is not configured");
-  }
-
   await del(url);
 }
 
@@ -308,13 +305,8 @@ export async function deleteBlob(url: string): Promise<void> {
  *
  * @param prefix - Optional prefix to filter blobs by pathname.
  * @returns List of blobs matching the prefix (up to 1000 results).
- * @throws Error if BLOB_READ_WRITE_TOKEN is not configured.
  */
 export async function listBlobs(prefix?: string) {
-  if (!process.env.BLOB_READ_WRITE_TOKEN) {
-    throw new Error("BLOB_READ_WRITE_TOKEN is not configured");
-  }
-
   return await list({
     prefix,
     limit: 1000,

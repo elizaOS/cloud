@@ -1,66 +1,27 @@
 /**
- * Server actions for analytics data.
+ * Analytics data actions.
+ *
+ * This module re-exports client API functions for analytics data.
+ * Previously used "use server" directives, now uses client API routes.
  */
 
-"use server";
+import { analyticsApi, type AnalyticsFilters } from "@/lib/api/client";
 
-import { requireAuthWithOrg } from "@/lib/auth";
-import {
-  getUsageStatsSafe,
-  getUsageTimeSeries,
-  getUsageByUser,
-  getCostTrending,
-  type TimeGranularity,
-} from "@/lib/services/analytics";
-
-/**
- * Filters for analytics queries.
- */
-export interface AnalyticsFilters {
-  startDate?: Date;
-  endDate?: Date;
-  granularity?: TimeGranularity;
-  modelFilter?: string;
-  providerFilter?: string;
-}
+export type { AnalyticsFilters };
 
 /**
  * Gets analytics data for the current user's organization.
- *
- * @param filters - Optional filters for date range, granularity, and model/provider.
- * @returns Analytics data including stats, time series, user breakdown, and cost trending.
  */
 export async function getAnalyticsData(filters: AnalyticsFilters = {}) {
-  const user = await requireAuthWithOrg();
-  const organizationId = user.organization_id!;
-
-  const {
-    startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
-    endDate = new Date(),
-    granularity = "day" as TimeGranularity,
-  } = filters;
-
-  const [overallStats, timeSeriesData, userBreakdown, costTrending] =
-    await Promise.all([
-      getUsageStatsSafe(organizationId, { startDate, endDate }),
-      getUsageTimeSeries(organizationId, { startDate, endDate, granularity }),
-      getUsageByUser(organizationId, { startDate, endDate, limit: 10 }),
-      getCostTrending(organizationId),
-    ]);
-
+  const timeRange = filters.timeRange ?? "daily";
+  const response = await analyticsApi.getOverview(timeRange);
   return {
     filters: {
-      startDate,
-      endDate,
-      granularity,
+      startDate: filters.startDate ?? new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+      endDate: filters.endDate ?? new Date(),
+      granularity: filters.granularity ?? "day",
     },
-    overallStats,
-    timeSeriesData,
-    userBreakdown,
-    costTrending,
-    organization: {
-      creditBalance: user.organization.credit_balance,
-    },
+    ...response.data,
   };
 }
 

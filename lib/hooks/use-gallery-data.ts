@@ -15,7 +15,7 @@
 
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, startTransition } from "react";
 import {
   listUserMedia,
   getUserMediaStats,
@@ -224,7 +224,11 @@ export function useGalleryData(
 
   const mountedRef = useRef(true);
   const optionsRef = useRef(options);
-  optionsRef.current = options;
+
+  // Update ref in effect to avoid updating during render
+  useEffect(() => {
+    optionsRef.current = options;
+  });
 
   useEffect(() => {
     mountedRef.current = true;
@@ -235,15 +239,21 @@ export function useGalleryData(
 
   // Fetch items when options change
   useEffect(() => {
-    if (options.skipItems) {
-      setIsLoadingItems(false);
+    const { type, source, limit, skipItems } = options;
+    if (skipItems) {
       return;
     }
 
     let cancelled = false;
-    setIsLoadingItems(true);
+    
+    // Use startTransition to avoid synchronous setState warning
+    startTransition(() => {
+      setIsLoadingItems(true);
+    });
 
-    fetchItems(options).then((data) => {
+    // Construct fetch options from dependencies to satisfy exhaustive-deps
+    const fetchOpts = { type, source, limit };
+    fetchItems(fetchOpts).then((data) => {
       if (!cancelled && mountedRef.current) {
         setItems(data);
         setIsLoadingItems(false);
@@ -253,17 +263,19 @@ export function useGalleryData(
     return () => {
       cancelled = true;
     };
-  }, [options.type, options.source, options.limit, options.skipItems]);
+  }, [options]);
 
   // Fetch stats on mount
   useEffect(() => {
     if (options.skipStats) {
-      setIsLoadingStats(false);
       return;
     }
 
     let cancelled = false;
-    setIsLoadingStats(true);
+    
+    startTransition(() => {
+      setIsLoadingStats(true);
+    });
 
     fetchStats().then((data) => {
       if (!cancelled && mountedRef.current) {
@@ -280,12 +292,14 @@ export function useGalleryData(
   // Fetch collections on mount
   useEffect(() => {
     if (options.skipCollections) {
-      setIsLoadingCollections(false);
       return;
     }
 
     let cancelled = false;
-    setIsLoadingCollections(true);
+    
+    startTransition(() => {
+      setIsLoadingCollections(true);
+    });
 
     fetchCollections().then((data) => {
       if (!cancelled && mountedRef.current) {

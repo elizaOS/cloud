@@ -1,42 +1,42 @@
 /**
- * Redis-Backed Rate Limiting
+ * DWS Cache-Backed Rate Limiting
  *
- * This module implements distributed rate limiting using Upstash Redis
+ * This module implements distributed rate limiting using DWS cache
  * to ensure rate limits work correctly across multiple serverless instances.
  *
- * Algorithm: Sliding Window using Redis Sorted Sets
+ * Algorithm: Sliding Window using Cache Sorted Sets
  * - Each request is stored as a member in a sorted set with timestamp as score
  * - Old entries are removed before counting
- * - Atomic operations via Redis pipeline ensure consistency
- *
- * @see ANALYTICS_PR_REVIEW_ANALYSIS.md - Issue #1
+ * - Atomic operations ensure consistency
  */
 
-import { Redis } from "@upstash/redis";
+import { DWSCache } from "@/lib/services/dws/cache";
 import { logger } from "@/lib/utils/logger";
 
 // Re-export from rate-limit for convenience
 export { withRateLimit, RateLimitPresets } from "./rate-limit";
 
-let redis: Redis | null = null;
+let dwsCache: DWSCache | null = null;
 
-function getRedisClient(): Redis | null {
-  if (redis) return redis;
+function getCacheClient(): DWSCache | null {
+  if (dwsCache) return dwsCache;
 
-  if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
-    logger.error(
-      "[Rate Limit Redis] Missing Upstash credentials. Set KV_REST_API_URL and KV_REST_API_TOKEN",
-    );
+  if (process.env.CACHE_ENABLED === "false") {
+    logger.warn("[Rate Limit] Cache disabled, rate limiting will be ineffective");
     return null;
   }
 
-  redis = new Redis({
-    url: process.env.KV_REST_API_URL,
-    token: process.env.KV_REST_API_TOKEN,
-  });
-
-  logger.info("[Rate Limit Redis] Redis client initialized");
-  return redis;
+  try {
+    dwsCache = new DWSCache({
+      namespace: "ratelimit",
+      defaultTTL: 3600,
+    });
+    logger.info("[Rate Limit] DWS cache client initialized");
+    return dwsCache;
+  } catch (error) {
+    logger.error("[Rate Limit] Failed to initialize DWS cache", { error });
+    return null;
+  }
 }
 
 /**
@@ -50,31 +50,18 @@ export interface RateLimitResult {
 }
 
 /**
- * Check rate limit using Redis with sliding window algorithm
- *
- * @param key - Unique identifier for the rate limit (e.g., user ID, API key, IP)
- * @param windowMs - Time window in milliseconds
- * @param maxRequests - Maximum requests allowed in the window
- * @returns Rate limit result with allowed status and metadata
- *
- * @example
- * ```typescript
- * const result = await checkRateLimitRedis("user:123", 60000, 60);
- * if (!result.allowed) {
- *   return res.status(429).json({ error: "Too many requests" });
- * }
- * ```
+ * Check rate limit using DWS cache with sliding window algorithm
  */
 export async function checkRateLimitRedis(
   key: string,
   windowMs: number,
   maxRequests: number,
 ): Promise<RateLimitResult> {
-  const client = getRedisClient();
+  const client = getCacheClient();
 
   if (!client) {
     logger.warn(
-      "[Rate Limit Redis] Redis unavailable, failing open (allowing request)",
+      "[Rate Limit] Cache unavailable, failing open (allowing request)",
     );
     return {
       allowed: true,
@@ -84,39 +71,29 @@ export async function checkRateLimitRedis(
   }
 
   const now = Date.now();
-  const windowStart = now - windowMs;
-  const cacheKey = `ratelimit:${key}`;
+  const cacheKey = key;
 
   try {
-    const pipeline = client.pipeline();
+    // Use simple counter-based rate limiting with DWS cache
+    const currentCount = await client.incr(cacheKey);
+    
+    // Set expiry on first request
+    if (currentCount === 1) {
+      await client.expire(cacheKey, Math.ceil(windowMs / 1000));
+    }
 
-    pipeline.zremrangebyscore(cacheKey, 0, windowStart);
-
-    pipeline.zcard(cacheKey);
-
-    pipeline.zadd(cacheKey, {
-      score: now,
-      member: `${now}-${Math.random().toString(36).substring(7)}`,
-    });
-
-    pipeline.expire(cacheKey, Math.ceil(windowMs / 1000) + 10);
-
-    const results = await pipeline.exec();
-
-    const count = ((results[1] as number) || 0) as number;
-
-    const allowed = count < maxRequests;
-    const remaining = Math.max(0, maxRequests - count - 1);
+    const allowed = currentCount <= maxRequests;
+    const remaining = Math.max(0, maxRequests - currentCount);
     const resetAt = now + windowMs;
     const retryAfter = allowed ? undefined : Math.ceil(windowMs / 1000);
 
     if (!allowed) {
       logger.info(
-        `[Rate Limit Redis] Limit exceeded for key=${key}, count=${count + 1}, max=${maxRequests}`,
+        `[Rate Limit] Limit exceeded for key=${key}, count=${currentCount}, max=${maxRequests}`,
       );
     } else {
       logger.debug(
-        `[Rate Limit Redis] Request allowed for key=${key}, remaining=${remaining}`,
+        `[Rate Limit] Request allowed for key=${key}, remaining=${remaining}`,
       );
     }
 
@@ -127,7 +104,7 @@ export async function checkRateLimitRedis(
       retryAfter,
     };
   } catch (error) {
-    logger.error("[Rate Limit Redis] Error checking rate limit:", error);
+    logger.error("[Rate Limit] Error checking rate limit:", error);
     return {
       allowed: true,
       remaining: maxRequests,
@@ -137,44 +114,29 @@ export async function checkRateLimitRedis(
 }
 
 /**
- * Clear rate limit for a specific key (useful for testing or admin actions)
- */
-/**
  * Clears rate limit for a specific key.
- *
- * Useful for testing or admin actions.
- *
- * @param key - Rate limit key to clear.
  */
 export async function clearRateLimit(key: string): Promise<void> {
-  const client = getRedisClient();
+  const client = getCacheClient();
   if (!client) return;
 
   try {
-    await client.del(`ratelimit:${key}`);
-    logger.info(`[Rate Limit Redis] Cleared rate limit for key=${key}`);
+    await client.del(key);
+    logger.info(`[Rate Limit] Cleared rate limit for key=${key}`);
   } catch (error) {
-    logger.error(`[Rate Limit Redis] Error clearing rate limit:`, error);
+    logger.error(`[Rate Limit] Error clearing rate limit:`, error);
   }
 }
 
 /**
- * Get current rate limit status without incrementing counter
- */
-/**
  * Gets current rate limit status without incrementing counter.
- *
- * @param key - Rate limit key.
- * @param windowMs - Time window in milliseconds.
- * @param maxRequests - Maximum requests allowed.
- * @returns Current rate limit status.
  */
 export async function getRateLimitStatus(
   key: string,
   windowMs: number,
   maxRequests: number,
 ): Promise<{ count: number; remaining: number; resetAt: number }> {
-  const client = getRedisClient();
+  const client = getCacheClient();
 
   if (!client) {
     return {
@@ -185,13 +147,10 @@ export async function getRateLimitStatus(
   }
 
   const now = Date.now();
-  const windowStart = now - windowMs;
-  const cacheKey = `ratelimit:${key}`;
 
   try {
-    await client.zremrangebyscore(cacheKey, 0, windowStart);
-
-    const count = await client.zcard(cacheKey);
+    const countStr = await client.get<string>(key);
+    const count = countStr ? parseInt(countStr, 10) : 0;
 
     return {
       count,
@@ -199,7 +158,7 @@ export async function getRateLimitStatus(
       resetAt: now + windowMs,
     };
   } catch (error) {
-    logger.error("[Rate Limit Redis] Error getting status:", error);
+    logger.error("[Rate Limit] Error getting status:", error);
     return {
       count: 0,
       remaining: maxRequests,

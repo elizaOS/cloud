@@ -1,7 +1,7 @@
 import { usersService } from "@/lib/services/users";
 import { apiKeysService } from "@/lib/services/api-keys";
 import { userSessionsService } from "@/lib/services/user-sessions";
-import { syncUserFromPrivy } from "./privy-sync";
+import { syncUserFromClaims, syncUserFromPrivy } from "./oauth3-sync";
 import { logger } from "@/lib/utils/logger";
 import type { UserWithOrganization, ApiKey } from "@/lib/types";
 import type { Organization } from "@/db/schemas/organizations";
@@ -12,14 +12,25 @@ import crypto from "crypto";
 import { cache as redisCache } from "@/lib/cache/client";
 import { CacheKeys, CacheTTL } from "@/lib/cache/keys";
 import {
-  verifyAuthTokenCached,
-  invalidatePrivyTokenCache,
-  getUserFromIdToken,
+  verifyOAuth3Token,
+  invalidateOAuth3TokenCache,
+  getOAuth3User,
   getUserById,
-} from "./auth/privy-client";
+  type OAuth3TokenClaims,
+} from "./auth/oauth3-client";
+
+// Legacy compatibility aliases
+export {
+  verifyOAuth3Token as verifyAuthTokenCached,
+  invalidateOAuth3TokenCache as invalidatePrivyTokenCache,
+} from "./auth/oauth3-client";
 
 // Re-export Organization type for convenience
 export type { Organization };
+
+// Cookie names
+const OAUTH3_TOKEN_COOKIE = "oauth3-token";
+const LEGACY_PRIVY_COOKIE = "privy-token";
 
 /**
  * Hash a token for use as cache key (never store raw tokens)
@@ -46,15 +57,15 @@ export async function invalidateUserSessionCache(
 }
 
 /**
- * Invalidate all caches for a session token (Privy + user data)
+ * Invalidate all caches for a session token (OAuth3 + user data)
  * Call this on logout to ensure immediate invalidation
- * @param sessionToken - The Privy auth token to invalidate
+ * @param sessionToken - The auth token to invalidate
  */
 export async function invalidateSessionCaches(
   sessionToken: string,
 ): Promise<void> {
-  await invalidatePrivyTokenCache(sessionToken);
-  logger.debug("[AUTH] Invalidated all session caches (Privy + user)");
+  await invalidateOAuth3TokenCache(sessionToken);
+  logger.debug("[AUTH] Invalidated all session caches (OAuth3 + user)");
 }
 
 /**
@@ -103,28 +114,31 @@ export type AuthResult = {
 };
 
 /**
- * Get the current authenticated user from Privy token
+ * Get the current authenticated user from OAuth3 token
  *
  * Performance optimized with Redis caching:
- * 1. Check Redis cache first (avoids Privy API call AND DB call)
- * 2. On cache miss: verify with Privy, fetch from DB, cache result
+ * 1. Check Redis cache first (avoids OAuth3 API call AND DB call)
+ * 2. On cache miss: verify with OAuth3, fetch from DB, cache result
  * 3. Session tracking is non-blocking to not slow down the response
  *
  * Flow (on cache miss):
- * 1. Verify Privy token from cookies
- * 2. Look up user in database by Privy ID
- * 3. If not found, fetch full user data from Privy API (just-in-time sync)
+ * 1. Verify OAuth3 token from cookies
+ * 2. Look up user in database by OAuth3 identity ID
+ * 3. If not found, create user from OAuth3 claims (just-in-time sync)
  * 4. Cache the user data in Redis
  * 5. Update session tracking (non-blocking)
- *
- * This handles the race condition where webhooks haven't fired yet.
  */
 export const getCurrentUser = cache(
   async (): Promise<UserWithOrganization | null> => {
     try {
-      // Get the auth token from cookies
+      // Get the auth token from cookies (check OAuth3 first, then legacy Privy)
       const cookieStore = await cookies();
-      const authToken = cookieStore.get("privy-token");
+      let authToken = cookieStore.get(OAUTH3_TOKEN_COOKIE);
+      
+      // Fallback to legacy Privy cookie for migration
+      if (!authToken) {
+        authToken = cookieStore.get(LEGACY_PRIVY_COOKIE);
+      }
 
       if (!authToken) {
         return null;
@@ -133,7 +147,7 @@ export const getCurrentUser = cache(
       const tokenHash = hashToken(authToken.value);
       const cacheKey = CacheKeys.session.user(tokenHash);
 
-      // Check Redis cache first - avoids both Privy API AND DB calls
+      // Check Redis cache first - avoids both OAuth3 API AND DB calls
       const cachedUser = await redisCache.get<UserWithOrganization>(cacheKey);
       if (cachedUser) {
         logger.debug("[AUTH] Cache hit for user session");
@@ -150,62 +164,48 @@ export const getCurrentUser = cache(
         return cachedUser;
       }
 
-      logger.debug("[AUTH] Cache miss, verifying with Privy (cached)");
+      logger.debug("[AUTH] Cache miss, verifying with OAuth3 (cached)");
 
-      // Verify the token with Privy using cached verification
-      // This caches the Privy API response to avoid repeated network calls
-      const verifiedClaims = await verifyAuthTokenCached(authToken.value);
+      // Verify the token with OAuth3 using cached verification
+      const verifiedClaims = await verifyOAuth3Token(authToken.value);
 
       if (!verifiedClaims) {
         return null;
       }
 
-      // Get user from database by Privy ID
-      let user = await usersService.getByPrivyId(verifiedClaims.userId);
+      // Get user from database by OAuth3 identity ID
+      // OAuth3 uses "oauth3:{identityId}" as the user identifier
+      const oauth3UserId = `oauth3:${verifiedClaims.identityId}`;
+      let user = await usersService.getByPrivyId(oauth3UserId);
 
-      // Just-in-time sync: If user doesn't exist, fetch from Privy and create
-      // This handles race conditions where webhooks haven't fired yet
+      // Just-in-time sync: If user doesn't exist, create from claims
       if (!user) {
         logger.info(
           "[AUTH] User not in DB, starting JIT sync for:",
-          verifiedClaims.userId,
+          verifiedClaims.identityId,
         );
 
         try {
-          let privyUser = null;
+          // Try to get full user data from OAuth3
+          const oauth3User = await getOAuth3User(verifiedClaims.sessionId);
 
-          // Try efficient method first: use privy-id-token to avoid rate limits
-          const idToken = cookieStore.get("privy-id-token");
-          if (idToken?.value) {
-            logger.debug("[AUTH] Using privy-id-token for user lookup");
-            try {
-              privyUser = await getUserFromIdToken(idToken.value);
-            } catch (idTokenError) {
-              logger.warn(
-                "[AUTH] privy-id-token method failed, will fallback to userId",
-              );
-            }
-          }
-
-          // Fallback: use userId directly (counts against rate limits)
-          if (!privyUser) {
-            logger.debug("[AUTH] Using userId for user lookup (fallback)");
-            privyUser = await getUserById(verifiedClaims.userId);
-          }
-
-          if (privyUser) {
-            user = await syncUserFromPrivy(privyUser);
-            logger.info("[AUTH] JIT sync complete:", {
-              userId: user.id,
-              orgId: user.organization_id,
-            });
+          if (oauth3User) {
+            // Full user data available - import with all details
+            const { syncUserFromOAuth3 } = await import("./oauth3-sync");
+            user = await syncUserFromOAuth3(oauth3User);
           } else {
-            logger.error("[AUTH] Privy returned null for user");
+            // Just create from claims (minimal data)
+            user = await syncUserFromClaims(verifiedClaims);
           }
-        } catch (privyError) {
+
+          logger.info("[AUTH] JIT sync complete:", {
+            userId: user.id,
+            orgId: user.organization_id,
+          });
+        } catch (syncError) {
           logger.error(
-            "[AUTH] Failed to fetch user from Privy:",
-            privyError instanceof Error ? privyError.message : privyError,
+            "[AUTH] Failed to sync user from OAuth3:",
+            syncError instanceof Error ? syncError.message : syncError,
           );
         }
       }
@@ -479,9 +479,12 @@ export async function requireAuthOrApiKey(
   // Fall back to session authentication
   const user = await requireAuth();
 
-  // Get session token from cookies
+  // Get session token from cookies (check OAuth3 first, then legacy Privy)
   const cookieStore = await cookies();
-  const authToken = cookieStore.get("privy-token");
+  let authToken = cookieStore.get(OAUTH3_TOKEN_COOKIE);
+  if (!authToken) {
+    authToken = cookieStore.get(LEGACY_PRIVY_COOKIE);
+  }
 
   return {
     user,
@@ -519,11 +522,11 @@ export async function requireAuthOrApiKeyWithOrg(request: NextRequest): Promise<
 }
 
 /**
- * Verify a Privy auth token directly (for API routes)
- * Uses cached verification to avoid repeated Privy API calls
+ * Verify an OAuth3 auth token directly (for API routes)
+ * Uses cached verification to avoid repeated OAuth3 API calls
  */
-export async function verifyPrivyToken(token: string) {
-  return verifyAuthTokenCached(token);
+export async function verifyPrivyToken(token: string): Promise<OAuth3TokenClaims | null> {
+  return verifyOAuth3Token(token);
 }
 
 /**
@@ -532,19 +535,16 @@ export async function verifyPrivyToken(token: string) {
 export async function getUserFromRequest(
   request: NextRequest,
 ): Promise<UserWithOrganization | null> {
-  // Check Authorization header for Privy token
+  // Check Authorization header for OAuth3 token
   const authHeader = request.headers.get("Authorization");
   if (authHeader?.startsWith("Bearer ")) {
     const token = authHeader.slice(7);
-    const privyUser = await verifyPrivyToken(token);
+    const claims = await verifyOAuth3Token(token);
 
-    if (privyUser) {
+    if (claims) {
       // Get user from database
-      const user = await usersService.getByPrivyId(privyUser.userId);
-
-      // The email is not directly available from the token claims
-      // User should already be synced via webhooks
-
+      const oauth3UserId = `oauth3:${claims.identityId}`;
+      const user = await usersService.getByPrivyId(oauth3UserId);
       return user ?? null;
     }
   }
@@ -597,10 +597,22 @@ export async function requireAdmin(
 // Re-export app authentication utilities
 export { requireAppAuth, verifyAppToken } from "./middleware/app-auth";
 
-// Re-export Privy client utilities for advanced use cases
+// Legacy compatibility re-exports (use oauth3-client directly for new code)
 export {
-  verifyAuthTokenCached,
-  invalidatePrivyTokenCache,
-  invalidateAllPrivyTokenCaches,
-  getPrivyClient,
-} from "./auth/privy-client";
+  verifyOAuth3Token as verifyAuthToken,
+  invalidateOAuth3TokenCache,
+  getOAuth3User,
+  getUserById,
+  type OAuth3TokenClaims,
+} from "./auth/oauth3-client";
+
+// Export a compatibility function for getPrivyClient
+export function getPrivyClient() {
+  return {
+    verifyAuthToken: verifyOAuth3Token,
+    getUser: getUserById,
+  };
+}
+
+// Export for legacy code that imports invalidateAllPrivyTokenCaches
+export { invalidateAllOAuth3TokenCaches as invalidateAllPrivyTokenCaches } from "./auth/oauth3-client";

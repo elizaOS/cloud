@@ -33,7 +33,7 @@ export function setup() {
   console.log("✓ Server connectivity verified\n");
 }
 
-export default function () {
+export default function main() {
   // Public endpoints (must always work)
   group("Public", () => {
     const card = httpGet("/.well-known/agent-card.json", { public: true });

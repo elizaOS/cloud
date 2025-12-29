@@ -7,7 +7,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { usePrivy, useLogout } from "@privy-io/react-auth";
+import { usePrivy, useLogout } from "@/lib/providers/PrivyProvider";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {

@@ -25,17 +25,6 @@ const API_KEY = process.env.TEST_API_KEY;
 // Check if app is available
 let appAvailable = false;
 
-test.beforeAll(async ({ request }) => {
-  const appResponse = await request.get(APP_URL).catch(() => null);
-  appAvailable = appResponse?.ok() ?? false;
-
-  if (!appAvailable) {
-    console.log(
-      `⚠️ App not available at ${APP_URL}. Skipping app tests. Start with: cd app && bun run dev`,
-    );
-  }
-});
-
 function authHeaders() {
   return {
     Authorization: `Bearer ${API_KEY}`,
@@ -43,7 +32,19 @@ function authHeaders() {
   };
 }
 
-test.describe("Anonymous Character Creation Flow", () => {
+test.describe("App Full Flow E2E Tests", () => {
+  test.beforeAll(async () => {
+    const appResponse = await fetch(APP_URL).then(r => ({ ok: () => r.ok })).catch(() => null);
+    appAvailable = appResponse?.ok() ?? false;
+
+    if (!appAvailable) {
+      console.log(
+        `⚠️ App not available at ${APP_URL}. Skipping app tests. Start with: cd app && bun run dev`,
+      );
+    }
+  });
+
+  test.describe("Anonymous Character Creation Flow", () => {
   test("anonymous user can create character", async ({ request }) => {
     if (!appAvailable) {
       test.skip();
@@ -610,4 +611,5 @@ test.describe("Earn Credits via Sharing", () => {
       console.log("ℹ️ Farcaster share reward already claimed today");
     }
   });
+});
 });

@@ -1,10 +1,10 @@
 /**
- * Redis-backed credit event emitter for serverless environments.
+ * DWS Cache-backed credit event emitter for serverless environments.
  *
- * Uses Redis queues to coordinate credit update events across multiple serverless instances.
+ * Uses DWS cache queues to coordinate credit update events across multiple serverless instances.
  */
 
-import { Redis } from "@upstash/redis";
+import { DWSCache } from "@/lib/services/dws/cache";
 import { logger } from "@/lib/utils/logger";
 
 /**
@@ -20,7 +20,7 @@ export interface CreditUpdateEvent {
 }
 
 /**
- * Raw event data from Redis before timestamp conversion
+ * Raw event data from cache before timestamp conversion
  */
 interface RawCreditUpdateEvent {
   organizationId: string;
@@ -47,7 +47,7 @@ function isRawCreditUpdateEvent(value: unknown): value is RawCreditUpdateEvent {
 }
 
 /**
- * Redis subscription client for credit updates.
+ * Subscription client for credit updates.
  */
 export interface RedisSubscriptionClient {
   /** Unsubscribe from credit updates. */
@@ -57,11 +57,11 @@ export interface RedisSubscriptionClient {
 }
 
 /**
- * Redis-backed credit event emitter for distributed environments.
+ * DWS Cache-backed credit event emitter for distributed environments.
  */
 class RedisCreditEventEmitter {
   private static instance: RedisCreditEventEmitter;
-  private redis: Redis | null = null;
+  private dwsCache: DWSCache | null = null;
   private enabled: boolean = false;
   private activeSubscriptions = new Map<string, number>();
 
@@ -70,17 +70,20 @@ class RedisCreditEventEmitter {
   }
 
   private initialize(): void {
-    if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
+    if (process.env.CACHE_ENABLED === "false") {
       this.enabled = false;
       return;
     }
 
-    this.redis = new Redis({
-      url: process.env.KV_REST_API_URL,
-      token: process.env.KV_REST_API_TOKEN,
-    });
-
-    this.enabled = true;
+    try {
+      this.dwsCache = new DWSCache({
+        namespace: "credit-events",
+        defaultTTL: 300,
+      });
+      this.enabled = true;
+    } catch {
+      this.enabled = false;
+    }
   }
 
   public static getInstance(): RedisCreditEventEmitter {
@@ -91,7 +94,7 @@ class RedisCreditEventEmitter {
   }
 
   public async emitCreditUpdate(event: CreditUpdateEvent): Promise<void> {
-    if (!this.enabled || !this.redis) {
+    if (!this.enabled || !this.dwsCache) {
       return;
     }
 
@@ -101,15 +104,15 @@ class RedisCreditEventEmitter {
       timestamp: event.timestamp.toISOString(),
     });
 
-    await this.redis.rpush(channel, message);
-    await this.redis.expire(channel, 300);
+    await this.dwsCache.rpush(channel, message);
+    await this.dwsCache.expire(channel, 300);
   }
 
   public async subscribeToCreditUpdates(
     organizationId: string,
     handler: (event: CreditUpdateEvent) => void | Promise<void>,
   ): Promise<RedisSubscriptionClient> {
-    if (!this.enabled || !this.redis) {
+    if (!this.enabled || !this.dwsCache) {
       return {
         organizationId,
         unsubscribe: async () => {
@@ -120,15 +123,14 @@ class RedisCreditEventEmitter {
 
     const channel = `credits:${organizationId}`;
 
-    const subscriptionRedis = new Redis({
-      url: process.env.KV_REST_API_URL!,
-      token: process.env.KV_REST_API_TOKEN!,
+    const subscriptionCache = new DWSCache({
+      namespace: "credit-events",
+      defaultTTL: 300,
     });
 
     const processMessage = async (
       message: string | Record<string, unknown>,
     ) => {
-      // Upstash Redis client auto-parses JSON, so message might already be an object
       let parsed: unknown;
       if (typeof message === "string") {
         parsed = JSON.parse(message);
@@ -139,7 +141,7 @@ class RedisCreditEventEmitter {
       }
 
       if (!isRawCreditUpdateEvent(parsed)) {
-        logger.warn("[Credit Events Redis] Invalid event format:", parsed);
+        logger.warn("[Credit Events] Invalid event format:", parsed);
         return;
       }
 
@@ -161,13 +163,13 @@ class RedisCreditEventEmitter {
       const queueKey = `${channel}:queue`;
 
       while (isActive) {
-        const messages = await subscriptionRedis.lrange(queueKey, 0, -1);
+        const messages = await subscriptionCache.lrange(queueKey, 0, -1);
 
         if (messages && messages.length > 0) {
           for (const message of messages) {
             await processMessage(message);
           }
-          await subscriptionRedis.del(queueKey);
+          await subscriptionCache.del(queueKey);
         }
 
         await new Promise((resolve) => setTimeout(resolve, 1000));

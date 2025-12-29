@@ -1,0 +1,181 @@
+{
+  "$schema": "https://dws.jejunetwork.org/schemas/dws.json",
+  "version": 2,
+  "name": "eliza-cloud-v2",
+  "framework": "nextjs",
+  "buildCommand": "bun run build:dws",
+  "devCommand": "bun run dev:quick",
+  "installCommand": "bun install",
+  "outputDirectory": ".dws-bundle",
+  "regions": ["na-east", "eu-west", "ap-southeast"],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/$1"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "X-Frame-Options", "value": "DENY" },
+        { "key": "X-XSS-Protection", "value": "1; mode=block" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+        { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=()" }
+      ]
+    },
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/_next/static/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/ingest/:path*",
+      "destination": "https://analytics.dws.jejunetwork.org/:path*"
+    }
+  ],
+  "redirects": [],
+  "cron": [
+    {
+      "path": "/api/cron/cleanup-code-sessions",
+      "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/cleanup-logs",
+      "schedule": "0 */6 * * *"
+    },
+    {
+      "path": "/api/cron/cleanup-attachments",
+      "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron/process-payouts",
+      "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/sync-billing-credits",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/sync-usage",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/update-leaderboard",
+      "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/cron/process-auto-top-up",
+      "schedule": "*/30 * * * *"
+    },
+    {
+      "path": "/api/cron/process-wallet-airdrop",
+      "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/process-failed-transactions",
+      "schedule": "*/10 * * * *"
+    },
+    {
+      "path": "/api/cron/expire-credits",
+      "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/process-referral-grants",
+      "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/agent-status-sync",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/process-pending-refunds",
+      "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/usage-alerts",
+      "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/cleanup-conversations",
+      "schedule": "0 2 * * 0"
+    }
+  ],
+  "functions": {
+    "api/**/*": {
+      "memory": 1024,
+      "maxDuration": 60
+    },
+    "api/cron/**/*": {
+      "memory": 512,
+      "maxDuration": 300
+    },
+    "api/chat/**/*": {
+      "memory": 2048,
+      "maxDuration": 180
+    }
+  },
+  "env": {
+    "NODE_ENV": "production",
+    "NEXT_TELEMETRY_DISABLED": "1"
+  },
+  "build": {
+    "env": {
+      "NEXT_TELEMETRY_DISABLED": "1"
+    }
+  },
+  "ignoreCommand": "git diff --quiet HEAD^ HEAD -- .",
+  "git": {
+    "deploymentEnabled": true
+  },
+  "trailingSlash": false,
+  "cleanUrls": true,
+  "runtime": {
+    "type": "workerd",
+    "isolate": true,
+    "memory": 128
+  },
+  "edge": {
+    "enabled": true,
+    "regions": ["na-east", "eu-west", "ap-southeast"]
+  },
+  "services": {
+    "storage": {
+      "type": "dws-storage",
+      "config": {
+        "encryption": true,
+        "replication": 3
+      }
+    },
+    "cache": {
+      "type": "dws-cache",
+      "config": {
+        "memory": "256mb",
+        "eviction": "lru"
+      }
+    },
+    "database": {
+      "type": "eqlite",
+      "config": {
+        "consensus": true,
+        "replication": 3
+      }
+    }
+  }
+}
+
+

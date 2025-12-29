@@ -27,16 +27,17 @@ function authHeaders() {
   };
 }
 
-// Skip all tests if no API key
-test.beforeAll(() => {
-  if (!API_KEY) {
-    console.log(
-      "⚠️ TEST_TODOAPP_API_KEY not set. Skipping authenticated todo-app tests.",
-    );
-  }
-});
+test.describe("Todo App Authenticated E2E Tests", () => {
+  // Skip all tests if no API key
+  test.beforeAll(() => {
+    if (!API_KEY) {
+      console.log(
+        "⚠️ TEST_TODOAPP_API_KEY not set. Skipping authenticated todo-app tests.",
+      );
+    }
+  });
 
-test.describe("Task Storage API - CRUD Operations", () => {
+  test.describe("Task Storage API - CRUD Operations", () => {
   test.skip(() => !API_KEY, "TEST_TODOAPP_API_KEY required");
 
   let createdTaskId: string | null = null;
@@ -648,4 +649,5 @@ test.describe("Error Handling", () => {
     const data = await response.json();
     expect(data.error).toBeDefined();
   });
+});
 });

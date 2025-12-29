@@ -53,7 +53,6 @@ export function UploadsTab({
 
   useEffect(() => {
     if (characterId) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- data fetching on mount
       fetchDocuments();
     }
   }, [characterId, fetchDocuments]);

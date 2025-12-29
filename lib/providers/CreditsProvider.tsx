@@ -17,7 +17,7 @@ import {
   useMemo,
   type ReactNode,
 } from "react";
-import { usePrivy } from "@privy-io/react-auth";
+import { usePrivy } from "@/lib/providers/PrivyProvider";
 import { logger } from "@/lib/utils/logger";
 
 interface CreditsContextValue {

@@ -80,6 +80,6 @@ export function voiceWithTts() {
   sleep(2);
 }
 
-export default function () {
+export default function main() {
   voiceReadOperations();
 }

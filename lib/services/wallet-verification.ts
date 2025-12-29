@@ -17,9 +17,17 @@ import type {
   NewOrgMemberWallet,
 } from "@/db/schemas/org-community-moderation";
 import nacl from "tweetnacl";
-import { PublicKey, Connection } from "@solana/web3.js";
 import { ethers } from "ethers";
-import { Redis } from "@upstash/redis";
+
+// Solana imports are dynamic to avoid build issues with native dependencies
+let solanaWeb3: typeof import("@solana/web3.js") | null = null;
+async function getSolanaWeb3() {
+  if (!solanaWeb3) {
+    solanaWeb3 = await import("@solana/web3.js");
+  }
+  return solanaWeb3;
+}
+import { DWSCache } from "@/lib/services/dws/cache";
 
 export interface VerificationChallenge {
   nonce: string;
@@ -58,14 +66,14 @@ const RPC_ENDPOINTS: Record<string, string> = {
   base: process.env.BASE_RPC_URL ?? "https://base.llamarpc.com",
 };
 
-const CHALLENGE_KEY_PREFIX = "wallet:challenge:";
+const CHALLENGE_KEY_PREFIX = "challenge:";
 const CHALLENGE_TTL_SECONDS = 600;
 
 class WalletVerificationService {
   private static instance: WalletVerificationService;
-  private redis: Redis | null = null;
+  private dwsCache: DWSCache | null = null;
   private memoryFallback = new Map<string, VerificationChallenge>();
-  private redisInitialized = false;
+  private cacheInitialized = false;
 
   private constructor() {}
 
@@ -74,31 +82,30 @@ class WalletVerificationService {
       new WalletVerificationService());
   }
 
-  private getRedis(): Redis | null {
-    if (this.redisInitialized) return this.redis;
-    this.redisInitialized = true;
+  private getCache(): DWSCache | null {
+    if (this.cacheInitialized) return this.dwsCache;
+    this.cacheInitialized = true;
 
-    const redisUrl = process.env.REDIS_URL || process.env.KV_URL;
-    const restUrl = process.env.KV_REST_API_URL;
-    const restToken = process.env.KV_REST_API_TOKEN;
-
-    if (redisUrl) {
-      this.redis = Redis.fromEnv();
-      logger.info(
-        "[WalletVerification] Redis challenge store initialized (native)",
-      );
-    } else if (restUrl && restToken) {
-      this.redis = new Redis({ url: restUrl, token: restToken });
-      logger.info(
-        "[WalletVerification] Redis challenge store initialized (REST)",
-      );
-    } else {
+    if (process.env.CACHE_ENABLED === "false") {
       logger.warn(
-        "[WalletVerification] Redis not available, using in-memory fallback (not recommended for production)",
+        "[WalletVerification] Cache disabled, using in-memory fallback (not recommended for production)",
       );
+      return null;
     }
 
-    return this.redis;
+    try {
+      this.dwsCache = new DWSCache({
+        namespace: "wallet-verification",
+        defaultTTL: CHALLENGE_TTL_SECONDS,
+      });
+      logger.info("[WalletVerification] DWS cache challenge store initialized");
+      return this.dwsCache;
+    } catch {
+      logger.warn(
+        "[WalletVerification] DWS cache not available, using in-memory fallback (not recommended for production)",
+      );
+      return null;
+    }
   }
 
   generateChallenge(
@@ -115,14 +122,14 @@ class WalletVerificationService {
     };
 
     const key = `${CHALLENGE_KEY_PREFIX}${serverId}:${platform}:${platformUserId}`;
-    const redis = this.getRedis();
+    const cache = this.getCache();
 
-    if (redis) {
-      redis
-        .set(key, JSON.stringify(challenge), { ex: CHALLENGE_TTL_SECONDS })
+    if (cache) {
+      cache
+        .setex(key, CHALLENGE_TTL_SECONDS, JSON.stringify(challenge))
         .catch((err) => {
           logger.error(
-            "[WalletVerification] Failed to store challenge in Redis",
+            "[WalletVerification] Failed to store challenge in cache",
             { error: err },
           );
         });
@@ -143,15 +150,15 @@ class WalletVerificationService {
     platform: string,
   ): Promise<VerificationChallenge | null> {
     const key = `${CHALLENGE_KEY_PREFIX}${serverId}:${platform}:${platformUserId}`;
-    const redis = this.getRedis();
+    const cache = this.getCache();
 
-    if (redis) {
-      const data = await redis.get<string>(key);
+    if (cache) {
+      const data = await cache.get<string>(key);
       if (!data) return null;
-      const challenge: VerificationChallenge = JSON.parse(data);
+      const challenge: VerificationChallenge = typeof data === "string" ? JSON.parse(data) : data;
       challenge.expiresAt = new Date(challenge.expiresAt);
       if (challenge.expiresAt < new Date()) {
-        await redis.del(key);
+        await cache.del(key);
         return null;
       }
       return challenge;
@@ -171,10 +178,10 @@ class WalletVerificationService {
     platform: string,
   ): Promise<void> {
     const key = `${CHALLENGE_KEY_PREFIX}${serverId}:${platform}:${platformUserId}`;
-    const redis = this.getRedis();
+    const cache = this.getCache();
 
-    if (redis) {
-      await redis.del(key);
+    if (cache) {
+      await cache.del(key);
     } else {
       this.memoryFallback.delete(key);
     }
@@ -198,7 +205,7 @@ class WalletVerificationService {
 
     const verified =
       chain === "solana"
-        ? this.verifySolanaSignature(
+        ? await this.verifySolanaSignature(
             challenge.message,
             signature,
             walletAddress,
@@ -240,12 +247,13 @@ class WalletVerificationService {
     return { verified: true, walletAddress, chain, wallet };
   }
 
-  private verifySolanaSignature(
+  private async verifySolanaSignature(
     message: string,
     signature: string,
     walletAddress: string,
-  ): boolean {
+  ): Promise<boolean> {
     try {
+      const { PublicKey } = await getSolanaWeb3();
       return nacl.sign.detached.verify(
         new TextEncoder().encode(message),
         Buffer.from(signature, "base64"),
@@ -289,6 +297,7 @@ class WalletVerificationService {
     tokenAddress: string,
     tokenType: OrgTokenGate["token_type"],
   ): Promise<TokenBalanceResult> {
+    const { Connection, PublicKey } = await getSolanaWeb3();
     const connection = new Connection(RPC_ENDPOINTS.solana);
     const pubkey = new PublicKey(walletAddress);
 

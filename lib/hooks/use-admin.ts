@@ -16,7 +16,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { usePrivy, useWallets } from "@privy-io/react-auth";
+import { usePrivy, useWallets } from "@/lib/providers/PrivyProvider";
 
 // Default anvil wallet for devnet admin access
 const ANVIL_DEFAULT_WALLET = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";

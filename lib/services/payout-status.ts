@@ -14,9 +14,17 @@ import { createPublicClient, http, type Address } from "viem";
 import { ERC20_ABI } from "@/lib/utils/abis/erc20";
 import { mainnet, base, bsc } from "viem/chains";
 import { jeju, jejuTestnet } from "@/lib/config/chains";
-import { Connection, PublicKey } from "@solana/web3.js";
-import { getAssociatedTokenAddress, getAccount } from "@solana/spl-token";
 import { privateKeyToAccount } from "viem/accounts";
+
+// Solana imports are dynamic to avoid build issues with native dependencies
+let solanaWeb3: typeof import("@solana/web3.js") | null = null;
+let solanaSplToken: typeof import("@solana/spl-token") | null = null;
+
+async function getSolanaModulesStatus() {
+  if (!solanaWeb3) solanaWeb3 = await import("@solana/web3.js");
+  if (!solanaSplToken) solanaSplToken = await import("@solana/spl-token");
+  return { solanaWeb3, solanaSplToken };
+}
 
 // ============================================================================
 // TYPES
@@ -321,6 +329,10 @@ class PayoutStatusService {
       };
     }
 
+    const { solanaWeb3, solanaSplToken } = await getSolanaModulesStatus();
+    const { Connection, PublicKey } = solanaWeb3;
+    const { getAssociatedTokenAddress, getAccount } = solanaSplToken;
+    
     const solanaRpc =
       process.env.SOLANA_RPC_URL || "https://api.mainnet-beta.solana.com";
     const connection = new Connection(solanaRpc, "confirmed");

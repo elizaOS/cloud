@@ -22,31 +22,32 @@ const ORG_APP_URL = process.env.ORG_APP_URL ?? "http://localhost:3002";
 // Check if services are running
 let orgAppAvailable = false;
 
-test.beforeAll(async ({ request }) => {
-  // Check cloud
-  const cloudResponse = await request.get(CLOUD_URL).catch(() => null);
-  if (!cloudResponse?.ok()) {
-    console.log(
-      `⚠️ Cloud not available at ${CLOUD_URL}. Start with: bun run dev`,
-    );
-  }
+test.describe("Org App E2E Tests", () => {
+  test.beforeAll(async () => {
+    // Check cloud
+    const cloudResponse = await fetch(CLOUD_URL).then(r => ({ ok: () => r.ok })).catch(() => null);
+    if (!cloudResponse?.ok()) {
+      console.log(
+        `⚠️ Cloud not available at ${CLOUD_URL}. Start with: bun run dev`,
+      );
+    }
 
-  // Check org-app
-  const orgAppResponse = await request.get(ORG_APP_URL).catch(() => null);
-  orgAppAvailable = orgAppResponse?.ok() ?? false;
+    // Check org-app
+    const orgAppResponse = await fetch(ORG_APP_URL).then(r => ({ ok: () => r.ok })).catch(() => null);
+    orgAppAvailable = orgAppResponse?.ok() ?? false;
 
-  if (!orgAppAvailable) {
-    console.log(
-      `⚠️ Org App not available at ${ORG_APP_URL}. Start with: cd apps/org-app && bun run dev`,
-    );
-  }
-});
+    if (!orgAppAvailable) {
+      console.log(
+        `⚠️ Org App not available at ${ORG_APP_URL}. Start with: cd apps/org-app && bun run dev`,
+      );
+    }
+  });
 
-// ============================================================================
-// Landing Page Tests
-// ============================================================================
+  // ============================================================================
+  // Landing Page Tests
+  // ============================================================================
 
-test.describe("Org App Landing Page", () => {
+  test.describe("Org App Landing Page", () => {
   test("renders with hero section", async ({ page }) => {
     if (!orgAppAvailable) {
       test.skip();
@@ -439,4 +440,5 @@ test.describe("Mobile Responsiveness", () => {
     const signIn = page.getByRole("button", { name: /Get Started|Sign In/i });
     await expect(signIn).toBeVisible();
   });
+});
 });
