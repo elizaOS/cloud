@@ -216,6 +216,12 @@ export async function handleMessage({
 
 /**
  * Check for and execute MCP action if available.
+ * 
+ * MCP Debug Flow:
+ * 1. Check if MCP provider data exists in state (indicates MCP plugin is loaded)
+ * 2. Check if any servers are connected with tools
+ * 3. Find and validate CALL_MCP_TOOL action
+ * 4. Execute the action if valid
  */
 async function checkAndRunMcpAction(
   runtime: IAgentRuntime,
@@ -224,26 +230,50 @@ async function checkAndRunMcpAction(
   callback?: HandlerCallback,
 ): Promise<boolean> {
   try {
-    // Check if MCP data is available in state
+    // Debug: Log registered actions for MCP troubleshooting
+    const registeredActions = runtime.actions?.map((a: Action) => a.name) || [];
+    logger.debug(
+      `[ChatPlayground/MCP] Registered actions: ${registeredActions.join(", ")}`,
+    );
+
+    // Check if MCP data is available in state (from MCP provider)
     const stateData = state.data as Record<string, unknown> | undefined;
     const mcpData = stateData?.providers as Record<string, unknown> | undefined;
     const mcpProvider = mcpData?.MCP as
-      | { data?: { mcp?: Record<string, unknown> } }
+      | { data?: { mcp?: Record<string, unknown> }; text?: string }
       | undefined;
 
-    const hasMcpServers =
-      mcpProvider?.data?.mcp && Object.keys(mcpProvider.data.mcp).length > 0;
-
-    if (!hasMcpServers) {
+    // Debug: Log MCP provider state
+    if (!mcpProvider) {
       logger.debug(
-        "[ChatPlayground] No MCP servers connected, skipping MCP action check",
+        "[ChatPlayground/MCP] No MCP provider data in state - MCP plugin may not be loaded",
       );
       return false;
     }
 
+    const mcpServers = mcpProvider?.data?.mcp;
+    const serverNames = mcpServers ? Object.keys(mcpServers) : [];
+    const hasMcpServers = serverNames.length > 0;
+
+    if (!hasMcpServers) {
+      logger.debug(
+        "[ChatPlayground/MCP] MCP provider exists but no servers connected. Check character.settings.mcp configuration.",
+      );
+      return false;
+    }
+
+    // Log connected servers and their tools
     logger.info(
-      "[ChatPlayground] MCP servers available, checking for CALL_MCP_TOOL action",
+      `[ChatPlayground/MCP] MCP servers connected: ${serverNames.join(", ")}`,
     );
+    
+    for (const serverName of serverNames) {
+      const server = mcpServers?.[serverName] as { status?: string; tools?: Record<string, unknown> } | undefined;
+      const toolNames = server?.tools ? Object.keys(server.tools) : [];
+      logger.info(
+        `[ChatPlayground/MCP] Server "${serverName}": status=${server?.status}, tools=[${toolNames.join(", ")}]`,
+      );
+    }
 
     // Find the CALL_MCP_TOOL action from registered actions
     const mcpAction = runtime.actions?.find(
@@ -253,8 +283,10 @@ async function checkAndRunMcpAction(
     );
 
     if (!mcpAction) {
-      logger.debug(
-        "[ChatPlayground] CALL_MCP_TOOL action not found in runtime",
+      logger.warn(
+        "[ChatPlayground/MCP] CALL_MCP_TOOL action NOT found in runtime. " +
+        "Ensure @elizaos/plugin-mcp is loaded. " +
+        `Available actions: ${registeredActions.join(", ")}`,
       );
       return false;
     }
@@ -262,13 +294,15 @@ async function checkAndRunMcpAction(
     // Validate if the action can run (checks if MCP servers are connected with tools)
     const isValid = await mcpAction.validate(runtime, message, state);
     if (!isValid) {
-      logger.debug(
-        "[ChatPlayground] CALL_MCP_TOOL action validation failed (no connected servers with tools)",
+      logger.warn(
+        "[ChatPlayground/MCP] CALL_MCP_TOOL validation failed. " +
+        "This means servers are listed but none are 'connected' with tools. " +
+        "Check MCP server connection status and tool availability.",
       );
       return false;
     }
 
-    logger.info("[ChatPlayground] CALL_MCP_TOOL action is valid, executing...");
+    logger.info("[ChatPlayground/MCP] CALL_MCP_TOOL action is valid, executing...");
 
     // Execute the MCP action
     const result = await mcpAction.handler(
@@ -285,18 +319,18 @@ async function checkAndRunMcpAction(
       | undefined;
     if (actionResult?.success) {
       logger.info(
-        `[ChatPlayground] MCP action executed successfully - tool: ${actionResult.data?.toolName ?? "unknown"}, server: ${actionResult.data?.serverName ?? "unknown"}`,
+        `[ChatPlayground/MCP] ✓ MCP action executed successfully - tool: ${actionResult.data?.toolName ?? "unknown"}, server: ${actionResult.data?.serverName ?? "unknown"}`,
       );
       return true;
     }
 
     logger.debug(
-      "[ChatPlayground] MCP action did not succeed, falling back to regular response",
+      "[ChatPlayground/MCP] MCP action did not succeed, falling back to regular response",
     );
     return false;
   } catch (error) {
     logger.error(
-      "[ChatPlayground] Error checking/running MCP action",
+      "[ChatPlayground/MCP] Error checking/running MCP action:",
       error instanceof Error ? error.message : String(error),
     );
     return false;
