@@ -135,7 +135,7 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
               <div className="space-y-2">
                 <label
                   htmlFor="name"
-                  className="text-xs font-medium text-white/70 uppercase tracking-wide"
+                  className="text-xs font-medium text-white/70"
                 >
                   Name *
                 </label>
@@ -151,24 +151,27 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
               <div className="space-y-2">
                 <label
                   htmlFor="username"
-                  className="text-xs font-medium text-white/70 uppercase tracking-wide"
+                  className="text-xs font-medium text-white/70"
                 >
                   Username
                 </label>
-                <Input
-                  id="username"
-                  value={character.username || ""}
-                  onChange={(e) => updateField("username", e.target.value)}
-                  placeholder="@eliza"
-                  className="rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800]"
-                />
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 select-none pointer-events-none">@</span>
+                  <Input
+                    id="username"
+                    value={character.username || ""}
+                    onChange={(e) => updateField("username", e.target.value.replace(/^@/, ""))}
+                    placeholder="eliza"
+                    className="rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800] pl-7"
+                  />
+                </div>
               </div>
             </div>
 
             <div className="space-y-2">
               <label
                 htmlFor="bio"
-                className="text-xs font-medium text-white/70 uppercase tracking-wide"
+                className="text-xs font-medium text-white/70"
               >
                 Bio *
               </label>
@@ -185,13 +188,13 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
               <div className="flex items-center gap-2">
                 <label
                   htmlFor="system"
-                  className="text-xs font-medium text-white/70 uppercase tracking-wide"
+                  className="text-xs font-medium text-white/70"
                 >
                   System Prompt
                 </label>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Info className="h-3.5 w-3.5 text-white/40 hover:text-white/70 transition-colors cursor-help" />
+                    <Info className="h-3.5 w-3.5 text-white/40 hover:text-white/70 transition-colors" />
                   </TooltipTrigger>
                   <TooltipContent
                     side="right"
@@ -238,12 +241,12 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
             {/* Adjectives */}
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <label className="text-xs font-medium text-white/70 uppercase tracking-wide">
+                <label className="text-xs font-medium text-white/70">
                   Personality Traits
                 </label>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Info className="h-3.5 w-3.5 text-white/40 hover:text-white/70 transition-colors cursor-help" />
+                    <Info className="h-3.5 w-3.5 text-white/40 hover:text-white/70 transition-colors" />
                   </TooltipTrigger>
                   <TooltipContent
                     side="right"
@@ -324,12 +327,12 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
             {/* Topics */}
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <label className="text-xs font-medium text-white/70 uppercase tracking-wide">
+                <label className="text-xs font-medium text-white/70">
                   Topics of Interest
                 </label>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Info className="h-3.5 w-3.5 text-white/40 hover:text-white/70 transition-colors cursor-help" />
+                    <Info className="h-3.5 w-3.5 text-white/40 hover:text-white/70 transition-colors" />
                   </TooltipTrigger>
                   <TooltipContent
                     side="right"
@@ -407,12 +410,12 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
             {/* Message Examples */}
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <label className="text-xs font-medium text-white/70 uppercase tracking-wide">
+                <label className="text-xs font-medium text-white/70">
                   Conversation Examples
                 </label>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Info className="h-3.5 w-3.5 text-white/40 hover:text-white/70 transition-colors cursor-help" />
+                    <Info className="h-3.5 w-3.5 text-white/40 hover:text-white/70 transition-colors" />
                   </TooltipTrigger>
                   <TooltipContent
                     side="right"
@@ -510,12 +513,12 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
             {/* Post Examples */}
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <label className="text-xs font-medium text-white/70 uppercase tracking-wide">
+                <label className="text-xs font-medium text-white/70">
                   Post Examples
                 </label>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Info className="h-3.5 w-3.5 text-white/40 hover:text-white/70 transition-colors cursor-help" />
+                    <Info className="h-3.5 w-3.5 text-white/40 hover:text-white/70 transition-colors" />
                   </TooltipTrigger>
                   <TooltipContent
                     side="right"
@@ -579,13 +582,13 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
               <div className="flex items-center gap-2">
                 <label
                   htmlFor="style-all"
-                  className="text-xs font-medium text-white/70 uppercase tracking-wide"
+                  className="text-xs font-medium text-white/70"
                 >
                   General Style Guidelines
                 </label>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Info className="h-3.5 w-3.5 text-white/40 hover:text-white/70 transition-colors cursor-help" />
+                    <Info className="h-3.5 w-3.5 text-white/40 hover:text-white/70 transition-colors" />
                   </TooltipTrigger>
                   <TooltipContent
                     side="right"
@@ -629,13 +632,13 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
               <div className="flex items-center gap-2">
                 <label
                   htmlFor="style-chat"
-                  className="text-xs font-medium text-white/70 uppercase tracking-wide"
+                  className="text-xs font-medium text-white/70"
                 >
                   Chat Style Guidelines
                 </label>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Info className="h-3.5 w-3.5 text-white/40 hover:text-white/70 transition-colors cursor-help" />
+                    <Info className="h-3.5 w-3.5 text-white/40 hover:text-white/70 transition-colors" />
                   </TooltipTrigger>
                   <TooltipContent
                     side="right"
@@ -679,13 +682,13 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
               <div className="flex items-center gap-2">
                 <label
                   htmlFor="style-post"
-                  className="text-xs font-medium text-white/70 uppercase tracking-wide"
+                  className="text-xs font-medium text-white/70"
                 >
                   Post Style Guidelines
                 </label>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Info className="h-3.5 w-3.5 text-white/40 hover:text-white/70 transition-colors cursor-help" />
+                    <Info className="h-3.5 w-3.5 text-white/40 hover:text-white/70 transition-colors" />
                   </TooltipTrigger>
                   <TooltipContent
                     side="right"
