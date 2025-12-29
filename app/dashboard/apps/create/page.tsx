@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
@@ -10,10 +10,7 @@ import {
   RefreshCw,
   ExternalLink,
   ArrowLeft,
-  Code,
   Bot,
-  LayoutTemplate,
-  Play,
   Square,
   Copy,
   Check,
@@ -160,14 +157,14 @@ export default function AppCreatorPage() {
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const isRestoringSession = useRef(false);
   const hasAutoScaffoldedRef = useRef(false);
+  const initializationRef = useRef(false);
 
   const appIdFromUrl = searchParams.get("appId");
   const sessionIdFromUrl = searchParams.get("sessionId");
   const isEditMode = !!appIdFromUrl;
 
-  const sourceContext: SourceContext | null = (() => {
+  const sourceContext: SourceContext | null = useMemo(() => {
     const sourceType = searchParams.get("source") as SourceType | null;
     const sourceId = searchParams.get("sourceId");
     const sourceName = searchParams.get("sourceName");
@@ -175,8 +172,9 @@ export default function AppCreatorPage() {
       return { type: sourceType, id: sourceId, name: sourceName };
     }
     return null;
-  })();
+  }, [searchParams]);
 
+  const [isInitializing, setIsInitializing] = useState(isEditMode || !!sessionIdFromUrl);
   const [step, setStep] = useState<"setup" | "building">(
     isEditMode ? "building" : "setup",
   );
@@ -202,15 +200,12 @@ export default function AppCreatorPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [generatingMessage, setGeneratingMessage] = useState("Generating...");
-  const [generatingColor, setGeneratingColor] = useState("text-cyan-400");
   const [copied, setCopied] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [progressStep, setProgressStep] = useState<ProgressStep>("creating");
   const [previewTab, setPreviewTab] = useState<"preview" | "console">("preview");
   const [consoleLogs, setConsoleLogs] = useState<string[]>([]);
-  const [isRestoring, setIsRestoring] = useState(false);
   const [expiresAt, setExpiresAt] = useState<Date | null>(null);
   const [timeRemaining, setTimeRemaining] = useState<string>("");
   const [isExtending, setIsExtending] = useState(false);
@@ -220,135 +215,129 @@ export default function AppCreatorPage() {
     : `app-builder-messages-new`;
 
   useEffect(() => {
-    if (!appIdFromUrl) return;
+    if (initializationRef.current) return;
+    initializationRef.current = true;
 
-    const fetchAppData = async () => {
+    const initialize = async () => {
+      if (sessionIdFromUrl) {
+        try {
+          const response = await fetch(
+            `/api/v1/app-builder/sessions/${sessionIdFromUrl}`,
+          );
+
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.session && data.session.sandboxUrl) {
+              const restoredSession: SessionData = {
+                id: data.session.id,
+                sandboxId: data.session.sandboxId,
+                sandboxUrl: data.session.sandboxUrl,
+                status: data.session.status,
+                examplePrompts: data.session.examplePrompts || [],
+                expiresAt: data.session.expiresAt || null,
+              };
+
+              setSession(restoredSession);
+              setStatus(data.session.status);
+              setStep("building");
+
+              const stored = sessionStorage.getItem(messagesStorageKey);
+              if (stored) {
+                try {
+                  setMessages(JSON.parse(stored));
+                } catch {
+                  // Invalid stored data
+                }
+              }
+
+              if (appIdFromUrl) {
+                const appResponse = await fetch(`/api/v1/apps/${appIdFromUrl}`);
+                if (appResponse.ok) {
+                  const appData = await appResponse.json();
+                  if (appData.success && appData.app) {
+                    setAppData(appData.app);
+                    setAppName(appData.app.name);
+                  }
+                }
+              }
+
+              setIsInitializing(false);
+              return;
+            }
+          }
+
+          const params = new URLSearchParams(searchParams.toString());
+          params.delete("sessionId");
+          const newUrl = appIdFromUrl
+            ? `/dashboard/apps/create?appId=${appIdFromUrl}`
+            : "/dashboard/apps/create";
+          router.replace(newUrl, { scroll: false });
+          sessionStorage.removeItem(messagesStorageKey);
+
+          if (appIdFromUrl) {
+            await fetchAppDataAndSession();
+          } else {
+            setIsInitializing(false);
+          }
+          return;
+        } catch {
+          const params = new URLSearchParams(searchParams.toString());
+          params.delete("sessionId");
+          router.replace(`/dashboard/apps/create?${params.toString()}`, { scroll: false });
+          sessionStorage.removeItem(messagesStorageKey);
+        }
+      }
+
+      if (appIdFromUrl && !sessionIdFromUrl) {
+        await fetchAppDataAndSession();
+      } else {
+        setIsInitializing(false);
+      }
+    };
+
+    const fetchAppDataAndSession = async () => {
       try {
-        const response = await fetch(`/api/v1/apps/${appIdFromUrl}`);
-        if (!response.ok) {
+        const appResponse = await fetch(`/api/v1/apps/${appIdFromUrl}`);
+        if (!appResponse.ok) {
           toast.error("App not found");
           router.push("/dashboard/apps");
           return;
         }
-        const data = await response.json();
-        if (data.success && data.app) {
-          setAppData(data.app);
-          setAppName(data.app.name);
-          setAppDescription(data.app.description || "");
-          setIncludeMonetization(data.app.monetization_enabled || false);
+
+        const appData = await appResponse.json();
+        if (appData.success && appData.app) {
+          setAppData(appData.app);
+          setAppName(appData.app.name);
+          setAppDescription(appData.app.description || "");
+          setIncludeMonetization(appData.app.monetization_enabled || false);
         }
+
+        const sessionResponse = await fetch(
+          `/api/v1/app-builder?appId=${appIdFromUrl}&limit=1&includeInactive=false`,
+        );
+
+        if (sessionResponse.ok) {
+          const sessionData = await sessionResponse.json();
+          if (sessionData.success && sessionData.sessions?.length > 0) {
+            const existingSession = sessionData.sessions[0];
+            router.replace(
+              `/dashboard/apps/create?appId=${appIdFromUrl}&sessionId=${existingSession.id}`,
+              { scroll: false },
+            );
+            initializationRef.current = false;
+            return;
+          }
+        }
+
+        setIsInitializing(false);
       } catch {
         toast.error("Failed to load app");
         router.push("/dashboard/apps");
       }
     };
 
-    fetchAppData();
-  }, [appIdFromUrl, router]);
-
-  useEffect(() => {
-    if (!appIdFromUrl || sessionIdFromUrl || isRestoringSession.current || session)
-      return;
-
-    const fetchExistingSession = async () => {
-      try {
-        const response = await fetch(
-          `/api/v1/app-builder?appId=${appIdFromUrl}&limit=1&includeInactive=false`,
-        );
-
-        if (!response.ok) return;
-
-        const data = await response.json();
-        if (data.success && data.sessions?.length > 0) {
-          const existingSession = data.sessions[0];
-          const params = new URLSearchParams(searchParams.toString());
-          params.set("sessionId", existingSession.id);
-          router.replace(`/dashboard/apps/create?${params.toString()}`);
-        }
-      } catch {
-        // Silently ignore
-      }
-    };
-
-    fetchExistingSession();
-  }, [appIdFromUrl, sessionIdFromUrl, searchParams, session, router]);
-
-  useEffect(() => {
-    const sessionId = searchParams.get("sessionId");
-    if (!sessionId || isRestoringSession.current || session) return;
-
-    isRestoringSession.current = true;
-    setIsRestoring(true);
-
-    const restoreSession = async () => {
-      try {
-        const response = await fetch(
-          `/api/v1/app-builder/sessions/${sessionId}`,
-        );
-
-        if (!response.ok) {
-          const params = new URLSearchParams(searchParams.toString());
-          params.delete("sessionId");
-          const baseUrl = appIdFromUrl
-            ? `/dashboard/apps/create?appId=${appIdFromUrl}`
-            : "/dashboard/apps/create";
-          router.replace(
-            params.toString() ? `${baseUrl}&${params.toString()}` : baseUrl,
-          );
-          sessionStorage.removeItem(messagesStorageKey);
-          setIsRestoring(false);
-          return;
-        }
-
-        const data = await response.json();
-        if (data.success && data.session) {
-          const restoredSession: SessionData = {
-            id: data.session.id,
-            sandboxId: data.session.sandboxId,
-            sandboxUrl: data.session.sandboxUrl,
-            status: data.session.status,
-            examplePrompts: data.session.examplePrompts || [],
-            expiresAt: data.session.expiresAt || null,
-          };
-
-          if (!restoredSession.sandboxUrl) {
-            const params = new URLSearchParams(searchParams.toString());
-            params.delete("sessionId");
-            router.replace(`/dashboard/apps/create?${params.toString()}`);
-            sessionStorage.removeItem(messagesStorageKey);
-            setIsRestoring(false);
-            toast.error("Session expired", {
-              description: "Please start a new build session.",
-            });
-            return;
-          }
-
-          setSession(restoredSession);
-          setStatus(data.session.status);
-          setStep("building");
-
-          const stored = sessionStorage.getItem(messagesStorageKey);
-          if (stored) {
-            try {
-              const parsed = JSON.parse(stored);
-              setMessages(parsed);
-            } catch {
-              // Invalid stored data
-            }
-          }
-        }
-      } catch {
-        const params = new URLSearchParams(searchParams.toString());
-        params.delete("sessionId");
-        router.replace(`/dashboard/apps/create?${params.toString()}`);
-        sessionStorage.removeItem(messagesStorageKey);
-      } finally {
-        setIsRestoring(false);
-      }
-    };
-
-    restoreSession();
-  }, [searchParams, session, appIdFromUrl, router, messagesStorageKey]);
+    initialize();
+  }, [appIdFromUrl, sessionIdFromUrl, router, searchParams, messagesStorageKey]);
 
   useEffect(() => {
     if (messages.length > 0) {
@@ -591,7 +580,7 @@ export default function AppCreatorPage() {
                 setMessages([
                   {
                     role: "assistant",
-                    content: `🚀 **${isEditMode ? "Sandbox ready" : "Your sandbox is ready"} for ${displayName}!**
+                    content: `**${isEditMode ? "Sandbox ready" : "Your sandbox is ready"} for ${displayName}!**
 
 I'll help you ${isEditMode ? "enhance" : "build"} your app. The live preview is loading on the right.${contextMessage}
 
@@ -610,15 +599,10 @@ Some ideas:
                   "success",
                 );
 
-                const params = new URLSearchParams(searchParams.toString());
-                params.set("sessionId", data.session.id);
-                if (appIdFromUrl) {
-                  params.set("appId", appIdFromUrl);
-                }
-                router.replace(
-                  `/dashboard/apps/create?${params.toString()}`,
-                  { scroll: false },
-                );
+                const newUrl = appIdFromUrl
+                  ? `/dashboard/apps/create?appId=${appIdFromUrl}&sessionId=${data.session.id}`
+                  : `/dashboard/apps/create?sessionId=${data.session.id}`;
+                router.replace(newUrl, { scroll: false });
 
                 toast.success("Sandbox started!", {
                   description: "Your development environment is ready.",
@@ -655,7 +639,6 @@ Some ideas:
     includeAnalytics,
     sourceContext,
     addLog,
-    searchParams,
     router,
   ]);
 
@@ -666,8 +649,6 @@ Some ideas:
 
       setIsLoading(true);
       setStatus("generating");
-      setGeneratingMessage("Analyzing request...");
-      setGeneratingColor("text-cyan-400");
 
       addLog(
         `Sending prompt: "${text.substring(0, 50)}${text.length > 50 ? "..." : ""}"`,
@@ -683,21 +664,33 @@ Some ideas:
       setInput("");
 
       const thinkingId = Date.now();
-      let thinkingContent = "";
-      let actionsContent = "";
+      const actionsLog: { tool: string; detail: string; timestamp: string; status: "active" | "done" }[] = [];
 
-      const updateThinking = (thinking: string, actions: string) => {
-        let content = "";
-        if (thinking) {
-          content += `💭 *${thinking.substring(0, 200)}${thinking.length > 200 ? "..." : ""}*\n\n`;
-        }
-        if (actions) {
-          content += actions;
-        }
-        if (!content) {
-          content = "🤔 **Thinking...**";
+      const getTimeString = () => {
+        return new Date().toLocaleTimeString("en-US", { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" });
+      };
+
+      const buildProgressContent = (currentStatus?: string) => {
+        let content = "**Processing your request**\n\n";
+
+        if (actionsLog.length > 0) {
+          actionsLog.forEach((action, idx) => {
+            const isActive = action.status === "active";
+            const statusMarker = isActive ? "[RUNNING]" : "[DONE]";
+            content += `\`${action.timestamp}\` ${statusMarker} **${action.tool}**\n`;
+            content += `> \`${action.detail}\`\n\n`;
+          });
         }
 
+        if (currentStatus) {
+          content += `---\n\n*${currentStatus}*`;
+        }
+
+        return content;
+      };
+
+      const updateThinking = (currentStatus?: string) => {
+        const content = buildProgressContent(currentStatus);
         setMessages((prev) => {
           const updated = [...prev];
           const thinkingIdx = updated.findIndex(
@@ -717,7 +710,7 @@ Some ideas:
         ...prev,
         {
           role: "assistant",
-          content: "🤔 **Thinking...**",
+          content: "**Processing your request**\n\n*Analyzing...*",
           timestamp: new Date().toISOString(),
           _thinkingId: thinkingId,
         } as Message,
@@ -767,56 +760,55 @@ Some ideas:
                 const data = JSON.parse(line.slice(6));
 
                 if (eventType === "thinking") {
-                  thinkingContent = data.text || "";
-                  updateThinking(thinkingContent, actionsContent);
-                  setGeneratingMessage("Planning changes...");
-                  setGeneratingColor("text-purple-400");
+                  updateThinking("Planning changes...");
                 } else if (eventType === "tool_use") {
                   const toolName = data.tool;
                   let toolDisplay = "";
+                  let detail = "";
                   let statusMsg = "Working...";
-                  let statusColor = "text-cyan-400";
 
                   if (toolName === "write_file") {
                     const path = data.input?.path || "file";
-                    const fileName = path.split("/").pop() || path;
-                    toolDisplay = `📝 Writing \`${path}\``;
-                    statusMsg = `Writing ${fileName}...`;
-                    statusColor = "text-green-400";
+                    toolDisplay = "Writing file";
+                    detail = path;
+                    statusMsg = `Writing ${path.split("/").pop()}...`;
                   } else if (toolName === "read_file") {
                     const path = data.input?.path || "file";
-                    toolDisplay = `👀 Reading \`${path}\``;
-                    statusMsg = "Reading files...";
-                    statusColor = "text-blue-400";
+                    toolDisplay = "Reading file";
+                    detail = path;
+                    statusMsg = "Reading file...";
                   } else if (toolName === "install_packages") {
-                    const packages =
-                      data.input?.packages?.join(", ") || "packages";
-                    toolDisplay = `📦 Installing ${packages}`;
-                    statusMsg = "Installing packages...";
-                    statusColor = "text-orange-400";
+                    const packages = data.input?.packages?.join(", ") || "packages";
+                    toolDisplay = "Installing packages";
+                    detail = packages;
+                    statusMsg = "Installing dependencies...";
                   } else if (toolName === "check_build") {
-                    toolDisplay = `🔍 Checking build...`;
-                    statusMsg = "Checking build...";
-                    statusColor = "text-yellow-400";
+                    toolDisplay = "Checking build";
+                    detail = "Verifying project compiles";
+                    statusMsg = "Running build check...";
                   } else if (toolName === "list_files") {
-                    toolDisplay = `📂 Listing files`;
-                    statusMsg = "Exploring project...";
-                    statusColor = "text-indigo-400";
+                    const path = data.input?.path || ".";
+                    toolDisplay = "Listing directory";
+                    detail = path;
+                    statusMsg = "Exploring project structure...";
                   } else if (toolName === "run_command") {
-                    toolDisplay = `⚡ Running command`;
-                    statusMsg = "Running command...";
-                    statusColor = "text-red-400";
+                    const cmd = data.input?.command || "command";
+                    toolDisplay = "Running command";
+                    detail = cmd;
+                    statusMsg = "Executing command...";
                   } else {
-                    toolDisplay = `🔧 ${toolName}`;
+                    toolDisplay = toolName.replace(/_/g, " ");
+                    detail = JSON.stringify(data.input || {}).slice(0, 50);
                   }
 
-                  setGeneratingMessage(statusMsg);
-                  setGeneratingColor(statusColor);
-                  actionsContent += `${toolDisplay}\n`;
-                  updateThinking(thinkingContent, actionsContent);
+                  if (actionsLog.length > 0) {
+                    actionsLog[actionsLog.length - 1].status = "done";
+                  }
+                  actionsLog.push({ tool: toolDisplay, detail, timestamp: getTimeString(), status: "active" });
+                  updateThinking(statusMsg);
 
                   addLog(
-                    `🔧 ${toolName}: ${data.input?.path || data.input?.packages?.join(", ") || ""}`,
+                    `${toolName}: ${data.input?.path || data.input?.packages?.join(", ") || ""}`,
                     "info",
                   );
                 } else if (eventType === "complete") {
@@ -837,33 +829,43 @@ Some ideas:
           throw new Error(finalData.error || "Failed to process prompt");
         }
 
+        actionsLog.forEach((action) => {
+          action.status = "done";
+        });
+
         setMessages((prev) => {
-          const updated = prev.map((m) => {
+          return prev.map((m) => {
             if (m._thinkingId === thinkingId) {
               const { _thinkingId: _, ...rest } = m;
+
+              let content = "";
+
+              if (finalData.output) {
+                content += finalData.output;
+              }
+
+              if (actionsLog.length > 0) {
+                content += "\n\n---\n\n";
+                content += "**Operations Completed**\n\n";
+                actionsLog.forEach((action) => {
+                  content += `\`${action.timestamp}\` **${action.tool}**\n`;
+                  content += `> \`${action.detail}\`\n\n`;
+                });
+              }
+
               return {
                 ...rest,
-                content: actionsContent
-                  ? `**Progress:**\n${actionsContent}`
-                  : "🤔 *Processing...*",
+                content,
+                filesAffected: finalData.filesAffected,
               };
             }
             return m;
           });
-          return [
-            ...updated,
-            {
-              role: "assistant",
-              content: finalData.output || "",
-              filesAffected: finalData.filesAffected,
-              timestamp: new Date().toISOString(),
-            },
-          ];
         });
 
         if (finalData.filesAffected && finalData.filesAffected.length > 0) {
           addLog(
-            `✅ Modified: ${finalData.filesAffected.join(", ")}`,
+            `Modified: ${finalData.filesAffected.join(", ")}`,
             "success",
           );
         }
@@ -876,26 +878,29 @@ Some ideas:
         setStatus("ready");
       } catch (error) {
         setMessages((prev) => {
-          const updated = prev.map((m) => {
+          return prev.map((m) => {
             if (m._thinkingId === thinkingId) {
               const { _thinkingId: _, ...rest } = m;
+
+              let content = `**Error:** ${error instanceof Error ? error.message : "Something went wrong"}\n\n`;
+              content += "The operation could not be completed. Please try again or modify your request.";
+
+              if (actionsLog.length > 0) {
+                content += "\n\n---\n\n";
+                content += "**Attempted Actions**\n\n";
+                actionsLog.forEach((action) => {
+                  content += `\`${action.timestamp}\` **${action.tool}**\n`;
+                  content += `> \`${action.detail}\`\n\n`;
+                });
+              }
+
               return {
                 ...rest,
-                content: actionsContent
-                  ? `**Progress:**\n${actionsContent}\n\n⚠️ *Error occurred*`
-                  : "⚠️ *Error occurred*",
+                content,
               };
             }
             return m;
           });
-          return [
-            ...updated,
-            {
-              role: "assistant",
-              content: `❌ **Error:** ${error instanceof Error ? error.message : "Something went wrong"}`,
-              timestamp: new Date().toISOString(),
-            },
-          ];
         });
 
         setStatus("ready");
@@ -956,15 +961,10 @@ Some ideas:
       setMessages([]);
       setConsoleLogs([]);
 
-      const params = new URLSearchParams(searchParams.toString());
-      params.delete("sessionId");
-      const baseUrl = appIdFromUrl
+      const newUrl = appIdFromUrl
         ? `/dashboard/apps/create?appId=${appIdFromUrl}`
         : "/dashboard/apps/create";
-      router.replace(
-        params.toString() ? `${baseUrl}&${params.toString()}` : baseUrl,
-        { scroll: false },
-      );
+      router.replace(newUrl, { scroll: false });
       sessionStorage.removeItem(messagesStorageKey);
 
       addLog("Session stopped", "info");
@@ -972,7 +972,7 @@ Some ideas:
     } catch {
       toast.error("Failed to stop session");
     }
-  }, [session, addLog, searchParams, router, appIdFromUrl, messagesStorageKey]);
+  }, [session, addLog, router, appIdFromUrl, messagesStorageKey]);
 
   const copySandboxUrl = useCallback(async () => {
     if (!session?.sandboxUrl) return;
@@ -985,6 +985,29 @@ Some ideas:
   const backLink = isEditMode
     ? `/dashboard/apps/${appIdFromUrl}`
     : "/dashboard/apps";
+
+  if (isInitializing) {
+    return (
+      <div className="max-w-4xl mx-auto py-10">
+        <BrandCard className="relative">
+          <CornerBrackets className="opacity-20" />
+          <div className="relative z-10 p-8">
+            <div className="max-w-md mx-auto text-center">
+              <Loader2 className="h-12 w-12 animate-spin text-[#FF5800] mx-auto mb-4" />
+              <h2 className="text-xl font-bold text-white mb-2">
+                {sessionIdFromUrl ? "Restoring Session" : "Loading"}
+              </h2>
+              <p className="text-white/60">
+                {sessionIdFromUrl
+                  ? "Loading your sandbox environment..."
+                  : "Preparing app builder..."}
+              </p>
+            </div>
+          </div>
+        </BrandCard>
+      </div>
+    );
+  }
 
   if (status === "not_configured") {
     return (
@@ -1026,12 +1049,12 @@ Some ideas:
                   </li>
                   <li className="flex gap-2">
                     <span className="text-[#FF5800] font-mono">2.</span>
-                    <span>Find your Team ID in Vercel Dashboard → Settings</span>
+                    <span>Find your Team ID in Vercel Dashboard Settings</span>
                   </li>
                   <li className="flex gap-2">
                     <span className="text-[#FF5800] font-mono">3.</span>
                     <span>
-                      Find your Project ID in Project → Settings → General
+                      Find your Project ID in Project Settings General
                     </span>
                   </li>
                   <li className="flex gap-2">
@@ -1076,27 +1099,6 @@ ANTHROPIC_API_KEY=your_key_here`}
                   Try Again
                 </Button>
               </div>
-            </div>
-          </div>
-        </BrandCard>
-      </div>
-    );
-  }
-
-  if (isRestoring || (sessionIdFromUrl && !session && status === "idle")) {
-    return (
-      <div className="max-w-4xl mx-auto py-10">
-        <BrandCard className="relative">
-          <CornerBrackets className="opacity-20" />
-          <div className="relative z-10 p-8">
-            <div className="max-w-md mx-auto text-center">
-              <Loader2 className="h-12 w-12 animate-spin text-[#FF5800] mx-auto mb-4" />
-              <h2 className="text-xl font-bold text-white mb-2">
-                Restoring Session
-              </h2>
-              <p className="text-white/60">
-                Loading your sandbox environment...
-              </p>
             </div>
           </div>
         </BrandCard>
@@ -1279,7 +1281,7 @@ ANTHROPIC_API_KEY=your_key_here`}
     );
   }
 
-  if (status === "idle" && isEditMode) {
+  if (status === "idle" && isEditMode && !session) {
     return (
       <div className="max-w-4xl mx-auto py-10 space-y-6">
         <div className="flex items-center gap-4">
@@ -1557,18 +1559,41 @@ ANTHROPIC_API_KEY=your_key_here`}
             ref={messagesContainerRef}
             className="flex-1 overflow-y-auto p-4 space-y-4"
           >
-            {messages.map((msg, i) => (
+            {messages.map((msg, i) => {
+              const isProcessing = !!(msg as Message & { _thinkingId?: number })._thinkingId;
+              const msgTime = new Date(msg.timestamp).toLocaleTimeString("en-US", {
+                hour12: false,
+                hour: "2-digit",
+                minute: "2-digit"
+              });
+
+              return (
               <div
                 key={i}
-                className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+                className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} w-full`}
               >
                 <div
-                  className={`max-w-[85%] p-4 ${
+                  className={`p-4 ${
                     msg.role === "user"
-                      ? "bg-cyan-500/20 border border-cyan-500/30"
-                      : "bg-white/5 border border-white/10"
+                      ? "max-w-[75%] bg-cyan-500/20 border border-cyan-500/30"
+                      : isProcessing
+                        ? "w-full bg-purple-500/10 border border-purple-500/30"
+                        : "w-full bg-white/5 border border-white/10"
                   }`}
                 >
+                  <div className="flex items-center justify-between mb-2 pb-2 border-b border-white/10">
+                    <div className="flex items-center gap-2">
+                      {isProcessing && (
+                        <Loader2 className="h-3 w-3 animate-spin text-purple-400" />
+                      )}
+                      <span className={`text-xs font-medium ${
+                        msg.role === "user" ? "text-cyan-400" : isProcessing ? "text-purple-400" : "text-white/50"
+                      }`}>
+                        {msg.role === "user" ? "You" : isProcessing ? "Processing" : "Assistant"}
+                      </span>
+                    </div>
+                    <span className="text-xs text-white/30 font-mono">{msgTime}</span>
+                  </div>
                   <ReactMarkdown
                     remarkPlugins={[remarkGfm]}
                     components={{
@@ -1602,7 +1627,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                       ),
                       li: ({ children }) => (
                         <li className="text-sm text-white/70 flex items-start gap-2">
-                          <span className="text-cyan-400 mt-1.5">•</span>
+                          <span className="text-cyan-400 mt-1.5">-</span>
                           <span>{children}</span>
                         </li>
                       ),
@@ -1650,6 +1675,38 @@ ANTHROPIC_API_KEY=your_key_here`}
                         </blockquote>
                       ),
                       hr: () => <hr className="border-white/10 my-4" />,
+                      table: ({ children }) => (
+                        <div className="overflow-x-auto my-3">
+                          <table className="w-full text-xs border-collapse">
+                            {children}
+                          </table>
+                        </div>
+                      ),
+                      thead: ({ children }) => (
+                        <thead className="bg-white/5 border-b border-white/10">
+                          {children}
+                        </thead>
+                      ),
+                      tbody: ({ children }) => (
+                        <tbody className="divide-y divide-white/5">
+                          {children}
+                        </tbody>
+                      ),
+                      tr: ({ children }) => (
+                        <tr className="hover:bg-white/5 transition-colors">
+                          {children}
+                        </tr>
+                      ),
+                      th: ({ children }) => (
+                        <th className="px-3 py-2 text-left text-white/70 font-medium">
+                          {children}
+                        </th>
+                      ),
+                      td: ({ children }) => (
+                        <td className="px-3 py-2 text-white/60">
+                          {children}
+                        </td>
+                      ),
                     }}
                   >
                     {msg.content}
@@ -1695,21 +1752,8 @@ ANTHROPIC_API_KEY=your_key_here`}
                   )}
                 </div>
               </div>
-            ))}
-            {status === "generating" && (
-              <div className="flex justify-start">
-                <div className="bg-white/5 border border-white/10 p-4">
-                  <div className="flex items-center gap-2">
-                    <Loader2
-                      className={`h-4 w-4 animate-spin ${generatingColor}`}
-                    />
-                    <span className={`text-sm ${generatingColor}`}>
-                      {generatingMessage}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            )}
+              );
+            })}
             <div ref={messagesEndRef} />
           </div>
 
@@ -1841,7 +1885,6 @@ ANTHROPIC_API_KEY=your_key_here`}
                         bgClass = "bg-red-500/10";
                       } else if (
                         log.includes("[warning]") ||
-                        log.includes("⚠") ||
                         log.includes("Warning")
                       ) {
                         colorClass = "text-yellow-400";
@@ -1861,8 +1904,6 @@ ANTHROPIC_API_KEY=your_key_here`}
                         } else {
                           colorClass = "text-cyan-400/70";
                         }
-                      } else if (log.includes("✓")) {
-                        colorClass = "text-green-400/80";
                       } else if (
                         log.includes("Next.js") ||
                         log.includes("Turbopack")
