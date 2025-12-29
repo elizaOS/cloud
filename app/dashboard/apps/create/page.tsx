@@ -157,8 +157,9 @@ export default function AppCreatorPage() {
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const hasAutoScaffoldedRef = useRef(false);
   const initializationRef = useRef(false);
+  const sessionActionsLogRef = useRef<{ tool: string; detail: string; timestamp: string; status: "active" | "done" }[]>([]);
+  const initialThinkingIdRef = useRef<number | null>(null);
 
   const appIdFromUrl = searchParams.get("appId");
   const sessionIdFromUrl = searchParams.get("sessionId");
@@ -502,6 +503,14 @@ export default function AppCreatorPage() {
     addLog("Starting sandbox environment...", "info");
     setProgressStep("creating");
     setErrorMessage(null);
+    sessionActionsLogRef.current = [];
+
+    const shouldAutoScaffold = !isEditMode && (appDescription || templateType !== "blank");
+    const initialPrompt = shouldAutoScaffold
+      ? appDescription
+        ? `Set up the initial app structure based on these requirements:\n\n**Template:** ${templateType}\n**Description:** ${appDescription}\n\nPlease scaffold the project with all necessary components, pages, and styling to match this description.`
+        : `Set up the initial ${templateType} app structure with all the core features, components, and styling.`
+      : undefined;
 
     try {
       const response = await fetch("/api/v1/app-builder/stream", {
@@ -511,6 +520,7 @@ export default function AppCreatorPage() {
           appId: appIdFromUrl || undefined,
           appName: isEditMode ? undefined : appName,
           appDescription: isEditMode ? undefined : appDescription,
+          initialPrompt,
           templateType,
           includeMonetization,
           includeAnalytics,
@@ -564,23 +574,45 @@ export default function AppCreatorPage() {
               if (eventType === "progress") {
                 setProgressStep(data.step as ProgressStep);
                 addLog(`Progress: ${data.step}`, "info");
-              } else if (eventType === "complete") {
+              } else if (eventType === "sandbox_ready") {
                 setSession(data.session);
-                setStatus("ready");
                 setStep("building");
-                hasAutoScaffoldedRef.current = false;
+                setStatus(data.hasInitialPrompt ? "generating" : "ready");
 
-                const displayName = isEditMode
-                  ? appData?.name || appName
-                  : appName;
-                const contextMessage = sourceContext
-                  ? `\n\nI see you're building an app for **${sourceContext.name}** (${sourceContext.type}). I've pre-configured the template and settings to work with this integration.`
-                  : "";
+                const displayName = isEditMode ? appData?.name || appName : appName;
 
-                setMessages([
-                  {
-                    role: "assistant",
-                    content: `**${isEditMode ? "Sandbox ready" : "Your sandbox is ready"} for ${displayName}!**
+                const newUrl = appIdFromUrl
+                  ? `/dashboard/apps/create?appId=${appIdFromUrl}&sessionId=${data.session.id}`
+                  : `/dashboard/apps/create?sessionId=${data.session.id}`;
+                router.replace(newUrl, { scroll: false });
+
+                addLog(`Sandbox ready at ${data.session.sandboxUrl}`, "success");
+
+                if (data.hasInitialPrompt) {
+                  const thinkingId = Date.now();
+                  initialThinkingIdRef.current = thinkingId;
+
+                  setMessages([
+                    {
+                      role: "user",
+                      content: initialPrompt || "Set up the app",
+                      timestamp: new Date().toISOString(),
+                    },
+                    {
+                      role: "assistant",
+                      content: `**Setting up ${displayName}**\n\n*Analyzing requirements and generating code...*`,
+                      timestamp: new Date().toISOString(),
+                      _thinkingId: thinkingId,
+                    } as Message,
+                  ]);
+                } else {
+                  const contextMessage = sourceContext
+                    ? `\n\nI see you're building an app for **${sourceContext.name}** (${sourceContext.type}). I've pre-configured the template and settings to work with this integration.`
+                    : "";
+                  setMessages([
+                    {
+                      role: "assistant",
+                      content: `**${isEditMode ? "Sandbox ready" : "Your sandbox is ready"} for ${displayName}!**
 
 I'll help you ${isEditMode ? "enhance" : "build"} your app. The live preview is loading on the right.${contextMessage}
 
@@ -591,22 +623,125 @@ Some ideas:
 - Improve the UI design
 - Add analytics tracking
 - Integrate more APIs`,
-                    timestamp: new Date().toISOString(),
-                  },
-                ]);
-                addLog(
-                  `Sandbox ready at ${data.session.sandboxUrl}`,
-                  "success",
-                );
+                      timestamp: new Date().toISOString(),
+                    },
+                  ]);
+                  setIsLoading(false);
+                  toast.success("Sandbox ready!", {
+                    description: "Your development environment is ready.",
+                  });
+                }
+              } else if (eventType === "thinking") {
+                addLog("Planning changes...", "info");
+              } else if (eventType === "tool_use") {
+                const toolName = data.tool;
+                let toolDisplay = "";
+                let detail = "";
 
-                const newUrl = appIdFromUrl
-                  ? `/dashboard/apps/create?appId=${appIdFromUrl}&sessionId=${data.session.id}`
-                  : `/dashboard/apps/create?sessionId=${data.session.id}`;
-                router.replace(newUrl, { scroll: false });
+                if (toolName === "write_file") {
+                  const path = data.input?.path || "file";
+                  toolDisplay = "Writing file";
+                  detail = path;
+                } else if (toolName === "read_file") {
+                  const path = data.input?.path || "file";
+                  toolDisplay = "Reading file";
+                  detail = path;
+                } else if (toolName === "install_packages") {
+                  const packages = data.input?.packages?.join(", ") || "packages";
+                  toolDisplay = "Installing packages";
+                  detail = packages;
+                } else if (toolName === "check_build") {
+                  toolDisplay = "Checking build";
+                  detail = "Verifying project compiles";
+                } else if (toolName === "list_files") {
+                  const path = data.input?.path || ".";
+                  toolDisplay = "Listing directory";
+                  detail = path;
+                } else if (toolName === "run_command") {
+                  const cmd = data.input?.command || "command";
+                  toolDisplay = "Running command";
+                  detail = cmd;
+                } else {
+                  toolDisplay = toolName.replace(/_/g, " ");
+                  detail = JSON.stringify(data.input || {}).slice(0, 50);
+                }
 
-                toast.success("Sandbox started!", {
-                  description: "Your development environment is ready.",
-                });
+                if (sessionActionsLogRef.current.length > 0) {
+                  sessionActionsLogRef.current[sessionActionsLogRef.current.length - 1].status = "done";
+                }
+                const timestamp = new Date().toLocaleTimeString("en-US", { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" });
+                sessionActionsLogRef.current.push({ tool: toolDisplay, detail, timestamp, status: "active" });
+                addLog(`${toolName}: ${data.input?.path || data.input?.packages?.join(", ") || ""}`, "info");
+
+                if (initialThinkingIdRef.current) {
+                  const thinkingId = initialThinkingIdRef.current;
+                  let progressContent = `**Setting up ${appName}**\n\n`;
+                  sessionActionsLogRef.current.forEach((action) => {
+                    const statusMarker = action.status === "active" ? "[RUNNING]" : "[DONE]";
+                    progressContent += `\`${action.timestamp}\` ${statusMarker} **${action.tool}**\n`;
+                    progressContent += `> \`${action.detail}\`\n\n`;
+                  });
+                  progressContent += `---\n\n*Working...*`;
+
+                  setMessages((prev) =>
+                    prev.map((m) =>
+                      (m as Message & { _thinkingId?: number })._thinkingId === thinkingId
+                        ? { ...m, content: progressContent }
+                        : m
+                    )
+                  );
+                }
+              } else if (eventType === "complete") {
+                setSession(data.session);
+                setStatus("ready");
+
+                if (data.session.initialPromptResult && initialThinkingIdRef.current) {
+                  const thinkingId = initialThinkingIdRef.current;
+                  initialThinkingIdRef.current = null;
+
+                  sessionActionsLogRef.current.forEach((action) => {
+                    action.status = "done";
+                  });
+
+                  let assistantContent = "";
+                  if (data.session.initialPromptResult.output) {
+                    assistantContent += data.session.initialPromptResult.output;
+                  }
+
+                  if (sessionActionsLogRef.current.length > 0) {
+                    assistantContent += "\n\n---\n\n";
+                    assistantContent += "**Operations Completed**\n\n";
+                    sessionActionsLogRef.current.forEach((action) => {
+                      assistantContent += `\`${action.timestamp}\` **${action.tool}**\n`;
+                      assistantContent += `> \`${action.detail}\`\n\n`;
+                    });
+                  }
+
+                  setMessages((prev) =>
+                    prev.map((m) => {
+                      if ((m as Message & { _thinkingId?: number })._thinkingId === thinkingId) {
+                        const { _thinkingId: _, ...rest } = m as Message & { _thinkingId?: number };
+                        return {
+                          ...rest,
+                          content: assistantContent,
+                          filesAffected: data.session.initialPromptResult.filesAffected,
+                        };
+                      }
+                      return m;
+                    })
+                  );
+
+                  if (iframeRef.current && data.session.sandboxUrl) {
+                    iframeRef.current.src = data.session.sandboxUrl;
+                  }
+
+                  toast.success("App scaffolded!", {
+                    description: "Your app structure has been created.",
+                  });
+                }
+
+                setIsLoading(false);
+                addLog("Build complete", "success");
               } else if (eventType === "error") {
                 throw new Error(data.error || "Failed to start session");
               }
@@ -919,36 +1054,7 @@ Some ideas:
     [input, session, isLoading, addLog],
   );
 
-  useEffect(() => {
-    if (
-      !session ||
-      status !== "ready" ||
-      hasAutoScaffoldedRef.current ||
-      messages.length > 1
-    )
-      return;
-
-    if (!isEditMode && (appDescription || templateType !== "blank")) {
-      hasAutoScaffoldedRef.current = true;
-
-      const initialScaffoldPrompt = appDescription
-        ? `Set up the initial app structure based on these requirements:\n${appDescription}`
-        : `Set up the initial ${templateType} app structure with all the core features.`;
-
-      setTimeout(() => {
-        sendPrompt(initialScaffoldPrompt);
-      }, 500);
-    }
-  }, [
-    session,
-    status,
-    messages.length,
-    appDescription,
-    templateType,
-    isEditMode,
-    sendPrompt,
-  ]);
-
+  
   const stopSession = useCallback(async () => {
     if (!session) return;
 

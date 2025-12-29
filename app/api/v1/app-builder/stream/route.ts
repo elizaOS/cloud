@@ -94,6 +94,24 @@ export async function POST(request: NextRequest) {
           onProgress: async (progress: SandboxProgress) => {
             await sendEvent("progress", progress);
           },
+          onSandboxReady: async (readySession) => {
+            await sendEvent("sandbox_ready", {
+              session: {
+                id: readySession.id,
+                sandboxId: readySession.sandboxId,
+                sandboxUrl: readySession.sandboxUrl,
+                status: readySession.status,
+                examplePrompts: readySession.examplePrompts,
+              },
+              hasInitialPrompt: !!data.initialPrompt,
+            });
+          },
+          onToolUse: async (tool, input, result) => {
+            await sendEvent("tool_use", { tool, input, result: result.substring(0, 500) });
+          },
+          onThinking: async (text) => {
+            await sendEvent("thinking", { text: text.substring(0, 1000) });
+          },
         });
 
         logger.info("Created app builder session via stream", {
@@ -110,6 +128,8 @@ export async function POST(request: NextRequest) {
             sandboxUrl: session.sandboxUrl,
             status: session.status,
             examplePrompts: session.examplePrompts,
+            messages: session.messages,
+            initialPromptResult: session.initialPromptResult,
           },
         });
       } catch (error) {

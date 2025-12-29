@@ -41,6 +41,9 @@ export interface BuilderSessionConfig {
   includeMonetization?: boolean;
   includeAnalytics?: boolean;
   onProgress?: (progress: SandboxProgress) => void;
+  onSandboxReady?: (session: BuilderSession) => void;
+  onToolUse?: (tool: string, input: unknown, result: string) => void;
+  onThinking?: (text: string) => void;
 }
 
 export type { SandboxProgress };
@@ -57,6 +60,7 @@ export interface BuilderSession {
   }>;
   examplePrompts: string[];
   expiresAt: string | null;
+  initialPromptResult?: PromptResult;
 }
 
 export interface PromptResult {
@@ -94,6 +98,9 @@ export class AIAppBuilderService {
       includeMonetization = false,
       includeAnalytics = true,
       onProgress,
+      onSandboxReady,
+      onToolUse,
+      onThinking,
     } = config;
 
     logger.info("Starting AI App Builder session", {
@@ -206,14 +213,59 @@ export class AIAppBuilderService {
       sandboxUrl: sandboxData.sandboxUrl,
     });
 
+    const baseSession: BuilderSession = {
+      id: session.id,
+      sandboxId: sandboxData.sandboxId,
+      sandboxUrl: sandboxData.sandboxUrl,
+      status: "ready" as BuilderSession["status"],
+      messages: [],
+      examplePrompts,
+      expiresAt: expiresAt.toISOString(),
+    };
+
+    if (onSandboxReady) {
+      onSandboxReady(baseSession);
+    }
+
+    let initialPromptResult: PromptResult | undefined;
+
+    if (initialPrompt) {
+      logger.info("Executing initial prompt as part of session creation", {
+        sessionId: session.id,
+        promptLength: initialPrompt.length,
+      });
+
+      initialPromptResult = await this.sendPrompt(
+        session.id,
+        initialPrompt,
+        userId,
+        { onToolUse, onThinking },
+      );
+
+      logger.info("Initial prompt completed", {
+        sessionId: session.id,
+        success: initialPromptResult.success,
+        filesAffected: initialPromptResult.filesAffected.length,
+      });
+    }
+
+    const finalMessages: BuilderSession["messages"] = [];
+    if (initialPromptResult) {
+      finalMessages.push(
+        { role: "user", content: initialPrompt!, timestamp: new Date().toISOString() },
+        { role: "assistant", content: initialPromptResult.output, timestamp: new Date().toISOString() },
+      );
+    }
+
     return {
       id: session.id,
       sandboxId: sandboxData.sandboxId,
       sandboxUrl: sandboxData.sandboxUrl,
-      status: session.status as BuilderSession["status"],
-      messages: [],
+      status: "ready" as BuilderSession["status"],
+      messages: finalMessages,
       examplePrompts,
       expiresAt: expiresAt.toISOString(),
+      initialPromptResult,
     };
   }
 
