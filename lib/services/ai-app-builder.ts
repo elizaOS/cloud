@@ -384,7 +384,146 @@ export class AIAppBuilderService {
       durationMs,
     });
 
+    if (result.success && result.filesAffected.length > 0) {
+      try {
+        await sandboxService.backupFiles(session.sandbox_id, sessionId, {
+          snapshotType: "prompt_complete",
+          specificFiles: result.filesAffected,
+        });
+      } catch (backupError) {
+        logger.warn("Failed to backup files after prompt", {
+          sessionId,
+          error: backupError,
+        });
+      }
+    }
+
     return result;
+  }
+
+  async resumeSession(
+    sessionId: string,
+    userId: string,
+    options: {
+      onProgress?: (progress: SandboxProgress) => void;
+      onRestoreProgress?: (current: number, total: number, filePath: string) => void;
+    } = {},
+  ): Promise<BuilderSession> {
+    logger.info("Resuming session with file restoration", { sessionId, userId });
+
+    const session = await this.verifyOwnership(sessionId, userId);
+
+    const hasSnapshots = await sandboxService.hasSnapshots(sessionId);
+    if (!hasSnapshots) {
+      throw new Error("No saved files found to restore. Cannot resume session.");
+    }
+
+    const snapshotStats = await sandboxService.getSnapshotStats(sessionId);
+    logger.info("Snapshot stats for resume", { sessionId, ...snapshotStats });
+
+    await dbWrite
+      .update(appSandboxSessions)
+      .set({
+        status: "initializing",
+        status_message: "Creating new sandbox for restoration...",
+        updated_at: new Date(),
+      })
+      .where(eq(appSandboxSessions.id, sessionId));
+
+    options.onProgress?.({ step: "creating", message: "Creating new sandbox..." });
+
+    const sandboxData = await sandboxService.create({
+      organizationId: session.organization_id,
+      projectId: session.app_id || undefined,
+      env: session.app_id
+        ? { NEXT_PUBLIC_ELIZA_API_KEY: await this.getApiKeyForApp(session.app_id) }
+        : undefined,
+      onProgress: options.onProgress,
+    });
+
+    await dbWrite
+      .update(appSandboxSessions)
+      .set({
+        sandbox_id: sandboxData.sandboxId,
+        sandbox_url: sandboxData.sandboxUrl,
+        status: "initializing",
+        status_message: "Restoring files...",
+        updated_at: new Date(),
+      })
+      .where(eq(appSandboxSessions.id, sessionId));
+
+    options.onProgress?.({ step: "installing", message: "Restoring your files..." });
+
+    const restoreResult = await sandboxService.restoreFiles(
+      sandboxData.sandboxId,
+      sessionId,
+      { onProgress: options.onRestoreProgress },
+    );
+
+    logger.info("Files restored", {
+      sessionId,
+      filesRestored: restoreResult.filesRestored,
+      errors: restoreResult.errors.length,
+    });
+
+    const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
+    await dbWrite
+      .update(appSandboxSessions)
+      .set({
+        status: "ready",
+        status_message: null,
+        expires_at: expiresAt,
+        updated_at: new Date(),
+      })
+      .where(eq(appSandboxSessions.id, sessionId));
+
+    options.onProgress?.({ step: "ready", message: `Restored ${restoreResult.filesRestored} files!` });
+
+    const examplePrompts =
+      EXAMPLE_PROMPTS[session.template_type as keyof typeof EXAMPLE_PROMPTS] ||
+      EXAMPLE_PROMPTS.blank;
+
+    return {
+      id: session.id,
+      sandboxId: sandboxData.sandboxId,
+      sandboxUrl: sandboxData.sandboxUrl,
+      status: "ready",
+      messages: (session.claude_messages as BuilderSession["messages"]) || [],
+      examplePrompts,
+      expiresAt: expiresAt.toISOString(),
+    };
+  }
+
+  private async getApiKeyForApp(appId: string): Promise<string> {
+    try {
+      return await appsService.regenerateApiKey(appId);
+    } catch {
+      return "";
+    }
+  }
+
+  async triggerBackup(
+    sessionId: string,
+    userId: string,
+    snapshotType: "auto" | "manual" | "pre_expiry" = "manual",
+  ): Promise<{ filesBackedUp: number; totalSize: number }> {
+    const session = await this.verifyOwnership(sessionId, userId);
+    if (!session.sandbox_id) {
+      throw new Error("No active sandbox to backup");
+    }
+    return sandboxService.backupFiles(session.sandbox_id, sessionId, { snapshotType });
+  }
+
+  async getSessionSnapshotInfo(
+    sessionId: string,
+    userId: string,
+  ): Promise<{ fileCount: number; totalSize: number; lastBackup: Date | null; canRestore: boolean }> {
+    await this.verifyOwnership(sessionId, userId);
+    const stats = await sandboxService.getSnapshotStats(sessionId);
+    return {
+      ...stats,
+      canRestore: stats.fileCount > 0,
+    };
   }
 
   async verifySessionOwnership(

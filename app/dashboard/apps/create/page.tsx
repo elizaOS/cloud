@@ -210,6 +210,18 @@ export default function AppCreatorPage() {
   const [expiresAt, setExpiresAt] = useState<Date | null>(null);
   const [timeRemaining, setTimeRemaining] = useState<string>("");
   const [isExtending, setIsExtending] = useState(false);
+  const [snapshotInfo, setSnapshotInfo] = useState<{
+    fileCount: number;
+    totalSize: number;
+    canRestore: boolean;
+    lastBackup: string | null;
+  } | null>(null);
+  const [isRestoring, setIsRestoring] = useState(false);
+  const [restoreProgress, setRestoreProgress] = useState<{
+    current: number;
+    total: number;
+    filePath: string;
+  } | null>(null);
 
   const messagesStorageKey = appIdFromUrl
     ? `app-builder-messages-${appIdFromUrl}`
@@ -458,6 +470,131 @@ export default function AppCreatorPage() {
       setIsExtending(false);
     }
   }, [session, isExtending, addLog]);
+
+  const checkSnapshots = useCallback(async () => {
+    if (!session) return;
+    try {
+      const response = await fetch(
+        `/api/v1/app-builder/sessions/${session.id}/snapshots`,
+      );
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setSnapshotInfo({
+            fileCount: data.fileCount,
+            totalSize: data.totalSize,
+            canRestore: data.canRestore,
+            lastBackup: data.lastBackup,
+          });
+        }
+      }
+    } catch {
+      // Snapshot check failed, not critical
+    }
+  }, [session]);
+
+  const restoreSession = useCallback(async () => {
+    if (!session || isRestoring) return;
+
+    setIsRestoring(true);
+    setRestoreProgress(null);
+    setStatus("initializing");
+    setProgressStep("creating");
+    addLog("Restoring session with saved files...", "info");
+
+    try {
+      const response = await fetch(
+        `/api/v1/app-builder/sessions/${session.id}/resume/stream`,
+        { method: "POST" },
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to restore session");
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error("No response body");
+
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        let eventType = "";
+        for (const line of lines) {
+          if (line.startsWith("event: ")) {
+            eventType = line.slice(7);
+          } else if (line.startsWith("data: ") && eventType) {
+            try {
+              const data = JSON.parse(line.slice(6));
+
+              if (eventType === "progress") {
+                setProgressStep(data.step as ProgressStep);
+                addLog(`Progress: ${data.step} - ${data.message}`, "info");
+              } else if (eventType === "restore_progress") {
+                setRestoreProgress({
+                  current: data.current,
+                  total: data.total,
+                  filePath: data.filePath,
+                });
+                addLog(`Restoring: ${data.filePath} (${data.current}/${data.total})`, "info");
+              } else if (eventType === "complete") {
+                setSession({
+                  ...data.session,
+                  expiresAt: data.session.expiresAt,
+                });
+                setStatus("ready");
+                setStep("building");
+
+                if (data.session.expiresAt) {
+                  setExpiresAt(new Date(data.session.expiresAt));
+                }
+
+                if (data.session.messages) {
+                  setMessages(data.session.messages);
+                }
+
+                setRestoreProgress(null);
+                addLog("Session restored successfully!", "success");
+                toast.success("Session restored!", {
+                  description: "Your work has been restored. You can continue building.",
+                });
+              } else if (eventType === "error") {
+                throw new Error(data.error || "Restoration failed");
+              }
+            } catch (e) {
+              if (e instanceof SyntaxError) continue;
+              throw e;
+            }
+            eventType = "";
+          }
+        }
+      }
+    } catch (error) {
+      setStatus("error");
+      setErrorMessage(error instanceof Error ? error.message : "Restoration failed");
+      toast.error("Failed to restore session", {
+        description: error instanceof Error ? error.message : "Unknown error",
+      });
+      addLog(`Restoration failed: ${error instanceof Error ? error.message : "Unknown error"}`, "error");
+    } finally {
+      setIsRestoring(false);
+      setRestoreProgress(null);
+    }
+  }, [session, isRestoring, addLog]);
+
+  useEffect(() => {
+    if (status === "timeout" && session) {
+      checkSnapshots();
+    }
+  }, [status, session, checkSnapshots]);
 
   const lastLogIndexRef = useRef<number>(0);
   useEffect(() => {
@@ -1613,20 +1750,37 @@ ANTHROPIC_API_KEY=your_key_here`}
               {timeRemaining}
             </span>
           )}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={extendSession}
-            disabled={isExtending || status !== "ready"}
-            className="h-7 text-xs text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10"
-          >
-            {isExtending ? (
-              <Loader2 className="h-3 w-3 animate-spin" />
-            ) : (
-              <Plus className="h-3 w-3" />
-            )}
-            <span className="ml-1">15m</span>
-          </Button>
+          {status === "timeout" && snapshotInfo?.canRestore ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={restoreSession}
+              disabled={isRestoring}
+              className="h-7 text-xs text-green-400 hover:text-green-300 hover:bg-green-500/10"
+            >
+              {isRestoring ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <RefreshCw className="h-3 w-3" />
+              )}
+              <span className="ml-1">Restore</span>
+            </Button>
+          ) : (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={extendSession}
+              disabled={isExtending || status !== "ready"}
+              className="h-7 text-xs text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10"
+            >
+              {isExtending ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <Plus className="h-3 w-3" />
+              )}
+              <span className="ml-1">15m</span>
+            </Button>
+          )}
           {session?.sandboxUrl && (
             <>
               <button
@@ -1673,6 +1827,91 @@ ANTHROPIC_API_KEY=your_key_here`}
           )}
         </div>
       </div>
+
+      {status === "timeout" && (
+        <div className="absolute inset-0 top-[57px] bg-black/80 backdrop-blur-sm z-20 flex items-center justify-center">
+          <BrandCard className="max-w-md mx-4">
+            <CornerBrackets className="opacity-20" />
+            <div className="relative z-10 text-center space-y-4">
+              <div className="w-16 h-16 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center mx-auto">
+                <Timer className="h-8 w-8 text-red-400" />
+              </div>
+              <h2 className="text-xl font-semibold text-white">Session Expired</h2>
+              <p className="text-sm text-white/60">
+                Your sandbox session has timed out after 30 minutes of inactivity.
+              </p>
+
+              {snapshotInfo?.canRestore ? (
+                <div className="space-y-3">
+                  <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
+                    <p className="text-sm text-green-400 font-medium">
+                      Good news! Your work has been saved.
+                    </p>
+                    <p className="text-xs text-white/50 mt-1">
+                      {snapshotInfo.fileCount} files ({Math.round(snapshotInfo.totalSize / 1024)}KB) backed up
+                    </p>
+                  </div>
+
+                  <Button
+                    onClick={restoreSession}
+                    disabled={isRestoring}
+                    className="w-full bg-green-600 hover:bg-green-500 text-white"
+                  >
+                    {isRestoring ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        {restoreProgress
+                          ? `Restoring ${restoreProgress.current}/${restoreProgress.total}...`
+                          : "Creating sandbox..."}
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                        Restore Session
+                      </>
+                    )}
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    onClick={() => router.push("/dashboard/apps")}
+                    disabled={isRestoring}
+                    className="w-full"
+                  >
+                    Return to Apps
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="p-3 bg-white/5 border border-white/10 rounded-lg">
+                    <p className="text-xs text-white/50">
+                      {snapshotInfo === null
+                        ? "Checking for saved files..."
+                        : "No saved files found. You'll need to start fresh."}
+                    </p>
+                  </div>
+
+                  <Button
+                    onClick={startSession}
+                    className="w-full bg-[#FF5800] hover:bg-[#FF5800]/80"
+                  >
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    Start New Session
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    onClick={() => router.push("/dashboard/apps")}
+                    className="w-full"
+                  >
+                    Return to Apps
+                  </Button>
+                </div>
+              )}
+            </div>
+          </BrandCard>
+        </div>
+      )}
 
       <div className="flex-1 flex overflow-hidden">
         <div

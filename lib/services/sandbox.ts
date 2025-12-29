@@ -6,6 +6,13 @@ import {
   isSecretsConfigured,
 } from "@/lib/services/secrets";
 import { buildFullAppPrompt } from "@/lib/fragments/prompt";
+import { dbRead, dbWrite } from "@/db/client";
+import {
+  sessionFileSnapshots,
+  sessionRestoreHistory,
+  type NewSessionFileSnapshot,
+} from "@/db/schemas/app-sandboxes";
+import { eq, and, desc } from "drizzle-orm";
 
 const ELIZA_SDK_FILE = `const apiKey = process.env.NEXT_PUBLIC_ELIZA_API_KEY || '';
 
@@ -975,6 +982,239 @@ REMEMBER:
     });
     const stdout = await logsResult.stdout();
     return stdout.split("\n").filter((l: string) => l.trim());
+  }
+
+  async backupFiles(
+    sandboxId: string,
+    sessionId: string,
+    options: {
+      snapshotType?: "auto" | "manual" | "pre_expiry" | "prompt_complete";
+      specificFiles?: string[];
+    } = {}
+  ): Promise<{ filesBackedUp: number; totalSize: number }> {
+    const sandbox = getActiveSandboxes().get(sandboxId);
+    if (!sandbox) {
+      logger.warn("Cannot backup - sandbox not found", { sandboxId });
+      return { filesBackedUp: 0, totalSize: 0 };
+    }
+
+    const { snapshotType = "auto", specificFiles } = options;
+
+    logger.info("Starting file backup", { sandboxId, sessionId, snapshotType });
+
+    const filesToBackup = specificFiles || await this.getModifiedFiles(sandboxId);
+
+    if (filesToBackup.length === 0) {
+      logger.info("No files to backup", { sandboxId });
+      return { filesBackedUp: 0, totalSize: 0 };
+    }
+
+    const snapshots: NewSessionFileSnapshot[] = [];
+    let totalSize = 0;
+
+    for (const filePath of filesToBackup) {
+      try {
+        const content = await readFileViaSh(sandbox, filePath);
+        if (content === null) continue;
+
+        const contentHash = crypto.createHash("sha256").update(content).digest("hex");
+        const fileSize = Buffer.byteLength(content, "utf-8");
+        totalSize += fileSize;
+
+        snapshots.push({
+          sandbox_session_id: sessionId,
+          file_path: filePath,
+          content,
+          content_hash: contentHash,
+          file_size: fileSize,
+          snapshot_type: snapshotType,
+        });
+      } catch (error) {
+        logger.warn("Failed to read file for backup", { sandboxId, filePath, error });
+      }
+    }
+
+    if (snapshots.length === 0) {
+      return { filesBackedUp: 0, totalSize: 0 };
+    }
+
+    await dbWrite.transaction(async (tx) => {
+      for (const snapshot of snapshots) {
+        await tx
+          .delete(sessionFileSnapshots)
+          .where(
+            and(
+              eq(sessionFileSnapshots.sandbox_session_id, sessionId),
+              eq(sessionFileSnapshots.file_path, snapshot.file_path)
+            )
+          );
+      }
+      await tx.insert(sessionFileSnapshots).values(snapshots);
+    });
+
+    logger.info("File backup completed", {
+      sandboxId,
+      sessionId,
+      filesBackedUp: snapshots.length,
+      totalSize,
+    });
+
+    return { filesBackedUp: snapshots.length, totalSize };
+  }
+
+  async restoreFiles(
+    sandboxId: string,
+    sessionId: string,
+    options: {
+      onProgress?: (current: number, total: number, filePath: string) => void;
+    } = {}
+  ): Promise<{ filesRestored: number; errors: string[] }> {
+    const sandbox = getActiveSandboxes().get(sandboxId);
+    if (!sandbox) {
+      throw new Error(`Sandbox ${sandboxId} not found for restore`);
+    }
+
+    logger.info("Starting file restore", { sandboxId, sessionId });
+
+    const startTime = Date.now();
+    const errors: string[] = [];
+
+    const [restoreRecord] = await dbWrite
+      .insert(sessionRestoreHistory)
+      .values({
+        sandbox_session_id: sessionId,
+        new_sandbox_id: sandboxId,
+        status: "in_progress",
+      })
+      .returning();
+
+    const snapshots = await dbRead
+      .select()
+      .from(sessionFileSnapshots)
+      .where(eq(sessionFileSnapshots.sandbox_session_id, sessionId))
+      .orderBy(desc(sessionFileSnapshots.created_at));
+
+    const latestSnapshots = new Map<string, typeof snapshots[0]>();
+    for (const snapshot of snapshots) {
+      if (!latestSnapshots.has(snapshot.file_path)) {
+        latestSnapshots.set(snapshot.file_path, snapshot);
+      }
+    }
+
+    const filesToRestore = Array.from(latestSnapshots.values());
+    let filesRestored = 0;
+
+    for (let i = 0; i < filesToRestore.length; i++) {
+      const snapshot = filesToRestore[i];
+      try {
+        options.onProgress?.(i + 1, filesToRestore.length, snapshot.file_path);
+        await writeFileViaSh(sandbox, snapshot.file_path, snapshot.content);
+        filesRestored++;
+        logger.debug("Restored file", { sandboxId, filePath: snapshot.file_path });
+      } catch (error) {
+        const errorMsg = `Failed to restore ${snapshot.file_path}: ${error instanceof Error ? error.message : "Unknown error"}`;
+        errors.push(errorMsg);
+        logger.warn("Failed to restore file", { sandboxId, filePath: snapshot.file_path, error });
+      }
+    }
+
+    const duration = Date.now() - startTime;
+
+    await dbWrite
+      .update(sessionRestoreHistory)
+      .set({
+        files_restored: filesRestored,
+        restore_duration_ms: duration,
+        status: errors.length === 0 ? "completed" : "completed",
+        error_message: errors.length > 0 ? errors.join("; ") : null,
+        completed_at: new Date(),
+      })
+      .where(eq(sessionRestoreHistory.id, restoreRecord.id));
+
+    logger.info("File restore completed", {
+      sandboxId,
+      sessionId,
+      filesRestored,
+      errors: errors.length,
+      durationMs: duration,
+    });
+
+    return { filesRestored, errors };
+  }
+
+  async getModifiedFiles(sandboxId: string): Promise<string[]> {
+    const sandbox = getActiveSandboxes().get(sandboxId);
+    if (!sandbox) return [];
+
+    const dirsToScan = ["src", "app", "components", "lib", "public", "styles"];
+    const allFiles: string[] = [];
+
+    for (const dir of dirsToScan) {
+      try {
+        const files = await listFilesViaSh(sandbox, dir);
+        allFiles.push(...files.filter((f) => !f.includes("node_modules") && !f.includes(".next")));
+      } catch {
+        continue;
+      }
+    }
+
+    const configFiles = [
+      "package.json",
+      "tailwind.config.ts",
+      "tailwind.config.js",
+      "next.config.ts",
+      "next.config.js",
+      "tsconfig.json",
+    ];
+
+    for (const file of configFiles) {
+      const content = await readFileViaSh(sandbox, file);
+      if (content) allFiles.push(file);
+    }
+
+    return [...new Set(allFiles)];
+  }
+
+  async hasSnapshots(sessionId: string): Promise<boolean> {
+    const result = await dbRead
+      .select({ count: sessionFileSnapshots.id })
+      .from(sessionFileSnapshots)
+      .where(eq(sessionFileSnapshots.sandbox_session_id, sessionId))
+      .limit(1);
+    return result.length > 0;
+  }
+
+  async getSnapshotStats(sessionId: string): Promise<{
+    fileCount: number;
+    totalSize: number;
+    lastBackup: Date | null;
+  }> {
+    const snapshots = await dbRead
+      .select()
+      .from(sessionFileSnapshots)
+      .where(eq(sessionFileSnapshots.sandbox_session_id, sessionId))
+      .orderBy(desc(sessionFileSnapshots.created_at));
+
+    if (snapshots.length === 0) {
+      return { fileCount: 0, totalSize: 0, lastBackup: null };
+    }
+
+    const latestSnapshots = new Map<string, typeof snapshots[0]>();
+    for (const snapshot of snapshots) {
+      if (!latestSnapshots.has(snapshot.file_path)) {
+        latestSnapshots.set(snapshot.file_path, snapshot);
+      }
+    }
+
+    const uniqueSnapshots = Array.from(latestSnapshots.values());
+    const totalSize = uniqueSnapshots.reduce((sum, s) => sum + s.file_size, 0);
+    const lastBackup = uniqueSnapshots[0]?.created_at || null;
+
+    return {
+      fileCount: uniqueSnapshots.length,
+      totalSize,
+      lastBackup,
+    };
   }
 
   async stop(sandboxId: string): Promise<void> {
