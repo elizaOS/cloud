@@ -79,7 +79,7 @@ describe("A2A Task", () => {
     const task = createTask("t1", "working");
     task.status = createTaskStatus(
       "completed",
-      createMessage("agent", [createTextPart("Done")]),
+      createMessage("agent", [createTextPart("Done")])
     );
 
     expect(task.status.state).toBe("completed");
@@ -94,7 +94,7 @@ describe("A2A Artifact", () => {
       "output",
       "description",
       0,
-      { cost: 0.001 },
+      { cost: 0.001 }
     );
 
     expect(artifact.name).toBe("output");
@@ -170,6 +170,8 @@ describe("A2A Configuration", () => {
     expect(A2A_RATE_LIMITS.trusted).toBeLessThan(A2A_RATE_LIMITS.verified);
   });
 });
+
+// hello world
 
 describe("Message Param Types", () => {
   test("MessageSendParams structure", () => {
