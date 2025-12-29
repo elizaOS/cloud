@@ -25,7 +25,10 @@ import type { Address, Hex } from "viem";
  * - Wallet export capability
  */
 
-// OAuth3 Agent endpoint
+// Use local API routes to avoid CORS issues - these proxy to the OAuth3 agent
+const OAUTH3_API_URL = "/api/auth/oauth3";
+
+// Direct OAuth3 agent URL - only used for popup windows (not fetch requests)
 const OAUTH3_AGENT_URL =
   process.env.NEXT_PUBLIC_OAUTH3_URL ?? "http://localhost:4200";
 
@@ -126,17 +129,14 @@ export function useLoginWithEmail() {
     error?: string;
   }>({ status: "initial" });
 
-  const OAUTH3_AGENT_URL =
-    process.env.NEXT_PUBLIC_OAUTH3_URL ?? "http://localhost:4200";
-
   const sendCode = useCallback(async ({ email }: { email: string }) => {
     setState({ status: "sending-code" });
 
     try {
-      const response = await fetch(`${OAUTH3_AGENT_URL}/auth/email/send-code`, {
+      const response = await fetch(OAUTH3_API_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, appId: "eliza-cloud" }),
+        body: JSON.stringify({ action: "email-send-code", email }),
       });
 
       if (!response.ok) {
@@ -150,30 +150,25 @@ export function useLoginWithEmail() {
         error: error instanceof Error ? error.message : "Failed to send code",
       });
     }
-  }, [OAUTH3_AGENT_URL]);
+  }, []);
 
   const loginWithCode = useCallback(async ({ code }: { code: string }) => {
     setState({ status: "submitting-code" });
 
     try {
-      const response = await fetch(`${OAUTH3_AGENT_URL}/auth/email/verify`, {
+      const response = await fetch(OAUTH3_API_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code, appId: "eliza-cloud" }),
+        body: JSON.stringify({ action: "email-verify", code }),
       });
 
       if (!response.ok) {
         throw new Error("Invalid verification code");
       }
 
-      const { sessionId } = await response.json();
-
-      // Set the session cookie
-      document.cookie = `oauth3-token=${sessionId}; path=/; max-age=${7 * 24 * 60 * 60}`;
-
       setState({ status: "done" });
 
-      // Reload to pick up the new session
+      // Reload to pick up the new session (cookie is set server-side)
       window.location.href = "/dashboard";
     } catch (error) {
       setState({
@@ -181,7 +176,7 @@ export function useLoginWithEmail() {
         error: error instanceof Error ? error.message : "Verification failed",
       });
     }
-  }, [OAUTH3_AGENT_URL]);
+  }, []);
 
   return { sendCode, loginWithCode, state };
 }
@@ -191,21 +186,18 @@ export function useLoginWithEmail() {
  * Provides OAuth redirect flow for third-party providers
  */
 export function useLoginWithOAuth() {
-  const OAUTH3_AGENT_URL =
-    process.env.NEXT_PUBLIC_OAUTH3_URL ?? "http://localhost:4200";
-
   const initOAuth = useCallback(
     async ({ provider }: { provider: "google" | "discord" | "github" | "twitter" | "farcaster" | "apple" }) => {
       const redirectUri = `${window.location.origin}/api/auth/oauth3/callback`;
 
       try {
-        const response = await fetch(`${OAUTH3_AGENT_URL}/auth/init`, {
+        const response = await fetch(OAUTH3_API_URL, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            action: "init",
             provider,
             redirectUri,
-            appId: "eliza-cloud",
           }),
         });
 
@@ -220,7 +212,7 @@ export function useLoginWithOAuth() {
         throw error;
       }
     },
-    [OAUTH3_AGENT_URL]
+    []
   );
 
   return { initOAuth };
@@ -356,13 +348,13 @@ export default function OAuth3Provider({ children }: OAuth3ProviderProps) {
       const redirectUri = `${window.location.origin}/api/auth/oauth3/callback`;
       
       try {
-        const response = await fetch(`${OAUTH3_AGENT_URL}/auth/init`, {
+        const response = await fetch(OAUTH3_API_URL, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            action: "init",
             provider,
             redirectUri,
-            appId: "eliza-cloud",
           }),
         });
 
@@ -413,10 +405,11 @@ export default function OAuth3Provider({ children }: OAuth3ProviderProps) {
       throw new Error("Not authenticated");
     }
 
-    const response = await fetch(`${OAUTH3_AGENT_URL}/wallet/sign`, {
+    const response = await fetch(OAUTH3_API_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        action: "wallet-sign",
         sessionId: session.sessionId,
         message,
       }),
@@ -446,10 +439,11 @@ export default function OAuth3Provider({ children }: OAuth3ProviderProps) {
 
     const redirectUri = `${window.location.origin}/api/auth/oauth3/link-callback`;
     
-    const response = await fetch(`${OAUTH3_AGENT_URL}/auth/link`, {
+    const response = await fetch(OAUTH3_API_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        action: "link",
         sessionId: session.sessionId,
         provider,
         redirectUri,
@@ -469,10 +463,11 @@ export default function OAuth3Provider({ children }: OAuth3ProviderProps) {
       throw new Error("Not authenticated");
     }
 
-    const response = await fetch(`${OAUTH3_AGENT_URL}/auth/unlink`, {
+    const response = await fetch(OAUTH3_API_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        action: "unlink",
         sessionId: session.sessionId,
         provider,
       }),

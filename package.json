@@ -112,7 +112,6 @@
     "@fal-ai/client": "^1.8.1",
     "@fal-ai/server-proxy": "^1.1.2",
     "@hookform/resolvers": "^5.2.2",
-    "@jejunetwork/eqlite": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.25.1",
     "@monaco-editor/react": "^4.7.0",
     "@radix-ui/react-accordion": "^1.2.12",
