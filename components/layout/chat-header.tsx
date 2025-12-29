@@ -48,6 +48,7 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
     selectedCharacterId,
     setSelectedCharacterId,
     setRoomId,
+    rooms,
   } = useChatStore();
 
   // Share status state
@@ -60,7 +61,7 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
 
   // Find selected agent
   const selectedAgent = availableCharacters.find(
-    (a) => a.id === selectedCharacterId,
+    (a) => a.id === selectedCharacterId
   );
 
   // Fetch share status when character changes
@@ -78,7 +79,7 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
       try {
         const res = await fetch(
           `/api/my-agents/characters/${selectedCharacterId}/share`,
-          { signal: controller.signal },
+          { signal: controller.signal }
         );
 
         if (cancelled) return;
@@ -145,7 +146,7 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ isPublic: !isPublic }),
-        },
+        }
       );
 
       const data = await response.json();
@@ -162,12 +163,25 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
 
   const handleAgentChange = (characterId: string) => {
     setSelectedCharacterId(characterId);
-    // Clear current room selection since we're switching characters
-    setRoomId(null);
 
-    // Update URL with new character, clearing roomId, staying on current mode
     const params = new URLSearchParams();
     params.set("characterId", characterId);
+
+    // Only handle room selection when in chat mode
+    if (mode === "chat") {
+      const characterRooms = rooms
+        .filter((room) => room.characterId === characterId)
+        .sort((a, b) => (b.lastTime ?? 0) - (a.lastTime ?? 0));
+
+      if (characterRooms.length > 0) {
+        const mostRecentRoom = characterRooms[0];
+        setRoomId(mostRecentRoom.id);
+        params.set("roomId", mostRecentRoom.id);
+      } else {
+        setRoomId(null);
+      }
+    }
+
     const path = mode === "build" ? "/dashboard/build" : "/dashboard/chat";
     router.push(`${path}?${params.toString()}`);
   };
@@ -186,10 +200,22 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
       return;
     }
 
-    // Build URL with current character
     const params = new URLSearchParams();
     if (selectedCharacterId) {
       params.set("characterId", selectedCharacterId);
+
+      // When switching to chat mode, open most recent conversation if one exists
+      if (newMode === "chat") {
+        const characterRooms = rooms
+          .filter((room) => room.characterId === selectedCharacterId)
+          .sort((a, b) => (b.lastTime ?? 0) - (a.lastTime ?? 0));
+
+        if (characterRooms.length > 0) {
+          const mostRecentRoom = characterRooms[0];
+          setRoomId(mostRecentRoom.id);
+          params.set("roomId", mostRecentRoom.id);
+        }
+      }
     }
 
     const path = newMode === "build" ? "/dashboard/build" : "/dashboard/chat";
@@ -232,7 +258,7 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
                 "flex items-center gap-2 px-3 py-2 rounded-none",
                 "border border-white/10 bg-black/40",
                 "hover:bg-white/5 transition-colors",
-                "focus:outline-none focus:ring-2 focus:ring-[#FF5800]/50",
+                "focus:outline-none focus:ring-2 focus:ring-[#FF5800]/50"
               )}
             >
               {selectedAgent ? (
@@ -280,7 +306,7 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
               onClick={handleCreateNewAgent}
               className={cn(
                 "flex items-center gap-2 px-3 py-2 cursor-pointer",
-                "hover:bg-white/5 focus:bg-white/5",
+                "hover:bg-white/5 focus:bg-white/5"
               )}
             >
               <div className="w-6 h-6 rounded-full bg-[#FF5800]/20 border border-[#FF5800]/30 flex items-center justify-center">
@@ -304,7 +330,7 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
                     className={cn(
                       "flex items-center gap-2 px-3 py-2 cursor-pointer",
                       "hover:bg-white/5 focus:bg-white/5",
-                      selectedCharacterId === character.id && "bg-white/10",
+                      selectedCharacterId === character.id && "bg-white/10"
                     )}
                   >
                     <ElizaAvatar
@@ -343,7 +369,7 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
                   "flex items-center gap-1.5 px-2.5 py-1.5 rounded-none transition-colors",
                   "border border-white/10 bg-black/40 hover:bg-white/5",
                   "focus:outline-none focus:ring-2 focus:ring-[#FF5800]/50",
-                  isPublic && "border-green-500/30",
+                  isPublic && "border-green-500/30"
                 )}
                 title={isPublic ? "Public - Anyone can chat" : "Private"}
               >
@@ -414,7 +440,7 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
                 "flex items-center gap-2 px-3 py-1.5 rounded-none transition-colors border-0",
                 mode === "chat"
                   ? "bg-[#471E08] text-white"
-                  : "bg-[#1F1F1F] text-[#ADADAD] hover:text-white",
+                  : "bg-[#1F1F1F] text-[#ADADAD] hover:text-white"
               )}
             >
               <MessageSquare className="h-4 w-4" />
@@ -426,13 +452,13 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
                 "flex items-center gap-2 px-3 py-1.5 rounded-none transition-colors border-0",
                 mode === "build"
                   ? "bg-[#2D1505] text-white"
-                  : "bg-[#1F1F1F] text-[#ADADAD] hover:text-white",
+                  : "bg-[#1F1F1F] text-[#ADADAD] hover:text-white"
               )}
             >
               <Wrench
                 className={cn(
                   "h-4 w-4",
-                  mode === "build" ? "text-[#FF5800]" : "text-white",
+                  mode === "build" ? "text-[#FF5800]" : "text-white"
                 )}
               />
               <span className="hidden md:inline">Edit</span>
