@@ -8,7 +8,6 @@ import {
   logger,
   type Media,
   type Memory,
-  ModelType,
   parseKeyValueXml,
   type UUID,
   type State,
@@ -27,6 +26,7 @@ import {
 } from "../shared/utils/response-tracking";
 import {
   generateResponseWithRetry,
+  generatePlanningWithStreaming,
   runEvaluatorsWithTimeout,
   extractAttachments,
   getAndClearCachedAttachments,
@@ -39,17 +39,13 @@ import {
   canRespondImmediately,
   type ParsedPlan,
 } from "../shared/utils/parsers";
-import type { MessageReceivedHandlerParams } from "../shared/types";
+import type {
+  MessageReceivedHandlerParams,
+  RunEndedEventPayload,
+} from "../shared/types";
 
 /**
- * Chat Assistant Workflow Handler
- *
- * Planning-based approach with action execution capabilities.
- * 
- * PERFORMANCE OPTIMIZATIONS:
- * 1. Single composeState call - reuse initial state instead of calling 3 times
- * 2. Parallel createMemory - runs alongside state composition
- * 3. Fire-and-forget evaluators - don't block response
+ * Chat Assistant Workflow Handler - planning-based with action execution.
  */
 export async function handleMessage({
   runtime,
@@ -66,10 +62,12 @@ export async function handleMessage({
     throw new Error("Message is from the agent itself");
   }
 
-  // OPTIMIZATION: Run these in parallel
-  const [, initialState] = await Promise.all([
-    setLatestResponseId(runtime, message.roomId, responseId),
-    runtime.emitEvent(EventType.RUN_STARTED, {
+  setLatestResponseId(runtime, message.roomId, responseId).catch((e) => {
+    logger.warn(`[ChatAssistant] Failed to set response ID: ${e}`);
+  });
+
+  runtime
+    .emitEvent(EventType.RUN_STARTED, {
       runtime,
       runId,
       messageId: message.id || asUUID(v4()),
@@ -78,31 +76,36 @@ export async function handleMessage({
       startTime,
       status: "started",
       source: "chatAssistantWorkflow",
-    }).then(() => {}), // void return
-    // OPTIMIZATION: Compose state ONCE with all needed providers
-    runtime.composeState(message, [
-      "SUMMARIZED_CONTEXT",
-      "RECENT_MESSAGES",
-      "LONG_TERM_MEMORY",
-      "AVAILABLE_DOCUMENTS",
-      "PROVIDERS",
-      "MCP",
-      "ACTIONS",
-      "CHARACTER",
-      "CURRENT_RUN_CONTEXT", // Include this upfront - avoids 3rd composeState call
-    ]),
-  ]).then(([_, __, state]) => [_, state as State]);
+    })
+    .catch((e) =>
+      logger.debug(`[ChatAssistant] RUN_STARTED emit failed: ${e}`),
+    );
+
+  const initialState = await runtime.composeState(message, [
+    "SUMMARIZED_CONTEXT",
+    "RECENT_MESSAGES",
+    "LONG_TERM_MEMORY",
+    "AVAILABLE_DOCUMENTS",
+    "PROVIDERS",
+    "MCP",
+    "ACTIONS",
+    "CHARACTER",
+    "CURRENT_RUN_CONTEXT",
+  ]);
 
   const originalSystemPrompt = runtime.character.system;
 
-
   try {
-    runtime.createMemory(message, "messages").catch(() => {});
+    runtime.createMemory(message, "messages").catch((e) => {
+      logger.warn(`[ChatAssistant] Failed to save user message: ${e}`);
+    });
 
     const planningPrompt = cleanPrompt(
       composePromptFromState({
         state: initialState,
-        template: runtime.character.templates?.planningTemplate || chatAssistantPlanningTemplate,
+        template:
+          runtime.character.templates?.planningTemplate ||
+          chatAssistantPlanningTemplate,
       }),
     );
 
@@ -111,16 +114,16 @@ export async function handleMessage({
       template: chatAssistantSystemPrompt,
     });
 
-    const planningResponse = await runtime.useModel(ModelType.TEXT_LARGE, { prompt: planningPrompt });
-    runtime.character.system = originalSystemPrompt;
+    const planningResponse = await generatePlanningWithStreaming(
+      runtime,
+      planningPrompt,
+      onReasoningChunk
+        ? { onReasoningChunk, messageId: responseId as UUID }
+        : undefined,
+    );
 
     const plan = parseKeyValueXml(planningResponse) as ParsedPlan | null;
     const shouldRespondNow = canRespondImmediately(plan);
-    
-    // Stream planning thought to frontend
-    if (onReasoningChunk && plan?.thought) {
-      await onReasoningChunk(plan.thought, "planning", responseId as UUID);
-    }
 
     let responseContent = "";
     let thought = plan?.thought || "";
@@ -128,13 +131,15 @@ export async function handleMessage({
     if (shouldRespondNow && plan?.text) {
       responseContent = plan.text;
       if (onStreamChunk) {
-        for (let i = 0; i < responseContent.length; i += 15) {
-          await onStreamChunk(responseContent.slice(i, i + 15), responseId as UUID);
+        const chunkSize = 20;
+        for (let i = 0; i < responseContent.length; i += chunkSize) {
+          await onStreamChunk(
+            responseContent.slice(i, i + chunkSize),
+            responseId as UUID,
+          );
         }
       }
     } else {
-      // OPTIMIZATION: Reuse initialState instead of calling composeState again
-      // The state already has all providers we need from the initial call
       let updatedState = { ...initialState };
 
       if (!shouldRespondNow) {
@@ -179,21 +184,21 @@ export async function handleMessage({
         }),
       );
 
-      const responseResult = await generateResponseWithRetry(runtime, responsePrompt);
+      const responseResult = await generateResponseWithRetry(
+        runtime,
+        responsePrompt,
+        onStreamChunk
+          ? {
+              onStreamChunk,
+              onReasoningChunk,
+              messageId: responseId as UUID,
+            }
+          : undefined,
+      );
       responseContent = responseResult.text;
       thought = responseResult.thought;
-      
-      // Stream response chunks if callback provided
-      if (onStreamChunk && responseContent) {
-        for (let i = 0; i < responseContent.length; i += 15) {
-          await onStreamChunk(responseContent.slice(i, i + 15), responseId as UUID);
-        }
-      }
     }
 
-    runtime.character.system = originalSystemPrompt;
-
-    // Discard if superseded by newer message
     if (!(await isResponseStillValid(runtime, message.roomId, responseId))) {
       logger.info(`[ChatAssistant] Response discarded - superseded`);
       return;
@@ -201,14 +206,12 @@ export async function handleMessage({
 
     await clearLatestResponseId(runtime, message.roomId);
 
-    // Collect attachments from action results and cache
     const actionResults = await runtime.getActionResults(message.id as UUID);
     const actionResultAttachments = extractAttachments(actionResults);
     const cachedAttachments = getAndClearCachedAttachments(
       message.roomId as string,
     );
 
-    // Dedupe attachments by ID, preferring cached (validated HTTP URLs)
     const attachmentMap = new Map<
       string,
       { id: string; url: string; title?: string; contentType?: string }
@@ -228,12 +231,16 @@ export async function handleMessage({
     const mediaAttachments: Media[] = Array.from(attachmentMap.values())
       .filter((att) => att.url.length > 0)
       .map((att) => {
-        const contentType = att.contentType?.toUpperCase() as keyof typeof ContentType;
+        const contentType =
+          att.contentType?.toUpperCase() as keyof typeof ContentType;
         return {
           id: att.id,
           url: att.url,
           ...(att.title && { title: att.title }),
-          ...(contentType && ContentType[contentType] && { contentType: ContentType[contentType] }),
+          ...(contentType &&
+            ContentType[contentType] && {
+              contentType: ContentType[contentType],
+            }),
         };
       });
 
@@ -257,8 +264,6 @@ export async function handleMessage({
       content,
     };
 
-    // OPTIMIZATION: Fire-and-forget evaluators - don't block response
-    // Evaluators handle things like room title updates which aren't critical path
     runEvaluatorsWithTimeout(
       runtime,
       message,
@@ -270,37 +275,42 @@ export async function handleMessage({
     });
 
     const endTime = Date.now();
-    logger.info(`[ChatAssistant] Response generated in ${endTime - startTime}ms`);
-    
-    // Fire-and-forget event emission
-    runtime.emitEvent(EventType.RUN_ENDED, {
-      runtime,
-      runId,
-      messageId: message.id || asUUID(v4()),
-      roomId: message.roomId,
-      entityId: message.entityId,
-      startTime,
-      status: "completed",
-      endTime,
-      duration: endTime - startTime,
-      source: "chatAssistantWorkflow",
-    }).catch(() => {});
+    logger.info(`[ChatAssistant] ${endTime - startTime}ms`);
+
+    runtime
+      .emitEvent(EventType.RUN_ENDED, {
+        runtime,
+        runId,
+        messageId: message.id || asUUID(v4()),
+        roomId: message.roomId,
+        entityId: message.entityId,
+        startTime,
+        status: "completed",
+        endTime,
+        duration: endTime - startTime,
+        source: "chatAssistantWorkflow",
+      })
+      .catch((e) =>
+        logger.debug(`[ChatAssistant] RUN_ENDED emit failed: ${e}`),
+      );
   } catch (error) {
-    runtime.character.system = originalSystemPrompt;
-    // @ts-expect-error - RUN_ENDED status should include "error" for proper analytics tracking
-    await runtime.emitEvent(EventType.RUN_ENDED, {
+    const errorPayload: RunEndedEventPayload = {
       runtime,
       runId,
-      messageId: message.id || asUUID(v4()),
-      roomId: message.roomId,
-      entityId: message.entityId,
+      messageId: (message.id || asUUID(v4())) as UUID,
+      roomId: message.roomId as UUID,
+      entityId: message.entityId as UUID,
       startTime,
       status: "error",
       endTime: Date.now(),
       duration: Date.now() - startTime,
       error: error instanceof Error ? error.message : String(error),
       source: "chatAssistantWorkflow",
-    });
+    };
+    await runtime.emitEvent(EventType.RUN_ENDED, errorPayload as never);
     throw error;
+  } finally {
+    // Always restore original system prompt, even on early returns or errors
+    runtime.character.system = originalSystemPrompt;
   }
 }

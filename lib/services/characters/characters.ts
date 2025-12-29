@@ -56,10 +56,22 @@ export class CharactersService {
 
   /**
    * Invalidate character cache (call after updates)
+   * CRITICAL: This now also invalidates the in-memory runtime cache
    */
   async invalidateCache(id: string): Promise<void> {
-    await cache.del(characterCacheKey(id));
-    logger.debug(`[Characters] Cache invalidated: ${id}`);
+    // Import dynamically to avoid circular dependency
+    const { invalidateCharacterCache } =
+      await import("@/lib/cache/character-cache");
+
+    await Promise.all([
+      // Invalidate the simple character cache key
+      cache.del(characterCacheKey(id)),
+      // CRITICAL: Invalidate ALL character-related caches including runtime
+      // This ensures MCP, knowledge, web search changes take effect immediately
+      invalidateCharacterCache(id),
+    ]);
+
+    logger.info(`[Characters] Cache invalidated for character: ${id}`);
   }
 
   async getByIdForUser(
@@ -166,6 +178,13 @@ export class CharactersService {
     }
 
     const updated = await userCharactersRepository.update(characterId, updates);
+
+    // CRITICAL: Invalidate cache after update (including runtime cache)
+    // This ensures the next request creates a fresh runtime with updated config
+    if (updated) {
+      await this.invalidateCache(characterId);
+    }
+
     return updated || null;
   }
 
@@ -188,6 +207,13 @@ export class CharactersService {
     }
 
     await userCharactersRepository.delete(characterId);
+
+    // CRITICAL: Invalidate cache after delete (including runtime cache)
+    await Promise.all([
+      cache.del(CacheKeys.org.dashboard(character.organization_id)),
+      this.invalidateCache(characterId),
+    ]);
+
     return true;
   }
 

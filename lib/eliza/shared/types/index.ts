@@ -10,6 +10,25 @@ import type {
 } from "@elizaos/core";
 
 /**
+ * Extended RUN_ENDED event payload that includes error status.
+ * The base @elizaos/core type doesn't include "error" as a valid status,
+ * but we need it for proper analytics tracking.
+ */
+export interface RunEndedEventPayload {
+  runtime: IAgentRuntime;
+  runId: UUID;
+  messageId: UUID;
+  roomId: UUID;
+  entityId: UUID;
+  startTime: number;
+  status: "completed" | "error";
+  endTime: number;
+  duration: number;
+  source: string;
+  error?: string;
+}
+
+/**
  * Callback for streaming text chunks.
  * Called for each chunk of text as it's generated.
  * @param chunk - The text chunk

@@ -5,7 +5,7 @@ import { getKnowledgeService } from "@/lib/eliza/knowledge-service";
 import type { UUID } from "@elizaos/core";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { userContextService } from "@/lib/eliza/user-context";
-import { RuntimeFactory } from "@/lib/eliza/runtime-factory";
+import { RuntimeFactory, invalidateRuntime } from "@/lib/eliza/runtime-factory";
 import { AgentMode } from "@/lib/eliza/agent-mode-types";
 
 export const maxDuration = 60;
@@ -132,6 +132,18 @@ async function handlePOST(req: NextRequest) {
     // Check if any files failed
     const successCount = results.filter((r) => r.status === "success").length;
     const failedCount = results.length - successCount;
+
+    // CRITICAL: Invalidate runtime cache after knowledge upload
+    // This ensures the next request creates a fresh runtime with updated knowledge
+    if (successCount > 0) {
+      const agentIdStr = runtime.agentId as string;
+      await invalidateRuntime(agentIdStr).catch((e) => {
+        logger.warn(`[Knowledge Upload] Failed to invalidate runtime: ${e}`);
+      });
+      logger.info(
+        `[Knowledge Upload] Invalidated runtime cache for agent ${agentIdStr} after uploading ${successCount} file(s)`,
+      );
+    }
 
     return NextResponse.json({
       success: successCount > 0,
