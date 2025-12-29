@@ -23,6 +23,7 @@ import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
 import { discordService } from "@/lib/services/discord";
 import { roomsRepository } from "@/db/repositories";
 import { charactersService } from "@/lib/services/characters";
+import { generateRoomTitle } from "@/lib/services/room-title";
 import type { AgentModeConfig } from "./agent-mode-types";
 import { DEFAULT_AGENT_MODE } from "./agent-mode-types";
 import type { DialogueMetadata } from "@/lib/types/message-content";
@@ -162,6 +163,8 @@ export class MessageHandler {
     ).catch((e) => {
       elizaLogger.debug(`[MessageHandler] Discord send failed: ${e}`);
     });
+
+    await generateRoomTitle(roomId);
 
     return { message: responseMemory, usage };
   }
