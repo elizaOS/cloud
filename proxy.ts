@@ -190,6 +190,8 @@ const publicPaths = [
   "/.well-known", // ERC-8004 and A2A discovery files
   "/api/v1/discovery", // Public discovery endpoints for ERC-8004 marketplace
   "/api/v1/erc8004", // ERC-8004 status endpoints
+  "/api/jns", // JNS (Jeju Name Service) status endpoint
+  "/api/health", // Health check endpoint
 ];
 
 const protectedPaths = [

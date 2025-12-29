@@ -8,7 +8,8 @@
  */
 
 import { createPublicClient, http, type Address, namehash } from "viem";
-import { base, baseSepolia, mainnet } from "viem/chains";
+import { base, baseSepolia } from "viem/chains";
+import { getContract, getRpcUrl, getCurrentNetwork } from "@jejunetwork/config";
 
 // ============ Types ============
 
@@ -32,36 +33,21 @@ export interface JNSResolvedApp {
 
 // ============ Constants ============
 
-const JNS_CONFIGS: Record<number, JNSConfig> = {
-  // Mainnet (Base)
-  8453: {
-    registry: "0x0000000000000000000000000000000000000000" as Address,
-    resolver: "0x0000000000000000000000000000000000000000" as Address,
-    registrar: "0x0000000000000000000000000000000000000000" as Address,
-    reverseRegistrar: "0x0000000000000000000000000000000000000000" as Address,
-    chainId: 8453,
-  },
-  // Testnet (Base Sepolia)
-  84532: {
-    registry: "0x0000000000000000000000000000000000000000" as Address,
-    resolver: "0x0000000000000000000000000000000000000000" as Address,
-    registrar: "0x0000000000000000000000000000000000000000" as Address,
-    reverseRegistrar: "0x0000000000000000000000000000000000000000" as Address,
-    chainId: 84532,
-  },
-  // Localnet
-  1337: {
-    registry: (process.env.NEXT_PUBLIC_JNS_REGISTRY ||
-      "0x0000000000000000000000000000000000000000") as Address,
-    resolver: (process.env.NEXT_PUBLIC_JNS_RESOLVER ||
-      "0x0000000000000000000000000000000000000000") as Address,
-    registrar: (process.env.NEXT_PUBLIC_JNS_REGISTRAR ||
-      "0x0000000000000000000000000000000000000000") as Address,
-    reverseRegistrar: (process.env.NEXT_PUBLIC_JNS_REVERSE_REGISTRAR ||
-      "0x0000000000000000000000000000000000000000") as Address,
-    chainId: 1337,
-  },
-};
+function getJNSConfig(chainId: number): JNSConfig {
+  // Get contract addresses from centralized config (public, on-chain addresses)
+  const registry = (getContract("jns", "registry") || "0x0000000000000000000000000000000000000000") as Address;
+  const resolver = (getContract("jns", "resolver") || "0x0000000000000000000000000000000000000000") as Address;
+  const registrar = (getContract("jns", "registrar") || "0x0000000000000000000000000000000000000000") as Address;
+  const reverseRegistrar = (getContract("jns", "reverseRegistrar") || "0x0000000000000000000000000000000000000000") as Address;
+
+  return {
+    registry,
+    resolver,
+    registrar,
+    reverseRegistrar,
+    chainId,
+  };
+}
 
 // Canonical Jeju app names
 export const JEJU_APPS = {
@@ -140,7 +126,10 @@ export class JNSCloudClient {
 
   constructor(chainId: number = 1337, rpcUrl?: string) {
     this.chainId = chainId;
-    this.config = JNS_CONFIGS[chainId] || JNS_CONFIGS[1337];
+    this.config = getJNSConfig(chainId);
+
+    // Use centralized RPC URL from config
+    const effectiveRpcUrl = rpcUrl || getRpcUrl();
 
     const chain =
       chainId === 8453
@@ -149,16 +138,16 @@ export class JNSCloudClient {
           ? baseSepolia
           : {
               id: 1337,
-              name: "Jeju Localnet",
+              name: "Jeju L2",
               nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
               rpcUrls: {
-                default: { http: [rpcUrl || "http://127.0.0.1:9545"] },
+                default: { http: [effectiveRpcUrl] },
               },
             };
 
     this.publicClient = createPublicClient({
       chain,
-      transport: http(rpcUrl),
+      transport: http(effectiveRpcUrl),
     });
   }
 
@@ -278,13 +267,53 @@ export function getJNSClient(
   chainId?: number,
   rpcUrl?: string,
 ): JNSCloudClient {
-  if (!jnsClient || (chainId && jnsClient["chainId"] !== chainId)) {
+  const effectiveChainId = chainId || 1337; // Jeju L2 chain ID
+  
+  if (!jnsClient || jnsClient["chainId"] !== effectiveChainId) {
     jnsClient = new JNSCloudClient(
-      chainId || parseInt(process.env.NEXT_PUBLIC_CHAIN_ID || "1337"),
-      rpcUrl || process.env.NEXT_PUBLIC_RPC_URL,
+      effectiveChainId,
+      rpcUrl || getRpcUrl(),
     );
   }
   return jnsClient;
+}
+
+/**
+ * Check if JNS is properly configured
+ */
+export function isJNSConfigured(): boolean {
+  const config = getJNSConfig(1337);
+  return (
+    config.registry !== "0x0000000000000000000000000000000000000000" &&
+    config.resolver !== "0x0000000000000000000000000000000000000000"
+  );
+}
+
+/**
+ * Get current JNS configuration for debugging
+ */
+export function getJNSDebugInfo(): {
+  chainId: number;
+  network: string;
+  registry: string;
+  resolver: string;
+  registrar: string;
+  reverseRegistrar: string;
+  rpcUrl: string;
+  configured: boolean;
+} {
+  const network = getCurrentNetwork();
+  const config = getJNSConfig(1337); // Chain ID doesn't matter, we use network from config
+  return {
+    chainId: 1337, // Jeju L2 chain ID
+    network,
+    registry: config.registry,
+    resolver: config.resolver,
+    registrar: config.registrar,
+    reverseRegistrar: config.reverseRegistrar,
+    rpcUrl: getRpcUrl(),
+    configured: isJNSConfigured(),
+  };
 }
 
 // ============ Utility Functions ============
