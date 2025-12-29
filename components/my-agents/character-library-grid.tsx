@@ -34,16 +34,17 @@ export function CharacterLibraryGrid({
     <div
       className={
         viewMode === "grid"
-          ? "grid gap-4 grid-cols-2 lg:grid-cols-3 xl:grid-cols-6"
+          ? "grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
           : "flex flex-col gap-2"
       }
     >
       {characters.map((character) => (
-        <CharacterLibraryCard
-          key={character.id}
-          character={character}
-          viewMode={viewMode}
-        />
+        <div key={character.id} className={viewMode === "grid" ? "max-w-sm" : ""}>
+          <CharacterLibraryCard
+            character={character}
+            viewMode={viewMode}
+          />
+        </div>
       ))}
     </div>
   );
