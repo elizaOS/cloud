@@ -1,26 +1,14 @@
 /**
- * Room Title Service - Generates AI-powered titles for chat rooms
+ * Room Title Service - Generates titles for chat rooms
  * 
- * Uses the first few messages of a conversation to generate a concise,
- * descriptive title that summarizes the topic of discussion.
+ * Uses the first user message to create a descriptive title.
  */
 
-import { generateText } from "ai";
-import { gateway } from "@ai-sdk/gateway";
 import { roomsRepository, memoriesRepository } from "@/db/repositories";
 import { logger } from "@/lib/utils/logger";
 
-const TITLE_GENERATION_PROMPT = `Generate a very short, concise title (3-6 words max) for this conversation based on the messages below. 
-The title should capture the main topic or intent of the conversation.
-Do NOT use quotes around the title.
-Do NOT include "Chat about" or similar prefixes.
-Just return the title, nothing else.
-
-Messages:
-`;
-
 /**
- * Generate a title for a room based on its conversation content.
+ * Generate a title for a room based on the first user message.
  * Only generates if room currently has default title ("New Chat").
  * 
  * @param roomId - The room ID to generate title for
@@ -36,63 +24,55 @@ export async function generateRoomTitle(roomId: string): Promise<string | null> 
 
   // Only generate if room has default title
   if (room.name && room.name !== "New Chat") {
-    logger.debug(`[RoomTitle] Room already has custom title: ${room.name}`);
     return null;
   }
 
   // Get recent messages from the room
   const messages = await memoriesRepository.findMessages(roomId, { limit: 6 });
   
-  if (messages.length < 2) {
-    logger.debug(`[RoomTitle] Not enough messages to generate title: ${messages.length}`);
+  if (messages.length < 1) {
     return null;
   }
 
-  // Build context from messages
-  const messageTexts = messages
+  // Find the first user message (messages are in descending order by createdAt)
+  const userMessage = messages
     .reverse() // Chronological order
-    .map(msg => {
+    .find(msg => {
       const content = msg.content;
-      const text = typeof content === "string" ? content : content?.text || "";
-      const role = msg.entityId === msg.agentId ? "Agent" : "User";
-      return `${role}: ${text.substring(0, 200)}`; // Truncate long messages
-    })
-    .filter(text => text.length > 7) // Filter out empty/short messages
-    .slice(0, 4); // Use first 4 meaningful messages
-
-  if (messageTexts.length < 2) {
-    logger.debug(`[RoomTitle] Not enough meaningful messages for title`);
-    return null;
-  }
-
-  const prompt = TITLE_GENERATION_PROMPT + messageTexts.join("\n");
-
-  // External AI API call - must handle errors to prevent breaking chat flow
-  let generatedTitle: string;
-  try {
-    const result = await generateText({
-      model: gateway.languageModel("gpt-4o-mini"),
-      prompt,
+      const source = typeof content === "object" ? content?.source : undefined;
+      return source === "user";
     });
 
-    generatedTitle = result.text.trim()
-      .replace(/^["']|["']$/g, "") // Remove surrounding quotes
-      .replace(/^(Chat about|Conversation about|Discussion about|Talk about)\s*/i, "") // Remove common prefixes
-      .substring(0, 50); // Limit length
-  } catch (error) {
-    logger.error(`[RoomTitle] AI generation failed for room ${roomId}:`, error);
+  if (!userMessage) {
     return null;
   }
 
-  if (!generatedTitle || generatedTitle.length < 3) {
-    logger.warn(`[RoomTitle] Generated title too short or empty`);
+  const content = userMessage.content;
+  const text = typeof content === "string" ? content : content?.text || "";
+  
+  if (!text || text.length < 3) {
+    return null;
+  }
+
+  // Create title from first user message
+  const title = text
+    .replace(/\n/g, " ") // Remove newlines
+    .replace(/\s+/g, " ") // Collapse whitespace
+    .trim()
+    .substring(0, 40) // Limit to 40 chars
+    .trim();
+
+  // Add ellipsis if truncated
+  const finalTitle = text.length > 40 ? `${title}...` : title;
+
+  if (!finalTitle || finalTitle.length < 3) {
     return null;
   }
 
   // Update room with new title
-  await roomsRepository.update(roomId, { name: generatedTitle });
+  await roomsRepository.update(roomId, { name: finalTitle });
   
-  logger.info(`[RoomTitle] Generated title for room ${roomId}: "${generatedTitle}"`);
+  logger.info(`[RoomTitle] Generated title for room ${roomId}: "${finalTitle}"`);
   
-  return generatedTitle;
+  return finalTitle;
 }
