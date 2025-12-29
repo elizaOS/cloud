@@ -364,7 +364,13 @@ export async function generateMetadata({
     openGraph: {
       title: `Chat with ${character.name}`,
       description: bioText.slice(0, 160),
-      images: character.avatar_url ? [character.avatar_url] : [],
+      images: character.avatar_url ? [character.avatar_url] : ["/og-image.png"],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `Chat with ${character.name}`,
+      description: bioText.slice(0, 160),
+      images: character.avatar_url ? [character.avatar_url] : ["/og-image.png"],
     },
   };
 }

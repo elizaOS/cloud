@@ -59,13 +59,8 @@ export function generatePageMetadata(options: PageMetadataOptions): Metadata {
   const baseUrl = getBaseUrl();
   const canonicalUrl = `${baseUrl}${options.path}`;
 
-  const ogImage =
-    options.ogImage ||
-    generateOGImageUrl({
-      type: "default",
-      title: options.title,
-      description: options.description,
-    });
+  // Use static og-image.png as default, allow override with options.ogImage
+  const ogImage = options.ogImage || "/og-image.png";
 
   const metadata: Metadata = {
     title: options.title,
@@ -171,12 +166,7 @@ export function generateContainerMetadata(
       ...(characterName ? [characterName] : []),
     ],
     path: `/dashboard/containers/${id}`,
-    ogImage: generateOGImageUrl({
-      type: "container",
-      id,
-      name,
-      characterName: characterName || undefined,
-    }),
+    ogImage: "/og-image.png",
     entityId: id,
     entityType: "container",
   });
@@ -207,15 +197,7 @@ export function generateCharacterMetadata(
     description,
     keywords: [name, "AI character", "AI agent", "elizaOS", ...tags],
     path: `/dashboard/my-agents/${id}`,
-    ogImage:
-      avatarUrl ||
-      generateOGImageUrl({
-        type: "character",
-        id,
-        name,
-        description: bioText,
-        avatarUrl: avatarUrl || undefined,
-      }),
+    ogImage: avatarUrl || "/og-image.png",
     type: "profile",
     entityId: id,
     entityType: "character",
@@ -245,12 +227,7 @@ export function generateChatMetadata(
     description,
     keywords: [characterName, "AI chat", "conversation", "elizaOS"],
     path: `/chat/${roomId}`,
-    ogImage: generateOGImageUrl({
-      type: "chat",
-      roomId,
-      characterName,
-      avatarUrl: characterAvatarUrl || undefined,
-    }),
+    ogImage: characterAvatarUrl || "/og-image.png",
     type: "article",
     entityId: roomId,
     entityType: "chat",
