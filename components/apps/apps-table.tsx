@@ -218,9 +218,20 @@ export function AppsTable({ apps }: AppsTableProps) {
                 {isBuilding(app) && (
                   <>
                     <DropdownMenuItem asChild>
-                      <Link href={`/dashboard/apps/${app.id}?tab=build`}>
+                      <Link href={`/dashboard/apps/create?appId=${app.id}`}>
                         <Sparkles className="h-4 w-4 mr-2" />
                         Continue Building
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                  </>
+                )}
+                {isAIBuilderApp(app) && !isBuilding(app) && (
+                  <>
+                    <DropdownMenuItem asChild>
+                      <Link href={`/dashboard/apps/create?appId=${app.id}`}>
+                        <Sparkles className="h-4 w-4 mr-2" />
+                        Edit with AI
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />

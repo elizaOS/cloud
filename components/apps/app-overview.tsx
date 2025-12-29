@@ -11,6 +11,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { App } from "@/db/schemas";
 import { BrandCard, CornerBrackets } from "@/components/brand";
 import { Button } from "@/components/ui/button";
@@ -42,6 +43,7 @@ import {
   Loader2,
   Coins,
   TrendingUp,
+  Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -156,6 +158,30 @@ export function AppOverview({ app, showApiKey }: AppOverviewProps) {
           </AlertDescription>
         </Alert>
       )}
+
+      {/* AI Builder Card */}
+      <BrandCard className="border-l-4 border-l-purple-500">
+        <CornerBrackets className="opacity-20" />
+        <div className="relative z-10 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="p-3 rounded-xl bg-gradient-to-r from-purple-600 to-[#FF5800]">
+              <Sparkles className="h-6 w-6 text-white" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-white">AI App Builder</h2>
+              <p className="text-sm text-white/60">
+                Enhance your app with AI-powered code generation
+              </p>
+            </div>
+          </div>
+          <Link href={`/dashboard/apps/create?appId=${app.id}`}>
+            <Button className="bg-gradient-to-r from-purple-600 to-[#FF5800] hover:opacity-90">
+              <Sparkles className="h-4 w-4 mr-2" />
+              Edit with AI
+            </Button>
+          </Link>
+        </div>
+      </BrandCard>
 
       <div className="grid gap-6 md:grid-cols-2">
         {/* Basic Information */}

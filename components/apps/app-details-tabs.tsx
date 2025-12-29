@@ -1,6 +1,6 @@
 /**
  * App details tabs component organizing app management views.
- * Provides tabs for overview, AI builder, analytics, earnings, users, monetization, and settings.
+ * Provides tabs for overview, domains, promote, analytics, earnings, users, monetization, and settings.
  * Syncs active tab with URL search parameters.
  *
  * @param props - App details tabs configuration
@@ -19,7 +19,6 @@ import {
   Users,
   DollarSign,
   TrendingUp,
-  Sparkles,
   Globe,
   Megaphone,
 } from "lucide-react";
@@ -29,7 +28,6 @@ import { AppAnalytics } from "./app-analytics";
 import { AppUsers } from "./app-users";
 import { AppMonetizationSettings } from "./app-monetization-settings";
 import { AppEarningsDashboard } from "./app-earnings-dashboard";
-import { AppAIBuilder } from "./app-ai-builder";
 import { AppDomains } from "./app-domains";
 import { AppPromote } from "./app-promote";
 import type { App } from "@/db/schemas";
@@ -47,11 +45,6 @@ export function AppDetailsTabs({ app, showApiKey }: AppDetailsTabsProps) {
   const handleTabChange = (value: string) => {
     const params = new URLSearchParams(searchParams.toString());
     params.set("tab", value);
-    // Preserve sessionId when switching tabs
-    const sessionId = searchParams.get("sessionId");
-    if (sessionId) {
-      params.set("sessionId", sessionId);
-    }
     router.push(`/dashboard/apps/${app.id}?${params.toString()}`, {
       scroll: false,
     });
@@ -59,14 +52,10 @@ export function AppDetailsTabs({ app, showApiKey }: AppDetailsTabsProps) {
 
   return (
     <Tabs value={tab} onValueChange={handleTabChange} className="space-y-6">
-      <TabsList className="grid w-full max-w-5xl grid-cols-9 bg-white/5">
+      <TabsList className="grid w-full max-w-5xl grid-cols-8 bg-white/5">
         <TabsTrigger value="overview" className="flex items-center gap-2">
           <Grid3x3 className="h-4 w-4" />
           <span className="hidden sm:inline">Overview</span>
-        </TabsTrigger>
-        <TabsTrigger value="build" className="flex items-center gap-2">
-          <Sparkles className="h-4 w-4" />
-          <span className="hidden sm:inline">Build</span>
         </TabsTrigger>
         <TabsTrigger value="domains" className="flex items-center gap-2">
           <Globe className="h-4 w-4" />
@@ -100,10 +89,6 @@ export function AppDetailsTabs({ app, showApiKey }: AppDetailsTabsProps) {
 
       <TabsContent value="overview">
         <AppOverview app={app} showApiKey={showApiKey} />
-      </TabsContent>
-
-      <TabsContent value="build" forceMount className={tab === "build" ? "" : "hidden"}>
-        <AppAIBuilder app={app} />
       </TabsContent>
 
       <TabsContent value="domains">
