@@ -208,7 +208,9 @@ export function BuildPageClient({
               <TriangleAlert className="text-amber-500 h-6 w-6" />
             </div>
             <div className="text-center">
-              <h2 className="text-lg font-medium text-white">Unsaved changes</h2>
+              <h2 className="text-lg font-medium text-white">
+                Unsaved changes
+              </h2>
               <p className="text-sm text-white/50 mt-1">
                 Your changes will be lost if you leave without saving.
               </p>

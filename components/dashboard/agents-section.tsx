@@ -106,12 +106,14 @@ export function AgentsSection({ agents, className }: AgentsSectionProps) {
             </Tooltip>
           </div>
         </div>
-       {agents.length != 0 && <BrandButton
-          onClick={() => (window.location.href = "/dashboard/build")}
-        >
-          <Plus className="h-4 w-4" />
-          Create New Agent
-        </BrandButton>}
+        {agents.length != 0 && (
+          <BrandButton
+            onClick={() => (window.location.href = "/dashboard/build")}
+          >
+            <Plus className="h-4 w-4" />
+            Create New Agent
+          </BrandButton>
+        )}
       </div>
 
       {/* Agents Grid */}
@@ -296,7 +298,7 @@ function AgentCard({ agent }: { agent: Agent }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: `${agent.name} (Copy)` }),
-      }
+      },
     );
 
     if (response.ok) {

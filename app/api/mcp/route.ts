@@ -665,7 +665,7 @@ const mcpHandler = createMcpHandler(
             organizationId: user.organization_id!!,
             amount: IMAGE_GENERATION_COST,
             description:
-              "MCP image generation (pending): google/gemini-2.5-flash-image-preview",
+              "MCP image generation (pending): google/gemini-2.5-flash-image",
             metadata: { user_id: user.id, prompt: prompt.substring(0, 100) },
           });
 
@@ -698,7 +698,7 @@ const mcpHandler = createMcpHandler(
             user_id: user.id,
             api_key_id: apiKey?.id || null,
             type: "image",
-            model: "google/gemini-2.5-flash-image-preview",
+            model: "google/gemini-2.5-flash-image",
             provider: "google",
             prompt: prompt,
             status: "pending",
@@ -721,7 +721,7 @@ const mcpHandler = createMcpHandler(
 
           // Generate image
           const result = streamText({
-            model: "google/gemini-2.5-flash-image-preview",
+            model: "google/gemini-2.5-flash-image",
             providerOptions: {
               google: { responseModalities: ["TEXT", "IMAGE"] },
             },
@@ -760,7 +760,7 @@ const mcpHandler = createMcpHandler(
                   organizationId: userOrganizationId,
                   amount: deductedAmount,
                   description:
-                    "MCP image generation refund (no image): google/gemini-2.5-flash-image-preview",
+                    "MCP image generation refund (no image): google/gemini-2.5-flash-image",
                   metadata: { generation_id: generationId },
                 });
               } catch (refundError) {
@@ -773,7 +773,7 @@ const mcpHandler = createMcpHandler(
               user_id: user.id,
               api_key_id: apiKey?.id || null,
               type: "image",
-              model: "google/gemini-2.5-flash-image-preview",
+              model: "google/gemini-2.5-flash-image",
               provider: "google",
               input_tokens: 0,
               output_tokens: 0,
@@ -815,7 +815,7 @@ const mcpHandler = createMcpHandler(
             user_id: user.id,
             api_key_id: apiKey?.id || null,
             type: "image",
-            model: "google/gemini-2.5-flash-image-preview",
+            model: "google/gemini-2.5-flash-image",
             provider: "google",
             input_tokens: 0,
             output_tokens: 0,
@@ -883,7 +883,7 @@ const mcpHandler = createMcpHandler(
                 organizationId: userOrganizationId,
                 amount: deductedAmount,
                 description:
-                  "MCP image generation refund (failed): google/gemini-2.5-flash-image-preview",
+                  "MCP image generation refund (failed): google/gemini-2.5-flash-image",
                 metadata: {
                   error:
                     error instanceof Error ? error.message : "Unknown error",
@@ -4736,7 +4736,11 @@ const mcpHandler = createMcpHandler(
                 content: [
                   {
                     type: "text" as const,
-                    text: JSON.stringify({ error: "Character not found" }, null, 2),
+                    text: JSON.stringify(
+                      { error: "Character not found" },
+                      null,
+                      2,
+                    ),
                   },
                 ],
               };
@@ -4744,7 +4748,10 @@ const mcpHandler = createMcpHandler(
 
             const isOwner = character.user_id === user.id;
             const isPublic = character.is_public === true;
-            const claimCheck = await charactersService.isClaimableAffiliateCharacter(characterId);
+            const claimCheck =
+              await charactersService.isClaimableAffiliateCharacter(
+                characterId,
+              );
             const isClaimableAffiliate = claimCheck.claimable;
 
             if (!isPublic && !isOwner && !isClaimableAffiliate) {

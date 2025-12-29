@@ -20,6 +20,10 @@ import { CacheKeys, CacheStaleTTL } from "@/lib/cache/keys";
 
 export const dynamic = "force-dynamic";
 
+// Cache dashboard data for 30 seconds at edge/CDN level
+const CACHE_MAX_AGE = 30; // seconds
+const STALE_WHILE_REVALIDATE = 60; // serve stale for 60s while revalidating
+
 interface DashboardData {
   user: { name: string };
   stats: {
@@ -73,14 +77,28 @@ export async function GET() {
     cacheKey,
     CacheStaleTTL.org.dashboard,
     async () => {
-      const [generationStats, userCharacters, containers, apiKeys, userRooms] =
-        await Promise.all([
-          generationsService.getStats(organizationId),
-          charactersService.listByUser(user.id),
-          listContainers(organizationId),
-          apiKeysService.listByOrganization(organizationId),
-          roomsService.getRoomsForEntity(user.id),
-        ]);
+      // PERFORMANCE: Parallelized all data fetches including 24h usage stats
+      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+      const [
+        generationStats,
+        userCharacters,
+        containers,
+        apiKeys,
+        userRooms,
+        usageStats,
+      ] = await Promise.all([
+        generationsService.getStats(organizationId),
+        charactersService.listByUser(user.id),
+        listContainers(organizationId),
+        apiKeysService.listByOrganization(organizationId),
+        roomsService.getRoomsForEntity(user.id),
+        usageService.getStatsByOrganization(
+          organizationId,
+          twentyFourHoursAgo,
+          new Date(),
+        ),
+      ]);
 
       const chatRoomCount = userRooms.length;
       const totalGenerations = generationStats.totalGenerations;
@@ -88,15 +106,9 @@ export async function GET() {
         generationStats.byType.find((t) => t.type === "image")?.count || 0;
       const videoGenerations =
         generationStats.byType.find((t) => t.type === "video")?.count || 0;
-
-      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-      const usageStats = await usageService.getStatsByOrganization(
-        organizationId,
-        twentyFourHoursAgo,
-        new Date(),
-      );
       const apiCalls24h = usageStats.totalRequests;
 
+      // Fetch agent stats in batch
       const characterIds = userCharacters.map((c) => c.id);
       const agentStatsMap = new Map<
         string,
@@ -181,5 +193,10 @@ export async function GET() {
   // Update user name from auth (not cached)
   data.user.name = user.name || "User";
 
-  return NextResponse.json(data);
+  return NextResponse.json(data, {
+    headers: {
+      // Enable CDN caching with stale-while-revalidate for better perceived performance
+      "Cache-Control": `private, max-age=${CACHE_MAX_AGE}, stale-while-revalidate=${STALE_WHILE_REVALIDATE}`,
+    },
+  });
 }

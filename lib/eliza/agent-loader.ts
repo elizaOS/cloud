@@ -18,7 +18,7 @@ import { memoriesRepository } from "@/db/repositories/agents/memories";
 import type { ElizaCharacter } from "@/lib/types";
 import type { UserCharacter } from "@/db/schemas/user-characters";
 import defaultAgent from "./agent";
-import { getElizaCloudApiUrl } from "./config";
+import { getElizaCloudApiUrl, buildElevenLabsSettings } from "./config";
 import {
   AgentMode,
   AGENT_MODE_PLUGINS,
@@ -36,6 +36,52 @@ import {
 import { agentLifecycleService } from "@/lib/services/agent-lifecycle";
 
 /**
+ * PERFORMANCE: Pre-loaded plugin cache
+ * Plugins are loaded once at module initialization and cached.
+ * This eliminates dynamic import latency (~50-200ms per plugin).
+ */
+let _knowledgePlugin: Plugin | null = null;
+let _webSearchPlugin: Plugin | null = null;
+let _pluginsPreloading = false;
+
+/**
+ * Pre-warm plugin cache at module load.
+ * This runs in the background during app startup.
+ */
+async function preloadPlugins(): Promise<void> {
+  if (_pluginsPreloading) return;
+  _pluginsPreloading = true;
+
+  try {
+    // Load both plugins in parallel
+    const [knowledgeModule, webSearchModule] = await Promise.all([
+      import("@elizaos/plugin-knowledge").catch((e) => {
+        console.warn("[AgentLoader] Failed to preload knowledge plugin:", e);
+        return null;
+      }),
+      import("@elizaos/plugin-web-search").catch((e) => {
+        console.warn("[AgentLoader] Failed to preload web-search plugin:", e);
+        return null;
+      }),
+    ]);
+
+    if (knowledgeModule) {
+      _knowledgePlugin = knowledgeModule.knowledgePluginCore;
+    }
+    if (webSearchModule) {
+      _webSearchPlugin = webSearchModule.webSearchPlugin;
+    }
+
+    console.log("[AgentLoader] ⚡ Plugins preloaded successfully");
+  } catch (e) {
+    console.error("[AgentLoader] Plugin preload failed:", e);
+  }
+}
+
+// Trigger preload immediately when module is imported
+preloadPlugins();
+
+/**
  * Reasons why mode was upgraded to ASSISTANT.
  * Used for logging and debugging.
  */
@@ -49,6 +95,8 @@ export type ModeUpgradeReason =
 export interface ModeResolution {
   mode: AgentMode;
   upgradeReason: ModeUpgradeReason;
+  /** Document count from mode resolution - reuse to avoid duplicate DB query */
+  documentCount?: number;
 }
 
 /**
@@ -68,7 +116,7 @@ function hasExplicitSettingsPlugin(characterPlugins: string[]): boolean {
  * @param characterId - The character ID to check capabilities for
  * @param characterSettings - Settings configured on the character
  * @param characterPlugins - Plugins explicitly listed on the character
- * @returns The effective mode and reason for any upgrade
+ * @returns The effective mode, reason for any upgrade, and document count (to avoid duplicate DB query)
  */
 async function resolveEffectiveMode(
   requestedMode: AgentMode,
@@ -78,46 +126,76 @@ async function resolveEffectiveMode(
 ): Promise<ModeResolution> {
   // BUILD mode is never upgraded - it's a specific workflow
   if (requestedMode === AgentMode.BUILD) {
-    return { mode: requestedMode, upgradeReason: "none" };
+    return { mode: requestedMode, upgradeReason: "none", documentCount: 0 };
   }
 
-  // Already ASSISTANT mode - no upgrade needed
-  if (requestedMode === AgentMode.ASSISTANT) {
-    return { mode: requestedMode, upgradeReason: "none" };
-  }
-
-  // Check 1: Settings-based plugins (mcp, webSearch, etc.) require ASSISTANT mode
-  if (requiresAssistantMode(characterSettings)) {
-    return { mode: AgentMode.ASSISTANT, upgradeReason: "settings_plugin" };
-  }
-
-  // Check 2: Explicit settings-based plugins in character plugins require ASSISTANT mode
-  // MCP plugin requires ASSISTANT mode for tool execution even when explicitly listed
-  if (hasExplicitSettingsPlugin(characterPlugins)) {
-    return { mode: AgentMode.ASSISTANT, upgradeReason: "explicit_plugin" };
-  }
-
-  // Check 3: Knowledge documents require ASSISTANT mode for RAG
+  // Query document count once - needed for multiple checks and plugin resolution
   const documentCount = await memoriesRepository.countByType(
     characterId,
     "documents",
     characterId,
   );
+
+  // Already ASSISTANT mode - no upgrade needed
+  if (requestedMode === AgentMode.ASSISTANT) {
+    return { mode: requestedMode, upgradeReason: "none", documentCount };
+  }
+
+  // Check 1: Settings-based plugins (mcp, webSearch, etc.) require ASSISTANT mode
+  if (requiresAssistantMode(characterSettings)) {
+    return {
+      mode: AgentMode.ASSISTANT,
+      upgradeReason: "settings_plugin",
+      documentCount,
+    };
+  }
+
+  // Check 2: Explicit settings-based plugins in character plugins require ASSISTANT mode
+  // MCP plugin requires ASSISTANT mode for tool execution even when explicitly listed
+  if (hasExplicitSettingsPlugin(characterPlugins)) {
+    return {
+      mode: AgentMode.ASSISTANT,
+      upgradeReason: "explicit_plugin",
+      documentCount,
+    };
+  }
+
+  // Check 3: Knowledge documents require ASSISTANT mode for RAG
   if (documentCount > 0) {
-    return { mode: AgentMode.ASSISTANT, upgradeReason: "has_knowledge" };
+    return {
+      mode: AgentMode.ASSISTANT,
+      upgradeReason: "has_knowledge",
+      documentCount,
+    };
   }
 
   // No upgrade needed
-  return { mode: requestedMode, upgradeReason: "none" };
+  return { mode: requestedMode, upgradeReason: "none", documentCount };
 }
 
-async function loadKnowledgePlugin() {
+/**
+ * Get knowledge plugin from cache or load if not ready.
+ * PERFORMANCE: Returns cached plugin instantly when preloaded.
+ */
+async function getKnowledgePlugin(): Promise<Plugin> {
+  if (_knowledgePlugin) return _knowledgePlugin;
+
+  // Fallback to dynamic import if preload hasn't completed
   const { knowledgePluginCore } = await import("@elizaos/plugin-knowledge");
+  _knowledgePlugin = knowledgePluginCore;
   return knowledgePluginCore;
 }
 
-async function loadWebSearchPlugin() {
+/**
+ * Get web search plugin from cache or load if not ready.
+ * PERFORMANCE: Returns cached plugin instantly when preloaded.
+ */
+async function getWebSearchPlugin(): Promise<Plugin> {
+  if (_webSearchPlugin) return _webSearchPlugin;
+
+  // Fallback to dynamic import if preload hasn't completed
   const { webSearchPlugin } = await import("@elizaos/plugin-web-search");
+  _webSearchPlugin = webSearchPlugin;
   return webSearchPlugin;
 }
 
@@ -184,6 +262,7 @@ export class AgentLoader {
     }
 
     // Resolve effective mode based on character capabilities
+    // NOTE: modeResolution includes documentCount to avoid duplicate DB query
     const modeResolution = await resolveEffectiveMode(
       agentMode,
       characterId,
@@ -191,13 +270,8 @@ export class AgentLoader {
       characterPlugins,
     );
 
-    // Check if character has knowledge files (cached query, not runtime related)
-    const documentCount = await memoriesRepository.countByType(
-      characterId,
-      "documents",
-      characterId,
-    );
-    const hasKnowledge = documentCount > 0;
+    // Reuse documentCount from mode resolution (avoids duplicate DB query)
+    const hasKnowledge = (modeResolution.documentCount ?? 0) > 0;
 
     const plugins = await this.resolvePlugins(
       modeResolution.mode,
@@ -326,9 +400,10 @@ export class AgentLoader {
   ): Promise<Character> {
     const characterId =
       elizaCharacter.id || "b850bc30-45f8-0041-a00a-83df46d8555d";
-    const charSettings = elizaCharacter.settings || {};
-    const getSetting = (key: string, fallback: string) =>
-      (charSettings[key] as string) || process.env[key] || fallback;
+    const charSettings = (elizaCharacter.settings || {}) as Record<
+      string,
+      unknown
+    >;
 
     // Load secrets from secrets service (org + character-scoped)
     const secrets = isSecretsConfigured()
@@ -347,62 +422,8 @@ export class AgentLoader {
       POSTGRES_URL: process.env.DATABASE_URL!,
       DATABASE_URL: process.env.DATABASE_URL!,
       ELIZAOS_CLOUD_BASE_URL: getElizaCloudApiUrl(),
-      ELEVENLABS_API_KEY: process.env.ELEVENLABS_API_KEY!,
-      ELEVENLABS_VOICE_ID: getSetting(
-        "ELEVENLABS_VOICE_ID",
-        "EXAVITQu4vr4xnSDxMaL",
-      ),
-      ELEVENLABS_MODEL_ID: getSetting(
-        "ELEVENLABS_MODEL_ID",
-        "eleven_flash_v2_5",
-      ),
-      ELEVENLABS_VOICE_STABILITY: getSetting(
-        "ELEVENLABS_VOICE_STABILITY",
-        "0.5",
-      ),
-      ELEVENLABS_VOICE_SIMILARITY_BOOST: getSetting(
-        "ELEVENLABS_VOICE_SIMILARITY_BOOST",
-        "0.75",
-      ),
-      ELEVENLABS_VOICE_STYLE: getSetting("ELEVENLABS_VOICE_STYLE", "0"),
-      ELEVENLABS_VOICE_USE_SPEAKER_BOOST: getSetting(
-        "ELEVENLABS_VOICE_USE_SPEAKER_BOOST",
-        "true",
-      ),
-      ELEVENLABS_OPTIMIZE_STREAMING_LATENCY: getSetting(
-        "ELEVENLABS_OPTIMIZE_STREAMING_LATENCY",
-        "0",
-      ),
-      ELEVENLABS_OUTPUT_FORMAT: getSetting(
-        "ELEVENLABS_OUTPUT_FORMAT",
-        "mp3_44100_128",
-      ),
-      ELEVENLABS_LANGUAGE_CODE: getSetting("ELEVENLABS_LANGUAGE_CODE", "en"),
-      ELEVENLABS_STT_MODEL_ID: getSetting(
-        "ELEVENLABS_STT_MODEL_ID",
-        "scribe_v1",
-      ),
-      ELEVENLABS_STT_LANGUAGE_CODE: getSetting(
-        "ELEVENLABS_STT_LANGUAGE_CODE",
-        "en",
-      ),
-      ELEVENLABS_STT_TIMESTAMPS_GRANULARITY: getSetting(
-        "ELEVENLABS_STT_TIMESTAMPS_GRANULARITY",
-        "word",
-      ),
-      ELEVENLABS_STT_DIARIZE: getSetting("ELEVENLABS_STT_DIARIZE", "false"),
-      ...(charSettings.ELEVENLABS_STT_NUM_SPEAKERS ||
-      process.env.ELEVENLABS_STT_NUM_SPEAKERS
-        ? {
-            ELEVENLABS_STT_NUM_SPEAKERS:
-              charSettings.ELEVENLABS_STT_NUM_SPEAKERS ||
-              process.env.ELEVENLABS_STT_NUM_SPEAKERS,
-          }
-        : {}),
-      ELEVENLABS_STT_TAG_AUDIO_EVENTS: getSetting(
-        "ELEVENLABS_STT_TAG_AUDIO_EVENTS",
-        "false",
-      ),
+      // ElevenLabs settings (shared config)
+      ...buildElevenLabsSettings(charSettings),
       ...(elizaCharacter.avatarUrl || elizaCharacter.avatar_url
         ? { avatarUrl: elizaCharacter.avatarUrl || elizaCharacter.avatar_url }
         : {}),
@@ -464,16 +485,16 @@ export class AgentLoader {
     }
 
     for (const pluginName of allPluginNames) {
-      // Knowledge plugin lazy-loaded (SSR compatibility)
+      // Knowledge plugin - use preloaded cache for instant access
       if (pluginName === "@elizaos/plugin-knowledge") {
-        const knowledgePlugin = await loadKnowledgePlugin();
+        const knowledgePlugin = await getKnowledgePlugin();
         if (!plugins.includes(knowledgePlugin)) plugins.push(knowledgePlugin);
         continue;
       }
 
-      // Web search plugin lazy-loaded (SSR compatibility)
+      // Web search plugin - use preloaded cache for instant access
       if (pluginName === "@elizaos/plugin-web-search") {
-        const webSearchPlugin = await loadWebSearchPlugin();
+        const webSearchPlugin = await getWebSearchPlugin();
         if (!plugins.includes(webSearchPlugin)) plugins.push(webSearchPlugin);
         continue;
       }

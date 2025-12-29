@@ -3,7 +3,7 @@ title: API Overview
 description: Complete REST API reference for elizaOS Cloud. OpenAI-compatible endpoints for chat, embeddings, and more.
 ---
 
-import { Callout, Cards } from 'nextra/components'
+import { Callout, Cards } from "nextra/components";
 
 # REST API Reference
 
@@ -12,7 +12,8 @@ elizaOS Cloud provides a comprehensive REST API for all platform features.
 <div className="status-badge status-stable">Stable</div>
 
 <Callout type="info">
-Looking for a full, route-by-route explorer? Go to [API Explorer →](/docs/api/overview)
+  Looking for a full, route-by-route explorer? Go to [API Explorer
+  →](/docs/api/overview)
 </Callout>
 
 ## Base URL
@@ -31,16 +32,16 @@ curl -X GET "https://elizacloud.ai/api/v1/dashboard" \
 ```
 
 <Callout type="info">
-Get your API key from [Dashboard → API Keys](/dashboard/api-keys)
+  Get your API key from [Dashboard → API Keys](/dashboard/api-keys)
 </Callout>
 
 ### Authentication Methods
 
-| Method | Header | Use Case |
-|--------|--------|----------|
-| API Key | `Authorization: Bearer ek_xxx` | Server-to-server |
-| X-API-Key | `X-API-Key: ek_xxx` | Alternative header |
-| Session | Cookie-based | Browser applications |
+| Method    | Header                         | Use Case             |
+| --------- | ------------------------------ | -------------------- |
+| API Key   | `Authorization: Bearer ek_xxx` | Server-to-server     |
+| X-API-Key | `X-API-Key: ek_xxx`            | Alternative header   |
+| Session   | Cookie-based                   | Browser applications |
 
 ## API Categories
 
@@ -87,26 +88,26 @@ All errors follow a consistent format:
 
 ### Error Codes
 
-| Code | HTTP Status | Description |
-|------|-------------|-------------|
-| `UNAUTHORIZED` | 401 | Invalid or missing authentication |
-| `FORBIDDEN` | 403 | Insufficient permissions |
-| `NOT_FOUND` | 404 | Resource not found |
-| `RATE_LIMITED` | 429 | Too many requests |
-| `INSUFFICIENT_CREDITS` | 402 | Not enough credits |
-| `INTERNAL_ERROR` | 500 | Server error |
+| Code                   | HTTP Status | Description                       |
+| ---------------------- | ----------- | --------------------------------- |
+| `UNAUTHORIZED`         | 401         | Invalid or missing authentication |
+| `FORBIDDEN`            | 403         | Insufficient permissions          |
+| `NOT_FOUND`            | 404         | Resource not found                |
+| `RATE_LIMITED`         | 429         | Too many requests                 |
+| `INSUFFICIENT_CREDITS` | 402         | Not enough credits                |
+| `INTERNAL_ERROR`       | 500         | Server error                      |
 
 ## Rate Limits
 
-| Endpoint | Rate Limit |
-|----------|------------|
-| Chat completions | 60 req/min |
-| Embeddings | 100 req/min |
-| Image generation | 20 req/min |
-| Video generation | 5 req/min |
+| Endpoint         | Rate Limit  |
+| ---------------- | ----------- |
+| Chat completions | 60 req/min  |
+| Embeddings       | 100 req/min |
+| Image generation | 20 req/min  |
+| Video generation | 5 req/min   |
 
 <Callout type="info">
-Rate limits can be increased for enterprise plans. Contact sales for details.
+  Rate limits can be increased for enterprise plans. Contact sales for details.
 </Callout>
 
 ## OpenAPI Specification

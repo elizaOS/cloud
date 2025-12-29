@@ -89,11 +89,11 @@ interface RegionalConnections {
 /**
  * Vercel region to database region mapping
  * https://vercel.com/docs/edge-network/regions
- * 
+ *
  * Database routing:
  * - EU regions → EU read replica (if configured)
  * - All other regions → NA primary
- * 
+ *
  * Note: APAC and other regions currently route to NA primary.
  * Add DATABASE_URL_APAC_READ if you deploy an APAC replica.
  */
@@ -103,21 +103,21 @@ const VERCEL_REGION_MAP: Record<string, DatabaseRegion> = {
   sfo1: "na", // San Francisco (US West)
   pdx1: "na", // Portland (US West)
   cle1: "na", // Cleveland (US East)
-  
+
   // South America (routes to NA - closest primary)
   gru1: "na", // São Paulo
   eze1: "na", // Buenos Aires
-  
+
   // Europe
   cdg1: "eu", // Paris
   fra1: "eu", // Frankfurt
   lhr1: "eu", // London
   arn1: "eu", // Stockholm
   dub1: "eu", // Dublin
-  
+
   // Africa (routes to EU - closest replica)
   cpt1: "eu", // Cape Town
-  
+
   // Asia Pacific (routes to NA - no APAC replica yet)
   hnd1: "apac", // Tokyo
   kix1: "apac", // Osaka
@@ -141,7 +141,11 @@ function detectRegion(): DatabaseRegion {
 
   // Check explicit override
   const explicitRegion = process.env.DATABASE_REGION?.toLowerCase();
-  if (explicitRegion === "eu" || explicitRegion === "na" || explicitRegion === "apac") {
+  if (
+    explicitRegion === "eu" ||
+    explicitRegion === "na" ||
+    explicitRegion === "apac"
+  ) {
     return explicitRegion;
   }
 
@@ -177,7 +181,10 @@ export function getCurrentRegion(): DatabaseRegion {
  * Write routing:
  * - ALL requests → DATABASE_URL (NA primary)
  */
-function getDatabaseUrl(region: DatabaseRegion, role: DatabaseRole): string | null {
+function getDatabaseUrl(
+  region: DatabaseRegion,
+  role: DatabaseRole,
+): string | null {
   // CRITICAL: Writes ALWAYS go to the primary database (NA)
   // EU is read-only via logical replication, so we must never write there
   if (role === "write") {
@@ -204,7 +211,7 @@ function getPrimaryDatabaseUrl(): string {
   if (!url) {
     throw new Error(
       "DATABASE_URL environment variable is not set. " +
-      "Make sure you have a .env.local file with DATABASE_URL defined."
+        "Make sure you have a .env.local file with DATABASE_URL defined.",
     );
   }
   return url;
@@ -630,14 +637,18 @@ export function getDbConnectionInfo() {
 /**
  * Execute a read query (uses read replica)
  */
-export async function withReadDb<T>(fn: (db: Database) => Promise<T>): Promise<T> {
+export async function withReadDb<T>(
+  fn: (db: Database) => Promise<T>,
+): Promise<T> {
   return fn(connectionManager.getReadConnection());
 }
 
 /**
  * Execute a write query (uses primary)
  */
-export async function withWriteDb<T>(fn: (db: Database) => Promise<T>): Promise<T> {
+export async function withWriteDb<T>(
+  fn: (db: Database) => Promise<T>,
+): Promise<T> {
   return fn(connectionManager.getWriteConnection());
 }
 
@@ -647,7 +658,7 @@ export async function withWriteDb<T>(fn: (db: Database) => Promise<T>): Promise<
 export async function withRegionalDb<T>(
   region: DatabaseRegion,
   role: DatabaseRole,
-  fn: (db: Database) => Promise<T>
+  fn: (db: Database) => Promise<T>,
 ): Promise<T> {
   return fn(connectionManager.getRegionalConnection(region, role));
 }

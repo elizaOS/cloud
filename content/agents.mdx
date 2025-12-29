@@ -3,7 +3,7 @@ title: AI Agents
 description: Create, deploy, and manage intelligent AI agents on elizaOS Cloud. Build conversational agents with custom personalities, knowledge, and capabilities.
 ---
 
-import { Callout, Steps, Tabs, Cards } from 'nextra/components'
+import { Callout, Steps, Tabs, Cards } from "nextra/components";
 
 # AI Agents
 
@@ -32,19 +32,25 @@ An agent in elizaOS Cloud consists of:
 Go to [Dashboard → My Agents](/dashboard/my-agents) and click "Create Agent".
 
 ### Configure Character
+
 Fill in the agent's personality:
+
 - **Name**: Display name for your agent
 - **Bio**: Background and expertise
 - **Style**: Communication tone and formatting
 
 ### Select Model
+
 Choose your AI model provider and model:
+
 - OpenAI (GPT-4o, GPT-4o-mini)
 - Anthropic (Claude 3.5 Sonnet)
 - Google (Gemini Pro)
 
 ### Deploy
+
 Click "Deploy" to launch your agent.
+
 </Steps>
   </Tabs.Tab>
   <Tabs.Tab>
@@ -70,6 +76,7 @@ curl -X POST "https://elizacloud.ai/api/v1/my-agents/characters" \
 ```
 
 Response:
+
 ```json
 {
   "id": "agent_abc123",
@@ -78,6 +85,7 @@ Response:
   "createdAt": "2024-01-15T10:30:00Z"
 }
 ```
+
   </Tabs.Tab>
   <Tabs.Tab>
 ### Using the CLI
@@ -92,6 +100,7 @@ elizaos login
 # Deploy from character file
 elizaos deploy --character ./character.json
 ```
+
   </Tabs.Tab>
 </Tabs>
 
@@ -117,27 +126,11 @@ The character JSON defines your agent's personality and behavior.
       "Evidence-based reasoning",
       "Clear and structured responses"
     ],
-    "chat": [
-      "Concise yet thorough",
-      "Ask clarifying questions when needed"
-    ],
-    "post": [
-      "Formal academic style",
-      "Include citations"
-    ]
+    "chat": ["Concise yet thorough", "Ask clarifying questions when needed"],
+    "post": ["Formal academic style", "Include citations"]
   },
-  "topics": [
-    "science",
-    "research",
-    "data analysis",
-    "academic writing"
-  ],
-  "adjectives": [
-    "knowledgeable",
-    "thorough",
-    "precise",
-    "helpful"
-  ],
+  "topics": ["science", "research", "data analysis", "academic writing"],
+  "adjectives": ["knowledgeable", "thorough", "precise", "helpful"],
   "modelProvider": "openai",
   "settings": {
     "model": "gpt-4o",
@@ -149,18 +142,18 @@ The character JSON defines your agent's personality and behavior.
 
 ### Character Fields
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `name` | string | Display name of the agent |
-| `bio` | string[] | Array of background/expertise statements |
-| `lore` | string[] | Additional context and backstory |
-| `style.all` | string[] | Global style instructions |
-| `style.chat` | string[] | Chat-specific instructions |
-| `style.post` | string[] | Social media post instructions |
-| `topics` | string[] | Areas of expertise |
-| `adjectives` | string[] | Personality descriptors |
-| `modelProvider` | string | AI provider (openai, anthropic, google) |
-| `settings` | object | Model-specific settings |
+| Field           | Type     | Description                              |
+| --------------- | -------- | ---------------------------------------- |
+| `name`          | string   | Display name of the agent                |
+| `bio`           | string[] | Array of background/expertise statements |
+| `lore`          | string[] | Additional context and backstory         |
+| `style.all`     | string[] | Global style instructions                |
+| `style.chat`    | string[] | Chat-specific instructions               |
+| `style.post`    | string[] | Social media post instructions           |
+| `topics`        | string[] | Areas of expertise                       |
+| `adjectives`    | string[] | Personality descriptors                  |
+| `modelProvider` | string   | AI provider (openai, anthropic, google)  |
+| `settings`      | object   | Model-specific settings                  |
 
 ## Agent Management
 
@@ -203,12 +196,12 @@ curl -X DELETE "https://elizacloud.ai/api/v1/my-agents/characters/{agentId}" \
 
 Agents can be in one of these states:
 
-| Status | Description |
-|--------|-------------|
-| `active` | Agent is running and accepting requests |
-| `paused` | Agent is temporarily disabled |
-| `deploying` | Agent deployment in progress |
-| `error` | Agent encountered an error |
+| Status      | Description                             |
+| ----------- | --------------------------------------- |
+| `active`    | Agent is running and accepting requests |
+| `paused`    | Agent is temporarily disabled           |
+| `deploying` | Agent deployment in progress            |
+| `error`     | Agent encountered an error              |
 
 ## Monetization
 
@@ -230,7 +223,8 @@ curl -X POST "https://elizacloud.ai/api/v1/agents/{agentId}/publish" \
 ```
 
 <Callout type="info">
-Learn more about agent monetization in the [Earnings](/docs/earnings) documentation.
+  Learn more about agent monetization in the [Earnings](/docs/earnings)
+  documentation.
 </Callout>
 
 ## Best Practices

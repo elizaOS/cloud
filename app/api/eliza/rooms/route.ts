@@ -161,10 +161,7 @@ export async function POST(request: NextRequest) {
     const character = await charactersService.getById(characterId);
 
     if (!character) {
-      logger.warn(
-        "[Eliza Rooms API POST] Character not found:",
-        characterId,
-      );
+      logger.warn("[Eliza Rooms API POST] Character not found:", characterId);
       return NextResponse.json(
         { error: "Character not found" },
         { status: 404 },

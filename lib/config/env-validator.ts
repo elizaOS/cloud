@@ -286,7 +286,7 @@ export function requireValidEnvironment(): void {
     }
     console.error("");
     console.error(
-      "Please check your .env.local file and set the required variables."
+      "Please check your .env.local file and set the required variables.",
     );
     console.error("See example.env.local for reference.");
     throw new Error("Invalid environment configuration");
@@ -295,7 +295,7 @@ export function requireValidEnvironment(): void {
   logger.info("✅ Environment validation passed");
   if (result.warnings.length > 0) {
     logger.info(
-      `⚠️  ${result.warnings.length} optional variable(s) not set - some features may be unavailable`
+      `⚠️  ${result.warnings.length} optional variable(s) not set - some features may be unavailable`,
     );
   }
   logger.info("");

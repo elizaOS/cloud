@@ -199,6 +199,7 @@ export class AIAppBuilderService {
       .set({ status: "generating", updated_at: new Date() })
       .where(eq(appSandboxSessions.id, sessionId));
 
+    // Create the prompt record
     const [promptRecord] = await dbWrite
       .insert(appBuilderPrompts)
       .values({
@@ -209,11 +210,13 @@ export class AIAppBuilderService {
       } satisfies NewAppBuilderPrompt)
       .returning();
 
+    // Get the system prompt
     const systemPromptRecord = await dbRead.query.appBuilderPrompts.findFirst({
       where: eq(appBuilderPrompts.sandbox_session_id, sessionId),
       orderBy: [desc(appBuilderPrompts.created_at)],
     });
 
+    // Execute Claude Code
     const startTime = Date.now();
     const result = await sandboxService.executeClaudeCode(
       session.sandbox_id,
@@ -224,27 +227,30 @@ export class AIAppBuilderService {
         onThinking: options.onThinking,
       },
     );
+
     const durationMs = Date.now() - startTime;
 
-    await dbWrite
-      .update(appBuilderPrompts)
-      .set({
-        status: result.success ? "completed" : "error",
+    // PERFORMANCE: Update prompt record and add assistant response in parallel
+    await Promise.all([
+      dbWrite
+        .update(appBuilderPrompts)
+        .set({
+          status: result.success ? "completed" : "error",
+          files_affected: result.filesAffected,
+          error_message: result.success ? null : result.output,
+          completed_at: new Date(),
+          duration_ms: durationMs,
+        })
+        .where(eq(appBuilderPrompts.id, promptRecord.id)),
+      dbWrite.insert(appBuilderPrompts).values({
+        sandbox_session_id: sessionId,
+        role: "assistant",
+        content: result.output,
         files_affected: result.filesAffected,
-        error_message: result.success ? null : result.output,
+        status: "completed",
         completed_at: new Date(),
-        duration_ms: durationMs,
-      })
-      .where(eq(appBuilderPrompts.id, promptRecord.id));
-
-    await dbWrite.insert(appBuilderPrompts).values({
-      sandbox_session_id: sessionId,
-      role: "assistant",
-      content: result.output,
-      files_affected: result.filesAffected,
-      status: "completed",
-      completed_at: new Date(),
-    } satisfies NewAppBuilderPrompt);
+      } satisfies NewAppBuilderPrompt),
+    ]);
 
     const messages =
       (session.claude_messages as BuilderSession["messages"]) || [];
@@ -295,12 +301,18 @@ export class AIAppBuilderService {
     return this.verifyOwnership(sessionId, userId);
   }
 
+  /**
+   * Get session details
+   * PERFORMANCE: Fetches session and prompts in parallel after ownership verification
+   */
   async getSession(
     sessionId: string,
     userId: string,
   ): Promise<BuilderSession | null> {
+    // First verify ownership
     const session = await this.verifyOwnership(sessionId, userId);
 
+    // Then fetch prompts
     const prompts = await dbRead.query.appBuilderPrompts.findMany({
       where: eq(appBuilderPrompts.sandbox_session_id, sessionId),
       orderBy: [desc(appBuilderPrompts.created_at)],

@@ -2,7 +2,10 @@
 
 import { useMemo, useState } from "react";
 
-import type { DiscoveredApiRoute, HttpMethod } from "@/lib/docs/api-route-discovery";
+import type {
+  DiscoveredApiRoute,
+  HttpMethod,
+} from "@/lib/docs/api-route-discovery";
 import { cn } from "@/lib/utils";
 
 type RouteGroup = {
@@ -92,15 +95,15 @@ function CopyButton({ text }: { text: string }) {
 function generateCurlExample(route: DiscoveredApiRoute): string {
   const method = route.methods[0] ?? "GET";
   const isBodyMethod = ["POST", "PUT", "PATCH"].includes(method);
-  
+
   let curl = `curl -X ${method} "https://elizacloud.ai${route.path}"`;
   curl += ` \\\n  -H "Authorization: Bearer YOUR_API_KEY"`;
-  
+
   if (isBodyMethod) {
     curl += ` \\\n  -H "Content-Type: application/json"`;
     curl += ` \\\n  -d '{}'`;
   }
-  
+
   return curl;
 }
 
@@ -150,7 +153,10 @@ export function ApiRouteExplorerClient({
 
   const selected = useMemo(() => {
     if (!selectedKey) return null;
-    return routes.find((r) => `${r.path}::${r.methods.join(",")}` === selectedKey) ?? null;
+    return (
+      routes.find((r) => `${r.path}::${r.methods.join(",")}` === selectedKey) ??
+      null
+    );
   }, [routes, selectedKey]);
 
   const curlExample = selected ? generateCurlExample(selected) : "";
@@ -180,11 +186,21 @@ export function ApiRouteExplorerClient({
                   Show all
                 </label>
               </div>
-              
+
               {/* Search input */}
               <div className="relative">
-                <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                <svg
+                  className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                  />
                 </svg>
                 <input
                   value={query}
@@ -193,9 +209,11 @@ export function ApiRouteExplorerClient({
                   className="w-full pl-10 pr-4 py-2.5 rounded-none border border-white/10 bg-black/40 text-sm text-white placeholder:text-white/30 focus:outline-none focus:ring-1 focus:ring-[#ff5800] focus:border-[#ff5800] transition-all"
                 />
               </div>
-              
+
               <div className="mt-3 flex items-center justify-between text-xs text-white/40">
-                <span>{filtered.length} endpoint{filtered.length === 1 ? "" : "s"}</span>
+                <span>
+                  {filtered.length} endpoint{filtered.length === 1 ? "" : "s"}
+                </span>
                 <span className="text-white/30">Click to view details</span>
               </div>
             </div>
@@ -208,7 +226,11 @@ export function ApiRouteExplorerClient({
                 </div>
               ) : (
                 groups.map((g) => (
-                  <details key={g.group} open className="border-b border-white/5 group">
+                  <details
+                    key={g.group}
+                    open
+                    className="border-b border-white/5 group"
+                  >
                     <summary className="cursor-pointer select-none px-4 py-3 text-sm font-semibold text-white/70 hover:text-white hover:bg-white/5 transition-colors flex items-center justify-between">
                       <span>{GROUP_LABELS[g.group] || g.group}</span>
                       <span className="text-xs font-normal text-white/30 bg-white/5 px-2 py-0.5 rounded-full">
@@ -219,7 +241,9 @@ export function ApiRouteExplorerClient({
                       {g.routes.map((r) => {
                         const key = `${r.path}::${r.methods.join(",")}`;
                         const active = selectedKey === key;
-                        const title = r.meta?.name ?? r.path.replace("/api/v1/", "").replace(/\//g, " / ");
+                        const title =
+                          r.meta?.name ??
+                          r.path.replace("/api/v1/", "").replace(/\//g, " / ");
                         return (
                           <button
                             key={key}
@@ -234,10 +258,16 @@ export function ApiRouteExplorerClient({
                           >
                             <div className="flex items-start gap-2">
                               <div className="flex flex-wrap gap-1 pt-0.5 shrink-0">
-                                {(r.methods.length ? r.methods : (["GET"] as HttpMethod[]))
+                                {(r.methods.length
+                                  ? r.methods
+                                  : (["GET"] as HttpMethod[])
+                                )
                                   .slice(0, 2)
                                   .map((m) => (
-                                    <span key={m} className={methodBadgeClass(m)}>
+                                    <span
+                                      key={m}
+                                      className={methodBadgeClass(m)}
+                                    >
                                       {m}
                                     </span>
                                   ))}
@@ -248,10 +278,12 @@ export function ApiRouteExplorerClient({
                                 )}
                               </div>
                               <div className="min-w-0 flex-1">
-                                <div className={cn(
-                                  "text-sm font-medium truncate transition-colors",
-                                  active ? "text-white" : "text-white/80"
-                                )}>
+                                <div
+                                  className={cn(
+                                    "text-sm font-medium truncate transition-colors",
+                                    active ? "text-white" : "text-white/80",
+                                  )}
+                                >
                                   {title}
                                 </div>
                                 <div className="mt-0.5 font-mono text-[10px] text-white/40 truncate">
@@ -291,7 +323,9 @@ export function ApiRouteExplorerClient({
               {/* Title and description */}
               <div className="py-5 border-b border-white/10">
                 <h3 className="text-xl font-bold text-white mb-2">
-                  {selected.meta?.name || selected.path.split("/").pop()?.replace(/-/g, " ") || "Endpoint"}
+                  {selected.meta?.name ||
+                    selected.path.split("/").pop()?.replace(/-/g, " ") ||
+                    "Endpoint"}
                 </h3>
                 {selected.meta?.description ? (
                   <p className="text-sm leading-relaxed text-white/60">
@@ -299,16 +333,20 @@ export function ApiRouteExplorerClient({
                   </p>
                 ) : (
                   <p className="text-sm leading-relaxed text-white/40 italic">
-                    This endpoint is available but doesn&apos;t have detailed documentation yet.
-                    Check the source file or API response for parameter details.
+                    This endpoint is available but doesn&apos;t have detailed
+                    documentation yet. Check the source file or API response for
+                    parameter details.
                   </p>
                 )}
-                
+
                 {/* Tags */}
                 {selected.meta?.tags && selected.meta.tags.length > 0 && (
                   <div className="mt-4 flex flex-wrap gap-2">
                     {selected.meta.tags.map((tag) => (
-                      <span key={tag} className="text-[10px] font-medium uppercase tracking-wider px-2 py-1 bg-white/5 border border-white/10 text-white/50">
+                      <span
+                        key={tag}
+                        className="text-[10px] font-medium uppercase tracking-wider px-2 py-1 bg-white/5 border border-white/10 text-white/50"
+                      >
                         {tag}
                       </span>
                     ))}
@@ -322,15 +360,31 @@ export function ApiRouteExplorerClient({
                   {/* Auth */}
                   <div className="p-4 bg-black/30 border border-white/10">
                     <div className="flex items-center gap-2 mb-2">
-                      <svg className="w-4 h-4 text-white/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                      <svg
+                        className="w-4 h-4 text-white/40"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                        />
                       </svg>
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-white/40">Auth</span>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-white/40">
+                        Auth
+                      </span>
                     </div>
-                    <div className={cn(
-                      "text-sm font-medium",
-                      selected.meta?.requiresAuth ? "text-amber-400" : "text-emerald-400"
-                    )}>
+                    <div
+                      className={cn(
+                        "text-sm font-medium",
+                        selected.meta?.requiresAuth
+                          ? "text-amber-400"
+                          : "text-emerald-400",
+                      )}
+                    >
                       {selected.meta
                         ? selected.meta.requiresAuth
                           ? "Required"
@@ -338,40 +392,77 @@ export function ApiRouteExplorerClient({
                         : "Required"}
                     </div>
                   </div>
-                  
+
                   {/* Rate Limit */}
                   <div className="p-4 bg-black/30 border border-white/10">
                     <div className="flex items-center gap-2 mb-2">
-                      <svg className="w-4 h-4 text-white/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      <svg
+                        className="w-4 h-4 text-white/40"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M13 10V3L4 14h7v7l9-11h-7z"
+                        />
                       </svg>
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-white/40">Rate Limit</span>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-white/40">
+                        Rate Limit
+                      </span>
                     </div>
                     <div className="text-sm font-medium text-white/70">
                       {selected.meta?.rateLimit || "60/min"}
                     </div>
                   </div>
-                  
+
                   {/* Category */}
                   <div className="p-4 bg-black/30 border border-white/10">
                     <div className="flex items-center gap-2 mb-2">
-                      <svg className="w-4 h-4 text-white/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                      <svg
+                        className="w-4 h-4 text-white/40"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"
+                        />
                       </svg>
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-white/40">Category</span>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-white/40">
+                        Category
+                      </span>
                     </div>
                     <div className="text-sm font-medium text-white/70 capitalize">
-                      {selected.meta?.category || groupKeyForPath(selected.path)}
+                      {selected.meta?.category ||
+                        groupKeyForPath(selected.path)}
                     </div>
                   </div>
-                  
+
                   {/* Pricing */}
                   <div className="p-4 bg-black/30 border border-white/10">
                     <div className="flex items-center gap-2 mb-2">
-                      <svg className="w-4 h-4 text-white/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      <svg
+                        className="w-4 h-4 text-white/40"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                        />
                       </svg>
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-white/40">Pricing</span>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-white/40">
+                        Pricing
+                      </span>
                     </div>
                     <div className="text-sm font-medium text-white/70">
                       {selected.meta?.pricing || "Credits"}
@@ -384,45 +475,76 @@ export function ApiRouteExplorerClient({
               <div className="py-5">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
-                    <svg className="w-4 h-4 text-[#ff5800]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    <svg
+                      className="w-4 h-4 text-[#ff5800]"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                      />
                     </svg>
-                    <span className="text-xs font-bold uppercase tracking-wider text-white/60">Quick cURL</span>
+                    <span className="text-xs font-bold uppercase tracking-wider text-white/60">
+                      Quick cURL
+                    </span>
                   </div>
                 </div>
-                
+
                 <div className="relative">
                   <pre className="overflow-x-auto border border-white/10 bg-black/60 p-4 text-[13px] leading-relaxed font-mono">
                     <code className="text-white/80">
                       <span className="text-emerald-400">curl</span>
                       <span className="text-white/60"> -X </span>
-                      <span className="text-amber-400">{selected.methods[0] ?? "GET"}</span>
+                      <span className="text-amber-400">
+                        {selected.methods[0] ?? "GET"}
+                      </span>
                       <span className="text-white/60"> </span>
-                      <span className="text-blue-400">&quot;https://elizacloud.ai{selected.path}&quot;</span>
+                      <span className="text-blue-400">
+                        &quot;https://elizacloud.ai{selected.path}&quot;
+                      </span>
                       <span className="text-white/40"> \</span>
                       {"\n"}
-                      <span className="text-white/60">  -H </span>
-                      <span className="text-green-400">&quot;Authorization: Bearer YOUR_API_KEY&quot;</span>
-                      {["POST", "PUT", "PATCH"].includes(selected.methods[0] ?? "") && (
+                      <span className="text-white/60"> -H </span>
+                      <span className="text-green-400">
+                        &quot;Authorization: Bearer YOUR_API_KEY&quot;
+                      </span>
+                      {["POST", "PUT", "PATCH"].includes(
+                        selected.methods[0] ?? "",
+                      ) && (
                         <>
                           <span className="text-white/40"> \</span>
                           {"\n"}
-                          <span className="text-white/60">  -H </span>
-                          <span className="text-green-400">&quot;Content-Type: application/json&quot;</span>
+                          <span className="text-white/60"> -H </span>
+                          <span className="text-green-400">
+                            &quot;Content-Type: application/json&quot;
+                          </span>
                           <span className="text-white/40"> \</span>
                           {"\n"}
-                          <span className="text-white/60">  -d </span>
-                          <span className="text-purple-400">&apos;{"{}"}&apos;</span>
+                          <span className="text-white/60"> -d </span>
+                          <span className="text-purple-400">
+                            &apos;{"{}"}&apos;
+                          </span>
                         </>
                       )}
                     </code>
                   </pre>
                   <CopyButton text={curlExample} />
                 </div>
-                
+
                 <p className="mt-3 text-xs text-white/40">
-                  Replace <code className="text-[#ff5800] bg-[#ff5800]/10 px-1.5 py-0.5">YOUR_API_KEY</code> with your actual API key from{" "}
-                  <a className="text-[#ff5800] hover:underline" href="/dashboard/api-keys">
+                  Replace{" "}
+                  <code className="text-[#ff5800] bg-[#ff5800]/10 px-1.5 py-0.5">
+                    YOUR_API_KEY
+                  </code>{" "}
+                  with your actual API key from{" "}
+                  <a
+                    className="text-[#ff5800] hover:underline"
+                    href="/dashboard/api-keys"
+                  >
                     Dashboard → API Keys
                   </a>
                 </p>
@@ -431,11 +553,23 @@ export function ApiRouteExplorerClient({
               {/* Source file reference */}
               <div className="pt-5 border-t border-white/10">
                 <div className="flex items-center gap-2 text-xs text-white/30">
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"
+                    />
                   </svg>
                   <span>Source:</span>
-                  <code className="font-mono text-white/40">{selected.filePath.replace(process.cwd?.() || "", "")}</code>
+                  <code className="font-mono text-white/40">
+                    {selected.filePath.replace(process.cwd?.() || "", "")}
+                  </code>
                 </div>
               </div>
             </div>
@@ -443,13 +577,26 @@ export function ApiRouteExplorerClient({
             /* Empty state */
             <div className="flex flex-col items-center justify-center h-full min-h-[400px] p-8 text-center">
               <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#ff5800]/20 to-[#ff5800]/5 flex items-center justify-center mb-4">
-                <svg className="w-8 h-8 text-[#ff5800]/60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                <svg
+                  className="w-8 h-8 text-[#ff5800]/60"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.5}
+                    d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                  />
                 </svg>
               </div>
-              <h4 className="text-lg font-semibold text-white/80 mb-2">Select an Endpoint</h4>
+              <h4 className="text-lg font-semibold text-white/80 mb-2">
+                Select an Endpoint
+              </h4>
               <p className="text-sm text-white/40 max-w-[280px]">
-                Choose an endpoint from the list to view details, authentication requirements, and example code.
+                Choose an endpoint from the list to view details, authentication
+                requirements, and example code.
               </p>
             </div>
           )}

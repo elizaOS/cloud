@@ -95,6 +95,12 @@ function MiniappLoginContent() {
 
   // Update status when props change (avoiding synchronous setState)
   useEffect(() => {
+    // Don't override "completing" or "redirecting" states - they represent process progress
+    // that shouldn't be reset by initial status changes
+    if (status === "completing" || status === "redirecting") {
+      return;
+    }
+
     const nextStatus = initialStatus.status;
     const nextErrorMessage = initialStatus.errorMessage;
 

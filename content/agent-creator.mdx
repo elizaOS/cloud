@@ -3,7 +3,7 @@ title: Agent Creator
 description: Build AI agents visually with the elizaOS Cloud Agent Creator. No code required to create powerful conversational agents.
 ---
 
-import { Callout, Steps, Cards } from 'nextra/components'
+import { Callout, Steps, Cards } from "nextra/components";
 
 # Agent Creator
 
@@ -12,7 +12,7 @@ The Agent Creator is a visual editor for building AI agents without writing code
 <div className="status-badge status-stable">Stable</div>
 
 <Callout type="info">
-Access the Agent Creator at [Dashboard → Agent Creator](/dashboard/build)
+  Access the Agent Creator at [Dashboard → Agent Creator](/dashboard/build)
 </Callout>
 
 ## Overview
@@ -32,23 +32,30 @@ The Agent Creator provides a streamlined interface for:
 Navigate to [Dashboard → Build](/dashboard/build) to access the creator.
 
 ### Enter Basic Info
+
 - **Name**: Your agent's display name
 - **Description**: Brief summary of what your agent does
 
 ### Define Personality
+
 Fill in the personality fields:
+
 - **Bio**: Background and expertise
 - **Style**: Communication tone
 - **Topics**: Areas of knowledge
 
 ### Generate Avatar (Optional)
+
 Click "Generate Avatar" to create an AI-generated profile image.
 
 ### Preview & Test
+
 Use the built-in chat to test your agent's responses.
 
 ### Deploy
+
 Click "Deploy" to make your agent live.
+
 </Steps>
 
 ## Character Fields
@@ -75,6 +82,7 @@ The bio defines your agent's background. Use multiple statements for comprehensi
 Style instructions shape how your agent communicates:
 
 **All Contexts:**
+
 ```
 - Professional and academic tone
 - Evidence-based reasoning
@@ -82,6 +90,7 @@ Style instructions shape how your agent communicates:
 ```
 
 **Chat-Specific:**
+
 ```
 - Conversational yet informative
 - Ask clarifying questions when needed
@@ -93,7 +102,7 @@ Style instructions shape how your agent communicates:
 Define areas of expertise:
 
 ```
-machine learning, data science, research methodology, 
+machine learning, data science, research methodology,
 statistics, academic writing, literature review
 ```
 
@@ -109,22 +118,23 @@ knowledgeable, thorough, patient, analytical, helpful
 
 ### Supported Providers
 
-| Provider | Models | Best For |
-|----------|--------|----------|
-| **OpenAI** | GPT-4o, GPT-4o-mini, GPT-4-turbo | General purpose, coding |
+| Provider      | Models                           | Best For                    |
+| ------------- | -------------------------------- | --------------------------- |
+| **OpenAI**    | GPT-4o, GPT-4o-mini, GPT-4-turbo | General purpose, coding     |
 | **Anthropic** | Claude 3.5 Sonnet, Claude 3 Opus | Long-form content, analysis |
-| **Google** | Gemini Pro, Gemini Flash | Multimodal, fast responses |
+| **Google**    | Gemini Pro, Gemini Flash         | Multimodal, fast responses  |
 
 ### Temperature Settings
 
-| Temperature | Behavior |
-|-------------|----------|
-| **0.0 - 0.3** | More focused, deterministic |
+| Temperature   | Behavior                            |
+| ------------- | ----------------------------------- |
+| **0.0 - 0.3** | More focused, deterministic         |
 | **0.4 - 0.7** | Balanced creativity and consistency |
-| **0.8 - 1.0** | More creative, varied responses |
+| **0.8 - 1.0** | More creative, varied responses     |
 
 <Callout type="warning">
-Higher temperatures may produce less predictable outputs. Start with 0.7 for most use cases.
+  Higher temperatures may produce less predictable outputs. Start with 0.7 for
+  most use cases.
 </Callout>
 
 ## Avatar Generation
@@ -140,6 +150,7 @@ The Agent Creator includes AI-powered avatar generation.
 ### Custom Upload
 
 You can also upload a custom avatar image:
+
 - Supported formats: PNG, JPG, WebP
 - Recommended size: 512x512 pixels
 - Maximum file size: 2MB
@@ -185,19 +196,27 @@ Start from pre-built templates:
 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
   <div className="p-4 border border-white/10 bg-white/[0.02]">
     <h4 className="font-semibold mb-2">💼 Business Assistant</h4>
-    <p className="text-white/60 text-sm">Professional agent for business queries, scheduling, and communication.</p>
+    <p className="text-white/60 text-sm">
+      Professional agent for business queries, scheduling, and communication.
+    </p>
   </div>
   <div className="p-4 border border-white/10 bg-white/[0.02]">
     <h4 className="font-semibold mb-2">📚 Research Helper</h4>
-    <p className="text-white/60 text-sm">Academic-focused agent for research and analysis.</p>
+    <p className="text-white/60 text-sm">
+      Academic-focused agent for research and analysis.
+    </p>
   </div>
   <div className="p-4 border border-white/10 bg-white/[0.02]">
     <h4 className="font-semibold mb-2">💻 Code Reviewer</h4>
-    <p className="text-white/60 text-sm">Technical agent for code review and debugging.</p>
+    <p className="text-white/60 text-sm">
+      Technical agent for code review and debugging.
+    </p>
   </div>
   <div className="p-4 border border-white/10 bg-white/[0.02]">
     <h4 className="font-semibold mb-2">🎨 Creative Writer</h4>
-    <p className="text-white/60 text-sm">Creative agent for writing, brainstorming, and content creation.</p>
+    <p className="text-white/60 text-sm">
+      Creative agent for writing, brainstorming, and content creation.
+    </p>
   </div>
 </div>
 

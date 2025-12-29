@@ -1,7 +1,10 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 
-import { API_ENDPOINTS, type ApiEndpoint } from "@/lib/swagger/endpoint-discovery";
+import {
+  API_ENDPOINTS,
+  type ApiEndpoint,
+} from "@/lib/swagger/endpoint-discovery";
 
 export type HttpMethod =
   | "GET"
@@ -35,7 +38,8 @@ export interface DiscoveredApiRoute {
   >;
 }
 
-const METHOD_RE = /export\s+(?:async\s+)?function\s+(GET|POST|PUT|PATCH|DELETE|OPTIONS|HEAD)\b/g;
+const METHOD_RE =
+  /export\s+(?:async\s+)?function\s+(GET|POST|PUT|PATCH|DELETE|OPTIONS|HEAD)\b/g;
 
 function segmentToOpenApi(segment: string): string {
   // Dynamic route: [id] -> {id}
@@ -127,7 +131,9 @@ export async function discoverApiV1Routes(): Promise<DiscoveredApiRoute[]> {
     // If multiple methods exist, we still keep one meta (best-effort) by
     // preferring the first method match.
     const firstMethod = methods[0];
-    const meta = firstMethod ? metaIndex.get(`${firstMethod} ${apiPath}`) : undefined;
+    const meta = firstMethod
+      ? metaIndex.get(`${firstMethod} ${apiPath}`)
+      : undefined;
 
     routes.push({
       path: apiPath,
@@ -144,5 +150,3 @@ export async function discoverApiV1Routes(): Promise<DiscoveredApiRoute[]> {
 
   return routes;
 }
-
-

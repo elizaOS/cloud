@@ -60,7 +60,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
   const getInitials = (
     name: string | null,
     email: string | null,
-    walletAddress: string | null
+    walletAddress: string | null,
   ) => {
     if (name) {
       return name
@@ -105,7 +105,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
       setPendingFile(file);
       setError(null);
     },
-    [previewUrl]
+    [previewUrl],
   );
 
   // Handle file input change
@@ -120,7 +120,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
         e.target.value = "";
       }
     },
-    [handleFileSelect]
+    [handleFileSelect],
   );
 
   // Drag and drop handlers
@@ -147,7 +147,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
         handleFileSelect(files[0]);
       }
     },
-    [handleFileSelect]
+    [handleFileSelect],
   );
 
   // Cancel preview and discard pending file

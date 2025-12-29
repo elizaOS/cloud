@@ -10,8 +10,6 @@ import {
   composePromptFromState,
   parseKeyValueXml,
   ModelType,
-  runWithStreamingContext,
-  XmlTagExtractor,
 } from "@elizaos/core";
 import { cleanPrompt, isCreatorMode } from "../../shared/utils/helpers";
 import { isOnboarded, markOnboarded } from "../utils/onboarding-state";
@@ -73,7 +71,9 @@ After running once, it's disabled - use BUILDER_CHAT for follow-up questions.`,
     callback: HandlerCallback,
   ): Promise<void> => {
     const entityId = message.entityId as string;
-    const onStreamChunk = options?.onStreamChunk as StreamChunkCallback | undefined;
+    const onStreamChunk = options?.onStreamChunk as
+      | StreamChunkCallback
+      | undefined;
 
     state = await runtime.composeState(message, ["RECENT_MESSAGES"]);
 
@@ -87,26 +87,7 @@ After running once, it's disabled - use BUILDER_CHAT for follow-up questions.`,
       composePromptFromState({ state, template: onboardingTemplate }),
     );
 
-    // Create streaming context to extract <text> content and stream it
-    let streamingContext: { onStreamChunk: (chunk: string, messageId?: UUID) => Promise<void>; messageId?: UUID } | undefined;
-    if (onStreamChunk) {
-      const extractor = new XmlTagExtractor('text');
-      streamingContext = {
-        onStreamChunk: async (chunk: string, msgId?: UUID) => {
-          if (extractor.done) return;
-          const textToStream = extractor.push(chunk);
-          if (textToStream) {
-            await onStreamChunk(textToStream, msgId);
-          }
-        },
-        messageId: message.id as UUID,
-      };
-    }
-
-    const response = await runWithStreamingContext(
-      streamingContext,
-      () => runtime.useModel(ModelType.TEXT_LARGE, { prompt }),
-    );
+    const response = await runtime.useModel(ModelType.TEXT_LARGE, { prompt });
     runtime.character.system = originalSystemPrompt;
 
     const parsed = parseKeyValueXml(response) as {

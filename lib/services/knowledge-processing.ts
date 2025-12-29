@@ -157,9 +157,7 @@ export class KnowledgeProcessingService {
    * @param params - User and API key for authentication.
    * @returns Processing results.
    */
-  async processQueue(
-    params: ProcessJobParams,
-  ): Promise<{
+  async processQueue(params: ProcessJobParams): Promise<{
     successCount: number;
     failureCount: number;
     totalProcessed: number;

@@ -3,7 +3,7 @@ title: MCP Protocol
 description: Model Context Protocol implementation on elizaOS Cloud. Connect tools and resources to AI models.
 ---
 
-import { Callout, Tabs, Cards } from 'nextra/components'
+import { Callout, Tabs, Cards } from "nextra/components";
 
 # MCP Protocol
 
@@ -12,7 +12,8 @@ Deep dive into the Model Context Protocol implementation on elizaOS Cloud.
 <div className="status-badge status-stable">Stable</div>
 
 <Callout type="info">
-This page covers the **MCP protocol specification**. To connect MCP servers to your agents, see [MCP Integration](/docs/mcps).
+  This page covers the **MCP protocol specification**. To connect MCP servers to
+  your agents, see [MCP Integration](/docs/mcps).
 </Callout>
 
 ## Overview
@@ -247,14 +248,14 @@ Coming soon for bidirectional communication.
 
 elizaOS Cloud provides these built-in MCP tools:
 
-| Tool | Description |
-|------|-------------|
-| `generate_image` | Create images from prompts |
-| `generate_video` | Create videos from prompts |
-| `search_knowledge` | Query knowledge base |
-| `get_weather` | Current weather data |
-| `get_time` | Time and timezone info |
-| `get_crypto_price` | Cryptocurrency prices |
+| Tool               | Description                |
+| ------------------ | -------------------------- |
+| `generate_image`   | Create images from prompts |
+| `generate_video`   | Create videos from prompts |
+| `search_knowledge` | Query knowledge base       |
+| `get_weather`      | Current weather data       |
+| `get_time`         | Time and timezone info     |
+| `get_crypto_price` | Cryptocurrency prices      |
 
 ## Connecting External MCPs
 
@@ -300,7 +301,7 @@ const app = express();
 
 app.post('/mcp', (req, res) => {
   const { method, params, id } = req.body;
-  
+
   switch (method) {
     case 'initialize':
       return res.json({
@@ -312,14 +313,14 @@ app.post('/mcp', (req, res) => {
         },
         id
       });
-      
+
     case 'tools/list':
       return res.json({
         jsonrpc: '2.0',
         result: { tools: myTools },
         id
       });
-      
+
     case 'tools/call':
       const result = await handleToolCall(params);
       return res.json({
@@ -335,13 +336,13 @@ app.post('/mcp', (req, res) => {
 
 ### Error Codes
 
-| Code | Name | Description |
-|------|------|-------------|
-| -32700 | Parse error | Invalid JSON |
-| -32600 | Invalid request | Invalid JSON-RPC |
-| -32601 | Method not found | Unknown method |
-| -32602 | Invalid params | Invalid parameters |
-| -32603 | Internal error | Server error |
+| Code   | Name             | Description        |
+| ------ | ---------------- | ------------------ |
+| -32700 | Parse error      | Invalid JSON       |
+| -32600 | Invalid request  | Invalid JSON-RPC   |
+| -32601 | Method not found | Unknown method     |
+| -32602 | Invalid params   | Invalid parameters |
+| -32603 | Internal error   | Server error       |
 
 ### Error Response
 

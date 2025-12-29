@@ -18,7 +18,18 @@ export interface StreamingMessage {
   };
   createdAt: number;
   isAgent: boolean;
-  type: "user" | "agent" | "thinking" | "error";
+  type: "user" | "agent" | "thinking" | "reasoning" | "error";
+}
+
+/**
+ * Reasoning chunk from planning phase.
+ * Streamed in real-time to show LLM's chain-of-thought.
+ */
+export interface ReasoningChunkData {
+  messageId: string;
+  chunk: string;
+  phase: "planning" | "actions" | "response";
+  timestamp: number;
 }
 
 interface SSEErrorData {
@@ -59,6 +70,8 @@ interface SendMessageOptions {
   onMessage: (message: StreamingMessage) => void;
   /** Callback invoked for each text chunk (real-time streaming). */
   onChunk?: (chunk: StreamChunkData) => void;
+  /** Callback invoked for reasoning/chain-of-thought chunks. */
+  onReasoning?: (chunk: ReasoningChunkData) => void;
   /** Optional error callback. */
   onError?: (error: string) => void;
   /** Optional completion callback. */
@@ -83,6 +96,7 @@ export async function sendStreamingMessage({
   webSearchEnabled,
   onMessage,
   onChunk,
+  onReasoning,
   onError,
   onComplete,
   timeoutMs = STREAM_TIMEOUT_MS,
@@ -174,7 +188,14 @@ export async function sendStreamingMessage({
         // Process any remaining data in buffer
         if (buffer.trim()) {
           try {
-            processSSEMessage(buffer.trim(), onMessage, onChunk, onError, onComplete);
+            processSSEMessage(
+              buffer.trim(),
+              onMessage,
+              onChunk,
+              onReasoning,
+              onError,
+              onComplete,
+            );
           } catch (err) {
             console.error("[Stream] Error processing final buffer:", err);
             onError?.("Stream ended unexpectedly");
@@ -187,7 +208,9 @@ export async function sendStreamingMessage({
 
       // Prevent unbounded buffer growth (potential DoS vector)
       if (buffer.length > MAX_BUFFER_SIZE) {
-        throw new Error("Stream buffer exceeded maximum size - possible malformed SSE data");
+        throw new Error(
+          "Stream buffer exceeded maximum size - possible malformed SSE data",
+        );
       }
 
       // Process complete SSE messages (separated by double newline)
@@ -198,7 +221,14 @@ export async function sendStreamingMessage({
         if (!message.trim()) continue;
 
         try {
-          processSSEMessage(message.trim(), onMessage, onChunk, onError, onComplete);
+          processSSEMessage(
+            message.trim(),
+            onMessage,
+            onChunk,
+            onReasoning,
+            onError,
+            onComplete,
+          );
         } catch (err) {
           console.error("[Stream] Error parsing SSE message:", err, message);
           // Continue processing other messages even if one fails
@@ -223,6 +253,7 @@ function processSSEMessage(
   message: string,
   onMessage: (message: StreamingMessage) => void,
   onChunk?: (chunk: StreamChunkData) => void,
+  onReasoning?: (chunk: ReasoningChunkData) => void,
   onError?: (error: string) => void,
   onComplete?: () => void,
 ): void {
@@ -273,6 +304,15 @@ function processSSEMessage(
         onChunk(data as StreamChunkData);
       }
       break;
+    case "reasoning":
+      // Chain-of-thought reasoning chunk - shows LLM's planning process
+      if (
+        onReasoning &&
+        isValidReasoningChunkData(data as ReasoningChunkData)
+      ) {
+        onReasoning(data as ReasoningChunkData);
+      }
+      break;
     case "error":
       const errorData = data as SSEErrorData;
       const errorMessage =
@@ -300,11 +340,28 @@ function processSSEMessage(
 /**
  * Type guard to validate StreamChunkData structure
  */
-function isValidStreamChunkData(data: StreamChunkData): data is StreamChunkData {
+function isValidStreamChunkData(
+  data: StreamChunkData,
+): data is StreamChunkData {
   if (!data || typeof data !== "object") return false;
   return (
     typeof data.messageId === "string" &&
     typeof data.chunk === "string" &&
+    typeof data.timestamp === "number"
+  );
+}
+
+/**
+ * Type guard to validate ReasoningChunkData structure
+ */
+function isValidReasoningChunkData(
+  data: ReasoningChunkData,
+): data is ReasoningChunkData {
+  if (!data || typeof data !== "object") return false;
+  return (
+    typeof data.messageId === "string" &&
+    typeof data.chunk === "string" &&
+    typeof data.phase === "string" &&
     typeof data.timestamp === "number"
   );
 }

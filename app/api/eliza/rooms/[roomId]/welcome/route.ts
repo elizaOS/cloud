@@ -26,10 +26,7 @@ export async function POST(
   const { text } = body;
 
   if (!text?.trim()) {
-    return NextResponse.json(
-      { error: "text is required" },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: "text is required" }, { status: 400 });
   }
 
   // Support both authenticated and anonymous users
@@ -52,10 +49,7 @@ export async function POST(
   // Verify user has access to this room
   const hasAccess = await roomsService.hasAccess(roomId, userId);
   if (!hasAccess) {
-    return NextResponse.json(
-      { error: "Access denied" },
-      { status: 403 },
-    );
+    return NextResponse.json({ error: "Access denied" }, { status: 403 });
   }
 
   // Store welcome message directly in memoryTable
@@ -114,10 +108,7 @@ export async function DELETE(
   // Verify user has access to this room
   const hasAccess = await roomsService.hasAccess(roomId, userId);
   if (!hasAccess) {
-    return NextResponse.json(
-      { error: "Access denied" },
-      { status: 403 },
-    );
+    return NextResponse.json({ error: "Access denied" }, { status: 403 });
   }
 
   // Delete all messages from the room

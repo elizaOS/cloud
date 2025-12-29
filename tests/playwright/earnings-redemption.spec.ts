@@ -56,7 +56,9 @@ test.describe("Earnings Page UI", () => {
 
     const pageContent = await page.textContent("body").catch(() => "");
     if ((pageContent?.length || 0) < 100) {
-      console.log(`⚠️ Earnings page content too short (${pageContent?.length} chars)`);
+      console.log(
+        `⚠️ Earnings page content too short (${pageContent?.length} chars)`,
+      );
       console.log("ℹ️ Skipping - page not loaded properly");
       return;
     }
@@ -70,7 +72,9 @@ test.describe("Earnings Page UI", () => {
     const hasRedeemed = await redeemed.isVisible().catch(() => false);
 
     if (!hasAvailable && !hasTotal && !hasRedeemed) {
-      console.log("⚠️ No balance cards found (earnings feature not configured)");
+      console.log(
+        "⚠️ No balance cards found (earnings feature not configured)",
+      );
       console.log("ℹ️ Skipping balance cards test");
       return;
     }
@@ -95,7 +99,9 @@ test.describe("Earnings Page UI", () => {
 
     const pageContent = await page.textContent("body").catch(() => "");
     if ((pageContent?.length || 0) < 100) {
-      console.log(`⚠️ Earnings page content too short (${pageContent?.length} chars)`);
+      console.log(
+        `⚠️ Earnings page content too short (${pageContent?.length} chars)`,
+      );
       console.log("ℹ️ Skipping - page not loaded properly");
       return;
     }
@@ -104,7 +110,9 @@ test.describe("Earnings Page UI", () => {
     const hasRedeemButton = await redeemButton.isVisible().catch(() => false);
 
     if (!hasRedeemButton) {
-      console.log("⚠️ Redeem button not found (earnings feature not configured)");
+      console.log(
+        "⚠️ Redeem button not found (earnings feature not configured)",
+      );
       console.log("ℹ️ Skipping redeem button test");
       return;
     }
@@ -229,7 +237,9 @@ test.describe("Earnings Page UI", () => {
 
     const pageContent = await page.textContent("body").catch(() => "");
     if ((pageContent?.length || 0) < 100) {
-      console.log(`⚠️ Earnings page content too short (${pageContent?.length} chars)`);
+      console.log(
+        `⚠️ Earnings page content too short (${pageContent?.length} chars)`,
+      );
       console.log("ℹ️ Skipping - page not loaded properly");
       return;
     }
@@ -238,7 +248,9 @@ test.describe("Earnings Page UI", () => {
     const hasHistory = await historySection.isVisible().catch(() => false);
 
     if (!hasHistory) {
-      console.log("⚠️ Redemption history section not found (no history or feature not configured)");
+      console.log(
+        "⚠️ Redemption history section not found (no history or feature not configured)",
+      );
       console.log("ℹ️ Skipping redemption history test");
       return;
     }

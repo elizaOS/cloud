@@ -137,7 +137,7 @@ function parseTokenAmount(amount: string, decimals = 18): bigint {
 
   if (fraction.length > decimals) {
     console.warn(
-      `[Crypto Payment] Precision loss: ${amount} truncated to ${decimals} decimals`
+      `[Crypto Payment] Precision loss: ${amount} truncated to ${decimals} decimals`,
     );
   }
 
@@ -150,7 +150,7 @@ function getNetworkInfo(network: string): NetworkInfo | null {
 
   for (const config of Object.values(NETWORK_CONFIG)) {
     const match = config.aliases.some(
-      (alias) => alias.toUpperCase().replace(/[_\s]+/g, "") === normalized
+      (alias) => alias.toUpperCase().replace(/[_\s]+/g, "") === normalized,
     );
     if (match) {
       return config;
@@ -197,7 +197,7 @@ export function CryptoPaymentModal({
       return true;
     }) ||
     wallets.find(
-      (w) => w.walletClientType !== "solana" && w.walletClientType !== "privy"
+      (w) => w.walletClientType !== "solana" && w.walletClientType !== "privy",
     );
 
   const hasWallet = walletsReady && !!evmWallet;
@@ -210,7 +210,9 @@ export function CryptoPaymentModal({
   const checkPaymentStatus = useCallback(async () => {
     // Prevent concurrent requests - if a check is already in progress, skip this one
     if (isCheckingRef.current) {
-      console.log("[Crypto Payment] Skipping status check - request already in progress");
+      console.log(
+        "[Crypto Payment] Skipping status check - request already in progress",
+      );
       return;
     }
 
@@ -358,7 +360,7 @@ export function CryptoPaymentModal({
           const code = (switchError as { code?: number })?.code;
           if (code === 4902) {
             toast.error(
-              `Please add ${networkInfo.name} network to your wallet`
+              `Please add ${networkInfo.name} network to your wallet`,
             );
           } else {
             toast.error(`Please switch to ${networkInfo.name} network`);

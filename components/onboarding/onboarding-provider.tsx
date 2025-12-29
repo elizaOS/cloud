@@ -60,7 +60,7 @@ export function OnboardingProvider({
   const [activeTour, setActiveTour] = useState<OnboardingTour | null>(null);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [isInitialized, setIsInitialized] = useState(
-    () => typeof window !== "undefined"
+    () => typeof window !== "undefined",
   );
 
   // Auto-start tour for current path if user hasn't seen it
