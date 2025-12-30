@@ -38,10 +38,7 @@ import {
   Search,
 } from "lucide-react";
 import Image from "next/image";
-import {
-  BrandCard,
-  CornerBrackets,
-} from "@/components/brand";
+import { BrandCard, CornerBrackets } from "@/components/brand";
 import {
   Tooltip,
   TooltipContent,
@@ -105,6 +102,41 @@ export function ImageGeneratorAdvanced({
   // Source image state for image-to-image generation
   const [sourceImage, setSourceImage] = useState<string | null>(null);
   const sourceImageInputRef = useRef<HTMLInputElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const topAnchorRef = useRef<HTMLDivElement>(null);
+
+  // Scroll to top helper - smooth scroll using multiple methods
+  const scrollToTop = () => {
+    // Use a small delay to ensure DOM updates complete, then scroll smoothly
+    requestAnimationFrame(() => {
+      // Method 1: Scroll the top anchor into view
+      if (topAnchorRef.current) {
+        topAnchorRef.current.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+          inline: "nearest",
+        });
+      }
+
+      // Method 2: Find and scroll parent containers
+      const scrollableParent = document.querySelector(
+        '[class*="overflow-auto"], [class*="overflow-y-auto"], main, [role="main"]'
+      );
+      if (scrollableParent) {
+        scrollableParent.scrollTo({ top: 0, behavior: "smooth" });
+      }
+
+      // Method 3: Window scroll
+      window.scrollTo({ top: 0, behavior: "smooth" });
+
+      // Focus input after scrolling
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 300);
+    });
+  };
 
   // Consolidated image state - current batch and selection (initialized with server history)
   const [imageState, setImageState] = useState<{
@@ -152,7 +184,11 @@ export function ImageGeneratorAdvanced({
 
   // Fetch explore images when tab changes to explore
   useEffect(() => {
-    if (uiState.activeTab === "explore" && exploreState.images.length === 0 && !exploreState.isLoading) {
+    if (
+      uiState.activeTab === "explore" &&
+      exploreState.images.length === 0 &&
+      !exploreState.isLoading
+    ) {
       setExploreState((prev) => ({ ...prev, isLoading: true }));
       listExploreImages(20)
         .then((images) => {
@@ -314,18 +350,31 @@ export function ImageGeneratorAdvanced({
   );
 
   return (
-    <div className="flex flex-col h-full w-full">
+    <div
+      ref={containerRef}
+      className="flex flex-col h-full w-full scroll-smooth"
+    >
+      {/* Scroll anchor */}
+      <div ref={topAnchorRef} className="absolute top-0" />
+
       {/* Top Input Bar */}
       <div>
         <div className="w-full">
-          <div className="relative rounded-2xl border border-white/[0.08] bg-white/[0.02] overflow-hidden transition-colors focus-within:border-white/[0.15] focus-within:bg-white/[0.03]">
+          <div
+            className={`relative rounded-2xl border border-white/[0.08] bg-white/[0.02] overflow-hidden transition-all ${
+              requestState.isLoading
+                ? "opacity-60 pointer-events-none"
+                : "focus-within:border-white/[0.15] focus-within:bg-white/[0.03]"
+            }`}
+          >
             {/* Loading Scanner */}
             {requestState.isLoading && (
               <div className="absolute top-0 left-0 right-0 h-[2px] overflow-hidden pointer-events-none z-10">
                 <div
                   className="absolute h-full w-24 bg-gradient-to-r from-transparent via-[#FF5800] to-transparent"
                   style={{
-                    animation: "visor-scan 4.8s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+                    animation:
+                      "visor-scan 4.8s cubic-bezier(0.4, 0, 0.6, 1) infinite",
                     boxShadow: "0 0 15px 3px rgba(255, 88, 0, 0.7)",
                     filter: "blur(0.5px)",
                   }}
@@ -344,7 +393,9 @@ export function ImageGeneratorAdvanced({
                     className="h-full w-full object-cover"
                   />
                 </div>
-                <span className="text-xs font-mono text-white/50">Reference image</span>
+                <span className="text-xs font-mono text-white/50">
+                  Reference image
+                </span>
                 <button
                   type="button"
                   onClick={() => {
@@ -362,6 +413,7 @@ export function ImageGeneratorAdvanced({
 
             {/* Textarea */}
             <textarea
+              ref={inputRef}
               value={prompt}
               onChange={(e) => setPrompt(e.currentTarget.value)}
               onKeyDown={(e) => {
@@ -407,7 +459,10 @@ export function ImageGeneratorAdvanced({
 
                 {/* Size Selector Dropdown */}
                 <DropdownMenu>
-                  <DropdownMenuTrigger asChild disabled={requestState.isLoading}>
+                  <DropdownMenuTrigger
+                    asChild
+                    disabled={requestState.isLoading}
+                  >
                     <Button
                       type="button"
                       variant="ghost"
@@ -417,7 +472,9 @@ export function ImageGeneratorAdvanced({
                       {currentSizePreset ? (
                         <>
                           <currentSizePreset.icon className="h-3.5 w-3.5 text-white/50" />
-                          <span className="text-sm text-white/50">{currentSizePreset.label}</span>
+                          <span className="text-sm text-white/50">
+                            {currentSizePreset.label}
+                          </span>
                         </>
                       ) : (
                         <>
@@ -450,7 +507,9 @@ export function ImageGeneratorAdvanced({
                       <DropdownMenuItem
                         key={preset.label}
                         className="flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer"
-                        onSelect={() => selectSizePreset(preset.width, preset.height)}
+                        onSelect={() =>
+                          selectSizePreset(preset.width, preset.height)
+                        }
                       >
                         <div className="flex items-center gap-3">
                           <preset.icon className="h-4 w-4 text-white/50" />
@@ -461,9 +520,10 @@ export function ImageGeneratorAdvanced({
                             </span>
                           </div>
                         </div>
-                        {settings.width === preset.width && settings.height === preset.height && (
-                          <Check className="h-4 w-4 text-[#FF5800]" />
-                        )}
+                        {settings.width === preset.width &&
+                          settings.height === preset.height && (
+                            <Check className="h-4 w-4 text-[#FF5800]" />
+                          )}
                       </DropdownMenuItem>
                     ))}
                   </DropdownMenuContent>
@@ -471,7 +531,10 @@ export function ImageGeneratorAdvanced({
 
                 {/* Advanced Settings Dropdown */}
                 <DropdownMenu>
-                  <DropdownMenuTrigger asChild disabled={requestState.isLoading}>
+                  <DropdownMenuTrigger
+                    asChild
+                    disabled={requestState.isLoading}
+                  >
                     <Button
                       type="button"
                       variant="ghost"
@@ -479,7 +542,9 @@ export function ImageGeneratorAdvanced({
                       className="h-8 gap-1.5 px-2.5 rounded-lg hover:bg-white/[0.06] transition-colors disabled:opacity-40 disabled:pointer-events-none"
                     >
                       <SlidersHorizontal className="h-3.5 w-3.5 text-white/50" />
-                      <span className="text-sm text-white/50 hidden sm:inline">Settings</span>
+                      <span className="text-sm text-white/50 hidden sm:inline">
+                        Settings
+                      </span>
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent
@@ -492,8 +557,12 @@ export function ImageGeneratorAdvanced({
                       {/* Steps */}
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
-                          <label className="text-xs font-mono text-white/60">Steps</label>
-                          <span className="text-xs font-mono text-white">{settings.steps}</span>
+                          <label className="text-xs font-mono text-white/60">
+                            Steps
+                          </label>
+                          <span className="text-xs font-mono text-white">
+                            {settings.steps}
+                          </span>
                         </div>
                         <Slider
                           value={[settings.steps]}
@@ -510,7 +579,9 @@ export function ImageGeneratorAdvanced({
                       {/* Guidance Scale */}
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
-                          <label className="text-xs font-mono text-white/60">Guidance Scale</label>
+                          <label className="text-xs font-mono text-white/60">
+                            Guidance Scale
+                          </label>
                           <span className="text-xs font-mono text-white">
                             {settings.guidanceScale.toFixed(1)}
                           </span>
@@ -518,7 +589,10 @@ export function ImageGeneratorAdvanced({
                         <Slider
                           value={[settings.guidanceScale]}
                           onValueChange={([value]) =>
-                            setSettings((prev) => ({ ...prev, guidanceScale: value }))
+                            setSettings((prev) => ({
+                              ...prev,
+                              guidanceScale: value,
+                            }))
                           }
                           min={1}
                           max={20}
@@ -530,8 +604,12 @@ export function ImageGeneratorAdvanced({
                       {/* Number of Images */}
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
-                          <label className="text-xs font-mono text-white/60">Images</label>
-                          <span className="text-xs font-mono text-white">{numImages}</span>
+                          <label className="text-xs font-mono text-white/60">
+                            Images
+                          </label>
+                          <span className="text-xs font-mono text-white">
+                            {numImages}
+                          </span>
                         </div>
                         <Slider
                           value={[numImages]}
@@ -581,7 +659,9 @@ export function ImageGeneratorAdvanced({
         <div className="flex items-center gap-8 mb-6">
           <button
             type="button"
-            onClick={() => setUiState((prev) => ({ ...prev, activeTab: "creations" }))}
+            onClick={() =>
+              setUiState((prev) => ({ ...prev, activeTab: "creations" }))
+            }
             className={`text-base font-medium transition-colors ${
               uiState.activeTab === "creations"
                 ? "text-[#FF5800]"
@@ -592,7 +672,9 @@ export function ImageGeneratorAdvanced({
           </button>
           <button
             type="button"
-            onClick={() => setUiState((prev) => ({ ...prev, activeTab: "explore" }))}
+            onClick={() =>
+              setUiState((prev) => ({ ...prev, activeTab: "explore" }))
+            }
             className={`flex items-center gap-2 text-base font-medium transition-colors ${
               uiState.activeTab === "explore"
                 ? "text-[#FF5800]"
@@ -605,15 +687,17 @@ export function ImageGeneratorAdvanced({
         </div>
 
         {/* My Creations Tab Content */}
-        {uiState.activeTab === "creations" && (
-          imageState.history.length > 0 || requestState.isLoading ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
+        {uiState.activeTab === "creations" &&
+          (imageState.history.length > 0 || requestState.isLoading ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
               {requestState.isLoading && (
                 <div className="relative overflow-hidden rounded-lg border border-[#FF5800]/40 bg-black/40 animate-pulse">
                   <div className="relative aspect-square w-full flex items-center justify-center">
                     <div className="flex flex-col items-center gap-3">
                       <Loader2 className="h-8 w-8 text-[#FF5800] animate-spin" />
-                      <span className="text-xs font-mono text-white/50">Generating...</span>
+                      <span className="text-xs font-mono text-white/50">
+                        Generating...
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -632,7 +716,10 @@ export function ImageGeneratorAdvanced({
                         currentImages: [image],
                         currentIndex: 0,
                       }));
-                      setUiState((prev) => ({ ...prev, isFullscreenOpen: true }));
+                      setUiState((prev) => ({
+                        ...prev,
+                        isFullscreenOpen: true,
+                      }));
                     }}
                   >
                     <Image
@@ -663,7 +750,10 @@ export function ImageGeneratorAdvanced({
                           <Download className="h-4 w-4 text-white" />
                         </button>
                       </TooltipTrigger>
-                      <TooltipContent side="bottom" className="text-xs bg-neutral-800 text-white/80 border-white/10">
+                      <TooltipContent
+                        side="bottom"
+                        className="text-xs bg-neutral-800 text-white/80 border-white/10"
+                      >
                         Download image
                       </TooltipContent>
                     </Tooltip>
@@ -676,13 +766,17 @@ export function ImageGeneratorAdvanced({
                           onClick={(e) => {
                             e.stopPropagation();
                             setSourceImage(image.url);
+                            scrollToTop();
                           }}
                           className="p-2 rounded-lg bg-black/70 hover:bg-white/10 border border-white/20 transition-colors"
                         >
                           <RefreshCw className="h-4 w-4 text-white" />
                         </button>
                       </TooltipTrigger>
-                      <TooltipContent side="bottom" className="text-xs bg-neutral-800 text-white/80 border-white/10">
+                      <TooltipContent
+                        side="bottom"
+                        className="text-xs bg-neutral-800 text-white/80 border-white/10"
+                      >
                         Use as reference for transformation
                       </TooltipContent>
                     </Tooltip>
@@ -695,13 +789,17 @@ export function ImageGeneratorAdvanced({
                           onClick={(e) => {
                             e.stopPropagation();
                             setPrompt(image.prompt);
+                            scrollToTop();
                           }}
                           className="p-2 rounded-lg bg-black/70 hover:bg-white/10 border border-white/20 transition-colors"
                         >
                           <Copy className="h-4 w-4 text-white" />
                         </button>
                       </TooltipTrigger>
-                      <TooltipContent side="bottom" className="text-xs bg-neutral-800 text-white/80 border-white/10">
+                      <TooltipContent
+                        side="bottom"
+                        className="text-xs bg-neutral-800 text-white/80 border-white/10"
+                      >
                         Re-use this prompt
                       </TooltipContent>
                     </Tooltip>
@@ -733,15 +831,17 @@ export function ImageGeneratorAdvanced({
                 </div>
               </div>
             </BrandCard>
-          )
-        )}
+          ))}
 
         {/* Explore Tab Content */}
-        {uiState.activeTab === "explore" && (
-          exploreState.isLoading ? (
+        {uiState.activeTab === "explore" &&
+          (exploreState.isLoading ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
               {Array.from({ length: 8 }).map((_, i) => (
-                <div key={i} className="relative overflow-hidden rounded-lg border border-white/10 bg-black/40 animate-pulse">
+                <div
+                  key={i}
+                  className="relative overflow-hidden rounded-lg border border-white/10 bg-black/40 animate-pulse"
+                >
                   <div className="aspect-square w-full" />
                 </div>
               ))}
@@ -749,7 +849,9 @@ export function ImageGeneratorAdvanced({
           ) : exploreState.error ? (
             <BrandCard className="relative border-dashed border-rose-500/40">
               <div className="relative z-10 p-8 text-center">
-                <p className="text-sm font-mono text-rose-400">{exploreState.error}</p>
+                <p className="text-sm font-mono text-rose-400">
+                  {exploreState.error}
+                </p>
               </div>
             </BrandCard>
           ) : exploreState.images.length > 0 ? (
@@ -761,7 +863,12 @@ export function ImageGeneratorAdvanced({
                 >
                   <div
                     className="relative aspect-square w-full bg-black/40 cursor-pointer"
-                    onClick={() => setUiState((prev) => ({ ...prev, selectedExploreImage: image }))}
+                    onClick={() =>
+                      setUiState((prev) => ({
+                        ...prev,
+                        selectedExploreImage: image,
+                      }))
+                    }
                   >
                     <Image
                       src={image.url}
@@ -785,13 +892,17 @@ export function ImageGeneratorAdvanced({
                           onClick={(e) => {
                             e.stopPropagation();
                             setSourceImage(image.url);
+                            scrollToTop();
                           }}
                           className="p-2 rounded-lg bg-black/70 hover:bg-white/10 border border-white/20 transition-colors"
                         >
                           <RefreshCw className="h-4 w-4 text-white" />
                         </button>
                       </TooltipTrigger>
-                      <TooltipContent side="bottom" className="text-xs bg-neutral-800 text-white/80 border-white/10">
+                      <TooltipContent
+                        side="bottom"
+                        className="text-xs bg-neutral-800 text-white/80 border-white/10"
+                      >
                         Use as reference
                       </TooltipContent>
                     </Tooltip>
@@ -804,13 +915,17 @@ export function ImageGeneratorAdvanced({
                           onClick={(e) => {
                             e.stopPropagation();
                             setPrompt(image.prompt);
+                            scrollToTop();
                           }}
                           className="p-2 rounded-lg bg-black/70 hover:bg-white/10 border border-white/20 transition-colors"
                         >
                           <Copy className="h-4 w-4 text-white" />
                         </button>
                       </TooltipTrigger>
-                      <TooltipContent side="bottom" className="text-xs bg-neutral-800 text-white/80 border-white/10">
+                      <TooltipContent
+                        side="bottom"
+                        className="text-xs bg-neutral-800 text-white/80 border-white/10"
+                      >
                         Use this prompt
                       </TooltipContent>
                     </Tooltip>
@@ -842,15 +957,15 @@ export function ImageGeneratorAdvanced({
                 </div>
               </div>
             </BrandCard>
-          )
-        )}
+          ))}
       </div>
 
       {/* Explore Image Detail Modal */}
       <Dialog
         open={!!uiState.selectedExploreImage}
         onOpenChange={(open) => {
-          if (!open) setUiState((prev) => ({ ...prev, selectedExploreImage: null }));
+          if (!open)
+            setUiState((prev) => ({ ...prev, selectedExploreImage: null }));
         }}
       >
         <DialogContent
@@ -863,7 +978,12 @@ export function ImageGeneratorAdvanced({
               {/* Close button */}
               <button
                 type="button"
-                onClick={() => setUiState((prev) => ({ ...prev, selectedExploreImage: null }))}
+                onClick={() =>
+                  setUiState((prev) => ({
+                    ...prev,
+                    selectedExploreImage: null,
+                  }))
+                }
                 className="absolute top-4 right-4 z-10 p-2 rounded-md bg-white/5 hover:bg-white/10 transition-colors"
               >
                 <X className="h-5 w-5 text-white" />
@@ -884,7 +1004,9 @@ export function ImageGeneratorAdvanced({
               <div className="flex-1 p-8 space-y-6">
                 {/* Prompt Section */}
                 <div className="space-y-3">
-                  <label className="text-xs text-white/50 uppercase tracking-wide">Prompt</label>
+                  <label className="text-xs text-white/50 uppercase tracking-wide">
+                    Prompt
+                  </label>
                   <p className="text-base text-white leading-relaxed">
                     {uiState.selectedExploreImage.prompt}
                   </p>
@@ -898,15 +1020,24 @@ export function ImageGeneratorAdvanced({
                       <button
                         type="button"
                         onClick={() => {
-                          setSourceImage(uiState.selectedExploreImage?.url ?? "");
-                          setUiState((prev) => ({ ...prev, selectedExploreImage: null }));
+                          setSourceImage(
+                            uiState.selectedExploreImage?.url ?? ""
+                          );
+                          setUiState((prev) => ({
+                            ...prev,
+                            selectedExploreImage: null,
+                          }));
+                          scrollToTop();
                         }}
                         className="p-2.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 transition-colors"
                       >
                         <RefreshCw className="h-4 w-4 text-white" />
                       </button>
                     </TooltipTrigger>
-                    <TooltipContent side="bottom" className="text-xs bg-neutral-800 text-white/80 border-white/10">
+                    <TooltipContent
+                      side="bottom"
+                      className="text-xs bg-neutral-800 text-white/80 border-white/10"
+                    >
                       Use as reference
                     </TooltipContent>
                   </Tooltip>
@@ -918,14 +1049,21 @@ export function ImageGeneratorAdvanced({
                         type="button"
                         onClick={() => {
                           setPrompt(uiState.selectedExploreImage?.prompt ?? "");
-                          setUiState((prev) => ({ ...prev, selectedExploreImage: null }));
+                          setUiState((prev) => ({
+                            ...prev,
+                            selectedExploreImage: null,
+                          }));
+                          scrollToTop();
                         }}
                         className="p-2.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 transition-colors"
                       >
                         <Copy className="h-4 w-4 text-white" />
                       </button>
                     </TooltipTrigger>
-                    <TooltipContent side="bottom" className="text-xs bg-neutral-800 text-white/80 border-white/10">
+                    <TooltipContent
+                      side="bottom"
+                      className="text-xs bg-neutral-800 text-white/80 border-white/10"
+                    >
                       Use this prompt
                     </TooltipContent>
                   </Tooltip>
@@ -936,20 +1074,30 @@ export function ImageGeneratorAdvanced({
                   {/* Model */}
                   {uiState.selectedExploreImage.model && (
                     <div className="space-y-1">
-                      <label className="text-xs text-white/50 uppercase tracking-wide">Model</label>
-                      <p className="text-sm text-white">{uiState.selectedExploreImage.model}</p>
+                      <label className="text-xs text-white/50 uppercase tracking-wide">
+                        Model
+                      </label>
+                      <p className="text-sm text-white">
+                        {uiState.selectedExploreImage.model}
+                      </p>
                     </div>
                   )}
 
                   {/* Aspect Ratio */}
                   {uiState.selectedExploreImage.dimensions && (
                     <div className="space-y-1">
-                      <label className="text-xs text-white/50 uppercase tracking-wide">Aspect Ratio</label>
+                      <label className="text-xs text-white/50 uppercase tracking-wide">
+                        Aspect Ratio
+                      </label>
                       <p className="text-sm text-white">
                         {(() => {
-                          const w = uiState.selectedExploreImage.dimensions?.width ?? 1;
-                          const h = uiState.selectedExploreImage.dimensions?.height ?? 1;
-                          const gcd = (a: number, b: number): number => b === 0 ? a : gcd(b, a % b);
+                          const w =
+                            uiState.selectedExploreImage.dimensions?.width ?? 1;
+                          const h =
+                            uiState.selectedExploreImage.dimensions?.height ??
+                            1;
+                          const gcd = (a: number, b: number): number =>
+                            b === 0 ? a : gcd(b, a % b);
                           const d = gcd(w, h);
                           return `${w / d}:${h / d}`;
                         })()}
@@ -960,9 +1108,12 @@ export function ImageGeneratorAdvanced({
                   {/* Resolution */}
                   {uiState.selectedExploreImage.dimensions && (
                     <div className="space-y-1">
-                      <label className="text-xs text-white/50 uppercase tracking-wide">Resolution</label>
+                      <label className="text-xs text-white/50 uppercase tracking-wide">
+                        Resolution
+                      </label>
                       <p className="text-sm text-white">
-                        {uiState.selectedExploreImage.dimensions.width}×{uiState.selectedExploreImage.dimensions.height}
+                        {uiState.selectedExploreImage.dimensions.width}×
+                        {uiState.selectedExploreImage.dimensions.height}
                       </p>
                     </div>
                   )}
@@ -970,9 +1121,13 @@ export function ImageGeneratorAdvanced({
                   {/* File Type */}
                   {uiState.selectedExploreImage.mimeType && (
                     <div className="space-y-1">
-                      <label className="text-xs text-white/50 uppercase tracking-wide">File Type</label>
+                      <label className="text-xs text-white/50 uppercase tracking-wide">
+                        File Type
+                      </label>
                       <p className="text-sm text-white">
-                        {uiState.selectedExploreImage.mimeType.split("/")[1]?.toUpperCase()}
+                        {uiState.selectedExploreImage.mimeType
+                          .split("/")[1]
+                          ?.toUpperCase()}
                       </p>
                     </div>
                   )}
@@ -1107,7 +1262,7 @@ export function ImageGeneratorAdvanced({
                         onClick={() =>
                           handleDownload(
                             imageState.currentImages[imageState.currentIndex] ??
-                              imageState.currentImage!,
+                              imageState.currentImage!
                           )
                         }
                       >
