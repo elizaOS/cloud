@@ -82,21 +82,14 @@ export const metadata: Metadata = {
     siteName: "elizaOS Platform",
     type: "website",
     locale: "en_US",
-    images: [
-      {
-        url: "/og-image.png",
-        width: 1200,
-        height: 630,
-        alt: "elizaOS Platform",
-      },
-    ],
+    // Images handled automatically via opengraph-image.png file convention
   },
   twitter: {
     card: "summary_large_image",
     title: "elizaOS Platform",
     description:
       "Complete AI agent development platform with inference, hosting, storage, and rapid deployment",
-    images: ["/og-image.png"],
+    // Images handled automatically via twitter-image.png file convention
     creator: "@elizaos",
     site: "@elizaos",
   },
