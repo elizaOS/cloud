@@ -71,11 +71,25 @@ export async function GET(
     });
 
     // Enhance with container status snapshots
+    // Status logic:
+    // - is_successful: true → "success"
+    // - is_successful: false && error_message → "failed"
+    // - is_successful: false && no error_message → "pending" (deployment in progress)
     const enhancedHistory = containerDeployments.map((deployment) => {
       const metadata = (deployment.metadata as DeploymentMetadata | null) ?? {};
+
+      let status: "success" | "failed" | "pending";
+      if (deployment.is_successful) {
+        status = "success";
+      } else if (deployment.error_message) {
+        status = "failed";
+      } else {
+        status = "pending";
+      }
+
       return {
         id: deployment.id,
-        status: deployment.is_successful ? "success" : "failed",
+        status,
         cost: deployment.input_cost,
         error: deployment.error_message,
         metadata: {
