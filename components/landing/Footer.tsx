@@ -223,6 +223,12 @@ export default function Footer() {
                 Docs
               </a>
               <a
+                href="/blog"
+                className="text-base text-white transition-colors hover:text-[#FF5800]"
+              >
+                Blog
+              </a>
+              <a
                 href="/privacy-policy"
                 className="text-base text-white transition-colors hover:text-[#FF5800]"
               >
