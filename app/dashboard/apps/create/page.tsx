@@ -491,8 +491,10 @@ export default function AppCreatorPage() {
         throw new Error("Failed to extend session");
       }
 
-      const newExpiresAt = new Date(Date.now() + 900000);
-      setExpiresAt(newExpiresAt);
+      const data = await response.json();
+      if (data.expiresAt) {
+        setExpiresAt(new Date(data.expiresAt));
+      }
       addLog("Session extended by 15 minutes", "success");
       toast.success("Session extended", {
         description: "Your session has been extended by 15 minutes.",
