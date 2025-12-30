@@ -89,18 +89,7 @@ async function handlePOST(req: NextRequest) {
     );
   }
 
-  // Validate total batch size
-  const totalSize = files.reduce((sum, f) => sum + f.size, 0);
-  if (totalSize > KNOWLEDGE_CONSTANTS.MAX_BATCH_SIZE) {
-    return NextResponse.json(
-      {
-        error: `Total batch size exceeds ${KNOWLEDGE_CONSTANTS.MAX_BATCH_SIZE / (1024 * 1024)}MB limit`,
-      },
-      { status: 400 },
-    );
-  }
-
-  // Validate each file
+  // Validate each file first (type checks must happen before batch size calculation)
   for (const file of files) {
     if (!file.blobUrl || !isValidBlobUrl(file.blobUrl)) {
       return NextResponse.json(
@@ -157,6 +146,17 @@ async function handlePOST(req: NextRequest) {
         { status: 400 },
       );
     }
+  }
+
+  // Validate total batch size (after type validation ensures all sizes are numbers)
+  const totalSize = files.reduce((sum, f) => sum + f.size, 0);
+  if (totalSize > KNOWLEDGE_CONSTANTS.MAX_BATCH_SIZE) {
+    return NextResponse.json(
+      {
+        error: `Total batch size exceeds ${KNOWLEDGE_CONSTANTS.MAX_BATCH_SIZE / (1024 * 1024)}MB limit`,
+      },
+      { status: 400 },
+    );
   }
 
   // Build user context
