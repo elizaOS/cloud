@@ -593,7 +593,7 @@ async function initiateCloudFormationStack(
 
   // Get container to check if this is an update
   const container = await getContainer(containerId, organizationId);
-  const isUpdate = container?.is_update === "true";
+  const isUpdateInDb = container?.is_update === "true";
 
   const stackConfig = {
     userId: organizationId,
@@ -608,10 +608,36 @@ async function initiateCloudFormationStack(
     environmentVars: environmentVars,
   };
 
-  // Create or update CloudFormation stack
+  // Check if CloudFormation stack actually exists before deciding to update
+  // A container record might exist with is_update=true, but the stack could have been
+  // deleted/rolled back from a previous failed deployment
+  let stackActuallyExists = false;
+  if (isUpdateInDb) {
+    try {
+      const existingStack = await cloudFormationService.getStack(
+        organizationId,
+        config.project_name,
+      );
+      stackActuallyExists = existingStack !== null;
+      if (!stackActuallyExists) {
+        logger.info(
+          `Container ${containerId} marked as update, but CloudFormation stack does not exist. Creating new stack instead.`,
+        );
+      }
+    } catch (error) {
+      // If we can't check, assume stack doesn't exist and create new
+      logger.warn(
+        `Failed to check if stack exists for ${containerId}, will create new:`,
+        error,
+      );
+      stackActuallyExists = false;
+    }
+  }
+
+  // Create or update CloudFormation stack based on actual stack existence
   // This API call is FAST (milliseconds) - it just initiates the stack
   let stackId: string;
-  if (isUpdate) {
+  if (isUpdateInDb && stackActuallyExists) {
     stackId = await cloudFormationService.updateUserStack(stackConfig);
   } else {
     stackId = await cloudFormationService.createUserStack(stackConfig);
