@@ -32,7 +32,6 @@ import { usePrivy } from "@privy-io/react-auth";
 import { createDefaultCharacter } from "@/lib/utils/character-names";
 import { useRouter } from "next/navigation";
 import type { PreUploadedFile } from "@/lib/types/knowledge";
-import { markKnowledgeProcessingPending } from "@/components/chat/hooks/use-knowledge-processing-status";
 
 interface CharacterBuildModeProps {
   initialCharacters: ElizaCharacter[];
@@ -180,58 +179,41 @@ export function CharacterBuildMode({
         // Update existing character
         await updateCharacter(character.id, character);
 
-        // Handle any pending pre-uploaded files (can happen after failed queueing on create)
+        // Process any pending pre-uploaded files
         if (preUploadedFiles.length > 0) {
-          // Capture file IDs before async operation to only clear these specific files
-          // This preserves any files added during the fetch request
-          const filesToQueue = preUploadedFiles;
-          const queuedFileIds = new Set(filesToQueue.map((f) => f.id));
+          const filesToProcess = preUploadedFiles;
+          const processedFileIds = new Set(filesToProcess.map((f) => f.id));
 
-          let fileQueuingSucceeded = true;
-          try {
-            const queueResponse = await fetch("/api/v1/knowledge/submit", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              credentials: "include",
-              body: JSON.stringify({
-                characterId: character.id,
-                files: filesToQueue.map((f) => ({
-                  blobUrl: f.blobUrl,
-                  filename: f.filename,
-                  contentType: f.contentType,
-                  size: f.size,
-                })),
-              }),
+          const response = await fetch("/api/v1/knowledge/submit", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({
+              characterId: character.id,
+              files: filesToProcess.map((f) => ({
+                blobUrl: f.blobUrl,
+                filename: f.filename,
+                contentType: f.contentType,
+                size: f.size,
+              })),
+            }),
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            setPreUploadedFiles((prev) =>
+              prev.filter((f) => !processedFileIds.has(f.id)),
+            );
+            toast.success("Character updated!", {
+              description: `Processed ${data.successCount} file(s) for RAG knowledge base`,
+              duration: 4000,
             });
-
-            if (queueResponse.ok) {
-              markKnowledgeProcessingPending(character.id);
-              // Only remove the files that were queued, preserve any newly added files
-              setPreUploadedFiles((prev) =>
-                prev.filter((f) => !queuedFileIds.has(f.id)),
-              );
-              toast.success("Character updated!", {
-                description: `Processing ${filesToQueue.length} file(s) for RAG knowledge base...`,
-                duration: 4000,
-              });
-              fetch("/api/v1/knowledge/process-queue", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                credentials: "include",
-              }).catch(() => {});
-            } else {
-              fileQueuingSucceeded = false;
-            }
-          } catch {
-            fileQueuingSucceeded = false;
-          }
-
-          if (!fileQueuingSucceeded) {
-            toast.warning("Character updated, but file queueing failed", {
-              description: "You can retry by clicking Save again.",
+          } else {
+            const data = await response.json().catch(() => ({}));
+            toast.warning("Character updated, but file processing failed", {
+              description: data.error || "You can retry by clicking Save again.",
               duration: 6000,
             });
-            // Character was saved - mark as such, even though files failed
             onUnsavedChanges?.(false);
             return;
           }
@@ -245,75 +227,45 @@ export function CharacterBuildMode({
         const saved = await createCharacter(character);
 
         if (saved.id) {
-          // Track if file queueing succeeds (only relevant if we have files)
-          let fileQueuingSucceeded = true;
+          // Capture files to process
+          const filesToProcess = preUploadedFiles;
 
-          // Capture files to queue BEFORE any async operations
-          // Used later to determine which toast to show (state updates are async)
-          const filesToQueue = preUploadedFiles;
-          const queuedFileIds = new Set(filesToQueue.map((f) => f.id));
+          // If we have files, store them in sessionStorage for the chat page to process
+          // This allows us to redirect immediately and process files in the background
+          if (filesToProcess.length > 0) {
+            const pendingKnowledge = {
+              characterId: saved.id,
+              characterName: saved.name,
+              files: filesToProcess.map((f) => ({
+                blobUrl: f.blobUrl,
+                filename: f.filename,
+                contentType: f.contentType,
+                size: f.size,
+              })),
+              createdAt: Date.now(),
+            };
+            sessionStorage.setItem(
+              `pendingKnowledge_${saved.id}`,
+              JSON.stringify(pendingKnowledge),
+            );
 
-          // Queue pre-uploaded files for background processing
-          if (filesToQueue.length > 0) {
-            try {
-              const queueResponse = await fetch("/api/v1/knowledge/submit", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                credentials: "include",
-                body: JSON.stringify({
-                  characterId: saved.id,
-                  files: filesToQueue.map((f) => ({
-                    blobUrl: f.blobUrl,
-                    filename: f.filename,
-                    contentType: f.contentType,
-                    size: f.size,
-                  })),
-                }),
-              });
-
-              if (queueResponse.ok) {
-                markKnowledgeProcessingPending(saved.id);
-                // Only remove the files that were queued, preserve any newly added files
-                setPreUploadedFiles((prev) =>
-                  prev.filter((f) => !queuedFileIds.has(f.id)),
-                );
-
-                toast.success("Character created!", {
-                  description: `Processing ${filesToQueue.length} file(s) for RAG knowledge base in background...`,
-                  duration: 4000,
-                });
-
-                // Trigger processing in background (fire and forget)
-                fetch("/api/v1/knowledge/process-queue", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  credentials: "include",
-                }).catch(() => {});
-              } else {
-                fileQueuingSucceeded = false;
-              }
-            } catch {
-              fileQueuingSucceeded = false;
-            }
-
-            // If queueing failed, notify user but still navigate to chat
-            // Character was created successfully - files can be uploaded from Files tab
-            if (!fileQueuingSucceeded) {
-              toast.warning("Character created! File queueing failed", {
-                description: "You can upload files from the Files tab in chat.",
-                duration: 6000,
-              });
-              // Clear only the files we attempted to queue, preserve any newly added files
-              setPreUploadedFiles((prev) =>
-                prev.filter((f) => !queuedFileIds.has(f.id)),
-              );
-            }
+            toast.success("Character created!", {
+              description: `${filesToProcess.length} file(s) will be processed in the background`,
+              duration: 4000,
+            });
+          } else {
+            toast.success("Character created! Redirecting to chat...", {
+              duration: 2000,
+            });
           }
 
-          // Lock the builder room if we have one
+          // Clear pre-uploaded files state
+          setPreUploadedFiles([]);
+
+          // Lock the builder room if we have one (fire and forget)
           const roomId = builderRoomIdRef.current;
           if (roomId) {
-            await fetch(`/api/eliza/rooms/${roomId}`, {
+            fetch(`/api/eliza/rooms/${roomId}`, {
               method: "PATCH",
               headers: { "Content-Type": "application/json" },
               credentials: "include",
@@ -325,15 +277,7 @@ export function CharacterBuildMode({
                   lockedAt: Date.now(),
                 },
               }),
-            });
-          }
-
-          // Only show redirect toast if no files were queued (avoids duplicate success toasts)
-          // Use filesToQueue.length instead of preUploadedFiles.length since state updates are async
-          if (filesToQueue.length === 0) {
-            toast.success("Character created! Redirecting to chat...", {
-              duration: 2000,
-            });
+            }).catch(() => {});
           }
 
           // Mark changes as saved after successful creation
@@ -345,7 +289,6 @@ export function CharacterBuildMode({
           // Use pendingNavigation pattern to defer navigation until state is committed
           setPendingNavigation(saved.id);
         } else {
-          // createCharacter returned without an id - treat as failure
           throw new Error("Character creation failed: no ID returned");
         }
       }

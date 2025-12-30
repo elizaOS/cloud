@@ -61,8 +61,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ADDITIONAL_MODELS } from "@/lib/models";
 import { usePrivy } from "@privy-io/react-auth";
-import { useKnowledgeProcessingStatus } from "@/components/chat/hooks/use-knowledge-processing-status";
 import { ContentType, type Media } from "@elizaos/core";
+import { PendingKnowledgeProcessor } from "./pending-knowledge-processor";
 
 interface Message {
   id: string;
@@ -326,9 +326,6 @@ export function ElizaChatInterface({
     setTier,
     isLoading: isLoadingModels,
   } = useModelTier();
-
-  // Poll knowledge processing status and show toast when complete
-  useKnowledgeProcessingStatus(selectedCharacterId || null);
 
   const loadMessages = useCallback(
     async (targetRoomId: string, skipLoadingState = false) => {
@@ -1174,6 +1171,9 @@ export function ElizaChatInterface({
     <div className="flex h-full w-full min-h-0 justify-center">
       {/* Main Chat Area - Centered with max width for readability */}
       <div className="flex flex-col flex-1 min-h-0 max-w-7xl w-full px-4 sm:px-6 lg:px-8">
+        {/* Pending Knowledge Processing Banner */}
+        <PendingKnowledgeProcessor characterId={selectedCharacterId} />
+
         {/* Messages Area - No Header */}
         <div className="flex-1 min-h-0 overflow-hidden">
           <ScrollArea className="h-full py-6 px-2" ref={scrollAreaRef}>

@@ -5,10 +5,8 @@
 
 export const KNOWLEDGE_CONSTANTS = {
   MAX_FILES_PER_REQUEST: 10,
-  MAX_FILE_SIZE: 50 * 1024 * 1024, // 50MB
-  STALE_JOB_THRESHOLD_MS: 10 * 60 * 1000, // 10 minutes
-  MAX_ATTEMPTS: 3,
-  POLLING_INTERVAL_MS: 3000,
+  MAX_FILE_SIZE: 5 * 1024 * 1024, // 5MB per file
+  MAX_BATCH_SIZE: 5 * 1024 * 1024, // 5MB total per batch
 } as const;
 
 export const ALLOWED_EXTENSIONS = [

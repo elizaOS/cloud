@@ -13,10 +13,6 @@ import {
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import type { KnowledgeDocument, PreUploadedFile } from "@/lib/types/knowledge";
-import {
-  useKnowledgeProcessingStatus,
-  markKnowledgeProcessingPending,
-} from "./hooks/use-knowledge-processing-status";
 
 interface UploadsTabProps {
   characterId: string | null;
@@ -54,15 +50,6 @@ export function UploadsTab({
     setLoading(false);
   }, [characterId]);
 
-  // Subscribe to real-time knowledge processing updates via SSE
-  const { startMonitoring } = useKnowledgeProcessingStatus(
-    characterId,
-    {
-      onComplete: fetchDocuments,
-      enabled: !!characterId,
-    },
-  );
-
   useEffect(() => {
     if (characterId) {
       // Schedule fetch to avoid synchronous setState in effect
@@ -73,30 +60,31 @@ export function UploadsTab({
     }
   }, [characterId, fetchDocuments]);
 
-  const MAX_TOTAL_SIZE = 10 * 1024 * 1024; // 10MB limit
+  const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB per file
+  const MAX_BATCH_SIZE = 5 * 1024 * 1024; // 5MB total per batch
 
   const handleUpload = async (files: File[]) => {
     if (files.length === 0) return;
 
-    // Validate total file size before upload (Next.js has 10MB body limit)
-    const totalSize = files.reduce((sum, file) => sum + file.size, 0);
-    if (totalSize > MAX_TOTAL_SIZE) {
-      const totalMB = (totalSize / (1024 * 1024)).toFixed(1);
-      toast.error("Files too large", {
-        description: `Total size (${totalMB}MB) exceeds 10MB limit. Please upload smaller files or fewer files at once.`,
-      });
-      return;
-    }
-
-    // Check individual file sizes for better error messages
+    // Check individual file sizes first for better error messages
     for (const file of files) {
-      if (file.size > MAX_TOTAL_SIZE) {
+      if (file.size > MAX_FILE_SIZE) {
         const fileMB = (file.size / (1024 * 1024)).toFixed(1);
         toast.error("File too large", {
-          description: `"${file.name}" (${fileMB}MB) exceeds 10MB limit.`,
+          description: `"${file.name}" (${fileMB}MB) exceeds 5MB limit.`,
         });
         return;
       }
+    }
+
+    // Validate total batch size
+    const totalSize = files.reduce((sum, file) => sum + file.size, 0);
+    if (totalSize > MAX_BATCH_SIZE) {
+      const totalMB = (totalSize / (1024 * 1024)).toFixed(1);
+      toast.error("Batch too large", {
+        description: `Total size (${totalMB}MB) exceeds 5MB limit. Upload fewer files at once.`,
+      });
+      return;
     }
 
     // Validate pre-upload mode requirements BEFORE entering tracked upload state
@@ -167,20 +155,10 @@ export function UploadsTab({
 
       if (response.ok) {
         const data = await response.json();
-
-        // If processing is queued (async), start SSE monitoring
-        if (data.queued) {
-          markKnowledgeProcessingPending(characterId);
-          startMonitoring();
-          toast.success("Processing your files", {
-            description: "We'll notify you when processing is complete",
-          });
-        } else {
-          toast.success("Files uploaded successfully", {
-            description: `${data.successCount} file(s) processed and ready to use`,
-          });
-          fetchDocuments();
-        }
+        toast.success("Files uploaded successfully", {
+          description: `${data.successCount} file(s) processed and ready to use`,
+        });
+        fetchDocuments();
 
         setSelectedFiles([]);
         const fileInput = document.getElementById(
