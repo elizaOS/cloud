@@ -119,11 +119,18 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     });
     const message =
       error instanceof Error ? error.message : "Authentication failed";
-    const status = message.includes("Unauthorized")
-      ? 403
-      : message.includes("not found")
-        ? 404
-        : 401;
+
+    let status = 500;
+    if (message.includes("Authentication") || message.includes("Unauthorized")) {
+      status = 401;
+    } else if (message.includes("Access denied") || message.includes("Forbidden")) {
+      status = 403;
+    } else if (message.includes("not found") || message.includes("not ready")) {
+      status = 404;
+    } else if (message.includes("Rate limit")) {
+      status = 429;
+    }
+
     return new Response(
       JSON.stringify({
         success: false,

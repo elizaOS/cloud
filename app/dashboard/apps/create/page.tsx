@@ -3,6 +3,40 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+
+async function fetchWithRetry(
+  url: string,
+  options: RequestInit = {},
+  maxRetries = 1,
+): Promise<Response> {
+  const fetchOptions: RequestInit = {
+    ...options,
+    credentials: "include",
+  };
+
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const response = await fetch(url, fetchOptions);
+
+      if (response.status === 401 && attempt < maxRetries) {
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        continue;
+      }
+
+      return response;
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      if (attempt < maxRetries) {
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        continue;
+      }
+    }
+  }
+
+  throw lastError || new Error("Request failed after retries");
+}
 import {
   Loader2,
   Send,
@@ -234,7 +268,7 @@ export default function AppCreatorPage() {
     const initialize = async () => {
       if (sessionIdFromUrl) {
         try {
-          const response = await fetch(
+          const response = await fetchWithRetry(
             `/api/v1/app-builder/sessions/${sessionIdFromUrl}`,
           );
 
@@ -264,7 +298,7 @@ export default function AppCreatorPage() {
               }
 
               if (appIdFromUrl) {
-                const appResponse = await fetch(`/api/v1/apps/${appIdFromUrl}`);
+                const appResponse = await fetchWithRetry(`/api/v1/apps/${appIdFromUrl}`);
                 if (appResponse.ok) {
                   const appData = await appResponse.json();
                   if (appData.success && appData.app) {
@@ -310,7 +344,7 @@ export default function AppCreatorPage() {
 
     const fetchAppDataAndSession = async () => {
       try {
-        const appResponse = await fetch(`/api/v1/apps/${appIdFromUrl}`);
+        const appResponse = await fetchWithRetry(`/api/v1/apps/${appIdFromUrl}`);
         if (!appResponse.ok) {
           toast.error("App not found");
           router.push("/dashboard/apps");
@@ -325,7 +359,7 @@ export default function AppCreatorPage() {
           setIncludeMonetization(appData.app.monetization_enabled || false);
         }
 
-        const sessionResponse = await fetch(
+        const sessionResponse = await fetchWithRetry(
           `/api/v1/app-builder?appId=${appIdFromUrl}&limit=1&includeInactive=false`,
         );
 
@@ -444,7 +478,7 @@ export default function AppCreatorPage() {
 
     setIsExtending(true);
     try {
-      const response = await fetch(
+      const response = await fetchWithRetry(
         `/api/v1/app-builder/sessions/${session.id}`,
         {
           method: "PATCH",
@@ -474,7 +508,7 @@ export default function AppCreatorPage() {
   const checkSnapshots = useCallback(async () => {
     if (!session) return;
     try {
-      const response = await fetch(
+      const response = await fetchWithRetry(
         `/api/v1/app-builder/sessions/${session.id}/snapshots`,
       );
       if (response.ok) {
@@ -503,7 +537,7 @@ export default function AppCreatorPage() {
     addLog("Restoring session with saved files...", "info");
 
     try {
-      const response = await fetch(
+      const response = await fetchWithRetry(
         `/api/v1/app-builder/sessions/${session.id}/resume/stream`,
         { method: "POST" },
       );
@@ -609,7 +643,7 @@ export default function AppCreatorPage() {
       if (isCancelled) return;
 
       try {
-        const res = await fetch(
+        const res = await fetchWithRetry(
           `/api/v1/app-builder/sessions/${session.id}/logs?tail=100`,
         );
 
@@ -665,7 +699,7 @@ export default function AppCreatorPage() {
       : undefined;
 
     try {
-      const response = await fetch("/api/v1/app-builder/stream", {
+      const response = await fetchWithRetry("/api/v1/app-builder/stream", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1008,7 +1042,7 @@ Some ideas:
       ]);
 
       try {
-        const response = await fetch(
+        const response = await fetchWithRetry(
           `/api/v1/app-builder/sessions/${session.id}/prompts/stream`,
           {
             method: "POST",
@@ -1215,7 +1249,7 @@ Some ideas:
     if (!session) return;
 
     try {
-      await fetch(`/api/v1/app-builder/sessions/${session.id}`, {
+      await fetchWithRetry(`/api/v1/app-builder/sessions/${session.id}`, {
         method: "DELETE",
       });
       setSession(null);
