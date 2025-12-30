@@ -14,14 +14,29 @@ import {
 } from "@/lib/pricing";
 import { logger } from "@/lib/utils/logger";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
+import {
+  validateOrigin,
+  addCorsHeaders,
+  createPreflightResponse,
+} from "@/lib/middleware/cors-apps";
 import type { NextRequest } from "next/server";
 import type {
   OpenAIChatRequest,
   OpenAIChatResponse,
   OpenAIChatMessage,
 } from "@/lib/providers/types";
+import { NextResponse } from "next/server";
 
 export const maxDuration = 60;
+
+/**
+ * OPTIONS /api/v1/chat/completions
+ * CORS preflight handler for chat completions endpoint.
+ */
+export async function OPTIONS(request: NextRequest) {
+  const origin = request.headers.get("origin");
+  return createPreflightResponse(origin, ["POST", "OPTIONS"]);
+}
 
 /**
  * POST /api/v1/chat/completions
@@ -33,8 +48,38 @@ export const maxDuration = 60;
  */
 async function handlePOST(req: NextRequest) {
   const startTime = Date.now();
+  const origin = req.headers.get("origin");
+
+  // Helper to add CORS headers to any response
+  const withCors = (response: Response | NextResponse): Response => {
+    const headers = new Headers(response.headers);
+    if (origin) {
+      headers.set("Access-Control-Allow-Origin", origin);
+      headers.set("Access-Control-Allow-Credentials", "true");
+    }
+    return new Response(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers,
+    });
+  };
 
   try {
+    // Validate CORS for cross-origin requests
+    const corsResult = await validateOrigin(req);
+    if (!corsResult.allowed) {
+      logger.warn("[Chat Completions] CORS validation failed", {
+        origin,
+        allowed: corsResult.allowed,
+      });
+      return withCors(
+        NextResponse.json(
+          { error: { message: "Origin not allowed", type: "cors_error" } },
+          { status: 403 },
+        ),
+      );
+    }
+
     // 1. Authenticate
     const { user, apiKey, session_token } =
       await requireAuthOrApiKeyWithOrg(req);
@@ -263,16 +308,19 @@ async function handlePOST(req: NextRequest) {
         startTime,
         request.messages,
         session_token,
+        origin,
       );
     } else {
-      return handleNonStreamingResponse(
-        providerResponse,
-        user,
-        apiKey ?? null,
-        normalizedModel,
-        provider,
-        startTime,
-        session_token,
+      return withCors(
+        await handleNonStreamingResponse(
+          providerResponse,
+          user,
+          apiKey ?? null,
+          normalizedModel,
+          provider,
+          startTime,
+          session_token,
+        ),
       );
     }
   } catch (error) {
@@ -293,24 +341,28 @@ async function handlePOST(req: NextRequest) {
       const status = (error as { status: unknown }).status;
       if (typeof status === "number") {
         const gatewayError = error as GatewayError;
-        return Response.json(
-          { error: gatewayError.error },
-          { status: gatewayError.status },
+        return withCors(
+          Response.json(
+            { error: gatewayError.error },
+            { status: gatewayError.status },
+          ),
         );
       }
     }
 
     // Fallback to generic error
-    return Response.json(
-      {
-        error: {
-          message:
-            error instanceof Error ? error.message : "Internal server error",
-          type: "api_error",
-          code: "internal_server_error",
+    return withCors(
+      Response.json(
+        {
+          error: {
+            message:
+              error instanceof Error ? error.message : "Internal server error",
+            type: "api_error",
+            code: "internal_server_error",
+          },
         },
-      },
-      { status: 500 },
+        { status: 500 },
+      ),
     );
   }
 }
@@ -443,6 +495,7 @@ function handleStreamingResponse(
   startTime: number,
   messages: Array<{ role: string; content: string | object }>,
   session_token?: string,
+  origin?: string | null,
 ) {
   let totalTokens = 0;
   let inputTokens = 0;
@@ -641,14 +694,19 @@ function handleStreamingResponse(
     }
   })();
 
-  // Return streaming response immediately
-  return new Response(readable, {
-    headers: {
-      "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache",
-      Connection: "keep-alive",
-    },
-  });
+  // Return streaming response immediately with CORS headers
+  const headers: Record<string, string> = {
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache",
+    Connection: "keep-alive",
+  };
+
+  if (origin) {
+    headers["Access-Control-Allow-Origin"] = origin;
+    headers["Access-Control-Allow-Credentials"] = "true";
+  }
+
+  return new Response(readable, { headers });
 }
 
 export const POST = withRateLimit(handlePOST, RateLimitPresets.STRICT);

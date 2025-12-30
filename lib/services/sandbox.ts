@@ -11,6 +11,7 @@ import {
 import { eq, and, desc } from "drizzle-orm";
 
 const ELIZA_SDK_FILE = `const apiKey = process.env.NEXT_PUBLIC_ELIZA_API_KEY || '';
+const apiBase = process.env.NEXT_PUBLIC_ELIZA_API_URL || 'https://eliza.gg';
 
 interface ChatMessage {
   role: string;
@@ -18,7 +19,7 @@ interface ChatMessage {
 }
 
 export async function chat(messages: ChatMessage[], model = 'gpt-4o') {
-  const res = await fetch('/api/v1/chat/completions', {
+  const res = await fetch(\`\${apiBase}/api/v1/chat/completions\`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'X-Api-Key': apiKey },
     body: JSON.stringify({ messages, model }),
@@ -28,7 +29,7 @@ export async function chat(messages: ChatMessage[], model = 'gpt-4o') {
 }
 
 export async function* chatStream(messages: ChatMessage[], model = 'gpt-4o') {
-  const res = await fetch('/api/v1/chat/completions', {
+  const res = await fetch(\`\${apiBase}/api/v1/chat/completions\`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'X-Api-Key': apiKey },
     body: JSON.stringify({ messages, model, stream: true }),
@@ -47,7 +48,7 @@ export async function* chatStream(messages: ChatMessage[], model = 'gpt-4o') {
 }
 
 export async function generateImage(prompt: string, options?: { model?: string; width?: number; height?: number }) {
-  const res = await fetch('/api/v1/generate-image', {
+  const res = await fetch(\`\${apiBase}/api/v1/generate-image\`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'X-Api-Key': apiKey },
     body: JSON.stringify({ prompt, ...options }),
@@ -58,7 +59,7 @@ export async function generateImage(prompt: string, options?: { model?: string; 
 export async function uploadFile(file: File | Blob, filename: string) {
   const formData = new FormData();
   formData.append('file', file, filename);
-  const res = await fetch('/api/v1/storage/upload', {
+  const res = await fetch(\`\${apiBase}/api/v1/storage/upload\`, {
     method: 'POST',
     headers: { 'X-Api-Key': apiKey },
     body: formData,
@@ -67,21 +68,21 @@ export async function uploadFile(file: File | Blob, filename: string) {
 }
 
 export async function getBalance() {
-  const res = await fetch('/api/v1/credits/balance', {
+  const res = await fetch(\`\${apiBase}/api/v1/credits/balance\`, {
     headers: { 'X-Api-Key': apiKey },
   });
   return res.json() as Promise<{ balance: number }>;
 }
 
 export async function listAgents() {
-  const res = await fetch('/api/v1/agents', {
+  const res = await fetch(\`\${apiBase}/api/v1/agents\`, {
     headers: { 'X-Api-Key': apiKey },
   });
   return res.json() as Promise<{ agents: Array<{ id: string; name: string; bio: string }> }>;
 }
 
 export async function chatWithAgent(agentId: string, message: string, roomId?: string) {
-  const res = await fetch('/api/v1/agents/chat', {
+  const res = await fetch(\`\${apiBase}/api/v1/agents/chat\`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'X-Api-Key': apiKey },
     body: JSON.stringify({ agentId, message, roomId }),

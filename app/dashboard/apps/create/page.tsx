@@ -1498,13 +1498,35 @@ ANTHROPIC_API_KEY=your_key_here`}
 
             <div className="grid gap-6 md:grid-cols-2">
               <div className="space-y-2">
-                <Label className="text-white/70">App Name</Label>
+                <div className="flex items-center justify-between">
+                  <Label className="text-white/70">App Name</Label>
+                  <span
+                    className={`text-xs ${
+                      appName.length > 100
+                        ? "text-red-400"
+                        : appName.length > 80
+                          ? "text-yellow-400"
+                          : "text-white/40"
+                    }`}
+                  >
+                    {appName.length}/100
+                  </span>
+                </div>
                 <Input
                   value={appName}
                   onChange={(e) => setAppName(e.target.value)}
                   placeholder="My Awesome App"
-                  className="bg-black/40 border-white/20 text-white"
+                  className={`bg-black/40 border-white/20 text-white ${
+                    appName.length > 100 ? "border-red-400/50 focus:border-red-400" : ""
+                  }`}
+                  maxLength={100}
                 />
+                {appName.length > 100 && (
+                  <p className="text-xs text-red-400 flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    Name exceeds 100 character limit
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -1533,13 +1555,34 @@ ANTHROPIC_API_KEY=your_key_here`}
             </div>
 
             <div className="space-y-2">
-              <Label className="text-white/70">Description</Label>
+              <div className="flex items-center justify-between">
+                <Label className="text-white/70">Description</Label>
+                <span
+                  className={`text-xs ${
+                    appDescription.length > 500
+                      ? "text-red-400"
+                      : appDescription.length > 400
+                        ? "text-yellow-400"
+                        : "text-white/40"
+                  }`}
+                >
+                  {appDescription.length}/500
+                </span>
+              </div>
               <Textarea
                 value={appDescription}
                 onChange={(e) => setAppDescription(e.target.value)}
                 placeholder="Describe what your app should do..."
-                className="bg-black/40 border-white/20 text-white min-h-[100px]"
+                className={`bg-black/40 border-white/20 text-white min-h-[100px] ${
+                  appDescription.length > 500 ? "border-red-400/50 focus:border-red-400" : ""
+                }`}
               />
+              {appDescription.length > 500 && (
+                <p className="text-xs text-red-400 flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3" />
+                  Description exceeds 500 character limit
+                </p>
+              )}
             </div>
 
             <div className="flex items-center gap-6">
@@ -1566,7 +1609,7 @@ ANTHROPIC_API_KEY=your_key_here`}
               <BrandButton
                 variant="primary"
                 onClick={startSession}
-                disabled={!appName.trim() || isLoading}
+                disabled={!appName.trim() || appName.length > 100 || isLoading || appDescription.length > 500}
               >
                 {isLoading ? (
                   <>

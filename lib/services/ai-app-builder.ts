@@ -148,13 +148,26 @@ export class AIAppBuilderService {
       }
     }
 
+    // Determine API URL for sandbox - localhost won't work from cloud sandboxes
+    let apiUrl = process.env.NEXT_PUBLIC_APP_URL || "https://eliza.gg";
+    if (apiUrl.includes("localhost") || apiUrl.includes("127.0.0.1")) {
+      // Sandboxes run on Vercel's cloud and cannot reach localhost
+      // Use production URL or ELIZA_API_URL env var for development testing
+      apiUrl = process.env.ELIZA_API_URL || "https://eliza.gg";
+      logger.warn(
+        "Sandbox cannot reach localhost - using production API URL for sandbox",
+        { originalUrl: process.env.NEXT_PUBLIC_APP_URL, fallbackUrl: apiUrl },
+      );
+    }
     const sandboxData = await sandboxService.create({
       templateUrl,
       timeout: 30 * 60 * 1000,
       vcpus: 4,
       organizationId,
       projectId: appId,
-      env: appApiKey ? { NEXT_PUBLIC_ELIZA_API_KEY: appApiKey } : undefined,
+      env: appApiKey
+        ? { NEXT_PUBLIC_ELIZA_API_KEY: appApiKey, NEXT_PUBLIC_ELIZA_API_URL: apiUrl }
+        : undefined,
       onProgress,
     });
 
@@ -429,11 +442,19 @@ export class AIAppBuilderService {
 
     options.onProgress?.({ step: "creating", message: "Creating new sandbox..." });
 
+    // Determine API URL for sandbox - localhost won't work from cloud sandboxes
+    let resumeApiUrl = process.env.NEXT_PUBLIC_APP_URL || "https://eliza.gg";
+    if (resumeApiUrl.includes("localhost") || resumeApiUrl.includes("127.0.0.1")) {
+      resumeApiUrl = process.env.ELIZA_API_URL || "https://eliza.gg";
+    }
     const sandboxData = await sandboxService.create({
       organizationId: session.organization_id,
       projectId: session.app_id || undefined,
       env: session.app_id
-        ? { NEXT_PUBLIC_ELIZA_API_KEY: await this.getApiKeyForApp(session.app_id) }
+        ? {
+            NEXT_PUBLIC_ELIZA_API_KEY: await this.getApiKeyForApp(session.app_id),
+            NEXT_PUBLIC_ELIZA_API_URL: resumeApiUrl,
+          }
         : undefined,
       onProgress: options.onProgress,
     });

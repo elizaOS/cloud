@@ -159,17 +159,22 @@ export const FULL_APP_TEMPLATE_PROMPTS: Record<FullAppTemplateType, string> = {
 
 ## Chat App Template
 Build a chat app with:
-- Streaming responses (\`client.chatStream()\`)
+- Streaming responses using \`useChatStream()\` hook
 - Conversation list sidebar
 - Message history persistence
 - Markdown rendering (install react-markdown)
-- Optional image upload to storage
+- Optional image upload using \`uploadFile()\`
 
 Key flow:
 \`\`\`tsx
-const { client } = useEliza(); // API key is pre-configured
-for await (const chunk of client.chatStream(messages)) {
-  // Append to message
+import { useChatStream } from '@/hooks/use-eliza';
+
+const { stream, loading } = useChatStream();
+for await (const chunk of stream(messages)) {
+  const content = chunk.choices?.[0]?.delta?.content;
+  if (content) {
+    // Append content to UI
+  }
 }
 \`\`\`
 `,
@@ -178,15 +183,17 @@ for await (const chunk of client.chatStream(messages)) {
 
 ## Agent Dashboard Template
 Build an agent management dashboard with:
-- Agent cards grid (\`client.listAgents()\`)
-- Agent chat interface (\`client.chatWithAgent()\`)
-- Memory management (\`client.saveMemory()\`, \`client.searchMemories()\`)
-- Usage/billing overview (\`client.getBalance()\`, \`client.getUsage()\`)
+- Agent cards grid using \`listAgents()\`
+- Agent chat interface using \`chatWithAgent()\`
+- Usage/billing overview using \`getBalance()\`
 
 Key flow:
 \`\`\`tsx
-const { agents } = await client.listAgents();
-const { response, roomId } = await client.chatWithAgent(agent.id, message);
+import { listAgents, chatWithAgent, getBalance } from '@/lib/eliza';
+
+const { agents } = await listAgents();
+const { response, roomId } = await chatWithAgent(agent.id, message);
+const { balance } = await getBalance();
 \`\`\`
 `,
 
@@ -207,15 +214,16 @@ No Eliza API needed for static pages. Add API demo section if showcasing capabil
 
 ## Analytics Dashboard Template
 Build an analytics dashboard with:
-- KPI cards (\`client.getUsage()\`, \`client.getBalance()\`)
+- KPI cards using \`getBalance()\`
 - Charts (install recharts): line, bar, pie
 - Date range picker
 - Data table with sorting
 
 Key data sources:
 \`\`\`tsx
-const { usage } = await client.getUsage({ limit: 100 });
-const { balance } = await client.getBalance();
+import { getBalance } from '@/lib/eliza';
+
+const { balance } = await getBalance();
 \`\`\`
 `,
 
@@ -265,7 +273,9 @@ export const MONETIZATION_PROMPT = `
 ## Monetization
 Show credit balance and track usage:
 \`\`\`tsx
-const { balance } = await client.getBalance();
+import { getBalance } from '@/lib/eliza';
+
+const { balance } = await getBalance();
 // Before expensive ops: if (balance < 5) alert('Low credits!');
 
 // Approximate costs:
@@ -275,10 +285,12 @@ const { balance } = await client.getBalance();
 
 export const ANALYTICS_PROMPT = `
 ## Analytics
-Track usage with the built-in API:
+Track credit balance:
 \`\`\`tsx
-const { usage } = await client.getUsage({ limit: 50 });
-// usage: [{ type: 'chat', cost: 0.02, model: 'gpt-4o', createdAt: '...' }]
+import { getBalance } from '@/lib/eliza';
+
+const { balance } = await getBalance();
+// Display balance to users
 \`\`\`
 `;
 
