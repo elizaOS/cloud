@@ -8,11 +8,33 @@ interface RouteParams {
 }
 
 export async function GET(request: NextRequest, { params }: RouteParams) {
-  const { user } = await requireAuthOrApiKeyWithOrg(request);
-  const { sessionId } = await params;
-  const session = await aiAppBuilderService.getSession(sessionId, user.id);
+  try {
+    const { user } = await requireAuthOrApiKeyWithOrg(request);
+    const { sessionId } = await params;
+    const session = await aiAppBuilderService.getSession(sessionId, user.id);
 
-  return NextResponse.json({ success: true, session });
+    if (!session) {
+      return NextResponse.json(
+        { success: false, error: "Session not found" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({ success: true, session });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Failed to get session";
+    const status =
+      message.includes("Unauthorized") || message.includes("Authentication")
+        ? 401
+        : message.includes("Access denied") || message.includes("don't own")
+          ? 403
+          : message.includes("not found")
+            ? 404
+            : 500;
+
+    return NextResponse.json({ success: false, error: message }, { status });
+  }
 }
 
 const ExtendSessionSchema = z.object({
@@ -20,43 +42,73 @@ const ExtendSessionSchema = z.object({
 });
 
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
-  const { user } = await requireAuthOrApiKeyWithOrg(request);
-  const { sessionId } = await params;
+  try {
+    const { user } = await requireAuthOrApiKeyWithOrg(request);
+    const { sessionId } = await params;
 
-  const body = await request.json();
-  const validationResult = ExtendSessionSchema.safeParse(body);
+    const body = await request.json();
+    const validationResult = ExtendSessionSchema.safeParse(body);
 
-  if (!validationResult.success) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Invalid request data",
-        details: validationResult.error.format(),
-      },
-      { status: 400 },
+    if (!validationResult.success) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Invalid request data",
+          details: validationResult.error.format(),
+        },
+        { status: 400 }
+      );
+    }
+
+    await aiAppBuilderService.extendSession(
+      sessionId,
+      user.id,
+      validationResult.data.durationMs
     );
+
+    return NextResponse.json({
+      success: true,
+      message: "Session extended successfully",
+    });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Failed to extend session";
+    const status =
+      message.includes("Unauthorized") || message.includes("Authentication")
+        ? 401
+        : message.includes("Access denied") || message.includes("don't own")
+          ? 403
+          : message.includes("not found")
+            ? 404
+            : 500;
+
+    return NextResponse.json({ success: false, error: message }, { status });
   }
-
-  await aiAppBuilderService.extendSession(
-    sessionId,
-    user.id,
-    validationResult.data.durationMs,
-  );
-
-  return NextResponse.json({
-    success: true,
-    message: "Session extended successfully",
-  });
 }
 
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
-  const { user } = await requireAuthOrApiKeyWithOrg(request);
-  const { sessionId } = await params;
+  try {
+    const { user } = await requireAuthOrApiKeyWithOrg(request);
+    const { sessionId } = await params;
 
-  await aiAppBuilderService.stopSession(sessionId, user.id);
+    await aiAppBuilderService.stopSession(sessionId, user.id);
 
-  return NextResponse.json({
-    success: true,
-    message: "Session stopped successfully",
-  });
+    return NextResponse.json({
+      success: true,
+      message: "Session stopped successfully",
+    });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Failed to stop session";
+    const status =
+      message.includes("Unauthorized") || message.includes("Authentication")
+        ? 401
+        : message.includes("Access denied") || message.includes("don't own")
+          ? 403
+          : message.includes("not found")
+            ? 404
+            : 500;
+
+    return NextResponse.json({ success: false, error: message }, { status });
+  }
 }

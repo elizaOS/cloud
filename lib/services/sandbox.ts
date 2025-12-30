@@ -1,6 +1,7 @@
 import { logger } from "@/lib/utils/logger";
 import crypto from "crypto";
 import Anthropic from "@anthropic-ai/sdk";
+import OpenAI from "openai";
 import { buildFullAppPrompt } from "@/lib/fragments/prompt";
 import { dbRead, dbWrite } from "@/db/client";
 import {
@@ -564,12 +565,62 @@ async function checkBuild(sandbox: SandboxInstance): Promise<string> {
 
 export class SandboxService {
   private anthropic: Anthropic | null = null;
+  private openai: OpenAI | null = null;
+  private preferredProvider: "anthropic" | "openai" | null = null;
+
+  /**
+   * Get AI client with automatic fallback from Anthropic to OpenAI
+   * Returns the working provider
+   */
+  private getAIClient(): {
+    provider: "anthropic" | "openai";
+    client: Anthropic | OpenAI;
+  } {
+    // Check if we already determined the preferred provider
+    if (this.preferredProvider === "anthropic" && this.anthropic) {
+      return { provider: "anthropic", client: this.anthropic };
+    }
+    if (this.preferredProvider === "openai" && this.openai) {
+      return { provider: "openai", client: this.openai };
+    }
+
+    // Try Anthropic first
+    const anthropicKey = process.env.ANTHROPIC_API_KEY;
+    if (anthropicKey && anthropicKey.startsWith("sk-ant-")) {
+      logger.info("Using Anthropic (Claude) for app builder");
+      this.anthropic = new Anthropic({ apiKey: anthropicKey });
+      this.preferredProvider = "anthropic";
+      return { provider: "anthropic", client: this.anthropic };
+    }
+
+    // Fallback to OpenAI
+    const openaiKey = process.env.OPENAI_API_KEY;
+    if (openaiKey) {
+      logger.warn(
+        "Anthropic API key not available, falling back to OpenAI for app builder"
+      );
+      this.openai = new OpenAI({ apiKey: openaiKey });
+      this.preferredProvider = "openai";
+      return { provider: "openai", client: this.openai };
+    }
+
+    throw new Error(
+      "No AI provider configured. Set either ANTHROPIC_API_KEY or OPENAI_API_KEY in environment variables."
+    );
+  }
 
   private getAnthropicClient(): Anthropic {
     if (!this.anthropic) {
       this.anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
     }
     return this.anthropic;
+  }
+
+  private getOpenAIClient(): OpenAI {
+    if (!this.openai) {
+      this.openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    }
+    return this.openai;
   }
 
   async create(config: SandboxConfig = {}): Promise<SandboxSessionData> {
@@ -643,14 +694,25 @@ export class SandboxService {
     logger.info("Writing SDK files", { sandboxId });
     onProgress?.({ step: "installing", message: "Setting up SDK..." });
 
-    const srcCheck = await sandbox.runCommand({ cmd: "test", args: ["-d", "src"] });
+    const srcCheck = await sandbox.runCommand({
+      cmd: "test",
+      args: ["-d", "src"],
+    });
     const useSrc = srcCheck.exitCode === 0;
     const libPath = useSrc ? "src/lib" : "lib";
     const hooksPath = useSrc ? "src/hooks" : "hooks";
 
-    logger.info("SDK paths determined", { sandboxId, useSrc, libPath, hooksPath });
+    logger.info("SDK paths determined", {
+      sandboxId,
+      useSrc,
+      libPath,
+      hooksPath,
+    });
 
-    await sandbox.runCommand({ cmd: "mkdir", args: ["-p", libPath, hooksPath] });
+    await sandbox.runCommand({
+      cmd: "mkdir",
+      args: ["-p", libPath, hooksPath],
+    });
 
     const sdkBase64 = Buffer.from(ELIZA_SDK_FILE, "utf-8").toString("base64");
     await sandbox.runCommand({
@@ -661,13 +723,33 @@ export class SandboxService {
     const hookBase64 = Buffer.from(ELIZA_HOOK_FILE, "utf-8").toString("base64");
     await sandbox.runCommand({
       cmd: "sh",
-      args: ["-c", `echo '${hookBase64}' | base64 -d > ${hooksPath}/use-eliza.ts`],
+      args: [
+        "-c",
+        `echo '${hookBase64}' | base64 -d > ${hooksPath}/use-eliza.ts`,
+      ],
     });
 
     logger.info("SDK files written", { sandboxId });
 
+    // Add ELIZA API URL to env if configured (for testing with ngrok, etc.)
+    const elizaApiUrl =
+      process.env.ELIZA_API_URL ||
+      process.env.NEXT_PUBLIC_ELIZA_API_URL ||
+      config.env?.NEXT_PUBLIC_ELIZA_API_URL;
+
+    if (elizaApiUrl) {
+      mergedEnv.NEXT_PUBLIC_ELIZA_API_URL = elizaApiUrl;
+      logger.info("Using custom Eliza API URL", {
+        sandboxId,
+        apiUrl: elizaApiUrl,
+      });
+    }
+
     if (Object.keys(mergedEnv).length > 0) {
-      logger.info("Writing .env.local", { sandboxId, envCount: Object.keys(mergedEnv).length });
+      logger.info("Writing .env.local", {
+        sandboxId,
+        envCount: Object.keys(mergedEnv).length,
+      });
       const envContent = Object.entries(mergedEnv)
         .map(([key, value]) => `${key}=${value}`)
         .join("\n");
@@ -728,6 +810,73 @@ export class SandboxService {
     throw new Error(`Dev server did not start within ${maxAttempts}s`);
   }
 
+  /**
+   * Call AI API with automatic fallback from Anthropic to OpenAI
+   * Includes retry logic for transient errors
+   */
+  private async callAIWithFallback(
+    params: Anthropic.MessageCreateParams,
+    maxRetries = 3
+  ): Promise<Anthropic.Message> {
+    let lastAnthropicError: Error | null = null;
+    let lastOpenAIError: Error | null = null;
+
+    // Try Anthropic first if available
+    if (
+      process.env.ANTHROPIC_API_KEY &&
+      process.env.ANTHROPIC_API_KEY.startsWith("sk-ant-")
+    ) {
+      try {
+        const anthropic = this.getAnthropicClient();
+        return await this.callAnthropicWithRetry(anthropic, params, maxRetries);
+      } catch (error) {
+        lastAnthropicError =
+          error instanceof Error ? error : new Error(String(error));
+        logger.warn("Anthropic API failed, trying OpenAI fallback", {
+          error: lastAnthropicError.message,
+        });
+      }
+    }
+
+    // Fallback to OpenAI
+    if (process.env.OPENAI_API_KEY) {
+      try {
+        logger.info("Using OpenAI as fallback for app builder");
+        const openai = this.getOpenAIClient();
+        return await this.callOpenAIAsAnthropicFormat(
+          openai,
+          params,
+          maxRetries
+        );
+      } catch (error) {
+        lastOpenAIError =
+          error instanceof Error ? error : new Error(String(error));
+        logger.error("OpenAI fallback also failed", {
+          error: lastOpenAIError.message,
+        });
+      }
+    }
+
+    // Both failed or no keys available
+    if (lastAnthropicError && lastOpenAIError) {
+      throw new Error(
+        `Both AI providers failed. Anthropic: ${lastAnthropicError.message}. OpenAI: ${lastOpenAIError.message}`
+      );
+    } else if (lastAnthropicError) {
+      throw new Error(
+        `Anthropic failed and OpenAI not configured: ${lastAnthropicError.message}`
+      );
+    } else if (lastOpenAIError) {
+      throw new Error(
+        `Anthropic not configured and OpenAI failed: ${lastOpenAIError.message}`
+      );
+    }
+
+    throw new Error(
+      "No AI provider configured. Set either ANTHROPIC_API_KEY or OPENAI_API_KEY"
+    );
+  }
+
   private async callAnthropicWithRetry(
     anthropic: Anthropic,
     params: Anthropic.MessageCreateParams,
@@ -741,6 +890,20 @@ export class SandboxService {
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
         const errorMessage = lastError.message.toLowerCase();
+
+        // Check for authentication errors - don't retry these
+        if (
+          errorMessage.includes("authentication_error") ||
+          errorMessage.includes("invalid x-api-key") ||
+          errorMessage.includes("401")
+        ) {
+          logger.error("Anthropic API authentication failed", {
+            error: errorMessage,
+          });
+          throw new Error(
+            "Anthropic API key is invalid or expired. Please update ANTHROPIC_API_KEY."
+          );
+        }
 
         const isRetryable =
           errorMessage.includes("overloaded") ||
@@ -772,6 +935,123 @@ export class SandboxService {
     throw lastError || new Error("Failed to call Anthropic API");
   }
 
+  /**
+   * Call OpenAI and convert response to Anthropic format for compatibility
+   */
+  private async callOpenAIAsAnthropicFormat(
+    openai: OpenAI,
+    params: Anthropic.MessageCreateParams,
+    maxRetries = 3
+  ): Promise<Anthropic.Message> {
+    let lastError: Error | null = null;
+
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        // Convert Anthropic format to OpenAI format
+        const messages: OpenAI.ChatCompletionMessageParam[] = [
+          { role: "system", content: params.system || "" },
+          ...params.messages.map((msg) => ({
+            role: msg.role as "user" | "assistant",
+            content: typeof msg.content === "string" ? msg.content : "",
+          })),
+        ];
+
+        const response = await openai.chat.completions.create({
+          model: "gpt-4o",
+          messages,
+          max_tokens: params.max_tokens,
+          tools: params.tools
+            ? params.tools.map((tool) => ({
+                type: "function" as const,
+                function: {
+                  name: tool.name,
+                  description: tool.description || "",
+                  parameters: tool.input_schema,
+                },
+              }))
+            : undefined,
+        });
+
+        // Convert OpenAI response to Anthropic format
+        const choice = response.choices[0];
+        const content: Anthropic.ContentBlock[] = [];
+
+        if (choice.message.content) {
+          content.push({
+            type: "text",
+            text: choice.message.content,
+          });
+        }
+
+        if (choice.message.tool_calls) {
+          for (const toolCall of choice.message.tool_calls) {
+            content.push({
+              type: "tool_use",
+              id: toolCall.id,
+              name: toolCall.function.name,
+              input: JSON.parse(toolCall.function.arguments),
+            });
+          }
+        }
+
+        return {
+          id: response.id,
+          type: "message",
+          role: "assistant",
+          content,
+          model: response.model,
+          stop_reason:
+            choice.finish_reason === "tool_calls"
+              ? "tool_use"
+              : choice.finish_reason === "stop"
+                ? "end_turn"
+                : null,
+          stop_sequence: null,
+          usage: {
+            input_tokens: response.usage?.prompt_tokens || 0,
+            output_tokens: response.usage?.completion_tokens || 0,
+          },
+        };
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+        const errorMessage = lastError.message.toLowerCase();
+
+        // Check for authentication errors
+        if (
+          errorMessage.includes("authentication") ||
+          errorMessage.includes("invalid") ||
+          errorMessage.includes("401")
+        ) {
+          throw new Error(
+            "OpenAI API key is invalid or expired. Please update OPENAI_API_KEY."
+          );
+        }
+
+        const isRetryable =
+          errorMessage.includes("overloaded") ||
+          errorMessage.includes("rate limit") ||
+          errorMessage.includes("timeout") ||
+          errorMessage.includes("network");
+
+        if (!isRetryable || attempt === maxRetries - 1) {
+          throw lastError;
+        }
+
+        const delay = Math.min(1000 * Math.pow(2, attempt), 10000);
+        logger.warn("OpenAI API call failed, retrying", {
+          attempt: attempt + 1,
+          maxRetries,
+          error: errorMessage,
+          delayMs: delay,
+        });
+
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
+    }
+
+    throw lastError || new Error("Failed to call OpenAI API");
+  }
+
   async executeClaudeCode(
     sandboxId: string,
     prompt: string,
@@ -782,7 +1062,12 @@ export class SandboxService {
       abortSignal?: AbortSignal;
       timeoutMs?: number;
     } = {}
-  ): Promise<{ output: string; filesAffected: string[]; success: boolean; error?: string }> {
+  ): Promise<{
+    output: string;
+    filesAffected: string[];
+    success: boolean;
+    error?: string;
+  }> {
     const sandbox = getActiveSandboxes().get(sandboxId);
     if (!sandbox) throw new Error(`Sandbox ${sandboxId} not found`);
 
@@ -806,13 +1091,12 @@ export class SandboxService {
       }
     };
 
-    logger.info("Starting Claude execution", {
+    logger.info("Starting AI code execution", {
       sandboxId,
       promptLength: prompt.length,
       timeoutMs,
     });
 
-    const anthropic = this.getAnthropicClient();
     const filesAffected: string[] = [];
     let outputText = "";
 
@@ -851,7 +1135,7 @@ REMEMBER:
         checkAbort();
         checkTimeout();
 
-        const response = await this.callAnthropicWithRetry(anthropic, {
+        const response = await this.callAIWithFallback({
           model: "claude-sonnet-4-5-20250929",
           max_tokens: 8192,
           system: options.systemPrompt || getDefaultSystemPrompt(),
@@ -859,7 +1143,7 @@ REMEMBER:
           messages,
         });
 
-        logger.info("Claude response", {
+        logger.info("AI response received", {
           sandboxId,
           stopReason: response.stop_reason,
           iteration,
@@ -874,8 +1158,7 @@ REMEMBER:
             if (options.onThinking && block.text.trim()) {
               try {
                 options.onThinking(block.text);
-              } catch {
-              }
+              } catch {}
             }
             outputText += block.text + "\n";
           } else if (block.type === "tool_use") {
@@ -953,7 +1236,10 @@ REMEMBER:
                 result = `Unknown tool: ${block.name}`;
               }
             } catch (toolError) {
-              const toolErrorMsg = toolError instanceof Error ? toolError.message : String(toolError);
+              const toolErrorMsg =
+                toolError instanceof Error
+                  ? toolError.message
+                  : String(toolError);
               logger.error("Tool execution error", {
                 sandboxId,
                 tool: block.name,
@@ -965,8 +1251,7 @@ REMEMBER:
             if (options.onToolUse) {
               try {
                 options.onToolUse(block.name, block.input, result);
-              } catch {
-              }
+              } catch {}
             }
 
             toolResults.push({
@@ -1007,7 +1292,8 @@ REMEMBER:
         success: true,
       };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
 
       logger.error("Claude execution failed", {
         sandboxId,
@@ -1016,7 +1302,10 @@ REMEMBER:
         durationMs: Date.now() - operationStartTime,
       });
 
-      if (errorMessage.includes("aborted") || errorMessage.includes("cancelled")) {
+      if (
+        errorMessage.includes("aborted") ||
+        errorMessage.includes("cancelled")
+      ) {
         throw error;
       }
 
@@ -1103,7 +1392,8 @@ REMEMBER:
 
     logger.info("Starting file backup", { sandboxId, sessionId, snapshotType });
 
-    const filesToBackup = specificFiles || await this.getModifiedFiles(sandboxId);
+    const filesToBackup =
+      specificFiles || (await this.getModifiedFiles(sandboxId));
 
     if (filesToBackup.length === 0) {
       logger.info("No files to backup", { sandboxId });
@@ -1118,7 +1408,10 @@ REMEMBER:
         const content = await readFileViaSh(sandbox, filePath);
         if (content === null) continue;
 
-        const contentHash = crypto.createHash("sha256").update(content).digest("hex");
+        const contentHash = crypto
+          .createHash("sha256")
+          .update(content)
+          .digest("hex");
         const fileSize = Buffer.byteLength(content, "utf-8");
         totalSize += fileSize;
 
@@ -1131,7 +1424,11 @@ REMEMBER:
           snapshot_type: snapshotType,
         });
       } catch (error) {
-        logger.warn("Failed to read file for backup", { sandboxId, filePath, error });
+        logger.warn("Failed to read file for backup", {
+          sandboxId,
+          filePath,
+          error,
+        });
       }
     }
 
@@ -1195,7 +1492,7 @@ REMEMBER:
       .where(eq(sessionFileSnapshots.sandbox_session_id, sessionId))
       .orderBy(desc(sessionFileSnapshots.created_at));
 
-    const latestSnapshots = new Map<string, typeof snapshots[0]>();
+    const latestSnapshots = new Map<string, (typeof snapshots)[0]>();
     for (const snapshot of snapshots) {
       if (!latestSnapshots.has(snapshot.file_path)) {
         latestSnapshots.set(snapshot.file_path, snapshot);
@@ -1211,11 +1508,18 @@ REMEMBER:
         options.onProgress?.(i + 1, filesToRestore.length, snapshot.file_path);
         await writeFileViaSh(sandbox, snapshot.file_path, snapshot.content);
         filesRestored++;
-        logger.debug("Restored file", { sandboxId, filePath: snapshot.file_path });
+        logger.debug("Restored file", {
+          sandboxId,
+          filePath: snapshot.file_path,
+        });
       } catch (error) {
         const errorMsg = `Failed to restore ${snapshot.file_path}: ${error instanceof Error ? error.message : "Unknown error"}`;
         errors.push(errorMsg);
-        logger.warn("Failed to restore file", { sandboxId, filePath: snapshot.file_path, error });
+        logger.warn("Failed to restore file", {
+          sandboxId,
+          filePath: snapshot.file_path,
+          error,
+        });
       }
     }
 
@@ -1253,7 +1557,11 @@ REMEMBER:
     for (const dir of dirsToScan) {
       try {
         const files = await listFilesViaSh(sandbox, dir);
-        allFiles.push(...files.filter((f) => !f.includes("node_modules") && !f.includes(".next")));
+        allFiles.push(
+          ...files.filter(
+            (f) => !f.includes("node_modules") && !f.includes(".next")
+          )
+        );
       } catch {
         continue;
       }
@@ -1300,7 +1608,7 @@ REMEMBER:
       return { fileCount: 0, totalSize: 0, lastBackup: null };
     }
 
-    const latestSnapshots = new Map<string, typeof snapshots[0]>();
+    const latestSnapshots = new Map<string, (typeof snapshots)[0]>();
     for (const snapshot of snapshots) {
       if (!latestSnapshots.has(snapshot.file_path)) {
         latestSnapshots.set(snapshot.file_path, snapshot);
