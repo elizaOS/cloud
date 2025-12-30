@@ -49,6 +49,7 @@ export default async function BlogPostPage({ params }: PageProps) {
         date={post.date}
         author={post.author}
         category={post.category}
+        image={post.image}
       >
         <MDXRemote
           source={post.content}

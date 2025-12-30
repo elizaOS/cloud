@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
@@ -8,6 +9,7 @@ interface BlogPostProps {
   date: string;
   author: string;
   category: string;
+  image?: string;
   children: React.ReactNode;
 }
 
@@ -23,6 +25,7 @@ export default function BlogPost({
   date,
   author,
   category,
+  image,
   children,
 }: BlogPostProps) {
   const formattedDate = new Date(date).toLocaleDateString("en-US", {
@@ -55,6 +58,18 @@ export default function BlogPost({
         </div>
 
         <article>
+          {image && (
+            <div className="relative mb-8 aspect-video w-full overflow-hidden rounded-xl">
+              <Image
+                src={image}
+                alt={title}
+                fill
+                className="object-cover"
+                priority
+              />
+            </div>
+          )}
+
           <header className="mb-8">
             <div className="mb-4 flex items-center gap-3">
               <span
