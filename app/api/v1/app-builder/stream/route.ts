@@ -6,6 +6,12 @@ import {
 } from "@/lib/services/ai-app-builder";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
+import { checkRateLimit } from "@/lib/middleware/rate-limit";
+
+const SESSION_CREATE_LIMIT = {
+  windowMs: 3600000,
+  maxRequests: process.env.NODE_ENV === "production" ? 5 : 100,
+};
 
 const CreateSessionSchema = z.object({
   appId: z.string().uuid().optional(),
@@ -19,13 +25,27 @@ const CreateSessionSchema = z.object({
   includeAnalytics: z.boolean().default(true),
 });
 
-/**
- * POST /api/v1/app-builder/stream
- * Create a new app builder session with SSE progress updates
- */
 export async function POST(request: NextRequest) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
+
+    const rateLimitResult = checkRateLimit(request, SESSION_CREATE_LIMIT);
+    if (!rateLimitResult.allowed) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "Rate limit exceeded. Maximum 5 sandbox sessions per hour.",
+          retryAfter: rateLimitResult.retryAfter,
+        }),
+        {
+          status: 429,
+          headers: {
+            "Content-Type": "application/json",
+            "Retry-After": rateLimitResult.retryAfter?.toString() || "3600",
+          },
+        },
+      );
+    }
 
     const body = await request.json();
     const validationResult = CreateSessionSchema.safeParse(body);
@@ -43,18 +63,15 @@ export async function POST(request: NextRequest) {
 
     const data = validationResult.data;
 
-    // Create a TransformStream for SSE
     const encoder = new TextEncoder();
     const stream = new TransformStream();
     const writer = stream.writable.getWriter();
 
-    // Helper to send SSE events
     const sendEvent = async (event: string, data: unknown) => {
       const message = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
       await writer.write(encoder.encode(message));
     };
 
-    // Start session creation in background
     (async () => {
       try {
         const session = await aiAppBuilderService.startSession({
@@ -70,6 +87,29 @@ export async function POST(request: NextRequest) {
           onProgress: async (progress: SandboxProgress) => {
             await sendEvent("progress", progress);
           },
+          onSandboxReady: async (readySession) => {
+            await sendEvent("sandbox_ready", {
+              session: {
+                id: readySession.id,
+                sandboxId: readySession.sandboxId,
+                sandboxUrl: readySession.sandboxUrl,
+                status: readySession.status,
+                examplePrompts: readySession.examplePrompts,
+                expiresAt: readySession.expiresAt,
+              },
+              hasInitialPrompt: !!data.initialPrompt,
+            });
+          },
+          onToolUse: async (tool, input, result) => {
+            await sendEvent("tool_use", {
+              tool,
+              input,
+              result: result.substring(0, 500),
+            });
+          },
+          onThinking: async (text) => {
+            await sendEvent("thinking", { text: text.substring(0, 1000) });
+          },
         });
 
         logger.info("Created app builder session via stream", {
@@ -77,7 +117,6 @@ export async function POST(request: NextRequest) {
           userId: user.id,
         });
 
-        // Send the final session data
         await sendEvent("complete", {
           success: true,
           session: {
@@ -86,6 +125,8 @@ export async function POST(request: NextRequest) {
             sandboxUrl: session.sandboxUrl,
             status: session.status,
             examplePrompts: session.examplePrompts,
+            messages: session.messages,
+            initialPromptResult: session.initialPromptResult,
           },
         });
       } catch (error) {

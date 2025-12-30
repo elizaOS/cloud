@@ -3,6 +3,12 @@ import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { aiAppBuilderService } from "@/lib/services/ai-app-builder";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
+import { checkRateLimit } from "@/lib/middleware/rate-limit";
+
+const PROMPT_RATE_LIMIT = {
+  windowMs: 60000,
+  maxRequests: process.env.NODE_ENV === "production" ? 20 : 100,
+};
 
 interface RouteParams {
   params: Promise<{ sessionId: string }>;
@@ -12,17 +18,30 @@ const SendPromptSchema = z.object({
   prompt: z.string().min(1).max(10000),
 });
 
-/**
- * POST /api/v1/app-builder/sessions/:sessionId/prompts/stream
- * Send a prompt with SSE streaming for tool calls and thinking
- */
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { sessionId } = await params;
 
-    // Verify user owns this session
     await aiAppBuilderService.verifySessionOwnership(sessionId, user.id);
+
+    const rateLimitResult = checkRateLimit(request, PROMPT_RATE_LIMIT);
+    if (!rateLimitResult.allowed) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "Rate limit exceeded. Maximum 20 prompts per minute.",
+          retryAfter: rateLimitResult.retryAfter,
+        }),
+        {
+          status: 429,
+          headers: {
+            "Content-Type": "application/json",
+            "Retry-After": rateLimitResult.retryAfter?.toString() || "60",
+          },
+        },
+      );
+    }
 
     const body = await request.json();
     const validationResult = SendPromptSchema.safeParse(body);
@@ -38,7 +57,6 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // Create SSE stream
     const encoder = new TextEncoder();
     const stream = new TransformStream();
     const writer = stream.writable.getWriter();
@@ -48,17 +66,16 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       await writer.write(encoder.encode(message));
     };
 
-    // Run prompt in background with callbacks
     (async () => {
       try {
         const result = await aiAppBuilderService.sendPrompt(
           sessionId,
           validationResult.data.prompt,
+          user.id,
           {
             onThinking: async (text) => {
-              // Send thinking/reasoning text
               await sendEvent("thinking", {
-                text: text.substring(0, 1000), // Limit size
+                text: text.substring(0, 1000),
               });
             },
             onToolUse: async (tool, input, result) => {

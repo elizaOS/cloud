@@ -3,6 +3,7 @@ import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { aiAppBuilderService } from "@/lib/services/ai-app-builder";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
+import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 
 const CreateSessionSchema = z.object({
   appId: z.string().uuid().optional(),
@@ -16,21 +17,19 @@ const CreateSessionSchema = z.object({
   includeAnalytics: z.boolean().default(true),
 });
 
-/**
- * GET /api/v1/app-builder
- * List all app builder sessions for the authenticated user
- */
-export async function GET(request: NextRequest) {
+export const GET = withRateLimit(async (request: NextRequest) => {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
 
     const searchParams = request.nextUrl.searchParams;
     const limit = parseInt(searchParams.get("limit") || "10", 10);
     const includeInactive = searchParams.get("includeInactive") === "true";
+    const appId = searchParams.get("appId") || undefined;
 
     const sessions = await aiAppBuilderService.listSessions(user.id, {
       limit,
       includeInactive,
+      appId,
     });
 
     return NextResponse.json({
@@ -57,13 +56,14 @@ export async function GET(request: NextRequest) {
       { status: 500 },
     );
   }
-}
+}, RateLimitPresets.STANDARD);
 
-/**
- * POST /api/v1/app-builder
- * Create a new app builder session
- */
-export async function POST(request: NextRequest) {
+const SESSION_CREATE_LIMIT = {
+  windowMs: 3600000,
+  maxRequests: process.env.NODE_ENV === "production" ? 5 : 100,
+};
+
+export const POST = withRateLimit(async (request: NextRequest) => {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
 
@@ -121,4 +121,4 @@ export async function POST(request: NextRequest) {
       { status: 500 },
     );
   }
-}
+}, SESSION_CREATE_LIMIT);

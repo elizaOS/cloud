@@ -243,6 +243,85 @@ export const appTemplates = pgTable(
   }),
 );
 
+/**
+ * Session file snapshots table schema.
+ *
+ * Stores file contents from sandbox sessions to enable restoration
+ * when a sandbox expires or is restarted. This ensures users don't
+ * lose their work when the ephemeral sandbox times out.
+ */
+export const sessionFileSnapshots = pgTable(
+  "session_file_snapshots",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+
+    sandbox_session_id: uuid("sandbox_session_id")
+      .notNull()
+      .references(() => appSandboxSessions.id, { onDelete: "cascade" }),
+
+    file_path: text("file_path").notNull(),
+    content: text("content").notNull(),
+    content_hash: text("content_hash").notNull(),
+    file_size: integer("file_size").notNull().default(0),
+
+    snapshot_type: text("snapshot_type")
+      .$type<"auto" | "manual" | "pre_expiry" | "prompt_complete">()
+      .notNull()
+      .default("auto"),
+
+    created_at: timestamp("created_at").notNull().defaultNow(),
+  },
+  (table) => ({
+    session_idx: index("session_file_snapshots_session_idx").on(
+      table.sandbox_session_id,
+    ),
+    session_path_idx: index("session_file_snapshots_session_path_idx").on(
+      table.sandbox_session_id,
+      table.file_path,
+    ),
+    created_at_idx: index("session_file_snapshots_created_at_idx").on(
+      table.created_at,
+    ),
+  }),
+);
+
+/**
+ * Session restore history table schema.
+ *
+ * Tracks when sessions are restored from snapshots, enabling
+ * audit trails and debugging of restore operations.
+ */
+export const sessionRestoreHistory = pgTable(
+  "session_restore_history",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+
+    sandbox_session_id: uuid("sandbox_session_id")
+      .notNull()
+      .references(() => appSandboxSessions.id, { onDelete: "cascade" }),
+
+    old_sandbox_id: text("old_sandbox_id"),
+    new_sandbox_id: text("new_sandbox_id"),
+
+    files_restored: integer("files_restored").notNull().default(0),
+    restore_duration_ms: integer("restore_duration_ms"),
+
+    status: text("status")
+      .$type<"pending" | "in_progress" | "completed" | "failed">()
+      .notNull()
+      .default("pending"),
+    error_message: text("error_message"),
+
+    created_at: timestamp("created_at").notNull().defaultNow(),
+    completed_at: timestamp("completed_at"),
+  },
+  (table) => ({
+    session_idx: index("session_restore_history_session_idx").on(
+      table.sandbox_session_id,
+    ),
+  }),
+);
+
 // Type inference
 export type AppSandboxSession = InferSelectModel<typeof appSandboxSessions>;
 export type NewAppSandboxSession = InferInsertModel<typeof appSandboxSessions>;
@@ -250,3 +329,7 @@ export type AppBuilderPrompt = InferSelectModel<typeof appBuilderPrompts>;
 export type NewAppBuilderPrompt = InferInsertModel<typeof appBuilderPrompts>;
 export type AppTemplate = InferSelectModel<typeof appTemplates>;
 export type NewAppTemplate = InferInsertModel<typeof appTemplates>;
+export type SessionFileSnapshot = InferSelectModel<typeof sessionFileSnapshots>;
+export type NewSessionFileSnapshot = InferInsertModel<typeof sessionFileSnapshots>;
+export type SessionRestoreHistory = InferSelectModel<typeof sessionRestoreHistory>;
+export type NewSessionRestoreHistory = InferInsertModel<typeof sessionRestoreHistory>;

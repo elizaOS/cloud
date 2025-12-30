@@ -1,6 +1,6 @@
 /**
  * App details tabs component organizing app management views.
- * Provides tabs for overview, AI builder, analytics, earnings, users, monetization, and settings.
+ * Provides tabs for overview, analytics, earnings, users, monetization, and settings.
  * Syncs active tab with URL search parameters.
  *
  * @param props - App details tabs configuration
@@ -19,7 +19,6 @@ import {
   Users,
   DollarSign,
   TrendingUp,
-  Sparkles,
 } from "lucide-react";
 import { AppOverview } from "./app-overview";
 import { AppSettings } from "./app-settings";
@@ -27,7 +26,6 @@ import { AppAnalytics } from "./app-analytics";
 import { AppUsers } from "./app-users";
 import { AppMonetizationSettings } from "./app-monetization-settings";
 import { AppEarningsDashboard } from "./app-earnings-dashboard";
-import { AppAIBuilder } from "./app-ai-builder";
 import type { App } from "@/db/schemas";
 
 interface AppDetailsTabsProps {
@@ -50,14 +48,10 @@ export function AppDetailsTabs({ app, showApiKey }: AppDetailsTabsProps) {
 
   return (
     <Tabs value={tab} onValueChange={handleTabChange} className="space-y-6">
-      <TabsList className="grid w-full max-w-3xl grid-cols-7 bg-white/5">
+      <TabsList className="grid w-full max-w-3xl grid-cols-6 bg-white/5">
         <TabsTrigger value="overview" className="flex items-center gap-2">
           <Grid3x3 className="h-4 w-4" />
           <span className="hidden sm:inline">Overview</span>
-        </TabsTrigger>
-        <TabsTrigger value="build" className="flex items-center gap-2">
-          <Sparkles className="h-4 w-4" />
-          <span className="hidden sm:inline">Build</span>
         </TabsTrigger>
         <TabsTrigger value="analytics" className="flex items-center gap-2">
           <BarChart3 className="h-4 w-4" />
@@ -83,10 +77,6 @@ export function AppDetailsTabs({ app, showApiKey }: AppDetailsTabsProps) {
 
       <TabsContent value="overview">
         <AppOverview app={app} showApiKey={showApiKey} />
-      </TabsContent>
-
-      <TabsContent value="build">
-        <AppAIBuilder app={app} />
       </TabsContent>
 
       <TabsContent value="analytics">

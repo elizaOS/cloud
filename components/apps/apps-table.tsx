@@ -23,6 +23,7 @@ import {
   Key,
   Copy,
   Check,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -187,6 +188,16 @@ export function AppsTable({ apps }: AppsTableProps) {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem asChild>
+                  <Link
+                    href={`/dashboard/apps/create?appId=${app.id}`}
+                    className="text-[#FF5800] focus:text-[#FF5800]"
+                  >
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    Continue Building
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
                   <Link href={`/dashboard/apps/${app.id}`}>
                     <Settings className="h-4 w-4 mr-2" />
