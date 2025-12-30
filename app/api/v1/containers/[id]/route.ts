@@ -134,7 +134,7 @@ export async function DELETE(
 
     // Step 3: Release ALB priority
     try {
-      await dbPriorityManager.releasePriority(containerId);
+      await dbPriorityManager.releasePriority(containerId, container.project_name);
     } catch (priorityError) {
       logger.error(`Failed to release ALB priority:`, priorityError);
       // Non-critical - continue with cleanup

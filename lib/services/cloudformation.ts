@@ -222,11 +222,12 @@ export class CloudFormationService {
     return this.withRetry(async () => {
       const stackName = this.getStackName(config.userId, config.projectName);
 
-      // Allocate unique ALB priority
+      // Allocate unique ALB priority per user+project combination
       const albPriority = await dbPriorityManager.allocatePriority(
         config.userId,
+        config.projectName,
       );
-      logger.info(`Allocated ALB priority ${albPriority} for ${config.userId}`);
+      logger.info(`Allocated ALB priority ${albPriority} for ${config.userId}/${config.projectName}`);
 
       // Load template and parse as JSON for dynamic modification
       const templateJson = JSON.parse(
@@ -707,7 +708,7 @@ export class CloudFormationService {
 
       // Release ALB priority after stack deletion initiated
       // This will set expiry timestamp for cleanup
-      await dbPriorityManager.releasePriority(userId);
+      await dbPriorityManager.releasePriority(userId, projectName);
     });
   }
 
