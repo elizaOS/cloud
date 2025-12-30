@@ -727,6 +727,50 @@ export class SandboxService {
     throw new Error(`Dev server did not start within ${maxAttempts}s`);
   }
 
+  private async callAnthropicWithRetry(
+    anthropic: Anthropic,
+    params: Anthropic.MessageCreateParams,
+    maxRetries = 3
+  ): Promise<Anthropic.Message> {
+    let lastError: Error | null = null;
+
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        return await anthropic.messages.create(params);
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+        const errorMessage = lastError.message.toLowerCase();
+
+        const isRetryable =
+          errorMessage.includes("overloaded") ||
+          errorMessage.includes("rate limit") ||
+          errorMessage.includes("timeout") ||
+          errorMessage.includes("network") ||
+          errorMessage.includes("econnreset") ||
+          errorMessage.includes("socket hang up") ||
+          errorMessage.includes("529") ||
+          errorMessage.includes("503") ||
+          errorMessage.includes("502");
+
+        if (!isRetryable || attempt === maxRetries - 1) {
+          throw lastError;
+        }
+
+        const delay = Math.min(1000 * Math.pow(2, attempt), 10000);
+        logger.warn("Anthropic API call failed, retrying", {
+          attempt: attempt + 1,
+          maxRetries,
+          error: errorMessage,
+          delayMs: delay,
+        });
+
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
+    }
+
+    throw lastError || new Error("Failed to call Anthropic API");
+  }
+
   async executeClaudeCode(
     sandboxId: string,
     prompt: string,
@@ -734,24 +778,50 @@ export class SandboxService {
       systemPrompt?: string;
       onToolUse?: (tool: string, input: unknown, result: string) => void;
       onThinking?: (text: string) => void;
+      abortSignal?: AbortSignal;
+      timeoutMs?: number;
     } = {}
-  ): Promise<{ output: string; filesAffected: string[]; success: boolean }> {
+  ): Promise<{ output: string; filesAffected: string[]; success: boolean; error?: string }> {
     const sandbox = getActiveSandboxes().get(sandboxId);
     if (!sandbox) throw new Error(`Sandbox ${sandboxId} not found`);
+
+    const { abortSignal, timeoutMs = 5 * 60 * 1000 } = options;
+
+    if (abortSignal?.aborted) {
+      throw new Error("Operation aborted before starting");
+    }
+
+    const operationStartTime = Date.now();
+
+    const checkTimeout = () => {
+      if (Date.now() - operationStartTime > timeoutMs) {
+        throw new Error(`Operation timed out after ${timeoutMs / 1000}s`);
+      }
+    };
+
+    const checkAbort = () => {
+      if (abortSignal?.aborted) {
+        throw new Error("Operation aborted by client");
+      }
+    };
 
     logger.info("Starting Claude execution", {
       sandboxId,
       promptLength: prompt.length,
+      timeoutMs,
     });
 
     const anthropic = this.getAnthropicClient();
     const filesAffected: string[] = [];
     let outputText = "";
 
-    const pageContent = await readFileViaSh(sandbox, "src/app/page.tsx");
-    const globalsCss = await readFileViaSh(sandbox, "src/app/globals.css");
+    try {
+      checkAbort();
 
-    const contextPrompt = `CURRENT FILES:
+      const pageContent = await readFileViaSh(sandbox, "src/app/page.tsx");
+      const globalsCss = await readFileViaSh(sandbox, "src/app/globals.css");
+
+      const contextPrompt = `CURRENT FILES:
 
 === src/app/page.tsx ===
 ${pageContent || "(file not found)"}
@@ -768,150 +838,194 @@ REMEMBER:
 3. Use check_build after changes to verify
 4. Fix any errors before finishing`;
 
-    const messages: Anthropic.MessageParam[] = [
-      { role: "user", content: contextPrompt },
-    ];
-    let continueLoop = true;
-    let iteration = 0;
-    const MAX_ITERATIONS = 50;
+      const messages: Anthropic.MessageParam[] = [
+        { role: "user", content: contextPrompt },
+      ];
+      let continueLoop = true;
+      let iteration = 0;
+      const MAX_ITERATIONS = 50;
 
-    while (continueLoop && iteration < MAX_ITERATIONS) {
-      iteration++;
+      while (continueLoop && iteration < MAX_ITERATIONS) {
+        iteration++;
+        checkAbort();
+        checkTimeout();
 
-      const response = await anthropic.messages.create({
-        model: "claude-sonnet-4-5-20250929",
-        max_tokens: 8192,
-        system: options.systemPrompt || getDefaultSystemPrompt(),
-        tools: TOOLS,
-        messages,
-      });
+        const response = await this.callAnthropicWithRetry(anthropic, {
+          model: "claude-sonnet-4-5-20250929",
+          max_tokens: 8192,
+          system: options.systemPrompt || getDefaultSystemPrompt(),
+          tools: TOOLS,
+          messages,
+        });
 
-      logger.info("Claude response", {
-        sandboxId,
-        stopReason: response.stop_reason,
-        iteration,
-      });
+        logger.info("Claude response", {
+          sandboxId,
+          stopReason: response.stop_reason,
+          iteration,
+        });
 
-      const toolResults: Anthropic.ToolResultBlockParam[] = [];
+        const toolResults: Anthropic.ToolResultBlockParam[] = [];
 
-      for (const block of response.content) {
-        if (block.type === "text") {
-          if (options.onThinking && block.text.trim()) {
-            options.onThinking(block.text);
-          }
-          outputText += block.text + "\n";
-        } else if (block.type === "tool_use") {
-          logger.info("Tool use", { sandboxId, tool: block.name, iteration });
+        for (const block of response.content) {
+          checkAbort();
 
-          let result: string;
-          if (block.name === "install_packages") {
-            const { packages } = block.input as { packages: string[] };
-            result = await installPackages(sandbox, packages);
-          } else if (block.name === "write_file") {
-            const { path, content } = block.input as {
-              path: string;
-              content: string;
-            };
-
-            if (content === undefined || content === null) {
-              result = `Error: write_file called with empty content for ${path}. Please provide the file content.`;
-              toolResults.push({
-                type: "tool_result",
-                tool_use_id: block.id,
-                content: result,
-              });
-              continue;
+          if (block.type === "text") {
+            if (options.onThinking && block.text.trim()) {
+              try {
+                options.onThinking(block.text);
+              } catch {
+              }
             }
-            await writeFileViaSh(sandbox, path, content);
-            filesAffected.push(path);
+            outputText += block.text + "\n";
+          } else if (block.type === "tool_use") {
+            logger.info("Tool use", { sandboxId, tool: block.name, iteration });
 
-            await new Promise((r) => setTimeout(r, 1500));
-            const buildStatus = await checkBuild(sandbox);
-            result = `Wrote ${path}\n\nBuild Status: ${buildStatus}`;
+            let result: string;
+            try {
+              if (block.name === "install_packages") {
+                const { packages } = block.input as { packages: string[] };
+                result = await installPackages(sandbox, packages);
+              } else if (block.name === "write_file") {
+                const { path, content } = block.input as {
+                  path: string;
+                  content: string;
+                };
 
-            if (buildStatus.includes("BUILD ERRORS")) {
-              result += `\n\nPlease fix the errors above!`;
-            }
+                if (content === undefined || content === null) {
+                  result = `Error: write_file called with empty content for ${path}. Please provide the file content.`;
+                  toolResults.push({
+                    type: "tool_result",
+                    tool_use_id: block.id,
+                    content: result,
+                  });
+                  continue;
+                }
+                await writeFileViaSh(sandbox, path, content);
+                filesAffected.push(path);
 
-            logger.info("File written", {
-              sandboxId,
-              path,
-              buildOk: !buildStatus.includes("BUILD ERRORS"),
-            });
-          } else if (block.name === "read_file") {
-            const { path } = block.input as { path: string };
-            const content = await readFileViaSh(sandbox, path);
-            result = content || `File not found: ${path}`;
-          } else if (block.name === "check_build") {
-            result = await checkBuild(sandbox);
-            logger.info("Build check", {
-              sandboxId,
-              ok: result.includes("BUILD OK"),
-            });
-          } else if (block.name === "list_files") {
-            const { path } = block.input as { path: string };
-            const files = await listFilesViaSh(sandbox, path);
-            result = files.join("\n") || `Empty: ${path}`;
-          } else if (block.name === "run_command") {
-            const { command } = block.input as { command: string };
-            const commandCheck = isCommandAllowed(command);
-            if (!commandCheck.allowed) {
-              result = `Command blocked: ${commandCheck.reason}`;
-              logger.warn("Blocked command attempt", {
+                await new Promise((r) => setTimeout(r, 1500));
+                const buildStatus = await checkBuild(sandbox);
+                result = `Wrote ${path}\n\nBuild Status: ${buildStatus}`;
+
+                if (buildStatus.includes("BUILD ERRORS")) {
+                  result += `\n\nPlease fix the errors above!`;
+                }
+
+                logger.info("File written", {
+                  sandboxId,
+                  path,
+                  buildOk: !buildStatus.includes("BUILD ERRORS"),
+                });
+              } else if (block.name === "read_file") {
+                const { path } = block.input as { path: string };
+                const content = await readFileViaSh(sandbox, path);
+                result = content || `File not found: ${path}`;
+              } else if (block.name === "check_build") {
+                result = await checkBuild(sandbox);
+                logger.info("Build check", {
+                  sandboxId,
+                  ok: result.includes("BUILD OK"),
+                });
+              } else if (block.name === "list_files") {
+                const { path } = block.input as { path: string };
+                const files = await listFilesViaSh(sandbox, path);
+                result = files.join("\n") || `Empty: ${path}`;
+              } else if (block.name === "run_command") {
+                const { command } = block.input as { command: string };
+                const commandCheck = isCommandAllowed(command);
+                if (!commandCheck.allowed) {
+                  result = `Command blocked: ${commandCheck.reason}`;
+                  logger.warn("Blocked command attempt", {
+                    sandboxId,
+                    command,
+                    reason: commandCheck.reason,
+                  });
+                } else {
+                  const r = await sandbox.runCommand({
+                    cmd: "sh",
+                    args: ["-c", command],
+                  });
+                  result =
+                    `Exit ${r.exitCode}: ${await r.stdout()} ${await r.stderr()}`.trim();
+                }
+              } else {
+                result = `Unknown tool: ${block.name}`;
+              }
+            } catch (toolError) {
+              const toolErrorMsg = toolError instanceof Error ? toolError.message : String(toolError);
+              logger.error("Tool execution error", {
                 sandboxId,
-                command,
-                reason: commandCheck.reason,
+                tool: block.name,
+                error: toolErrorMsg,
               });
-            } else {
-              const r = await sandbox.runCommand({
-                cmd: "sh",
-                args: ["-c", command],
-              });
-              result =
-                `Exit ${r.exitCode}: ${await r.stdout()} ${await r.stderr()}`.trim();
+              result = `Error executing ${block.name}: ${toolErrorMsg}`;
             }
-          } else {
-            result = `Unknown tool: ${block.name}`;
-          }
 
-          if (options.onToolUse) {
-            options.onToolUse(block.name, block.input, result);
-          }
+            if (options.onToolUse) {
+              try {
+                options.onToolUse(block.name, block.input, result);
+              } catch {
+              }
+            }
 
-          toolResults.push({
-            type: "tool_result",
-            tool_use_id: block.id,
-            content: result,
-          });
+            toolResults.push({
+              type: "tool_result",
+              tool_use_id: block.id,
+              content: result,
+            });
+          }
+        }
+
+        if (toolResults.length > 0) {
+          messages.push({ role: "assistant", content: response.content });
+          messages.push({ role: "user", content: toolResults });
+        }
+
+        if (response.stop_reason === "end_turn" || toolResults.length === 0) {
+          continueLoop = false;
         }
       }
 
-      if (toolResults.length > 0) {
-        messages.push({ role: "assistant", content: response.content });
-        messages.push({ role: "user", content: toolResults });
+      checkAbort();
+
+      const finalBuild = await checkBuild(sandbox);
+      if (finalBuild.includes("BUILD ERRORS")) {
+        outputText += `\n\nNote: There may still be build errors. ${finalBuild}`;
       }
 
-      if (response.stop_reason === "end_turn" || toolResults.length === 0) {
-        continueLoop = false;
+      logger.info("Claude complete", {
+        sandboxId,
+        filesAffected: filesAffected.length,
+        iteration,
+        durationMs: Date.now() - operationStartTime,
+      });
+
+      return {
+        output: outputText || "Changes applied!",
+        filesAffected: [...new Set(filesAffected)],
+        success: true,
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+
+      logger.error("Claude execution failed", {
+        sandboxId,
+        error: errorMessage,
+        filesAffected: filesAffected.length,
+        durationMs: Date.now() - operationStartTime,
+      });
+
+      if (errorMessage.includes("aborted") || errorMessage.includes("cancelled")) {
+        throw error;
       }
+
+      return {
+        output: outputText || "Operation failed",
+        filesAffected: [...new Set(filesAffected)],
+        success: false,
+        error: errorMessage,
+      };
     }
-
-    const finalBuild = await checkBuild(sandbox);
-    if (finalBuild.includes("BUILD ERRORS")) {
-      outputText += `\n\nNote: There may still be build errors. ${finalBuild}`;
-    }
-
-    logger.info("Claude complete", {
-      sandboxId,
-      filesAffected: filesAffected.length,
-      iteration,
-    });
-
-    return {
-      output: outputText || "Changes applied!",
-      filesAffected: [...new Set(filesAffected)],
-      success: true,
-    };
   }
 
   async readFile(sandboxId: string, path: string): Promise<string> {

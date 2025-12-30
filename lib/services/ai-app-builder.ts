@@ -44,6 +44,7 @@ export interface BuilderSessionConfig {
   onSandboxReady?: (session: BuilderSession) => void;
   onToolUse?: (tool: string, input: unknown, result: string) => void;
   onThinking?: (text: string) => void;
+  abortSignal?: AbortSignal;
 }
 
 export type { SandboxProgress };
@@ -101,6 +102,7 @@ export class AIAppBuilderService {
       onSandboxReady,
       onToolUse,
       onThinking,
+      abortSignal,
     } = config;
 
     logger.info("Starting AI App Builder session", {
@@ -232,7 +234,7 @@ export class AIAppBuilderService {
         session.id,
         initialPrompt,
         userId,
-        { onToolUse, onThinking },
+        { onToolUse, onThinking, abortSignal },
       );
 
       logger.info("Initial prompt completed", {
@@ -269,6 +271,7 @@ export class AIAppBuilderService {
     options: {
       onToolUse?: (tool: string, input: unknown, result: string) => void;
       onThinking?: (text: string) => void;
+      abortSignal?: AbortSignal;
     } = {},
   ): Promise<PromptResult> {
     logger.info("Sending prompt to AI App Builder", {
@@ -314,6 +317,7 @@ export class AIAppBuilderService {
         systemPrompt: systemPromptRecord?.content,
         onToolUse: options.onToolUse,
         onThinking: options.onThinking,
+        abortSignal: options.abortSignal,
       },
     );
     const durationMs = Date.now() - startTime;

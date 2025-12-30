@@ -25,6 +25,94 @@ const CreateSessionSchema = z.object({
   includeAnalytics: z.boolean().default(true),
 });
 
+interface StreamState {
+  isClientConnected: boolean;
+  lastEventTime: number;
+  heartbeatInterval: NodeJS.Timeout | null;
+}
+
+function createStreamWriter(writer: WritableStreamDefaultWriter<Uint8Array>) {
+  const encoder = new TextEncoder();
+  const state: StreamState = {
+    isClientConnected: true,
+    lastEventTime: Date.now(),
+    heartbeatInterval: null,
+  };
+
+  const sendEvent = async (event: string, data: unknown): Promise<boolean> => {
+    if (!state.isClientConnected) {
+      return false;
+    }
+
+    try {
+      const message = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+      await writer.write(encoder.encode(message));
+      state.lastEventTime = Date.now();
+      return true;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (
+        errorMessage.includes("WritableStream") ||
+        errorMessage.includes("closed") ||
+        errorMessage.includes("aborted")
+      ) {
+        logger.info("Client disconnected during stream write");
+        state.isClientConnected = false;
+        return false;
+      }
+      logger.error("Error writing to stream", { error: errorMessage });
+      state.isClientConnected = false;
+      return false;
+    }
+  };
+
+  const startHeartbeat = (intervalMs = 15000) => {
+    if (state.heartbeatInterval) {
+      clearInterval(state.heartbeatInterval);
+    }
+
+    state.heartbeatInterval = setInterval(async () => {
+      if (!state.isClientConnected) {
+        stopHeartbeat();
+        return;
+      }
+
+      const timeSinceLastEvent = Date.now() - state.lastEventTime;
+      if (timeSinceLastEvent >= intervalMs - 1000) {
+        const sent = await sendEvent("heartbeat", { timestamp: Date.now() });
+        if (!sent) {
+          stopHeartbeat();
+        }
+      }
+    }, intervalMs);
+  };
+
+  const stopHeartbeat = () => {
+    if (state.heartbeatInterval) {
+      clearInterval(state.heartbeatInterval);
+      state.heartbeatInterval = null;
+    }
+  };
+
+  const close = async () => {
+    stopHeartbeat();
+    state.isClientConnected = false;
+
+    try {
+      await writer.close();
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (!errorMessage.includes("closed") && !errorMessage.includes("aborted")) {
+        logger.warn("Error closing stream writer", { error: errorMessage });
+      }
+    }
+  };
+
+  const isConnected = () => state.isClientConnected;
+
+  return { sendEvent, startHeartbeat, stopHeartbeat, close, isConnected };
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
@@ -63,16 +151,20 @@ export async function POST(request: NextRequest) {
 
     const data = validationResult.data;
 
-    const encoder = new TextEncoder();
     const stream = new TransformStream();
-    const writer = stream.writable.getWriter();
+    const rawWriter = stream.writable.getWriter();
+    const streamWriter = createStreamWriter(rawWriter);
 
-    const sendEvent = async (event: string, data: unknown) => {
-      const message = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
-      await writer.write(encoder.encode(message));
-    };
+    const abortController = new AbortController();
+
+    request.signal?.addEventListener("abort", () => {
+      logger.info("Client aborted session creation request");
+      abortController.abort();
+    });
 
     (async () => {
+      streamWriter.startHeartbeat(15000);
+
       try {
         const session = await aiAppBuilderService.startSession({
           userId: user.id,
@@ -85,10 +177,12 @@ export async function POST(request: NextRequest) {
           includeMonetization: data.includeMonetization,
           includeAnalytics: data.includeAnalytics,
           onProgress: async (progress: SandboxProgress) => {
-            await sendEvent("progress", progress);
+            if (!streamWriter.isConnected()) return;
+            await streamWriter.sendEvent("progress", progress);
           },
           onSandboxReady: async (readySession) => {
-            await sendEvent("sandbox_ready", {
+            if (!streamWriter.isConnected()) return;
+            await streamWriter.sendEvent("sandbox_ready", {
               session: {
                 id: readySession.id,
                 sandboxId: readySession.sandboxId,
@@ -101,15 +195,18 @@ export async function POST(request: NextRequest) {
             });
           },
           onToolUse: async (tool, input, result) => {
-            await sendEvent("tool_use", {
+            if (!streamWriter.isConnected()) return;
+            await streamWriter.sendEvent("tool_use", {
               tool,
               input,
               result: result.substring(0, 500),
             });
           },
           onThinking: async (text) => {
-            await sendEvent("thinking", { text: text.substring(0, 1000) });
+            if (!streamWriter.isConnected()) return;
+            await streamWriter.sendEvent("thinking", { text: text.substring(0, 1000) });
           },
+          abortSignal: abortController.signal,
         });
 
         logger.info("Created app builder session via stream", {
@@ -117,47 +214,72 @@ export async function POST(request: NextRequest) {
           userId: user.id,
         });
 
-        await sendEvent("complete", {
-          success: true,
-          session: {
-            id: session.id,
-            sandboxId: session.sandboxId,
-            sandboxUrl: session.sandboxUrl,
-            status: session.status,
-            examplePrompts: session.examplePrompts,
-            messages: session.messages,
-            initialPromptResult: session.initialPromptResult,
-          },
-        });
+        if (streamWriter.isConnected()) {
+          await streamWriter.sendEvent("complete", {
+            success: true,
+            session: {
+              id: session.id,
+              sandboxId: session.sandboxId,
+              sandboxUrl: session.sandboxUrl,
+              status: session.status,
+              examplePrompts: session.examplePrompts,
+              messages: session.messages,
+              initialPromptResult: session.initialPromptResult,
+            },
+          });
+        }
       } catch (error) {
-        logger.error("Failed to create app builder session via stream", {
-          error,
-        });
-        await sendEvent("error", {
-          success: false,
-          error:
-            error instanceof Error ? error.message : "Failed to create session",
-        });
+        const errorMessage = error instanceof Error ? error.message : "Failed to create session";
+
+        if (errorMessage.includes("aborted") || errorMessage.includes("cancelled")) {
+          logger.info("Session creation cancelled by client");
+          if (streamWriter.isConnected()) {
+            await streamWriter.sendEvent("cancelled", {
+              success: false,
+              error: "Session creation cancelled",
+            });
+          }
+        } else {
+          logger.error("Failed to create app builder session via stream", {
+            error: errorMessage,
+          });
+          if (streamWriter.isConnected()) {
+            await streamWriter.sendEvent("error", {
+              success: false,
+              error: errorMessage,
+            });
+          }
+        }
       } finally {
-        await writer.close();
+        await streamWriter.close();
       }
     })();
 
     return new Response(stream.readable, {
       headers: {
         "Content-Type": "text/event-stream",
-        "Cache-Control": "no-cache",
+        "Cache-Control": "no-cache, no-store, must-revalidate",
         Connection: "keep-alive",
+        "X-Accel-Buffering": "no",
       },
     });
   } catch (error) {
     logger.error("Auth failed for app builder stream", { error });
+    const message = error instanceof Error ? error.message : "Authentication failed";
+
+    let status = 401;
+    if (message.includes("Rate limit")) {
+      status = 429;
+    } else if (message.includes("Forbidden")) {
+      status = 403;
+    }
+
     return new Response(
       JSON.stringify({
         success: false,
-        error: error instanceof Error ? error.message : "Authentication failed",
+        error: message,
       }),
-      { status: 401, headers: { "Content-Type": "application/json" } },
+      { status, headers: { "Content-Type": "application/json" } },
     );
   }
 }

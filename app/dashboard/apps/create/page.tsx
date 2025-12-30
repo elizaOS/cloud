@@ -757,7 +757,10 @@ export default function AppCreatorPage() {
             try {
               const data = JSON.parse(line.slice(6));
 
-              if (eventType === "progress") {
+              if (eventType === "heartbeat") {
+                // Heartbeat received, connection is alive
+                continue;
+              } else if (eventType === "progress") {
                 setProgressStep(data.step as ProgressStep);
                 addLog(`Progress: ${data.step}`, "info");
               } else if (eventType === "sandbox_ready") {
@@ -932,6 +935,8 @@ Some ideas:
 
                 setIsLoading(false);
                 addLog("Build complete", "success");
+              } else if (eventType === "cancelled") {
+                throw new Error("Session creation was cancelled");
               } else if (eventType === "error") {
                 throw new Error(data.error || "Failed to start session");
               }
@@ -1084,7 +1089,10 @@ Some ideas:
               try {
                 const data = JSON.parse(line.slice(6));
 
-                if (eventType === "thinking") {
+                if (eventType === "heartbeat") {
+                  // Heartbeat received, connection is alive
+                  continue;
+                } else if (eventType === "thinking") {
                   updateThinking("Planning changes...");
                 } else if (eventType === "tool_use") {
                   const toolName = data.tool;
@@ -1138,6 +1146,8 @@ Some ideas:
                   );
                 } else if (eventType === "complete") {
                   finalData = data;
+                } else if (eventType === "cancelled") {
+                  throw new Error("Operation was cancelled");
                 } else if (eventType === "error") {
                   throw new Error(data.error || "Failed to process prompt");
                 }
