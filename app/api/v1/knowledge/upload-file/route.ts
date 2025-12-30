@@ -36,16 +36,25 @@ async function handlePOST(req: NextRequest) {
     const authResult = await requireAuthOrApiKey(req);
     const { user } = authResult;
 
-    // Parse form data with proper error handling for size limits
+    // Parse form data with proper error handling
     let formData: FormData;
     try {
       formData = await req.formData();
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
+      const lowerMessage = errorMessage.toLowerCase();
       
-      // Check if it's a body size limit error
-      if (errorMessage.includes("body") || errorMessage.includes("FormData") || errorMessage.includes("boundary")) {
-        logger.warn("[KnowledgeUpload] Request body too large or malformed", {
+      // Check for specific body size limit errors (413 Payload Too Large)
+      const isSizeLimitError =
+        lowerMessage.includes("request entity too large") ||
+        lowerMessage.includes("body exceeded") ||
+        lowerMessage.includes("payload too large") ||
+        lowerMessage.includes("body limit") ||
+        lowerMessage.includes("file too large") ||
+        lowerMessage.includes("size limit");
+
+      if (isSizeLimitError) {
+        logger.warn("[KnowledgeUpload] Request body too large", {
           error: errorMessage,
         });
         return NextResponse.json(
@@ -56,6 +65,28 @@ async function handlePOST(req: NextRequest) {
           { status: 413 },
         );
       }
+
+      // Check for malformed request errors (400 Bad Request)
+      const isMalformedRequest =
+        lowerMessage.includes("boundary") ||
+        lowerMessage.includes("unexpected end") ||
+        lowerMessage.includes("malformed") ||
+        lowerMessage.includes("invalid multipart") ||
+        lowerMessage.includes("missing content-type");
+
+      if (isMalformedRequest) {
+        logger.warn("[KnowledgeUpload] Malformed form data request", {
+          error: errorMessage,
+        });
+        return NextResponse.json(
+          {
+            error: "Malformed request",
+            details: "The upload request was malformed. Please ensure the request uses valid multipart/form-data encoding.",
+          },
+          { status: 400 },
+        );
+      }
+
       throw error;
     }
 
