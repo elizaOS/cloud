@@ -13,8 +13,6 @@ import { useRouter } from "next/navigation";
 import { useSetPageHeader } from "@/components/layout/page-header-context";
 import { CharacterLibraryGrid } from "./character-library-grid";
 import { CharacterFilters } from "./character-filters";
-import { BrandButton } from "@/components/brand";
-import { Plus } from "lucide-react";
 import type { ElizaCharacter } from "@/lib/types";
 
 interface MyAgentsClientProps {
@@ -70,15 +68,9 @@ export function MyAgentsClient({ initialCharacters }: MyAgentsClientProps) {
   useSetPageHeader(
     {
       title: "My Agents",
-      description: `Manage your ${initialCharacters.length} AI agent${initialCharacters.length !== 1 ? "s" : ""}`,
-      actions: (
-        <BrandButton onClick={handleCreateNew}>
-          <Plus className="h-4 w-4" />
-          Create New Agent
-        </BrandButton>
-      ),
+      description: "Manage your AI agents",
     },
-    [initialCharacters.length, handleCreateNew],
+    [],
   );
 
   return (
@@ -92,6 +84,7 @@ export function MyAgentsClient({ initialCharacters }: MyAgentsClientProps) {
         onSortChange={setSortBy}
         totalCount={initialCharacters.length}
         filteredCount={filteredCharacters.length}
+        onCreateNew={handleCreateNew}
       />
 
       <CharacterLibraryGrid

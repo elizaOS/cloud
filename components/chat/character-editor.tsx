@@ -134,7 +134,7 @@ export function CharacterEditor({
               size="sm"
               onClick={handleSave}
               disabled={isSaving}
-              className="text-white hover:bg-[#FF5800]/90 bg-[#FF5800] rounded-none"
+              className="bg-[#FF5800] text-black hover:bg-[#FF5800]/90 active:bg-[#FF5800]/80 rounded-none"
               data-onboarding="build-save"
             >
               <CloudUpload className="mr-2 h-4 w-4" />

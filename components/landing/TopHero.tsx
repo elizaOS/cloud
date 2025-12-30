@@ -339,7 +339,7 @@ const TopHero = () => {
               variant="primary"
               size="lg"
               onClick={handleGetStarted}
-              className="w-full md:w-auto min-w-[176px] text-base group border border-brand-orange bg-brand-orange text-white hover:bg-black hover:text-brand-orange"
+              className="w-full md:w-auto min-w-[176px] text-base group border border-[#FF5800] bg-[#FF5800] text-black hover:bg-[#FF5800]/90 active:bg-[#FF5800]/80"
             >
               Start Building
               <ArrowRight className="ml-2 h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
