@@ -319,7 +319,7 @@ const footer = (
               </svg>
             </a>
             <a
-              href="https://discord.gg/elizaos"
+              href="https://discord.gg/7Rmq6NPR"
               target="_blank"
               rel="noopener noreferrer"
               className="p-2.5 rounded-lg text-white/30 hover:text-[#5865F2] hover:bg-[#5865F2]/10 transition-all duration-200"

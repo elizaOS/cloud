@@ -24,7 +24,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Search, LayoutGrid, List } from "lucide-react";
+import { BrandButton } from "@/components/brand";
+import { Search, LayoutGrid, List, Plus } from "lucide-react";
 import type { ViewMode, SortOption } from "./my-agents-client";
 
 interface CharacterFiltersProps {
@@ -36,6 +37,7 @@ interface CharacterFiltersProps {
   onSortChange: (sort: SortOption) => void;
   totalCount: number;
   filteredCount: number;
+  onCreateNew: () => void;
 }
 
 export function CharacterFilters({
@@ -47,6 +49,7 @@ export function CharacterFilters({
   onSortChange,
   totalCount,
   filteredCount,
+  onCreateNew,
 }: CharacterFiltersProps) {
   return (
     <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
@@ -69,6 +72,17 @@ export function CharacterFilters({
           <span className="text-sm text-white/60">
             {filteredCount} of {totalCount} agents
           </span>
+        )}
+
+        {/* Create New Agent button - only show when user has agents */}
+        {totalCount > 0 && (
+          <BrandButton
+            onClick={onCreateNew}
+            className="bg-[#FF5800] text-black hover:bg-[#FF5800]/90 active:bg-[#FF5800]/80 h-9 px-4"
+          >
+            <Plus className="h-4 w-4" />
+            Create New Agent
+          </BrandButton>
         )}
 
         {/* Sort */}
