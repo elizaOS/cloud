@@ -655,6 +655,105 @@ export class UsageRecordsRepository {
       .returning();
     return record;
   }
+
+  /**
+   * Updates a usage record by ID.
+   */
+  async update(
+    id: string,
+    data: Partial<Pick<UsageRecord, "is_successful" | "error_message" | "duration_ms" | "metadata">>,
+  ): Promise<UsageRecord | undefined> {
+    const [record] = await dbWrite
+      .update(usageRecords)
+      .set(data)
+      .where(eq(usageRecords.id, id))
+      .returning();
+    return record;
+  }
+
+  /**
+   * Marks a deployment usage record as failed.
+   * Finds the most recent deployment record for the container and updates it.
+   */
+  async markDeploymentFailed(
+    containerId: string,
+    organizationId: string,
+    errorMessage: string,
+  ): Promise<UsageRecord | undefined> {
+    // Find the most recent deployment record for this container
+    const records = await dbRead
+      .select()
+      .from(usageRecords)
+      .where(
+        and(
+          eq(usageRecords.organization_id, organizationId),
+          sql`${usageRecords.type} IN ('container_deployment', 'container_update')`,
+          sql`${usageRecords.metadata}->>'container_id' = ${containerId}`,
+        ),
+      )
+      .orderBy(desc(usageRecords.created_at))
+      .limit(1);
+
+    if (records.length === 0) {
+      return undefined;
+    }
+
+    const record = records[0];
+
+    // Update the record to mark as failed
+    const [updated] = await dbWrite
+      .update(usageRecords)
+      .set({
+        is_successful: false,
+        error_message: errorMessage,
+      })
+      .where(eq(usageRecords.id, record.id))
+      .returning();
+
+    return updated;
+  }
+
+  /**
+   * Marks a deployment usage record as successful.
+   * Finds the most recent deployment record for the container and updates it.
+   */
+  async markDeploymentSuccessful(
+    containerId: string,
+    organizationId: string,
+    durationMs?: number,
+  ): Promise<UsageRecord | undefined> {
+    // Find the most recent deployment record for this container
+    const records = await dbRead
+      .select()
+      .from(usageRecords)
+      .where(
+        and(
+          eq(usageRecords.organization_id, organizationId),
+          sql`${usageRecords.type} IN ('container_deployment', 'container_update')`,
+          sql`${usageRecords.metadata}->>'container_id' = ${containerId}`,
+        ),
+      )
+      .orderBy(desc(usageRecords.created_at))
+      .limit(1);
+
+    if (records.length === 0) {
+      return undefined;
+    }
+
+    const record = records[0];
+
+    // Update the record to mark as successful
+    const [updated] = await dbWrite
+      .update(usageRecords)
+      .set({
+        is_successful: true,
+        duration_ms: durationMs,
+      })
+      .where(eq(usageRecords.id, record.id))
+      .returning();
+
+    return updated;
+  }
 }
 
 /**

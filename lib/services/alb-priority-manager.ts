@@ -36,16 +36,34 @@ export class DatabasePriorityManager {
         `[ALB allocatePriority] Inside transaction for user ${userId}`,
       );
 
-      // Check if user already has an active priority
+      // Check if user already has a priority record (active or expired)
       const existing = await tx.query.albPriorities.findFirst({
         where: eq(albPriorities.userId, userId),
       });
 
       if (existing && !existing.expiresAt) {
+        // User has an active priority - return it
         logger.info(
           `[ALB allocatePriority] User ${userId} already has priority ${existing.priority}`,
         );
         return existing.priority;
+      }
+
+      if (existing && existing.expiresAt) {
+        // User has an expired priority - reactivate it by clearing expiresAt
+        logger.info(
+          `[ALB allocatePriority] Reactivating expired priority ${existing.priority} for user ${userId}`,
+        );
+        const [reactivated] = await tx
+          .update(albPriorities)
+          .set({ expiresAt: null, createdAt: new Date() })
+          .where(eq(albPriorities.userId, userId))
+          .returning();
+
+        logger.info(
+          `✅ Reactivated ALB priority ${reactivated.priority} for user ${userId}`,
+        );
+        return reactivated.priority;
       }
 
       // Get the maximum priority (including expired ones to avoid conflicts)
