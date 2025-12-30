@@ -499,6 +499,31 @@ async function installPackages(
   return `Installed: ${packages.join(", ")}`;
 }
 
+async function installDependencies(sandbox: SandboxInstance): Promise<string> {
+  logger.info("Installing dependencies from package.json");
+
+  let result = await sandbox.runCommand({
+    cmd: "pnpm",
+    args: ["install"],
+  });
+
+  if (result.exitCode !== 0) {
+    logger.info("pnpm install failed, trying npm install");
+    result = await sandbox.runCommand({
+      cmd: "npm",
+      args: ["install"],
+    });
+  }
+
+  if (result.exitCode !== 0) {
+    const stderr = await result.stderr();
+    logger.warn("Failed to install dependencies", { stderr });
+    return `Failed to install dependencies: ${stderr}`;
+  }
+
+  return "Dependencies installed successfully";
+}
+
 async function checkBuild(sandbox: SandboxInstance): Promise<string> {
   await new Promise((r) => setTimeout(r, 2000));
 
@@ -1066,6 +1091,12 @@ REMEMBER:
     const sandbox = getActiveSandboxes().get(sandboxId);
     if (!sandbox) throw new Error(`Sandbox ${sandboxId} not found`);
     return await installPackages(sandbox, packages);
+  }
+
+  async installDependencies(sandboxId: string): Promise<string> {
+    const sandbox = getActiveSandboxes().get(sandboxId);
+    if (!sandbox) throw new Error(`Sandbox ${sandboxId} not found`);
+    return await installDependencies(sandbox);
   }
 
   async extendTimeout(sandboxId: string, durationMs: number): Promise<void> {

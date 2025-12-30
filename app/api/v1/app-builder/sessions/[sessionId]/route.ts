@@ -37,7 +37,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     );
   }
 
-  await aiAppBuilderService.extendSession(
+  const result = await aiAppBuilderService.extendSession(
     sessionId,
     user.id,
     validationResult.data.durationMs,
@@ -46,6 +46,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   return NextResponse.json({
     success: true,
     message: "Session extended successfully",
+    expiresAt: result.expiresAt.toISOString(),
   });
 }
 

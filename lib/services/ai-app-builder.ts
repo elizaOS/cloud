@@ -484,6 +484,19 @@ export class AIAppBuilderService {
       errors: restoreResult.errors.length,
     });
 
+    options.onProgress?.({
+      step: "installing",
+      message: "Installing dependencies...",
+    });
+
+    const installResult = await sandboxService.installDependencies(
+      sandboxData.sandboxId,
+    );
+    logger.info("Dependencies installed after restore", {
+      sessionId,
+      result: installResult,
+    });
+
     const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
     await dbWrite
       .update(appSandboxSessions)
@@ -645,20 +658,35 @@ export class AIAppBuilderService {
     sessionId: string,
     userId: string,
     durationMs: number = 15 * 60 * 1000,
-  ): Promise<void> {
+  ): Promise<{ expiresAt: Date }> {
     const session = await this.verifyOwnership(sessionId, userId);
 
     if (!session.sandbox_id) throw new Error("Sandbox not available");
 
     await sandboxService.extendTimeout(session.sandbox_id, durationMs);
 
-    const newExpiresAt = new Date(Date.now() + durationMs);
+    const currentExpiresAt = session.expires_at
+      ? new Date(session.expires_at)
+      : new Date();
+    const baseTime =
+      currentExpiresAt.getTime() > Date.now()
+        ? currentExpiresAt.getTime()
+        : Date.now();
+    const newExpiresAt = new Date(baseTime + durationMs);
+
     await dbWrite
       .update(appSandboxSessions)
       .set({ expires_at: newExpiresAt, updated_at: new Date() })
       .where(eq(appSandboxSessions.id, sessionId));
 
-    logger.info("Extended session timeout", { sessionId, newExpiresAt });
+    logger.info("Extended session timeout", {
+      sessionId,
+      previousExpiresAt: currentExpiresAt,
+      newExpiresAt,
+      addedMs: durationMs,
+    });
+
+    return { expiresAt: newExpiresAt };
   }
 
   async getLogs(
