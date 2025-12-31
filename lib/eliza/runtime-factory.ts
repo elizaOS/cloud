@@ -15,16 +15,278 @@ import {
 } from "@elizaos/core";
 import { createDatabaseAdapter } from "@elizaos/plugin-sql/node";
 import { agentLoader } from "./agent-loader";
-import { getElizaCloudApiUrl, getDefaultModels } from "./config";
+import {
+  getElizaCloudApiUrl,
+  getDefaultModels,
+  buildElevenLabsSettings,
+} from "./config";
 import type { UserContext } from "./user-context";
 import { logger } from "@/lib/utils/logger";
 import "@/lib/polyfills/dom-polyfills";
+import {
+  edgeRuntimeCache,
+  getStaticEmbeddingDimension,
+  KNOWN_EMBEDDING_DIMENSIONS,
+} from "@/lib/cache/edge-runtime-cache";
+
+const adapterEmbeddingDimensions = new Map<string, number>();
 
 interface GlobalWithEliza {
   logger?: Logger;
 }
 
+interface RuntimeSettings {
+  ELIZAOS_CLOUD_API_KEY?: string;
+  USER_ID?: string;
+  ENTITY_ID?: string;
+  ORGANIZATION_ID?: string;
+  IS_ANONYMOUS?: boolean;
+  ELIZAOS_CLOUD_SMALL_MODEL?: string;
+  ELIZAOS_CLOUD_LARGE_MODEL?: string;
+  appPromptConfig?: unknown;
+  [key: string]: unknown;
+}
+
 const globalAny = globalThis as GlobalWithEliza;
+
+interface CachedRuntime {
+  runtime: AgentRuntime;
+  lastUsed: number;
+  createdAt: number;
+  agentId: UUID;
+  characterName: string;
+}
+
+class RuntimeCache {
+  private cache = new Map<string, CachedRuntime>();
+  private readonly MAX_SIZE = 50; // Max cached runtimes
+  private readonly MAX_AGE_MS = 30 * 60 * 1000; // 30 minutes max age
+  private readonly IDLE_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes idle timeout
+
+  get(agentId: string): AgentRuntime | null {
+    const entry = this.cache.get(agentId);
+    if (!entry) return null;
+
+    const now = Date.now();
+    // Check if expired
+    if (
+      now - entry.createdAt > this.MAX_AGE_MS ||
+      now - entry.lastUsed > this.IDLE_TIMEOUT_MS
+    ) {
+      this.cache.delete(agentId);
+      elizaLogger.debug(`[RuntimeCache] Evicted stale runtime: ${agentId}`);
+      return null;
+    }
+
+    entry.lastUsed = now;
+    return entry.runtime;
+  }
+
+  async getWithHealthCheck(
+    agentId: string,
+    dbPool: DbAdapterPool,
+  ): Promise<AgentRuntime | null> {
+    const entry = this.cache.get(agentId);
+    if (!entry) return null;
+
+    const now = Date.now();
+    // Check if expired by time
+    if (
+      now - entry.createdAt > this.MAX_AGE_MS ||
+      now - entry.lastUsed > this.IDLE_TIMEOUT_MS
+    ) {
+      this.cache.delete(agentId);
+      elizaLogger.debug(`[RuntimeCache] Evicted stale runtime: ${agentId}`);
+      return null;
+    }
+
+    // Check if DB connection is still alive via the adapter pool
+    const isHealthy = await dbPool.checkHealth(entry.agentId as UUID);
+    if (!isHealthy) {
+      elizaLogger.warn(
+        `[RuntimeCache] Stale DB connection for ${agentId}, evicting runtime`,
+      );
+      this.cache.delete(agentId);
+      return null;
+    }
+
+    entry.lastUsed = now;
+    return entry.runtime;
+  }
+
+  set(agentId: string, runtime: AgentRuntime, characterName: string): void {
+    // Evict oldest if at capacity
+    if (this.cache.size >= this.MAX_SIZE) {
+      this.evictOldest();
+    }
+
+    const now = Date.now();
+    this.cache.set(agentId, {
+      runtime,
+      lastUsed: now,
+      createdAt: now,
+      agentId: agentId as UUID,
+      characterName,
+    });
+    elizaLogger.debug(
+      `[RuntimeCache] Cached runtime: ${characterName} (${agentId})`,
+    );
+  }
+
+  delete(agentId: string): boolean {
+    const existed = this.cache.has(agentId);
+    if (existed) {
+      this.cache.delete(agentId);
+      elizaLogger.info(`[RuntimeCache] Invalidated runtime: ${agentId}`);
+    }
+    return existed;
+  }
+
+  has(agentId: string): boolean {
+    return this.cache.has(agentId);
+  }
+
+  private evictOldest(): void {
+    let oldest: { key: string; lastUsed: number } | null = null;
+    for (const [key, entry] of this.cache.entries()) {
+      if (!oldest || entry.lastUsed < oldest.lastUsed) {
+        oldest = { key, lastUsed: entry.lastUsed };
+      }
+    }
+    if (oldest) {
+      this.cache.delete(oldest.key);
+      elizaLogger.debug(`[RuntimeCache] Evicted oldest runtime: ${oldest.key}`);
+    }
+  }
+
+  getStats(): { size: number; maxSize: number } {
+    return { size: this.cache.size, maxSize: this.MAX_SIZE };
+  }
+
+  clear(): void {
+    this.cache.clear();
+    elizaLogger.info("[RuntimeCache] Cleared all cached runtimes");
+  }
+}
+
+class DbAdapterPool {
+  private adapters = new Map<string, IDatabaseAdapter>();
+  private initPromises = new Map<string, Promise<IDatabaseAdapter>>();
+
+  async getOrCreate(
+    agentId: UUID,
+    embeddingModel?: string,
+  ): Promise<IDatabaseAdapter> {
+    const key = agentId as string;
+
+    if (this.adapters.has(key)) {
+      const existingAdapter = this.adapters.get(key)!;
+      const isHealthy = await this.checkAdapterHealth(existingAdapter);
+      if (isHealthy) {
+        return existingAdapter;
+      }
+
+      elizaLogger.warn(
+        `[DbAdapterPool] Stale connection for ${agentId}, recreating`,
+      );
+      this.adapters.delete(key);
+      adapterEmbeddingDimensions.delete(key);
+    }
+
+    if (this.initPromises.has(key)) {
+      return this.initPromises.get(key)!;
+    }
+
+    const initPromise = this.createAdapter(agentId, embeddingModel);
+    this.initPromises.set(key, initPromise);
+
+    try {
+      const adapter = await initPromise;
+      this.adapters.set(key, adapter);
+      return adapter;
+    } finally {
+      this.initPromises.delete(key);
+    }
+  }
+
+  private async checkAdapterHealth(
+    adapter: IDatabaseAdapter,
+  ): Promise<boolean> {
+    try {
+      await adapter.getEntitiesByIds([
+        "00000000-0000-0000-0000-000000000000" as UUID,
+      ]);
+      return true;
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      if (
+        msg.includes("closed") ||
+        msg.includes("terminated") ||
+        msg.includes("connection")
+      ) {
+        return false;
+      }
+      return true;
+    }
+  }
+
+  async checkHealth(agentId: UUID): Promise<boolean> {
+    const key = agentId as string;
+    const adapter = this.adapters.get(key);
+    if (!adapter) return true;
+
+    const isHealthy = await this.checkAdapterHealth(adapter);
+    if (!isHealthy) this.invalidateAdapter(key);
+    return isHealthy;
+  }
+
+  private async createAdapter(
+    agentId: UUID,
+    embeddingModel?: string,
+  ): Promise<IDatabaseAdapter> {
+    if (!process.env.DATABASE_URL) {
+      throw new Error("DATABASE_URL environment variable is required");
+    }
+
+    const startTime = Date.now();
+    const adapter = createDatabaseAdapter(
+      { postgresUrl: process.env.DATABASE_URL },
+      agentId,
+    );
+    await adapter.init();
+
+    const key = agentId as string;
+    const dimension = getStaticEmbeddingDimension(embeddingModel);
+    const existingDimension = adapterEmbeddingDimensions.get(key);
+
+    if (existingDimension !== dimension) {
+      try {
+        await adapter.ensureEmbeddingDimension(dimension);
+        adapterEmbeddingDimensions.set(key, dimension);
+        elizaLogger.info(
+          `[DbAdapterPool] Set embedding dimension for ${agentId}: ${dimension}`,
+        );
+      } catch (e) {
+        elizaLogger.debug(`[DbAdapterPool] Embedding dimension: ${e}`);
+        adapterEmbeddingDimensions.set(key, dimension);
+      }
+    }
+
+    elizaLogger.debug(
+      `[DbAdapterPool] Created adapter for ${agentId} in ${Date.now() - startTime}ms`,
+    );
+    return adapter;
+  }
+
+  invalidateAdapter(agentId: string): void {
+    this.adapters.delete(agentId);
+    adapterEmbeddingDimensions.delete(agentId);
+    elizaLogger.debug(`[DbAdapterPool] Invalidated adapter for ${agentId}`);
+  }
+}
+
+const runtimeCache = new RuntimeCache();
+const dbAdapterPool = new DbAdapterPool();
 
 export class RuntimeFactory {
   private static instance: RuntimeFactory;
@@ -45,19 +307,54 @@ export class RuntimeFactory {
     return this.instance;
   }
 
-  /**
-   * Create runtime for user context. Each agent gets a fresh DB adapter (no caching)
-   * to prevent cross-agent data contamination.
-   */
-  async createRuntimeForUser(context: UserContext): Promise<AgentRuntime> {
+  getCacheStats(): { runtime: { size: number; maxSize: number } } {
+    return { runtime: runtimeCache.getStats() };
+  }
+
+  clearCaches(): void {
+    runtimeCache.clear();
+  }
+
+  async invalidateRuntime(agentId: string): Promise<boolean> {
+    const wasInMemoryBase = runtimeCache.delete(agentId);
+    const wasInMemoryWs = runtimeCache.delete(`${agentId}:ws`);
+    const wasInMemory = wasInMemoryBase || wasInMemoryWs;
+
+    dbAdapterPool.invalidateAdapter(agentId);
+
+    try {
+      await edgeRuntimeCache.invalidateCharacter(agentId);
+      await edgeRuntimeCache.markRuntimeWarm(agentId, {
+        isWarm: false,
+        embeddingDimension: 0,
+        characterName: undefined,
+      });
+    } catch (e) {
+      elizaLogger.warn(`[RuntimeFactory] Edge cache invalidation failed: ${e}`);
+    }
+
     elizaLogger.info(
-      `[RuntimeFactory] Creating runtime: user=${context.userId}, mode=${context.agentMode}, char=${context.characterId || "default"}`,
+      `[RuntimeFactory] Invalidated runtime for agent: ${agentId} (base: ${wasInMemoryBase}, ws: ${wasInMemoryWs})`,
+    );
+
+    return wasInMemory;
+  }
+
+  isRuntimeCached(agentId: string): boolean {
+    return runtimeCache.has(agentId);
+  }
+
+  async createRuntimeForUser(context: UserContext): Promise<AgentRuntime> {
+    const startTime = Date.now();
+    elizaLogger.info(
+      `[RuntimeFactory] Creating runtime: user=${context.userId}, mode=${context.agentMode}, char=${context.characterId || "default"}, webSearch=${context.webSearchEnabled}`,
     );
 
     const isDefaultCharacter =
       !context.characterId ||
       context.characterId === this.DEFAULT_AGENT_ID_STRING;
     const loaderOptions = { webSearchEnabled: context.webSearchEnabled };
+
     const { character, plugins, modeResolution } = isDefaultCharacter
       ? await agentLoader.getDefaultCharacter(context.agentMode, loaderOptions)
       : await agentLoader.loadCharacter(
@@ -66,7 +363,6 @@ export class RuntimeFactory {
           loaderOptions,
         );
 
-    // Log mode upgrade if it occurred
     if (modeResolution.upgradeReason !== "none") {
       elizaLogger.info(
         `[RuntimeFactory] Mode upgraded: ${context.agentMode} → ${modeResolution.mode} (reason: ${modeResolution.upgradeReason})`,
@@ -76,11 +372,33 @@ export class RuntimeFactory {
     const agentId = (
       character.id ? stringToUuid(character.id) : this.DEFAULT_AGENT_ID
     ) as UUID;
-    elizaLogger.info(
-      `[RuntimeFactory] Character: ${character.name} (${agentId})`,
-    );
 
-    const dbAdapter = await this.createDatabaseAdapter(agentId);
+    const webSearchSuffix = context.webSearchEnabled ? ":ws" : "";
+    const cacheKey = `${agentId}${webSearchSuffix}`;
+
+    const cachedRuntime = await runtimeCache.getWithHealthCheck(
+      cacheKey,
+      dbAdapterPool,
+    );
+    if (cachedRuntime) {
+      elizaLogger.info(
+        `[RuntimeFactory] Cache HIT: ${character.name} (${Date.now() - startTime}ms)`,
+      );
+      this.applyUserContext(cachedRuntime, context);
+      edgeRuntimeCache.incrementRequestCount(agentId as string).catch((e) => {
+        elizaLogger.debug(`[RuntimeFactory] Edge cache increment failed: ${e}`);
+      });
+
+      return cachedRuntime;
+    }
+
+    elizaLogger.info(`[RuntimeFactory] Cache MISS: ${character.name}`);
+
+    const embeddingModel =
+      (character.settings?.OPENAI_EMBEDDING_MODEL as string) ||
+      (character.settings?.ELIZAOS_CLOUD_EMBEDDING_MODEL as string);
+
+    const dbAdapter = await dbAdapterPool.getOrCreate(agentId, embeddingModel);
     const baseSettings = this.buildSettings(character, context);
     const filteredPlugins = this.filterPlugins(plugins);
 
@@ -101,16 +419,50 @@ export class RuntimeFactory {
 
     runtime.registerDatabaseAdapter(dbAdapter);
     this.ensureRuntimeLogger(runtime);
+
     await this.initializeRuntime(runtime, character, agentId);
     await this.waitForMcpServiceIfNeeded(runtime, filteredPlugins);
 
+    runtimeCache.set(cacheKey, runtime, character.name);
+
+    edgeRuntimeCache
+      .markRuntimeWarm(agentId as string, {
+        isWarm: true,
+        embeddingDimension: getStaticEmbeddingDimension(embeddingModel),
+        characterName: character.name,
+      })
+      .catch((e) => {
+        elizaLogger.debug(`[RuntimeFactory] Edge cache warm failed: ${e}`);
+      });
+
     elizaLogger.success(
-      `[RuntimeFactory] Runtime ready: ${character.name} (${modeResolution.mode})`,
+      `[RuntimeFactory] Runtime ready: ${character.name} (${modeResolution.mode}, webSearch=${context.webSearchEnabled}) in ${Date.now() - startTime}ms`,
     );
     return runtime;
   }
 
-  /** Expand pathname URLs to full URLs in MCP settings */
+  private applyUserContext(runtime: AgentRuntime, context: UserContext): void {
+    const settings = (runtime.character.settings || {}) as RuntimeSettings;
+    settings.ELIZAOS_CLOUD_API_KEY = context.apiKey;
+    settings.USER_ID = context.userId;
+    settings.ENTITY_ID = context.entityId;
+    settings.ORGANIZATION_ID = context.organizationId;
+    settings.IS_ANONYMOUS = context.isAnonymous;
+
+    if (context.modelPreferences) {
+      settings.ELIZAOS_CLOUD_SMALL_MODEL =
+        context.modelPreferences.smallModel ||
+        settings.ELIZAOS_CLOUD_SMALL_MODEL;
+      settings.ELIZAOS_CLOUD_LARGE_MODEL =
+        context.modelPreferences.largeModel ||
+        settings.ELIZAOS_CLOUD_LARGE_MODEL;
+    }
+
+    if (context.appPromptConfig) {
+      settings.appPromptConfig = context.appPromptConfig;
+    }
+  }
+
   private transformMcpSettings(
     mcpSettings: Record<string, unknown>,
   ): Record<string, unknown> {
@@ -133,41 +485,22 @@ export class RuntimeFactory {
     return { ...mcpSettings, servers: transformedServers };
   }
 
-  /** Create fresh DB adapter for agent (no caching - prevents cross-agent contamination) */
-  private async createDatabaseAdapter(
-    agentId: UUID,
-  ): Promise<IDatabaseAdapter> {
-    if (!process.env.DATABASE_URL) {
-      throw new Error("DATABASE_URL environment variable is required");
-    }
-
-    const dbAdapter = createDatabaseAdapter(
-      { postgresUrl: process.env.DATABASE_URL },
-      agentId,
-    );
-    await dbAdapter.init();
-    return dbAdapter;
-  }
-
   private filterPlugins(plugins: Plugin[]): Plugin[] {
     return plugins.filter((p) => p.name !== "@elizaos/plugin-sql") as Plugin[];
   }
 
-  /** Build settings with user context overrides */
   private buildSettings(
     character: Character,
     context: UserContext,
   ): NonNullable<Character["settings"]> {
-    const charSettings = character.settings || {};
+    const charSettings = (character.settings || {}) as Record<string, unknown>;
     const getSetting = (key: string, fallback: string) =>
       (charSettings[key] as string) || process.env[key] || fallback;
 
     return {
       ...charSettings,
-      // Database
       POSTGRES_URL: process.env.DATABASE_URL!,
       DATABASE_URL: process.env.DATABASE_URL!,
-      // ElizaCloud (user prefs override character)
       ELIZAOS_CLOUD_API_KEY: context.apiKey,
       ELIZAOS_CLOUD_BASE_URL: getElizaCloudApiUrl(),
       ELIZAOS_CLOUD_SMALL_MODEL:
@@ -176,65 +509,7 @@ export class RuntimeFactory {
       ELIZAOS_CLOUD_LARGE_MODEL:
         context.modelPreferences?.largeModel ||
         getSetting("ELIZAOS_CLOUD_LARGE_MODEL", getDefaultModels().large),
-      // ElevenLabs TTS
-      ELEVENLABS_API_KEY: process.env.ELEVENLABS_API_KEY!,
-      ELEVENLABS_VOICE_ID: getSetting(
-        "ELEVENLABS_VOICE_ID",
-        "EXAVITQu4vr4xnSDxMaL",
-      ),
-      ELEVENLABS_MODEL_ID: getSetting(
-        "ELEVENLABS_MODEL_ID",
-        "eleven_multilingual_v2",
-      ),
-      ELEVENLABS_VOICE_STABILITY: getSetting(
-        "ELEVENLABS_VOICE_STABILITY",
-        "0.5",
-      ),
-      ELEVENLABS_VOICE_SIMILARITY_BOOST: getSetting(
-        "ELEVENLABS_VOICE_SIMILARITY_BOOST",
-        "0.75",
-      ),
-      ELEVENLABS_VOICE_STYLE: getSetting("ELEVENLABS_VOICE_STYLE", "0"),
-      ELEVENLABS_VOICE_USE_SPEAKER_BOOST: getSetting(
-        "ELEVENLABS_VOICE_USE_SPEAKER_BOOST",
-        "true",
-      ),
-      ELEVENLABS_OPTIMIZE_STREAMING_LATENCY: getSetting(
-        "ELEVENLABS_OPTIMIZE_STREAMING_LATENCY",
-        "0",
-      ),
-      ELEVENLABS_OUTPUT_FORMAT: getSetting(
-        "ELEVENLABS_OUTPUT_FORMAT",
-        "mp3_44100_128",
-      ),
-      ELEVENLABS_LANGUAGE_CODE: getSetting("ELEVENLABS_LANGUAGE_CODE", "en"),
-      // ElevenLabs STT
-      ELEVENLABS_STT_MODEL_ID: getSetting(
-        "ELEVENLABS_STT_MODEL_ID",
-        "scribe_v1",
-      ),
-      ELEVENLABS_STT_LANGUAGE_CODE: getSetting(
-        "ELEVENLABS_STT_LANGUAGE_CODE",
-        "en",
-      ),
-      ELEVENLABS_STT_TIMESTAMPS_GRANULARITY: getSetting(
-        "ELEVENLABS_STT_TIMESTAMPS_GRANULARITY",
-        "word",
-      ),
-      ELEVENLABS_STT_DIARIZE: getSetting("ELEVENLABS_STT_DIARIZE", "false"),
-      ...(charSettings.ELEVENLABS_STT_NUM_SPEAKERS ||
-      process.env.ELEVENLABS_STT_NUM_SPEAKERS
-        ? {
-            ELEVENLABS_STT_NUM_SPEAKERS:
-              charSettings.ELEVENLABS_STT_NUM_SPEAKERS ||
-              process.env.ELEVENLABS_STT_NUM_SPEAKERS,
-          }
-        : {}),
-      ELEVENLABS_STT_TAG_AUDIO_EVENTS: getSetting(
-        "ELEVENLABS_STT_TAG_AUDIO_EVENTS",
-        "false",
-      ),
-      // MCP
+      ...buildElevenLabsSettings(charSettings),
       ...(charSettings.mcp
         ? {
             mcp: this.transformMcpSettings(
@@ -242,23 +517,19 @@ export class RuntimeFactory {
             ),
           }
         : {}),
-      // User metadata
       USER_ID: context.userId,
       ENTITY_ID: context.entityId,
       ORGANIZATION_ID: context.organizationId,
       IS_ANONYMOUS: context.isAnonymous,
-      // App-specific prompt config (for APP_CONFIG provider)
       ...(context.appPromptConfig
         ? { appPromptConfig: context.appPromptConfig }
         : {}),
-      // Tavily API key for web search plugin (only when enabled)
       ...(context.webSearchEnabled && process.env.TAVILY_API_KEY
         ? { TAVILY_API_KEY: process.env.TAVILY_API_KEY }
         : {}),
     } as unknown as NonNullable<Character["settings"]>;
   }
 
-  /** Initialize runtime, ensuring agent/world exist */
   private async initializeRuntime(
     runtime: AgentRuntime,
     character: Character,
@@ -266,7 +537,6 @@ export class RuntimeFactory {
   ): Promise<void> {
     const startTime = Date.now();
 
-    // Initialize runtime (creates agent in agents table first, then world)
     let initSucceeded = false;
     try {
       const initStart = Date.now();
@@ -284,59 +554,58 @@ export class RuntimeFactory {
         msg.includes("Failed to create agent") ||
         msg.includes("Failed to create room");
       if (!isDuplicate) throw e;
-
-      // CRITICAL: If initialize() threw but we caught it, initPromise is unresolved!
-      // Services waiting on initPromise will timeout after 30s.
-      // We must manually resolve it to prevent service registration timeouts.
       elizaLogger.warn(
-        `[RuntimeFactory] Caught init error (${msg.substring(0, 50)}...), resolving initPromise manually`,
+        `[RuntimeFactory] Init error: ${msg.substring(0, 50)}...`,
       );
       this.resolveInitPromise(runtime);
     }
 
-    // Ensure agent exists after initialize
-    const agentCheckStart = Date.now();
-    if (!(await runtime.getAgent(agentId))) {
-      await this.ensureAgentExists(runtime, character, agentId);
-      elizaLogger.info(
-        `[RuntimeFactory] ensureAgentExists() completed in ${Date.now() - agentCheckStart}ms`,
+    // Check if agent exists
+    const agentExists = await runtime.getAgent(agentId);
+
+    const parallelOps: Promise<void>[] = [];
+
+    if (!agentExists) {
+      parallelOps.push(this.ensureAgentExists(runtime, character, agentId));
+    }
+
+    parallelOps.push(
+      (async () => {
+        try {
+          await runtime.ensureWorldExists({
+            id: agentId,
+            name: `World for ${character.name}`,
+            agentId,
+            serverId: agentId,
+          } as World);
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e);
+          if (
+            !msg.toLowerCase().includes("duplicate") &&
+            !msg.toLowerCase().includes("unique constraint")
+          ) {
+            throw e;
+          }
+        }
+      })(),
+    );
+
+    if (parallelOps.length > 0) {
+      const parallelStart = Date.now();
+      await Promise.all(parallelOps);
+      elizaLogger.debug(
+        `[RuntimeFactory] Parallel ops: ${Date.now() - parallelStart}ms`,
       );
     }
 
-    // Now create world (FK constraint requires agent to exist first)
-    try {
-      const worldStart = Date.now();
-      await runtime.ensureWorldExists({
-        id: agentId,
-        name: `World for ${character.name}`,
-        agentId,
-        serverId: agentId,
-      } as World);
-      elizaLogger.info(
-        `[RuntimeFactory] ensureWorldExists() completed in ${Date.now() - worldStart}ms`,
-      );
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      if (
-        !msg.toLowerCase().includes("duplicate") &&
-        !msg.toLowerCase().includes("unique constraint")
-      )
-        throw e;
-    }
-
-    // If init succeeded but we still need to resolve (edge case)
     if (initSucceeded) {
       this.resolveInitPromise(runtime);
     }
 
-    elizaLogger.info(
-      `[RuntimeFactory] Total initializeRuntime() completed in ${Date.now() - startTime}ms`,
-    );
+    elizaLogger.info(`[RuntimeFactory] Init: ${Date.now() - startTime}ms`);
   }
 
-  /** Manually resolve runtime's initPromise to prevent service timeouts */
   private resolveInitPromise(runtime: AgentRuntime): void {
-    // Access internal initResolver - it's not truly private in JS
     const runtimeAny = runtime as unknown as {
       initResolver?: () => void;
     };
@@ -420,7 +689,6 @@ export class RuntimeFactory {
     }
   }
 
-  /** Wait for MCP service if plugin loaded */
   private async waitForMcpServiceIfNeeded(
     runtime: AgentRuntime,
     plugins: Plugin[],
@@ -432,19 +700,31 @@ export class RuntimeFactory {
       getServers?: () => unknown[];
     };
 
-    // Poll for service (registers async)
-    const maxAttempts = 40;
+    const startTime = Date.now();
+    const maxWaitMs = 1000; // Reduced from 2s to 1s
+    const maxDelay = 200;
+    let waitMs = 5; // Start lower at 5ms
     let mcpService: McpService | null = null;
 
-    for (let i = 0; i < maxAttempts && !mcpService; i++) {
+    // Check immediately first
+    mcpService = runtime.getService("mcp") as McpService | null;
+
+    // Exponential backoff: 5, 10, 20, 40, 80, 160, 200, 200...
+    while (!mcpService && Date.now() - startTime < maxWaitMs) {
+      await new Promise((r) => setTimeout(r, waitMs));
       mcpService = runtime.getService("mcp") as McpService | null;
-      if (!mcpService) await new Promise((r) => setTimeout(r, 100));
+      waitMs = Math.min(waitMs * 2, maxDelay);
     }
 
+    const elapsed = Date.now() - startTime;
     if (!mcpService) {
-      elizaLogger.warn("[RuntimeFactory] MCP service not available after 4s");
+      elizaLogger.warn(
+        `[RuntimeFactory] MCP service not available after ${elapsed}ms`,
+      );
       return;
     }
+
+    elizaLogger.debug(`[RuntimeFactory] MCP service found in ${elapsed}ms`);
 
     if (typeof mcpService.waitForInitialization === "function") {
       await mcpService.waitForInitialization();
@@ -453,11 +733,26 @@ export class RuntimeFactory {
     const servers = mcpService.getServers?.();
     if (servers) {
       elizaLogger.info(
-        `[RuntimeFactory] MCP: ${servers.length} server(s) connected`,
+        `[RuntimeFactory] MCP: ${servers.length} server(s) connected in ${Date.now() - startTime}ms`,
       );
     }
   }
 }
 
-// Export singleton instance for convenience
+export function getRuntimeCacheStats(): {
+  runtime: { size: number; maxSize: number };
+} {
+  return runtimeFactory.getCacheStats();
+}
+
 export const runtimeFactory = RuntimeFactory.getInstance();
+
+export async function invalidateRuntime(agentId: string): Promise<boolean> {
+  return runtimeFactory.invalidateRuntime(agentId);
+}
+
+export function isRuntimeCached(agentId: string): boolean {
+  return runtimeFactory.isRuntimeCached(agentId);
+}
+
+export { getStaticEmbeddingDimension, KNOWN_EMBEDDING_DIMENSIONS };

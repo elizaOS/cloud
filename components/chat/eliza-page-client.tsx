@@ -63,18 +63,23 @@ export function ElizaPageClient({
   const errorShownRef = useRef(false);
 
   // Initialize store with characters (must be at top level)
-  const { setAvailableCharacters, setRoomId, setSelectedCharacterId, selectedCharacterId } =
-    useChatStore();
+  const {
+    setAvailableCharacters,
+    setRoomId,
+    setSelectedCharacterId,
+    selectedCharacterId,
+  } = useChatStore();
 
   // Show access error toast when redirected from private character
   useEffect(() => {
     if (accessError && !errorShownRef.current) {
       errorShownRef.current = true;
-      
+
       if (accessError.type === "private_character") {
         const characterName = accessError.characterName || "This agent";
         toast.error(`Sorry, "${characterName}" is not your agent`, {
-          description: "This agent is private. Only the owner can chat with it. Ask the owner to make it public if you'd like to chat.",
+          description:
+            "This agent is private. Only the owner can chat with it. Ask the owner to make it public if you'd like to chat.",
           duration: 6000,
         });
       } else {
@@ -83,7 +88,7 @@ export function ElizaPageClient({
           duration: 5000,
         });
       }
-      
+
       // Clear error AND characterId from URL without navigation
       // This prevents the URL from showing a characterId that the user can't access
       if (typeof window !== "undefined") {
@@ -100,13 +105,23 @@ export function ElizaPageClient({
   // Chat mode requires an agent - "Create New Agent" mode is only available in build mode
   useEffect(() => {
     if (!isAuthenticated) return;
-    
+
     // If no character is selected and no initial character ID provided,
     // redirect to build page - chat requires an existing agent
-    if (!selectedCharacterId && !initialCharacterId && initialCharacters.length === 0) {
+    if (
+      !selectedCharacterId &&
+      !initialCharacterId &&
+      initialCharacters.length === 0
+    ) {
       router.replace("/dashboard/build");
     }
-  }, [isAuthenticated, selectedCharacterId, initialCharacterId, initialCharacters.length, router]);
+  }, [
+    isAuthenticated,
+    selectedCharacterId,
+    initialCharacterId,
+    initialCharacters.length,
+    router,
+  ]);
 
   // Note: Page header is now handled by ChatHeader component
   // Remove this if you want to completely disable the old header system for chat
@@ -144,7 +159,8 @@ export function ElizaPageClient({
     setAvailableCharacters(characters);
   }, [characters, setAvailableCharacters]);
 
-  // Sync URL params with store on mount (only once)
+  // Sync URL params with store - run on mount and when params change
+  // This ensures the store reflects URL changes (e.g., navigating to a different characterId)
   useEffect(() => {
     // If we have a characterId from URL but no roomId, clear the stored roomId
     // This ensures a fresh room is created for the new character
@@ -158,8 +174,7 @@ export function ElizaPageClient({
     if (initialCharacterId) {
       setSelectedCharacterId(initialCharacterId);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Only run on mount
+  }, [initialCharacterId, initialRoomId, setRoomId, setSelectedCharacterId]);
 
   // Initialize anonymous session for unauthenticated users (only once)
   useEffect(() => {

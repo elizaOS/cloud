@@ -201,7 +201,6 @@ async function handleCreateContainer(request: NextRequest) {
 
     const isUpdate = !!existingProject;
 
-
     let container;
     let newBalance: number;
     let deploymentCost: number;
@@ -364,6 +363,9 @@ async function handleCreateContainer(request: NextRequest) {
       }
 
       // Create usage record for audit trail
+      // NOTE: is_successful is FALSE initially - deployment monitor will mark it
+      // as successful when CloudFormation stack completes, or mark it as failed
+      // with error_message if the deployment fails
       await usageService.create({
         organization_id: user.organization_id!!,
         user_id: user.id,
@@ -372,7 +374,7 @@ async function handleCreateContainer(request: NextRequest) {
         provider: "aws_ecs",
         input_cost: String(deploymentCost),
         output_cost: String(0),
-        is_successful: true,
+        is_successful: false, // Will be updated by deployment-monitor cron when stack completes
         metadata: {
           container_id: container.id,
           container_name: validatedData.name,
@@ -388,22 +390,25 @@ async function handleCreateContainer(request: NextRequest) {
 
     // Create usage record for updates
     if (isUpdate) {
-      const deploymentCost = calculateDeploymentCost({
+      const updateDeploymentCost = calculateDeploymentCost({
         desiredCount: validatedData.desired_count,
         cpu: validatedData.cpu,
         memory: validatedData.memory,
         includeUpload: false,
       });
 
+      // NOTE: is_successful is FALSE initially - deployment monitor will mark it
+      // as successful when CloudFormation stack completes, or mark it as failed
+      // with error_message if the deployment fails
       await usageService.create({
         organization_id: user.organization_id!!,
         user_id: user.id,
         api_key_id: apiKey?.id,
         type: "container_update",
         provider: "aws_ecs",
-        input_cost: String(deploymentCost),
+        input_cost: String(updateDeploymentCost),
         output_cost: String(0),
-        is_successful: true,
+        is_successful: false, // Will be updated by deployment-monitor cron when stack completes
         metadata: {
           container_id: container.id,
           container_name: validatedData.name,
@@ -446,6 +451,11 @@ async function handleCreateContainer(request: NextRequest) {
         { status: 202 }, // 202 Accepted - request accepted, processing asynchronously
       );
     } catch (stackError) {
+      const errorMessage =
+        stackError instanceof Error
+          ? stackError.message
+          : "CloudFormation stack creation failed";
+
       logger.error(
         `❌ [handleCreateContainer] CloudFormation stack creation failed:`,
         stackError,
@@ -453,11 +463,19 @@ async function handleCreateContainer(request: NextRequest) {
 
       // Update container status to failed
       await updateContainerStatus(container.id, "failed", {
-        errorMessage:
-          stackError instanceof Error
-            ? stackError.message
-            : "CloudFormation stack creation failed",
+        errorMessage,
       });
+
+      // Mark usage record as failed with error message
+      try {
+        await usageService.markDeploymentFailed(
+          container.id,
+          user.organization_id!,
+          errorMessage,
+        );
+      } catch (usageError) {
+        logger.error(`❌ Failed to update usage record:`, usageError);
+      }
 
       // Refund credits
       try {
@@ -465,7 +483,11 @@ async function handleCreateContainer(request: NextRequest) {
           organizationId: user.organization_id!,
           amount: deploymentCost,
           description: `Refund for failed container deployment: ${validatedData.name}`,
-          metadata: { type: "refund" },
+          metadata: {
+            type: "refund",
+            containerId: container.id,
+            reason: errorMessage,
+          },
         });
       } catch (refundError) {
         logger.error(`❌ Failed to refund credits:`, refundError);
@@ -474,10 +496,7 @@ async function handleCreateContainer(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error:
-            stackError instanceof Error
-              ? stackError.message
-              : "CloudFormation stack creation failed",
+          error: errorMessage,
           containerId: container.id,
         },
         { status: 500 },
@@ -594,7 +613,7 @@ async function initiateCloudFormationStack(
 
   // Get container to check if this is an update
   const container = await getContainer(containerId, organizationId);
-  const isUpdate = container?.is_update === "true";
+  const isUpdateInDb = container?.is_update === "true";
 
   const stackConfig = {
     userId: organizationId,
@@ -609,10 +628,36 @@ async function initiateCloudFormationStack(
     environmentVars: environmentVars,
   };
 
-  // Create or update CloudFormation stack
+  // Check if CloudFormation stack actually exists before deciding to update
+  // A container record might exist with is_update=true, but the stack could have been
+  // deleted/rolled back from a previous failed deployment
+  let stackActuallyExists = false;
+  if (isUpdateInDb) {
+    try {
+      const existingStack = await cloudFormationService.getStack(
+        organizationId,
+        config.project_name,
+      );
+      stackActuallyExists = existingStack !== null;
+      if (!stackActuallyExists) {
+        logger.info(
+          `Container ${containerId} marked as update, but CloudFormation stack does not exist. Creating new stack instead.`,
+        );
+      }
+    } catch (error) {
+      // If we can't check, assume stack doesn't exist and create new
+      logger.warn(
+        `Failed to check if stack exists for ${containerId}, will create new:`,
+        error,
+      );
+      stackActuallyExists = false;
+    }
+  }
+
+  // Create or update CloudFormation stack based on actual stack existence
   // This API call is FAST (milliseconds) - it just initiates the stack
   let stackId: string;
-  if (isUpdate) {
+  if (isUpdateInDb && stackActuallyExists) {
     stackId = await cloudFormationService.updateUserStack(stackConfig);
   } else {
     stackId = await cloudFormationService.createUserStack(stackConfig);

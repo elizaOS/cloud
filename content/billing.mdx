@@ -3,7 +3,7 @@ title: Billing & Credits
 description: Understand elizaOS Cloud pricing, credits system, and billing management.
 ---
 
-import { Callout, Cards } from 'nextra/components'
+import { Callout, Cards } from "nextra/components";
 
 # Billing & Credits
 
@@ -12,7 +12,8 @@ import { Callout, Cards } from 'nextra/components'
 elizaOS Cloud uses a credit-based system for flexible, pay-as-you-go pricing.
 
 <Callout type="info">
-This page is the **authoritative source** for all pricing information. Credit costs shown elsewhere in the docs link back here.
+  This page is the **authoritative source** for all pricing information. Credit
+  costs shown elsewhere in the docs link back here.
 </Callout>
 
 ## Overview
@@ -26,51 +27,51 @@ This page is the **authoritative source** for all pricing information. Credit co
 
 ### Chat & Language Models
 
-| Model | Cost per 1K tokens |
-|-------|-------------------|
-| GPT-4o | 0.015 credits |
-| GPT-4o-mini | 0.0015 credits |
-| Claude 3.5 Sonnet | 0.018 credits |
-| Claude 3 Haiku | 0.003 credits |
-| Gemini Pro | 0.0035 credits |
+| Model             | Cost per 1K tokens |
+| ----------------- | ------------------ |
+| GPT-4o            | 0.015 credits      |
+| GPT-4o-mini       | 0.0015 credits     |
+| Claude 3.5 Sonnet | 0.018 credits      |
+| Claude 3 Haiku    | 0.003 credits      |
+| Gemini Pro        | 0.0035 credits     |
 
 ### Embeddings
 
-| Model | Cost per 1K tokens |
-|-------|-------------------|
-| text-embedding-3-small | 0.0001 credits |
-| text-embedding-3-large | 0.0003 credits |
+| Model                  | Cost per 1K tokens |
+| ---------------------- | ------------------ |
+| text-embedding-3-small | 0.0001 credits     |
+| text-embedding-3-large | 0.0003 credits     |
 
 ### Image Generation
 
-| Model | Cost per image |
-|-------|---------------|
-| FLUX Schnell | 0.02 credits |
-| FLUX Pro | 0.05 credits |
-| FLUX Dev | 0.03 credits |
-| SD3 | 0.03 credits |
+| Model        | Cost per image |
+| ------------ | -------------- |
+| FLUX Schnell | 0.02 credits   |
+| FLUX Pro     | 0.05 credits   |
+| FLUX Dev     | 0.03 credits   |
+| SD3          | 0.03 credits   |
 
 ### Video Generation
 
-| Model | Cost per video |
-|-------|---------------|
-| MiniMax Video-01 | 0.50 credits |
-| Runway Gen-3 | 0.75 credits |
-| Kling Video | 0.30 credits |
+| Model            | Cost per video |
+| ---------------- | -------------- |
+| MiniMax Video-01 | 0.50 credits   |
+| Runway Gen-3     | 0.75 credits   |
+| Kling Video      | 0.30 credits   |
 
 ### Voice
 
-| Feature | Cost |
-|---------|------|
-| Voice cloning | 5.00 credits |
-| TTS (per 1K chars) | 0.1 credits |
-| STT (per minute) | 0.1 credits |
+| Feature            | Cost         |
+| ------------------ | ------------ |
+| Voice cloning      | 5.00 credits |
+| TTS (per 1K chars) | 0.1 credits  |
+| STT (per minute)   | 0.1 credits  |
 
 ### Infrastructure
 
-| Resource | Cost |
-|----------|------|
-| Container CPU (per core/hour) | 0.05 credits |
+| Resource                       | Cost         |
+| ------------------------------ | ------------ |
+| Container CPU (per core/hour)  | 0.05 credits |
 | Container Memory (per GB/hour) | 0.01 credits |
 | Knowledge storage (per GB/day) | 0.01 credits |
 
@@ -78,12 +79,12 @@ This page is the **authoritative source** for all pricing information. Credit co
 
 Purchase credit packs from the dashboard:
 
-| Pack | Credits | Price | Bonus |
-|------|---------|-------|-------|
-| Starter | 1,000 | $10 | - |
-| Growth | 5,000 | $45 | 10% |
-| Pro | 20,000 | $160 | 20% |
-| Enterprise | 100,000 | $700 | 30% |
+| Pack       | Credits | Price | Bonus |
+| ---------- | ------- | ----- | ----- |
+| Starter    | 1,000   | $10   | -     |
+| Growth     | 5,000   | $45   | 10%   |
+| Pro        | 20,000  | $160  | 20%   |
+| Enterprise | 100,000 | $700  | 30%   |
 
 ## Checking Balance
 
@@ -100,11 +101,11 @@ curl -X GET "https://elizacloud.ai/api/v1/credits/summary" \
 
 ```json
 {
-  "balance": 4523.50,
+  "balance": 4523.5,
   "pending": 0,
   "usage": {
-    "today": 45.20,
-    "thisMonth": 1250.00
+    "today": 45.2,
+    "thisMonth": 1250.0
   }
 }
 ```
@@ -135,7 +136,7 @@ curl -X POST "https://elizacloud.ai/api/v1/credits/topup" \
 ```
 
 <Callout type="info">
-See [x402 Payments](/docs/x402) for details on crypto payments.
+  See [x402 Payments](/docs/x402) for details on crypto payments.
 </Callout>
 
 ## Auto Top-Up
@@ -153,11 +154,11 @@ curl -X POST "https://elizacloud.ai/api/auto-top-up/settings" \
   }'
 ```
 
-| Setting | Description |
-|---------|-------------|
-| `enabled` | Enable auto top-up |
+| Setting     | Description                      |
+| ----------- | -------------------------------- |
+| `enabled`   | Enable auto top-up               |
 | `threshold` | Trigger when balance falls below |
-| `amount` | Credits to add |
+| `amount`    | Credits to add                   |
 
 ## Usage Analytics
 
@@ -171,17 +172,17 @@ curl -X GET "https://elizacloud.ai/api/billing/usage?period=month" \
 ```json
 {
   "period": "2024-01",
-  "total": 1250.50,
+  "total": 1250.5,
   "breakdown": {
-    "chat": 800.00,
-    "embeddings": 150.00,
-    "images": 200.00,
-    "videos": 50.00,
-    "containers": 50.50
+    "chat": 800.0,
+    "embeddings": 150.0,
+    "images": 200.0,
+    "videos": 50.0,
+    "containers": 50.5
   },
   "daily": [
-    { "date": "2024-01-01", "usage": 42.50 },
-    { "date": "2024-01-02", "usage": 38.00 }
+    { "date": "2024-01-01", "usage": 42.5 },
+    { "date": "2024-01-02", "usage": 38.0 }
   ]
 }
 ```
@@ -250,9 +251,7 @@ New accounts receive:
 - Basic access to all features
 - Community support
 
-<Callout type="info">
-Free credits expire after 30 days of inactivity.
-</Callout>
+<Callout type="info">Free credits expire after 30 days of inactivity.</Callout>
 
 ## Enterprise
 

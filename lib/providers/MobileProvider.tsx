@@ -80,7 +80,6 @@ export function MobileProvider({ children }: { children: ReactNode }) {
       setConfig(platformConfig);
     });
 
-
     // Set up safe area CSS variables
     if (typeof window !== "undefined" && platformConfig.isMobile) {
       const style = document.documentElement.style;

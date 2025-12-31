@@ -65,4 +65,3 @@ export function isCryptoInvoiceId(invoiceId: string): boolean {
 export function isCryptoCustomerId(customerId: string): boolean {
   return customerId.startsWith(INVOICE_NAMESPACE.CRYPTO.CUSTOMER_PREFIX);
 }
-

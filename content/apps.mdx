@@ -3,7 +3,7 @@ title: Apps
 description: Create and manage applications on elizaOS Cloud. Build integrations with your agents and APIs.
 ---
 
-import { Callout, Steps, Tabs, Cards } from 'nextra/components'
+import { Callout, Steps, Tabs, Cards } from "nextra/components";
 
 # Apps
 
@@ -47,15 +47,19 @@ curl -X POST "https://elizacloud.ai/api/v1/apps" \
 Go to [Dashboard → Apps](/dashboard/apps) and click "Create App".
 
 ### Configure App
+
 - **Name**: Display name for your app
 - **Description**: What your app does
 - **Website**: (Optional) Your app's website
 
 ### Get API Key
+
 Your app receives a unique API key for authentication.
 
 ### Integrate
+
 Use the API key to make requests on behalf of your app.
+
 </Steps>
 
 ### Response
@@ -70,27 +74,27 @@ Use the API key to make requests on behalf of your app.
 ```
 
 <Callout type="warning">
-Save your API key securely. It will only be shown once.
+  Save your API key securely. It will only be shown once.
 </Callout>
 
 ## App Configuration
 
 ### Basic Settings
 
-| Field | Description |
-|-------|-------------|
-| `name` | Display name for your app |
+| Field         | Description                        |
+| ------------- | ---------------------------------- |
+| `name`        | Display name for your app          |
 | `description` | Brief description of functionality |
-| `website` | Public website URL |
-| `logo` | App icon/logo image |
+| `website`     | Public website URL                 |
+| `logo`        | App icon/logo image                |
 
 ### API Settings
 
-| Field | Description |
-|-------|-------------|
-| `rateLimit` | Requests per minute |
+| Field              | Description                   |
+| ------------------ | ----------------------------- |
+| `rateLimit`        | Requests per minute           |
 | `allowedEndpoints` | Which APIs the app can access |
-| `webhookUrl` | URL for event notifications |
+| `webhookUrl`       | URL for event notifications   |
 
 ## Usage Tracking
 
@@ -114,11 +118,11 @@ curl -X GET "https://elizacloud.ai/api/v1/apps/{appId}/analytics" \
     "images": 500
   },
   "costs": {
-    "total": 125.50,
+    "total": 125.5,
     "byEndpoint": {
-      "chat": 100.00,
-      "embeddings": 15.00,
-      "images": 10.50
+      "chat": 100.0,
+      "embeddings": 15.0,
+      "images": 10.5
     }
   },
   "uniqueUsers": 234
@@ -179,13 +183,13 @@ curl -X GET "https://elizacloud.ai/api/v1/apps/{appId}/earnings" \
 
 ```json
 {
-  "total": 1250.00,
-  "pending": 150.00,
-  "available": 1100.00,
+  "total": 1250.0,
+  "pending": 150.0,
+  "available": 1100.0,
   "history": [
     {
       "date": "2024-01-15",
-      "amount": 45.00,
+      "amount": 45.0,
       "requests": 45000
     }
   ]
@@ -199,11 +203,7 @@ Receive real-time notifications:
 ```json
 {
   "webhookUrl": "https://your-server.com/webhook",
-  "events": [
-    "user.created",
-    "usage.threshold",
-    "error.occurred"
-  ]
+  "events": ["user.created", "usage.threshold", "error.occurred"]
 }
 ```
 
@@ -231,7 +231,8 @@ curl -X POST "https://elizacloud.ai/api/v1/apps/{appId}/regenerate-api-key" \
 ```
 
 <Callout type="warning">
-Regenerating invalidates the old key immediately. Update your integrations promptly.
+  Regenerating invalidates the old key immediately. Update your integrations
+  promptly.
 </Callout>
 
 ### Key Permissions
@@ -240,12 +241,7 @@ Restrict what your app key can access:
 
 ```json
 {
-  "permissions": [
-    "chat:read",
-    "chat:write",
-    "embeddings:read",
-    "agents:read"
-  ]
+  "permissions": ["chat:read", "chat:write", "embeddings:read", "agents:read"]
 }
 ```
 

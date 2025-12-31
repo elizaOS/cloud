@@ -8,10 +8,7 @@ import {
   type Memory,
   type Content,
   type Media,
-  ModelType,
   parseKeyValueXml,
-  runWithStreamingContext,
-  XmlTagExtractor,
   type UUID,
 } from "@elizaos/core";
 import type { DialogueMetadata } from "@/lib/types/message-content";
@@ -33,6 +30,7 @@ import {
 } from "../shared/utils/response-tracking";
 import {
   generateResponseWithRetry,
+  generatePlanningWithStreaming,
   runEvaluatorsWithTimeout,
   extractAttachments,
   executeProviders,
@@ -93,6 +91,7 @@ export async function handleMessage({
   message,
   callback,
   onStreamChunk,
+  onReasoningChunk,
 }: MessageReceivedHandlerParams): Promise<void> {
   const responseId = v4();
   const runId = asUUID(v4());
@@ -116,27 +115,9 @@ export async function handleMessage({
 
   const originalSystemPrompt = runtime.character.system;
 
-  // Helper to create fresh streaming context for a specific call
-  // Each call needs its own XmlTagExtractor since they're single-use
-  const createStreamingContext = () => {
-    if (!onStreamChunk) return undefined;
-    const extractor = new XmlTagExtractor('text');
-    return {
-      onStreamChunk: async (chunk: string, msgId?: UUID) => {
-        if (extractor.done) return;
-        const textToStream = extractor.push(chunk);
-        if (textToStream) {
-          await onStreamChunk(textToStream, msgId);
-        }
-      },
-      messageId: responseId as UUID,
-    };
-  };
-
   try {
     await runtime.createMemory(message, "messages");
 
-    // Check for affiliate character (uses minimal providers to save tokens)
     const affiliateData = runtime.character.settings?.affiliateData as
       | {
           vibe?: string;
@@ -149,13 +130,7 @@ export async function handleMessage({
     const isAffiliateChat = !!(
       affiliateData && Object.keys(affiliateData).length > 0
     );
-    // Auto-generate images on every response if autoImage is enabled
-    // Reference images are optional - without them, images are generated based on character bio
     const shouldAutoGenerateImages = affiliateData?.autoImage === true;
-
-    logger.info(
-      `[Assistant] Processing for ${runtime.character.name}, affiliate: ${isAffiliateChat}, autoImage: ${shouldAutoGenerateImages}`,
-    );
 
     const providers = isAffiliateChat
       ? ["CHARACTER", "ACTIONS", "affiliateContext", "APP_CONFIG"]
@@ -174,7 +149,6 @@ export async function handleMessage({
 
     const initialState = await runtime.composeState(message, providers);
 
-    // Select prompts based on affiliate mode
     const systemPromptTemplate = isAffiliateChat
       ? affiliateSystemPrompt
       : chatAssistantSystemPrompt;
@@ -182,7 +156,6 @@ export async function handleMessage({
       ? affiliatePlanningTemplate
       : chatAssistantPlanningTemplate;
 
-    // Planning phase
     const planningPrompt = cleanPrompt(
       composePromptFromState({
         state: initialState,
@@ -196,89 +169,65 @@ export async function handleMessage({
       template: systemPromptTemplate,
     });
 
-    const planningResponse = await runtime.useModel(ModelType.TEXT_LARGE, {
-      prompt: planningPrompt,
-    });
+    // Generate planning with real-time streaming of <thought> content
+    // This allows chain-of-thought to appear immediately as the LLM generates it
+    const planningResponse = await generatePlanningWithStreaming(
+      runtime,
+      planningPrompt,
+      onReasoningChunk
+        ? { onReasoningChunk, messageId: responseId as UUID }
+        : undefined,
+    );
     runtime.character.system = originalSystemPrompt;
 
     let plan = parseKeyValueXml(planningResponse) as ParsedPlan | null;
     let shouldRespondNow = canRespondImmediately(plan);
 
-    // Auto-generate images when autoImage is enabled
-    // Rate limited to prevent cost abuse (1 image per minute OR explicit user request)
+    // NOTE: Chain-of-thought was already streamed in real-time during generatePlanningWithStreaming
+
+    // Auto-generate images (rate limited)
     if (shouldAutoGenerateImages) {
       const userText = (message.content?.text || "").trim();
       const hasExplicitRequest = hasImageIntent(userText);
       const rateLimitAllows = canGenerateImage(message.roomId.toString());
 
-      // Only force image generation if:
-      // 1. User explicitly requested an image, OR
-      // 2. Rate limit allows it (hasn't generated in last minute)
       if (hasExplicitRequest || rateLimitAllows) {
-        logger.info(
-          `[Assistant] Auto-generating image - explicit: ${hasExplicitRequest}, rateLimit: ${rateLimitAllows}`,
-        );
-
         shouldRespondNow = false;
         if (!plan) {
           plan = {
-            thought: "Generating image with character appearance",
+            thought: "Generating image",
             canRespondNow: "NO",
             actions: "GENERATE_IMAGE",
           };
         } else {
-          const existingActions = plan.actions || "";
-          if (!existingActions.includes("GENERATE_IMAGE")) {
-            plan.actions = existingActions
-              ? `${existingActions}, GENERATE_IMAGE`
+          if (!plan.actions?.includes("GENERATE_IMAGE")) {
+            plan.actions = plan.actions
+              ? `${plan.actions}, GENERATE_IMAGE`
               : "GENERATE_IMAGE";
           }
           plan.canRespondNow = "NO";
         }
-      } else {
-        logger.info(
-          `[Assistant] Skipping auto-image (rate limited) - last generated < 1 min ago`,
-        );
       }
     }
 
-    logger.info(
-      `[Assistant] Plan: canRespondNow=${shouldRespondNow}, thought=${plan?.thought?.substring(0, 50)}`,
-    );
-
     let responseContent = "";
-    let thought = "";
+    let thought = plan?.thought || "";
 
-    // Single-call optimization: use planning response if available
     if (shouldRespondNow && plan?.text) {
       responseContent = plan.text;
-      thought = plan.thought || "";
-      
-      // Stream the planning response text to client for real-time display
-      // Even though we already have the full text, we stream it in chunks
-      // so the user sees text appearing incrementally
-      if (onStreamChunk && responseContent) {
-        const chunkSize = 8; // Characters per chunk - small for smooth streaming
+      // Stream the pre-planned response - frontend handles smooth animation
+      if (onStreamChunk) {
+        // Stream in reasonable chunks - frontend typewriter will smooth it out
+        const chunkSize = 20;
         for (let i = 0; i < responseContent.length; i += chunkSize) {
-          const chunk = responseContent.slice(i, i + chunkSize);
-          await onStreamChunk(chunk, responseId as UUID);
-          // Small delay between chunks for natural streaming effect
-          if (i + chunkSize < responseContent.length) {
-            await new Promise(resolve => setTimeout(resolve, 10));
-          }
+          await onStreamChunk(
+            responseContent.slice(i, i + chunkSize),
+            responseId as UUID,
+          );
         }
       }
     } else {
-      let updatedState = await runtime.composeState(message, [
-        "SUMMARIZED_CONTEXT",
-        "RECENT_MESSAGES",
-        "LONG_TERM_MEMORY",
-        "PROVIDERS",
-        "MCP",
-        "ACTIONS",
-        "CHARACTER",
-        "APP_CONFIG",
-      ]);
+      let updatedState = { ...initialState };
 
       if (!shouldRespondNow) {
         const plannedProviders = parsePlannedItems(plan?.providers);
@@ -322,11 +271,8 @@ export async function handleMessage({
         }
       }
 
-      // Generate final response
-      updatedState = await runtime.composeState(message, [
-        "CURRENT_RUN_CONTEXT",
-        "APP_CONFIG",
-      ]);
+      // PERFORMANCE OPTIMIZATION: No need to call composeState again
+      // Just add CURRENT_RUN_CONTEXT inline if needed (it's typically just the plan thought)
 
       // Select final prompts based on affiliate mode
       const finalSystemTemplate = isAffiliateChat
@@ -352,15 +298,26 @@ export async function handleMessage({
         }),
       );
 
-      // Wrap final response generation with streaming context
-      // This is where we actually want to stream to the user
-      const streamingContext = createStreamingContext();
-      const responseResult = await runWithStreamingContext(
-        streamingContext,
-        () => generateResponseWithRetry(runtime, responsePrompt),
+      // Use real streaming when callback is provided
+      // The model will stream tokens as they're generated for smooth UX
+      // Also stream response <thought> to reasoning display
+      const responseResult = await generateResponseWithRetry(
+        runtime,
+        responsePrompt,
+        onStreamChunk
+          ? {
+              onStreamChunk,
+              onReasoningChunk,
+              messageId: responseId as UUID,
+            }
+          : undefined,
       );
       responseContent = responseResult.text;
       thought = responseResult.thought;
+
+      // NOTE: No fake chunking here! When onStreamChunk is provided,
+      // generateResponseWithRetry uses real streaming via the model.
+      // The response has already been streamed as it was generated.
     }
 
     runtime.character.system = originalSystemPrompt;

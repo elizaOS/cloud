@@ -3,7 +3,7 @@ title: Containers
 description: Deploy custom Docker containers on elizaOS Cloud with managed infrastructure and auto-scaling.
 ---
 
-import { Callout, Steps, Tabs, Cards } from 'nextra/components'
+import { Callout, Steps, Tabs, Cards } from "nextra/components";
 
 # Containers
 
@@ -50,13 +50,17 @@ curl -X POST "https://elizacloud.ai/api/v1/containers" \
 Build and push your Docker image to a registry.
 
 ### Configure Deployment
+
 Set container settings via dashboard or API.
 
 ### Deploy
+
 Launch your container on elizaOS Cloud.
 
 ### Monitor
+
 Track logs, metrics, and health status.
+
 </Steps>
 
 ### Deployment Configuration
@@ -87,18 +91,18 @@ Track logs, metrics, and health status.
 
 ### Basic Settings
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `name` | string | Container name (unique) |
-| `image` | string | Docker image URL |
-| `port` | integer | Container port to expose |
-| `replicas` | integer | Number of instances |
+| Field      | Type    | Description              |
+| ---------- | ------- | ------------------------ |
+| `name`     | string  | Container name (unique)  |
+| `image`    | string  | Docker image URL         |
+| `port`     | integer | Container port to expose |
+| `replicas` | integer | Number of instances      |
 
 ### Resources
 
-| Field | Options | Description |
-|-------|---------|-------------|
-| `cpu` | 0.25, 0.5, 1, 2, 4 | CPU cores |
+| Field    | Options                     | Description  |
+| -------- | --------------------------- | ------------ |
+| `cpu`    | 0.25, 0.5, 1, 2, 4          | CPU cores    |
 | `memory` | 256Mi, 512Mi, 1Gi, 2Gi, 4Gi | Memory limit |
 
 ### Environment Variables
@@ -160,10 +164,10 @@ Configure health monitoring:
 
 ### Health Check Types
 
-| Type | Description |
-|------|-------------|
+| Type   | Description              |
+| ------ | ------------------------ |
 | `http` | HTTP GET request to path |
-| `tcp` | TCP connection to port |
+| `tcp`  | TCP connection to port   |
 | `exec` | Run command in container |
 
 ## Logs & Metrics

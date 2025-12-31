@@ -17,7 +17,7 @@ import type { UserWithOrganization } from "@/lib/types";
 
 export const maxDuration = 30;
 
-const IMAGE_MODEL = "google/gemini-2.5-flash-image-preview";
+const IMAGE_MODEL = "google/gemini-2.5-flash-image";
 const IMAGE_PROVIDER = "google";
 
 type AspectRatio = "1:1" | "16:9" | "9:16" | "4:3" | "3:4" | "21:9" | "9:21";
@@ -41,6 +41,7 @@ interface GenerateImageRequest {
   numImages?: number;
   aspectRatio?: AspectRatio;
   stylePreset?: StylePreset;
+  sourceImage?: string; // Base64 data URL for image-to-image generation
 }
 
 interface AuthContext {
@@ -71,7 +72,7 @@ async function authenticateUser(req: NextRequest): Promise<AuthContext> {
 
     if (!anonData) {
       logger.info(
-        "[Generate Image] No session cookie - creating new anonymous session"
+        "[Generate Image] No session cookie - creating new anonymous session",
       );
       const newAnonData = await getOrCreateAnonymousUser();
       anonData = {
@@ -114,7 +115,7 @@ async function handlePOST(req: NextRequest) {
     const { user, apiKey, session_token, isAnonymous } = authContext;
 
     logger.info(
-      `[Generate Image] Request from ${isAnonymous ? "anonymous" : "authenticated"} user: ${user.id}`
+      `[Generate Image] Request from ${isAnonymous ? "anonymous" : "authenticated"} user: ${user.id}`,
     );
 
     const {
@@ -122,12 +123,13 @@ async function handlePOST(req: NextRequest) {
       numImages = 1,
       aspectRatio = "1:1",
       stylePreset,
+      sourceImage,
     }: GenerateImageRequest = await req.json();
 
     if (!prompt || typeof prompt !== "string" || prompt.trim().length === 0) {
       return Response.json(
         { error: "Prompt is required and must be a non-empty string" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -196,7 +198,7 @@ async function handlePOST(req: NextRequest) {
     enhancedPrompt += `, ${aspectRatioDescriptions[aspectRatio]}`;
 
     logger.info(
-      `[Generate Image] Generating ${numImages} image(s) for ${isAnonymous ? "anonymous" : "authenticated"} user with prompt: ${enhancedPrompt.substring(0, 100)}...`
+      `[Generate Image] Generating ${numImages} image(s) for ${isAnonymous ? "anonymous" : "authenticated"} user${sourceImage ? " (with source image)" : ""} with prompt: ${enhancedPrompt.substring(0, 100)}...`,
     );
 
     // Function to generate a single image
@@ -205,13 +207,43 @@ async function handlePOST(req: NextRequest) {
       textResponse: string;
       mimeType: string;
     } | null> {
-      const result = streamText({
+      // Build the request based on whether we have a source image
+      const streamConfig: Parameters<typeof streamText>[0] = {
         model: IMAGE_MODEL,
         providerOptions: {
           google: { responseModalities: ["TEXT", "IMAGE"] },
         },
-        prompt: `Generate an image: ${enhancedPrompt}`,
-      });
+      };
+
+      if (sourceImage) {
+        // Image-to-image: use messages format with source image
+        // Extract base64 data and media type from data URL
+        const mediaTypeMatch = sourceImage.match(/^data:([^;]+);base64,/);
+        const mediaType = mediaTypeMatch ? mediaTypeMatch[1] : "image/png";
+        const base64Data = sourceImage.replace(/^data:[^;]+;base64,/, "");
+
+        streamConfig.messages = [
+          {
+            role: "user",
+            content: [
+              {
+                type: "image",
+                image: base64Data,
+                mimeType: mediaType,
+              },
+              {
+                type: "text",
+                text: `Using the provided image as a reference, generate a new image: ${enhancedPrompt}`,
+              },
+            ],
+          },
+        ];
+      } else {
+        // Text-to-image: use simple prompt
+        streamConfig.prompt = `Generate an image: ${enhancedPrompt}`;
+      }
+
+      const result = streamText(streamConfig);
 
       let imageBase64: string | null = null;
       let textResponse = "";
@@ -248,13 +280,13 @@ async function handlePOST(req: NextRequest) {
 
     // Generate multiple images in parallel
     const imagePromises = Array.from({ length: numImages }, () =>
-      generateSingleImage()
+      generateSingleImage(),
     );
     const results = await Promise.all(imagePromises);
 
     // Filter out any failed generations
     const successfulResults = results.filter(
-      (r): r is NonNullable<typeof r> => r !== null
+      (r): r is NonNullable<typeof r> => r !== null,
     );
 
     if (successfulResults.length === 0) {
@@ -289,7 +321,7 @@ async function handlePOST(req: NextRequest) {
 
       return Response.json(
         { error: "No images were generated" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -318,7 +350,7 @@ async function handlePOST(req: NextRequest) {
             organizationId: user.organization_id,
             cost: String(actualCost),
             balance: deductionResult.newBalance,
-          }
+          },
         );
 
         return Response.json(
@@ -327,12 +359,12 @@ async function handlePOST(req: NextRequest) {
             required: actualCost,
             available: deductionResult.newBalance,
           },
-          { status: 402 } // Payment Required
+          { status: 402 }, // Payment Required
         );
       }
     } else {
       logger.info(
-        "[Generate Image] Anonymous user - skipping credit deduction"
+        "[Generate Image] Anonymous user - skipping credit deduction",
       );
     }
 
@@ -380,12 +412,12 @@ async function handlePOST(req: NextRequest) {
         blobUrl = blobResult.url;
         fileSize = blobResult.size ? BigInt(blobResult.size) : null;
         logger.info(
-          `[Generate Image] Uploaded image ${index + 1} to Vercel Blob: ${blobUrl} (${blobResult.size} bytes)`
+          `[Generate Image] Uploaded image ${index + 1} to Vercel Blob: ${blobUrl} (${blobResult.size} bytes)`,
         );
       } catch (blobError) {
         logger.error(
           `[Generate Image] Failed to upload image ${index + 1} to Vercel Blob:`,
-          blobError instanceof Error ? blobError.message : String(blobError)
+          blobError instanceof Error ? blobError.message : String(blobError),
         );
         // Continue with base64 as fallback
       }
@@ -496,11 +528,11 @@ async function handlePOST(req: NextRequest) {
 
     if (!isAnonymous) {
       logger.info(
-        `[Generate Image] Generated ${successfulResults.length} image(s), Cost: $${actualCost.toFixed(2)}, New balance: $${deductionResult.newBalance.toFixed(2)}`
+        `[Generate Image] Generated ${successfulResults.length} image(s), Cost: $${actualCost.toFixed(2)}, New balance: $${deductionResult.newBalance.toFixed(2)}`,
       );
     } else {
       logger.info(
-        `[Generate Image] Generated ${successfulResults.length} image(s) for anonymous user (no charge)`
+        `[Generate Image] Generated ${successfulResults.length} image(s) for anonymous user (no charge)`,
       );
     }
 
@@ -527,7 +559,7 @@ async function handlePOST(req: NextRequest) {
         .catch((error) => {
           logger.error(
             "[Generate Image] Failed to log to Discord:",
-            error instanceof Error ? error.message : String(error)
+            error instanceof Error ? error.message : String(error),
           );
         });
     }
@@ -539,7 +571,7 @@ async function handlePOST(req: NextRequest) {
   } catch (error) {
     logger.error(
       "[Generate Image] Error:",
-      error instanceof Error ? error.message : String(error)
+      error instanceof Error ? error.message : String(error),
     );
     const errorMessage =
       error instanceof Error ? error.message : "Image generation failed";
@@ -556,7 +588,7 @@ async function handlePOST(req: NextRequest) {
           "[Generate Image] Failed to update generation record:",
           updateError instanceof Error
             ? updateError.message
-            : String(updateError)
+            : String(updateError),
         );
       }
     }
@@ -568,7 +600,7 @@ async function handlePOST(req: NextRequest) {
           error instanceof Error && error.message.includes("API key")
             ? 401
             : 500,
-      }
+      },
     );
   }
 }

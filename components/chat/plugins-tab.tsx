@@ -243,18 +243,18 @@ export function PluginsTab({ character, onChange }: PluginsTabProps) {
   return (
     <div className="flex h-full flex-col relative overflow-hidden">
       {/* Header */}
-      <div className="flex-shrink-0 border-b border-white/10 px-6 py-4">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-[#FF5800]/20 border border-[#FF5800]/30">
-              <Puzzle className="h-5 w-5 text-[#FF5800]" />
+      <div className="flex-shrink-0 border-b border-white/10 px-3 py-3 2xl:px-6 2xl:py-4">
+        <div className="flex items-center justify-between mb-3 2xl:mb-4">
+          <div className="flex items-center gap-2 2xl:gap-3">
+            <div className="p-1.5 2xl:p-2 rounded-lg bg-[#FF5800]/20 border border-[#FF5800]/30">
+              <Puzzle className="h-4 w-4 2xl:h-5 2xl:w-5 text-[#FF5800]" />
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-white">
+              <h3 className="text-base 2xl:text-lg font-semibold text-white">
                 Plugins & MCPs
               </h3>
-              <p className="text-sm text-white/60">
-                Enable external tools and capabilities for your agent
+              <p className="text-xs 2xl:text-sm text-white/60 hidden md:block">
+                Enable external tools and capabilities
               </p>
             </div>
           </div>
@@ -262,30 +262,30 @@ export function PluginsTab({ character, onChange }: PluginsTabProps) {
             variant="outline"
             size="sm"
             onClick={fetchRegistry}
-            className="border-white/20 bg-transparent text-white/70 hover:bg-white/10"
+            className="border-white/20 bg-transparent text-white/70 hover:bg-white/10 h-8 px-2 2xl:px-3"
           >
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh
+            <RefreshCw className="h-3.5 w-3.5 2xl:h-4 2xl:w-4" />
+            <span className="ml-1.5 hidden md:inline">Refresh</span>
           </Button>
         </div>
 
         {/* Search and Filter */}
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
+        <div className="flex flex-col gap-2 2xl:gap-3">
+          <div className="relative">
+            <Search className="absolute left-2.5 2xl:left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 2xl:h-4 2xl:w-4 text-white/40" />
             <input
               type="text"
               placeholder="Search MCPs..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-black/40 border border-white/10 rounded-lg pl-10 pr-4 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none focus:border-[#FF5800]/50"
+              className="w-full bg-black/40 border border-white/10 rounded-lg pl-8 2xl:pl-10 pr-3 py-1.5 2xl:py-2 text-xs 2xl:text-sm text-white placeholder:text-white/40 focus:outline-none focus:border-[#FF5800]/50"
             />
           </div>
-          <div className="flex gap-2 flex-wrap">
+          <div className="flex gap-1.5 2xl:gap-2 flex-wrap overflow-x-auto scrollbar-none -mx-3 px-3 2xl:mx-0 2xl:px-0">
             <button
               onClick={() => setCategoryFilter("all")}
               className={cn(
-                "px-3 py-1.5 text-xs border rounded-lg transition-colors",
+                "px-2 2xl:px-3 py-1 2xl:py-1.5 text-[10px] 2xl:text-xs border rounded-md 2xl:rounded-lg transition-colors shrink-0",
                 categoryFilter === "all"
                   ? "bg-[#FF5800]/20 border-[#FF5800]/50 text-white"
                   : "bg-black/40 border-white/10 text-white/60 hover:border-white/30",
@@ -298,7 +298,7 @@ export function PluginsTab({ character, onChange }: PluginsTabProps) {
                 key={cat}
                 onClick={() => setCategoryFilter(cat)}
                 className={cn(
-                  "px-3 py-1.5 text-xs border rounded-lg transition-colors capitalize",
+                  "px-2 2xl:px-3 py-1 2xl:py-1.5 text-[10px] 2xl:text-xs border rounded-md 2xl:rounded-lg transition-colors capitalize shrink-0",
                   categoryFilter === cat
                     ? "bg-[#FF5800]/20 border-[#FF5800]/50 text-white"
                     : "bg-black/40 border-white/10 text-white/60 hover:border-white/30",
@@ -313,14 +313,14 @@ export function PluginsTab({ character, onChange }: PluginsTabProps) {
 
       {/* Content */}
       <ScrollArea className="flex-1 overflow-y-auto sm:scrollbar-thin sm:scrollbar-thumb-brand-orange sm:scrollbar-track-black">
-        <div className="p-6 space-y-8">
+        <div className="p-3 2xl:p-6 space-y-6 2xl:space-y-8">
           {/* Enabled MCPs Section */}
           {enabledMcps.length > 0 && (
             <section>
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center justify-between mb-3 2xl:mb-4">
                 <div className="flex items-center gap-2">
                   <Check className="h-4 w-4 text-green-400" />
-                  <h4 className="text-sm font-medium text-white/80 uppercase tracking-wider">
+                  <h4 className="text-xs 2xl:text-sm font-medium text-white/80 uppercase tracking-wider">
                     Enabled ({enabledMcps.length})
                   </h4>
                 </div>
@@ -332,53 +332,83 @@ export function PluginsTab({ character, onChange }: PluginsTabProps) {
                   }
                 >
                   {showEnabledMcps ? (
-                    <ChevronUp className="size-6 text-white/60" />
+                    <ChevronUp className="size-5 2xl:size-6 text-white/60" />
                   ) : (
-                    <ChevronDown className="size-6 text-white/60" />
+                    <ChevronDown className="size-5 2xl:size-6 text-white/60" />
                   )}
                 </button>
               </div>
               {showEnabledMcps && (
-                <div className="grid gap-4 md:grid-cols-2">
-                  {enabledMcps.map((mcp) => (
-                    <McpCard
-                      key={mcp.id}
-                      mcp={mcp}
-                      isEnabled={true}
-                      onToggle={() => disableMcp(mcp.id)}
-                      onSelect={() => setSelectedMcp(mcp)}
-                    />
-                  ))}
-                </div>
+                <>
+                  {/* Mobile/Tablet: Compact List View - 2 cols on larger tablets */}
+                  <div className="2xl:hidden grid grid-cols-1 md:grid-cols-2 gap-1.5 md:gap-2">
+                    {enabledMcps.map((mcp) => (
+                      <McpListItem
+                        key={mcp.id}
+                        mcp={mcp}
+                        isEnabled={true}
+                        onToggle={() => disableMcp(mcp.id)}
+                        onSelect={() => setSelectedMcp(mcp)}
+                      />
+                    ))}
+                  </div>
+                  {/* Desktop: Card View */}
+                  <div className="hidden 2xl:grid gap-4 2xl:grid-cols-2">
+                    {enabledMcps.map((mcp) => (
+                      <McpCard
+                        key={mcp.id}
+                        mcp={mcp}
+                        isEnabled={true}
+                        onToggle={() => disableMcp(mcp.id)}
+                        onSelect={() => setSelectedMcp(mcp)}
+                      />
+                    ))}
+                  </div>
+                </>
               )}
             </section>
           )}
 
           {/* Available MCPs Section */}
           <section>
-            <div className="flex items-center gap-2 mb-4">
+            <div className="flex items-center gap-2 mb-3 2xl:mb-4">
               <Plus className="h-4 w-4 text-white/60" />
-              <h4 className="text-sm font-medium text-white/80 uppercase tracking-wider">
+              <h4 className="text-xs 2xl:text-sm font-medium text-white/80 uppercase tracking-wider">
                 Available ({availableMcps.length})
               </h4>
             </div>
             {availableMcps.length === 0 ? (
-              <div className="text-center py-12">
-                <Puzzle className="h-12 w-12 text-white/20 mx-auto mb-4" />
-                <p className="text-white/60">No MCPs match your search</p>
+              <div className="text-center py-8 2xl:py-12">
+                <Puzzle className="h-8 w-8 2xl:h-12 2xl:w-12 text-white/20 mx-auto mb-3 2xl:mb-4" />
+                <p className="text-sm 2xl:text-base text-white/60">No MCPs match your search</p>
               </div>
             ) : (
-              <div className="grid gap-4 md:grid-cols-2">
-                {availableMcps.map((mcp) => (
-                  <McpCard
-                    key={mcp.id}
-                    mcp={mcp}
-                    isEnabled={false}
-                    onToggle={() => enableMcp(mcp)}
-                    onSelect={() => setSelectedMcp(mcp)}
-                  />
-                ))}
-              </div>
+              <>
+                {/* Mobile/Tablet: Compact List View - 2 cols on larger tablets */}
+                <div className="2xl:hidden grid grid-cols-1 md:grid-cols-2 gap-1.5 md:gap-2">
+                  {availableMcps.map((mcp) => (
+                    <McpListItem
+                      key={mcp.id}
+                      mcp={mcp}
+                      isEnabled={false}
+                      onToggle={() => enableMcp(mcp)}
+                      onSelect={() => setSelectedMcp(mcp)}
+                    />
+                  ))}
+                </div>
+                {/* Desktop: Card View */}
+                <div className="hidden 2xl:grid gap-4 2xl:grid-cols-2">
+                  {availableMcps.map((mcp) => (
+                    <McpCard
+                      key={mcp.id}
+                      mcp={mcp}
+                      isEnabled={false}
+                      onToggle={() => enableMcp(mcp)}
+                      onSelect={() => setSelectedMcp(mcp)}
+                    />
+                  ))}
+                </div>
+              </>
             )}
           </section>
         </div>
@@ -399,6 +429,87 @@ export function PluginsTab({ character, onChange }: PluginsTabProps) {
           />
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+// MCP Compact List Item for Mobile/Tablet
+interface McpListItemProps {
+  mcp: McpRegistryEntry;
+  isEnabled: boolean;
+  onToggle: () => void;
+  onSelect: () => void;
+}
+
+function McpListItem({ mcp, isEnabled, onToggle, onSelect }: McpListItemProps) {
+  const Icon = iconMap[mcp.icon] || Puzzle;
+  const isDisabled = mcp.status !== "live";
+
+  return (
+    <div
+      className={cn(
+        "flex items-center gap-3 p-2.5 bg-black/40 border border-white/10 rounded-lg cursor-pointer transition-all",
+        "hover:bg-white/5 hover:border-white/20 active:bg-white/10",
+        isEnabled && "border-green-500/30 bg-green-500/5",
+        isDisabled && "opacity-60 cursor-not-allowed",
+      )}
+      onClick={onSelect}
+    >
+      {/* Icon */}
+      <div
+        className="p-1.5 rounded-md border shrink-0"
+        style={{
+          backgroundColor: `${mcp.color}15`,
+          borderColor: `${mcp.color}40`,
+        }}
+      >
+        <Icon className="h-3.5 w-3.5" style={{ color: mcp.color }} />
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1.5">
+          <h3 className="text-sm font-medium text-white truncate">
+            {mcp.name}
+          </h3>
+          {mcp.x402Enabled && (
+            <span className="px-1 py-0.5 text-[8px] bg-purple-500/20 border border-purple-500/40 text-purple-400 rounded shrink-0">
+              x402
+            </span>
+          )}
+          {mcp.status !== "live" && (
+            <span className="px-1 py-0.5 text-[8px] bg-yellow-500/20 border border-yellow-500/30 text-yellow-400 rounded shrink-0">
+              {mcp.status.replace("_", " ")}
+            </span>
+          )}
+        </div>
+        <p className="text-[10px] text-white/50">
+          {mcp.toolCount} tools • {mcp.pricing.description}
+        </p>
+      </div>
+
+      {/* Toggle Button */}
+      {!isDisabled && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggle();
+          }}
+          className={cn(
+            "p-1.5 rounded-md transition-colors shrink-0",
+            isEnabled
+              ? "bg-red-500/20 text-red-400 hover:bg-red-500/30"
+              : "bg-green-500/20 text-green-400 hover:bg-green-500/30",
+          )}
+          title={isEnabled ? "Disable MCP" : "Enable MCP"}
+        >
+          {isEnabled ? (
+            <Trash2 className="h-3.5 w-3.5" />
+          ) : (
+            <Plus className="h-3.5 w-3.5" />
+          )}
+        </button>
+      )}
     </div>
   );
 }
@@ -558,75 +669,75 @@ function McpDetailPanel({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 100 }}
       transition={{ type: "spring", damping: 25, stiffness: 300 }}
-      className="absolute inset-x-0 bottom-0 z-50 bg-[#0A0A0A] border-t border-white/10 shadow-2xl max-h-[60%] overflow-hidden flex flex-col"
+      className="absolute inset-x-0 bottom-0 z-50 bg-[#0A0A0A] border-t border-white/10 shadow-2xl max-h-[75%] 2xl:max-h-[60%] overflow-hidden flex flex-col"
     >
       {/* Header */}
-      <div className="flex items-start justify-between p-6 border-b border-white/10">
-        <div className="flex items-center gap-4">
+      <div className="flex items-start justify-between p-3 2xl:p-6 border-b border-white/10">
+        <div className="flex items-center gap-2.5 2xl:gap-4 flex-1 min-w-0">
           <div
-            className="p-3 rounded-lg border"
+            className="p-2 2xl:p-3 rounded-lg border shrink-0"
             style={{
               backgroundColor: `${mcp.color}15`,
               borderColor: `${mcp.color}40`,
             }}
           >
-            <Icon className="h-6 w-6" style={{ color: mcp.color }} />
+            <Icon className="h-4 w-4 2xl:h-6 2xl:w-6" style={{ color: mcp.color }} />
           </div>
-          <div>
-            <h2 className="text-xl font-semibold text-white flex items-center gap-2">
-              {mcp.name}
+          <div className="min-w-0 flex-1">
+            <h2 className="text-base 2xl:text-xl font-semibold text-white flex items-center gap-2 flex-wrap">
+              <span className="truncate">{mcp.name}</span>
               {mcp.x402Enabled && (
-                <span className="px-2 py-0.5 text-xs bg-purple-500/20 border border-purple-500/40 text-purple-400 rounded">
+                <span className="px-1.5 2xl:px-2 py-0.5 text-[10px] 2xl:text-xs bg-purple-500/20 border border-purple-500/40 text-purple-400 rounded shrink-0">
                   x402
                 </span>
               )}
             </h2>
-            <p className="text-sm text-white/60 mt-1">{mcp.description}</p>
+            <p className="text-xs 2xl:text-sm text-white/60 mt-0.5 2xl:mt-1 line-clamp-2">{mcp.description}</p>
           </div>
         </div>
         <button
           onClick={onClose}
-          className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+          className="p-1.5 2xl:p-2 hover:bg-white/10 rounded-lg transition-colors shrink-0 ml-2"
         >
-          <X className="h-5 w-5 text-white/60" />
+          <X className="h-4 w-4 2xl:h-5 2xl:w-5 text-white/60" />
         </button>
       </div>
 
       {/* Content */}
-      <ScrollArea className="flex-1 p-6">
-        <div className="grid gap-6 md:grid-cols-2">
+      <ScrollArea className="flex-1 p-3 2xl:p-6">
+        <div className="grid gap-4 2xl:gap-6 2xl:grid-cols-2">
           {/* Endpoint Info */}
-          <div className="space-y-2">
-            <label className="text-xs text-white/50 uppercase tracking-wider flex items-center gap-1">
-              <Info className="h-3 w-3" />
+          <div className="space-y-1.5 2xl:space-y-2">
+            <label className="text-[10px] 2xl:text-xs text-white/50 uppercase tracking-wider flex items-center gap-1">
+              <Info className="h-2.5 w-2.5 2xl:h-3 2xl:w-3" />
               MCP Endpoint
             </label>
-            <div className="bg-black/60 border border-white/10 p-3 font-mono text-sm text-white/80 rounded-lg overflow-x-auto">
+            <div className="bg-black/60 border border-white/10 p-2 2xl:p-3 font-mono text-[10px] 2xl:text-sm text-white/80 rounded-lg overflow-x-auto">
               {mcp.fullEndpoint}
             </div>
           </div>
 
-          {/* Configuration Preview */}
-          <div className="space-y-2">
+          {/* Configuration Preview - Hidden on mobile/tablet for space */}
+          <div className="space-y-1.5 2xl:space-y-2 hidden 2xl:block">
             <label className="text-xs text-white/50 uppercase tracking-wider">
               Configuration
             </label>
-            <div className="bg-black/60 border border-white/10 p-3 font-mono text-xs text-white/70 rounded-lg overflow-x-auto">
+            <div className="bg-black/60 border border-white/10 p-3 font-mono text-xs text-white/70 rounded-lg overflow-x-auto max-h-32">
               <pre>{JSON.stringify(mcp.configTemplate, null, 2)}</pre>
             </div>
           </div>
         </div>
 
         {/* Tools */}
-        <div className="mt-6 space-y-2">
-          <label className="text-xs text-white/50 uppercase tracking-wider">
+        <div className="mt-4 2xl:mt-6 space-y-1.5 2xl:space-y-2">
+          <label className="text-[10px] 2xl:text-xs text-white/50 uppercase tracking-wider">
             Available Tools ({mcp.toolCount})
           </label>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-1.5 2xl:gap-2">
             {mcp.features.map((feature) => (
               <span
                 key={feature}
-                className="px-3 py-1.5 text-xs border text-white/70 rounded-lg"
+                className="px-2 2xl:px-3 py-1 2xl:py-1.5 text-[10px] 2xl:text-xs border text-white/70 rounded-md 2xl:rounded-lg"
                 style={{
                   backgroundColor: `${mcp.color}10`,
                   borderColor: `${mcp.color}30`,
@@ -640,18 +751,17 @@ function McpDetailPanel({
 
         {/* x402 Info */}
         {mcp.x402Enabled && (
-          <div className="mt-6 bg-purple-500/10 border border-purple-500/30 p-4 rounded-lg">
-            <div className="flex items-center gap-2 mb-2">
-              <Zap className="h-4 w-4 text-purple-400" />
-              <span className="text-sm font-medium text-purple-300">
-                x402 Micropayments Enabled
+          <div className="mt-4 2xl:mt-6 bg-purple-500/10 border border-purple-500/30 p-2.5 2xl:p-4 rounded-lg">
+            <div className="flex items-center gap-1.5 2xl:gap-2 mb-1.5 2xl:mb-2">
+              <Zap className="h-3.5 w-3.5 2xl:h-4 2xl:w-4 text-purple-400" />
+              <span className="text-xs 2xl:text-sm font-medium text-purple-300">
+                x402 Micropayments
               </span>
             </div>
-            <p className="text-xs text-white/60">
-              This MCP server supports accountless micropayments via the x402
-              protocol. Pay only for what you use
+            <p className="text-[10px] 2xl:text-xs text-white/60">
+              Pay only for what you use
               {mcp.pricing.pricePerRequest &&
-                ` with $${mcp.pricing.pricePerRequest} per request`}
+                ` ($${mcp.pricing.pricePerRequest}/request)`}
               . Powered by Coinbase CDP.
             </p>
           </div>
@@ -659,25 +769,26 @@ function McpDetailPanel({
       </ScrollArea>
 
       {/* Actions */}
-      <div className="flex items-center justify-between p-6 border-t border-white/10">
-        <div className="flex items-center gap-3">
+      <div className="flex items-center justify-between p-3 2xl:p-6 border-t border-white/10 gap-2">
+        <div className="flex items-center gap-2 2xl:gap-3">
           {mcp.documentation && (
             <a
               href={mcp.documentation}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 text-white/70 hover:border-white/30 hover:text-white transition-colors rounded-lg text-sm"
+              className="flex items-center gap-1.5 2xl:gap-2 px-2.5 2xl:px-4 py-1.5 2xl:py-2 bg-white/5 border border-white/10 text-white/70 hover:border-white/30 hover:text-white transition-colors rounded-md 2xl:rounded-lg text-xs 2xl:text-sm"
             >
-              <ExternalLink className="h-4 w-4" />
-              Documentation
+              <ExternalLink className="h-3.5 w-3.5 2xl:h-4 2xl:w-4" />
+              <span className="hidden md:inline">Docs</span>
             </a>
           )}
         </div>
         <Button
           onClick={onToggle}
           disabled={mcp.status !== "live"}
+          size="sm"
           className={cn(
-            "px-6 rounded-lg",
+            "px-3 2xl:px-6 rounded-md 2xl:rounded-lg text-xs 2xl:text-sm",
             isEnabled
               ? "bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/30"
               : "bg-[#FF5800] text-white hover:bg-[#FF5800]/90",
@@ -685,13 +796,15 @@ function McpDetailPanel({
         >
           {isEnabled ? (
             <>
-              <Trash2 className="h-4 w-4 mr-2" />
-              Disable MCP
+              <Trash2 className="h-3.5 w-3.5 2xl:h-4 2xl:w-4 mr-1.5 2xl:mr-2" />
+              <span className="hidden md:inline">Disable</span>
+              <span className="md:hidden">Remove</span>
             </>
           ) : (
             <>
-              <Plus className="h-4 w-4 mr-2" />
-              Enable MCP
+              <Plus className="h-3.5 w-3.5 2xl:h-4 2xl:w-4 mr-1.5 2xl:mr-2" />
+              <span className="hidden md:inline">Enable MCP</span>
+              <span className="md:hidden">Add</span>
             </>
           )}
         </Button>

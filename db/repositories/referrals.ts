@@ -64,7 +64,10 @@ class ReferralCodesRepository {
    * Creates a new referral code.
    */
   async create(data: NewReferralCode): Promise<ReferralCode> {
-    const [result] = await dbWrite.insert(referralCodes).values(data).returning();
+    const [result] = await dbWrite
+      .insert(referralCodes)
+      .values(data)
+      .returning();
     return result;
   }
 
@@ -191,7 +194,10 @@ class ReferralSignupsRepository {
    * Creates a new referral signup record.
    */
   async create(data: NewReferralSignup): Promise<ReferralSignup> {
-    const [result] = await dbWrite.insert(referralSignups).values(data).returning();
+    const [result] = await dbWrite
+      .insert(referralSignups)
+      .values(data)
+      .returning();
     return result;
   }
 

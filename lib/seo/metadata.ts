@@ -59,13 +59,10 @@ export function generatePageMetadata(options: PageMetadataOptions): Metadata {
   const baseUrl = getBaseUrl();
   const canonicalUrl = `${baseUrl}${options.path}`;
 
-  const ogImage =
-    options.ogImage ||
-    generateOGImageUrl({
-      type: "default",
-      title: options.title,
-      description: options.description,
-    });
+  // For dynamic pages with custom images, use provided ogImage
+  // Static pages use opengraph-image.png file convention (no explicit image needed)
+  // Fallback to /og-image.png in public/ for pages that explicitly need an image
+  const ogImage = options.ogImage;
 
   const metadata: Metadata = {
     title: options.title,
@@ -83,20 +80,24 @@ export function generatePageMetadata(options: PageMetadataOptions): Metadata {
       siteName: SEO_CONSTANTS.siteName,
       type: options.type || "website",
       locale: SEO_CONSTANTS.locale,
-      images: [
-        {
-          url: ogImage,
-          width: SEO_CONSTANTS.ogImageDimensions.width,
-          height: SEO_CONSTANTS.ogImageDimensions.height,
-          alt: options.title,
-        },
-      ],
+      // Only include images if explicitly provided; otherwise rely on opengraph-image.png file convention
+      ...(ogImage && {
+        images: [
+          {
+            url: ogImage,
+            width: SEO_CONSTANTS.ogImageDimensions.width,
+            height: SEO_CONSTANTS.ogImageDimensions.height,
+            alt: options.title,
+          },
+        ],
+      }),
     },
     twitter: {
       card: SEO_CONSTANTS.twitterCardType,
       title: options.title,
       description: options.description,
-      images: [ogImage],
+      // Only include images if explicitly provided; otherwise rely on twitter-image.png file convention
+      ...(ogImage && { images: [ogImage] }),
       creator: SEO_CONSTANTS.twitterHandle,
       site: SEO_CONSTANTS.twitterHandle,
     },
@@ -171,12 +172,7 @@ export function generateContainerMetadata(
       ...(characterName ? [characterName] : []),
     ],
     path: `/dashboard/containers/${id}`,
-    ogImage: generateOGImageUrl({
-      type: "container",
-      id,
-      name,
-      characterName: characterName || undefined,
-    }),
+    ogImage: "/og-image.png",
     entityId: id,
     entityType: "container",
   });
@@ -207,15 +203,7 @@ export function generateCharacterMetadata(
     description,
     keywords: [name, "AI character", "AI agent", "elizaOS", ...tags],
     path: `/dashboard/my-agents/${id}`,
-    ogImage:
-      avatarUrl ||
-      generateOGImageUrl({
-        type: "character",
-        id,
-        name,
-        description: bioText,
-        avatarUrl: avatarUrl || undefined,
-      }),
+    ogImage: avatarUrl || "/og-image.png",
     type: "profile",
     entityId: id,
     entityType: "character",
@@ -245,12 +233,7 @@ export function generateChatMetadata(
     description,
     keywords: [characterName, "AI chat", "conversation", "elizaOS"],
     path: `/chat/${roomId}`,
-    ogImage: generateOGImageUrl({
-      type: "chat",
-      roomId,
-      characterName,
-      avatarUrl: characterAvatarUrl || undefined,
-    }),
+    ogImage: characterAvatarUrl || "/og-image.png",
     type: "article",
     entityId: roomId,
     entityType: "chat",

@@ -84,10 +84,10 @@ export const metadata: Metadata = {
     locale: "en_US",
     images: [
       {
-        url: `${baseUrl}/api/og?type=default&title=elizaOS Platform&description=AI Agent Development Platform`,
+        url: "/cloudlogo.png",
         width: 1200,
         height: 630,
-        alt: "elizaOS Platform",
+        alt: "elizaOS Cloud - Make Agents in Seconds",
       },
     ],
   },
@@ -96,9 +96,7 @@ export const metadata: Metadata = {
     title: "elizaOS Platform",
     description:
       "Complete AI agent development platform with inference, hosting, storage, and rapid deployment",
-    images: [
-      `${baseUrl}/api/og?type=default&title=elizaOS Platform&description=AI Agent Development Platform`,
-    ],
+    images: ["/cloudlogo.png"],
     creator: "@elizaos",
     site: "@elizaos",
   },

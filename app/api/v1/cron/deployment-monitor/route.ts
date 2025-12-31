@@ -5,6 +5,7 @@ import { inArray } from "drizzle-orm";
 import { cloudFormationService } from "@/lib/services/cloudformation";
 import { updateContainerStatus } from "@/lib/services/containers";
 import { creditsService } from "@/lib/services/credits";
+import { usageService } from "@/lib/services/usage";
 import { logger } from "@/lib/utils/logger";
 
 export const dynamic = "force-dynamic";
@@ -71,6 +72,9 @@ async function handleDeploymentMonitor(request: NextRequest) {
       `[Deployment Monitor] Checking ${deployingContainers.length} containers`,
     );
 
+    // Deployment timeout: 30 minutes is more than enough for CloudFormation (typically 8-12 min)
+    const DEPLOYMENT_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
+
     const results: Array<{
       containerId: string;
       stackName: string | null;
@@ -81,10 +85,105 @@ async function handleDeploymentMonitor(request: NextRequest) {
 
     for (const container of deployingContainers) {
       try {
+        // Check for stuck/timed out deployments first
+        const deploymentAge = container.created_at
+          ? Date.now() - new Date(container.created_at).getTime()
+          : 0;
+
+        if (deploymentAge > DEPLOYMENT_TIMEOUT_MS) {
+          // Container has been deploying for too long - mark as failed
+          const timeoutMinutes = Math.round(deploymentAge / (60 * 1000));
+          const failureReason = `Deployment timed out after ${timeoutMinutes} minutes. Stack may have stalled or encountered an undetectable error.`;
+
+          logger.error(
+            `[Deployment Monitor] ❌ Container ${container.id} timed out (${timeoutMinutes} minutes) - marking as failed`,
+          );
+
+          await updateContainerStatus(container.id, "failed", {
+            errorMessage: failureReason,
+            deploymentLog: `Deployment timeout: ${failureReason}`,
+          });
+
+          // Mark usage record as failed
+          try {
+            await usageService.markDeploymentFailed(
+              container.id,
+              container.organization_id,
+              failureReason,
+            );
+            logger.info(
+              `[Deployment Monitor] ✅ Marked usage record as failed for timed out container ${container.id}`,
+            );
+          } catch (usageError) {
+            logger.error(
+              `[Deployment Monitor] ❌ Failed to update usage record for container ${container.id}:`,
+              usageError,
+            );
+          }
+
+          // Refund credits
+          try {
+            const deploymentCost = 15;
+            await creditsService.addCredits({
+              organizationId: container.organization_id,
+              amount: deploymentCost,
+              description: `Refund for timed out deployment: ${container.name}`,
+              metadata: {
+                type: "refund",
+                reason: "deployment_timeout",
+                containerId: container.id,
+                deploymentAgeMinutes: timeoutMinutes,
+              },
+            });
+            logger.info(
+              `[Deployment Monitor] ✅ Refunded ${deploymentCost} credits for timed out container ${container.id}`,
+            );
+          } catch (refundError) {
+            logger.error(
+              `[Deployment Monitor] ❌ Failed to refund credits for container ${container.id}:`,
+              refundError,
+            );
+          }
+
+          // Try to cleanup the stack if it exists
+          if (container.cloudformation_stack_name) {
+            try {
+              await cloudFormationService.deleteUserStack(
+                container.organization_id,
+                container.project_name,
+              );
+              logger.info(
+                `[Deployment Monitor] Initiated cleanup of timed out stack ${container.cloudformation_stack_name}`,
+              );
+            } catch (cleanupError) {
+              logger.warn(
+                `[Deployment Monitor] Failed to cleanup stack ${container.cloudformation_stack_name}:`,
+                cleanupError,
+              );
+            }
+          }
+
+          results.push({
+            containerId: container.id,
+            stackName: container.cloudformation_stack_name,
+            previousStatus: container.status,
+            newStatus: "failed",
+            error: failureReason,
+          });
+          continue;
+        }
+
         const stackName = container.cloudformation_stack_name;
 
         if (!stackName) {
-          // Stack not yet created, skip this container
+          // Stack not yet created - check if it's been too long without a stack name
+          // (might be stuck in initial processing)
+          if (deploymentAge > 5 * 60 * 1000) {
+            // 5 minutes without stack name is suspicious
+            logger.warn(
+              `[Deployment Monitor] Container ${container.id} has been ${container.status} for ${Math.round(deploymentAge / 60000)} minutes without stack name`,
+            );
+          }
           logger.debug(
             `[Deployment Monitor] Container ${container.id} has no stack name yet, skipping`,
           );
@@ -102,15 +201,69 @@ async function handleDeploymentMonitor(request: NextRequest) {
         const stackStatus = await getStackStatusByName(stackName);
 
         if (!stackStatus) {
-          logger.warn(
-            `[Deployment Monitor] Stack ${stackName} not found for container ${container.id}`,
+          // CRITICAL: Stack doesn't exist - this is a failure case!
+          // The stack was either deleted, never created, or rolled back completely
+          logger.error(
+            `[Deployment Monitor] ❌ Stack ${stackName} not found for container ${container.id} - marking as failed`,
           );
+
+          const failureReason = `CloudFormation stack does not exist: ${stackName}. Stack may have been deleted or failed to create.`;
+
+          // Update container status to failed
+          await updateContainerStatus(container.id, "failed", {
+            errorMessage: failureReason,
+            deploymentLog: `CloudFormation stack not found: ${stackName}`,
+          });
+
+          // Mark usage record as failed
+          try {
+            await usageService.markDeploymentFailed(
+              container.id,
+              container.organization_id,
+              failureReason,
+            );
+            logger.info(
+              `[Deployment Monitor] ✅ Marked usage record as failed for container ${container.id}`,
+            );
+          } catch (usageError) {
+            logger.error(
+              `[Deployment Monitor] ❌ Failed to update usage record for container ${container.id}:`,
+              usageError,
+            );
+          }
+
+          // Refund credits for the failed deployment
+          try {
+            const deploymentCost = 15; // Default cost - ideally retrieve from container metadata
+
+            await creditsService.addCredits({
+              organizationId: container.organization_id,
+              amount: deploymentCost,
+              description: `Refund for failed deployment (stack not found): ${container.name}`,
+              metadata: {
+                type: "refund",
+                reason: failureReason,
+                containerId: container.id,
+                stackName,
+              },
+            });
+
+            logger.info(
+              `[Deployment Monitor] ✅ Refunded ${deploymentCost} credits for container ${container.id} (stack not found)`,
+            );
+          } catch (refundError) {
+            logger.error(
+              `[Deployment Monitor] ❌ Failed to refund credits for container ${container.id}:`,
+              refundError,
+            );
+          }
+
           results.push({
             containerId: container.id,
             stackName,
             previousStatus: container.status,
-            newStatus: null,
-            error: "Stack not found",
+            newStatus: "failed",
+            error: failureReason,
           });
           continue;
         }
@@ -138,6 +291,27 @@ async function handleDeploymentMonitor(request: NextRequest) {
               deploymentLog: `Deployed successfully! EC2: ${outputs.instancePublicIp}, URL: ${outputs.containerUrl}`,
             });
 
+            // Mark usage record as successful
+            try {
+              const deploymentDuration = container.created_at
+                ? Date.now() - new Date(container.created_at).getTime()
+                : undefined;
+
+              await usageService.markDeploymentSuccessful(
+                container.id,
+                container.organization_id,
+                deploymentDuration,
+              );
+              logger.info(
+                `[Deployment Monitor] ✅ Marked usage record as successful for container ${container.id}`,
+              );
+            } catch (usageError) {
+              logger.error(
+                `[Deployment Monitor] ❌ Failed to update usage record for container ${container.id}:`,
+                usageError,
+              );
+            }
+
             logger.info(
               `[Deployment Monitor] ✅ Container ${container.id} deployed successfully: ${outputs.containerUrl}`,
             );
@@ -149,11 +323,25 @@ async function handleDeploymentMonitor(request: NextRequest) {
               newStatus: "running",
             });
           } else {
-            // Stack complete but no outputs - unusual
+            // Stack complete but no outputs - unusual but still mark as success
             await updateContainerStatus(container.id, "running", {
               deploymentLog:
                 "Stack completed but outputs not available. Container may still be starting.",
             });
+
+            // Still mark usage record as successful since stack completed
+            try {
+              await usageService.markDeploymentSuccessful(
+                container.id,
+                container.organization_id,
+              );
+            } catch (usageError) {
+              logger.error(
+                `[Deployment Monitor] ❌ Failed to update usage record for container ${container.id}:`,
+                usageError,
+              );
+            }
+
             results.push({
               containerId: container.id,
               stackName,
@@ -178,6 +366,23 @@ async function handleDeploymentMonitor(request: NextRequest) {
             deploymentLog: `CloudFormation stack failed: ${failureReason}`,
           });
 
+          // Mark usage record as failed
+          try {
+            await usageService.markDeploymentFailed(
+              container.id,
+              container.organization_id,
+              failureReason,
+            );
+            logger.info(
+              `[Deployment Monitor] ✅ Marked usage record as failed for container ${container.id}`,
+            );
+          } catch (usageError) {
+            logger.error(
+              `[Deployment Monitor] ❌ Failed to update usage record for container ${container.id}:`,
+              usageError,
+            );
+          }
+
           // Refund credits
           try {
             // Calculate deployment cost (should match what was charged)
@@ -187,7 +392,12 @@ async function handleDeploymentMonitor(request: NextRequest) {
               organizationId: container.organization_id,
               amount: deploymentCost,
               description: `Refund for failed deployment: ${container.name}`,
-              metadata: { type: "refund", reason: failureReason },
+              metadata: {
+                type: "refund",
+                reason: failureReason,
+                containerId: container.id,
+                stackName,
+              },
             });
 
             logger.info(
@@ -347,6 +557,3 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   return handleDeploymentMonitor(request);
 }
-
-
-

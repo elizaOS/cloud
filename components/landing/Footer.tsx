@@ -213,7 +213,7 @@ export default function Footer() {
                   aria-label="View token addresses"
                   className="text-base text-white transition-colors hover:text-[#FF5800]"
                 >
-                  Tokens
+                  Token
                 </button>
               </div>
               <a

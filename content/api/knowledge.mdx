@@ -3,7 +3,7 @@ title: Knowledge
 description: Upload and query documents for RAG on elizaOS Cloud.
 ---
 
-import { Callout, Tabs } from 'nextra/components'
+import { Callout, Tabs } from "nextra/components";
 
 # Knowledge
 
@@ -32,13 +32,13 @@ curl -X POST "https://elizacloud.ai/api/v1/knowledge/upload-file" \
 
 ### Supported Formats
 
-| Format | Extensions |
-|--------|------------|
-| PDF | `.pdf` |
-| Text | `.txt`, `.md` |
+| Format    | Extensions      |
+| --------- | --------------- |
+| PDF       | `.pdf`          |
+| Text      | `.txt`, `.md`   |
 | Documents | `.doc`, `.docx` |
-| Web | `.html` |
-| Data | `.json`, `.csv` |
+| Web       | `.html`         |
+| Data      | `.json`, `.csv` |
 
 ### Response
 
@@ -103,11 +103,11 @@ Search your knowledge base.
 
 ### Parameters
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `query` | string | ✓ | Search query |
-| `limit` | integer | | Max results (default: 5) |
-| `minScore` | number | | Minimum similarity (0-1) |
+| Parameter  | Type    | Required | Description              |
+| ---------- | ------- | -------- | ------------------------ |
+| `query`    | string  | ✓        | Search query             |
+| `limit`    | integer |          | Max results (default: 5) |
+| `minScore` | number  |          | Minimum similarity (0-1) |
 
 ### Response
 
@@ -130,7 +130,7 @@ Search your knowledge base.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-get">GET</span>
-  <span className="path">/api/v1/knowledge/{'{id}'}</span>
+  <span className="path">/api/v1/knowledge/{"{id}"}</span>
 </div>
 
 Get document details.
@@ -141,7 +141,7 @@ Get document details.
 
 <div className="api-endpoint">
   <span className="method-badge method-badge-delete">DELETE</span>
-  <span className="path">/api/v1/knowledge/{'{id}'}</span>
+  <span className="path">/api/v1/knowledge/{"{id}"}</span>
 </div>
 
 Remove a document from your knowledge base.
@@ -158,5 +158,5 @@ Remove a document from your knowledge base.
 Check if a document exists (by hash).
 
 <Callout type="info">
-Documents are automatically chunked and embedded for semantic search.
+  Documents are automatically chunked and embedded for semantic search.
 </Callout>

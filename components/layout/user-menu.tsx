@@ -26,12 +26,13 @@ import {
   UserCircle,
   SettingsIcon,
   Key,
-  User,
   BookOpen,
+  MessageSquare,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCredits } from "@/lib/providers/CreditsProvider";
 import { useChatStore } from "@/lib/stores/chat-store";
+import { FeedbackModal } from "./feedback-modal";
 
 interface UserProfile {
   id: string;
@@ -49,6 +50,7 @@ export default function UserMenu() {
 
   // User profile state for avatar
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
 
   // Fetch user profile from API to get avatar
   useEffect(() => {
@@ -236,91 +238,107 @@ export default function UserMenu() {
 
   // Signed in state
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          className="relative h-10 w-10 rounded-full ring-2 ring-transparent hover:ring-[#FF5800]/50 transition-all"
-        >
-          <Avatar className="h-10 w-10">
-            {userProfile?.avatar && (
-              <AvatarImage
-                src={userProfile.avatar}
-                alt={userProfile.name || "User avatar"}
-                className="object-cover"
-              />
-            )}
-            <AvatarFallback className="bg-gradient-to-br from-[#FF5800]/20 to-[#FF5800]/5 text-white font-semibold">
-              {getInitials()}
-            </AvatarFallback>
-          </Avatar>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-56" align="end" forceMount>
-        <DropdownMenuLabel className="font-normal">
-          <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">{getUserName()}</p>
-            <p className="text-xs leading-none text-muted-foreground">
-              {getUserIdentifier()}
-            </p>
-          </div>
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <div className="px-2 py-2">
-          {loadingCredits && creditBalance === null ? (
-            <div className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-muted">
-              <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
-              <span className="text-xs text-muted-foreground">Loading...</span>
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            className="relative h-10 w-10 rounded-full ring-2 ring-transparent hover:ring-[#FF5800]/50 transition-all"
+          >
+            <Avatar className="h-10 w-10">
+              {userProfile?.avatar && (
+                <AvatarImage
+                  src={userProfile.avatar}
+                  alt={userProfile.name || "User avatar"}
+                  className="object-cover"
+                />
+              )}
+              <AvatarFallback className="bg-gradient-to-br from-[#FF5800]/20 to-[#FF5800]/5 text-white font-semibold">
+                {getInitials()}
+              </AvatarFallback>
+            </Avatar>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent className="w-56" align="end" forceMount>
+          <DropdownMenuLabel className="font-normal">
+            <div className="flex flex-col space-y-1">
+              <p className="text-sm font-medium leading-none">
+                {getUserName()}
+              </p>
+              <p className="text-xs leading-none text-muted-foreground">
+                {getUserIdentifier()}
+              </p>
             </div>
-          ) : (
-            <Badge
-              variant="secondary"
-              className="gap-1.5 px-3 py-1.5 w-full justify-center cursor-pointer hover:bg-white/10"
-              onClick={() => router.push("/dashboard/settings?tab=billing")}
-            >
-              <Coins className="h-3.5 w-3.5 select-none" />
-              <span className="font-semibold select-none">
-                $
-                {creditBalance !== null
-                  ? Number(creditBalance).toFixed(2)
-                  : "0.00"}
-              </span>
-              <span className="text-xs opacity-80 select-none">balance</span>
-            </Badge>
-          )}
-        </div>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => router.push("/dashboard/account")}>
-          <UserCircle className="mr-2 h-4 w-4" />
-          <span>Account</span>
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => router.push("/dashboard/settings")}>
-          <SettingsIcon className="mr-2 h-4 w-4" />
-          <span>Settings</span>
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={() => router.push("/dashboard/settings?tab=billing")}
-        >
-          <Coins className="mr-2 h-4 w-4" />
-          <span>Billing</span>
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => router.push("/dashboard/api-keys")}>
-          <Key className="mr-2 h-4 w-4" />
-          <span>API Keys</span>
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => router.push("/docs")}>
-          <BookOpen className="mr-2 h-4 w-4" />
-          <span>Docs</span>
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          className="bg-red-500/40 data-[highlighted]:bg-red-500/60 data-[highlighted]:text-white"
-          onClick={onSignOut}
-        >
-          <LogOut className="mr-2 h-4 w-4" />
-          <span>Sign out</span>
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <div className="px-2 py-2">
+            {loadingCredits && creditBalance === null ? (
+              <div className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-muted">
+                <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+                <span className="text-xs text-muted-foreground">
+                  Loading...
+                </span>
+              </div>
+            ) : (
+              <Badge
+                variant="secondary"
+                className="gap-1.5 px-3 py-1.5 w-full justify-center cursor-pointer hover:bg-white/10"
+                onClick={() => router.push("/dashboard/settings?tab=billing")}
+              >
+                <Coins className="h-3.5 w-3.5 select-none" />
+                <span className="font-semibold select-none">
+                  $
+                  {creditBalance !== null
+                    ? Number(creditBalance).toFixed(2)
+                    : "0.00"}
+                </span>
+                <span className="text-xs opacity-80 select-none">balance</span>
+              </Badge>
+            )}
+          </div>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={() => router.push("/dashboard/account")}>
+            <UserCircle className="mr-2 h-4 w-4" />
+            <span>Account</span>
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => router.push("/dashboard/settings")}>
+            <SettingsIcon className="mr-2 h-4 w-4" />
+            <span>Settings</span>
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={() => router.push("/dashboard/settings?tab=billing")}
+          >
+            <Coins className="mr-2 h-4 w-4" />
+            <span>Billing</span>
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => router.push("/dashboard/api-keys")}>
+            <Key className="mr-2 h-4 w-4" />
+            <span>API Keys</span>
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => router.push("/docs")}>
+            <BookOpen className="mr-2 h-4 w-4" />
+            <span>Docs</span>
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setFeedbackOpen(true)}>
+            <MessageSquare className="mr-2 h-4 w-4" />
+            <span>Feedback</span>
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            className="bg-red-500/40 data-[highlighted]:bg-red-500/60 data-[highlighted]:text-white"
+            onClick={onSignOut}
+          >
+            <LogOut className="mr-2 h-4 w-4" />
+            <span>Sign out</span>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <FeedbackModal
+        open={feedbackOpen}
+        onOpenChange={setFeedbackOpen}
+        defaultName={userProfile?.name || getUserName()}
+        defaultEmail={userProfile?.email || getUserEmail() || ""}
+      />
+    </>
   );
 }

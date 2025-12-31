@@ -114,44 +114,44 @@ export function CharacterEditor({
   return (
     <div className="flex h-full flex-col bg-black/40">
       {/* Header */}
-      <div className="flex-shrink-0 border-b border-white/10 px-6 py-4">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <h2 className="text-xl font-bold text-white">Agent Builder</h2>
-            <Zap className="text-[#FF5800] h-5 w-5" />
+      <div className="flex-shrink-0 border-b border-white/10 px-3 py-2 md:px-6 md:py-4">
+        <div className="flex items-center justify-between mb-1 md:mb-2">
+          <div className="flex items-center gap-1.5 md:gap-2">
+            <h2 className="text-base md:text-xl font-bold text-white">Agent Builder</h2>
+            <Zap className="text-[#FF5800] h-4 w-4 md:h-5 md:w-5" />
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 md:gap-2">
             <Button
               variant="outline"
               size="sm"
               onClick={handleExport}
-              className="rounded-none border-white/10 bg-transparent text-white hover:bg-white/5"
+              className="rounded-none border-white/10 bg-transparent text-white hover:bg-white/5 h-7 px-2 md:h-8 md:px-3 text-xs md:text-sm"
             >
-              <Upload className="mr-2 h-4 w-4" />
-              Export
+              <Upload className="h-3.5 w-3.5 md:h-4 md:w-4" />
+              <span className="ml-1.5 hidden sm:inline">Export</span>
             </Button>
             <Button
               size="sm"
               onClick={handleSave}
               disabled={isSaving}
-              className="text-white hover:bg-[#FF5800]/90 bg-[#FF5800] rounded-none"
+              className="bg-[#FF5800] text-black hover:bg-[#FF5800]/90 active:bg-[#FF5800]/80 rounded-none h-7 px-2 md:h-8 md:px-3 text-xs md:text-sm"
               data-onboarding="build-save"
             >
-              <CloudUpload className="mr-2 h-4 w-4" />
-              {isSaving ? "Saving..." : "Deploy"}
+              <CloudUpload className="h-3.5 w-3.5 md:h-4 md:w-4" />
+              <span className="ml-1.5">{isSaving ? "..." : character.id ? "Save" : "Deploy"}</span>
             </Button>
           </div>
         </div>
-        <p className="text-sm text-white/60">
+        <p className="text-xs md:text-sm text-white/60 hidden md:block">
           Design your AI agent&apos;s personality, voice, and behavior.
         </p>
       </div>
 
       {/* Responsive Tabs + JSON Toggle */}
-      <div className="flex-shrink-0 border-b border-white/10 px-6">
-        <div className="space-y-4 xl:space-y-0 flex flex-col xl:flex-row xl:items-center gap-3 py-3">
+      <div className="flex-shrink-0 border-b border-white/10 px-3 md:px-6">
+        <div className="flex items-center gap-2 md:gap-3 py-2 md:py-3">
           {/* Tabs - Dropdown on mobile, tabs on desktop with horizontal scroll */}
-          <div className="flex-1 min-w-0 overflow-x-auto scrollbar-thin">
+          <div className="flex-1 min-w-0 overflow-x-auto scrollbar-none">
             <BrandTabsResponsive
               id="character-editor-tabs"
               tabs={tabs}
@@ -164,22 +164,22 @@ export function CharacterEditor({
             </BrandTabsResponsive>
           </div>
 
-          {/* JSON Toggle Switch */}
-          <div className="flex items-center gap-2 shrink-0 xl:ml-auto xl:pl-4">
-            <span className="text-xs text-white/60 whitespace-nowrap">
+          {/* JSON Toggle Switch - Always inline, compact */}
+          <div className="flex items-center gap-1.5 shrink-0 pl-2 border-l border-white/10">
+            <span className="text-[10px] md:text-xs text-white/60 whitespace-nowrap">
               JSON
             </span>
             <button
               onClick={() => setShowJson(!showJson)}
               className={cn(
-                "relative inline-flex h-5 w-9 items-center rounded-full transition-colors",
+                "relative inline-flex h-4 w-7 md:h-5 md:w-9 items-center rounded-full transition-colors",
                 showJson ? "bg-[#FF5800]" : "bg-white/20",
               )}
             >
               <span
                 className={cn(
-                  "inline-block h-3 w-3 transform rounded-full bg-white transition-transform",
-                  showJson ? "translate-x-5" : "translate-x-1",
+                  "inline-block h-2.5 w-2.5 md:h-3 md:w-3 transform rounded-full bg-white transition-transform",
+                  showJson ? "translate-x-3.5 md:translate-x-5" : "translate-x-1",
                 )}
               />
             </button>

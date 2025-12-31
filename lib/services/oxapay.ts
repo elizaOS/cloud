@@ -25,11 +25,16 @@ export interface OxaPayPaymentStatus {
   currency: string;
   transactions: Array<{
     txHash: string;
+    /** The amount to credit (USD value when auto-converted, native value otherwise) */
     amount: number;
     currency: string;
     network: string;
     address: string;
     status: string;
+    /** Original amount in native currency (e.g., SOL) before conversion */
+    nativeAmount?: number;
+    /** USD equivalent amount from invoice */
+    usdAmount?: number;
   }>;
 }
 
@@ -42,7 +47,7 @@ export class OxaPayApiError extends Error {
   constructor(
     message: string,
     public readonly statusCode?: number,
-    public readonly apiResult?: number
+    public readonly apiResult?: number,
   ) {
     super(message);
     this.name = "OxaPayApiError";
@@ -60,7 +65,7 @@ async function oxaPayFetch<T>(url: string, options: RequestInit): Promise<T> {
   } catch (error) {
     logger.error("[OxaPay] Network error", { url, error });
     throw new OxaPayApiError(
-      `Network error connecting to OxaPay: ${error instanceof Error ? error.message : "Unknown error"}`
+      `Network error connecting to OxaPay: ${error instanceof Error ? error.message : "Unknown error"}`,
     );
   }
 
@@ -68,7 +73,7 @@ async function oxaPayFetch<T>(url: string, options: RequestInit): Promise<T> {
     logger.error("[OxaPay] HTTP error", { url, status: response.status });
     throw new OxaPayApiError(
       `OxaPay API returned HTTP ${response.status}`,
-      response.status
+      response.status,
     );
   }
 
@@ -171,7 +176,7 @@ class OxaPayService {
       throw new OxaPayApiError(
         data.message || "Invoice creation failed",
         undefined,
-        data.result
+        data.result,
       );
     }
 
@@ -223,26 +228,36 @@ class OxaPayService {
       throw new OxaPayApiError(
         data.message || "Payment status check failed",
         undefined,
-        data.result
+        data.result,
       );
     }
 
     // Note: OxaPay doesn't provide blockchain confirmation counts.
     // Confirmation is determined by status ("paid" = confirmed by network).
+    //
+    // Credit the invoice USD amount for ALL currencies.
+    // - Underpayments: Rejected by OxaPay (underPaidCover: 0)
+    // - Overpayments: User's responsibility, we credit invoice amount only
+    const invoiceAmount = Number.parseFloat(data.amount) || 0;
+    const nativePayAmount = Number.parseFloat(data.payAmount || "0");
+
     return {
       trackId: data.trackId,
       status: data.status,
-      amount: Number.parseFloat(data.amount) || 0,
+      amount: invoiceAmount,
       currency: data.currency,
       transactions: data.txID
         ? [
             {
               txHash: data.txID,
-              amount: Number.parseFloat(data.payAmount || "0"),
+              amount: invoiceAmount, // Always credit invoice amount
               currency: data.payCurrency || "",
               network: data.network || "",
               address: data.address || "",
               status: data.status,
+              // Store native amount for audit/debugging
+              nativeAmount: nativePayAmount,
+              usdAmount: invoiceAmount,
             },
           ]
         : [],
@@ -266,7 +281,7 @@ class OxaPayService {
       {
         method: "GET",
         headers: { "Content-Type": "application/json" },
-      }
+      },
     );
 
     if (!data || typeof data !== "object") {
@@ -275,7 +290,8 @@ class OxaPayService {
 
     const currencies = Object.entries(data)
       .filter(
-        ([_, info]: [string, unknown]) => (info as { status?: boolean })?.status
+        ([_, info]: [string, unknown]) =>
+          (info as { status?: boolean })?.status,
       )
       .map(([_, info]: [string, unknown]) => {
         const currency = info as {
@@ -300,7 +316,7 @@ class OxaPayService {
                 depositMin: network.deposit_min,
                 withdrawFee: network.withdraw_fee,
               };
-            }
+            },
           ),
         };
       });
@@ -315,7 +331,7 @@ class OxaPayService {
         {
           method: "GET",
           headers: { "Content-Type": "application/json" },
-        }
+        },
       );
       return data?.status === true;
     } catch {

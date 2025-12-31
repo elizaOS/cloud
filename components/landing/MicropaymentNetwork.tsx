@@ -66,7 +66,13 @@ const FloatingNode = ({
       >
         {data.isCenter ? (
           <div className="relative w-full h-full rounded-full overflow-hidden">
-            <Image src="/eliza.png" alt="Eliza" fill sizes="80px" className="object-cover" />
+            <Image
+              src="/eliza.png"
+              alt="Eliza"
+              fill
+              sizes="80px"
+              className="object-cover"
+            />
           </div>
         ) : data.image ? (
           <div
@@ -179,7 +185,7 @@ export default function MicropaymentNetwork() {
         type: "floating",
       },
     ],
-    []
+    [],
   );
 
   const initialEdges: Edge[] = useMemo(
@@ -227,7 +233,7 @@ export default function MicropaymentNetwork() {
         style: { stroke: "#FF5800CC", strokeWidth: 2.5 },
       },
     ],
-    []
+    [],
   );
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
@@ -240,8 +246,8 @@ export default function MicropaymentNetwork() {
         acc[node.id] = { x: node.position.x, y: node.position.y };
         return acc;
       },
-      {} as Record<string, { x: number; y: number }>
-    )
+      {} as Record<string, { x: number; y: number }>,
+    ),
   );
 
   // Subtle hovering animation effect
@@ -263,7 +269,7 @@ export default function MicropaymentNetwork() {
               y: basePos.y + offset,
             },
           };
-        })
+        }),
       );
     }, 16); // ~60fps
 

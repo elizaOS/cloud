@@ -175,7 +175,10 @@ export class GenerationsRepository {
    * Creates a new generation record.
    */
   async create(data: NewGeneration): Promise<Generation> {
-    const [generation] = await dbWrite.insert(generations).values(data).returning();
+    const [generation] = await dbWrite
+      .insert(generations)
+      .values(data)
+      .returning();
     return generation;
   }
 

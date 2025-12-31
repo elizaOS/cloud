@@ -72,7 +72,7 @@ export const siteConfig: SiteConfig = {
   url: "https://createacharacter.com",
   description:
     "Create a Character. Chat Tonight. Build your own AI character and start chatting in minutes.",
-  ogImage: "/og.jpg",
+  ogImage: "/og-image.png",
   icons: {
     favicon: "/favicon.svg",
     appleTouchIcon: "/apple-touch-icon.png",

@@ -21,45 +21,11 @@ import { contentModerationService } from "@/lib/services/content-moderation";
 import { organizationsService } from "@/lib/services/organizations";
 import { logger } from "@/lib/utils/logger";
 import type { NextRequest } from "next/server";
-import { z } from "zod";
 import {
-  MAX_PROMPT_LENGTH,
-  MAX_RESPONSE_STYLE_LENGTH,
-} from "@/lib/constants/image-generation";
-
-/**
- * Schema for validating client-provided character state in BUILD mode.
- * Matches ElizaCharacter type - validates structure without being overly strict.
- */
-const clientCharacterStateSchema = z
-  .object({
-    name: z.string().max(100).optional(),
-    bio: z.union([z.string(), z.array(z.string())]).optional(),
-    system: z.string().optional(),
-    adjectives: z.array(z.string()).optional(),
-    topics: z.array(z.string()).optional(),
-    style: z
-      .object({
-        all: z.array(z.string()).optional(),
-        chat: z.array(z.string()).optional(),
-        post: z.array(z.string()).optional(),
-      })
-      .optional(),
-    messageExamples: z
-      .array(
-        z.array(
-          z.object({
-            name: z.string(),
-            content: z.object({
-              text: z.string(),
-            }),
-          }),
-        ),
-      )
-      .optional(),
-    avatarUrl: z.string().optional(),
-  })
-  .passthrough();
+  validateAppId,
+  validateAppPromptConfig,
+  clientCharacterStateSchema,
+} from "@/lib/eliza/stream-validation";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -101,19 +67,14 @@ export async function POST(
     const rawAppId = bodyAppId || request.headers.get("X-App-Id");
 
     // Validate appId format if provided (must be UUID)
-    let appId: string | undefined;
-    if (rawAppId) {
-      const appIdValidation = z.string().uuid().safeParse(rawAppId);
-      if (!appIdValidation.success) {
-        return new Response(
-          JSON.stringify({
-            error: "Invalid appId format - must be a valid UUID",
-          }),
-          { status: 400, headers: { "Content-Type": "application/json" } },
-        );
-      }
-      appId = appIdValidation.data;
+    const appIdResult = validateAppId(rawAppId);
+    if (!appIdResult.valid) {
+      return new Response(JSON.stringify({ error: appIdResult.error }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
     }
+    const appId = appIdResult.appId;
 
     if (!roomId || !text?.trim()) {
       return new Response(
@@ -123,127 +84,15 @@ export async function POST(
     }
 
     // Validate appPromptConfig if provided
-    if (appPromptConfig) {
-      // Sanitization helper to prevent prompt injection
-      const sanitizePromptString = (val: string) => {
-        // Normalize Unicode before any checks to prevent bypass via different encodings
-        val = val.normalize("NFC");
-
-        // Check length - reject suspiciously long prompts
-        if (val.length > MAX_PROMPT_LENGTH) {
-          return false;
-        }
-
-        // Block RTL override and bidirectional control characters (can hide malicious content)
-        if (/[\u202A-\u202E\u2066-\u2069\u200E\u200F]/.test(val)) {
-          return false;
-        }
-
-        // Block zero-width characters that can hide content
-        if (/[\u200B-\u200D\uFEFF]/.test(val)) {
-          return false;
-        }
-
-        // Dangerous literal patterns (case-insensitive)
-        const dangerousPatterns = [
-          "</system>",
-          "<|im_end|>",
-          "<|endoftext|>",
-          "[INST]",
-          "[/INST]",
-          "### Instruction:",
-          "### Response:",
-          "<|assistant|>",
-          "<|user|>",
-          "\\n\\nHuman:",
-          "\\n\\nAssistant:",
-        ];
-
-        const lowerVal = val.toLowerCase();
-        for (const pattern of dangerousPatterns) {
-          if (lowerVal.includes(pattern.toLowerCase())) {
-            return false;
-          }
-        }
-
-        // Check for encoded versions that could bypass literal checks
-        const encodedPatterns = [
-          /%3C%7C/i, // <|
-          /%5D%5D/i, // ]]
-          /\\u003c/i, // unicode <
-          /\\x3c/i, // hex <
-        ];
-
-        for (const pattern of encodedPatterns) {
-          if (pattern.test(val)) {
-            return false;
-          }
-        }
-
-        // Reject excessive whitespace or control characters
-        if (/[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F]/.test(val)) {
-          return false;
-        }
-
-        return true;
-      };
-
-      const AppPromptConfigSchema = z
-        .object({
-          systemPrefix: z
-            .string()
-            .max(MAX_PROMPT_LENGTH)
-            .refine(sanitizePromptString, {
-              message: "Invalid characters or patterns in systemPrefix",
-            })
-            .optional(),
-          systemSuffix: z
-            .string()
-            .max(MAX_PROMPT_LENGTH)
-            .refine(sanitizePromptString, {
-              message: "Invalid characters or patterns in systemSuffix",
-            })
-            .optional(),
-          responseStyle: z
-            .string()
-            .max(MAX_RESPONSE_STYLE_LENGTH)
-            .refine(sanitizePromptString, {
-              message: "Invalid characters or patterns in responseStyle",
-            })
-            .optional(),
-          flirtiness: z.enum(["low", "medium", "high"]).optional(),
-          romanticMode: z.boolean().optional(),
-          imageGeneration: z
-            .object({
-              enabled: z.boolean(),
-              autoGenerate: z.boolean(),
-              defaultVibe: z
-                .enum([
-                  "flirty",
-                  "shy",
-                  "bold",
-                  "spicy",
-                  "romantic",
-                  "playful",
-                  "mysterious",
-                  "intellectual",
-                ])
-                .optional(),
-            })
-            .optional(),
-        })
-        .strict();
-
-      const validated = AppPromptConfigSchema.safeParse(appPromptConfig);
-      if (!validated.success) {
-        return new Response(
-          JSON.stringify({
-            error: "Invalid appPromptConfig format",
-            details: validated.error.issues,
-          }),
-          { status: 400, headers: { "Content-Type": "application/json" } },
-        );
-      }
+    const promptConfigResult = validateAppPromptConfig(appPromptConfig);
+    if (!promptConfigResult.valid) {
+      return new Response(
+        JSON.stringify({
+          error: promptConfigResult.error,
+          details: promptConfigResult.details,
+        }),
+        { status: 400, headers: { "Content-Type": "application/json" } },
+      );
     }
 
     // Web search is enabled by default unless explicitly set to false
@@ -262,46 +111,24 @@ export async function POST(
       );
     }
 
-    // If user explicitly provided a mode, respect it
+    // Determine agent mode: explicit > webSearch toggle > default
     if (agentMode) {
       agentModeConfig = agentMode;
-      logger.info(`[Stream] Using explicit mode: ${agentModeConfig.mode}`);
     } else if (effectiveWebSearchEnabled) {
-      // No explicit mode - web search enabled (default) requires ASSISTANT mode
       agentModeConfig = { mode: AgentMode.ASSISTANT };
-      logger.info("[Stream] Web search enabled, using ASSISTANT mode");
     } else {
-      // No explicit mode - web search disabled, use lightweight CHAT mode
       agentModeConfig = { mode: AgentMode.CHAT };
-      logger.info("[Stream] Web search disabled, using CHAT mode");
-    }
-
-    if (model) {
-      logger.debug("[Stream] User selected model:", model);
     }
 
     // Step 2: Authentication & Context Building
-    logger.info(
-      `[Stream] 📊 Session token from body: ${sessionToken ? `${sessionToken.slice(0, 8)}...` : "N/A"}`,
-    );
     const userContext = await authenticateAndBuildContext(
       request,
       agentModeConfig.mode,
       { sessionToken, appId, appPromptConfig, webSearchEnabled },
     );
-    
+
     // Set webSearchEnabled on context (defaults to true)
     userContext.webSearchEnabled = effectiveWebSearchEnabled;
-    if (effectiveWebSearchEnabled) {
-      logger.info("[Stream] Web search enabled for this request");
-    }
-
-    logger.info("[Stream] 📊 UserContext after auth:", {
-      isAnonymous: userContext.isAnonymous,
-      hasSessionToken: !!userContext.sessionToken,
-      sessionTokenPreview: `${userContext.sessionToken?.slice(0, 8)}...`,
-      userId: userContext.userId,
-    });
 
     // Step 2.5: Check if user is blocked due to moderation violations
     if (await contentModerationService.shouldBlockUser(userContext.userId)) {
@@ -435,22 +262,21 @@ export async function POST(
           // users should no longer be able to send messages
           const isOwner = character.user_id === userContext.userId;
           const isPublic = character.is_public === true;
-          const claimCheck = await charactersService.isClaimableAffiliateCharacter(characterId);
+          const claimCheck =
+            await charactersService.isClaimableAffiliateCharacter(characterId);
           const isClaimableAffiliate = claimCheck.claimable;
 
           if (!isPublic && !isOwner && !isClaimableAffiliate) {
-            logger.warn(
-              "[Stream] Access denied to private character:",
-              {
-                characterId,
-                userId: userContext.userId,
-                characterOwnerId: character.user_id,
-                isPublic: character.is_public,
-              },
-            );
+            logger.warn("[Stream] Access denied to private character:", {
+              characterId,
+              userId: userContext.userId,
+              characterOwnerId: character.user_id,
+              isPublic: character.is_public,
+            });
             return new Response(
               JSON.stringify({
-                error: "This agent is private. Only the owner can chat with it.",
+                error:
+                  "This agent is private. Only the owner can chat with it.",
                 accessDenied: true,
               }),
               { status: 403, headers: { "Content-Type": "application/json" } },
@@ -491,7 +317,10 @@ export async function POST(
           }
         }
       } catch (error) {
-        logger.error("[Stream] Failed to check character access/affiliate status:", error);
+        logger.error(
+          "[Stream] Failed to check character access/affiliate status:",
+          error,
+        );
       }
     }
 
@@ -579,9 +408,10 @@ export async function POST(
       runtime.character.settings = {
         ...runtime.character.settings,
         clientCharacterState: validatedState.data,
-        isClientStateUnsaved: typeof agentModeConfig.metadata.isUnsaved === 'boolean'
-          ? agentModeConfig.metadata.isUnsaved
-          : true,
+        isClientStateUnsaved:
+          typeof agentModeConfig.metadata.isUnsaved === "boolean"
+            ? agentModeConfig.metadata.isUnsaved
+            : true,
       };
       logger.info(
         "[Stream] BUILD mode - Stored validated client character state in runtime settings",
@@ -615,17 +445,32 @@ export async function POST(
     // Step 8: Create streaming response with TransformStream for better flush control
     const { readable, writable } = new TransformStream();
     const writer = writable.getWriter();
-    
+
+    // Pre-compute static SSE prefixes to reduce allocations
+    const eventPrefixes = {
+      chunk: encoder.encode("event: chunk\ndata: "),
+      reasoning: encoder.encode("event: reasoning\ndata: "),
+    };
+    const sseEnd = encoder.encode("\n\n");
+
     // Helper to write SSE events - writes immediately and doesn't buffer
     const sendEvent = async (event: string, data: unknown) => {
-      const message = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
-      await writer.write(encoder.encode(message));
+      const jsonData = JSON.stringify(data);
+      // Use pre-computed prefixes for high-frequency events
+      const prefix = eventPrefixes[event as keyof typeof eventPrefixes];
+      if (prefix) {
+        await writer.write(prefix);
+        await writer.write(encoder.encode(jsonData));
+        await writer.write(sseEnd);
+      } else {
+        const message = `event: ${event}\ndata: ${jsonData}\n\n`;
+        await writer.write(encoder.encode(message));
+      }
     };
 
     // Start processing in background - this allows the response to be returned immediately
     // while chunks are streamed as they're generated
     (async () => {
-
       try {
         // Send connection confirmation
         await sendEvent("connected", { roomId, timestamp: Date.now() });
@@ -662,6 +507,17 @@ export async function POST(
           });
         };
 
+        // Create reasoning callback to stream chain-of-thought
+        // Shows users the LLM's planning process in real-time
+        const onReasoningChunk = async (chunk: string, phase: string) => {
+          await sendEvent("reasoning", {
+            messageId: responseMessageId,
+            chunk,
+            phase,
+            timestamp: Date.now(),
+          });
+        };
+
         // Process message and get response (using user's actual ID)
         logger.info("[Stream Messages] Processing message with streaming...");
         const result = await messageHandler.process({
@@ -671,6 +527,7 @@ export async function POST(
           agentModeConfig,
           attachments,
           onStreamChunk,
+          onReasoningChunk,
         });
 
         // Extract content - the full Content object is now stored in memory
@@ -687,10 +544,7 @@ export async function POST(
         };
 
         // Include attachments if present
-        if (
-          typeof messageContent === "object" &&
-          messageContent?.attachments
-        ) {
+        if (typeof messageContent === "object" && messageContent?.attachments) {
           responseContentPayload.attachments = messageContent.attachments;
         }
 
@@ -738,8 +592,7 @@ export async function POST(
       } catch (error) {
         logger.error("[Stream Messages] Error:", error);
         await sendEvent("error", {
-          message:
-            error instanceof Error ? error.message : "Processing failed",
+          message: error instanceof Error ? error.message : "Processing failed",
         });
       } finally {
         // Close the writer to signal stream completion
@@ -752,7 +605,7 @@ export async function POST(
       headers: {
         "Content-Type": "text/event-stream",
         "Cache-Control": "no-cache, no-transform",
-        "Connection": "keep-alive",
+        Connection: "keep-alive",
         "X-Accel-Buffering": "no",
         // Prevent any compression that could buffer the stream
         "Content-Encoding": "none",
@@ -771,15 +624,7 @@ export async function POST(
 
 /**
  * Helper function to authenticate and build user context
- * Centralizes authentication and context creation
- *
- * IMPORTANT: Auth priority (ALWAYS try Privy first):
- * 1. Try Privy/API key auth - if succeeds, return authenticated context
- * 2. If Privy fails, try anonymous session from token/cookie
- * 3. If no session, create new anonymous session
- *
- * This ensures authenticated users are NEVER treated as anonymous,
- * even if they have a stale session token in their request.
+ * Auth priority: Privy/API key > anonymous session token > cookie > new anonymous
  */
 async function authenticateAndBuildContext(
   request: NextRequest,
@@ -791,35 +636,16 @@ async function authenticateAndBuildContext(
     webSearchEnabled?: boolean;
   },
 ) {
-  const headerToken = request.headers.get("X-Anonymous-Session");
-  const bodyToken = body?.sessionToken;
-  const anonymousSessionToken = headerToken || bodyToken;
+  const anonymousSessionToken =
+    request.headers.get("X-Anonymous-Session") || body?.sessionToken;
 
-  logger.info("[Stream Auth] Starting authentication", {
-    hasSessionToken: !!anonymousSessionToken,
-    tokenPreview: anonymousSessionToken
-      ? `${anonymousSessionToken.slice(0, 8)}...`
-      : "N/A",
-  });
-
-  // CRITICAL: ALWAYS try Privy auth FIRST, regardless of session token
-  // This ensures authenticated users are never treated as anonymous
+  // Try Privy/API key auth first (ensures authenticated users aren't treated as anonymous)
   try {
-    logger.info("[Stream Auth] Attempting Privy/API key authentication...");
     const authResult = await requireAuthOrApiKey(request);
-    logger.info(
-      "[Stream Auth] ✅ Privy/API auth SUCCEEDED - treating as authenticated user:",
-      {
-        userId: authResult.user.id,
-        authMethod: authResult.authMethod,
-        isAnonymous: authResult.user.is_anonymous,
-      },
-    );
 
-    // Double-check the user is not anonymous (migration should have set this to false)
     if (authResult.user.is_anonymous) {
       logger.warn(
-        "[Stream Auth] ⚠️ User is authenticated but still marked as anonymous - this may indicate incomplete migration",
+        "[Stream] User authenticated but marked anonymous - possible migration issue",
       );
     }
 
@@ -830,110 +656,38 @@ async function authenticateAndBuildContext(
       appId: body?.appId,
       appPromptConfig: body?.appPromptConfig,
     });
-  } catch (error) {
-    logger.info(
-      "[Stream Auth] ❌ Privy auth failed, falling back to anonymous:",
-      error instanceof Error ? error.message : String(error),
-    );
+  } catch {
+    // Fall through to anonymous handling
   }
 
-  // Privy auth failed - handle as anonymous user
-  logger.info("[Stream Auth] Processing as anonymous user...");
-
-  // Use provided token for session lookup
-  const providedToken = anonymousSessionToken;
-
-  // Try provided session token first
-  if (providedToken) {
-    logger.info(
-      `[Stream] 🔑 Session token provided in request: ${providedToken.slice(0, 8)}...`,
+  // Try provided session token
+  if (anonymousSessionToken) {
+    const session = await anonymousSessionsService.getByToken(
+      anonymousSessionToken,
     );
 
-    const session = await anonymousSessionsService.getByToken(providedToken);
+    if (session && !session.converted_at && session.is_active) {
+      const user = await usersService.getById(session.user_id);
 
-    logger.info("[Stream] 🔍 Session lookup result:", {
-      found: !!session,
-      sessionId: session?.id,
-      messageCount: session?.message_count,
-      isActive: session?.is_active,
-      convertedAt: session?.converted_at,
-      tokenUsed: `${providedToken.slice(0, 8)}...`,
-    });
-
-    if (session) {
-      // Check if session has been converted (user authenticated after this session was created)
-      if (session.converted_at || !session.is_active) {
-        logger.info(
-          "[Stream] ⚠️ Session has been converted/deactivated - user should be authenticated",
-          {
-            sessionId: session.id,
-            convertedAt: session.converted_at,
-            isActive: session.is_active,
-          },
-        );
-        // This session was migrated - the user should authenticate via Privy
-        // Don't use this session, fall through to create new anonymous or fail
-      } else {
-        const user = await usersService.getById(session.user_id);
-        logger.info("[Stream] 👤 User lookup result:", {
-          found: !!user,
-          userId: user?.id,
-          isAnonymous: user?.is_anonymous,
+      if (user?.is_anonymous) {
+        return await userContextService.buildContext({
+          user: { ...user, organization: null as never },
+          anonymousSession: session,
+          isAnonymous: true,
+          agentMode,
+          appId: body?.appId,
+          appPromptConfig: body?.appPromptConfig,
         });
-
-        if (user?.is_anonymous) {
-          logger.info("[Stream] ✅ Using session from provided token:", {
-            sessionId: session.id,
-            userId: user.id,
-            sessionToken: `${session.session_token.slice(0, 8)}...`,
-            messageCount: session.message_count,
-          });
-          return await userContextService.buildContext({
-            user: { ...user, organization: null as never },
-            anonymousSession: session,
-            isAnonymous: true,
-            agentMode,
-            appId: body?.appId,
-            appPromptConfig: body?.appPromptConfig,
-          });
-        }
-
-        logger.warn(
-          "[Stream] ⚠️ User not found or not anonymous for session:",
-          session.id,
-        );
       }
-    } else {
-      logger.warn(
-        `[Stream] ⚠️ Session not found for provided token: ${providedToken.slice(0, 8)}...`,
-      );
     }
-
-    logger.warn(
-      "[Stream] ⚠️ Provided session token invalid or converted, falling back to cookie",
-    );
   }
 
-  // Fall back to cookie
+  // Fall back to cookie or create new anonymous session
   let anonData = await getAnonymousUser();
 
   if (!anonData) {
-    logger.info("[Stream] No session cookie - creating new anonymous session");
     const newAnonData = await getOrCreateAnonymousUser();
-    anonData = {
-      user: newAnonData.user,
-      session: newAnonData.session,
-    };
-    logger.info("[Stream] Created anonymous user:", {
-      userId: anonData.user.id,
-      sessionToken: `${anonData.session?.session_token.slice(0, 8)}...`,
-    });
-  } else {
-    logger.info("[Stream] Anonymous user found via cookie:", {
-      userId: anonData.user.id,
-      sessionToken: `${anonData.session?.session_token.slice(0, 8)}...`,
-      messageCount: anonData.session?.message_count,
-    });
+    anonData = { user: newAnonData.user, session: newAnonData.session };
   }
 
   if (!anonData.session) {

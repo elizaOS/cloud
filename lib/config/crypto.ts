@@ -16,7 +16,7 @@ export const OXAPAY_FEE_PERCENT = new Decimal("1.5");
  * userPaidAmount = receivedAmount / OXAPAY_FEE_MULTIPLIER
  */
 export const OXAPAY_FEE_MULTIPLIER = new Decimal(1).minus(
-  OXAPAY_FEE_PERCENT.dividedBy(100)
+  OXAPAY_FEE_PERCENT.dividedBy(100),
 );
 
 /**
@@ -49,12 +49,18 @@ export const WEBHOOK_CONFIG = {
 /**
  * OxaPay webhook payload structure.
  * Supports both camelCase (invoice API) and snake_case (white-label API) formats.
+ *
+ * NOTE: We always credit the invoice USD amount from the API, not webhook values.
+ * - Underpayments: Rejected by OxaPay (underPaidCover: 0)
+ * - Overpayments: User's responsibility
  */
 export interface OxaPayWebhookPayload {
   track_id?: string;
   trackId?: string;
   status: string;
+  /** Native currency amount (may NOT be USD for volatile coins!) */
   amount?: number;
+  /** Native currency amount user sent */
   pay_amount?: number;
   payAmount?: number;
   address?: string;
@@ -63,10 +69,13 @@ export interface OxaPayWebhookPayload {
   timestamp?: number | string;
   payCurrency?: string;
   network?: string;
+  receivedAmount?: number;
+  received_amount?: number;
 }
 
 /**
  * Normalize webhook payload to consistent format.
+ * Note: We use invoice amount from API for crediting, not these webhook values.
  */
 export function normalizeWebhookPayload(payload: OxaPayWebhookPayload): {
   trackId: string;
@@ -75,10 +84,14 @@ export function normalizeWebhookPayload(payload: OxaPayWebhookPayload): {
   payAmount?: number;
   txID?: string;
 } {
+  // Check for receivedAmount field (some OxaPay responses may include this)
+  const receivedAmount = payload.receivedAmount || payload.received_amount;
+
   return {
     trackId: payload.trackId || payload.track_id || "",
     status: payload.status,
-    amount: payload.amount,
+    // Prefer receivedAmount if available, otherwise use amount
+    amount: receivedAmount ?? payload.amount,
     payAmount: payload.payAmount || payload.pay_amount,
     txID: payload.txID,
   };
@@ -209,11 +222,11 @@ export const NETWORK_CONFIGS: Record<OxaPayNetwork, NetworkConfig> = {
  */
 export function calculateTolerance(
   amount: Decimal,
-  network: OxaPayNetwork
+  network: OxaPayNetwork,
 ): Decimal {
   const config = NETWORK_CONFIGS[network];
   const toleranceMultiplier = new Decimal(1).minus(
-    new Decimal(config.tolerancePercent).dividedBy(100)
+    new Decimal(config.tolerancePercent).dividedBy(100),
   );
   return amount.times(toleranceMultiplier);
 }
@@ -250,7 +263,7 @@ export function validatePaymentAmount(amount: Decimal): {
 export function validateReceivedAmount(
   received: Decimal,
   expected: Decimal,
-  _network: OxaPayNetwork
+  _network: OxaPayNetwork,
 ): { valid: boolean; threshold: Decimal } {
   // No tolerance - received must be >= expected (exact or overpayment only)
   return {
@@ -294,7 +307,7 @@ function parseTimestamp(value: number | string): number | undefined {
  */
 export function extractWebhookTimestamp(
   header: string | null,
-  payload: OxaPayWebhookPayload
+  payload: OxaPayWebhookPayload,
 ): number | undefined {
   // Try header first
   if (header) {

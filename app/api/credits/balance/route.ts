@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
           Pragma: "no-cache",
           Expires: "0",
         },
-      }
+      },
     );
   } catch (error) {
     const errorMessage =
@@ -64,7 +64,7 @@ export async function GET(req: NextRequest) {
             Pragma: "no-cache",
             Expires: "0",
           },
-        }
+        },
       );
     }
 
@@ -78,7 +78,7 @@ export async function GET(req: NextRequest) {
           Pragma: "no-cache",
           Expires: "0",
         },
-      }
+      },
     );
   }
 }
