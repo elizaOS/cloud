@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { BlogPage } from "@/components/landing/blog-page";
 import Blog from "@/components/landing/Blog";
 import {
@@ -11,14 +12,20 @@ export const metadata = {
   description: "News, tutorials, and updates from the Eliza team",
 };
 
-export default function BlogListingPage() {
+function BlogContent() {
   const allPosts = getAllPosts();
   const publicPosts = getPublicPosts();
   const categories = getPublicCategories();
 
+  return <Blog allPosts={allPosts} publicPosts={publicPosts} categories={categories} />;
+}
+
+export default function BlogListingPage() {
   return (
     <BlogPage>
-      <Blog allPosts={allPosts} publicPosts={publicPosts} categories={categories} />
+      <Suspense fallback={<div className="flex-1 px-4 pt-24 pb-12 text-center text-white/50">Loading...</div>}>
+        <BlogContent />
+      </Suspense>
     </BlogPage>
   );
 }
