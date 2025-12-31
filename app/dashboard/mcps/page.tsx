@@ -1,8 +1,15 @@
 import { Suspense } from "react";
+import type { Metadata } from "next";
 import { requireAuthWithOrg } from "@/lib/auth";
 import { MCPsPageClient } from "@/components/mcps/mcps-page-client";
 import { Puzzle, Server, Zap, Globe } from "lucide-react";
 import { BrandCard, CornerBrackets } from "@/components/brand";
+
+export const metadata: Metadata = {
+  title: "MCP Servers",
+  description:
+    "Explore and connect to Model Context Protocol (MCP) servers. Access ready-to-use tools for AI agents including time, weather, crypto prices, and more.",
+};
 
 // Auth check requires cookies which makes this dynamic
 // MCP server list is hardcoded but auth is dynamic
