@@ -40,12 +40,12 @@ export default function BlogPost({
   return (
     <div className="flex flex-col">
        <div className="flex-1 flex">
-        <div className="bg-linear-to-r from-black/0 to-black/75 flex-1"></div>
+        <div className="bg-gradient-to-r from-black/0 to-black/75 flex-1"></div>
       <div className="w-full max-w-3xl h-20 bg-black/75 mx-auto"></div>
-        <div className="bg-linear-to-l from-black/0 to-black/75 flex-1"></div>
+        <div className="bg-gradient-to-l from-black/0 to-black/75 flex-1"></div>
       </div>
       <div className="flex-1 flex">
-      <div className="bg-linear-to-r from-black/0 to-black/75 flex-1"></div>
+      <div className="bg-gradient-to-r from-black/0 to-black/75 flex-1"></div>
       <div className="w-full max-w-3xl bg-black/75 px-4 sm:px-6 lg:px-8">
         <div className="sticky top-20 z-10 mb-8">
           <Link
@@ -90,12 +90,12 @@ export default function BlogPost({
           </div>
         </article>
       </div>
-         <div className="bg-linear-to-l from-black/0 to-black/75 flex-1"></div>
+         <div className="bg-gradient-to-l from-black/0 to-black/75 flex-1"></div>
          </div>
            <div className="flex-1 flex">
-        <div className="bg-linear-to-r from-black/0 to-black/75 flex-1"></div>
+        <div className="bg-gradient-to-r from-black/0 to-black/75 flex-1"></div>
       <div className="w-full max-w-3xl h-20 bg-black/75 mx-auto"></div>
-        <div className="bg-linear-to-l from-black/0 to-black/75 flex-1"></div>
+        <div className="bg-gradient-to-l from-black/0 to-black/75 flex-1"></div>
       </div>
     </div>
   );

@@ -27,7 +27,16 @@ export interface BlogPostMeta {
 }
 
 export function getAllPosts(): BlogPostMeta[] {
-  const files = fs.readdirSync(BLOG_DIR);
+  if (!fs.existsSync(BLOG_DIR)) {
+    return [];
+  }
+
+  let files: string[];
+  try {
+    files = fs.readdirSync(BLOG_DIR);
+  } catch {
+    return [];
+  }
 
   const posts = files
     .filter((file) => file.endsWith(".mdx") || file.endsWith(".md"))
@@ -47,7 +56,14 @@ export function getAllPosts(): BlogPostMeta[] {
         image: data.image,
       };
     })
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    .sort((a, b) => {
+      const dateA = new Date(a.date).getTime();
+      const dateB = new Date(b.date).getTime();
+      // Handle invalid dates by treating them as oldest
+      if (isNaN(dateB)) return -1;
+      if (isNaN(dateA)) return 1;
+      return dateB - dateA;
+    });
 
   return posts;
 }
@@ -103,7 +119,16 @@ export function getPublicCategories(): string[] {
 }
 
 export function getAllSlugs(): string[] {
-  const files = fs.readdirSync(BLOG_DIR);
+  if (!fs.existsSync(BLOG_DIR)) {
+    return [];
+  }
+
+  let files: string[];
+  try {
+    files = fs.readdirSync(BLOG_DIR);
+  } catch {
+    return [];
+  }
 
   return files
     .filter((file) => file.endsWith(".mdx") || file.endsWith(".md"))
