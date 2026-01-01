@@ -111,6 +111,32 @@ export async function deleteMedia(generationId: string): Promise<boolean> {
  *
  * @returns Statistics including total images, videos, and total file size.
  */
+/**
+ * Lists random public images for the explore/discover section.
+ * Does not require authentication.
+ *
+ * @param limit - Maximum number of images to return (default 20).
+ * @returns Array of gallery items from random users.
+ */
+export async function listExploreImages(limit: number = 20): Promise<GalleryItem[]> {
+  const generations = await generationsService.listRandomPublicImages(limit);
+
+  return generations.map((gen) => ({
+    id: gen.id,
+    type: gen.type as "image" | "video",
+    url: gen.storage_url!,
+    thumbnailUrl: gen.thumbnail_url || undefined,
+    prompt: gen.prompt,
+    model: gen.model,
+    status: gen.status,
+    createdAt: gen.created_at,
+    completedAt: gen.completed_at || undefined,
+    dimensions: gen.dimensions || undefined,
+    mimeType: gen.mime_type || undefined,
+    fileSize: gen.file_size || undefined,
+  }));
+}
+
 export async function getUserMediaStats(): Promise<{
   totalImages: number;
   totalVideos: number;

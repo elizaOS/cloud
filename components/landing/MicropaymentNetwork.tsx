@@ -179,13 +179,13 @@ export default function MicropaymentNetwork() {
           label: "Agent 2",
           color: "#",
           type: "agent",
-          image: "/spartan.png",
+          image: "/babylon.jpeg",
         },
         position: { x: 403, y: 141 },
         type: "floating",
       },
     ],
-    [],
+    []
   );
 
   const initialEdges: Edge[] = useMemo(
@@ -233,7 +233,7 @@ export default function MicropaymentNetwork() {
         style: { stroke: "#FF5800CC", strokeWidth: 2.5 },
       },
     ],
-    [],
+    []
   );
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
@@ -246,8 +246,8 @@ export default function MicropaymentNetwork() {
         acc[node.id] = { x: node.position.x, y: node.position.y };
         return acc;
       },
-      {} as Record<string, { x: number; y: number }>,
-    ),
+      {} as Record<string, { x: number; y: number }>
+    )
   );
 
   // Subtle hovering animation effect
@@ -269,7 +269,7 @@ export default function MicropaymentNetwork() {
               y: basePos.y + offset,
             },
           };
-        }),
+        })
       );
     }, 16); // ~60fps
 
