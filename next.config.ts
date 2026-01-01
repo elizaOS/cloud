@@ -85,7 +85,7 @@ const nextConfig: NextConfig = {
     // that pino/thread-stream creates at runtime (like pino-28069d5257187539)
     // which cannot be resolved in serverless environments
     resolveAlias: {
-      'thread-stream': './lib/stubs/thread-stream.ts',
+      "thread-stream": "./lib/stubs/thread-stream.ts",
     },
   },
   transpilePackages: ["next-mdx-remote"],

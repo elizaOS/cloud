@@ -147,7 +147,9 @@ export function BrandTabsResponsive({
               "disabled:pointer-events-none disabled:opacity-50",
             )}
           >
-            <span className="[&>svg]:h-3.5 [&>svg]:w-3.5 lg:[&>svg]:h-4 lg:[&>svg]:w-4">{tab.icon}</span>
+            <span className="[&>svg]:h-3.5 [&>svg]:w-3.5 lg:[&>svg]:h-4 lg:[&>svg]:w-4">
+              {tab.icon}
+            </span>
             <span className="hidden lg:inline">{tab.label}</span>
           </TabsPrimitive.Trigger>
         ))}

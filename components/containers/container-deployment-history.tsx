@@ -139,9 +139,7 @@ export function ContainerDeploymentHistory({
         100
       : 0;
 
-  const pendingCount = deployments.filter(
-    (d) => d.status === "pending",
-  ).length;
+  const pendingCount = deployments.filter((d) => d.status === "pending").length;
 
   const avgDuration =
     deployments.length > 0 && deployments.some((d) => d.duration_ms)

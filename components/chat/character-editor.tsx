@@ -117,7 +117,9 @@ export function CharacterEditor({
       <div className="flex-shrink-0 border-b border-white/10 px-3 py-2 md:px-6 md:py-4">
         <div className="flex items-center justify-between mb-1 md:mb-2">
           <div className="flex items-center gap-1.5 md:gap-2">
-            <h2 className="text-base md:text-xl font-bold text-white">Agent Builder</h2>
+            <h2 className="text-base md:text-xl font-bold text-white">
+              Agent Builder
+            </h2>
             <Zap className="text-[#FF5800] h-4 w-4 md:h-5 md:w-5" />
           </div>
           <div className="flex items-center gap-1.5 md:gap-2">
@@ -138,7 +140,9 @@ export function CharacterEditor({
               data-onboarding="build-save"
             >
               <CloudUpload className="h-3.5 w-3.5 md:h-4 md:w-4" />
-              <span className="ml-1.5">{isSaving ? "..." : character.id ? "Save" : "Deploy"}</span>
+              <span className="ml-1.5">
+                {isSaving ? "..." : character.id ? "Save" : "Deploy"}
+              </span>
             </Button>
           </div>
         </div>
@@ -179,7 +183,9 @@ export function CharacterEditor({
               <span
                 className={cn(
                   "inline-block h-2.5 w-2.5 md:h-3 md:w-3 transform rounded-full bg-white transition-transform",
-                  showJson ? "translate-x-3.5 md:translate-x-5" : "translate-x-1",
+                  showJson
+                    ? "translate-x-3.5 md:translate-x-5"
+                    : "translate-x-1",
                 )}
               />
             </button>

@@ -199,7 +199,10 @@
           }
         ],
         "Tags": [
-          { "Key": "Name", "Value": { "Fn::Sub": "elizaos-${UserId}-${ProjectName}" } },
+          {
+            "Key": "Name",
+            "Value": { "Fn::Sub": "elizaos-${UserId}-${ProjectName}" }
+          },
           { "Key": "UserId", "Value": { "Ref": "UserId" } },
           { "Key": "UserEmail", "Value": { "Ref": "UserEmail" } },
           { "Key": "Project", "Value": "ElizaOS" },
@@ -306,7 +309,10 @@
               },
               "-",
               {
-                "Fn::Select": [0, { "Fn::Split": ["-", { "Ref": "ProjectName" }] }]
+                "Fn::Select": [
+                  0,
+                  { "Fn::Split": ["-", { "Ref": "ProjectName" }] }
+                ]
               }
             ]
           ]
@@ -338,7 +344,9 @@
       "Type": "AWS::CloudWatch::Alarm",
       "Condition": "HasSNSTopic",
       "Properties": {
-        "AlarmName": { "Fn::Sub": "elizaos-${UserId}-${ProjectName}-unhealthy-targets" },
+        "AlarmName": {
+          "Fn::Sub": "elizaos-${UserId}-${ProjectName}-unhealthy-targets"
+        },
         "AlarmDescription": "Alert when targets are unhealthy",
         "MetricName": "UnHealthyHostCount",
         "Namespace": "AWS/ApplicationELB",
@@ -388,7 +396,9 @@
       "Type": "AWS::CloudWatch::Alarm",
       "Condition": "HasSNSTopic",
       "Properties": {
-        "AlarmName": { "Fn::Sub": "elizaos-${UserId}-${ProjectName}-high-memory" },
+        "AlarmName": {
+          "Fn::Sub": "elizaos-${UserId}-${ProjectName}-high-memory"
+        },
         "AlarmDescription": "Alert when memory utilization is high",
         "MetricName": "MemoryUtilization",
         "Namespace": "AWS/ECS",

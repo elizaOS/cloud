@@ -141,13 +141,19 @@ export function MCPsPageClient({ servers }: MCPsPageClientProps) {
       if (mcpResponse.status === 401 || mcpResponse.status === 402) {
         // Server is responding but requires authentication
         const data = await mcpResponse.json().catch(() => ({}));
-        setTestResult(JSON.stringify({
-          status: "Server is online",
-          note: "This MCP requires authentication. The server is responding correctly.",
-          authRequired: true,
-          statusCode: mcpResponse.status,
-          ...data,
-        }, null, 2));
+        setTestResult(
+          JSON.stringify(
+            {
+              status: "Server is online",
+              note: "This MCP requires authentication. The server is responding correctly.",
+              authRequired: true,
+              statusCode: mcpResponse.status,
+              ...data,
+            },
+            null,
+            2,
+          ),
+        );
         toast.success(`${server.name} is online (requires auth)`);
       } else if (mcpResponse.ok) {
         const data = await mcpResponse.json();
@@ -155,18 +161,31 @@ export function MCPsPageClient({ servers }: MCPsPageClientProps) {
         toast.success(`${server.name} is responding`);
       } else {
         const errorText = await mcpResponse.text().catch(() => "");
-        setTestResult(JSON.stringify({
-          error: `Server returned ${mcpResponse.status} ${mcpResponse.statusText}`,
-          details: errorText,
-        }, null, 2));
+        setTestResult(
+          JSON.stringify(
+            {
+              error: `Server returned ${mcpResponse.status} ${mcpResponse.statusText}`,
+              details: errorText,
+            },
+            null,
+            2,
+          ),
+        );
         toast.error(`Server returned ${mcpResponse.status}`);
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Connection failed";
-      setTestResult(JSON.stringify({
-        error: errorMessage,
-        hint: "The server may be offline or unreachable",
-      }, null, 2));
+      const errorMessage =
+        error instanceof Error ? error.message : "Connection failed";
+      setTestResult(
+        JSON.stringify(
+          {
+            error: errorMessage,
+            hint: "The server may be offline or unreachable",
+          },
+          null,
+          2,
+        ),
+      );
       toast.error(`Failed to connect: ${errorMessage}`);
     }
     setTestingServer(null);

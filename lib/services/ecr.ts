@@ -167,10 +167,11 @@ export class ECRManager {
       }
 
       logger.error("Failed to create ECR repository:", {
-        errorName:
-          createError instanceof Error ? createError.name : "Unknown",
+        errorName: createError instanceof Error ? createError.name : "Unknown",
         errorMessage:
-          createError instanceof Error ? createError.message : String(createError),
+          createError instanceof Error
+            ? createError.message
+            : String(createError),
         repositoryName,
       });
       throw createError;

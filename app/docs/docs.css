@@ -704,8 +704,13 @@ blockquote p,
 }
 
 @keyframes heroOrbPulse {
-  0%, 100% { box-shadow: 0 0 20px rgba(255, 88, 0, 0.6); }
-  50% { box-shadow: 0 0 35px rgba(255, 88, 0, 0.9); }
+  0%,
+  100% {
+    box-shadow: 0 0 20px rgba(255, 88, 0, 0.6);
+  }
+  50% {
+    box-shadow: 0 0 35px rgba(255, 88, 0, 0.9);
+  }
 }
 
 .docs-hero h1::after {

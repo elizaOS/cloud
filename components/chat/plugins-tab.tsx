@@ -380,7 +380,9 @@ export function PluginsTab({ character, onChange }: PluginsTabProps) {
             {availableMcps.length === 0 ? (
               <div className="text-center py-8 2xl:py-12">
                 <Puzzle className="h-8 w-8 2xl:h-12 2xl:w-12 text-white/20 mx-auto mb-3 2xl:mb-4" />
-                <p className="text-sm 2xl:text-base text-white/60">No MCPs match your search</p>
+                <p className="text-sm 2xl:text-base text-white/60">
+                  No MCPs match your search
+                </p>
               </div>
             ) : (
               <>
@@ -681,7 +683,10 @@ function McpDetailPanel({
               borderColor: `${mcp.color}40`,
             }}
           >
-            <Icon className="h-4 w-4 2xl:h-6 2xl:w-6" style={{ color: mcp.color }} />
+            <Icon
+              className="h-4 w-4 2xl:h-6 2xl:w-6"
+              style={{ color: mcp.color }}
+            />
           </div>
           <div className="min-w-0 flex-1">
             <h2 className="text-base 2xl:text-xl font-semibold text-white flex items-center gap-2 flex-wrap">
@@ -692,7 +697,9 @@ function McpDetailPanel({
                 </span>
               )}
             </h2>
-            <p className="text-xs 2xl:text-sm text-white/60 mt-0.5 2xl:mt-1 line-clamp-2">{mcp.description}</p>
+            <p className="text-xs 2xl:text-sm text-white/60 mt-0.5 2xl:mt-1 line-clamp-2">
+              {mcp.description}
+            </p>
           </div>
         </div>
         <button

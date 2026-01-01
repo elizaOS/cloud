@@ -661,7 +661,12 @@ export class UsageRecordsRepository {
    */
   async update(
     id: string,
-    data: Partial<Pick<UsageRecord, "is_successful" | "error_message" | "duration_ms" | "metadata">>,
+    data: Partial<
+      Pick<
+        UsageRecord,
+        "is_successful" | "error_message" | "duration_ms" | "metadata"
+      >
+    >,
   ): Promise<UsageRecord | undefined> {
     const [record] = await dbWrite
       .update(usageRecords)
