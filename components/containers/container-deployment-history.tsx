@@ -21,11 +21,12 @@ import {
   Cpu,
   HardDrive,
   Network,
+  Loader2,
 } from "lucide-react";
 
 interface Deployment {
   id: string;
-  status: "success" | "failed";
+  status: "success" | "failed" | "pending";
   cost: number;
   error?: string;
   metadata: {
@@ -127,12 +128,20 @@ export function ContainerDeploymentHistory({
     );
   }
 
+  // Calculate success rate only for completed deployments (exclude pending)
+  const completedDeployments = deployments.filter(
+    (d) => d.status === "success" || d.status === "failed",
+  );
   const successRate =
-    deployments.length > 0
-      ? (deployments.filter((d) => d.status === "success").length /
-          deployments.length) *
+    completedDeployments.length > 0
+      ? (completedDeployments.filter((d) => d.status === "success").length /
+          completedDeployments.length) *
         100
       : 0;
+
+  const pendingCount = deployments.filter(
+    (d) => d.status === "pending",
+  ).length;
 
   const avgDuration =
     deployments.length > 0 && deployments.some((d) => d.duration_ms)
@@ -204,7 +213,7 @@ export function ContainerDeploymentHistory({
           ) : (
             <div className="space-y-4">
               {/* Stats Overview */}
-              <div className="grid grid-cols-3 gap-4 pb-4 border-b border-white/10">
+              <div className="grid grid-cols-4 gap-4 pb-4 border-b border-white/10">
                 <div className="text-center p-4 rounded-none border border-white/10 bg-black/20">
                   <p
                     className="text-2xl font-medium text-green-500"
@@ -231,6 +240,20 @@ export function ContainerDeploymentHistory({
                     style={{ fontFamily: "var(--font-roboto-mono)" }}
                   >
                     Failed
+                  </p>
+                </div>
+                <div className="text-center p-4 rounded-none border border-white/10 bg-black/20">
+                  <p
+                    className="text-2xl font-medium text-yellow-500"
+                    style={{ fontFamily: "var(--font-roboto-mono)" }}
+                  >
+                    {pendingCount}
+                  </p>
+                  <p
+                    className="text-xs text-white/60 mt-1 uppercase tracking-wider"
+                    style={{ fontFamily: "var(--font-roboto-mono)" }}
+                  >
+                    Pending
                   </p>
                 </div>
                 <div className="text-center p-4 rounded-none border border-white/10 bg-black/20">
@@ -262,6 +285,10 @@ export function ContainerDeploymentHistory({
                         <div className="p-1 bg-[#0A0A0A] rounded-none border border-white/10">
                           <CheckCircle2 className="h-4 w-4 text-green-500" />
                         </div>
+                      ) : deployment.status === "pending" ? (
+                        <div className="p-1 bg-[#0A0A0A] rounded-none border border-yellow-500/30">
+                          <Loader2 className="h-4 w-4 text-yellow-500 animate-spin" />
+                        </div>
                       ) : (
                         <div className="p-1 bg-[#0A0A0A] rounded-none border border-white/10">
                           <XCircle className="h-4 w-4 text-red-500" />
@@ -277,12 +304,16 @@ export function ContainerDeploymentHistory({
                             variant={
                               deployment.status === "success"
                                 ? "default"
-                                : "destructive"
+                                : deployment.status === "pending"
+                                  ? "secondary"
+                                  : "destructive"
                             }
-                            className="font-medium rounded-none"
+                            className={`font-medium rounded-none ${deployment.status === "pending" ? "bg-yellow-500/20 text-yellow-500 border-yellow-500/30" : ""}`}
                             style={{ fontFamily: "var(--font-roboto-mono)" }}
                           >
-                            {deployment.status}
+                            {deployment.status === "pending"
+                              ? "deploying..."
+                              : deployment.status}
                           </Badge>
                           <span
                             className="text-sm text-white/60"

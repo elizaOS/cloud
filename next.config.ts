@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 import nextra from "nextra";
+import path from "path";
 
 const withNextra = nextra({
   // Only scan the content directory for MDX files
@@ -51,6 +52,18 @@ const nextConfig: NextConfig = {
         port: "",
         pathname: "/**",
       },
+      {
+        protocol: "https",
+        hostname: "pbs.twimg.com",
+        port: "",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "abs.twimg.com",
+        port: "",
+        pathname: "/**",
+      },
       // Note: Fal.ai URLs are no longer allowed - all assets are proxied through our storage
     ],
   },
@@ -67,13 +80,20 @@ const nextConfig: NextConfig = {
       "date-fns",
     ],
   },
-  turbopack: {},
+  turbopack: {
+    // Resolve thread-stream to a synchronous stub to avoid dynamic module names
+    // that pino/thread-stream creates at runtime (like pino-28069d5257187539)
+    // which cannot be resolved in serverless environments
+    resolveAlias: {
+      'thread-stream': './lib/stubs/thread-stream.ts',
+    },
+  },
+  transpilePackages: ["next-mdx-remote"],
   typescript: {
     ignoreBuildErrors: true,
   },
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
+  // Note: eslint config is no longer supported in next.config.ts for Next.js 16+
+  // Use eslint.config.mjs instead
   outputFileTracingRoot: undefined,
   outputFileTracingIncludes: {
     "/api/v1/containers": ["./scripts/cloudformation/**/*"],
@@ -122,6 +142,15 @@ const nextConfig: NextConfig = {
       if (Array.isArray(config.externals)) {
         config.externals.push("worker_threads");
       }
+
+      // Redirect thread-stream to our synchronous stub to avoid dynamic module names
+      // that cannot be resolved in serverless environments
+      config.resolve = config.resolve || {};
+      config.resolve.alias = config.resolve.alias || {};
+      config.resolve.alias["thread-stream"] = path.resolve(
+        __dirname,
+        "lib/stubs/thread-stream.ts",
+      );
     }
 
     // Enable bundle analyzer if env variable is set (dev only)
@@ -151,15 +180,15 @@ const nextConfig: NextConfig = {
               "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
               // Images - allow self, data URIs, blob URIs, Vercel storage, Instagram CDN, DiceBear avatars, Unsplash
               // Note: Fal.ai URLs are proxied through our storage, so not needed here
-              "img-src 'self' data: blob: https://*.public.blob.vercel-storage.com https://raw.githubusercontent.com https://*.fbcdn.net https://*.cdninstagram.com https://api.dicebear.com https://images.unsplash.com",
+              "img-src 'self' data: blob: https://*.public.blob.vercel-storage.com https://raw.githubusercontent.com https://*.fbcdn.net https://*.cdninstagram.com https://api.dicebear.com https://images.unsplash.com https://pbs.twimg.com https://abs.twimg.com",
               // Fonts - allow self and Monaco Editor CDN
               "font-src 'self' https://cdn.jsdelivr.net",
               "object-src 'none'",
               "base-uri 'self'",
               "form-action 'self'",
               "frame-ancestors 'none'",
-              "child-src https://auth.privy.io https://verify.walletconnect.com https://verify.walletconnect.org https://oauth.telegram.org https://*.vercel.run",
-              "frame-src https://auth.privy.io https://verify.walletconnect.com https://verify.walletconnect.org https://challenges.cloudflare.com https://oauth.telegram.org https://*.vercel.run",
+              "child-src https://auth.privy.io https://verify.walletconnect.com https://verify.walletconnect.org https://oauth.telegram.org https://*.vercel.run https://www.youtube.com https://youtube.com",
+              "frame-src https://auth.privy.io https://verify.walletconnect.com https://verify.walletconnect.org https://challenges.cloudflare.com https://oauth.telegram.org https://*.vercel.run https://www.youtube.com https://youtube.com",
               [
                 "connect-src 'self'",
                 "https://auth.privy.io",

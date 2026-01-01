@@ -112,10 +112,10 @@
       "Type": "AWS::EC2::SecurityGroup",
       "Properties": {
         "GroupName": {
-          "Fn::Sub": "elizaos-user-${UserId}-sg"
+          "Fn::Sub": "elizaos-${UserId}-${ProjectName}-sg"
         },
         "GroupDescription": {
-          "Fn::Sub": "Security group for user ${UserId} ECS instance"
+          "Fn::Sub": "Security group for user ${UserId} project ${ProjectName} ECS instance"
         },
         "VpcId": { "Ref": "SharedVPCId" },
         "SecurityGroupIngress": [
@@ -174,7 +174,7 @@
         "Tags": [
           {
             "Key": "Name",
-            "Value": { "Fn::Sub": "elizaos-user-${UserId}-sg" }
+            "Value": { "Fn::Sub": "elizaos-${UserId}-${ProjectName}-sg" }
           },
           { "Key": "UserId", "Value": { "Ref": "UserId" } },
           { "Key": "UserEmail", "Value": { "Ref": "UserEmail" } },
@@ -190,7 +190,7 @@
       "Type": "AWS::ECS::Cluster",
       "Properties": {
         "ClusterName": {
-          "Fn::Sub": "elizaos-user-${UserId}"
+          "Fn::Sub": "elizaos-${UserId}-${ProjectName}"
         },
         "ClusterSettings": [
           {
@@ -199,7 +199,7 @@
           }
         ],
         "Tags": [
-          { "Key": "Name", "Value": { "Fn::Sub": "elizaos-user-${UserId}" } },
+          { "Key": "Name", "Value": { "Fn::Sub": "elizaos-${UserId}-${ProjectName}" } },
           { "Key": "UserId", "Value": { "Ref": "UserId" } },
           { "Key": "UserEmail", "Value": { "Ref": "UserEmail" } },
           { "Key": "Project", "Value": "ElizaOS" },
@@ -214,7 +214,7 @@
       "Type": "AWS::IAM::InstanceProfile",
       "Properties": {
         "InstanceProfileName": {
-          "Fn::Sub": "elizaos-user-${UserId}-profile"
+          "Fn::Sub": "elizaos-${UserId}-${ProjectName}-profile"
         },
         "Roles": ["elizaos-ecs-instance-role"]
       }
@@ -273,13 +273,13 @@
         ],
         "UserData": {
           "Fn::Base64": {
-            "Fn::Sub": "#!/bin/bash -xe\necho ECS_CLUSTER=elizaos-user-${UserId} >> /etc/ecs/ecs.config\necho ECS_ENABLE_CONTAINER_METADATA=true >> /etc/ecs/ecs.config\necho ECS_AVAILABLE_LOGGING_DRIVERS='[\"json-file\",\"awslogs\"]' >> /etc/ecs/ecs.config\nyum install -y aws-cfn-bootstrap\n/opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource EC2Instance --region ${AWS::Region}\n"
+            "Fn::Sub": "#!/bin/bash -xe\necho ECS_CLUSTER=elizaos-${UserId}-${ProjectName} >> /etc/ecs/ecs.config\necho ECS_ENABLE_CONTAINER_METADATA=true >> /etc/ecs/ecs.config\necho ECS_AVAILABLE_LOGGING_DRIVERS='[\"json-file\",\"awslogs\"]' >> /etc/ecs/ecs.config\nyum install -y aws-cfn-bootstrap\n/opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource EC2Instance --region ${AWS::Region}\n"
           }
         },
         "Tags": [
           {
             "Key": "Name",
-            "Value": { "Fn::Sub": "elizaos-user-${UserId}" }
+            "Value": { "Fn::Sub": "elizaos-${UserId}-${ProjectName}" }
           },
           { "Key": "UserId", "Value": { "Ref": "UserId" } },
           { "Key": "ProjectName", "Value": { "Ref": "ProjectName" } },
@@ -306,7 +306,7 @@
               },
               "-",
               {
-                "Fn::Select": [1, { "Fn::Split": ["-", { "Ref": "UserId" }] }]
+                "Fn::Select": [0, { "Fn::Split": ["-", { "Ref": "ProjectName" }] }]
               }
             ]
           ]
@@ -338,7 +338,7 @@
       "Type": "AWS::CloudWatch::Alarm",
       "Condition": "HasSNSTopic",
       "Properties": {
-        "AlarmName": { "Fn::Sub": "elizaos-${UserId}-unhealthy-targets" },
+        "AlarmName": { "Fn::Sub": "elizaos-${UserId}-${ProjectName}-unhealthy-targets" },
         "AlarmDescription": "Alert when targets are unhealthy",
         "MetricName": "UnHealthyHostCount",
         "Namespace": "AWS/ApplicationELB",
@@ -361,7 +361,7 @@
       "Type": "AWS::CloudWatch::Alarm",
       "Condition": "HasSNSTopic",
       "Properties": {
-        "AlarmName": { "Fn::Sub": "elizaos-${UserId}-high-cpu" },
+        "AlarmName": { "Fn::Sub": "elizaos-${UserId}-${ProjectName}-high-cpu" },
         "AlarmDescription": "Alert when CPU utilization is high",
         "MetricName": "CPUUtilization",
         "Namespace": "AWS/ECS",
@@ -388,7 +388,7 @@
       "Type": "AWS::CloudWatch::Alarm",
       "Condition": "HasSNSTopic",
       "Properties": {
-        "AlarmName": { "Fn::Sub": "elizaos-${UserId}-high-memory" },
+        "AlarmName": { "Fn::Sub": "elizaos-${UserId}-${ProjectName}-high-memory" },
         "AlarmDescription": "Alert when memory utilization is high",
         "MetricName": "MemoryUtilization",
         "Namespace": "AWS/ECS",
@@ -461,7 +461,7 @@
       "DependsOn": "LogGroup",
       "Properties": {
         "Family": {
-          "Fn::Sub": "elizaos-user-${UserId}"
+          "Fn::Sub": "elizaos-${UserId}-${ProjectName}"
         },
         "NetworkMode": "bridge",
         "RequiresCompatibilities": ["EC2"],
@@ -529,7 +529,7 @@
       "DependsOn": ["EC2Instance", "ListenerRule", "TargetGroup"],
       "Properties": {
         "ServiceName": {
-          "Fn::Sub": "elizaos-user-${UserId}"
+          "Fn::Sub": "elizaos-${UserId}-${ProjectName}"
         },
         "Cluster": { "Ref": "ECSCluster" },
         "TaskDefinition": { "Ref": "TaskDefinition" },

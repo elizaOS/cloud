@@ -1,0 +1,274 @@
+---
+title: "Getting Started with AI Agents"
+date: "2025-01-10"
+author: "Eliza Team"
+description: "A comprehensive guide to creating and deploying your first AI agent on Eliza Cloud."
+category: "demo"
+image: "https://images.unsplash.com/photo-1555255707-c07966088b7b?w=800&h=450&fit=crop"
+relatedPosts:
+  - customizing-agent-personality
+  - integrating-with-discord
+  - welcome-to-eliza
+  - ai-agents-future
+---
+
+# Getting Started with AI Agents
+
+This tutorial will walk you through creating your first AI agent on Eliza Cloud. By the end, you'll have a fully functional agent ready to interact with users.
+
+![Getting Started Banner](https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=1200&h=500&fit=crop)
+
+## Prerequisites
+
+Before you begin, make sure you have:
+
+- An Eliza Cloud account
+- Basic understanding of AI concepts
+- A clear idea of what you want your agent to do
+
+> **Pro Tip:** Start with a simple use case and expand from there. It's easier to add complexity than to simplify an overengineered solution.
+
+---
+
+## Video Tutorial
+
+Watch our quick start video to see the process in action:
+
+<iframe
+  width="100%"
+  height="400"
+  src="https://www.youtube.com/embed/dQw4w9WgXcQ"
+  title="Getting Started with Eliza Cloud"
+  frameBorder="0"
+  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+  allowFullScreen
+  style={{ borderRadius: '12px', marginTop: '16px', marginBottom: '16px' }}
+/>
+
+---
+
+## What Others Are Building
+
+Check out what the community is creating with AI agents:
+
+<Tweet id="1917615153715241110" />
+
+---
+
+## Step 1: Create Your Agent
+
+Navigate to the dashboard and click "Create Agent". You'll be prompted to configure the following:
+
+| Setting | Description | Required |
+|---------|-------------|----------|
+| **Name** | Your agent's display name | Yes |
+| **Model** | The AI model to use (GPT-4, Claude, etc.) | Yes |
+| **Personality** | Tone and behavior style | No |
+| **Knowledge Base** | Custom documents for context | No |
+| **Integrations** | Connected services (Discord, Slack) | No |
+
+### Model Comparison
+
+Here's a comparison of available models:
+
+| Model | Speed | Quality | Cost | Best For |
+|-------|-------|---------|------|----------|
+| GPT-4 Turbo | ⚡⚡ | ⭐⭐⭐⭐⭐ | $$$ | Complex reasoning |
+| Claude 3 Opus | ⚡⚡ | ⭐⭐⭐⭐⭐ | $$$ | Long-form content |
+| Claude 3 Sonnet | ⚡⚡⚡ | ⭐⭐⭐⭐ | $$ | Balanced performance |
+| GPT-3.5 Turbo | ⚡⚡⚡⚡ | ⭐⭐⭐ | $ | Quick responses |
+
+---
+
+## Step 2: Configure Capabilities
+
+Next, configure what your agent can do. Here's a complete configuration example:
+
+```javascript
+const agentConfig = {
+  name: "My First Agent",
+  model: "claude-3-sonnet",
+  capabilities: ["chat", "search", "summarize"],
+  personality: {
+    tone: "friendly",
+    formality: "casual",
+    verbosity: "concise"
+  },
+  settings: {
+    maxTokens: 2048,
+    temperature: 0.7,
+    streamResponses: true
+  }
+};
+```
+
+### TypeScript Types
+
+For TypeScript users, here are the type definitions:
+
+```typescript
+interface AgentConfig {
+  name: string;
+  model: 'gpt-4' | 'claude-3-opus' | 'claude-3-sonnet';
+  capabilities: Capability[];
+  personality?: PersonalityConfig;
+  settings?: AgentSettings;
+}
+
+type Capability =
+  | 'chat'
+  | 'search'
+  | 'summarize'
+  | 'code-generation'
+  | 'image-analysis';
+```
+
+---
+
+## Step 3: Test Your Agent
+
+Before deploying, test your agent using our playground:
+
+![Playground Interface](https://images.unsplash.com/photo-1587620962725-abab7fe55159?w=1200&h=600&fit=crop)
+
+### Sample Conversations
+
+Here are some example prompts to test:
+
+1. **Basic greeting**: "Hello, who are you?"
+2. **Task completion**: "Summarize the latest news about AI"
+3. **Error handling**: "asdkjhasd" (gibberish input)
+4. **Edge cases**: Very long messages, special characters
+
+> 💡 **Note:** Always test edge cases before deploying to production!
+
+---
+
+## Step 4: Deploy
+
+Once configured, click "Deploy" and your agent will be live within seconds.
+
+### Deployment Checklist
+
+- Agent name is appropriate
+- Model is selected
+- Personality is configured
+- Test conversations completed
+- Error handling verified
+- Rate limits set
+
+---
+
+## API Integration
+
+You can also interact with your agent programmatically:
+
+```bash
+curl -X POST https://api.eliza.cloud/v1/agents/your-agent-id/chat \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message": "Hello, how are you?",
+    "conversationId": "optional-conversation-id"
+  }'
+```
+
+### Response Format
+
+```json
+{
+  "id": "msg_abc123",
+  "content": "Hello! I'm doing great, thanks for asking. How can I help you today?",
+  "role": "assistant",
+  "timestamp": "2025-01-10T12:00:00Z",
+  "usage": {
+    "promptTokens": 12,
+    "completionTokens": 18,
+    "totalTokens": 30
+  }
+}
+```
+
+---
+
+## Pricing Tiers
+
+| Tier | Messages/Month | Price | Features |
+|------|----------------|-------|----------|
+| **Free** | 1,000 | $0 | Basic features |
+| **Starter** | 10,000 | $29/mo | + Analytics |
+| **Pro** | 100,000 | $99/mo | + Priority support |
+| **Enterprise** | Unlimited | Custom | + Custom models |
+
+---
+
+## Keyboard Shortcuts
+
+Master these shortcuts to work faster:
+
+| Shortcut | Action |
+|----------|--------|
+| `Ctrl + Enter` | Send message |
+| `Ctrl + /` | Toggle sidebar |
+| `Ctrl + K` | Quick search |
+| `Esc` | Close modal |
+
+---
+
+## Troubleshooting
+
+### Common Issues
+
+<details>
+<summary><strong>Agent not responding</strong></summary>
+
+Check the following:
+1. Verify your API key is valid
+2. Ensure you have available credits
+3. Check the agent status in dashboard
+
+</details>
+
+<details>
+<summary><strong>Slow response times</strong></summary>
+
+Try these solutions:
+1. Switch to a faster model (e.g., GPT-3.5)
+2. Reduce max token limit
+3. Enable streaming responses
+
+</details>
+
+<details>
+<summary><strong>Unexpected responses</strong></summary>
+
+Consider:
+1. Adjusting the temperature setting
+2. Refining the personality prompt
+3. Adding more context to the knowledge base
+
+</details>
+
+---
+
+## Next Steps
+
+Now that your agent is running:
+
+- 📊 **Explore analytics** - Monitor performance in the dashboard
+- 🔗 **Set up webhooks** - Integrate with external services
+- 🎨 **Customize appearance** - Brand your chat widget
+- 📚 **Add knowledge** - Upload documents for context
+
+---
+
+## Additional Resources
+
+- [API Documentation](/docs/api)
+- [Best Practices Guide](/docs/best-practices)
+- [Community Discord](https://discord.gg/eliza)
+- [GitHub Examples](https://github.com/elizaos/examples)
+
+---
+
+*Have questions? Join our [Discord community](https://discord.gg/eliza) or reach out to support@eliza.cloud*

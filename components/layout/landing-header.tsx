@@ -8,7 +8,6 @@
 import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { LockOnButton } from "@/components/brand";
 import { usePrivy } from "@privy-io/react-auth";
 import { useRouter } from "next/navigation";
 import UserMenu from "@/components/layout/user-menu";
@@ -45,7 +44,7 @@ export default function LandingHeader() {
               {/* Authenticated user - show Dashboard + UserMenu */}
               <Button
                 size="sm"
-                className="bg-[#FF5800] hover:bg-[#FF5800]/90 text-white"
+                className="bg-[#FF5800] text-black hover:bg-[#FF5800]/90"
               >
                 <Link href="/dashboard">Dashboard</Link>
               </Button>
@@ -62,14 +61,14 @@ export default function LandingHeader() {
               >
                 <Link href="/login">Sign in</Link>
               </Button>
-              <LockOnButton
+              <Button
                 size="sm"
                 onClick={handleGetStarted}
                 disabled={!ready}
-                className="text-sm"
+                className="bg-[#FF5800] text-black hover:bg-[#FF5800]/90"
               >
                 Sign Up
-              </LockOnButton>
+              </Button>
             </>
           )}
         </div>

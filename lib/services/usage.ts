@@ -77,6 +77,38 @@ export class UsageService {
       endDate,
     );
   }
+
+  /**
+   * Marks a deployment usage record as failed.
+   * This should be called when a container deployment fails after initial record creation.
+   */
+  async markDeploymentFailed(
+    containerId: string,
+    organizationId: string,
+    errorMessage: string,
+  ): Promise<UsageRecord | undefined> {
+    return await usageRecordsRepository.markDeploymentFailed(
+      containerId,
+      organizationId,
+      errorMessage,
+    );
+  }
+
+  /**
+   * Marks a deployment usage record as successful.
+   * This should be called when a container deployment completes successfully.
+   */
+  async markDeploymentSuccessful(
+    containerId: string,
+    organizationId: string,
+    durationMs?: number,
+  ): Promise<UsageRecord | undefined> {
+    return await usageRecordsRepository.markDeploymentSuccessful(
+      containerId,
+      organizationId,
+      durationMs,
+    );
+  }
 }
 
 // Export singleton instance

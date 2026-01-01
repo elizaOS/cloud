@@ -82,7 +82,7 @@ This feedback was submitted via Eliza Cloud
 `;
 
   const sent = await emailService.send({
-    to: "developer@eliza.ai",
+    to: "developer@elizalabs.ai",
     subject: `[Eliza Cloud Feedback] from ${displayName}`,
     html,
     text,

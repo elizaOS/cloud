@@ -1,0 +1,77 @@
+---
+title: "Integrating AI Agents with Discord"
+date: "2025-01-03"
+author: "Alex Rivera"
+description: "Step-by-step guide to connecting your Eliza Cloud agent to Discord servers."
+category: "demo"
+image: "https://images.unsplash.com/photo-1614680376593-902f74cf0d41?w=800&h=450&fit=crop"
+relatedPosts:
+  - getting-started-guide
+  - customizing-agent-personality
+  - community-spotlight-january
+  - v2-release
+---
+
+# Integrating AI Agents with Discord
+
+Discord is one of the most popular platforms for community engagement. Here's how to connect your Eliza Cloud agent to Discord.
+
+## Prerequisites
+
+- An Eliza Cloud account with an active agent
+- A Discord account with server admin permissions
+- Basic familiarity with Discord bots
+
+## Step 1: Create a Discord Application
+
+1. Go to the [Discord Developer Portal](https://discord.com/developers)
+2. Click "New Application"
+3. Name your application and save
+
+## Step 2: Configure Bot Settings
+
+Enable the following intents:
+- Message Content Intent
+- Server Members Intent
+- Presence Intent
+
+## Step 3: Get Your Bot Token
+
+```bash
+# Store this securely - never commit to version control!
+DISCORD_BOT_TOKEN=your_token_here
+```
+
+## Step 4: Connect to Eliza Cloud
+
+In your Eliza Cloud dashboard:
+
+1. Navigate to Integrations
+2. Select Discord
+3. Paste your bot token
+4. Configure response settings
+
+## Step 5: Invite to Your Server
+
+Generate an invite link with these permissions:
+- Read Messages
+- Send Messages
+- Embed Links
+- Attach Files
+
+## Testing Your Integration
+
+Once connected, try mentioning your bot:
+
+```
+@YourBot Hello! Can you help me?
+```
+
+Your agent should respond based on its configured personality and capabilities.
+
+## Best Practices
+
+- Set up rate limiting to prevent spam
+- Configure channel restrictions
+- Monitor usage in the analytics dashboard
+- Regularly review conversation logs
