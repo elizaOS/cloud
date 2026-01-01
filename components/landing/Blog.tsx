@@ -17,19 +17,18 @@ export default function Blog({ allPosts, publicPosts, categories }: BlogProps) {
 
   // Only show demo posts when explicitly filtered by ?category=demo
   // Otherwise show public posts (non-demo) filtered by category if selected
-  const filteredPosts = activeCategory === "demo"
-    ? allPosts.filter((post) => post.category === "demo")
-    : activeCategory
-      ? publicPosts.filter((post) => post.category === activeCategory)
-      : publicPosts;
+  const filteredPosts =
+    activeCategory === "demo"
+      ? allPosts.filter((post) => post.category === "demo")
+      : activeCategory
+        ? publicPosts.filter((post) => post.category === activeCategory)
+        : publicPosts;
 
   return (
     <div className="flex-1 px-4 pt-24 pb-12 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-6xl">
         <div className="mb-8 text-center">
-          <h1 className="text-4xl font-bold text-white sm:text-6xl">
-            Blog
-          </h1>
+          <h1 className="text-4xl font-bold text-white sm:text-6xl">Blog</h1>
         </div>
 
         <div className="mb-8 sm:flex sm:justify-center">

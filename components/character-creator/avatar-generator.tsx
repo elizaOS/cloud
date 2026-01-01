@@ -141,9 +141,7 @@ export function AvatarGenerator({
 
       {/* Avatar Selection Grid */}
       <div className="space-y-2">
-        <p className="text-sm text-white/60">
-          Choose from built-in avatars:
-        </p>
+        <p className="text-sm text-white/60">Choose from built-in avatars:</p>
 
         <div className="p-2">
           <div className="grid grid-cols-[repeat(10,_auto)] gap-1">

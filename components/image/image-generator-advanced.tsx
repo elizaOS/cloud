@@ -122,7 +122,7 @@ export function ImageGeneratorAdvanced({
 
       // Method 2: Find and scroll parent containers
       const scrollableParent = document.querySelector(
-        '[class*="overflow-auto"], [class*="overflow-y-auto"], main, [role="main"]'
+        '[class*="overflow-auto"], [class*="overflow-y-auto"], main, [role="main"]',
       );
       if (scrollableParent) {
         scrollableParent.scrollTo({ top: 0, behavior: "smooth" });
@@ -346,7 +346,7 @@ export function ImageGeneratorAdvanced({
 
   // Get current size preset label
   const currentSizePreset = SIZE_PRESETS.find(
-    (p) => p.width === settings.width && p.height === settings.height
+    (p) => p.width === settings.width && p.height === settings.height,
   );
 
   return (
@@ -1021,7 +1021,7 @@ export function ImageGeneratorAdvanced({
                         type="button"
                         onClick={() => {
                           setSourceImage(
-                            uiState.selectedExploreImage?.url ?? ""
+                            uiState.selectedExploreImage?.url ?? "",
                           );
                           setUiState((prev) => ({
                             ...prev,
@@ -1262,7 +1262,7 @@ export function ImageGeneratorAdvanced({
                         onClick={() =>
                           handleDownload(
                             imageState.currentImages[imageState.currentIndex] ??
-                              imageState.currentImage!
+                              imageState.currentImage!,
                           )
                         }
                       >

@@ -227,7 +227,9 @@ export class CloudFormationService {
         config.userId,
         config.projectName,
       );
-      logger.info(`Allocated ALB priority ${albPriority} for ${config.userId}/${config.projectName}`);
+      logger.info(
+        `Allocated ALB priority ${albPriority} for ${config.userId}/${config.projectName}`,
+      );
 
       // Load template and parse as JSON for dynamic modification
       const templateJson = JSON.parse(

@@ -118,7 +118,9 @@ export async function deleteMedia(generationId: string): Promise<boolean> {
  * @param limit - Maximum number of images to return (default 20).
  * @returns Array of gallery items from random users.
  */
-export async function listExploreImages(limit: number = 20): Promise<GalleryItem[]> {
+export async function listExploreImages(
+  limit: number = 20,
+): Promise<GalleryItem[]> {
   const generations = await generationsService.listRandomPublicImages(limit);
 
   return generations.map((gen) => ({

@@ -100,7 +100,7 @@ This feedback was submitted via Eliza Cloud
         error:
           "Email service is not configured. Please contact support directly at developer@eliza.ai",
       },
-      { status: 503 }
+      { status: 503 },
     );
   }
 

@@ -27,51 +27,71 @@ export class DatabasePriorityManager {
   /**
    * Allocate next available ALB priority for a user's project
    * Uses simple sequential allocation with database transaction and retry logic
-   * 
+   *
    * @param userId - The user ID
    * @param projectName - The project name (each user can have multiple projects)
    */
-  async allocatePriority(userId: string, projectName: string = "default"): Promise<number> {
+  async allocatePriority(
+    userId: string,
+    projectName: string = "default",
+  ): Promise<number> {
     logger.info(
       `[ALB allocatePriority] Starting allocation for user ${userId}, project ${projectName}`,
     );
 
     let lastError: Error | null = null;
 
-    for (let attempt = 1; attempt <= DatabasePriorityManager.MAX_RETRIES; attempt++) {
+    for (
+      let attempt = 1;
+      attempt <= DatabasePriorityManager.MAX_RETRIES;
+      attempt++
+    ) {
       try {
         return await this.tryAllocatePriority(userId, projectName, attempt);
       } catch (error) {
         lastError = error as Error;
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+
         // Check if it's a unique constraint violation (can retry)
-        const isConstraintViolation = 
-          errorMessage.includes("unique") || 
+        const isConstraintViolation =
+          errorMessage.includes("unique") ||
           errorMessage.includes("duplicate") ||
           errorMessage.includes("23505"); // PostgreSQL unique violation code
-        
-        if (isConstraintViolation && attempt < DatabasePriorityManager.MAX_RETRIES) {
+
+        if (
+          isConstraintViolation &&
+          attempt < DatabasePriorityManager.MAX_RETRIES
+        ) {
           logger.warn(
             `[ALB allocatePriority] Attempt ${attempt} failed with constraint violation, retrying...`,
           );
           // Small random delay to reduce collision probability
-          await new Promise(resolve => setTimeout(resolve, Math.random() * 100 * attempt));
+          await new Promise((resolve) =>
+            setTimeout(resolve, Math.random() * 100 * attempt),
+          );
           continue;
         }
-        
+
         // Non-retryable error or max retries exceeded
         throw error;
       }
     }
 
-    throw lastError || new Error("Failed to allocate ALB priority after max retries");
+    throw (
+      lastError ||
+      new Error("Failed to allocate ALB priority after max retries")
+    );
   }
 
   /**
    * Internal method to attempt priority allocation
    */
-  private async tryAllocatePriority(userId: string, projectName: string, attempt: number): Promise<number> {
+  private async tryAllocatePriority(
+    userId: string,
+    projectName: string,
+    attempt: number,
+  ): Promise<number> {
     return await dbWrite.transaction(async (tx) => {
       logger.info(
         `[ALB allocatePriority] Inside transaction for user ${userId}, project ${projectName} (attempt ${attempt})`,
@@ -101,10 +121,12 @@ export class DatabasePriorityManager {
         const [reactivated] = await tx
           .update(albPriorities)
           .set({ expiresAt: null, createdAt: new Date() })
-          .where(and(
-            eq(albPriorities.userId, userId),
-            eq(albPriorities.projectName, projectName),
-          ))
+          .where(
+            and(
+              eq(albPriorities.userId, userId),
+              eq(albPriorities.projectName, projectName),
+            ),
+          )
           .returning();
 
         logger.info(
@@ -155,21 +177,26 @@ export class DatabasePriorityManager {
   /**
    * Release a priority when a container is deleted
    * Sets expiry timestamp for cleanup (1 hour grace period for audit)
-   * 
+   *
    * @param userId - The user ID
    * @param projectName - The project name (each user can have multiple projects)
    */
-  async releasePriority(userId: string, projectName: string = "default"): Promise<void> {
+  async releasePriority(
+    userId: string,
+    projectName: string = "default",
+  ): Promise<void> {
     // Set expiry date (1 hour from now for audit trail)
     const expiryDate = new Date(Date.now() + 60 * 60 * 1000);
 
     const result = await dbWrite
       .update(albPriorities)
       .set({ expiresAt: expiryDate })
-      .where(and(
-        eq(albPriorities.userId, userId),
-        eq(albPriorities.projectName, projectName),
-      ))
+      .where(
+        and(
+          eq(albPriorities.userId, userId),
+          eq(albPriorities.projectName, projectName),
+        ),
+      )
       .returning();
 
     if (result.length > 0) {
@@ -177,17 +204,22 @@ export class DatabasePriorityManager {
         `✅ Released ALB priority ${result[0].priority} for user ${userId} project ${projectName} (expires: ${expiryDate.toISOString()})`,
       );
     } else {
-      console.warn(`⚠️  No ALB priority found for user ${userId} project ${projectName}`);
+      console.warn(
+        `⚠️  No ALB priority found for user ${userId} project ${projectName}`,
+      );
     }
   }
 
   /**
    * Get priority for a user+project (without allocating if doesn't exist)
-   * 
+   *
    * @param userId - The user ID
    * @param projectName - The project name (each user can have multiple projects)
    */
-  async getPriority(userId: string, projectName: string = "default"): Promise<number | undefined> {
+  async getPriority(
+    userId: string,
+    projectName: string = "default",
+  ): Promise<number | undefined> {
     const result = await dbRead.query.albPriorities.findFirst({
       where: and(
         eq(albPriorities.userId, userId),
@@ -232,7 +264,12 @@ export class DatabasePriorityManager {
    * Get all active priorities (for debugging/monitoring)
    */
   async getAllActivePriorities(): Promise<
-    Array<{ userId: string; projectName: string; priority: number; createdAt: Date }>
+    Array<{
+      userId: string;
+      projectName: string;
+      priority: number;
+      createdAt: Date;
+    }>
   > {
     const results = await dbRead.query.albPriorities.findMany({
       where: isNull(albPriorities.expiresAt),
