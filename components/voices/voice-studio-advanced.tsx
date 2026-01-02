@@ -20,9 +20,11 @@ import {
   AlertCircle,
   Library,
   RefreshCw,
+  Volume2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { VoiceCloneForm } from "./voice-clone-form";
+import { VoiceTTSGenerator } from "./voice-tts-generator";
 import { VoiceAudioPlayer } from "./voice-audio-player";
 import {
   VoiceStatusBadge,
@@ -256,6 +258,14 @@ export function VoiceStudioAdvanced({
           <span className="sm:hidden">Clone</span>
         </TabsTrigger>
         <TabsTrigger
+          value="generate"
+          className="rounded-none data-[state=active]:bg-[#FF5800]/10 data-[state=active]:border-b-2 data-[state=active]:border-[#FF5800] px-3 md:px-4 h-full text-xs md:text-sm"
+        >
+          <Volume2 className="h-3.5 w-3.5 mr-1 md:mr-2" />
+          <span className="hidden sm:inline">Generate Speech</span>
+          <span className="sm:hidden">Generate</span>
+        </TabsTrigger>
+        <TabsTrigger
           value="voices"
           className="rounded-none data-[state=active]:bg-[#FF5800]/10 data-[state=active]:border-b-2 data-[state=active]:border-[#FF5800] px-3 md:px-4 h-full text-xs md:text-sm"
         >
@@ -278,6 +288,18 @@ export function VoiceStudioAdvanced({
         <VoiceCloneForm
           creditBalance={creditBalance}
           onSuccess={handleVoiceCreated}
+          onCreditBalanceChange={onCreditBalanceChange}
+        />
+      </TabsContent>
+
+      {/* Generate Speech Tab Content */}
+      <TabsContent
+        value="generate"
+        className="flex-1 lg:overflow-hidden mt-3 lg:h-full"
+      >
+        <VoiceTTSGenerator
+          voices={voices}
+          creditBalance={creditBalance}
           onCreditBalanceChange={onCreditBalanceChange}
         />
       </TabsContent>

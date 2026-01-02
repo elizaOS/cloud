@@ -30,3 +30,8 @@ export const VOICE_CLONE_PROFESSIONAL_COST = 2.0; // $2.00 - 30+ min audio, 30-6
 export const VOICE_SAMPLE_UPLOAD_COST = 0.05; // $0.05 - Additional samples to existing voice
 export const VOICE_UPDATE_COST = 0.1; // $0.10 - Update voice metadata/settings
 export const CUSTOM_VOICE_TTS_MARKUP = 1.1; // 10% markup for using custom cloned voices
+
+/**
+ * Text-to-Speech generation costs in USD.
+ */
+export const TTS_GENERATION_COST = 0.5; // $0.50 per TTS generation (same as instant voice clone)

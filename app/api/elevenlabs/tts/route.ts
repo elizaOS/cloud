@@ -2,11 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuthWithOrg } from "@/lib/auth";
 import { getElevenLabsService } from "@/lib/services/elevenlabs";
 import { voiceCloningService } from "@/lib/services/voice-cloning";
+import { creditsService } from "@/lib/services/credits";
 import { usageService } from "@/lib/services/usage";
 import { dbRead } from "@/db/client";
 import { userVoices } from "@/db/schemas/user-voices";
 import { eq } from "drizzle-orm";
 import { logger } from "@/lib/utils/logger";
+import { TTS_GENERATION_COST } from "@/lib/pricing-constants";
 
 const MAX_TEXT_LENGTH = 5000;
 
@@ -51,6 +53,54 @@ export async function POST(request: NextRequest) {
       `[TTS API] Generating speech for user ${user.id}: ${text.length} chars`,
     );
 
+    // Check credit balance
+    if (Number(user.organization.credit_balance) < TTS_GENERATION_COST) {
+      logger.warn("[TTS API] Insufficient credits", {
+        organizationId: user.organization_id,
+        required: TTS_GENERATION_COST,
+        balance: user.organization.credit_balance,
+      });
+      return NextResponse.json(
+        {
+          error: "Insufficient balance",
+          details: {
+            required: TTS_GENERATION_COST,
+            available: user.organization.credit_balance,
+          },
+        },
+        { status: 402 },
+      );
+    }
+
+    // Deduct credits BEFORE processing
+    const deductionResult = await creditsService.deductCredits({
+      organizationId: user.organization_id!!,
+      amount: TTS_GENERATION_COST,
+      description: `Text-to-Speech generation: ${text.length} characters`,
+      metadata: {
+        userId: user.id,
+        textLength: text.length,
+        voiceId: voiceId || "default",
+      },
+    });
+
+    if (!deductionResult.success) {
+      logger.error("[TTS API] Failed to deduct credits", {
+        organizationId: user.organization_id!!,
+        cost: TTS_GENERATION_COST,
+      });
+      return NextResponse.json(
+        { error: "Failed to deduct credits. Please try again." },
+        { status: 500 },
+      );
+    }
+
+    logger.info("[TTS API] Credits deducted successfully", {
+      organizationId: user.organization_id!!,
+      amount: TTS_GENERATION_COST,
+      newBalance: deductionResult.newBalance,
+    });
+
     // Track custom voice usage (async, non-blocking)
     let userVoiceId: string | null = null;
     let voiceName: string | null = null;
@@ -91,30 +141,57 @@ export async function POST(request: NextRequest) {
     const elevenlabs = getElevenLabsService();
 
     // Generate speech
+    let audioStream: ReadableStream<Uint8Array>;
     const startTime = Date.now();
-    const audioStream = await elevenlabs.textToSpeech({
-      text,
-      voiceId,
-      modelId,
-    });
+    
+    try {
+      audioStream = await elevenlabs.textToSpeech({
+        text,
+        voiceId,
+        modelId,
+      });
+    } catch (error) {
+      // Refund credits on failure
+      logger.error("[TTS API] Error generating speech, refunding credits", {
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+
+      await creditsService.addCredits({
+        organizationId: user.organization_id!!,
+        amount: TTS_GENERATION_COST,
+        description: `Refund for failed TTS generation`,
+        metadata: {
+          user_id: user.id,
+          reason: "tts_generation_failed",
+          originalError: error instanceof Error ? error.message : "Unknown",
+        },
+      });
+
+      logger.info("[TTS API] Credits refunded", {
+        organizationId: user.organization_id!!,
+        amount: TTS_GENERATION_COST,
+      });
+
+      throw error; // Re-throw to be caught by outer catch block
+    }
+    
     const duration = Date.now() - startTime;
 
     logger.info(`[TTS API] Stream started in ${duration}ms`);
 
     // Track usage in usage_records table (background, non-blocking)
-    // This follows the same pattern as other APIs in the codebase for analytics
     (async () => {
       try {
         await usageService.create({
           organization_id: user.organization_id!!,
           user_id: user.id,
-          api_key_id: null, // TTS doesn't use API keys currently
+          api_key_id: null,
           type: "tts",
           model: modelId || "eleven_flash_v2_5",
           provider: "elevenlabs",
-          input_tokens: Math.ceil(text.length / 4), // Approximate character to token conversion
+          input_tokens: Math.ceil(text.length / 4),
           output_tokens: 0,
-          input_cost: String(0), // Free for now, can add pricing later
+          input_cost: String(TTS_GENERATION_COST),
           output_cost: String(0),
           duration_ms: duration,
           is_successful: true,
@@ -124,6 +201,7 @@ export async function POST(request: NextRequest) {
             voiceName: voiceName,
             textLength: text.length,
             characterCount: text.length,
+            creditsDeducted: TTS_GENERATION_COST,
           },
         });
 
