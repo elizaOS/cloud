@@ -76,8 +76,8 @@ async function handlePOST(req: NextRequest) {
       return withCors(
         NextResponse.json(
           { error: { message: "Origin not allowed", type: "cors_error" } },
-          { status: 403 },
-        ),
+          { status: 403 }
+        )
       );
     }
 
@@ -86,7 +86,8 @@ async function handlePOST(req: NextRequest) {
       await requireAuthOrApiKeyWithOrg(req);
 
     // Extract client info for analytics
-    const ipAddress = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    const ipAddress =
+      req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
       req.headers.get("x-real-ip") ||
       "unknown";
     const userAgent = req.headers.get("user-agent") || "unknown";
@@ -96,11 +97,11 @@ async function handlePOST(req: NextRequest) {
 
     // Log detailed message breakdown
     const systemMessages = request.messages.filter(
-      (msg) => msg.role === "system",
+      (msg) => msg.role === "system"
     );
     const userMessages = request.messages.filter((msg) => msg.role === "user");
     const assistantMessages = request.messages.filter(
-      (msg) => msg.role === "assistant",
+      (msg) => msg.role === "assistant"
     );
     const toolMessages = request.messages.filter((msg) => msg.role === "tool");
 
@@ -147,7 +148,7 @@ async function handlePOST(req: NextRequest) {
             code: "missing_required_parameter",
           },
         },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -161,7 +162,7 @@ async function handlePOST(req: NextRequest) {
             code: "invalid_value",
           },
         },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -179,7 +180,7 @@ async function handlePOST(req: NextRequest) {
               code: "invalid_value",
             },
           },
-          { status: 400 },
+          { status: 400 }
         );
       }
 
@@ -199,7 +200,7 @@ async function handlePOST(req: NextRequest) {
               code: "invalid_value",
             },
           },
-          { status: 400 },
+          { status: 400 }
         );
       }
 
@@ -216,7 +217,7 @@ async function handlePOST(req: NextRequest) {
               if (!hasNonEmptyText) {
                 logger.debug(
                   "[Chat Completions API] Filtering out empty text content block",
-                  { messageIndex: i, role: msg.role },
+                  { messageIndex: i, role: msg.role }
                 );
               }
               return hasNonEmptyText;
@@ -235,7 +236,7 @@ async function handlePOST(req: NextRequest) {
               role: msg.role,
               originalParts: msg.content.length,
               remainingParts: filteredContent.length,
-            },
+            }
           );
           msg.content = filteredContent;
         }
@@ -249,7 +250,7 @@ async function handlePOST(req: NextRequest) {
         ) {
           logger.warn(
             "[Chat Completions API] Content array has no valid content",
-            { messageIndex: i, role: msg.role },
+            { messageIndex: i, role: msg.role }
           );
           return Response.json(
             {
@@ -261,7 +262,7 @@ async function handlePOST(req: NextRequest) {
                 code: "invalid_value",
               },
             },
-            { status: 400 },
+            { status: 400 }
           );
         }
       }
@@ -273,7 +274,7 @@ async function handlePOST(req: NextRequest) {
         "[Chat Completions API] User blocked due to moderation violations",
         {
           userId: user.id,
-        },
+        }
       );
       return Response.json(
         {
@@ -284,7 +285,7 @@ async function handlePOST(req: NextRequest) {
             code: "moderation_violation",
           },
         },
-        { status: 403 },
+        { status: 403 }
       );
     }
 
@@ -310,9 +311,9 @@ async function handlePOST(req: NextRequest) {
                 userId: user.id,
                 categories: result.flaggedCategories,
                 action: result.action,
-              },
+              }
             );
-          },
+          }
         );
       }
     }
@@ -349,7 +350,7 @@ async function handlePOST(req: NextRequest) {
             code: "insufficient_balance",
           },
         },
-        { status: 402 },
+        { status: 402 }
       );
     }
 
@@ -364,11 +365,46 @@ async function handlePOST(req: NextRequest) {
       estimatedCost,
     });
 
-    // 5. Forward to Vercel AI Gateway
+    // 5. For streaming requests, reserve credits BEFORE making API call
+    // This prevents race conditions where credits could be spent elsewhere during streaming
+    let creditReservation: {
+      success: boolean;
+      reservationId: string | null;
+      reservedAmount: number;
+    } | null = null;
+
+    if (isStreaming) {
+      creditReservation = await creditsService.reserveCredits({
+        organizationId: user.organization_id!!,
+        amount: estimatedCost,
+        description: `OpenAI Proxy (reserved): ${model}`,
+        metadata: { user_id: user.id, type: "streaming_reservation" },
+      });
+
+      if (!creditReservation.success) {
+        logger.warn("[OpenAI Proxy] Failed to reserve credits for streaming", {
+          organizationId: user.organization_id!!,
+          estimatedCost,
+        });
+
+        return Response.json(
+          {
+            error: {
+              message: "Failed to reserve credits for streaming request",
+              type: "insufficient_quota",
+              code: "credit_reservation_failed",
+            },
+          },
+          { status: 402 }
+        );
+      }
+    }
+
+    // 6. Forward to Vercel AI Gateway
     const providerInstance = getProvider();
     const providerResponse = await providerInstance.chatCompletions(request);
 
-    // 6. Handle streaming vs non-streaming
+    // 7. Handle streaming vs non-streaming
     if (isStreaming) {
       return handleStreamingResponse(
         providerResponse,
@@ -382,6 +418,7 @@ async function handlePOST(req: NextRequest) {
         origin,
         ipAddress,
         userAgent,
+        creditReservation!.reservedAmount
       );
     } else {
       return withCors(
@@ -395,8 +432,8 @@ async function handlePOST(req: NextRequest) {
           session_token,
           origin,
           ipAddress,
-          userAgent,
-        ),
+          userAgent
+        )
       );
     }
   } catch (error) {
@@ -420,8 +457,8 @@ async function handlePOST(req: NextRequest) {
         return withCors(
           Response.json(
             { error: gatewayError.error },
-            { status: gatewayError.status },
-          ),
+            { status: gatewayError.status }
+          )
         );
       }
     }
@@ -437,8 +474,8 @@ async function handlePOST(req: NextRequest) {
             code: "internal_server_error",
           },
         },
-        { status: 500 },
-      ),
+        { status: 500 }
+      )
     );
   }
 }
@@ -454,7 +491,7 @@ async function handleNonStreamingResponse(
   session_token?: string,
   origin?: string | null,
   ipAddress?: string,
-  userAgent?: string,
+  userAgent?: string
 ) {
   // Parse response
   const data: OpenAIChatResponse = await providerResponse.json();
@@ -469,7 +506,7 @@ async function handleNonStreamingResponse(
       model,
       provider,
       usage.prompt_tokens,
-      usage.completion_tokens,
+      usage.completion_tokens
     );
 
     // CRITICAL: Deduct credits before returning response
@@ -500,7 +537,7 @@ async function handleNonStreamingResponse(
             code: "credit_deduction_failed",
           },
         },
-        { status: 402 },
+        { status: 402 }
       );
     }
 
@@ -591,6 +628,7 @@ function handleStreamingResponse(
   origin?: string | null,
   ipAddress?: string,
   userAgent?: string,
+  reservedAmount?: number
 ) {
   let totalTokens = 0;
   let inputTokens = 0;
@@ -689,7 +727,7 @@ function handleStreamingResponse(
           {
             model,
             contentLength: fullContent.length,
-          },
+          }
         );
 
         // Estimate tokens from content
@@ -697,7 +735,7 @@ function handleStreamingResponse(
           .map((m) =>
             typeof m.content === "string"
               ? m.content
-              : JSON.stringify(m.content),
+              : JSON.stringify(m.content)
           )
           .join(" ");
         inputTokens = estimateTokens(messageText);
@@ -710,32 +748,64 @@ function handleStreamingResponse(
           model,
           provider,
           inputTokens,
-          outputTokens,
+          outputTokens
         );
 
-        const deductResult = await creditsService.deductCredits({
-          organizationId: user.organization_id!!,
-          amount: totalCost,
-          description: `OpenAI Proxy: ${model}`,
-          metadata: { user_id: user.id },
-          session_token,
-          tokens_consumed: totalTokens,
-        });
+        // Settle the credit reservation - credits were already reserved before streaming
+        // This adjusts the balance based on actual usage (refund if less, charge more if needed)
+        if (reservedAmount !== undefined && reservedAmount > 0) {
+          const settlementResult = await creditsService.settleReservation({
+            organizationId: user.organization_id!!,
+            reservedAmount,
+            actualAmount: totalCost,
+            description: `OpenAI Proxy: ${model}`,
+            metadata: { user_id: user.id },
+            session_token,
+            tokens_consumed: totalTokens,
+          });
 
-        if (!deductResult.success) {
-          // CRITICAL: This should rarely happen since we checked credits before streaming
-          // But it can happen if credits were spent elsewhere between check and stream completion
-          logger.error(
-            "[OpenAI Proxy] CRITICAL: Failed to deduct credits after streaming - race condition detected",
-            {
-              organizationId: user.organization_id!!,
-              userId: user.id,
-              cost: String(totalCost),
-              balance: deductResult.newBalance,
-            },
-          );
-          // Stream has already completed, so we can't return an error to the client
-          // This should trigger an alert for manual review
+          if (!settlementResult.success) {
+            // Additional charge was needed but failed - log for monitoring
+            // The reserved amount was still charged, so no free service was given
+            logger.warn(
+              "[OpenAI Proxy] Settlement partial: additional charge failed (reserved amount was charged)",
+              {
+                organizationId: user.organization_id!!,
+                userId: user.id,
+                reservedAmount: String(reservedAmount),
+                actualCost: String(totalCost),
+                finalCost: String(settlementResult.finalCost),
+              }
+            );
+          } else if (settlementResult.adjustmentType !== "none") {
+            logger.info("[OpenAI Proxy] Credit settlement completed", {
+              adjustmentType: settlementResult.adjustmentType,
+              adjustment: String(settlementResult.adjustment),
+              finalCost: String(settlementResult.finalCost),
+            });
+          }
+        } else {
+          // Fallback: No reservation (shouldn't happen for streaming, but handle gracefully)
+          const deductResult = await creditsService.deductCredits({
+            organizationId: user.organization_id!!,
+            amount: totalCost,
+            description: `OpenAI Proxy: ${model}`,
+            metadata: { user_id: user.id },
+            session_token,
+            tokens_consumed: totalTokens,
+          });
+
+          if (!deductResult.success) {
+            logger.error(
+              "[OpenAI Proxy] Failed to deduct credits after streaming (no reservation)",
+              {
+                organizationId: user.organization_id!!,
+                userId: user.id,
+                cost: String(totalCost),
+                balance: deductResult.newBalance,
+              }
+            );
+          }
         }
 
         const usageRecord = await usageService.create({

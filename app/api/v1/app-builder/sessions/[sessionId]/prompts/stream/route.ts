@@ -4,6 +4,10 @@ import { aiAppBuilderService } from "@/lib/services/ai-app-builder";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
 import { checkRateLimitAsync } from "@/lib/middleware/rate-limit";
+import {
+  getErrorStatusCode,
+  getSafeErrorMessage,
+} from "@/lib/api/errors";
 
 const PROMPT_RATE_LIMIT = {
   windowMs: 60000,
@@ -255,25 +259,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     logger.error("Auth or ownership verification failed for prompt stream", {
       error,
     });
-    const message =
-      error instanceof Error ? error.message : "Authentication failed";
 
-    let status = 500;
-    if (
-      message.includes("Authentication") ||
-      message.includes("Unauthorized")
-    ) {
-      status = 401;
-    } else if (
-      message.includes("Access denied") ||
-      message.includes("Forbidden")
-    ) {
-      status = 403;
-    } else if (message.includes("not found") || message.includes("not ready")) {
-      status = 404;
-    } else if (message.includes("Rate limit")) {
-      status = 429;
-    }
+    // Use standardized error handling instead of fragile string matching
+    const status = getErrorStatusCode(error);
+    const message = getSafeErrorMessage(error);
 
     return new Response(
       JSON.stringify({
