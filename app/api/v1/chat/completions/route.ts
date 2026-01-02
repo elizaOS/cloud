@@ -439,6 +439,21 @@ async function handlePOST(req: NextRequest) {
   } catch (error) {
     logger.error("[OpenAI Proxy] Error:", error);
 
+    // Refund reserved credits if reservation was made before the error
+    if (creditReservation?.success && creditReservation.reservedAmount > 0) {
+      await creditsService.refundCredits({
+        organizationId: user.organization_id!!,
+        amount: creditReservation.reservedAmount,
+        description: `OpenAI Proxy (refund - request failed): ${request.model}`,
+        metadata: { user_id: user.id, reason: "request_failed" },
+      });
+
+      logger.info("[OpenAI Proxy] Refunded reserved credits after error", {
+        organizationId: user.organization_id!!,
+        refundedAmount: creditReservation.reservedAmount,
+      });
+    }
+
     // Check if error is a structured gateway error
     interface GatewayError {
       status: number;
@@ -634,6 +649,7 @@ function handleStreamingResponse(
   let inputTokens = 0;
   let outputTokens = 0;
   let fullContent = "";
+  let creditsSettled = false;
 
   // Create transform stream to track usage
   const { readable, writable } = new TransformStream();
@@ -764,6 +780,8 @@ function handleStreamingResponse(
             tokens_consumed: totalTokens,
           });
 
+          creditsSettled = true;
+
           if (!settlementResult.success) {
             // Additional charge was needed but failed - log for monitoring
             // The reserved amount was still charged, so no free service was given
@@ -794,6 +812,8 @@ function handleStreamingResponse(
             session_token,
             tokens_consumed: totalTokens,
           });
+
+          creditsSettled = true;
 
           if (!deductResult.success) {
             logger.error(
@@ -869,6 +889,29 @@ function handleStreamingResponse(
       }
     } catch (error) {
       logger.error("[OpenAI Proxy] Streaming error:", error);
+
+      // Refund reserved credits only if streaming failed BEFORE settlement
+      if (
+        !creditsSettled &&
+        reservedAmount !== undefined &&
+        reservedAmount > 0
+      ) {
+        await creditsService.refundCredits({
+          organizationId: user.organization_id,
+          amount: reservedAmount,
+          description: `OpenAI Proxy (refund - streaming failed): ${model}`,
+          metadata: { user_id: user.id, reason: "streaming_failed" },
+        });
+
+        logger.info(
+          "[OpenAI Proxy] Refunded reserved credits after streaming error",
+          {
+            organizationId: user.organization_id,
+            refundedAmount: reservedAmount,
+          }
+        );
+      }
+
       writer.abort();
     }
   })();
