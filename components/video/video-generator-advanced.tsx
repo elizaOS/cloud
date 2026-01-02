@@ -463,27 +463,50 @@ export function VideoGeneratorAdvanced({
               {videoState.history.map((video) => (
                 <div
                   key={video.id}
-                  className="group relative overflow-hidden rounded-lg border border-white/10 bg-black/40 hover:border-white/20 transition-colors"
-                >
-                  {/* Video Thumbnail/Preview */}
-                  <div
-                    className="relative aspect-video w-full bg-black/60 cursor-pointer"
-                    onClick={() => {
-                      if (video.status === "completed" && video.videoUrl) {
-                        setUiState((prev) => ({
-                          ...prev,
-                          selectedVideo: video,
-                          isFullscreenOpen: true,
-                        }));
+                  className="group relative overflow-hidden rounded-lg border border-white/10 bg-black hover:border-white/20 transition-colors cursor-pointer"
+                  onMouseEnter={() => {
+                    if (video.videoUrl) {
+                      const videoEl = document.getElementById(`video-${video.id}`) as HTMLVideoElement;
+                      if (videoEl) {
+                        videoEl.style.opacity = "1";
+                        videoEl.play();
+                        setVideoState((prev) => ({ ...prev, playingId: video.id }));
                       }
-                    }}
-                  >
+                    }
+                  }}
+                  onMouseLeave={() => {
+                    if (video.videoUrl) {
+                      const videoEl = document.getElementById(`video-${video.id}`) as HTMLVideoElement;
+                      if (videoEl) {
+                        videoEl.pause();
+                        setVideoState((prev) => ({ ...prev, playingId: null }));
+                      }
+                    }
+                  }}
+                  onClick={() => {
+                    if (video.status === "completed" && video.videoUrl) {
+                      const videoEl = document.getElementById(`video-${video.id}`) as HTMLVideoElement;
+                      if (videoEl) {
+                        videoEl.pause();
+                      }
+                      setUiState((prev) => ({
+                        ...prev,
+                        selectedVideo: video,
+                        isFullscreenOpen: true,
+                      }));
+                    }
+                  }}
+                >
+                  {/* Video Container */}
+                  <div className="relative aspect-video w-full bg-black">
                     {video.videoUrl ? (
                       <video
+                        id={`video-${video.id}`}
                         src={video.videoUrl}
-                        className="absolute inset-0 w-full h-full object-cover"
+                        className="absolute inset-0 w-full h-full object-cover transition-opacity duration-200"
                         preload="metadata"
-                        muted
+                        playsInline
+                        loop
                       />
                     ) : (
                       <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-black/40 to-black/80">
@@ -497,94 +520,80 @@ export function VideoGeneratorAdvanced({
                       </div>
                     )}
 
-                    {/* Play overlay on hover */}
-                    {video.status === "completed" && video.videoUrl && (
-                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center">
-                        <Play className="h-10 w-10 text-[#FF5800] opacity-0 group-hover:opacity-100 transition-opacity" />
+                    {/* Status badge - only show for processing/failed */}
+                    {video.status !== "completed" && (
+                      <div className="absolute top-3 left-3 z-10">
+                        <span
+                          className={`px-2 py-1 text-[10px] font-mono font-bold uppercase tracking-wide border rounded ${
+                            video.status === "processing"
+                              ? "bg-blue-500/20 text-blue-400 border-blue-500/40"
+                              : "bg-rose-500/20 text-rose-400 border-rose-500/40"
+                          }`}
+                        >
+                          {video.status}
+                        </span>
                       </div>
                     )}
 
-                    {/* Status badge */}
-                    <div className="absolute top-2 left-2">
-                      <span
-                        className={`px-2 py-1 text-[10px] font-mono font-bold uppercase tracking-wide border ${
-                          video.status === "completed"
-                            ? "bg-green-500/20 text-green-400 border-green-500/40"
-                            : video.status === "processing"
-                              ? "bg-blue-500/20 text-blue-400 border-blue-500/40"
-                              : "bg-rose-500/20 text-rose-400 border-rose-500/40"
-                        }`}
-                      >
-                        {video.status}
-                      </span>
-                    </div>
-                  </div>
+                    {/* Title overlay at absolute bottom of video */}
+                    <div className="absolute bottom-0 left-0 right-0 px-3 pb-2 pt-12 bg-gradient-to-t from-black via-black/80 to-transparent">
+                      {/* Title + Action buttons on same row */}
+                      <div className="flex items-end justify-between gap-3">
+                        {/* Title on the left */}
+                        <p className="mb-4 text-base md:text-lg font-medium text-white line-clamp-2 leading-snug pointer-events-none flex-1">
+                          {video.prompt}
+                        </p>
+                        
+                        {/* Action buttons on the right - only on hover */}
+                        {video.status === "completed" && video.videoUrl && (
+                          <div className="flex mb-4 items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDownload(video);
+                                  }}
+                                  className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
+                                >
+                                  <Download className="h-4 w-4 text-white" />
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent side="bottom" className="text-xs bg-neutral-800 text-white border-white/10">
+                                Download video
+                              </TooltipContent>
+                            </Tooltip>
+                            
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setPrompt(video.prompt);
+                                    scrollToTop();
+                                  }}
+                                  className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
+                                >
+                                  <Copy className="h-4 w-4 text-white" />
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent side="bottom" className="text-xs bg-neutral-800 text-white border-white/10">
+                                Re-use this prompt
+                              </TooltipContent>
+                            </Tooltip>
+                          </div>
+                        )}
+                      </div>
 
-                  {/* Content */}
-                  <div className="p-3 md:p-4">
-                    <p className="text-sm text-white line-clamp-2 leading-relaxed mb-2">
-                      {video.prompt}
-                    </p>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-mono text-white/40">
-                        {new Date(video.createdAt).toLocaleDateString()}
-                      </span>
-                      
-                      {/* Action buttons */}
-                      {video.status === "completed" && video.videoUrl && (
-                        <div className="flex items-center gap-1">
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDownload(video);
-                                }}
-                                className="p-1.5 rounded hover:bg-white/10 transition-colors"
-                              >
-                                <Download className="h-3.5 w-3.5 text-white/60" />
-                              </button>
-                            </TooltipTrigger>
-                            <TooltipContent
-                              side="bottom"
-                              className="text-xs bg-neutral-800 text-white/80 border-white/10"
-                            >
-                              Download video
-                            </TooltipContent>
-                          </Tooltip>
-                          
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setPrompt(video.prompt);
-                                  scrollToTop();
-                                }}
-                                className="p-1.5 rounded hover:bg-white/10 transition-colors"
-                              >
-                                <Copy className="h-3.5 w-3.5 text-white/60" />
-                              </button>
-                            </TooltipTrigger>
-                            <TooltipContent
-                              side="bottom"
-                              className="text-xs bg-neutral-800 text-white/80 border-white/10"
-                            >
-                              Re-use this prompt
-                            </TooltipContent>
-                          </Tooltip>
-                        </div>
+                      {/* Error message for failed videos */}
+                      {video.status === "failed" && video.failureReason && (
+                        <p className="text-xs text-rose-400 mt-1 line-clamp-1 pointer-events-none">
+                          {video.failureReason}
+                        </p>
                       )}
                     </div>
-
-                    {/* Error message for failed videos */}
-                    {video.status === "failed" && video.failureReason && (
-                      <p className="text-xs text-rose-400 mt-2 line-clamp-1">
-                        {video.failureReason}
-                      </p>
-                    )}
                   </div>
                 </div>
               ))}
