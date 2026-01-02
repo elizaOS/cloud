@@ -15,11 +15,22 @@ URL: https://elizacloud.ai/docs
 Summary: Build, deploy, and scale intelligent AI agents with elizaOS Cloud.
 
 <section className="docs-hero">
-  <h1><strong>Build</strong> Agents,<br /><strong>Make</strong> Magic</h1>
-  <p>The complete platform for building, deploying, and scaling intelligent AI agents. Production-ready infrastructure with enterprise-grade reliability.</p>
+  <h1>
+    <strong>Build</strong> Agents,
+    <br />
+    <strong>Make</strong> Magic
+  </h1>
+  <p>
+    The complete platform for building, deploying, and scaling intelligent AI
+    agents. Production-ready infrastructure with enterprise-grade reliability.
+  </p>
   <div className="hero-buttons">
-    <a href="/docs/quickstart" className="hero-btn-primary">Get Started →</a>
-    <a href="/dashboard" className="hero-btn-secondary">Open Dashboard</a>
+    <a href="/docs/quickstart" className="hero-btn-primary">
+      Get Started →
+    </a>
+    <a href="/dashboard" className="hero-btn-secondary">
+      Open Dashboard
+    </a>
   </div>
 </section>
 
@@ -5004,20 +5015,25 @@ Every month, we highlight the incredible work being done by our community. Here 
 ## Featured Projects
 
 ### AI Customer Service Bot by TechStartup Inc.
+
 A sophisticated support agent that handles 80% of customer inquiries automatically.
 
 **Key Stats:**
+
 - 10,000+ conversations handled
 - 4.8/5 customer satisfaction rating
 - 60% reduction in support tickets
 
 ### Educational Tutor by LearnAI
+
 An interactive tutoring agent that helps students with math and science.
 
 > "The agent adapts to each student's learning pace and style. It's like having a personal tutor available 24/7." - Teacher feedback
 
 ### Content Creator Assistant
+
 A multi-modal agent that helps content creators with:
+
 - Script writing
 - Thumbnail ideas
 - SEO optimization
@@ -5026,16 +5042,19 @@ A multi-modal agent that helps content creators with:
 ## Community Contributions
 
 ### Open Source Plugins
+
 - Discord Rich Presence integration
 - Slack notification system
 - Analytics export tools
 
 ### Documentation Improvements
+
 Thanks to everyone who contributed to our docs this month!
 
 ## Join the Community
 
 Want to be featured? Share your projects:
+
 - [Discord](https://discord.gg/eliza)
 - [GitHub](https://github.com/elizaos)
 - [Twitter](https://twitter.com/elizaos)
@@ -5059,11 +5078,13 @@ One of the most powerful features of Eliza Cloud is the ability to create agents
 Your agent's personality is defined by several key factors:
 
 ### Tone
+
 - Formal vs. Casual
 - Serious vs. Playful
 - Direct vs. Elaborate
 
 ### Knowledge Domain
+
 Define what your agent specializes in:
 
 ```json
@@ -5099,7 +5120,7 @@ const personality = {
   role: "Technical Support Specialist",
   traits: ["helpful", "patient", "knowledgeable"],
   tone: "friendly but professional",
-  greeting: "Hi there! I'm Alex, here to help with any technical questions."
+  greeting: "Hi there! I'm Alex, here to help with any technical questions.",
 };
 ```
 
@@ -5143,7 +5164,7 @@ Watch our quick start video to see the process in action:
   frameBorder="0"
   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
   allowFullScreen
-  style={{ borderRadius: '12px', marginTop: '16px', marginBottom: '16px' }}
+  style={{ borderRadius: "12px", marginTop: "16px", marginBottom: "16px" }}
 />
 
 ---
@@ -5158,24 +5179,24 @@ Check out what the community is creating with AI agents:
 
 Navigate to the dashboard and click "Create Agent". You'll be prompted to configure the following:
 
-| Setting | Description | Required |
-|---------|-------------|----------|
-| **Name** | Your agent's display name | Yes |
-| **Model** | The AI model to use (GPT-4, Claude, etc.) | Yes |
-| **Personality** | Tone and behavior style | No |
-| **Knowledge Base** | Custom documents for context | No |
-| **Integrations** | Connected services (Discord, Slack) | No |
+| Setting            | Description                               | Required |
+| ------------------ | ----------------------------------------- | -------- |
+| **Name**           | Your agent's display name                 | Yes      |
+| **Model**          | The AI model to use (GPT-4, Claude, etc.) | Yes      |
+| **Personality**    | Tone and behavior style                   | No       |
+| **Knowledge Base** | Custom documents for context              | No       |
+| **Integrations**   | Connected services (Discord, Slack)       | No       |
 
 ### Model Comparison
 
 Here's a comparison of available models:
 
-| Model | Speed | Quality | Cost | Best For |
-|-------|-------|---------|------|----------|
-| GPT-4 Turbo | ⚡⚡ | ⭐⭐⭐⭐⭐ | $$$ | Complex reasoning |
-| Claude 3 Opus | ⚡⚡ | ⭐⭐⭐⭐⭐ | $$$ | Long-form content |
-| Claude 3 Sonnet | ⚡⚡⚡ | ⭐⭐⭐⭐ | $$ | Balanced performance |
-| GPT-3.5 Turbo | ⚡⚡⚡⚡ | ⭐⭐⭐ | $ | Quick responses |
+| Model           | Speed    | Quality    | Cost | Best For             |
+| --------------- | -------- | ---------- | ---- | -------------------- |
+| GPT-4 Turbo     | ⚡⚡     | ⭐⭐⭐⭐⭐ | $$$  | Complex reasoning    |
+| Claude 3 Opus   | ⚡⚡     | ⭐⭐⭐⭐⭐ | $$$  | Long-form content    |
+| Claude 3 Sonnet | ⚡⚡⚡   | ⭐⭐⭐⭐   | $$   | Balanced performance |
+| GPT-3.5 Turbo   | ⚡⚡⚡⚡ | ⭐⭐⭐     | $    | Quick responses      |
 
 ---
 
@@ -5191,13 +5212,13 @@ const agentConfig = {
   personality: {
     tone: "friendly",
     formality: "casual",
-    verbosity: "concise"
+    verbosity: "concise",
   },
   settings: {
     maxTokens: 2048,
     temperature: 0.7,
-    streamResponses: true
-  }
+    streamResponses: true,
+  },
 };
 ```
 
@@ -5208,18 +5229,18 @@ For TypeScript users, here are the type definitions:
 ```typescript
 interface AgentConfig {
   name: string;
-  model: 'gpt-4' | 'claude-3-opus' | 'claude-3-sonnet';
+  model: "gpt-4" | "claude-3-opus" | "claude-3-sonnet";
   capabilities: Capability[];
   personality?: PersonalityConfig;
   settings?: AgentSettings;
 }
 
 type Capability =
-  | 'chat'
-  | 'search'
-  | 'summarize'
-  | 'code-generation'
-  | 'image-analysis';
+  | "chat"
+  | "search"
+  | "summarize"
+  | "code-generation"
+  | "image-analysis";
 ```
 
 ---
@@ -5292,12 +5313,12 @@ curl -X POST https://api.eliza.cloud/v1/agents/your-agent-id/chat \
 
 ## Pricing Tiers
 
-| Tier | Messages/Month | Price | Features |
-|------|----------------|-------|----------|
-| **Free** | 1,000 | $0 | Basic features |
-| **Starter** | 10,000 | $29/mo | + Analytics |
-| **Pro** | 100,000 | $99/mo | + Priority support |
-| **Enterprise** | Unlimited | Custom | + Custom models |
+| Tier           | Messages/Month | Price  | Features           |
+| -------------- | -------------- | ------ | ------------------ |
+| **Free**       | 1,000          | $0     | Basic features     |
+| **Starter**    | 10,000         | $29/mo | + Analytics        |
+| **Pro**        | 100,000        | $99/mo | + Priority support |
+| **Enterprise** | Unlimited      | Custom | + Custom models    |
 
 ---
 
@@ -5305,12 +5326,12 @@ curl -X POST https://api.eliza.cloud/v1/agents/your-agent-id/chat \
 
 Master these shortcuts to work faster:
 
-| Shortcut | Action |
-|----------|--------|
-| `Ctrl + Enter` | Send message |
-| `Ctrl + /` | Toggle sidebar |
-| `Ctrl + K` | Quick search |
-| `Esc` | Close modal |
+| Shortcut       | Action         |
+| -------------- | -------------- |
+| `Ctrl + Enter` | Send message   |
+| `Ctrl + /`     | Toggle sidebar |
+| `Ctrl + K`     | Quick search   |
+| `Esc`          | Close modal    |
 
 ---
 
@@ -5322,6 +5343,7 @@ Master these shortcuts to work faster:
 <summary><strong>Agent not responding</strong></summary>
 
 Check the following:
+
 1. Verify your API key is valid
 2. Ensure you have available credits
 3. Check the agent status in dashboard
@@ -5332,6 +5354,7 @@ Check the following:
 <summary><strong>Slow response times</strong></summary>
 
 Try these solutions:
+
 1. Switch to a faster model (e.g., GPT-3.5)
 2. Reduce max token limit
 3. Enable streaming responses
@@ -5342,6 +5365,7 @@ Try these solutions:
 <summary><strong>Unexpected responses</strong></summary>
 
 Consider:
+
 1. Adjusting the temperature setting
 2. Refining the personality prompt
 3. Adding more context to the knowledge base
@@ -5370,7 +5394,7 @@ Now that your agent is running:
 
 ---
 
-*Have questions? Join our [Discord community](https://discord.gg/eliza) or reach out to support@eliza.cloud*
+_Have questions? Join our [Discord community](https://discord.gg/eliza) or reach out to support@eliza.cloud_
 
 ---
 
@@ -5399,6 +5423,7 @@ Discord is one of the most popular platforms for community engagement. Here's ho
 ## Step 2: Configure Bot Settings
 
 Enable the following intents:
+
 - Message Content Intent
 - Server Members Intent
 - Presence Intent
@@ -5422,6 +5447,7 @@ In your Eliza Cloud dashboard:
 ## Step 5: Invite to Your Server
 
 Generate an invite link with these permissions:
+
 - Read Messages
 - Send Messages
 - Embed Links
@@ -5490,6 +5516,8 @@ When you're ready to launch, we handle everything behind the scenes. Servers, da
 
 If you want to add custom logic or advanced features, you can write code. But you don't have to. We've built the common patterns so you can focus on what makes your agent unique, whether you're coding it or configuring it.
 
+![Eliza Cloud Introduction](/images/blog/intro_blog_1.png)
+
 ## Open source underneath
 
 Here's what matters most: Eliza Cloud runs the full open-source elizaOS runtime.
@@ -5506,7 +5534,7 @@ Eliza Cloud is for anyone who wants to build an AI agent, whether you code or no
 
 **If you do code:** You get all the power of the elizaOS runtime with the convenience of low-code tooling. Write custom logic when you need it, use our tools when they're faster. No need to become an infrastructure specialist.
 
-You're probably:
+You probably:
 
 - Have an idea for an AI agent but don't know where to start
 - Want to move fast and iterate quickly, with or without writing code
@@ -5515,6 +5543,8 @@ You're probably:
 - Wary of platforms that'll hold your work hostage
 
 We're for people who want to build agents. Our AI-assisted tools and low-code platform make it accessible, whether you're a seasoned developer or someone with a great idea and zero code experience.
+
+![Eliza Cloud Introduction](/images/blog/intro_blog_2.png)
 
 ## Get Started with Eliza Cloud Open Beta
 
@@ -5533,7 +5563,7 @@ Whether you're coding from scratch or using our visual builder, we'll help you g
 
 **Ready to build?** [Get started with Eliza Cloud →](https://www.dev.elizacloud.ai)
 
-*Questions? Find us in the elizaOS Discord:* https://discord.gg/mPsBnEXJuA
+_Questions? Find us in the elizaOS Discord:_ https://discord.gg/mPsBnEXJuA
 
 ---
 
@@ -5558,22 +5588,25 @@ We're thrilled to announce the release of Eliza Cloud v2.0, our biggest update y
 ### New Features
 
 #### Multi-Agent Orchestration
+
 Create workflows that involve multiple agents working together:
 
 ```javascript
 const workflow = {
   agents: ["researcher", "writer", "editor"],
   flow: "sequential",
-  handoff: "automatic"
+  handoff: "automatic",
 };
 ```
 
 #### Enhanced Analytics Dashboard
+
 - Real-time usage metrics
 - Conversation quality scores
 - Cost optimization insights
 
 #### Improved API
+
 - Streaming responses
 - Batch processing
 - Webhook support
