@@ -9,7 +9,7 @@ import { logger } from "@/lib/utils/logger";
  * @returns The generated title, or null if title generation was skipped
  */
 export async function generateRoomTitle(
-  roomId: string
+  roomId: string,
 ): Promise<string | null> {
   const room = await roomsRepository.findById(roomId);
 
@@ -62,7 +62,7 @@ export async function generateRoomTitle(
   await roomsRepository.update(roomId, { name: finalTitle });
 
   logger.info(
-    `[RoomTitle] Generated title for room ${roomId}: "${finalTitle}"`
+    `[RoomTitle] Generated title for room ${roomId}: "${finalTitle}"`,
   );
 
   return finalTitle;

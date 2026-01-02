@@ -179,7 +179,7 @@ export default function MicropaymentNetwork() {
           label: "Agent 2",
           color: "#",
           type: "agent",
-          image: "/spartan.png",
+          image: "/babylon.jpeg",
         },
         position: { x: 403, y: 141 },
         type: "floating",

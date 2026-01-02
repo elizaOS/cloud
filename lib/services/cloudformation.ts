@@ -222,11 +222,14 @@ export class CloudFormationService {
     return this.withRetry(async () => {
       const stackName = this.getStackName(config.userId, config.projectName);
 
-      // Allocate unique ALB priority
+      // Allocate unique ALB priority per user+project combination
       const albPriority = await dbPriorityManager.allocatePriority(
         config.userId,
+        config.projectName,
       );
-      logger.info(`Allocated ALB priority ${albPriority} for ${config.userId}`);
+      logger.info(
+        `Allocated ALB priority ${albPriority} for ${config.userId}/${config.projectName}`,
+      );
 
       // Load template and parse as JSON for dynamic modification
       const templateJson = JSON.parse(
@@ -630,18 +633,31 @@ export class CloudFormationService {
 
   /**
    * Get stack details
+   * Returns null if the stack doesn't exist
    */
   async getStack(userId: string, projectName: string): Promise<Stack | null> {
     this.ensureCredentials();
 
     const stackName = this.getStackName(userId, projectName);
 
-    const command = new DescribeStacksCommand({
-      StackName: stackName,
-    });
+    try {
+      const command = new DescribeStacksCommand({
+        StackName: stackName,
+      });
 
-    const response = await this.client.send(command);
-    return response.Stacks?.[0] || null;
+      const response = await this.client.send(command);
+      return response.Stacks?.[0] || null;
+    } catch (error: unknown) {
+      // AWS throws ValidationError if stack doesn't exist
+      if (
+        error instanceof Error &&
+        (error.name === "ValidationError" ||
+          error.message.includes("does not exist"))
+      ) {
+        return null;
+      }
+      throw error;
+    }
   }
 
   /**
@@ -694,7 +710,7 @@ export class CloudFormationService {
 
       // Release ALB priority after stack deletion initiated
       // This will set expiry timestamp for cleanup
-      await dbPriorityManager.releasePriority(userId);
+      await dbPriorityManager.releasePriority(userId, projectName);
     });
   }
 

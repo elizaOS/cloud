@@ -22,14 +22,21 @@ export const metadata: Metadata = {
       "Documentation for elizaOS Cloud - The AI Agent Development Platform.",
     siteName: "elizaOS Platform",
     type: "website",
-    // Images handled automatically via opengraph-image.png file convention
+    images: [
+      {
+        url: "/cloudlogo.png",
+        width: 1200,
+        height: 630,
+        alt: "elizaOS Cloud - Make Agents in Seconds",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
     title: "elizaOS Cloud Documentation",
     description:
       "Documentation for elizaOS Cloud - The AI Agent Development Platform.",
-    // Images handled automatically via twitter-image.png file convention
+    images: ["/cloudlogo.png"],
     creator: "@elizaos",
     site: "@elizaos",
   },

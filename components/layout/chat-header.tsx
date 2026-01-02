@@ -122,7 +122,7 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
     if (!selectedCharacterId) return;
 
     const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
-    const shareUrl = `${baseUrl}/chat/${selectedCharacterId}`;
+    const shareUrl = `${baseUrl}/dashboard/chat?characterId=${selectedCharacterId}`;
 
     try {
       await navigator.clipboard.writeText(shareUrl);
