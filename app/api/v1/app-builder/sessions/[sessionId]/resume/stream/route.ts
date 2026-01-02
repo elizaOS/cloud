@@ -46,10 +46,10 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
                 current,
                 total,
                 filePath,
-                percentage: Math.round((current / total) * 100),
+                percentage: total > 0 ? Math.round((current / total) * 100) : 0,
               });
             },
-          },
+          }
         );
 
         await sendEvent("complete", {
@@ -72,9 +72,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
 
         await sendEvent("error", {
           error:
-            error instanceof Error
-              ? error.message
-              : "Failed to resume session",
+            error instanceof Error ? error.message : "Failed to resume session",
         });
       } finally {
         controller.close();

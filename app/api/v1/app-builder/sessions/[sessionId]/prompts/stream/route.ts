@@ -43,7 +43,8 @@ function createStreamWriter(writer: WritableStreamDefaultWriter<Uint8Array>) {
       state.lastEventTime = Date.now();
       return true;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       if (
         errorMessage.includes("WritableStream") ||
         errorMessage.includes("closed") ||
@@ -94,8 +95,12 @@ function createStreamWriter(writer: WritableStreamDefaultWriter<Uint8Array>) {
     try {
       await writer.close();
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      if (!errorMessage.includes("closed") && !errorMessage.includes("aborted")) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      if (
+        !errorMessage.includes("closed") &&
+        !errorMessage.includes("aborted")
+      ) {
         logger.warn("Error closing stream writer", { error: errorMessage });
       }
     }
@@ -115,10 +120,12 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     const rateLimitResult = checkRateLimit(request, PROMPT_RATE_LIMIT);
     if (!rateLimitResult.allowed) {
+      const maxRequests = PROMPT_RATE_LIMIT.maxRequests;
+      const windowSeconds = PROMPT_RATE_LIMIT.windowMs / 1000;
       return new Response(
         JSON.stringify({
           success: false,
-          error: "Rate limit exceeded. Maximum 20 prompts per minute.",
+          error: `Rate limit exceeded. Maximum ${maxRequests} prompts per ${windowSeconds}s.`,
           retryAfter: rateLimitResult.retryAfter,
         }),
         {
@@ -127,7 +134,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
             "Content-Type": "application/json",
             "Retry-After": rateLimitResult.retryAfter?.toString() || "60",
           },
-        },
+        }
       );
     }
 
@@ -141,7 +148,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
           error: "Invalid request data",
           details: validationResult.error.format(),
         }),
-        { status: 400, headers: { "Content-Type": "application/json" } },
+        { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
 
@@ -180,7 +187,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
               });
             },
             abortSignal: abortController.signal,
-          },
+          }
         );
 
         if (streamWriter.isConnected()) {
@@ -192,9 +199,13 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
           });
         }
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : "Failed to send prompt";
+        const errorMessage =
+          error instanceof Error ? error.message : "Failed to send prompt";
 
-        if (errorMessage.includes("aborted") || errorMessage.includes("cancelled")) {
+        if (
+          errorMessage.includes("aborted") ||
+          errorMessage.includes("cancelled")
+        ) {
           logger.info("Prompt operation cancelled", { sessionId });
           if (streamWriter.isConnected()) {
             await streamWriter.sendEvent("cancelled", {
@@ -235,9 +246,15 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       error instanceof Error ? error.message : "Authentication failed";
 
     let status = 500;
-    if (message.includes("Authentication") || message.includes("Unauthorized")) {
+    if (
+      message.includes("Authentication") ||
+      message.includes("Unauthorized")
+    ) {
       status = 401;
-    } else if (message.includes("Access denied") || message.includes("Forbidden")) {
+    } else if (
+      message.includes("Access denied") ||
+      message.includes("Forbidden")
+    ) {
       status = 403;
     } else if (message.includes("not found") || message.includes("not ready")) {
       status = 404;
@@ -250,7 +267,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         success: false,
         error: message,
       }),
-      { status, headers: { "Content-Type": "application/json" } },
+      { status, headers: { "Content-Type": "application/json" } }
     );
   }
 }

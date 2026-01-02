@@ -50,7 +50,8 @@ function createStreamWriter(writer: WritableStreamDefaultWriter<Uint8Array>) {
       state.lastEventTime = Date.now();
       return true;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       if (
         errorMessage.includes("WritableStream") ||
         errorMessage.includes("closed") ||
@@ -101,8 +102,12 @@ function createStreamWriter(writer: WritableStreamDefaultWriter<Uint8Array>) {
     try {
       await writer.close();
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      if (!errorMessage.includes("closed") && !errorMessage.includes("aborted")) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      if (
+        !errorMessage.includes("closed") &&
+        !errorMessage.includes("aborted")
+      ) {
         logger.warn("Error closing stream writer", { error: errorMessage });
       }
     }
@@ -119,10 +124,12 @@ export async function POST(request: NextRequest) {
 
     const rateLimitResult = checkRateLimit(request, SESSION_CREATE_LIMIT);
     if (!rateLimitResult.allowed) {
+      const maxRequests = SESSION_CREATE_LIMIT.maxRequests;
+      const windowSeconds = SESSION_CREATE_LIMIT.windowMs / 1000;
       return new Response(
         JSON.stringify({
           success: false,
-          error: "Rate limit exceeded. Maximum 5 sandbox sessions per hour.",
+          error: `Rate limit exceeded. Maximum ${maxRequests} sandbox sessions per ${windowSeconds}s.`,
           retryAfter: rateLimitResult.retryAfter,
         }),
         {
@@ -131,7 +138,7 @@ export async function POST(request: NextRequest) {
             "Content-Type": "application/json",
             "Retry-After": rateLimitResult.retryAfter?.toString() || "3600",
           },
-        },
+        }
       );
     }
 
@@ -145,7 +152,7 @@ export async function POST(request: NextRequest) {
           error: "Invalid request data",
           details: validationResult.error.format(),
         }),
-        { status: 400, headers: { "Content-Type": "application/json" } },
+        { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
 
@@ -204,7 +211,9 @@ export async function POST(request: NextRequest) {
           },
           onThinking: async (text) => {
             if (!streamWriter.isConnected()) return;
-            await streamWriter.sendEvent("thinking", { text: text.substring(0, 1000) });
+            await streamWriter.sendEvent("thinking", {
+              text: text.substring(0, 1000),
+            });
           },
           abortSignal: abortController.signal,
         });
@@ -229,9 +238,13 @@ export async function POST(request: NextRequest) {
           });
         }
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : "Failed to create session";
+        const errorMessage =
+          error instanceof Error ? error.message : "Failed to create session";
 
-        if (errorMessage.includes("aborted") || errorMessage.includes("cancelled")) {
+        if (
+          errorMessage.includes("aborted") ||
+          errorMessage.includes("cancelled")
+        ) {
           logger.info("Session creation cancelled by client");
           if (streamWriter.isConnected()) {
             await streamWriter.sendEvent("cancelled", {
@@ -265,7 +278,8 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     logger.error("Auth failed for app builder stream", { error });
-    const message = error instanceof Error ? error.message : "Authentication failed";
+    const message =
+      error instanceof Error ? error.message : "Authentication failed";
 
     let status = 401;
     if (message.includes("Rate limit")) {
@@ -279,7 +293,7 @@ export async function POST(request: NextRequest) {
         success: false,
         error: message,
       }),
-      { status, headers: { "Content-Type": "application/json" } },
+      { status, headers: { "Content-Type": "application/json" } }
     );
   }
 }

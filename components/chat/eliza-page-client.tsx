@@ -159,7 +159,8 @@ export function ElizaPageClient({
     setAvailableCharacters(characters);
   }, [characters, setAvailableCharacters]);
 
-  // Sync URL params with store on mount (only once)
+  // Sync URL params with store - run on mount and when params change
+  // This ensures the store reflects URL changes (e.g., navigating to a different characterId)
   useEffect(() => {
     // If we have a characterId from URL but no roomId, clear the stored roomId
     // This ensures a fresh room is created for the new character
@@ -173,8 +174,7 @@ export function ElizaPageClient({
     if (initialCharacterId) {
       setSelectedCharacterId(initialCharacterId);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Only run on mount
+  }, [initialCharacterId, initialRoomId, setRoomId, setSelectedCharacterId]);
 
   // Initialize anonymous session for unauthenticated users (only once)
   useEffect(() => {
