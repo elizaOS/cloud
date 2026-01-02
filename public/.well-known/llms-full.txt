@@ -14,18 +14,16 @@ URL: https://elizacloud.ai/docs
 
 Summary: Build, deploy, and scale intelligent AI agents with elizaOS Cloud.
 
-<div className="docs-hero">
-
-<div className="relative z-10">
+<section className="docs-hero">
   <h1>
-    <strong>Build</strong> Agents, <br /> <strong>Make</strong> Magic
+    <strong>Build</strong> Agents,
+    <br />
+    <strong>Make</strong> Magic
   </h1>
-
-<p>
-  The complete platform for building, deploying, and scaling intelligent AI
-  agents. Production-ready infrastructure with enterprise-grade reliability.
-</p>
-
+  <p>
+    The complete platform for building, deploying, and scaling intelligent AI
+    agents. Production-ready infrastructure with enterprise-grade reliability.
+  </p>
   <div className="hero-buttons">
     <a href="/docs/quickstart" className="hero-btn-primary">
       Get Started →
@@ -34,9 +32,7 @@ Summary: Build, deploy, and scale intelligent AI agents with elizaOS Cloud.
       Open Dashboard
     </a>
   </div>
-</div>
-
-</div>
+</section>
 
 <div className="docs-section">
 
@@ -4782,6 +4778,899 @@ Contact [sales@eliza.ai](mailto:sales@eliza.ai) for enterprise plans.
   
   
     Usage tracking APIs
+
+---
+
+## The Future of AI Agents in 2025
+
+URL: https://elizacloud.ai/docs/blog/ai-agents-future
+
+Summary: Exploring the trends and innovations shaping the AI agent landscape this year.
+
+# The Future of AI Agents in 2025
+
+The AI agent ecosystem is evolving at an unprecedented pace. As we enter 2025, we're witnessing a fundamental shift in how artificial intelligence interacts with humans and systems. This comprehensive analysis explores the key trends, technological breakthroughs, and practical implications that will define the AI agent landscape this year.
+
+The journey from simple chatbots to sophisticated autonomous agents has been remarkable. What once required extensive engineering teams and months of development can now be accomplished in hours with the right tools and platforms. This democratization of AI agent development is opening doors for businesses of all sizes to leverage intelligent automation.
+
+![AI Evolution](https://images.unsplash.com/photo-1677442136019-21780ecad995?w=1200&h=600&fit=crop)
+
+## The Current State of AI Agents
+
+Before diving into future trends, it's important to understand where we stand today. The AI agent market has matured significantly over the past two years, with several key developments shaping the current landscape.
+
+Enterprise adoption has accelerated dramatically. According to recent industry reports, over 67% of Fortune 500 companies now deploy some form of AI agent technology in their operations. This represents a threefold increase from just 18 months ago, demonstrating the growing confidence in AI-driven solutions.
+
+The technology stack has also evolved. Modern AI agents leverage a combination of large language models, retrieval-augmented generation (RAG), and sophisticated orchestration frameworks. This multi-layered approach enables more reliable, contextual, and accurate responses than ever before.
+
+Consumer expectations have risen accordingly. Users now expect AI agents to understand nuance, remember context across conversations, and provide genuinely helpful assistance rather than scripted responses. Meeting these expectations requires continuous innovation and improvement.
+
+## Key Trends Shaping 2025
+
+### 1. Autonomous Decision Making
+
+AI agents are becoming increasingly capable of making complex decisions without human intervention. This shift from reactive to proactive systems represents one of the most significant developments in the field.
+
+Modern autonomous agents can:
+
+- Execute multi-step reasoning chains that span dozens of intermediate steps
+- Maintain context across extended conversations and multiple sessions
+- Self-correct when they detect errors or inconsistencies in their responses
+- Learn from feedback and improve their performance over time
+- Coordinate with other agents to accomplish complex tasks
+
+The implications are profound. Businesses can now automate workflows that previously required constant human oversight. Customer service teams can handle higher volumes without sacrificing quality. Research and analysis tasks that took days can be completed in minutes.
+
+> The transition to truly autonomous agents isn't just about efficiency—it's about unlocking entirely new possibilities that weren't feasible with human-only workflows.
+
+However, autonomy comes with responsibility. As agents make more decisions independently, the importance of alignment, safety guardrails, and transparency increases proportionally. The industry is actively developing frameworks and best practices to ensure autonomous agents remain beneficial and aligned with human values.
+
+### 2. Enhanced Personalization
+
+Generic, one-size-fits-all AI interactions are becoming a thing of the past. In 2025, personalization has evolved from a nice-to-have feature to a core expectation.
+
+Advanced personalization manifests in several ways:
+
+**Adaptive Communication Styles**: Agents now adjust their tone, vocabulary, and level of detail based on individual user preferences. A technical expert receives detailed explanations with appropriate jargon, while a casual user gets simplified, accessible responses.
+
+**Contextual Memory**: Modern agents remember not just what you said, but the context around it. They understand your goals, preferences, and patterns, using this knowledge to provide increasingly relevant assistance over time.
+
+**Predictive Assistance**: Rather than waiting for requests, sophisticated agents anticipate needs based on patterns and proactively offer help. This shift from reactive to proactive assistance fundamentally changes the user experience.
+
+**Cultural Sensitivity**: Global deployments require agents that understand and respect cultural nuances. From communication styles to business practices, top-tier agents adapt their behavior based on cultural context.
+
+The technical infrastructure supporting this personalization has also matured. Vector databases, embedding models, and efficient retrieval systems enable agents to access and utilize vast amounts of contextual information in real-time without sacrificing response speed.
+
+### 3. Multi-Modal Capabilities
+
+The integration of text, image, audio, and video capabilities is no longer experimental—it's becoming standard. Multi-modal agents can now:
+
+- Analyze images and documents to extract relevant information
+- Generate visualizations to explain complex concepts
+- Process and respond to voice inputs naturally
+- Create and edit multimedia content on demand
+- Interpret charts, graphs, and diagrams in context
+
+This convergence of modalities enables richer, more natural interactions. Users can share screenshots for troubleshooting, request visual explanations of concepts, or engage in voice-based conversations—all within the same agent interaction.
+
+![Multi-Modal AI](https://images.unsplash.com/photo-1555255707-c07966088b7b?w=1200&h=600&fit=crop)
+
+### 4. Agent-to-Agent Communication
+
+Perhaps the most transformative trend is the emergence of agent ecosystems where multiple AI agents collaborate to accomplish complex tasks. This paradigm shift moves us from individual agents to coordinated agent networks.
+
+In these ecosystems:
+
+- Specialized agents handle specific domains or tasks
+- Orchestration layers coordinate multi-agent workflows
+- Agents can delegate subtasks to more specialized counterparts
+- Results are synthesized and presented coherently to users
+
+Consider a complex business scenario: analyzing market trends, generating a strategic report, and preparing a presentation. Rather than a single agent attempting all tasks, a network of specialized agents—research, analysis, writing, and design—collaborate seamlessly.
+
+This approach offers several advantages:
+
+1. **Improved Accuracy**: Specialized agents excel in their domains
+2. **Faster Execution**: Parallel processing across multiple agents
+3. **Easier Maintenance**: Update individual agents without system-wide changes
+4. **Scalability**: Add new specialized agents as needs evolve
+
+### 5. Enterprise Integration
+
+AI agents are moving from standalone tools to deeply integrated components of enterprise infrastructure. This integration spans:
+
+**Data Systems**: Direct connections to databases, data warehouses, and analytics platforms enable agents to access and analyze enterprise data in real-time.
+
+**Business Applications**: Integration with CRM, ERP, and productivity suites allows agents to take actions within existing workflows.
+
+**Communication Platforms**: Native integration with Slack, Teams, email, and other channels meets users where they already work.
+
+**Security Infrastructure**: Enterprise-grade authentication, authorization, and audit logging ensure agents meet compliance requirements.
+
+This deep integration transforms agents from helpful tools into essential business infrastructure. They become the intelligent layer that connects and orchestrates existing systems.
+
+## Technical Innovations Driving Progress
+
+The trends we're seeing aren't happening in isolation—they're enabled by significant technical innovations:
+
+### Improved Model Architectures
+
+New model architectures are pushing the boundaries of what's possible:
+
+- Mixture of Experts (MoE) models offer better performance with lower computational costs
+- Longer context windows enable more comprehensive understanding
+- Improved reasoning capabilities through chain-of-thought techniques
+- Better instruction following through advanced fine-tuning methods
+
+### Infrastructure Advances
+
+The infrastructure supporting AI agents has also evolved:
+
+```
+Cloud-Native Architecture
+├── Serverless inference for cost efficiency
+├── Edge deployment for low-latency responses
+├── Hybrid approaches for optimal performance
+└── Global distribution for reliability
+```
+
+### Development Tooling
+
+Building AI agents has never been easier thanks to improved tooling:
+
+- Visual builders for non-technical users
+- Comprehensive SDKs for developers
+- Testing and evaluation frameworks
+- Monitoring and observability solutions
+
+## Challenges and Considerations
+
+Despite the exciting progress, significant challenges remain:
+
+### Reliability and Consistency
+
+AI agents can still produce inconsistent or incorrect outputs. Ensuring reliability at scale requires:
+
+- Robust testing and evaluation pipelines
+- Fallback mechanisms for edge cases
+- Human-in-the-loop workflows for critical decisions
+- Continuous monitoring and improvement
+
+### Privacy and Security
+
+As agents access more data and take more actions, privacy and security concerns intensify:
+
+- Data handling must comply with regulations like GDPR and CCPA
+- Access controls must prevent unauthorized actions
+- Audit trails must enable accountability
+- User consent must be obtained and respected
+
+### Ethical Considerations
+
+The increasing autonomy of AI agents raises important ethical questions:
+
+- How do we ensure agents act in users' best interests?
+- What happens when agent recommendations conflict with human judgment?
+- How do we prevent bias from affecting agent decisions?
+- Who is responsible when agents make mistakes?
+
+## What This Means for Developers
+
+Building AI agents is more accessible than ever. With platforms like Eliza Cloud, you can:
+
+- Deploy production-ready agents in minutes rather than months
+- Scale automatically based on demand without infrastructure management
+- Access cutting-edge models without building ML infrastructure
+- Focus on user experience rather than underlying technology
+
+The democratization of agent development is creating opportunities for developers at all skill levels. Whether you're building a simple customer service bot or a complex autonomous workflow, the tools and platforms available today make it possible.
+
+### Getting Started
+
+For developers new to AI agents, the path forward is clearer than ever:
+
+1. **Start Small**: Begin with a focused use case rather than trying to build everything at once
+2. **Iterate Quickly**: Use rapid prototyping to test ideas and gather feedback
+3. **Leverage Platforms**: Don't reinvent the wheel—use existing infrastructure
+4. **Focus on Users**: The best agents solve real problems for real people
+5. **Plan for Scale**: Design with growth in mind from the beginning
+
+## Industry Perspectives
+
+We reached out to leaders across the industry for their perspectives on where AI agents are headed.
+
+> "The agents we're building today will seem primitive in five years, but they're already transforming how businesses operate. The key is to start now and learn as the technology evolves." — Tech Industry Executive
+
+> "What excites me most is the democratization. Small teams can now build agents that rival what only large companies could create before." — Startup Founder
+
+> "We're moving from 'AI can help with that' to 'AI handles that.' It's a fundamental shift in how we think about work." — Enterprise Customer
+
+## Looking Ahead
+
+We're excited about the possibilities that 2025 holds for AI agents. The convergence of improved models, better infrastructure, and mature tooling is creating unprecedented opportunities.
+
+Key developments to watch:
+
+- **Q1 2025**: Major model improvements from leading AI labs
+- **Q2 2025**: Enterprise adoption acceleration
+- **Q3 2025**: Multi-agent systems go mainstream
+- **Q4 2025**: New interaction paradigms emerge
+
+The future of AI agents isn't just about better technology—it's about better experiences, more efficient operations, and new possibilities we haven't yet imagined. We're committed to being at the forefront of this transformation, and we invite you to join us on this journey.
+
+Stay tuned for more updates as we continue to push the boundaries of what's possible with AI agents. The best is yet to come.
+
+---
+
+## Community Spotlight: January 2025
+
+URL: https://elizacloud.ai/docs/blog/community-spotlight-january
+
+Summary: Highlighting amazing projects and contributions from the Eliza community this month.
+
+# Community Spotlight: January 2025
+
+Every month, we highlight the incredible work being done by our community. Here are this month's standouts!
+
+## Featured Projects
+
+### AI Customer Service Bot by TechStartup Inc.
+
+A sophisticated support agent that handles 80% of customer inquiries automatically.
+
+**Key Stats:**
+
+- 10,000+ conversations handled
+- 4.8/5 customer satisfaction rating
+- 60% reduction in support tickets
+
+### Educational Tutor by LearnAI
+
+An interactive tutoring agent that helps students with math and science.
+
+> "The agent adapts to each student's learning pace and style. It's like having a personal tutor available 24/7." - Teacher feedback
+
+### Content Creator Assistant
+
+A multi-modal agent that helps content creators with:
+
+- Script writing
+- Thumbnail ideas
+- SEO optimization
+- Engagement analysis
+
+## Community Contributions
+
+### Open Source Plugins
+
+- Discord Rich Presence integration
+- Slack notification system
+- Analytics export tools
+
+### Documentation Improvements
+
+Thanks to everyone who contributed to our docs this month!
+
+## Join the Community
+
+Want to be featured? Share your projects:
+
+- [Discord](https://discord.gg/eliza)
+- [GitHub](https://github.com/elizaos)
+- [Twitter](https://twitter.com/elizaos)
+
+We can't wait to see what you build next!
+
+---
+
+## Customizing Your Agent's Personality
+
+URL: https://elizacloud.ai/docs/blog/customizing-agent-personality
+
+Summary: Learn how to create unique and engaging personalities for your AI agents.
+
+# Customizing Your Agent's Personality
+
+One of the most powerful features of Eliza Cloud is the ability to create agents with distinct personalities. This guide will show you how.
+
+## Understanding Personality Parameters
+
+Your agent's personality is defined by several key factors:
+
+### Tone
+
+- Formal vs. Casual
+- Serious vs. Playful
+- Direct vs. Elaborate
+
+### Knowledge Domain
+
+Define what your agent specializes in:
+
+```json
+{
+  "expertise": ["technology", "customer support", "sales"],
+  "depth": "expert",
+  "style": "conversational"
+}
+```
+
+### Response Patterns
+
+Control how your agent structures responses:
+
+- **Concise**: Short, direct answers
+- **Detailed**: Comprehensive explanations
+- **Interactive**: Asks follow-up questions
+
+## Best Practices
+
+1. **Be Consistent**: Maintain the same personality across all interactions
+2. **Match Your Brand**: Align the agent's voice with your company's tone
+3. **Test Extensively**: Try various scenarios to ensure natural responses
+4. **Iterate**: Refine based on user feedback
+
+## Example Configuration
+
+Here's a complete personality configuration:
+
+```javascript
+const personality = {
+  name: "Alex",
+  role: "Technical Support Specialist",
+  traits: ["helpful", "patient", "knowledgeable"],
+  tone: "friendly but professional",
+  greeting: "Hi there! I'm Alex, here to help with any technical questions.",
+};
+```
+
+Start experimenting with these settings to create the perfect agent for your needs!
+
+---
+
+## Getting Started with AI Agents
+
+URL: https://elizacloud.ai/docs/blog/getting-started-guide
+
+Summary: A comprehensive guide to creating and deploying your first AI agent on Eliza Cloud.
+
+# Getting Started with AI Agents
+
+This tutorial will walk you through creating your first AI agent on Eliza Cloud. By the end, you'll have a fully functional agent ready to interact with users.
+
+![Getting Started Banner](https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=1200&h=500&fit=crop)
+
+## Prerequisites
+
+Before you begin, make sure you have:
+
+- An Eliza Cloud account
+- Basic understanding of AI concepts
+- A clear idea of what you want your agent to do
+
+> **Pro Tip:** Start with a simple use case and expand from there. It's easier to add complexity than to simplify an overengineered solution.
+
+---
+
+## Video Tutorial
+
+Watch our quick start video to see the process in action:
+
+<iframe
+  width="100%"
+  height="400"
+  src="https://www.youtube.com/embed/dQw4w9WgXcQ"
+  title="Getting Started with Eliza Cloud"
+  frameBorder="0"
+  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+  allowFullScreen
+  style={{ borderRadius: "12px", marginTop: "16px", marginBottom: "16px" }}
+/>
+
+---
+
+## What Others Are Building
+
+Check out what the community is creating with AI agents:
+
+---
+
+## Step 1: Create Your Agent
+
+Navigate to the dashboard and click "Create Agent". You'll be prompted to configure the following:
+
+| Setting            | Description                               | Required |
+| ------------------ | ----------------------------------------- | -------- |
+| **Name**           | Your agent's display name                 | Yes      |
+| **Model**          | The AI model to use (GPT-4, Claude, etc.) | Yes      |
+| **Personality**    | Tone and behavior style                   | No       |
+| **Knowledge Base** | Custom documents for context              | No       |
+| **Integrations**   | Connected services (Discord, Slack)       | No       |
+
+### Model Comparison
+
+Here's a comparison of available models:
+
+| Model           | Speed    | Quality    | Cost | Best For             |
+| --------------- | -------- | ---------- | ---- | -------------------- |
+| GPT-4 Turbo     | ⚡⚡     | ⭐⭐⭐⭐⭐ | $$$  | Complex reasoning    |
+| Claude 3 Opus   | ⚡⚡     | ⭐⭐⭐⭐⭐ | $$$  | Long-form content    |
+| Claude 3 Sonnet | ⚡⚡⚡   | ⭐⭐⭐⭐   | $$   | Balanced performance |
+| GPT-3.5 Turbo   | ⚡⚡⚡⚡ | ⭐⭐⭐     | $    | Quick responses      |
+
+---
+
+## Step 2: Configure Capabilities
+
+Next, configure what your agent can do. Here's a complete configuration example:
+
+```javascript
+const agentConfig = {
+  name: "My First Agent",
+  model: "claude-3-sonnet",
+  capabilities: ["chat", "search", "summarize"],
+  personality: {
+    tone: "friendly",
+    formality: "casual",
+    verbosity: "concise",
+  },
+  settings: {
+    maxTokens: 2048,
+    temperature: 0.7,
+    streamResponses: true,
+  },
+};
+```
+
+### TypeScript Types
+
+For TypeScript users, here are the type definitions:
+
+```typescript
+interface AgentConfig {
+  name: string;
+  model: "gpt-4" | "claude-3-opus" | "claude-3-sonnet";
+  capabilities: Capability[];
+  personality?: PersonalityConfig;
+  settings?: AgentSettings;
+}
+
+type Capability =
+  | "chat"
+  | "search"
+  | "summarize"
+  | "code-generation"
+  | "image-analysis";
+```
+
+---
+
+## Step 3: Test Your Agent
+
+Before deploying, test your agent using our playground:
+
+![Playground Interface](https://images.unsplash.com/photo-1587620962725-abab7fe55159?w=1200&h=600&fit=crop)
+
+### Sample Conversations
+
+Here are some example prompts to test:
+
+1. **Basic greeting**: "Hello, who are you?"
+2. **Task completion**: "Summarize the latest news about AI"
+3. **Error handling**: "asdkjhasd" (gibberish input)
+4. **Edge cases**: Very long messages, special characters
+
+> 💡 **Note:** Always test edge cases before deploying to production!
+
+---
+
+## Step 4: Deploy
+
+Once configured, click "Deploy" and your agent will be live within seconds.
+
+### Deployment Checklist
+
+- Agent name is appropriate
+- Model is selected
+- Personality is configured
+- Test conversations completed
+- Error handling verified
+- Rate limits set
+
+---
+
+## API Integration
+
+You can also interact with your agent programmatically:
+
+```bash
+curl -X POST https://api.eliza.cloud/v1/agents/your-agent-id/chat \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message": "Hello, how are you?",
+    "conversationId": "optional-conversation-id"
+  }'
+```
+
+### Response Format
+
+```json
+{
+  "id": "msg_abc123",
+  "content": "Hello! I'm doing great, thanks for asking. How can I help you today?",
+  "role": "assistant",
+  "timestamp": "2025-01-10T12:00:00Z",
+  "usage": {
+    "promptTokens": 12,
+    "completionTokens": 18,
+    "totalTokens": 30
+  }
+}
+```
+
+---
+
+## Pricing Tiers
+
+| Tier           | Messages/Month | Price  | Features           |
+| -------------- | -------------- | ------ | ------------------ |
+| **Free**       | 1,000          | $0     | Basic features     |
+| **Starter**    | 10,000         | $29/mo | + Analytics        |
+| **Pro**        | 100,000        | $99/mo | + Priority support |
+| **Enterprise** | Unlimited      | Custom | + Custom models    |
+
+---
+
+## Keyboard Shortcuts
+
+Master these shortcuts to work faster:
+
+| Shortcut       | Action         |
+| -------------- | -------------- |
+| `Ctrl + Enter` | Send message   |
+| `Ctrl + /`     | Toggle sidebar |
+| `Ctrl + K`     | Quick search   |
+| `Esc`          | Close modal    |
+
+---
+
+## Troubleshooting
+
+### Common Issues
+
+<details>
+<summary><strong>Agent not responding</strong></summary>
+
+Check the following:
+
+1. Verify your API key is valid
+2. Ensure you have available credits
+3. Check the agent status in dashboard
+
+</details>
+
+<details>
+<summary><strong>Slow response times</strong></summary>
+
+Try these solutions:
+
+1. Switch to a faster model (e.g., GPT-3.5)
+2. Reduce max token limit
+3. Enable streaming responses
+
+</details>
+
+<details>
+<summary><strong>Unexpected responses</strong></summary>
+
+Consider:
+
+1. Adjusting the temperature setting
+2. Refining the personality prompt
+3. Adding more context to the knowledge base
+
+</details>
+
+---
+
+## Next Steps
+
+Now that your agent is running:
+
+- 📊 **Explore analytics** - Monitor performance in the dashboard
+- 🔗 **Set up webhooks** - Integrate with external services
+- 🎨 **Customize appearance** - Brand your chat widget
+- 📚 **Add knowledge** - Upload documents for context
+
+---
+
+## Additional Resources
+
+- [API Documentation](/docs/api)
+- [Best Practices Guide](/docs/best-practices)
+- [Community Discord](https://discord.gg/eliza)
+- [GitHub Examples](https://github.com/elizaos/examples)
+
+---
+
+_Have questions? Join our [Discord community](https://discord.gg/eliza) or reach out to support@eliza.cloud_
+
+---
+
+## Integrating AI Agents with Discord
+
+URL: https://elizacloud.ai/docs/blog/integrating-with-discord
+
+Summary: Step-by-step guide to connecting your Eliza Cloud agent to Discord servers.
+
+# Integrating AI Agents with Discord
+
+Discord is one of the most popular platforms for community engagement. Here's how to connect your Eliza Cloud agent to Discord.
+
+## Prerequisites
+
+- An Eliza Cloud account with an active agent
+- A Discord account with server admin permissions
+- Basic familiarity with Discord bots
+
+## Step 1: Create a Discord Application
+
+1. Go to the [Discord Developer Portal](https://discord.com/developers)
+2. Click "New Application"
+3. Name your application and save
+
+## Step 2: Configure Bot Settings
+
+Enable the following intents:
+
+- Message Content Intent
+- Server Members Intent
+- Presence Intent
+
+## Step 3: Get Your Bot Token
+
+```bash
+# Store this securely - never commit to version control!
+DISCORD_BOT_TOKEN=your_token_here
+```
+
+## Step 4: Connect to Eliza Cloud
+
+In your Eliza Cloud dashboard:
+
+1. Navigate to Integrations
+2. Select Discord
+3. Paste your bot token
+4. Configure response settings
+
+## Step 5: Invite to Your Server
+
+Generate an invite link with these permissions:
+
+- Read Messages
+- Send Messages
+- Embed Links
+- Attach Files
+
+## Testing Your Integration
+
+Once connected, try mentioning your bot:
+
+```
+@YourBot Hello! Can you help me?
+```
+
+Your agent should respond based on its configured personality and capabilities.
+
+## Best Practices
+
+- Set up rate limiting to prevent spam
+- Configure channel restrictions
+- Monitor usage in the analytics dashboard
+- Regularly review conversation logs
+
+---
+
+## Build AI Agents Faster. Ship Them Instantly. Introducing Eliza Cloud.
+
+URL: https://elizacloud.ai/docs/blog/introducing-eliza-cloud
+
+Summary: Eliza Cloud is a low-code platform for building and deploying AI agents. Focus on what your agent does - we handle everything else.
+
+You want to build an AI agent. Maybe it handles customer queries, trades on-chain, automates your workflow or does something nobody's thought of yet.
+
+The problem isn't the idea, it's the execution. Building an agent means wrestling with AI model APIs, managing conversations, handling memory and state, wiring up plugins, and figuring out how to make it all work together. Then, once you've built something that runs on your laptop, you need to get it live, which means operating servers, databases, networking and managing billing.
+
+It's too much. Great ideas get abandoned not because they weren't good enough, but because building and deploying agents is still too hard.
+
+Eliza Labs learnt this through establishing the largest open source agent developer community with thousands of people getting hands on with elizaOS. We built Eliza Cloud to solve these problems, and open the doors for non-technical creators to build the agentic web.
+
+## Build agents, not infrastructure
+
+Eliza Cloud is a low-code platform for building and deploying AI agents. You focus on what your agent does. We handle everything else.
+
+- **Visual agent builder**: Define your agent's personality, capabilities, and behavior through an intuitive interface. No need to manually configure every detail; common patterns work out of the box.
+- **Pre-built integrations**: Connect to Discord, Telegram, Twitter, web chat, and more with a few clicks. Your agent works across platforms without custom integration code.
+- **Unified AI access**: One account gives you access to text, image, video, and voice AI capabilities. No juggling provider accounts. No managing multiple API keys. Credits work across everything.
+- **Built-in memory and state**: Conversations, context, and knowledge are handled automatically. Your agent remembers. It learns. It maintains state, all without you configuring databases or vector stores.
+- **Plugin ecosystem**: Extend your agent with on-chain capabilities, knowledge bases, tools, and more. The open-source elizaOS plugin ecosystem works seamlessly.
+
+You describe what you want your agent to do. We handle the complexity of making it actually work.
+
+## From idea to live agent, fast
+
+Whether you're a developer or a creator with no technical background, Eliza Cloud gets your agent live quickly.
+
+**For developers:** Deploy with a single command.
+
+```bash
+npx eliza-cloud deploy
+```
+
+**For non-technical creators:** Use our visual interface to build and launch your agent without writing code.
+
+The real magic happens before deployment. Eliza Cloud gives you a complete environment to bring your agent to life. Build your agent's personality and capabilities through simple forms and visual tools. Test it, refine it, and see it working all before you go live.
+
+When you're ready to launch, we handle everything behind the scenes. Servers, databases, security, scaling. Your agent gets a URL. It's serving users. No technical expertise required.
+
+If you want to add custom logic or advanced features, you can write code. But you don't have to. We've built the common patterns so you can focus on what makes your agent unique, whether you're coding it or configuring it.
+
+![Eliza Cloud Introduction](/images/blog/intro_blog_1.png)
+
+## Open source underneath
+
+Here's what matters most: Eliza Cloud runs the full open-source elizaOS runtime.
+
+Your agents aren't trapped. The code you write isn't in some proprietary format that only works on our platform. If you ever want to self-host, take your agent to another provider, or run it on a Raspberry Pi in your garage then you can.
+
+This means when you own your code and can move it anywhere, you build with confidence. No vendor lock-in means you'll invest more deeply in making your agent great. But moreover, as agents shift from responsive to autonomous, you have the open foundations needed for secure agentic commerce.
+
+## Who this is for
+
+Eliza Cloud is for anyone who wants to build an AI agent, whether you code or not.
+
+**If you don't code:** Our AI-assisted development tools let you describe what you want your agent to do, and we help you build it. You don't need to know TypeScript, understand APIs, or configure databases. The visual builder and AI assistance guide you through creating agents that actually work.
+
+**If you do code:** You get all the power of the elizaOS runtime with the convenience of low-code tooling. Write custom logic when you need it, use our tools when they're faster. No need to become an infrastructure specialist.
+
+You probably:
+
+- Have an idea for an AI agent but don't know where to start
+- Want to move fast and iterate quickly, with or without writing code
+- Building something that needs to be live on the internet, not just running locally
+- Prefer AI-assisted and low-code tooling over building everything from scratch
+- Wary of platforms that'll hold your work hostage
+
+We're for people who want to build agents. Our AI-assisted tools and low-code platform make it accessible, whether you're a seasoned developer or someone with a great idea and zero code experience.
+
+![Eliza Cloud Introduction](/images/blog/intro_blog_2.png)
+
+## Get Started with Eliza Cloud Open Beta
+
+We're opening up Eliza Cloud to the community. Create your account today and start building your first AI agent in minutes.
+
+**Ready to dive in?**
+
+- Sign up for free access to the Eliza Cloud beta
+- Follow our step-by-step tutorials to build your first agent
+- Check out our guides for platform features and best practices
+- Join the elizaOS Discord community for support and inspiration
+
+Whether you're coding from scratch or using our visual builder, we'll help you go from idea to deployed agent fast.
+
+---
+
+**Ready to build?** [Get started with Eliza Cloud →](https://www.dev.elizacloud.ai)
+
+_Questions? Find us in the elizaOS Discord:_ https://discord.gg/mPsBnEXJuA
+
+---
+
+## Eliza Cloud v2.0 Released
+
+URL: https://elizacloud.ai/docs/blog/v2-release
+
+Summary: Major update brings new features, improved performance, and enhanced developer experience.
+
+# Eliza Cloud v2.0 Released
+
+We're thrilled to announce the release of Eliza Cloud v2.0, our biggest update yet!
+
+## What's New
+
+### Performance Improvements
+
+- **50% faster response times** across all models
+- Reduced cold start latency
+- Optimized memory usage
+
+### New Features
+
+#### Multi-Agent Orchestration
+
+Create workflows that involve multiple agents working together:
+
+```javascript
+const workflow = {
+  agents: ["researcher", "writer", "editor"],
+  flow: "sequential",
+  handoff: "automatic",
+};
+```
+
+#### Enhanced Analytics Dashboard
+
+- Real-time usage metrics
+- Conversation quality scores
+- Cost optimization insights
+
+#### Improved API
+
+- Streaming responses
+- Batch processing
+- Webhook support
+
+### Developer Experience
+
+- New CLI tools
+- Better error messages
+- Comprehensive documentation
+
+## Migration Guide
+
+Upgrading from v1.x is straightforward. Most changes are backward compatible, but we recommend reviewing the [migration guide](/docs/migration) for detailed instructions.
+
+## Thank You
+
+This release wouldn't be possible without our amazing community. Thank you for your feedback, bug reports, and feature requests!
+
+---
+
+## Welcome to Eliza Cloud
+
+URL: https://elizacloud.ai/docs/blog/welcome-to-eliza
+
+Summary: Introducing Eliza Cloud - the easiest way to deploy and manage AI agents.
+
+# Welcome to Eliza Cloud
+
+We're excited to announce the launch of Eliza Cloud, a platform designed to make deploying and managing AI agents easier than ever.
+
+![AI Technology Dashboard](https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=1200&h=600&fit=crop)
+
+## What is Eliza Cloud?
+
+Eliza Cloud provides a seamless experience for:
+
+- **Deploying AI agents** with just a few clicks
+- **Managing your agents** through an intuitive dashboard
+- **Scaling automatically** based on demand
+- **Monitoring performance** in real-time
+
+![Cloud Infrastructure](https://images.unsplash.com/photo-1544197150-b99a580bb7a8?w=1200&h=600&fit=crop)
+
+## Getting Started
+
+Getting started with Eliza Cloud is simple:
+
+1. Sign up for an account
+2. Create your first agent
+3. Configure your agent's personality and capabilities
+4. Deploy and start chatting
+
+## What's Next?
+
+We have exciting features planned for the coming months, including:
+
+- Enhanced customization options
+- New integrations
+- Improved analytics
+- And much more!
+
+![Future of AI](https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=1200&h=600&fit=crop)
+
+Stay tuned for updates and follow us on [Twitter](https://twitter.com/elizaOS) for the latest news.
 
 ---
 

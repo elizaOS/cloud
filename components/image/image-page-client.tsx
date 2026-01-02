@@ -19,8 +19,8 @@ export function ImagePageClient({ initialHistory = [] }: ImagePageClientProps) {
   });
 
   return (
-    <div className="flex flex-col w-full h-full">
-      <div className="w-full max-w-[1800px] mx-auto px-4 md:px-6 py-4 md:py-6 pb-6 md:pb-8">
+    <div className="flex flex-col w-full h-full min-h-0">
+      <div className="flex-1 w-full max-w-[1800px] mx-auto px-4 md:px-6 flex flex-col min-h-0">
         <ImageGeneratorAdvanced initialHistory={initialHistory} />
       </div>
     </div>

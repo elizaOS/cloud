@@ -167,14 +167,15 @@ async function handlePOST(req: NextRequest) {
 
     // Validate message content
     // Note: content can be null/empty for tool calls or function calls
-    for (const msg of request.messages) {
+    for (let i = 0; i < request.messages.length; i++) {
+      const msg = request.messages[i];
       if (!msg.role) {
         return Response.json(
           {
             error: {
               message: "Each message must have a role",
               type: "invalid_request_error",
-              param: "messages",
+              param: `messages.${i}.role`,
               code: "invalid_value",
             },
           },
@@ -194,12 +195,75 @@ async function handlePOST(req: NextRequest) {
               message:
                 "Each message must have content, tool_calls, tool_call_id, or function_call",
               type: "invalid_request_error",
-              param: "messages",
+              param: `messages.${i}.content`,
               code: "invalid_value",
             },
           },
           { status: 400 },
         );
+      }
+
+      // Validate array content has non-empty text blocks (Anthropic API requirement)
+      if (Array.isArray(msg.content)) {
+        // Filter out empty text blocks before sending to gateway
+        const filteredContent = msg.content.filter((part) => {
+          if (typeof part === "object" && part !== null && "type" in part) {
+            const typedPart = part as { type: string; text?: string };
+            if (typedPart.type === "text") {
+              const hasNonEmptyText =
+                typeof typedPart.text === "string" &&
+                typedPart.text.trim() !== "";
+              if (!hasNonEmptyText) {
+                logger.debug(
+                  "[Chat Completions API] Filtering out empty text content block",
+                  { messageIndex: i, role: msg.role },
+                );
+              }
+              return hasNonEmptyText;
+            }
+          }
+          // Keep non-text parts (images, tool results, etc.)
+          return true;
+        });
+
+        // Update the message with filtered content
+        if (filteredContent.length !== msg.content.length) {
+          logger.info(
+            "[Chat Completions API] Filtered empty text blocks from content array",
+            {
+              messageIndex: i,
+              role: msg.role,
+              originalParts: msg.content.length,
+              remainingParts: filteredContent.length,
+            },
+          );
+          msg.content = filteredContent;
+        }
+
+        // If content array is now empty and no tool calls, return error
+        if (
+          filteredContent.length === 0 &&
+          !hasToolCalls &&
+          !hasToolCallId &&
+          !hasFunctionCall
+        ) {
+          logger.warn(
+            "[Chat Completions API] Content array has no valid content",
+            { messageIndex: i, role: msg.role },
+          );
+          return Response.json(
+            {
+              error: {
+                message:
+                  "Message content array must contain at least one non-empty text block",
+                type: "invalid_request_error",
+                param: `messages.${i}.content`,
+                code: "invalid_value",
+              },
+            },
+            { status: 400 },
+          );
+        }
       }
     }
 

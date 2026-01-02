@@ -1,0 +1,70 @@
+---
+title: "Customizing Your Agent's Personality"
+date: "2025-01-08"
+author: "Marcus Johnson"
+description: "Learn how to create unique and engaging personalities for your AI agents."
+category: "demo"
+image: "https://images.unsplash.com/photo-1531746790731-6c087fecd65a?w=800&h=450&fit=crop"
+relatedPosts:
+  - getting-started-guide
+  - integrating-with-discord
+  - ai-agents-future
+  - welcome-to-eliza
+---
+
+# Customizing Your Agent's Personality
+
+One of the most powerful features of Eliza Cloud is the ability to create agents with distinct personalities. This guide will show you how.
+
+## Understanding Personality Parameters
+
+Your agent's personality is defined by several key factors:
+
+### Tone
+
+- Formal vs. Casual
+- Serious vs. Playful
+- Direct vs. Elaborate
+
+### Knowledge Domain
+
+Define what your agent specializes in:
+
+```json
+{
+  "expertise": ["technology", "customer support", "sales"],
+  "depth": "expert",
+  "style": "conversational"
+}
+```
+
+### Response Patterns
+
+Control how your agent structures responses:
+
+- **Concise**: Short, direct answers
+- **Detailed**: Comprehensive explanations
+- **Interactive**: Asks follow-up questions
+
+## Best Practices
+
+1. **Be Consistent**: Maintain the same personality across all interactions
+2. **Match Your Brand**: Align the agent's voice with your company's tone
+3. **Test Extensively**: Try various scenarios to ensure natural responses
+4. **Iterate**: Refine based on user feedback
+
+## Example Configuration
+
+Here's a complete personality configuration:
+
+```javascript
+const personality = {
+  name: "Alex",
+  role: "Technical Support Specialist",
+  traits: ["helpful", "patient", "knowledgeable"],
+  tone: "friendly but professional",
+  greeting: "Hi there! I'm Alex, here to help with any technical questions.",
+};
+```
+
+Start experimenting with these settings to create the perfect agent for your needs!

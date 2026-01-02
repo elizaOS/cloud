@@ -116,12 +116,12 @@ function transformAISdkToOpenAI(aiSdkRequest: AISdkRequest): OpenAIChatRequest {
   } = aiSdkRequest;
 
   // Transform messages: fix content types for multimodal
-  const transformedMessages = input.map((msg) => {
-    // If content is an array (multimodal), transform types
+  const transformedMessages = input.map((msg, msgIndex) => {
+    // If content is an array (multimodal), transform types and filter empty text blocks
     if (Array.isArray(msg.content)) {
-      return {
-        ...msg,
-        content: msg.content.map((part) => {
+      const originalLength = msg.content.length;
+      const transformedContent = msg.content
+        .map((part) => {
           // AI SDK uses "input_text" but OpenAI expects "text"
           if (typeof part === "object" && "type" in part) {
             if (part.type === "input_text") {
@@ -140,8 +140,63 @@ function transformAISdkToOpenAI(aiSdkRequest: AISdkRequest): OpenAIChatRequest {
             }
           }
           return part;
-        }),
-      };
+        })
+        // Filter out empty text content blocks (Anthropic API requires non-empty text)
+        .filter((part) => {
+          if (typeof part === "object" && part !== null && "type" in part) {
+            const typedPart = part as { type: string; text?: string };
+            // Keep text blocks only if they have non-empty text
+            if (
+              typedPart.type === "text" ||
+              typedPart.type === "input_text"
+            ) {
+              const hasNonEmptyText =
+                typeof typedPart.text === "string" &&
+                typedPart.text.trim() !== "";
+              if (!hasNonEmptyText) {
+                logger.debug(
+                  "[Responses API] Filtering out empty text content block",
+                  {
+                    messageIndex: msgIndex,
+                    role: msg.role,
+                    textValue: typedPart.text,
+                  },
+                );
+              }
+              return hasNonEmptyText;
+            }
+          }
+          // Keep non-text parts (images, etc.)
+          return true;
+        });
+
+      // Log if we filtered out content
+      if (transformedContent.length < originalLength) {
+        logger.info(
+          "[Responses API] Filtered empty text blocks from content array",
+          {
+            messageIndex: msgIndex,
+            role: msg.role,
+            originalParts: originalLength,
+            remainingParts: transformedContent.length,
+          },
+        );
+      }
+
+      // If content array is now empty or has only empty parts, convert to empty string
+      // This will be caught by validation later
+      if (transformedContent.length === 0) {
+        logger.warn(
+          "[Responses API] Content array became empty after filtering",
+          {
+            messageIndex: msgIndex,
+            role: msg.role,
+          },
+        );
+        return { ...msg, content: "" };
+      }
+
+      return { ...msg, content: transformedContent };
     }
     return msg;
   });
@@ -442,6 +497,54 @@ async function handlePOST(req: NextRequest) {
             },
             { status: 400 },
           );
+        }
+
+        // Validate array content has non-empty text blocks (Anthropic API requirement)
+        if (Array.isArray(msg.content)) {
+          const hasValidTextContent = msg.content.some((part) => {
+            if (typeof part === "object" && part !== null && "type" in part) {
+              const typedPart = part as { type: string; text?: string };
+              if (typedPart.type === "text" || typedPart.type === "input_text") {
+                return (
+                  typeof typedPart.text === "string" &&
+                  typedPart.text.trim() !== ""
+                );
+              }
+              // Non-text parts (images) are valid
+              return true;
+            }
+            return false;
+          });
+
+          // If we have a content array but no valid content, and no tool calls, reject
+          if (
+            !hasValidTextContent &&
+            !hasToolCalls &&
+            !hasToolCallId &&
+            !hasFunctionCall
+          ) {
+            logger.warn(
+              "[Responses API] Content array has no valid text content",
+              {
+                messageIndex: i,
+                role: msg.role,
+                contentLength: msg.content.length,
+              },
+            );
+
+            return Response.json(
+              {
+                error: {
+                  message:
+                    "Message content array must contain at least one non-empty text block",
+                  type: "invalid_request_error",
+                  param: `messages.${i}.content`,
+                  code: "invalid_value",
+                },
+              },
+              { status: 400 },
+            );
+          }
         }
       }
     }
