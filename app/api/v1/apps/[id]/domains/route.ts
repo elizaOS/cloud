@@ -11,6 +11,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuthWithOrg } from "@/lib/auth";
 import { appsService } from "@/lib/services/apps";
 import { vercelDomainsService } from "@/lib/services/vercel-domains";
+import { aiAppBuilderService } from "@/lib/services/ai-app-builder";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
 
@@ -59,9 +60,22 @@ export async function GET(
 
   const domains = await vercelDomainsService.getDomainsForApp(appId);
 
+  let sandboxUrl: string | null = null;
+  if (domains.length === 0) {
+    const sessions = await aiAppBuilderService.listSessions(user.id, {
+      appId,
+      limit: 1,
+      includeInactive: true,
+    });
+    if (sessions.length > 0 && sessions[0].sandbox_url) {
+      sandboxUrl = sessions[0].sandbox_url;
+    }
+  }
+
   return NextResponse.json({
     success: true,
     domains,
+    sandboxUrl,
   });
 }
 
