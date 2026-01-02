@@ -502,16 +502,26 @@ async function installPackages(
 async function installDependencies(sandbox: SandboxInstance): Promise<string> {
   logger.info("Installing dependencies from package.json");
 
+  await sandbox.runCommand({
+    cmd: "sh",
+    args: ["-c", "rm -rf node_modules/.cache 2>/dev/null || true"],
+  });
+
+  await sandbox.runCommand({
+    cmd: "sh",
+    args: ["-c", "rm -rf .next 2>/dev/null || true"],
+  });
+
   let result = await sandbox.runCommand({
     cmd: "pnpm",
-    args: ["install"],
+    args: ["install", "--force"],
   });
 
   if (result.exitCode !== 0) {
     logger.info("pnpm install failed, trying npm install");
     result = await sandbox.runCommand({
       cmd: "npm",
-      args: ["install"],
+      args: ["install", "--force"],
     });
   }
 
@@ -1097,6 +1107,29 @@ REMEMBER:
     const sandbox = getActiveSandboxes().get(sandboxId);
     if (!sandbox) throw new Error(`Sandbox ${sandboxId} not found`);
     return await installDependencies(sandbox);
+  }
+
+  installDependenciesBackground(sandboxId: string): void {
+    const sandbox = getActiveSandboxes().get(sandboxId);
+    if (!sandbox) {
+      logger.warn("Cannot install dependencies - sandbox not found", { sandboxId });
+      return;
+    }
+
+    logger.info("Starting background dependency install", { sandboxId });
+
+    sandbox.runCommand({
+      cmd: "sh",
+      args: [
+        "-c",
+        "rm -rf .next node_modules/.cache 2>/dev/null; pnpm install --force 2>&1 | tee /tmp/install.log &",
+      ],
+      detached: true,
+    }).then(() => {
+      logger.info("Background install command dispatched", { sandboxId });
+    }).catch((err) => {
+      logger.warn("Background install dispatch failed", { sandboxId, error: err });
+    });
   }
 
   async extendTimeout(sandboxId: string, durationMs: number): Promise<void> {

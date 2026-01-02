@@ -486,16 +486,11 @@ export class AIAppBuilderService {
 
     options.onProgress?.({
       step: "installing",
-      message: "Installing dependencies...",
+      message: "Installing dependencies (background)...",
     });
 
-    const installResult = await sandboxService.installDependencies(
-      sandboxData.sandboxId,
-    );
-    logger.info("Dependencies installed after restore", {
-      sessionId,
-      result: installResult,
-    });
+    sandboxService.installDependenciesBackground(sandboxData.sandboxId);
+    logger.info("Dependencies install started in background", { sessionId });
 
     const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
     await dbWrite
