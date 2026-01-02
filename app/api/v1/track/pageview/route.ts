@@ -33,6 +33,25 @@ const CORS_HEADERS = {
   "Access-Control-Max-Age": "86400",
 };
 
+function detectSource(origin: string, referer: string, pageUrl: string): string {
+  const combined = `${origin} ${referer} ${pageUrl}`.toLowerCase();
+
+  if (
+    combined.includes("sandbox") ||
+    combined.includes("vercel.app") ||
+    combined.includes("vercel.dev") ||
+    combined.includes("localhost") ||
+    combined.includes("127.0.0.1") ||
+    combined.includes("eliza.gg") ||
+    combined.includes(".dev.") ||
+    combined.includes("-preview")
+  ) {
+    return "sandbox_preview";
+  }
+
+  return "embed";
+}
+
 export async function OPTIONS() {
   return new Response(null, { status: 204, headers: CORS_HEADERS });
 }
@@ -62,8 +81,8 @@ export async function POST(req: NextRequest) {
       req.headers.get("x-real-ip") ||
       "unknown";
     const userAgent = req.headers.get("user-agent") || "unknown";
-    const origin =
-      req.headers.get("origin") || req.headers.get("referer") || "";
+    const origin = req.headers.get("origin") || "";
+    const referer = req.headers.get("referer") || "";
 
     let appId = app_id;
 
@@ -92,26 +111,28 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const pageUrlValue = page_url || pathname || "/";
+    const source = detectSource(origin, referer, pageUrlValue);
+
     await appsService.trackPageView(appId, {
-      pageUrl: page_url || pathname || "/",
-      referrer,
+      pageUrl: pageUrlValue,
+      referrer: referrer || referer,
       ipAddress,
       userAgent,
-      source:
-        origin.includes("sandbox") || origin.includes("vercel.app")
-          ? "sandbox_preview"
-          : "embed",
+      source,
       metadata: {
         screen_width,
         screen_height,
         origin,
+        referer,
         pathname,
       },
     });
 
     logger.debug("[Track] Page view recorded", {
       appId,
-      pageUrl: page_url || pathname,
+      pageUrl: pageUrlValue,
+      source,
       responseTimeMs: Date.now() - startTime,
     });
 

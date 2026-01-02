@@ -125,22 +125,48 @@ export class AppsRepository {
 
   /**
    * Gets app analytics within a date range for a specific period type.
+   * Now aggregates directly from app_requests for real-time accuracy.
    */
   async getAnalytics(
     appId: string,
     periodType: string,
     startDate: Date,
     endDate: Date,
-  ): Promise<AppAnalytics[]> {
-    return await dbRead.query.appAnalytics.findMany({
-      where: and(
-        eq(appAnalytics.app_id, appId),
-        eq(appAnalytics.period_type, periodType),
-        gte(appAnalytics.period_start, startDate),
-        lte(appAnalytics.period_end, endDate),
-      ),
-      orderBy: [desc(appAnalytics.period_start)],
-    });
+  ): Promise<Array<{
+    period_start: Date;
+    total_requests: number;
+    unique_users: number;
+    new_users: number;
+    total_cost: string;
+  }>> {
+    const truncUnit = periodType === "hourly" ? "hour" : periodType === "monthly" ? "month" : "day";
+
+    const results = await dbRead.execute<{
+      period_start: string;
+      total_requests: string;
+      unique_users: string;
+      total_cost: string;
+    }>(sql`
+      SELECT
+        date_trunc(${sql.raw(`'${truncUnit}'`)}, ${appRequests.created_at}) as period_start,
+        COUNT(*)::text as total_requests,
+        COUNT(DISTINCT ${appRequests.ip_address})::text as unique_users,
+        COALESCE(SUM(${appRequests.credits_used}), 0)::text as total_cost
+      FROM ${appRequests}
+      WHERE ${appRequests.app_id} = ${appId}
+        AND ${appRequests.created_at} >= ${startDate}
+        AND ${appRequests.created_at} <= ${endDate}
+      GROUP BY 1
+      ORDER BY period_start ASC
+    `);
+
+    return results.rows.map((r) => ({
+      period_start: new Date(r.period_start),
+      total_requests: parseInt(r.total_requests, 10),
+      unique_users: parseInt(r.unique_users, 10),
+      new_users: 0,
+      total_cost: r.total_cost,
+    }));
   }
 
   /**

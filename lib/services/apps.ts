@@ -7,7 +7,6 @@ import {
   type App,
   type NewApp,
   type AppUser,
-  type AppAnalytics,
 } from "@/db/repositories/apps";
 import { apiKeysService } from "./api-keys";
 import { logger } from "@/lib/utils/logger";
@@ -419,7 +418,7 @@ export class AppsService {
     periodType: "hourly" | "daily" | "monthly",
     startDate: Date,
     endDate: Date,
-  ): Promise<AppAnalytics[]> {
+  ) {
     return await appsRepository.getAnalytics(
       appId,
       periodType,
