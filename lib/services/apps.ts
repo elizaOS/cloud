@@ -210,6 +210,206 @@ export class AppsService {
     );
   }
 
+  /**
+   * Track app usage by API key ID.
+   * Looks up the app associated with the API key and increments its usage counters.
+   * This is a fire-and-forget operation - errors are logged but not thrown.
+   */
+  async trackUsageByApiKey(
+    apiKeyId: string,
+    creditsUsed: string = "0.00",
+    metadata?: { userId?: string; requestType?: string },
+  ): Promise<void> {
+    try {
+      const app = await this.getByApiKeyId(apiKeyId);
+      if (app) {
+        await this.incrementUsage(app.id, creditsUsed);
+        if (metadata?.userId) {
+          await this.trackUsage(app.id, metadata.userId, creditsUsed, metadata);
+        }
+        logger.debug("[Apps] Tracked usage for app via API key", {
+          appId: app.id,
+          apiKeyId: apiKeyId.substring(0, 8),
+          creditsUsed,
+        });
+      }
+    } catch (error) {
+      logger.warn("[Apps] Failed to track app usage by API key", {
+        apiKeyId: apiKeyId.substring(0, 8),
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
+
+  /**
+   * Track detailed app request with full metadata.
+   * Logs individual request for granular analytics.
+   */
+  async trackDetailedRequest(
+    apiKeyId: string,
+    requestData: {
+      requestType: string;
+      source?: string;
+      ipAddress?: string;
+      userAgent?: string;
+      userId?: string;
+      model?: string;
+      inputTokens?: number;
+      outputTokens?: number;
+      creditsUsed?: string;
+      responseTimeMs?: number;
+      status?: string;
+      errorMessage?: string;
+      metadata?: Record<string, unknown>;
+    },
+  ): Promise<void> {
+    try {
+      const app = await this.getByApiKeyId(apiKeyId);
+      if (!app) return;
+
+      await Promise.all([
+        this.incrementUsage(app.id, requestData.creditsUsed || "0.00"),
+        appsRepository.logRequest({
+          app_id: app.id,
+          request_type: requestData.requestType,
+          source: requestData.source || "api_key",
+          ip_address: requestData.ipAddress,
+          user_agent: requestData.userAgent,
+          user_id: requestData.userId,
+          model: requestData.model,
+          input_tokens: requestData.inputTokens || 0,
+          output_tokens: requestData.outputTokens || 0,
+          credits_used: requestData.creditsUsed || "0.00",
+          response_time_ms: requestData.responseTimeMs,
+          status: requestData.status || "success",
+          error_message: requestData.errorMessage,
+          metadata: requestData.metadata || {},
+        }),
+      ]);
+
+      if (requestData.userId) {
+        await this.trackUsage(
+          app.id,
+          requestData.userId,
+          requestData.creditsUsed || "0.00",
+          { requestType: requestData.requestType },
+        );
+      }
+
+      logger.debug("[Apps] Logged detailed request", {
+        appId: app.id,
+        requestType: requestData.requestType,
+        source: requestData.source,
+      });
+    } catch (error) {
+      logger.warn("[Apps] Failed to log detailed request", {
+        apiKeyId: apiKeyId.substring(0, 8),
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
+
+  /**
+   * Track a page view for an app.
+   * Used by sandbox apps to track visitor page loads.
+   */
+  async trackPageView(
+    appId: string,
+    data: {
+      pageUrl: string;
+      referrer?: string;
+      ipAddress?: string;
+      userAgent?: string;
+      source?: string;
+      metadata?: Record<string, unknown>;
+    },
+  ): Promise<void> {
+    try {
+      await Promise.all([
+        appsRepository.logRequest({
+          app_id: appId,
+          request_type: "pageview",
+          source: data.source || "sandbox_preview",
+          ip_address: data.ipAddress,
+          user_agent: data.userAgent,
+          input_tokens: 0,
+          output_tokens: 0,
+          credits_used: "0.00",
+          status: "success",
+          metadata: {
+            page_url: data.pageUrl,
+            referrer: data.referrer,
+            ...data.metadata,
+          },
+        }),
+        this.incrementUsage(appId, "0.00"),
+      ]);
+
+      logger.debug("[Apps] Tracked page view", {
+        appId,
+        pageUrl: data.pageUrl,
+        source: data.source,
+      });
+    } catch (error) {
+      logger.warn("[Apps] Failed to track page view", {
+        appId,
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
+
+  /**
+   * Get detailed request statistics for an app.
+   */
+  async getRequestStats(
+    appId: string,
+    startDate?: Date,
+    endDate?: Date,
+  ) {
+    return appsRepository.getRequestStats(appId, startDate, endDate);
+  }
+
+  /**
+   * Get recent requests with pagination.
+   */
+  async getRecentRequests(
+    appId: string,
+    options?: {
+      limit?: number;
+      offset?: number;
+      requestType?: string;
+      source?: string;
+      startDate?: Date;
+      endDate?: Date;
+    },
+  ) {
+    return appsRepository.getRecentRequests(appId, options);
+  }
+
+  /**
+   * Get top visitors/IPs for an app.
+   */
+  async getTopVisitors(
+    appId: string,
+    limit?: number,
+    startDate?: Date,
+    endDate?: Date,
+  ) {
+    return appsRepository.getTopVisitors(appId, limit, startDate, endDate);
+  }
+
+  /**
+   * Get request counts over time for charts.
+   */
+  async getRequestsOverTime(
+    appId: string,
+    periodType: "hourly" | "daily" | "monthly",
+    startDate: Date,
+    endDate: Date,
+  ) {
+    return appsRepository.getRequestsOverTime(appId, periodType, startDate, endDate);
+  }
+
   async getAppUsers(appId: string, limit?: number): Promise<AppUser[]> {
     return await appsRepository.listAppUsers(appId, limit);
   }

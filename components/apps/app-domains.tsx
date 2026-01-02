@@ -90,6 +90,7 @@ interface AppDomainsProps {
 
 export function AppDomains({ appId }: AppDomainsProps) {
   const [domains, setDomains] = useState<DomainInfo[]>([]);
+  const [sandboxUrl, setSandboxUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isAdding, setIsAdding] = useState(false);
   const [isRemoving, setIsRemoving] = useState(false);
@@ -107,6 +108,7 @@ export function AppDomains({ appId }: AppDomainsProps) {
     const data = await response.json();
     if (data.success) {
       setDomains(data.domains);
+      setSandboxUrl(data.sandboxUrl || null);
     }
     setIsLoading(false);
   }, [appId]);
@@ -294,6 +296,36 @@ export function AppDomains({ appId }: AppDomainsProps) {
                 <div className="h-20 bg-white/5 rounded-xl animate-pulse" />
                 <div className="h-20 bg-white/5 rounded-xl animate-pulse opacity-50" />
               </div>
+            ) : !primaryDomain && sandboxUrl ? (
+              /* Sandbox URL Available - App in Development */
+              <div className="space-y-3">
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                >
+                  <DomainCard
+                    domain={new URL(sandboxUrl).hostname}
+                    url={sandboxUrl}
+                    type="subdomain"
+                    status="verified"
+                    copyToClipboard={copyToClipboard}
+                    copiedValue={copiedValue}
+                  />
+                </motion.div>
+                <div className="p-4 rounded-xl border border-blue-500/20 bg-blue-500/5">
+                  <div className="flex items-start gap-3">
+                    <Info className="h-5 w-5 text-blue-400 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm text-blue-300 font-medium">
+                        Development URL
+                      </p>
+                      <p className="text-xs text-blue-300/70 mt-1">
+                        This is your sandbox development URL. Deploy your app to get a permanent subdomain and add custom domains.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
             ) : !primaryDomain ? (
               /* No App Deployed State */
               <div className="p-8 rounded-xl border border-amber-500/20 bg-amber-500/5">
@@ -305,11 +337,11 @@ export function AppDomains({ appId }: AppDomainsProps) {
                     No App Deployed
                   </h3>
                   <p className="text-sm text-white/50 max-w-md mb-4">
-                    Deploy your app as a app first to get a subdomain. Once
-                    deployed, you can add custom domains here.
+                    Deploy your app first to get a subdomain. Once deployed, you
+                    can add custom domains here.
                   </p>
                   <p className="text-xs text-amber-400/80">
-                    Go to the Build tab to deploy your app
+                    Use the App Creator to build and deploy your app
                   </p>
                 </div>
               </div>

@@ -13,10 +13,51 @@ import { eq, and, desc } from "drizzle-orm";
 
 const ELIZA_SDK_FILE = `const apiKey = process.env.NEXT_PUBLIC_ELIZA_API_KEY || '';
 const apiBase = process.env.NEXT_PUBLIC_ELIZA_API_URL || 'https://eliza.gg';
+const appId = process.env.NEXT_PUBLIC_ELIZA_APP_ID || '';
 
 interface ChatMessage {
   role: string;
   content: string;
+}
+
+let pageViewTracked = false;
+
+export async function trackPageView(pathname?: string) {
+  if (typeof window === 'undefined') return;
+  if (pageViewTracked && !pathname) return;
+
+  try {
+    const payload = {
+      app_id: appId,
+      page_url: window.location.href,
+      pathname: pathname || window.location.pathname,
+      referrer: document.referrer,
+      screen_width: window.screen.width,
+      screen_height: window.screen.height,
+    };
+
+    await fetch(\`\${apiBase}/api/v1/track/pageview\`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(apiKey ? { 'X-Api-Key': apiKey } : {}),
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!pathname) pageViewTracked = true;
+  } catch (e) {
+    // Silent fail - don't break the app for analytics
+  }
+}
+
+// Auto-track on load if in browser
+if (typeof window !== 'undefined') {
+  if (document.readyState === 'complete') {
+    trackPageView();
+  } else {
+    window.addEventListener('load', () => trackPageView());
+  }
 }
 
 export async function chat(messages: ChatMessage[], model = 'gpt-4o') {
@@ -93,7 +134,8 @@ export async function chatWithAgent(agentId: string, message: string, roomId?: s
 `;
 
 const ELIZA_HOOK_FILE = `'use client';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 
 type ChatMessage = { role: string; content: string };
 
@@ -132,6 +174,22 @@ export function useChatStream() {
   }, []);
 
   return { stream, loading };
+}
+
+export function usePageTracking() {
+  const pathname = usePathname();
+
+  useEffect(() => {
+    const track = async () => {
+      try {
+        const { trackPageView } = await import('@/lib/eliza');
+        trackPageView(pathname);
+      } catch (e) {
+        // Silent fail
+      }
+    };
+    track();
+  }, [pathname]);
 }
 `;
 

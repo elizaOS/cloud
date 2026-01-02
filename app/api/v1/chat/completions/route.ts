@@ -5,6 +5,7 @@ import { creditsService } from "@/lib/services/credits";
 import { usageService } from "@/lib/services/usage";
 import { generationsService } from "@/lib/services/generations";
 import { contentModerationService } from "@/lib/services/content-moderation";
+import { appsService } from "@/lib/services/apps";
 import {
   calculateCost,
   getProviderFromModel,
@@ -83,6 +84,12 @@ async function handlePOST(req: NextRequest) {
     // 1. Authenticate
     const { user, apiKey, session_token } =
       await requireAuthOrApiKeyWithOrg(req);
+
+    // Extract client info for analytics
+    const ipAddress = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+      req.headers.get("x-real-ip") ||
+      "unknown";
+    const userAgent = req.headers.get("user-agent") || "unknown";
 
     // 2. Parse request (already in OpenAI format!)
     const request: OpenAIChatRequest = await req.json();
@@ -309,6 +316,8 @@ async function handlePOST(req: NextRequest) {
         request.messages,
         session_token,
         origin,
+        ipAddress,
+        userAgent,
       );
     } else {
       return withCors(
@@ -320,6 +329,9 @@ async function handlePOST(req: NextRequest) {
           provider,
           startTime,
           session_token,
+          origin,
+          ipAddress,
+          userAgent,
         ),
       );
     }
@@ -376,6 +388,9 @@ async function handleNonStreamingResponse(
   provider: string,
   startTime: number,
   session_token?: string,
+  origin?: string | null,
+  ipAddress?: string,
+  userAgent?: string,
 ) {
   // Parse response
   const data: OpenAIChatResponse = await providerResponse.json();
@@ -466,6 +481,20 @@ async function handleNonStreamingResponse(
               totalTokens: usage.total_tokens,
             },
           });
+
+          await appsService.trackDetailedRequest(apiKey.id, {
+            requestType: "chat",
+            source: origin?.includes("sandbox") ? "sandbox_preview" : "api_key",
+            ipAddress: ipAddress,
+            userAgent: userAgent,
+            userId: user.id,
+            model,
+            inputTokens: usage.prompt_tokens,
+            outputTokens: usage.completion_tokens,
+            creditsUsed: String(totalCost),
+            responseTimeMs: Date.now() - startTime,
+            status: "success",
+          });
         }
 
         logger.info("[OpenAI Proxy] Chat completion completed", {
@@ -496,6 +525,8 @@ function handleStreamingResponse(
   messages: Array<{ role: string; content: string | object }>,
   session_token?: string,
   origin?: string | null,
+  ipAddress?: string,
+  userAgent?: string,
 ) {
   let totalTokens = 0;
   let inputTokens = 0;
@@ -679,6 +710,20 @@ function handleStreamingResponse(
               outputTokens,
               totalTokens,
             },
+          });
+
+          await appsService.trackDetailedRequest(apiKey.id, {
+            requestType: "chat",
+            source: origin?.includes("sandbox") ? "sandbox_preview" : "api_key",
+            ipAddress: ipAddress,
+            userAgent: userAgent,
+            userId: user.id,
+            model,
+            inputTokens,
+            outputTokens,
+            creditsUsed: String(totalCost),
+            responseTimeMs: Date.now() - startTime,
+            status: "success",
           });
         }
 

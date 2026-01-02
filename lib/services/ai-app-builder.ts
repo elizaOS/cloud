@@ -166,8 +166,8 @@ export class AIAppBuilderService {
       organizationId,
       projectId: appId,
       env: appApiKey
-        ? { NEXT_PUBLIC_ELIZA_API_KEY: appApiKey, NEXT_PUBLIC_ELIZA_API_URL: apiUrl }
-        : undefined,
+        ? { NEXT_PUBLIC_ELIZA_API_KEY: appApiKey, NEXT_PUBLIC_ELIZA_API_URL: apiUrl, NEXT_PUBLIC_ELIZA_APP_ID: appId }
+        : { NEXT_PUBLIC_ELIZA_APP_ID: appId },
       onProgress,
     });
 
@@ -454,6 +454,7 @@ export class AIAppBuilderService {
         ? {
             NEXT_PUBLIC_ELIZA_API_KEY: await this.getApiKeyForApp(session.app_id),
             NEXT_PUBLIC_ELIZA_API_URL: resumeApiUrl,
+            NEXT_PUBLIC_ELIZA_APP_ID: session.app_id,
           }
         : undefined,
       onProgress: options.onProgress,
