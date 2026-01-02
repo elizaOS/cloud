@@ -202,6 +202,7 @@ export default function AppCreatorPage() {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const initializationRef = useRef(false);
   const prevAppIdRef = useRef<string | null>(null);
+  const prevSessionIdRef = useRef<string | null>(null);
   const sessionActionsLogRef = useRef<
     {
       tool: string;
@@ -283,10 +284,14 @@ export default function AppCreatorPage() {
     : `app-builder-messages-new`;
 
   useEffect(() => {
-    // Reset initialization and state when appIdFromUrl changes
-    if (prevAppIdRef.current !== appIdFromUrl) {
-      const isAppChange = prevAppIdRef.current !== null;
+    // Reset initialization when appIdFromUrl or sessionIdFromUrl changes
+    const appChanged = prevAppIdRef.current !== appIdFromUrl;
+    const sessionChanged = prevSessionIdRef.current !== sessionIdFromUrl;
+
+    if (appChanged || sessionChanged) {
+      const isAppChange = prevAppIdRef.current !== null && appChanged;
       prevAppIdRef.current = appIdFromUrl;
+      prevSessionIdRef.current = sessionIdFromUrl;
       initializationRef.current = false;
 
       // Clear stale state when switching between apps
@@ -297,6 +302,12 @@ export default function AppCreatorPage() {
         setStatus("idle");
         setIsInitializing(!!appIdFromUrl || !!sessionIdFromUrl);
         setStep(appIdFromUrl ? "building" : "setup");
+      } else if (sessionChanged && sessionIdFromUrl) {
+        // Session changed within same app - reset session state but keep app data
+        setSession(null);
+        setMessages([]);
+        setStatus("idle");
+        setIsInitializing(true);
       }
     }
 

@@ -69,35 +69,35 @@ export class CreditsService {
   }
 
   async getTransactionByStripePaymentIntent(
-    paymentIntentId: string,
+    paymentIntentId: string
   ): Promise<CreditTransaction | undefined> {
     return await creditTransactionsRepository.findByStripePaymentIntent(
-      paymentIntentId,
+      paymentIntentId
     );
   }
 
   async listTransactionsByOrganization(
     organizationId: string,
-    limit?: number,
+    limit?: number
   ): Promise<CreditTransaction[]> {
     return await creditTransactionsRepository.listByOrganization(
       organizationId,
-      limit,
+      limit
     );
   }
 
   async listTransactionsByOrganizationAndType(
     organizationId: string,
-    type: string,
+    type: string
   ): Promise<CreditTransaction[]> {
     return await creditTransactionsRepository.listByOrganizationAndType(
       organizationId,
-      type,
+      type
     );
   }
 
   async createTransaction(
-    data: NewCreditTransaction,
+    data: NewCreditTransaction
   ): Promise<CreditTransaction> {
     return await creditTransactionsRepository.create(data);
   }
@@ -122,7 +122,7 @@ export class CreditsService {
 
       if (existingTransaction) {
         logger.info(
-          `[CreditsService] Idempotency: Payment intent ${stripePaymentIntentId} already processed (transaction ${existingTransaction.id})`,
+          `[CreditsService] Idempotency: Payment intent ${stripePaymentIntentId} already processed (transaction ${existingTransaction.id})`
         );
 
         // Get current balance to return consistent response
@@ -148,13 +148,13 @@ export class CreditsService {
           const existingInTx = await tx.query.creditTransactions.findFirst({
             where: eq(
               creditTransactions.stripe_payment_intent_id,
-              stripePaymentIntentId,
+              stripePaymentIntentId
             ),
           });
 
           if (existingInTx) {
             logger.info(
-              `[CreditsService] Race condition detected: Payment intent ${stripePaymentIntentId} was inserted by another thread`,
+              `[CreditsService] Race condition detected: Payment intent ${stripePaymentIntentId} was inserted by another thread`
             );
 
             // Get current balance
@@ -217,7 +217,7 @@ export class CreditsService {
         invalidateOrganizationCache(organizationId).catch((error) => {
           logger.error(
             "[CreditsService] Failed to invalidate org cache:",
-            error,
+            error
           );
         });
         return result;
@@ -346,7 +346,7 @@ export class CreditsService {
           invalidateOrganizationCache(organizationId).catch((error) => {
             logger.error(
               "[CreditsService] Failed to invalidate org cache:",
-              error,
+              error
             );
           });
           // Invalidate balance cache immediately after successful deduction
@@ -364,7 +364,7 @@ export class CreditsService {
               .catch((error) => {
                 logger.error(
                   "[CreditsService] Failed to track session usage:",
-                  error,
+                  error
                 );
               });
           }
@@ -372,11 +372,11 @@ export class CreditsService {
           // Check if auto top-up should be triggered
           this.checkAndTriggerAutoTopUp(
             organizationId,
-            result.newBalance,
+            result.newBalance
           ).catch((error) => {
             logger.error(
               "[CreditsService] Failed to check auto top-up:",
-              error,
+              error
             );
           });
 
@@ -385,9 +385,9 @@ export class CreditsService {
             (error) => {
               logger.error(
                 "[CreditsService] Failed to queue low credits email:",
-                error,
+                error
               );
-            },
+            }
           );
         }
         return result;
@@ -400,7 +400,7 @@ export class CreditsService {
    */
   private async checkAndTriggerAutoTopUp(
     organizationId: string,
-    newBalance: number,
+    newBalance: number
   ): Promise<void> {
     try {
       // Get organization details
@@ -422,7 +422,7 @@ export class CreditsService {
       }
 
       logger.info(
-        `[CreditsService] Auto top-up triggered: balance $${newBalance.toFixed(2)} < threshold $${threshold.toFixed(2)}`,
+        `[CreditsService] Auto top-up triggered: balance $${newBalance.toFixed(2)} < threshold $${threshold.toFixed(2)}`
       );
 
       // Import auto top-up service dynamically for lazy loading (only when needed)
@@ -432,25 +432,25 @@ export class CreditsService {
       autoTopUpService.executeAutoTopUp(org).catch((error) => {
         logger.error(
           `[CreditsService] Auto top-up execution failed for org ${organizationId}:`,
-          error,
+          error
         );
       });
     } catch (error) {
       logger.error(
         `[CreditsService] Error checking auto top-up for org ${organizationId}:`,
-        error,
+        error
       );
     }
   }
 
   private async queueLowCreditsEmail(
     organizationId: string,
-    currentBalance: number,
+    currentBalance: number
   ): Promise<void> {
     try {
       const threshold = parseInt(
         process.env.LOW_CREDITS_THRESHOLD || "1000",
-        10,
+        10
       );
 
       if (currentBalance <= 0 || currentBalance > threshold) {
@@ -489,8 +489,160 @@ export class CreditsService {
     } catch (error) {
       logger.error(
         `[CreditsService] Error queueing low credits email for org ${organizationId}:`,
-        error,
+        error
       );
+    }
+  }
+
+  /**
+   * Reserve credits before a streaming operation begins.
+   * This deducts the estimated cost upfront to prevent race conditions
+   * where credits could be spent elsewhere during streaming.
+   *
+   * After the operation completes, call settleReservation() to adjust
+   * based on actual usage.
+   */
+  async reserveCredits(params: DeductCreditsParams): Promise<{
+    success: boolean;
+    reservationId: string | null;
+    reservedAmount: number;
+    newBalance: number;
+    reason?: "insufficient_balance" | "org_not_found";
+  }> {
+    const result = await this.reserveAndDeductCredits(params);
+
+    return {
+      success: result.success,
+      reservationId: result.transaction?.id ?? null,
+      reservedAmount: result.success ? params.amount : 0,
+      newBalance: result.newBalance,
+      reason: result.reason as
+        | "insufficient_balance"
+        | "org_not_found"
+        | undefined,
+    };
+  }
+
+  /**
+   * Settle a credit reservation after streaming completes.
+   * If actual cost is less than reserved, refunds the difference.
+   * If actual cost is more than reserved, attempts to deduct the difference.
+   *
+   * @returns The final cost and any settlement adjustments made
+   */
+  async settleReservation(params: {
+    organizationId: string;
+    reservedAmount: number;
+    actualAmount: number;
+    description: string;
+    metadata?: Record<string, unknown>;
+    session_token?: string;
+    tokens_consumed?: number;
+  }): Promise<{
+    success: boolean;
+    finalCost: number;
+    adjustment: number;
+    adjustmentType: "refund" | "charge" | "none";
+    newBalance: number;
+  }> {
+    const {
+      organizationId,
+      reservedAmount,
+      actualAmount,
+      description,
+      metadata,
+      session_token,
+      tokens_consumed,
+    } = params;
+
+    const difference = reservedAmount - actualAmount;
+
+    if (Math.abs(difference) < 0.0001) {
+      // No adjustment needed
+      const org = await organizationsRepository.findById(organizationId);
+      return {
+        success: true,
+        finalCost: actualAmount,
+        adjustment: 0,
+        adjustmentType: "none",
+        newBalance: org ? Number(org.credit_balance) : 0,
+      };
+    }
+
+    if (difference > 0) {
+      // Reserved more than actual - refund the difference
+      const refundResult = await this.refundCredits({
+        organizationId,
+        amount: difference,
+        description: `${description} (settlement refund)`,
+        metadata: {
+          ...metadata,
+          settlement: true,
+          original_reserved: reservedAmount,
+        },
+      });
+
+      // Track session if provided
+      if (session_token) {
+        userSessionsService
+          .trackUsage({
+            session_token,
+            credits_used: actualAmount,
+            requests_made: 1,
+            tokens_consumed: tokens_consumed || 0,
+          })
+          .catch((error) => {
+            logger.error(
+              "[CreditsService] Failed to track session usage:",
+              error
+            );
+          });
+      }
+
+      return {
+        success: true,
+        finalCost: actualAmount,
+        adjustment: difference,
+        adjustmentType: "refund",
+        newBalance: refundResult.newBalance,
+      };
+    } else {
+      // Actual cost exceeded reservation - need to charge more
+      const additionalCharge = Math.abs(difference);
+      const chargeResult = await this.deductCredits({
+        organizationId,
+        amount: additionalCharge,
+        description: `${description} (additional charge)`,
+        metadata: {
+          ...metadata,
+          settlement: true,
+          original_reserved: reservedAmount,
+        },
+        session_token,
+        tokens_consumed,
+      });
+
+      if (!chargeResult.success) {
+        // Log critical alert - service was provided but couldn't collect full payment
+        logger.error(
+          "[CreditsService] ALERT: Failed to collect additional charge after streaming",
+          {
+            organizationId,
+            reservedAmount,
+            actualAmount,
+            additionalChargeNeeded: additionalCharge,
+            reason: "insufficient_balance",
+          }
+        );
+      }
+
+      return {
+        success: chargeResult.success,
+        finalCost: chargeResult.success ? actualAmount : reservedAmount,
+        adjustment: chargeResult.success ? additionalCharge : 0,
+        adjustmentType: "charge",
+        newBalance: chargeResult.newBalance,
+      };
     }
   }
 
@@ -553,7 +705,7 @@ export class CreditsService {
         invalidateOrganizationCache(organizationId).catch((error) => {
           logger.error(
             "[CreditsService] Failed to invalidate org cache:",
-            error,
+            error
           );
         });
         return result;
@@ -566,7 +718,7 @@ export class CreditsService {
   }
 
   async getCreditPackByStripePriceId(
-    stripePriceId: string,
+    stripePriceId: string
   ): Promise<CreditPack | undefined> {
     return await creditPacksRepository.findByStripePriceId(stripePriceId);
   }

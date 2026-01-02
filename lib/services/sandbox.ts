@@ -1200,6 +1200,19 @@ export class SandboxService {
       const pageContent = await readFileViaSh(sandbox, "src/app/page.tsx");
       const globalsCss = await readFileViaSh(sandbox, "src/app/globals.css");
 
+      // Detect Tailwind v3 syntax in globals.css that needs fixing
+      const hasTailwindV3Syntax = globalsCss && (
+        globalsCss.includes('@tailwind') ||
+        globalsCss.includes('tailwindcss/tailwind.css') ||
+        globalsCss.includes('tailwindcss/base') ||
+        globalsCss.includes('tailwindcss/components') ||
+        globalsCss.includes('tailwindcss/utilities')
+      );
+
+      const tailwindWarning = hasTailwindV3Syntax
+        ? `\n⚠️ CRITICAL: globals.css uses Tailwind v3 syntax which will cause build errors. Fix it IMMEDIATELY by replacing the content with:\n@import "tailwindcss";\n`
+        : '';
+
       const contextPrompt = `CURRENT FILES:
 
 === src/app/page.tsx ===
@@ -1207,13 +1220,13 @@ ${pageContent || "(file not found)"}
 
 === src/app/globals.css ===
 ${globalsCss || "(file not found)"}
-
+${tailwindWarning}
 ---
 USER REQUEST: ${prompt}
 
 REMEMBER:
 1. Use standard Tailwind classes only (no custom utilities)
-2. Keep globals.css minimal
+2. globals.css MUST use Tailwind v4 syntax: @import "tailwindcss"; (NOT @tailwind directives)
 3. Use check_build after changes to verify
 4. Fix any errors before finishing`;
 
@@ -1362,7 +1375,24 @@ REMEMBER:
         }
 
         if (response.stop_reason === "end_turn" || toolResults.length === 0) {
-          continueLoop = false;
+          // Before stopping, check if there are build errors that need fixing
+          const buildCheck = await checkBuild(sandbox);
+          if (buildCheck.includes("BUILD ERRORS") && iteration < MAX_ITERATIONS - 5) {
+            // Force another iteration to fix build errors
+            logger.info("Build errors detected, forcing AI to fix them", {
+              sandboxId,
+              iteration,
+              errors: buildCheck.substring(0, 200),
+            });
+            messages.push({ role: "assistant", content: response.content });
+            messages.push({
+              role: "user",
+              content: `BUILD ERRORS DETECTED - YOU MUST FIX THESE BEFORE FINISHING:\n\n${buildCheck}\n\nPlease fix the errors and verify with check_build.`,
+            });
+            // Continue the loop
+          } else {
+            continueLoop = false;
+          }
         }
       }
 
@@ -1370,7 +1400,7 @@ REMEMBER:
 
       const finalBuild = await checkBuild(sandbox);
       if (finalBuild.includes("BUILD ERRORS")) {
-        outputText += `\n\nNote: There may still be build errors. ${finalBuild}`;
+        outputText += `\n\nNote: There may still be build errors. ${finalBuild}\n\nPlease ask me to fix these errors.`;
       }
 
       logger.info("Claude complete", {

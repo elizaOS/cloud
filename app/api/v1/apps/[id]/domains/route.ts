@@ -15,6 +15,40 @@ import { aiAppBuilderService } from "@/lib/services/ai-app-builder";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
 
+/**
+ * Check if a domain contains potentially dangerous punycode/homograph patterns.
+ * This prevents attacks where domains like "аpple.com" (using Cyrillic 'а')
+ * are used to impersonate legitimate domains.
+ */
+function isPotentialHomographDomain(domain: string): boolean {
+  // Check if domain contains punycode (xn-- prefix)
+  if (domain.includes("xn--")) {
+    return true;
+  }
+
+  // Check for non-ASCII characters (could be homoglyphs)
+  // eslint-disable-next-line no-control-regex
+  if (/[^\x00-\x7F]/.test(domain)) {
+    return true;
+  }
+
+  // Check for suspicious mixed scripts that could be homograph attacks
+  // Common homograph characters: Cyrillic а(U+0430) looks like Latin a,
+  // Greek ο(U+03BF) looks like Latin o, etc.
+  const suspiciousPatterns = [
+    /[\u0430\u0435\u043E\u0440\u0441\u0443\u0445]/, // Common Cyrillic lookalikes
+    /[\u03B1\u03B5\u03BF\u03C1]/, // Common Greek lookalikes
+  ];
+
+  for (const pattern of suspiciousPatterns) {
+    if (pattern.test(domain)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 const AddDomainSchema = z.object({
   domain: z
     .string()
@@ -22,7 +56,11 @@ const AddDomainSchema = z.object({
     .max(253, "Domain must not exceed 253 characters")
     .regex(
       /^([a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/,
-      "Invalid domain format",
+      "Invalid domain format. Only ASCII characters are allowed.",
+    )
+    .refine(
+      (domain) => !isPotentialHomographDomain(domain),
+      "Domain contains suspicious characters that may be used for impersonation. Only standard ASCII domains are allowed.",
     )
     .transform((d) => d.toLowerCase().trim()),
 });

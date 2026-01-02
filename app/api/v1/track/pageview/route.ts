@@ -3,6 +3,29 @@ import { appsService } from "@/lib/services/apps";
 import { apiKeysService } from "@/lib/services/api-keys";
 import { logger } from "@/lib/utils/logger";
 
+/**
+ * CORS Configuration for Page View Tracking
+ *
+ * SECURITY NOTE: Wildcard CORS (*) is intentional for this endpoint.
+ *
+ * This endpoint is specifically designed for tracking page views from embedded
+ * apps that may run on any domain. The security model relies on:
+ *
+ * 1. API Key or App ID validation - requests must provide valid credentials
+ * 2. App ownership verification - data is only written to apps owned by the credential holder
+ * 3. Write-only operation - this endpoint only records analytics data, no sensitive reads
+ * 4. No credential exposure - API keys are validated but not returned in responses
+ *
+ * Using restrictive CORS here would break legitimate use cases where:
+ * - Apps are embedded in third-party websites
+ * - Preview deployments run on dynamic domains
+ * - Local development servers need to send tracking data
+ *
+ * The main risk (tracking data injection with stolen API keys) is mitigated by:
+ * - API key validation ensuring data goes to correct app
+ * - Rate limiting on the caller side (via API key tracking)
+ * - No destructive operations possible through this endpoint
+ */
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",

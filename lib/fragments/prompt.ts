@@ -113,6 +113,22 @@ export const FULL_APP_BASE_PROMPT = `You are an expert Next.js developer buildin
 - TypeScript, React 19
 - Tailwind CSS 4 (standard classes only: bg-gray-900, text-white, etc.)
 
+## CRITICAL: Tailwind CSS v4 Setup
+The globals.css MUST use Tailwind v4 syntax. DO NOT use v3 syntax.
+
+**CORRECT (Tailwind v4):**
+\`\`\`css
+@import "tailwindcss";
+\`\`\`
+
+**WRONG (Tailwind v3 - will cause build errors):**
+\`\`\`css
+@import "tailwindcss/tailwind.css";  /* WRONG */
+@tailwind base;  /* WRONG */
+@tailwind components;  /* WRONG */
+@tailwind utilities;  /* WRONG */
+\`\`\`
+
 ## Project Structure
 \`\`\`
 src/
@@ -143,6 +159,7 @@ src/
 - Create API key input fields or forms
 - Ask users to "enter your API key" or "set ELIZA_API_KEY"
 - Create settings/configuration pages for API credentials
+- Use Tailwind v3 syntax (@tailwind directives or @import "tailwindcss/tailwind.css")
 
 ## UI Rules
 - Dark theme: bg-gray-900/950, text-white

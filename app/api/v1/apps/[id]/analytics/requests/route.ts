@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { appsService } from "@/lib/services/apps";
 import { logger } from "@/lib/utils/logger";
+import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 
 /**
  * GET /api/v1/apps/[id]/analytics/requests
@@ -14,13 +15,16 @@ import { logger } from "@/lib/utils/logger";
  * - `end_date`: End date for filtering (ISO string)
  * - `request_type`: Filter by type (chat, image, etc.)
  * - `source`: Filter by source (api_key, sandbox_preview, embed)
- * - `limit`: Number of records (default: 50)
+ * - `limit`: Number of records (default: 50, max: 100)
  * - `offset`: Pagination offset (default: 0)
+ *
+ * Rate limited: 60 requests per minute per API key/IP
  */
-export async function GET(
+async function handleGET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+  context?: { params: Promise<{ id: string }> }
+): Promise<Response> {
+  const { params } = context ?? { params: Promise.resolve({ id: "" }) };
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { id } = await params;
@@ -31,14 +35,14 @@ export async function GET(
     if (!existingApp) {
       return NextResponse.json(
         { success: false, error: "App not found" },
-        { status: 404 },
+        { status: 404 }
       );
     }
 
     if (existingApp.organization_id !== user.organization_id) {
       return NextResponse.json(
         { success: false, error: "Access denied" },
-        { status: 403 },
+        { status: 403 }
       );
     }
 
@@ -51,8 +55,16 @@ export async function GET(
       : undefined;
     const requestType = searchParams.get("request_type") || undefined;
     const source = searchParams.get("source") || undefined;
-    const limit = parseInt(searchParams.get("limit") || "50", 10);
-    const offset = parseInt(searchParams.get("offset") || "0", 10);
+
+    // Pagination validation with bounds to prevent DoS via large queries
+    const MAX_LIMIT = 100;
+    const rawLimit = Number.parseInt(searchParams.get("limit") || "50", 10);
+    const rawOffset = Number.parseInt(searchParams.get("offset") || "0", 10);
+    const limit = Math.min(
+      Math.max(Number.isNaN(rawLimit) ? 50 : rawLimit, 1),
+      MAX_LIMIT
+    );
+    const offset = Math.max(Number.isNaN(rawOffset) ? 0 : rawOffset, 0);
 
     switch (view) {
       case "logs": {
@@ -77,7 +89,7 @@ export async function GET(
           id,
           limit,
           startDate,
-          endDate,
+          endDate
         );
         return NextResponse.json({
           success: true,
@@ -90,14 +102,15 @@ export async function GET(
           | "hourly"
           | "daily"
           | "monthly";
-        const timelineStart = startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+        const timelineStart =
+          startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
         const timelineEnd = endDate || new Date();
 
         const timeline = await appsService.getRequestsOverTime(
           id,
           periodType,
           timelineStart,
-          timelineEnd,
+          timelineEnd
         );
         return NextResponse.json({
           success: true,
@@ -129,7 +142,10 @@ export async function GET(
             ? error.message
             : "Failed to get request analytics",
       },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }
+
+// Export with rate limiting - 60 requests per minute
+export const GET = withRateLimit(handleGET, RateLimitPresets.STANDARD);
