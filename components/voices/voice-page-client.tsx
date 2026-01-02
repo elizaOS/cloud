@@ -47,16 +47,14 @@ export function VoicePageClient({
   };
 
   return (
-    <div className="flex flex-col w-full h-full">
-      <div className="w-full max-w-[1600px] mx-auto px-3 md:px-6 py-4 md:py-6 h-full">
-        <VoiceGeneratorAdvanced
-          voices={voices}
-          initialTtsHistory={initialTtsHistory}
-          creditBalance={creditBalance}
-          onCreditBalanceChange={setCreditBalance}
-          onVoiceCreated={handleVoiceCreated}
-        />
-      </div>
+    <div className="w-full flex flex-col pb-6 md:pb-8">
+      <VoiceGeneratorAdvanced
+        voices={voices}
+        initialTtsHistory={initialTtsHistory}
+        creditBalance={creditBalance}
+        onCreditBalanceChange={setCreditBalance}
+        onVoiceCreated={handleVoiceCreated}
+      />
     </div>
   );
 }
