@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { VideoPageClient } from "@/components/video/video-page-client";
 import type { GeneratedVideo, VideoModelOption } from "@/components/video/types";
 import { generatePageMetadata, ROUTE_METADATA } from "@/lib/seo";
+import { listUserMedia } from "@/app/actions/gallery";
 
 export const dynamic = "force-dynamic";
 
@@ -38,16 +39,34 @@ const modelPresets: VideoModelOption[] = [
   },
 ];
 
-// TODO: Fetch recent videos from database
-const recentVideos: GeneratedVideo[] = [];
-
 /**
  * Video Generation page for creating AI-generated videos.
  * Displays model presets and recent video history.
  *
  * @returns The rendered video generation page client component.
  */
-export default function VideoPage() {
+export default async function VideoPage() {
+  // Fetch recent videos from database
+  let recentVideos: GeneratedVideo[] = [];
+
+  try {
+    const videos = await listUserMedia({ type: "video", limit: 20 });
+    recentVideos = videos.map((video) => ({
+      id: video.id,
+      prompt: video.prompt,
+      modelId: video.model,
+      createdAt: video.createdAt.toISOString(),
+      status: video.status === "completed" ? "completed" : "processing",
+      videoUrl: video.url,
+      thumbnailUrl: video.thumbnailUrl,
+      resolution: video.dimensions?.width && video.dimensions?.height
+        ? `${video.dimensions.width} × ${video.dimensions.height}`
+        : undefined,
+    }));
+  } catch {
+    // Silently fail - will show empty history
+  }
+
   return (
     <VideoPageClient
       modelPresets={modelPresets}
