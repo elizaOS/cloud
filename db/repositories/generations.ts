@@ -119,6 +119,21 @@ export class GenerationsRepository {
   }
 
   /**
+   * Lists random completed videos from all users (for explore/discover).
+   */
+  async listRandomPublicVideos(limit: number = 20): Promise<Generation[]> {
+    return await dbRead.query.generations.findMany({
+      where: and(
+        eq(generations.status, "completed"),
+        eq(generations.type, "video"),
+        sql`${generations.storage_url} IS NOT NULL`,
+      ),
+      orderBy: sql`RANDOM()`,
+      limit,
+    });
+  }
+
+  /**
    * Gets generation statistics for an organization within an optional date range.
    */
   async getStats(

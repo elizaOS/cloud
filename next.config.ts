@@ -213,8 +213,8 @@ const nextConfig: NextConfig = {
               ].join(" "),
               "worker-src 'self' blob:",
               "manifest-src 'self'",
-              // Media - allow self, data URIs, blob URIs, and video placeholder domain
-              "media-src 'self' data: blob: https://video-placeholder.eliza.ai",
+              // Media - allow self, data URIs, blob URIs, Vercel Blob storage, and video placeholder domain
+              "media-src 'self' data: blob: https://*.public.blob.vercel-storage.com https://video-placeholder.eliza.ai",
             ]
               .join("; ")
               .replace(/\s+/g, " "),

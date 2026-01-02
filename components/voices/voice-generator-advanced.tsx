@@ -264,8 +264,14 @@ export function VoiceGeneratorAdvanced({
       return;
     }
 
-    const audioBlob = await response.blob();
-    const audioUrl = URL.createObjectURL(audioBlob);
+    const data = await response.json();
+    
+    // Convert base64 to blob for local playback
+    const audioBuffer = Uint8Array.from(atob(data.audio), c => c.charCodeAt(0));
+    const audioBlob = new Blob([audioBuffer], { type: "audio/mpeg" });
+    
+    // Use storage URL if available, otherwise create blob URL
+    const audioUrl = data.storageUrl || URL.createObjectURL(audioBlob);
 
     // Get audio duration
     const tempAudio = new Audio(audioUrl);
@@ -280,7 +286,7 @@ export function VoiceGeneratorAdvanced({
       blob: audioBlob,
       text: text.trim(),
       voiceId: selectedVoiceId,
-      voiceName: selectedVoice?.name || "Unknown",
+      voiceName: data.voiceName || selectedVoice?.name || "Unknown",
       timestamp: new Date(),
       duration: tempAudio.duration,
       settings: { ...settings },

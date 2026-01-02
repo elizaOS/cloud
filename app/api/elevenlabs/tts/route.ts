@@ -196,90 +196,91 @@ export async function POST(request: NextRequest) {
 
     logger.info(`[TTS API] Audio generated in ${totalDuration}ms, size: ${audioBuffer.length} bytes`);
 
-    // Save to blob storage and database (background, non-blocking)
-    (async () => {
-      try {
-        // Upload to blob storage
-        const blobResult = await uploadToBlob(audioBuffer, {
-          filename: `tts-${Date.now()}.mp3`,
-          contentType: "audio/mpeg",
-          folder: "tts",
-          userId: user.id,
-        });
+    // Upload to blob storage (blocking - we need the URL)
+    let storageUrl: string | null = null;
+    try {
+      const blobResult = await uploadToBlob(audioBuffer, {
+        filename: `tts-${Date.now()}.mp3`,
+        contentType: "audio/mpeg",
+        folder: "tts",
+        userId: user.id,
+      });
 
-        logger.info("[TTS API] Audio uploaded to blob storage", {
-          url: blobResult.url,
-          size: blobResult.size,
-        });
+      storageUrl = blobResult.url;
 
-        // Create generation record
-        await generationsRepository.create({
-          organization_id: user.organization_id!!,
-          user_id: user.id,
-          type: "tts",
-          model: modelId || "eleven_flash_v2_5",
-          provider: "elevenlabs",
-          prompt: text,
-          status: "completed",
-          storage_url: blobResult.url,
-          mime_type: "audio/mpeg",
-          file_size: BigInt(blobResult.size),
-          cost: String(TTS_GENERATION_COST),
-          credits: String(TTS_GENERATION_COST),
-          metadata: {
-            voiceId: voiceId || "default",
-            userVoiceId: userVoiceId,
-            voiceName: voiceName || "Default",
-            textLength: text.length,
-            characterCount: text.length,
-          },
-          settings: {
-            voiceId: voiceId || "EXAVITQu4vr4xnSDxMaL",
-          },
-          completed_at: new Date(),
-        });
+      logger.info("[TTS API] Audio uploaded to blob storage", {
+        url: blobResult.url,
+        size: blobResult.size,
+      });
 
-        logger.info("[TTS API] Generation record created successfully");
+      // Create generation record
+      await generationsRepository.create({
+        organization_id: user.organization_id!!,
+        user_id: user.id,
+        type: "tts",
+        model: modelId || "eleven_flash_v2_5",
+        provider: "elevenlabs",
+        prompt: text,
+        status: "completed",
+        storage_url: blobResult.url,
+        mime_type: "audio/mpeg",
+        file_size: BigInt(blobResult.size),
+        cost: String(TTS_GENERATION_COST),
+        credits: String(TTS_GENERATION_COST),
+        metadata: {
+          voiceId: voiceId || "default",
+          userVoiceId: userVoiceId,
+          voiceName: voiceName || "Default",
+          textLength: text.length,
+          characterCount: text.length,
+        },
+        settings: {
+          voiceId: voiceId || "EXAVITQu4vr4xnSDxMaL",
+        },
+        completed_at: new Date(),
+      });
 
-        // Create usage record
-        await usageService.create({
-          organization_id: user.organization_id!!,
-          user_id: user.id,
-          api_key_id: null,
-          type: "tts",
-          model: modelId || "eleven_flash_v2_5",
-          provider: "elevenlabs",
-          input_tokens: Math.ceil(text.length / 4),
-          output_tokens: 0,
-          input_cost: String(TTS_GENERATION_COST),
-          output_cost: String(0),
-          duration_ms: totalDuration,
-          is_successful: true,
-          metadata: {
-            voiceId: voiceId || "default",
-            userVoiceId: userVoiceId,
-            voiceName: voiceName,
-            textLength: text.length,
-            creditsDeducted: TTS_GENERATION_COST,
-          },
-        });
+      logger.info("[TTS API] Generation record created successfully");
 
-        logger.debug("[TTS API] Usage record created successfully");
-      } catch (error) {
-        logger.error("[TTS API] Failed to save generation", {
-          error: error instanceof Error ? error.message : String(error),
-          userVoiceId,
-        });
-      }
-    })();
+      // Create usage record (fire-and-forget)
+      usageService.create({
+        organization_id: user.organization_id!!,
+        user_id: user.id,
+        api_key_id: null,
+        type: "tts",
+        model: modelId || "eleven_flash_v2_5",
+        provider: "elevenlabs",
+        input_tokens: Math.ceil(text.length / 4),
+        output_tokens: 0,
+        input_cost: String(TTS_GENERATION_COST),
+        output_cost: String(0),
+        duration_ms: totalDuration,
+        is_successful: true,
+        metadata: {
+          voiceId: voiceId || "default",
+          userVoiceId: userVoiceId,
+          voiceName: voiceName,
+          textLength: text.length,
+          creditsDeducted: TTS_GENERATION_COST,
+        },
+      }).catch(err => logger.error("[TTS API] Failed to create usage record", err));
+    } catch (error) {
+      logger.error("[TTS API] Failed to save to blob storage", {
+        error: error instanceof Error ? error.message : String(error),
+        userVoiceId,
+      });
+      // Continue without storage URL - audio will still work but won't persist
+    }
 
-    // Return audio response
-    return new NextResponse(audioBuffer, {
-      headers: {
-        "Content-Type": "audio/mpeg",
-        "Content-Length": String(audioBuffer.length),
-        "Cache-Control": "no-cache",
-      },
+    // Return JSON response with storage URL and base64 audio
+    const audioBase64 = audioBuffer.toString("base64");
+    
+    return NextResponse.json({
+      audio: audioBase64,
+      storageUrl,
+      voiceId: voiceId || "EXAVITQu4vr4xnSDxMaL",
+      voiceName: voiceName || "Default",
+      textLength: text.length,
     });
   } catch (error) {
     logger.error("[TTS API] Error:", error);

@@ -169,8 +169,14 @@ export function VoiceTTSGenerator({ voices, creditBalance, onCreditBalanceChange
       return;
     }
 
-    const audioBlob = await response.blob();
-    const audioUrl = URL.createObjectURL(audioBlob);
+    const data = await response.json();
+    
+    // Convert base64 to blob
+    const audioBuffer = Uint8Array.from(atob(data.audio), c => c.charCodeAt(0));
+    const audioBlob = new Blob([audioBuffer], { type: "audio/mpeg" });
+    
+    // Use storage URL if available, otherwise create blob URL
+    const audioUrl = data.storageUrl || URL.createObjectURL(audioBlob);
 
     setGenerationState({
       isGenerating: false,
@@ -189,14 +195,39 @@ export function VoiceTTSGenerator({ voices, creditBalance, onCreditBalanceChange
 
   const togglePlayback = async () => {
     const audio = audioRef.current;
-    if (!audio || !generationState.audioUrl) return;
+    if (!audio) return;
+    
+    // If we have a blob but no valid URL, recreate it
+    if (generationState.audioBlob && !generationState.audioUrl) {
+      const newUrl = URL.createObjectURL(generationState.audioBlob);
+      setGenerationState(prev => ({ ...prev, audioUrl: newUrl }));
+      audio.src = newUrl;
+    }
+    
+    if (!generationState.audioUrl && !generationState.audioBlob) {
+      toast.error("Audio not available. Please generate again.");
+      return;
+    }
 
     if (playbackState.isPlaying) {
       audio.pause();
       setPlaybackState(prev => ({ ...prev, isPlaying: false }));
     } else {
-      await audio.play();
-      setPlaybackState(prev => ({ ...prev, isPlaying: true }));
+      try {
+        await audio.play();
+        setPlaybackState(prev => ({ ...prev, isPlaying: true }));
+      } catch (error) {
+        // Audio URL may have been revoked, try to recreate from blob
+        if (generationState.audioBlob) {
+          const newUrl = URL.createObjectURL(generationState.audioBlob);
+          setGenerationState(prev => ({ ...prev, audioUrl: newUrl }));
+          audio.src = newUrl;
+          await audio.play();
+          setPlaybackState(prev => ({ ...prev, isPlaying: true }));
+        } else {
+          toast.error("Audio session expired. Please generate again.");
+        }
+      }
     }
   };
 

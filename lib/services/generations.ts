@@ -95,6 +95,10 @@ export class GenerationsService {
     return await generationsRepository.listRandomPublicImages(limit);
   }
 
+  async listRandomPublicVideos(limit: number = 20): Promise<Generation[]> {
+    return await generationsRepository.listRandomPublicVideos(limit);
+  }
+
   async getStats(
     organizationId: string,
     startDate?: Date,

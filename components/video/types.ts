@@ -12,7 +12,7 @@ export interface GeneratedVideo {
   id: string;
   prompt: string;
   modelId: string;
-  thumbnailUrl: string;
+  thumbnailUrl?: string;
   videoUrl?: string;
   createdAt: string;
   status: VideoGenerationStatus;
