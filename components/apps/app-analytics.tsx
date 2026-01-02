@@ -126,6 +126,7 @@ export function AppAnalytics({ appId }: AppAnalyticsProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [period, setPeriod] = useState<"hourly" | "daily" | "monthly">("daily");
   const [activeTab, setActiveTab] = useState("overview");
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [analytics, setAnalytics] = useState<
     Array<{
       period_start: string;
@@ -150,9 +151,10 @@ export function AppAnalytics({ appId }: AppAnalyticsProps) {
   const [isLoadingStats, setIsLoadingStats] = useState(false);
 
   const LOGS_PER_PAGE = 20;
+  const AUTO_REFRESH_INTERVAL = 30000;
 
-  const fetchAnalytics = useCallback(async () => {
-    setIsLoading(true);
+  const fetchAnalytics = useCallback(async (showLoading = true) => {
+    if (showLoading) setIsLoading(true);
     try {
       const response = await fetch(
         `/api/v1/apps/${appId}/analytics?period=${period}`,
@@ -162,6 +164,7 @@ export function AppAnalytics({ appId }: AppAnalyticsProps) {
       if (data.success) {
         setAnalytics(data.analytics);
         setTotalStats(data.totalStats);
+        setLastUpdated(new Date());
       }
     } catch (error) {
       console.error("Failed to fetch analytics:", error);
@@ -220,14 +223,27 @@ export function AppAnalytics({ appId }: AppAnalyticsProps) {
   }, [fetchAnalytics]);
 
   useEffect(() => {
+    if (activeTab === "overview") {
+      const interval = setInterval(() => {
+        fetchAnalytics(false);
+      }, AUTO_REFRESH_INTERVAL);
+      return () => clearInterval(interval);
+    }
+  }, [activeTab, fetchAnalytics]);
+
+  useEffect(() => {
     if (activeTab === "requests" || activeTab === "visitors") {
       fetchRequestStats();
+      const interval = setInterval(fetchRequestStats, AUTO_REFRESH_INTERVAL);
+      return () => clearInterval(interval);
     }
   }, [activeTab, fetchRequestStats]);
 
   useEffect(() => {
     if (activeTab === "logs") {
       fetchRequestLogs(logsPage);
+      const interval = setInterval(() => fetchRequestLogs(logsPage), AUTO_REFRESH_INTERVAL);
+      return () => clearInterval(interval);
     }
   }, [activeTab, logsPage, fetchRequestLogs]);
 
@@ -282,19 +298,35 @@ export function AppAnalytics({ appId }: AppAnalyticsProps) {
           </TabsList>
 
           {activeTab === "overview" && (
-            <Select
-              value={period}
-              onValueChange={(v: "hourly" | "daily" | "monthly") => setPeriod(v)}
-            >
-              <SelectTrigger className="w-[180px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="hourly">Hourly</SelectItem>
-                <SelectItem value="daily">Daily</SelectItem>
-                <SelectItem value="monthly">Monthly</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="flex items-center gap-2">
+              <Select
+                value={period}
+                onValueChange={(v: "hourly" | "daily" | "monthly") => setPeriod(v)}
+              >
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="hourly">Hourly</SelectItem>
+                  <SelectItem value="daily">Daily</SelectItem>
+                  <SelectItem value="monthly">Monthly</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => fetchAnalytics()}
+                disabled={isLoading}
+                title="Refresh analytics"
+              >
+                <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
+              </Button>
+              {lastUpdated && (
+                <span className="text-xs text-white/40 hidden sm:inline">
+                  Updated {formatDistanceToNow(lastUpdated, { addSuffix: true })}
+                </span>
+              )}
+            </div>
           )}
         </div>
 
