@@ -12,7 +12,7 @@ import { ELIZA_SDK_REFERENCE } from "./eliza-sdk";
  */
 export async function buildFragmentPrompt(
   template: Templates,
-  includeApiContext = true,
+  includeApiContext = true
 ): Promise<string> {
   const basePrompt = `
     You are a skilled software engineer.
@@ -147,9 +147,10 @@ src/
 ## WORKFLOW
 1. \`install_packages\` for dependencies
 2. **SDK is pre-configured** - Just import from \`@/lib/eliza\` and \`@/hooks/use-eliza\`
-3. Create UI components
-4. Create pages
-5. \`check_build\` after each file -> fix errors -> repeat
+3. **IMPORTANT:** Add \`import '@/lib/eliza';\` to \`app/layout.tsx\` to enable analytics tracking
+4. Create UI components
+5. Create pages
+6. \`check_build\` after each file -> fix errors -> repeat
 
 **CRITICAL:** The API key is already configured via environment variables. DO NOT create API key input fields or prompts.
 
@@ -380,7 +381,7 @@ export function buildFullAppPrompt(config: {
  * Get example prompts for a template type
  */
 export function getExamplePrompts(
-  templateType: FullAppTemplateType = "blank",
+  templateType: FullAppTemplateType = "blank"
 ): string[] {
   return (
     FULL_APP_EXAMPLE_PROMPTS[templateType] || FULL_APP_EXAMPLE_PROMPTS.blank
