@@ -14,7 +14,8 @@ export async function GET(
     await aiAppBuilderService.verifySessionOwnership(sessionId, user.id);
 
     const url = new URL(request.url);
-    const tail = parseInt(url.searchParams.get("tail") || "50", 10);
+    const rawTail = parseInt(url.searchParams.get("tail") || "50", 10);
+    const tail = Math.min(Math.max(isNaN(rawTail) ? 50 : rawTail, 1), 1000);
 
     const logs = await aiAppBuilderService.getLogs(sessionId, user.id, tail);
 

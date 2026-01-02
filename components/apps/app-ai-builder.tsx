@@ -47,7 +47,13 @@ type SessionStatus =
   | "stopped"
   | "not_configured";
 
-type ProgressStep = "creating" | "installing" | "starting" | "ready" | "error";
+type ProgressStep =
+  | "creating"
+  | "installing"
+  | "starting"
+  | "restoring"
+  | "ready"
+  | "error";
 
 interface Message {
   role: "user" | "assistant";
@@ -84,7 +90,7 @@ export function AppAIBuilder({ app }: AppAIBuilderProps) {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [progressStep, setProgressStep] = useState<ProgressStep>("creating");
   const [previewTab, setPreviewTab] = useState<"preview" | "console">(
-    "preview",
+    "preview"
   );
   const [consoleLogs, setConsoleLogs] = useState<string[]>([]);
 
@@ -98,7 +104,7 @@ export function AppAIBuilder({ app }: AppAIBuilderProps) {
     const checkExistingSession = async () => {
       try {
         const response = await fetch(
-          `/api/v1/app-builder?appId=${app.id}&limit=1&includeInactive=false`,
+          `/api/v1/app-builder?appId=${app.id}&limit=1&includeInactive=false`
         );
 
         if (response.ok) {
@@ -108,7 +114,7 @@ export function AppAIBuilder({ app }: AppAIBuilderProps) {
 
             // Fetch full session details
             const sessionResponse = await fetch(
-              `/api/v1/app-builder/sessions/${existingSession.id}`,
+              `/api/v1/app-builder/sessions/${existingSession.id}`
             );
 
             if (sessionResponse.ok) {
@@ -124,7 +130,11 @@ export function AppAIBuilder({ app }: AppAIBuilderProps) {
                 };
 
                 setSession(restoredSession);
-                setStatus(sessionData.session.status === "active" ? "ready" : sessionData.session.status);
+                setStatus(
+                  sessionData.session.status === "active"
+                    ? "ready"
+                    : sessionData.session.status
+                );
 
                 // Restore messages from sessionStorage
                 const stored = sessionStorage.getItem(messagesStorageKey);
@@ -136,11 +146,13 @@ export function AppAIBuilder({ app }: AppAIBuilderProps) {
                   }
                 } else {
                   // Add welcome back message
-                  setMessages([{
-                    role: "assistant",
-                    content: `👋 **Welcome back!**\n\nYour sandbox for **${app.name}** is still running. Continue where you left off!`,
-                    timestamp: new Date().toISOString(),
-                  }]);
+                  setMessages([
+                    {
+                      role: "assistant",
+                      content: `👋 **Welcome back!**\n\nYour sandbox for **${app.name}** is still running. Continue where you left off!`,
+                      timestamp: new Date().toISOString(),
+                    },
+                  ]);
                 }
 
                 setIsInitializing(false);
@@ -220,7 +232,7 @@ export function AppAIBuilder({ app }: AppAIBuilderProps) {
 
       try {
         const res = await fetch(
-          `/api/v1/app-builder/sessions/${session.id}/logs?tail=100`,
+          `/api/v1/app-builder/sessions/${session.id}/logs?tail=100`
         );
 
         // Handle session ownership errors - clear session and stop polling
@@ -241,7 +253,7 @@ export function AppAIBuilder({ app }: AppAIBuilderProps) {
             setConsoleLogs((prev) => {
               const timestamp = new Date().toLocaleTimeString();
               const formatted = newLogs.map(
-                (log: string) => `[${timestamp}] ${log}`,
+                (log: string) => `[${timestamp}] ${log}`
               );
               return [...prev, ...formatted];
             });
@@ -347,7 +359,7 @@ Some ideas:
                 ]);
                 addLog(
                   `Sandbox ready at ${data.session.sandboxUrl}`,
-                  "success",
+                  "success"
                 );
                 toast.success("Sandbox started!", {
                   description: "Your development environment is ready.",
@@ -385,7 +397,7 @@ Some ideas:
 
       addLog(
         `Sending prompt: "${prompt.substring(0, 50)}${prompt.length > 50 ? "..." : ""}"`,
-        "info",
+        "info"
       );
 
       const userMessage: Message = {
@@ -416,7 +428,7 @@ Some ideas:
         setMessages((prev) => {
           const updated = [...prev];
           const thinkingIdx = updated.findIndex(
-            (m) => m._thinkingId === thinkingId,
+            (m) => m._thinkingId === thinkingId
           );
           if (thinkingIdx >= 0) {
             updated[thinkingIdx] = {
@@ -446,7 +458,7 @@ Some ideas:
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ prompt }),
-          },
+          }
         );
 
         if (!response.ok) {
@@ -492,7 +504,7 @@ Some ideas:
                   if (shortThinking) {
                     addLog(
                       `💭 ${shortThinking}${data.text?.length > 100 ? "..." : ""}`,
-                      "info",
+                      "info"
                     );
                   }
                 } else if (eventType === "tool_use") {
@@ -524,7 +536,7 @@ Some ideas:
 
                   addLog(
                     `🔧 ${toolName}: ${data.input?.path || data.input?.packages?.join(", ") || ""}`,
-                    "info",
+                    "info"
                   );
                 } else if (eventType === "complete") {
                   finalData = data;
@@ -574,7 +586,7 @@ Some ideas:
         if (finalData.filesAffected && finalData.filesAffected.length > 0) {
           addLog(
             `✅ Modified: ${finalData.filesAffected.join(", ")}`,
-            "success",
+            "success"
           );
         }
         addLog("Changes applied, refreshing preview...", "info");
@@ -612,7 +624,7 @@ Some ideas:
         setStatus("ready");
         addLog(
           `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
-          "error",
+          "error"
         );
         toast.error("Failed to process prompt", {
           description:
@@ -622,7 +634,7 @@ Some ideas:
         setIsLoading(false);
       }
     },
-    [session, isLoading, addLog],
+    [session, isLoading, addLog]
   );
   const stopSession = useCallback(async () => {
     if (!session) return;
@@ -724,7 +736,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                 onClick={() =>
                   window.open(
                     "https://vercel.com/docs/vercel-sandbox",
-                    "_blank",
+                    "_blank"
                   )
                 }
               >
@@ -815,6 +827,7 @@ ANTHROPIC_API_KEY=your_key_here`}
       { key: "creating", label: "Creating sandbox instance" },
       { key: "installing", label: "Installing dependencies" },
       { key: "starting", label: "Starting dev server" },
+      { key: "restoring", label: "Restoring previous files" },
     ];
 
     const currentStepIndex = steps.findIndex((s) => s.key === progressStep);

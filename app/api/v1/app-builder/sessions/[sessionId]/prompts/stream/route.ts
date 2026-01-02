@@ -1,9 +1,9 @@
-import { NextRequest } from "next/server";
+import type { NextRequest } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { aiAppBuilderService } from "@/lib/services/ai-app-builder";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
-import { checkRateLimit } from "@/lib/middleware/rate-limit";
+import { checkRateLimitAsync } from "@/lib/middleware/rate-limit";
 
 const PROMPT_RATE_LIMIT = {
   windowMs: 60000,
@@ -118,7 +118,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     await aiAppBuilderService.verifySessionOwnership(sessionId, user.id);
 
-    const rateLimitResult = checkRateLimit(request, PROMPT_RATE_LIMIT);
+    const rateLimitResult = await checkRateLimitAsync(
+      request,
+      PROMPT_RATE_LIMIT
+    );
     if (!rateLimitResult.allowed) {
       const maxRequests = PROMPT_RATE_LIMIT.maxRequests;
       const windowSeconds = PROMPT_RATE_LIMIT.windowMs / 1000;
@@ -201,6 +204,16 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : "Failed to send prompt";
+
+        // Reset session status to "ready" so user can try again
+        try {
+          await aiAppBuilderService.resetSessionStatus(sessionId, user.id);
+        } catch (resetError) {
+          logger.warn("Failed to reset session status after error", {
+            sessionId,
+            resetError,
+          });
+        }
 
         if (
           errorMessage.includes("aborted") ||

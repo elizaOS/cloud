@@ -7,7 +7,7 @@ import Link from "next/link";
 async function fetchWithRetry(
   url: string,
   options: RequestInit = {},
-  maxRetries = 1,
+  maxRetries = 1
 ): Promise<Response> {
   const fetchOptions: RequestInit = {
     ...options,
@@ -96,7 +96,13 @@ type SessionStatus =
   | "timeout"
   | "not_configured";
 
-type ProgressStep = "creating" | "installing" | "starting" | "ready" | "error";
+type ProgressStep =
+  | "creating"
+  | "installing"
+  | "starting"
+  | "restoring"
+  | "ready"
+  | "error";
 type SourceType = "agent" | "workflow" | "service" | "standalone";
 
 interface Message {
@@ -136,16 +142,19 @@ const TEMPLATE_OPTIONS = [
     value: "mcp-service",
     label: "MCP Service",
     description: "Model Context Protocol server",
+    comingSoon: true,
   },
   {
     value: "a2a-agent",
     label: "A2A Agent",
     description: "Agent-to-Agent protocol endpoint",
+    comingSoon: true,
   },
   {
     value: "agent-dashboard",
     label: "Agent Dashboard",
     description: "Manage AI agents",
+    comingSoon: true,
   },
   {
     value: "landing-page",
@@ -192,7 +201,15 @@ export default function AppCreatorPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const initializationRef = useRef(false);
-  const sessionActionsLogRef = useRef<{ tool: string; detail: string; timestamp: string; status: "active" | "done" }[]>([]);
+  const prevAppIdRef = useRef<string | null>(null);
+  const sessionActionsLogRef = useRef<
+    {
+      tool: string;
+      detail: string;
+      timestamp: string;
+      status: "active" | "done";
+    }[]
+  >([]);
   const initialThinkingIdRef = useRef<number | null>(null);
 
   const appIdFromUrl = searchParams.get("appId");
@@ -209,23 +226,25 @@ export default function AppCreatorPage() {
     return null;
   }, [searchParams]);
 
-  const [isInitializing, setIsInitializing] = useState(isEditMode || !!sessionIdFromUrl);
+  const [isInitializing, setIsInitializing] = useState(
+    isEditMode || !!sessionIdFromUrl
+  );
   const [step, setStep] = useState<"setup" | "building">(
-    isEditMode ? "building" : "setup",
+    isEditMode ? "building" : "setup"
   );
   const [appData, setAppData] = useState<AppData | null>(null);
   const [appName, setAppName] = useState(
-    sourceContext ? `${sourceContext.name} App` : "",
+    sourceContext ? `${sourceContext.name} App` : ""
   );
   const [appDescription, setAppDescription] = useState(
     sourceContext
       ? `An app built with ${sourceContext.name} ${sourceContext.type}`
-      : "",
+      : ""
   );
   const [templateType, setTemplateType] = useState<TemplateType>(
     sourceContext
       ? SOURCE_CONTEXT_INFO[sourceContext.type].templateSuggestion
-      : "blank",
+      : "blank"
   );
   const [includeMonetization, setIncludeMonetization] = useState(false);
   const [includeAnalytics, setIncludeAnalytics] = useState(true);
@@ -239,7 +258,9 @@ export default function AppCreatorPage() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [progressStep, setProgressStep] = useState<ProgressStep>("creating");
-  const [previewTab, setPreviewTab] = useState<"preview" | "console">("preview");
+  const [previewTab, setPreviewTab] = useState<"preview" | "console">(
+    "preview"
+  );
   const [consoleLogs, setConsoleLogs] = useState<string[]>([]);
   const [expiresAt, setExpiresAt] = useState<Date | null>(null);
   const [timeRemaining, setTimeRemaining] = useState<string>("");
@@ -262,6 +283,23 @@ export default function AppCreatorPage() {
     : `app-builder-messages-new`;
 
   useEffect(() => {
+    // Reset initialization and state when appIdFromUrl changes
+    if (prevAppIdRef.current !== appIdFromUrl) {
+      const isAppChange = prevAppIdRef.current !== null;
+      prevAppIdRef.current = appIdFromUrl;
+      initializationRef.current = false;
+
+      // Clear stale state when switching between apps
+      if (isAppChange) {
+        setSession(null);
+        setMessages([]);
+        setAppData(null);
+        setStatus("idle");
+        setIsInitializing(!!appIdFromUrl || !!sessionIdFromUrl);
+        setStep(appIdFromUrl ? "building" : "setup");
+      }
+    }
+
     if (initializationRef.current) return;
     initializationRef.current = true;
 
@@ -269,7 +307,7 @@ export default function AppCreatorPage() {
       if (sessionIdFromUrl) {
         try {
           const response = await fetchWithRetry(
-            `/api/v1/app-builder/sessions/${sessionIdFromUrl}`,
+            `/api/v1/app-builder/sessions/${sessionIdFromUrl}`
           );
 
           if (response.ok) {
@@ -298,7 +336,9 @@ export default function AppCreatorPage() {
               }
 
               if (appIdFromUrl) {
-                const appResponse = await fetchWithRetry(`/api/v1/apps/${appIdFromUrl}`);
+                const appResponse = await fetchWithRetry(
+                  `/api/v1/apps/${appIdFromUrl}`
+                );
                 if (appResponse.ok) {
                   const appData = await appResponse.json();
                   if (appData.success && appData.app) {
@@ -330,7 +370,9 @@ export default function AppCreatorPage() {
         } catch {
           const params = new URLSearchParams(searchParams.toString());
           params.delete("sessionId");
-          router.replace(`/dashboard/apps/create?${params.toString()}`, { scroll: false });
+          router.replace(`/dashboard/apps/create?${params.toString()}`, {
+            scroll: false,
+          });
           sessionStorage.removeItem(messagesStorageKey);
         }
       }
@@ -344,7 +386,9 @@ export default function AppCreatorPage() {
 
     const fetchAppDataAndSession = async () => {
       try {
-        const appResponse = await fetchWithRetry(`/api/v1/apps/${appIdFromUrl}`);
+        const appResponse = await fetchWithRetry(
+          `/api/v1/apps/${appIdFromUrl}`
+        );
         if (!appResponse.ok) {
           toast.error("App not found");
           router.push("/dashboard/apps");
@@ -360,7 +404,7 @@ export default function AppCreatorPage() {
         }
 
         const sessionResponse = await fetchWithRetry(
-          `/api/v1/app-builder?appId=${appIdFromUrl}&limit=1&includeInactive=false`,
+          `/api/v1/app-builder?appId=${appIdFromUrl}&limit=1&includeInactive=false`
         );
 
         if (sessionResponse.ok) {
@@ -369,7 +413,7 @@ export default function AppCreatorPage() {
             const existingSession = sessionData.sessions[0];
             router.replace(
               `/dashboard/apps/create?appId=${appIdFromUrl}&sessionId=${existingSession.id}`,
-              { scroll: false },
+              { scroll: false }
             );
             initializationRef.current = false;
             return;
@@ -384,7 +428,13 @@ export default function AppCreatorPage() {
     };
 
     initialize();
-  }, [appIdFromUrl, sessionIdFromUrl, router, searchParams, messagesStorageKey]);
+  }, [
+    appIdFromUrl,
+    sessionIdFromUrl,
+    router,
+    searchParams,
+    messagesStorageKey,
+  ]);
 
   useEffect(() => {
     if (messages.length > 0) {
@@ -484,7 +534,7 @@ export default function AppCreatorPage() {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ durationMs: 900000 }),
-        },
+        }
       );
 
       if (!response.ok) {
@@ -511,7 +561,7 @@ export default function AppCreatorPage() {
     if (!session) return;
     try {
       const response = await fetchWithRetry(
-        `/api/v1/app-builder/sessions/${session.id}/snapshots`,
+        `/api/v1/app-builder/sessions/${session.id}/snapshots`
       );
       if (response.ok) {
         const data = await response.json();
@@ -541,7 +591,7 @@ export default function AppCreatorPage() {
     try {
       const response = await fetchWithRetry(
         `/api/v1/app-builder/sessions/${session.id}/resume/stream`,
-        { method: "POST" },
+        { method: "POST" }
       );
 
       if (!response.ok) {
@@ -580,7 +630,10 @@ export default function AppCreatorPage() {
                   total: data.total,
                   filePath: data.filePath,
                 });
-                addLog(`Restoring: ${data.filePath} (${data.current}/${data.total})`, "info");
+                addLog(
+                  `Restoring: ${data.filePath} (${data.current}/${data.total})`,
+                  "info"
+                );
               } else if (eventType === "complete") {
                 setSession({
                   ...data.session,
@@ -600,7 +653,8 @@ export default function AppCreatorPage() {
                 setRestoreProgress(null);
                 addLog("Session restored successfully!", "success");
                 toast.success("Session restored!", {
-                  description: "Your work has been restored. You can continue building.",
+                  description:
+                    "Your work has been restored. You can continue building.",
                 });
               } else if (eventType === "error") {
                 throw new Error(data.error || "Restoration failed");
@@ -615,11 +669,16 @@ export default function AppCreatorPage() {
       }
     } catch (error) {
       setStatus("error");
-      setErrorMessage(error instanceof Error ? error.message : "Restoration failed");
+      setErrorMessage(
+        error instanceof Error ? error.message : "Restoration failed"
+      );
       toast.error("Failed to restore session", {
         description: error instanceof Error ? error.message : "Unknown error",
       });
-      addLog(`Restoration failed: ${error instanceof Error ? error.message : "Unknown error"}`, "error");
+      addLog(
+        `Restoration failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+        "error"
+      );
     } finally {
       setIsRestoring(false);
       setRestoreProgress(null);
@@ -646,7 +705,7 @@ export default function AppCreatorPage() {
 
       try {
         const res = await fetchWithRetry(
-          `/api/v1/app-builder/sessions/${session.id}/logs?tail=100`,
+          `/api/v1/app-builder/sessions/${session.id}/logs?tail=100`
         );
 
         if (res.status === 403 || res.status === 404) {
@@ -664,7 +723,7 @@ export default function AppCreatorPage() {
             setConsoleLogs((prev) => {
               const timestamp = new Date().toLocaleTimeString();
               const formatted = newLogs.map(
-                (log: string) => `[${timestamp}] ${log}`,
+                (log: string) => `[${timestamp}] ${log}`
               );
               return [...prev, ...formatted];
             });
@@ -693,7 +752,8 @@ export default function AppCreatorPage() {
     setErrorMessage(null);
     sessionActionsLogRef.current = [];
 
-    const shouldAutoScaffold = !isEditMode && (appDescription || templateType !== "blank");
+    const shouldAutoScaffold =
+      !isEditMode && (appDescription || templateType !== "blank");
     const initialPrompt = shouldAutoScaffold
       ? appDescription
         ? `Set up the initial app structure based on these requirements:\n\n**Template:** ${templateType}\n**Description:** ${appDescription}\n\nPlease scaffold the project with all necessary components, pages, and styling to match this description.`
@@ -774,14 +834,19 @@ export default function AppCreatorPage() {
                   setExpiresAt(new Date(data.session.expiresAt));
                 }
 
-                const displayName = isEditMode ? appData?.name || appName : appName;
+                const displayName = isEditMode
+                  ? appData?.name || appName
+                  : appName;
 
                 const newUrl = appIdFromUrl
                   ? `/dashboard/apps/create?appId=${appIdFromUrl}&sessionId=${data.session.id}`
                   : `/dashboard/apps/create?sessionId=${data.session.id}`;
                 router.replace(newUrl, { scroll: false });
 
-                addLog(`Sandbox ready at ${data.session.sandboxUrl}`, "success");
+                addLog(
+                  `Sandbox ready at ${data.session.sandboxUrl}`,
+                  "success"
+                );
 
                 if (data.hasInitialPrompt) {
                   const thinkingId = Date.now();
@@ -842,7 +907,8 @@ Some ideas:
                   toolDisplay = "Reading file";
                   detail = path;
                 } else if (toolName === "install_packages") {
-                  const packages = data.input?.packages?.join(", ") || "packages";
+                  const packages =
+                    data.input?.packages?.join(", ") || "packages";
                   toolDisplay = "Installing packages";
                   detail = packages;
                 } else if (toolName === "check_build") {
@@ -862,17 +928,33 @@ Some ideas:
                 }
 
                 if (sessionActionsLogRef.current.length > 0) {
-                  sessionActionsLogRef.current[sessionActionsLogRef.current.length - 1].status = "done";
+                  sessionActionsLogRef.current[
+                    sessionActionsLogRef.current.length - 1
+                  ].status = "done";
                 }
-                const timestamp = new Date().toLocaleTimeString("en-US", { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" });
-                sessionActionsLogRef.current.push({ tool: toolDisplay, detail, timestamp, status: "active" });
-                addLog(`${toolName}: ${data.input?.path || data.input?.packages?.join(", ") || ""}`, "info");
+                const timestamp = new Date().toLocaleTimeString("en-US", {
+                  hour12: false,
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  second: "2-digit",
+                });
+                sessionActionsLogRef.current.push({
+                  tool: toolDisplay,
+                  detail,
+                  timestamp,
+                  status: "active",
+                });
+                addLog(
+                  `${toolName}: ${data.input?.path || data.input?.packages?.join(", ") || ""}`,
+                  "info"
+                );
 
                 if (initialThinkingIdRef.current) {
                   const thinkingId = initialThinkingIdRef.current;
                   let progressContent = `**Setting up ${appName}**\n\n`;
                   sessionActionsLogRef.current.forEach((action) => {
-                    const statusMarker = action.status === "active" ? "[RUNNING]" : "[DONE]";
+                    const statusMarker =
+                      action.status === "active" ? "[RUNNING]" : "[DONE]";
                     progressContent += `\`${action.timestamp}\` ${statusMarker} **${action.tool}**\n`;
                     progressContent += `> \`${action.detail}\`\n\n`;
                   });
@@ -880,7 +962,8 @@ Some ideas:
 
                   setMessages((prev) =>
                     prev.map((m) =>
-                      (m as Message & { _thinkingId?: number })._thinkingId === thinkingId
+                      (m as Message & { _thinkingId?: number })._thinkingId ===
+                      thinkingId
                         ? { ...m, content: progressContent }
                         : m
                     )
@@ -890,7 +973,10 @@ Some ideas:
                 setSession(data.session);
                 setStatus("ready");
 
-                if (data.session.initialPromptResult && initialThinkingIdRef.current) {
+                if (
+                  data.session.initialPromptResult &&
+                  initialThinkingIdRef.current
+                ) {
                   const thinkingId = initialThinkingIdRef.current;
                   initialThinkingIdRef.current = null;
 
@@ -914,12 +1000,18 @@ Some ideas:
 
                   setMessages((prev) =>
                     prev.map((m) => {
-                      if ((m as Message & { _thinkingId?: number })._thinkingId === thinkingId) {
-                        const { _thinkingId: _, ...rest } = m as Message & { _thinkingId?: number };
+                      if (
+                        (m as Message & { _thinkingId?: number })
+                          ._thinkingId === thinkingId
+                      ) {
+                        const { _thinkingId: _, ...rest } = m as Message & {
+                          _thinkingId?: number;
+                        };
                         return {
                           ...rest,
                           content: assistantContent,
-                          filesAffected: data.session.initialPromptResult.filesAffected,
+                          filesAffected:
+                            data.session.initialPromptResult.filesAffected,
                         };
                       }
                       return m;
@@ -984,7 +1076,7 @@ Some ideas:
 
       addLog(
         `Sending prompt: "${text.substring(0, 50)}${text.length > 50 ? "..." : ""}"`,
-        "info",
+        "info"
       );
 
       const userMessage: Message = {
@@ -996,10 +1088,20 @@ Some ideas:
       setInput("");
 
       const thinkingId = Date.now();
-      const actionsLog: { tool: string; detail: string; timestamp: string; status: "active" | "done" }[] = [];
+      const actionsLog: {
+        tool: string;
+        detail: string;
+        timestamp: string;
+        status: "active" | "done";
+      }[] = [];
 
       const getTimeString = () => {
-        return new Date().toLocaleTimeString("en-US", { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" });
+        return new Date().toLocaleTimeString("en-US", {
+          hour12: false,
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+        });
       };
 
       const buildProgressContent = (currentStatus?: string) => {
@@ -1026,7 +1128,7 @@ Some ideas:
         setMessages((prev) => {
           const updated = [...prev];
           const thinkingIdx = updated.findIndex(
-            (m) => m._thinkingId === thinkingId,
+            (m) => m._thinkingId === thinkingId
           );
           if (thinkingIdx >= 0) {
             updated[thinkingIdx] = {
@@ -1055,7 +1157,7 @@ Some ideas:
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ prompt: text }),
-          },
+          }
         );
 
         if (!response.ok) {
@@ -1113,7 +1215,8 @@ Some ideas:
                     detail = path;
                     statusMsg = "Reading file...";
                   } else if (toolName === "install_packages") {
-                    const packages = data.input?.packages?.join(", ") || "packages";
+                    const packages =
+                      data.input?.packages?.join(", ") || "packages";
                     toolDisplay = "Installing packages";
                     detail = packages;
                     statusMsg = "Installing dependencies...";
@@ -1139,12 +1242,17 @@ Some ideas:
                   if (actionsLog.length > 0) {
                     actionsLog[actionsLog.length - 1].status = "done";
                   }
-                  actionsLog.push({ tool: toolDisplay, detail, timestamp: getTimeString(), status: "active" });
+                  actionsLog.push({
+                    tool: toolDisplay,
+                    detail,
+                    timestamp: getTimeString(),
+                    status: "active",
+                  });
                   updateThinking(statusMsg);
 
                   addLog(
                     `${toolName}: ${data.input?.path || data.input?.packages?.join(", ") || ""}`,
-                    "info",
+                    "info"
                   );
                 } else if (eventType === "complete") {
                   finalData = data;
@@ -1201,10 +1309,7 @@ Some ideas:
         });
 
         if (finalData.filesAffected && finalData.filesAffected.length > 0) {
-          addLog(
-            `Modified: ${finalData.filesAffected.join(", ")}`,
-            "success",
-          );
+          addLog(`Modified: ${finalData.filesAffected.join(", ")}`, "success");
         }
         addLog("Changes applied, refreshing preview...", "info");
 
@@ -1220,7 +1325,8 @@ Some ideas:
               const { _thinkingId: _, ...rest } = m;
 
               let content = `**Error:** ${error instanceof Error ? error.message : "Something went wrong"}\n\n`;
-              content += "The operation could not be completed. Please try again or modify your request.";
+              content +=
+                "The operation could not be completed. Please try again or modify your request.";
 
               if (actionsLog.length > 0) {
                 content += "\n\n---\n\n";
@@ -1243,7 +1349,7 @@ Some ideas:
         setStatus("ready");
         addLog(
           `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
-          "error",
+          "error"
         );
         toast.error("Failed to process prompt", {
           description:
@@ -1253,10 +1359,9 @@ Some ideas:
         setIsLoading(false);
       }
     },
-    [input, session, isLoading, addLog],
+    [input, session, isLoading, addLog]
   );
 
-  
   const stopSession = useCallback(async () => {
     if (!session) return;
 
@@ -1391,7 +1496,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                   onClick={() =>
                     window.open(
                       "https://vercel.com/docs/vercel-sandbox",
-                      "_blank",
+                      "_blank"
                     )
                   }
                 >
@@ -1519,7 +1624,9 @@ ANTHROPIC_API_KEY=your_key_here`}
                   onChange={(e) => setAppName(e.target.value)}
                   placeholder="My Awesome App"
                   className={`bg-black/40 border-white/20 text-white ${
-                    appName.length > 100 ? "border-red-400/50 focus:border-red-400" : ""
+                    appName.length > 100
+                      ? "border-red-400/50 focus:border-red-400"
+                      : ""
                   }`}
                   maxLength={100}
                 />
@@ -1542,9 +1649,20 @@ ANTHROPIC_API_KEY=your_key_here`}
                   </SelectTrigger>
                   <SelectContent>
                     {TEMPLATE_OPTIONS.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>
+                      <SelectItem
+                        key={opt.value}
+                        value={opt.value}
+                        disabled={opt.comingSoon}
+                      >
                         <div className="flex flex-col">
-                          <span>{opt.label}</span>
+                          <div className="flex items-center gap-2">
+                            <span>{opt.label}</span>
+                            {opt.comingSoon && (
+                              <span className="text-[10px] px-1.5 py-0.5 bg-yellow-500/20 text-yellow-400 rounded">
+                                Coming Soon
+                              </span>
+                            )}
+                          </div>
                           <span className="text-xs text-white/50">
                             {opt.description}
                           </span>
@@ -1576,7 +1694,9 @@ ANTHROPIC_API_KEY=your_key_here`}
                 onChange={(e) => setAppDescription(e.target.value)}
                 placeholder="Describe what your app should do..."
                 className={`bg-black/40 border-white/20 text-white min-h-[100px] ${
-                  appDescription.length > 500 ? "border-red-400/50 focus:border-red-400" : ""
+                  appDescription.length > 500
+                    ? "border-red-400/50 focus:border-red-400"
+                    : ""
                 }`}
               />
               {appDescription.length > 500 && (
@@ -1611,7 +1731,12 @@ ANTHROPIC_API_KEY=your_key_here`}
               <BrandButton
                 variant="primary"
                 onClick={startSession}
-                disabled={!appName.trim() || appName.length > 100 || isLoading || appDescription.length > 500}
+                disabled={
+                  !appName.trim() ||
+                  appName.length > 100 ||
+                  isLoading ||
+                  appDescription.length > 500
+                }
               >
                 {isLoading ? (
                   <>
@@ -1925,9 +2050,12 @@ ANTHROPIC_API_KEY=your_key_here`}
               <div className="w-16 h-16 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center mx-auto">
                 <Timer className="h-8 w-8 text-red-400" />
               </div>
-              <h2 className="text-xl font-semibold text-white">Session Expired</h2>
+              <h2 className="text-xl font-semibold text-white">
+                Session Expired
+              </h2>
               <p className="text-sm text-white/60">
-                Your sandbox session has timed out after 30 minutes of inactivity.
+                Your sandbox session has timed out after 30 minutes of
+                inactivity.
               </p>
 
               {snapshotInfo?.canRestore ? (
@@ -1937,7 +2065,8 @@ ANTHROPIC_API_KEY=your_key_here`}
                       Good news! Your work has been saved.
                     </p>
                     <p className="text-xs text-white/50 mt-1">
-                      {snapshotInfo.fileCount} files ({Math.round(snapshotInfo.totalSize / 1024)}KB) backed up
+                      {snapshotInfo.fileCount} files (
+                      {Math.round(snapshotInfo.totalSize / 1024)}KB) backed up
                     </p>
                   </div>
 
@@ -2011,198 +2140,214 @@ ANTHROPIC_API_KEY=your_key_here`}
             className="flex-1 overflow-y-auto p-4 space-y-4"
           >
             {messages.map((msg, i) => {
-              const isProcessing = !!(msg as Message & { _thinkingId?: number })._thinkingId;
-              const msgTime = new Date(msg.timestamp).toLocaleTimeString("en-US", {
-                hour12: false,
-                hour: "2-digit",
-                minute: "2-digit"
-              });
+              const isProcessing = !!(msg as Message & { _thinkingId?: number })
+                ._thinkingId;
+              const msgTime = new Date(msg.timestamp).toLocaleTimeString(
+                "en-US",
+                {
+                  hour12: false,
+                  hour: "2-digit",
+                  minute: "2-digit",
+                }
+              );
 
               return (
-              <div
-                key={i}
-                className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} w-full`}
-              >
                 <div
-                  className={`p-4 ${
-                    msg.role === "user"
-                      ? "max-w-[75%] bg-cyan-500/20 border border-cyan-500/30"
-                      : isProcessing
-                        ? "w-full bg-purple-500/10 border border-purple-500/30"
-                        : "w-full bg-white/5 border border-white/10"
-                  }`}
+                  key={i}
+                  className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} w-full`}
                 >
-                  <div className="flex items-center justify-between mb-2 pb-2 border-b border-white/10">
-                    <div className="flex items-center gap-2">
-                      {isProcessing && (
-                        <Loader2 className="h-3 w-3 animate-spin text-purple-400" />
-                      )}
-                      <span className={`text-xs font-medium ${
-                        msg.role === "user" ? "text-cyan-400" : isProcessing ? "text-purple-400" : "text-white/50"
-                      }`}>
-                        {msg.role === "user" ? "You" : isProcessing ? "Processing" : "Assistant"}
+                  <div
+                    className={`p-4 ${
+                      msg.role === "user"
+                        ? "max-w-[75%] bg-cyan-500/20 border border-cyan-500/30"
+                        : isProcessing
+                          ? "w-full bg-purple-500/10 border border-purple-500/30"
+                          : "w-full bg-white/5 border border-white/10"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-2 pb-2 border-b border-white/10">
+                      <div className="flex items-center gap-2">
+                        {isProcessing && (
+                          <Loader2 className="h-3 w-3 animate-spin text-purple-400" />
+                        )}
+                        <span
+                          className={`text-xs font-medium ${
+                            msg.role === "user"
+                              ? "text-cyan-400"
+                              : isProcessing
+                                ? "text-purple-400"
+                                : "text-white/50"
+                          }`}
+                        >
+                          {msg.role === "user"
+                            ? "You"
+                            : isProcessing
+                              ? "Processing"
+                              : "Assistant"}
+                        </span>
+                      </div>
+                      <span className="text-xs text-white/30 font-mono">
+                        {msgTime}
                       </span>
                     </div>
-                    <span className="text-xs text-white/30 font-mono">{msgTime}</span>
-                  </div>
-                  <ReactMarkdown
-                    remarkPlugins={[remarkGfm]}
-                    components={{
-                      h1: ({ children }) => (
-                        <h1 className="text-xl font-bold text-white mb-3 pb-2 border-b border-white/10">
-                          {children}
-                        </h1>
-                      ),
-                      h2: ({ children }) => (
-                        <h2 className="text-lg font-semibold text-white mt-4 mb-2 flex items-center gap-2">
-                          {children}
-                        </h2>
-                      ),
-                      h3: ({ children }) => (
-                        <h3 className="text-base font-medium text-cyan-300 mt-3 mb-1">
-                          {children}
-                        </h3>
-                      ),
-                      p: ({ children }) => (
-                        <p className="text-sm text-white/80 mb-2 leading-relaxed">
-                          {children}
-                        </p>
-                      ),
-                      ul: ({ children }) => (
-                        <ul className="space-y-1 mb-3 ml-1">{children}</ul>
-                      ),
-                      ol: ({ children }) => (
-                        <ol className="space-y-1 mb-3 ml-1 list-decimal list-inside">
-                          {children}
-                        </ol>
-                      ),
-                      li: ({ children }) => (
-                        <li className="text-sm text-white/70 flex items-start gap-2">
-                          <span className="text-cyan-400 mt-1.5">-</span>
-                          <span>{children}</span>
-                        </li>
-                      ),
-                      code: ({ className, children }) => {
-                        const isInline = !className;
-                        if (isInline) {
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        h1: ({ children }) => (
+                          <h1 className="text-xl font-bold text-white mb-3 pb-2 border-b border-white/10">
+                            {children}
+                          </h1>
+                        ),
+                        h2: ({ children }) => (
+                          <h2 className="text-lg font-semibold text-white mt-4 mb-2 flex items-center gap-2">
+                            {children}
+                          </h2>
+                        ),
+                        h3: ({ children }) => (
+                          <h3 className="text-base font-medium text-cyan-300 mt-3 mb-1">
+                            {children}
+                          </h3>
+                        ),
+                        p: ({ children }) => (
+                          <p className="text-sm text-white/80 mb-2 leading-relaxed">
+                            {children}
+                          </p>
+                        ),
+                        ul: ({ children }) => (
+                          <ul className="space-y-1 mb-3 ml-1">{children}</ul>
+                        ),
+                        ol: ({ children }) => (
+                          <ol className="space-y-1 mb-3 ml-1 list-decimal list-inside">
+                            {children}
+                          </ol>
+                        ),
+                        li: ({ children }) => (
+                          <li className="text-sm text-white/70 flex items-start gap-2">
+                            <span className="text-cyan-400 mt-1.5">-</span>
+                            <span>{children}</span>
+                          </li>
+                        ),
+                        code: ({ className, children }) => {
+                          const isInline = !className;
+                          if (isInline) {
+                            return (
+                              <code className="px-1.5 py-0.5 bg-white/10 border border-white/20 text-cyan-300 text-xs font-mono rounded">
+                                {children}
+                              </code>
+                            );
+                          }
                           return (
-                            <code className="px-1.5 py-0.5 bg-white/10 border border-white/20 text-cyan-300 text-xs font-mono rounded">
+                            <code className="block p-3 bg-black/40 border border-white/10 text-green-300 text-xs font-mono rounded overflow-x-auto my-2">
                               {children}
                             </code>
                           );
-                        }
-                        return (
-                          <code className="block p-3 bg-black/40 border border-white/10 text-green-300 text-xs font-mono rounded overflow-x-auto my-2">
+                        },
+                        pre: ({ children }) => (
+                          <pre className="bg-black/40 border border-white/10 rounded overflow-hidden my-3">
                             {children}
-                          </code>
-                        );
-                      },
-                      pre: ({ children }) => (
-                        <pre className="bg-black/40 border border-white/10 rounded overflow-hidden my-3">
-                          {children}
-                        </pre>
-                      ),
-                      strong: ({ children }) => (
-                        <strong className="font-semibold text-white">
-                          {children}
-                        </strong>
-                      ),
-                      em: ({ children }) => (
-                        <em className="text-white/60 italic">{children}</em>
-                      ),
-                      a: ({ href, children }) => (
-                        <a
-                          href={href}
-                          className="text-cyan-400 hover:text-cyan-300 underline"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          {children}
-                        </a>
-                      ),
-                      blockquote: ({ children }) => (
-                        <blockquote className="border-l-2 border-cyan-500/50 pl-3 my-2 text-white/60 italic">
-                          {children}
-                        </blockquote>
-                      ),
-                      hr: () => <hr className="border-white/10 my-4" />,
-                      table: ({ children }) => (
-                        <div className="overflow-x-auto my-3">
-                          <table className="w-full text-xs border-collapse">
+                          </pre>
+                        ),
+                        strong: ({ children }) => (
+                          <strong className="font-semibold text-white">
                             {children}
-                          </table>
+                          </strong>
+                        ),
+                        em: ({ children }) => (
+                          <em className="text-white/60 italic">{children}</em>
+                        ),
+                        a: ({ href, children }) => (
+                          <a
+                            href={href}
+                            className="text-cyan-400 hover:text-cyan-300 underline"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            {children}
+                          </a>
+                        ),
+                        blockquote: ({ children }) => (
+                          <blockquote className="border-l-2 border-cyan-500/50 pl-3 my-2 text-white/60 italic">
+                            {children}
+                          </blockquote>
+                        ),
+                        hr: () => <hr className="border-white/10 my-4" />,
+                        table: ({ children }) => (
+                          <div className="overflow-x-auto my-3">
+                            <table className="w-full text-xs border-collapse">
+                              {children}
+                            </table>
+                          </div>
+                        ),
+                        thead: ({ children }) => (
+                          <thead className="bg-white/5 border-b border-white/10">
+                            {children}
+                          </thead>
+                        ),
+                        tbody: ({ children }) => (
+                          <tbody className="divide-y divide-white/5">
+                            {children}
+                          </tbody>
+                        ),
+                        tr: ({ children }) => (
+                          <tr className="hover:bg-white/5 transition-colors">
+                            {children}
+                          </tr>
+                        ),
+                        th: ({ children }) => (
+                          <th className="px-3 py-2 text-left text-white/70 font-medium">
+                            {children}
+                          </th>
+                        ),
+                        td: ({ children }) => (
+                          <td className="px-3 py-2 text-white/60">
+                            {children}
+                          </td>
+                        ),
+                      }}
+                    >
+                      {msg.content}
+                    </ReactMarkdown>
+                    {i === 0 &&
+                      msg.role === "assistant" &&
+                      session?.examplePrompts &&
+                      session.examplePrompts.length > 0 && (
+                        <div className="mt-4 pt-4 border-t border-white/10">
+                          <p className="text-xs text-white/50 mb-2">
+                            Try one of these:
+                          </p>
+                          <div className="flex flex-wrap gap-2">
+                            {session.examplePrompts.map((prompt, idx) => (
+                              <button
+                                key={idx}
+                                onClick={() => sendPrompt(prompt)}
+                                disabled={status !== "ready"}
+                                className="px-3 py-1.5 text-xs bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-left"
+                              >
+                                {prompt}
+                              </button>
+                            ))}
+                          </div>
                         </div>
-                      ),
-                      thead: ({ children }) => (
-                        <thead className="bg-white/5 border-b border-white/10">
-                          {children}
-                        </thead>
-                      ),
-                      tbody: ({ children }) => (
-                        <tbody className="divide-y divide-white/5">
-                          {children}
-                        </tbody>
-                      ),
-                      tr: ({ children }) => (
-                        <tr className="hover:bg-white/5 transition-colors">
-                          {children}
-                        </tr>
-                      ),
-                      th: ({ children }) => (
-                        <th className="px-3 py-2 text-left text-white/70 font-medium">
-                          {children}
-                        </th>
-                      ),
-                      td: ({ children }) => (
-                        <td className="px-3 py-2 text-white/60">
-                          {children}
-                        </td>
-                      ),
-                    }}
-                  >
-                    {msg.content}
-                  </ReactMarkdown>
-                  {i === 0 &&
-                    msg.role === "assistant" &&
-                    session?.examplePrompts &&
-                    session.examplePrompts.length > 0 && (
-                      <div className="mt-4 pt-4 border-t border-white/10">
-                        <p className="text-xs text-white/50 mb-2">
-                          Try one of these:
+                      )}
+                    {msg.filesAffected && msg.filesAffected.length > 0 && (
+                      <div className="mt-3 pt-3 border-t border-white/10">
+                        <p className="text-xs text-white/50 mb-1">
+                          Files modified:
                         </p>
-                        <div className="flex flex-wrap gap-2">
-                          {session.examplePrompts.map((prompt, idx) => (
-                            <button
-                              key={idx}
-                              onClick={() => sendPrompt(prompt)}
-                              disabled={status !== "ready"}
-                              className="px-3 py-1.5 text-xs bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-left"
+                        <div className="flex flex-wrap gap-1">
+                          {msg.filesAffected.map((file) => (
+                            <span
+                              key={file}
+                              className="px-2 py-0.5 text-[10px] bg-white/5 border border-white/10 text-white/60 font-mono"
                             >
-                              {prompt}
-                            </button>
+                              {file}
+                            </span>
                           ))}
                         </div>
                       </div>
                     )}
-                  {msg.filesAffected && msg.filesAffected.length > 0 && (
-                    <div className="mt-3 pt-3 border-t border-white/10">
-                      <p className="text-xs text-white/50 mb-1">
-                        Files modified:
-                      </p>
-                      <div className="flex flex-wrap gap-1">
-                        {msg.filesAffected.map((file) => (
-                          <span
-                            key={file}
-                            className="px-2 py-0.5 text-[10px] bg-white/5 border border-white/10 text-white/60 font-mono"
-                          >
-                            {file}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                  </div>
                 </div>
-              </div>
               );
             })}
             <div ref={messagesEndRef} />
@@ -2231,7 +2376,9 @@ ANTHROPIC_API_KEY=your_key_here`}
           </div>
         </div>
 
-        <div className={`flex-1 flex flex-col overflow-hidden ${isFullscreen ? "w-full" : ""}`}>
+        <div
+          className={`flex-1 flex flex-col overflow-hidden ${isFullscreen ? "w-full" : ""}`}
+        >
           <div className="flex-shrink-0 flex items-center gap-2 px-3 py-2 border-b border-white/10 bg-black/20">
             <div className="flex bg-white/5 rounded-md p-0.5">
               <button

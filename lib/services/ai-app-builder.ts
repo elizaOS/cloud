@@ -10,11 +10,12 @@ import {
   appSandboxSessions,
   appBuilderPrompts,
   appTemplates,
+  sessionFileSnapshots,
   type AppSandboxSession,
   type NewAppSandboxSession,
   type NewAppBuilderPrompt,
 } from "@/db/schemas/app-sandboxes";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and, isNotNull, sql } from "drizzle-orm";
 import { appsService } from "./apps";
 
 const EXAMPLE_PROMPTS = {
@@ -74,7 +75,7 @@ export interface PromptResult {
 export class AIAppBuilderService {
   private async verifyOwnership(
     sessionId: string,
-    userId: string,
+    userId: string
   ): Promise<AppSandboxSession> {
     const session = await dbRead.query.appSandboxSessions.findFirst({
       where: eq(appSandboxSessions.id, sessionId),
@@ -85,6 +86,46 @@ export class AIAppBuilderService {
       throw new Error("Access denied: You don't own this session");
 
     return session;
+  }
+
+  /**
+   * Find the most recent session with file snapshots for an app.
+   * Used to restore files when creating a new session for an existing app.
+   */
+  private async findPreviousSessionWithSnapshots(
+    appId: string,
+    organizationId: string,
+    excludeSessionId?: string
+  ): Promise<string | null> {
+    const conditions = [
+      eq(appSandboxSessions.app_id, appId),
+      eq(appSandboxSessions.organization_id, organizationId),
+    ];
+
+    if (excludeSessionId) {
+      conditions.push(sql`${appSandboxSessions.id} != ${excludeSessionId}`);
+    }
+
+    const sessionsWithSnapshots = await dbRead
+      .select({
+        sessionId: appSandboxSessions.id,
+        snapshotCount: sql<number>`count(${sessionFileSnapshots.id})`.as(
+          "snapshot_count"
+        ),
+      })
+      .from(appSandboxSessions)
+      .leftJoin(
+        sessionFileSnapshots,
+        eq(sessionFileSnapshots.sandbox_session_id, appSandboxSessions.id)
+      )
+      .where(and(...conditions))
+      .groupBy(appSandboxSessions.id)
+      .having(sql`count(${sessionFileSnapshots.id}) > 0`)
+      .orderBy(desc(appSandboxSessions.created_at))
+      .limit(1);
+
+    if (sessionsWithSnapshots.length === 0) return null;
+    return sessionsWithSnapshots[0].sessionId;
   }
 
   async startSession(config: BuilderSessionConfig): Promise<BuilderSession> {
@@ -117,7 +158,8 @@ export class AIAppBuilderService {
     if (!appId && appName) {
       const { app, apiKey } = await appsService.create({
         name: appName,
-        description: appDescription || `AI-built app (template: ${templateType})`,
+        description:
+          appDescription || `AI-built app (template: ${templateType})`,
         organization_id: organizationId,
         created_by_user_id: userId,
         app_url: "https://placeholder.local",
@@ -141,33 +183,45 @@ export class AIAppBuilderService {
       if (!templateUrl) {
         logger.info(
           "Template not found in database, using prompt-based template guidance",
-          { templateType },
+          { templateType }
         );
       } else {
-        logger.info("Using template from database", { templateType, templateUrl });
+        logger.info("Using template from database", {
+          templateType,
+          templateUrl,
+        });
       }
     }
 
-    // Determine API URL for sandbox - localhost won't work from cloud sandboxes
-    let apiUrl = process.env.NEXT_PUBLIC_APP_URL || "https://eliza.gg";
-    if (apiUrl.includes("localhost") || apiUrl.includes("127.0.0.1")) {
-      // Sandboxes run on Vercel's cloud and cannot reach localhost
-      // Use production URL or ELIZA_API_URL env var for development testing
-      apiUrl = process.env.ELIZA_API_URL || "https://eliza.gg";
-      logger.warn(
-        "Sandbox cannot reach localhost - using production API URL for sandbox",
-        { originalUrl: process.env.NEXT_PUBLIC_APP_URL, fallbackUrl: apiUrl },
+    // Determine API URL for sandbox - ELIZA_API_URL required for local dev (use ngrok)
+    const isLocalDev =
+      process.env.NEXT_PUBLIC_APP_URL?.includes("localhost") ||
+      process.env.NEXT_PUBLIC_APP_URL?.includes("127.0.0.1");
+
+    const apiUrl = process.env.ELIZA_API_URL || process.env.NEXT_PUBLIC_APP_URL;
+
+    if (!apiUrl || (isLocalDev && !process.env.ELIZA_API_URL)) {
+      throw new Error(
+        "ELIZA_API_URL environment variable is required for local development. " +
+          "Run ngrok and set ELIZA_API_URL to your ngrok URL in .env.local"
       );
     }
+    const sandboxEnv: Record<string, string> = {};
+    if (appApiKey) {
+      sandboxEnv.NEXT_PUBLIC_ELIZA_API_KEY = appApiKey;
+      sandboxEnv.NEXT_PUBLIC_ELIZA_API_URL = apiUrl;
+    }
+    if (appId) {
+      sandboxEnv.NEXT_PUBLIC_ELIZA_APP_ID = appId;
+    }
+
     const sandboxData = await sandboxService.create({
       templateUrl,
       timeout: 30 * 60 * 1000,
       vcpus: 4,
       organizationId,
       projectId: appId,
-      env: appApiKey
-        ? { NEXT_PUBLIC_ELIZA_API_KEY: appApiKey, NEXT_PUBLIC_ELIZA_API_URL: apiUrl, NEXT_PUBLIC_ELIZA_APP_ID: appId }
-        : { NEXT_PUBLIC_ELIZA_APP_ID: appId },
+      env: Object.keys(sandboxEnv).length > 0 ? sandboxEnv : undefined,
       onProgress,
     });
 
@@ -204,6 +258,57 @@ export class AIAppBuilderService {
       } satisfies NewAppSandboxSession)
       .returning();
 
+    // Restore files from previous session if this is an existing app
+    let filesRestored = 0;
+    if (appId) {
+      const previousSessionId = await this.findPreviousSessionWithSnapshots(
+        appId,
+        organizationId,
+        session.id
+      );
+      if (previousSessionId) {
+        logger.info("Found previous session with snapshots, restoring files", {
+          appId,
+          previousSessionId,
+          newSessionId: session.id,
+        });
+
+        onProgress?.({
+          step: "restoring",
+          message: "Restoring previous files",
+        });
+
+        try {
+          const restoreResult = await sandboxService.restoreFiles(
+            sandboxData.sandboxId,
+            previousSessionId,
+            {
+              onProgress: (current, total, filePath) => {
+                onProgress?.({
+                  step: "restoring",
+                  message: `Restoring ${filePath} (${current}/${total})`,
+                });
+              },
+            }
+          );
+
+          filesRestored = restoreResult.filesRestored;
+          logger.info("Files restored from previous session", {
+            sessionId: session.id,
+            previousSessionId,
+            filesRestored,
+          });
+        } catch (restoreError) {
+          logger.warn("Failed to restore files from previous session", {
+            sessionId: session.id,
+            previousSessionId,
+            error: restoreError,
+          });
+          // Continue without restored files - sandbox is still usable
+        }
+      }
+    }
+
     await dbWrite.insert(appBuilderPrompts).values({
       sandbox_session_id: session.id,
       role: "system",
@@ -219,6 +324,7 @@ export class AIAppBuilderService {
       sessionId: session.id,
       sandboxId: sandboxData.sandboxId,
       sandboxUrl: sandboxData.sandboxUrl,
+      filesRestored,
     });
 
     const baseSession: BuilderSession = {
@@ -236,8 +342,10 @@ export class AIAppBuilderService {
     }
 
     let initialPromptResult: PromptResult | undefined;
+    let processedInitialPrompt: string | undefined;
 
     if (initialPrompt) {
+      processedInitialPrompt = initialPrompt;
       logger.info("Executing initial prompt as part of session creation", {
         sessionId: session.id,
         promptLength: initialPrompt.length,
@@ -247,7 +355,7 @@ export class AIAppBuilderService {
         session.id,
         initialPrompt,
         userId,
-        { onToolUse, onThinking, abortSignal },
+        { onToolUse, onThinking, abortSignal }
       );
 
       logger.info("Initial prompt completed", {
@@ -258,10 +366,18 @@ export class AIAppBuilderService {
     }
 
     const finalMessages: BuilderSession["messages"] = [];
-    if (initialPromptResult) {
+    if (initialPromptResult && processedInitialPrompt) {
       finalMessages.push(
-        { role: "user", content: initialPrompt!, timestamp: new Date().toISOString() },
-        { role: "assistant", content: initialPromptResult.output, timestamp: new Date().toISOString() },
+        {
+          role: "user",
+          content: processedInitialPrompt,
+          timestamp: new Date().toISOString(),
+        },
+        {
+          role: "assistant",
+          content: initialPromptResult.output,
+          timestamp: new Date().toISOString(),
+        }
       );
     }
 
@@ -285,7 +401,7 @@ export class AIAppBuilderService {
       onToolUse?: (tool: string, input: unknown, result: string) => void;
       onThinking?: (text: string) => void;
       abortSignal?: AbortSignal;
-    } = {},
+    } = {}
   ): Promise<PromptResult> {
     logger.info("Sending prompt to AI App Builder", {
       sessionId,
@@ -297,7 +413,7 @@ export class AIAppBuilderService {
     if (!session.sandbox_id) throw new Error("Sandbox not available");
     if (session.status !== "ready")
       throw new Error(
-        `Session is not ready. Current status: ${session.status}`,
+        `Session is not ready. Current status: ${session.status}`
       );
 
     await dbWrite
@@ -318,7 +434,7 @@ export class AIAppBuilderService {
     const systemPromptRecord = await dbRead.query.appBuilderPrompts.findFirst({
       where: and(
         eq(appBuilderPrompts.sandbox_session_id, sessionId),
-        eq(appBuilderPrompts.role, "system"),
+        eq(appBuilderPrompts.role, "system")
       ),
     });
 
@@ -331,7 +447,7 @@ export class AIAppBuilderService {
         onToolUse: options.onToolUse,
         onThinking: options.onThinking,
         abortSignal: options.abortSignal,
-      },
+      }
     );
     const durationMs = Date.now() - startTime;
 
@@ -363,7 +479,7 @@ export class AIAppBuilderService {
         role: "assistant",
         content: result.output,
         timestamp: new Date().toISOString(),
-      },
+      }
     );
 
     await dbWrite
@@ -416,16 +532,25 @@ export class AIAppBuilderService {
     userId: string,
     options: {
       onProgress?: (progress: SandboxProgress) => void;
-      onRestoreProgress?: (current: number, total: number, filePath: string) => void;
-    } = {},
+      onRestoreProgress?: (
+        current: number,
+        total: number,
+        filePath: string
+      ) => void;
+    } = {}
   ): Promise<BuilderSession> {
-    logger.info("Resuming session with file restoration", { sessionId, userId });
+    logger.info("Resuming session with file restoration", {
+      sessionId,
+      userId,
+    });
 
     const session = await this.verifyOwnership(sessionId, userId);
 
     const hasSnapshots = await sandboxService.hasSnapshots(sessionId);
     if (!hasSnapshots) {
-      throw new Error("No saved files found to restore. Cannot resume session.");
+      throw new Error(
+        "No saved files found to restore. Cannot resume session."
+      );
     }
 
     const snapshotStats = await sandboxService.getSnapshotStats(sessionId);
@@ -440,19 +565,33 @@ export class AIAppBuilderService {
       })
       .where(eq(appSandboxSessions.id, sessionId));
 
-    options.onProgress?.({ step: "creating", message: "Creating new sandbox..." });
+    options.onProgress?.({
+      step: "creating",
+      message: "Creating new sandbox...",
+    });
 
-    // Determine API URL for sandbox - localhost won't work from cloud sandboxes
-    let resumeApiUrl = process.env.NEXT_PUBLIC_APP_URL || "https://eliza.gg";
-    if (resumeApiUrl.includes("localhost") || resumeApiUrl.includes("127.0.0.1")) {
-      resumeApiUrl = process.env.ELIZA_API_URL || "https://eliza.gg";
+    // Determine API URL for sandbox - ELIZA_API_URL required for local dev
+    const isLocalDevResume =
+      process.env.NEXT_PUBLIC_APP_URL?.includes("localhost") ||
+      process.env.NEXT_PUBLIC_APP_URL?.includes("127.0.0.1");
+    const resumeApiUrl =
+      process.env.ELIZA_API_URL || process.env.NEXT_PUBLIC_APP_URL;
+
+    if (!resumeApiUrl || (isLocalDevResume && !process.env.ELIZA_API_URL)) {
+      throw new Error(
+        "ELIZA_API_URL environment variable is required for local development. " +
+          "Run ngrok and set ELIZA_API_URL to your ngrok URL in .env.local"
+      );
     }
+
     const sandboxData = await sandboxService.create({
       organizationId: session.organization_id,
       projectId: session.app_id || undefined,
       env: session.app_id
         ? {
-            NEXT_PUBLIC_ELIZA_API_KEY: await this.getApiKeyForApp(session.app_id),
+            NEXT_PUBLIC_ELIZA_API_KEY: await this.getApiKeyForApp(
+              session.app_id
+            ),
             NEXT_PUBLIC_ELIZA_API_URL: resumeApiUrl,
             NEXT_PUBLIC_ELIZA_APP_ID: session.app_id,
           }
@@ -471,12 +610,15 @@ export class AIAppBuilderService {
       })
       .where(eq(appSandboxSessions.id, sessionId));
 
-    options.onProgress?.({ step: "installing", message: "Restoring your files..." });
+    options.onProgress?.({
+      step: "installing",
+      message: "Restoring your files...",
+    });
 
     const restoreResult = await sandboxService.restoreFiles(
       sandboxData.sandboxId,
       sessionId,
-      { onProgress: options.onRestoreProgress },
+      { onProgress: options.onRestoreProgress }
     );
 
     logger.info("Files restored", {
@@ -504,7 +646,10 @@ export class AIAppBuilderService {
       })
       .where(eq(appSandboxSessions.id, sessionId));
 
-    options.onProgress?.({ step: "ready", message: `Restored ${restoreResult.filesRestored} files!` });
+    options.onProgress?.({
+      step: "ready",
+      message: `Restored ${restoreResult.filesRestored} files!`,
+    });
 
     const examplePrompts =
       EXAMPLE_PROMPTS[session.template_type as keyof typeof EXAMPLE_PROMPTS] ||
@@ -532,19 +677,26 @@ export class AIAppBuilderService {
   async triggerBackup(
     sessionId: string,
     userId: string,
-    snapshotType: "auto" | "manual" | "pre_expiry" = "manual",
+    snapshotType: "auto" | "manual" | "pre_expiry" = "manual"
   ): Promise<{ filesBackedUp: number; totalSize: number }> {
     const session = await this.verifyOwnership(sessionId, userId);
     if (!session.sandbox_id) {
       throw new Error("No active sandbox to backup");
     }
-    return sandboxService.backupFiles(session.sandbox_id, sessionId, { snapshotType });
+    return sandboxService.backupFiles(session.sandbox_id, sessionId, {
+      snapshotType,
+    });
   }
 
   async getSessionSnapshotInfo(
     sessionId: string,
-    userId: string,
-  ): Promise<{ fileCount: number; totalSize: number; lastBackup: Date | null; canRestore: boolean }> {
+    userId: string
+  ): Promise<{
+    fileCount: number;
+    totalSize: number;
+    lastBackup: Date | null;
+    canRestore: boolean;
+  }> {
     await this.verifyOwnership(sessionId, userId);
     const stats = await sandboxService.getSnapshotStats(sessionId);
     return {
@@ -555,14 +707,14 @@ export class AIAppBuilderService {
 
   async verifySessionOwnership(
     sessionId: string,
-    userId: string,
+    userId: string
   ): Promise<AppSandboxSession> {
     return this.verifyOwnership(sessionId, userId);
   }
 
   async getSession(
     sessionId: string,
-    userId: string,
+    userId: string
   ): Promise<BuilderSession | null> {
     const session = await this.verifyOwnership(sessionId, userId);
 
@@ -626,7 +778,7 @@ export class AIAppBuilderService {
 
   async listSessions(
     userId: string,
-    options: { limit?: number; includeInactive?: boolean; appId?: string } = {},
+    options: { limit?: number; includeInactive?: boolean; appId?: string } = {}
   ): Promise<AppSandboxSession[]> {
     const { limit = 10, includeInactive = false, appId } = options;
 
@@ -643,7 +795,7 @@ export class AIAppBuilderService {
 
     if (!includeInactive) {
       return sessions.filter(
-        (s) => s.status !== "stopped" && s.status !== "timeout",
+        (s) => s.status !== "stopped" && s.status !== "timeout"
       );
     }
 
@@ -653,7 +805,7 @@ export class AIAppBuilderService {
   async extendSession(
     sessionId: string,
     userId: string,
-    durationMs: number = 15 * 60 * 1000,
+    durationMs: number = 15 * 60 * 1000
   ): Promise<{ expiresAt: Date }> {
     const session = await this.verifyOwnership(sessionId, userId);
 
@@ -688,7 +840,7 @@ export class AIAppBuilderService {
   async getLogs(
     sessionId: string,
     userId: string,
-    tail: number = 50,
+    tail = 50
   ): Promise<string[]> {
     const session = await this.verifyOwnership(sessionId, userId);
     if (!session.sandbox_id) return [];
@@ -714,13 +866,31 @@ export class AIAppBuilderService {
     logger.info("Session stopped", { sessionId });
   }
 
+  /**
+   * Reset session status back to "ready" after an error.
+   * This allows the user to try sending another prompt.
+   */
+  async resetSessionStatus(sessionId: string, userId: string): Promise<void> {
+    await this.verifyOwnership(sessionId, userId);
+
+    await dbWrite
+      .update(appSandboxSessions)
+      .set({
+        status: "ready",
+        updated_at: new Date(),
+      })
+      .where(eq(appSandboxSessions.id, sessionId));
+
+    logger.info("Session status reset to ready", { sessionId });
+  }
+
   async deploySession(
     _sessionId: string,
     _userId: string,
-    _config: { appName: string; appDescription?: string; appUrl?: string },
+    _config: { appName: string; appDescription?: string; appUrl?: string }
   ): Promise<{ appId: string; deploymentUrl: string }> {
     throw new Error(
-      "Deployment is not yet available. Please use the export feature to download your app code, then deploy manually to your preferred hosting provider.",
+      "Deployment is not yet available. Please use the export feature to download your app code, then deploy manually to your preferred hosting provider."
     );
   }
 }

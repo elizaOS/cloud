@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { appsService } from "@/lib/services/apps";
+import { apiKeysService } from "@/lib/services/api-keys";
 import { logger } from "@/lib/utils/logger";
 
 const CORS_HEADERS = {
@@ -42,7 +43,14 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { app_id, page_url, referrer, screen_width, screen_height, pathname } = body;
+    const {
+      app_id,
+      page_url,
+      referrer,
+      screen_width,
+      screen_height,
+      pathname,
+    } = body;
 
     const apiKey = req.headers.get("x-api-key");
     const ipAddress =
@@ -56,16 +64,19 @@ export async function POST(req: NextRequest) {
     let appId = app_id;
 
     if (!appId && apiKey) {
-      const app = await appsService.getByApiKeyId(apiKey);
-      if (app) {
-        appId = app.id;
+      const validatedKey = await apiKeysService.validateApiKey(apiKey);
+      if (validatedKey) {
+        const app = await appsService.getByApiKeyId(validatedKey.id);
+        if (app) {
+          appId = app.id;
+        }
       }
     }
 
     if (!appId) {
       return NextResponse.json(
         { success: false, error: "Missing app_id or valid API key" },
-        { status: 400, headers: CORS_HEADERS },
+        { status: 400, headers: CORS_HEADERS }
       );
     }
 
@@ -73,7 +84,7 @@ export async function POST(req: NextRequest) {
     if (!app) {
       return NextResponse.json(
         { success: false, error: "App not found" },
-        { status: 404, headers: CORS_HEADERS },
+        { status: 404, headers: CORS_HEADERS }
       );
     }
 
@@ -82,7 +93,7 @@ export async function POST(req: NextRequest) {
 
     await appsService.trackPageView(appId, {
       pageUrl: pageUrlValue,
-      referrer: referer || referrer,
+      referrer: referrer || referer,
       ipAddress,
       userAgent,
       source,
@@ -104,13 +115,13 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(
       { success: true },
-      { status: 200, headers: CORS_HEADERS },
+      { status: 200, headers: CORS_HEADERS }
     );
   } catch (error) {
     logger.error("[Track] Failed to record page view:", error);
     return NextResponse.json(
       { success: false, error: "Failed to track page view" },
-      { status: 500, headers: CORS_HEADERS },
+      { status: 500, headers: CORS_HEADERS }
     );
   }
 }

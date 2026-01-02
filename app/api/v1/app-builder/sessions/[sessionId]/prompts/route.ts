@@ -3,6 +3,12 @@ import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { aiAppBuilderService } from "@/lib/services/ai-app-builder";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
+import { checkRateLimit } from "@/lib/middleware/rate-limit";
+
+const PROMPT_RATE_LIMIT = {
+  windowMs: 60000,
+  maxRequests: process.env.NODE_ENV === "production" ? 20 : 100,
+};
 
 interface RouteParams {
   params: Promise<{ sessionId: string }>;
@@ -16,6 +22,23 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { sessionId } = await params;
+
+    const rateLimitResult = checkRateLimit(request, PROMPT_RATE_LIMIT);
+    if (!rateLimitResult.allowed) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Rate limit exceeded. Maximum ${PROMPT_RATE_LIMIT.maxRequests} prompts per minute.`,
+          retryAfter: rateLimitResult.retryAfter,
+        },
+        {
+          status: 429,
+          headers: {
+            "Retry-After": rateLimitResult.retryAfter?.toString() || "60",
+          },
+        },
+      );
+    }
 
     await aiAppBuilderService.verifySessionOwnership(sessionId, user.id);
 

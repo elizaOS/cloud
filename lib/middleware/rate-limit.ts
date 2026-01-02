@@ -35,31 +35,27 @@ interface RateLimitEntry {
 // PRODUCTION: Always set REDIS_RATE_LIMITING=true
 const rateLimitStore = new Map<string, RateLimitEntry>();
 
-// Log warning on first use (only if Redis is not enabled)
-let hasLoggedWarning = false;
-function logRateLimitWarning() {
-  if (!hasLoggedWarning) {
-    if (process.env.NODE_ENV === "production") {
-      if (process.env.REDIS_RATE_LIMITING !== "true") {
-        logger.error(
-          "🚨 [Rate Limit] CRITICAL: In-memory rate limiting in production! " +
-            "This is a SECURITY VULNERABILITY - users can bypass limits across instances. " +
-            "Set REDIS_RATE_LIMITING=true immediately. " +
-            "See lib/middleware/rate-limit-redis.ts",
-        );
-        hasLoggedWarning = true;
-      } else {
-        logger.info(
-          "[Rate Limit] ✓ Using Redis-backed rate limiting (production mode)",
-        );
-        hasLoggedWarning = true;
-      }
-    } else {
-      logger.info(
-        "[Rate Limit] 🔓 Development mode: Rate limits disabled (10000 req/window)",
+// Validate rate limiting configuration on startup
+let hasValidatedConfig = false;
+function validateRateLimitConfig() {
+  if (hasValidatedConfig) return;
+  hasValidatedConfig = true;
+
+  if (process.env.NODE_ENV === "production") {
+    if (process.env.REDIS_RATE_LIMITING !== "true") {
+      throw new Error(
+        "🚨 SECURITY: Redis rate limiting is required in production. " +
+          "In-memory rate limiting allows bypass across serverless instances. " +
+          "Set REDIS_RATE_LIMITING=true and configure Redis connection.",
       );
-      hasLoggedWarning = true;
     }
+    logger.info(
+      "[Rate Limit] ✓ Using Redis-backed rate limiting (production mode)",
+    );
+  } else {
+    logger.info(
+      "[Rate Limit] 🔓 Development mode: Rate limits relaxed (10000 req/window)",
+    );
   }
 }
 
@@ -90,7 +86,8 @@ function getDefaultKey(request: NextRequest): string {
 }
 
 /**
- * Check rate limit for a request
+ * Check rate limit for a request (synchronous, in-memory only)
+ * @deprecated Use checkRateLimitAsync for production multi-instance deployments
  */
 export function checkRateLimit(
   request: NextRequest,
@@ -101,7 +98,7 @@ export function checkRateLimit(
   resetAt: number;
   retryAfter?: number;
 } {
-  logRateLimitWarning();
+  validateRateLimitConfig();
 
   const keyGenerator = config.keyGenerator || getDefaultKey;
   const key = keyGenerator(request);
@@ -142,6 +139,42 @@ export function checkRateLimit(
     resetAt: entry.resetAt,
     retryAfter,
   };
+}
+
+/**
+ * Async rate limit check that uses Redis when REDIS_RATE_LIMITING=true
+ * Falls back to in-memory for development. Use this for streaming endpoints.
+ */
+export async function checkRateLimitAsync(
+  request: NextRequest,
+  config: RateLimitConfig,
+): Promise<{
+  allowed: boolean;
+  remaining: number;
+  resetAt: number;
+  retryAfter?: number;
+}> {
+  const useRedis = process.env.REDIS_RATE_LIMITING === "true";
+  const keyGenerator = config.keyGenerator || getDefaultKey;
+  const key = keyGenerator(request);
+
+  if (useRedis) {
+    const result = await checkRateLimitRedis(
+      key,
+      config.windowMs,
+      config.maxRequests,
+    );
+    logger.debug(
+      `[Rate Limit] Redis check for key=${key}, allowed=${result.allowed}, remaining=${result.remaining}`,
+    );
+    return result;
+  }
+
+  const result = checkRateLimit(request, config);
+  logger.debug(
+    `[Rate Limit] In-memory check for key=${key}, allowed=${result.allowed}, remaining=${result.remaining}`,
+  );
+  return result;
 }
 
 /**
