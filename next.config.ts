@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 import nextra from "nextra";
+import path from "path";
 
 const withNextra = nextra({
   // Only scan the content directory for MDX files
@@ -67,13 +68,19 @@ const nextConfig: NextConfig = {
       "date-fns",
     ],
   },
-  turbopack: {},
+  turbopack: {
+    // Resolve thread-stream to a synchronous stub to avoid dynamic module names
+    // that pino/thread-stream creates at runtime (like pino-28069d5257187539)
+    // which cannot be resolved in serverless environments
+    resolveAlias: {
+      'thread-stream': './lib/stubs/thread-stream.ts',
+    },
+  },
   typescript: {
     ignoreBuildErrors: true,
   },
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
+  // Note: eslint config is no longer supported in next.config.ts for Next.js 16+
+  // Use eslint.config.mjs instead
   outputFileTracingRoot: undefined,
   outputFileTracingIncludes: {
     "/api/v1/containers": ["./scripts/cloudformation/**/*"],
@@ -122,6 +129,15 @@ const nextConfig: NextConfig = {
       if (Array.isArray(config.externals)) {
         config.externals.push("worker_threads");
       }
+
+      // Redirect thread-stream to our synchronous stub to avoid dynamic module names
+      // that cannot be resolved in serverless environments
+      config.resolve = config.resolve || {};
+      config.resolve.alias = config.resolve.alias || {};
+      config.resolve.alias["thread-stream"] = path.resolve(
+        __dirname,
+        "lib/stubs/thread-stream.ts",
+      );
     }
 
     // Enable bundle analyzer if env variable is set (dev only)
