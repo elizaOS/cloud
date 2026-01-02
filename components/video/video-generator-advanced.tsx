@@ -132,7 +132,8 @@ export function VideoGeneratorAdvanced({
     }
   }, [uiState.activeTab, exploreState.videos.length, exploreState.isLoading]);
 
-  const selectedPreset = modelPresets.find((p) => p.id === selectedModel) ?? modelPresets[0];
+  const selectedPreset =
+    modelPresets.find((p) => p.id === selectedModel) ?? modelPresets[0];
 
   const handleGenerate = async () => {
     if (!prompt.trim()) return;
@@ -157,7 +158,8 @@ export function VideoGeneratorAdvanced({
     }));
 
     toast.info("Video generation started", {
-      description: "Your video is being generated. This may take a few minutes.",
+      description:
+        "Your video is being generated. This may take a few minutes.",
     });
 
     let response: Response;
@@ -171,15 +173,27 @@ export function VideoGeneratorAdvanced({
         }),
       });
     } catch (fetchError) {
-      const errorMsg = fetchError instanceof Error ? fetchError.message : "Network error";
+      const errorMsg =
+        fetchError instanceof Error ? fetchError.message : "Network error";
       setVideoState((prev) => ({
         ...prev,
         history: prev.history.map((v) =>
-          v.id === draftId ? { ...v, status: "failed" as const, failureReason: `Network error: ${errorMsg}` } : v
+          v.id === draftId
+            ? {
+                ...v,
+                status: "failed" as const,
+                failureReason: `Network error: ${errorMsg}`,
+              }
+            : v
         ),
       }));
-      setRequestState({ isLoading: false, error: `Network error: ${errorMsg}` });
-      toast.error("Video generation failed", { description: `Network error: ${errorMsg}` });
+      setRequestState({
+        isLoading: false,
+        error: `Network error: ${errorMsg}`,
+      });
+      toast.error("Video generation failed", {
+        description: `Network error: ${errorMsg}`,
+      });
       return;
     }
 
@@ -190,28 +204,32 @@ export function VideoGeneratorAdvanced({
       } catch {
         // JSON parse failed, use empty object
       }
-      
-      let message = (errorBody?.error as string) || `Request failed (${response.status})`;
-      
+
+      let message =
+        (errorBody?.error as string) || `Request failed (${response.status})`;
+
       // Add more context for common errors
       if (response.status === 402) {
         message = `Insufficient credits. Required: $${errorBody.required}, Available: $${errorBody.available}`;
       } else if (response.status === 503) {
-        message = "Video generation service is not configured. Please try again later.";
+        message =
+          "Video generation service is not configured. Please try again later.";
       } else if (response.status === 429) {
         message = "Rate limit exceeded. Please wait a moment and try again.";
       } else if (errorBody?.originalError) {
         message = `${message} (${errorBody.originalError})`;
       }
-      
+
       // Update draft to failed
       setVideoState((prev) => ({
         ...prev,
         history: prev.history.map((v) =>
-          v.id === draftId ? { ...v, status: "failed" as const, failureReason: message } : v
+          v.id === draftId
+            ? { ...v, status: "failed" as const, failureReason: message }
+            : v
         ),
       }));
-      
+
       setRequestState({ isLoading: false, error: message });
       toast.error("Video generation failed", { description: message });
       return;
@@ -227,7 +245,7 @@ export function VideoGeneratorAdvanced({
       };
       seed?: number;
     }
-    
+
     let payload: VideoPayload;
     try {
       payload = await response.json();
@@ -236,14 +254,16 @@ export function VideoGeneratorAdvanced({
       setVideoState((prev) => ({
         ...prev,
         history: prev.history.map((v) =>
-          v.id === draftId ? { ...v, status: "failed" as const, failureReason: errorMsg } : v
+          v.id === draftId
+            ? { ...v, status: "failed" as const, failureReason: errorMsg }
+            : v
         ),
       }));
       setRequestState({ isLoading: false, error: errorMsg });
       toast.error("Video generation failed", { description: errorMsg });
       return;
     }
-    
+
     const completed: GeneratedVideo = {
       ...draft,
       id: payload.requestId ?? draft.id,
@@ -253,17 +273,16 @@ export function VideoGeneratorAdvanced({
       thumbnailUrl: draft.thumbnailUrl,
       seed: payload.seed,
       durationSeconds: payload.video?.duration,
-      resolution: payload.video?.width && payload.video?.height 
-        ? `${payload.video.width} × ${payload.video.height}`
-        : undefined,
+      resolution:
+        payload.video?.width && payload.video?.height
+          ? `${payload.video.width} × ${payload.video.height}`
+          : undefined,
     };
 
     setVideoState((prev) => ({
       ...prev,
       currentVideo: completed,
-      history: prev.history.map((v) =>
-        v.id === draftId ? completed : v
-      ),
+      history: prev.history.map((v) => (v.id === draftId ? completed : v)),
     }));
 
     setRequestState({ isLoading: false, error: null });
@@ -279,7 +298,10 @@ export function VideoGeneratorAdvanced({
   };
 
   return (
-    <div ref={containerRef} className="flex flex-col h-full w-full scroll-smooth">
+    <div
+      ref={containerRef}
+      className="flex flex-col h-full w-full scroll-smooth"
+    >
       {/* Scroll anchor */}
       <div ref={topAnchorRef} className="absolute top-0" />
 
@@ -299,7 +321,8 @@ export function VideoGeneratorAdvanced({
                 <div
                   className="absolute h-full w-24 bg-gradient-to-r from-transparent via-[#FF5800] to-transparent"
                   style={{
-                    animation: "visor-scan 4.8s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+                    animation:
+                      "visor-scan 4.8s cubic-bezier(0.4, 0, 0.6, 1) infinite",
                     boxShadow: "0 0 15px 3px rgba(255, 88, 0, 0.7)",
                     filter: "blur(0.5px)",
                   }}
@@ -332,7 +355,10 @@ export function VideoGeneratorAdvanced({
               <div className="flex items-center gap-1.5">
                 {/* Model Selector Dropdown */}
                 <DropdownMenu>
-                  <DropdownMenuTrigger asChild disabled={requestState.isLoading}>
+                  <DropdownMenuTrigger
+                    asChild
+                    disabled={requestState.isLoading}
+                  >
                     <Button
                       type="button"
                       variant="ghost"
@@ -421,7 +447,9 @@ export function VideoGeneratorAdvanced({
         <div className="flex items-center gap-8 mb-6">
           <button
             type="button"
-            onClick={() => setUiState((prev) => ({ ...prev, activeTab: "creations" }))}
+            onClick={() =>
+              setUiState((prev) => ({ ...prev, activeTab: "creations" }))
+            }
             className={`text-base font-medium transition-colors ${
               uiState.activeTab === "creations"
                 ? "text-[#FF5800]"
@@ -434,7 +462,9 @@ export function VideoGeneratorAdvanced({
             <TooltipTrigger asChild>
               <button
                 type="button"
-                onClick={() => setUiState((prev) => ({ ...prev, activeTab: "explore" }))}
+                onClick={() =>
+                  setUiState((prev) => ({ ...prev, activeTab: "explore" }))
+                }
                 className={`flex items-center gap-2 text-base font-medium transition-colors ${
                   uiState.activeTab === "explore"
                     ? "text-[#FF5800]"
@@ -463,20 +493,27 @@ export function VideoGeneratorAdvanced({
               {videoState.history.map((video) => (
                 <div
                   key={video.id}
-                  className="group relative overflow-hidden rounded-lg border border-white/10 bg-black hover:border-white/20 transition-colors cursor-pointer"
+                  className="group relative overflow-hidden rounded-lg border border-white/10 bg-black cursor-pointer"
                   onMouseEnter={() => {
                     if (video.videoUrl) {
-                      const videoEl = document.getElementById(`video-${video.id}`) as HTMLVideoElement;
+                      const videoEl = document.getElementById(
+                        `video-${video.id}`
+                      ) as HTMLVideoElement;
                       if (videoEl) {
                         videoEl.style.opacity = "1";
                         videoEl.play();
-                        setVideoState((prev) => ({ ...prev, playingId: video.id }));
+                        setVideoState((prev) => ({
+                          ...prev,
+                          playingId: video.id,
+                        }));
                       }
                     }
                   }}
                   onMouseLeave={() => {
                     if (video.videoUrl) {
-                      const videoEl = document.getElementById(`video-${video.id}`) as HTMLVideoElement;
+                      const videoEl = document.getElementById(
+                        `video-${video.id}`
+                      ) as HTMLVideoElement;
                       if (videoEl) {
                         videoEl.pause();
                         setVideoState((prev) => ({ ...prev, playingId: null }));
@@ -485,7 +522,9 @@ export function VideoGeneratorAdvanced({
                   }}
                   onClick={() => {
                     if (video.status === "completed" && video.videoUrl) {
-                      const videoEl = document.getElementById(`video-${video.id}`) as HTMLVideoElement;
+                      const videoEl = document.getElementById(
+                        `video-${video.id}`
+                      ) as HTMLVideoElement;
                       if (videoEl) {
                         videoEl.pause();
                       }
@@ -543,7 +582,7 @@ export function VideoGeneratorAdvanced({
                         <p className="mb-4 text-base md:text-lg font-medium text-white line-clamp-2 leading-snug pointer-events-none flex-1">
                           {video.prompt}
                         </p>
-                        
+
                         {/* Action buttons on the right - only on hover */}
                         {video.status === "completed" && video.videoUrl && (
                           <div className="flex mb-4 items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
@@ -560,11 +599,14 @@ export function VideoGeneratorAdvanced({
                                   <Download className="h-4 w-4 text-white" />
                                 </button>
                               </TooltipTrigger>
-                              <TooltipContent side="bottom" className="text-xs bg-neutral-800 text-white border-white/10">
+                              <TooltipContent
+                                side="bottom"
+                                className="text-xs bg-neutral-800 text-white border-white/10"
+                              >
                                 Download video
                               </TooltipContent>
                             </Tooltip>
-                            
+
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <button
@@ -579,7 +621,10 @@ export function VideoGeneratorAdvanced({
                                   <Copy className="h-4 w-4 text-white" />
                                 </button>
                               </TooltipTrigger>
-                              <TooltipContent side="bottom" className="text-xs bg-neutral-800 text-white border-white/10">
+                              <TooltipContent
+                                side="bottom"
+                                className="text-xs bg-neutral-800 text-white border-white/10"
+                              >
                                 Re-use this prompt
                               </TooltipContent>
                             </Tooltip>
@@ -643,30 +688,111 @@ export function VideoGeneratorAdvanced({
               {exploreState.videos.map((video) => (
                 <div
                   key={video.id}
-                  className="group relative overflow-hidden rounded-lg border border-white/10 bg-black/40 hover:border-white/20 transition-colors cursor-pointer"
-                  onClick={() => setUiState((prev) => ({ ...prev, selectedExploreVideo: video }))}
+                  className="group relative overflow-hidden rounded-lg border border-white/10 bg-black cursor-pointer"
+                  onMouseEnter={() => {
+                    if (video.url) {
+                      const videoEl = document.getElementById(
+                        `explore-video-${video.id}`
+                      ) as HTMLVideoElement;
+                      if (videoEl) {
+                        videoEl.play();
+                      }
+                    }
+                  }}
+                  onMouseLeave={() => {
+                    if (video.url) {
+                      const videoEl = document.getElementById(
+                        `explore-video-${video.id}`
+                      ) as HTMLVideoElement;
+                      if (videoEl) {
+                        videoEl.pause();
+                      }
+                    }
+                  }}
+                  onClick={() =>
+                    setUiState((prev) => ({
+                      ...prev,
+                      selectedExploreVideo: video,
+                    }))
+                  }
                 >
-                  <div className="relative aspect-video w-full bg-black/60">
+                  <div className="relative aspect-video w-full bg-black">
                     {video.url ? (
                       <video
+                        id={`explore-video-${video.id}`}
                         src={video.url}
                         className="absolute inset-0 w-full h-full object-cover"
                         preload="metadata"
-                        muted
+                        playsInline
+                        loop
                       />
                     ) : (
                       <div className="absolute inset-0 flex items-center justify-center">
                         <Video className="h-8 w-8 text-white/40" />
                       </div>
                     )}
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center">
-                      <Play className="h-10 w-10 text-[#FF5800] opacity-0 group-hover:opacity-100 transition-opacity" />
+
+                    {/* Title overlay at bottom */}
+                    <div className="absolute bottom-0 left-0 right-0 px-3 pb-2 pt-12 bg-gradient-to-t from-black via-black/80 to-transparent">
+                      <div className="flex items-end justify-between gap-3">
+                        <p className="mb-4 text-base md:text-lg font-medium text-white line-clamp-2 leading-snug pointer-events-none flex-1">
+                          {video.prompt}
+                        </p>
+
+                        {video.url && (
+                          <div className="flex mb-4 items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (video.url) {
+                                      window.open(
+                                        video.url,
+                                        "_blank",
+                                        "noopener,noreferrer"
+                                      );
+                                    }
+                                  }}
+                                  className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
+                                >
+                                  <Download className="h-4 w-4 text-white" />
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent
+                                side="bottom"
+                                className="text-xs bg-neutral-800 text-white border-white/10"
+                              >
+                                Download video
+                              </TooltipContent>
+                            </Tooltip>
+
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setPrompt(video.prompt);
+                                    scrollToTop();
+                                  }}
+                                  className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
+                                >
+                                  <Copy className="h-4 w-4 text-white" />
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent
+                                side="bottom"
+                                className="text-xs bg-neutral-800 text-white border-white/10"
+                              >
+                                Re-use this prompt
+                              </TooltipContent>
+                            </Tooltip>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                  <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/90 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
-                    <p className="text-xs font-mono text-white line-clamp-2">
-                      {video.prompt}
-                    </p>
                   </div>
                 </div>
               ))}
@@ -694,7 +820,9 @@ export function VideoGeneratorAdvanced({
       {/* Fullscreen Video Modal */}
       <Dialog
         open={uiState.isFullscreenOpen}
-        onOpenChange={(open) => setUiState((prev) => ({ ...prev, isFullscreenOpen: open }))}
+        onOpenChange={(open) =>
+          setUiState((prev) => ({ ...prev, isFullscreenOpen: open }))
+        }
       >
         <DialogContent
           className="!max-w-[99vw] !max-h-[99vh] !w-[99vw] !h-[99vh] p-0 bg-black/95 border-white/10 sm:!max-w-[99vw] md:!max-w-[99vw] lg:!max-w-[99vw]"
@@ -755,7 +883,10 @@ export function VideoGeneratorAdvanced({
                       onClick={() => {
                         if (uiState.selectedVideo?.prompt) {
                           setPrompt(uiState.selectedVideo.prompt);
-                          setUiState((prev) => ({ ...prev, isFullscreenOpen: false }));
+                          setUiState((prev) => ({
+                            ...prev,
+                            isFullscreenOpen: false,
+                          }));
                           scrollToTop();
                         }
                       }}
