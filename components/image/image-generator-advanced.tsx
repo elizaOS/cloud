@@ -670,20 +670,32 @@ export function ImageGeneratorAdvanced({
           >
             My Creations
           </button>
-          <button
-            type="button"
-            onClick={() =>
-              setUiState((prev) => ({ ...prev, activeTab: "explore" }))
-            }
-            className={`flex items-center gap-2 text-base font-medium transition-colors ${
-              uiState.activeTab === "explore"
-                ? "text-[#FF5800]"
-                : "text-white/50 hover:text-white/70"
-            }`}
-          >
-            <Search className="h-4 w-4" />
-            Explore
-          </button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={() =>
+                  setUiState((prev) => ({ ...prev, activeTab: "explore" }))
+                }
+                className={`flex items-center gap-2 text-base font-medium transition-colors ${
+                  uiState.activeTab === "explore"
+                    ? "text-[#FF5800]"
+                    : "text-white/50 hover:text-white/70"
+                }`}
+              >
+                <Search className="h-4 w-4" />
+                Explore
+              </button>
+            </TooltipTrigger>
+            <TooltipContent
+              side="top"
+              align="start"
+              alignOffset={20}
+              className="text-xs bg-neutral-800 text-white border-white/10 max-w-[220px] text-center"
+            >
+              Explore what other builders have generated
+            </TooltipContent>
+          </Tooltip>
         </div>
 
         {/* My Creations Tab Content */}
