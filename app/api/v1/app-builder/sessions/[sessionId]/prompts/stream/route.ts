@@ -1,4 +1,4 @@
-import { NextRequest } from "next/server";
+import type { NextRequest } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { aiAppBuilderService } from "@/lib/services/ai-app-builder";
 import { logger } from "@/lib/utils/logger";
@@ -201,6 +201,16 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : "Failed to send prompt";
+
+        // Reset session status to "ready" so user can try again
+        try {
+          await aiAppBuilderService.resetSessionStatus(sessionId, user.id);
+        } catch (resetError) {
+          logger.warn("Failed to reset session status after error", {
+            sessionId,
+            resetError,
+          });
+        }
 
         if (
           errorMessage.includes("aborted") ||

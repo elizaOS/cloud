@@ -12,7 +12,7 @@ import {
 import { eq, and, desc } from "drizzle-orm";
 
 const ELIZA_SDK_FILE = `const apiKey = process.env.NEXT_PUBLIC_ELIZA_API_KEY || '';
-const apiBase = process.env.NEXT_PUBLIC_ELIZA_API_URL || 'https://eliza.gg';
+const apiBase = process.env.NEXT_PUBLIC_ELIZA_API_URL || 'https://elizacloud.ai';
 const appId = process.env.NEXT_PUBLIC_ELIZA_APP_ID || '';
 
 interface ChatMessage {
@@ -222,6 +222,7 @@ export type SandboxProgress =
   | { step: "creating"; message: string }
   | { step: "installing"; message: string }
   | { step: "starting"; message: string }
+  | { step: "restoring"; message: string }
   | { step: "ready"; message: string }
   | { step: "error"; message: string };
 
@@ -1459,24 +1460,32 @@ REMEMBER:
   installDependenciesBackground(sandboxId: string): void {
     const sandbox = getActiveSandboxes().get(sandboxId);
     if (!sandbox) {
-      logger.warn("Cannot install dependencies - sandbox not found", { sandboxId });
+      logger.warn("Cannot install dependencies - sandbox not found", {
+        sandboxId,
+      });
       return;
     }
 
     logger.info("Starting background dependency install", { sandboxId });
 
-    sandbox.runCommand({
-      cmd: "sh",
-      args: [
-        "-c",
-        "rm -rf .next node_modules/.cache 2>/dev/null; pnpm install --force 2>&1 | tee /tmp/install.log &",
-      ],
-      detached: true,
-    }).then(() => {
-      logger.info("Background install command dispatched", { sandboxId });
-    }).catch((err) => {
-      logger.warn("Background install dispatch failed", { sandboxId, error: err });
-    });
+    sandbox
+      .runCommand({
+        cmd: "sh",
+        args: [
+          "-c",
+          "rm -rf .next node_modules/.cache 2>/dev/null; pnpm install --force 2>&1 | tee /tmp/install.log &",
+        ],
+        detached: true,
+      })
+      .then(() => {
+        logger.info("Background install command dispatched", { sandboxId });
+      })
+      .catch((err) => {
+        logger.warn("Background install dispatch failed", {
+          sandboxId,
+          error: err,
+        });
+      });
   }
 
   async extendTimeout(sandboxId: string, durationMs: number): Promise<void> {
