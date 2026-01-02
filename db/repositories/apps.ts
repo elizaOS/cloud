@@ -486,7 +486,7 @@ export class AppsRepository {
       .select({
         ip: appRequests.ip_address,
         requestCount: count(),
-        lastSeen: sql<Date>`MAX(${appRequests.created_at})`,
+        lastSeen: sql<string>`to_char(MAX(${appRequests.created_at}) AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"')`,
       })
       .from(appRequests)
       .where(and(...conditions))
@@ -497,7 +497,7 @@ export class AppsRepository {
     return results.map((r) => ({
       ip: r.ip ?? "unknown",
       requestCount: r.requestCount,
-      lastSeen: r.lastSeen,
+      lastSeen: new Date(r.lastSeen),
     }));
   }
 
