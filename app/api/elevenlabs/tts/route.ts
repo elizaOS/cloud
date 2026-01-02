@@ -4,6 +4,8 @@ import { getElevenLabsService } from "@/lib/services/elevenlabs";
 import { voiceCloningService } from "@/lib/services/voice-cloning";
 import { creditsService } from "@/lib/services/credits";
 import { usageService } from "@/lib/services/usage";
+import { generationsRepository } from "@/db/repositories/generations";
+import { uploadToBlob } from "@/lib/blob";
 import { dbRead } from "@/db/client";
 import { userVoices } from "@/db/schemas/user-voices";
 import { eq } from "drizzle-orm";
@@ -179,9 +181,67 @@ export async function POST(request: NextRequest) {
 
     logger.info(`[TTS API] Stream started in ${duration}ms`);
 
-    // Track usage in usage_records table (background, non-blocking)
+    // Collect audio data from stream
+    const reader = audioStream.getReader();
+    const chunks: Uint8Array[] = [];
+    
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (value) chunks.push(value);
+    }
+
+    const audioBuffer = Buffer.concat(chunks);
+    const totalDuration = Date.now() - startTime;
+
+    logger.info(`[TTS API] Audio generated in ${totalDuration}ms, size: ${audioBuffer.length} bytes`);
+
+    // Save to blob storage and database (background, non-blocking)
     (async () => {
       try {
+        // Upload to blob storage
+        const blobResult = await uploadToBlob(audioBuffer, {
+          filename: `tts-${Date.now()}.mp3`,
+          contentType: "audio/mpeg",
+          folder: "tts",
+          userId: user.id,
+        });
+
+        logger.info("[TTS API] Audio uploaded to blob storage", {
+          url: blobResult.url,
+          size: blobResult.size,
+        });
+
+        // Create generation record
+        await generationsRepository.create({
+          organization_id: user.organization_id!!,
+          user_id: user.id,
+          type: "tts",
+          model: modelId || "eleven_flash_v2_5",
+          provider: "elevenlabs",
+          prompt: text,
+          status: "completed",
+          storage_url: blobResult.url,
+          mime_type: "audio/mpeg",
+          file_size: BigInt(blobResult.size),
+          cost: String(TTS_GENERATION_COST),
+          credits: String(TTS_GENERATION_COST),
+          metadata: {
+            voiceId: voiceId || "default",
+            userVoiceId: userVoiceId,
+            voiceName: voiceName || "Default",
+            textLength: text.length,
+            characterCount: text.length,
+          },
+          settings: {
+            voiceId: voiceId || "EXAVITQu4vr4xnSDxMaL",
+          },
+          completed_at: new Date(),
+        });
+
+        logger.info("[TTS API] Generation record created successfully");
+
+        // Create usage record
         await usageService.create({
           organization_id: user.organization_id!!,
           user_id: user.id,
@@ -193,35 +253,31 @@ export async function POST(request: NextRequest) {
           output_tokens: 0,
           input_cost: String(TTS_GENERATION_COST),
           output_cost: String(0),
-          duration_ms: duration,
+          duration_ms: totalDuration,
           is_successful: true,
           metadata: {
             voiceId: voiceId || "default",
             userVoiceId: userVoiceId,
             voiceName: voiceName,
             textLength: text.length,
-            characterCount: text.length,
             creditsDeducted: TTS_GENERATION_COST,
           },
         });
 
-        logger.debug("[TTS API] Usage record created successfully", {
-          userVoiceId,
-          textLength: text.length,
-        });
+        logger.debug("[TTS API] Usage record created successfully");
       } catch (error) {
-        logger.error("[TTS API] Failed to create usage record", {
+        logger.error("[TTS API] Failed to save generation", {
           error: error instanceof Error ? error.message : String(error),
           userVoiceId,
         });
       }
     })();
 
-    // Return streaming audio response
-    return new NextResponse(audioStream, {
+    // Return audio response
+    return new NextResponse(audioBuffer, {
       headers: {
         "Content-Type": "audio/mpeg",
-        "Transfer-Encoding": "chunked",
+        "Content-Length": String(audioBuffer.length),
         "Cache-Control": "no-cache",
       },
     });

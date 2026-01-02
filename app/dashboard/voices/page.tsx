@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { requireAuthWithOrg } from "@/lib/auth";
 import { voiceCloningService } from "@/lib/services/voice-cloning";
+import { generationsRepository } from "@/db/repositories/generations";
 import { VoicePageClient } from "@/components/voices/voice-page-client";
 import { organizationsService } from "@/lib/services/organizations";
 import type { Voice } from "@/components/voices/types";
@@ -50,9 +51,29 @@ export default async function VoicesPage() {
   // Get organization for credit balance
   const organization = await organizationsService.getById(user.organization_id);
 
+  // Fetch TTS generation history
+  const ttsGenerations = await generationsRepository.listByOrganizationAndStatus(
+    user.organization_id,
+    "completed",
+    { type: "tts", limit: 20 }
+  );
+
+  // Format TTS history for client - only include items with a valid storage URL
+  const ttsHistory = ttsGenerations
+    .filter((gen) => gen.storage_url && gen.storage_url.length > 0)
+    .map((gen) => ({
+      id: gen.id,
+      url: gen.storage_url!,
+      text: gen.prompt,
+      voiceId: (gen.settings as Record<string, unknown>)?.voiceId as string || "default",
+      voiceName: (gen.metadata as Record<string, unknown>)?.voiceName as string || "Default",
+      createdAt: gen.created_at.toISOString(),
+    }));
+
   return (
     <VoicePageClient
       initialVoices={voices}
+      initialTtsHistory={ttsHistory}
       creditBalance={Number(organization?.credit_balance || 0)}
     />
   );

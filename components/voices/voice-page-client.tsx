@@ -1,6 +1,6 @@
 /**
- * Voice page client component wrapping voice studio with page header.
- * Manages credit balance state and passes it to voice studio.
+ * Voice page client component with voice generator.
+ * Manages credit balance state and displays voice generation interface.
  *
  * @param props - Voice page client configuration
  * @param props.initialVoices - Initial list of voices
@@ -10,33 +10,51 @@
 "use client";
 
 import { useState } from "react";
-import { VoiceStudioAdvanced } from "./voice-studio-advanced";
+import { VoiceGeneratorAdvanced } from "./voice-generator-advanced";
 import { useSetPageHeader } from "@/components/layout/page-header-context";
 import type { Voice } from "./types";
 
+export interface TtsHistoryItem {
+  id: string;
+  url: string;
+  text: string;
+  voiceId: string;
+  voiceName: string;
+  createdAt: string;
+}
+
 interface VoicePageClientProps {
   initialVoices: Voice[];
+  initialTtsHistory?: TtsHistoryItem[];
   creditBalance: number;
 }
 
 export function VoicePageClient({
   initialVoices,
+  initialTtsHistory = [],
   creditBalance: initialCreditBalance,
 }: VoicePageClientProps) {
   const [creditBalance, setCreditBalance] = useState(initialCreditBalance);
+  const [voices, setVoices] = useState<Voice[]>(initialVoices);
 
   useSetPageHeader({
     title: "Voice Studio",
-    description: "Clone your voice and create custom AI voices",
+    description: "Generate speech from text or clone your voice",
   });
 
+  const handleVoiceCreated = (newVoice: Voice) => {
+    setVoices([newVoice, ...voices]);
+  };
+
   return (
-    <div className="flex flex-col w-full">
-      <div className="w-full max-w-[1600px] mx-auto px-3 md:px-6 py-4 md:py-6">
-        <VoiceStudioAdvanced
-          initialVoices={initialVoices}
+    <div className="flex flex-col w-full h-full">
+      <div className="w-full max-w-[1600px] mx-auto px-3 md:px-6 py-4 md:py-6 h-full">
+        <VoiceGeneratorAdvanced
+          voices={voices}
+          initialTtsHistory={initialTtsHistory}
           creditBalance={creditBalance}
           onCreditBalanceChange={setCreditBalance}
+          onVoiceCreated={handleVoiceCreated}
         />
       </div>
     </div>
