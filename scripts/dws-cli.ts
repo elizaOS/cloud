@@ -23,17 +23,42 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs'
 import { join, resolve } from 'path'
 import { spawn } from 'child_process'
-import { getDWSUrl, getCurrentNetwork, type NetworkType } from '@jejunetwork/config'
 
 const ROOT_DIR = resolve(import.meta.dir, '..')
 const DWS_DIR = join(ROOT_DIR, '.dws')
 const CONFIG_FILE = join(DWS_DIR, 'project.json')
 const ENV_FILE = join(DWS_DIR, '.env.local')
 
-// DWS Configuration - use centralized config
-const DWS_NETWORK = (process.env.DWS_NETWORK ?? process.env.JEJU_NETWORK ?? 'localnet') as NetworkType
+// ============================================================================
+// Network Configuration (inlined)
+// ============================================================================
 
-// Get API URL from centralized config or env override
+type NetworkType = 'localnet' | 'testnet' | 'mainnet'
+
+function getCurrentNetwork(): NetworkType {
+  const envNetwork = process.env.JEJU_NETWORK ?? process.env.DWS_NETWORK
+  if (!envNetwork) return 'localnet'
+  if (envNetwork === 'localnet' || envNetwork === 'testnet' || envNetwork === 'mainnet') {
+    return envNetwork
+  }
+  throw new Error(`Invalid network: ${envNetwork}. Must be one of: localnet, testnet, mainnet`)
+}
+
+function getDWSUrl(network: NetworkType): string {
+  switch (network) {
+    case 'mainnet':
+      return 'https://dws.jejunetwork.org'
+    case 'testnet':
+      return 'https://dws.testnet.jejunetwork.org'
+    default:
+      return process.env.DWS_API_URL ?? 'http://localhost:4030'
+  }
+}
+
+// DWS Configuration
+const DWS_NETWORK = getCurrentNetwork()
+
+// Get API URL from config or env override
 function getDWSApiUrl(): string {
   if (process.env.DWS_API_URL) return process.env.DWS_API_URL
   return getDWSUrl(DWS_NETWORK)
