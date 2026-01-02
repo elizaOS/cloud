@@ -64,12 +64,14 @@ interface SessionData {
   sandboxUrl: string;
   status: SessionStatus;
   examplePrompts: string[];
+  expiresAt?: string | null;
 }
 
 export function AppAIBuilder({ app }: AppAIBuilderProps) {
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const initializationRef = useRef(false);
 
   // Session state
   const [session, setSession] = useState<SessionData | null>(null);
@@ -77,6 +79,7 @@ export function AppAIBuilder({ app }: AppAIBuilderProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(true);
   const [copied, setCopied] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [progressStep, setProgressStep] = useState<ProgressStep>("creating");
@@ -84,6 +87,84 @@ export function AppAIBuilder({ app }: AppAIBuilderProps) {
     "preview",
   );
   const [consoleLogs, setConsoleLogs] = useState<string[]>([]);
+
+  const messagesStorageKey = `app-builder-messages-${app.id}`;
+
+  // Check for existing session on mount
+  useEffect(() => {
+    if (initializationRef.current) return;
+    initializationRef.current = true;
+
+    const checkExistingSession = async () => {
+      try {
+        const response = await fetch(
+          `/api/v1/app-builder?appId=${app.id}&limit=1&includeInactive=false`,
+        );
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.sessions?.length > 0) {
+            const existingSession = data.sessions[0];
+
+            // Fetch full session details
+            const sessionResponse = await fetch(
+              `/api/v1/app-builder/sessions/${existingSession.id}`,
+            );
+
+            if (sessionResponse.ok) {
+              const sessionData = await sessionResponse.json();
+              if (sessionData.success && sessionData.session?.sandboxUrl) {
+                const restoredSession: SessionData = {
+                  id: sessionData.session.id,
+                  sandboxId: sessionData.session.sandboxId,
+                  sandboxUrl: sessionData.session.sandboxUrl,
+                  status: sessionData.session.status,
+                  examplePrompts: sessionData.session.examplePrompts || [],
+                  expiresAt: sessionData.session.expiresAt || null,
+                };
+
+                setSession(restoredSession);
+                setStatus(sessionData.session.status === "active" ? "ready" : sessionData.session.status);
+
+                // Restore messages from sessionStorage
+                const stored = sessionStorage.getItem(messagesStorageKey);
+                if (stored) {
+                  try {
+                    setMessages(JSON.parse(stored));
+                  } catch {
+                    // Invalid stored data
+                  }
+                } else {
+                  // Add welcome back message
+                  setMessages([{
+                    role: "assistant",
+                    content: `👋 **Welcome back!**\n\nYour sandbox for **${app.name}** is still running. Continue where you left off!`,
+                    timestamp: new Date().toISOString(),
+                  }]);
+                }
+
+                setIsInitializing(false);
+                return;
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Failed to check existing session:", error);
+      }
+
+      setIsInitializing(false);
+    };
+
+    checkExistingSession();
+  }, [app.id, app.name, messagesStorageKey]);
+
+  // Persist messages to sessionStorage
+  useEffect(() => {
+    if (messages.length > 0 && status === "ready") {
+      sessionStorage.setItem(messagesStorageKey, JSON.stringify(messages));
+    }
+  }, [messages, messagesStorageKey, status]);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -659,6 +740,26 @@ ANTHROPIC_API_KEY=your_key_here`}
                 Try Again
               </Button>
             </div>
+          </div>
+        </div>
+      </BrandCard>
+    );
+  }
+
+  // Render loading state while checking for existing session
+  if (isInitializing) {
+    return (
+      <BrandCard className="relative">
+        <CornerBrackets className="opacity-20" />
+        <div className="relative z-10 p-8">
+          <div className="max-w-2xl mx-auto text-center">
+            <Loader2 className="h-12 w-12 animate-spin text-[#FF5800] mx-auto mb-4" />
+            <h2 className="text-xl font-bold text-white mb-2">
+              Checking for active session...
+            </h2>
+            <p className="text-white/60">
+              Looking for an existing sandbox for this app.
+            </p>
           </div>
         </div>
       </BrandCard>

@@ -97,7 +97,7 @@ export function AppDetailsTabs({ app, showApiKey }: AppDetailsTabsProps) {
         <AppOverview app={app} showApiKey={showApiKey} />
       </TabsContent>
 
-      <TabsContent value="build">
+      <TabsContent value="build" forceMount className="data-[state=inactive]:hidden">
         <AppAIBuilder app={app} />
       </TabsContent>
 

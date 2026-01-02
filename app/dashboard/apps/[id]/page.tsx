@@ -72,16 +72,6 @@ export default async function AppDetailsPage({
     redirect("/dashboard/apps");
   }
 
-  // Handle legacy ?tab=build redirect - redirect to new app creator route
-  const tab = search.tab as string | undefined;
-  if (tab === "build") {
-    const sessionId = search.sessionId as string | undefined;
-    const redirectUrl = sessionId
-      ? `/dashboard/apps/create?appId=${id}&sessionId=${sessionId}`
-      : `/dashboard/apps/create?appId=${id}`;
-    redirect(redirectUrl);
-  }
-
   // Check if we should show the API key (only after creation)
   const showApiKey = search.showApiKey as string | undefined;
 
