@@ -6,7 +6,7 @@ import {
 } from "@/lib/services/ai-app-builder";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
-import { checkRateLimit } from "@/lib/middleware/rate-limit";
+import { checkRateLimitAsync } from "@/lib/middleware/rate-limit";
 
 const SESSION_CREATE_LIMIT = {
   windowMs: 3600000,
@@ -19,7 +19,15 @@ const CreateSessionSchema = z.object({
   appDescription: z.string().max(500).optional(),
   initialPrompt: z.string().max(2000).optional(),
   templateType: z
-    .enum(["chat", "agent-dashboard", "landing-page", "analytics", "blank"])
+    .enum([
+      "chat",
+      "agent-dashboard",
+      "landing-page",
+      "analytics",
+      "blank",
+      "mcp-service",
+      "a2a-agent",
+    ])
     .default("blank"),
   includeMonetization: z.boolean().default(false),
   includeAnalytics: z.boolean().default(true),
@@ -122,7 +130,7 @@ export async function POST(request: NextRequest) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
 
-    const rateLimitResult = checkRateLimit(request, SESSION_CREATE_LIMIT);
+    const rateLimitResult = await checkRateLimitAsync(request, SESSION_CREATE_LIMIT);
     if (!rateLimitResult.allowed) {
       const maxRequests = SESSION_CREATE_LIMIT.maxRequests;
       const windowSeconds = SESSION_CREATE_LIMIT.windowMs / 1000;
@@ -277,15 +285,27 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    logger.error("Auth failed for app builder stream", { error });
+    logger.error("Error in app builder stream", { error });
     const message =
-      error instanceof Error ? error.message : "Authentication failed";
+      error instanceof Error ? error.message : "Internal error";
 
-    let status = 401;
-    if (message.includes("Rate limit")) {
-      status = 429;
-    } else if (message.includes("Forbidden")) {
+    let status = 500;
+    if (
+      message.includes("Authentication") ||
+      message.includes("Unauthorized")
+    ) {
+      status = 401;
+    } else if (
+      message.includes("Access denied") ||
+      message.includes("Forbidden")
+    ) {
       status = 403;
+    } else if (message.includes("not found")) {
+      status = 404;
+    } else if (message.includes("Rate limit")) {
+      status = 429;
+    } else if (message.includes("Invalid") || message.includes("JSON")) {
+      status = 400;
     }
 
     return new Response(

@@ -30,7 +30,7 @@ export interface CampaignAttribution {
 }
 
 export function parseUTMParams(
-  urlOrParams: string | URLSearchParams | Record<string, string>,
+  urlOrParams: string | URLSearchParams | Record<string, string>
 ): UTMParams {
   let params: URLSearchParams;
 
@@ -62,7 +62,7 @@ export function generateCampaignUrl(
     medium?: string;
     content?: string;
     term?: string;
-  },
+  }
 ): string {
   const url = new URL(baseUrl);
 
@@ -106,8 +106,8 @@ class ConversionTrackingService {
         .where(
           and(
             eq(appUsers.app_id, event.appId),
-            eq(appUsers.user_id, event.userId),
-          ),
+            eq(appUsers.user_id, event.userId)
+          )
         )
         .limit(1);
 
@@ -133,7 +133,7 @@ class ConversionTrackingService {
   async trackSignupFromUTM(
     userId: string,
     appId: string,
-    utmParams: UTMParams,
+    utmParams: UTMParams
   ): Promise<void> {
     if (!utmParams.utm_campaign) return;
     const [campaign] = await dbRead
@@ -160,12 +160,16 @@ class ConversionTrackingService {
 
   async getCampaignAttribution(
     organizationId: string,
-    options?: { campaignId?: string },
+    options?: { campaignId?: string; appId?: string }
   ): Promise<CampaignAttribution[]> {
     const conditions = [eq(adCampaigns.organization_id, organizationId)];
 
     if (options?.campaignId) {
       conditions.push(eq(adCampaigns.id, options.campaignId));
+    }
+
+    if (options?.appId) {
+      conditions.push(eq(adCampaigns.app_id, options.appId));
     }
 
     const campaigns = await dbRead
@@ -186,7 +190,7 @@ class ConversionTrackingService {
 
   async getUserAttribution(
     userId: string,
-    appId: string,
+    appId: string
   ): Promise<{
     campaignId?: string;
     campaignName?: string;
@@ -230,7 +234,7 @@ class ConversionTrackingService {
     campaignId: string,
     platform: string,
     destinationUrl: string,
-    creativeIds: string[],
+    creativeIds: string[]
   ): Record<string, string> {
     return Object.fromEntries(
       creativeIds.map((id) => [
@@ -238,7 +242,7 @@ class ConversionTrackingService {
         generateCampaignUrl(destinationUrl, campaignId, platform, {
           content: id,
         }),
-      ]),
+      ])
     );
   }
 }

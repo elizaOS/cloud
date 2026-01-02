@@ -11,7 +11,15 @@ const CreateSessionSchema = z.object({
   appDescription: z.string().max(500).optional(),
   initialPrompt: z.string().max(2000).optional(),
   templateType: z
-    .enum(["chat", "agent-dashboard", "landing-page", "analytics", "blank"])
+    .enum([
+      "chat",
+      "agent-dashboard",
+      "landing-page",
+      "analytics",
+      "blank",
+      "mcp-service",
+      "a2a-agent",
+    ])
     .default("blank"),
   includeMonetization: z.boolean().default(false),
   includeAnalytics: z.boolean().default(true),
@@ -22,7 +30,8 @@ export const GET = withRateLimit(async (request: NextRequest) => {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
 
     const searchParams = request.nextUrl.searchParams;
-    const limit = parseInt(searchParams.get("limit") || "10", 10);
+    const rawLimit = parseInt(searchParams.get("limit") || "10", 10);
+    const limit = Math.min(Math.max(isNaN(rawLimit) ? 10 : rawLimit, 1), 100);
     const includeInactive = searchParams.get("includeInactive") === "true";
     const appId = searchParams.get("appId") || undefined;
 

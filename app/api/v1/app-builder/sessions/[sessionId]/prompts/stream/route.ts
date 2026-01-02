@@ -3,7 +3,7 @@ import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { aiAppBuilderService } from "@/lib/services/ai-app-builder";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
-import { checkRateLimit } from "@/lib/middleware/rate-limit";
+import { checkRateLimitAsync } from "@/lib/middleware/rate-limit";
 
 const PROMPT_RATE_LIMIT = {
   windowMs: 60000,
@@ -118,7 +118,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     await aiAppBuilderService.verifySessionOwnership(sessionId, user.id);
 
-    const rateLimitResult = checkRateLimit(request, PROMPT_RATE_LIMIT);
+    const rateLimitResult = await checkRateLimitAsync(
+      request,
+      PROMPT_RATE_LIMIT
+    );
     if (!rateLimitResult.allowed) {
       const maxRequests = PROMPT_RATE_LIMIT.maxRequests;
       const windowSeconds = PROMPT_RATE_LIMIT.windowMs / 1000;

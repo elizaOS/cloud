@@ -99,7 +99,9 @@ export type FullAppTemplateType =
   | "agent-dashboard"
   | "landing-page"
   | "analytics"
-  | "blank";
+  | "blank"
+  | "mcp-service"
+  | "a2a-agent";
 
 /**
  * Base system prompt for full app building with Vercel Sandbox
@@ -228,6 +230,30 @@ const { balance } = await getBalance();
 `,
 
   blank: FULL_APP_BASE_PROMPT,
+
+  "mcp-service": `${FULL_APP_BASE_PROMPT}
+
+## MCP Service Template
+Build a Model Context Protocol (MCP) server with:
+- MCP server implementation using the @modelcontextprotocol/sdk
+- Tool definitions and handlers
+- Resource management
+- Server configuration and transport setup
+
+This template is coming soon. Using blank template as fallback.
+`,
+
+  "a2a-agent": `${FULL_APP_BASE_PROMPT}
+
+## A2A Agent Template
+Build an Agent-to-Agent protocol endpoint with:
+- A2A protocol server implementation
+- Agent card and task management
+- Message routing between agents
+- Agent discovery and registration
+
+This template is coming soon. Using blank template as fallback.
+`,
 };
 
 /**
@@ -263,6 +289,18 @@ export const FULL_APP_EXAMPLE_PROMPTS: Record<FullAppTemplateType, string[]> = {
     "Add a navigation sidebar",
     "Create a data table with sorting",
     "Add a dark theme toggle",
+  ],
+  "mcp-service": [
+    "Create a basic MCP server with hello world tool",
+    "Add a resource provider for file access",
+    "Implement a search tool",
+    "Add prompt templates",
+  ],
+  "a2a-agent": [
+    "Create an A2A agent card endpoint",
+    "Implement task submission handler",
+    "Add agent discovery mechanism",
+    "Create message routing logic",
   ],
 };
 

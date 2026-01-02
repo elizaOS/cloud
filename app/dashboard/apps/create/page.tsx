@@ -201,6 +201,7 @@ export default function AppCreatorPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const initializationRef = useRef(false);
+  const prevAppIdRef = useRef<string | null>(null);
   const sessionActionsLogRef = useRef<
     {
       tool: string;
@@ -282,6 +283,23 @@ export default function AppCreatorPage() {
     : `app-builder-messages-new`;
 
   useEffect(() => {
+    // Reset initialization and state when appIdFromUrl changes
+    if (prevAppIdRef.current !== appIdFromUrl) {
+      const isAppChange = prevAppIdRef.current !== null;
+      prevAppIdRef.current = appIdFromUrl;
+      initializationRef.current = false;
+
+      // Clear stale state when switching between apps
+      if (isAppChange) {
+        setSession(null);
+        setMessages([]);
+        setAppData(null);
+        setStatus("idle");
+        setIsInitializing(!!appIdFromUrl || !!sessionIdFromUrl);
+        setStep(appIdFromUrl ? "building" : "setup");
+      }
+    }
+
     if (initializationRef.current) return;
     initializationRef.current = true;
 
