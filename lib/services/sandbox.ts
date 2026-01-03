@@ -1518,6 +1518,40 @@ REMEMBER:
       });
   }
 
+  async installDependenciesAndRestart(
+    sandboxId: string,
+    onProgress?: (progress: SandboxProgress) => void
+  ): Promise<void> {
+    const sandbox = getActiveSandboxes().get(sandboxId);
+    if (!sandbox) {
+      throw new Error(`Sandbox ${sandboxId} not found`);
+    }
+
+    logger.info("Starting dependency install and dev server restart", { sandboxId });
+
+    onProgress?.({ step: "installing", message: "Stopping dev server..." });
+    await sandbox.runCommand({
+      cmd: "sh",
+      args: ["-c", "pkill -f 'next dev' 2>/dev/null || true; pkill -f 'node.*next' 2>/dev/null || true"],
+    });
+    await new Promise((r) => setTimeout(r, 1000));
+
+    onProgress?.({ step: "installing", message: "Installing dependencies..." });
+    const installResult = await installDependencies(sandbox);
+    logger.info("Dependencies installed for restore", { sandboxId, result: installResult });
+
+    onProgress?.({ step: "starting", message: "Starting dev server..." });
+    await sandbox.runCommand({
+      cmd: "sh",
+      args: ["-c", "pnpm dev 2>&1 | tee /tmp/next-dev.log &"],
+      detached: true,
+    });
+
+    await this.waitForDevServer(sandbox, 3000);
+    logger.info("Dev server restarted after dependency install", { sandboxId });
+    onProgress?.({ step: "ready", message: "Dev server ready!" });
+  }
+
   async extendTimeout(sandboxId: string, durationMs: number): Promise<void> {
     const sandbox = getActiveSandboxes().get(sandboxId);
     if (!sandbox) throw new Error(`Sandbox ${sandboxId} not found`);
