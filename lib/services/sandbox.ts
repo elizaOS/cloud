@@ -20,17 +20,20 @@ interface ChatMessage {
   content: string;
 }
 
-let pageViewTracked = false;
+const trackedPaths = new Set<string>();
 
 export async function trackPageView(pathname?: string) {
   if (typeof window === 'undefined') return;
-  if (pageViewTracked && !pathname) return;
+
+  const path = pathname || window.location.pathname;
+  if (trackedPaths.has(path)) return;
+  trackedPaths.add(path);
 
   try {
     const payload = {
       app_id: appId,
       page_url: window.location.href,
-      pathname: pathname || window.location.pathname,
+      pathname: path,
       referrer: document.referrer,
       screen_width: window.screen.width,
       screen_height: window.screen.height,
@@ -44,19 +47,8 @@ export async function trackPageView(pathname?: string) {
       },
       body: JSON.stringify(payload),
     });
-
-    if (!pathname) pageViewTracked = true;
   } catch (e) {
     // Silent fail - don't break the app for analytics
-  }
-}
-
-// Auto-track on load if in browser
-if (typeof window !== 'undefined') {
-  if (document.readyState === 'complete') {
-    trackPageView();
-  } else {
-    window.addEventListener('load', () => trackPageView());
   }
 }
 
@@ -190,6 +182,22 @@ export function usePageTracking() {
     };
     track();
   }, [pathname]);
+}
+`;
+
+const ELIZA_ANALYTICS_COMPONENT = `'use client';
+import { useEffect } from 'react';
+import { usePathname } from 'next/navigation';
+import { trackPageView } from '@/lib/eliza';
+
+export function ElizaAnalytics() {
+  const pathname = usePathname();
+
+  useEffect(() => {
+    trackPageView(pathname);
+  }, [pathname]);
+
+  return null;
 }
 `;
 
@@ -823,7 +831,52 @@ export class SandboxService {
       ],
     });
 
+    const componentsPath = useSrc ? "src/components" : "components";
+    await sandbox.runCommand({
+      cmd: "mkdir",
+      args: ["-p", componentsPath],
+    });
+
+    const analyticsBase64 = Buffer.from(
+      ELIZA_ANALYTICS_COMPONENT,
+      "utf-8"
+    ).toString("base64");
+    await sandbox.runCommand({
+      cmd: "sh",
+      args: [
+        "-c",
+        `echo '${analyticsBase64}' | base64 -d > ${componentsPath}/eliza-analytics.tsx`,
+      ],
+    });
+
     logger.info("SDK files written", { sandboxId });
+
+    // Inject ElizaAnalytics client component into layout.tsx for page view tracking
+    const layoutPath = useSrc ? "src/app/layout.tsx" : "app/layout.tsx";
+    const layoutContent = await readFileViaSh(sandbox, layoutPath);
+    if (layoutContent && !layoutContent.includes("ElizaAnalytics")) {
+      const analyticsImport = `import { ElizaAnalytics } from '@/components/eliza-analytics';\n`;
+      let updatedLayout = analyticsImport + layoutContent;
+
+      // Insert <ElizaAnalytics /> inside the body tag, right after opening
+      const bodyMatch = updatedLayout.match(/<body[^>]*>/);
+      if (bodyMatch) {
+        const bodyTag = bodyMatch[0];
+        updatedLayout = updatedLayout.replace(
+          bodyTag,
+          `${bodyTag}\n        <ElizaAnalytics />`
+        );
+      }
+
+      await writeFileViaSh(sandbox, layoutPath, updatedLayout);
+      logger.info(
+        "Injected ElizaAnalytics component into layout.tsx for page tracking",
+        {
+          sandboxId,
+          layoutPath,
+        }
+      );
+    }
 
     // Add ELIZA API URL to env if configured (for testing with ngrok, etc.)
     const elizaApiUrl =
@@ -1738,6 +1791,109 @@ REMEMBER:
       errors: errors.length,
       durationMs: duration,
     });
+
+    // Ensure SDK and analytics files are present after restore for page view tracking
+    const srcCheck = await sandbox.runCommand({
+      cmd: "test",
+      args: ["-d", "src"],
+    });
+    const useSrc = srcCheck.exitCode === 0;
+    const libPath = useSrc ? "src/lib" : "lib";
+    const componentsPath = useSrc ? "src/components" : "components";
+
+    // Always write latest SDK file (required by analytics component)
+    // This ensures the latest tracking code is always used, even if snapshot had old version
+    const sdkFilePath = `${libPath}/eliza.ts`;
+    await sandbox.runCommand({
+      cmd: "mkdir",
+      args: ["-p", libPath],
+    });
+    const sdkBase64 = Buffer.from(ELIZA_SDK_FILE, "utf-8").toString("base64");
+    await sandbox.runCommand({
+      cmd: "sh",
+      args: ["-c", `echo '${sdkBase64}' | base64 -d > ${sdkFilePath}`],
+    });
+    logger.info("Updated SDK file after restore", {
+      sandboxId,
+      sdkFilePath,
+    });
+
+    // Always write latest hooks file
+    const hooksPath = useSrc ? "src/hooks" : "hooks";
+    await sandbox.runCommand({
+      cmd: "mkdir",
+      args: ["-p", hooksPath],
+    });
+    const hookBase64 = Buffer.from(ELIZA_HOOK_FILE, "utf-8").toString("base64");
+    await sandbox.runCommand({
+      cmd: "sh",
+      args: [
+        "-c",
+        `echo '${hookBase64}' | base64 -d > ${hooksPath}/use-eliza.ts`,
+      ],
+    });
+    logger.info("Updated hooks file after restore", {
+      sandboxId,
+      hooksPath,
+    });
+
+    // Always write latest analytics component
+    const analyticsFilePath = `${componentsPath}/eliza-analytics.tsx`;
+    await sandbox.runCommand({
+      cmd: "mkdir",
+      args: ["-p", componentsPath],
+    });
+    const analyticsBase64 = Buffer.from(
+      ELIZA_ANALYTICS_COMPONENT,
+      "utf-8"
+    ).toString("base64");
+    await sandbox.runCommand({
+      cmd: "sh",
+      args: [
+        "-c",
+        `echo '${analyticsBase64}' | base64 -d > ${analyticsFilePath}`,
+      ],
+    });
+    logger.info("Updated ElizaAnalytics component after restore", {
+      sandboxId,
+      analyticsFilePath,
+    });
+
+    // Inject ElizaAnalytics into layout.tsx
+    const layoutPaths = ["src/app/layout.tsx", "app/layout.tsx"];
+    for (const layoutPath of layoutPaths) {
+      try {
+        const layoutContent = await readFileViaSh(sandbox, layoutPath);
+        if (layoutContent && !layoutContent.includes("ElizaAnalytics")) {
+          const analyticsImport = `import { ElizaAnalytics } from '@/components/eliza-analytics';\n`;
+          let updatedLayout = analyticsImport + layoutContent;
+
+          // Insert <ElizaAnalytics /> inside the body tag
+          const bodyMatch = updatedLayout.match(/<body[^>]*>/);
+          if (bodyMatch) {
+            const bodyTag = bodyMatch[0];
+            updatedLayout = updatedLayout.replace(
+              bodyTag,
+              `${bodyTag}\n        <ElizaAnalytics />`
+            );
+          }
+
+          await writeFileViaSh(sandbox, layoutPath, updatedLayout);
+          logger.info(
+            "Injected ElizaAnalytics component into layout.tsx after restore",
+            {
+              sandboxId,
+              layoutPath,
+            }
+          );
+          break;
+        } else if (layoutContent) {
+          break; // Found layout.tsx, analytics already present
+        }
+      } catch {
+        // Layout file doesn't exist at this path, try next
+      }
+    }
 
     return { filesRestored, errors };
   }
