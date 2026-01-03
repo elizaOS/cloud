@@ -59,7 +59,7 @@ export default function BlogPost({
 
           <article>
             {image && (
-              <div className="relative mb-8 aspect-video w-full overflow-hidden rounded-xl">
+              <div className="relative mb-8 aspect-[1200/630] w-full overflow-hidden rounded-xl">
                 <Image
                   src={image}
                   alt={title}
