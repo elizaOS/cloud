@@ -350,24 +350,65 @@ export class AIAppBuilderService {
       filesRestored,
     });
 
-    try {
-      const backupResult = await sandboxService.backupFiles(
-        sandboxData.sandboxId,
-        session.id,
-        { snapshotType: "auto" }
-      );
-      logger.info("Initial backup created after session start", {
-        sessionId: session.id,
-        filesBackedUp: backupResult.filesBackedUp,
-        totalSize: backupResult.totalSize,
-        filesRestored,
-        templateType,
-      });
-    } catch (backupError) {
-      logger.warn("Failed to create initial backup", {
-        sessionId: session.id,
-        error: backupError,
-      });
+    const maxInitialBackupAttempts = 2;
+    const initialBackupRetryDelayMs = 1500;
+    let initialBackupSuccess = false;
+
+    for (
+      let attempt = 1;
+      attempt <= maxInitialBackupAttempts && !initialBackupSuccess;
+      attempt++
+    ) {
+      try {
+        const backupResult = await sandboxService.backupFiles(
+          sandboxData.sandboxId,
+          session.id,
+          { snapshotType: "auto" }
+        );
+        if (backupResult.filesBackedUp > 0) {
+          initialBackupSuccess = true;
+          logger.info("Initial backup created after session start", {
+            sessionId: session.id,
+            filesBackedUp: backupResult.filesBackedUp,
+            totalSize: backupResult.totalSize,
+            filesRestored,
+            templateType,
+            attempt,
+          });
+        } else {
+          logger.info("No files to backup at session start", {
+            sessionId: session.id,
+            filesRestored,
+            templateType,
+            attempt,
+          });
+          initialBackupSuccess = true;
+        }
+      } catch (backupError) {
+        const errorMessage =
+          backupError instanceof Error
+            ? backupError.message
+            : String(backupError);
+
+        if (attempt < maxInitialBackupAttempts) {
+          logger.warn("Initial backup failed, retrying", {
+            sessionId: session.id,
+            sandboxId: sandboxData.sandboxId,
+            attempt,
+            maxAttempts: maxInitialBackupAttempts,
+            nextRetryMs: initialBackupRetryDelayMs,
+            error: errorMessage,
+          });
+          await new Promise((r) => setTimeout(r, initialBackupRetryDelayMs));
+        } else {
+          logger.error("Failed to create initial backup after retries", {
+            sessionId: session.id,
+            sandboxId: sandboxData.sandboxId,
+            totalAttempts: attempt,
+            error: errorMessage,
+          });
+        }
+      }
     }
 
     const baseSession: BuilderSession = {
@@ -553,17 +594,89 @@ export class AIAppBuilderService {
       durationMs,
     });
 
-    if (result.success && result.filesAffected.length > 0) {
-      try {
-        await sandboxService.backupFiles(session.sandbox_id, sessionId, {
-          snapshotType: "prompt_complete",
-          specificFiles: result.filesAffected,
-        });
-      } catch (backupError) {
-        logger.warn("Failed to backup files after prompt", {
-          sessionId,
-          error: backupError,
-        });
+    if (result.filesAffected.length > 0) {
+      const maxBackupAttempts = 3;
+      const backupRetryDelayMs = 2000;
+      let backupSuccess = false;
+
+      for (
+        let backupAttempt = 1;
+        backupAttempt <= maxBackupAttempts && !backupSuccess;
+        backupAttempt++
+      ) {
+        try {
+          const backupResult = await sandboxService.backupFiles(
+            session.sandbox_id,
+            sessionId,
+            {
+              snapshotType: "prompt_complete",
+              specificFiles: result.filesAffected,
+            }
+          );
+
+          if (backupResult.filesBackedUp > 0) {
+            backupSuccess = true;
+            logger.info("Files backed up successfully", {
+              sessionId,
+              filesBackedUp: backupResult.filesBackedUp,
+              totalSize: backupResult.totalSize,
+              attempt: backupAttempt,
+            });
+          } else if (backupAttempt < maxBackupAttempts) {
+            logger.warn(
+              "Backup returned 0 files, retrying entire backup operation",
+              {
+                sessionId,
+                sandboxId: session.sandbox_id,
+                filesAffected: result.filesAffected,
+                attempt: backupAttempt,
+                maxAttempts: maxBackupAttempts,
+                nextRetryMs: backupRetryDelayMs,
+              }
+            );
+            await new Promise((r) => setTimeout(r, backupRetryDelayMs));
+          } else {
+            logger.error(
+              "Backup returned 0 files after all retries - snapshots lost",
+              {
+                sessionId,
+                sandboxId: session.sandbox_id,
+                filesAffected: result.filesAffected,
+                promptSuccess: result.success,
+                totalAttempts: backupAttempt,
+              }
+            );
+          }
+        } catch (backupError) {
+          const errorMessage =
+            backupError instanceof Error
+              ? backupError.message
+              : String(backupError);
+
+          if (backupAttempt < maxBackupAttempts) {
+            logger.warn("Backup failed, retrying entire backup operation", {
+              sessionId,
+              sandboxId: session.sandbox_id,
+              filesAffected: result.filesAffected,
+              attempt: backupAttempt,
+              maxAttempts: maxBackupAttempts,
+              nextRetryMs: backupRetryDelayMs,
+              error: errorMessage,
+            });
+            await new Promise((r) => setTimeout(r, backupRetryDelayMs));
+          } else {
+            logger.error(
+              "Critical: Failed to backup files after all retries",
+              {
+                sessionId,
+                sandboxId: session.sandbox_id,
+                filesAffected: result.filesAffected,
+                totalAttempts: backupAttempt,
+                error: errorMessage,
+              }
+            );
+          }
+        }
       }
     }
 

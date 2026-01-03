@@ -11,6 +11,48 @@ import {
 } from "@/db/schemas/app-sandboxes";
 import { eq, and, desc } from "drizzle-orm";
 
+interface RetryOptions {
+  maxAttempts?: number;
+  delayMs?: number;
+  backoffMultiplier?: number;
+  shouldRetry?: (error: Error) => boolean;
+  onRetry?: (attempt: number, error: Error, nextDelayMs: number) => void;
+}
+
+async function withRetry<T>(
+  operation: () => Promise<T>,
+  options: RetryOptions = {}
+): Promise<T> {
+  const {
+    maxAttempts = 3,
+    delayMs = 1000,
+    backoffMultiplier = 2,
+    shouldRetry = () => true,
+    onRetry,
+  } = options;
+
+  let lastError: Error | null = null;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+
+      if (attempt === maxAttempts || !shouldRetry(lastError)) {
+        throw lastError;
+      }
+
+      const nextDelay = delayMs * Math.pow(backoffMultiplier, attempt - 1);
+      onRetry?.(attempt, lastError, nextDelay);
+
+      await new Promise((resolve) => setTimeout(resolve, nextDelay));
+    }
+  }
+
+  throw lastError || new Error("Retry failed");
+}
+
 const ELIZA_SDK_FILE = `const apiKey = process.env.NEXT_PUBLIC_ELIZA_API_KEY || '';
 const apiBase = process.env.NEXT_PUBLIC_ELIZA_API_URL || 'https://elizacloud.ai';
 const appId = process.env.NEXT_PUBLIC_ELIZA_APP_ID || '';
@@ -1632,13 +1674,24 @@ REMEMBER:
   ): Promise<{ filesBackedUp: number; totalSize: number }> {
     const sandbox = getActiveSandboxes().get(sandboxId);
     if (!sandbox) {
-      logger.warn("Cannot backup - sandbox not found", { sandboxId });
+      logger.error("CRITICAL: Cannot backup - sandbox not found in memory", {
+        sandboxId,
+        sessionId,
+        activeSandboxes: Array.from(getActiveSandboxes().keys()),
+        snapshotType: options.snapshotType,
+        specificFiles: options.specificFiles,
+      });
       return { filesBackedUp: 0, totalSize: 0 };
     }
 
     const { snapshotType = "auto", specificFiles } = options;
 
-    logger.info("Starting file backup", { sandboxId, sessionId, snapshotType });
+    logger.info("Starting file backup", {
+      sandboxId,
+      sessionId,
+      snapshotType,
+      fileCount: specificFiles?.length || "auto-detect",
+    });
 
     const filesToBackup =
       specificFiles || (await this.getModifiedFiles(sandboxId));
@@ -1648,13 +1701,112 @@ REMEMBER:
       return { filesBackedUp: 0, totalSize: 0 };
     }
 
+    const BINARY_EXTENSIONS = new Set([
+      ".ico",
+      ".png",
+      ".jpg",
+      ".jpeg",
+      ".gif",
+      ".webp",
+      ".bmp",
+      ".woff",
+      ".woff2",
+      ".ttf",
+      ".eot",
+      ".otf",
+      ".mp3",
+      ".mp4",
+      ".wav",
+      ".webm",
+      ".pdf",
+      ".zip",
+      ".tar",
+      ".gz",
+      ".bin",
+      ".exe",
+      ".dll",
+      ".so",
+      ".dylib",
+    ]);
+
+    const isBinaryFile = (path: string): boolean => {
+      const ext = path.substring(path.lastIndexOf(".")).toLowerCase();
+      return BINARY_EXTENSIONS.has(ext);
+    };
+
+    const containsNullBytes = (content: string): boolean => {
+      return content.includes("\x00");
+    };
+
     const snapshots: NewSessionFileSnapshot[] = [];
+    const failedFiles: { path: string; reason: string }[] = [];
+    const skippedBinaryFiles: string[] = [];
     let totalSize = 0;
+
+    const readFileWithRetry = async (
+      filePath: string
+    ): Promise<string | null> => {
+      const maxReadAttempts = 3;
+      const readDelayMs = 500;
+
+      for (let attempt = 1; attempt <= maxReadAttempts; attempt++) {
+        try {
+          const content = await readFileViaSh(sandbox, filePath);
+          if (content !== null) {
+            return content;
+          }
+          if (attempt < maxReadAttempts) {
+            logger.debug("File read returned null, retrying", {
+              sandboxId,
+              filePath,
+              attempt,
+              maxAttempts: maxReadAttempts,
+            });
+            await new Promise((r) => setTimeout(r, readDelayMs));
+          }
+        } catch (readError) {
+          if (attempt < maxReadAttempts) {
+            logger.debug("File read threw error, retrying", {
+              sandboxId,
+              filePath,
+              attempt,
+              maxAttempts: maxReadAttempts,
+              error:
+                readError instanceof Error ? readError.message : String(readError),
+            });
+            await new Promise((r) => setTimeout(r, readDelayMs));
+          } else {
+            throw readError;
+          }
+        }
+      }
+      return null;
+    };
 
     for (const filePath of filesToBackup) {
       try {
-        const content = await readFileViaSh(sandbox, filePath);
-        if (content === null) continue;
+        if (isBinaryFile(filePath)) {
+          skippedBinaryFiles.push(filePath);
+          continue;
+        }
+
+        const content = await readFileWithRetry(filePath);
+        if (content === null) {
+          failedFiles.push({
+            path: filePath,
+            reason: "File not found or empty after retries",
+          });
+          continue;
+        }
+
+        if (containsNullBytes(content)) {
+          skippedBinaryFiles.push(filePath);
+          logger.info("Skipping file with binary content (null bytes)", {
+            sandboxId,
+            filePath,
+          });
+          continue;
+        }
 
         const contentHash = crypto
           .createHash("sha256")
@@ -1672,31 +1824,98 @@ REMEMBER:
           snapshot_type: snapshotType,
         });
       } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        failedFiles.push({ path: filePath, reason: errorMessage });
         logger.warn("Failed to read file for backup", {
           sandboxId,
+          sessionId,
           filePath,
-          error,
+          error: errorMessage,
         });
       }
     }
 
+    if (skippedBinaryFiles.length > 0) {
+      logger.info("Skipped binary files during backup", {
+        sandboxId,
+        sessionId,
+        count: skippedBinaryFiles.length,
+        files: skippedBinaryFiles,
+      });
+    }
+
+    if (failedFiles.length > 0) {
+      logger.warn("Some files could not be backed up", {
+        sandboxId,
+        sessionId,
+        failedCount: failedFiles.length,
+        successCount: snapshots.length,
+        failedFiles,
+      });
+    }
+
     if (snapshots.length === 0) {
+      logger.error("CRITICAL: No files could be backed up - all reads failed", {
+        sandboxId,
+        sessionId,
+        attemptedFiles: filesToBackup,
+        failedFiles,
+        snapshotType,
+      });
       return { filesBackedUp: 0, totalSize: 0 };
     }
 
-    await dbWrite.transaction(async (tx) => {
-      for (const snapshot of snapshots) {
-        await tx
-          .delete(sessionFileSnapshots)
-          .where(
-            and(
-              eq(sessionFileSnapshots.sandbox_session_id, sessionId),
-              eq(sessionFileSnapshots.file_path, snapshot.file_path)
-            )
-          );
+    const isRetryableDbError = (error: Error): boolean => {
+      const msg = error.message.toLowerCase();
+      return (
+        msg.includes("connection") ||
+        msg.includes("timeout") ||
+        msg.includes("econnreset") ||
+        msg.includes("econnrefused") ||
+        msg.includes("socket") ||
+        msg.includes("network") ||
+        msg.includes("deadlock") ||
+        msg.includes("lock wait") ||
+        msg.includes("too many connections") ||
+        msg.includes("temporarily unavailable")
+      );
+    };
+
+    await withRetry(
+      async () => {
+        await dbWrite.transaction(async (tx) => {
+          for (const snapshot of snapshots) {
+            await tx
+              .delete(sessionFileSnapshots)
+              .where(
+                and(
+                  eq(sessionFileSnapshots.sandbox_session_id, sessionId),
+                  eq(sessionFileSnapshots.file_path, snapshot.file_path)
+                )
+              );
+          }
+          await tx.insert(sessionFileSnapshots).values(snapshots);
+        });
+      },
+      {
+        maxAttempts: 3,
+        delayMs: 1000,
+        backoffMultiplier: 2,
+        shouldRetry: isRetryableDbError,
+        onRetry: (attempt, error, nextDelayMs) => {
+          logger.warn("Database transaction failed, retrying snapshot save", {
+            sandboxId,
+            sessionId,
+            attempt,
+            maxAttempts: 3,
+            nextDelayMs,
+            error: error.message,
+            snapshotCount: snapshots.length,
+          });
+        },
       }
-      await tx.insert(sessionFileSnapshots).values(snapshots);
-    });
+    );
 
     logger.info("File backup completed", {
       sandboxId,
