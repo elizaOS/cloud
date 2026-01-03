@@ -30,10 +30,42 @@ export const GET = withRateLimit(async (request: NextRequest) => {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
 
     const searchParams = request.nextUrl.searchParams;
+    const appId = searchParams.get("appId") || undefined;
+    const checkSnapshots = searchParams.get("checkSnapshots") === "true";
+
+    if (checkSnapshots && appId) {
+      logger.info("Checking snapshots for app", { appId, userId: user.id, organizationId: user.organization_id });
+
+      const debugInfo = searchParams.get("debug") === "true";
+
+      const snapshotInfo = await aiAppBuilderService.getAppSnapshotInfo(
+        appId,
+        user.id,
+        user.organization_id
+      );
+      logger.info("Snapshot info result", { appId, snapshotInfo });
+
+      if (debugInfo) {
+        const debugData = await aiAppBuilderService.debugAppSnapshots(
+          appId,
+          user.organization_id
+        );
+        return NextResponse.json({
+          success: true,
+          snapshotInfo,
+          debug: debugData,
+        });
+      }
+
+      return NextResponse.json({
+        success: true,
+        snapshotInfo,
+      });
+    }
+
     const rawLimit = parseInt(searchParams.get("limit") || "10", 10);
     const limit = Math.min(Math.max(isNaN(rawLimit) ? 10 : rawLimit, 1), 100);
     const includeInactive = searchParams.get("includeInactive") === "true";
-    const appId = searchParams.get("appId") || undefined;
 
     const sessions = await aiAppBuilderService.listSessions(user.id, {
       limit,

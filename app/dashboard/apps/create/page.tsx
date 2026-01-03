@@ -278,6 +278,13 @@ export default function AppCreatorPage() {
     total: number;
     filePath: string;
   } | null>(null);
+  const [appSnapshotInfo, setAppSnapshotInfo] = useState<{
+    hasSnapshots: boolean;
+    fileCount: number;
+    totalSize: number;
+    lastBackup: string | null;
+    sessionId: string | null;
+  } | null>(null);
 
   const messagesStorageKey = appIdFromUrl
     ? `app-builder-messages-${appIdFromUrl}`
@@ -299,6 +306,7 @@ export default function AppCreatorPage() {
         setSession(null);
         setMessages([]);
         setAppData(null);
+        setAppSnapshotInfo(null);
         setStatus("idle");
         setIsInitializing(!!appIdFromUrl || !!sessionIdFromUrl);
         setStep(appIdFromUrl ? "building" : "setup");
@@ -429,6 +437,29 @@ export default function AppCreatorPage() {
             initializationRef.current = false;
             return;
           }
+        }
+
+        try {
+          const snapshotResponse = await fetchWithRetry(
+            `/api/v1/app-builder?appId=${appIdFromUrl}&checkSnapshots=true&debug=true`
+          );
+          if (snapshotResponse.ok) {
+            const snapshotData = await snapshotResponse.json();
+            console.log("[AppBuilder] Snapshot check response:", snapshotData);
+            if (snapshotData.debug) {
+              console.log("[AppBuilder] Debug info:", snapshotData.debug);
+              console.log("[AppBuilder] All sessions in org:", snapshotData.debug.allSessions?.length || 0);
+              console.log("[AppBuilder] Sessions for this app:", snapshotData.debug.sessionsForThisApp?.length || 0);
+              console.log("[AppBuilder] Snapshots per session:", snapshotData.debug.snapshotsPerSession);
+            }
+            if (snapshotData.success && snapshotData.snapshotInfo) {
+              setAppSnapshotInfo(snapshotData.snapshotInfo);
+            }
+          } else {
+            console.error("[AppBuilder] Snapshot check failed:", snapshotResponse.status);
+          }
+        } catch (snapshotError) {
+          console.error("[AppBuilder] Snapshot check error:", snapshotError);
         }
 
         setIsInitializing(false);
@@ -1813,6 +1844,26 @@ ANTHROPIC_API_KEY=your_key_here`}
                 assistance.
               </p>
 
+              {appSnapshotInfo?.hasSnapshots ? (
+                <div className="p-4 bg-green-500/10 border border-green-500/20 rounded-lg mb-6">
+                  <div className="flex items-center justify-center gap-2 mb-2">
+                    <RefreshCw className="h-4 w-4 text-green-400" />
+                    <p className="text-sm text-green-400 font-medium">
+                      Previous work found
+                    </p>
+                  </div>
+                  <p className="text-xs text-white/50">
+                    {appSnapshotInfo.fileCount} files (
+                    {Math.round(appSnapshotInfo.totalSize / 1024)}KB) will be
+                    automatically restored when you start building.
+                  </p>
+                </div>
+              ) : appSnapshotInfo !== null ? (
+                <p className="text-xs text-white/40 mb-4">
+                  No previous work found for this app.
+                </p>
+              ) : null}
+
               <Button
                 onClick={startSession}
                 disabled={isLoading}
@@ -1823,6 +1874,11 @@ ANTHROPIC_API_KEY=your_key_here`}
                   <>
                     <Loader2 className="h-5 w-5 mr-2 animate-spin" />
                     Starting...
+                  </>
+                ) : appSnapshotInfo?.hasSnapshots ? (
+                  <>
+                    <RefreshCw className="h-5 w-5 mr-2" />
+                    Restore & Continue
                   </>
                 ) : (
                   <>

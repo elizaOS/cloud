@@ -97,6 +97,8 @@ export class AIAppBuilderService {
     organizationId: string,
     excludeSessionId?: string
   ): Promise<string | null> {
+    logger.info("findPreviousSessionWithSnapshots: searching", { appId, organizationId, excludeSessionId });
+
     const conditions = [
       eq(appSandboxSessions.app_id, appId),
       eq(appSandboxSessions.organization_id, organizationId),
@@ -105,6 +107,21 @@ export class AIAppBuilderService {
     if (excludeSessionId) {
       conditions.push(sql`${appSandboxSessions.id} != ${excludeSessionId}`);
     }
+
+    const allSessions = await dbRead
+      .select({
+        sessionId: appSandboxSessions.id,
+        appId: appSandboxSessions.app_id,
+        status: appSandboxSessions.status,
+      })
+      .from(appSandboxSessions)
+      .where(and(...conditions));
+
+    logger.info("findPreviousSessionWithSnapshots: all sessions for app", {
+      appId,
+      sessionCount: allSessions.length,
+      sessions: allSessions.map((s) => ({ id: s.sessionId, status: s.status })),
+    });
 
     const sessionsWithSnapshots = await dbRead
       .select({
@@ -123,6 +140,12 @@ export class AIAppBuilderService {
       .having(sql`count(${sessionFileSnapshots.id}) > 0`)
       .orderBy(desc(appSandboxSessions.created_at))
       .limit(1);
+
+    logger.info("findPreviousSessionWithSnapshots: sessions with snapshots", {
+      appId,
+      count: sessionsWithSnapshots.length,
+      result: sessionsWithSnapshots,
+    });
 
     if (sessionsWithSnapshots.length === 0) return null;
     return sessionsWithSnapshots[0].sessionId;
@@ -326,6 +349,26 @@ export class AIAppBuilderService {
       sandboxUrl: sandboxData.sandboxUrl,
       filesRestored,
     });
+
+    try {
+      const backupResult = await sandboxService.backupFiles(
+        sandboxData.sandboxId,
+        session.id,
+        { snapshotType: "auto" }
+      );
+      logger.info("Initial backup created after session start", {
+        sessionId: session.id,
+        filesBackedUp: backupResult.filesBackedUp,
+        totalSize: backupResult.totalSize,
+        filesRestored,
+        templateType,
+      });
+    } catch (backupError) {
+      logger.warn("Failed to create initial backup", {
+        sessionId: session.id,
+        error: backupError,
+      });
+    }
 
     const baseSession: BuilderSession = {
       id: session.id,
@@ -892,6 +935,116 @@ export class AIAppBuilderService {
     throw new Error(
       "Deployment is not yet available. Please use the export feature to download your app code, then deploy manually to your preferred hosting provider."
     );
+  }
+
+  async getAppSnapshotInfo(
+    appId: string,
+    userId: string,
+    organizationId: string
+  ): Promise<{
+    hasSnapshots: boolean;
+    fileCount: number;
+    totalSize: number;
+    lastBackup: Date | null;
+    sessionId: string | null;
+  }> {
+    logger.info("getAppSnapshotInfo called", { appId, userId, organizationId });
+
+    const previousSessionId = await this.findPreviousSessionWithSnapshots(
+      appId,
+      organizationId
+    );
+
+    logger.info("findPreviousSessionWithSnapshots result", { appId, previousSessionId });
+
+    if (!previousSessionId) {
+      return {
+        hasSnapshots: false,
+        fileCount: 0,
+        totalSize: 0,
+        lastBackup: null,
+        sessionId: null,
+      };
+    }
+
+    const stats = await sandboxService.getSnapshotStats(previousSessionId);
+    logger.info("getSnapshotStats result", { previousSessionId, stats });
+
+    return {
+      hasSnapshots: stats.fileCount > 0,
+      ...stats,
+      sessionId: previousSessionId,
+    };
+  }
+
+  async debugAppSnapshots(
+    appId: string,
+    organizationId: string
+  ): Promise<{
+    allSessions: Array<{
+      id: string;
+      status: string;
+      appId: string | null;
+      createdAt: Date;
+    }>;
+    sessionsForThisApp: Array<{
+      id: string;
+      status: string;
+      appId: string | null;
+      createdAt: Date;
+    }>;
+    snapshotsPerSession: Array<{
+      sessionId: string;
+      snapshotCount: number;
+    }>;
+  }> {
+    const allSessions = await dbRead
+      .select({
+        id: appSandboxSessions.id,
+        status: appSandboxSessions.status,
+        appId: appSandboxSessions.app_id,
+        organizationId: appSandboxSessions.organization_id,
+        createdAt: appSandboxSessions.created_at,
+      })
+      .from(appSandboxSessions)
+      .where(eq(appSandboxSessions.organization_id, organizationId))
+      .orderBy(desc(appSandboxSessions.created_at))
+      .limit(20);
+
+    const sessionsForThisApp = allSessions.filter((s) => s.appId === appId);
+
+    const snapshotsPerSession: Array<{
+      sessionId: string;
+      snapshotCount: number;
+    }> = [];
+
+    for (const session of sessionsForThisApp) {
+      const snapshots = await dbRead
+        .select({ id: sessionFileSnapshots.id })
+        .from(sessionFileSnapshots)
+        .where(eq(sessionFileSnapshots.sandbox_session_id, session.id));
+
+      snapshotsPerSession.push({
+        sessionId: session.id,
+        snapshotCount: snapshots.length,
+      });
+    }
+
+    return {
+      allSessions: allSessions.map((s) => ({
+        id: s.id,
+        status: s.status || "unknown",
+        appId: s.appId,
+        createdAt: s.createdAt,
+      })),
+      sessionsForThisApp: sessionsForThisApp.map((s) => ({
+        id: s.id,
+        status: s.status || "unknown",
+        appId: s.appId,
+        createdAt: s.createdAt,
+      })),
+      snapshotsPerSession,
+    };
   }
 }
 
