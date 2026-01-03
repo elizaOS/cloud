@@ -29,7 +29,7 @@ export default function BlogCard({ post }: BlogCardProps) {
     <Link href={`/blog/${post.slug}`} className="group block">
       <article className="h-full overflow-hidden rounded-xl border border-white/10 bg-neutral-950 hover:bg-neutral-900 transition-all duration-300 hover:ring-2 hover:ring-orange-500/40">
         {post.image && (
-          <div className="relative aspect-video w-full overflow-hidden">
+          <div className="relative aspect-[1200/630] w-full overflow-hidden">
             <Image
               src={post.image}
               alt={post.title}
