@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthWithOrg } from "@/lib/auth";
 import {
-  aiAppBuilderService,
+  aiAppBuilder,
   type SandboxProgress,
 } from "@/lib/services/ai-app-builder";
 import { logger } from "@/lib/utils/logger";
@@ -34,7 +34,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
       };
 
       try {
-        const session = await aiAppBuilderService.resumeSession(
+        const session = await aiAppBuilder.resumeSession(
           sessionId,
           user.id,
           {

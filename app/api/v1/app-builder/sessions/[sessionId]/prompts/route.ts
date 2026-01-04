@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { aiAppBuilderService } from "@/lib/services/ai-app-builder";
+import { aiAppBuilder } from "@/lib/services/ai-app-builder";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
 import { checkRateLimit } from "@/lib/middleware/rate-limit";
@@ -40,7 +40,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    await aiAppBuilderService.verifySessionOwnership(sessionId, user.id);
+    await aiAppBuilder.verifySessionOwnership(sessionId, user.id);
 
     const body = await request.json();
     const validationResult = SendPromptSchema.safeParse(body);
@@ -56,7 +56,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    const result = await aiAppBuilderService.sendPrompt(
+    const result = await aiAppBuilder.sendPrompt(
       sessionId,
       validationResult.data.prompt,
       user.id,

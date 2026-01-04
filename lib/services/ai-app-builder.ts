@@ -8,7 +8,7 @@ import {
   type AppSandboxSession,
 } from "@/db/schemas/app-sandboxes";
 import { apps } from "@/db/schemas/apps";
-import { eq } from "drizzle-orm";
+import { eq, and, notInArray, desc } from "drizzle-orm";
 import { githubReposService, generateRepoName } from "./github-repos";
 
 /**
@@ -65,6 +65,11 @@ export interface PromptResult {
 }
 
 export class AIAppBuilderService {
+  // Alias for createSession
+  async startSession(config: BuilderSessionConfig): Promise<BuilderSession> {
+    return this.createSession(config);
+  }
+
   async createSession(config: BuilderSessionConfig): Promise<BuilderSession> {
     const {
       userId,
@@ -82,12 +87,10 @@ export class AIAppBuilderService {
 
     logger.info("Creating app builder session", { userId, templateType });
 
-    // Get or generate repo name
     const repoName = appId
       ? await this.getRepoName(appId)
       : generateRepoName(appName || `app-${Date.now()}`);
 
-    // Create app if needed
     let finalAppId = appId;
     if (!finalAppId && appName) {
       const slug = appName.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 50);
@@ -110,7 +113,6 @@ export class AIAppBuilderService {
       throw new Error("App ID required");
     }
 
-    // Create session
     const [session] = await dbWrite
       .insert(appSandboxSessions)
       .values({
@@ -127,7 +129,6 @@ export class AIAppBuilderService {
       .returning();
 
     try {
-      // Create repo if needed
       const repoExists = await githubReposService.getRepoInfo(repoName);
       if (!repoExists) {
         onProgress?.({ step: "creating", message: "Creating GitHub repository..." });
@@ -138,7 +139,6 @@ export class AIAppBuilderService {
         });
       }
 
-      // Create sandbox
       onProgress?.({ step: "creating", message: "Starting sandbox..." });
       const sandboxData = await sandboxService.create({
         repoName,
@@ -150,7 +150,6 @@ export class AIAppBuilderService {
 
       const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
 
-      // Update session
       await dbWrite
         .update(appSandboxSessions)
         .set({
@@ -162,7 +161,6 @@ export class AIAppBuilderService {
         })
         .where(eq(appSandboxSessions.id, session.id));
 
-      // Update app URL
       await dbWrite
         .update(apps)
         .set({ app_url: sandboxData.sandboxUrl })
@@ -200,7 +198,7 @@ export class AIAppBuilderService {
     userId: string,
     onProgress?: (progress: SandboxProgress) => void
   ): Promise<BuilderSession> {
-    const session = await this.verifyOwnership(sessionId, userId);
+    const session = await this.verifySessionOwnership(sessionId, userId);
 
     if (!session.app_id) {
       throw new Error("Session has no associated app");
@@ -259,8 +257,13 @@ export class AIAppBuilderService {
     };
   }
 
+  // Alias for processPrompt
+  async sendPrompt(sessionId: string, userId: string, prompt: string): Promise<PromptResult> {
+    return this.processPrompt(sessionId, userId, prompt);
+  }
+
   async processPrompt(sessionId: string, userId: string, prompt: string): Promise<PromptResult> {
-    const session = await this.verifyOwnership(sessionId, userId);
+    const session = await this.verifySessionOwnership(sessionId, userId);
 
     if (!session.sandbox_id) {
       throw new Error("No active sandbox");
@@ -279,7 +282,6 @@ export class AIAppBuilderService {
     });
 
     try {
-      // Placeholder for AI processing
       const result = { output: `Processed: ${prompt}`, filesAffected: [] as string[] };
 
       let commitSha = "";
@@ -317,7 +319,7 @@ export class AIAppBuilderService {
   }
 
   async getSession(sessionId: string, userId: string): Promise<BuilderSession | null> {
-    const session = await this.verifyOwnership(sessionId, userId);
+    const session = await this.verifySessionOwnership(sessionId, userId);
 
     const app = session.app_id
       ? await dbRead.query.apps.findFirst({ where: eq(apps.id, session.app_id) })
@@ -344,8 +346,112 @@ export class AIAppBuilderService {
     };
   }
 
+  async listSessions(
+    userId: string,
+    options?: { limit?: number; includeInactive?: boolean; appId?: string }
+  ): Promise<any[]> {
+    const { limit = 10, includeInactive = false, appId } = options || {};
+
+    const conditions = [eq(appSandboxSessions.user_id, userId)];
+    if (!includeInactive) {
+      conditions.push(notInArray(appSandboxSessions.status, ["stopped", "timeout"]));
+    }
+    if (appId) {
+      conditions.push(eq(appSandboxSessions.app_id, appId));
+    }
+
+    const sessions = await dbRead
+      .select()
+      .from(appSandboxSessions)
+      .where(and(...conditions))
+      .orderBy(desc(appSandboxSessions.created_at))
+      .limit(limit);
+
+    return sessions.map((s) => ({
+      id: s.id,
+      sandboxId: s.sandbox_id || "",
+      sandboxUrl: s.sandbox_url || "",
+      status: s.status,
+      appName: s.app_name,
+      createdAt: s.created_at.toISOString(),
+      expiresAt: s.expires_at?.toISOString() || null,
+    }));
+  }
+
+  async extendSession(
+    sessionId: string,
+    userId: string,
+    minutes: number = 30
+  ): Promise<{ expiresAt: string }> {
+    await this.verifySessionOwnership(sessionId, userId);
+    const expiresAt = new Date(Date.now() + minutes * 60 * 1000);
+
+    await dbWrite
+      .update(appSandboxSessions)
+      .set({ expires_at: expiresAt })
+      .where(eq(appSandboxSessions.id, sessionId));
+
+    return { expiresAt: expiresAt.toISOString() };
+  }
+
+  async resetSessionStatus(sessionId: string, userId: string): Promise<void> {
+    await this.verifySessionOwnership(sessionId, userId);
+    await dbWrite
+      .update(appSandboxSessions)
+      .set({ status: "ready" })
+      .where(eq(appSandboxSessions.id, sessionId));
+  }
+
+  async getLogs(sessionId: string, userId: string, tail?: number): Promise<string[]> {
+    const session = await this.verifySessionOwnership(sessionId, userId);
+    if (!session.sandbox_id) return [];
+
+    try {
+      const logs = await sandboxService.getLogs(session.sandbox_id, { tail });
+      return Array.isArray(logs) ? logs : [];
+    } catch {
+      return [];
+    }
+  }
+
+  async getAppSnapshotInfo(
+    appId: string,
+    userId: string,
+    organizationId: string
+  ): Promise<{ hasSnapshots: boolean; latestCommit?: string }> {
+    const app = await dbRead.query.apps.findFirst({
+      where: and(eq(apps.id, appId), eq(apps.organization_id, organizationId)),
+    });
+
+    if (!app?.github_repo) {
+      return { hasSnapshots: false };
+    }
+
+    try {
+      const commits = await githubReposService.listCommits(app.github_repo, { limit: 1 });
+      return {
+        hasSnapshots: commits.length > 0,
+        latestCommit: commits[0]?.sha,
+      };
+    } catch {
+      return { hasSnapshots: false };
+    }
+  }
+
+  async debugAppSnapshots(appId: string, organizationId: string): Promise<any> {
+    const app = await dbRead.query.apps.findFirst({
+      where: and(eq(apps.id, appId), eq(apps.organization_id, organizationId)),
+    });
+
+    return {
+      appId,
+      githubRepo: app?.github_repo || null,
+      hasRepo: !!app?.github_repo,
+    };
+  }
+
   async getVersionHistory(sessionId: string, userId: string) {
-    const session = await this.verifyOwnership(sessionId, userId);
+    const session = await this.verifySessionOwnership(sessionId, userId);
     if (!session.app_id) return [];
 
     const app = await dbRead.query.apps.findFirst({ where: eq(apps.id, session.app_id) });
@@ -355,7 +461,7 @@ export class AIAppBuilderService {
   }
 
   async stopSession(sessionId: string, userId: string): Promise<void> {
-    const session = await this.verifyOwnership(sessionId, userId);
+    const session = await this.verifySessionOwnership(sessionId, userId);
 
     if (session.sandbox_id) {
       try {
@@ -372,7 +478,7 @@ export class AIAppBuilderService {
       .where(eq(appSandboxSessions.id, sessionId));
   }
 
-  private async verifyOwnership(sessionId: string, userId: string): Promise<AppSandboxSession> {
+  async verifySessionOwnership(sessionId: string, userId: string): Promise<AppSandboxSession> {
     const session = await dbRead.query.appSandboxSessions.findFirst({
       where: eq(appSandboxSessions.id, sessionId),
     });

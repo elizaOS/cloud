@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { aiAppBuilderService } from "@/lib/services/ai-app-builder";
+import { aiAppBuilder } from "@/lib/services/ai-app-builder";
 import { logger } from "@/lib/utils/logger";
 
 export async function GET(
@@ -11,13 +11,13 @@ export async function GET(
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { sessionId } = await params;
 
-    await aiAppBuilderService.verifySessionOwnership(sessionId, user.id);
+    await aiAppBuilder.verifySessionOwnership(sessionId, user.id);
 
     const url = new URL(request.url);
     const rawTail = parseInt(url.searchParams.get("tail") || "50", 10);
     const tail = Math.min(Math.max(isNaN(rawTail) ? 50 : rawTail, 1), 1000);
 
-    const logs = await aiAppBuilderService.getLogs(sessionId, user.id, tail);
+    const logs = await aiAppBuilder.getLogs(sessionId, user.id, tail);
 
     return NextResponse.json({
       success: true,

@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { aiAppBuilderService } from "@/lib/services/ai-app-builder";
+import { aiAppBuilder } from "@/lib/services/ai-app-builder";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
 import { checkRateLimitAsync } from "@/lib/middleware/rate-limit";
@@ -120,7 +120,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { sessionId } = await params;
 
-    await aiAppBuilderService.verifySessionOwnership(sessionId, user.id);
+    await aiAppBuilder.verifySessionOwnership(sessionId, user.id);
 
     const rateLimitResult = await checkRateLimitAsync(
       request,
@@ -174,7 +174,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       streamWriter.startHeartbeat(15000);
 
       try {
-        const result = await aiAppBuilderService.sendPrompt(
+        const result = await aiAppBuilder.sendPrompt(
           sessionId,
           validationResult.data.prompt,
           user.id,
@@ -211,7 +211,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
         // Reset session status to "ready" so user can try again
         try {
-          await aiAppBuilderService.resetSessionStatus(sessionId, user.id);
+          await aiAppBuilder.resetSessionStatus(sessionId, user.id);
         } catch (resetError) {
           logger.warn("Failed to reset session status after error", {
             sessionId,

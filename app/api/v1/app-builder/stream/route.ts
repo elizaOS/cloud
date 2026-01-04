@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import {
-  aiAppBuilderService,
+  aiAppBuilder,
   type SandboxProgress,
 } from "@/lib/services/ai-app-builder";
 import { logger } from "@/lib/utils/logger";
@@ -181,7 +181,7 @@ export async function POST(request: NextRequest) {
       streamWriter.startHeartbeat(15000);
 
       try {
-        const session = await aiAppBuilderService.startSession({
+        const session = await aiAppBuilder.startSession({
           userId: user.id,
           organizationId: user.organization_id,
           appId: data.appId,

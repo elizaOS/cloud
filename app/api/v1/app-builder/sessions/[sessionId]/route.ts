@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { aiAppBuilderService } from "@/lib/services/ai-app-builder";
+import { aiAppBuilder } from "@/lib/services/ai-app-builder";
 import { z } from "zod";
 
 interface RouteParams {
@@ -11,7 +11,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { sessionId } = await params;
-    const session = await aiAppBuilderService.getSession(sessionId, user.id);
+    const session = await aiAppBuilder.getSession(sessionId, user.id);
 
     if (!session) {
       return NextResponse.json(
@@ -60,7 +60,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    const result = await aiAppBuilderService.extendSession(
+    const result = await aiAppBuilder.extendSession(
       sessionId,
       user.id,
       validationResult.data.durationMs
@@ -92,7 +92,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { sessionId } = await params;
 
-    await aiAppBuilderService.stopSession(sessionId, user.id);
+    await aiAppBuilder.stopSession(sessionId, user.id);
 
     return NextResponse.json({
       success: true,

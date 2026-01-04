@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { aiAppBuilderService } from "@/lib/services/ai-app-builder";
+import { aiAppBuilder } from "@/lib/services/ai-app-builder";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
@@ -38,7 +38,7 @@ export const GET = withRateLimit(async (request: NextRequest) => {
 
       const debugInfo = searchParams.get("debug") === "true";
 
-      const snapshotInfo = await aiAppBuilderService.getAppSnapshotInfo(
+      const snapshotInfo = await aiAppBuilder.getAppSnapshotInfo(
         appId,
         user.id,
         user.organization_id
@@ -46,7 +46,7 @@ export const GET = withRateLimit(async (request: NextRequest) => {
       logger.info("Snapshot info result", { appId, snapshotInfo });
 
       if (debugInfo) {
-        const debugData = await aiAppBuilderService.debugAppSnapshots(
+        const debugData = await aiAppBuilder.debugAppSnapshots(
           appId,
           user.organization_id
         );
@@ -67,7 +67,7 @@ export const GET = withRateLimit(async (request: NextRequest) => {
     const limit = Math.min(Math.max(isNaN(rawLimit) ? 10 : rawLimit, 1), 100);
     const includeInactive = searchParams.get("includeInactive") === "true";
 
-    const sessions = await aiAppBuilderService.listSessions(user.id, {
+    const sessions = await aiAppBuilder.listSessions(user.id, {
       limit,
       includeInactive,
       appId,
@@ -124,7 +124,7 @@ export const POST = withRateLimit(async (request: NextRequest) => {
 
     const data = validationResult.data;
 
-    const session = await aiAppBuilderService.startSession({
+    const session = await aiAppBuilder.startSession({
       userId: user.id,
       organizationId: user.organization_id,
       appId: data.appId,
