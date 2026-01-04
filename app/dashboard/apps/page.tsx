@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import type { Metadata } from "next";
 import { requireAuthWithOrg } from "@/lib/auth";
 import { appsService } from "@/lib/services/apps";
 import { AppsTable } from "@/components/apps/apps-table";
@@ -7,6 +8,12 @@ import { Grid3x3, Users, TrendingUp, Activity } from "lucide-react";
 import { BrandCard, CornerBrackets } from "@/components/brand";
 import { CreateAppButton } from "@/components/apps/create-app-button";
 import { AIAppBuilderButton } from "@/components/apps/ai-app-builder-button";
+
+export const metadata: Metadata = {
+  title: "Apps",
+  description:
+    "Create and manage apps that integrate with Eliza Cloud services. Build AI-powered applications with custom configurations and track usage.",
+};
 
 export const dynamic = "force-dynamic";
 

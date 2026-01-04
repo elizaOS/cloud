@@ -6,16 +6,8 @@
 
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Slider } from "@/components/ui/slider";
-import {
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-  CarouselNext,
-  CarouselPrevious,
-  type CarouselApi,
-} from "@/components/ui/carousel";
 import {
   Dialog,
   DialogContent,
@@ -23,31 +15,36 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  Wand2,
-  Sparkles,
-  Settings2,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
+import {
   ImageIcon,
   Loader2,
   Download,
-  History,
-  Maximize2,
-  Heart,
-  Share2,
   X,
-  Upload,
   ImagePlus,
+  Send,
+  RefreshCw,
+  Copy,
+  RectangleHorizontal,
+  Square,
+  RectangleVertical,
+  Check,
+  SlidersHorizontal,
+  Search,
 } from "lucide-react";
 import Image from "next/image";
-import { EnhancedLoading } from "./enhanced-loading";
+import { BrandCard, CornerBrackets } from "@/components/brand";
 import {
-  BrandTabs,
-  BrandTabsList,
-  BrandTabsTrigger,
-  BrandTabsContent,
-  BrandCard,
-  BrandButton,
-  CornerBrackets,
-} from "@/components/brand";
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { listExploreImages, type GalleryItem } from "@/app/actions/gallery";
 
 interface ImageGenerationSettings {
   width: number;
@@ -64,23 +61,15 @@ interface GeneratedImage {
   settings: ImageGenerationSettings;
 }
 
-interface GalleryItem {
-  id: string;
-  url: string;
-  prompt: string;
-  createdAt: Date;
-  dimensions?: { width?: number; height?: number };
-}
-
 interface ImageGeneratorAdvancedProps {
   initialHistory?: GalleryItem[];
 }
 
 const SIZE_PRESETS = [
-  { label: "Square", width: 1024, height: 1024 },
-  { label: "Portrait", width: 768, height: 1024 },
-  { label: "Landscape", width: 1024, height: 768 },
-  { label: "Wide", width: 1280, height: 768 },
+  { label: "Square", width: 1024, height: 1024, icon: Square },
+  { label: "Portrait", width: 768, height: 1024, icon: RectangleVertical },
+  { label: "Landscape", width: 1024, height: 768, icon: RectangleHorizontal },
+  { label: "Wide", width: 1280, height: 768, icon: RectangleHorizontal },
 ];
 
 export function ImageGeneratorAdvanced({
@@ -112,8 +101,42 @@ export function ImageGeneratorAdvanced({
 
   // Source image state for image-to-image generation
   const [sourceImage, setSourceImage] = useState<string | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
   const sourceImageInputRef = useRef<HTMLInputElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const topAnchorRef = useRef<HTMLDivElement>(null);
+
+  // Scroll to top helper - smooth scroll using multiple methods
+  const scrollToTop = () => {
+    // Use a small delay to ensure DOM updates complete, then scroll smoothly
+    requestAnimationFrame(() => {
+      // Method 1: Scroll the top anchor into view
+      if (topAnchorRef.current) {
+        topAnchorRef.current.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+          inline: "nearest",
+        });
+      }
+
+      // Method 2: Find and scroll parent containers
+      const scrollableParent = document.querySelector(
+        '[class*="overflow-auto"], [class*="overflow-y-auto"], main, [role="main"]',
+      );
+      if (scrollableParent) {
+        scrollableParent.scrollTo({ top: 0, behavior: "smooth" });
+      }
+
+      // Method 3: Window scroll
+      window.scrollTo({ top: 0, behavior: "smooth" });
+
+      // Focus input after scrolling
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 300);
+    });
+  };
 
   // Consolidated image state - current batch and selection (initialized with server history)
   const [imageState, setImageState] = useState<{
@@ -128,11 +151,6 @@ export function ImageGeneratorAdvanced({
     history: convertedHistory,
   });
 
-  // Carousel API (external ref)
-  const [carouselApi, setCarouselApi] = useState<CarouselApi | undefined>(
-    undefined,
-  );
-
   // Consolidated request state
   const [requestState, setRequestState] = useState<{
     isLoading: boolean;
@@ -146,10 +164,45 @@ export function ImageGeneratorAdvanced({
   const [uiState, setUiState] = useState<{
     activeTab: string;
     isFullscreenOpen: boolean;
+    selectedExploreImage: GalleryItem | null;
   }>({
-    activeTab: "generate",
+    activeTab: "creations",
     isFullscreenOpen: false,
+    selectedExploreImage: null,
   });
+
+  // Explore images state
+  const [exploreState, setExploreState] = useState<{
+    images: GalleryItem[];
+    isLoading: boolean;
+    error: string | null;
+  }>({
+    images: [],
+    isLoading: false,
+    error: null,
+  });
+
+  // Fetch explore images when tab changes to explore
+  useEffect(() => {
+    if (
+      uiState.activeTab === "explore" &&
+      exploreState.images.length === 0 &&
+      !exploreState.isLoading
+    ) {
+      setExploreState((prev) => ({ ...prev, isLoading: true }));
+      listExploreImages(20)
+        .then((images) => {
+          setExploreState({ images, isLoading: false, error: null });
+        })
+        .catch((err) => {
+          setExploreState((prev) => ({
+            ...prev,
+            isLoading: false,
+            error: err instanceof Error ? err.message : "Failed to load images",
+          }));
+        });
+    }
+  }, [uiState.activeTab, exploreState.images.length, exploreState.isLoading]);
 
   // Source image upload handlers
   const handleSourceImageSelect = async (files: FileList | null) => {
@@ -186,26 +239,11 @@ export function ImageGeneratorAdvanced({
     reader.readAsDataURL(file);
   };
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
-  };
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    handleSourceImageSelect(e.dataTransfer.files);
-  };
-
   const handleGenerate = async () => {
     if (!prompt.trim()) return;
 
     setRequestState({ isLoading: true, error: null });
+    setUiState((prev) => ({ ...prev, activeTab: "creations" }));
 
     try {
       const response = await fetch("/api/v1/generate-image", {
@@ -302,106 +340,105 @@ export function ImageGeneratorAdvanced({
     document.body.removeChild(link);
   };
 
-  const selectPresetPrompt = (presetPrompt: string) => {
-    setPrompt(presetPrompt);
-  };
-
   const selectSizePreset = (width: number, height: number) => {
     setSettings((prev) => ({ ...prev, width, height }));
   };
 
-  useEffect(() => {
-    if (!carouselApi) return;
-    const onSelect = () => {
-      const idx = carouselApi.selectedScrollSnap();
-      const img = imageState.currentImages[idx];
-      if (img) {
-        setImageState((prev) => ({
-          ...prev,
-          currentIndex: idx,
-          currentImage: img,
-        }));
-      }
-    };
-    carouselApi.on("select", onSelect);
-    onSelect();
-    return () => {
-      carouselApi.off("select", onSelect);
-    };
-  }, [carouselApi, imageState.currentImages]);
+  // Get current size preset label
+  const currentSizePreset = SIZE_PRESETS.find(
+    (p) => p.width === settings.width && p.height === settings.height,
+  );
 
   return (
-    <div className="flex flex-col lg:flex-row gap-4 md:gap-6 w-full h-full">
-      {/* Left Panel - Controls */}
-      <div className="w-full lg:w-96 space-y-4">
-        <BrandCard className="relative">
-          <CornerBrackets size="sm" className="opacity-50" />
+    <div
+      ref={containerRef}
+      className="flex flex-col h-full w-full scroll-smooth"
+    >
+      {/* Scroll anchor */}
+      <div ref={topAnchorRef} className="absolute top-0" />
 
-          <div className="relative z-10 space-y-4 md:space-y-6">
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-2 h-2 rounded-full bg-[#FF5800]" />
-                <h3 className="text-base md:text-lg font-mono font-bold text-[#e1e1e1] uppercase">
-                  Image Studio
-                </h3>
+      {/* Top Input Bar */}
+      <div>
+        <div className="w-full">
+          <div
+            className={`relative rounded-2xl border border-white/[0.08] bg-white/[0.02] overflow-hidden transition-all ${
+              requestState.isLoading
+                ? "opacity-60 pointer-events-none"
+                : "focus-within:border-white/[0.15] focus-within:bg-white/[0.03]"
+            }`}
+          >
+            {/* Loading Scanner */}
+            {requestState.isLoading && (
+              <div className="absolute top-0 left-0 right-0 h-[2px] overflow-hidden pointer-events-none z-10">
+                <div
+                  className="absolute h-full w-24 bg-gradient-to-r from-transparent via-[#FF5800] to-transparent"
+                  style={{
+                    animation:
+                      "visor-scan 4.8s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+                    boxShadow: "0 0 15px 3px rgba(255, 88, 0, 0.7)",
+                    filter: "blur(0.5px)",
+                  }}
+                />
               </div>
-            </div>
-            {/* Source Image Upload */}
-            <div className="space-y-2">
-              <label className="text-xs font-mono font-medium text-white/70 uppercase tracking-wide">
-                Reference Image{" "}
-                <span className="text-white/40">(Optional)</span>
-              </label>
-              <div
-                onClick={() => sourceImageInputRef.current?.click()}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-                className={`relative cursor-pointer border border-dashed transition-all duration-200 ${
-                  isDragging
-                    ? "border-[#FF5800] bg-[#FF5800]/10"
-                    : sourceImage
-                      ? "border-[#FF5800]/40 bg-[#FF5800]/5"
-                      : "border-white/20 hover:border-[#FF5800]/50 bg-black/20"
-                }`}
-              >
-                {sourceImage ? (
-                  <div className="relative h-20 w-full overflow-hidden flex items-center">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={sourceImage}
-                      alt="Source reference"
-                      className="h-full w-auto max-w-[40%] object-contain ml-2"
-                    />
-                    <div className="flex-1 px-3">
-                      <p className="text-[10px] font-mono text-white/70">
-                        Reference uploaded • Click to change
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSourceImage(null);
-                        if (sourceImageInputRef.current) {
-                          sourceImageInputRef.current.value = "";
-                        }
-                      }}
-                      className="absolute top-1.5 right-1.5 p-1 bg-black/60 border border-white/20 hover:bg-rose-500/80 hover:border-rose-500 transition-colors"
-                    >
-                      <X className="h-2.5 w-2.5 text-white" />
-                    </button>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-3 px-3 py-3">
-                    <div className="flex items-center justify-center w-8 h-8 bg-white/5 border border-white/10 shrink-0">
-                      <ImagePlus className="h-4 w-4 text-white/40" />
-                    </div>
-                    <p className="text-xs font-mono text-white/50">
-                      Drop or click to add reference
-                    </p>
-                  </div>
-                )}
+            )}
+
+            {/* Source Image Preview (if uploaded) */}
+            {sourceImage && (
+              <div className="flex items-center gap-3 px-4 pt-3 pb-2 border-b border-white/[0.06]">
+                <div className="relative h-12 w-12 rounded overflow-hidden bg-black/40">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={sourceImage}
+                    alt="Reference"
+                    className="h-full w-full object-cover"
+                  />
+                </div>
+                <span className="text-xs font-mono text-white/50">
+                  Reference image
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSourceImage(null);
+                    if (sourceImageInputRef.current) {
+                      sourceImageInputRef.current.value = "";
+                    }
+                  }}
+                  className="ml-auto p-1 hover:bg-white/[0.06] rounded transition-colors"
+                >
+                  <X className="h-3.5 w-3.5 text-white/50" />
+                </button>
+              </div>
+            )}
+
+            {/* Textarea */}
+            <textarea
+              ref={inputRef}
+              value={prompt}
+              onChange={(e) => setPrompt(e.currentTarget.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  if (!requestState.isLoading && prompt.trim()) {
+                    handleGenerate();
+                  }
+                }
+              }}
+              placeholder={
+                sourceImage
+                  ? "Describe how to modify the reference image..."
+                  : "Describe the image you want to generate..."
+              }
+              disabled={requestState.isLoading}
+              className="w-full bg-transparent px-5 pt-4 pb-4 text-xl text-white placeholder:text-white/40 focus:outline-none disabled:opacity-50 resize-none leading-relaxed"
+              style={{ height: "25vh", minHeight: "150px", maxHeight: "350px" }}
+            />
+
+            {/* Bottom bar with buttons */}
+            <div className="flex items-center justify-between px-2 py-2">
+              {/* Left side - Reference image upload and Size selector */}
+              <div className="flex items-center gap-1.5">
+                {/* Reference Image Upload */}
                 <input
                   ref={sourceImageInputRef}
                   type="file"
@@ -409,382 +446,269 @@ export function ImageGeneratorAdvanced({
                   onChange={(e) => handleSourceImageSelect(e.target.files)}
                   className="hidden"
                 />
-              </div>
-            </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => sourceImageInputRef.current?.click()}
+                  disabled={requestState.isLoading}
+                  className="h-8 w-8 rounded-lg hover:bg-white/[0.06] transition-colors disabled:opacity-40 disabled:pointer-events-none"
+                >
+                  <ImagePlus className="h-4 w-4 text-white/60" />
+                </Button>
 
-            {/* Prompt Input */}
-            <div className="space-y-3">
-              <label
-                htmlFor="prompt"
-                className="text-xs font-mono font-medium text-white/70 uppercase tracking-wide"
-              >
-                Prompt
-              </label>
-              <textarea
-                id="prompt"
-                value={prompt}
-                onChange={(e) => setPrompt(e.currentTarget.value)}
-                placeholder={
-                  sourceImage
-                    ? "Describe how to modify the reference image..."
-                    : "Describe your vision in detail..."
-                }
-                rows={5}
-                className="w-full border border-white/10 bg-black/40 px-3 md:px-4 py-2 md:py-3 text-xs md:text-sm leading-relaxed text-white placeholder:text-white/40 focus:outline-none border-[0.1px] focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800] resize-none"
-              />
-            </div>
-
-            {/* Size Presets */}
-            <div className="space-y-2">
-              <label className="text-xs font-mono font-medium text-white/70 uppercase tracking-wide">
-                Image Size
-              </label>
-              <div className="grid grid-cols-4 gap-1.5">
-                {SIZE_PRESETS.map((preset) => (
-                  <button
-                    key={preset.label}
-                    type="button"
-                    onClick={() =>
-                      selectSizePreset(preset.width, preset.height)
-                    }
-                    className={`w-full px-1.5 py-1 border transition-colors ${
-                      settings.width === preset.width &&
-                      settings.height === preset.height
-                        ? "bg-[#FF5800]/20 border-[#FF5800] text-[#FF5800]"
-                        : "border-white/20 bg-transparent text-white hover:bg-white/5"
-                    }`}
+                {/* Size Selector Dropdown */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    asChild
+                    disabled={requestState.isLoading}
                   >
-                    <div className="flex flex-col items-center">
-                      <span className="text-[10px] font-mono font-medium leading-tight py-2">
-                        {preset.label}
-                      </span>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Advanced Settings */}
-            <div className="space-y-3 md:space-y-4">
-              <div className="flex items-center gap-2">
-                <Settings2 className="h-4 w-4 text-[#FF5800]" />
-                <label className="text-xs font-mono font-medium text-white/70 uppercase tracking-wide">
-                  Advanced Settings
-                </label>
-              </div>
-
-              <div className="space-y-3 md:space-y-4">
-                {/* Steps */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-mono text-white/50 uppercase tracking-wide">
-                      Steps
-                    </label>
-                    <span className="text-xs font-mono font-medium text-white">
-                      {settings.steps}
-                    </span>
-                  </div>
-                  <Slider
-                    value={[settings.steps]}
-                    onValueChange={([value]) =>
-                      setSettings((prev) => ({ ...prev, steps: value }))
-                    }
-                    min={10}
-                    max={50}
-                    step={5}
-                    className="w-full [&_[role=slider]]:bg-[#FF5800] [&_[role=slider]]:border-[#FF5800]"
-                  />
-                </div>
-
-                {/* Guidance Scale */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-mono text-white/50 uppercase tracking-wide">
-                      Guidance Scale
-                    </label>
-                    <span className="text-xs font-mono font-medium text-white">
-                      {settings.guidanceScale.toFixed(1)}
-                    </span>
-                  </div>
-                  <Slider
-                    value={[settings.guidanceScale]}
-                    onValueChange={([value]) =>
-                      setSettings((prev) => ({ ...prev, guidanceScale: value }))
-                    }
-                    min={1}
-                    max={20}
-                    step={0.5}
-                    className="w-full [&_[role=slider]]:bg-[#FF5800] [&_[role=slider]]:border-[#FF5800]"
-                  />
-                </div>
-
-                {/* Images */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-mono text-white/50 uppercase tracking-wide">
-                      Images
-                    </label>
-                    <span className="text-xs font-mono font-medium text-white">
-                      {numImages}
-                    </span>
-                  </div>
-                  <Slider
-                    value={[numImages]}
-                    onValueChange={([value]) => setNumImages(value)}
-                    min={1}
-                    max={4}
-                    step={1}
-                    className="w-full [&_[role=slider]]:bg-[#FF5800] [&_[role=slider]]:border-[#FF5800]"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Generate Button */}
-            <button
-              type="button"
-              onClick={handleGenerate}
-              disabled={requestState.isLoading || !prompt.trim()}
-              className="relative bg-[#e1e1e1] px-4 py-3 overflow-hidden hover:bg-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed w-full"
-            >
-              <div
-                className="absolute inset-0 opacity-20 bg-repeat pointer-events-none"
-                style={{
-                  backgroundImage: `url(/assets/settings/pattern-6px-flip.png)`,
-                  backgroundSize: "2.915576934814453px 2.915576934814453px",
-                }}
-              />
-              <span className="relative z-10 text-black font-mono font-medium text-sm md:text-base flex items-center justify-center gap-2">
-                {requestState.isLoading ? (
-                  <>
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                    Generating...
-                  </>
-                ) : sourceImage ? (
-                  <>
-                    <Wand2 className="h-5 w-5" />
-                    Transform Image
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="h-5 w-5" />
-                    Generate Image
-                  </>
-                )}
-              </span>
-            </button>
-          </div>
-        </BrandCard>
-      </div>
-
-      {/* Right Panel - Preview & History */}
-      <div className="flex-1 space-y-4">
-        <BrandTabs
-          id="image-generator-tabs"
-          value={uiState.activeTab}
-          onValueChange={(value) =>
-            setUiState((prev) => ({ ...prev, activeTab: value }))
-          }
-          className="w-full"
-        >
-          <BrandTabsList className="w-full max-w-md">
-            <BrandTabsTrigger
-              value="generate"
-              className="gap-1 md:gap-2 flex-1"
-            >
-              <ImageIcon className="h-3 md:h-4 w-3 md:w-4" />
-              <span className="text-xs md:text-sm">Preview</span>
-            </BrandTabsTrigger>
-            <BrandTabsTrigger value="history" className="gap-1 md:gap-2 flex-1">
-              <History className="h-3 md:h-4 w-3 md:w-4" />
-              <span className="text-xs md:text-sm">
-                History ({imageState.history.length})
-              </span>
-            </BrandTabsTrigger>
-          </BrandTabsList>
-
-          {/* Preview Tab */}
-          <BrandTabsContent value="generate" className="mt-3 md:mt-4">
-            {requestState.error && (
-              <div className="border border-rose-500/40 bg-rose-500/10 p-3 md:p-4 mb-4">
-                <p className="text-xs md:text-sm font-mono text-rose-400 font-medium">
-                  {requestState.error}
-                </p>
-              </div>
-            )}
-
-            {imageState.currentImage ? (
-              <>
-                {imageState.currentImages.length > 1 && (
-                  <div className="mb-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 md:gap-3">
-                    {imageState.currentImages.map((img, idx) => (
-                      <button
-                        key={img.id}
-                        onClick={() => {
-                          setImageState((prev) => ({
-                            ...prev,
-                            currentIndex: idx,
-                            currentImage: img,
-                          }));
-                          if (carouselApi) {
-                            carouselApi.scrollTo(idx);
-                          }
-                        }}
-                        className={`group relative block overflow-hidden border ${
-                          idx === imageState.currentIndex
-                            ? "border-[#FF5800] ring-2 ring-[#FF5800]/40"
-                            : "border-white/10"
-                        }`}
-                        aria-label={`Select image ${idx + 1}`}
-                        type="button"
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      disabled={requestState.isLoading}
+                      className="h-8 gap-1.5 px-2.5 rounded-lg hover:bg-white/[0.06] transition-colors disabled:opacity-40 disabled:pointer-events-none"
+                    >
+                      {currentSizePreset ? (
+                        <>
+                          <currentSizePreset.icon className="h-3.5 w-3.5 text-white/50" />
+                          <span className="text-sm text-white/50">
+                            {currentSizePreset.label}
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <Square className="h-3.5 w-3.5 text-white/50" />
+                          <span className="text-sm text-white/50">Custom</span>
+                        </>
+                      )}
+                      <svg
+                        className="h-3.5 w-3.5 text-white/30"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
                       >
-                        <div className="relative aspect-square w-full bg-black/40">
-                          <Image
-                            src={img.url}
-                            alt={img.prompt}
-                            fill
-                            sizes="(max-width: 768px) 50vw, 25vw"
-                            className="object-cover group-hover:scale-105 transition-transform duration-300"
-                            unoptimized
-                          />
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 9l-7 7-7-7"
+                        />
+                      </svg>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    className="w-56 rounded-xl border-white/[0.08] bg-[#1a1a1a]/95 backdrop-blur-xl p-1"
+                    align="start"
+                    side="bottom"
+                    sideOffset={8}
+                  >
+                    {SIZE_PRESETS.map((preset) => (
+                      <DropdownMenuItem
+                        key={preset.label}
+                        className="flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer"
+                        onSelect={() =>
+                          selectSizePreset(preset.width, preset.height)
+                        }
+                      >
+                        <div className="flex items-center gap-3">
+                          <preset.icon className="h-4 w-4 text-white/50" />
+                          <div className="flex flex-col">
+                            <span className="text-sm">{preset.label}</span>
+                            <span className="text-[11px] text-white/40">
+                              {preset.width}×{preset.height}
+                            </span>
+                          </div>
                         </div>
-                      </button>
+                        {settings.width === preset.width &&
+                          settings.height === preset.height && (
+                            <Check className="h-4 w-4 text-[#FF5800]" />
+                          )}
+                      </DropdownMenuItem>
                     ))}
-                  </div>
-                )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
 
-                <BrandCard className="relative overflow-hidden">
-                  <CornerBrackets size="md" className="opacity-50" />
-                  <div className="relative z-10 p-0">
-                    {imageState.currentImages.length > 1 ? (
-                      <div className="relative w-full bg-black/40">
-                        <Carousel setApi={setCarouselApi} className="w-full">
-                          <CarouselContent>
-                            {imageState.currentImages.map((img) => (
-                              <CarouselItem key={img.id}>
-                                <div className="relative w-full h-[300px] md:h-[400px] lg:h-[500px] bg-black/40">
-                                  <Image
-                                    src={img.url}
-                                    alt={img.prompt}
-                                    fill
-                                    sizes="(max-width: 768px) 100vw, (max-width: 1024px) 75vw, 60vw"
-                                    className="object-contain"
-                                    unoptimized
-                                  />
-                                </div>
-                              </CarouselItem>
-                            ))}
-                          </CarouselContent>
-                          <CarouselPrevious className="left-2 md:left-4 top-1/2 -translate-y-1/2" />
-                          <CarouselNext className="right-2 md:right-4 top-1/2 -translate-y-1/2" />
-                        </Carousel>
-                      </div>
-                    ) : (
-                      <div className="relative w-full h-[300px] md:h-[400px] lg:h-[500px] bg-black/40">
-                        <Image
-                          src={imageState.currentImage.url}
-                          alt={imageState.currentImage.prompt}
-                          fill
-                          sizes="(max-width: 768px) 100vw, (max-width: 1024px) 75vw, 60vw"
-                          className="object-contain"
-                          unoptimized
+                {/* Advanced Settings Dropdown */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    asChild
+                    disabled={requestState.isLoading}
+                  >
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      disabled={requestState.isLoading}
+                      className="h-8 gap-1.5 px-2.5 rounded-lg hover:bg-white/[0.06] transition-colors disabled:opacity-40 disabled:pointer-events-none"
+                    >
+                      <SlidersHorizontal className="h-3.5 w-3.5 text-white/50" />
+                      <span className="text-sm text-white/50 hidden sm:inline">
+                        Settings
+                      </span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    className="w-72 rounded-xl border-white/[0.08] bg-[#1a1a1a]/95 backdrop-blur-xl p-4"
+                    align="start"
+                    side="bottom"
+                    sideOffset={8}
+                  >
+                    <div className="space-y-4">
+                      {/* Steps */}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <label className="text-xs font-mono text-white/60">
+                            Steps
+                          </label>
+                          <span className="text-xs font-mono text-white">
+                            {settings.steps}
+                          </span>
+                        </div>
+                        <Slider
+                          value={[settings.steps]}
+                          onValueChange={([value]) =>
+                            setSettings((prev) => ({ ...prev, steps: value }))
+                          }
+                          min={10}
+                          max={50}
+                          step={5}
+                          className="w-full [&_[role=slider]]:bg-[#FF5800] [&_[role=slider]]:border-[#FF5800]"
                         />
                       </div>
-                    )}
 
-                    <div className="p-3 md:p-4 lg:p-6 space-y-3 md:space-y-4">
+                      {/* Guidance Scale */}
                       <div className="space-y-2">
-                        <p className="text-xs md:text-sm font-mono font-medium leading-relaxed text-white break-words">
-                          {imageState.currentImage.prompt}
-                        </p>
-                        <div className="flex items-center gap-2 text-xs text-white/60 flex-wrap">
-                          <span className="bg-white/10 px-2 py-0.5 text-xs font-mono text-white whitespace-nowrap">
-                            {imageState.currentImage.settings.width}×
-                            {imageState.currentImage.settings.height}
+                        <div className="flex items-center justify-between">
+                          <label className="text-xs font-mono text-white/60">
+                            Guidance Scale
+                          </label>
+                          <span className="text-xs font-mono text-white">
+                            {settings.guidanceScale.toFixed(1)}
                           </span>
-                          <span className="bg-white/10 px-2 py-0.5 text-xs font-mono text-white whitespace-nowrap">
-                            {imageState.currentImage.settings.steps} steps
-                          </span>
-                          <span className="bg-white/10 px-2 py-0.5 text-xs font-mono text-white whitespace-nowrap">
-                            CFG {imageState.currentImage.settings.guidanceScale}
-                          </span>
-                          {imageState.currentImages.length > 1 && (
-                            <span className="bg-[#FF580020] border border-[#FF5800]/40 px-2 py-0.5 text-xs font-mono text-[#FF5800] whitespace-nowrap">
-                              {imageState.currentIndex + 1}/
-                              {imageState.currentImages.length}
-                            </span>
-                          )}
                         </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            handleDownload(
-                              imageState.currentImages[
-                                imageState.currentIndex
-                              ] ?? imageState.currentImage,
-                            )
-                          }
-                          className="px-3 py-2 border border-white/20 bg-transparent text-white hover:bg-white/5 transition-colors flex items-center justify-center gap-1 md:gap-2"
-                        >
-                          <Download className="h-3 md:h-4 w-3 md:w-4" />
-                          <span className="text-xs font-mono">Download</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setUiState((prev) => ({
+                        <Slider
+                          value={[settings.guidanceScale]}
+                          onValueChange={([value]) =>
+                            setSettings((prev) => ({
                               ...prev,
-                              isFullscreenOpen: true,
+                              guidanceScale: value,
                             }))
                           }
-                          className="px-3 py-2 border border-white/20 bg-transparent text-white hover:bg-white/5 transition-colors flex items-center justify-center gap-1 md:gap-2"
-                        >
-                          <Maximize2 className="h-3 md:h-4 w-3 md:w-4" />
-                          <span className="text-xs font-mono">Full</span>
-                        </button>
+                          min={1}
+                          max={20}
+                          step={0.5}
+                          className="w-full [&_[role=slider]]:bg-[#FF5800] [&_[role=slider]]:border-[#FF5800]"
+                        />
+                      </div>
+
+                      {/* Number of Images */}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <label className="text-xs font-mono text-white/60">
+                            Images
+                          </label>
+                          <span className="text-xs font-mono text-white">
+                            {numImages}
+                          </span>
+                        </div>
+                        <Slider
+                          value={[numImages]}
+                          onValueChange={([value]) => setNumImages(value)}
+                          min={1}
+                          max={4}
+                          step={1}
+                          className="w-full [&_[role=slider]]:bg-[#FF5800] [&_[role=slider]]:border-[#FF5800]"
+                        />
                       </div>
                     </div>
-                  </div>
-                </BrandCard>
-              </>
-            ) : requestState.isLoading ? (
-              <div className="animate-in fade-in duration-500">
-                <EnhancedLoading />
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
-            ) : (
-              <BrandCard className="relative border-dashed">
-                <CornerBrackets size="md" className="opacity-50" />
-                <div className="relative z-10 p-6 md:p-12 text-center">
-                  <div className="flex flex-col items-center space-y-3 md:space-y-4">
-                    <div className="inline-flex items-center justify-center w-12 md:w-16 h-12 md:h-16 bg-[#FF580020] border border-[#FF5800]/40">
-                      <ImageIcon className="h-6 md:h-8 w-6 md:w-8 text-[#FF5800]" />
-                    </div>
-                    <div className="space-y-2 max-w-md">
-                      <h3 className="text-base md:text-lg font-mono font-bold text-white">
-                        Ready to Create
-                      </h3>
-                      <p className="text-xs md:text-sm font-mono text-white/60 leading-relaxed">
-                        Describe your vision in the prompt field and adjust the
-                        settings to generate your perfect image
-                      </p>
+
+              {/* Right side - Generate button */}
+              <Button
+                type="button"
+                onClick={handleGenerate}
+                disabled={requestState.isLoading || !prompt.trim()}
+                size="icon"
+                className="h-8 w-8 rounded-lg bg-transparent hover:bg-white/[0.06] disabled:opacity-40 border-0 transition-colors"
+              >
+                {requestState.isLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin text-[#FF5800]" />
+                ) : (
+                  <Send className="h-4 w-4 text-[#FF5800]" />
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content Area - Tabs */}
+      <div className="flex-1 min-h-0 overflow-auto pt-8">
+        {/* Error Display */}
+        {requestState.error && (
+          <div className="border border-rose-500/40 bg-rose-500/10 p-3 md:p-4 mb-4">
+            <p className="text-xs md:text-sm font-mono text-rose-400 font-medium">
+              {requestState.error}
+            </p>
+          </div>
+        )}
+
+        {/* Custom Tab Navigation */}
+        <div className="flex items-center gap-8 mb-6">
+          <button
+            type="button"
+            onClick={() =>
+              setUiState((prev) => ({ ...prev, activeTab: "creations" }))
+            }
+            className={`text-base font-medium transition-colors ${
+              uiState.activeTab === "creations"
+                ? "text-[#FF5800]"
+                : "text-white/50 hover:text-white/70"
+            }`}
+          >
+            My Creations
+          </button>
+          <button
+            type="button"
+            onClick={() =>
+              setUiState((prev) => ({ ...prev, activeTab: "explore" }))
+            }
+            className={`flex items-center gap-2 text-base font-medium transition-colors ${
+              uiState.activeTab === "explore"
+                ? "text-[#FF5800]"
+                : "text-white/50 hover:text-white/70"
+            }`}
+          >
+            <Search className="h-4 w-4" />
+            Explore
+          </button>
+        </div>
+
+        {/* My Creations Tab Content */}
+        {uiState.activeTab === "creations" &&
+          (imageState.history.length > 0 || requestState.isLoading ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              {requestState.isLoading && (
+                <div className="relative overflow-hidden rounded-lg border border-[#FF5800]/40 bg-black/40 animate-pulse">
+                  <div className="relative aspect-square w-full flex items-center justify-center">
+                    <div className="flex flex-col items-center gap-3">
+                      <Loader2 className="h-8 w-8 text-[#FF5800] animate-spin" />
+                      <span className="text-xs font-mono text-white/50">
+                        Generating...
+                      </span>
                     </div>
                   </div>
                 </div>
-              </BrandCard>
-            )}
-          </BrandTabsContent>
-
-          {/* History Tab */}
-          <BrandTabsContent value="history" className="mt-3 md:mt-4">
-            {imageState.history.length > 0 ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
-                {imageState.history.map((image) => (
+              )}
+              {imageState.history.map((image) => (
+                <div
+                  key={image.id}
+                  className="group relative overflow-hidden p-0 rounded-lg border border-white/10 transition-colors"
+                >
                   <div
-                    key={image.id}
-                    className="group cursor-pointer overflow-hidden p-0 border border-white/10 hover:border-[#FF5800]/50 transition-colors"
+                    className="relative aspect-square w-full bg-black/40 cursor-pointer"
                     onClick={() => {
                       setImageState((prev) => ({
                         ...prev,
@@ -794,50 +718,425 @@ export function ImageGeneratorAdvanced({
                       }));
                       setUiState((prev) => ({
                         ...prev,
-                        activeTab: "generate",
+                        isFullscreenOpen: true,
                       }));
                     }}
                   >
-                    <div className="relative aspect-square w-full bg-black/40">
-                      <Image
-                        src={image.url}
-                        alt={image.prompt}
-                        fill
-                        sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                        className="object-cover group-hover:scale-105 transition-transform duration-300"
-                        unoptimized
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity z-10" />
-                      <div className="absolute bottom-0 left-0 right-0 p-2 md:p-3 text-white opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                        <p className="text-xs font-mono line-clamp-2 leading-relaxed">
-                          {image.prompt}
-                        </p>
-                      </div>
-                    </div>
+                    <Image
+                      src={image.url}
+                      alt={image.prompt}
+                      fill
+                      sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                      className="object-cover group-hover:scale-105 transition-transform duration-300"
+                      unoptimized
+                    />
+                    {/* Darker gradient overlay on hover */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-black/20 opacity-0 group-hover:opacity-100 transition-opacity z-10" />
                   </div>
-                ))}
-              </div>
-            ) : (
-              <BrandCard className="relative border-dashed">
-                <CornerBrackets size="md" className="opacity-50" />
-                <div className="relative z-10 p-8 md:p-12 lg:p-20 text-center">
-                  <div className="flex flex-col items-center space-y-3 md:space-y-4">
-                    <History className="h-8 md:h-10 lg:h-12 w-8 md:w-10 lg:w-12 text-[#FF5800]" />
-                    <div className="space-y-2">
-                      <h3 className="text-base md:text-lg font-mono font-semibold text-white">
-                        No History Yet
-                      </h3>
-                      <p className="text-xs md:text-sm font-mono text-white/60">
-                        Your generated images will appear here
-                      </p>
-                    </div>
+
+                  {/* Hover Action Buttons */}
+                  <div className="absolute top-2 right-2 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity z-20">
+                    {/* Download */}
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDownload(image);
+                          }}
+                          className="p-2 rounded-lg bg-black/70 hover:bg-white/10 border border-white/20 transition-colors"
+                        >
+                          <Download className="h-4 w-4 text-white" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent
+                        side="bottom"
+                        className="text-xs bg-neutral-800 text-white/80 border-white/10"
+                      >
+                        Download image
+                      </TooltipContent>
+                    </Tooltip>
+
+                    {/* Transform (use as reference) */}
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSourceImage(image.url);
+                            scrollToTop();
+                          }}
+                          className="p-2 rounded-lg bg-black/70 hover:bg-white/10 border border-white/20 transition-colors"
+                        >
+                          <RefreshCw className="h-4 w-4 text-white" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent
+                        side="bottom"
+                        className="text-xs bg-neutral-800 text-white/80 border-white/10"
+                      >
+                        Use as reference for transformation
+                      </TooltipContent>
+                    </Tooltip>
+
+                    {/* Re-use prompt */}
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setPrompt(image.prompt);
+                            scrollToTop();
+                          }}
+                          className="p-2 rounded-lg bg-black/70 hover:bg-white/10 border border-white/20 transition-colors"
+                        >
+                          <Copy className="h-4 w-4 text-white" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent
+                        side="bottom"
+                        className="text-xs bg-neutral-800 text-white/80 border-white/10"
+                      >
+                        Re-use this prompt
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+
+                  {/* Prompt text at bottom */}
+                  <div className="absolute bottom-0 left-0 right-0 p-2 md:p-3 text-white opacity-0 group-hover:opacity-100 transition-opacity z-20">
+                    <p className="text-xs font-mono line-clamp-2 leading-relaxed">
+                      {image.prompt}
+                    </p>
                   </div>
                 </div>
-              </BrandCard>
-            )}
-          </BrandTabsContent>
-        </BrandTabs>
+              ))}
+            </div>
+          ) : (
+            <BrandCard className="relative border-dashed">
+              <CornerBrackets size="md" className="opacity-50" />
+              <div className="relative z-10 p-8 md:p-12 lg:p-20 text-center">
+                <div className="flex flex-col items-center space-y-3 md:space-y-4">
+                  <ImageIcon className="h-8 md:h-10 lg:h-12 w-8 md:w-10 lg:w-12 text-[#FF5800]" />
+                  <div className="space-y-2">
+                    <h3 className="text-base md:text-lg font-mono font-semibold text-white">
+                      No Creations Yet
+                    </h3>
+                    <p className="text-xs md:text-sm font-mono text-white/60">
+                      Describe your vision above and generate your first image
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </BrandCard>
+          ))}
+
+        {/* Explore Tab Content */}
+        {uiState.activeTab === "explore" &&
+          (exploreState.isLoading ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="relative overflow-hidden rounded-lg border border-white/10 bg-black/40 animate-pulse"
+                >
+                  <div className="aspect-square w-full" />
+                </div>
+              ))}
+            </div>
+          ) : exploreState.error ? (
+            <BrandCard className="relative border-dashed border-rose-500/40">
+              <div className="relative z-10 p-8 text-center">
+                <p className="text-sm font-mono text-rose-400">
+                  {exploreState.error}
+                </p>
+              </div>
+            </BrandCard>
+          ) : exploreState.images.length > 0 ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
+              {exploreState.images.map((image) => (
+                <div
+                  key={image.id}
+                  className="group relative overflow-hidden p-0 rounded-lg border border-white/10 transition-colors"
+                >
+                  <div
+                    className="relative aspect-square w-full bg-black/40 cursor-pointer"
+                    onClick={() =>
+                      setUiState((prev) => ({
+                        ...prev,
+                        selectedExploreImage: image,
+                      }))
+                    }
+                  >
+                    <Image
+                      src={image.url}
+                      alt={image.prompt}
+                      fill
+                      sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                      className="object-cover group-hover:scale-105 transition-transform duration-300"
+                      unoptimized
+                    />
+                    {/* Darker gradient overlay on hover */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-black/20 opacity-0 group-hover:opacity-100 transition-opacity z-10" />
+                  </div>
+
+                  {/* Hover Action Buttons */}
+                  <div className="absolute top-2 right-2 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity z-20">
+                    {/* Transform (use as reference) */}
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSourceImage(image.url);
+                            scrollToTop();
+                          }}
+                          className="p-2 rounded-lg bg-black/70 hover:bg-white/10 border border-white/20 transition-colors"
+                        >
+                          <RefreshCw className="h-4 w-4 text-white" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent
+                        side="bottom"
+                        className="text-xs bg-neutral-800 text-white/80 border-white/10"
+                      >
+                        Use as reference
+                      </TooltipContent>
+                    </Tooltip>
+
+                    {/* Re-use prompt */}
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setPrompt(image.prompt);
+                            scrollToTop();
+                          }}
+                          className="p-2 rounded-lg bg-black/70 hover:bg-white/10 border border-white/20 transition-colors"
+                        >
+                          <Copy className="h-4 w-4 text-white" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent
+                        side="bottom"
+                        className="text-xs bg-neutral-800 text-white/80 border-white/10"
+                      >
+                        Use this prompt
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+
+                  {/* Prompt text at bottom */}
+                  <div className="absolute bottom-0 left-0 right-0 p-2 md:p-3 text-white opacity-0 group-hover:opacity-100 transition-opacity z-20">
+                    <p className="text-xs font-mono line-clamp-2 leading-relaxed">
+                      {image.prompt}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <BrandCard className="relative border-dashed">
+              <CornerBrackets size="md" className="opacity-50" />
+              <div className="relative z-10 p-8 md:p-12 lg:p-20 text-center">
+                <div className="flex flex-col items-center space-y-3 md:space-y-4">
+                  <Search className="h-8 md:h-10 lg:h-12 w-8 md:w-10 lg:w-12 text-[#FF5800]" />
+                  <div className="space-y-2">
+                    <h3 className="text-base md:text-lg font-mono font-semibold text-white">
+                      No Images to Explore
+                    </h3>
+                    <p className="text-xs md:text-sm font-mono text-white/60">
+                      Check back later for community creations
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </BrandCard>
+          ))}
       </div>
+
+      {/* Explore Image Detail Modal */}
+      <Dialog
+        open={!!uiState.selectedExploreImage}
+        onOpenChange={(open) => {
+          if (!open)
+            setUiState((prev) => ({ ...prev, selectedExploreImage: null }));
+        }}
+      >
+        <DialogContent
+          className="!max-w-4xl !w-[95vw] p-0 rounded-lg bg-black/50 backdrop-blur-2xl border border-white/10 shadow-2xl overflow-hidden"
+          showCloseButton={false}
+        >
+          <DialogTitle className="sr-only">Image Details</DialogTitle>
+          {uiState.selectedExploreImage && (
+            <div className="flex flex-col md:flex-row min-h-[400px]">
+              {/* Close button */}
+              <button
+                type="button"
+                onClick={() =>
+                  setUiState((prev) => ({
+                    ...prev,
+                    selectedExploreImage: null,
+                  }))
+                }
+                className="absolute top-4 right-4 z-10 p-2 rounded-md bg-white/5 hover:bg-white/10 transition-colors"
+              >
+                <X className="h-5 w-5 text-white" />
+              </button>
+
+              {/* Left - Image */}
+              <div className="relative w-full md:w-[400px] h-64 md:h-auto bg-black flex-shrink-0">
+                <Image
+                  src={uiState.selectedExploreImage.url}
+                  alt={uiState.selectedExploreImage.prompt}
+                  fill
+                  className="object-contain"
+                  unoptimized
+                />
+              </div>
+
+              {/* Right - Details */}
+              <div className="flex-1 p-8 space-y-6">
+                {/* Prompt Section */}
+                <div className="space-y-3">
+                  <label className="text-xs text-white/50 uppercase tracking-wide">
+                    Prompt
+                  </label>
+                  <p className="text-base text-white leading-relaxed">
+                    {uiState.selectedExploreImage.prompt}
+                  </p>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex items-center gap-3">
+                  {/* Transform (use as reference) */}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSourceImage(
+                            uiState.selectedExploreImage?.url ?? "",
+                          );
+                          setUiState((prev) => ({
+                            ...prev,
+                            selectedExploreImage: null,
+                          }));
+                          scrollToTop();
+                        }}
+                        className="p-2.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 transition-colors"
+                      >
+                        <RefreshCw className="h-4 w-4 text-white" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent
+                      side="bottom"
+                      className="text-xs bg-neutral-800 text-white/80 border-white/10"
+                    >
+                      Use as reference
+                    </TooltipContent>
+                  </Tooltip>
+
+                  {/* Re-use prompt */}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPrompt(uiState.selectedExploreImage?.prompt ?? "");
+                          setUiState((prev) => ({
+                            ...prev,
+                            selectedExploreImage: null,
+                          }));
+                          scrollToTop();
+                        }}
+                        className="p-2.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 transition-colors"
+                      >
+                        <Copy className="h-4 w-4 text-white" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent
+                      side="bottom"
+                      className="text-xs bg-neutral-800 text-white/80 border-white/10"
+                    >
+                      Use this prompt
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+
+                {/* Metadata Grid */}
+                <div className="grid grid-cols-2 gap-x-8 gap-y-4 pt-4 border-t border-white/5">
+                  {/* Model */}
+                  {uiState.selectedExploreImage.model && (
+                    <div className="space-y-1">
+                      <label className="text-xs text-white/50 uppercase tracking-wide">
+                        Model
+                      </label>
+                      <p className="text-sm text-white">
+                        {uiState.selectedExploreImage.model}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Aspect Ratio */}
+                  {uiState.selectedExploreImage.dimensions && (
+                    <div className="space-y-1">
+                      <label className="text-xs text-white/50 uppercase tracking-wide">
+                        Aspect Ratio
+                      </label>
+                      <p className="text-sm text-white">
+                        {(() => {
+                          const w =
+                            uiState.selectedExploreImage.dimensions?.width ?? 1;
+                          const h =
+                            uiState.selectedExploreImage.dimensions?.height ??
+                            1;
+                          const gcd = (a: number, b: number): number =>
+                            b === 0 ? a : gcd(b, a % b);
+                          const d = gcd(w, h);
+                          return `${w / d}:${h / d}`;
+                        })()}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Resolution */}
+                  {uiState.selectedExploreImage.dimensions && (
+                    <div className="space-y-1">
+                      <label className="text-xs text-white/50 uppercase tracking-wide">
+                        Resolution
+                      </label>
+                      <p className="text-sm text-white">
+                        {uiState.selectedExploreImage.dimensions.width}×
+                        {uiState.selectedExploreImage.dimensions.height}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* File Type */}
+                  {uiState.selectedExploreImage.mimeType && (
+                    <div className="space-y-1">
+                      <label className="text-xs text-white/50 uppercase tracking-wide">
+                        File Type
+                      </label>
+                      <p className="text-sm text-white">
+                        {uiState.selectedExploreImage.mimeType
+                          .split("/")[1]
+                          ?.toUpperCase()}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Fullscreen Image Modal */}
       <Dialog

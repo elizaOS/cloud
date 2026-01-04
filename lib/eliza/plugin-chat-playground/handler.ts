@@ -216,7 +216,7 @@ export async function handleMessage({
 
 /**
  * Check for and execute MCP action if available.
- * 
+ *
  * MCP Debug Flow:
  * 1. Check if MCP provider data exists in state (indicates MCP plugin is loaded)
  * 2. Check if any servers are connected with tools
@@ -266,9 +266,11 @@ async function checkAndRunMcpAction(
     logger.info(
       `[ChatPlayground/MCP] MCP servers connected: ${serverNames.join(", ")}`,
     );
-    
+
     for (const serverName of serverNames) {
-      const server = mcpServers?.[serverName] as { status?: string; tools?: Record<string, unknown> } | undefined;
+      const server = mcpServers?.[serverName] as
+        | { status?: string; tools?: Record<string, unknown> }
+        | undefined;
       const toolNames = server?.tools ? Object.keys(server.tools) : [];
       logger.info(
         `[ChatPlayground/MCP] Server "${serverName}": status=${server?.status}, tools=[${toolNames.join(", ")}]`,
@@ -285,8 +287,8 @@ async function checkAndRunMcpAction(
     if (!mcpAction) {
       logger.warn(
         "[ChatPlayground/MCP] CALL_MCP_TOOL action NOT found in runtime. " +
-        "Ensure @elizaos/plugin-mcp is loaded. " +
-        `Available actions: ${registeredActions.join(", ")}`,
+          "Ensure @elizaos/plugin-mcp is loaded. " +
+          `Available actions: ${registeredActions.join(", ")}`,
       );
       return false;
     }
@@ -296,13 +298,15 @@ async function checkAndRunMcpAction(
     if (!isValid) {
       logger.warn(
         "[ChatPlayground/MCP] CALL_MCP_TOOL validation failed. " +
-        "This means servers are listed but none are 'connected' with tools. " +
-        "Check MCP server connection status and tool availability.",
+          "This means servers are listed but none are 'connected' with tools. " +
+          "Check MCP server connection status and tool availability.",
       );
       return false;
     }
 
-    logger.info("[ChatPlayground/MCP] CALL_MCP_TOOL action is valid, executing...");
+    logger.info(
+      "[ChatPlayground/MCP] CALL_MCP_TOOL action is valid, executing...",
+    );
 
     // Execute the MCP action
     const result = await mcpAction.handler(

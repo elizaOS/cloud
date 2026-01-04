@@ -109,6 +109,7 @@ export function AgentsSection({ agents, className }: AgentsSectionProps) {
         {agents.length != 0 && (
           <BrandButton
             onClick={() => (window.location.href = "/dashboard/build")}
+            className="bg-[#FF5800] text-black hover:bg-[#FF5800]/90 active:bg-[#FF5800]/80"
           >
             <Plus className="h-4 w-4" />
             Create New Agent
@@ -506,7 +507,10 @@ function AgentsEmptyState() {
     <div className="flex flex-col items-center justify-center relative min-h-[240px] gap-4">
       <CornerBrackets size="md" color="#E1E1E1" />
       <h3 className="text-lg font-medium text-neutral-500">No agents yet</h3>
-      <BrandButton onClick={() => (window.location.href = "/dashboard/build")}>
+      <BrandButton
+        onClick={() => (window.location.href = "/dashboard/build")}
+        className="bg-[#FF5800] text-black hover:bg-[#FF5800]/90 active:bg-[#FF5800]/80"
+      >
         <Plus className="h-4 w-4" />
         Create New Agent
       </BrandButton>
