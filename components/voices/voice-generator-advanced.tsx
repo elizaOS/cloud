@@ -34,6 +34,7 @@ import {
   Mic,
   Upload,
   ArrowLeft,
+  Pencil,
 } from "lucide-react";
 import { BrandCard, CornerBrackets } from "@/components/brand";
 import {
@@ -56,6 +57,7 @@ interface GeneratedAudio {
   url: string;
   blob: Blob;
   text: string;
+  name: string;
   voiceId: string;
   voiceName: string;
   timestamp: Date;
@@ -67,6 +69,7 @@ export interface TtsHistoryItem {
   id: string;
   url: string;
   text: string;
+  name?: string;
   voiceId: string;
   voiceName: string;
   createdAt: string;
@@ -112,12 +115,20 @@ export function VoiceGeneratorAdvanced({
   const topAnchorRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // Helper to generate a short name from text
+  const generateNameFromText = (text: string): string => {
+    const words = text.trim().split(/\s+/).slice(0, 5);
+    const name = words.join(" ");
+    return name.length > 30 ? name.slice(0, 30) + "..." : name;
+  };
+
   // Convert initial history to GeneratedAudio format (without blob for server-side data)
   const convertedHistory: GeneratedAudio[] = initialTtsHistory.map((item) => ({
     id: item.id,
     url: item.url,
     blob: new Blob(), // Empty blob for server-loaded items
     text: item.text,
+    name: item.name || generateNameFromText(item.text),
     voiceId: item.voiceId,
     voiceName: item.voiceName,
     timestamp: new Date(item.createdAt),
@@ -152,13 +163,59 @@ export function VoiceGeneratorAdvanced({
     cloneMode: "select" | "upload" | "record";
     isDetailOpen: boolean;
     selectedAudio: GeneratedAudio | null;
+    editingId: string | null;
+    editingName: string;
   }>({
     activeTab: "creations",
     inputMode: "generate",
     cloneMode: "select",
     isDetailOpen: false,
     selectedAudio: null,
+    editingId: null,
+    editingName: "",
   });
+
+  // Handle rename - persist to backend
+  const handleRename = async (audioId: string) => {
+    const newName = uiState.editingName.trim();
+    if (!newName) {
+      toast.error("Name cannot be empty");
+      return;
+    }
+
+    // Optimistic update
+    setAudioState(prev => ({
+      ...prev,
+      history: prev.history.map(a => 
+        a.id === audioId ? { ...a, name: newName } : a
+      ),
+    }));
+    setUiState(prev => ({ ...prev, editingId: null, editingName: "" }));
+
+    // Persist to backend
+    const response = await fetch(`/api/generations/${audioId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: newName }),
+    });
+
+    if (!response.ok) {
+      // Revert on error
+      const audio = audioState.history.find(a => a.id === audioId);
+      if (audio) {
+        setAudioState(prev => ({
+          ...prev,
+          history: prev.history.map(a => 
+            a.id === audioId ? { ...a, name: audio.name } : a
+          ),
+        }));
+      }
+      toast.error("Failed to save name");
+      return;
+    }
+
+    toast.success("Renamed successfully");
+  };
 
   // Clone state
   const [cloneState, setCloneState] = useState<{
@@ -234,6 +291,44 @@ export function VoiceGeneratorAdvanced({
     };
   }, [audioState.history]);
 
+  // Preload durations for server-loaded items
+  useEffect(() => {
+    const loadDurations = async () => {
+      const itemsWithoutDuration = audioState.history.filter(a => a.duration === 0 && a.url);
+      if (itemsWithoutDuration.length === 0) return;
+
+      const durationsMap = new Map<string, number>();
+
+      await Promise.all(
+        itemsWithoutDuration.map(async (audio) => {
+          const tempAudio = new Audio(audio.url);
+          await new Promise<void>((resolve) => {
+            tempAudio.addEventListener("loadedmetadata", () => {
+              if (tempAudio.duration && tempAudio.duration > 0) {
+                durationsMap.set(audio.id, tempAudio.duration);
+              }
+              resolve();
+            });
+            tempAudio.addEventListener("error", () => resolve());
+            tempAudio.load();
+          });
+        })
+      );
+
+      if (durationsMap.size > 0) {
+        setAudioState(prev => ({
+          ...prev,
+          history: prev.history.map(a => {
+            const duration = durationsMap.get(a.id);
+            return duration ? { ...a, duration } : a;
+          }),
+        }));
+      }
+    };
+
+    loadDurations();
+  }, []); // Run once on mount
+
   const handleGenerate = async () => {
     if (!text.trim()) return;
     if (text.length > MAX_TEXT_LENGTH) {
@@ -280,11 +375,13 @@ export function VoiceGeneratorAdvanced({
       tempAudio.load();
     });
 
+    const trimmedText = text.trim();
     const newAudio: GeneratedAudio = {
       id: crypto.randomUUID(),
       url: audioUrl,
       blob: audioBlob,
-      text: text.trim(),
+      text: trimmedText,
+      name: generateNameFromText(trimmedText),
       voiceId: selectedVoiceId,
       voiceName: data.voiceName || selectedVoice?.name || "Unknown",
       timestamp: new Date(),
@@ -353,6 +450,18 @@ export function VoiceGeneratorAdvanced({
         toast.error("Failed to play audio");
         setAudioState(prev => ({ ...prev, playingId: null }));
       });
+      // Load duration for server-loaded items that have duration: 0
+      audioEl.addEventListener("loadedmetadata", () => {
+        const duration = audioEl!.duration;
+        if (duration && duration > 0) {
+          setAudioState(prev => ({
+            ...prev,
+            history: prev.history.map(a => 
+              a.id === audioId && a.duration === 0 ? { ...a, duration } : a
+            ),
+          }));
+        }
+      });
       audioRefs.current.set(audioId, audioEl);
     }
     
@@ -366,8 +475,12 @@ export function VoiceGeneratorAdvanced({
   };
 
   const formatDuration = (seconds: number) => {
+    // Handle very short durations - show at least 0:01 for non-zero values
+    if (seconds > 0 && seconds < 1) {
+      return "0:01";
+    }
     const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
+    const secs = Math.round(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
@@ -1199,11 +1312,50 @@ export function VoiceGeneratorAdvanced({
                         )}
                       </button>
 
-                      {/* Text preview */}
+                      {/* Name and details */}
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm text-white line-clamp-2 leading-relaxed">
-                          {audio.text}
-                        </p>
+                        {uiState.editingId === audio.id ? (
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              value={uiState.editingName}
+                              onChange={(e) => setUiState(prev => ({ ...prev, editingName: e.target.value }))}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") handleRename(audio.id);
+                                if (e.key === "Escape") setUiState(prev => ({ ...prev, editingId: null, editingName: "" }));
+                              }}
+                              autoFocus
+                              className="flex-1 bg-white/10 border border-white/20 rounded px-2 py-1 text-sm text-white focus:outline-none focus:border-[#FF5800]/50"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleRename(audio.id)}
+                              className="p-1 rounded hover:bg-white/10"
+                            >
+                              <Check className="h-4 w-4 text-green-500" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setUiState(prev => ({ ...prev, editingId: null, editingName: "" }))}
+                              className="p-1 rounded hover:bg-white/10"
+                            >
+                              <X className="h-4 w-4 text-white/50" />
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex items-start gap-1.5">
+                            <p className="text-sm text-white font-medium truncate flex-1" title={audio.name}>
+                              {audio.name}
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => setUiState(prev => ({ ...prev, editingId: audio.id, editingName: audio.name }))}
+                              className="p-1 rounded hover:bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                            >
+                              <Pencil className="h-3 w-3 text-white/50" />
+                            </button>
+                          </div>
+                        )}
                         <div className="flex items-center gap-2 mt-1.5 text-xs text-white/50">
                           <span>{audio.voiceName}</span>
                           <span>•</span>

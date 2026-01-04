@@ -61,14 +61,18 @@ export default async function VoicesPage() {
   // Format TTS history for client - only include items with a valid storage URL
   const ttsHistory = ttsGenerations
     .filter((gen) => gen.storage_url && gen.storage_url.length > 0)
-    .map((gen) => ({
-      id: gen.id,
-      url: gen.storage_url!,
-      text: gen.prompt,
-      voiceId: (gen.settings as Record<string, unknown>)?.voiceId as string || "default",
-      voiceName: (gen.metadata as Record<string, unknown>)?.voiceName as string || "Default",
-      createdAt: gen.created_at.toISOString(),
-    }));
+    .map((gen) => {
+      const metadata = gen.metadata as Record<string, unknown>;
+      return {
+        id: gen.id,
+        url: gen.storage_url!,
+        text: gen.prompt,
+        name: metadata?.name as string | undefined,
+        voiceId: (gen.settings as Record<string, unknown>)?.voiceId as string || "default",
+        voiceName: metadata?.voiceName as string || "Default",
+        createdAt: gen.created_at.toISOString(),
+      };
+    });
 
   return (
     <VoicePageClient

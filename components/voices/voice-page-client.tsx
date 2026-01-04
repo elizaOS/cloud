@@ -18,6 +18,7 @@ export interface TtsHistoryItem {
   id: string;
   url: string;
   text: string;
+  name?: string;
   voiceId: string;
   voiceName: string;
   createdAt: string;
