@@ -275,6 +275,8 @@ export function ElizaChatInterface({
 
   const [isUploadingFiles, setIsUploadingFiles] = useState(false);
   const [webSearchEnabled, setWebSearchEnabled] = useState(true);
+  // Track if anonymous user has reached message limit - disables input
+  const [isMessageLimitReached, setIsMessageLimitReached] = useState(false);
 
   // Custom model selection (when user picks from "More models")
   const [customModel, setCustomModel] = useState<{
@@ -686,6 +688,49 @@ export function ElizaChatInterface({
           onChunk: handleStreamChunk, // Handle real-time streaming chunks
           onReasoning: handleReasoningChunk, // Handle chain-of-thought display
           onError: (errorMsg) => {
+            // Check if this is a message limit error for anonymous users
+            const isMessageLimitError =
+              errorMsg.toLowerCase().includes("message limit") ||
+              errorMsg.toLowerCase().includes("sign up to continue");
+
+            if (isMessageLimitError && !authenticated) {
+              // Show a fake agent message prompting signup instead of toast
+              clearAllStreaming();
+              if (thinkingTimeoutRef.current) {
+                clearTimeout(thinkingTimeoutRef.current);
+                thinkingTimeoutRef.current = null;
+              }
+
+              // Block further input - user needs to sign up
+              setIsMessageLimitReached(true);
+
+              // Keep the user's message but remove thinking/streaming indicators
+              // Then add a fake agent message prompting signup
+              setMessages((prev) => {
+                const withoutThinking = prev.filter(
+                  (msg) =>
+                    !msg.id.startsWith("thinking-") &&
+                    !msg.id.startsWith("streaming-"),
+                );
+
+                // Add fake agent message
+                const signupPromptMessage: Message = {
+                  id: `signup-prompt-${Date.now()}`,
+                  content: {
+                    text: `I'd love to continue our conversation!\n\nYou've used all your free messages. **Sign up for free** to keep chatting with me and unlock unlimited conversations.`,
+                  },
+                  isAgent: true,
+                  createdAt: Date.now(),
+                };
+
+                return [...withoutThinking, signupPromptMessage];
+              });
+
+              // Don't set error state or show toast for limit errors
+              return;
+            }
+
+            // For other errors, show toast and remove messages
             setError(errorMsg);
             toast.error(errorMsg);
             // Remove temp, thinking, and streaming messages on error
@@ -756,6 +801,7 @@ export function ElizaChatInterface({
       loadRooms,
       onMessageSent,
       clearAllStreaming,
+      authenticated,
     ],
   );
 
@@ -1398,11 +1444,13 @@ export function ElizaChatInterface({
                 target.style.height = Math.min(target.scrollHeight, 200) + "px";
               }}
               placeholder={
-                recorder.isRecording
-                  ? "Recording... Click stop when done"
-                  : "Type your message..."
+                isMessageLimitReached
+                  ? "Sign up to continue chatting..."
+                  : recorder.isRecording
+                    ? "Recording... Click stop when done"
+                    : "Type your message..."
               }
-              disabled={recorder.isRecording}
+              disabled={recorder.isRecording || isMessageLimitReached}
               className="w-full bg-transparent px-4 pt-3 pb-3 text-[15px] text-white placeholder:text-white/40 focus:outline-none disabled:opacity-50 resize-none leading-relaxed"
               style={{ minHeight: "52px", maxHeight: "200px" }}
             />
@@ -1556,7 +1604,7 @@ export function ElizaChatInterface({
                   type="button"
                   variant="ghost"
                   size="icon"
-                  disabled={loadingState.isSending}
+                  disabled={loadingState.isSending || isMessageLimitReached}
                   onClick={handleVoiceInput}
                   className={`h-8 w-8 rounded-lg transition-colors ${
                     recorder.isRecording
@@ -1694,7 +1742,8 @@ export function ElizaChatInterface({
                   disabled={
                     loadingState.isSending ||
                     !inputText.trim() ||
-                    recorder.isRecording
+                    recorder.isRecording ||
+                    isMessageLimitReached
                   }
                   size="icon"
                   className="h-8 w-8 rounded-lg bg-transparent hover:bg-white/[0.06] disabled:opacity-40 border-0 transition-colors"

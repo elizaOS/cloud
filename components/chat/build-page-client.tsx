@@ -23,12 +23,14 @@ import { TriangleAlert } from "lucide-react";
 interface BuildPageClientProps {
   initialCharacters: ElizaCharacter[];
   isAuthenticated: boolean;
+  userId: string | null;
   initialCharacterId?: string;
 }
 
 export function BuildPageClient({
   initialCharacters,
   isAuthenticated,
+  userId,
   initialCharacterId,
 }: BuildPageClientProps) {
   const [anonymousSession, setAnonymousSession] = useState<{
@@ -49,7 +51,8 @@ export function BuildPageClient({
   const pathname = usePathname();
 
   // Initialize store with characters
-  const { setAvailableCharacters, setSelectedCharacterId } = useChatStore();
+  const { setAvailableCharacters, setSelectedCharacterId, setAuthState } =
+    useChatStore();
 
   useSetPageHeader({
     title: "Build",
@@ -57,14 +60,20 @@ export function BuildPageClient({
       "Build and customize AI agents using the ElizaOS runtime with intelligent assistance.",
   });
 
-  // Initialize store on mount
+  // Initialize store on mount - set auth state FIRST, then characters/selection
+  // This ensures viewerState is computed correctly (auth state must be set before selection)
   useEffect(() => {
+    // Set auth state first so viewerState computation uses correct values
+    setAuthState(isAuthenticated, userId);
+
     // Transform characters to match store interface
+    // In build mode, all characters are owned by the user
     const characters: Character[] = initialCharacters.map((char) => ({
       id: char.id || "",
       name: char.name || "Unknown",
       username: char.username || undefined,
       avatarUrl: char.avatarUrl || char.avatar_url || undefined,
+      ownerId: userId || undefined, // User owns all their characters
     }));
 
     setAvailableCharacters(characters);
@@ -77,6 +86,9 @@ export function BuildPageClient({
     initialCharacterId,
     setAvailableCharacters,
     setSelectedCharacterId,
+    setAuthState,
+    isAuthenticated,
+    userId,
   ]);
 
   // Initialize anonymous session for unauthenticated users

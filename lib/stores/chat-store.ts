@@ -25,7 +25,12 @@ export interface Character {
   name: string;
   username?: string;
   avatarUrl?: string;
+  bio?: string;
+  creatorUsername?: string;
+  ownerId?: string;
 }
+
+export type ViewerState = "unauthenticated" | "non-owner" | "owner";
 
 interface ChatState {
   // State
@@ -38,6 +43,11 @@ interface ChatState {
   loadRoomsPromise: Promise<void> | null; // Track ongoing loadRooms operation
   anonymousSessionToken: string | null; // Session token for anonymous users (from URL)
 
+  // Viewer state for public agent access control
+  isAuthenticated: boolean;
+  viewerState: ViewerState;
+  currentUserId: string | null; // The logged-in user's ID
+
   // Actions
   setRooms: (rooms: RoomItem[]) => void;
   setRoomId: (roomId: string | null) => void;
@@ -46,6 +56,7 @@ interface ChatState {
   setSelectedCharacterId: (characterId: string | null) => void;
   setPendingMessage: (message: string | null) => void;
   setAnonymousSessionToken: (token: string | null) => void;
+  setAuthState: (isAuthenticated: boolean, userId: string | null) => void;
   updateRoom: (roomId: string, updates: Partial<Omit<RoomItem, "id">>) => void;
   updateCharacterAvatar: (characterId: string, avatarUrl: string) => void;
   loadRooms: (force?: boolean) => Promise<void>;
@@ -68,6 +79,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
   loadRoomsPromise: null,
   anonymousSessionToken: null,
 
+  // Viewer state
+  isAuthenticated: false,
+  viewerState: "unauthenticated" as ViewerState,
+  currentUserId: null,
+
   // Setters
   setRooms: (rooms) => set({ rooms }),
   setRoomId: (roomId) => {
@@ -79,10 +95,56 @@ export const useChatStore = create<ChatState>((set, get) => ({
   setIsLoadingRooms: (isLoading) => set({ isLoadingRooms: isLoading }),
   setAvailableCharacters: (characters) =>
     set({ availableCharacters: characters }),
-  setSelectedCharacterId: (characterId) =>
-    set({ selectedCharacterId: characterId }),
+  setSelectedCharacterId: (characterId) => {
+    const { isAuthenticated, currentUserId, availableCharacters } = get();
+
+    // Recompute viewer state based on new character selection
+    let viewerState: ViewerState = "unauthenticated";
+    if (isAuthenticated && currentUserId) {
+      // No character selected = creator mode = owner
+      if (!characterId) {
+        viewerState = "owner";
+      } else {
+        const selectedChar = availableCharacters.find((c) => c.id === characterId);
+        // If character is in user's list (has matching ownerId or no ownerId set), they're the owner
+        if (selectedChar?.ownerId === currentUserId || (selectedChar && !selectedChar.ownerId)) {
+          viewerState = "owner";
+        } else {
+          viewerState = "non-owner";
+        }
+      }
+    }
+
+    set({ selectedCharacterId: characterId, viewerState });
+  },
   setPendingMessage: (message) => set({ pendingMessage: message }),
   setAnonymousSessionToken: (token) => set({ anonymousSessionToken: token }),
+
+  // Set auth state and compute viewer state based on selected character ownership
+  setAuthState: (isAuthenticated, userId) => {
+    const { selectedCharacterId, availableCharacters } = get();
+
+    let viewerState: ViewerState = "unauthenticated";
+    if (isAuthenticated && userId) {
+      // No character selected = creator mode = owner
+      if (!selectedCharacterId) {
+        viewerState = "owner";
+      } else {
+        // Check if user owns the selected character
+        const selectedChar = availableCharacters.find(
+          (c) => c.id === selectedCharacterId,
+        );
+        // If character is in user's list (has matching ownerId or no ownerId set), they're the owner
+        if (selectedChar?.ownerId === userId || (selectedChar && !selectedChar.ownerId)) {
+          viewerState = "owner";
+        } else {
+          viewerState = "non-owner";
+        }
+      }
+    }
+
+    set({ isAuthenticated, currentUserId: userId, viewerState });
+  },
 
   // Update an existing room's properties (for instant UI updates)
   updateRoom: (roomId: string, updates: Partial<Omit<RoomItem, "id">>) => {
@@ -323,6 +385,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
       pendingMessage: null,
       loadRoomsPromise: null,
       anonymousSessionToken: null,
+      isAuthenticated: false,
+      viewerState: "unauthenticated" as ViewerState,
+      currentUserId: null,
     });
   },
 }));

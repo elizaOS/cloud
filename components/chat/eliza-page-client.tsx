@@ -14,7 +14,6 @@
 import { useEffect, useState, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { ElizaChatInterface } from "@/components/chat/eliza-chat-interface";
-import { SignupPromptBanner } from "@/components/chat/signup-prompt-banner";
 import { useSetPageHeader } from "@/components/layout/page-header-context";
 import { useChatStore, type Character } from "@/lib/stores/chat-store";
 import type { ElizaCharacter } from "@/lib/types";
@@ -27,6 +26,8 @@ interface SharedCharacter {
   username?: string | null;
   avatarUrl?: string | null;
   bio?: string;
+  ownerId?: string;
+  creatorUsername?: string | null;
 }
 
 interface AccessError {
@@ -37,10 +38,13 @@ interface AccessError {
 interface ElizaPageClientProps {
   initialCharacters: ElizaCharacter[];
   isAuthenticated: boolean;
+  userId: string | null;
   initialRoomId?: string;
   initialCharacterId?: string;
   /** Pre-loaded character data for shared links (when character is not owned by user) */
   sharedCharacter?: SharedCharacter | null;
+  /** Whether the current user owns the selected character */
+  isOwnerOfSelectedCharacter?: boolean;
   /** Access error when trying to load a private character */
   accessError?: AccessError;
 }
@@ -48,9 +52,11 @@ interface ElizaPageClientProps {
 export function ElizaPageClient({
   initialCharacters,
   isAuthenticated,
+  userId,
   initialRoomId,
   initialCharacterId,
   sharedCharacter,
+  isOwnerOfSelectedCharacter,
   accessError,
 }: ElizaPageClientProps) {
   const router = useRouter();
@@ -67,6 +73,7 @@ export function ElizaPageClient({
     setAvailableCharacters,
     setRoomId,
     setSelectedCharacterId,
+    setAuthState,
     selectedCharacterId,
   } = useChatStore();
 
@@ -134,11 +141,13 @@ export function ElizaPageClient({
   // Memoize transformed characters to prevent unnecessary re-renders
   // Include shared character data for shared links (when character is not owned by user)
   const characters = useMemo<Character[]>(() => {
+    // User's own characters - they own all of these
     const chars = initialCharacters.map((char) => ({
       id: char.id || "",
       name: char.name || "Unknown",
       username: char.username || undefined,
       avatarUrl: char.avatarUrl || char.avatar_url || undefined,
+      ownerId: userId || undefined, // User owns their own characters
     }));
 
     // Add shared character if provided and not already in the list
@@ -148,16 +157,24 @@ export function ElizaPageClient({
         name: sharedCharacter.name,
         username: sharedCharacter.username || undefined,
         avatarUrl: sharedCharacter.avatarUrl || undefined,
+        bio: sharedCharacter.bio,
+        ownerId: sharedCharacter.ownerId,
+        creatorUsername: sharedCharacter.creatorUsername || undefined,
       });
     }
 
     return chars;
-  }, [initialCharacters, sharedCharacter]);
+  }, [initialCharacters, sharedCharacter, userId]);
 
   // Initialize store on mount (only when characters change)
   useEffect(() => {
     setAvailableCharacters(characters);
   }, [characters, setAvailableCharacters]);
+
+  // Set auth state in store (runs once on mount and when auth changes)
+  useEffect(() => {
+    setAuthState(isAuthenticated, userId);
+  }, [isAuthenticated, userId, setAuthState]);
 
   // Sync URL params with store - run on mount and when params change
   // This ensures the store reflects URL changes (e.g., navigating to a different characterId)
@@ -209,14 +226,6 @@ export function ElizaPageClient({
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      {/* Signup prompt banner for anonymous users */}
-      {!isAuthenticated && anonymousSession && (
-        <SignupPromptBanner
-          messageCount={anonymousSession.messageCount}
-          messagesLimit={anonymousSession.messagesLimit}
-        />
-      )}
-
       {/* Chat Interface */}
       <div className="flex flex-1 overflow-hidden">
         <ElizaChatInterface expectedCharacterId={initialCharacterId} />
