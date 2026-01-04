@@ -15,8 +15,8 @@ const DWSConfigSchema = z.object({
   execUrl: z.string().url(),
   cacheUrl: z.string().url(),
   observabilityUrl: z.string().url(),
-  eqliteEndpoint: z.string().url(),
-  eqliteDbid: z.string(),
+  sqlitEndpoint: z.string().url(),
+  sqlitDbid: z.string(),
 
   // Network configuration
   network: z.enum(['localnet', 'testnet', 'mainnet']),
@@ -41,7 +41,7 @@ const DWSConfigSchema = z.object({
   teePlatform: z.enum(['dstack', 'intel_tdx', 'amd_sev', 'simulator']),
 
   // Database configuration
-  databaseType: z.enum(['postgres', 'eqlite']),
+  databaseType: z.enum(['postgres', 'sqlit']),
   databaseUrl: z.string().optional(),
 
   // Cache configuration
@@ -96,8 +96,8 @@ export function getDWSConfig(): DWSConfig {
     execUrl: getEnvString('DWS_EXEC_URL', `${baseUrl}/exec`),
     cacheUrl: getEnvString('DWS_CACHE_URL', `${baseUrl}/cache`),
     observabilityUrl: getEnvString('DWS_OBSERVABILITY_URL', `${baseUrl}/observability`),
-    eqliteEndpoint: getEnvString('EQLITE_ENDPOINT', 'http://localhost:4661'),
-    eqliteDbid: getEnvString('EQLITE_DBID', 'eliza-cloud'),
+    sqlitEndpoint: getEnvString('SQLIT_ENDPOINT', 'http://localhost:4661'),
+    sqlitDbid: getEnvString('SQLIT_DBID', 'eliza-cloud'),
 
     network: getEnvString('DWS_NETWORK', 'localnet') as DWSConfig['network'],
     nodeId: getEnvString('DWS_NODE_ID', 'local-node'),

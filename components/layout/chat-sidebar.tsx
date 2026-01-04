@@ -33,7 +33,7 @@ import { ElizaAvatar } from "@/components/chat/eliza-avatar";
 // Default Eliza avatars - different for build vs chat pages
 const DEFAULT_ELIZA_AVATAR_CHAT =
   "https://raw.githubusercontent.com/elizaOS/eliza-avatars/refs/heads/master/Eliza/portrait.png";
-const DEFAULT_ELIZA_AVATAR_BUILD = "/avatars/eliza-default.png";
+const DEFAULT_ELIZA_AVATAR_BUILD = "/avatars/eliza-default.webp";
 
 interface ChatSidebarProps {
   className?: string;

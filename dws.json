@@ -169,7 +169,7 @@
       }
     },
     "database": {
-      "type": "eqlite",
+      "type": "sqlit",
       "config": {
         "consensus": true,
         "replication": 3

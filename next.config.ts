@@ -10,6 +10,14 @@ const nextConfig: NextConfig = {
   // Enable standalone output for DWS deployment
   output: "standalone",
   
+  // Force transpilation of packages that might bundle their own React
+  transpilePackages: [
+    "@ai-sdk/react",
+    "@ai-sdk/gateway",
+    "@ai-sdk/openai",
+    "ai",
+  ],
+  
   images: {
     remotePatterns: [
       // DWS Storage endpoints
@@ -108,15 +116,12 @@ const nextConfig: NextConfig = {
       "date-fns",
     ],
   },
-  // Turbopack configuration for monorepo - disabled for local dev compatibility
-  // turbopack: {
-  //   root: '/home/shaw/Documents/jeju',
-  // },
   typescript: {
     ignoreBuildErrors: true,
   },
-  eslint: {
-    ignoreDuringBuilds: true,
+  // Turbopack configuration for monorepo workspace root
+  turbopack: {
+    root: '/Users/shawwalters/jeju',
   },
   outputFileTracingRoot: undefined,
   outputFileTracingIncludes: {
@@ -217,6 +222,17 @@ const nextConfig: NextConfig = {
   ],
 
   webpack: (config, { isServer, dev }) => {
+    // Fix React version mismatch - ensure all packages use the same React version
+    const path = require('path');
+    config.resolve = config.resolve || {};
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      react: path.resolve('./node_modules/react'),
+      'react-dom': path.resolve('./node_modules/react-dom'),
+      'react/jsx-runtime': path.resolve('./node_modules/react/jsx-runtime'),
+      'react/jsx-dev-runtime': path.resolve('./node_modules/react/jsx-dev-runtime'),
+    };
+
     // Fix for worker_threads not being handled by Turbopack
     if (isServer) {
       config.externals = config.externals || [];

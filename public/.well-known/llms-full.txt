@@ -2,15 +2,15 @@
 
 This file contains the concatenated contents of the elizaOS Cloud docs for LLM ingestion (Cursor, ChatGPT, etc.).
 
-Base URL: https://elizacloud.ai
-Docs root: https://elizacloud.ai/docs
-Index: https://elizacloud.ai/.well-known/llms.txt
+Base URL: https://www.dev.elizacloud.ai
+Docs root: https://www.dev.elizacloud.ai/docs
+Index: https://www.dev.elizacloud.ai/.well-known/llms.txt
 
 ---
 
 ## elizaOS Cloud Documentation
 
-URL: https://elizacloud.ai/docs
+URL: https://www.dev.elizacloud.ai/docs
 
 Summary: Build, deploy, and scale intelligent AI agents with elizaOS Cloud.
 
@@ -402,7 +402,7 @@ curl https://elizacloud.ai/api/v1/chat/completions \
 
 ## A2A Protocol
 
-URL: https://elizacloud.ai/docs/a2a
+URL: https://www.dev.elizacloud.ai/docs/a2a
 
 Summary: Agent-to-Agent communication protocol on elizaOS Cloud. Enable agents to communicate and collaborate.
 
@@ -678,7 +678,7 @@ A2A follows the Google A2A specification with extensions:
 
 ## Agent Creator
 
-URL: https://elizacloud.ai/docs/agent-creator
+URL: https://www.dev.elizacloud.ai/docs/agent-creator
 
 Summary: Build AI agents visually with the elizaOS Cloud Agent Creator. No code required to create powerful conversational agents.
 
@@ -940,7 +940,7 @@ Upload a character JSON file to populate the creator:
 
 ## AI Agents
 
-URL: https://elizacloud.ai/docs/agents
+URL: https://www.dev.elizacloud.ai/docs/agents
 
 Summary: Create, deploy, and manage intelligent AI agents on elizaOS Cloud. Build conversational agents with custom personalities, knowledge, and capabilities.
 
@@ -1185,7 +1185,7 @@ curl -X POST "https://elizacloud.ai/api/v1/agents/{agentId}/publish" \
 
 ## API Overview
 
-URL: https://elizacloud.ai/docs/api
+URL: https://www.dev.elizacloud.ai/docs/api
 
 Summary: Complete REST API reference for elizaOS Cloud. OpenAI-compatible endpoints for chat, embeddings, and more.
 
@@ -1300,7 +1300,7 @@ You can use this with tools like Swagger UI, Postman, or to generate client SDKs
 
 ## Agents
 
-URL: https://elizacloud.ai/docs/api/agents
+URL: https://www.dev.elizacloud.ai/docs/api/agents
 
 Summary: Create and manage AI agents on elizaOS Cloud.
 
@@ -1486,7 +1486,7 @@ Publish an agent to the marketplace.
 
 ## API Keys
 
-URL: https://elizacloud.ai/docs/api/api-keys
+URL: https://www.dev.elizacloud.ai/docs/api/api-keys
 
 Summary: Manage API keys for elizaOS Cloud.
 
@@ -1648,7 +1648,7 @@ Generate a new secret for an existing key.
 
 ## Apps
 
-URL: https://elizacloud.ai/docs/api/apps
+URL: https://www.dev.elizacloud.ai/docs/api/apps
 
 Summary: Create and manage applications on elizaOS Cloud.
 
@@ -1804,7 +1804,7 @@ Get monetization settings and earnings.
 
 ## Chat Completions
 
-URL: https://elizacloud.ai/docs/api/chat
+URL: https://www.dev.elizacloud.ai/docs/api/chat
 
 Summary: OpenAI-compatible chat completions API with streaming support for elizaOS Cloud.
 
@@ -2011,7 +2011,7 @@ See the [Models API](/docs/api/models) for a complete list.
 
 ## Containers
 
-URL: https://elizacloud.ai/docs/api/containers
+URL: https://www.dev.elizacloud.ai/docs/api/containers
 
 Summary: Deploy and manage containers on elizaOS Cloud.
 
@@ -2205,7 +2205,7 @@ Container logs are retained for 7 days.
 
 ## Credits & Billing
 
-URL: https://elizacloud.ai/docs/api/credits
+URL: https://www.dev.elizacloud.ai/docs/api/credits
 
 Summary: Manage credits and billing on elizaOS Cloud.
 
@@ -2393,7 +2393,7 @@ _Input / Output token pricing shown for chat models_
 
 ## Embeddings
 
-URL: https://elizacloud.ai/docs/api/embeddings
+URL: https://www.dev.elizacloud.ai/docs/api/embeddings
 
 Summary: Generate vector embeddings for text using elizaOS Cloud embedding API.
 
@@ -2562,7 +2562,7 @@ function cosineSimilarity(a, b) {
 
 ## Gallery
 
-URL: https://elizacloud.ai/docs/api/gallery
+URL: https://www.dev.elizacloud.ai/docs/api/gallery
 
 Summary: Store and manage generated media on elizaOS Cloud.
 
@@ -2667,7 +2667,7 @@ Deleted items cannot be recovered.
 
 ## Image Generation
 
-URL: https://elizacloud.ai/docs/api/images
+URL: https://www.dev.elizacloud.ai/docs/api/images
 
 Summary: Generate images from text prompts using elizaOS Cloud.
 
@@ -2911,7 +2911,7 @@ Your webhook receives:
 
 ## Knowledge
 
-URL: https://elizacloud.ai/docs/api/knowledge
+URL: https://www.dev.elizacloud.ai/docs/api/knowledge
 
 Summary: Upload and query documents for RAG on elizaOS Cloud.
 
@@ -3073,7 +3073,7 @@ Check if a document exists (by hash).
 
 ## MCPs
 
-URL: https://elizacloud.ai/docs/api/mcps
+URL: https://www.dev.elizacloud.ai/docs/api/mcps
 
 Summary: Model Context Protocol servers on elizaOS Cloud.
 
@@ -3241,7 +3241,7 @@ Pre-configured demo MCPs for testing:
 
 ## Models
 
-URL: https://elizacloud.ai/docs/api/models
+URL: https://www.dev.elizacloud.ai/docs/api/models
 
 Summary: List and discover available AI models on elizaOS Cloud.
 
@@ -3354,7 +3354,7 @@ curl -X GET "https://elizacloud.ai/api/v1/models" \
 
 ## API Explorer
 
-URL: https://elizacloud.ai/docs/api/overview
+URL: https://www.dev.elizacloud.ai/docs/api/overview
 
 Summary: Browse every public Cloud API route (mostly under /api/v1) with a full left-side explorer and OpenAPI-friendly paths.
 
@@ -3412,7 +3412,7 @@ You can generate TypeScript types/clients from that spec using your preferred to
 
 ## Redemptions
 
-URL: https://elizacloud.ai/docs/api/redemptions
+URL: https://www.dev.elizacloud.ai/docs/api/redemptions
 
 Summary: Redeem earnings on elizaOS Cloud.
 
@@ -3583,7 +3583,7 @@ Redemptions are processed within 24-48 hours.
 
 ## Video Generation
 
-URL: https://elizacloud.ai/docs/api/video
+URL: https://www.dev.elizacloud.ai/docs/api/video
 
 Summary: Generate videos from text prompts using elizaOS Cloud.
 
@@ -3712,7 +3712,7 @@ Include camera direction in prompts:
 
 ## Voice & TTS
 
-URL: https://elizacloud.ai/docs/api/voice
+URL: https://www.dev.elizacloud.ai/docs/api/voice
 
 Summary: Text-to-speech and voice cloning on elizaOS Cloud.
 
@@ -4000,7 +4000,7 @@ Check voice cloning status. Cloning typically takes 30-60 seconds.
 
 ## Apps
 
-URL: https://elizacloud.ai/docs/apps
+URL: https://www.dev.elizacloud.ai/docs/apps
 
 Summary: Create and manage applications on elizaOS Cloud. Build integrations with your agents and APIs.
 
@@ -4259,7 +4259,7 @@ Restrict what your app key can access:
 
 ## Authentication
 
-URL: https://elizacloud.ai/docs/authentication
+URL: https://www.dev.elizacloud.ai/docs/authentication
 
 Summary: Learn how to authenticate with elizaOS Cloud APIs using API keys, session tokens, and x402 payments.
 
@@ -4512,7 +4512,7 @@ X-RateLimit-Reset: 1705312860
 
 ## Billing & Credits
 
-URL: https://elizacloud.ai/docs/billing
+URL: https://www.dev.elizacloud.ai/docs/billing
 
 Summary: Understand elizaOS Cloud pricing, credits system, and billing management.
 
@@ -4787,7 +4787,7 @@ Contact [sales@eliza.ai](mailto:sales@eliza.ai) for enterprise plans.
 
 ## Changelog
 
-URL: https://elizacloud.ai/docs/changelog
+URL: https://www.dev.elizacloud.ai/docs/changelog
 
 Summary: Latest updates, new features, and improvements to elizaOS Cloud.
 
@@ -4924,7 +4924,7 @@ Get notified about new features and changes:
 
 ## Character JSON
 
-URL: https://elizacloud.ai/docs/character-json
+URL: https://www.dev.elizacloud.ai/docs/character-json
 
 Summary: Complete reference for elizaOS character JSON configuration. Define agent personality, behavior, and settings.
 
@@ -5246,7 +5246,7 @@ The character JSON is validated on upload. Common errors:
 
 ## Containers
 
-URL: https://elizacloud.ai/docs/containers
+URL: https://www.dev.elizacloud.ai/docs/containers
 
 Summary: Deploy custom Docker containers on elizaOS Cloud with managed infrastructure and auto-scaling.
 
@@ -5548,7 +5548,7 @@ See [Billing & Credits](/docs/billing) for current pricing on CPU, memory, netwo
 
 ## Earnings
 
-URL: https://elizacloud.ai/docs/earnings
+URL: https://www.dev.elizacloud.ai/docs/earnings
 
 Summary: Monetize your agents and apps on elizaOS Cloud. Earn from usage and marketplace listings.
 
@@ -5792,7 +5792,7 @@ curl -X GET "https://elizacloud.ai/api/v1/apps/{appId}/earnings/history" \
 
 ## Error Handling
 
-URL: https://elizacloud.ai/docs/errors
+URL: https://www.dev.elizacloud.ai/docs/errors
 
 Summary: Understand elizaOS Cloud API errors and how to handle them gracefully in your applications.
 
@@ -6090,7 +6090,7 @@ curl -X POST "https://elizacloud.ai/api/v1/chat/completions" \
 
 ## Gallery
 
-URL: https://elizacloud.ai/docs/gallery
+URL: https://www.dev.elizacloud.ai/docs/gallery
 
 Summary: Manage your generated images and videos in the elizaOS Cloud Gallery.
 
@@ -6371,7 +6371,7 @@ console.log(image.galleryId); // gal_abc123
 
 ## Image Generation
 
-URL: https://elizacloud.ai/docs/image-generation
+URL: https://www.dev.elizacloud.ai/docs/image-generation
 
 Summary: Generate images with AI on elizaOS Cloud using FLUX, Stable Diffusion, and other models via Fal.ai integration.
 
@@ -6641,7 +6641,7 @@ See [Billing & Credits](/docs/billing) for current pricing. Image generation cos
 
 ## Installation
 
-URL: https://elizacloud.ai/docs/installation
+URL: https://www.dev.elizacloud.ai/docs/installation
 
 Summary: Install the elizaOS SDK and CLI tools for local development.
 
@@ -6759,7 +6759,7 @@ bun add @elizaos/core@latest @elizaos/plugin-elizacloud@latest
 
 ## Knowledge Base
 
-URL: https://elizacloud.ai/docs/knowledge
+URL: https://www.dev.elizacloud.ai/docs/knowledge
 
 Summary: Add documents to your agents' knowledge base for RAG-powered responses on elizaOS Cloud.
 
@@ -7060,7 +7060,7 @@ See [Billing & Credits](/docs/billing) for current pricing on document uploads, 
 
 ## MCP Protocol
 
-URL: https://elizacloud.ai/docs/mcp
+URL: https://www.dev.elizacloud.ai/docs/mcp
 
 Summary: Model Context Protocol implementation on elizaOS Cloud. Connect tools and resources to AI models.
 
@@ -7437,7 +7437,7 @@ app.post('/mcp', (req, res) => {
 
 ## MCP Integration
 
-URL: https://elizacloud.ai/docs/mcps
+URL: https://www.dev.elizacloud.ai/docs/mcps
 
 Summary: Connect Model Context Protocol (MCP) servers to your agents on elizaOS Cloud for extended capabilities.
 
@@ -7783,7 +7783,7 @@ curl -X POST "https://elizacloud.ai/api/v1/mcps/{mcpId}/publish" \
 
 ## Quickstart
 
-URL: https://elizacloud.ai/docs/quickstart
+URL: https://www.dev.elizacloud.ai/docs/quickstart
 
 Summary: Get started with elizaOS Cloud in 5 minutes. Deploy your first AI agent and start building.
 
@@ -8164,7 +8164,7 @@ ELIZA_API_URL=https://elizacloud.ai/api/v1
 
 ## Rate Limits
 
-URL: https://elizacloud.ai/docs/rate-limits
+URL: https://www.dev.elizacloud.ai/docs/rate-limits
 
 Summary: Understand rate limiting on elizaOS Cloud APIs and how to handle rate limit errors.
 
@@ -8387,7 +8387,7 @@ curl -X GET "https://elizacloud.ai/api/quotas/usage" \
 
 ## SDKs & Libraries
 
-URL: https://elizacloud.ai/docs/sdks
+URL: https://www.dev.elizacloud.ai/docs/sdks
 
 Summary: Official and community SDKs for integrating with elizaOS Cloud in your preferred language.
 
@@ -8689,7 +8689,7 @@ We welcome SDK contributions! See our [GitHub](https://github.com/elizaOS/eliza)
 
 ## Video Generation
 
-URL: https://elizacloud.ai/docs/video-generation
+URL: https://www.dev.elizacloud.ai/docs/video-generation
 
 Summary: Generate AI videos from text prompts on elizaOS Cloud using MiniMax and other cutting-edge video models.
 
@@ -8957,7 +8957,7 @@ async function generateVideo(prompt) {
 
 ## Voice Cloning
 
-URL: https://elizacloud.ai/docs/voice-cloning
+URL: https://www.dev.elizacloud.ai/docs/voice-cloning
 
 Summary: Clone voices and generate speech with ElevenLabs integration on elizaOS Cloud.
 
@@ -9212,7 +9212,7 @@ See [Billing & Credits](/docs/billing) for current pricing. Voice cloning costs 
 
 ## x402 Payments
 
-URL: https://elizacloud.ai/docs/x402
+URL: https://www.dev.elizacloud.ai/docs/x402
 
 Summary: Pay for elizaOS Cloud services with cryptocurrency using the x402 protocol.
 

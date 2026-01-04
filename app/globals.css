@@ -9,6 +9,12 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* System font stack for SF Pro (saves 24MB by not bundling fonts) */
+:root {
+  --font-sf-pro: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", 
+    "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);

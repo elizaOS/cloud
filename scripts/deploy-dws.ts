@@ -17,7 +17,7 @@
  * 9. Verify deployment
  */
 
-import { existsSync, readFileSync, mkdirSync, writeFileSync, readdirSync, statSync } from 'fs'
+import { existsSync, readFileSync, writeFileSync, readdirSync, statSync } from 'fs'
 import { join, resolve } from 'path'
 import {
   createPublicClient,
@@ -157,6 +157,77 @@ const DWSDeploymentResultSchema = z.object({
   workerCid: z.string().optional(),
   frontendCid: z.string().optional(),
   errors: z.array(z.string()),
+})
+
+// Schema for storage upload responses
+const StorageUploadResponseSchema = z.object({
+  cid: z.string(),
+  size: z.number().optional(),
+})
+
+// Schema for worker deployment response
+const WorkerDeployResponseSchema = z.object({
+  functionId: z.string(),
+  status: z.string(),
+})
+
+// Schema for database provisioning response
+const DatabaseProvisionResponseSchema = z.object({
+  instance: z.object({
+    id: z.string(),
+    connectionString: z.string().optional(),
+  }),
+})
+
+// Schema for cron trigger response
+const CronTriggerResponseSchema = z.object({
+  trigger: z.object({
+    id: z.string(),
+  }),
+})
+
+// Schema for DWS manifest
+const DWSManifestSchema = z.object({
+  name: z.string().optional(),
+  version: z.string().optional(),
+  dws: z.object({
+    backend: z.object({
+      memory: z.number().optional(),
+      timeout: z.number().optional(),
+      regions: z.array(z.string()).optional(),
+    }).optional(),
+    database: z.object({
+      type: z.string().optional(),
+      name: z.string().optional(),
+      resources: z.object({
+        cpuCores: z.number().optional(),
+        memoryMb: z.number().optional(),
+        storageMb: z.number().optional(),
+      }).optional(),
+    }).optional(),
+  }).optional(),
+  cron: z.array(z.object({
+    name: z.string(),
+    schedule: z.string(),
+    endpoint: z.string(),
+    timeout: z.number().optional(),
+  })).optional(),
+})
+
+// Schema for project config
+const ProjectConfigSchema = z.object({
+  jnsName: z.string().optional(),
+})
+
+// Schema for deployment status response
+const DeploymentStatusResponseSchema = z.object({
+  status: z.string(),
+  staticUrl: z.string().optional(),
+  regions: z.array(z.string()).optional(),
+  createdAt: z.string().optional(),
+  frontendCid: z.string().optional(),
+  workerCid: z.string().optional(),
+  errors: z.array(z.string()).optional(),
 })
 
 // ============================================================================
@@ -335,7 +406,7 @@ async function uploadToIPFS(filePath: string, name: string): Promise<UploadResul
     throw new Error(`IPFS upload failed: ${response.status} - ${errorText}`)
   }
 
-  const result = await response.json() as { cid: string; size?: number }
+  const result = StorageUploadResponseSchema.parse(await response.json())
 
   return {
     cid: result.cid,
@@ -376,7 +447,7 @@ const EXCLUDED_STATIC_DIRS = [
   'agents',
 ]
 
-interface UploadResult {
+interface StaticUploadResult {
   cid: string
   path: string
   size: number
@@ -423,7 +494,7 @@ async function uploadStaticAssets(): Promise<string> {
   let uploaded = 0
   let failed = 0
 
-  async function uploadWithRetry(relativePath: string): Promise<UploadResult | null> {
+  async function uploadWithRetry(relativePath: string): Promise<StaticUploadResult | null> {
     const filePath = join(staticDir, relativePath)
     const content = readFileSync(filePath)
     
@@ -442,7 +513,7 @@ async function uploadStaticAssets(): Promise<string> {
         })
         
         if (response.ok) {
-          const result = await response.json() as { cid: string }
+          const result = StorageUploadResponseSchema.parse(await response.json())
           return { cid: result.cid, path: relativePath, size: content.length }
         }
         
@@ -514,7 +585,7 @@ async function uploadStaticAssets(): Promise<string> {
     throw new Error('Failed to upload manifest')
   }
   
-  const manifestResult = await manifestResponse.json() as { cid: string }
+  const manifestResult = StorageUploadResponseSchema.parse(await manifestResponse.json())
   log(`Static assets uploaded. Manifest CID: ${manifestResult.cid}`, 'success')
   log(`Total files: ${uploaded}`, 'info')
 
@@ -531,7 +602,7 @@ async function uploadStaticAssets(): Promise<string> {
 // Worker Deployment
 // ============================================================================
 
-async function deployWorker(staticCid: string, owner: Address): Promise<DeploymentResult> {
+async function deployWorker(staticCid: string, owner: Address, dbConnectionString: string): Promise<DeploymentResult> {
   log('Deploying worker to DWS...', 'step')
 
   const workerDir = join(BUNDLE_DIR, 'worker')
@@ -540,7 +611,7 @@ async function deployWorker(staticCid: string, owner: Address): Promise<Deployme
   }
 
   // Load manifests
-  const dwsManifest = JSON.parse(readFileSync(DWS_MANIFEST_PATH, 'utf-8'))
+  const dwsManifest = DWSManifestSchema.parse(JSON.parse(readFileSync(DWS_MANIFEST_PATH, 'utf-8')))
   const appName = dwsManifest.name ?? 'eliza-cloud'
 
   // First, upload the worker bundle to storage (IPFS)
@@ -568,6 +639,21 @@ async function deployWorker(staticCid: string, owner: Address): Promise<Deployme
   log('Deploying worker to runtime...', 'step')
 
   // Build deployment request
+  // SECURITY: No secrets embedded in env - use KMS_SECRET_IDS for secrets like DATABASE_URL
+  // Workers fetch secrets from KMS at runtime using their FUNCTION_ID for auth
+  const kmsSecretIds: string[] = []
+  if (dbConnectionString) {
+    // DATABASE_URL should be registered in KMS, not passed directly
+    // The worker will fetch it at runtime using the KMS client
+    kmsSecretIds.push(`kms:${appName}:DATABASE_URL`)
+    log(
+      'SECURITY: DATABASE_URL should be stored in KMS with ID: kms:' +
+        appName +
+        ':DATABASE_URL',
+      'warn',
+    )
+  }
+
   const deployRequest = {
     name: appName,
     codeCid: workerCid,
@@ -577,13 +663,19 @@ async function deployWorker(staticCid: string, owner: Address): Promise<Deployme
     timeout: dwsManifest.dws?.backend?.timeout ?? 60000,
     routes: ['/api/*', '/*'],
     env: {
+      // SECURITY: Only non-sensitive config here
       NODE_ENV: 'production',
       STATIC_ASSETS_CID: staticCid,
       DWS_NETWORK: DWS_NETWORK,
+      JEJU_NETWORK: DWS_NETWORK,
+      // KMS secret IDs - worker fetches actual values at runtime
+      KMS_SECRET_IDS: kmsSecretIds.join(','),
+      // Worker identity for KMS auth
+      OWNER_ADDRESS: owner,
     },
   }
 
-  const response = await fetch(`${DWS_API_URL}/deploy/worker`, {
+  const response = await fetch(`${DWS_API_URL}/workers`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -592,12 +684,14 @@ async function deployWorker(staticCid: string, owner: Address): Promise<Deployme
     body: JSON.stringify(deployRequest),
   })
 
+  let functionId = ''
   if (!response.ok) {
     const error = await response.text()
     log(`Worker deployment to runtime failed: ${error}`, 'warn')
     log('Continuing with static deployment...', 'info')
   } else {
-    const workerResult = await response.json() as { functionId: string; status: string }
+    const workerResult = WorkerDeployResponseSchema.parse(await response.json())
+    functionId = workerResult.functionId
     log(`Worker deployed to runtime: ${workerResult.functionId}`, 'success')
   }
 
@@ -673,36 +767,57 @@ async function uploadLargeFile(filePath: string, filename: string): Promise<stri
       throw new Error(`Upload failed: ${await response.text()}`)
     }
     
-    const result = await response.json() as { cid: string }
+    const result = StorageUploadResponseSchema.parse(await response.json())
     return result.cid
   }
   
   // Large file - upload in chunks and create manifest
   const chunkCids: string[] = []
   const totalChunks = Math.ceil(totalSize / CHUNK_SIZE)
+  const MAX_RETRIES = 5
+  const RETRY_DELAY = 3000
   
   for (let i = 0; i < totalChunks; i++) {
     const start = i * CHUNK_SIZE
     const end = Math.min(start + CHUNK_SIZE, totalSize)
     const chunk = content.slice(start, end)
     
-    const formData = new FormData()
-    formData.append('file', new Blob([chunk]), `${filename}.chunk.${i}`)
-    formData.append('tier', 'system')
-    
-    const response = await fetch(`${DWS_API_URL}/storage/upload`, {
-      method: 'POST',
-      body: formData,
-    })
-    
-    if (!response.ok) {
-      throw new Error(`Chunk ${i} upload failed: ${await response.text()}`)
+    let lastError: Error | null = null
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        const formData = new FormData()
+        formData.append('file', new Blob([chunk]), `${filename}.chunk.${i}`)
+        formData.append('tier', 'system')
+        
+        const response = await fetch(`${DWS_API_URL}/storage/upload`, {
+          method: 'POST',
+          body: formData,
+        })
+        
+        if (!response.ok) {
+          throw new Error(`Chunk ${i} upload failed: ${await response.text()}`)
+        }
+        
+        const result = StorageUploadResponseSchema.parse(await response.json())
+        chunkCids.push(result.cid)
+        log(`Uploaded chunk ${i + 1}/${totalChunks}`, 'info')
+        lastError = null
+        break
+      } catch (err) {
+        lastError = err instanceof Error ? err : new Error(String(err))
+        if (attempt < MAX_RETRIES) {
+          log(`Chunk ${i + 1} upload attempt ${attempt} failed, retrying in ${RETRY_DELAY / 1000}s...`, 'warn')
+          await new Promise(r => setTimeout(r, RETRY_DELAY * attempt))
+        }
+      }
     }
     
-    const result = await response.json() as { cid: string }
-    chunkCids.push(result.cid)
+    if (lastError) {
+      throw new Error(`Chunk ${i} upload failed after ${MAX_RETRIES} retries: ${lastError.message}`)
+    }
     
-    log(`Uploaded chunk ${i + 1}/${totalChunks}`, 'info')
+    // Small delay between chunks
+    await new Promise(r => setTimeout(r, 500))
   }
   
   // Upload manifest that references all chunks
@@ -727,7 +842,7 @@ async function uploadLargeFile(filePath: string, filename: string): Promise<stri
     throw new Error(`Manifest upload failed: ${await manifestResponse.text()}`)
   }
   
-  const manifestResult = await manifestResponse.json() as { cid: string }
+  const manifestResult = StorageUploadResponseSchema.parse(await manifestResponse.json())
   return manifestResult.cid
 }
 
@@ -738,7 +853,7 @@ async function uploadLargeFile(filePath: string, filename: string): Promise<stri
 async function provisionDatabase(owner: Address): Promise<{ connectionString: string; instanceId: string }> {
   log('Provisioning SQLit database...', 'step')
 
-  const dwsManifest = JSON.parse(readFileSync(DWS_MANIFEST_PATH, 'utf-8'))
+  const dwsManifest = DWSManifestSchema.parse(JSON.parse(readFileSync(DWS_MANIFEST_PATH, 'utf-8')))
   const dbConfig = dwsManifest.dws?.database
 
   if (!dbConfig || dbConfig.type === 'none') {
@@ -773,12 +888,20 @@ async function provisionDatabase(owner: Address): Promise<{ connectionString: st
     return { connectionString: '', instanceId: '' }
   }
 
-  const result = await response.json() as { instance: { id: string; connectionString?: string } }
-  log(`Database provisioned: ${result.instance.id}`, 'success')
+  const rawResult = await response.json()
+  const parseResult = DatabaseProvisionResponseSchema.safeParse(rawResult)
+  
+  if (!parseResult.success) {
+    log(`Database response format unexpected: ${JSON.stringify(rawResult).slice(0, 200)}`, 'warn')
+    log('Deployment will continue without database', 'warn')
+    return { connectionString: '', instanceId: '' }
+  }
+  
+  log(`Database provisioned: ${parseResult.data.instance.id}`, 'success')
 
   return {
-    connectionString: result.instance.connectionString ?? '',
-    instanceId: result.instance.id,
+    connectionString: parseResult.data.instance.connectionString ?? '',
+    instanceId: parseResult.data.instance.id,
   }
 }
 
@@ -796,7 +919,7 @@ interface CronJob {
 async function registerCronJobs(workerUrl: string, owner: Address): Promise<void> {
   log('Registering cron jobs...', 'step')
 
-  const dwsManifest = JSON.parse(readFileSync(DWS_MANIFEST_PATH, 'utf-8'))
+  const dwsManifest = DWSManifestSchema.parse(JSON.parse(readFileSync(DWS_MANIFEST_PATH, 'utf-8')))
   const cronJobs: CronJob[] = dwsManifest.cron ?? []
 
   if (cronJobs.length === 0) {
@@ -830,7 +953,7 @@ async function registerCronJobs(workerUrl: string, owner: Address): Promise<void
       })
 
       if (response.ok) {
-        const result = await response.json() as { trigger: { id: string } }
+        const result = CronTriggerResponseSchema.parse(await response.json())
         log(`  ${cron.name}: ${cron.schedule} -> ${result.trigger.id.slice(0, 8)}`)
         registered++
       } else {
@@ -856,7 +979,7 @@ async function registerJNS(deploymentUrl: string, staticCid: string, owner: Addr
   log('Registering JNS name...', 'step')
 
   const projectConfig = existsSync(PROJECT_CONFIG_PATH)
-    ? JSON.parse(readFileSync(PROJECT_CONFIG_PATH, 'utf-8'))
+    ? ProjectConfigSchema.parse(JSON.parse(readFileSync(PROJECT_CONFIG_PATH, 'utf-8')))
     : null
 
   const jnsName = projectConfig?.jnsName ?? 'cloud.jeju'
@@ -926,28 +1049,25 @@ async function waitForDeployment(deploymentId: string): Promise<DeploymentResult
       throw new Error(`Failed to get deployment status: ${response.status}`)
     }
 
-    const rawResult = await response.json()
+    const rawResult = DeploymentStatusResponseSchema.parse(await response.json())
     
-    // Try to parse the DWS format
-    if ('status' in rawResult) {
-      const status = rawResult.status as string
-      if (status === 'success' || status === 'ready') {
-        log('Deployment ready', 'success')
-        return {
-          deploymentId,
-          workerUrl: `https://eliza-cloud.${DWS_NETWORK === 'mainnet' ? '' : 'testnet.'}jejunetwork.org`,
-          staticUrl: rawResult.staticUrl ?? '',
-          status: 'ready' as const,
-          regions: rawResult.regions ?? ['na-east'],
-          createdAt: rawResult.createdAt ?? new Date().toISOString(),
-          frontendCid: rawResult.frontendCid ?? '',
-          workerCid: rawResult.workerCid ?? '',
-        }
+    // Check the deployment status
+    if (rawResult.status === 'success' || rawResult.status === 'ready') {
+      log('Deployment ready', 'success')
+      return {
+        deploymentId,
+        workerUrl: `https://eliza-cloud.${DWS_NETWORK === 'mainnet' ? '' : 'testnet.'}jejunetwork.org`,
+        staticUrl: rawResult.staticUrl ?? '',
+        status: 'ready' as const,
+        regions: rawResult.regions ?? ['na-east'],
+        createdAt: rawResult.createdAt ?? new Date().toISOString(),
+        frontendCid: rawResult.frontendCid ?? '',
+        workerCid: rawResult.workerCid ?? '',
       }
+    }
 
-      if (status === 'failed' || status === 'error') {
-        throw new Error(`Deployment failed: ${rawResult.errors?.join(', ') ?? 'Unknown error'}`)
-      }
+    if (rawResult.status === 'failed' || rawResult.status === 'error') {
+      throw new Error(`Deployment failed: ${rawResult.errors?.join(', ') ?? 'Unknown error'}`)
     }
 
     process.stdout.write('.')
@@ -1045,10 +1165,10 @@ async function deploy(options: DeployOptions): Promise<void> {
 
   // Step 5: Provision database
   header('5. DATABASE')
-  let dbConnection = ''
+  let dbConnectionString = ''
   if (!options.dryRun) {
     const db = await provisionDatabase(deployerAddress)
-    dbConnection = db.connectionString
+    dbConnectionString = db.connectionString
   } else {
     log('DRY RUN: Would provision database', 'warn')
   }
@@ -1057,7 +1177,7 @@ async function deploy(options: DeployOptions): Promise<void> {
   header('6. DEPLOY WORKER')
   let deployment: DeploymentResult
   if (!options.dryRun) {
-    deployment = await deployWorker(staticCid, deployerAddress)
+    deployment = await deployWorker(staticCid, deployerAddress, dbConnectionString)
   } else {
     deployment = {
       deploymentId: 'dpl_dry_run',

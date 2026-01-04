@@ -9,38 +9,13 @@ import { Toaster } from "sonner";
 import NextTopLoader from "nextjs-toploader";
 import OAuth3Provider, { OAuth3AuthWrapper } from "@/lib/providers/OAuth3Provider";
 import { CreditsProvider } from "@/lib/providers/CreditsProvider";
-import localFont from "next/font/local";
 
-// Performance optimization: Load only essential font weights (reduced from 7 to 4)
-// This reduces initial font bundle size by ~40%
-// preload: false prevents unused font preload warnings since SF Pro is only used in specific UI elements
-const sfPro = localFont({
-  src: [
-    {
-      path: "./fonts/sf-pro/SF-Pro-Display-Regular.otf",
-      weight: "400",
-      style: "normal",
-    },
-    {
-      path: "./fonts/sf-pro/SF-Pro-Display-Medium.otf",
-      weight: "500",
-      style: "normal",
-    },
-    {
-      path: "./fonts/sf-pro/SF-Pro-Display-Semibold.otf",
-      weight: "600",
-      style: "normal",
-    },
-    {
-      path: "./fonts/sf-pro/SF-Pro-Display-Bold.otf",
-      weight: "700",
-      style: "normal",
-    },
-  ],
+// Use system font stack instead of bundling SF Pro (saves 24MB)
+// SF Pro is available natively on macOS/iOS, other systems get appropriate fallbacks
+const sfProFontClass = {
   variable: "--font-sf-pro",
-  display: "swap",
-  preload: false,
-});
+  className: "",
+};
 
 /**
  * Gets the base URL for the application with automatic Vercel URL detection as fallback.
@@ -137,7 +112,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${sfPro.variable} antialiased selection:bg-[#FF5800] selection:text-white`}
+        className={`${sfProFontClass.variable} antialiased selection:bg-[#FF5800] selection:text-white`}
       >
         <OAuth3Provider>
           <OAuth3AuthWrapper>

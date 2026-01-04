@@ -21,7 +21,7 @@
  * │  │   Replica    │              │ (Read/Write) │                     │
  * │  └──────────────┘              └──────────────┘                     │
  * │        │                              │                             │
- * │        │  (EQLite Replication)        │                             │
+ * │        │  (SQLit Replication)        │                             │
  * │        └──────────────────────────────┘                             │
  * │                                                                      │
  * └─────────────────────────────────────────────────────────────────────┘
@@ -34,7 +34,7 @@
  * - NA/APAC reads go to NA primary
  *
  * Environment Variables:
- * - DWS_DATABASE_URL       : Primary EQLite database in NA (required)
+ * - DWS_DATABASE_URL       : Primary SQLit database in NA (required)
  * - DWS_DATABASE_URL_EU    : EU region read replica (optional)
  * - DATABASE_URL           : Fallback PostgreSQL for local dev
  *

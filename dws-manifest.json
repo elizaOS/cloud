@@ -8,17 +8,22 @@
     "dev": "bun run dev",
     "build": "bun run build:dws",
     "start": "bun run start",
-    "test": "bun test"
+    "test": "bun test",
+    "deploy": "bun run scripts/deploy-dws.ts"
   },
   "ports": {
     "http": 3000
   },
   "dependencies": [],
+  "jns": {
+    "name": "cloud.jeju",
+    "description": "Eliza Cloud - AI Agent Development Platform"
+  },
   "dws": {
     "backend": {
       "enabled": true,
       "runtime": "workerd",
-      "entrypoint": ".open-next/worker.mjs",
+      "entrypoint": ".dws-bundle/worker/index.js",
       "memory": 1024,
       "timeout": 60000,
       "minInstances": 1,
@@ -26,10 +31,21 @@
       "teeRequired": false,
       "regions": ["na-east", "eu-west", "apac"]
     },
+    "frontend": {
+      "type": "ipfs",
+      "spa": true,
+      "fallback": "/index.html",
+      "cacheRules": [
+        { "pattern": "/_next/static/**", "ttl": 31536000, "immutable": true },
+        { "pattern": "/*.js", "ttl": 86400 },
+        { "pattern": "/*.css", "ttl": 86400 },
+        { "pattern": "/index.html", "ttl": 60, "staleWhileRevalidate": 3600 }
+      ]
+    },
     "database": {
-      "type": "postgres",
+      "type": "sqlit",
       "name": "eliza-platform",
-      "version": "15",
+      "sync": true,
       "resources": {
         "cpuCores": 2,
         "memoryMb": 4096,
@@ -63,7 +79,12 @@
     "scaling": {
       "minInstances": 1,
       "maxInstances": 10,
-      "scaleToZero": false
+      "scaleToZero": false,
+      "targetConcurrency": 50
+    },
+    "payment": {
+      "model": "x402",
+      "budgetWei": "1000000000000000000"
     }
   },
   "cron": [
@@ -166,7 +187,7 @@
   ],
   "decentralization": {
     "database": {
-      "type": "eqlite-sync"
+      "type": "sqlit-sync"
     },
     "cdn": {
       "enabled": true,
