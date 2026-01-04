@@ -7,6 +7,7 @@ import {
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
 import { checkRateLimitAsync } from "@/lib/middleware/rate-limit";
+import { createStreamWriter, SSE_HEADERS } from "@/lib/api/stream-utils";
 
 const SESSION_CREATE_LIMIT = {
   windowMs: 3600000,
@@ -32,99 +33,6 @@ const CreateSessionSchema = z.object({
   includeMonetization: z.boolean().default(false),
   includeAnalytics: z.boolean().default(true),
 });
-
-interface StreamState {
-  isClientConnected: boolean;
-  lastEventTime: number;
-  heartbeatInterval: NodeJS.Timeout | null;
-}
-
-function createStreamWriter(writer: WritableStreamDefaultWriter<Uint8Array>) {
-  const encoder = new TextEncoder();
-  const state: StreamState = {
-    isClientConnected: true,
-    lastEventTime: Date.now(),
-    heartbeatInterval: null,
-  };
-
-  const sendEvent = async (event: string, data: unknown): Promise<boolean> => {
-    if (!state.isClientConnected) {
-      return false;
-    }
-
-    try {
-      const message = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
-      await writer.write(encoder.encode(message));
-      state.lastEventTime = Date.now();
-      return true;
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
-      if (
-        errorMessage.includes("WritableStream") ||
-        errorMessage.includes("closed") ||
-        errorMessage.includes("aborted")
-      ) {
-        logger.info("Client disconnected during stream write");
-        state.isClientConnected = false;
-        return false;
-      }
-      logger.error("Error writing to stream", { error: errorMessage });
-      state.isClientConnected = false;
-      return false;
-    }
-  };
-
-  const startHeartbeat = (intervalMs = 15000) => {
-    if (state.heartbeatInterval) {
-      clearInterval(state.heartbeatInterval);
-    }
-
-    state.heartbeatInterval = setInterval(async () => {
-      if (!state.isClientConnected) {
-        stopHeartbeat();
-        return;
-      }
-
-      const timeSinceLastEvent = Date.now() - state.lastEventTime;
-      if (timeSinceLastEvent >= intervalMs - 1000) {
-        const sent = await sendEvent("heartbeat", { timestamp: Date.now() });
-        if (!sent) {
-          stopHeartbeat();
-        }
-      }
-    }, intervalMs);
-  };
-
-  const stopHeartbeat = () => {
-    if (state.heartbeatInterval) {
-      clearInterval(state.heartbeatInterval);
-      state.heartbeatInterval = null;
-    }
-  };
-
-  const close = async () => {
-    stopHeartbeat();
-    state.isClientConnected = false;
-
-    try {
-      await writer.close();
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
-      if (
-        !errorMessage.includes("closed") &&
-        !errorMessage.includes("aborted")
-      ) {
-        logger.warn("Error closing stream writer", { error: errorMessage });
-      }
-    }
-  };
-
-  const isConnected = () => state.isClientConnected;
-
-  return { sendEvent, startHeartbeat, stopHeartbeat, close, isConnected };
-}
 
 export async function POST(request: NextRequest) {
   try {
@@ -276,29 +184,15 @@ export async function POST(request: NextRequest) {
       }
     })();
 
-    return new Response(stream.readable, {
-      headers: {
-        "Content-Type": "text/event-stream",
-        "Cache-Control": "no-cache, no-store, must-revalidate",
-        Connection: "keep-alive",
-        "X-Accel-Buffering": "no",
-      },
-    });
+    return new Response(stream.readable, { headers: SSE_HEADERS });
   } catch (error) {
     logger.error("Error in app builder stream", { error });
-    const message =
-      error instanceof Error ? error.message : "Internal error";
+    const message = error instanceof Error ? error.message : "Internal error";
 
     let status = 500;
-    if (
-      message.includes("Authentication") ||
-      message.includes("Unauthorized")
-    ) {
+    if (message.includes("Authentication") || message.includes("Unauthorized")) {
       status = 401;
-    } else if (
-      message.includes("Access denied") ||
-      message.includes("Forbidden")
-    ) {
+    } else if (message.includes("Access denied") || message.includes("Forbidden")) {
       status = 403;
     } else if (message.includes("not found")) {
       status = 404;
@@ -309,10 +203,7 @@ export async function POST(request: NextRequest) {
     }
 
     return new Response(
-      JSON.stringify({
-        success: false,
-        error: message,
-      }),
+      JSON.stringify({ success: false, error: message }),
       { status, headers: { "Content-Type": "application/json" } }
     );
   }

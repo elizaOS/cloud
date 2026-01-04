@@ -64,25 +64,57 @@ export interface SandboxSessionData {
 const DEFAULT_TEMPLATE_URL = "https://github.com/elizacloud-apps/sandbox-template";
 const DEFAULT_TIMEOUT_MS = 30 * 60 * 1000;
 
-// Track active sandboxes
+// Track active sandboxes (Note: lost on server restart - see cleanup job)
 const activeSandboxes = new Map<string, SandboxInstance>();
 
+/**
+ * Get active sandboxes map (used by cleanup job)
+ */
 export function getActiveSandboxes(): Map<string, SandboxInstance> {
   return activeSandboxes;
 }
 
 /**
- * Sanitize file path to prevent command injection
+ * Sanitize file path to prevent command injection and path traversal
  */
 function sanitizeFilePath(filePath: string): string {
+  // Decode any URL-encoded characters first to catch encoded traversal attempts
+  let decoded = filePath;
+  try {
+    // Decode multiple times to catch double-encoding
+    let prev = "";
+    while (prev !== decoded) {
+      prev = decoded;
+      decoded = decodeURIComponent(decoded);
+    }
+  } catch {
+    // If decoding fails, use original
+  }
+  
+  // Normalize path separators
+  decoded = decoded.replace(/\\/g, "/");
+  
   // Remove any characters that could break shell commands
   // Allow only alphanumeric, dots, hyphens, underscores, and forward slashes
-  const sanitized = filePath.replace(/[^a-zA-Z0-9._/-]/g, "");
-  // Prevent path traversal
-  if (sanitized.includes("..")) {
-    throw new Error("Invalid file path: path traversal not allowed");
+  const sanitized = decoded.replace(/[^a-zA-Z0-9._/-]/g, "");
+  
+  // Security checks
+  if (
+    sanitized.includes("..") ||       // Path traversal
+    sanitized.startsWith("/") ||       // Absolute paths
+    sanitized.includes("//") ||        // Double slashes
+    /^[a-zA-Z]:/.test(sanitized)      // Windows drive letters
+  ) {
+    throw new Error("Invalid file path: potentially dangerous path");
   }
-  return sanitized;
+  
+  // Ensure path doesn't escape project directory
+  const normalized = sanitized.split("/").filter(Boolean).join("/");
+  if (!normalized || normalized.length > 500) {
+    throw new Error("Invalid file path: path too long or empty");
+  }
+  
+  return normalized;
 }
 
 function extractSandboxIdFromUrl(url: string): string {
@@ -389,6 +421,29 @@ export class SandboxService {
       stdout: await result.stdout(),
       stderr: await result.stderr(),
     };
+  }
+
+  async getLogs(sandboxId: string, options?: { tail?: number }): Promise<string[]> {
+    const sandbox = activeSandboxes.get(sandboxId);
+    if (!sandbox) throw new Error("Sandbox not found");
+    
+    const { tail = 100 } = options || {};
+    
+    try {
+      const result = await sandbox.runCommand({
+        cmd: "tail",
+        args: ["-n", String(tail), "/tmp/next-dev.log"],
+      });
+      
+      if (result.exitCode !== 0) {
+        return [];
+      }
+      
+      const output = await result.stdout();
+      return output.split("\n").filter(Boolean);
+    } catch {
+      return [];
+    }
   }
 }
 

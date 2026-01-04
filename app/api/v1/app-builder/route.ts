@@ -73,17 +73,18 @@ export const GET = withRateLimit(async (request: NextRequest) => {
       appId,
     });
 
+    // Map to response format (listSessions now returns camelCase)
     return NextResponse.json({
       success: true,
       sessions: sessions.map((s) => ({
         id: s.id,
-        sandboxId: s.sandbox_id,
-        sandboxUrl: s.sandbox_url,
+        sandboxId: s.sandboxId,
+        sandboxUrl: s.sandboxUrl,
         status: s.status,
-        appName: s.app_name,
-        templateType: s.template_type,
-        createdAt: s.created_at,
-        expiresAt: s.expires_at,
+        appName: s.appName,
+        templateType: s.templateType,
+        createdAt: s.createdAt,
+        expiresAt: s.expiresAt,
       })),
     });
   } catch (error) {

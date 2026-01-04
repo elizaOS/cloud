@@ -14,6 +14,10 @@ import { Octokit } from "@octokit/rest";
 const GITHUB_ORG = process.env.GITHUB_ORG_NAME || "elizacloud-apps";
 const TEMPLATE_REPO = process.env.GITHUB_TEMPLATE_REPO || "elizacloud-apps/sandbox-template";
 
+// Retry configuration
+const MAX_RETRIES = 3;
+const INITIAL_DELAY_MS = 1000;
+
 // Singleton Octokit instance
 let octokitInstance: Octokit | null = null;
 
@@ -28,6 +32,43 @@ function getOctokit(): Octokit {
     octokitInstance = new Octokit({ auth: token });
   }
   return octokitInstance;
+}
+
+/**
+ * Retry wrapper with exponential backoff for rate limits
+ */
+async function withRetry<T>(
+  operation: () => Promise<T>,
+  context: string
+): Promise<T> {
+  let lastError: Error | null = null;
+  
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    try {
+      return await operation();
+    } catch (error: unknown) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      const status = (error as { status?: number }).status;
+      
+      // Only retry on rate limits (403) or server errors (5xx)
+      if (status === 403 || (status && status >= 500)) {
+        const delay = INITIAL_DELAY_MS * Math.pow(2, attempt);
+        logger.warn(`GitHub API ${context} failed, retrying in ${delay}ms`, {
+          attempt: attempt + 1,
+          maxRetries: MAX_RETRIES,
+          status,
+          error: lastError.message,
+        });
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        continue;
+      }
+      
+      // Don't retry other errors (404, 401, etc.)
+      throw error;
+    }
+  }
+  
+  throw lastError;
 }
 
 export interface CreateRepoOptions {
@@ -70,7 +111,7 @@ export async function createAppRepo(options: CreateRepoOptions): Promise<RepoInf
     org: GITHUB_ORG,
   });
 
-  try {
+  return withRetry(async () => {
     // Create repo from template
     const [templateOwner, templateRepoName] = TEMPLATE_REPO.split("/");
     
@@ -101,10 +142,7 @@ export async function createAppRepo(options: CreateRepoOptions): Promise<RepoInf
       isPrivate: repo.private,
       createdAt: repo.created_at,
     };
-  } catch (error) {
-    logger.error("Failed to create app repository", { name, error });
-    throw error;
-  }
+  }, `createAppRepo(${name})`);
 }
 
 /**
@@ -114,10 +152,10 @@ export async function getRepoInfo(repoName: string): Promise<RepoInfo | null> {
   const octokit = getOctokit();
 
   try {
-    const response = await octokit.repos.get({
-      owner: GITHUB_ORG,
-      repo: repoName,
-    });
+    const response = await withRetry(
+      () => octokit.repos.get({ owner: GITHUB_ORG, repo: repoName }),
+      `getRepoInfo(${repoName})`
+    );
 
     const repo = response.data;
     return {
@@ -145,17 +183,14 @@ export async function deleteAppRepo(repoName: string): Promise<void> {
 
   logger.info("Deleting app repository", { repoName, org: GITHUB_ORG });
 
-  try {
+  await withRetry(async () => {
     await octokit.repos.delete({
       owner: GITHUB_ORG,
       repo: repoName,
     });
 
     logger.info("App repository deleted", { repoName });
-  } catch (error) {
-    logger.error("Failed to delete app repository", { repoName, error });
-    throw error;
-  }
+  }, `deleteAppRepo(${repoName})`);
 }
 
 /**
@@ -168,7 +203,7 @@ export async function listCommits(
   const octokit = getOctokit();
   const { branch, limit = 20 } = options || {};
 
-  try {
+  return withRetry(async () => {
     const response = await octokit.repos.listCommits({
       owner: GITHUB_ORG,
       repo: repoName,
@@ -183,10 +218,7 @@ export async function listCommits(
       date: commit.commit.author?.date || "",
       url: commit.html_url,
     }));
-  } catch (error) {
-    logger.error("Failed to list commits", { repoName, error });
-    throw error;
-  }
+  }, `listCommits(${repoName})`);
 }
 
 /**

@@ -29,6 +29,11 @@ const EXAMPLE_PROMPTS: Record<string, string[]> = {
   blank: getExamplePrompts("blank"),
 };
 
+// Callback types for streaming events
+export type OnToolUseCallback = (tool: string, input: unknown, result: string) => void | Promise<void>;
+export type OnThinkingCallback = (text: string) => void | Promise<void>;
+export type OnRestoreProgressCallback = (current: number, total: number, filePath: string) => void | Promise<void>;
+
 export interface BuilderSessionConfig {
   userId: string;
   organizationId: string;
@@ -36,11 +41,25 @@ export interface BuilderSessionConfig {
   appName?: string;
   appDescription?: string;
   initialPrompt?: string;
-  templateType?: "chat" | "agent-dashboard" | "landing-page" | "analytics" | "blank";
+  templateType?: "chat" | "agent-dashboard" | "landing-page" | "analytics" | "blank" | "mcp-service" | "a2a-agent";
   includeMonetization?: boolean;
   includeAnalytics?: boolean;
-  onProgress?: (progress: SandboxProgress) => void;
-  onSandboxReady?: (session: BuilderSession) => void;
+  onProgress?: (progress: SandboxProgress) => void | Promise<void>;
+  onSandboxReady?: (session: BuilderSession) => void | Promise<void>;
+  onToolUse?: OnToolUseCallback;
+  onThinking?: OnThinkingCallback;
+  abortSignal?: AbortSignal;
+}
+
+export interface ResumeSessionOptions {
+  onProgress?: (progress: SandboxProgress) => void | Promise<void>;
+  onRestoreProgress?: OnRestoreProgressCallback;
+}
+
+export interface SendPromptOptions {
+  onToolUse?: OnToolUseCallback;
+  onThinking?: OnThinkingCallback;
+  abortSignal?: AbortSignal;
 }
 
 export type { SandboxProgress };
@@ -54,6 +73,7 @@ export interface BuilderSession {
   messages: Array<{ role: "user" | "assistant" | "system"; content: string; timestamp: string }>;
   examplePrompts: string[];
   expiresAt: string | null;
+  initialPromptResult?: PromptResult;
 }
 
 export interface PromptResult {
@@ -62,6 +82,17 @@ export interface PromptResult {
   filesAffected: string[];
   commitSha?: string;
   error?: string;
+}
+
+export interface SessionListItem {
+  id: string;
+  sandboxId: string;
+  sandboxUrl: string;
+  status: string;
+  appName: string | null;
+  templateType: string | null;
+  createdAt: string;
+  expiresAt: string | null;
 }
 
 export class AIAppBuilderService {
@@ -83,7 +114,15 @@ export class AIAppBuilderService {
       includeAnalytics = false,
       onProgress,
       onSandboxReady,
+      onToolUse,
+      onThinking,
+      abortSignal,
     } = config;
+
+    // Check for abort before starting
+    if (abortSignal?.aborted) {
+      throw new Error("Operation aborted");
+    }
 
     logger.info("Creating app builder session", { userId, templateType });
 
@@ -129,6 +168,11 @@ export class AIAppBuilderService {
       .returning();
 
     try {
+      // Check abort
+      if (abortSignal?.aborted) {
+        throw new Error("Operation aborted");
+      }
+
       const repoExists = await githubReposService.getRepoInfo(repoName);
       if (!repoExists) {
         onProgress?.({ step: "creating", message: "Creating GitHub repository..." });
@@ -137,6 +181,11 @@ export class AIAppBuilderService {
           description: appDescription || `ElizaCloud App: ${appName}`,
           isPrivate: true,
         });
+      }
+
+      // Check abort
+      if (abortSignal?.aborted) {
+        throw new Error("Operation aborted");
       }
 
       onProgress?.({ step: "creating", message: "Starting sandbox..." });
@@ -177,10 +226,32 @@ export class AIAppBuilderService {
         expiresAt: expiresAt.toISOString(),
       };
 
-      onSandboxReady?.(builderSession);
+      await onSandboxReady?.(builderSession);
 
+      // Process initial prompt if provided
       if (initialPrompt) {
-        await this.processPrompt(session.id, userId, initialPrompt);
+        if (abortSignal?.aborted) {
+          throw new Error("Operation aborted");
+        }
+        
+        const result = await this.processPrompt(session.id, userId, initialPrompt, {
+          onToolUse,
+          onThinking,
+          abortSignal,
+        });
+        builderSession.initialPromptResult = result;
+        builderSession.messages.push({
+          role: "user",
+          content: initialPrompt,
+          timestamp: new Date().toISOString(),
+        });
+        if (result.output) {
+          builderSession.messages.push({
+            role: "assistant",
+            content: result.output,
+            timestamp: new Date().toISOString(),
+          });
+        }
       }
 
       return builderSession;
@@ -196,8 +267,15 @@ export class AIAppBuilderService {
   async resumeSession(
     sessionId: string,
     userId: string,
-    onProgress?: (progress: SandboxProgress) => void
+    options?: ResumeSessionOptions | ((progress: SandboxProgress) => void | Promise<void>)
   ): Promise<BuilderSession> {
+    // Support both old signature (direct callback) and new signature (options object)
+    const resolvedOptions: ResumeSessionOptions = typeof options === "function"
+      ? { onProgress: options }
+      : options || {};
+    
+    const { onProgress, onRestoreProgress } = resolvedOptions;
+    
     const session = await this.verifySessionOwnership(sessionId, userId);
 
     if (!session.app_id) {
@@ -215,6 +293,11 @@ export class AIAppBuilderService {
     logger.info("Resuming session", { sessionId, repoName: app.github_repo });
     onProgress?.({ step: "creating", message: "Resuming from GitHub..." });
 
+    // Simulate restore progress if callback provided
+    if (onRestoreProgress) {
+      onRestoreProgress(0, 1, "Cloning repository...");
+    }
+
     const sandboxData = await sandboxService.create({
       repoName: app.github_repo,
       timeout: 30 * 60 * 1000,
@@ -222,6 +305,10 @@ export class AIAppBuilderService {
       env: { NEXT_PUBLIC_ELIZA_APP_ID: session.app_id },
       onProgress,
     });
+
+    if (onRestoreProgress) {
+      onRestoreProgress(1, 1, "Repository restored");
+    }
 
     const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
 
@@ -257,12 +344,28 @@ export class AIAppBuilderService {
     };
   }
 
-  // Alias for processPrompt
-  async sendPrompt(sessionId: string, userId: string, prompt: string): Promise<PromptResult> {
-    return this.processPrompt(sessionId, userId, prompt);
+  // Route-compatible signature: sendPrompt(sessionId, prompt, userId, options?)
+  async sendPrompt(
+    sessionId: string,
+    prompt: string,
+    userId: string,
+    options?: SendPromptOptions
+  ): Promise<PromptResult> {
+    return this.processPrompt(sessionId, userId, prompt, options);
   }
 
-  async processPrompt(sessionId: string, userId: string, prompt: string): Promise<PromptResult> {
+  async processPrompt(
+    sessionId: string,
+    userId: string,
+    prompt: string,
+    options?: SendPromptOptions
+  ): Promise<PromptResult> {
+    const { onToolUse, onThinking, abortSignal } = options || {};
+    
+    if (abortSignal?.aborted) {
+      throw new Error("Operation aborted");
+    }
+
     const session = await this.verifySessionOwnership(sessionId, userId);
 
     if (!session.sandbox_id) {
@@ -282,7 +385,24 @@ export class AIAppBuilderService {
     });
 
     try {
-      const result = { output: `Processed: ${prompt}`, filesAffected: [] as string[] };
+      // Emit thinking event
+      await onThinking?.(`Processing prompt: "${prompt.slice(0, 100)}..."`);
+      
+      // TODO: Integrate actual AI/Claude for code generation
+      // For now, this is a placeholder that acknowledges the prompt
+      const result = {
+        output: `Received prompt: "${prompt}". AI code generation not yet implemented.`,
+        filesAffected: [] as string[],
+      };
+
+      // Emit tool use event (placeholder)
+      if (onToolUse) {
+        await onToolUse("analyze_prompt", { prompt: prompt.slice(0, 200) }, "Prompt analyzed");
+      }
+
+      if (abortSignal?.aborted) {
+        throw new Error("Operation aborted");
+      }
 
       let commitSha = "";
       if (result.filesAffected.length > 0) {
@@ -313,6 +433,10 @@ export class AIAppBuilderService {
         .update(appSandboxSessions)
         .set({ status: "ready" })
         .where(eq(appSandboxSessions.id, sessionId));
+
+      if (String(error).includes("aborted")) {
+        throw error;
+      }
 
       return { success: false, output: "", filesAffected: [], error: String(error) };
     }
@@ -349,7 +473,7 @@ export class AIAppBuilderService {
   async listSessions(
     userId: string,
     options?: { limit?: number; includeInactive?: boolean; appId?: string }
-  ): Promise<any[]> {
+  ): Promise<SessionListItem[]> {
     const { limit = 10, includeInactive = false, appId } = options || {};
 
     const conditions = [eq(appSandboxSessions.user_id, userId)];
@@ -373,6 +497,7 @@ export class AIAppBuilderService {
       sandboxUrl: s.sandbox_url || "",
       status: s.status,
       appName: s.app_name,
+      templateType: s.template_type,
       createdAt: s.created_at.toISOString(),
       expiresAt: s.expires_at?.toISOString() || null,
     }));
@@ -407,9 +532,9 @@ export class AIAppBuilderService {
     if (!session.sandbox_id) return [];
 
     try {
-      const logs = await sandboxService.getLogs(session.sandbox_id, { tail });
-      return Array.isArray(logs) ? logs : [];
-    } catch {
+      return await sandboxService.getLogs(session.sandbox_id, { tail });
+    } catch (error) {
+      logger.warn("Failed to get logs", { sessionId, error });
       return [];
     }
   }
@@ -433,12 +558,17 @@ export class AIAppBuilderService {
         hasSnapshots: commits.length > 0,
         latestCommit: commits[0]?.sha,
       };
-    } catch {
+    } catch (error) {
+      logger.warn("Failed to get snapshot info", { appId, error });
       return { hasSnapshots: false };
     }
   }
 
-  async debugAppSnapshots(appId: string, organizationId: string): Promise<any> {
+  async debugAppSnapshots(appId: string, organizationId: string): Promise<{
+    appId: string;
+    githubRepo: string | null;
+    hasRepo: boolean;
+  }> {
     const app = await dbRead.query.apps.findFirst({
       where: and(eq(apps.id, appId), eq(apps.organization_id, organizationId)),
     });
@@ -466,8 +596,8 @@ export class AIAppBuilderService {
     if (session.sandbox_id) {
       try {
         await sandboxService.commitAndPush(session.sandbox_id, "Auto-save before session end");
-      } catch {
-        // Ignore
+      } catch (error) {
+        logger.warn("Failed to auto-save before stopping", { sessionId, error });
       }
       await sandboxService.stop(session.sandbox_id);
     }
