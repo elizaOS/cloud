@@ -114,22 +114,22 @@ class RuntimeCache {
     return entry.runtime;
   }
 
-  set(agentId: string, runtime: AgentRuntime, characterName: string): void {
+  set(cacheKey: string, runtime: AgentRuntime, characterName: string, actualAgentId: UUID): void {
     // Evict oldest if at capacity
     if (this.cache.size >= this.MAX_SIZE) {
       this.evictOldest();
     }
 
     const now = Date.now();
-    this.cache.set(agentId, {
+    this.cache.set(cacheKey, {
       runtime,
       lastUsed: now,
       createdAt: now,
-      agentId: agentId as UUID,
+      agentId: actualAgentId,
       characterName,
     });
     elizaLogger.debug(
-      `[RuntimeCache] Cached runtime: ${characterName} (${agentId})`,
+      `[RuntimeCache] Cached runtime: ${characterName} (${actualAgentId}, key=${cacheKey})`,
     );
   }
 
@@ -423,7 +423,7 @@ export class RuntimeFactory {
     await this.initializeRuntime(runtime, character, agentId);
     await this.waitForMcpServiceIfNeeded(runtime, filteredPlugins);
 
-    runtimeCache.set(cacheKey, runtime, character.name);
+    runtimeCache.set(cacheKey, runtime, character.name, agentId);
 
     edgeRuntimeCache
       .markRuntimeWarm(agentId as string, {
