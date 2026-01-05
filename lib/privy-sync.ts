@@ -22,7 +22,7 @@ import {
 import type { UserWithOrganization } from "@/lib/types";
 import { getRandomUserAvatar } from "@/lib/utils/default-user-avatar";
 
-const DEFAULT_INITIAL_CREDITS = 5.0;
+const DEFAULT_INITIAL_CREDITS = 1.0;
 const getInitialCredits = (): number => {
   const envValue = process.env.INITIAL_FREE_CREDITS;
   if (envValue) {
