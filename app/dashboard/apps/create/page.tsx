@@ -59,6 +59,12 @@ import {
   Plus,
   AlertCircle,
   Settings,
+  GitBranch,
+  Save,
+  History,
+  Cloud,
+  CloudOff,
+  ChevronDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import { BrandCard, CornerBrackets, BrandButton } from "@/components/brand";
@@ -120,6 +126,8 @@ interface SessionData {
   status: SessionStatus;
   examplePrompts: string[];
   expiresAt: string | null;
+  appId?: string;
+  githubRepo?: string | null;
 }
 
 interface SourceContext {
@@ -133,6 +141,23 @@ interface AppData {
   name: string;
   description: string | null;
   monetization_enabled?: boolean;
+  github_repo?: string | null;
+}
+
+interface GitStatusInfo {
+  hasChanges: boolean;
+  staged: string[];
+  unstaged: string[];
+  untracked: string[];
+  currentCommitSha: string | null;
+  lastSavedCommitSha: string | null;
+}
+
+interface CommitInfo {
+  sha: string;
+  message: string;
+  author: string;
+  date: string;
 }
 
 const TEMPLATE_OPTIONS = [
@@ -285,6 +310,13 @@ export default function AppCreatorPage() {
     lastBackup: string | null;
     sessionId: string | null;
   } | null>(null);
+
+  // GitHub-related state
+  const [gitStatus, setGitStatus] = useState<GitStatusInfo | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [lastSaveTime, setLastSaveTime] = useState<Date | null>(null);
+  const [commitHistory, setCommitHistory] = useState<CommitInfo[]>([]);
+  const [showCommitHistory, setShowCommitHistory] = useState(false);
 
   const messagesStorageKey = appIdFromUrl
     ? `app-builder-messages-${appIdFromUrl}`
@@ -628,6 +660,107 @@ export default function AppCreatorPage() {
     }
   }, [session]);
 
+  // GitHub-related functions
+  const checkGitStatus = useCallback(async () => {
+    if (!session) return;
+    try {
+      const response = await fetchWithRetry(
+        `/api/v1/app-builder/sessions/${session.id}/commit`
+      );
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setGitStatus({
+            hasChanges: data.hasChanges,
+            staged: data.staged || [],
+            unstaged: data.unstaged || [],
+            untracked: data.untracked || [],
+            currentCommitSha: data.currentCommitSha,
+            lastSavedCommitSha: data.lastSavedCommitSha,
+          });
+        }
+      }
+    } catch {
+      // Git status check failed, not critical
+    }
+  }, [session]);
+
+  const fetchCommitHistory = useCallback(async () => {
+    if (!session) return;
+    try {
+      const response = await fetchWithRetry(
+        `/api/v1/app-builder/sessions/${session.id}/history`
+      );
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.commits) {
+          setCommitHistory(data.commits);
+        }
+      }
+    } catch {
+      // Commit history fetch failed, not critical
+    }
+  }, [session]);
+
+  const saveToGitHub = useCallback(async () => {
+    if (!session || isSaving) return;
+
+    setIsSaving(true);
+    try {
+      const response = await fetchWithRetry(
+        `/api/v1/app-builder/sessions/${session.id}/commit`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            message: `Manual save at ${new Date().toLocaleString()}`,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to save");
+      }
+
+      const data = await response.json();
+      if (data.success) {
+        setLastSaveTime(new Date());
+        toast.success("Saved to GitHub", {
+          description: `${data.filesCommitted} file(s) committed`,
+        });
+        addLog(`Saved to GitHub: ${data.commitSha?.substring(0, 7)}`, "success");
+        // Refresh git status
+        await checkGitStatus();
+        // Refresh commit history
+        await fetchCommitHistory();
+      }
+    } catch (error) {
+      toast.error("Failed to save", {
+        description: error instanceof Error ? error.message : "Unknown error",
+      });
+      addLog(`Save failed: ${error instanceof Error ? error.message : "Unknown error"}`, "error");
+    } finally {
+      setIsSaving(false);
+    }
+  }, [session, isSaving, addLog, checkGitStatus, fetchCommitHistory]);
+
+  // Fetch git status periodically when session is ready
+  useEffect(() => {
+    if (status !== "ready" || !session || !appData?.github_repo) return;
+
+    // Initial fetch
+    checkGitStatus();
+    fetchCommitHistory();
+
+    // Poll every 30 seconds
+    const interval = setInterval(() => {
+      checkGitStatus();
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [status, session, appData?.github_repo, checkGitStatus, fetchCommitHistory]);
+
   const restoreSession = useCallback(async () => {
     if (!session || isRestoring) return;
 
@@ -883,12 +1016,24 @@ export default function AppCreatorPage() {
                   setExpiresAt(new Date(data.session.expiresAt));
                 }
 
+                // Set app data from session for new apps
+                if (data.session.appId && !appData) {
+                  setAppData({
+                    id: data.session.appId,
+                    name: appName,
+                    description: appDescription || null,
+                    github_repo: data.session.githubRepo,
+                  });
+                }
+
                 const displayName = isEditMode
                   ? appData?.name || appName
                   : appName;
 
-                const newUrl = appIdFromUrl
-                  ? `/dashboard/apps/create?appId=${appIdFromUrl}&sessionId=${data.session.id}`
+                // Use appId from URL or from newly created session
+                const effectiveAppId = appIdFromUrl || data.session.appId;
+                const newUrl = effectiveAppId
+                  ? `/dashboard/apps/create?appId=${effectiveAppId}&sessionId=${data.session.id}`
                   : `/dashboard/apps/create?sessionId=${data.session.id}`;
                 router.replace(newUrl, { scroll: false });
 
@@ -2022,6 +2167,30 @@ ANTHROPIC_API_KEY=your_key_here`}
               {sourceContext.type}: {sourceContext.name}
             </div>
           )}
+          {/* GitHub repo indicator */}
+          {appData?.github_repo ? (
+            <a
+              href={`https://github.com/${appData.github_repo}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 px-2 py-1 text-xs bg-green-500/10 border border-green-500/30 text-green-400 hover:bg-green-500/20 transition-colors rounded"
+              title="View on GitHub"
+            >
+              <GitBranch className="h-3 w-3" />
+              <span className="hidden sm:inline" style={{ fontFamily: "var(--font-roboto-mono)" }}>
+                {appData.github_repo.split("/").pop()}
+              </span>
+              <Cloud className="h-3 w-3" />
+            </a>
+          ) : status === "ready" ? (
+            <div
+              className="flex items-center gap-1.5 px-2 py-1 text-xs bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 rounded"
+              title="GitHub not configured"
+            >
+              <CloudOff className="h-3 w-3" />
+              <span className="hidden sm:inline">No GitHub</span>
+            </div>
+          ) : null}
         </div>
         <div className="flex items-center gap-2">
           {timeRemaining && (
@@ -2068,6 +2237,81 @@ ANTHROPIC_API_KEY=your_key_here`}
               )}
               <span className="ml-1">15m</span>
             </Button>
+          )}
+          {/* GitHub Save Button */}
+          {status === "ready" && appData?.github_repo && (
+            <>
+              <div className="w-px h-4 bg-white/10" />
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={saveToGitHub}
+                disabled={isSaving || !gitStatus?.hasChanges}
+                className={`h-7 text-xs ${
+                  gitStatus?.hasChanges
+                    ? "text-green-400 hover:text-green-300 hover:bg-green-500/10"
+                    : "text-white/40 hover:bg-white/5"
+                }`}
+                title={gitStatus?.hasChanges ? "Save changes to GitHub" : "No unsaved changes"}
+              >
+                {isSaving ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <Save className="h-3 w-3" />
+                )}
+                <span className="ml-1 hidden sm:inline">
+                  {isSaving ? "Saving..." : gitStatus?.hasChanges ? "Save" : "Saved"}
+                </span>
+              </Button>
+              {/* Commit History Button */}
+              <div className="relative">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowCommitHistory(!showCommitHistory)}
+                  className="h-7 text-xs text-white/60 hover:text-white hover:bg-white/10"
+                  title="View commit history"
+                >
+                  <History className="h-3 w-3" />
+                  <ChevronDown className={`h-3 w-3 ml-0.5 transition-transform ${showCommitHistory ? "rotate-180" : ""}`} />
+                </Button>
+                {/* Commit History Dropdown */}
+                {showCommitHistory && (
+                  <div className="absolute right-0 top-full mt-1 w-72 bg-black/95 border border-white/10 rounded-lg shadow-xl z-50 overflow-hidden">
+                    <div className="p-2 border-b border-white/10">
+                      <span className="text-xs text-white/60 font-medium">Recent Commits</span>
+                    </div>
+                    <div className="max-h-64 overflow-y-auto">
+                      {commitHistory.length > 0 ? (
+                        commitHistory.slice(0, 10).map((commit) => (
+                          <div
+                            key={commit.sha}
+                            className="px-3 py-2 hover:bg-white/5 border-b border-white/5 last:border-0"
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-mono text-cyan-400">
+                                {commit.sha.substring(0, 7)}
+                              </span>
+                              <span className="text-xs text-white/40">
+                                {new Date(commit.date).toLocaleDateString()}
+                              </span>
+                            </div>
+                            <p className="text-xs text-white/80 mt-0.5 line-clamp-2">
+                              {commit.message.split("\n")[0]}
+                            </p>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="px-3 py-4 text-center text-xs text-white/40">
+                          No commits yet
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div className="w-px h-4 bg-white/10" />
+            </>
           )}
           {session?.sandboxUrl && (
             <>

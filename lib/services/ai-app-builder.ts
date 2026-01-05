@@ -65,6 +65,10 @@ export interface BuilderSession {
   examplePrompts: string[];
   expiresAt: string | null;
   initialPromptResult?: PromptResult;
+  /** The app ID associated with this session */
+  appId?: string;
+  /** The GitHub repository for this app (org/repo format) */
+  githubRepo?: string | null;
 }
 
 export interface PromptResult {
@@ -373,6 +377,8 @@ export class AIAppBuilderService {
       messages: [],
       examplePrompts,
       expiresAt: expiresAt.toISOString(),
+      appId,
+      githubRepo: appGithubRepo,
     };
 
     if (onSandboxReady) {
@@ -428,6 +434,8 @@ export class AIAppBuilderService {
       examplePrompts,
       expiresAt: expiresAt.toISOString(),
       initialPromptResult,
+      appId,
+      githubRepo: appGithubRepo,
     };
   }
 

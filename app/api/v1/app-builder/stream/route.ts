@@ -113,6 +113,8 @@ export async function POST(request: NextRequest) {
                 status: readySession.status,
                 examplePrompts: readySession.examplePrompts,
                 expiresAt: readySession.expiresAt,
+                appId: readySession.appId,
+                githubRepo: readySession.githubRepo,
               },
               hasInitialPrompt: !!data.initialPrompt,
             });
@@ -150,6 +152,8 @@ export async function POST(request: NextRequest) {
               examplePrompts: session.examplePrompts,
               messages: session.messages,
               initialPromptResult: session.initialPromptResult,
+              appId: session.appId,
+              githubRepo: session.githubRepo,
             },
           });
         }
