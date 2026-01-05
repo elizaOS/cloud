@@ -265,7 +265,7 @@ export async function addDomain(
   });
 
   if (existingDomain) {
-    await db
+    await dbWrite
       .update(appDomains)
       .set({
         custom_domain: normalizedDomain,
@@ -459,7 +459,7 @@ export async function removeDomain(
   );
 
   // Update database
-  await db
+  await dbWrite
     .update(appDomains)
     .set({
       custom_domain: null,
@@ -594,7 +594,7 @@ export async function syncDomainStatus(appId: string): Promise<void> {
 
     const status = await getDomainStatus(domain.custom_domain);
 
-    await db
+    await dbWrite
       .update(appDomains)
       .set({
         custom_domain_verified: status.verified,
