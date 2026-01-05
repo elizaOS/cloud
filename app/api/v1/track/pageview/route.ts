@@ -68,6 +68,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const {
       app_id,
+      api_key: bodyApiKey,
       page_url,
       referrer,
       screen_width,
@@ -75,7 +76,8 @@ export async function POST(req: NextRequest) {
       pathname,
     } = body;
 
-    const apiKey = req.headers.get("x-api-key");
+    // Accept API key from header or body (body needed for sendBeacon which doesn't support headers)
+    const apiKey = req.headers.get("x-api-key") || bodyApiKey;
     const ipAddress =
       req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
       req.headers.get("x-real-ip") ||

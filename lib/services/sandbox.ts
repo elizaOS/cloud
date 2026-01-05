@@ -1,64 +1,7 @@
 import { logger } from "@/lib/utils/logger";
-import crypto from "crypto";
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 import { buildFullAppPrompt } from "@/lib/fragments/prompt";
-
-// =============================================================================
-// GIT-BASED STORAGE: DB-based snapshot imports are deprecated.
-// File storage is now handled via GitHub repos (see github-repos.ts service).
-// Each app has its own GitHub repository for version control.
-// =============================================================================
-// DEPRECATED: DB-based snapshot imports - kept for reference
-// import { dbRead, dbWrite } from "@/db/client";
-// import {
-//   sessionFileSnapshots,
-//   sessionRestoreHistory,
-//   type NewSessionFileSnapshot,
-// } from "@/db/schemas/app-sandboxes";
-// import { eq, and, desc } from "drizzle-orm";
-
-interface RetryOptions {
-  maxAttempts?: number;
-  delayMs?: number;
-  backoffMultiplier?: number;
-  shouldRetry?: (error: Error) => boolean;
-  onRetry?: (attempt: number, error: Error, nextDelayMs: number) => void;
-}
-
-async function withRetry<T>(
-  operation: () => Promise<T>,
-  options: RetryOptions = {}
-): Promise<T> {
-  const {
-    maxAttempts = 3,
-    delayMs = 1000,
-    backoffMultiplier = 2,
-    shouldRetry = () => true,
-    onRetry,
-  } = options;
-
-  let lastError: Error | null = null;
-
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    try {
-      return await operation();
-    } catch (error) {
-      lastError = error instanceof Error ? error : new Error(String(error));
-
-      if (attempt === maxAttempts || !shouldRetry(lastError)) {
-        throw lastError;
-      }
-
-      const nextDelay = delayMs * Math.pow(backoffMultiplier, attempt - 1);
-      onRetry?.(attempt, lastError, nextDelay);
-
-      await new Promise((resolve) => setTimeout(resolve, nextDelay));
-    }
-  }
-
-  throw lastError || new Error("Retry failed");
-}
 
 const ELIZA_SDK_FILE = `const apiKey = process.env.NEXT_PUBLIC_ELIZA_API_KEY || '';
 const apiBase = process.env.NEXT_PUBLIC_ELIZA_API_URL || 'https://elizacloud.ai';
@@ -86,16 +29,24 @@ export async function trackPageView(pathname?: string) {
       referrer: document.referrer,
       screen_width: window.screen.width,
       screen_height: window.screen.height,
+      ...(apiKey ? { api_key: apiKey } : {}),
     };
 
-    await fetch(\`\${apiBase}/api/v1/track/pageview\`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(apiKey ? { 'X-Api-Key': apiKey } : {}),
-      },
-      body: JSON.stringify(payload),
-    });
+    // Use sendBeacon for analytics - it doesn't require CORS preflight
+    // and works reliably even on page unload
+    const url = \`\${apiBase}/api/v1/track/pageview\`;
+    const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+    
+    if (navigator.sendBeacon) {
+      navigator.sendBeacon(url, blob);
+    } else {
+      // Fallback for older browsers
+      fetch(url, {
+        method: 'POST',
+        body: blob,
+        keepalive: true,
+      }).catch(() => {});
+    }
   } catch (e) {
     // Silent fail - don't break the app for analytics
   }
@@ -927,17 +878,43 @@ export class SandboxService {
       );
     }
 
-    // Add ELIZA API URL to env if configured (for testing with ngrok, etc.)
+    // Configure API communication for sandbox
+    // For local dev: use postMessage proxy bridge (no ngrok required!)
+    // For production or when ELIZA_API_URL is set: use direct API URL
+    const isLocalDev =
+      process.env.NEXT_PUBLIC_APP_URL?.includes("localhost") ||
+      process.env.NEXT_PUBLIC_APP_URL?.includes("127.0.0.1");
+    
     const elizaApiUrl =
       process.env.ELIZA_API_URL ||
       process.env.NEXT_PUBLIC_ELIZA_API_URL ||
       config.env?.NEXT_PUBLIC_ELIZA_API_URL;
+    
+    const elizaProxyUrl =
+      config.env?.NEXT_PUBLIC_ELIZA_PROXY_URL ||
+      process.env.NEXT_PUBLIC_ELIZA_PROXY_URL;
 
-    if (elizaApiUrl) {
+    if (elizaProxyUrl) {
+      // If proxy URL is explicitly set, use it (postMessage bridge)
+      mergedEnv.NEXT_PUBLIC_ELIZA_PROXY_URL = elizaProxyUrl;
+      logger.info("Using postMessage proxy bridge for API calls", {
+        sandboxId,
+        proxyUrl: elizaProxyUrl,
+      });
+    } else if (elizaApiUrl) {
+      // If direct API URL is set, use it
       mergedEnv.NEXT_PUBLIC_ELIZA_API_URL = elizaApiUrl;
-      logger.info("Using custom Eliza API URL", {
+      logger.info("Using direct Eliza API URL", {
         sandboxId,
         apiUrl: elizaApiUrl,
+      });
+    } else if (isLocalDev && !config.env?.NEXT_PUBLIC_ELIZA_API_URL) {
+      // Local dev without explicit config: default to proxy bridge
+      const localServerUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+      mergedEnv.NEXT_PUBLIC_ELIZA_PROXY_URL = localServerUrl;
+      logger.info("Local dev: defaulting to postMessage proxy bridge", {
+        sandboxId,
+        proxyUrl: localServerUrl,
       });
     }
 
@@ -1670,233 +1647,6 @@ REMEMBER:
     const stdout = await logsResult.stdout();
     return stdout.split("\n").filter((l: string) => l.trim());
   }
-
-  // ===========================================================================
-  // GIT-BASED STORAGE: backupFiles is deprecated.
-  // File storage is now handled via GitHub repos. Each app has its own repo.
-  // Changes are persisted via git commits, not DB snapshots.
-  // ===========================================================================
-  async backupFiles(
-    sandboxId: string,
-    sessionId: string,
-    options: {
-      snapshotType?: "auto" | "manual" | "pre_expiry" | "prompt_complete";
-      specificFiles?: string[];
-    } = {}
-  ): Promise<{ filesBackedUp: number; totalSize: number }> {
-    logger.info("backupFiles: DEPRECATED - File storage now uses GitHub repos.", {
-      sandboxId,
-      sessionId,
-      snapshotType: options.snapshotType,
-      migration: "Files are persisted via git commits to app.github_repo",
-    });
-
-    // Return success - files are already in the sandbox filesystem
-    // and will be persisted via git when the app's GitHub repo is committed to
-    return { filesBackedUp: 0, totalSize: 0 };
-  }
-
-  /* ===========================================================================
-   * DEPRECATED: DB-BASED backupFiles - Kept for reference
-   * ===========================================================================
-  async backupFiles_DEPRECATED(
-    sandboxId: string,
-    sessionId: string,
-    options: {
-      snapshotType?: "auto" | "manual" | "pre_expiry" | "prompt_complete";
-      specificFiles?: string[];
-    } = {}
-  ): Promise<{ filesBackedUp: number; totalSize: number }> {
-    const sandbox = getActiveSandboxes().get(sandboxId);
-    if (!sandbox) {
-      logger.error("CRITICAL: Cannot backup - sandbox not found in memory", {
-        sandboxId,
-        sessionId,
-        activeSandboxes: Array.from(getActiveSandboxes().keys()),
-        snapshotType: options.snapshotType,
-        specificFiles: options.specificFiles,
-      });
-      return { filesBackedUp: 0, totalSize: 0 };
-    }
-
-    const { snapshotType = "auto", specificFiles } = options;
-
-    logger.info("Starting file backup", {
-      sandboxId,
-      sessionId,
-      snapshotType,
-      fileCount: specificFiles?.length || "auto-detect",
-    });
-
-    const filesToBackup =
-      specificFiles || (await this.getModifiedFiles(sandboxId));
-
-    if (filesToBackup.length === 0) {
-      logger.info("No files to backup", { sandboxId });
-      return { filesBackedUp: 0, totalSize: 0 };
-    }
-
-    // ... rest of DB-based backup logic ...
-    // See git history for full implementation
-    return { filesBackedUp: 0, totalSize: 0 };
-  }
-  */
-
-  // ===========================================================================
-  // GIT-BASED STORAGE: restoreFiles is deprecated.
-  // File restoration is now done by cloning the app's GitHub repo.
-  // The sandbox create() method accepts a templateUrl which can be the app's repo.
-  // ===========================================================================
-  async restoreFiles(
-    sandboxId: string,
-    sessionId: string,
-    options: {
-      onProgress?: (current: number, total: number, filePath: string) => void;
-    } = {}
-  ): Promise<{ filesRestored: number; errors: string[] }> {
-    logger.info("restoreFiles: DEPRECATED - File restoration now uses GitHub repos.", {
-      sandboxId,
-      sessionId,
-      migration: "Use app.github_repo as templateUrl when creating sandbox to restore files via git clone",
-    });
-
-    // Notify caller of deprecation
-    options.onProgress?.(0, 0, "DEPRECATED: Use git clone instead");
-
-    // Return empty result - file restoration should be done via git clone
-    // when creating the sandbox (pass app's github_repo as templateUrl)
-    return { filesRestored: 0, errors: [] };
-  }
-
-  /* ===========================================================================
-   * DEPRECATED: DB-BASED restoreFiles - Kept for reference
-   * ===========================================================================
-   * This method used to restore files from the sessionFileSnapshots table.
-   * It has been replaced by Git-based storage where:
-   * 1. Each app has its own GitHub repo (apps.github_repo)
-   * 2. Files are restored by cloning the repo when creating a new sandbox
-   * 3. Version history is managed via git commits
-   *
-   * To restore files for an existing app:
-   * - Get the app's github_repo from the apps table
-   * - Use githubReposService.getAuthenticatedCloneUrl(repoName)
-   * - Pass the URL as templateUrl when creating the sandbox
-   *
-   * See github-repos.ts for the GitHub integration service.
-   * See git history for the full DB-based implementation.
-   */
-
-  async getModifiedFiles(sandboxId: string): Promise<string[]> {
-    const sandbox = getActiveSandboxes().get(sandboxId);
-    if (!sandbox) return [];
-
-    const dirsToScan = ["src", "app", "components", "lib", "public", "styles"];
-    const allFiles: string[] = [];
-
-    for (const dir of dirsToScan) {
-      try {
-        const files = await listFilesViaSh(sandbox, dir);
-        allFiles.push(
-          ...files.filter(
-            (f) => !f.includes("node_modules") && !f.includes(".next")
-          )
-        );
-      } catch {
-        continue;
-      }
-    }
-
-    const configFiles = [
-      "package.json",
-      "tailwind.config.ts",
-      "tailwind.config.js",
-      "next.config.ts",
-      "next.config.js",
-      "tsconfig.json",
-    ];
-
-    for (const file of configFiles) {
-      const content = await readFileViaSh(sandbox, file);
-      if (content) allFiles.push(file);
-    }
-
-    return [...new Set(allFiles)];
-  }
-
-  // ===========================================================================
-  // GIT-BASED STORAGE: hasSnapshots is deprecated.
-  // File history is now managed via GitHub repos - use git log instead.
-  // ===========================================================================
-  async hasSnapshots(_sessionId: string): Promise<boolean> {
-    logger.info("hasSnapshots: DEPRECATED - File storage now uses GitHub repos. Returning false.", {
-      sessionId: _sessionId,
-      migration: "Use app.github_repo and git history instead of DB snapshots",
-    });
-    return false;
-  }
-
-  // ===========================================================================
-  // GIT-BASED STORAGE: getSnapshotStats is deprecated.
-  // File history is now managed via GitHub repos - use git log instead.
-  // ===========================================================================
-  async getSnapshotStats(_sessionId: string): Promise<{
-    fileCount: number;
-    totalSize: number;
-    lastBackup: Date | null;
-  }> {
-    logger.info("getSnapshotStats: DEPRECATED - File storage now uses GitHub repos. Returning empty stats.", {
-      sessionId: _sessionId,
-      migration: "Use app.github_repo and git history instead of DB snapshots",
-    });
-    return { fileCount: 0, totalSize: 0, lastBackup: null };
-  }
-
-  // ===========================================================================
-  // DEPRECATED DB-BASED SNAPSHOT METHODS - Kept for reference
-  // ===========================================================================
-  /*
-  // OLD: async hasSnapshots(sessionId: string): Promise<boolean> {
-  //   const result = await dbRead
-  //     .select({ count: sessionFileSnapshots.id })
-  //     .from(sessionFileSnapshots)
-  //     .where(eq(sessionFileSnapshots.sandbox_session_id, sessionId))
-  //     .limit(1);
-  //   return result.length > 0;
-  // }
-
-  // OLD: async getSnapshotStats(sessionId: string): Promise<{
-  //   fileCount: number;
-  //   totalSize: number;
-  //   lastBackup: Date | null;
-  // }> {
-  //   const snapshots = await dbRead
-  //     .select()
-  //     .from(sessionFileSnapshots)
-  //     .where(eq(sessionFileSnapshots.sandbox_session_id, sessionId))
-  //     .orderBy(desc(sessionFileSnapshots.created_at));
-  //
-  //   if (snapshots.length === 0) {
-  //     return { fileCount: 0, totalSize: 0, lastBackup: null };
-  //   }
-  //
-  //   const latestSnapshots = new Map<string, (typeof snapshots)[0]>();
-  //   for (const snapshot of snapshots) {
-  //     if (!latestSnapshots.has(snapshot.file_path)) {
-  //       latestSnapshots.set(snapshot.file_path, snapshot);
-  //     }
-  //   }
-  //
-  //   const uniqueSnapshots = Array.from(latestSnapshots.values());
-  //   const totalSize = uniqueSnapshots.reduce((sum, s) => sum + s.file_size, 0);
-  //   const lastBackup = uniqueSnapshots[0]?.created_at || null;
-  //
-  //   return {
-  //     fileCount: uniqueSnapshots.length,
-  //     totalSize,
-  //     lastBackup,
-  //   };
-  // }
-  */
 
   async stop(sandboxId: string): Promise<void> {
     const sandbox = getActiveSandboxes().get(sandboxId);

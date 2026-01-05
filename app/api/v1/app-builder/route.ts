@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { aiAppBuilderService as aiAppBuilder } from "@/lib/services/ai-app-builder";
+import { aiAppBuilderService } from "@/lib/services/ai-app-builder";
+import { appsService } from "@/lib/services/apps";
+import { githubReposService } from "@/lib/services/github-repos";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
@@ -33,33 +35,43 @@ export const GET = withRateLimit(async (request: NextRequest) => {
     const appId = searchParams.get("appId") || undefined;
     const checkSnapshots = searchParams.get("checkSnapshots") === "true";
 
+    // Check if app has GitHub storage (new Git-based approach)
     if (checkSnapshots && appId) {
-      logger.info("Checking snapshots for app", { appId, userId: user.id, organizationId: user.organization_id });
+      logger.info("Checking GitHub storage for app", { appId, userId: user.id });
 
-      const debugInfo = searchParams.get("debug") === "true";
-
-      const snapshotInfo = await aiAppBuilder.getAppSnapshotInfo(
-        appId,
-        user.id,
-        user.organization_id
-      );
-      logger.info("Snapshot info result", { appId, snapshotInfo });
-
-      if (debugInfo) {
-        const debugData = await aiAppBuilder.debugAppSnapshots(
-          appId,
-          user.organization_id
-        );
-        return NextResponse.json({
-          success: true,
-          snapshotInfo,
-          debug: debugData,
-        });
+      const app = await appsService.getById(appId);
+      
+      let hasSnapshots = false;
+      let lastBackup: string | null = null;
+      
+      if (app?.github_repo) {
+        hasSnapshots = true;
+        try {
+          const repoName = app.github_repo.split("/").pop() || app.github_repo;
+          const commits = await githubReposService.listCommits(repoName, { limit: 1 });
+          if (commits.length > 0) {
+            lastBackup = commits[0].date;
+          }
+        } catch (repoError) {
+          logger.warn("Failed to fetch commits for snapshot check", {
+            appId,
+            githubRepo: app.github_repo,
+            error: repoError instanceof Error ? repoError.message : "Unknown error",
+          });
+        }
       }
 
       return NextResponse.json({
         success: true,
-        snapshotInfo,
+        snapshotInfo: {
+          hasSnapshots,
+          fileCount: hasSnapshots ? 1 : 0,
+          totalSize: 0,
+          lastBackup,
+          sessionId: null,
+          storageType: hasSnapshots ? "git" : "none",
+          githubRepo: app?.github_repo || null,
+        },
       });
     }
 
@@ -67,23 +79,24 @@ export const GET = withRateLimit(async (request: NextRequest) => {
     const limit = Math.min(Math.max(isNaN(rawLimit) ? 10 : rawLimit, 1), 100);
     const includeInactive = searchParams.get("includeInactive") === "true";
 
-    const sessions = await aiAppBuilder.listSessions(user.id, {
+    const sessions = await aiAppBuilderService.listSessions(user.id, {
       limit,
       includeInactive,
       appId,
     });
 
+    // Map to response format (listSessions now returns camelCase)
     return NextResponse.json({
       success: true,
       sessions: sessions.map((s) => ({
         id: s.id,
-        sandboxId: s.sandbox_id,
-        sandboxUrl: s.sandbox_url,
+        sandboxId: s.sandboxId,
+        sandboxUrl: s.sandboxUrl,
         status: s.status,
-        appName: s.app_name,
-        templateType: s.template_type,
-        createdAt: s.created_at,
-        expiresAt: s.expires_at,
+        appName: s.appName,
+        templateType: s.templateType,
+        createdAt: s.createdAt,
+        expiresAt: s.expiresAt,
       })),
     });
   } catch (error) {
@@ -124,7 +137,7 @@ export const POST = withRateLimit(async (request: NextRequest) => {
 
     const data = validationResult.data;
 
-    const session = await aiAppBuilder.startSession({
+    const session = await aiAppBuilderService.startSession({
       userId: user.id,
       organizationId: user.organization_id,
       appId: data.appId,
