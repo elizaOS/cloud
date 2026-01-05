@@ -332,6 +332,13 @@ export function ElizaChatInterface({
   // Poll knowledge processing status and show toast when complete
   useKnowledgeProcessingStatus(selectedCharacterId || null);
 
+  // Reset message limit state when user authenticates (e.g., signs up via modal)
+  useEffect(() => {
+    if (authenticated && isMessageLimitReached) {
+      setIsMessageLimitReached(false);
+    }
+  }, [authenticated, isMessageLimitReached]);
+
   const loadMessages = useCallback(
     async (targetRoomId: string, skipLoadingState = false) => {
       // Don't show loading state if we're sending (prevents flicker) or explicitly skipped
@@ -571,6 +578,35 @@ export function ElizaChatInterface({
     [accumulateChunk, scheduleUpdate],
   );
 
+  // Handle message limit reached - shows signup prompt instead of error
+  const handleMessageLimitReached = useCallback(() => {
+    clearAllStreaming();
+    if (thinkingTimeoutRef.current) {
+      clearTimeout(thinkingTimeoutRef.current);
+      thinkingTimeoutRef.current = null;
+    }
+
+    setIsMessageLimitReached(true);
+
+    setMessages((prev) => {
+      const withoutThinking = prev.filter(
+        (msg) =>
+          !msg.id.startsWith("thinking-") && !msg.id.startsWith("streaming-"),
+      );
+
+      const signupPromptMessage: Message = {
+        id: `signup-prompt-${Date.now()}`,
+        content: {
+          text: `I'd love to continue our conversation!\n\nYou've used all your free messages. **Sign up for free** to keep chatting with me and unlock unlimited conversations.`,
+        },
+        isAgent: true,
+        createdAt: Date.now(),
+      };
+
+      return [...withoutThinking, signupPromptMessage];
+    });
+  }, [clearAllStreaming]);
+
   const sendMessage = useCallback(
     async (textOverride?: string) => {
       const messageText = textOverride?.trim() || inputTextRef.current.trim();
@@ -688,52 +724,18 @@ export function ElizaChatInterface({
           onChunk: handleStreamChunk, // Handle real-time streaming chunks
           onReasoning: handleReasoningChunk, // Handle chain-of-thought display
           onError: (errorMsg) => {
-            // Check if this is a message limit error for anonymous users
             const isMessageLimitError =
               errorMsg.toLowerCase().includes("message limit") ||
               errorMsg.toLowerCase().includes("sign up to continue");
 
             if (isMessageLimitError && !authenticated) {
-              // Show a fake agent message prompting signup instead of toast
-              clearAllStreaming();
-              if (thinkingTimeoutRef.current) {
-                clearTimeout(thinkingTimeoutRef.current);
-                thinkingTimeoutRef.current = null;
-              }
-
-              // Block further input - user needs to sign up
-              setIsMessageLimitReached(true);
-
-              // Keep the user's message but remove thinking/streaming indicators
-              // Then add a fake agent message prompting signup
-              setMessages((prev) => {
-                const withoutThinking = prev.filter(
-                  (msg) =>
-                    !msg.id.startsWith("thinking-") &&
-                    !msg.id.startsWith("streaming-"),
-                );
-
-                // Add fake agent message
-                const signupPromptMessage: Message = {
-                  id: `signup-prompt-${Date.now()}`,
-                  content: {
-                    text: `I'd love to continue our conversation!\n\nYou've used all your free messages. **Sign up for free** to keep chatting with me and unlock unlimited conversations.`,
-                  },
-                  isAgent: true,
-                  createdAt: Date.now(),
-                };
-
-                return [...withoutThinking, signupPromptMessage];
-              });
-
-              // Don't set error state or show toast for limit errors
+              handleMessageLimitReached();
               return;
             }
 
-            // For other errors, show toast and remove messages
+            // Regular error handling
             setError(errorMsg);
             toast.error(errorMsg);
-            // Remove temp, thinking, and streaming messages on error
             clearAllStreaming();
             setMessages((prev) =>
               prev.filter(
@@ -762,24 +764,32 @@ export function ElizaChatInterface({
           },
         });
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to send message");
-        console.error("Error sending message:", err);
-        toast.error(
-          err instanceof Error ? err.message : "Failed to send message",
-        );
-        // Remove temp, thinking, and streaming messages on error
-        clearAllStreaming();
-        setMessages((prev) =>
-          prev.filter(
-            (msg) =>
-              !msg.id.startsWith("temp-") &&
-              !msg.id.startsWith("thinking-") &&
-              !msg.id.startsWith("streaming-"),
-          ),
-        );
-        if (thinkingTimeoutRef.current) {
-          clearTimeout(thinkingTimeoutRef.current);
-          thinkingTimeoutRef.current = null;
+        const errorMessage =
+          err instanceof Error ? err.message : "Failed to send message";
+
+        const isMessageLimitError =
+          errorMessage.toLowerCase().includes("message limit") ||
+          errorMessage.toLowerCase().includes("sign up to continue");
+
+        if (isMessageLimitError && !authenticated) {
+          handleMessageLimitReached();
+        } else {
+          setError(errorMessage);
+          console.error("Error sending message:", err);
+          toast.error(errorMessage);
+          clearAllStreaming();
+          setMessages((prev) =>
+            prev.filter(
+              (msg) =>
+                !msg.id.startsWith("temp-") &&
+                !msg.id.startsWith("thinking-") &&
+                !msg.id.startsWith("streaming-"),
+            ),
+          );
+          if (thinkingTimeoutRef.current) {
+            clearTimeout(thinkingTimeoutRef.current);
+            thinkingTimeoutRef.current = null;
+          }
         }
       } finally {
         setLoadingState((prev) => ({ ...prev, isSending: false }));
@@ -798,6 +808,7 @@ export function ElizaChatInterface({
       handleStreamMessage,
       handleStreamChunk,
       handleReasoningChunk,
+      handleMessageLimitReached,
       loadRooms,
       onMessageSent,
       clearAllStreaming,

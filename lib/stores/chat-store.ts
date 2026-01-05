@@ -106,8 +106,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
         viewerState = "owner";
       } else {
         const selectedChar = availableCharacters.find((c) => c.id === characterId);
-        // If character is in user's list (has matching ownerId or no ownerId set), they're the owner
-        if (selectedChar?.ownerId === currentUserId || (selectedChar && !selectedChar.ownerId)) {
+        // Only treat as owner if ownerId explicitly matches - missing ownerId means unknown ownership
+        if (selectedChar?.ownerId === currentUserId) {
           viewerState = "owner";
         } else {
           viewerState = "non-owner";
@@ -134,8 +134,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
         const selectedChar = availableCharacters.find(
           (c) => c.id === selectedCharacterId,
         );
-        // If character is in user's list (has matching ownerId or no ownerId set), they're the owner
-        if (selectedChar?.ownerId === userId || (selectedChar && !selectedChar.ownerId)) {
+        // Only treat as owner if ownerId explicitly matches - missing ownerId means unknown ownership
+        if (selectedChar?.ownerId === userId) {
           viewerState = "owner";
         } else {
           viewerState = "non-owner";

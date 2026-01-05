@@ -74,6 +74,7 @@ export function ElizaPageClient({
     setRoomId,
     setSelectedCharacterId,
     setAuthState,
+    setAnonymousSessionToken,
     selectedCharacterId,
   } = useChatStore();
 
@@ -188,9 +189,8 @@ export function ElizaPageClient({
       setRoomId(initialRoomId);
     }
 
-    if (initialCharacterId) {
-      setSelectedCharacterId(initialCharacterId);
-    }
+    // Always update selection - null clears stale selection from previous session
+    setSelectedCharacterId(initialCharacterId || null);
   }, [initialCharacterId, initialRoomId, setRoomId, setSelectedCharacterId]);
 
   // Initialize anonymous session for unauthenticated users (only once)
@@ -205,6 +205,8 @@ export function ElizaPageClient({
               remainingMessages:
                 result.session.messages_limit - result.session.message_count,
             });
+            // Store session token in chat store so it gets passed with messages
+            setAnonymousSessionToken(result.session.session_token);
           }
           setIsLoadingSession(false);
         })

@@ -51,8 +51,12 @@ export function BuildPageClient({
   const pathname = usePathname();
 
   // Initialize store with characters
-  const { setAvailableCharacters, setSelectedCharacterId, setAuthState } =
-    useChatStore();
+  const {
+    setAvailableCharacters,
+    setSelectedCharacterId,
+    setAuthState,
+    setAnonymousSessionToken,
+  } = useChatStore();
 
   useSetPageHeader({
     title: "Build",
@@ -102,11 +106,13 @@ export function BuildPageClient({
             remainingMessages:
               result.session.messages_limit - result.session.message_count,
           });
+          // Store session token in chat store so it gets passed with messages
+          setAnonymousSessionToken(result.session.session_token);
         }
         setIsLoadingSession(false);
       });
     }
-  }, [isAuthenticated, anonymousSession]);
+  }, [isAuthenticated, anonymousSession, setAnonymousSessionToken]);
 
   // Intercept in-app navigation when there are unsaved changes
   useEffect(() => {
