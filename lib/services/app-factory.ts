@@ -1,6 +1,7 @@
 import { logger } from "@/lib/utils/logger";
 import { appsService } from "./apps";
 import { githubReposService } from "./github-repos";
+import { vercelDeploymentsService } from "./vercel-deployments";
 import type { App } from "@/db/repositories/apps";
 
 /**
@@ -36,6 +37,10 @@ export interface CreateAppOptions {
   repoName?: string;
   /** Whether the repo should be private (default: true) */
   repoPrivate?: boolean;
+  /** Whether to assign a subdomain (default: true) */
+  assignSubdomain?: boolean;
+  /** Preferred subdomain (optional, will auto-generate if not available) */
+  preferredSubdomain?: string;
 }
 
 export interface CreateAppResult {
@@ -43,6 +48,9 @@ export interface CreateAppResult {
   apiKey: string;
   githubRepo?: string;
   githubRepoCreated: boolean;
+  subdomain?: string;
+  productionUrl?: string;
+  subdomainAssigned: boolean;
   errors: string[];
 }
 
@@ -60,16 +68,22 @@ export class AppFactoryService {
     const {
       createGitHubRepo = true,
       repoPrivate = true,
+      assignSubdomain = true,
+      preferredSubdomain,
     } = options;
 
     const errors: string[] = [];
     let githubRepo: string | undefined;
     let githubRepoCreated = false;
+    let subdomain: string | undefined;
+    let productionUrl: string | undefined;
+    let subdomainAssigned = false;
 
     logger.info("AppFactory: Creating app", {
       name: data.name,
       organizationId: data.organization_id,
       createGitHubRepo,
+      assignSubdomain,
     });
 
     // Step 1: Create the app record
@@ -128,11 +142,63 @@ export class AppFactoryService {
       }
     }
 
+    // Step 3: Assign subdomain if requested
+    if (assignSubdomain) {
+      try {
+        logger.info("AppFactory: Assigning subdomain", {
+          appId: app.id,
+          preferredSubdomain,
+        });
+
+        const subdomainResult = await vercelDeploymentsService.assignSubdomain(
+          app.id,
+          preferredSubdomain || app.slug
+        );
+
+        if (subdomainResult.success && subdomainResult.subdomain) {
+          subdomain = subdomainResult.subdomain;
+          productionUrl = subdomainResult.fullDomain ? `https://${subdomainResult.fullDomain}` : undefined;
+          subdomainAssigned = true;
+
+          // Update app with production URL
+          await appsService.update(app.id, {
+            app_url: productionUrl || app.app_url,
+          });
+
+          logger.info("AppFactory: Subdomain assigned", {
+            appId: app.id,
+            subdomain,
+            productionUrl,
+          });
+        } else {
+          errors.push(`Subdomain assignment failed: ${subdomainResult.error || "Unknown error"}`);
+          logger.warn("AppFactory: Failed to assign subdomain", {
+            appId: app.id,
+            error: subdomainResult.error,
+          });
+        }
+      } catch (subdomainError) {
+        const errorMessage = subdomainError instanceof Error
+          ? subdomainError.message
+          : "Unknown error assigning subdomain";
+
+        errors.push(`Subdomain assignment failed: ${errorMessage}`);
+
+        logger.warn("AppFactory: Subdomain assignment error", {
+          appId: app.id,
+          error: errorMessage,
+        });
+      }
+    }
+
     return {
       app,
       apiKey,
       githubRepo,
       githubRepoCreated,
+      subdomain,
+      productionUrl,
+      subdomainAssigned,
       errors,
     };
   }

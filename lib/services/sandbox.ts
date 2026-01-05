@@ -254,7 +254,7 @@ export interface SandboxSessionData {
 }
 
 const DEFAULT_TEMPLATE_URL =
-  "https://github.com/elizaOS/sandbox-template-cloud.git";
+  "https://github.com/eliza-cloud-apps/cloud-apps-template.git";
 const DEFAULT_TIMEOUT_MS = 30 * 60 * 1000;
 
 declare global {

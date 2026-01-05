@@ -6,8 +6,8 @@ config({ path: '.env.local' });
 config({ path: '.env' });
 
 const token = process.env.GIT_ACCESS_TOKEN || process.env.GITHUB_APP_TOKEN;
-const org = process.env.GITHUB_ORG_NAME || 'elizacloud-apps';
-const templateRepo = process.env.GITHUB_TEMPLATE_REPO || 'elizacloud-apps/sandbox-template';
+const org = process.env.GITHUB_ORG_NAME || 'eliza-cloud-apps';
+const templateRepo = process.env.GITHUB_TEMPLATE_REPO || 'eliza-cloud-apps/cloud-apps-template';
 
 console.log('=== GitHub Configuration Check ===');
 console.log('Token:', token ? token.substring(0, 10) + '...' : 'NOT SET');

@@ -91,8 +91,6 @@ const RESERVED_SUBDOMAINS = new Set([
   "public",
   "sandbox",
   "debug",
-  "app",
-  "apps",
 ]);
 
 // Vercel API response types

@@ -65,6 +65,7 @@ import {
   Cloud,
   CloudOff,
   ChevronDown,
+  Rocket,
 } from "lucide-react";
 import { toast } from "sonner";
 import { BrandCard, CornerBrackets, BrandButton } from "@/components/brand";
@@ -314,7 +315,10 @@ export default function AppCreatorPage() {
   // GitHub-related state
   const [gitStatus, setGitStatus] = useState<GitStatusInfo | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeploying, setIsDeploying] = useState(false);
   const [lastSaveTime, setLastSaveTime] = useState<Date | null>(null);
+  const [lastDeployTime, setLastDeployTime] = useState<Date | null>(null);
+  const [productionUrl, setProductionUrl] = useState<string | null>(null);
   const [commitHistory, setCommitHistory] = useState<CommitInfo[]>([]);
   const [showCommitHistory, setShowCommitHistory] = useState(false);
 
@@ -744,6 +748,80 @@ export default function AppCreatorPage() {
       setIsSaving(false);
     }
   }, [session, isSaving, addLog, checkGitStatus, fetchCommitHistory]);
+
+  // Deploy to production
+  const deployToProduction = useCallback(async () => {
+    if (!appData?.id || isDeploying) return;
+
+    // First save any uncommitted changes
+    if (gitStatus?.hasChanges) {
+      addLog("Saving changes before deploy...", "info");
+      await saveToGitHub();
+    }
+
+    setIsDeploying(true);
+    try {
+      const response = await fetchWithRetry(
+        `/api/v1/apps/${appData.id}/deploy`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ target: "production" }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to deploy");
+      }
+
+      const data = await response.json();
+      if (data.success) {
+        setLastDeployTime(new Date());
+        if (data.productionUrl) {
+          setProductionUrl(data.productionUrl);
+        }
+        toast.success("Deployment started!", {
+          description: data.productionUrl 
+            ? `Deploying to ${data.productionUrl}` 
+            : "Your app is being deployed to production",
+          action: data.productionUrl ? {
+            label: "Open",
+            onClick: () => window.open(data.productionUrl, "_blank"),
+          } : undefined,
+        });
+        addLog(`Deployment started: ${data.deploymentId}`, "success");
+      }
+    } catch (error) {
+      toast.error("Deployment failed", {
+        description: error instanceof Error ? error.message : "Unknown error",
+      });
+      addLog(`Deploy failed: ${error instanceof Error ? error.message : "Unknown error"}`, "error");
+    } finally {
+      setIsDeploying(false);
+    }
+  }, [appData?.id, isDeploying, gitStatus?.hasChanges, saveToGitHub, addLog]);
+
+  // Fetch production URL on load
+  useEffect(() => {
+    if (!appData?.id) return;
+    
+    const fetchDeploymentInfo = async () => {
+      try {
+        const response = await fetchWithRetry(`/api/v1/apps/${appData.id}/deploy`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.productionUrl) {
+            setProductionUrl(data.productionUrl);
+          }
+        }
+      } catch {
+        // Not critical
+      }
+    };
+    
+    fetchDeploymentInfo();
+  }, [appData?.id]);
 
   // Fetch git status periodically when session is ready
   useEffect(() => {
@@ -2310,6 +2388,37 @@ ANTHROPIC_API_KEY=your_key_here`}
                   </div>
                 )}
               </div>
+              {/* Deploy to Production Button */}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={deployToProduction}
+                disabled={isDeploying}
+                className="h-7 text-xs text-[#FF5800] hover:text-[#FF7033] hover:bg-[#FF5800]/10"
+                title={productionUrl ? `Deploy to ${productionUrl}` : "Deploy to production"}
+              >
+                {isDeploying ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <Rocket className="h-3 w-3" />
+                )}
+                <span className="ml-1 hidden sm:inline">
+                  {isDeploying ? "Deploying..." : "Deploy"}
+                </span>
+              </Button>
+              {/* Production URL Link */}
+              {productionUrl && (
+                <a
+                  href={productionUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="h-7 px-2 text-xs text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10 rounded flex items-center gap-1"
+                  title={`View live at ${productionUrl}`}
+                >
+                  <ExternalLink className="h-3 w-3" />
+                  <span className="hidden sm:inline">Live</span>
+                </a>
+              )}
               <div className="w-px h-4 bg-white/10" />
             </>
           )}

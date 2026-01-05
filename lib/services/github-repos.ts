@@ -11,8 +11,8 @@ import { Octokit } from "@octokit/rest";
  * - No need for custom snapshot storage
  */
 
-const GITHUB_ORG = process.env.GITHUB_ORG_NAME || "elizacloud-apps";
-const TEMPLATE_REPO = process.env.GITHUB_TEMPLATE_REPO || "elizacloud-apps/sandbox-template";
+const GITHUB_ORG = process.env.GITHUB_ORG_NAME || "eliza-cloud-apps";
+const TEMPLATE_REPO = process.env.GITHUB_TEMPLATE_REPO || "eliza-cloud-apps/cloud-apps-template";
 
 // Retry configuration
 const MAX_RETRIES = 3;

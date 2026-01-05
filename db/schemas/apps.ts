@@ -42,7 +42,7 @@ export const apps = pgTable(
     app_url: text("app_url").notNull(), // Primary app URL
     
     // GitHub repository for this app (org/repo format or just repo name)
-    github_repo: text("github_repo"), // e.g., "elizacloud-apps/app-my-app"
+    github_repo: text("github_repo"), // e.g., "eliza-cloud-apps/app-my-app"
     allowed_origins: jsonb("allowed_origins")
       .$type<string[]>()
       .notNull()

@@ -16,6 +16,7 @@ import {
 } from "@/db/schemas/app-sandboxes";
 import { eq, desc, and } from "drizzle-orm";
 import { appsService } from "./apps";
+import { gitSyncService } from "./git-sync";
 
 const EXAMPLE_PROMPTS = {
   chat: getExamplePrompts("chat"),
@@ -137,7 +138,7 @@ export class AIAppBuilderService {
       const template = await dbRead.query.appTemplates.findFirst({
         where: eq(appTemplates.slug, templateType),
       });
-      templateUrl = template?.git_repo_url;
+      templateUrl = template?.github_repo ? `https://github.com/${template.github_repo}` : undefined;
 
       if (!templateUrl) {
         logger.info(
@@ -423,7 +424,95 @@ export class AIAppBuilderService {
       durationMs,
     });
 
+    // Auto-commit to GitHub if files were changed and app has a repo
+    if (result.success && result.filesAffected.length > 0 && session.app_id) {
+      this.autoCommitToGitHub(session, prompt, result.filesAffected).catch(
+        (err) =>
+          logger.warn("Auto-commit failed (non-blocking)", {
+            sessionId,
+            error: err instanceof Error ? err.message : "Unknown error",
+          })
+      );
+    }
+
     return result;
+  }
+
+  /**
+   * Auto-commit changes to GitHub after a successful prompt.
+   * This runs in the background and doesn't block the response.
+   */
+  private async autoCommitToGitHub(
+    session: AppSandboxSession,
+    prompt: string,
+    filesAffected: string[]
+  ): Promise<void> {
+    if (!session.sandbox_id || !session.app_id) return;
+
+    const app = await appsService.getById(session.app_id);
+    if (!app?.github_repo) {
+      logger.debug("Skipping auto-commit: no GitHub repo configured", {
+        sessionId: session.id,
+        appId: session.app_id,
+      });
+      return;
+    }
+
+    // Generate a meaningful commit message from the prompt
+    const shortPrompt = prompt.slice(0, 100).replace(/\n/g, " ");
+    const commitMessage = `AI: ${shortPrompt}${prompt.length > 100 ? "..." : ""}\n\nFiles: ${filesAffected.join(", ")}`;
+
+    logger.info("Auto-committing to GitHub", {
+      sessionId: session.id,
+      appId: session.app_id,
+      githubRepo: app.github_repo,
+      filesCount: filesAffected.length,
+    });
+
+    const commitResult = await gitSyncService.commitAndPush(
+      {
+        sandboxId: session.sandbox_id,
+        repoFullName: app.github_repo,
+        branch: session.git_branch || "main",
+      },
+      {
+        message: commitMessage,
+        author: { name: "ElizaCloud AI Builder", email: "ai@elizacloud.ai" },
+      }
+    );
+
+    if (commitResult.success && commitResult.commitSha) {
+      // Update session with last commit info
+      await dbWrite
+        .update(appSandboxSessions)
+        .set({
+          last_commit_sha: commitResult.commitSha,
+          updated_at: new Date(),
+        })
+        .where(eq(appSandboxSessions.id, session.id));
+
+      // Also update the prompt record with the commit SHA
+      await dbWrite
+        .update(appBuilderPrompts)
+        .set({ commit_sha: commitResult.commitSha })
+        .where(
+          and(
+            eq(appBuilderPrompts.sandbox_session_id, session.id),
+            eq(appBuilderPrompts.role, "user")
+          )
+        );
+
+      logger.info("Auto-commit successful", {
+        sessionId: session.id,
+        commitSha: commitResult.commitSha,
+        filesCommitted: commitResult.filesCommitted,
+      });
+    } else {
+      logger.warn("Auto-commit failed", {
+        sessionId: session.id,
+        error: commitResult.error,
+      });
+    }
   }
 
   async verifySessionOwnership(
