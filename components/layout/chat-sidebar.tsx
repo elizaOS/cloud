@@ -12,7 +12,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useState, useEffect, useMemo, useRef } from "react";
 import {
   ArrowLeft,
@@ -22,18 +22,11 @@ import {
   Trash2,
   Copy,
   Check,
-  Plus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { LockOnButton } from "@/components/brand";
 import { useChatStore } from "@/lib/stores/chat-store";
 import { SidebarBottomPanel } from "./sidebar-bottom-panel";
-import { ElizaAvatar } from "@/components/chat/eliza-avatar";
-
-// Default Eliza avatars - different for build vs chat pages
-const DEFAULT_ELIZA_AVATAR_CHAT =
-  "https://raw.githubusercontent.com/elizaOS/eliza-avatars/refs/heads/master/Eliza/portrait.png";
-const DEFAULT_ELIZA_AVATAR_BUILD = "/avatars/eliza-default.png";
 
 interface ChatSidebarProps {
   className?: string;
@@ -90,14 +83,7 @@ export function ChatSidebar({
   onToggle,
 }: ChatSidebarProps) {
   const router = useRouter();
-  const pathname = usePathname();
   const [isMobile, setIsMobile] = useState(false);
-
-  // Use different default avatar for build vs chat pages
-  const isBuildPage = pathname.includes("/build");
-  const defaultElizaAvatar = isBuildPage
-    ? DEFAULT_ELIZA_AVATAR_BUILD
-    : DEFAULT_ELIZA_AVATAR_CHAT;
   const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
   const [showTokens, setShowTokens] = useState(false);
   const tokensRef = useRef<HTMLDivElement>(null);
@@ -436,21 +422,6 @@ export function ChatSidebar({
         {/* Selected Character Profile with New Chat Icon */}
         <div className="border-b border-white/10 px-4 py-3">
           <div className="flex items-center gap-2.5">
-            {/* Character Avatar or Create New Agent Icon */}
-            {selectedCharacter ? (
-              <ElizaAvatar
-                avatarUrl={selectedCharacter.avatarUrl}
-                name={selectedCharacter.name}
-                className="w-8 h-8 shrink-0"
-                iconClassName="h-4 w-4"
-                fallbackClassName="bg-[#FF5800]/10"
-              />
-            ) : (
-              <div className="w-8 h-8 rounded-full bg-[#FF5800]/20 border border-[#FF5800]/30 flex items-center justify-center shrink-0">
-                <Plus className="h-4 w-4 text-[#FF5800]" />
-              </div>
-            )}
-
             {/* Character Info or Create New Agent */}
             <div className="flex-1 min-w-0">
               <div className="text-sm font-medium text-white truncate">
