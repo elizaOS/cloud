@@ -4,7 +4,7 @@ import Blog from "@/components/landing/Blog";
 import { getAllPosts, getPublicPosts, getPublicCategories } from "@/lib/blog";
 
 export const metadata = {
-  title: "Blog",
+  title: "Cloud Blog",
   description: "News, tutorials, and updates from the Eliza team",
 };
 
