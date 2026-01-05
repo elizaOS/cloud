@@ -1,0 +1,342 @@
+import { logger } from "@/lib/utils/logger";
+import { githubReposService } from "./github-repos";
+
+/**
+ * Git Sync Service
+ *
+ * Handles synchronization between sandbox files and GitHub repositories.
+ * This is the critical layer that bridges sandbox development with persistent storage.
+ */
+
+interface SandboxInstance {
+  id?: string;
+  status: string;
+  domain: (port: number) => string;
+  runCommand: (params: RunCommandOptions) => Promise<CommandResult>;
+  stop: () => Promise<void>;
+  extendTimeout: (durationMs: number) => Promise<void>;
+}
+
+interface RunCommandOptions {
+  cmd: string;
+  args?: string[];
+  stderr?: NodeJS.WritableStream;
+  stdout?: NodeJS.WritableStream;
+  detached?: boolean;
+  sudo?: boolean;
+  env?: Record<string, string>;
+}
+
+interface CommandResult {
+  exitCode: number;
+  stdout: () => Promise<string>;
+  stderr: () => Promise<string>;
+}
+
+declare global {
+  var __sandboxInstances: Map<string, SandboxInstance> | undefined;
+}
+
+const getActiveSandboxes = (): Map<string, SandboxInstance> => {
+  if (!global.__sandboxInstances) {
+    global.__sandboxInstances = new Map<string, SandboxInstance>();
+  }
+  return global.__sandboxInstances;
+};
+
+export interface GitSyncConfig {
+  sandboxId: string;
+  repoFullName: string;
+  branch?: string;
+}
+
+export interface CommitOptions {
+  message: string;
+  author?: { name: string; email: string };
+  files?: string[];
+}
+
+export interface CommitResult {
+  success: boolean;
+  commitSha?: string;
+  filesCommitted: number;
+  error?: string;
+}
+
+export interface GitStatusResult {
+  hasChanges: boolean;
+  staged: string[];
+  unstaged: string[];
+  untracked: string[];
+}
+
+const DEFAULT_AUTHOR = {
+  name: "ElizaCloud Bot",
+  email: "bot@elizacloud.ai",
+};
+
+export class GitSyncService {
+  private async runGitCommand(
+    sandbox: SandboxInstance,
+    args: string[]
+  ): Promise<{ exitCode: number; stdout: string; stderr: string }> {
+    const result = await sandbox.runCommand({ cmd: "git", args });
+    return {
+      exitCode: result.exitCode,
+      stdout: await result.stdout(),
+      stderr: await result.stderr(),
+    };
+  }
+
+  private getSandbox(sandboxId: string): SandboxInstance | null {
+    return getActiveSandboxes().get(sandboxId) || null;
+  }
+
+  async isGitAvailable(sandboxId: string): Promise<boolean> {
+    const sandbox = this.getSandbox(sandboxId);
+    if (!sandbox) return false;
+    try {
+      const result = await this.runGitCommand(sandbox, ["--version"]);
+      return result.exitCode === 0;
+    } catch {
+      return false;
+    }
+  }
+
+  async isGitRepo(sandboxId: string): Promise<boolean> {
+    const sandbox = this.getSandbox(sandboxId);
+    if (!sandbox) return false;
+    try {
+      const result = await this.runGitCommand(sandbox, ["rev-parse", "--is-inside-work-tree"]);
+      return result.exitCode === 0 && result.stdout.trim() === "true";
+    } catch {
+      return false;
+    }
+  }
+
+  async configureGit(config: GitSyncConfig): Promise<{ success: boolean; error?: string }> {
+    const { sandboxId, repoFullName, branch = "main" } = config;
+    const sandbox = this.getSandbox(sandboxId);
+    if (!sandbox) return { success: false, error: "Sandbox not found" };
+
+    logger.info("Configuring git in sandbox", { sandboxId, repoFullName, branch });
+
+    try {
+      const gitAvailable = await this.isGitAvailable(sandboxId);
+      if (!gitAvailable) return { success: false, error: "Git is not available in sandbox" };
+
+      const repoName = repoFullName.includes("/") ? repoFullName.split("/").pop()! : repoFullName;
+      let authenticatedUrl: string;
+      try {
+        authenticatedUrl = githubReposService.getAuthenticatedCloneUrl(repoName);
+      } catch (e) {
+        return { success: false, error: `Failed to get authenticated URL: ${e instanceof Error ? e.message : "Unknown"}` };
+      }
+
+      const isRepo = await this.isGitRepo(sandboxId);
+      if (!isRepo) {
+        const initResult = await this.runGitCommand(sandbox, ["init"]);
+        if (initResult.exitCode !== 0) return { success: false, error: `Git init failed: ${initResult.stderr}` };
+        await this.runGitCommand(sandbox, ["checkout", "-b", branch]);
+      }
+
+      await this.runGitCommand(sandbox, ["config", "user.name", DEFAULT_AUTHOR.name]);
+      await this.runGitCommand(sandbox, ["config", "user.email", DEFAULT_AUTHOR.email]);
+
+      const remoteResult = await this.runGitCommand(sandbox, ["remote", "-v"]);
+      const hasOrigin = remoteResult.stdout.includes("origin");
+
+      if (hasOrigin) {
+        await this.runGitCommand(sandbox, ["remote", "set-url", "origin", authenticatedUrl]);
+      } else {
+        await this.runGitCommand(sandbox, ["remote", "add", "origin", authenticatedUrl]);
+      }
+
+      await this.runGitCommand(sandbox, ["fetch", "origin", branch]);
+
+      logger.info("Git configured successfully", { sandboxId, repoFullName, wasNewRepo: !isRepo });
+      return { success: true };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      logger.error("Failed to configure git", { sandboxId, repoFullName, error: errorMessage });
+      return { success: false, error: errorMessage };
+    }
+  }
+
+  async getStatus(sandboxId: string): Promise<GitStatusResult | null> {
+    const sandbox = this.getSandbox(sandboxId);
+    if (!sandbox) return null;
+
+    try {
+      const result = await this.runGitCommand(sandbox, ["status", "--porcelain"]);
+      if (result.exitCode !== 0) return null;
+
+      const lines = result.stdout.split("\n").filter((l) => l.trim());
+      const staged: string[] = [];
+      const unstaged: string[] = [];
+      const untracked: string[] = [];
+
+      for (const line of lines) {
+        const indexStatus = line[0];
+        const workingStatus = line[1];
+        const filePath = line.substring(3);
+
+        if (indexStatus === "?" && workingStatus === "?") {
+          untracked.push(filePath);
+        } else if (indexStatus !== " " && indexStatus !== "?") {
+          staged.push(filePath);
+        }
+        if (workingStatus !== " " && workingStatus !== "?") {
+          unstaged.push(filePath);
+        }
+      }
+
+      return { hasChanges: lines.length > 0, staged, unstaged, untracked };
+    } catch {
+      return null;
+    }
+  }
+
+  async hasUncommittedChanges(sandboxId: string): Promise<boolean> {
+    const status = await this.getStatus(sandboxId);
+    return status?.hasChanges ?? false;
+  }
+
+  async stageFiles(sandboxId: string, files?: string[]): Promise<{ success: boolean; error?: string }> {
+    const sandbox = this.getSandbox(sandboxId);
+    if (!sandbox) return { success: false, error: "Sandbox not found" };
+
+    try {
+      const result = files && files.length > 0
+        ? await this.runGitCommand(sandbox, ["add", ...files])
+        : await this.runGitCommand(sandbox, ["add", "-A"]);
+
+      if (result.exitCode !== 0) return { success: false, error: result.stderr };
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
+    }
+  }
+
+  async commit(sandboxId: string, options: CommitOptions): Promise<CommitResult> {
+    const sandbox = this.getSandbox(sandboxId);
+    if (!sandbox) return { success: false, filesCommitted: 0, error: "Sandbox not found" };
+
+    const { message, author = DEFAULT_AUTHOR, files } = options;
+
+    try {
+      const stageResult = await this.stageFiles(sandboxId, files);
+      if (!stageResult.success) {
+        return { success: false, filesCommitted: 0, error: `Failed to stage files: ${stageResult.error}` };
+      }
+
+      const status = await this.getStatus(sandboxId);
+      if (!status || status.staged.length === 0) {
+        return { success: true, filesCommitted: 0 };
+      }
+
+      await this.runGitCommand(sandbox, ["config", "user.name", author.name]);
+      await this.runGitCommand(sandbox, ["config", "user.email", author.email]);
+
+      const commitResult = await this.runGitCommand(sandbox, ["commit", "-m", message]);
+
+      if (commitResult.exitCode !== 0) {
+        if (commitResult.stdout.includes("nothing to commit") || commitResult.stderr.includes("nothing to commit")) {
+          return { success: true, filesCommitted: 0 };
+        }
+        return { success: false, filesCommitted: 0, error: commitResult.stderr || commitResult.stdout };
+      }
+
+      const shaResult = await this.runGitCommand(sandbox, ["rev-parse", "HEAD"]);
+      const commitSha = shaResult.stdout.trim();
+
+      logger.info("Commit created", { sandboxId, commitSha, filesCommitted: status.staged.length });
+      return { success: true, commitSha, filesCommitted: status.staged.length };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      logger.error("Failed to create commit", { sandboxId, error: errorMessage });
+      return { success: false, filesCommitted: 0, error: errorMessage };
+    }
+  }
+
+  async push(sandboxId: string, options?: { branch?: string; force?: boolean }): Promise<{ success: boolean; error?: string }> {
+    const { branch = "main", force = false } = options || {};
+    const sandbox = this.getSandbox(sandboxId);
+    if (!sandbox) return { success: false, error: "Sandbox not found" };
+
+    try {
+      const args = ["push", "-u", "origin", branch];
+      if (force) args.splice(1, 0, "--force");
+
+      const result = await this.runGitCommand(sandbox, args);
+      if (result.exitCode !== 0) {
+        if (result.stderr.includes("rejected")) {
+          return { success: false, error: "Push rejected - remote has changes" };
+        }
+        return { success: false, error: result.stderr };
+      }
+
+      logger.info("Push successful", { sandboxId, branch });
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
+    }
+  }
+
+  async commitAndPush(config: GitSyncConfig, options: CommitOptions): Promise<CommitResult> {
+    const { sandboxId, repoFullName, branch = "main" } = config;
+
+    logger.info("Starting commit and push", { sandboxId, repoFullName, branch });
+
+    const configResult = await this.configureGit(config);
+    if (!configResult.success) {
+      return { success: false, filesCommitted: 0, error: `Git configuration failed: ${configResult.error}` };
+    }
+
+    const commitResult = await this.commit(sandboxId, options);
+    if (!commitResult.success || commitResult.filesCommitted === 0) {
+      return commitResult;
+    }
+
+    const pushResult = await this.push(sandboxId, { branch, force: true });
+    if (!pushResult.success) {
+      return {
+        success: false,
+        commitSha: commitResult.commitSha,
+        filesCommitted: commitResult.filesCommitted,
+        error: `Commit succeeded but push failed: ${pushResult.error}`,
+      };
+    }
+
+    logger.info("Commit and push successful", { sandboxId, repoFullName, commitSha: commitResult.commitSha });
+    return commitResult;
+  }
+
+  async getCurrentCommitSha(sandboxId: string): Promise<string | null> {
+    const sandbox = this.getSandbox(sandboxId);
+    if (!sandbox) return null;
+    try {
+      const result = await this.runGitCommand(sandbox, ["rev-parse", "HEAD"]);
+      return result.exitCode === 0 ? result.stdout.trim() : null;
+    } catch {
+      return null;
+    }
+  }
+
+  async getLocalCommits(sandboxId: string, limit: number = 10): Promise<Array<{ sha: string; message: string; author: string; date: string }>> {
+    const sandbox = this.getSandbox(sandboxId);
+    if (!sandbox) return [];
+    try {
+      const result = await this.runGitCommand(sandbox, ["log", `--max-count=${limit}`, "--format=%H|%s|%an|%ai"]);
+      if (result.exitCode !== 0) return [];
+      return result.stdout.trim().split("\n").filter((l) => l.trim()).map((line) => {
+        const [sha, message, author, date] = line.split("|");
+        return { sha, message, author, date };
+      });
+    } catch {
+      return [];
+    }
+  }
+}
+
+export const gitSyncService = new GitSyncService();

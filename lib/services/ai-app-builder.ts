@@ -10,15 +10,15 @@ import {
   appSandboxSessions,
   appBuilderPrompts,
   appTemplates,
-  // DEPRECATED: sessionFileSnapshots - File storage now uses GitHub repos
-  // sessionFileSnapshots,
   type AppSandboxSession,
   type NewAppSandboxSession,
   type NewAppBuilderPrompt,
 } from "@/db/schemas/app-sandboxes";
-import { eq, desc, and, isNotNull, sql } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 import { appsService } from "./apps";
 import { githubReposService } from "./github-repos";
+import { gitSyncService } from "./git-sync";
+import { appFactoryService } from "./app-factory";
 
 const EXAMPLE_PROMPTS = {
   chat: getExamplePrompts("chat"),
@@ -176,46 +176,49 @@ export class AIAppBuilderService {
 
     let appId = providedAppId;
     let appApiKey: string | undefined;
+    let appGithubRepo: string | undefined;
 
     if (!appId && appName) {
-      const { app, apiKey } = await appsService.create({
-        name: appName,
-        description:
-          appDescription || `AI-built app (template: ${templateType})`,
-        organization_id: organizationId,
-        created_by_user_id: userId,
-        app_url: "https://placeholder.local",
-        allowed_origins: ["*"],
+      // Use AppFactoryService for unified app creation with GitHub repo
+      const result = await appFactoryService.createApp(
+        {
+          name: appName,
+          description: appDescription || `AI-built app (template: ${templateType})`,
+          organization_id: organizationId,
+          created_by_user_id: userId,
+          app_url: "https://placeholder.local",
+          allowed_origins: ["*"],
+        },
+        { createGitHubRepo: true }
+      );
+
+      appId = result.app.id;
+      appApiKey = result.apiKey;
+      appGithubRepo = result.githubRepo;
+
+      logger.info("Created app for AI builder session", {
+        appId,
+        appName,
+        githubRepo: appGithubRepo,
+        githubRepoCreated: result.githubRepoCreated,
       });
-      appId = app.id;
-      appApiKey = apiKey;
-      logger.info("Created app for AI builder session", { appId, appName });
 
-      try {
-        const repoName = githubReposService.generateRepoName(app.id, app.slug);
-        const repoInfo = await githubReposService.createAppRepo({
-          name: repoName,
-          description: `ElizaCloud App: ${appName}`,
-          isPrivate: true,
-        });
-
-        await appsService.update(app.id, {
-          github_repo: repoInfo.fullName,
-        });
-
-        logger.info("Created GitHub repo for app", {
-          appId: app.id,
-          githubRepo: repoInfo.fullName,
-        });
-      } catch (repoError) {
-        logger.error("Failed to create GitHub repo for app", {
-          appId: app.id,
-          error: repoError instanceof Error ? repoError.message : "Unknown error",
-        });
+      if (result.errors.length > 0) {
+        logger.warn("App creation had warnings", { appId, warnings: result.errors });
       }
     } else if (appId) {
+      // Existing app - regenerate API key and ensure GitHub repo exists
       appApiKey = await appsService.regenerateApiKey(appId);
       logger.info("Regenerated API key for existing app", { appId });
+
+      // Ensure the app has a GitHub repo
+      const repoResult = await appFactoryService.ensureGitHubRepo(appId);
+      if (repoResult.githubRepo) {
+        appGithubRepo = repoResult.githubRepo;
+        if (repoResult.created) {
+          logger.info("Created GitHub repo for existing app", { appId, githubRepo: appGithubRepo });
+        }
+      }
     }
 
     let templateUrl: string | undefined;
@@ -545,34 +548,60 @@ export class AIAppBuilderService {
       durationMs,
     });
 
-    // ===========================================================================
-    // GIT-BASED STORAGE: Post-prompt backup is deprecated.
-    // Files are persisted via git commits to the app's GitHub repo.
-    // ===========================================================================
-    if (result.filesAffected.length > 0) {
-      logger.info("GIT-BASED STORAGE: Files affected by prompt - use git commit to persist", {
-        sessionId,
-        filesAffected: result.filesAffected,
-        migration: "Use git add && git commit to persist changes to app.github_repo",
-      });
-    }
-
-    /* DEPRECATED: DB-BASED POST-PROMPT BACKUP
-    if (result.filesAffected.length > 0) {
-      const maxBackupAttempts = 3;
-      for (let backupAttempt = 1; backupAttempt <= maxBackupAttempts; backupAttempt++) {
-        try {
-          const backupResult = await sandboxService.backupFiles(session.sandbox_id, sessionId, {
-            snapshotType: "prompt_complete",
-            specificFiles: result.filesAffected,
+    // Auto-commit changes to GitHub if files were affected
+    if (result.success && result.filesAffected.length > 0 && session.app_id) {
+      try {
+        const app = await appsService.getById(session.app_id);
+        if (app?.github_repo) {
+          logger.info("Auto-committing changes to GitHub", {
+            sessionId,
+            appId: session.app_id,
+            githubRepo: app.github_repo,
+            filesAffected: result.filesAffected.length,
           });
-          // ... DB-based backup logic ...
-        } catch (backupError) {
-          // ... error handling ...
+
+          const commitResult = await gitSyncService.commitAndPush(
+            {
+              sandboxId: session.sandbox_id,
+              repoFullName: app.github_repo,
+              branch: "main",
+            },
+            {
+              message: `Auto-save: ${result.filesAffected.length} file(s) updated\n\nPrompt: ${prompt.substring(0, 100)}${prompt.length > 100 ? "..." : ""}`,
+              files: result.filesAffected,
+            }
+          );
+
+          if (commitResult.success) {
+            logger.info("Changes committed to GitHub", {
+              sessionId,
+              commitSha: commitResult.commitSha,
+              filesCommitted: commitResult.filesCommitted,
+            });
+
+            // Update session with last commit info
+            await dbWrite
+              .update(appSandboxSessions)
+              .set({
+                last_commit_sha: commitResult.commitSha,
+                updated_at: new Date(),
+              })
+              .where(eq(appSandboxSessions.id, sessionId));
+          } else {
+            logger.warn("Failed to commit changes to GitHub", {
+              sessionId,
+              error: commitResult.error,
+            });
+          }
         }
+      } catch (commitError) {
+        // Don't fail the prompt if commit fails - log and continue
+        logger.warn("Error during auto-commit", {
+          sessionId,
+          error: commitError instanceof Error ? commitError.message : "Unknown error",
+        });
       }
     }
-    */
 
     return result;
   }

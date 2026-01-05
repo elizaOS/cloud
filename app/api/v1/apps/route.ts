@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { appsService } from "@/lib/services/apps";
+import { appFactoryService } from "@/lib/services/app-factory";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
 
@@ -12,6 +13,8 @@ const CreateAppSchema = z.object({
   contact_email: z.string().email().optional(),
   allowed_origins: z.array(z.string()).optional(),
   logo_url: z.string().url().optional(),
+  /** Whether to skip creating a GitHub repository (default: false) */
+  skipGitHubRepo: z.boolean().optional(),
 });
 
 /**
@@ -41,10 +44,10 @@ export async function GET(request: NextRequest) {
 /**
  * POST /api/v1/apps
  * Creates a new app for the authenticated user's organization.
- * Automatically generates an API key for the app.
+ * Automatically generates an API key and GitHub repository for the app.
  *
  * @param request - Request body with app details (name, description, app_url, etc.).
- * @returns Created app details and API key.
+ * @returns Created app details, API key, and GitHub repo info.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -66,29 +69,48 @@ export async function POST(request: NextRequest) {
 
     const data = validationResult.data;
 
-    const result = await appsService.create({
-      name: data.name,
-      description: data.description,
-      organization_id: user.organization_id,
-      created_by_user_id: user.id,
-      app_url: data.app_url,
-      website_url: data.website_url,
-      contact_email: data.contact_email,
-      allowed_origins: data.allowed_origins,
-      logo_url: data.logo_url,
-    });
+    // Use AppFactoryService for unified app creation with GitHub repo
+    const result = await appFactoryService.createApp(
+      {
+        name: data.name,
+        description: data.description,
+        organization_id: user.organization_id,
+        created_by_user_id: user.id,
+        app_url: data.app_url,
+        website_url: data.website_url,
+        contact_email: data.contact_email,
+        allowed_origins: data.allowed_origins,
+        logo_url: data.logo_url,
+      },
+      {
+        createGitHubRepo: !data.skipGitHubRepo,
+      }
+    );
 
     logger.info(`Created app: ${result.app.name}`, {
       appId: result.app.id,
       userId: user.id,
       organizationId: user.organization_id,
+      githubRepo: result.githubRepo,
+      githubRepoCreated: result.githubRepoCreated,
     });
 
-    return NextResponse.json({
+    // Include warnings if there were non-fatal errors
+    const response: Record<string, unknown> = {
       success: true,
       app: result.app,
       apiKey: result.apiKey,
-    });
+    };
+
+    if (result.githubRepo) {
+      response.githubRepo = result.githubRepo;
+    }
+
+    if (result.errors.length > 0) {
+      response.warnings = result.errors;
+    }
+
+    return NextResponse.json(response);
   } catch (error) {
     logger.error("Failed to create app:", error);
     return NextResponse.json(
