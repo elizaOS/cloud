@@ -149,7 +149,7 @@ const nextConfig: NextConfig = {
       config.resolve.alias = config.resolve.alias || {};
       config.resolve.alias["thread-stream"] = path.resolve(
         __dirname,
-        "lib/stubs/thread-stream.ts",
+        "lib/stubs/thread-stream.ts"
       );
     }
 
@@ -161,7 +161,7 @@ const nextConfig: NextConfig = {
           analyzerMode: "static",
           reportFilename: "./analyze/client.html",
           openAnalyzer: false,
-        }),
+        })
       );
     }
 
@@ -213,8 +213,8 @@ const nextConfig: NextConfig = {
               ].join(" "),
               "worker-src 'self' blob:",
               "manifest-src 'self'",
-              // Media - allow self, data URIs, blob URIs, and video placeholder domain
-              "media-src 'self' data: blob: https://video-placeholder.eliza.ai",
+              // Media - allow self, data URIs, blob URIs, Vercel blob storage (for videos), and video placeholder domain
+              "media-src 'self' data: blob: https://*.public.blob.vercel-storage.com https://video-placeholder.eliza.ai",
             ]
               .join("; ")
               .replace(/\s+/g, " "),

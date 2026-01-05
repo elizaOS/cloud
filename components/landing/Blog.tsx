@@ -28,7 +28,7 @@ export default function Blog({ allPosts, publicPosts, categories }: BlogProps) {
     <div className="flex-1 px-4 pt-24 pb-12 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-6xl">
         <div className="mb-8 text-center">
-          <h1 className="text-4xl font-bold text-white sm:text-6xl">Blog</h1>
+          <h1 className="text-4xl font-bold text-white sm:text-6xl">Cloud Blog</h1>
         </div>
 
         <div className="mb-8 sm:flex sm:justify-center">
