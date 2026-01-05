@@ -40,7 +40,7 @@ export default function BlogCard({ post }: BlogCardProps) {
           </div>
         )}
         {!post.image && (
-          <div className="flex aspect-video w-full items-center justify-center bg-gradient-to-br from-orange-500/20 to-orange-600/10">
+          <div className="flex aspect-[1200/630] w-full items-center justify-center bg-gradient-to-br from-orange-500/20 to-orange-600/10">
             <span className="text-4xl text-orange-500/50">✦</span>
           </div>
         )}
