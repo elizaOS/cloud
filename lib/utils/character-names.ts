@@ -64,12 +64,12 @@ export function generateDefaultCharacterName(): string {
 }
 
 /**
- * Create a new default character with random name and avatar.
+ * Create a new default character with blank fields for user to fill in.
  */
 export function createDefaultCharacter(): ElizaCharacter {
-  const name = generateDefaultCharacterName();
   return {
-    name,
+    name: "",
+    username: "",
     bio: "",
     system: "",
     topics: [],
@@ -80,6 +80,5 @@ export function createDefaultCharacter(): ElizaCharacter {
     secrets: {},
     style: {},
     templates: {},
-    avatarUrl: generateDefaultAvatarUrl(name),
   };
 }
