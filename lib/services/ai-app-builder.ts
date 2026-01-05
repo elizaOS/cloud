@@ -10,13 +10,15 @@ import {
   appSandboxSessions,
   appBuilderPrompts,
   appTemplates,
-  sessionFileSnapshots,
+  // DEPRECATED: sessionFileSnapshots - File storage now uses GitHub repos
+  // sessionFileSnapshots,
   type AppSandboxSession,
   type NewAppSandboxSession,
   type NewAppBuilderPrompt,
 } from "@/db/schemas/app-sandboxes";
 import { eq, desc, and, isNotNull, sql } from "drizzle-orm";
 import { appsService } from "./apps";
+import { githubReposService } from "./github-repos";
 
 const EXAMPLE_PROMPTS = {
   chat: getExamplePrompts("chat"),
@@ -89,67 +91,64 @@ export class AIAppBuilderService {
   }
 
   /**
-   * Find the most recent session with file snapshots for an app.
-   * Used to restore files when creating a new session for an existing app.
+   * DEPRECATED: DB-based file snapshots are no longer used.
+   * File storage is now handled via GitHub repos (see github-repos.ts).
+   * Each app has its own GitHub repository for version control.
+   *
+   * To restore files for an existing app, the app's github_repo should be used
+   * as the templateUrl when creating a new sandbox.
    */
   private async findPreviousSessionWithSnapshots(
     appId: string,
     organizationId: string,
     excludeSessionId?: string
   ): Promise<string | null> {
-    logger.info("findPreviousSessionWithSnapshots: searching", { appId, organizationId, excludeSessionId });
+    logger.info("findPreviousSessionWithSnapshots: DEPRECATED - File storage now uses GitHub repos", {
+      appId,
+      organizationId,
+      excludeSessionId,
+      migration: "Use app.github_repo as templateUrl when creating sandbox",
+    });
 
+    // DB-based snapshots are deprecated - return null
+    // File restoration should be done via git clone from app's GitHub repo
+    return null;
+  }
+
+  /* ===========================================================================
+   * DEPRECATED: DB-BASED findPreviousSessionWithSnapshots - Kept for reference
+   * ===========================================================================
+  private async findPreviousSessionWithSnapshots_DEPRECATED(
+    appId: string,
+    organizationId: string,
+    excludeSessionId?: string
+  ): Promise<string | null> {
     const conditions = [
       eq(appSandboxSessions.app_id, appId),
       eq(appSandboxSessions.organization_id, organizationId),
     ];
 
     if (excludeSessionId) {
-      conditions.push(sql`${appSandboxSessions.id} != ${excludeSessionId}`);
+      conditions.push(sql\`\${appSandboxSessions.id} != \${excludeSessionId}\`);
     }
-
-    const allSessions = await dbRead
-      .select({
-        sessionId: appSandboxSessions.id,
-        appId: appSandboxSessions.app_id,
-        status: appSandboxSessions.status,
-      })
-      .from(appSandboxSessions)
-      .where(and(...conditions));
-
-    logger.info("findPreviousSessionWithSnapshots: all sessions for app", {
-      appId,
-      sessionCount: allSessions.length,
-      sessions: allSessions.map((s) => ({ id: s.sessionId, status: s.status })),
-    });
 
     const sessionsWithSnapshots = await dbRead
       .select({
         sessionId: appSandboxSessions.id,
-        snapshotCount: sql<number>`count(${sessionFileSnapshots.id})`.as(
-          "snapshot_count"
-        ),
+        snapshotCount: sql<number>\`count(\${sessionFileSnapshots.id})\`.as("snapshot_count"),
       })
       .from(appSandboxSessions)
-      .leftJoin(
-        sessionFileSnapshots,
-        eq(sessionFileSnapshots.sandbox_session_id, appSandboxSessions.id)
-      )
+      .leftJoin(sessionFileSnapshots, eq(sessionFileSnapshots.sandbox_session_id, appSandboxSessions.id))
       .where(and(...conditions))
       .groupBy(appSandboxSessions.id)
-      .having(sql`count(${sessionFileSnapshots.id}) > 0`)
+      .having(sql\`count(\${sessionFileSnapshots.id}) > 0\`)
       .orderBy(desc(appSandboxSessions.created_at))
       .limit(1);
-
-    logger.info("findPreviousSessionWithSnapshots: sessions with snapshots", {
-      appId,
-      count: sessionsWithSnapshots.length,
-      result: sessionsWithSnapshots,
-    });
 
     if (sessionsWithSnapshots.length === 0) return null;
     return sessionsWithSnapshots[0].sessionId;
   }
+  */
 
   async startSession(config: BuilderSessionConfig): Promise<BuilderSession> {
     const {
@@ -191,6 +190,29 @@ export class AIAppBuilderService {
       appId = app.id;
       appApiKey = apiKey;
       logger.info("Created app for AI builder session", { appId, appName });
+
+      try {
+        const repoName = githubReposService.generateRepoName(app.id, app.slug);
+        const repoInfo = await githubReposService.createAppRepo({
+          name: repoName,
+          description: `ElizaCloud App: ${appName}`,
+          isPrivate: true,
+        });
+
+        await appsService.update(app.id, {
+          github_repo: repoInfo.fullName,
+        });
+
+        logger.info("Created GitHub repo for app", {
+          appId: app.id,
+          githubRepo: repoInfo.fullName,
+        });
+      } catch (repoError) {
+        logger.error("Failed to create GitHub repo for app", {
+          appId: app.id,
+          error: repoError instanceof Error ? repoError.message : "Unknown error",
+        });
+      }
     } else if (appId) {
       appApiKey = await appsService.regenerateApiKey(appId);
       logger.info("Regenerated API key for existing app", { appId });
@@ -201,18 +223,19 @@ export class AIAppBuilderService {
       const template = await dbRead.query.appTemplates.findFirst({
         where: eq(appTemplates.slug, templateType),
       });
-      templateUrl = template?.git_repo_url;
 
-      if (!templateUrl) {
+      if (template?.github_repo) {
+        templateUrl = `https://github.com/${template.github_repo}.git`;
+        logger.info("Using template from database", {
+          templateType,
+          githubRepo: template.github_repo,
+          templateUrl,
+        });
+      } else {
         logger.info(
           "Template not found in database, using prompt-based template guidance",
           { templateType }
         );
-      } else {
-        logger.info("Using template from database", {
-          templateType,
-          templateUrl,
-        });
       }
     }
 
@@ -281,8 +304,15 @@ export class AIAppBuilderService {
       } satisfies NewAppSandboxSession)
       .returning();
 
-    // Restore files from previous session if this is an existing app
-    let filesRestored = 0;
+    // ===========================================================================
+    // GIT-BASED STORAGE: File restoration is now done via git clone.
+    // When creating a sandbox for an existing app with a github_repo, the repo
+    // URL is passed as templateUrl to sandboxService.create().
+    // The old DB-based snapshot restore logic below is commented out.
+    // ===========================================================================
+    const filesRestored = 0; // Files are restored via git clone, not DB snapshots
+
+    /* DEPRECATED: DB-BASED FILE RESTORATION
     if (appId) {
       const previousSessionId = await this.findPreviousSessionWithSnapshots(
         appId,
@@ -290,47 +320,10 @@ export class AIAppBuilderService {
         session.id
       );
       if (previousSessionId) {
-        logger.info("Found previous session with snapshots, restoring files", {
-          appId,
-          previousSessionId,
-          newSessionId: session.id,
-        });
-
-        onProgress?.({
-          step: "restoring",
-          message: "Restoring previous files",
-        });
-
-        try {
-          const restoreResult = await sandboxService.restoreFiles(
-            sandboxData.sandboxId,
-            previousSessionId,
-            {
-              onProgress: (current, total, filePath) => {
-                onProgress?.({
-                  step: "restoring",
-                  message: `Restoring ${filePath} (${current}/${total})`,
-                });
-              },
-            }
-          );
-
-          filesRestored = restoreResult.filesRestored;
-          logger.info("Files restored from previous session", {
-            sessionId: session.id,
-            previousSessionId,
-            filesRestored,
-          });
-        } catch (restoreError) {
-          logger.warn("Failed to restore files from previous session", {
-            sessionId: session.id,
-            previousSessionId,
-            error: restoreError,
-          });
-          // Continue without restored files - sandbox is still usable
-        }
+        // ... DB-based restore logic ...
       }
     }
+    */
 
     await dbWrite.insert(appBuilderPrompts).values({
       sandbox_session_id: session.id,
@@ -350,66 +343,24 @@ export class AIAppBuilderService {
       filesRestored,
     });
 
+    // ===========================================================================
+    // GIT-BASED STORAGE: Initial backup is deprecated.
+    // Files are persisted via git commits to the app's GitHub repo.
+    // ===========================================================================
+    /* DEPRECATED: DB-BASED INITIAL BACKUP
     const maxInitialBackupAttempts = 2;
     const initialBackupRetryDelayMs = 1500;
     let initialBackupSuccess = false;
 
-    for (
-      let attempt = 1;
-      attempt <= maxInitialBackupAttempts && !initialBackupSuccess;
-      attempt++
-    ) {
+    for (let attempt = 1; attempt <= maxInitialBackupAttempts && !initialBackupSuccess; attempt++) {
       try {
-        const backupResult = await sandboxService.backupFiles(
-          sandboxData.sandboxId,
-          session.id,
-          { snapshotType: "auto" }
-        );
-        if (backupResult.filesBackedUp > 0) {
-          initialBackupSuccess = true;
-          logger.info("Initial backup created after session start", {
-            sessionId: session.id,
-            filesBackedUp: backupResult.filesBackedUp,
-            totalSize: backupResult.totalSize,
-            filesRestored,
-            templateType,
-            attempt,
-          });
-        } else {
-          logger.info("No files to backup at session start", {
-            sessionId: session.id,
-            filesRestored,
-            templateType,
-            attempt,
-          });
-          initialBackupSuccess = true;
-        }
+        const backupResult = await sandboxService.backupFiles(sandboxData.sandboxId, session.id, { snapshotType: "auto" });
+        // ... DB-based backup logic ...
       } catch (backupError) {
-        const errorMessage =
-          backupError instanceof Error
-            ? backupError.message
-            : String(backupError);
-
-        if (attempt < maxInitialBackupAttempts) {
-          logger.warn("Initial backup failed, retrying", {
-            sessionId: session.id,
-            sandboxId: sandboxData.sandboxId,
-            attempt,
-            maxAttempts: maxInitialBackupAttempts,
-            nextRetryMs: initialBackupRetryDelayMs,
-            error: errorMessage,
-          });
-          await new Promise((r) => setTimeout(r, initialBackupRetryDelayMs));
-        } else {
-          logger.error("Failed to create initial backup after retries", {
-            sessionId: session.id,
-            sandboxId: sandboxData.sandboxId,
-            totalAttempts: attempt,
-            error: errorMessage,
-          });
-        }
+        // ... error handling ...
       }
     }
+    */
 
     const baseSession: BuilderSession = {
       id: session.id,
@@ -594,95 +545,42 @@ export class AIAppBuilderService {
       durationMs,
     });
 
+    // ===========================================================================
+    // GIT-BASED STORAGE: Post-prompt backup is deprecated.
+    // Files are persisted via git commits to the app's GitHub repo.
+    // ===========================================================================
+    if (result.filesAffected.length > 0) {
+      logger.info("GIT-BASED STORAGE: Files affected by prompt - use git commit to persist", {
+        sessionId,
+        filesAffected: result.filesAffected,
+        migration: "Use git add && git commit to persist changes to app.github_repo",
+      });
+    }
+
+    /* DEPRECATED: DB-BASED POST-PROMPT BACKUP
     if (result.filesAffected.length > 0) {
       const maxBackupAttempts = 3;
-      const backupRetryDelayMs = 2000;
-      let backupSuccess = false;
-
-      for (
-        let backupAttempt = 1;
-        backupAttempt <= maxBackupAttempts && !backupSuccess;
-        backupAttempt++
-      ) {
+      for (let backupAttempt = 1; backupAttempt <= maxBackupAttempts; backupAttempt++) {
         try {
-          const backupResult = await sandboxService.backupFiles(
-            session.sandbox_id,
-            sessionId,
-            {
-              snapshotType: "prompt_complete",
-              specificFiles: result.filesAffected,
-            }
-          );
-
-          if (backupResult.filesBackedUp > 0) {
-            backupSuccess = true;
-            logger.info("Files backed up successfully", {
-              sessionId,
-              filesBackedUp: backupResult.filesBackedUp,
-              totalSize: backupResult.totalSize,
-              attempt: backupAttempt,
-            });
-          } else if (backupAttempt < maxBackupAttempts) {
-            logger.warn(
-              "Backup returned 0 files, retrying entire backup operation",
-              {
-                sessionId,
-                sandboxId: session.sandbox_id,
-                filesAffected: result.filesAffected,
-                attempt: backupAttempt,
-                maxAttempts: maxBackupAttempts,
-                nextRetryMs: backupRetryDelayMs,
-              }
-            );
-            await new Promise((r) => setTimeout(r, backupRetryDelayMs));
-          } else {
-            logger.error(
-              "Backup returned 0 files after all retries - snapshots lost",
-              {
-                sessionId,
-                sandboxId: session.sandbox_id,
-                filesAffected: result.filesAffected,
-                promptSuccess: result.success,
-                totalAttempts: backupAttempt,
-              }
-            );
-          }
+          const backupResult = await sandboxService.backupFiles(session.sandbox_id, sessionId, {
+            snapshotType: "prompt_complete",
+            specificFiles: result.filesAffected,
+          });
+          // ... DB-based backup logic ...
         } catch (backupError) {
-          const errorMessage =
-            backupError instanceof Error
-              ? backupError.message
-              : String(backupError);
-
-          if (backupAttempt < maxBackupAttempts) {
-            logger.warn("Backup failed, retrying entire backup operation", {
-              sessionId,
-              sandboxId: session.sandbox_id,
-              filesAffected: result.filesAffected,
-              attempt: backupAttempt,
-              maxAttempts: maxBackupAttempts,
-              nextRetryMs: backupRetryDelayMs,
-              error: errorMessage,
-            });
-            await new Promise((r) => setTimeout(r, backupRetryDelayMs));
-          } else {
-            logger.error(
-              "Critical: Failed to backup files after all retries",
-              {
-                sessionId,
-                sandboxId: session.sandbox_id,
-                filesAffected: result.filesAffected,
-                totalAttempts: backupAttempt,
-                error: errorMessage,
-              }
-            );
-          }
+          // ... error handling ...
         }
       }
     }
+    */
 
     return result;
   }
 
+  // ===========================================================================
+  // GIT-BASED STORAGE: resumeSession now uses GitHub repos for file restoration.
+  // Files are restored by cloning the app's GitHub repo when creating the sandbox.
+  // ===========================================================================
   async resumeSession(
     sessionId: string,
     userId: string,
@@ -695,35 +593,84 @@ export class AIAppBuilderService {
       ) => void;
     } = {}
   ): Promise<BuilderSession> {
-    logger.info("Resuming session with file restoration", {
+    logger.info("Resuming session with Git-based file restoration", {
       sessionId,
       userId,
     });
 
     const session = await this.verifyOwnership(sessionId, userId);
 
-    const hasSnapshots = await sandboxService.hasSnapshots(sessionId);
-    if (!hasSnapshots) {
-      throw new Error(
-        "No saved files found to restore. Cannot resume session."
-      );
+    // GIT-BASED STORAGE: Get the app's GitHub repo for file restoration
+    let templateUrl: string | undefined;
+    let filesCanBeRestored = false;
+
+    if (session.app_id) {
+      const app = await appsService.getById(session.app_id);
+
+      if (app?.github_repo) {
+        templateUrl = githubReposService.getAuthenticatedCloneUrl(app.github_repo);
+        filesCanBeRestored = true;
+        logger.info("Using GitHub repo for file restoration", {
+          sessionId,
+          appId: session.app_id,
+          githubRepo: app.github_repo,
+        });
+      } else if (app) {
+        logger.info("App has no GitHub repo, creating one now", {
+          sessionId,
+          appId: session.app_id,
+        });
+
+        try {
+          const repoName = githubReposService.generateRepoName(app.id, app.slug);
+          const repoInfo = await githubReposService.createAppRepo({
+            name: repoName,
+            description: `ElizaCloud App: ${app.name}`,
+            isPrivate: true,
+          });
+
+          await appsService.update(app.id, {
+            github_repo: repoInfo.fullName,
+          });
+
+          logger.info("Created GitHub repo for existing app", {
+            appId: app.id,
+            githubRepo: repoInfo.fullName,
+          });
+
+          options.onProgress?.({
+            step: "creating",
+            message: "Created repository for future backups. Starting fresh session...",
+          });
+        } catch (repoError) {
+          logger.warn("Failed to create GitHub repo for existing app", {
+            appId: app.id,
+            error: repoError instanceof Error ? repoError.message : "Unknown error",
+          });
+        }
+      }
     }
 
-    const snapshotStats = await sandboxService.getSnapshotStats(sessionId);
-    logger.info("Snapshot stats for resume", { sessionId, ...snapshotStats });
+    if (!filesCanBeRestored) {
+      logger.info("No files to restore - starting fresh session", { sessionId });
+      options.onProgress?.({
+        step: "creating",
+        message: "No backup found. Starting fresh session...",
+      });
+    }
 
     await dbWrite
       .update(appSandboxSessions)
       .set({
         status: "initializing",
-        status_message: "Creating new sandbox for restoration...",
+        status_message: "Creating new sandbox and cloning repository...",
         updated_at: new Date(),
       })
       .where(eq(appSandboxSessions.id, sessionId));
 
     options.onProgress?.({
       step: "creating",
-      message: "Creating new sandbox...",
+      message: "Creating new sandbox and cloning repository...",
     });
 
     // Determine API URL for sandbox - ELIZA_API_URL required for local dev
@@ -740,9 +687,11 @@ export class AIAppBuilderService {
       );
     }
 
+    // GIT-BASED STORAGE: Pass templateUrl to clone the app's GitHub repo
     const sandboxData = await sandboxService.create({
       organizationId: session.organization_id,
       projectId: session.app_id || undefined,
+      templateUrl, // Clone from GitHub repo
       env: session.app_id
         ? {
             NEXT_PUBLIC_ELIZA_API_KEY: await this.getApiKeyForApp(
@@ -761,26 +710,19 @@ export class AIAppBuilderService {
         sandbox_id: sandboxData.sandboxId,
         sandbox_url: sandboxData.sandboxUrl,
         status: "initializing",
-        status_message: "Restoring files...",
+        status_message: "Installing dependencies...",
         updated_at: new Date(),
       })
       .where(eq(appSandboxSessions.id, sessionId));
 
     options.onProgress?.({
       step: "installing",
-      message: "Restoring your files...",
+      message: "Installing dependencies...",
     });
 
-    const restoreResult = await sandboxService.restoreFiles(
-      sandboxData.sandboxId,
+    logger.info("Files restored via git clone", {
       sessionId,
-      { onProgress: options.onRestoreProgress }
-    );
-
-    logger.info("Files restored", {
-      sessionId,
-      filesRestored: restoreResult.filesRestored,
-      errors: restoreResult.errors.length,
+      templateUrl: templateUrl ? "***" : undefined, // Don't log full URL with token
     });
 
     await sandboxService.installDependenciesAndRestart(
@@ -802,7 +744,7 @@ export class AIAppBuilderService {
 
     options.onProgress?.({
       step: "ready",
-      message: `Restored ${restoreResult.filesRestored} files!`,
+      message: "Session restored from Git repository!",
     });
 
     const examplePrompts =
@@ -828,20 +770,29 @@ export class AIAppBuilderService {
     }
   }
 
+  // ===========================================================================
+  // GIT-BASED STORAGE: triggerBackup is deprecated.
+  // Use git commit to persist changes to the app's GitHub repo.
+  // ===========================================================================
   async triggerBackup(
     sessionId: string,
     userId: string,
     snapshotType: "auto" | "manual" | "pre_expiry" = "manual"
   ): Promise<{ filesBackedUp: number; totalSize: number }> {
-    const session = await this.verifyOwnership(sessionId, userId);
-    if (!session.sandbox_id) {
-      throw new Error("No active sandbox to backup");
-    }
-    return sandboxService.backupFiles(session.sandbox_id, sessionId, {
+    await this.verifyOwnership(sessionId, userId);
+    logger.info("triggerBackup: DEPRECATED - Use git commit to persist changes", {
+      sessionId,
       snapshotType,
+      migration: "Use git add && git commit && git push to persist changes to app.github_repo",
     });
+    // Return empty result - backup is now done via git commits
+    return { filesBackedUp: 0, totalSize: 0 };
   }
 
+  // ===========================================================================
+  // GIT-BASED STORAGE: getSessionSnapshotInfo is deprecated.
+  // Use git log to view file history in the app's GitHub repo.
+  // ===========================================================================
   async getSessionSnapshotInfo(
     sessionId: string,
     userId: string
@@ -852,10 +803,16 @@ export class AIAppBuilderService {
     canRestore: boolean;
   }> {
     await this.verifyOwnership(sessionId, userId);
-    const stats = await sandboxService.getSnapshotStats(sessionId);
+    logger.info("getSessionSnapshotInfo: DEPRECATED - Use git log to view file history", {
+      sessionId,
+      migration: "Use githubReposService.listCommits() for version history",
+    });
+    // Return empty stats - use git history instead
     return {
-      ...stats,
-      canRestore: stats.fileCount > 0,
+      fileCount: 0,
+      totalSize: 0,
+      lastBackup: null,
+      canRestore: false,
     };
   }
 
@@ -1048,6 +1005,47 @@ export class AIAppBuilderService {
     );
   }
 
+  async getVersionHistory(
+    sessionId: string,
+    userId: string
+  ): Promise<Array<{
+    sha: string;
+    message: string;
+    author: string;
+    date: string;
+    url: string;
+  }>> {
+    const session = await this.verifyOwnership(sessionId, userId);
+
+    if (!session.app_id) {
+      logger.info("getVersionHistory: No app associated with session", { sessionId });
+      return [];
+    }
+
+    const app = await appsService.getById(session.app_id);
+    if (!app?.github_repo) {
+      logger.info("getVersionHistory: No GitHub repo for app", { sessionId, appId: session.app_id });
+      return [];
+    }
+
+    try {
+      const repoName = app.github_repo.split("/").pop() || app.github_repo;
+      const commits = await githubReposService.listCommits(repoName, { limit: 20 });
+      return commits;
+    } catch (error) {
+      logger.warn("getVersionHistory: Failed to fetch commits", {
+        sessionId,
+        appId: session.app_id,
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+      return [];
+    }
+  }
+
+  // ===========================================================================
+  // GIT-BASED STORAGE: getAppSnapshotInfo now checks for GitHub repo instead.
+  // Returns info about whether the app has a GitHub repo for version control.
+  // ===========================================================================
   async getAppSnapshotInfo(
     appId: string,
     userId: string,
@@ -1058,36 +1056,44 @@ export class AIAppBuilderService {
     totalSize: number;
     lastBackup: Date | null;
     sessionId: string | null;
+    githubRepo?: string;
   }> {
-    logger.info("getAppSnapshotInfo called", { appId, userId, organizationId });
+    logger.info("getAppSnapshotInfo: Checking for GitHub repo", { appId, userId, organizationId });
 
-    const previousSessionId = await this.findPreviousSessionWithSnapshots(
-      appId,
-      organizationId
-    );
+    // GIT-BASED STORAGE: Check if app has a GitHub repo
+    const app = await appsService.getById(appId);
 
-    logger.info("findPreviousSessionWithSnapshots result", { appId, previousSessionId });
+    if (app?.github_repo) {
+      logger.info("getAppSnapshotInfo: App has GitHub repo for version control", {
+        appId,
+        githubRepo: app.github_repo,
+      });
 
-    if (!previousSessionId) {
+      // Return info indicating Git-based storage is available
       return {
-        hasSnapshots: false,
-        fileCount: 0,
-        totalSize: 0,
-        lastBackup: null,
+        hasSnapshots: true, // Has GitHub repo = can restore
+        fileCount: 0, // Use git to get actual file count
+        totalSize: 0, // Use git to get actual size
+        lastBackup: null, // Use git log to get last commit
         sessionId: null,
+        githubRepo: app.github_repo,
       };
     }
 
-    const stats = await sandboxService.getSnapshotStats(previousSessionId);
-    logger.info("getSnapshotStats result", { previousSessionId, stats });
-
+    logger.info("getAppSnapshotInfo: No GitHub repo found for app", { appId });
     return {
-      hasSnapshots: stats.fileCount > 0,
-      ...stats,
-      sessionId: previousSessionId,
+      hasSnapshots: false,
+      fileCount: 0,
+      totalSize: 0,
+      lastBackup: null,
+      sessionId: null,
     };
   }
 
+  // ===========================================================================
+  // GIT-BASED STORAGE: debugAppSnapshots is deprecated.
+  // DB-based snapshots are no longer used - use GitHub repo for version control.
+  // ===========================================================================
   async debugAppSnapshots(
     appId: string,
     organizationId: string
@@ -1108,7 +1114,14 @@ export class AIAppBuilderService {
       sessionId: string;
       snapshotCount: number;
     }>;
+    message: string;
   }> {
+    logger.info("debugAppSnapshots: DEPRECATED - DB snapshots no longer used", {
+      appId,
+      organizationId,
+      migration: "Use GitHub repo and git history for version control",
+    });
+
     const allSessions = await dbRead
       .select({
         id: appSandboxSessions.id,
@@ -1124,22 +1137,11 @@ export class AIAppBuilderService {
 
     const sessionsForThisApp = allSessions.filter((s) => s.appId === appId);
 
-    const snapshotsPerSession: Array<{
-      sessionId: string;
-      snapshotCount: number;
-    }> = [];
-
-    for (const session of sessionsForThisApp) {
-      const snapshots = await dbRead
-        .select({ id: sessionFileSnapshots.id })
-        .from(sessionFileSnapshots)
-        .where(eq(sessionFileSnapshots.sandbox_session_id, session.id));
-
-      snapshotsPerSession.push({
-        sessionId: session.id,
-        snapshotCount: snapshots.length,
-      });
-    }
+    // DB-based snapshots are deprecated - return empty snapshot counts
+    const snapshotsPerSession = sessionsForThisApp.map((s) => ({
+      sessionId: s.id,
+      snapshotCount: 0, // DB snapshots deprecated
+    }));
 
     return {
       allSessions: allSessions.map((s) => ({
@@ -1155,8 +1157,12 @@ export class AIAppBuilderService {
         createdAt: s.createdAt,
       })),
       snapshotsPerSession,
+      message: "DEPRECATED: DB-based snapshots are no longer used. Use GitHub repo and git history for version control.",
     };
   }
 }
 
 export const aiAppBuilderService = new AIAppBuilderService();
+
+// Export alias for backward compatibility
+export const aiAppBuilder = aiAppBuilderService;

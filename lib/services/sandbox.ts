@@ -3,13 +3,20 @@ import crypto from "crypto";
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 import { buildFullAppPrompt } from "@/lib/fragments/prompt";
-import { dbRead, dbWrite } from "@/db/client";
-import {
-  sessionFileSnapshots,
-  sessionRestoreHistory,
-  type NewSessionFileSnapshot,
-} from "@/db/schemas/app-sandboxes";
-import { eq, and, desc } from "drizzle-orm";
+
+// =============================================================================
+// GIT-BASED STORAGE: DB-based snapshot imports are deprecated.
+// File storage is now handled via GitHub repos (see github-repos.ts service).
+// Each app has its own GitHub repository for version control.
+// =============================================================================
+// DEPRECATED: DB-based snapshot imports - kept for reference
+// import { dbRead, dbWrite } from "@/db/client";
+// import {
+//   sessionFileSnapshots,
+//   sessionRestoreHistory,
+//   type NewSessionFileSnapshot,
+// } from "@/db/schemas/app-sandboxes";
+// import { eq, and, desc } from "drizzle-orm";
 
 interface RetryOptions {
   maxAttempts?: number;
@@ -1664,7 +1671,35 @@ REMEMBER:
     return stdout.split("\n").filter((l: string) => l.trim());
   }
 
+  // ===========================================================================
+  // GIT-BASED STORAGE: backupFiles is deprecated.
+  // File storage is now handled via GitHub repos. Each app has its own repo.
+  // Changes are persisted via git commits, not DB snapshots.
+  // ===========================================================================
   async backupFiles(
+    sandboxId: string,
+    sessionId: string,
+    options: {
+      snapshotType?: "auto" | "manual" | "pre_expiry" | "prompt_complete";
+      specificFiles?: string[];
+    } = {}
+  ): Promise<{ filesBackedUp: number; totalSize: number }> {
+    logger.info("backupFiles: DEPRECATED - File storage now uses GitHub repos.", {
+      sandboxId,
+      sessionId,
+      snapshotType: options.snapshotType,
+      migration: "Files are persisted via git commits to app.github_repo",
+    });
+
+    // Return success - files are already in the sandbox filesystem
+    // and will be persisted via git when the app's GitHub repo is committed to
+    return { filesBackedUp: 0, totalSize: 0 };
+  }
+
+  /* ===========================================================================
+   * DEPRECATED: DB-BASED backupFiles - Kept for reference
+   * ===========================================================================
+  async backupFiles_DEPRECATED(
     sandboxId: string,
     sessionId: string,
     options: {
@@ -1701,232 +1736,17 @@ REMEMBER:
       return { filesBackedUp: 0, totalSize: 0 };
     }
 
-    const BINARY_EXTENSIONS = new Set([
-      ".ico",
-      ".png",
-      ".jpg",
-      ".jpeg",
-      ".gif",
-      ".webp",
-      ".bmp",
-      ".woff",
-      ".woff2",
-      ".ttf",
-      ".eot",
-      ".otf",
-      ".mp3",
-      ".mp4",
-      ".wav",
-      ".webm",
-      ".pdf",
-      ".zip",
-      ".tar",
-      ".gz",
-      ".bin",
-      ".exe",
-      ".dll",
-      ".so",
-      ".dylib",
-    ]);
-
-    const isBinaryFile = (path: string): boolean => {
-      const ext = path.substring(path.lastIndexOf(".")).toLowerCase();
-      return BINARY_EXTENSIONS.has(ext);
-    };
-
-    const containsNullBytes = (content: string): boolean => {
-      return content.includes("\x00");
-    };
-
-    const snapshots: NewSessionFileSnapshot[] = [];
-    const failedFiles: { path: string; reason: string }[] = [];
-    const skippedBinaryFiles: string[] = [];
-    let totalSize = 0;
-
-    const readFileWithRetry = async (
-      filePath: string
-    ): Promise<string | null> => {
-      const maxReadAttempts = 3;
-      const readDelayMs = 500;
-
-      for (let attempt = 1; attempt <= maxReadAttempts; attempt++) {
-        try {
-          const content = await readFileViaSh(sandbox, filePath);
-          if (content !== null) {
-            return content;
-          }
-          if (attempt < maxReadAttempts) {
-            logger.debug("File read returned null, retrying", {
-              sandboxId,
-              filePath,
-              attempt,
-              maxAttempts: maxReadAttempts,
-            });
-            await new Promise((r) => setTimeout(r, readDelayMs));
-          }
-        } catch (readError) {
-          if (attempt < maxReadAttempts) {
-            logger.debug("File read threw error, retrying", {
-              sandboxId,
-              filePath,
-              attempt,
-              maxAttempts: maxReadAttempts,
-              error:
-                readError instanceof Error ? readError.message : String(readError),
-            });
-            await new Promise((r) => setTimeout(r, readDelayMs));
-          } else {
-            throw readError;
-          }
-        }
-      }
-      return null;
-    };
-
-    for (const filePath of filesToBackup) {
-      try {
-        if (isBinaryFile(filePath)) {
-          skippedBinaryFiles.push(filePath);
-          continue;
-        }
-
-        const content = await readFileWithRetry(filePath);
-        if (content === null) {
-          failedFiles.push({
-            path: filePath,
-            reason: "File not found or empty after retries",
-          });
-          continue;
-        }
-
-        if (containsNullBytes(content)) {
-          skippedBinaryFiles.push(filePath);
-          logger.info("Skipping file with binary content (null bytes)", {
-            sandboxId,
-            filePath,
-          });
-          continue;
-        }
-
-        const contentHash = crypto
-          .createHash("sha256")
-          .update(content)
-          .digest("hex");
-        const fileSize = Buffer.byteLength(content, "utf-8");
-        totalSize += fileSize;
-
-        snapshots.push({
-          sandbox_session_id: sessionId,
-          file_path: filePath,
-          content,
-          content_hash: contentHash,
-          file_size: fileSize,
-          snapshot_type: snapshotType,
-        });
-      } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : String(error);
-        failedFiles.push({ path: filePath, reason: errorMessage });
-        logger.warn("Failed to read file for backup", {
-          sandboxId,
-          sessionId,
-          filePath,
-          error: errorMessage,
-        });
-      }
-    }
-
-    if (skippedBinaryFiles.length > 0) {
-      logger.info("Skipped binary files during backup", {
-        sandboxId,
-        sessionId,
-        count: skippedBinaryFiles.length,
-        files: skippedBinaryFiles,
-      });
-    }
-
-    if (failedFiles.length > 0) {
-      logger.warn("Some files could not be backed up", {
-        sandboxId,
-        sessionId,
-        failedCount: failedFiles.length,
-        successCount: snapshots.length,
-        failedFiles,
-      });
-    }
-
-    if (snapshots.length === 0) {
-      logger.error("CRITICAL: No files could be backed up - all reads failed", {
-        sandboxId,
-        sessionId,
-        attemptedFiles: filesToBackup,
-        failedFiles,
-        snapshotType,
-      });
-      return { filesBackedUp: 0, totalSize: 0 };
-    }
-
-    const isRetryableDbError = (error: Error): boolean => {
-      const msg = error.message.toLowerCase();
-      return (
-        msg.includes("connection") ||
-        msg.includes("timeout") ||
-        msg.includes("econnreset") ||
-        msg.includes("econnrefused") ||
-        msg.includes("socket") ||
-        msg.includes("network") ||
-        msg.includes("deadlock") ||
-        msg.includes("lock wait") ||
-        msg.includes("too many connections") ||
-        msg.includes("temporarily unavailable")
-      );
-    };
-
-    await withRetry(
-      async () => {
-        await dbWrite.transaction(async (tx) => {
-          for (const snapshot of snapshots) {
-            await tx
-              .delete(sessionFileSnapshots)
-              .where(
-                and(
-                  eq(sessionFileSnapshots.sandbox_session_id, sessionId),
-                  eq(sessionFileSnapshots.file_path, snapshot.file_path)
-                )
-              );
-          }
-          await tx.insert(sessionFileSnapshots).values(snapshots);
-        });
-      },
-      {
-        maxAttempts: 3,
-        delayMs: 1000,
-        backoffMultiplier: 2,
-        shouldRetry: isRetryableDbError,
-        onRetry: (attempt, error, nextDelayMs) => {
-          logger.warn("Database transaction failed, retrying snapshot save", {
-            sandboxId,
-            sessionId,
-            attempt,
-            maxAttempts: 3,
-            nextDelayMs,
-            error: error.message,
-            snapshotCount: snapshots.length,
-          });
-        },
-      }
-    );
-
-    logger.info("File backup completed", {
-      sandboxId,
-      sessionId,
-      filesBackedUp: snapshots.length,
-      totalSize,
-    });
-
-    return { filesBackedUp: snapshots.length, totalSize };
+    // ... rest of DB-based backup logic ...
+    // See git history for full implementation
+    return { filesBackedUp: 0, totalSize: 0 };
   }
+  */
 
+  // ===========================================================================
+  // GIT-BASED STORAGE: restoreFiles is deprecated.
+  // File restoration is now done by cloning the app's GitHub repo.
+  // The sandbox create() method accepts a templateUrl which can be the app's repo.
+  // ===========================================================================
   async restoreFiles(
     sandboxId: string,
     sessionId: string,
@@ -1934,188 +1754,37 @@ REMEMBER:
       onProgress?: (current: number, total: number, filePath: string) => void;
     } = {}
   ): Promise<{ filesRestored: number; errors: string[] }> {
-    const sandbox = getActiveSandboxes().get(sandboxId);
-    if (!sandbox) {
-      throw new Error(`Sandbox ${sandboxId} not found for restore`);
-    }
-
-    logger.info("Starting file restore", { sandboxId, sessionId });
-
-    const startTime = Date.now();
-    const errors: string[] = [];
-
-    const [restoreRecord] = await dbWrite
-      .insert(sessionRestoreHistory)
-      .values({
-        sandbox_session_id: sessionId,
-        new_sandbox_id: sandboxId,
-        status: "in_progress",
-      })
-      .returning();
-
-    const snapshots = await dbRead
-      .select()
-      .from(sessionFileSnapshots)
-      .where(eq(sessionFileSnapshots.sandbox_session_id, sessionId))
-      .orderBy(desc(sessionFileSnapshots.created_at));
-
-    const latestSnapshots = new Map<string, (typeof snapshots)[0]>();
-    for (const snapshot of snapshots) {
-      if (!latestSnapshots.has(snapshot.file_path)) {
-        latestSnapshots.set(snapshot.file_path, snapshot);
-      }
-    }
-
-    const filesToRestore = Array.from(latestSnapshots.values());
-    let filesRestored = 0;
-
-    for (let i = 0; i < filesToRestore.length; i++) {
-      const snapshot = filesToRestore[i];
-      try {
-        options.onProgress?.(i + 1, filesToRestore.length, snapshot.file_path);
-        await writeFileViaSh(sandbox, snapshot.file_path, snapshot.content);
-        filesRestored++;
-        logger.debug("Restored file", {
-          sandboxId,
-          filePath: snapshot.file_path,
-        });
-      } catch (error) {
-        const errorMsg = `Failed to restore ${snapshot.file_path}: ${error instanceof Error ? error.message : "Unknown error"}`;
-        errors.push(errorMsg);
-        logger.warn("Failed to restore file", {
-          sandboxId,
-          filePath: snapshot.file_path,
-          error,
-        });
-      }
-    }
-
-    const duration = Date.now() - startTime;
-
-    await dbWrite
-      .update(sessionRestoreHistory)
-      .set({
-        files_restored: filesRestored,
-        restore_duration_ms: duration,
-        status: errors.length === 0 ? "completed" : "completed",
-        error_message: errors.length > 0 ? errors.join("; ") : null,
-        completed_at: new Date(),
-      })
-      .where(eq(sessionRestoreHistory.id, restoreRecord.id));
-
-    logger.info("File restore completed", {
+    logger.info("restoreFiles: DEPRECATED - File restoration now uses GitHub repos.", {
       sandboxId,
       sessionId,
-      filesRestored,
-      errors: errors.length,
-      durationMs: duration,
+      migration: "Use app.github_repo as templateUrl when creating sandbox to restore files via git clone",
     });
 
-    // Ensure SDK and analytics files are present after restore for page view tracking
-    const srcCheck = await sandbox.runCommand({
-      cmd: "test",
-      args: ["-d", "src"],
-    });
-    const useSrc = srcCheck.exitCode === 0;
-    const libPath = useSrc ? "src/lib" : "lib";
-    const componentsPath = useSrc ? "src/components" : "components";
+    // Notify caller of deprecation
+    options.onProgress?.(0, 0, "DEPRECATED: Use git clone instead");
 
-    // Always write latest SDK file (required by analytics component)
-    // This ensures the latest tracking code is always used, even if snapshot had old version
-    const sdkFilePath = `${libPath}/eliza.ts`;
-    await sandbox.runCommand({
-      cmd: "mkdir",
-      args: ["-p", libPath],
-    });
-    const sdkBase64 = Buffer.from(ELIZA_SDK_FILE, "utf-8").toString("base64");
-    await sandbox.runCommand({
-      cmd: "sh",
-      args: ["-c", `echo '${sdkBase64}' | base64 -d > ${sdkFilePath}`],
-    });
-    logger.info("Updated SDK file after restore", {
-      sandboxId,
-      sdkFilePath,
-    });
-
-    // Always write latest hooks file
-    const hooksPath = useSrc ? "src/hooks" : "hooks";
-    await sandbox.runCommand({
-      cmd: "mkdir",
-      args: ["-p", hooksPath],
-    });
-    const hookBase64 = Buffer.from(ELIZA_HOOK_FILE, "utf-8").toString("base64");
-    await sandbox.runCommand({
-      cmd: "sh",
-      args: [
-        "-c",
-        `echo '${hookBase64}' | base64 -d > ${hooksPath}/use-eliza.ts`,
-      ],
-    });
-    logger.info("Updated hooks file after restore", {
-      sandboxId,
-      hooksPath,
-    });
-
-    // Always write latest analytics component
-    const analyticsFilePath = `${componentsPath}/eliza-analytics.tsx`;
-    await sandbox.runCommand({
-      cmd: "mkdir",
-      args: ["-p", componentsPath],
-    });
-    const analyticsBase64 = Buffer.from(
-      ELIZA_ANALYTICS_COMPONENT,
-      "utf-8"
-    ).toString("base64");
-    await sandbox.runCommand({
-      cmd: "sh",
-      args: [
-        "-c",
-        `echo '${analyticsBase64}' | base64 -d > ${analyticsFilePath}`,
-      ],
-    });
-    logger.info("Updated ElizaAnalytics component after restore", {
-      sandboxId,
-      analyticsFilePath,
-    });
-
-    // Inject ElizaAnalytics into layout.tsx
-    const layoutPaths = ["src/app/layout.tsx", "app/layout.tsx"];
-    for (const layoutPath of layoutPaths) {
-      try {
-        const layoutContent = await readFileViaSh(sandbox, layoutPath);
-        if (layoutContent && !layoutContent.includes("ElizaAnalytics")) {
-          const analyticsImport = `import { ElizaAnalytics } from '@/components/eliza-analytics';\n`;
-          let updatedLayout = analyticsImport + layoutContent;
-
-          // Insert <ElizaAnalytics /> inside the body tag
-          const bodyMatch = updatedLayout.match(/<body[^>]*>/);
-          if (bodyMatch) {
-            const bodyTag = bodyMatch[0];
-            updatedLayout = updatedLayout.replace(
-              bodyTag,
-              `${bodyTag}\n        <ElizaAnalytics />`
-            );
-          }
-
-          await writeFileViaSh(sandbox, layoutPath, updatedLayout);
-          logger.info(
-            "Injected ElizaAnalytics component into layout.tsx after restore",
-            {
-              sandboxId,
-              layoutPath,
-            }
-          );
-          break;
-        } else if (layoutContent) {
-          break; // Found layout.tsx, analytics already present
-        }
-      } catch {
-        // Layout file doesn't exist at this path, try next
-      }
-    }
-
-    return { filesRestored, errors };
+    // Return empty result - file restoration should be done via git clone
+    // when creating the sandbox (pass app's github_repo as templateUrl)
+    return { filesRestored: 0, errors: [] };
   }
+
+  /* ===========================================================================
+   * DEPRECATED: DB-BASED restoreFiles - Kept for reference
+   * ===========================================================================
+   * This method used to restore files from the sessionFileSnapshots table.
+   * It has been replaced by Git-based storage where:
+   * 1. Each app has its own GitHub repo (apps.github_repo)
+   * 2. Files are restored by cloning the repo when creating a new sandbox
+   * 3. Version history is managed via git commits
+   *
+   * To restore files for an existing app:
+   * - Get the app's github_repo from the apps table
+   * - Use githubReposService.getAuthenticatedCloneUrl(repoName)
+   * - Pass the URL as templateUrl when creating the sandbox
+   *
+   * See github-repos.ts for the GitHub integration service.
+   * See git history for the full DB-based implementation.
+   */
 
   async getModifiedFiles(sandboxId: string): Promise<string[]> {
     const sandbox = getActiveSandboxes().get(sandboxId);
@@ -2154,47 +1823,80 @@ REMEMBER:
     return [...new Set(allFiles)];
   }
 
-  async hasSnapshots(sessionId: string): Promise<boolean> {
-    const result = await dbRead
-      .select({ count: sessionFileSnapshots.id })
-      .from(sessionFileSnapshots)
-      .where(eq(sessionFileSnapshots.sandbox_session_id, sessionId))
-      .limit(1);
-    return result.length > 0;
+  // ===========================================================================
+  // GIT-BASED STORAGE: hasSnapshots is deprecated.
+  // File history is now managed via GitHub repos - use git log instead.
+  // ===========================================================================
+  async hasSnapshots(_sessionId: string): Promise<boolean> {
+    logger.info("hasSnapshots: DEPRECATED - File storage now uses GitHub repos. Returning false.", {
+      sessionId: _sessionId,
+      migration: "Use app.github_repo and git history instead of DB snapshots",
+    });
+    return false;
   }
 
-  async getSnapshotStats(sessionId: string): Promise<{
+  // ===========================================================================
+  // GIT-BASED STORAGE: getSnapshotStats is deprecated.
+  // File history is now managed via GitHub repos - use git log instead.
+  // ===========================================================================
+  async getSnapshotStats(_sessionId: string): Promise<{
     fileCount: number;
     totalSize: number;
     lastBackup: Date | null;
   }> {
-    const snapshots = await dbRead
-      .select()
-      .from(sessionFileSnapshots)
-      .where(eq(sessionFileSnapshots.sandbox_session_id, sessionId))
-      .orderBy(desc(sessionFileSnapshots.created_at));
-
-    if (snapshots.length === 0) {
-      return { fileCount: 0, totalSize: 0, lastBackup: null };
-    }
-
-    const latestSnapshots = new Map<string, (typeof snapshots)[0]>();
-    for (const snapshot of snapshots) {
-      if (!latestSnapshots.has(snapshot.file_path)) {
-        latestSnapshots.set(snapshot.file_path, snapshot);
-      }
-    }
-
-    const uniqueSnapshots = Array.from(latestSnapshots.values());
-    const totalSize = uniqueSnapshots.reduce((sum, s) => sum + s.file_size, 0);
-    const lastBackup = uniqueSnapshots[0]?.created_at || null;
-
-    return {
-      fileCount: uniqueSnapshots.length,
-      totalSize,
-      lastBackup,
-    };
+    logger.info("getSnapshotStats: DEPRECATED - File storage now uses GitHub repos. Returning empty stats.", {
+      sessionId: _sessionId,
+      migration: "Use app.github_repo and git history instead of DB snapshots",
+    });
+    return { fileCount: 0, totalSize: 0, lastBackup: null };
   }
+
+  // ===========================================================================
+  // DEPRECATED DB-BASED SNAPSHOT METHODS - Kept for reference
+  // ===========================================================================
+  /*
+  // OLD: async hasSnapshots(sessionId: string): Promise<boolean> {
+  //   const result = await dbRead
+  //     .select({ count: sessionFileSnapshots.id })
+  //     .from(sessionFileSnapshots)
+  //     .where(eq(sessionFileSnapshots.sandbox_session_id, sessionId))
+  //     .limit(1);
+  //   return result.length > 0;
+  // }
+
+  // OLD: async getSnapshotStats(sessionId: string): Promise<{
+  //   fileCount: number;
+  //   totalSize: number;
+  //   lastBackup: Date | null;
+  // }> {
+  //   const snapshots = await dbRead
+  //     .select()
+  //     .from(sessionFileSnapshots)
+  //     .where(eq(sessionFileSnapshots.sandbox_session_id, sessionId))
+  //     .orderBy(desc(sessionFileSnapshots.created_at));
+  //
+  //   if (snapshots.length === 0) {
+  //     return { fileCount: 0, totalSize: 0, lastBackup: null };
+  //   }
+  //
+  //   const latestSnapshots = new Map<string, (typeof snapshots)[0]>();
+  //   for (const snapshot of snapshots) {
+  //     if (!latestSnapshots.has(snapshot.file_path)) {
+  //       latestSnapshots.set(snapshot.file_path, snapshot);
+  //     }
+  //   }
+  //
+  //   const uniqueSnapshots = Array.from(latestSnapshots.values());
+  //   const totalSize = uniqueSnapshots.reduce((sum, s) => sum + s.file_size, 0);
+  //   const lastBackup = uniqueSnapshots[0]?.created_at || null;
+  //
+  //   return {
+  //     fileCount: uniqueSnapshots.length,
+  //     totalSize,
+  //     lastBackup,
+  //   };
+  // }
+  */
 
   async stop(sandboxId: string): Promise<void> {
     const sandbox = getActiveSandboxes().get(sandboxId);

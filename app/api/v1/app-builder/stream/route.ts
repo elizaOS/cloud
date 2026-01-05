@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import {
-  aiAppBuilder,
+  aiAppBuilderService as aiAppBuilder,
   type SandboxProgress,
 } from "@/lib/services/ai-app-builder";
 import { logger } from "@/lib/utils/logger";

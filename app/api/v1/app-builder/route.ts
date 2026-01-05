@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { aiAppBuilder } from "@/lib/services/ai-app-builder";
+import { aiAppBuilderService as aiAppBuilder } from "@/lib/services/ai-app-builder";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
@@ -73,18 +73,17 @@ export const GET = withRateLimit(async (request: NextRequest) => {
       appId,
     });
 
-    // Map to response format (listSessions now returns camelCase)
     return NextResponse.json({
       success: true,
       sessions: sessions.map((s) => ({
         id: s.id,
-        sandboxId: s.sandboxId,
-        sandboxUrl: s.sandboxUrl,
+        sandboxId: s.sandbox_id,
+        sandboxUrl: s.sandbox_url,
         status: s.status,
-        appName: s.appName,
-        templateType: s.templateType,
-        createdAt: s.createdAt,
-        expiresAt: s.expiresAt,
+        appName: s.app_name,
+        templateType: s.template_type,
+        createdAt: s.created_at,
+        expiresAt: s.expires_at,
       })),
     });
   } catch (error) {

@@ -101,6 +101,18 @@ export const appSandboxSessions = pgTable(
       .default([])
       .notNull(),
 
+    // Files generated/modified during the session
+    generated_files: jsonb("generated_files")
+      .$type<
+        Array<{
+          path: string;
+          type: "created" | "modified" | "deleted";
+          timestamp: string;
+        }>
+      >()
+      .default([])
+      .notNull(),
+
     // Resource usage
     cpu_seconds_used: integer("cpu_seconds_used").default(0).notNull(),
     memory_mb_peak: integer("memory_mb_peak").default(0),
@@ -230,8 +242,89 @@ export const appTemplates = pgTable(
   }),
 );
 
-// REMOVED: sessionFileSnapshots - files are now stored in GitHub
-// REMOVED: sessionRestoreHistory - git history replaces this
+/**
+ * Session file snapshots table schema.
+ *
+ * Stores point-in-time snapshots of files in a sandbox session.
+ * Used for backup/restore functionality when sandbox instances expire.
+ *
+ * Note: Future versions will migrate to GitHub-based storage where each app
+ * has its own repository, and file history is managed via git commits.
+ * These tables remain for backward compatibility and as a fallback.
+ */
+export const sessionFileSnapshots = pgTable(
+  "session_file_snapshots",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+
+    sandbox_session_id: uuid("sandbox_session_id")
+      .notNull()
+      .references(() => appSandboxSessions.id, { onDelete: "cascade" }),
+
+    file_path: text("file_path").notNull(),
+    content: text("content").notNull(),
+    content_hash: text("content_hash").notNull(),
+    file_size: integer("file_size").default(0).notNull(),
+
+    snapshot_type: text("snapshot_type")
+      .$type<"auto" | "manual" | "pre_expiry" | "prompt_complete">()
+      .default("auto")
+      .notNull(),
+
+    created_at: timestamp("created_at").notNull().defaultNow(),
+  },
+  (table) => ({
+    session_idx: index("session_file_snapshots_session_idx").on(
+      table.sandbox_session_id,
+    ),
+    session_path_idx: index("session_file_snapshots_session_path_idx").on(
+      table.sandbox_session_id,
+      table.file_path,
+    ),
+    created_at_idx: index("session_file_snapshots_created_at_idx").on(
+      table.created_at,
+    ),
+  }),
+);
+
+/**
+ * Session restore history table schema.
+ *
+ * Tracks when sessions are restored from snapshots to new sandbox instances.
+ * Useful for debugging and understanding session lifecycle.
+ *
+ * Note: When GitHub-based storage is fully implemented, this will be replaced
+ * by git clone operations and commit history.
+ */
+export const sessionRestoreHistory = pgTable(
+  "session_restore_history",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+
+    sandbox_session_id: uuid("sandbox_session_id")
+      .notNull()
+      .references(() => appSandboxSessions.id, { onDelete: "cascade" }),
+
+    old_sandbox_id: text("old_sandbox_id"),
+    new_sandbox_id: text("new_sandbox_id"),
+    files_restored: integer("files_restored").default(0).notNull(),
+    restore_duration_ms: integer("restore_duration_ms"),
+
+    status: text("status")
+      .$type<"pending" | "in_progress" | "completed" | "failed">()
+      .default("pending")
+      .notNull(),
+    error_message: text("error_message"),
+
+    created_at: timestamp("created_at").notNull().defaultNow(),
+    completed_at: timestamp("completed_at"),
+  },
+  (table) => ({
+    session_idx: index("session_restore_history_session_idx").on(
+      table.sandbox_session_id,
+    ),
+  }),
+);
 
 // Type inference
 export type AppSandboxSession = InferSelectModel<typeof appSandboxSessions>;
@@ -240,3 +333,7 @@ export type AppBuilderPrompt = InferSelectModel<typeof appBuilderPrompts>;
 export type NewAppBuilderPrompt = InferInsertModel<typeof appBuilderPrompts>;
 export type AppTemplate = InferSelectModel<typeof appTemplates>;
 export type NewAppTemplate = InferInsertModel<typeof appTemplates>;
+export type SessionFileSnapshot = InferSelectModel<typeof sessionFileSnapshots>;
+export type NewSessionFileSnapshot = InferInsertModel<typeof sessionFileSnapshots>;
+export type SessionRestoreHistory = InferSelectModel<typeof sessionRestoreHistory>;
+export type NewSessionRestoreHistory = InferInsertModel<typeof sessionRestoreHistory>;
