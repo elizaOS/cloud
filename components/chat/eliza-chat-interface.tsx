@@ -1222,12 +1222,12 @@ export function ElizaChatInterface({
   };
 
   return (
-    <div className="flex h-full w-full min-h-0 justify-center">
-      {/* Main Chat Area - Centered with max width for readability */}
-      <div className="flex flex-col flex-1 min-h-0 max-w-7xl w-full px-4 sm:px-6 lg:px-8">
-        {/* Messages Area - No Header */}
-        <div className="flex-1 min-h-0 overflow-hidden">
-          <ScrollArea className="h-full py-6 px-2" ref={scrollAreaRef}>
+    <div className="flex flex-col h-full w-full min-h-0">
+      {/* Messages Area - Full width scroll area for better scroll UX */}
+      <div className="flex-1 min-h-0 overflow-hidden">
+        <ScrollArea className="h-full" ref={scrollAreaRef}>
+          {/* Centered content container */}
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
             <div className="space-y-6">
               {error && (
                 <div className="rounded-lg border border-destructive bg-destructive/10 p-3">
@@ -1394,17 +1394,19 @@ export function ElizaChatInterface({
                   );
                 })}
             </div>
-          </ScrollArea>
-        </div>
+          </div>
+        </ScrollArea>
+      </div>
 
-        {/* Input Area - ChatGPT style */}
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            sendMessage();
-          }}
-          className="border-t border-white/[0.06] p-4"
-        >
+      {/* Input Area - ChatGPT style */}
+      <div className="px-4 sm:px-6 lg:px-8 pb-4">
+        <div className="max-w-7xl mx-auto border-t border-white/[0.06] pt-4">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              sendMessage();
+            }}
+          >
           <div 
             className="relative rounded-2xl border border-white/[0.08] bg-white/[0.02] overflow-hidden transition-colors focus-within:border-white/[0.15] focus-within:bg-white/[0.03] cursor-text"
             onClick={handleContainerClick}
@@ -1871,7 +1873,8 @@ export function ElizaChatInterface({
               </div>
             )}
           </div>
-        </form>
+          </form>
+        </div>
       </div>
     </div>
   );
