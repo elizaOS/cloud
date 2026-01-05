@@ -704,12 +704,13 @@ export function ElizaChatInterface({
             }
           },
           onComplete: () => {
-            // Always reload rooms to update lastText and lastTime
-            // Use longer delay for newly created rooms to ensure server-side processing is complete
+            // Reload rooms to update lastText, lastTime, and AI-generated title
+            // Title is generated automatically by the server-side room-title service
             const delay = didCreateNewRoom ? 500 : 100;
             setTimeout(() => {
               loadRooms();
             }, delay);
+
             // Notify parent that a message was sent successfully (for anonymous message counting)
             if (onMessageSent) {
               onMessageSent();
