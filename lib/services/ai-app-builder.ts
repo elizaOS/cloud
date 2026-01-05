@@ -1,38 +1,30 @@
 import { sandboxService, type SandboxProgress } from "./sandbox";
-import { getExamplePrompts } from "@/lib/fragments/prompt";
+import {
+  buildFullAppPrompt,
+  getExamplePrompts,
+  type FullAppTemplateType,
+} from "@/lib/fragments/prompt";
 import { logger } from "@/lib/utils/logger";
 import { dbRead, dbWrite } from "@/db/client";
 import {
   appSandboxSessions,
   appBuilderPrompts,
+  appTemplates,
+  sessionFileSnapshots,
   type AppSandboxSession,
+  type NewAppSandboxSession,
+  type NewAppBuilderPrompt,
 } from "@/db/schemas/app-sandboxes";
-import { apps } from "@/db/schemas/apps";
-import { eq, and, notInArray, desc } from "drizzle-orm";
-import { githubReposService, generateRepoName } from "./github-repos";
+import { eq, desc, and, isNotNull, sql } from "drizzle-orm";
+import { appsService } from "./apps";
 
-/**
- * AI App Builder Service
- * 
- * Uses GitHub for storage:
- * - Each app = one private GitHub repo
- * - Changes saved via git commit + push
- * - Restore = git clone
- * - Version history = git commits
- */
-
-const EXAMPLE_PROMPTS: Record<string, string[]> = {
+const EXAMPLE_PROMPTS = {
   chat: getExamplePrompts("chat"),
   "agent-dashboard": getExamplePrompts("agent-dashboard"),
   "landing-page": getExamplePrompts("landing-page"),
   analytics: getExamplePrompts("analytics"),
   blank: getExamplePrompts("blank"),
 };
-
-// Callback types for streaming events
-export type OnToolUseCallback = (tool: string, input: unknown, result: string) => void | Promise<void>;
-export type OnThinkingCallback = (text: string) => void | Promise<void>;
-export type OnRestoreProgressCallback = (current: number, total: number, filePath: string) => void | Promise<void>;
 
 export interface BuilderSessionConfig {
   userId: string;
@@ -41,24 +33,18 @@ export interface BuilderSessionConfig {
   appName?: string;
   appDescription?: string;
   initialPrompt?: string;
-  templateType?: "chat" | "agent-dashboard" | "landing-page" | "analytics" | "blank" | "mcp-service" | "a2a-agent";
+  templateType?:
+    | "chat"
+    | "agent-dashboard"
+    | "landing-page"
+    | "analytics"
+    | "blank";
   includeMonetization?: boolean;
   includeAnalytics?: boolean;
-  onProgress?: (progress: SandboxProgress) => void | Promise<void>;
-  onSandboxReady?: (session: BuilderSession) => void | Promise<void>;
-  onToolUse?: OnToolUseCallback;
-  onThinking?: OnThinkingCallback;
-  abortSignal?: AbortSignal;
-}
-
-export interface ResumeSessionOptions {
-  onProgress?: (progress: SandboxProgress) => void | Promise<void>;
-  onRestoreProgress?: OnRestoreProgressCallback;
-}
-
-export interface SendPromptOptions {
-  onToolUse?: OnToolUseCallback;
-  onThinking?: OnThinkingCallback;
+  onProgress?: (progress: SandboxProgress) => void;
+  onSandboxReady?: (session: BuilderSession) => void;
+  onToolUse?: (tool: string, input: unknown, result: string) => void;
+  onThinking?: (text: string) => void;
   abortSignal?: AbortSignal;
 }
 
@@ -69,8 +55,11 @@ export interface BuilderSession {
   sandboxId: string;
   sandboxUrl: string;
   status: AppSandboxSession["status"];
-  repoName: string;
-  messages: Array<{ role: "user" | "assistant" | "system"; content: string; timestamp: string }>;
+  messages: Array<{
+    role: "user" | "assistant" | "system";
+    content: string;
+    timestamp: string;
+  }>;
   examplePrompts: string[];
   expiresAt: string | null;
   initialPromptResult?: PromptResult;
@@ -80,38 +69,99 @@ export interface PromptResult {
   success: boolean;
   output: string;
   filesAffected: string[];
-  commitSha?: string;
   error?: string;
 }
 
-export interface SessionListItem {
-  id: string;
-  sandboxId: string;
-  sandboxUrl: string;
-  status: string;
-  appName: string | null;
-  templateType: string | null;
-  createdAt: string;
-  expiresAt: string | null;
-}
-
 export class AIAppBuilderService {
-  // Alias for createSession
-  async startSession(config: BuilderSessionConfig): Promise<BuilderSession> {
-    return this.createSession(config);
+  private async verifyOwnership(
+    sessionId: string,
+    userId: string
+  ): Promise<AppSandboxSession> {
+    const session = await dbRead.query.appSandboxSessions.findFirst({
+      where: eq(appSandboxSessions.id, sessionId),
+    });
+
+    if (!session) throw new Error("Session not found");
+    if (session.user_id !== userId)
+      throw new Error("Access denied: You don't own this session");
+
+    return session;
   }
 
-  async createSession(config: BuilderSessionConfig): Promise<BuilderSession> {
+  /**
+   * Find the most recent session with file snapshots for an app.
+   * Used to restore files when creating a new session for an existing app.
+   */
+  private async findPreviousSessionWithSnapshots(
+    appId: string,
+    organizationId: string,
+    excludeSessionId?: string
+  ): Promise<string | null> {
+    logger.info("findPreviousSessionWithSnapshots: searching", { appId, organizationId, excludeSessionId });
+
+    const conditions = [
+      eq(appSandboxSessions.app_id, appId),
+      eq(appSandboxSessions.organization_id, organizationId),
+    ];
+
+    if (excludeSessionId) {
+      conditions.push(sql`${appSandboxSessions.id} != ${excludeSessionId}`);
+    }
+
+    const allSessions = await dbRead
+      .select({
+        sessionId: appSandboxSessions.id,
+        appId: appSandboxSessions.app_id,
+        status: appSandboxSessions.status,
+      })
+      .from(appSandboxSessions)
+      .where(and(...conditions));
+
+    logger.info("findPreviousSessionWithSnapshots: all sessions for app", {
+      appId,
+      sessionCount: allSessions.length,
+      sessions: allSessions.map((s) => ({ id: s.sessionId, status: s.status })),
+    });
+
+    const sessionsWithSnapshots = await dbRead
+      .select({
+        sessionId: appSandboxSessions.id,
+        snapshotCount: sql<number>`count(${sessionFileSnapshots.id})`.as(
+          "snapshot_count"
+        ),
+      })
+      .from(appSandboxSessions)
+      .leftJoin(
+        sessionFileSnapshots,
+        eq(sessionFileSnapshots.sandbox_session_id, appSandboxSessions.id)
+      )
+      .where(and(...conditions))
+      .groupBy(appSandboxSessions.id)
+      .having(sql`count(${sessionFileSnapshots.id}) > 0`)
+      .orderBy(desc(appSandboxSessions.created_at))
+      .limit(1);
+
+    logger.info("findPreviousSessionWithSnapshots: sessions with snapshots", {
+      appId,
+      count: sessionsWithSnapshots.length,
+      result: sessionsWithSnapshots,
+    });
+
+    if (sessionsWithSnapshots.length === 0) return null;
+    return sessionsWithSnapshots[0].sessionId;
+  }
+
+  async startSession(config: BuilderSessionConfig): Promise<BuilderSession> {
     const {
       userId,
       organizationId,
-      appId,
+      appId: providedAppId,
       appName,
       appDescription,
       initialPrompt,
       templateType = "blank",
       includeMonetization = false,
-      includeAnalytics = false,
+      includeAnalytics = true,
       onProgress,
       onSandboxReady,
       onToolUse,
@@ -119,508 +169,994 @@ export class AIAppBuilderService {
       abortSignal,
     } = config;
 
-    // Check for abort before starting
-    if (abortSignal?.aborted) {
-      throw new Error("Operation aborted");
+    logger.info("Starting AI App Builder session", {
+      userId,
+      templateType,
+      appName,
+    });
+
+    let appId = providedAppId;
+    let appApiKey: string | undefined;
+
+    if (!appId && appName) {
+      const { app, apiKey } = await appsService.create({
+        name: appName,
+        description:
+          appDescription || `AI-built app (template: ${templateType})`,
+        organization_id: organizationId,
+        created_by_user_id: userId,
+        app_url: "https://placeholder.local",
+        allowed_origins: ["*"],
+      });
+      appId = app.id;
+      appApiKey = apiKey;
+      logger.info("Created app for AI builder session", { appId, appName });
+    } else if (appId) {
+      appApiKey = await appsService.regenerateApiKey(appId);
+      logger.info("Regenerated API key for existing app", { appId });
     }
 
-    logger.info("Creating app builder session", { userId, templateType });
+    let templateUrl: string | undefined;
+    if (templateType !== "blank") {
+      const template = await dbRead.query.appTemplates.findFirst({
+        where: eq(appTemplates.slug, templateType),
+      });
+      templateUrl = template?.git_repo_url;
 
-    const repoName = appId
-      ? await this.getRepoName(appId)
-      : generateRepoName(appName || `app-${Date.now()}`);
-
-    let finalAppId = appId;
-    if (!finalAppId && appName) {
-      const slug = appName.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 50);
-      const [app] = await dbWrite
-        .insert(apps)
-        .values({
-          name: appName,
-          slug: `${slug}-${Date.now()}`,
-          description: appDescription,
-          organization_id: organizationId,
-          created_by_user_id: userId,
-          app_url: "",
-          github_repo: repoName,
-        })
-        .returning();
-      finalAppId = app.id;
+      if (!templateUrl) {
+        logger.info(
+          "Template not found in database, using prompt-based template guidance",
+          { templateType }
+        );
+      } else {
+        logger.info("Using template from database", {
+          templateType,
+          templateUrl,
+        });
+      }
     }
 
-    if (!finalAppId) {
-      throw new Error("App ID required");
+    // Determine API URL for sandbox - ELIZA_API_URL required for local dev (use ngrok)
+    const isLocalDev =
+      process.env.NEXT_PUBLIC_APP_URL?.includes("localhost") ||
+      process.env.NEXT_PUBLIC_APP_URL?.includes("127.0.0.1");
+
+    const apiUrl = process.env.ELIZA_API_URL || process.env.NEXT_PUBLIC_APP_URL;
+
+    if (!apiUrl || (isLocalDev && !process.env.ELIZA_API_URL)) {
+      throw new Error(
+        "ELIZA_API_URL environment variable is required for local development. " +
+          "Run ngrok and set ELIZA_API_URL to your ngrok URL in .env.local"
+      );
     }
+    const sandboxEnv: Record<string, string> = {};
+    if (appApiKey) {
+      sandboxEnv.NEXT_PUBLIC_ELIZA_API_KEY = appApiKey;
+      sandboxEnv.NEXT_PUBLIC_ELIZA_API_URL = apiUrl;
+    }
+    if (appId) {
+      sandboxEnv.NEXT_PUBLIC_ELIZA_APP_ID = appId;
+    }
+
+    const sandboxData = await sandboxService.create({
+      templateUrl,
+      timeout: 30 * 60 * 1000,
+      vcpus: 4,
+      organizationId,
+      projectId: appId,
+      env: Object.keys(sandboxEnv).length > 0 ? sandboxEnv : undefined,
+      onProgress,
+    });
+
+    const systemPrompt = buildFullAppPrompt({
+      templateType: templateType as FullAppTemplateType,
+      includeMonetization,
+      includeAnalytics,
+      customInstructions: appDescription
+        ? `Build an app with the following requirements:\n${appDescription}`
+        : initialPrompt
+          ? `Initial request:\n${initialPrompt}`
+          : undefined,
+    });
+
+    const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
 
     const [session] = await dbWrite
       .insert(appSandboxSessions)
       .values({
         user_id: userId,
         organization_id: organizationId,
-        app_id: finalAppId,
+        app_id: appId,
+        sandbox_id: sandboxData.sandboxId,
+        sandbox_url: sandboxData.sandboxUrl,
+        status: "ready",
         app_name: appName,
         app_description: appDescription,
         initial_prompt: initialPrompt,
         template_type: templateType,
-        status: "initializing",
-        build_config: { includeMonetization, includeAnalytics },
-      })
+        build_config: { features: [], includeMonetization, includeAnalytics },
+        claude_messages: [],
+        started_at: new Date(),
+        expires_at: expiresAt,
+      } satisfies NewAppSandboxSession)
       .returning();
 
-    try {
-      // Check abort
-      if (abortSignal?.aborted) {
-        throw new Error("Operation aborted");
-      }
-
-      const repoExists = await githubReposService.getRepoInfo(repoName);
-      if (!repoExists) {
-        onProgress?.({ step: "creating", message: "Creating GitHub repository..." });
-        await githubReposService.createAppRepo({
-          name: repoName,
-          description: appDescription || `ElizaCloud App: ${appName}`,
-          isPrivate: true,
+    // Restore files from previous session if this is an existing app
+    let filesRestored = 0;
+    if (appId) {
+      const previousSessionId = await this.findPreviousSessionWithSnapshots(
+        appId,
+        organizationId,
+        session.id
+      );
+      if (previousSessionId) {
+        logger.info("Found previous session with snapshots, restoring files", {
+          appId,
+          previousSessionId,
+          newSessionId: session.id,
         });
-      }
 
-      // Check abort
-      if (abortSignal?.aborted) {
-        throw new Error("Operation aborted");
-      }
+        onProgress?.({
+          step: "restoring",
+          message: "Restoring previous files",
+        });
 
-      onProgress?.({ step: "creating", message: "Starting sandbox..." });
-      const sandboxData = await sandboxService.create({
-        repoName,
-        timeout: 30 * 60 * 1000,
-        vcpus: 4,
-        env: { NEXT_PUBLIC_ELIZA_APP_ID: finalAppId },
-        onProgress,
-      });
+        try {
+          const restoreResult = await sandboxService.restoreFiles(
+            sandboxData.sandboxId,
+            previousSessionId,
+            {
+              onProgress: (current, total, filePath) => {
+                onProgress?.({
+                  step: "restoring",
+                  message: `Restoring ${filePath} (${current}/${total})`,
+                });
+              },
+            }
+          );
 
-      const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
-
-      await dbWrite
-        .update(appSandboxSessions)
-        .set({
-          sandbox_id: sandboxData.sandboxId,
-          sandbox_url: sandboxData.sandboxUrl,
-          status: "ready",
-          started_at: new Date(),
-          expires_at: expiresAt,
-        })
-        .where(eq(appSandboxSessions.id, session.id));
-
-      await dbWrite
-        .update(apps)
-        .set({ app_url: sandboxData.sandboxUrl })
-        .where(eq(apps.id, finalAppId));
-
-      const builderSession: BuilderSession = {
-        id: session.id,
-        sandboxId: sandboxData.sandboxId,
-        sandboxUrl: sandboxData.sandboxUrl,
-        status: "ready",
-        repoName,
-        messages: [],
-        examplePrompts: EXAMPLE_PROMPTS[templateType] || [],
-        expiresAt: expiresAt.toISOString(),
-      };
-
-      await onSandboxReady?.(builderSession);
-
-      // Process initial prompt if provided
-      if (initialPrompt) {
-        if (abortSignal?.aborted) {
-          throw new Error("Operation aborted");
+          filesRestored = restoreResult.filesRestored;
+          logger.info("Files restored from previous session", {
+            sessionId: session.id,
+            previousSessionId,
+            filesRestored,
+          });
+        } catch (restoreError) {
+          logger.warn("Failed to restore files from previous session", {
+            sessionId: session.id,
+            previousSessionId,
+            error: restoreError,
+          });
+          // Continue without restored files - sandbox is still usable
         }
-        
-        const result = await this.processPrompt(session.id, userId, initialPrompt, {
-          onToolUse,
-          onThinking,
-          abortSignal,
-        });
-        builderSession.initialPromptResult = result;
-        builderSession.messages.push({
-          role: "user",
-          content: initialPrompt,
-          timestamp: new Date().toISOString(),
-        });
-        if (result.output) {
-          builderSession.messages.push({
-            role: "assistant",
-            content: result.output,
-            timestamp: new Date().toISOString(),
+      }
+    }
+
+    await dbWrite.insert(appBuilderPrompts).values({
+      sandbox_session_id: session.id,
+      role: "system",
+      content: systemPrompt,
+      status: "completed",
+      completed_at: new Date(),
+    } satisfies NewAppBuilderPrompt);
+
+    const examplePrompts =
+      EXAMPLE_PROMPTS[templateType] || EXAMPLE_PROMPTS.blank;
+
+    logger.info("AI App Builder session started", {
+      sessionId: session.id,
+      sandboxId: sandboxData.sandboxId,
+      sandboxUrl: sandboxData.sandboxUrl,
+      filesRestored,
+    });
+
+    const maxInitialBackupAttempts = 2;
+    const initialBackupRetryDelayMs = 1500;
+    let initialBackupSuccess = false;
+
+    for (
+      let attempt = 1;
+      attempt <= maxInitialBackupAttempts && !initialBackupSuccess;
+      attempt++
+    ) {
+      try {
+        const backupResult = await sandboxService.backupFiles(
+          sandboxData.sandboxId,
+          session.id,
+          { snapshotType: "auto" }
+        );
+        if (backupResult.filesBackedUp > 0) {
+          initialBackupSuccess = true;
+          logger.info("Initial backup created after session start", {
+            sessionId: session.id,
+            filesBackedUp: backupResult.filesBackedUp,
+            totalSize: backupResult.totalSize,
+            filesRestored,
+            templateType,
+            attempt,
+          });
+        } else {
+          logger.info("No files to backup at session start", {
+            sessionId: session.id,
+            filesRestored,
+            templateType,
+            attempt,
+          });
+          initialBackupSuccess = true;
+        }
+      } catch (backupError) {
+        const errorMessage =
+          backupError instanceof Error
+            ? backupError.message
+            : String(backupError);
+
+        if (attempt < maxInitialBackupAttempts) {
+          logger.warn("Initial backup failed, retrying", {
+            sessionId: session.id,
+            sandboxId: sandboxData.sandboxId,
+            attempt,
+            maxAttempts: maxInitialBackupAttempts,
+            nextRetryMs: initialBackupRetryDelayMs,
+            error: errorMessage,
+          });
+          await new Promise((r) => setTimeout(r, initialBackupRetryDelayMs));
+        } else {
+          logger.error("Failed to create initial backup after retries", {
+            sessionId: session.id,
+            sandboxId: sandboxData.sandboxId,
+            totalAttempts: attempt,
+            error: errorMessage,
           });
         }
       }
-
-      return builderSession;
-    } catch (error) {
-      await dbWrite
-        .update(appSandboxSessions)
-        .set({ status: "error", status_message: String(error) })
-        .where(eq(appSandboxSessions.id, session.id));
-      throw error;
     }
+
+    const baseSession: BuilderSession = {
+      id: session.id,
+      sandboxId: sandboxData.sandboxId,
+      sandboxUrl: sandboxData.sandboxUrl,
+      status: "ready" as BuilderSession["status"],
+      messages: [],
+      examplePrompts,
+      expiresAt: expiresAt.toISOString(),
+    };
+
+    if (onSandboxReady) {
+      onSandboxReady(baseSession);
+    }
+
+    let initialPromptResult: PromptResult | undefined;
+    let processedInitialPrompt: string | undefined;
+
+    if (initialPrompt) {
+      processedInitialPrompt = initialPrompt;
+      logger.info("Executing initial prompt as part of session creation", {
+        sessionId: session.id,
+        promptLength: initialPrompt.length,
+      });
+
+      initialPromptResult = await this.sendPrompt(
+        session.id,
+        initialPrompt,
+        userId,
+        { onToolUse, onThinking, abortSignal }
+      );
+
+      logger.info("Initial prompt completed", {
+        sessionId: session.id,
+        success: initialPromptResult.success,
+        filesAffected: initialPromptResult.filesAffected.length,
+      });
+    }
+
+    const finalMessages: BuilderSession["messages"] = [];
+    if (initialPromptResult && processedInitialPrompt) {
+      finalMessages.push(
+        {
+          role: "user",
+          content: processedInitialPrompt,
+          timestamp: new Date().toISOString(),
+        },
+        {
+          role: "assistant",
+          content: initialPromptResult.output,
+          timestamp: new Date().toISOString(),
+        }
+      );
+    }
+
+    return {
+      id: session.id,
+      sandboxId: sandboxData.sandboxId,
+      sandboxUrl: sandboxData.sandboxUrl,
+      status: "ready" as BuilderSession["status"],
+      messages: finalMessages,
+      examplePrompts,
+      expiresAt: expiresAt.toISOString(),
+      initialPromptResult,
+    };
+  }
+
+  async sendPrompt(
+    sessionId: string,
+    prompt: string,
+    userId: string,
+    options: {
+      onToolUse?: (tool: string, input: unknown, result: string) => void;
+      onThinking?: (text: string) => void;
+      abortSignal?: AbortSignal;
+    } = {}
+  ): Promise<PromptResult> {
+    logger.info("Sending prompt to AI App Builder", {
+      sessionId,
+      promptLength: prompt.length,
+    });
+
+    const session = await this.verifyOwnership(sessionId, userId);
+
+    if (!session.sandbox_id) throw new Error("Sandbox not available");
+    if (session.status !== "ready")
+      throw new Error(
+        `Session is not ready. Current status: ${session.status}`
+      );
+
+    await dbWrite
+      .update(appSandboxSessions)
+      .set({ status: "generating", updated_at: new Date() })
+      .where(eq(appSandboxSessions.id, sessionId));
+
+    const [promptRecord] = await dbWrite
+      .insert(appBuilderPrompts)
+      .values({
+        sandbox_session_id: sessionId,
+        role: "user",
+        content: prompt,
+        status: "processing",
+      } satisfies NewAppBuilderPrompt)
+      .returning();
+
+    const systemPromptRecord = await dbRead.query.appBuilderPrompts.findFirst({
+      where: and(
+        eq(appBuilderPrompts.sandbox_session_id, sessionId),
+        eq(appBuilderPrompts.role, "system")
+      ),
+    });
+
+    const startTime = Date.now();
+    const result = await sandboxService.executeClaudeCode(
+      session.sandbox_id,
+      prompt,
+      {
+        systemPrompt: systemPromptRecord?.content,
+        onToolUse: options.onToolUse,
+        onThinking: options.onThinking,
+        abortSignal: options.abortSignal,
+      }
+    );
+    const durationMs = Date.now() - startTime;
+
+    await dbWrite
+      .update(appBuilderPrompts)
+      .set({
+        status: result.success ? "completed" : "error",
+        files_affected: result.filesAffected,
+        error_message: result.success ? null : result.output,
+        completed_at: new Date(),
+        duration_ms: durationMs,
+      })
+      .where(eq(appBuilderPrompts.id, promptRecord.id));
+
+    await dbWrite.insert(appBuilderPrompts).values({
+      sandbox_session_id: sessionId,
+      role: "assistant",
+      content: result.output,
+      files_affected: result.filesAffected,
+      status: "completed",
+      completed_at: new Date(),
+    } satisfies NewAppBuilderPrompt);
+
+    const messages =
+      (session.claude_messages as BuilderSession["messages"]) || [];
+    messages.push(
+      { role: "user", content: prompt, timestamp: new Date().toISOString() },
+      {
+        role: "assistant",
+        content: result.output,
+        timestamp: new Date().toISOString(),
+      }
+    );
+
+    await dbWrite
+      .update(appSandboxSessions)
+      .set({
+        status: "ready",
+        claude_messages: messages,
+        generated_files: [
+          ...((session.generated_files as Array<{
+            path: string;
+            type: "created" | "modified" | "deleted";
+            timestamp: string;
+          }>) || []),
+          ...result.filesAffected.map((path) => ({
+            path,
+            type: "modified" as const,
+            timestamp: new Date().toISOString(),
+          })),
+        ],
+        updated_at: new Date(),
+      })
+      .where(eq(appSandboxSessions.id, sessionId));
+
+    logger.info("Prompt completed", {
+      sessionId,
+      success: result.success,
+      filesAffected: result.filesAffected.length,
+      durationMs,
+    });
+
+    if (result.filesAffected.length > 0) {
+      const maxBackupAttempts = 3;
+      const backupRetryDelayMs = 2000;
+      let backupSuccess = false;
+
+      for (
+        let backupAttempt = 1;
+        backupAttempt <= maxBackupAttempts && !backupSuccess;
+        backupAttempt++
+      ) {
+        try {
+          const backupResult = await sandboxService.backupFiles(
+            session.sandbox_id,
+            sessionId,
+            {
+              snapshotType: "prompt_complete",
+              specificFiles: result.filesAffected,
+            }
+          );
+
+          if (backupResult.filesBackedUp > 0) {
+            backupSuccess = true;
+            logger.info("Files backed up successfully", {
+              sessionId,
+              filesBackedUp: backupResult.filesBackedUp,
+              totalSize: backupResult.totalSize,
+              attempt: backupAttempt,
+            });
+          } else if (backupAttempt < maxBackupAttempts) {
+            logger.warn(
+              "Backup returned 0 files, retrying entire backup operation",
+              {
+                sessionId,
+                sandboxId: session.sandbox_id,
+                filesAffected: result.filesAffected,
+                attempt: backupAttempt,
+                maxAttempts: maxBackupAttempts,
+                nextRetryMs: backupRetryDelayMs,
+              }
+            );
+            await new Promise((r) => setTimeout(r, backupRetryDelayMs));
+          } else {
+            logger.error(
+              "Backup returned 0 files after all retries - snapshots lost",
+              {
+                sessionId,
+                sandboxId: session.sandbox_id,
+                filesAffected: result.filesAffected,
+                promptSuccess: result.success,
+                totalAttempts: backupAttempt,
+              }
+            );
+          }
+        } catch (backupError) {
+          const errorMessage =
+            backupError instanceof Error
+              ? backupError.message
+              : String(backupError);
+
+          if (backupAttempt < maxBackupAttempts) {
+            logger.warn("Backup failed, retrying entire backup operation", {
+              sessionId,
+              sandboxId: session.sandbox_id,
+              filesAffected: result.filesAffected,
+              attempt: backupAttempt,
+              maxAttempts: maxBackupAttempts,
+              nextRetryMs: backupRetryDelayMs,
+              error: errorMessage,
+            });
+            await new Promise((r) => setTimeout(r, backupRetryDelayMs));
+          } else {
+            logger.error(
+              "Critical: Failed to backup files after all retries",
+              {
+                sessionId,
+                sandboxId: session.sandbox_id,
+                filesAffected: result.filesAffected,
+                totalAttempts: backupAttempt,
+                error: errorMessage,
+              }
+            );
+          }
+        }
+      }
+    }
+
+    return result;
   }
 
   async resumeSession(
     sessionId: string,
     userId: string,
-    options?: ResumeSessionOptions | ((progress: SandboxProgress) => void | Promise<void>)
+    options: {
+      onProgress?: (progress: SandboxProgress) => void;
+      onRestoreProgress?: (
+        current: number,
+        total: number,
+        filePath: string
+      ) => void;
+    } = {}
   ): Promise<BuilderSession> {
-    // Support both old signature (direct callback) and new signature (options object)
-    const resolvedOptions: ResumeSessionOptions = typeof options === "function"
-      ? { onProgress: options }
-      : options || {};
-    
-    const { onProgress, onRestoreProgress } = resolvedOptions;
-    
-    const session = await this.verifySessionOwnership(sessionId, userId);
-
-    if (!session.app_id) {
-      throw new Error("Session has no associated app");
-    }
-
-    const app = await dbRead.query.apps.findFirst({
-      where: eq(apps.id, session.app_id),
+    logger.info("Resuming session with file restoration", {
+      sessionId,
+      userId,
     });
 
-    if (!app?.github_repo) {
-      throw new Error("App has no GitHub repository");
+    const session = await this.verifyOwnership(sessionId, userId);
+
+    const hasSnapshots = await sandboxService.hasSnapshots(sessionId);
+    if (!hasSnapshots) {
+      throw new Error(
+        "No saved files found to restore. Cannot resume session."
+      );
     }
 
-    logger.info("Resuming session", { sessionId, repoName: app.github_repo });
-    onProgress?.({ step: "creating", message: "Resuming from GitHub..." });
+    const snapshotStats = await sandboxService.getSnapshotStats(sessionId);
+    logger.info("Snapshot stats for resume", { sessionId, ...snapshotStats });
 
-    // Simulate restore progress if callback provided
-    if (onRestoreProgress) {
-      onRestoreProgress(0, 1, "Cloning repository...");
+    await dbWrite
+      .update(appSandboxSessions)
+      .set({
+        status: "initializing",
+        status_message: "Creating new sandbox for restoration...",
+        updated_at: new Date(),
+      })
+      .where(eq(appSandboxSessions.id, sessionId));
+
+    options.onProgress?.({
+      step: "creating",
+      message: "Creating new sandbox...",
+    });
+
+    // Determine API URL for sandbox - ELIZA_API_URL required for local dev
+    const isLocalDevResume =
+      process.env.NEXT_PUBLIC_APP_URL?.includes("localhost") ||
+      process.env.NEXT_PUBLIC_APP_URL?.includes("127.0.0.1");
+    const resumeApiUrl =
+      process.env.ELIZA_API_URL || process.env.NEXT_PUBLIC_APP_URL;
+
+    if (!resumeApiUrl || (isLocalDevResume && !process.env.ELIZA_API_URL)) {
+      throw new Error(
+        "ELIZA_API_URL environment variable is required for local development. " +
+          "Run ngrok and set ELIZA_API_URL to your ngrok URL in .env.local"
+      );
     }
 
     const sandboxData = await sandboxService.create({
-      repoName: app.github_repo,
-      timeout: 30 * 60 * 1000,
-      vcpus: 4,
-      env: { NEXT_PUBLIC_ELIZA_APP_ID: session.app_id },
-      onProgress,
+      organizationId: session.organization_id,
+      projectId: session.app_id || undefined,
+      env: session.app_id
+        ? {
+            NEXT_PUBLIC_ELIZA_API_KEY: await this.getApiKeyForApp(
+              session.app_id
+            ),
+            NEXT_PUBLIC_ELIZA_API_URL: resumeApiUrl,
+            NEXT_PUBLIC_ELIZA_APP_ID: session.app_id,
+          }
+        : undefined,
+      onProgress: options.onProgress,
     });
-
-    if (onRestoreProgress) {
-      onRestoreProgress(1, 1, "Repository restored");
-    }
-
-    const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
 
     await dbWrite
       .update(appSandboxSessions)
       .set({
         sandbox_id: sandboxData.sandboxId,
         sandbox_url: sandboxData.sandboxUrl,
-        status: "ready",
-        started_at: new Date(),
-        expires_at: expiresAt,
+        status: "initializing",
+        status_message: "Restoring files...",
+        updated_at: new Date(),
       })
       .where(eq(appSandboxSessions.id, sessionId));
 
-    const prompts = await dbRead.query.appBuilderPrompts.findMany({
-      where: eq(appBuilderPrompts.sandbox_session_id, sessionId),
-      orderBy: (p, { asc }) => [asc(p.created_at)],
+    options.onProgress?.({
+      step: "installing",
+      message: "Restoring your files...",
     });
 
+    const restoreResult = await sandboxService.restoreFiles(
+      sandboxData.sandboxId,
+      sessionId,
+      { onProgress: options.onRestoreProgress }
+    );
+
+    logger.info("Files restored", {
+      sessionId,
+      filesRestored: restoreResult.filesRestored,
+      errors: restoreResult.errors.length,
+    });
+
+    await sandboxService.installDependenciesAndRestart(
+      sandboxData.sandboxId,
+      options.onProgress
+    );
+    logger.info("Dependencies installed and dev server restarted", { sessionId });
+
+    const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
+    await dbWrite
+      .update(appSandboxSessions)
+      .set({
+        status: "ready",
+        status_message: null,
+        expires_at: expiresAt,
+        updated_at: new Date(),
+      })
+      .where(eq(appSandboxSessions.id, sessionId));
+
+    options.onProgress?.({
+      step: "ready",
+      message: `Restored ${restoreResult.filesRestored} files!`,
+    });
+
+    const examplePrompts =
+      EXAMPLE_PROMPTS[session.template_type as keyof typeof EXAMPLE_PROMPTS] ||
+      EXAMPLE_PROMPTS.blank;
+
     return {
-      id: sessionId,
+      id: session.id,
       sandboxId: sandboxData.sandboxId,
       sandboxUrl: sandboxData.sandboxUrl,
       status: "ready",
-      repoName: app.github_repo,
-      messages: prompts.map((p) => ({
-        role: p.role,
-        content: p.content,
-        timestamp: p.created_at.toISOString(),
-      })),
-      examplePrompts: EXAMPLE_PROMPTS[session.template_type as string] || [],
+      messages: (session.claude_messages as BuilderSession["messages"]) || [],
+      examplePrompts,
       expiresAt: expiresAt.toISOString(),
     };
   }
 
-  // Route-compatible signature: sendPrompt(sessionId, prompt, userId, options?)
-  async sendPrompt(
-    sessionId: string,
-    prompt: string,
-    userId: string,
-    options?: SendPromptOptions
-  ): Promise<PromptResult> {
-    return this.processPrompt(sessionId, userId, prompt, options);
-  }
-
-  async processPrompt(
-    sessionId: string,
-    userId: string,
-    prompt: string,
-    options?: SendPromptOptions
-  ): Promise<PromptResult> {
-    const { onToolUse, onThinking, abortSignal } = options || {};
-    
-    if (abortSignal?.aborted) {
-      throw new Error("Operation aborted");
-    }
-
-    const session = await this.verifySessionOwnership(sessionId, userId);
-
-    if (!session.sandbox_id) {
-      throw new Error("No active sandbox");
-    }
-
-    await dbWrite
-      .update(appSandboxSessions)
-      .set({ status: "generating" })
-      .where(eq(appSandboxSessions.id, sessionId));
-
-    await dbWrite.insert(appBuilderPrompts).values({
-      sandbox_session_id: sessionId,
-      role: "user",
-      content: prompt,
-      status: "completed",
-    });
-
+  private async getApiKeyForApp(appId: string): Promise<string> {
     try {
-      // Emit thinking event
-      await onThinking?.(`Processing prompt: "${prompt.slice(0, 100)}..."`);
-      
-      // TODO: Integrate actual AI/Claude for code generation
-      // For now, this is a placeholder that acknowledges the prompt
-      const result = {
-        output: `Received prompt: "${prompt}". AI code generation not yet implemented.`,
-        filesAffected: [] as string[],
-      };
-
-      // Emit tool use event (placeholder)
-      if (onToolUse) {
-        await onToolUse("analyze_prompt", { prompt: prompt.slice(0, 200) }, "Prompt analyzed");
-      }
-
-      if (abortSignal?.aborted) {
-        throw new Error("Operation aborted");
-      }
-
-      let commitSha = "";
-      if (result.filesAffected.length > 0) {
-        const commit = await sandboxService.commitAndPush(
-          session.sandbox_id,
-          `AI: ${prompt.slice(0, 50)}...`
-        );
-        commitSha = commit.commitSha;
-      }
-
-      await dbWrite.insert(appBuilderPrompts).values({
-        sandbox_session_id: sessionId,
-        role: "assistant",
-        content: result.output,
-        files_affected: result.filesAffected,
-        commit_sha: commitSha || null,
-        status: "completed",
-      });
-
-      await dbWrite
-        .update(appSandboxSessions)
-        .set({ status: "ready", last_commit_sha: commitSha || session.last_commit_sha })
-        .where(eq(appSandboxSessions.id, sessionId));
-
-      return { success: true, output: result.output, filesAffected: result.filesAffected, commitSha };
-    } catch (error) {
-      await dbWrite
-        .update(appSandboxSessions)
-        .set({ status: "ready" })
-        .where(eq(appSandboxSessions.id, sessionId));
-
-      if (String(error).includes("aborted")) {
-        throw error;
-      }
-
-      return { success: false, output: "", filesAffected: [], error: String(error) };
+      return await appsService.regenerateApiKey(appId);
+    } catch {
+      return "";
     }
   }
 
-  async getSession(sessionId: string, userId: string): Promise<BuilderSession | null> {
-    const session = await this.verifySessionOwnership(sessionId, userId);
+  async triggerBackup(
+    sessionId: string,
+    userId: string,
+    snapshotType: "auto" | "manual" | "pre_expiry" = "manual"
+  ): Promise<{ filesBackedUp: number; totalSize: number }> {
+    const session = await this.verifyOwnership(sessionId, userId);
+    if (!session.sandbox_id) {
+      throw new Error("No active sandbox to backup");
+    }
+    return sandboxService.backupFiles(session.sandbox_id, sessionId, {
+      snapshotType,
+    });
+  }
 
-    const app = session.app_id
-      ? await dbRead.query.apps.findFirst({ where: eq(apps.id, session.app_id) })
-      : null;
+  async getSessionSnapshotInfo(
+    sessionId: string,
+    userId: string
+  ): Promise<{
+    fileCount: number;
+    totalSize: number;
+    lastBackup: Date | null;
+    canRestore: boolean;
+  }> {
+    await this.verifyOwnership(sessionId, userId);
+    const stats = await sandboxService.getSnapshotStats(sessionId);
+    return {
+      ...stats,
+      canRestore: stats.fileCount > 0,
+    };
+  }
+
+  async verifySessionOwnership(
+    sessionId: string,
+    userId: string
+  ): Promise<AppSandboxSession> {
+    return this.verifyOwnership(sessionId, userId);
+  }
+
+  async getSession(
+    sessionId: string,
+    userId: string
+  ): Promise<BuilderSession | null> {
+    const session = await this.verifyOwnership(sessionId, userId);
+
+    let currentStatus = session.status;
+
+    if (session.expires_at && new Date(session.expires_at) < new Date()) {
+      currentStatus = "timeout";
+      await dbWrite
+        .update(appSandboxSessions)
+        .set({ status: "timeout", updated_at: new Date() })
+        .where(eq(appSandboxSessions.id, sessionId));
+      logger.info("Session marked as timeout due to expiration", { sessionId });
+    } else if (
+      session.sandbox_id &&
+      currentStatus !== "stopped" &&
+      currentStatus !== "timeout"
+    ) {
+      const sandboxStatus = sandboxService.getStatus(session.sandbox_id);
+      if (sandboxStatus === "unknown") {
+        currentStatus = "timeout";
+        await dbWrite
+          .update(appSandboxSessions)
+          .set({ status: "timeout", updated_at: new Date() })
+          .where(eq(appSandboxSessions.id, sessionId));
+        logger.info("Session marked as timeout due to missing sandbox", {
+          sessionId,
+          sandboxId: session.sandbox_id,
+        });
+      }
+    }
 
     const prompts = await dbRead.query.appBuilderPrompts.findMany({
       where: eq(appBuilderPrompts.sandbox_session_id, sessionId),
-      orderBy: (p, { asc }) => [asc(p.created_at)],
+      orderBy: [desc(appBuilderPrompts.created_at)],
     });
+
+    const messages = prompts
+      .filter((p) => p.role !== "system")
+      .map((p) => ({
+        role: p.role as "user" | "assistant",
+        content: p.content,
+        timestamp: p.created_at.toISOString(),
+      }))
+      .reverse();
+
+    const templateType =
+      (session.template_type as keyof typeof EXAMPLE_PROMPTS) || "blank";
+    const examplePrompts =
+      EXAMPLE_PROMPTS[templateType] || EXAMPLE_PROMPTS.blank;
 
     return {
       id: session.id,
       sandboxId: session.sandbox_id || "",
       sandboxUrl: session.sandbox_url || "",
-      status: session.status,
-      repoName: app?.github_repo || "",
-      messages: prompts.map((p) => ({
-        role: p.role,
-        content: p.content,
-        timestamp: p.created_at.toISOString(),
-      })),
-      examplePrompts: EXAMPLE_PROMPTS[session.template_type as string] || [],
+      status: currentStatus as BuilderSession["status"],
+      messages,
+      examplePrompts,
       expiresAt: session.expires_at?.toISOString() || null,
     };
   }
 
   async listSessions(
     userId: string,
-    options?: { limit?: number; includeInactive?: boolean; appId?: string }
-  ): Promise<SessionListItem[]> {
-    const { limit = 10, includeInactive = false, appId } = options || {};
+    options: { limit?: number; includeInactive?: boolean; appId?: string } = {}
+  ): Promise<AppSandboxSession[]> {
+    const { limit = 10, includeInactive = false, appId } = options;
 
     const conditions = [eq(appSandboxSessions.user_id, userId)];
-    if (!includeInactive) {
-      conditions.push(notInArray(appSandboxSessions.status, ["stopped", "timeout"]));
-    }
     if (appId) {
       conditions.push(eq(appSandboxSessions.app_id, appId));
     }
 
-    const sessions = await dbRead
-      .select()
-      .from(appSandboxSessions)
-      .where(and(...conditions))
-      .orderBy(desc(appSandboxSessions.created_at))
-      .limit(limit);
+    const sessions = await dbRead.query.appSandboxSessions.findMany({
+      where: conditions.length > 1 ? and(...conditions) : conditions[0],
+      orderBy: [desc(appSandboxSessions.created_at)],
+      limit,
+    });
 
-    return sessions.map((s) => ({
-      id: s.id,
-      sandboxId: s.sandbox_id || "",
-      sandboxUrl: s.sandbox_url || "",
-      status: s.status,
-      appName: s.app_name,
-      templateType: s.template_type,
-      createdAt: s.created_at.toISOString(),
-      expiresAt: s.expires_at?.toISOString() || null,
-    }));
+    if (!includeInactive) {
+      return sessions.filter(
+        (s) => s.status !== "stopped" && s.status !== "timeout"
+      );
+    }
+
+    return sessions;
   }
 
   async extendSession(
     sessionId: string,
     userId: string,
-    minutes: number = 30
-  ): Promise<{ expiresAt: string }> {
-    await this.verifySessionOwnership(sessionId, userId);
-    const expiresAt = new Date(Date.now() + minutes * 60 * 1000);
+    durationMs: number = 15 * 60 * 1000
+  ): Promise<{ expiresAt: Date }> {
+    const session = await this.verifyOwnership(sessionId, userId);
+
+    if (!session.sandbox_id) throw new Error("Sandbox not available");
+
+    await sandboxService.extendTimeout(session.sandbox_id, durationMs);
+
+    const currentExpiresAt = session.expires_at
+      ? new Date(session.expires_at)
+      : new Date();
+    const baseTime =
+      currentExpiresAt.getTime() > Date.now()
+        ? currentExpiresAt.getTime()
+        : Date.now();
+    const newExpiresAt = new Date(baseTime + durationMs);
 
     await dbWrite
       .update(appSandboxSessions)
-      .set({ expires_at: expiresAt })
+      .set({ expires_at: newExpiresAt, updated_at: new Date() })
       .where(eq(appSandboxSessions.id, sessionId));
 
-    return { expiresAt: expiresAt.toISOString() };
+    logger.info("Extended session timeout", {
+      sessionId,
+      previousExpiresAt: currentExpiresAt,
+      newExpiresAt,
+      addedMs: durationMs,
+    });
+
+    return { expiresAt: newExpiresAt };
   }
 
-  async resetSessionStatus(sessionId: string, userId: string): Promise<void> {
-    await this.verifySessionOwnership(sessionId, userId);
-    await dbWrite
-      .update(appSandboxSessions)
-      .set({ status: "ready" })
-      .where(eq(appSandboxSessions.id, sessionId));
-  }
-
-  async getLogs(sessionId: string, userId: string, tail?: number): Promise<string[]> {
-    const session = await this.verifySessionOwnership(sessionId, userId);
+  async getLogs(
+    sessionId: string,
+    userId: string,
+    tail = 50
+  ): Promise<string[]> {
+    const session = await this.verifyOwnership(sessionId, userId);
     if (!session.sandbox_id) return [];
+    return sandboxService.getLogs(session.sandbox_id, tail);
+  }
 
-    try {
-      return await sandboxService.getLogs(session.sandbox_id, { tail });
-    } catch (error) {
-      logger.warn("Failed to get logs", { sessionId, error });
-      return [];
+  async stopSession(sessionId: string, userId: string): Promise<void> {
+    const session = await this.verifyOwnership(sessionId, userId);
+
+    if (session.sandbox_id) {
+      await sandboxService.stop(session.sandbox_id);
     }
+
+    await dbWrite
+      .update(appSandboxSessions)
+      .set({
+        status: "stopped",
+        stopped_at: new Date(),
+        updated_at: new Date(),
+      })
+      .where(eq(appSandboxSessions.id, sessionId));
+
+    logger.info("Session stopped", { sessionId });
+  }
+
+  /**
+   * Reset session status back to "ready" after an error.
+   * This allows the user to try sending another prompt.
+   */
+  async resetSessionStatus(sessionId: string, userId: string): Promise<void> {
+    await this.verifyOwnership(sessionId, userId);
+
+    await dbWrite
+      .update(appSandboxSessions)
+      .set({
+        status: "ready",
+        updated_at: new Date(),
+      })
+      .where(eq(appSandboxSessions.id, sessionId));
+
+    logger.info("Session status reset to ready", { sessionId });
+  }
+
+  async deploySession(
+    _sessionId: string,
+    _userId: string,
+    _config: { appName: string; appDescription?: string; appUrl?: string }
+  ): Promise<{ appId: string; deploymentUrl: string }> {
+    throw new Error(
+      "Deployment is not yet available. Please use the export feature to download your app code, then deploy manually to your preferred hosting provider."
+    );
   }
 
   async getAppSnapshotInfo(
     appId: string,
     userId: string,
     organizationId: string
-  ): Promise<{ hasSnapshots: boolean; latestCommit?: string }> {
-    const app = await dbRead.query.apps.findFirst({
-      where: and(eq(apps.id, appId), eq(apps.organization_id, organizationId)),
-    });
-
-    if (!app?.github_repo) {
-      return { hasSnapshots: false };
-    }
-
-    try {
-      const commits = await githubReposService.listCommits(app.github_repo, { limit: 1 });
-      return {
-        hasSnapshots: commits.length > 0,
-        latestCommit: commits[0]?.sha,
-      };
-    } catch (error) {
-      logger.warn("Failed to get snapshot info", { appId, error });
-      return { hasSnapshots: false };
-    }
-  }
-
-  async debugAppSnapshots(appId: string, organizationId: string): Promise<{
-    appId: string;
-    githubRepo: string | null;
-    hasRepo: boolean;
+  ): Promise<{
+    hasSnapshots: boolean;
+    fileCount: number;
+    totalSize: number;
+    lastBackup: Date | null;
+    sessionId: string | null;
   }> {
-    const app = await dbRead.query.apps.findFirst({
-      where: and(eq(apps.id, appId), eq(apps.organization_id, organizationId)),
-    });
+    logger.info("getAppSnapshotInfo called", { appId, userId, organizationId });
+
+    const previousSessionId = await this.findPreviousSessionWithSnapshots(
+      appId,
+      organizationId
+    );
+
+    logger.info("findPreviousSessionWithSnapshots result", { appId, previousSessionId });
+
+    if (!previousSessionId) {
+      return {
+        hasSnapshots: false,
+        fileCount: 0,
+        totalSize: 0,
+        lastBackup: null,
+        sessionId: null,
+      };
+    }
+
+    const stats = await sandboxService.getSnapshotStats(previousSessionId);
+    logger.info("getSnapshotStats result", { previousSessionId, stats });
 
     return {
-      appId,
-      githubRepo: app?.github_repo || null,
-      hasRepo: !!app?.github_repo,
+      hasSnapshots: stats.fileCount > 0,
+      ...stats,
+      sessionId: previousSessionId,
     };
   }
 
-  async getVersionHistory(sessionId: string, userId: string) {
-    const session = await this.verifySessionOwnership(sessionId, userId);
-    if (!session.app_id) return [];
+  async debugAppSnapshots(
+    appId: string,
+    organizationId: string
+  ): Promise<{
+    allSessions: Array<{
+      id: string;
+      status: string;
+      appId: string | null;
+      createdAt: Date;
+    }>;
+    sessionsForThisApp: Array<{
+      id: string;
+      status: string;
+      appId: string | null;
+      createdAt: Date;
+    }>;
+    snapshotsPerSession: Array<{
+      sessionId: string;
+      snapshotCount: number;
+    }>;
+  }> {
+    const allSessions = await dbRead
+      .select({
+        id: appSandboxSessions.id,
+        status: appSandboxSessions.status,
+        appId: appSandboxSessions.app_id,
+        organizationId: appSandboxSessions.organization_id,
+        createdAt: appSandboxSessions.created_at,
+      })
+      .from(appSandboxSessions)
+      .where(eq(appSandboxSessions.organization_id, organizationId))
+      .orderBy(desc(appSandboxSessions.created_at))
+      .limit(20);
 
-    const app = await dbRead.query.apps.findFirst({ where: eq(apps.id, session.app_id) });
-    if (!app?.github_repo) return [];
+    const sessionsForThisApp = allSessions.filter((s) => s.appId === appId);
 
-    return githubReposService.listCommits(app.github_repo, { limit: 50 });
-  }
+    const snapshotsPerSession: Array<{
+      sessionId: string;
+      snapshotCount: number;
+    }> = [];
 
-  async stopSession(sessionId: string, userId: string): Promise<void> {
-    const session = await this.verifySessionOwnership(sessionId, userId);
+    for (const session of sessionsForThisApp) {
+      const snapshots = await dbRead
+        .select({ id: sessionFileSnapshots.id })
+        .from(sessionFileSnapshots)
+        .where(eq(sessionFileSnapshots.sandbox_session_id, session.id));
 
-    if (session.sandbox_id) {
-      try {
-        await sandboxService.commitAndPush(session.sandbox_id, "Auto-save before session end");
-      } catch (error) {
-        logger.warn("Failed to auto-save before stopping", { sessionId, error });
-      }
-      await sandboxService.stop(session.sandbox_id);
+      snapshotsPerSession.push({
+        sessionId: session.id,
+        snapshotCount: snapshots.length,
+      });
     }
 
-    await dbWrite
-      .update(appSandboxSessions)
-      .set({ status: "stopped", stopped_at: new Date() })
-      .where(eq(appSandboxSessions.id, sessionId));
-  }
-
-  async verifySessionOwnership(sessionId: string, userId: string): Promise<AppSandboxSession> {
-    const session = await dbRead.query.appSandboxSessions.findFirst({
-      where: eq(appSandboxSessions.id, sessionId),
-    });
-    if (!session) throw new Error("Session not found");
-    if (session.user_id !== userId) throw new Error("Access denied");
-    return session;
-  }
-
-  private async getRepoName(appId: string): Promise<string> {
-    const app = await dbRead.query.apps.findFirst({ where: eq(apps.id, appId) });
-    return app?.github_repo || generateRepoName(app?.slug || appId);
+    return {
+      allSessions: allSessions.map((s) => ({
+        id: s.id,
+        status: s.status || "unknown",
+        appId: s.appId,
+        createdAt: s.createdAt,
+      })),
+      sessionsForThisApp: sessionsForThisApp.map((s) => ({
+        id: s.id,
+        status: s.status || "unknown",
+        appId: s.appId,
+        createdAt: s.createdAt,
+      })),
+      snapshotsPerSession,
+    };
   }
 }
 
-export const aiAppBuilder = new AIAppBuilderService();
+export const aiAppBuilderService = new AIAppBuilderService();

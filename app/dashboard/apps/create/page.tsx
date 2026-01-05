@@ -331,18 +331,21 @@ export default function AppCreatorPage() {
 
           if (response.ok) {
             const data = await response.json();
-            if (data.success && data.session && data.session.sandboxUrl) {
+            const sessionStatus = data.session?.status as SessionStatus | undefined;
+          const isExpiredOrStopped = sessionStatus === "timeout" || sessionStatus === "stopped";
+
+          if (data.success && data.session && (data.session.sandboxUrl || isExpiredOrStopped)) {
               const restoredSession: SessionData = {
                 id: data.session.id,
-                sandboxId: data.session.sandboxId,
-                sandboxUrl: data.session.sandboxUrl,
-                status: data.session.status,
+                sandboxId: data.session.sandboxId || "",
+                sandboxUrl: data.session.sandboxUrl || "",
+                status: sessionStatus || "idle",
                 examplePrompts: data.session.examplePrompts || [],
                 expiresAt: data.session.expiresAt || null,
               };
 
               setSession(restoredSession);
-              setStatus(data.session.status);
+              setStatus(sessionStatus || "idle");
               setStep("building");
 
               const stored = sessionStorage.getItem(messagesStorageKey);
@@ -352,6 +355,10 @@ export default function AppCreatorPage() {
                 } catch {
                   // Invalid stored data
                 }
+              }
+
+              if (isExpiredOrStopped && data.session.messages?.length > 0) {
+                setMessages(data.session.messages);
               }
 
               if (appIdFromUrl) {
@@ -423,7 +430,7 @@ export default function AppCreatorPage() {
         }
 
         const sessionResponse = await fetchWithRetry(
-          `/api/v1/app-builder?appId=${appIdFromUrl}&limit=1&includeInactive=false`
+          `/api/v1/app-builder?appId=${appIdFromUrl}&limit=1&includeInactive=true`
         );
 
         if (sessionResponse.ok) {
@@ -1894,7 +1901,7 @@ ANTHROPIC_API_KEY=your_key_here`}
     );
   }
 
-  if (status === "initializing") {
+  if (status === "initializing" && !isRestoring) {
     const steps = [
       { key: "creating", label: "Creating sandbox instance" },
       { key: "installing", label: "Installing dependencies" },
@@ -2109,23 +2116,70 @@ ANTHROPIC_API_KEY=your_key_here`}
         </div>
       </div>
 
-      {status === "timeout" && (
+      {(status === "timeout" || isRestoring) && (
         <div className="absolute inset-0 top-[57px] bg-black/80 backdrop-blur-sm z-20 flex items-center justify-center">
           <BrandCard className="max-w-md mx-4">
             <CornerBrackets className="opacity-20" />
             <div className="relative z-10 text-center space-y-4">
-              <div className="w-16 h-16 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center mx-auto">
-                <Timer className="h-8 w-8 text-red-400" />
+              <div
+                className={`w-16 h-16 rounded-full ${isRestoring ? "bg-green-500/10 border-green-500/20" : "bg-red-500/10 border-red-500/20"} border flex items-center justify-center mx-auto`}
+              >
+                {isRestoring ? (
+                  <Loader2 className="h-8 w-8 text-green-400 animate-spin" />
+                ) : (
+                  <Timer className="h-8 w-8 text-red-400" />
+                )}
               </div>
               <h2 className="text-xl font-semibold text-white">
-                Session Expired
+                {isRestoring ? "Restoring Session" : "Session Expired"}
               </h2>
               <p className="text-sm text-white/60">
-                Your sandbox session has timed out after 30 minutes of
-                inactivity.
+                {isRestoring
+                  ? "Setting up your development environment and restoring your files..."
+                  : "Your sandbox session has timed out after 30 minutes of inactivity."}
               </p>
 
-              {snapshotInfo?.canRestore ? (
+              {isRestoring ? (
+                <div className="space-y-3">
+                  <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
+                    <p className="text-sm text-green-400 font-medium">
+                      Good news! Your work has been saved.
+                    </p>
+                    <p className="text-xs text-white/50 mt-1">
+                      {snapshotInfo?.fileCount || 0} files (
+                      {Math.round((snapshotInfo?.totalSize || 0) / 1024)}KB)
+                      backed up
+                    </p>
+                  </div>
+
+                  <Button
+                    disabled={true}
+                    className="w-full bg-green-600 text-white cursor-wait"
+                  >
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    {restoreProgress
+                      ? `Restoring ${restoreProgress.current}/${restoreProgress.total}...`
+                      : progressStep === "creating"
+                        ? "Creating sandbox..."
+                        : progressStep === "installing"
+                          ? "Installing dependencies..."
+                          : progressStep === "starting"
+                            ? "Starting dev server..."
+                            : progressStep === "restoring"
+                              ? "Restoring files..."
+                              : "Preparing..."}
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    onClick={() => router.push("/dashboard/apps")}
+                    disabled={true}
+                    className="w-full opacity-50"
+                  >
+                    Return to Apps
+                  </Button>
+                </div>
+              ) : snapshotInfo?.canRestore ? (
                 <div className="space-y-3">
                   <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
                     <p className="text-sm text-green-400 font-medium">
@@ -2142,19 +2196,8 @@ ANTHROPIC_API_KEY=your_key_here`}
                     disabled={isRestoring}
                     className="w-full bg-green-600 hover:bg-green-500 text-white"
                   >
-                    {isRestoring ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        {restoreProgress
-                          ? `Restoring ${restoreProgress.current}/${restoreProgress.total}...`
-                          : "Creating sandbox..."}
-                      </>
-                    ) : (
-                      <>
-                        <RefreshCw className="h-4 w-4 mr-2" />
-                        Restore Session
-                      </>
-                    )}
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Restore Session
                   </Button>
 
                   <Button

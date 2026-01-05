@@ -1,17 +1,247 @@
 import { logger } from "@/lib/utils/logger";
+import crypto from "crypto";
+import Anthropic from "@anthropic-ai/sdk";
+import OpenAI from "openai";
+import { buildFullAppPrompt } from "@/lib/fragments/prompt";
+import { dbRead, dbWrite } from "@/db/client";
 import {
-  ELIZA_SDK_FILE,
-  ELIZA_HOOK_FILE,
-  ELIZA_ANALYTICS_COMPONENT,
-} from "./sandbox-sdk-templates";
-import { getGitCredentials, getAuthenticatedCloneUrl } from "./github-repos";
+  sessionFileSnapshots,
+  sessionRestoreHistory,
+  type NewSessionFileSnapshot,
+} from "@/db/schemas/app-sandboxes";
+import { eq, and, desc } from "drizzle-orm";
 
-/**
- * Sandbox Service
- * 
- * Manages Vercel Sandbox instances connected to GitHub repositories.
- * Each app is a private GitHub repo.
- */
+interface RetryOptions {
+  maxAttempts?: number;
+  delayMs?: number;
+  backoffMultiplier?: number;
+  shouldRetry?: (error: Error) => boolean;
+  onRetry?: (attempt: number, error: Error, nextDelayMs: number) => void;
+}
+
+async function withRetry<T>(
+  operation: () => Promise<T>,
+  options: RetryOptions = {}
+): Promise<T> {
+  const {
+    maxAttempts = 3,
+    delayMs = 1000,
+    backoffMultiplier = 2,
+    shouldRetry = () => true,
+    onRetry,
+  } = options;
+
+  let lastError: Error | null = null;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+
+      if (attempt === maxAttempts || !shouldRetry(lastError)) {
+        throw lastError;
+      }
+
+      const nextDelay = delayMs * Math.pow(backoffMultiplier, attempt - 1);
+      onRetry?.(attempt, lastError, nextDelay);
+
+      await new Promise((resolve) => setTimeout(resolve, nextDelay));
+    }
+  }
+
+  throw lastError || new Error("Retry failed");
+}
+
+const ELIZA_SDK_FILE = `const apiKey = process.env.NEXT_PUBLIC_ELIZA_API_KEY || '';
+const apiBase = process.env.NEXT_PUBLIC_ELIZA_API_URL || 'https://elizacloud.ai';
+const appId = process.env.NEXT_PUBLIC_ELIZA_APP_ID || '';
+
+interface ChatMessage {
+  role: string;
+  content: string;
+}
+
+const trackedPaths = new Set<string>();
+
+export async function trackPageView(pathname?: string) {
+  if (typeof window === 'undefined') return;
+
+  const path = pathname || window.location.pathname;
+  if (trackedPaths.has(path)) return;
+  trackedPaths.add(path);
+
+  try {
+    const payload = {
+      app_id: appId,
+      page_url: window.location.href,
+      pathname: path,
+      referrer: document.referrer,
+      screen_width: window.screen.width,
+      screen_height: window.screen.height,
+    };
+
+    await fetch(\`\${apiBase}/api/v1/track/pageview\`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(apiKey ? { 'X-Api-Key': apiKey } : {}),
+      },
+      body: JSON.stringify(payload),
+    });
+  } catch (e) {
+    // Silent fail - don't break the app for analytics
+  }
+}
+
+export async function chat(messages: ChatMessage[], model = 'gpt-4o') {
+  const res = await fetch(\`\${apiBase}/api/v1/chat/completions\`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Api-Key': apiKey },
+    body: JSON.stringify({ messages, model }),
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export async function* chatStream(messages: ChatMessage[], model = 'gpt-4o') {
+  const res = await fetch(\`\${apiBase}/api/v1/chat/completions\`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Api-Key': apiKey },
+    body: JSON.stringify({ messages, model, stream: true }),
+  });
+  const reader = res.body?.getReader();
+  const decoder = new TextDecoder();
+  while (reader) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    for (const line of decoder.decode(value).split('\\n')) {
+      if (line.startsWith('data: ') && !line.includes('[DONE]')) {
+        try { yield JSON.parse(line.slice(6)); } catch {}
+      }
+    }
+  }
+}
+
+export async function generateImage(prompt: string, options?: { model?: string; width?: number; height?: number }) {
+  const res = await fetch(\`\${apiBase}/api/v1/generate-image\`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Api-Key': apiKey },
+    body: JSON.stringify({ prompt, ...options }),
+  });
+  return res.json() as Promise<{ url: string; id: string }>;
+}
+
+export async function uploadFile(file: File | Blob, filename: string) {
+  const formData = new FormData();
+  formData.append('file', file, filename);
+  const res = await fetch(\`\${apiBase}/api/v1/storage/upload\`, {
+    method: 'POST',
+    headers: { 'X-Api-Key': apiKey },
+    body: formData,
+  });
+  return res.json() as Promise<{ id: string; url: string }>;
+}
+
+export async function getBalance() {
+  const res = await fetch(\`\${apiBase}/api/v1/credits/balance\`, {
+    headers: { 'X-Api-Key': apiKey },
+  });
+  return res.json() as Promise<{ balance: number }>;
+}
+
+export async function listAgents() {
+  const res = await fetch(\`\${apiBase}/api/v1/agents\`, {
+    headers: { 'X-Api-Key': apiKey },
+  });
+  return res.json() as Promise<{ agents: Array<{ id: string; name: string; bio: string }> }>;
+}
+
+export async function chatWithAgent(agentId: string, message: string, roomId?: string) {
+  const res = await fetch(\`\${apiBase}/api/v1/agents/chat\`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Api-Key': apiKey },
+    body: JSON.stringify({ agentId, message, roomId }),
+  });
+  return res.json() as Promise<{ response: string; roomId: string }>;
+}
+`;
+
+const ELIZA_HOOK_FILE = `'use client';
+import { useState, useCallback, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
+
+type ChatMessage = { role: string; content: string };
+
+export function useChat() {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const send = useCallback(async (messages: ChatMessage[]) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const { chat } = await import('@/lib/eliza');
+      return await chat(messages);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Unknown error');
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  return { send, loading, error };
+}
+
+export function useChatStream() {
+  const [loading, setLoading] = useState(false);
+
+  const stream = useCallback(async function* (messages: ChatMessage[]) {
+    setLoading(true);
+    try {
+      const { chatStream } = await import('@/lib/eliza');
+      yield* chatStream(messages);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  return { stream, loading };
+}
+
+export function usePageTracking() {
+  const pathname = usePathname();
+
+  useEffect(() => {
+    const track = async () => {
+      try {
+        const { trackPageView } = await import('@/lib/eliza');
+        trackPageView(pathname);
+      } catch (e) {
+        // Silent fail
+      }
+    };
+    track();
+  }, [pathname]);
+}
+`;
+
+const ELIZA_ANALYTICS_COMPONENT = `'use client';
+import { useEffect } from 'react';
+import { usePathname } from 'next/navigation';
+import { trackPageView } from '@/lib/eliza';
+
+export function ElizaAnalytics() {
+  const pathname = usePathname();
+
+  useEffect(() => {
+    trackPageView(pathname);
+  }, [pathname]);
+
+  return null;
+}
+`;
 
 interface SandboxInstance {
   id?: string;
@@ -38,8 +268,15 @@ interface CommandResult {
   stderr: () => Promise<string>;
 }
 
+export type SandboxProgress =
+  | { step: "creating"; message: string }
+  | { step: "installing"; message: string }
+  | { step: "starting"; message: string }
+  | { step: "restoring"; message: string }
+  | { step: "ready"; message: string }
+  | { step: "error"; message: string };
+
 export interface SandboxConfig {
-  repoName?: string;
   templateUrl?: string;
   timeout?: number;
   vcpus?: number;
@@ -50,112 +287,247 @@ export interface SandboxConfig {
   onProgress?: (progress: SandboxProgress) => void;
 }
 
-export interface SandboxProgress {
-  step: "creating" | "cloning" | "installing" | "starting" | "ready" | "error";
-  message: string;
-}
-
 export interface SandboxSessionData {
   sandboxId: string;
   sandboxUrl: string;
-  sandbox: SandboxInstance;
+  status: "initializing" | "ready" | "generating" | "error" | "stopped";
+  devServerUrl?: string;
+  startedAt?: Date;
 }
 
-const DEFAULT_TEMPLATE_URL = "https://github.com/elizacloud-apps/sandbox-template";
+const DEFAULT_TEMPLATE_URL =
+  "https://github.com/elizaOS/sandbox-template-cloud.git";
 const DEFAULT_TIMEOUT_MS = 30 * 60 * 1000;
 
-// Track active sandboxes (Note: lost on server restart - see cleanup job)
-const activeSandboxes = new Map<string, SandboxInstance>();
-
-/**
- * Get active sandboxes map (used by cleanup job)
- */
-export function getActiveSandboxes(): Map<string, SandboxInstance> {
-  return activeSandboxes;
+declare global {
+  var __sandboxInstances: Map<string, SandboxInstance> | undefined;
 }
 
-/**
- * Sanitize file path to prevent command injection and path traversal
- */
-function sanitizeFilePath(filePath: string): string {
-  // Decode any URL-encoded characters first to catch encoded traversal attempts
-  let decoded = filePath;
-  try {
-    // Decode multiple times to catch double-encoding
-    let prev = "";
-    while (prev !== decoded) {
-      prev = decoded;
-      decoded = decodeURIComponent(decoded);
-    }
-  } catch {
-    // If decoding fails, use original
+const getActiveSandboxes = (): Map<string, SandboxInstance> => {
+  if (!global.__sandboxInstances) {
+    global.__sandboxInstances = new Map<string, SandboxInstance>();
   }
-  
-  // Normalize path separators
-  decoded = decoded.replace(/\\/g, "/");
-  
-  // Remove any characters that could break shell commands
-  // Allow only alphanumeric, dots, hyphens, underscores, and forward slashes
-  const sanitized = decoded.replace(/[^a-zA-Z0-9._/-]/g, "");
-  
-  // Security checks
-  if (
-    sanitized.includes("..") ||       // Path traversal
-    sanitized.startsWith("/") ||       // Absolute paths
-    sanitized.includes("//") ||        // Double slashes
-    /^[a-zA-Z]:/.test(sanitized)      // Windows drive letters
-  ) {
-    throw new Error("Invalid file path: potentially dangerous path");
-  }
-  
-  // Ensure path doesn't escape project directory
-  const normalized = sanitized.split("/").filter(Boolean).join("/");
-  if (!normalized || normalized.length > 500) {
-    throw new Error("Invalid file path: path too long or empty");
-  }
-  
-  return normalized;
+  return global.__sandboxInstances;
+};
+
+function getSandboxCredentials() {
+  const hasOIDC = !!process.env.VERCEL_OIDC_TOKEN;
+  const teamId = process.env.VERCEL_TEAM_ID;
+  const projectId = process.env.VERCEL_PROJECT_ID;
+  const token = process.env.VERCEL_TOKEN;
+  const hasAccessToken = !!(teamId && projectId && token);
+  return { hasOIDC, hasAccessToken, teamId, projectId, token };
 }
 
 function extractSandboxIdFromUrl(url: string): string {
-  const match = url.match(/([a-z0-9-]+)\.vercel/);
-  return match?.[1] || `sandbox-${Date.now()}`;
+  const hostname = new URL(url).hostname;
+  return hostname.split(".")[0] || `sandbox-${crypto.randomUUID().slice(0, 8)}`;
 }
 
-function getSandboxCredentials(): {
-  hasOIDC: boolean;
-  hasAccessToken: boolean;
-  teamId?: string;
-  projectId?: string;
-  token?: string;
+const TOOLS: Anthropic.Tool[] = [
+  {
+    name: "install_packages",
+    description:
+      "Install packages (pnpm/npm). Use this BEFORE writing files that import external packages.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        packages: {
+          type: "array",
+          items: { type: "string" },
+          description: "Package names to install",
+        },
+      },
+      required: ["packages"],
+    },
+  },
+  {
+    name: "write_file",
+    description:
+      "Write or update a file. The build status will be checked automatically after writing.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        path: {
+          type: "string",
+          description: "File path (e.g., 'src/app/page.tsx')",
+        },
+        content: { type: "string", description: "Complete file content" },
+      },
+      required: ["path", "content"],
+    },
+  },
+  {
+    name: "read_file",
+    description: "Read a file's content.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        path: { type: "string", description: "File path to read" },
+      },
+      required: ["path"],
+    },
+  },
+  {
+    name: "check_build",
+    description:
+      "Check if the app builds successfully and get any error messages. Use this after making changes to verify they work.",
+    input_schema: { type: "object" as const, properties: {}, required: [] },
+  },
+  {
+    name: "list_files",
+    description: "List files in a directory.",
+    input_schema: {
+      type: "object" as const,
+      properties: { path: { type: "string", description: "Directory path" } },
+      required: ["path"],
+    },
+  },
+  {
+    name: "run_command",
+    description: "Run a shell command.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        command: { type: "string", description: "Command to run" },
+      },
+      required: ["command"],
+    },
+  },
+];
+
+const getDefaultSystemPrompt = () =>
+  buildFullAppPrompt({
+    templateType: "blank",
+    includeAnalytics: true,
+    includeMonetization: false,
+  });
+
+const ALLOWED_DIRECTORIES = [
+  "src/",
+  "app/",
+  "components/",
+  "lib/",
+  "public/",
+  "styles/",
+  "pages/",
+  "utils/",
+  "hooks/",
+  "types/",
+  "context/",
+  "store/",
+  "services/",
+  "api/",
+  "layouts/",
+  "templates/",
+  "features/",
+  "modules/",
+  "assets/",
+  "config/",
+];
+
+const ALLOWED_ROOT_PATTERNS = [
+  /^package\.json$/,
+  /^package-lock\.json$/,
+  /^bun\.lockb$/,
+  /^pnpm-lock\.yaml$/,
+  /^yarn\.lock$/,
+  /^tsconfig.*\.json$/,
+  /^next\.config\.(ts|js|mjs)$/,
+  /^tailwind\.config\.(ts|js)$/,
+  /^postcss\.config\.(js|mjs)$/,
+  /^.*\.md$/,
+  /^.*\.txt$/,
+  /^LICENSE.*$/,
+  /^\.gitignore$/,
+  /^\.eslintrc\.(js|json)$/,
+  /^eslint\.config\.(js|mjs)$/,
+  /^\.prettierrc(\.json)?$/,
+  /^prettier\.config\.(js|mjs)$/,
+  /^\.editorconfig$/,
+  /^\.nvmrc$/,
+  /^\.node-version$/,
+  /^\.env(\.[a-z]+)?\.example$/,
+];
+
+const ALLOWED_COMMANDS = [
+  "pnpm",
+  "npm",
+  "npx",
+  "node",
+  "tsc",
+  "next",
+  "prettier",
+  "eslint",
+  "cat",
+  "ls",
+  "pwd",
+  "echo",
+  "head",
+  "tail",
+  "grep",
+  "find",
+  "wc",
+];
+
+const BLOCKED_COMMAND_PATTERNS = [
+  /rm\s+(-rf?|--recursive)/i,
+  /curl\s/i,
+  /wget\s/i,
+  /chmod\s/i,
+  /chown\s/i,
+  /sudo\s/i,
+  /eval\s/i,
+  /exec\s/i,
+  /\|\s*(bash|sh|zsh)/i,
+  />\s*\/etc\//i,
+  /\.env(?!\.(example|sample|template)\b)/i,
+  /process\.env/i,
+  /export\s+\w+=/i,
+];
+
+function isCommandAllowed(command: string): {
+  allowed: boolean;
+  reason?: string;
 } {
-  return {
-    hasOIDC: !!process.env.VERCEL_OIDC_TOKEN,
-    hasAccessToken:
-      !!process.env.VERCEL_TOKEN &&
-      !!process.env.VERCEL_TEAM_ID &&
-      !!process.env.VERCEL_PROJECT_ID,
-    teamId: process.env.VERCEL_TEAM_ID,
-    projectId: process.env.VERCEL_PROJECT_ID,
-    token: process.env.VERCEL_TOKEN,
-  };
+  const trimmed = command.trim();
+  const baseCommand = trimmed.split(/\s+/)[0];
+
+  for (const pattern of BLOCKED_COMMAND_PATTERNS) {
+    if (pattern.test(trimmed)) {
+      return {
+        allowed: false,
+        reason: `Command contains blocked pattern: ${pattern}`,
+      };
+    }
+  }
+
+  if (!ALLOWED_COMMANDS.includes(baseCommand)) {
+    return {
+      allowed: false,
+      reason: `Command '${baseCommand}' not in allowlist. Allowed: ${ALLOWED_COMMANDS.join(", ")}`,
+    };
+  }
+
+  return { allowed: true };
 }
 
-async function readFileViaSh(
-  sandbox: SandboxInstance,
-  filePath: string
-): Promise<string | null> {
-  const safePath = sanitizeFilePath(filePath);
-  try {
-    const result = await sandbox.runCommand({
-      cmd: "cat",
-      args: [safePath],
-    });
-    if (result.exitCode !== 0) return null;
-    return await result.stdout();
-  } catch {
-    return null;
+function isPathAllowed(filePath: string): boolean {
+  const normalized = filePath.replace(/^\.\//, "").replace(/\.\.\//g, "");
+
+  if (normalized.includes("..")) {
+    return false;
   }
+
+  if (ALLOWED_DIRECTORIES.some((dir) => normalized.startsWith(dir))) {
+    return true;
+  }
+
+  if (!normalized.includes("/")) {
+    return ALLOWED_ROOT_PATTERNS.some((pattern) => pattern.test(normalized));
+  }
+
+  return false;
 }
 
 async function writeFileViaSh(
@@ -163,25 +535,240 @@ async function writeFileViaSh(
   filePath: string,
   content: string
 ): Promise<void> {
-  const safePath = sanitizeFilePath(filePath);
-  const dirPath = safePath.substring(0, safePath.lastIndexOf("/"));
-  
-  if (dirPath) {
-    await sandbox.runCommand({ cmd: "mkdir", args: ["-p", dirPath] });
+  if (!isPathAllowed(filePath)) {
+    throw new Error(
+      `Path not allowed: ${filePath}. Files must be in allowed directories (${ALLOWED_DIRECTORIES.join(", ")}) or match allowed root patterns (*.md, *.txt, config files, etc.)`
+    );
   }
-  
-  // Use base64 to safely pass content without shell interpretation
-  const encoded = Buffer.from(content, "utf-8").toString("base64");
+
+  const base64Content = Buffer.from(content, "utf-8").toString("base64");
+  const dir = filePath.split("/").slice(0, -1).join("/");
+
+  if (dir) {
+    await sandbox.runCommand({ cmd: "mkdir", args: ["-p", dir] });
+  }
+
+  const script = `require('fs').writeFileSync(process.argv[1], Buffer.from(process.argv[2], 'base64').toString('utf-8'))`;
+  const result = await sandbox.runCommand({
+    cmd: "node",
+    args: ["-e", script, filePath, base64Content],
+  });
+
+  if (result.exitCode !== 0) {
+    throw new Error(`Failed to write ${filePath}: ${await result.stderr()}`);
+  }
+}
+
+async function readFileViaSh(
+  sandbox: SandboxInstance,
+  filePath: string
+): Promise<string | null> {
+  const result = await sandbox.runCommand({ cmd: "cat", args: [filePath] });
+  return result.exitCode === 0 ? await result.stdout() : null;
+}
+
+async function listFilesViaSh(
+  sandbox: SandboxInstance,
+  dirPath: string
+): Promise<string[]> {
+  const result = await sandbox.runCommand({
+    cmd: "sh",
+    args: ["-c", `find ${dirPath} -type f 2>/dev/null | head -50`],
+  });
+  return result.exitCode === 0
+    ? (await result.stdout()).split("\n").filter(Boolean)
+    : [];
+}
+
+async function installPackages(
+  sandbox: SandboxInstance,
+  packages: string[]
+): Promise<string> {
+  if (!packages || packages.length === 0) return "No packages specified";
+
+  logger.info("Installing packages", { packages });
+
+  let result = await sandbox.runCommand({
+    cmd: "pnpm",
+    args: ["add", ...packages],
+  });
+
+  if (result.exitCode !== 0) {
+    logger.info("pnpm failed, trying npm", { packages });
+    result = await sandbox.runCommand({
+      cmd: "npm",
+      args: ["install", ...packages],
+    });
+  }
+
+  if (result.exitCode !== 0) {
+    const stderr = await result.stderr();
+    return `Failed to install: ${stderr}`;
+  }
+
+  return `Installed: ${packages.join(", ")}`;
+}
+
+async function installDependencies(sandbox: SandboxInstance): Promise<string> {
+  logger.info("Installing dependencies from package.json");
+
   await sandbox.runCommand({
     cmd: "sh",
-    args: ["-c", `printf '%s' '${encoded}' | base64 -d > '${safePath}'`],
+    args: ["-c", "rm -rf node_modules/.cache 2>/dev/null || true"],
   });
+
+  await sandbox.runCommand({
+    cmd: "sh",
+    args: ["-c", "rm -rf .next 2>/dev/null || true"],
+  });
+
+  let result = await sandbox.runCommand({
+    cmd: "pnpm",
+    args: ["install", "--force"],
+  });
+
+  if (result.exitCode !== 0) {
+    logger.info("pnpm install failed, trying npm install");
+    result = await sandbox.runCommand({
+      cmd: "npm",
+      args: ["install", "--force"],
+    });
+  }
+
+  if (result.exitCode !== 0) {
+    const stderr = await result.stderr();
+    logger.warn("Failed to install dependencies", { stderr });
+    return `Failed to install dependencies: ${stderr}`;
+  }
+
+  return "Dependencies installed successfully";
+}
+
+async function checkBuild(sandbox: SandboxInstance): Promise<string> {
+  await new Promise((r) => setTimeout(r, 2000));
+
+  const logsResult = await sandbox.runCommand({
+    cmd: "sh",
+    args: [
+      "-c",
+      "tail -100 /tmp/next-dev.log 2>/dev/null | grep -i -E 'error|failed|cannot|warning' | tail -20",
+    ],
+  });
+  const logs = await logsResult.stdout();
+
+  const curlResult = await sandbox.runCommand({
+    cmd: "curl",
+    args: ["-s", "-w", "\n---STATUS:%{http_code}---", "http://localhost:3000"],
+  });
+  const response = await curlResult.stdout();
+
+  const statusMatch = response.match(/---STATUS:(\d+)---/);
+  const statusCode = statusMatch ? parseInt(statusMatch[1]) : 0;
+  const body = response.replace(/---STATUS:\d+---/, "");
+
+  const errors: string[] = [];
+
+  if (statusCode >= 400 || statusCode === 0) {
+    errors.push(`HTTP ${statusCode}: Page failed to load`);
+  }
+
+  const errorPatterns = [
+    /Error:([^<]+)/gi,
+    /Cannot ([^<]+)/gi,
+    /Module not found([^<]+)/gi,
+    /SyntaxError([^<]+)/gi,
+    /TypeError([^<]+)/gi,
+    /Build Error/gi,
+    /CssSyntaxError([^<]+)/gi,
+  ];
+
+  for (const pattern of errorPatterns) {
+    const matches = body.matchAll(pattern);
+    for (const match of matches) {
+      const err = match[0].substring(0, 200).trim();
+      if (!errors.includes(err)) {
+        errors.push(err);
+      }
+    }
+  }
+
+  if (logs.trim()) {
+    const logErrors = logs
+      .split("\n")
+      .filter((l) => l.trim())
+      .slice(0, 5);
+    errors.push(...logErrors);
+  }
+
+  if (errors.length === 0) {
+    return "BUILD OK - No errors detected!";
+  }
+
+  return `BUILD ERRORS:\n${[...new Set(errors)].slice(0, 10).join("\n")}\n\nPlease fix these errors!`;
 }
 
 export class SandboxService {
+  private anthropic: Anthropic | null = null;
+  private openai: OpenAI | null = null;
+  private preferredProvider: "anthropic" | "openai" | null = null;
+
+  /**
+   * Get AI client with automatic fallback from Anthropic to OpenAI
+   * Returns the working provider
+   */
+  private getAIClient(): {
+    provider: "anthropic" | "openai";
+    client: Anthropic | OpenAI;
+  } {
+    // Check if we already determined the preferred provider
+    if (this.preferredProvider === "anthropic" && this.anthropic) {
+      return { provider: "anthropic", client: this.anthropic };
+    }
+    if (this.preferredProvider === "openai" && this.openai) {
+      return { provider: "openai", client: this.openai };
+    }
+
+    // Try Anthropic first
+    const anthropicKey = process.env.ANTHROPIC_API_KEY;
+    if (anthropicKey && anthropicKey.startsWith("sk-ant-")) {
+      logger.info("Using Anthropic (Claude) for app builder");
+      this.anthropic = new Anthropic({ apiKey: anthropicKey });
+      this.preferredProvider = "anthropic";
+      return { provider: "anthropic", client: this.anthropic };
+    }
+
+    // Fallback to OpenAI
+    const openaiKey = process.env.OPENAI_API_KEY;
+    if (openaiKey) {
+      logger.warn(
+        "Anthropic API key not available, falling back to OpenAI for app builder"
+      );
+      this.openai = new OpenAI({ apiKey: openaiKey });
+      this.preferredProvider = "openai";
+      return { provider: "openai", client: this.openai };
+    }
+
+    throw new Error(
+      "No AI provider configured. Set either ANTHROPIC_API_KEY or OPENAI_API_KEY in environment variables."
+    );
+  }
+
+  private getAnthropicClient(): Anthropic {
+    if (!this.anthropic) {
+      this.anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+    }
+    return this.anthropic;
+  }
+
+  private getOpenAIClient(): OpenAI {
+    if (!this.openai) {
+      this.openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    }
+    return this.openai;
+  }
+
   async create(config: SandboxConfig = {}): Promise<SandboxSessionData> {
     const {
-      repoName,
       templateUrl = DEFAULT_TEMPLATE_URL,
       timeout = DEFAULT_TIMEOUT_MS,
       vcpus = 4,
@@ -190,35 +777,22 @@ export class SandboxService {
       onProgress,
     } = config;
 
+    const mergedEnv = { ...env };
     const creds = getSandboxCredentials();
+
     if (!creds.hasOIDC && !creds.hasAccessToken) {
       throw new Error(
-        "Vercel Sandbox credentials not configured. Set VERCEL_TOKEN, VERCEL_TEAM_ID, and VERCEL_PROJECT_ID."
+        "Vercel Sandbox credentials not configured. Run 'vercel env pull' to get OIDC token, or set VERCEL_TOKEN, VERCEL_TEAM_ID, and VERCEL_PROJECT_ID."
       );
     }
 
     const { Sandbox } = await import("@vercel/sandbox");
 
-    let source: { url: string; type: "git"; username?: string; password?: string };
-    
-    if (repoName) {
-      const credentials = getGitCredentials();
-      source = {
-        url: getAuthenticatedCloneUrl(repoName),
-        type: "git",
-        username: credentials.username,
-        password: credentials.password,
-      };
-      logger.info("Creating sandbox from GitHub repo", { repoName });
-    } else {
-      source = { url: templateUrl, type: "git" };
-      logger.info("Creating sandbox from template", { templateUrl });
-    }
-
+    logger.info("Creating sandbox", { templateUrl, vcpus });
     onProgress?.({ step: "creating", message: "Creating sandbox instance..." });
 
     const createOptions: Record<string, unknown> = {
-      source,
+      source: { url: templateUrl, type: "git" },
       resources: { vcpus },
       timeout,
       ports,
@@ -231,59 +805,836 @@ export class SandboxService {
       createOptions.token = creds.token;
     }
 
-    const sandbox = (await Sandbox.create(createOptions)) as SandboxInstance;
+    let sandbox: SandboxInstance;
+    try {
+      sandbox = (await Sandbox.create(createOptions)) as SandboxInstance;
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("OIDC")) {
+        throw new Error(
+          `OIDC token expired or invalid. Run 'vercel env pull' to refresh it. Original error: ${error.message}`
+        );
+      }
+      throw error;
+    }
     const devServerUrl = sandbox.domain(3000);
     const sandboxId = sandbox.id ?? extractSandboxIdFromUrl(devServerUrl);
 
-    logger.info("Sandbox created", { sandboxId });
-    activeSandboxes.set(sandboxId, sandbox);
-    onProgress?.({ step: "cloning", message: "Repository cloned" });
+    logger.info("Sandbox created", { sandboxId, devServerUrl });
+    getActiveSandboxes().set(sandboxId, sandbox);
+    onProgress?.({ step: "creating", message: "Sandbox instance created" });
 
-    // Configure git
-    if (repoName) {
-      await sandbox.runCommand({
-        cmd: "git",
-        args: ["config", "user.email", "sandbox@elizacloud.ai"],
-      });
-      await sandbox.runCommand({
-        cmd: "git",
-        args: ["config", "user.name", "ElizaCloud Sandbox"],
-      });
-    }
-
-    // Install dependencies
+    logger.info("Installing dependencies", { sandboxId });
     onProgress?.({ step: "installing", message: "Installing dependencies..." });
-    const install = await sandbox.runCommand({ cmd: "pnpm", args: ["install"] });
+    let install = await sandbox.runCommand({ cmd: "pnpm", args: ["install"] });
     if (install.exitCode !== 0) {
-      await sandbox.runCommand({ cmd: "npm", args: ["install"] });
+      install = await sandbox.runCommand({ cmd: "npm", args: ["install"] });
+      if (install.exitCode !== 0) {
+        throw new Error(`Install failed: ${await install.stderr()}`);
+      }
     }
 
-    // Inject SDK
-    await this.injectElizaSDK(sandbox, sandboxId);
+    onProgress?.({ step: "installing", message: "Dependencies installed" });
 
-    // Set up env vars
-    const mergedEnv = { ...env };
-    const isLocalDev =
-      process.env.NEXT_PUBLIC_APP_URL?.includes("localhost") ||
-      process.env.NEXT_PUBLIC_APP_URL?.includes("127.0.0.1");
+    logger.info("Writing SDK files", { sandboxId });
+    onProgress?.({ step: "installing", message: "Setting up SDK..." });
 
-    if (isLocalDev && process.env.NEXT_PUBLIC_APP_URL) {
-      mergedEnv.NEXT_PUBLIC_ELIZA_PROXY_URL = process.env.NEXT_PUBLIC_APP_URL;
-      mergedEnv.NEXT_PUBLIC_ELIZA_API_URL = "https://elizacloud.ai";
+    const srcCheck = await sandbox.runCommand({
+      cmd: "test",
+      args: ["-d", "src"],
+    });
+    const useSrc = srcCheck.exitCode === 0;
+    const libPath = useSrc ? "src/lib" : "lib";
+    const hooksPath = useSrc ? "src/hooks" : "hooks";
+
+    logger.info("SDK paths determined", {
+      sandboxId,
+      useSrc,
+      libPath,
+      hooksPath,
+    });
+
+    await sandbox.runCommand({
+      cmd: "mkdir",
+      args: ["-p", libPath, hooksPath],
+    });
+
+    const sdkBase64 = Buffer.from(ELIZA_SDK_FILE, "utf-8").toString("base64");
+    await sandbox.runCommand({
+      cmd: "sh",
+      args: ["-c", `echo '${sdkBase64}' | base64 -d > ${libPath}/eliza.ts`],
+    });
+
+    const hookBase64 = Buffer.from(ELIZA_HOOK_FILE, "utf-8").toString("base64");
+    await sandbox.runCommand({
+      cmd: "sh",
+      args: [
+        "-c",
+        `echo '${hookBase64}' | base64 -d > ${hooksPath}/use-eliza.ts`,
+      ],
+    });
+
+    const componentsPath = useSrc ? "src/components" : "components";
+    await sandbox.runCommand({
+      cmd: "mkdir",
+      args: ["-p", componentsPath],
+    });
+
+    const analyticsBase64 = Buffer.from(
+      ELIZA_ANALYTICS_COMPONENT,
+      "utf-8"
+    ).toString("base64");
+    await sandbox.runCommand({
+      cmd: "sh",
+      args: [
+        "-c",
+        `echo '${analyticsBase64}' | base64 -d > ${componentsPath}/eliza-analytics.tsx`,
+      ],
+    });
+
+    logger.info("SDK files written", { sandboxId });
+
+    // Inject ElizaAnalytics client component into layout.tsx for page view tracking
+    const layoutPath = useSrc ? "src/app/layout.tsx" : "app/layout.tsx";
+    const layoutContent = await readFileViaSh(sandbox, layoutPath);
+    if (layoutContent && !layoutContent.includes("ElizaAnalytics")) {
+      const analyticsImport = `import { ElizaAnalytics } from '@/components/eliza-analytics';\n`;
+      let updatedLayout = analyticsImport + layoutContent;
+
+      // Insert <ElizaAnalytics /> inside the body tag, right after opening
+      const bodyMatch = updatedLayout.match(/<body[^>]*>/);
+      if (bodyMatch) {
+        const bodyTag = bodyMatch[0];
+        updatedLayout = updatedLayout.replace(
+          bodyTag,
+          `${bodyTag}\n        <ElizaAnalytics />`
+        );
+      }
+
+      await writeFileViaSh(sandbox, layoutPath, updatedLayout);
+      logger.info(
+        "Injected ElizaAnalytics component into layout.tsx for page tracking",
+        {
+          sandboxId,
+          layoutPath,
+        }
+      );
+    }
+
+    // Add ELIZA API URL to env if configured (for testing with ngrok, etc.)
+    const elizaApiUrl =
+      process.env.ELIZA_API_URL ||
+      process.env.NEXT_PUBLIC_ELIZA_API_URL ||
+      config.env?.NEXT_PUBLIC_ELIZA_API_URL;
+
+    if (elizaApiUrl) {
+      mergedEnv.NEXT_PUBLIC_ELIZA_API_URL = elizaApiUrl;
+      logger.info("Using custom Eliza API URL", {
+        sandboxId,
+        apiUrl: elizaApiUrl,
+      });
     }
 
     if (Object.keys(mergedEnv).length > 0) {
+      logger.info("Writing .env.local", {
+        sandboxId,
+        envCount: Object.keys(mergedEnv).length,
+      });
       const envContent = Object.entries(mergedEnv)
         .map(([key, value]) => `${key}=${value}`)
         .join("\n");
       const envBase64 = Buffer.from(envContent, "utf-8").toString("base64");
       await sandbox.runCommand({
         cmd: "sh",
-        args: ["-c", `printf '%s' '${envBase64}' | base64 -d > .env.local`],
+        args: ["-c", `echo '${envBase64}' | base64 -d > .env.local`],
       });
     }
 
-    // Start dev server
+    logger.info("Starting dev server", {
+      sandboxId,
+      envVarCount: Object.keys(mergedEnv).length,
+    });
+    onProgress?.({ step: "starting", message: "Starting dev server..." });
+    await sandbox.runCommand({
+      cmd: "sh",
+      args: ["-c", "pnpm dev 2>&1 | tee /tmp/next-dev.log &"],
+      detached: true,
+      env: mergedEnv,
+    });
+
+    await this.waitForDevServer(sandbox, 3000);
+
+    logger.info("Sandbox ready", { sandboxId, devServerUrl });
+    onProgress?.({ step: "ready", message: "Sandbox is ready!" });
+
+    return {
+      sandboxId,
+      sandboxUrl: devServerUrl,
+      status: "ready",
+      devServerUrl,
+      startedAt: new Date(),
+    };
+  }
+
+  private async waitForDevServer(
+    sandbox: SandboxInstance,
+    port: number,
+    maxAttempts = 45
+  ): Promise<void> {
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      const result = await sandbox.runCommand({
+        cmd: "curl",
+        args: [
+          "-s",
+          "-o",
+          "/dev/null",
+          "-w",
+          "%{http_code}",
+          `http://localhost:${port}`,
+        ],
+      });
+      const statusCode = await result.stdout();
+      if (statusCode === "200" || statusCode === "304") return;
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+    throw new Error(`Dev server did not start within ${maxAttempts}s`);
+  }
+
+  /**
+   * Call AI API with automatic fallback from Anthropic to OpenAI
+   * Includes retry logic for transient errors
+   */
+  private async callAIWithFallback(
+    params: Anthropic.MessageCreateParams,
+    maxRetries = 3
+  ): Promise<Anthropic.Message> {
+    let lastAnthropicError: Error | null = null;
+    let lastOpenAIError: Error | null = null;
+
+    // Try Anthropic first if available
+    if (
+      process.env.ANTHROPIC_API_KEY &&
+      process.env.ANTHROPIC_API_KEY.startsWith("sk-ant-")
+    ) {
+      try {
+        const anthropic = this.getAnthropicClient();
+        return await this.callAnthropicWithRetry(anthropic, params, maxRetries);
+      } catch (error) {
+        lastAnthropicError =
+          error instanceof Error ? error : new Error(String(error));
+        logger.warn("Anthropic API failed, trying OpenAI fallback", {
+          error: lastAnthropicError.message,
+        });
+      }
+    }
+
+    // Fallback to OpenAI
+    if (process.env.OPENAI_API_KEY) {
+      try {
+        logger.info("Using OpenAI as fallback for app builder");
+        const openai = this.getOpenAIClient();
+        return await this.callOpenAIAsAnthropicFormat(
+          openai,
+          params,
+          maxRetries
+        );
+      } catch (error) {
+        lastOpenAIError =
+          error instanceof Error ? error : new Error(String(error));
+        logger.error("OpenAI fallback also failed", {
+          error: lastOpenAIError.message,
+        });
+      }
+    }
+
+    // Both failed or no keys available
+    if (lastAnthropicError && lastOpenAIError) {
+      throw new Error(
+        `Both AI providers failed. Anthropic: ${lastAnthropicError.message}. OpenAI: ${lastOpenAIError.message}`
+      );
+    } else if (lastAnthropicError) {
+      throw new Error(
+        `Anthropic failed and OpenAI not configured: ${lastAnthropicError.message}`
+      );
+    } else if (lastOpenAIError) {
+      throw new Error(
+        `Anthropic not configured and OpenAI failed: ${lastOpenAIError.message}`
+      );
+    }
+
+    throw new Error(
+      "No AI provider configured. Set either ANTHROPIC_API_KEY or OPENAI_API_KEY"
+    );
+  }
+
+  private async callAnthropicWithRetry(
+    anthropic: Anthropic,
+    params: Anthropic.MessageCreateParams,
+    maxRetries = 3
+  ): Promise<Anthropic.Message> {
+    let lastError: Error | null = null;
+
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        return await anthropic.messages.create(params);
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+        const errorMessage = lastError.message.toLowerCase();
+
+        // Check for authentication errors - don't retry these
+        if (
+          errorMessage.includes("authentication_error") ||
+          errorMessage.includes("invalid x-api-key") ||
+          errorMessage.includes("401")
+        ) {
+          logger.error("Anthropic API authentication failed", {
+            error: errorMessage,
+          });
+          throw new Error(
+            "Anthropic API key is invalid or expired. Please update ANTHROPIC_API_KEY."
+          );
+        }
+
+        const isRetryable =
+          errorMessage.includes("overloaded") ||
+          errorMessage.includes("rate limit") ||
+          errorMessage.includes("timeout") ||
+          errorMessage.includes("network") ||
+          errorMessage.includes("econnreset") ||
+          errorMessage.includes("socket hang up") ||
+          errorMessage.includes("529") ||
+          errorMessage.includes("503") ||
+          errorMessage.includes("502");
+
+        if (!isRetryable || attempt === maxRetries - 1) {
+          throw lastError;
+        }
+
+        const delay = Math.min(1000 * Math.pow(2, attempt), 10000);
+        logger.warn("Anthropic API call failed, retrying", {
+          attempt: attempt + 1,
+          maxRetries,
+          error: errorMessage,
+          delayMs: delay,
+        });
+
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
+    }
+
+    throw lastError || new Error("Failed to call Anthropic API");
+  }
+
+  /**
+   * Call OpenAI and convert response to Anthropic format for compatibility
+   */
+  private async callOpenAIAsAnthropicFormat(
+    openai: OpenAI,
+    params: Anthropic.MessageCreateParams,
+    maxRetries = 3
+  ): Promise<Anthropic.Message> {
+    let lastError: Error | null = null;
+
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        // Convert Anthropic format to OpenAI format
+        const messages: OpenAI.ChatCompletionMessageParam[] = [
+          { role: "system", content: params.system || "" },
+          ...params.messages.map((msg) => ({
+            role: msg.role as "user" | "assistant",
+            content: typeof msg.content === "string" ? msg.content : "",
+          })),
+        ];
+
+        const response = await openai.chat.completions.create({
+          model: "gpt-4o",
+          messages,
+          max_tokens: params.max_tokens,
+          tools: params.tools
+            ? params.tools.map((tool) => ({
+                type: "function" as const,
+                function: {
+                  name: tool.name,
+                  description: tool.description || "",
+                  parameters: tool.input_schema,
+                },
+              }))
+            : undefined,
+        });
+
+        // Convert OpenAI response to Anthropic format
+        const choice = response.choices[0];
+        const content: Anthropic.ContentBlock[] = [];
+
+        if (choice.message.content) {
+          content.push({
+            type: "text",
+            text: choice.message.content,
+          });
+        }
+
+        if (choice.message.tool_calls) {
+          for (const toolCall of choice.message.tool_calls) {
+            content.push({
+              type: "tool_use",
+              id: toolCall.id,
+              name: toolCall.function.name,
+              input: JSON.parse(toolCall.function.arguments),
+            });
+          }
+        }
+
+        return {
+          id: response.id,
+          type: "message",
+          role: "assistant",
+          content,
+          model: response.model,
+          stop_reason:
+            choice.finish_reason === "tool_calls"
+              ? "tool_use"
+              : choice.finish_reason === "stop"
+                ? "end_turn"
+                : null,
+          stop_sequence: null,
+          usage: {
+            input_tokens: response.usage?.prompt_tokens || 0,
+            output_tokens: response.usage?.completion_tokens || 0,
+          },
+        };
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+        const errorMessage = lastError.message.toLowerCase();
+
+        // Check for authentication errors
+        if (
+          errorMessage.includes("authentication") ||
+          errorMessage.includes("invalid") ||
+          errorMessage.includes("401")
+        ) {
+          throw new Error(
+            "OpenAI API key is invalid or expired. Please update OPENAI_API_KEY."
+          );
+        }
+
+        const isRetryable =
+          errorMessage.includes("overloaded") ||
+          errorMessage.includes("rate limit") ||
+          errorMessage.includes("timeout") ||
+          errorMessage.includes("network");
+
+        if (!isRetryable || attempt === maxRetries - 1) {
+          throw lastError;
+        }
+
+        const delay = Math.min(1000 * Math.pow(2, attempt), 10000);
+        logger.warn("OpenAI API call failed, retrying", {
+          attempt: attempt + 1,
+          maxRetries,
+          error: errorMessage,
+          delayMs: delay,
+        });
+
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
+    }
+
+    throw lastError || new Error("Failed to call OpenAI API");
+  }
+
+  async executeClaudeCode(
+    sandboxId: string,
+    prompt: string,
+    options: {
+      systemPrompt?: string;
+      onToolUse?: (tool: string, input: unknown, result: string) => void;
+      onThinking?: (text: string) => void;
+      abortSignal?: AbortSignal;
+      timeoutMs?: number;
+    } = {}
+  ): Promise<{
+    output: string;
+    filesAffected: string[];
+    success: boolean;
+    error?: string;
+  }> {
+    const sandbox = getActiveSandboxes().get(sandboxId);
+    if (!sandbox) throw new Error(`Sandbox ${sandboxId} not found`);
+
+    const { abortSignal, timeoutMs = 5 * 60 * 1000 } = options;
+
+    if (abortSignal?.aborted) {
+      throw new Error("Operation aborted before starting");
+    }
+
+    const operationStartTime = Date.now();
+
+    const checkTimeout = () => {
+      if (Date.now() - operationStartTime > timeoutMs) {
+        throw new Error(`Operation timed out after ${timeoutMs / 1000}s`);
+      }
+    };
+
+    const checkAbort = () => {
+      if (abortSignal?.aborted) {
+        throw new Error("Operation aborted by client");
+      }
+    };
+
+    logger.info("Starting AI code execution", {
+      sandboxId,
+      promptLength: prompt.length,
+      timeoutMs,
+    });
+
+    const filesAffected: string[] = [];
+    let outputText = "";
+
+    try {
+      checkAbort();
+
+      const pageContent = await readFileViaSh(sandbox, "src/app/page.tsx");
+      const globalsCss = await readFileViaSh(sandbox, "src/app/globals.css");
+
+      // Detect Tailwind v3 syntax in globals.css that needs fixing
+      const hasTailwindV3Syntax = globalsCss && (
+        globalsCss.includes('@tailwind') ||
+        globalsCss.includes('tailwindcss/tailwind.css') ||
+        globalsCss.includes('tailwindcss/base') ||
+        globalsCss.includes('tailwindcss/components') ||
+        globalsCss.includes('tailwindcss/utilities')
+      );
+
+      const tailwindWarning = hasTailwindV3Syntax
+        ? `\n⚠️ CRITICAL: globals.css uses Tailwind v3 syntax which will cause build errors. Fix it IMMEDIATELY by replacing the content with:\n@import "tailwindcss";\n`
+        : '';
+
+      const contextPrompt = `CURRENT FILES:
+
+=== src/app/page.tsx ===
+${pageContent || "(file not found)"}
+
+=== src/app/globals.css ===
+${globalsCss || "(file not found)"}
+${tailwindWarning}
+---
+USER REQUEST: ${prompt}
+
+REMEMBER:
+1. Use standard Tailwind classes only (no custom utilities)
+2. globals.css MUST use Tailwind v4 syntax: @import "tailwindcss"; (NOT @tailwind directives)
+3. Use check_build after changes to verify
+4. Fix any errors before finishing`;
+
+      const messages: Anthropic.MessageParam[] = [
+        { role: "user", content: contextPrompt },
+      ];
+      let continueLoop = true;
+      let iteration = 0;
+      const MAX_ITERATIONS = 50;
+
+      while (continueLoop && iteration < MAX_ITERATIONS) {
+        iteration++;
+        checkAbort();
+        checkTimeout();
+
+        const response = await this.callAIWithFallback({
+          model: "claude-sonnet-4-5-20250929",
+          max_tokens: 8192,
+          system: options.systemPrompt || getDefaultSystemPrompt(),
+          tools: TOOLS,
+          messages,
+        });
+
+        logger.info("AI response received", {
+          sandboxId,
+          stopReason: response.stop_reason,
+          iteration,
+        });
+
+        const toolResults: Anthropic.ToolResultBlockParam[] = [];
+
+        for (const block of response.content) {
+          checkAbort();
+
+          if (block.type === "text") {
+            if (options.onThinking && block.text.trim()) {
+              try {
+                options.onThinking(block.text);
+              } catch {}
+            }
+            outputText += block.text + "\n";
+          } else if (block.type === "tool_use") {
+            logger.info("Tool use", { sandboxId, tool: block.name, iteration });
+
+            let result: string;
+            try {
+              if (block.name === "install_packages") {
+                const { packages } = block.input as { packages: string[] };
+                result = await installPackages(sandbox, packages);
+              } else if (block.name === "write_file") {
+                const { path, content } = block.input as {
+                  path: string;
+                  content: string;
+                };
+
+                if (content === undefined || content === null) {
+                  result = `Error: write_file called with empty content for ${path}. Please provide the file content.`;
+                  toolResults.push({
+                    type: "tool_result",
+                    tool_use_id: block.id,
+                    content: result,
+                  });
+                  continue;
+                }
+                await writeFileViaSh(sandbox, path, content);
+                filesAffected.push(path);
+
+                await new Promise((r) => setTimeout(r, 1500));
+                const buildStatus = await checkBuild(sandbox);
+                result = `Wrote ${path}\n\nBuild Status: ${buildStatus}`;
+
+                if (buildStatus.includes("BUILD ERRORS")) {
+                  result += `\n\nPlease fix the errors above!`;
+                }
+
+                logger.info("File written", {
+                  sandboxId,
+                  path,
+                  buildOk: !buildStatus.includes("BUILD ERRORS"),
+                });
+              } else if (block.name === "read_file") {
+                const { path } = block.input as { path: string };
+                const content = await readFileViaSh(sandbox, path);
+                result = content || `File not found: ${path}`;
+              } else if (block.name === "check_build") {
+                result = await checkBuild(sandbox);
+                logger.info("Build check", {
+                  sandboxId,
+                  ok: result.includes("BUILD OK"),
+                });
+              } else if (block.name === "list_files") {
+                const { path } = block.input as { path: string };
+                const files = await listFilesViaSh(sandbox, path);
+                result = files.join("\n") || `Empty: ${path}`;
+              } else if (block.name === "run_command") {
+                const { command } = block.input as { command: string };
+                const commandCheck = isCommandAllowed(command);
+                if (!commandCheck.allowed) {
+                  result = `Command blocked: ${commandCheck.reason}`;
+                  logger.warn("Blocked command attempt", {
+                    sandboxId,
+                    command,
+                    reason: commandCheck.reason,
+                  });
+                } else {
+                  const r = await sandbox.runCommand({
+                    cmd: "sh",
+                    args: ["-c", command],
+                  });
+                  result =
+                    `Exit ${r.exitCode}: ${await r.stdout()} ${await r.stderr()}`.trim();
+                }
+              } else {
+                result = `Unknown tool: ${block.name}`;
+              }
+            } catch (toolError) {
+              const toolErrorMsg =
+                toolError instanceof Error
+                  ? toolError.message
+                  : String(toolError);
+              logger.error("Tool execution error", {
+                sandboxId,
+                tool: block.name,
+                error: toolErrorMsg,
+              });
+              result = `Error executing ${block.name}: ${toolErrorMsg}`;
+            }
+
+            if (options.onToolUse) {
+              try {
+                options.onToolUse(block.name, block.input, result);
+              } catch {}
+            }
+
+            toolResults.push({
+              type: "tool_result",
+              tool_use_id: block.id,
+              content: result,
+            });
+          }
+        }
+
+        if (toolResults.length > 0) {
+          messages.push({ role: "assistant", content: response.content });
+          messages.push({ role: "user", content: toolResults });
+        }
+
+        if (response.stop_reason === "end_turn" || toolResults.length === 0) {
+          // Before stopping, check if there are build errors that need fixing
+          const buildCheck = await checkBuild(sandbox);
+          if (buildCheck.includes("BUILD ERRORS") && iteration < MAX_ITERATIONS - 5) {
+            // Force another iteration to fix build errors
+            logger.info("Build errors detected, forcing AI to fix them", {
+              sandboxId,
+              iteration,
+              errors: buildCheck.substring(0, 200),
+            });
+            messages.push({ role: "assistant", content: response.content });
+            messages.push({
+              role: "user",
+              content: `BUILD ERRORS DETECTED - YOU MUST FIX THESE BEFORE FINISHING:\n\n${buildCheck}\n\nPlease fix the errors and verify with check_build.`,
+            });
+            // Continue the loop
+          } else {
+            continueLoop = false;
+          }
+        }
+      }
+
+      checkAbort();
+
+      const finalBuild = await checkBuild(sandbox);
+      if (finalBuild.includes("BUILD ERRORS")) {
+        outputText += `\n\nNote: There may still be build errors. ${finalBuild}\n\nPlease ask me to fix these errors.`;
+      }
+
+      logger.info("Claude complete", {
+        sandboxId,
+        filesAffected: filesAffected.length,
+        iteration,
+        durationMs: Date.now() - operationStartTime,
+      });
+
+      return {
+        output: outputText || "Changes applied!",
+        filesAffected: [...new Set(filesAffected)],
+        success: true,
+      };
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+
+      logger.error("Claude execution failed", {
+        sandboxId,
+        error: errorMessage,
+        filesAffected: filesAffected.length,
+        durationMs: Date.now() - operationStartTime,
+      });
+
+      if (
+        errorMessage.includes("aborted") ||
+        errorMessage.includes("cancelled")
+      ) {
+        throw error;
+      }
+
+      return {
+        output: outputText || "Operation failed",
+        filesAffected: [...new Set(filesAffected)],
+        success: false,
+        error: errorMessage,
+      };
+    }
+  }
+
+  async readFile(sandboxId: string, path: string): Promise<string> {
+    const sandbox = getActiveSandboxes().get(sandboxId);
+    if (!sandbox) throw new Error(`Sandbox ${sandboxId} not found`);
+    const content = await readFileViaSh(sandbox, path);
+    if (!content) throw new Error(`File not found: ${path}`);
+    return content;
+  }
+
+  async writeFile(
+    sandboxId: string,
+    path: string,
+    content: string
+  ): Promise<void> {
+    const sandbox = getActiveSandboxes().get(sandboxId);
+    if (!sandbox) throw new Error(`Sandbox ${sandboxId} not found`);
+    await writeFileViaSh(sandbox, path, content);
+  }
+
+  async listFiles(sandboxId: string, path: string): Promise<string[]> {
+    const sandbox = getActiveSandboxes().get(sandboxId);
+    if (!sandbox) throw new Error(`Sandbox ${sandboxId} not found`);
+    return await listFilesViaSh(sandbox, path);
+  }
+
+  async checkBuild(sandboxId: string): Promise<string> {
+    const sandbox = getActiveSandboxes().get(sandboxId);
+    if (!sandbox) throw new Error(`Sandbox ${sandboxId} not found`);
+    return await checkBuild(sandbox);
+  }
+
+  async installPackages(
+    sandboxId: string,
+    packages: string[]
+  ): Promise<string> {
+    const sandbox = getActiveSandboxes().get(sandboxId);
+    if (!sandbox) throw new Error(`Sandbox ${sandboxId} not found`);
+    return await installPackages(sandbox, packages);
+  }
+
+  async installDependencies(sandboxId: string): Promise<string> {
+    const sandbox = getActiveSandboxes().get(sandboxId);
+    if (!sandbox) throw new Error(`Sandbox ${sandboxId} not found`);
+    return await installDependencies(sandbox);
+  }
+
+  installDependenciesBackground(sandboxId: string): void {
+    const sandbox = getActiveSandboxes().get(sandboxId);
+    if (!sandbox) {
+      logger.warn("Cannot install dependencies - sandbox not found", {
+        sandboxId,
+      });
+      return;
+    }
+
+    logger.info("Starting background dependency install", { sandboxId });
+
+    sandbox
+      .runCommand({
+        cmd: "sh",
+        args: [
+          "-c",
+          "rm -rf .next node_modules/.cache 2>/dev/null; pnpm install --force 2>&1 | tee /tmp/install.log &",
+        ],
+        detached: true,
+      })
+      .then(() => {
+        logger.info("Background install command dispatched", { sandboxId });
+      })
+      .catch((err) => {
+        logger.warn("Background install dispatch failed", {
+          sandboxId,
+          error: err,
+        });
+      });
+  }
+
+  async installDependenciesAndRestart(
+    sandboxId: string,
+    onProgress?: (progress: SandboxProgress) => void
+  ): Promise<void> {
+    const sandbox = getActiveSandboxes().get(sandboxId);
+    if (!sandbox) {
+      throw new Error(`Sandbox ${sandboxId} not found`);
+    }
+
+    logger.info("Starting dependency install and dev server restart", { sandboxId });
+
+    onProgress?.({ step: "installing", message: "Stopping dev server..." });
+    await sandbox.runCommand({
+      cmd: "sh",
+      args: ["-c", "pkill -f 'next dev' 2>/dev/null || true; pkill -f 'node.*next' 2>/dev/null || true"],
+    });
+    await new Promise((r) => setTimeout(r, 1000));
+
+    onProgress?.({ step: "installing", message: "Installing dependencies..." });
+    const installResult = await installDependencies(sandbox);
+    logger.info("Dependencies installed for restore", { sandboxId, result: installResult });
+
     onProgress?.({ step: "starting", message: "Starting dev server..." });
     await sandbox.runCommand({
       cmd: "sh",
@@ -291,159 +1642,579 @@ export class SandboxService {
       detached: true,
     });
 
-    await this.waitForServer(devServerUrl, 60000);
-    onProgress?.({ step: "ready", message: "Sandbox ready!" });
-
-    return { sandboxId, sandboxUrl: devServerUrl, sandbox };
+    await this.waitForDevServer(sandbox, 3000);
+    logger.info("Dev server restarted after dependency install", { sandboxId });
+    onProgress?.({ step: "ready", message: "Dev server ready!" });
   }
 
-  private async injectElizaSDK(sandbox: SandboxInstance, sandboxId: string): Promise<void> {
-    await sandbox.runCommand({
-      cmd: "mkdir",
-      args: ["-p", "lib", "hooks", "components"],
+  async extendTimeout(sandboxId: string, durationMs: number): Promise<void> {
+    const sandbox = getActiveSandboxes().get(sandboxId);
+    if (!sandbox) throw new Error(`Sandbox ${sandboxId} not found`);
+    await sandbox.extendTimeout(durationMs);
+  }
+
+  async getLogs(sandboxId: string, tail: number = 50): Promise<string[]> {
+    const sandbox = getActiveSandboxes().get(sandboxId);
+    if (!sandbox) return [];
+    const logsResult = await sandbox.runCommand({
+      cmd: "sh",
+      args: ["-c", `tail -${tail} /tmp/next-dev.log 2>/dev/null || echo ""`],
+    });
+    const stdout = await logsResult.stdout();
+    return stdout.split("\n").filter((l: string) => l.trim());
+  }
+
+  async backupFiles(
+    sandboxId: string,
+    sessionId: string,
+    options: {
+      snapshotType?: "auto" | "manual" | "pre_expiry" | "prompt_complete";
+      specificFiles?: string[];
+    } = {}
+  ): Promise<{ filesBackedUp: number; totalSize: number }> {
+    const sandbox = getActiveSandboxes().get(sandboxId);
+    if (!sandbox) {
+      logger.error("CRITICAL: Cannot backup - sandbox not found in memory", {
+        sandboxId,
+        sessionId,
+        activeSandboxes: Array.from(getActiveSandboxes().keys()),
+        snapshotType: options.snapshotType,
+        specificFiles: options.specificFiles,
+      });
+      return { filesBackedUp: 0, totalSize: 0 };
+    }
+
+    const { snapshotType = "auto", specificFiles } = options;
+
+    logger.info("Starting file backup", {
+      sandboxId,
+      sessionId,
+      snapshotType,
+      fileCount: specificFiles?.length || "auto-detect",
     });
 
-    await writeFileViaSh(sandbox, "lib/eliza.ts", ELIZA_SDK_FILE);
-    await writeFileViaSh(sandbox, "hooks/use-eliza.ts", ELIZA_HOOK_FILE);
-    await writeFileViaSh(sandbox, "components/ElizaAnalytics.tsx", ELIZA_ANALYTICS_COMPONENT);
+    const filesToBackup =
+      specificFiles || (await this.getModifiedFiles(sandboxId));
 
-    logger.info("Injected Eliza SDK files", { sandboxId });
-  }
-
-  private async waitForServer(url: string, timeoutMs: number): Promise<void> {
-    const start = Date.now();
-    while (Date.now() - start < timeoutMs) {
-      try {
-        const response = await fetch(url, {
-          method: "HEAD",
-          signal: AbortSignal.timeout(5000),
-        });
-        if (response.ok || response.status === 404) return;
-      } catch {
-        // Not ready yet
-      }
-      await new Promise((r) => setTimeout(r, 2000));
-    }
-    throw new Error(`Server did not start within ${timeoutMs}ms`);
-  }
-
-  async commitAndPush(sandboxId: string, message: string): Promise<{ commitSha: string; filesChanged: number }> {
-    const sandbox = activeSandboxes.get(sandboxId);
-    if (!sandbox) throw new Error("Sandbox not found");
-
-    await sandbox.runCommand({ cmd: "git", args: ["add", "-A"] });
-
-    const status = await sandbox.runCommand({ cmd: "git", args: ["status", "--porcelain"] });
-    const statusOutput = await status.stdout();
-
-    if (!statusOutput.trim()) {
-      return { commitSha: "", filesChanged: 0 };
+    if (filesToBackup.length === 0) {
+      logger.info("No files to backup", { sandboxId });
+      return { filesBackedUp: 0, totalSize: 0 };
     }
 
-    const filesChanged = statusOutput.trim().split("\n").length;
-
-    await sandbox.runCommand({ cmd: "git", args: ["commit", "-m", message] });
-
-    const sha = await sandbox.runCommand({ cmd: "git", args: ["rev-parse", "HEAD"] });
-    const commitSha = (await sha.stdout()).trim();
-
-    await sandbox.runCommand({ cmd: "git", args: ["push", "origin", "main"] });
-
-    logger.info("Committed and pushed", { sandboxId, filesChanged });
-    return { commitSha, filesChanged };
-  }
-
-  async pullLatest(sandboxId: string): Promise<boolean> {
-    const sandbox = activeSandboxes.get(sandboxId);
-    if (!sandbox) throw new Error("Sandbox not found");
-    const result = await sandbox.runCommand({ cmd: "git", args: ["pull", "origin", "main"] });
-    return result.exitCode === 0;
-  }
-
-  async getGitStatus(sandboxId: string): Promise<{
-    branch: string;
-    commitSha: string;
-    hasChanges: boolean;
-    changedFiles: string[];
-  }> {
-    const sandbox = activeSandboxes.get(sandboxId);
-    if (!sandbox) throw new Error("Sandbox not found");
-
-    const [branch, sha, status] = await Promise.all([
-      sandbox.runCommand({ cmd: "git", args: ["rev-parse", "--abbrev-ref", "HEAD"] }),
-      sandbox.runCommand({ cmd: "git", args: ["rev-parse", "HEAD"] }),
-      sandbox.runCommand({ cmd: "git", args: ["status", "--porcelain"] }),
+    const BINARY_EXTENSIONS = new Set([
+      ".ico",
+      ".png",
+      ".jpg",
+      ".jpeg",
+      ".gif",
+      ".webp",
+      ".bmp",
+      ".woff",
+      ".woff2",
+      ".ttf",
+      ".eot",
+      ".otf",
+      ".mp3",
+      ".mp4",
+      ".wav",
+      ".webm",
+      ".pdf",
+      ".zip",
+      ".tar",
+      ".gz",
+      ".bin",
+      ".exe",
+      ".dll",
+      ".so",
+      ".dylib",
     ]);
 
-    const statusOutput = await status.stdout();
-    const changedFiles = statusOutput.trim().split("\n").filter(Boolean).map((l) => l.slice(3));
+    const isBinaryFile = (path: string): boolean => {
+      const ext = path.substring(path.lastIndexOf(".")).toLowerCase();
+      return BINARY_EXTENSIONS.has(ext);
+    };
+
+    const containsNullBytes = (content: string): boolean => {
+      return content.includes("\x00");
+    };
+
+    const snapshots: NewSessionFileSnapshot[] = [];
+    const failedFiles: { path: string; reason: string }[] = [];
+    const skippedBinaryFiles: string[] = [];
+    let totalSize = 0;
+
+    const readFileWithRetry = async (
+      filePath: string
+    ): Promise<string | null> => {
+      const maxReadAttempts = 3;
+      const readDelayMs = 500;
+
+      for (let attempt = 1; attempt <= maxReadAttempts; attempt++) {
+        try {
+          const content = await readFileViaSh(sandbox, filePath);
+          if (content !== null) {
+            return content;
+          }
+          if (attempt < maxReadAttempts) {
+            logger.debug("File read returned null, retrying", {
+              sandboxId,
+              filePath,
+              attempt,
+              maxAttempts: maxReadAttempts,
+            });
+            await new Promise((r) => setTimeout(r, readDelayMs));
+          }
+        } catch (readError) {
+          if (attempt < maxReadAttempts) {
+            logger.debug("File read threw error, retrying", {
+              sandboxId,
+              filePath,
+              attempt,
+              maxAttempts: maxReadAttempts,
+              error:
+                readError instanceof Error ? readError.message : String(readError),
+            });
+            await new Promise((r) => setTimeout(r, readDelayMs));
+          } else {
+            throw readError;
+          }
+        }
+      }
+      return null;
+    };
+
+    for (const filePath of filesToBackup) {
+      try {
+        if (isBinaryFile(filePath)) {
+          skippedBinaryFiles.push(filePath);
+          continue;
+        }
+
+        const content = await readFileWithRetry(filePath);
+        if (content === null) {
+          failedFiles.push({
+            path: filePath,
+            reason: "File not found or empty after retries",
+          });
+          continue;
+        }
+
+        if (containsNullBytes(content)) {
+          skippedBinaryFiles.push(filePath);
+          logger.info("Skipping file with binary content (null bytes)", {
+            sandboxId,
+            filePath,
+          });
+          continue;
+        }
+
+        const contentHash = crypto
+          .createHash("sha256")
+          .update(content)
+          .digest("hex");
+        const fileSize = Buffer.byteLength(content, "utf-8");
+        totalSize += fileSize;
+
+        snapshots.push({
+          sandbox_session_id: sessionId,
+          file_path: filePath,
+          content,
+          content_hash: contentHash,
+          file_size: fileSize,
+          snapshot_type: snapshotType,
+        });
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        failedFiles.push({ path: filePath, reason: errorMessage });
+        logger.warn("Failed to read file for backup", {
+          sandboxId,
+          sessionId,
+          filePath,
+          error: errorMessage,
+        });
+      }
+    }
+
+    if (skippedBinaryFiles.length > 0) {
+      logger.info("Skipped binary files during backup", {
+        sandboxId,
+        sessionId,
+        count: skippedBinaryFiles.length,
+        files: skippedBinaryFiles,
+      });
+    }
+
+    if (failedFiles.length > 0) {
+      logger.warn("Some files could not be backed up", {
+        sandboxId,
+        sessionId,
+        failedCount: failedFiles.length,
+        successCount: snapshots.length,
+        failedFiles,
+      });
+    }
+
+    if (snapshots.length === 0) {
+      logger.error("CRITICAL: No files could be backed up - all reads failed", {
+        sandboxId,
+        sessionId,
+        attemptedFiles: filesToBackup,
+        failedFiles,
+        snapshotType,
+      });
+      return { filesBackedUp: 0, totalSize: 0 };
+    }
+
+    const isRetryableDbError = (error: Error): boolean => {
+      const msg = error.message.toLowerCase();
+      return (
+        msg.includes("connection") ||
+        msg.includes("timeout") ||
+        msg.includes("econnreset") ||
+        msg.includes("econnrefused") ||
+        msg.includes("socket") ||
+        msg.includes("network") ||
+        msg.includes("deadlock") ||
+        msg.includes("lock wait") ||
+        msg.includes("too many connections") ||
+        msg.includes("temporarily unavailable")
+      );
+    };
+
+    await withRetry(
+      async () => {
+        await dbWrite.transaction(async (tx) => {
+          for (const snapshot of snapshots) {
+            await tx
+              .delete(sessionFileSnapshots)
+              .where(
+                and(
+                  eq(sessionFileSnapshots.sandbox_session_id, sessionId),
+                  eq(sessionFileSnapshots.file_path, snapshot.file_path)
+                )
+              );
+          }
+          await tx.insert(sessionFileSnapshots).values(snapshots);
+        });
+      },
+      {
+        maxAttempts: 3,
+        delayMs: 1000,
+        backoffMultiplier: 2,
+        shouldRetry: isRetryableDbError,
+        onRetry: (attempt, error, nextDelayMs) => {
+          logger.warn("Database transaction failed, retrying snapshot save", {
+            sandboxId,
+            sessionId,
+            attempt,
+            maxAttempts: 3,
+            nextDelayMs,
+            error: error.message,
+            snapshotCount: snapshots.length,
+          });
+        },
+      }
+    );
+
+    logger.info("File backup completed", {
+      sandboxId,
+      sessionId,
+      filesBackedUp: snapshots.length,
+      totalSize,
+    });
+
+    return { filesBackedUp: snapshots.length, totalSize };
+  }
+
+  async restoreFiles(
+    sandboxId: string,
+    sessionId: string,
+    options: {
+      onProgress?: (current: number, total: number, filePath: string) => void;
+    } = {}
+  ): Promise<{ filesRestored: number; errors: string[] }> {
+    const sandbox = getActiveSandboxes().get(sandboxId);
+    if (!sandbox) {
+      throw new Error(`Sandbox ${sandboxId} not found for restore`);
+    }
+
+    logger.info("Starting file restore", { sandboxId, sessionId });
+
+    const startTime = Date.now();
+    const errors: string[] = [];
+
+    const [restoreRecord] = await dbWrite
+      .insert(sessionRestoreHistory)
+      .values({
+        sandbox_session_id: sessionId,
+        new_sandbox_id: sandboxId,
+        status: "in_progress",
+      })
+      .returning();
+
+    const snapshots = await dbRead
+      .select()
+      .from(sessionFileSnapshots)
+      .where(eq(sessionFileSnapshots.sandbox_session_id, sessionId))
+      .orderBy(desc(sessionFileSnapshots.created_at));
+
+    const latestSnapshots = new Map<string, (typeof snapshots)[0]>();
+    for (const snapshot of snapshots) {
+      if (!latestSnapshots.has(snapshot.file_path)) {
+        latestSnapshots.set(snapshot.file_path, snapshot);
+      }
+    }
+
+    const filesToRestore = Array.from(latestSnapshots.values());
+    let filesRestored = 0;
+
+    for (let i = 0; i < filesToRestore.length; i++) {
+      const snapshot = filesToRestore[i];
+      try {
+        options.onProgress?.(i + 1, filesToRestore.length, snapshot.file_path);
+        await writeFileViaSh(sandbox, snapshot.file_path, snapshot.content);
+        filesRestored++;
+        logger.debug("Restored file", {
+          sandboxId,
+          filePath: snapshot.file_path,
+        });
+      } catch (error) {
+        const errorMsg = `Failed to restore ${snapshot.file_path}: ${error instanceof Error ? error.message : "Unknown error"}`;
+        errors.push(errorMsg);
+        logger.warn("Failed to restore file", {
+          sandboxId,
+          filePath: snapshot.file_path,
+          error,
+        });
+      }
+    }
+
+    const duration = Date.now() - startTime;
+
+    await dbWrite
+      .update(sessionRestoreHistory)
+      .set({
+        files_restored: filesRestored,
+        restore_duration_ms: duration,
+        status: errors.length === 0 ? "completed" : "completed",
+        error_message: errors.length > 0 ? errors.join("; ") : null,
+        completed_at: new Date(),
+      })
+      .where(eq(sessionRestoreHistory.id, restoreRecord.id));
+
+    logger.info("File restore completed", {
+      sandboxId,
+      sessionId,
+      filesRestored,
+      errors: errors.length,
+      durationMs: duration,
+    });
+
+    // Ensure SDK and analytics files are present after restore for page view tracking
+    const srcCheck = await sandbox.runCommand({
+      cmd: "test",
+      args: ["-d", "src"],
+    });
+    const useSrc = srcCheck.exitCode === 0;
+    const libPath = useSrc ? "src/lib" : "lib";
+    const componentsPath = useSrc ? "src/components" : "components";
+
+    // Always write latest SDK file (required by analytics component)
+    // This ensures the latest tracking code is always used, even if snapshot had old version
+    const sdkFilePath = `${libPath}/eliza.ts`;
+    await sandbox.runCommand({
+      cmd: "mkdir",
+      args: ["-p", libPath],
+    });
+    const sdkBase64 = Buffer.from(ELIZA_SDK_FILE, "utf-8").toString("base64");
+    await sandbox.runCommand({
+      cmd: "sh",
+      args: ["-c", `echo '${sdkBase64}' | base64 -d > ${sdkFilePath}`],
+    });
+    logger.info("Updated SDK file after restore", {
+      sandboxId,
+      sdkFilePath,
+    });
+
+    // Always write latest hooks file
+    const hooksPath = useSrc ? "src/hooks" : "hooks";
+    await sandbox.runCommand({
+      cmd: "mkdir",
+      args: ["-p", hooksPath],
+    });
+    const hookBase64 = Buffer.from(ELIZA_HOOK_FILE, "utf-8").toString("base64");
+    await sandbox.runCommand({
+      cmd: "sh",
+      args: [
+        "-c",
+        `echo '${hookBase64}' | base64 -d > ${hooksPath}/use-eliza.ts`,
+      ],
+    });
+    logger.info("Updated hooks file after restore", {
+      sandboxId,
+      hooksPath,
+    });
+
+    // Always write latest analytics component
+    const analyticsFilePath = `${componentsPath}/eliza-analytics.tsx`;
+    await sandbox.runCommand({
+      cmd: "mkdir",
+      args: ["-p", componentsPath],
+    });
+    const analyticsBase64 = Buffer.from(
+      ELIZA_ANALYTICS_COMPONENT,
+      "utf-8"
+    ).toString("base64");
+    await sandbox.runCommand({
+      cmd: "sh",
+      args: [
+        "-c",
+        `echo '${analyticsBase64}' | base64 -d > ${analyticsFilePath}`,
+      ],
+    });
+    logger.info("Updated ElizaAnalytics component after restore", {
+      sandboxId,
+      analyticsFilePath,
+    });
+
+    // Inject ElizaAnalytics into layout.tsx
+    const layoutPaths = ["src/app/layout.tsx", "app/layout.tsx"];
+    for (const layoutPath of layoutPaths) {
+      try {
+        const layoutContent = await readFileViaSh(sandbox, layoutPath);
+        if (layoutContent && !layoutContent.includes("ElizaAnalytics")) {
+          const analyticsImport = `import { ElizaAnalytics } from '@/components/eliza-analytics';\n`;
+          let updatedLayout = analyticsImport + layoutContent;
+
+          // Insert <ElizaAnalytics /> inside the body tag
+          const bodyMatch = updatedLayout.match(/<body[^>]*>/);
+          if (bodyMatch) {
+            const bodyTag = bodyMatch[0];
+            updatedLayout = updatedLayout.replace(
+              bodyTag,
+              `${bodyTag}\n        <ElizaAnalytics />`
+            );
+          }
+
+          await writeFileViaSh(sandbox, layoutPath, updatedLayout);
+          logger.info(
+            "Injected ElizaAnalytics component into layout.tsx after restore",
+            {
+              sandboxId,
+              layoutPath,
+            }
+          );
+          break;
+        } else if (layoutContent) {
+          break; // Found layout.tsx, analytics already present
+        }
+      } catch {
+        // Layout file doesn't exist at this path, try next
+      }
+    }
+
+    return { filesRestored, errors };
+  }
+
+  async getModifiedFiles(sandboxId: string): Promise<string[]> {
+    const sandbox = getActiveSandboxes().get(sandboxId);
+    if (!sandbox) return [];
+
+    const dirsToScan = ["src", "app", "components", "lib", "public", "styles"];
+    const allFiles: string[] = [];
+
+    for (const dir of dirsToScan) {
+      try {
+        const files = await listFilesViaSh(sandbox, dir);
+        allFiles.push(
+          ...files.filter(
+            (f) => !f.includes("node_modules") && !f.includes(".next")
+          )
+        );
+      } catch {
+        continue;
+      }
+    }
+
+    const configFiles = [
+      "package.json",
+      "tailwind.config.ts",
+      "tailwind.config.js",
+      "next.config.ts",
+      "next.config.js",
+      "tsconfig.json",
+    ];
+
+    for (const file of configFiles) {
+      const content = await readFileViaSh(sandbox, file);
+      if (content) allFiles.push(file);
+    }
+
+    return [...new Set(allFiles)];
+  }
+
+  async hasSnapshots(sessionId: string): Promise<boolean> {
+    const result = await dbRead
+      .select({ count: sessionFileSnapshots.id })
+      .from(sessionFileSnapshots)
+      .where(eq(sessionFileSnapshots.sandbox_session_id, sessionId))
+      .limit(1);
+    return result.length > 0;
+  }
+
+  async getSnapshotStats(sessionId: string): Promise<{
+    fileCount: number;
+    totalSize: number;
+    lastBackup: Date | null;
+  }> {
+    const snapshots = await dbRead
+      .select()
+      .from(sessionFileSnapshots)
+      .where(eq(sessionFileSnapshots.sandbox_session_id, sessionId))
+      .orderBy(desc(sessionFileSnapshots.created_at));
+
+    if (snapshots.length === 0) {
+      return { fileCount: 0, totalSize: 0, lastBackup: null };
+    }
+
+    const latestSnapshots = new Map<string, (typeof snapshots)[0]>();
+    for (const snapshot of snapshots) {
+      if (!latestSnapshots.has(snapshot.file_path)) {
+        latestSnapshots.set(snapshot.file_path, snapshot);
+      }
+    }
+
+    const uniqueSnapshots = Array.from(latestSnapshots.values());
+    const totalSize = uniqueSnapshots.reduce((sum, s) => sum + s.file_size, 0);
+    const lastBackup = uniqueSnapshots[0]?.created_at || null;
 
     return {
-      branch: (await branch.stdout()).trim(),
-      commitSha: (await sha.stdout()).trim(),
-      hasChanges: changedFiles.length > 0,
-      changedFiles,
+      fileCount: uniqueSnapshots.length,
+      totalSize,
+      lastBackup,
     };
   }
 
   async stop(sandboxId: string): Promise<void> {
-    const sandbox = activeSandboxes.get(sandboxId);
+    const sandbox = getActiveSandboxes().get(sandboxId);
     if (!sandbox) return;
     await sandbox.stop();
-    activeSandboxes.delete(sandboxId);
+    getActiveSandboxes().delete(sandboxId);
     logger.info("Sandbox stopped", { sandboxId });
   }
 
-  async extendTimeout(sandboxId: string, durationMs: number): Promise<void> {
-    const sandbox = activeSandboxes.get(sandboxId);
-    if (!sandbox) throw new Error("Sandbox not found");
-    await sandbox.extendTimeout(durationMs);
+  getStatus(sandboxId: string): "running" | "stopped" | "unknown" {
+    return getActiveSandboxes().has(sandboxId) ? "running" : "unknown";
   }
 
-  async readFile(sandboxId: string, filePath: string): Promise<string | null> {
-    const sandbox = activeSandboxes.get(sandboxId);
-    if (!sandbox) throw new Error("Sandbox not found");
-    return readFileViaSh(sandbox, filePath);
+  getActiveSandboxes(): string[] {
+    return Array.from(getActiveSandboxes().keys());
   }
 
-  async writeFile(sandboxId: string, filePath: string, content: string): Promise<void> {
-    const sandbox = activeSandboxes.get(sandboxId);
-    if (!sandbox) throw new Error("Sandbox not found");
-    await writeFileViaSh(sandbox, filePath, content);
-  }
-
-  async runCommand(sandboxId: string, cmd: string, args?: string[]): Promise<{ exitCode: number; stdout: string; stderr: string }> {
-    const sandbox = activeSandboxes.get(sandboxId);
-    if (!sandbox) throw new Error("Sandbox not found");
-    const result = await sandbox.runCommand({ cmd, args });
-    return {
-      exitCode: result.exitCode,
-      stdout: await result.stdout(),
-      stderr: await result.stderr(),
-    };
-  }
-
-  async getLogs(sandboxId: string, options?: { tail?: number }): Promise<string[]> {
-    const sandbox = activeSandboxes.get(sandboxId);
-    if (!sandbox) throw new Error("Sandbox not found");
-    
-    const { tail = 100 } = options || {};
-    
-    try {
-      const result = await sandbox.runCommand({
-        cmd: "tail",
-        args: ["-n", String(tail), "/tmp/next-dev.log"],
-      });
-      
-      if (result.exitCode !== 0) {
-        return [];
-      }
-      
-      const output = await result.stdout();
-      return output.split("\n").filter(Boolean);
-    } catch {
-      return [];
-    }
+  static isConfigured(): boolean {
+    const creds = getSandboxCredentials();
+    return creds.hasOIDC || creds.hasAccessToken;
   }
 }
 
