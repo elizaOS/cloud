@@ -605,8 +605,9 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
           </Link>
         )}
 
-        {/* Agent Display: Dropdown for owners, static for others */}
-        {isOwner ? renderOwnerAgentPicker() : renderStaticAgentDisplay()}
+        {/* Agent Display: Dropdown for owners OR on build page (allows unauthenticated users to create agents) */}
+        {/* On chat page, non-owners see static display with creator attribution */}
+        {isOwner || isBuildPage ? renderOwnerAgentPicker() : renderStaticAgentDisplay()}
       </div>
 
       {/* Right-side Controls - Only show when an agent is selected */}

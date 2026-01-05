@@ -52,10 +52,8 @@ export function BuildPageClient({
 
   // Initialize store with characters
   const {
-    setAvailableCharacters,
-    setSelectedCharacterId,
-    setAuthState,
     setAnonymousSessionToken,
+    initializeState,
   } = useChatStore();
 
   useSetPageHeader({
@@ -64,12 +62,10 @@ export function BuildPageClient({
       "Build and customize AI agents using the ElizaOS runtime with intelligent assistance.",
   });
 
-  // Initialize store on mount - set auth state FIRST, then characters/selection
-  // This ensures viewerState is computed correctly (auth state must be set before selection)
+  // Initialize store atomically on mount and when props change
+  // CRITICAL: Auth state, characters, and selection must be set together to prevent race conditions
+  // that cause incorrect viewerState computation (e.g., briefly showing non-owner controls to owners)
   useEffect(() => {
-    // Set auth state first so viewerState computation uses correct values
-    setAuthState(isAuthenticated, userId);
-
     // Transform characters to match store interface
     // In build mode, all characters are owned by the user
     const characters: Character[] = initialCharacters.map((char) => ({
@@ -80,39 +76,52 @@ export function BuildPageClient({
       ownerId: userId || undefined, // User owns all their characters
     }));
 
-    setAvailableCharacters(characters);
-
+    // Set all state atomically to compute correct viewerState
     // Set selected character from URL, or reset to null for creator mode (Eliza)
     // This ensures navigating to /dashboard/build always starts in creator mode
-    setSelectedCharacterId(initialCharacterId || null);
+    initializeState({
+      isAuthenticated,
+      userId,
+      characters,
+      selectedCharacterId: initialCharacterId || null,
+    });
   }, [
     initialCharacters,
     initialCharacterId,
-    setAvailableCharacters,
-    setSelectedCharacterId,
-    setAuthState,
+    initializeState,
     isAuthenticated,
     userId,
   ]);
 
   // Initialize anonymous session for unauthenticated users
   useEffect(() => {
-    if (!isAuthenticated && !anonymousSession) {
-      getOrCreateAnonymousUserAction().then((result) => {
-        if (result.session) {
-          setAnonymousSession({
-            messageCount: result.session.message_count,
-            messagesLimit: result.session.messages_limit,
-            remainingMessages:
-              result.session.messages_limit - result.session.message_count,
-          });
-          // Store session token in chat store so it gets passed with messages
-          setAnonymousSessionToken(result.session.session_token);
-        }
-        setIsLoadingSession(false);
-      });
+    if (!isAuthenticated && !anonymousSession && isLoadingSession) {
+      getOrCreateAnonymousUserAction()
+        .then((result) => {
+          // Safely handle potentially null/undefined result
+          if (result?.session) {
+            setAnonymousSession({
+              messageCount: result.session.message_count ?? 0,
+              messagesLimit: result.session.messages_limit ?? 3,
+              remainingMessages:
+                (result.session.messages_limit ?? 3) -
+                (result.session.message_count ?? 0),
+            });
+            // Store session token in chat store so it gets passed with messages
+            if (result.session.session_token) {
+              setAnonymousSessionToken(result.session.session_token);
+            }
+          }
+        })
+        .catch((error) => {
+          console.error("[BuildPageClient] Failed to create anonymous session:", error);
+        })
+        .finally(() => {
+          // Always set loading to false regardless of success/failure
+          setIsLoadingSession(false);
+        });
     }
-  }, [isAuthenticated, anonymousSession, setAnonymousSessionToken]);
+  }, [isAuthenticated, anonymousSession, isLoadingSession, setAnonymousSessionToken]);
 
   // Intercept in-app navigation when there are unsaved changes
   useEffect(() => {

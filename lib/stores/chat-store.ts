@@ -32,6 +32,37 @@ export interface Character {
 
 export type ViewerState = "unauthenticated" | "non-owner" | "owner";
 
+/**
+ * Compute viewer state based on authentication and character ownership.
+ * Centralized helper to prevent race conditions between setAuthState and setSelectedCharacterId.
+ */
+function computeViewerState(
+  isAuthenticated: boolean,
+  currentUserId: string | null,
+  selectedCharacterId: string | null,
+  availableCharacters: Character[],
+): ViewerState {
+  if (!isAuthenticated || !currentUserId) {
+    return "unauthenticated";
+  }
+
+  // No character selected = creator mode = owner
+  if (!selectedCharacterId) {
+    return "owner";
+  }
+
+  // Check if user owns the selected character
+  const selectedChar = availableCharacters.find(
+    (c) => c.id === selectedCharacterId,
+  );
+  // Only treat as owner if ownerId explicitly matches - missing ownerId means unknown ownership
+  if (selectedChar?.ownerId === currentUserId) {
+    return "owner";
+  }
+
+  return "non-owner";
+}
+
 interface ChatState {
   // State
   rooms: RoomItem[];
@@ -57,6 +88,16 @@ interface ChatState {
   setPendingMessage: (message: string | null) => void;
   setAnonymousSessionToken: (token: string | null) => void;
   setAuthState: (isAuthenticated: boolean, userId: string | null) => void;
+  /**
+   * Atomically set auth state and character selection together.
+   * Use this when both need to be updated to prevent race conditions.
+   */
+  initializeState: (params: {
+    isAuthenticated: boolean;
+    userId: string | null;
+    characters: Character[];
+    selectedCharacterId: string | null;
+  }) => void;
   updateRoom: (roomId: string, updates: Partial<Omit<RoomItem, "id">>) => void;
   updateCharacterAvatar: (characterId: string, avatarUrl: string) => void;
   loadRooms: (force?: boolean) => Promise<void>;
@@ -98,22 +139,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
   setSelectedCharacterId: (characterId) => {
     const { isAuthenticated, currentUserId, availableCharacters } = get();
 
-    // Recompute viewer state based on new character selection
-    let viewerState: ViewerState = "unauthenticated";
-    if (isAuthenticated && currentUserId) {
-      // No character selected = creator mode = owner
-      if (!characterId) {
-        viewerState = "owner";
-      } else {
-        const selectedChar = availableCharacters.find((c) => c.id === characterId);
-        // Only treat as owner if ownerId explicitly matches - missing ownerId means unknown ownership
-        if (selectedChar?.ownerId === currentUserId) {
-          viewerState = "owner";
-        } else {
-          viewerState = "non-owner";
-        }
-      }
-    }
+    // Use centralized helper to compute viewer state
+    const viewerState = computeViewerState(
+      isAuthenticated,
+      currentUserId,
+      characterId,
+      availableCharacters,
+    );
 
     set({ selectedCharacterId: characterId, viewerState });
   },
@@ -124,26 +156,35 @@ export const useChatStore = create<ChatState>((set, get) => ({
   setAuthState: (isAuthenticated, userId) => {
     const { selectedCharacterId, availableCharacters } = get();
 
-    let viewerState: ViewerState = "unauthenticated";
-    if (isAuthenticated && userId) {
-      // No character selected = creator mode = owner
-      if (!selectedCharacterId) {
-        viewerState = "owner";
-      } else {
-        // Check if user owns the selected character
-        const selectedChar = availableCharacters.find(
-          (c) => c.id === selectedCharacterId,
-        );
-        // Only treat as owner if ownerId explicitly matches - missing ownerId means unknown ownership
-        if (selectedChar?.ownerId === userId) {
-          viewerState = "owner";
-        } else {
-          viewerState = "non-owner";
-        }
-      }
-    }
+    // Use centralized helper to compute viewer state
+    const viewerState = computeViewerState(
+      isAuthenticated,
+      userId,
+      selectedCharacterId,
+      availableCharacters,
+    );
 
     set({ isAuthenticated, currentUserId: userId, viewerState });
+  },
+
+  // Atomically initialize auth state, characters, and selection together
+  // Prevents race conditions when all three need to be set during page initialization
+  initializeState: ({ isAuthenticated, userId, characters, selectedCharacterId }) => {
+    // Compute viewer state with all the new values at once
+    const viewerState = computeViewerState(
+      isAuthenticated,
+      userId,
+      selectedCharacterId,
+      characters,
+    );
+
+    set({
+      isAuthenticated,
+      currentUserId: userId,
+      availableCharacters: characters,
+      selectedCharacterId,
+      viewerState,
+    });
   },
 
   // Update an existing room's properties (for instant UI updates)
@@ -155,7 +196,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
     set({ rooms: updatedRooms });
   },
 
-  // Update a character's avatar URL (used when avatar is generated in build mode)
   // Update a character's avatar URL (used when avatar is generated in build mode)
   updateCharacterAvatar: (characterId, avatarUrl) => {
     const { availableCharacters } = get();
@@ -179,80 +219,94 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const loadPromise = (async () => {
       set({ isLoadingRooms: true });
 
-      // Server derives entityId from authenticated user
-      const headers: Record<string, string> = {};
+      try {
+        // Server derives entityId from authenticated user
+        const headers: Record<string, string> = {};
 
-      // Pass anonymous session token if available (for affiliate flows)
-      if (anonymousSessionToken) {
-        headers["X-Anonymous-Session"] = anonymousSessionToken;
-      }
-
-      const res = await fetch(`/api/eliza/rooms`, {
-        headers,
-        credentials: "include",
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-
-        if (Array.isArray(data.rooms)) {
-          const roomItems: RoomItem[] = data.rooms
-            .slice(0, 20)
-            .map((r: RoomPreview) => ({
-              id: r.id,
-              characterId: r.characterId,
-              characterName: r.characterName,
-              lastText: r.lastText,
-              lastTime: r.lastTime,
-              title: r.title,
-              isLocked: r.isLocked,
-              isBuildRoom: r.isBuildRoom,
-            }));
-
-          const currentState = get();
-          const existingCharacterIds = new Set(
-            currentState.availableCharacters.map((c) => c.id),
-          );
-
-          const charactersFromRooms: Character[] = [];
-          for (const room of data.rooms as RoomPreview[]) {
-            if (
-              room.characterId &&
-              room.characterName &&
-              !existingCharacterIds.has(room.characterId)
-            ) {
-              charactersFromRooms.push({
-                id: room.characterId,
-                name: room.characterName,
-                avatarUrl: room.characterAvatarUrl,
-              });
-              existingCharacterIds.add(room.characterId);
-            }
-          }
-
-          const mergedCharacters = [
-            ...currentState.availableCharacters,
-            ...charactersFromRooms,
-          ];
-
-          let newSelectedCharacterId = currentState.selectedCharacterId;
-          if (
-            !newSelectedCharacterId &&
-            charactersFromRooms.length === 1 &&
-            currentState.availableCharacters.length === 0
-          ) {
-            newSelectedCharacterId = charactersFromRooms[0].id;
-          }
-
-          set({
-            rooms: roomItems,
-            availableCharacters: mergedCharacters,
-            selectedCharacterId: newSelectedCharacterId,
-          });
+        // Pass anonymous session token if available (for affiliate flows)
+        if (anonymousSessionToken) {
+          headers["X-Anonymous-Session"] = anonymousSessionToken;
         }
-      }
 
-      set({ isLoadingRooms: false, loadRoomsPromise: null });
+        const res = await fetch(`/api/eliza/rooms`, {
+          headers,
+          credentials: "include",
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+
+          if (Array.isArray(data.rooms)) {
+            const roomItems: RoomItem[] = data.rooms
+              .slice(0, 20)
+              .map((r: RoomPreview) => ({
+                id: r.id,
+                characterId: r.characterId,
+                characterName: r.characterName,
+                lastText: r.lastText,
+                lastTime: r.lastTime,
+                title: r.title,
+                isLocked: r.isLocked,
+                isBuildRoom: r.isBuildRoom,
+              }));
+
+            const currentState = get();
+            const existingCharacterIds = new Set(
+              currentState.availableCharacters.map((c) => c.id),
+            );
+
+            const charactersFromRooms: Character[] = [];
+            for (const room of data.rooms as RoomPreview[]) {
+              if (
+                room.characterId &&
+                room.characterName &&
+                !existingCharacterIds.has(room.characterId)
+              ) {
+                charactersFromRooms.push({
+                  id: room.characterId,
+                  name: room.characterName,
+                  avatarUrl: room.characterAvatarUrl,
+                });
+                existingCharacterIds.add(room.characterId);
+              }
+            }
+
+            const mergedCharacters = [
+              ...currentState.availableCharacters,
+              ...charactersFromRooms,
+            ];
+
+            let newSelectedCharacterId = currentState.selectedCharacterId;
+            if (
+              !newSelectedCharacterId &&
+              charactersFromRooms.length === 1 &&
+              currentState.availableCharacters.length === 0
+            ) {
+              newSelectedCharacterId = charactersFromRooms[0].id;
+            }
+
+            // Compute viewerState when auto-selecting a character
+            const viewerState = computeViewerState(
+              currentState.isAuthenticated,
+              currentState.currentUserId,
+              newSelectedCharacterId,
+              mergedCharacters,
+            );
+
+            set({
+              rooms: roomItems,
+              availableCharacters: mergedCharacters,
+              selectedCharacterId: newSelectedCharacterId,
+              viewerState,
+            });
+          }
+        }
+      } catch (error) {
+        console.error("[ChatStore] Failed to load rooms:", error);
+      } finally {
+        // Always clear loading state and promise, even on error
+        set({ isLoadingRooms: false, loadRoomsPromise: null });
+      }
     })();
 
     set({ loadRoomsPromise: loadPromise });

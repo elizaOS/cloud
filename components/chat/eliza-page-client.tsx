@@ -70,12 +70,10 @@ export function ElizaPageClient({
 
   // Initialize store with characters (must be at top level)
   const {
-    setAvailableCharacters,
     setRoomId,
-    setSelectedCharacterId,
-    setAuthState,
     setAnonymousSessionToken,
     selectedCharacterId,
+    initializeState,
   } = useChatStore();
 
   // Show access error toast when redirected from private character
@@ -167,50 +165,61 @@ export function ElizaPageClient({
     return chars;
   }, [initialCharacters, sharedCharacter, userId]);
 
-  // Initialize store on mount (only when characters change)
+  // Initialize store atomically on mount and when props change
+  // CRITICAL: Auth state, characters, and selection must be set together to prevent race conditions
+  // that cause incorrect viewerState computation (e.g., briefly showing owner controls to non-owners)
   useEffect(() => {
-    setAvailableCharacters(characters);
-  }, [characters, setAvailableCharacters]);
+    // Set all state atomically to compute correct viewerState
+    initializeState({
+      isAuthenticated,
+      userId,
+      characters,
+      selectedCharacterId: initialCharacterId || null,
+    });
 
-  // Set auth state in store (runs once on mount and when auth changes)
-  useEffect(() => {
-    setAuthState(isAuthenticated, userId);
-  }, [isAuthenticated, userId, setAuthState]);
-
-  // Sync URL params with store - run on mount and when params change
-  // This ensures the store reflects URL changes (e.g., navigating to a different characterId)
-  useEffect(() => {
-    // If we have a characterId from URL but no roomId, clear the stored roomId
-    // This ensures a fresh room is created for the new character
-    // (e.g., after creating a character in build mode and redirecting to chat)
+    // Handle roomId separately (not involved in viewerState computation)
     if (initialCharacterId && !initialRoomId) {
+      // Clear stored roomId when navigating to a new character
+      // This ensures a fresh room is created for the new character
       setRoomId(null);
     } else if (initialRoomId) {
       setRoomId(initialRoomId);
     }
-
-    // Always update selection - null clears stale selection from previous session
-    setSelectedCharacterId(initialCharacterId || null);
-  }, [initialCharacterId, initialRoomId, setRoomId, setSelectedCharacterId]);
+  }, [
+    isAuthenticated,
+    userId,
+    characters,
+    initialCharacterId,
+    initialRoomId,
+    initializeState,
+    setRoomId,
+  ]);
 
   // Initialize anonymous session for unauthenticated users (only once)
   useEffect(() => {
     if (!isAuthenticated && !anonymousSession && isLoadingSession) {
       getOrCreateAnonymousUserAction()
         .then((result) => {
-          if (result.session) {
+          // Safely handle potentially null/undefined result
+          if (result?.session) {
             setAnonymousSession({
-              messageCount: result.session.message_count,
-              messagesLimit: result.session.messages_limit,
+              messageCount: result.session.message_count ?? 0,
+              messagesLimit: result.session.messages_limit ?? 3,
               remainingMessages:
-                result.session.messages_limit - result.session.message_count,
+                (result.session.messages_limit ?? 3) -
+                (result.session.message_count ?? 0),
             });
             // Store session token in chat store so it gets passed with messages
-            setAnonymousSessionToken(result.session.session_token);
+            if (result.session.session_token) {
+              setAnonymousSessionToken(result.session.session_token);
+            }
           }
-          setIsLoadingSession(false);
         })
-        .catch(() => {
+        .catch((error) => {
+          console.error("[ElizaPageClient] Failed to create anonymous session:", error);
+        })
+        .finally(() => {
+          // Always set loading to false regardless of success/failure
           setIsLoadingSession(false);
         });
     }
