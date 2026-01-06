@@ -63,7 +63,25 @@ class RuntimeCache {
   private readonly MAX_AGE_MS = 30 * 60 * 1000; // 30 minutes max age
   private readonly IDLE_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes idle timeout
 
-  get(agentId: string): AgentRuntime | null {
+  /**
+   * Cleanup a runtime entry before removing from cache.
+   * Calls runtime.close() which handles stop() and adapter.close() internally.
+   */
+  private async cleanupEntry(key: string, entry: CachedRuntime): Promise<void> {
+    try {
+      if (typeof entry.runtime?.close === "function") {
+        await entry.runtime.close();
+      }
+      elizaLogger.debug(`[RuntimeCache] Cleaned up runtime: ${key}`);
+    } catch (error) {
+      elizaLogger.warn(
+        `[RuntimeCache] Cleanup error for ${key}:`,
+        error instanceof Error ? error.message : String(error),
+      );
+    }
+  }
+
+  async get(agentId: string): Promise<AgentRuntime | null> {
     const entry = this.cache.get(agentId);
     if (!entry) return null;
 
@@ -73,6 +91,7 @@ class RuntimeCache {
       now - entry.createdAt > this.MAX_AGE_MS ||
       now - entry.lastUsed > this.IDLE_TIMEOUT_MS
     ) {
+      await this.cleanupEntry(agentId, entry);
       this.cache.delete(agentId);
       elizaLogger.debug(`[RuntimeCache] Evicted stale runtime: ${agentId}`);
       return null;
@@ -95,6 +114,7 @@ class RuntimeCache {
       now - entry.createdAt > this.MAX_AGE_MS ||
       now - entry.lastUsed > this.IDLE_TIMEOUT_MS
     ) {
+      await this.cleanupEntry(agentId, entry);
       this.cache.delete(agentId);
       elizaLogger.debug(`[RuntimeCache] Evicted stale runtime: ${agentId}`);
       return null;
@@ -106,6 +126,7 @@ class RuntimeCache {
       elizaLogger.warn(
         `[RuntimeCache] Stale DB connection for ${agentId}, evicting runtime`,
       );
+      await this.cleanupEntry(agentId, entry);
       this.cache.delete(agentId);
       return null;
     }
@@ -114,10 +135,14 @@ class RuntimeCache {
     return entry.runtime;
   }
 
-  set(agentId: string, runtime: AgentRuntime, characterName: string): void {
+  async set(
+    agentId: string,
+    runtime: AgentRuntime,
+    characterName: string,
+  ): Promise<void> {
     // Evict oldest if at capacity
     if (this.cache.size >= this.MAX_SIZE) {
-      this.evictOldest();
+      await this.evictOldest();
     }
 
     const now = Date.now();
@@ -133,20 +158,22 @@ class RuntimeCache {
     );
   }
 
-  delete(agentId: string): boolean {
-    const existed = this.cache.has(agentId);
-    if (existed) {
+  async delete(agentId: string): Promise<boolean> {
+    const entry = this.cache.get(agentId);
+    if (entry) {
+      await this.cleanupEntry(agentId, entry);
       this.cache.delete(agentId);
       elizaLogger.info(`[RuntimeCache] Invalidated runtime: ${agentId}`);
+      return true;
     }
-    return existed;
+    return false;
   }
 
   has(agentId: string): boolean {
     return this.cache.has(agentId);
   }
 
-  private evictOldest(): void {
+  private async evictOldest(): Promise<void> {
     let oldest: { key: string; lastUsed: number } | null = null;
     for (const [key, entry] of this.cache.entries()) {
       if (!oldest || entry.lastUsed < oldest.lastUsed) {
@@ -154,6 +181,10 @@ class RuntimeCache {
       }
     }
     if (oldest) {
+      const entry = this.cache.get(oldest.key);
+      if (entry) {
+        await this.cleanupEntry(oldest.key, entry);
+      }
       this.cache.delete(oldest.key);
       elizaLogger.debug(`[RuntimeCache] Evicted oldest runtime: ${oldest.key}`);
     }
@@ -163,7 +194,10 @@ class RuntimeCache {
     return { size: this.cache.size, maxSize: this.MAX_SIZE };
   }
 
-  clear(): void {
+  async clear(): Promise<void> {
+    for (const [key, entry] of this.cache.entries()) {
+      await this.cleanupEntry(key, entry);
+    }
     this.cache.clear();
     elizaLogger.info("[RuntimeCache] Cleared all cached runtimes");
   }
@@ -189,6 +223,7 @@ class DbAdapterPool {
       elizaLogger.warn(
         `[DbAdapterPool] Stale connection for ${agentId}, recreating`,
       );
+      await this.closeAdapter(existingAdapter);
       this.adapters.delete(key);
       adapterEmbeddingDimensions.delete(key);
     }
@@ -236,7 +271,7 @@ class DbAdapterPool {
     if (!adapter) return true;
 
     const isHealthy = await this.checkAdapterHealth(adapter);
-    if (!isHealthy) this.invalidateAdapter(key);
+    if (!isHealthy) await this.invalidateAdapter(key);
     return isHealthy;
   }
 
@@ -278,7 +313,24 @@ class DbAdapterPool {
     return adapter;
   }
 
-  invalidateAdapter(agentId: string): void {
+  private async closeAdapter(adapter: IDatabaseAdapter): Promise<void> {
+    try {
+      if (typeof adapter.close === "function") {
+        await adapter.close();
+      }
+    } catch (error) {
+      elizaLogger.warn(
+        `[DbAdapterPool] Error closing adapter:`,
+        error instanceof Error ? error.message : String(error),
+      );
+    }
+  }
+
+  async invalidateAdapter(agentId: string): Promise<void> {
+    const adapter = this.adapters.get(agentId);
+    if (adapter) {
+      await this.closeAdapter(adapter);
+    }
     this.adapters.delete(agentId);
     adapterEmbeddingDimensions.delete(agentId);
     elizaLogger.debug(`[DbAdapterPool] Invalidated adapter for ${agentId}`);
@@ -311,16 +363,16 @@ export class RuntimeFactory {
     return { runtime: runtimeCache.getStats() };
   }
 
-  clearCaches(): void {
-    runtimeCache.clear();
+  async clearCaches(): Promise<void> {
+    await runtimeCache.clear();
   }
 
   async invalidateRuntime(agentId: string): Promise<boolean> {
-    const wasInMemoryBase = runtimeCache.delete(agentId);
-    const wasInMemoryWs = runtimeCache.delete(`${agentId}:ws`);
+    const wasInMemoryBase = await runtimeCache.delete(agentId);
+    const wasInMemoryWs = await runtimeCache.delete(`${agentId}:ws`);
     const wasInMemory = wasInMemoryBase || wasInMemoryWs;
 
-    dbAdapterPool.invalidateAdapter(agentId);
+    await dbAdapterPool.invalidateAdapter(agentId);
 
     try {
       await edgeRuntimeCache.invalidateCharacter(agentId);
@@ -423,7 +475,7 @@ export class RuntimeFactory {
     await this.initializeRuntime(runtime, character, agentId);
     await this.waitForMcpServiceIfNeeded(runtime, filteredPlugins);
 
-    runtimeCache.set(cacheKey, runtime, character.name);
+    await runtimeCache.set(cacheKey, runtime, character.name);
 
     edgeRuntimeCache
       .markRuntimeWarm(agentId as string, {
