@@ -71,7 +71,6 @@ import {
   Rocket,
   FolderCode,
   MessageSquare,
-  BarChart3,
   FileCode,
   Layers,
   Zap,
@@ -104,7 +103,6 @@ type TemplateType =
   | "chat"
   | "agent-dashboard"
   | "landing-page"
-  | "analytics"
   | "blank"
   | "mcp-service"
   | "a2a-agent";
@@ -223,17 +221,6 @@ const TEMPLATE_OPTIONS: TemplateOption[] = [
     gradient: "from-violet-500 to-purple-600",
     features: ["Hero sections", "Responsive design", "CTA blocks"],
     techStack: ["Next.js", "Framer Motion", "Tailwind"],
-  },
-  {
-    value: "analytics",
-    label: "Analytics Dashboard",
-    description: "Data visualization",
-    longDescription: "Interactive dashboard with charts, metrics, and real-time data visualization components.",
-    icon: BarChart3,
-    color: "#10B981",
-    gradient: "from-emerald-500 to-teal-600",
-    features: ["Interactive charts", "Real-time data", "Custom metrics"],
-    techStack: ["Next.js", "Recharts", "Tailwind"],
   },
   {
     value: "mcp-service",
@@ -1895,7 +1882,6 @@ ANTHROPIC_API_KEY=your_key_here`}
       blank: `${appName} - A custom application built with modern web technologies. Features a clean, responsive design with seamless user experience.`,
       chat: `${appName} - An intelligent conversational AI application that provides real-time responses with natural language understanding and message history.`,
       "landing-page": `${appName} - A stunning, conversion-optimized landing page designed to captivate visitors and drive engagement with compelling visuals and clear calls-to-action.`,
-      analytics: `${appName} - A powerful analytics dashboard featuring interactive visualizations, real-time metrics tracking, and customizable data views.`,
       "mcp-service": `${appName} - A Model Context Protocol service that extends AI capabilities with custom tools, resources, and seamless integration.`,
       "a2a-agent": `${appName} - An Agent-to-Agent protocol endpoint enabling intelligent communication and task coordination between AI agents.`,
       "agent-dashboard": `${appName} - A comprehensive control center for monitoring, configuring, and interacting with AI agents in real-time.`,
