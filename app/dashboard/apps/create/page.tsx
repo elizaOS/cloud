@@ -293,9 +293,8 @@ export default function AppCreatorPage() {
   const [timeRemaining, setTimeRemaining] = useState<string>("");
   const [isExtending, setIsExtending] = useState(false);
   const [snapshotInfo, setSnapshotInfo] = useState<{
-    fileCount: number;
-    totalSize: number;
     canRestore: boolean;
+    githubRepo: string | null;
     lastBackup: string | null;
   } | null>(null);
   const [isRestoring, setIsRestoring] = useState(false);
@@ -305,11 +304,8 @@ export default function AppCreatorPage() {
     filePath: string;
   } | null>(null);
   const [appSnapshotInfo, setAppSnapshotInfo] = useState<{
-    hasSnapshots: boolean;
-    fileCount: number;
-    totalSize: number;
+    githubRepo: string;
     lastBackup: string | null;
-    sessionId: string | null;
   } | null>(null);
 
   // GitHub-related state
@@ -327,130 +323,117 @@ export default function AppCreatorPage() {
     : `app-builder-messages-new`;
 
   useEffect(() => {
-    // Reset initialization when appIdFromUrl or sessionIdFromUrl changes
+    // Track URL parameter changes
     const appChanged = prevAppIdRef.current !== appIdFromUrl;
     const sessionChanged = prevSessionIdRef.current !== sessionIdFromUrl;
 
     if (appChanged || sessionChanged) {
-      const isAppChange = prevAppIdRef.current !== null && appChanged;
       prevAppIdRef.current = appIdFromUrl;
       prevSessionIdRef.current = sessionIdFromUrl;
       initializationRef.current = false;
 
-      // Clear stale state when switching between apps
-      if (isAppChange) {
-        setSession(null);
-        setMessages([]);
+      // Reset state when URL changes
+      setSession(null);
+      setMessages([]);
+      setStatus("idle");
+      setIsInitializing(!!appIdFromUrl || !!sessionIdFromUrl);
+      
+      if (appChanged) {
         setAppData(null);
         setAppSnapshotInfo(null);
-        setStatus("idle");
-        setIsInitializing(!!appIdFromUrl || !!sessionIdFromUrl);
         setStep(appIdFromUrl ? "building" : "setup");
-      } else if (sessionChanged && sessionIdFromUrl) {
-        // Session changed within same app - reset session state but keep app data
-        setSession(null);
-        setMessages([]);
-        setStatus("idle");
-        setIsInitializing(true);
       }
     }
 
     if (initializationRef.current) return;
     initializationRef.current = true;
 
-    const initialize = async () => {
+    const loadPage = async () => {
+      // Case 1: Session ID in URL - restore that specific session
       if (sessionIdFromUrl) {
-        try {
-          const response = await fetchWithRetry(
-            `/api/v1/app-builder/sessions/${sessionIdFromUrl}`
-          );
-
-          if (response.ok) {
-            const data = await response.json();
-            const sessionStatus = data.session?.status as SessionStatus | undefined;
-          const isExpiredOrStopped = sessionStatus === "timeout" || sessionStatus === "stopped";
-
-          if (data.success && data.session && (data.session.sandboxUrl || isExpiredOrStopped)) {
-              const restoredSession: SessionData = {
-                id: data.session.id,
-                sandboxId: data.session.sandboxId || "",
-                sandboxUrl: data.session.sandboxUrl || "",
-                status: sessionStatus || "idle",
-                examplePrompts: data.session.examplePrompts || [],
-                expiresAt: data.session.expiresAt || null,
-              };
-
-              setSession(restoredSession);
-              setStatus(sessionStatus || "idle");
-              setStep("building");
-
-              const stored = sessionStorage.getItem(messagesStorageKey);
-              if (stored) {
-                try {
-                  setMessages(JSON.parse(stored));
-                } catch {
-                  // Invalid stored data
-                }
-              }
-
-              if (isExpiredOrStopped && data.session.messages?.length > 0) {
-                setMessages(data.session.messages);
-              }
-
-              if (appIdFromUrl) {
-                const appResponse = await fetchWithRetry(
-                  `/api/v1/apps/${appIdFromUrl}`
-                );
-                if (appResponse.ok) {
-                  const appData = await appResponse.json();
-                  if (appData.success && appData.app) {
-                    setAppData(appData.app);
-                    setAppName(appData.app.name);
-                  }
-                }
-              }
-
-              setIsInitializing(false);
-              return;
-            }
-          }
-
-          const params = new URLSearchParams(searchParams.toString());
-          params.delete("sessionId");
-          const newUrl = appIdFromUrl
-            ? `/dashboard/apps/create?appId=${appIdFromUrl}`
-            : "/dashboard/apps/create";
-          router.replace(newUrl, { scroll: false });
-          sessionStorage.removeItem(messagesStorageKey);
-
-          if (appIdFromUrl) {
-            await fetchAppDataAndSession();
-          } else {
-            setIsInitializing(false);
-          }
+        const restored = await tryRestoreSession(sessionIdFromUrl);
+        if (restored) {
+          setIsInitializing(false);
           return;
-        } catch {
-          const params = new URLSearchParams(searchParams.toString());
-          params.delete("sessionId");
-          router.replace(`/dashboard/apps/create?${params.toString()}`, {
-            scroll: false,
-          });
-          sessionStorage.removeItem(messagesStorageKey);
         }
+        // Session invalid - remove from URL and continue
+        removeSessionFromUrl();
       }
 
-      if (appIdFromUrl && !sessionIdFromUrl) {
-        await fetchAppDataAndSession();
-      } else {
-        setIsInitializing(false);
+      // Case 2: App ID in URL - load app and check for existing sessions
+      if (appIdFromUrl) {
+        await loadAppData(appIdFromUrl);
+      }
+
+      setIsInitializing(false);
+    };
+
+    const tryRestoreSession = async (sessionId: string): Promise<boolean> => {
+      try {
+        const response = await fetchWithRetry(`/api/v1/app-builder/sessions/${sessionId}`);
+        if (!response.ok) return false;
+
+        const data = await response.json();
+        if (!data.success || !data.session) return false;
+
+        const sessionStatus = data.session.status as SessionStatus;
+        const isExpiredOrStopped = sessionStatus === "timeout" || sessionStatus === "stopped";
+
+        // Session must have a sandbox URL or be expired/stopped to be valid
+        if (!data.session.sandboxUrl && !isExpiredOrStopped) return false;
+
+        // Restore session state
+        setSession({
+          id: data.session.id,
+          sandboxId: data.session.sandboxId || "",
+          sandboxUrl: data.session.sandboxUrl || "",
+          status: sessionStatus,
+          examplePrompts: data.session.examplePrompts || [],
+          expiresAt: data.session.expiresAt || null,
+        });
+        setStatus(sessionStatus);
+        setStep("building");
+
+        // Restore messages from session or sessionStorage
+        if (isExpiredOrStopped && data.session.messages?.length > 0) {
+          setMessages(data.session.messages);
+        } else {
+          const stored = sessionStorage.getItem(messagesStorageKey);
+          if (stored) {
+            try { setMessages(JSON.parse(stored)); } catch { /* ignore */ }
+          }
+        }
+
+        // Load app data if we have appId
+        if (appIdFromUrl) {
+          const appResponse = await fetchWithRetry(`/api/v1/apps/${appIdFromUrl}`);
+          if (appResponse.ok) {
+            const appData = await appResponse.json();
+            if (appData.success && appData.app) {
+              setAppData(appData.app);
+              setAppName(appData.app.name);
+            }
+          }
+        }
+
+        return true;
+      } catch {
+        return false;
       }
     };
 
-    const fetchAppDataAndSession = async () => {
+    const removeSessionFromUrl = () => {
+      const newUrl = appIdFromUrl
+        ? `/dashboard/apps/create?appId=${appIdFromUrl}`
+        : "/dashboard/apps/create";
+      router.replace(newUrl, { scroll: false });
+      sessionStorage.removeItem(messagesStorageKey);
+    };
+
+    const loadAppData = async (appId: string) => {
       try {
-        const appResponse = await fetchWithRetry(
-          `/api/v1/apps/${appIdFromUrl}`
-        );
+        // Fetch app details
+        const appResponse = await fetchWithRetry(`/api/v1/apps/${appId}`);
         if (!appResponse.ok) {
           toast.error("App not found");
           router.push("/dashboard/apps");
@@ -465,16 +448,16 @@ export default function AppCreatorPage() {
           setIncludeMonetization(appData.app.monetization_enabled || false);
         }
 
+        // Check for existing active session
         const sessionResponse = await fetchWithRetry(
-          `/api/v1/app-builder?appId=${appIdFromUrl}&limit=1&includeInactive=true`
+          `/api/v1/app-builder?appId=${appId}&limit=1&includeInactive=true`
         );
-
         if (sessionResponse.ok) {
           const sessionData = await sessionResponse.json();
           if (sessionData.success && sessionData.sessions?.length > 0) {
-            const existingSession = sessionData.sessions[0];
+            // Redirect to existing session
             router.replace(
-              `/dashboard/apps/create?appId=${appIdFromUrl}&sessionId=${existingSession.id}`,
+              `/dashboard/apps/create?appId=${appId}&sessionId=${sessionData.sessions[0].id}`,
               { scroll: false }
             );
             initializationRef.current = false;
@@ -482,44 +465,24 @@ export default function AppCreatorPage() {
           }
         }
 
-        try {
-          const snapshotResponse = await fetchWithRetry(
-            `/api/v1/app-builder?appId=${appIdFromUrl}&checkSnapshots=true&debug=true`
-          );
-          if (snapshotResponse.ok) {
-            const snapshotData = await snapshotResponse.json();
-            console.log("[AppBuilder] Snapshot check response:", snapshotData);
-            if (snapshotData.debug) {
-              console.log("[AppBuilder] Debug info:", snapshotData.debug);
-              console.log("[AppBuilder] All sessions in org:", snapshotData.debug.allSessions?.length || 0);
-              console.log("[AppBuilder] Sessions for this app:", snapshotData.debug.sessionsForThisApp?.length || 0);
-              console.log("[AppBuilder] Snapshots per session:", snapshotData.debug.snapshotsPerSession);
-            }
-            if (snapshotData.success && snapshotData.snapshotInfo) {
-              setAppSnapshotInfo(snapshotData.snapshotInfo);
-            }
-          } else {
-            console.error("[AppBuilder] Snapshot check failed:", snapshotResponse.status);
+        // Check GitHub snapshot info
+        const snapshotResponse = await fetchWithRetry(
+          `/api/v1/app-builder?appId=${appId}&checkSnapshots=true`
+        );
+        if (snapshotResponse.ok) {
+          const snapshotData = await snapshotResponse.json();
+          if (snapshotData.success && snapshotData.snapshotInfo) {
+            setAppSnapshotInfo(snapshotData.snapshotInfo);
           }
-        } catch (snapshotError) {
-          console.error("[AppBuilder] Snapshot check error:", snapshotError);
         }
-
-        setIsInitializing(false);
       } catch {
         toast.error("Failed to load app");
         router.push("/dashboard/apps");
       }
     };
 
-    initialize();
-  }, [
-    appIdFromUrl,
-    sessionIdFromUrl,
-    router,
-    searchParams,
-    messagesStorageKey,
-  ]);
+    loadPage();
+  }, [appIdFromUrl, sessionIdFromUrl, router, messagesStorageKey]);
 
   useEffect(() => {
     if (messages.length > 0) {
@@ -652,9 +615,8 @@ export default function AppCreatorPage() {
         const data = await response.json();
         if (data.success) {
           setSnapshotInfo({
-            fileCount: data.fileCount,
-            totalSize: data.totalSize,
             canRestore: data.canRestore,
+            githubRepo: data.githubRepo,
             lastBackup: data.lastBackup,
           });
         }
@@ -855,8 +817,12 @@ export default function AppCreatorPage() {
       );
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to restore session");
+        const contentType = response.headers.get("content-type") || "";
+        if (contentType.includes("application/json")) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || "Failed to restore session");
+        }
+        throw new Error(`Failed to restore session (HTTP ${response.status})`);
       }
 
       const reader = response.body?.getReader();
@@ -928,17 +894,16 @@ export default function AppCreatorPage() {
         }
       }
     } catch (error) {
-      setStatus("error");
-      setErrorMessage(
-        error instanceof Error ? error.message : "Restoration failed"
-      );
-      toast.error("Failed to restore session", {
-        description: error instanceof Error ? error.message : "Unknown error",
+      const errorMsg = error instanceof Error ? error.message : "Restoration failed";
+      addLog(`Restoration failed: ${errorMsg}`, "error");
+      
+      // Set status to show "Start New Session" option
+      // This will create a fresh session that clones from GitHub
+      setStatus("timeout");
+      setSnapshotInfo({ canRestore: false, githubRepo: null, lastBackup: null });
+      toast.error("Could not resume session", {
+        description: "Click 'Start New Session' to restore your code from GitHub.",
       });
-      addLog(
-        `Restoration failed: ${error instanceof Error ? error.message : "Unknown error"}`,
-        "error"
-      );
     } finally {
       setIsRestoring(false);
       setRestoreProgress(null);
@@ -1043,18 +1008,22 @@ export default function AppCreatorPage() {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        if (
-          errorData.error?.includes("credentials not configured") ||
-          errorData.error?.includes("VERCEL_TOKEN") ||
-          errorData.error?.includes("OIDC")
-        ) {
-          setStatus("not_configured");
-          setErrorMessage(errorData.error);
-          setIsLoading(false);
-          return;
+        const contentType = response.headers.get("content-type") || "";
+        if (contentType.includes("application/json")) {
+          const errorData = await response.json();
+          if (
+            errorData.error?.includes("credentials not configured") ||
+            errorData.error?.includes("VERCEL_TOKEN") ||
+            errorData.error?.includes("OIDC")
+          ) {
+            setStatus("not_configured");
+            setErrorMessage(errorData.error);
+            setIsLoading(false);
+            return;
+          }
+          throw new Error(errorData.error || "Failed to start session");
         }
-        throw new Error(errorData.error || "Failed to start session");
+        throw new Error(`Failed to start session (HTTP ${response.status})`);
       }
 
       const reader = response.body?.getReader();
@@ -1791,7 +1760,7 @@ ANTHROPIC_API_KEY=your_key_here`}
     );
   }
 
-  if (step === "setup" && !isEditMode) {
+  if (step === "setup" && !isEditMode && status !== "initializing") {
     return (
       <div className="max-w-4xl mx-auto py-10 space-y-6">
         <div className="flex items-center gap-4">
@@ -1998,7 +1967,7 @@ ANTHROPIC_API_KEY=your_key_here`}
 
             <div className="flex justify-end gap-3 pt-4">
               <Link href={backLink}>
-                <BrandButton variant="hud">Cancel</BrandButton>
+                <BrandButton variant="ghost">Cancel</BrandButton>
               </Link>
               <BrandButton
                 variant="primary"
@@ -2074,21 +2043,25 @@ ANTHROPIC_API_KEY=your_key_here`}
                 assistance.
               </p>
 
-              {appSnapshotInfo?.hasSnapshots ? (
+              {appSnapshotInfo ? (
                 <div className="p-4 bg-green-500/10 border border-green-500/20 rounded-lg mb-6">
                   <div className="flex items-center justify-center gap-2 mb-2">
                     <RefreshCw className="h-4 w-4 text-green-400" />
                     <p className="text-sm text-green-400 font-medium">
-                      Previous work found
+                      Code saved to GitHub
                     </p>
                   </div>
                   <p className="text-xs text-white/50">
-                    {appSnapshotInfo.fileCount} files (
-                    {Math.round(appSnapshotInfo.totalSize / 1024)}KB) will be
-                    automatically restored when you start building.
+                    Your code will be restored from{" "}
+                    <span className="font-mono text-green-400/80">
+                      {appSnapshotInfo.githubRepo.split("/").pop()}
+                    </span>
+                    {appSnapshotInfo.lastBackup && (
+                      <> (last updated {new Date(appSnapshotInfo.lastBackup).toLocaleDateString()})</>
+                    )}
                   </p>
                 </div>
-              ) : appSnapshotInfo !== null ? (
+              ) : appData?.github_repo ? (
                 <p className="text-xs text-white/40 mb-4">
                   No previous work found for this app.
                 </p>
@@ -2105,10 +2078,10 @@ ANTHROPIC_API_KEY=your_key_here`}
                     <Loader2 className="h-5 w-5 mr-2 animate-spin" />
                     Starting...
                   </>
-                ) : appSnapshotInfo?.hasSnapshots ? (
+                ) : appSnapshotInfo || appData?.github_repo ? (
                   <>
                     <RefreshCw className="h-5 w-5 mr-2" />
-                    Restore & Continue
+                    Start Building
                   </>
                 ) : (
                   <>
@@ -2496,19 +2469,16 @@ ANTHROPIC_API_KEY=your_key_here`}
                 <div className="space-y-3">
                   <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
                     <p className="text-sm text-green-400 font-medium">
-                      Good news! Your work has been saved.
+                      Restoring your code...
                     </p>
-                    <p className="text-xs text-white/50 mt-1">
-                      {snapshotInfo?.fileCount || 0} files (
-                      {Math.round((snapshotInfo?.totalSize || 0) / 1024)}KB)
-                      backed up
-                    </p>
+                    {snapshotInfo?.githubRepo && (
+                      <p className="text-xs text-white/50 mt-1">
+                        From <span className="font-mono">{snapshotInfo.githubRepo.split("/").pop()}</span>
+                      </p>
+                    )}
                   </div>
 
-                  <Button
-                    disabled={true}
-                    className="w-full bg-green-600 text-white cursor-wait"
-                  >
+                  <Button disabled className="w-full bg-green-600 text-white cursor-wait">
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                     {restoreProgress
                       ? `Restoring ${restoreProgress.current}/${restoreProgress.total}...`
@@ -2526,7 +2496,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                   <Button
                     variant="outline"
                     onClick={() => router.push("/dashboard/apps")}
-                    disabled={true}
+                    disabled
                     className="w-full opacity-50"
                   >
                     Return to Apps
@@ -2536,11 +2506,13 @@ ANTHROPIC_API_KEY=your_key_here`}
                 <div className="space-y-3">
                   <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
                     <p className="text-sm text-green-400 font-medium">
-                      Good news! Your work has been saved.
+                      Your code is saved to GitHub
                     </p>
                     <p className="text-xs text-white/50 mt-1">
-                      {snapshotInfo.fileCount} files (
-                      {Math.round(snapshotInfo.totalSize / 1024)}KB) backed up
+                      <span className="font-mono">{snapshotInfo.githubRepo?.split("/").pop()}</span>
+                      {snapshotInfo.lastBackup && (
+                        <> · Last updated {new Date(snapshotInfo.lastBackup).toLocaleDateString()}</>
+                      )}
                     </p>
                   </div>
 
@@ -2550,7 +2522,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                     className="w-full bg-green-600 hover:bg-green-500 text-white"
                   >
                     <RefreshCw className="h-4 w-4 mr-2" />
-                    Restore Session
+                    Restore & Continue
                   </Button>
 
                   <Button
@@ -2567,8 +2539,8 @@ ANTHROPIC_API_KEY=your_key_here`}
                   <div className="p-3 bg-white/5 border border-white/10 rounded-lg">
                     <p className="text-xs text-white/50">
                       {snapshotInfo === null
-                        ? "Checking for saved files..."
-                        : "No saved files found. You'll need to start fresh."}
+                        ? "Checking for saved code..."
+                        : "No saved code found. Start fresh."}
                     </p>
                   </div>
 

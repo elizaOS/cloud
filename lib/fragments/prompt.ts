@@ -151,6 +151,14 @@ src/
 4. Create UI components
 5. Create pages
 6. \`check_build\` after each file -> fix errors -> repeat
+7. **FINAL STEP (REQUIRED):** Run \`run_command\` with \`pnpm build\` to catch TypeScript errors. Fix any type errors before finishing.
+
+## CRITICAL: Final Build Verification
+Before completing ANY task, you MUST run:
+\`\`\`
+run_command: pnpm build
+\`\`\`
+This catches TypeScript type errors that the dev server doesn't show. If there are errors, fix them and run build again until it passes.
 
 **CRITICAL:** The API key is already configured via environment variables. DO NOT create API key input fields or prompts.
 

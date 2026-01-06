@@ -22,12 +22,11 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // Check if app has GitHub storage
+    // Need app with GitHub repo to get history
     if (!session.app_id) {
       return NextResponse.json({
         success: true,
-        canRestore: false,
-        githubRepo: null,
+        commits: [],
       });
     }
 
@@ -35,33 +34,31 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     if (!app?.github_repo) {
       return NextResponse.json({
         success: true,
-        canRestore: false,
-        githubRepo: null,
+        commits: [],
       });
     }
 
-    let lastBackup: string | null = null;
+    const repoName = app.github_repo.split("/").pop() || app.github_repo;
+    
     try {
-      const repoName = app.github_repo.split("/").pop() || app.github_repo;
-      const commits = await githubReposService.listCommits(repoName, { limit: 1 });
-      if (commits.length > 0) {
-        lastBackup = commits[0].date;
-      }
+      const commits = await githubReposService.listCommits(repoName, { limit: 20 });
+      return NextResponse.json({
+        success: true,
+        commits,
+      });
     } catch (error) {
-      logger.warn("Failed to fetch commits for session snapshots", {
+      logger.warn("Failed to fetch commit history", {
         sessionId,
+        repoName,
         error: error instanceof Error ? error.message : "Unknown",
       });
+      return NextResponse.json({
+        success: true,
+        commits: [],
+      });
     }
-
-    return NextResponse.json({
-      success: true,
-      canRestore: true,
-      githubRepo: app.github_repo,
-      lastBackup,
-    });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to get snapshot info";
+    const message = error instanceof Error ? error.message : "Failed to get history";
     const status =
       message.includes("Unauthorized") || message.includes("Authentication")
         ? 401
@@ -71,7 +68,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
             ? 404
             : 500;
 
-    logger.error("Failed to get session snapshots", { error: message });
+    logger.error("Failed to get session history", { error: message });
     return NextResponse.json({ success: false, error: message }, { status });
   }
 }

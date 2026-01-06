@@ -35,42 +35,36 @@ export const GET = withRateLimit(async (request: NextRequest) => {
     const appId = searchParams.get("appId") || undefined;
     const checkSnapshots = searchParams.get("checkSnapshots") === "true";
 
-    // Check if app has GitHub storage (new Git-based approach)
+    // Check if app has GitHub storage (Git-based persistence)
     if (checkSnapshots && appId) {
-      logger.info("Checking GitHub storage for app", { appId, userId: user.id });
-
       const app = await appsService.getById(appId);
       
-      let hasSnapshots = false;
+      if (!app?.github_repo) {
+        return NextResponse.json({
+          success: true,
+          snapshotInfo: null,
+        });
+      }
+
       let lastBackup: string | null = null;
-      
-      if (app?.github_repo) {
-        hasSnapshots = true;
-        try {
-          const repoName = app.github_repo.split("/").pop() || app.github_repo;
-          const commits = await githubReposService.listCommits(repoName, { limit: 1 });
-          if (commits.length > 0) {
-            lastBackup = commits[0].date;
-          }
-        } catch (repoError) {
-          logger.warn("Failed to fetch commits for snapshot check", {
-            appId,
-            githubRepo: app.github_repo,
-            error: repoError instanceof Error ? repoError.message : "Unknown error",
-          });
+      try {
+        const repoName = app.github_repo.split("/").pop() || app.github_repo;
+        const commits = await githubReposService.listCommits(repoName, { limit: 1 });
+        if (commits.length > 0) {
+          lastBackup = commits[0].date;
         }
+      } catch (error) {
+        logger.warn("Failed to fetch commits", {
+          appId,
+          error: error instanceof Error ? error.message : "Unknown",
+        });
       }
 
       return NextResponse.json({
         success: true,
         snapshotInfo: {
-          hasSnapshots,
-          fileCount: hasSnapshots ? 1 : 0,
-          totalSize: 0,
+          githubRepo: app.github_repo,
           lastBackup,
-          sessionId: null,
-          storageType: hasSnapshots ? "git" : "none",
-          githubRepo: app?.github_repo || null,
         },
       });
     }

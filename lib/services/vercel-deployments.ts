@@ -2,15 +2,18 @@
  * Vercel Deployments Service
  *
  * Handles deploying apps to Vercel from GitHub repositories.
- * Each app gets:
- * - A unique subdomain under apps.elizacloud.ai
- * - Automatic deployments when code is pushed to GitHub
- * - Production deployments triggered via Vercel API
+ * Each app gets its own Vercel project under the team.
+ * 
+ * Architecture:
+ * - Each app = its own Vercel project
+ * - Projects are created under VERCEL_TEAM_ID
+ * - GitHub repos are linked to their respective projects
+ * - Each project gets a subdomain under apps.elizacloud.ai
  *
  * Flow:
- * 1. App created → GitHub repo created → Subdomain assigned
- * 2. Code changes in sandbox → Git commit/push → Vercel auto-deploys
- * 3. Manual deploy button → Trigger Vercel deployment
+ * 1. App created → GitHub repo created
+ * 2. First deploy → Vercel project created → GitHub linked → Domain assigned
+ * 3. Subsequent deploys → Deploy to existing project
  */
 
 import { dbRead, dbWrite } from "@/db/client";
@@ -24,7 +27,6 @@ import { validateSubdomain, isReservedSubdomain } from "./vercel-domains";
 // Vercel API configuration
 const VERCEL_TOKEN = process.env.VERCEL_TOKEN;
 const VERCEL_TEAM_ID = process.env.VERCEL_TEAM_ID;
-const VERCEL_APP_PROJECT_ID = process.env.VERCEL_APP_PROJECT_ID;
 const APP_DOMAIN = process.env.APP_DOMAIN || "apps.elizacloud.ai";
 
 // GitHub configuration
@@ -106,6 +108,22 @@ function generateSubdomain(appSlug: string, appId: string): string {
 }
 
 /**
+ * Generate a Vercel project name for an app
+ */
+function generateProjectName(appSlug: string, appId: string): string {
+  const base = appSlug
+    .toLowerCase()
+    .replace(/[^a-z0-9-]/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 50);
+
+  // Add short ID suffix to ensure uniqueness
+  const shortId = appId.slice(0, 8);
+  return base.length >= 3 ? `${base}-${shortId}` : `app-${shortId}`;
+}
+
+/**
  * Check if a subdomain is available
  */
 async function isSubdomainAvailable(subdomain: string): Promise<boolean> {
@@ -116,7 +134,103 @@ async function isSubdomainAvailable(subdomain: string): Promise<boolean> {
 }
 
 /**
- * Assign a unique subdomain to an app
+ * Get or create a Vercel project for an app
+ */
+async function getOrCreateVercelProject(
+  appId: string,
+  app: { slug: string; github_repo: string | null },
+): Promise<{ projectId: string; projectName: string } | null> {
+  // Check if app already has a Vercel project
+  const existingDomain = await dbRead.query.appDomains.findFirst({
+    where: eq(appDomains.app_id, appId),
+  });
+
+  if (existingDomain?.vercel_project_id) {
+    logger.info("[Vercel Deployments] Using existing Vercel project", {
+      appId,
+      projectId: existingDomain.vercel_project_id,
+    });
+    return {
+      projectId: existingDomain.vercel_project_id,
+      projectName: existingDomain.subdomain,
+    };
+  }
+
+  // Create new Vercel project for this app
+  const projectName = generateProjectName(app.slug, appId);
+
+  logger.info("[Vercel Deployments] Creating new Vercel project", {
+    appId,
+    projectName,
+  });
+
+  try {
+    // Parse GitHub repo
+    const [org, repo] = app.github_repo?.includes("/")
+      ? app.github_repo.split("/")
+      : [GITHUB_ORG, app.github_repo || projectName];
+
+    // Create project with GitHub repo linked
+    const project = await vercelFetch<VercelProjectResponse>("/v10/projects", {
+      method: "POST",
+      body: JSON.stringify({
+        name: projectName,
+        framework: "nextjs",
+        gitRepository: {
+          type: "github",
+          repo: `${org}/${repo}`,
+        },
+        // Set environment variables for the app
+        environmentVariables: [
+          {
+            key: "NEXT_PUBLIC_ELIZA_APP_ID",
+            value: appId,
+            target: ["production", "preview", "development"],
+            type: "plain",
+          },
+          {
+            key: "NEXT_PUBLIC_ELIZA_API_URL",
+            value: process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai",
+            target: ["production", "preview", "development"],
+            type: "plain",
+          },
+        ],
+      }),
+    });
+
+    logger.info("[Vercel Deployments] Created Vercel project", {
+      appId,
+      projectId: project.id,
+      projectName: project.name,
+    });
+
+    // Update domain record with project ID
+    if (existingDomain) {
+      await dbWrite
+        .update(appDomains)
+        .set({
+          vercel_project_id: project.id,
+          updated_at: new Date(),
+        })
+        .where(eq(appDomains.id, existingDomain.id));
+    }
+
+    return {
+      projectId: project.id,
+      projectName: project.name,
+    };
+  } catch (error) {
+    logger.error("[Vercel Deployments] Failed to create Vercel project", {
+      appId,
+      projectName,
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
+    return null;
+  }
+}
+
+/**
+ * Assign a unique subdomain to an app and create its Vercel project
  */
 export async function assignSubdomain(
   appId: string,
@@ -179,39 +293,6 @@ export async function assignSubdomain(
     } satisfies NewAppDomain)
     .returning();
 
-  // Add domain to Vercel project
-  if (VERCEL_APP_PROJECT_ID && VERCEL_TOKEN) {
-    try {
-      await vercelFetch(`/v10/projects/${VERCEL_APP_PROJECT_ID}/domains`, {
-        method: "POST",
-        body: JSON.stringify({ name: fullDomain }),
-      });
-
-      // Update domain record with Vercel info
-      await dbWrite
-        .update(appDomains)
-        .set({
-          vercel_project_id: VERCEL_APP_PROJECT_ID,
-          ssl_status: "provisioning",
-          updated_at: new Date(),
-        })
-        .where(eq(appDomains.id, domainRecord.id));
-
-      logger.info("[Vercel Deployments] Subdomain added to Vercel", {
-        appId,
-        subdomain,
-        fullDomain,
-      });
-    } catch (error) {
-      logger.warn("[Vercel Deployments] Failed to add domain to Vercel", {
-        appId,
-        subdomain,
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-      // Domain record is still created, can be added to Vercel later
-    }
-  }
-
   logger.info("[Vercel Deployments] Subdomain assigned", {
     appId,
     subdomain,
@@ -226,6 +307,33 @@ export async function assignSubdomain(
 }
 
 /**
+ * Add domain to Vercel project
+ */
+async function addDomainToProject(
+  projectId: string,
+  domain: string,
+): Promise<boolean> {
+  try {
+    await vercelFetch(`/v10/projects/${projectId}/domains`, {
+      method: "POST",
+      body: JSON.stringify({ name: domain }),
+    });
+    logger.info("[Vercel Deployments] Domain added to project", {
+      projectId,
+      domain,
+    });
+    return true;
+  } catch (error) {
+    logger.warn("[Vercel Deployments] Failed to add domain to project", {
+      projectId,
+      domain,
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
+    return false;
+  }
+}
+
+/**
  * Create a new Vercel deployment from a GitHub repo
  */
 export async function createDeployment(
@@ -236,10 +344,10 @@ export async function createDeployment(
     commitSha?: string;
   },
 ): Promise<DeploymentResult> {
-  if (!VERCEL_TOKEN || !VERCEL_APP_PROJECT_ID) {
+  if (!VERCEL_TOKEN || !VERCEL_TEAM_ID) {
     return {
       success: false,
-      error: "Vercel deployment is not configured. Set VERCEL_TOKEN and VERCEL_APP_PROJECT_ID.",
+      error: "Vercel deployment is not configured. Set VERCEL_TOKEN and VERCEL_TEAM_ID.",
     };
   }
 
@@ -260,15 +368,50 @@ export async function createDeployment(
     };
   }
 
-  // Get subdomain for this app
+  // Ensure subdomain exists
+  const subdomainResult = await assignSubdomain(appId);
+  if (!subdomainResult.success) {
+    return {
+      success: false,
+      error: subdomainResult.error || "Failed to assign subdomain",
+    };
+  }
+
+  // Get or create Vercel project for this app
+  const project = await getOrCreateVercelProject(appId, app);
+  if (!project) {
+    return {
+      success: false,
+      error: "Failed to create or get Vercel project for this app",
+    };
+  }
+
+  // Get domain info
   const domain = await dbRead.query.appDomains.findFirst({
     where: eq(appDomains.app_id, appId),
   });
 
-  const productionUrl = domain ? `https://${domain.subdomain}.${APP_DOMAIN}` : undefined;
+  const fullDomain = domain ? `${domain.subdomain}.${APP_DOMAIN}` : undefined;
+  const productionUrl = fullDomain ? `https://${fullDomain}` : undefined;
+
+  // Add domain to project if not already added
+  if (fullDomain && domain && !domain.vercel_domain_id) {
+    const domainAdded = await addDomainToProject(project.projectId, fullDomain);
+    if (domainAdded) {
+      await dbWrite
+        .update(appDomains)
+        .set({
+          vercel_project_id: project.projectId,
+          ssl_status: "provisioning",
+          updated_at: new Date(),
+        })
+        .where(eq(appDomains.id, domain.id));
+    }
+  }
 
   logger.info("[Vercel Deployments] Creating deployment", {
     appId,
+    projectId: project.projectId,
     githubRepo: app.github_repo,
     branch,
     target,
@@ -276,32 +419,19 @@ export async function createDeployment(
   });
 
   try {
-    // Create deployment via Vercel API
-    // This requires the GitHub repo to be connected to the Vercel project
-    // For now, we trigger via git integration (push-based deploys)
-    
-    // The Vercel API for creating deployments from Git requires:
-    // POST /v13/deployments
-    // {
-    //   "name": "project-name",
-    //   "gitSource": {
-    //     "type": "github",
-    //     "org": "eliza-cloud-apps",
-    //     "repo": "app-my-app",
-    //     "ref": "main"
-    //   }
-    // }
-
+    // Parse GitHub repo
     const [org, repo] = app.github_repo.includes("/")
       ? app.github_repo.split("/")
       : [GITHUB_ORG, app.github_repo];
 
+    // Create deployment via Vercel API
     const deploymentResponse = await vercelFetch<VercelDeploymentResponse>(
       "/v13/deployments",
       {
         method: "POST",
         body: JSON.stringify({
-          name: repo,
+          name: project.projectName,
+          project: project.projectId,
           gitSource: {
             type: "github",
             org,
@@ -309,20 +439,13 @@ export async function createDeployment(
             ref: commitSha || branch,
           },
           target,
-          projectSettings: {
-            framework: "nextjs",
-          },
-          // Environment variables for the app
-          env: {
-            NEXT_PUBLIC_ELIZA_APP_ID: appId,
-            NEXT_PUBLIC_ELIZA_API_URL: process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai",
-          },
         }),
       },
     );
 
     logger.info("[Vercel Deployments] Deployment created", {
       appId,
+      projectId: project.projectId,
       deploymentId: deploymentResponse.id,
       url: deploymentResponse.url,
       state: deploymentResponse.state,
@@ -338,6 +461,7 @@ export async function createDeployment(
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     logger.error("[Vercel Deployments] Failed to create deployment", {
       appId,
+      projectId: project.projectId,
       error: errorMessage,
     });
 
@@ -401,21 +525,18 @@ export async function listDeployments(
     return [];
   }
 
-  const app = await dbRead.query.apps.findFirst({
-    where: eq(apps.id, appId),
+  // Get the app's Vercel project ID
+  const domain = await dbRead.query.appDomains.findFirst({
+    where: eq(appDomains.app_id, appId),
   });
 
-  if (!app?.github_repo) {
+  if (!domain?.vercel_project_id) {
     return [];
   }
 
   try {
-    const [, repo] = app.github_repo.includes("/")
-      ? app.github_repo.split("/")
-      : [GITHUB_ORG, app.github_repo];
-
     const response = await vercelFetch<{ deployments: VercelDeploymentResponse[] }>(
-      `/v6/deployments?projectId=${VERCEL_APP_PROJECT_ID}&limit=${limit}&meta-gitRepo=${repo}`,
+      `/v6/deployments?projectId=${domain.vercel_project_id}&limit=${limit}`,
     );
 
     return response.deployments.map((d) => ({
@@ -445,7 +566,7 @@ export async function redeploy(appId: string): Promise<DeploymentResult> {
  * Check if Vercel deployment is configured
  */
 export function isDeploymentConfigured(): boolean {
-  return !!(VERCEL_TOKEN && VERCEL_APP_PROJECT_ID);
+  return !!(VERCEL_TOKEN && VERCEL_TEAM_ID);
 }
 
 /**
@@ -467,6 +588,17 @@ export async function getProductionUrl(appId: string): Promise<string | null> {
   return `https://${domain.subdomain}.${APP_DOMAIN}`;
 }
 
+/**
+ * Get the Vercel project ID for an app
+ */
+export async function getVercelProjectId(appId: string): Promise<string | null> {
+  const domain = await dbRead.query.appDomains.findFirst({
+    where: eq(appDomains.app_id, appId),
+  });
+
+  return domain?.vercel_project_id || null;
+}
+
 export const vercelDeploymentsService = {
   assignSubdomain,
   createDeployment,
@@ -475,4 +607,5 @@ export const vercelDeploymentsService = {
   redeploy,
   isDeploymentConfigured,
   getProductionUrl,
+  getVercelProjectId,
 };

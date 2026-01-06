@@ -2,6 +2,9 @@
  * Vercel Domains Service
  *
  * Manages custom domains for apps through Vercel's API.
+ * Each app has its own Vercel project, so domain operations
+ * use the app's specific project ID.
+ * 
  * Supports:
  * - Adding custom domains programmatically
  * - Domain ownership verification
@@ -19,12 +22,11 @@ import {
 import { eq, and, ne } from "drizzle-orm";
 import { logger } from "@/lib/utils/logger";
 import { extractErrorMessage } from "@/lib/utils/error-handling";
-import { buildVercelUrl, vercelApiRequest } from "@/lib/utils/vercel-api";
+import { vercelApiRequest } from "@/lib/utils/vercel-api";
 
 // Vercel API configuration
 const VERCEL_TOKEN = process.env.VERCEL_TOKEN;
 const VERCEL_TEAM_ID = process.env.VERCEL_TEAM_ID;
-const VERCEL_PROJECT_ID = process.env.VERCEL_APP_PROJECT_ID;
 const APP_DOMAIN = process.env.APP_DOMAIN || "apps.elizacloud.ai";
 
 // Reserved subdomains that cannot be used for apps
@@ -148,8 +150,6 @@ interface AddDomainResult {
   error?: string;
 }
 
-// Use shared buildVercelUrl from @/lib/utils/vercel-api
-
 /**
  * Make authenticated request to Vercel API
  */
@@ -162,6 +162,17 @@ async function vercelFetch<T>(
   }
 
   return vercelApiRequest<T>(path, VERCEL_TOKEN, options, VERCEL_TEAM_ID);
+}
+
+/**
+ * Get the Vercel project ID for an app
+ */
+async function getAppProjectId(appId: string): Promise<string | null> {
+  const domain = await dbRead.query.appDomains.findFirst({
+    where: eq(appDomains.app_id, appId),
+  });
+
+  return domain?.vercel_project_id || null;
 }
 
 /**
@@ -199,14 +210,22 @@ export async function isDomainInUse(
 }
 
 /**
- * Add a custom domain to the Vercel project
+ * Add a custom domain to the app's Vercel project
  */
 export async function addDomain(
   appId: string,
   domain: string,
 ): Promise<AddDomainResult> {
-  if (!VERCEL_PROJECT_ID) {
-    throw new Error("VERCEL_APP_PROJECT_ID is not configured");
+  // Get the app's Vercel project ID
+  const projectId = await getAppProjectId(appId);
+  if (!projectId) {
+    return {
+      success: false,
+      domain,
+      verified: false,
+      verificationRecords: [],
+      error: "App must be deployed before adding a custom domain. The app does not have a Vercel project yet.",
+    };
   }
 
   // Normalize domain
@@ -239,10 +258,11 @@ export async function addDomain(
   logger.info("[Vercel Domains] Adding domain", {
     domain: normalizedDomain,
     appId,
+    projectId,
   });
 
   const response = await vercelFetch<VercelDomainResponse>(
-    `/v10/projects/${VERCEL_PROJECT_ID}/domains`,
+    `/v10/projects/${projectId}/domains`,
     {
       method: "POST",
       body: JSON.stringify({ name: normalizedDomain }),
@@ -307,10 +327,23 @@ export async function addDomain(
  * Get the current status of a domain including real SSL status
  */
 export async function getDomainStatus(
+  appId: string,
   domain: string,
 ): Promise<DomainStatusResult> {
-  if (!VERCEL_PROJECT_ID) {
-    throw new Error("VERCEL_APP_PROJECT_ID is not configured");
+  // Get the app's Vercel project ID
+  const projectId = await getAppProjectId(appId);
+  if (!projectId) {
+    return {
+      domain,
+      status: "unknown",
+      configured: false,
+      verified: false,
+      sslStatus: "pending",
+      sslExpiresAt: null,
+      configuredBy: null,
+      records: [],
+      error: "App does not have a Vercel project yet",
+    };
   }
 
   const normalizedDomain = domain.toLowerCase().trim();
@@ -318,7 +351,7 @@ export async function getDomainStatus(
   // Get domain info, config, and certificate status from Vercel
   const [domainInfo, configInfo, certInfo] = await Promise.all([
     vercelFetch<VercelDomainResponse>(
-      `/v9/projects/${VERCEL_PROJECT_ID}/domains/${normalizedDomain}`,
+      `/v9/projects/${projectId}/domains/${normalizedDomain}`,
     ).catch((error) => {
       logger.debug("[VercelDomains] Failed to fetch domain info", {
         domain: normalizedDomain,
@@ -410,20 +443,28 @@ export async function getDomainStatus(
  * Verify a domain manually
  */
 export async function verifyDomain(
+  appId: string,
   domain: string,
 ): Promise<{ verified: boolean; error?: string }> {
-  if (!VERCEL_PROJECT_ID) {
-    throw new Error("VERCEL_APP_PROJECT_ID is not configured");
+  // Get the app's Vercel project ID
+  const projectId = await getAppProjectId(appId);
+  if (!projectId) {
+    return {
+      verified: false,
+      error: "App does not have a Vercel project yet",
+    };
   }
 
   const normalizedDomain = domain.toLowerCase().trim();
 
   logger.info("[Vercel Domains] Verifying domain", {
     domain: normalizedDomain,
+    appId,
+    projectId,
   });
 
   const response = await vercelFetch<VercelDomainResponse>(
-    `/v9/projects/${VERCEL_PROJECT_ID}/domains/${normalizedDomain}/verify`,
+    `/v9/projects/${projectId}/domains/${normalizedDomain}/verify`,
     { method: "POST" },
   );
 
@@ -433,14 +474,19 @@ export async function verifyDomain(
 }
 
 /**
- * Remove a custom domain from the Vercel project
+ * Remove a custom domain from the app's Vercel project
  */
 export async function removeDomain(
   appId: string,
   domain: string,
 ): Promise<{ success: boolean; error?: string }> {
-  if (!VERCEL_PROJECT_ID) {
-    throw new Error("VERCEL_APP_PROJECT_ID is not configured");
+  // Get the app's Vercel project ID
+  const projectId = await getAppProjectId(appId);
+  if (!projectId) {
+    return {
+      success: false,
+      error: "App does not have a Vercel project yet",
+    };
   }
 
   const normalizedDomain = domain.toLowerCase().trim();
@@ -448,11 +494,12 @@ export async function removeDomain(
   logger.info("[Vercel Domains] Removing domain", {
     domain: normalizedDomain,
     appId,
+    projectId,
   });
 
   // Remove from Vercel project
   await vercelFetch(
-    `/v9/projects/${VERCEL_PROJECT_ID}/domains/${normalizedDomain}`,
+    `/v9/projects/${projectId}/domains/${normalizedDomain}`,
     { method: "DELETE" },
   );
 
@@ -574,6 +621,7 @@ export async function getDomainsForApp(appId: string) {
     sslStatus: d.ssl_status,
     isPrimary: d.is_primary,
     verificationRecords: d.verification_records,
+    vercelProjectId: d.vercel_project_id,
     createdAt: d.created_at,
     verifiedAt: d.verified_at,
   }));
@@ -590,7 +638,7 @@ export async function syncDomainStatus(appId: string): Promise<void> {
   for (const domain of domains) {
     if (!domain.custom_domain) continue;
 
-    const status = await getDomainStatus(domain.custom_domain);
+    const status = await getDomainStatus(appId, domain.custom_domain);
 
     await dbWrite
       .update(appDomains)

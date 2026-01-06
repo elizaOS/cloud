@@ -156,7 +156,7 @@ export async function POST(
   });
 
   // Check if Vercel is configured
-  if (!process.env.VERCEL_TOKEN || !process.env.VERCEL_APP_PROJECT_ID) {
+  if (!process.env.VERCEL_TOKEN || !process.env.VERCEL_TEAM_ID) {
     return NextResponse.json(
       {
         success: false,

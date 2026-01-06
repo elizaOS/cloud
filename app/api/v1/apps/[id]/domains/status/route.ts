@@ -55,7 +55,7 @@ export async function POST(
   const { domain } = validation.data;
 
   // Check if Vercel is configured
-  if (!process.env.VERCEL_TOKEN || !process.env.VERCEL_APP_PROJECT_ID) {
+  if (!process.env.VERCEL_TOKEN || !process.env.VERCEL_TEAM_ID) {
     return NextResponse.json(
       {
         success: false,
@@ -65,7 +65,7 @@ export async function POST(
     );
   }
 
-  const status = await vercelDomainsService.getDomainStatus(domain);
+  const status = await vercelDomainsService.getDomainStatus(appId, domain);
 
   // Get DNS instructions based on domain type
   const isApex = vercelDomainsService.isApexDomain(domain);

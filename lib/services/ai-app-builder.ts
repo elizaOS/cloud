@@ -16,7 +16,9 @@ import {
 } from "@/db/schemas/app-sandboxes";
 import { eq, desc, and } from "drizzle-orm";
 import { appsService } from "./apps";
+import { appFactoryService } from "./app-factory";
 import { gitSyncService } from "./git-sync";
+import { githubReposService } from "./github-repos";
 
 const EXAMPLE_PROMPTS = {
   chat: getExamplePrompts("chat"),
@@ -63,6 +65,8 @@ export interface BuilderSession {
   examplePrompts: string[];
   expiresAt: string | null;
   initialPromptResult?: PromptResult;
+  appId?: string;
+  githubRepo?: string | null;
 }
 
 export interface PromptResult {
@@ -114,27 +118,71 @@ export class AIAppBuilderService {
 
     let appId = providedAppId;
     let appApiKey: string | undefined;
+    let githubRepo: string | null = null;
 
     if (!appId && appName) {
-      const { app, apiKey } = await appsService.create({
-        name: appName,
-        description:
-          appDescription || `AI-built app (template: ${templateType})`,
-        organization_id: organizationId,
-        created_by_user_id: userId,
-        app_url: "https://placeholder.local",
-        allowed_origins: ["*"],
+      // Use AppFactoryService to create app WITH GitHub repo
+      const result = await appFactoryService.createApp(
+        {
+          name: appName,
+          description:
+            appDescription || `AI-built app (template: ${templateType})`,
+          organization_id: organizationId,
+          created_by_user_id: userId,
+          app_url: "https://placeholder.local",
+          allowed_origins: ["*"],
+        },
+        {
+          createGitHubRepo: true,
+          repoPrivate: true,
+          assignSubdomain: true,
+        }
+      );
+      appId = result.app.id;
+      appApiKey = result.apiKey;
+      githubRepo = result.githubRepo || null;
+      
+      logger.info("Created app for AI builder session with GitHub repo", { 
+        appId, 
+        appName,
+        githubRepo,
+        githubRepoCreated: result.githubRepoCreated,
       });
-      appId = app.id;
-      appApiKey = apiKey;
-      logger.info("Created app for AI builder session", { appId, appName });
+      
+      if (result.errors.length > 0) {
+        logger.warn("App creation had warnings", { warnings: result.errors });
+      }
     } else if (appId) {
       appApiKey = await appsService.regenerateApiKey(appId);
-      logger.info("Regenerated API key for existing app", { appId });
+      // Fetch existing app to get GitHub repo
+      const existingApp = await appsService.getById(appId);
+      githubRepo = existingApp?.github_repo || null;
+      logger.info("Regenerated API key for existing app", { appId, githubRepo });
     }
 
+    // Determine template URL for sandbox creation
     let templateUrl: string | undefined;
-    if (templateType !== "blank") {
+    
+    // Priority 1: If existing app has a GitHub repo, clone from that
+    if (githubRepo) {
+      const repoName = githubRepo.split("/").pop() || githubRepo;
+      try {
+        templateUrl = githubReposService.getAuthenticatedCloneUrl(repoName);
+        logger.info("Using existing app GitHub repo as template", {
+          appId,
+          githubRepo,
+        });
+      } catch (error) {
+        logger.warn("Failed to get authenticated clone URL, falling back to template", {
+          appId,
+          githubRepo,
+          error: error instanceof Error ? error.message : "Unknown",
+        });
+      }
+    }
+    
+    // Priority 2: If no GitHub repo, use template from database
+    if (!templateUrl && templateType !== "blank") {
       const template = await dbRead.query.appTemplates.findFirst({
         where: eq(appTemplates.slug, templateType),
       });
@@ -261,6 +309,8 @@ export class AIAppBuilderService {
       messages: [],
       examplePrompts,
       expiresAt: expiresAt.toISOString(),
+      appId,
+      githubRepo,
     };
 
     if (onSandboxReady) {
@@ -316,6 +366,8 @@ export class AIAppBuilderService {
       examplePrompts,
       expiresAt: expiresAt.toISOString(),
       initialPromptResult,
+      appId,
+      githubRepo,
     };
   }
 
@@ -693,7 +745,181 @@ export class AIAppBuilderService {
 
     logger.info("Session status reset to ready", { sessionId });
   }
+  /**
+   * Resume a timed-out or stopped session by creating a new sandbox.
+   * If the app has a GitHub repo, the sandbox will be cloned from it.
+   * Messages from the old session are preserved.
+   */
+  async resumeSession(
+    sessionId: string,
+    userId: string,
+    options: {
+      onProgress?: (progress: SandboxProgress) => void;
+      onRestoreProgress?: (progress: { current: number; total: number; filePath: string }) => void;
+    } = {}
+  ): Promise<BuilderSession> {
+    const { onProgress, onRestoreProgress } = options;
+    
+    const session = await this.verifyOwnership(sessionId, userId);
 
+    // Check if session can be resumed (must be timeout or stopped)
+    if (session.status !== "timeout" && session.status !== "stopped") {
+      throw new Error(`Session cannot be resumed. Current status: ${session.status}`);
+    }
+
+    logger.info("Resuming session", { 
+      sessionId,
+      oldSandboxId: session.sandbox_id,
+      appId: session.app_id,
+    });
+
+    // Get the app to check for GitHub repo
+    let githubRepo: string | null = null;
+    let templateUrl: string | undefined;
+    
+    if (session.app_id) {
+      const app = await appsService.getById(session.app_id);
+      githubRepo = app?.github_repo || null;
+      
+      if (githubRepo) {
+        const repoName = githubRepo.split("/").pop() || githubRepo;
+        try {
+          templateUrl = githubReposService.getAuthenticatedCloneUrl(repoName);
+          logger.info("Resuming from GitHub repo", { 
+            sessionId, 
+            githubRepo,
+            repoName,
+          });
+        } catch (error) {
+          logger.warn("Failed to get authenticated clone URL for resume", {
+            sessionId,
+            githubRepo,
+            error: error instanceof Error ? error.message : "Unknown",
+          });
+        }
+      }
+    }
+
+    // Notify progress
+    onProgress?.({ step: "creating", message: "Creating new sandbox instance..." });
+    
+    // Determine API URL for sandbox
+    const isLocalDev =
+      process.env.NEXT_PUBLIC_APP_URL?.includes("localhost") ||
+      process.env.NEXT_PUBLIC_APP_URL?.includes("127.0.0.1");
+
+    const sandboxEnv: Record<string, string> = {};
+    
+    if (isLocalDev) {
+      const localServerUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+      sandboxEnv.NEXT_PUBLIC_ELIZA_PROXY_URL = localServerUrl;
+      
+      if (process.env.ELIZA_API_URL) {
+        sandboxEnv.NEXT_PUBLIC_ELIZA_API_URL = process.env.ELIZA_API_URL;
+        delete sandboxEnv.NEXT_PUBLIC_ELIZA_PROXY_URL;
+      }
+    } else {
+      const apiUrl = process.env.ELIZA_API_URL || process.env.NEXT_PUBLIC_APP_URL;
+      if (apiUrl) {
+        sandboxEnv.NEXT_PUBLIC_ELIZA_API_URL = apiUrl;
+      }
+    }
+
+    // Get or regenerate API key for the app
+    if (session.app_id) {
+      const appApiKey = await appsService.regenerateApiKey(session.app_id);
+      if (appApiKey) {
+        sandboxEnv.NEXT_PUBLIC_ELIZA_API_KEY = appApiKey;
+      }
+      sandboxEnv.NEXT_PUBLIC_ELIZA_APP_ID = session.app_id;
+    }
+
+    // Create new sandbox
+    const sandboxData = await sandboxService.create({
+      templateUrl,
+      timeout: 30 * 60 * 1000,
+      vcpus: 4,
+      organizationId: session.organization_id,
+      projectId: session.app_id || undefined,
+      env: Object.keys(sandboxEnv).length > 0 ? sandboxEnv : undefined,
+      onProgress,
+    });
+
+    // Report restore progress if we're using a GitHub template
+    if (templateUrl && onRestoreProgress) {
+      onRestoreProgress({ current: 1, total: 1, filePath: "Cloned from GitHub" });
+    }
+
+    const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
+
+    // Update session with new sandbox info
+    await dbWrite
+      .update(appSandboxSessions)
+      .set({
+        sandbox_id: sandboxData.sandboxId,
+        sandbox_url: sandboxData.sandboxUrl,
+        status: "ready",
+        expires_at: expiresAt,
+        updated_at: new Date(),
+      })
+      .where(eq(appSandboxSessions.id, sessionId));
+
+    // Configure git if we have a GitHub repo
+    if (githubRepo && sandboxData.sandboxId) {
+      try {
+        await gitSyncService.configureGit({
+          sandboxId: sandboxData.sandboxId,
+          repoFullName: githubRepo,
+          branch: session.git_branch || "main",
+        });
+        logger.info("Git configured for resumed session", { sessionId, githubRepo });
+      } catch (error) {
+        logger.warn("Failed to configure git for resumed session", {
+          sessionId,
+          error: error instanceof Error ? error.message : "Unknown",
+        });
+      }
+    }
+
+    // Get messages from the old session
+    const prompts = await dbRead.query.appBuilderPrompts.findMany({
+      where: eq(appBuilderPrompts.sandbox_session_id, sessionId),
+      orderBy: [desc(appBuilderPrompts.created_at)],
+    });
+
+    const messages = prompts
+      .filter((p) => p.role !== "system")
+      .map((p) => ({
+        role: p.role as "user" | "assistant",
+        content: p.content,
+        timestamp: p.created_at.toISOString(),
+      }))
+      .reverse();
+
+    const templateType =
+      (session.template_type as keyof typeof EXAMPLE_PROMPTS) || "blank";
+    const examplePrompts =
+      EXAMPLE_PROMPTS[templateType] || EXAMPLE_PROMPTS.blank;
+
+    logger.info("Session resumed successfully", {
+      sessionId,
+      newSandboxId: sandboxData.sandboxId,
+      sandboxUrl: sandboxData.sandboxUrl,
+      messagesRestored: messages.length,
+    });
+
+    return {
+      id: session.id,
+      sandboxId: sandboxData.sandboxId,
+      sandboxUrl: sandboxData.sandboxUrl,
+      status: "ready" as BuilderSession["status"],
+      messages,
+      examplePrompts,
+      expiresAt: expiresAt.toISOString(),
+      appId: session.app_id || undefined,
+      githubRepo,
+    };
+  }
 }
 
 export const aiAppBuilderService = new AIAppBuilderService();
