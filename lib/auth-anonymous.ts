@@ -37,8 +37,10 @@ const ANON_SESSION_EXPIRY_DAYS = Number.parseInt(
   process.env.ANON_SESSION_EXPIRY_DAYS || "7",
   10,
 );
-const ANON_MESSAGE_LIMIT = Number.parseInt(
-  process.env.ANON_MESSAGE_LIMIT || "5",
+// Affiliate flow uses ANON_MESSAGE_LIMIT (5 messages)
+// Public agent chat uses PUBLIC_CHAT_MESSAGE_LIMIT (3 messages)
+const PUBLIC_CHAT_MESSAGE_LIMIT = Number.parseInt(
+  process.env.PUBLIC_CHAT_MESSAGE_LIMIT || "3",
   10,
 );
 const ANON_HOURLY_LIMIT = Number.parseInt(
@@ -168,7 +170,7 @@ export async function getOrCreateAnonymousUser(): Promise<{
     expiresAt,
     ipAddress,
     userAgent,
-    messagesLimit: ANON_MESSAGE_LIMIT,
+    messagesLimit: PUBLIC_CHAT_MESSAGE_LIMIT,
   });
 
   cookieStore.set(ANON_SESSION_COOKIE, newSessionToken, {
