@@ -63,35 +63,16 @@ class RuntimeCache {
   private readonly MAX_AGE_MS = 30 * 60 * 1000; // 30 minutes max age
   private readonly IDLE_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes idle timeout
 
-  /**
-   * Cleanup a runtime entry before removing from cache.
-   * Calls runtime.close() which handles stop() and adapter.close() internally.
-   */
-  private async cleanupEntry(key: string, entry: CachedRuntime): Promise<void> {
-    try {
-      if (typeof entry.runtime?.close === "function") {
-        await entry.runtime.close();
-      }
-      elizaLogger.debug(`[RuntimeCache] Cleaned up runtime: ${key}`);
-    } catch (error) {
-      elizaLogger.warn(
-        `[RuntimeCache] Cleanup error for ${key}:`,
-        error instanceof Error ? error.message : String(error),
-      );
-    }
-  }
-
   async get(agentId: string): Promise<AgentRuntime | null> {
     const entry = this.cache.get(agentId);
     if (!entry) return null;
 
     const now = Date.now();
-    // Check if expired
     if (
       now - entry.createdAt > this.MAX_AGE_MS ||
       now - entry.lastUsed > this.IDLE_TIMEOUT_MS
     ) {
-      await this.cleanupEntry(agentId, entry);
+      await entry.runtime.close().catch(() => {});
       this.cache.delete(agentId);
       elizaLogger.debug(`[RuntimeCache] Evicted stale runtime: ${agentId}`);
       return null;
@@ -109,25 +90,21 @@ class RuntimeCache {
     if (!entry) return null;
 
     const now = Date.now();
-    // Check if expired by time
     if (
       now - entry.createdAt > this.MAX_AGE_MS ||
       now - entry.lastUsed > this.IDLE_TIMEOUT_MS
     ) {
-      await this.cleanupEntry(agentId, entry);
+      await entry.runtime.close().catch(() => {});
       this.cache.delete(agentId);
       elizaLogger.debug(`[RuntimeCache] Evicted stale runtime: ${agentId}`);
       return null;
     }
 
-    // Check if DB connection is still alive via the adapter pool
     const isHealthy = await dbPool.checkHealth(entry.agentId as UUID);
     if (!isHealthy) {
-      elizaLogger.warn(
-        `[RuntimeCache] Stale DB connection for ${agentId}, evicting runtime`,
-      );
-      await this.cleanupEntry(agentId, entry);
+      await entry.runtime.close().catch(() => {});
       this.cache.delete(agentId);
+      elizaLogger.debug(`[RuntimeCache] Evicted unhealthy runtime: ${agentId}`);
       return null;
     }
 
@@ -161,9 +138,8 @@ class RuntimeCache {
   async delete(agentId: string): Promise<boolean> {
     const entry = this.cache.get(agentId);
     if (entry) {
-      await this.cleanupEntry(agentId, entry);
+      await entry.runtime.close().catch(() => {});
       this.cache.delete(agentId);
-      elizaLogger.info(`[RuntimeCache] Invalidated runtime: ${agentId}`);
       return true;
     }
     return false;
@@ -183,10 +159,9 @@ class RuntimeCache {
     if (oldest) {
       const entry = this.cache.get(oldest.key);
       if (entry) {
-        await this.cleanupEntry(oldest.key, entry);
+        await entry.runtime.close().catch(() => {});
       }
       this.cache.delete(oldest.key);
-      elizaLogger.debug(`[RuntimeCache] Evicted oldest runtime: ${oldest.key}`);
     }
   }
 
@@ -195,11 +170,10 @@ class RuntimeCache {
   }
 
   async clear(): Promise<void> {
-    for (const [key, entry] of this.cache.entries()) {
-      await this.cleanupEntry(key, entry);
+    for (const [, entry] of this.cache.entries()) {
+      await entry.runtime.close().catch(() => {});
     }
     this.cache.clear();
-    elizaLogger.info("[RuntimeCache] Cleared all cached runtimes");
   }
 }
 
@@ -220,10 +194,7 @@ class DbAdapterPool {
         return existingAdapter;
       }
 
-      elizaLogger.warn(
-        `[DbAdapterPool] Stale connection for ${agentId}, recreating`,
-      );
-      await this.closeAdapter(existingAdapter);
+      await existingAdapter.close().catch(() => {});
       this.adapters.delete(key);
       adapterEmbeddingDimensions.delete(key);
     }
@@ -313,27 +284,13 @@ class DbAdapterPool {
     return adapter;
   }
 
-  private async closeAdapter(adapter: IDatabaseAdapter): Promise<void> {
-    try {
-      if (typeof adapter.close === "function") {
-        await adapter.close();
-      }
-    } catch (error) {
-      elizaLogger.warn(
-        `[DbAdapterPool] Error closing adapter:`,
-        error instanceof Error ? error.message : String(error),
-      );
-    }
-  }
-
   async invalidateAdapter(agentId: string): Promise<void> {
     const adapter = this.adapters.get(agentId);
     if (adapter) {
-      await this.closeAdapter(adapter);
+      await adapter.close().catch(() => {});
     }
     this.adapters.delete(agentId);
     adapterEmbeddingDimensions.delete(agentId);
-    elizaLogger.debug(`[DbAdapterPool] Invalidated adapter for ${agentId}`);
   }
 }
 
