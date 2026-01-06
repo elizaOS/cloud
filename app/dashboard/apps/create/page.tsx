@@ -115,7 +115,8 @@ type SessionStatus =
   | "error"
   | "stopped"
   | "timeout"
-  | "not_configured";
+  | "not_configured"
+  | "recovering"; // Auto-recovering sandbox in background
 
 type ProgressStep =
   | "creating"
@@ -389,6 +390,12 @@ export default function AppCreatorPage() {
   const [commitHistory, setCommitHistory] = useState<CommitInfo[]>([]);
   const [showCommitHistory, setShowCommitHistory] = useState(false);
 
+  // Sandbox health tracking for automatic recovery
+  const [sandboxHealthy, setSandboxHealthy] = useState(true);
+  const healthCheckFailCountRef = useRef(0);
+  const isRecoveringRef = useRef(false);
+  const lastHealthCheckRef = useRef<number>(0);
+
   const messagesStorageKey = appIdFromUrl
     ? `app-builder-messages-${appIdFromUrl}`
     : `app-builder-messages-new`;
@@ -456,16 +463,17 @@ export default function AppCreatorPage() {
         // Session must have a sandbox URL or be expired/stopped to be valid
         if (!data.session.sandboxUrl && !isExpiredOrStopped) return false;
 
-        // Restore session state
-        setSession({
+        // Restore session state first
+        const sessionData = {
           id: data.session.id,
           sandboxId: data.session.sandboxId || "",
           sandboxUrl: data.session.sandboxUrl || "",
           status: sessionStatus,
           examplePrompts: data.session.examplePrompts || [],
           expiresAt: data.session.expiresAt || null,
-        });
-        setStatus(sessionStatus);
+        };
+        
+        setSession(sessionData);
         setStep("building");
 
         // Restore messages from session or sessionStorage
@@ -494,6 +502,34 @@ export default function AppCreatorPage() {
               setAppName(appData.app.name);
             }
           }
+        }
+
+        // If session is supposedly "ready", verify sandbox is actually healthy
+        // Otherwise, auto-trigger recovery in the background
+        if (sessionStatus === "ready" && data.session.sandboxUrl) {
+          try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 8000);
+            
+            await fetch(data.session.sandboxUrl, {
+              method: "HEAD",
+              mode: "no-cors",
+              signal: controller.signal,
+            });
+            clearTimeout(timeoutId);
+            
+            // Sandbox is healthy, set status to ready
+            setStatus("ready");
+            setSandboxHealthy(true);
+          } catch {
+            // Sandbox is not responding - set to recovering and let the
+            // health check useEffect handle auto-recovery
+            setStatus("recovering");
+            setSandboxHealthy(false);
+            healthCheckFailCountRef.current = 2;
+          }
+        } else {
+          setStatus(sessionStatus);
         }
 
         return true;
@@ -1020,6 +1056,179 @@ export default function AppCreatorPage() {
       checkSnapshots();
     }
   }, [status, session, checkSnapshots]);
+
+  // Auto-recovery function - runs silently in background
+  const autoRecoverSession = useCallback(async () => {
+    if (isRecoveringRef.current || !session) return;
+    isRecoveringRef.current = true;
+    
+    setStatus("recovering");
+    setProgressStep("creating");
+    addLog("Sandbox connection lost, auto-recovering...", "info");
+    
+    // Show a non-blocking toast notification
+    const toastId = toast.loading("Reconnecting to sandbox...", {
+      description: "This happens automatically - no action needed",
+    });
+
+    try {
+      const response = await fetchWithRetry(
+        `/api/v1/app-builder/sessions/${session.id}/resume/stream`,
+        { method: "POST" },
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to recover session (HTTP ${response.status})`);
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error("No response body");
+
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        let eventType = "";
+        for (const line of lines) {
+          if (line.startsWith("event: ")) {
+            eventType = line.slice(7);
+          } else if (line.startsWith("data: ") && eventType) {
+            try {
+              const data = JSON.parse(line.slice(6));
+
+              if (eventType === "progress") {
+                setProgressStep(data.step as ProgressStep);
+              } else if (eventType === "complete") {
+                setSession({
+                  ...data.session,
+                  expiresAt: data.session.expiresAt,
+                });
+                setStatus("ready");
+                setSandboxHealthy(true);
+                healthCheckFailCountRef.current = 0;
+
+                if (data.session.expiresAt) {
+                  setExpiresAt(new Date(data.session.expiresAt));
+                }
+
+                toast.success("Sandbox reconnected!", {
+                  id: toastId,
+                  description: "You can continue building.",
+                });
+                addLog("Auto-recovery complete", "success");
+              } else if (eventType === "error") {
+                throw new Error(data.error || "Recovery failed");
+              }
+            } catch (e) {
+              if (e instanceof SyntaxError) continue;
+              throw e;
+            }
+            eventType = "";
+          }
+        }
+      }
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : "Recovery failed";
+      addLog(`Auto-recovery failed: ${errorMsg}`, "error");
+      
+      // Only show timeout status if recovery truly failed
+      // This will display the recovery UI as a fallback
+      setStatus("timeout");
+      toast.error("Could not reconnect", {
+        id: toastId,
+        description: "Click 'Restore' to try again.",
+      });
+    } finally {
+      isRecoveringRef.current = false;
+    }
+  }, [session, addLog]);
+
+  // Sandbox health check - detects when sandbox dies and auto-recovers
+  useEffect(() => {
+    // Only check health when we think sandbox is ready
+    if (!session?.sandboxUrl || status !== "ready") {
+      return;
+    }
+
+    const checkSandboxHealth = async () => {
+      // Throttle checks - don't check more than once every 5 seconds
+      const now = Date.now();
+      if (now - lastHealthCheckRef.current < 5000) return;
+      lastHealthCheckRef.current = now;
+
+      try {
+        // Try to fetch the sandbox URL with no-cors mode first (just to test connectivity)
+        // We can't read the response body due to CORS, but we can detect network errors
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
+        
+        const response = await fetch(session.sandboxUrl, {
+          method: "HEAD",
+          mode: "no-cors",
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+        
+        // If we got here, the request completed (even if opaque)
+        // Reset fail counter on success
+        healthCheckFailCountRef.current = 0;
+        setSandboxHealthy(true);
+      } catch (error) {
+        // Network error or timeout - sandbox may be dead
+        healthCheckFailCountRef.current++;
+        
+        // After 2 consecutive failures, trigger auto-recovery
+        if (healthCheckFailCountRef.current >= 2 && !isRecoveringRef.current) {
+          setSandboxHealthy(false);
+          addLog(`Sandbox health check failed (${healthCheckFailCountRef.current}x), initiating recovery...`, "warning");
+          autoRecoverSession();
+        }
+      }
+    };
+
+    // Check health every 15 seconds
+    const interval = setInterval(checkSandboxHealth, 15000);
+    
+    // Initial check after a short delay
+    const initialCheck = setTimeout(checkSandboxHealth, 3000);
+
+    return () => {
+      clearInterval(interval);
+      clearTimeout(initialCheck);
+    };
+  }, [session?.sandboxUrl, status, autoRecoverSession, addLog]);
+
+  // Handle iframe load errors - triggers auto-recovery
+  const handleIframeError = useCallback(() => {
+    if (status === "ready" && session && !isRecoveringRef.current) {
+      healthCheckFailCountRef.current = 2; // Immediately trigger recovery
+      setSandboxHealthy(false);
+      addLog("Preview failed to load, initiating recovery...", "warning");
+      autoRecoverSession();
+    }
+  }, [status, session, autoRecoverSession, addLog]);
+
+  // Handle iframe load success - reset health tracking
+  const handleIframeLoad = useCallback(() => {
+    if (status === "ready") {
+      healthCheckFailCountRef.current = 0;
+      setSandboxHealthy(true);
+    }
+  }, [status]);
+
+  // Trigger auto-recovery when status becomes "recovering"
+  useEffect(() => {
+    if (status === "recovering" && !isRecoveringRef.current && session) {
+      autoRecoverSession();
+    }
+  }, [status, session, autoRecoverSession]);
 
   const lastLogIndexRef = useRef<number>(0);
   useEffect(() => {
@@ -2692,7 +2901,7 @@ ANTHROPIC_API_KEY=your_key_here`}
               </span>
               <Cloud className="h-3 w-3" />
             </a>
-          ) : status === "ready" ? (
+          ) : (status === "ready" || status === "recovering") ? (
             <div
               className="flex items-center gap-1.5 px-2 py-1 text-xs bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 rounded"
               title="GitHub not configured"
@@ -2732,6 +2941,16 @@ ANTHROPIC_API_KEY=your_key_here`}
               )}
               <span className="ml-1">Restore</span>
             </Button>
+          ) : status === "recovering" ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled
+              className="h-7 text-xs text-cyan-400"
+            >
+              <Loader2 className="h-3 w-3 animate-spin" />
+              <span className="ml-1">Reconnecting...</span>
+            </Button>
           ) : (
             <Button
               variant="ghost"
@@ -2749,23 +2968,25 @@ ANTHROPIC_API_KEY=your_key_here`}
             </Button>
           )}
           {/* GitHub Save Button */}
-          {status === "ready" && appData?.github_repo && (
+          {(status === "ready" || status === "recovering") && appData?.github_repo && (
             <>
               <div className="w-px h-4 bg-white/10" />
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={saveToGitHub}
-                disabled={isSaving || !gitStatus?.hasChanges}
+                disabled={isSaving || !gitStatus?.hasChanges || status === "recovering"}
                 className={`h-7 text-xs ${
-                  gitStatus?.hasChanges
+                  gitStatus?.hasChanges && status !== "recovering"
                     ? "text-green-400 hover:text-green-300 hover:bg-green-500/10"
                     : "text-white/40 hover:bg-white/5"
                 }`}
                 title={
-                  gitStatus?.hasChanges
-                    ? "Save changes to GitHub"
-                    : "No unsaved changes"
+                  status === "recovering"
+                    ? "Reconnecting..."
+                    : gitStatus?.hasChanges
+                      ? "Save changes to GitHub"
+                      : "No unsaved changes"
                 }
               >
                 {isSaving ? (
@@ -2837,12 +3058,14 @@ ANTHROPIC_API_KEY=your_key_here`}
                 variant="ghost"
                 size="sm"
                 onClick={deployToProduction}
-                disabled={isDeploying}
+                disabled={isDeploying || status === "recovering"}
                 className="h-7 text-xs text-[#FF5800] hover:text-[#FF7033] hover:bg-[#FF5800]/10"
                 title={
-                  productionUrl
-                    ? `Deploy to ${productionUrl}`
-                    : "Deploy to production"
+                  status === "recovering"
+                    ? "Reconnecting..."
+                    : productionUrl
+                      ? `Deploy to ${productionUrl}`
+                      : "Deploy to production"
                 }
               >
                 {isDeploying ? (
@@ -2905,11 +3128,12 @@ ANTHROPIC_API_KEY=your_key_here`}
               <Maximize2 className="h-4 w-4 text-white/60" />
             )}
           </button>
-          {status === "ready" && (
+          {(status === "ready" || status === "recovering") && (
             <button
               onClick={stopSession}
-              className="p-2 hover:bg-red-500/20 transition-colors"
-              title="Stop session"
+              disabled={status === "recovering"}
+              className="p-2 hover:bg-red-500/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              title={status === "recovering" ? "Reconnecting..." : "Stop session"}
             >
               <Square className="h-4 w-4 text-red-400" />
             </button>
@@ -2917,6 +3141,22 @@ ANTHROPIC_API_KEY=your_key_here`}
         </div>
       </div>
 
+      {/* Auto-recovery indicator - non-blocking banner */}
+      {status === "recovering" && !isRestoring && (
+        <div className="absolute top-[57px] left-0 right-0 z-20 bg-gradient-to-r from-cyan-500/20 via-violet-500/20 to-cyan-500/20 border-b border-cyan-500/30">
+          <div className="flex items-center justify-center gap-3 px-4 py-2">
+            <Loader2 className="h-4 w-4 animate-spin text-cyan-400" />
+            <span className="text-sm text-white/80">
+              Reconnecting to sandbox...
+            </span>
+            <span className="text-xs text-white/50">
+              This happens automatically
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Full overlay only for timeout/manual restore - not for auto-recovery */}
       {(status === "timeout" || isRestoring) && (
         <div className="absolute inset-0 top-[57px] bg-black/80 backdrop-blur-sm z-20 flex items-center justify-center">
           <BrandCard className="max-w-md mx-4">
@@ -3437,6 +3677,8 @@ ANTHROPIC_API_KEY=your_key_here`}
                   className="w-full h-full border-0"
                   title="App Preview"
                   sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+                  onError={handleIframeError}
+                  onLoad={handleIframeLoad}
                 />
               ) : (
                 <div className="flex items-center justify-center h-full">
