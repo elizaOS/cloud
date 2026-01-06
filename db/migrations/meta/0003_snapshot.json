@@ -1,5 +1,5 @@
 {
-  "id": "91f72daa-8455-4c02-a341-17f738033869",
+  "id": "5a8436dd-1e76-4105-8e6c-d1a1aae1883e",
   "prevId": "99a065b6-ed0d-4a6f-b245-fffb9d25d472",
   "version": "7",
   "dialect": "postgresql",
@@ -5299,13 +5299,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "project_name": {
-          "name": "project_name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'default'"
-        },
         "priority": {
           "name": "priority",
           "type": "integer",
@@ -5326,32 +5319,15 @@
           "notNull": false
         }
       },
-      "indexes": {
-        "alb_priorities_user_project_idx": {
-          "name": "alb_priorities_user_project_idx",
-          "columns": [
-            {
-              "expression": "user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "project_name",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
+      "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
+        "alb_priorities_user_id_unique": {
+          "name": "alb_priorities_user_id_unique",
+          "nullsNotDistinct": false,
+          "columns": ["user_id"]
+        },
         "alb_priorities_priority_unique": {
           "name": "alb_priorities_priority_unique",
           "nullsNotDistinct": false,
@@ -13384,6 +13360,236 @@
           "columns": ["slug"]
         }
       },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.session_file_snapshots": {
+      "name": "session_file_snapshots",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "sandbox_session_id": {
+          "name": "sandbox_session_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "file_path": {
+          "name": "file_path",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "content": {
+          "name": "content",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "content_hash": {
+          "name": "content_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "file_size": {
+          "name": "file_size",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "snapshot_type": {
+          "name": "snapshot_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'auto'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "session_file_snapshots_session_idx": {
+          "name": "session_file_snapshots_session_idx",
+          "columns": [
+            {
+              "expression": "sandbox_session_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "session_file_snapshots_session_path_idx": {
+          "name": "session_file_snapshots_session_path_idx",
+          "columns": [
+            {
+              "expression": "sandbox_session_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "file_path",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "session_file_snapshots_created_at_idx": {
+          "name": "session_file_snapshots_created_at_idx",
+          "columns": [
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "session_file_snapshots_sandbox_session_id_app_sandbox_sessions_id_fk": {
+          "name": "session_file_snapshots_sandbox_session_id_app_sandbox_sessions_id_fk",
+          "tableFrom": "session_file_snapshots",
+          "tableTo": "app_sandbox_sessions",
+          "columnsFrom": ["sandbox_session_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.session_restore_history": {
+      "name": "session_restore_history",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "sandbox_session_id": {
+          "name": "sandbox_session_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "old_sandbox_id": {
+          "name": "old_sandbox_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "new_sandbox_id": {
+          "name": "new_sandbox_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "files_restored": {
+          "name": "files_restored",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "restore_duration_ms": {
+          "name": "restore_duration_ms",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pending'"
+        },
+        "error_message": {
+          "name": "error_message",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "completed_at": {
+          "name": "completed_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "session_restore_history_session_idx": {
+          "name": "session_restore_history_session_idx",
+          "columns": [
+            {
+              "expression": "sandbox_session_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "session_restore_history_sandbox_session_id_app_sandbox_sessions_id_fk": {
+          "name": "session_restore_history_sandbox_session_id_app_sandbox_sessions_id_fk",
+          "tableFrom": "session_restore_history",
+          "tableTo": "app_sandbox_sessions",
+          "columnsFrom": ["sandbox_session_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false

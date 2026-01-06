@@ -621,7 +621,11 @@ blockquote p,
   width: 100%;
   padding: 4rem 2rem 5rem;
   overflow: hidden;
-  background: linear-gradient(180deg, rgba(10, 10, 10, 0) 0%, rgba(10, 10, 10, 0.8) 100%);
+  background: linear-gradient(
+    180deg,
+    rgba(10, 10, 10, 0) 0%,
+    rgba(10, 10, 10, 0.8) 100%
+  );
 }
 
 /* Gradient glow background */
@@ -651,8 +655,16 @@ blockquote p,
     linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
   background-size: 40px 40px;
-  mask-image: radial-gradient(ellipse 80% 100% at 50% 0%, black 0%, transparent 70%);
-  -webkit-mask-image: radial-gradient(ellipse 80% 100% at 50% 0%, black 0%, transparent 70%);
+  mask-image: radial-gradient(
+    ellipse 80% 100% at 50% 0%,
+    black 0%,
+    transparent 70%
+  );
+  -webkit-mask-image: radial-gradient(
+    ellipse 80% 100% at 50% 0%,
+    black 0%,
+    transparent 70%
+  );
   pointer-events: none;
   z-index: 0;
 }
@@ -691,8 +703,15 @@ blockquote p,
 }
 
 @keyframes badgePulse {
-  0%, 100% { opacity: 1; box-shadow: 0 0 4px #ff5800; }
-  50% { opacity: 0.6; box-shadow: 0 0 8px #ff5800; }
+  0%,
+  100% {
+    opacity: 1;
+    box-shadow: 0 0 4px #ff5800;
+  }
+  50% {
+    opacity: 0.6;
+    box-shadow: 0 0 8px #ff5800;
+  }
 }
 
 /* Hero Title */
@@ -810,27 +829,27 @@ blockquote p,
   .docs-hero {
     padding: 3rem 1.5rem 4rem;
   }
-  
+
   .docs-hero-title {
     font-size: 2.25rem !important;
   }
-  
+
   .docs-hero-description {
     font-size: 1rem !important;
   }
-  
+
   .docs-hero-btn-primary,
   .docs-hero-btn-secondary {
     height: 48px !important;
     padding: 0 1.5rem !important;
     font-size: 0.875rem !important;
   }
-  
+
   .docs-hero-actions {
     flex-direction: column;
     width: 100%;
   }
-  
+
   .docs-hero-btn-primary,
   .docs-hero-btn-secondary {
     width: 100%;
@@ -2180,20 +2199,20 @@ footer.nextra-footer-container [class*="border-t"]::before {
   .docs-hero-title {
     text-align: left !important;
   }
-  
+
   .docs-hero-content {
     text-align: left;
   }
-  
+
   .docs-hero-description {
     text-align: left;
   }
-  
+
   .docs-hero-badge {
     margin-left: 0;
     margin-right: auto;
   }
-  
+
   .docs-hero-actions {
     justify-content: flex-start;
   }

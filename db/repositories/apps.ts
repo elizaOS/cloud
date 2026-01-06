@@ -3,16 +3,37 @@ import {
   apps,
   appUsers,
   appAnalytics,
+  appRequests,
   type App,
   type NewApp,
   type AppUser,
   type NewAppUser,
   type AppAnalytics,
   type NewAppAnalytics,
+  type AppRequest,
+  type NewAppRequest,
 } from "../schemas";
-import { eq, and, gte, lte, desc, sql } from "drizzle-orm";
+import {
+  eq,
+  and,
+  gte,
+  lte,
+  desc,
+  sql,
+  count,
+  countDistinct,
+} from "drizzle-orm";
 
-export type { App, NewApp, AppUser, NewAppUser, AppAnalytics, NewAppAnalytics };
+export type {
+  App,
+  NewApp,
+  AppUser,
+  NewAppUser,
+  AppAnalytics,
+  NewAppAnalytics,
+  AppRequest,
+  NewAppRequest,
+};
 
 /**
  * Repository for app database operations.
@@ -122,22 +143,55 @@ export class AppsRepository {
 
   /**
    * Gets app analytics within a date range for a specific period type.
+   * Now aggregates directly from app_requests for real-time accuracy.
    */
   async getAnalytics(
     appId: string,
     periodType: string,
     startDate: Date,
     endDate: Date,
-  ): Promise<AppAnalytics[]> {
-    return await dbRead.query.appAnalytics.findMany({
-      where: and(
-        eq(appAnalytics.app_id, appId),
-        eq(appAnalytics.period_type, periodType),
-        gte(appAnalytics.period_start, startDate),
-        lte(appAnalytics.period_end, endDate),
-      ),
-      orderBy: [desc(appAnalytics.period_start)],
-    });
+  ): Promise<
+    Array<{
+      period_start: Date;
+      total_requests: number;
+      unique_users: number;
+      new_users: number;
+      total_cost: string;
+    }>
+  > {
+    const truncUnit =
+      periodType === "hourly"
+        ? "hour"
+        : periodType === "monthly"
+          ? "month"
+          : "day";
+
+    const results = await dbRead.execute<{
+      period_start: string;
+      total_requests: string;
+      unique_users: string;
+      total_cost: string;
+    }>(sql`
+      SELECT
+        date_trunc(${sql.raw(`'${truncUnit}'`)}, ${appRequests.created_at}) as period_start,
+        COUNT(*)::text as total_requests,
+        COUNT(DISTINCT ${appRequests.ip_address})::text as unique_users,
+        COALESCE(SUM(${appRequests.credits_used}), 0)::text as total_cost
+      FROM ${appRequests}
+      WHERE ${appRequests.app_id} = ${appId}
+        AND ${appRequests.created_at} >= ${startDate}
+        AND ${appRequests.created_at} <= ${endDate}
+      GROUP BY 1
+      ORDER BY period_start ASC
+    `);
+
+    return results.rows.map((r) => ({
+      period_start: new Date(r.period_start),
+      total_requests: parseInt(r.total_requests, 10),
+      unique_users: parseInt(r.unique_users, 10),
+      new_users: 0,
+      total_cost: r.total_cost,
+    }));
   }
 
   /**
@@ -323,6 +377,218 @@ export class AppsRepository {
       .values(data)
       .returning();
     return analytics;
+  }
+
+  // ============================================================================
+  // APP REQUESTS - Detailed request logging
+  // ============================================================================
+
+  /**
+   * Logs an individual app request for detailed analytics.
+   */
+  async logRequest(data: NewAppRequest): Promise<AppRequest> {
+    const [request] = await dbWrite
+      .insert(appRequests)
+      .values(data)
+      .returning();
+    return request;
+  }
+
+  /**
+   * Gets recent requests for an app with pagination.
+   */
+  async getRecentRequests(
+    appId: string,
+    options: {
+      limit?: number;
+      offset?: number;
+      requestType?: string;
+      source?: string;
+      startDate?: Date;
+      endDate?: Date;
+    } = {},
+  ): Promise<{ requests: AppRequest[]; total: number }> {
+    const {
+      limit = 50,
+      offset = 0,
+      requestType,
+      source,
+      startDate,
+      endDate,
+    } = options;
+
+    const conditions = [eq(appRequests.app_id, appId)];
+
+    if (requestType) {
+      conditions.push(eq(appRequests.request_type, requestType));
+    }
+    if (source) {
+      conditions.push(eq(appRequests.source, source));
+    }
+    if (startDate) {
+      conditions.push(gte(appRequests.created_at, startDate));
+    }
+    if (endDate) {
+      conditions.push(lte(appRequests.created_at, endDate));
+    }
+
+    const [requests, totalResult] = await Promise.all([
+      dbRead
+        .select()
+        .from(appRequests)
+        .where(and(...conditions))
+        .orderBy(desc(appRequests.created_at))
+        .limit(limit)
+        .offset(offset),
+      dbRead
+        .select({ count: count() })
+        .from(appRequests)
+        .where(and(...conditions)),
+    ]);
+
+    return {
+      requests,
+      total: totalResult[0]?.count ?? 0,
+    };
+  }
+
+  /**
+   * Gets aggregated request stats for an app.
+   */
+  async getRequestStats(
+    appId: string,
+    startDate?: Date,
+    endDate?: Date,
+  ): Promise<{
+    totalRequests: number;
+    uniqueIps: number;
+    uniqueUsers: number;
+    byType: Record<string, number>;
+    bySource: Record<string, number>;
+    byStatus: Record<string, number>;
+    totalCredits: string;
+    avgResponseTime: number | null;
+  }> {
+    const conditions = [eq(appRequests.app_id, appId)];
+    if (startDate) conditions.push(gte(appRequests.created_at, startDate));
+    if (endDate) conditions.push(lte(appRequests.created_at, endDate));
+
+    const [basicStats] = await dbRead
+      .select({
+        totalRequests: count(),
+        uniqueIps: countDistinct(appRequests.ip_address),
+        uniqueUsers: countDistinct(appRequests.user_id),
+        totalCredits: sql<string>`COALESCE(SUM(${appRequests.credits_used}), 0)::text`,
+        avgResponseTime: sql<number>`AVG(${appRequests.response_time_ms})::integer`,
+      })
+      .from(appRequests)
+      .where(and(...conditions));
+
+    const typeStats = await dbRead
+      .select({
+        type: appRequests.request_type,
+        count: count(),
+      })
+      .from(appRequests)
+      .where(and(...conditions))
+      .groupBy(appRequests.request_type);
+
+    const sourceStats = await dbRead
+      .select({
+        source: appRequests.source,
+        count: count(),
+      })
+      .from(appRequests)
+      .where(and(...conditions))
+      .groupBy(appRequests.source);
+
+    const statusStats = await dbRead
+      .select({
+        status: appRequests.status,
+        count: count(),
+      })
+      .from(appRequests)
+      .where(and(...conditions))
+      .groupBy(appRequests.status);
+
+    return {
+      totalRequests: basicStats?.totalRequests ?? 0,
+      uniqueIps: basicStats?.uniqueIps ?? 0,
+      uniqueUsers: basicStats?.uniqueUsers ?? 0,
+      totalCredits: basicStats?.totalCredits ?? "0",
+      avgResponseTime: basicStats?.avgResponseTime ?? null,
+      byType: Object.fromEntries(typeStats.map((s) => [s.type, s.count])),
+      bySource: Object.fromEntries(sourceStats.map((s) => [s.source, s.count])),
+      byStatus: Object.fromEntries(statusStats.map((s) => [s.status, s.count])),
+    };
+  }
+
+  /**
+   * Gets top IPs/visitors for an app.
+   */
+  async getTopVisitors(
+    appId: string,
+    limit: number = 10,
+    startDate?: Date,
+    endDate?: Date,
+  ): Promise<Array<{ ip: string; requestCount: number; lastSeen: Date }>> {
+    const conditions = [eq(appRequests.app_id, appId)];
+    if (startDate) conditions.push(gte(appRequests.created_at, startDate));
+    if (endDate) conditions.push(lte(appRequests.created_at, endDate));
+
+    const results = await dbRead
+      .select({
+        ip: appRequests.ip_address,
+        requestCount: count(),
+        lastSeen: sql<string>`to_char(MAX(${appRequests.created_at}) AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"')`,
+      })
+      .from(appRequests)
+      .where(and(...conditions))
+      .groupBy(appRequests.ip_address)
+      .orderBy(desc(count()))
+      .limit(limit);
+
+    return results.map((r) => ({
+      ip: r.ip ?? "unknown",
+      requestCount: r.requestCount,
+      lastSeen: new Date(r.lastSeen),
+    }));
+  }
+
+  /**
+   * Gets request count over time for charts.
+   */
+  async getRequestsOverTime(
+    appId: string,
+    periodType: "hourly" | "daily" | "monthly",
+    startDate: Date,
+    endDate: Date,
+  ): Promise<Array<{ period: string; count: number; credits: string }>> {
+    const dateFormat =
+      periodType === "hourly"
+        ? "YYYY-MM-DD HH24:00"
+        : periodType === "daily"
+          ? "YYYY-MM-DD"
+          : "YYYY-MM";
+
+    const results = await dbRead
+      .select({
+        period: sql<string>`TO_CHAR(${appRequests.created_at}, ${dateFormat})`,
+        count: count(),
+        credits: sql<string>`COALESCE(SUM(${appRequests.credits_used}), 0)::text`,
+      })
+      .from(appRequests)
+      .where(
+        and(
+          eq(appRequests.app_id, appId),
+          gte(appRequests.created_at, startDate),
+          lte(appRequests.created_at, endDate),
+        ),
+      )
+      .groupBy(sql`TO_CHAR(${appRequests.created_at}, ${dateFormat})`)
+      .orderBy(sql`TO_CHAR(${appRequests.created_at}, ${dateFormat})`);
+
+    return results;
   }
 }
 
