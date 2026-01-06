@@ -2568,11 +2568,11 @@ ANTHROPIC_API_KEY=your_key_here`}
 
       <div className="flex-1 flex overflow-hidden">
         <div
-          className={`flex flex-col border-r border-white/[0.06] bg-black/30 transition-all overflow-hidden ${isFullscreen ? "w-0" : "w-1/2"}`}
+          className={`flex flex-col border-r border-white/[0.04] bg-[#0a0a0b] transition-all overflow-hidden ${isFullscreen ? "w-0" : "w-1/2"}`}
         >
           <div
             ref={messagesContainerRef}
-            className="flex-1 overflow-y-auto p-6 space-y-5"
+            className="flex-1 overflow-y-auto p-5 space-y-4"
           >
             {messages.map((msg, i) => {
               const isProcessing = !!(msg as Message & { _thinkingId?: number })
@@ -2594,7 +2594,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                   <div
                     className={`${
                       msg.role === "user"
-                        ? "max-w-[85%] py-2.5 px-4 bg-white/[0.06] border border-white/[0.08] rounded-2xl rounded-tr-md"
+                        ? "max-w-[85%] py-2.5 px-4 bg-[#FF5800]/10 border border-[#FF5800]/20 rounded-2xl rounded-tr-md"
                         : isProcessing
                           ? "max-w-[90%] py-3 px-4 bg-gradient-to-br from-violet-500/[0.06] to-transparent border border-violet-400/[0.12] rounded-2xl rounded-tl-md"
                           : "max-w-[90%] py-3 px-4 bg-white/[0.015] border border-white/[0.05] rounded-2xl rounded-tl-md"
@@ -2608,7 +2608,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                         <span
                           className={`text-[11px] ${
                             msg.role === "user"
-                              ? "text-white/50"
+                              ? "text-[#FF5800]/70"
                               : isProcessing
                                 ? "text-violet-300/70"
                                 : "text-white/35"
@@ -2766,15 +2766,15 @@ ANTHROPIC_API_KEY=your_key_here`}
                         </div>
                       )}
                     {msg.filesAffected && msg.filesAffected.length > 0 && (
-                      <div className="mt-3 pt-2 border-t border-white/[0.04]">
-                        <p className="text-[10px] text-white/40 mb-1.5 uppercase tracking-wider font-medium">
-                          Files modified
+                      <div className="mt-3 pt-2.5 border-t border-white/[0.04]">
+                        <p className="text-[10px] text-white/30 mb-1.5 uppercase tracking-wider">
+                          Changed
                         </p>
                         <div className="flex flex-wrap gap-1">
                           {msg.filesAffected.map((file) => (
                             <span
                               key={file}
-                              className="px-2 py-0.5 text-[10px] bg-emerald-500/10 border border-emerald-500/20 text-emerald-300/80 font-mono rounded"
+                              className="px-2 py-0.5 text-[10px] bg-[#FF5800]/10 border border-[#FF5800]/20 text-white/70 font-mono rounded"
                             >
                               {file}
                             </span>
@@ -2789,7 +2789,7 @@ ANTHROPIC_API_KEY=your_key_here`}
             <div ref={messagesEndRef} />
           </div>
 
-          <div className="flex-shrink-0 p-4 border-t border-white/[0.06]">
+          <div className="flex-shrink-0 p-4 border-t border-white/[0.04]">
             {/* Visor Scanner Animation Styles */}
             <style jsx global>{`
               @keyframes visor-scan {
@@ -2801,24 +2801,14 @@ ANTHROPIC_API_KEY=your_key_here`}
                 100% { left: calc(100% + 80px); }
               }
             `}</style>
-            <div className="relative rounded-2xl border border-white/[0.08] bg-white/[0.02] overflow-hidden transition-colors focus-within:border-white/[0.15] focus-within:bg-white/[0.03]">
-              {/* Robot Eye Visor Scanner */}
+            <div className="relative rounded-xl border border-white/[0.06] bg-white/[0.015] overflow-hidden transition-all focus-within:border-white/[0.12] focus-within:bg-white/[0.025]">
+              {/* Subtle scanning animation */}
               {status === "generating" && (
-                <div className="absolute top-0 left-0 right-0 h-[2px] overflow-hidden pointer-events-none z-10">
+                <div className="absolute top-0 left-0 right-0 h-[1px] overflow-hidden pointer-events-none z-10 bg-white/[0.03]">
                   <div
-                    className="absolute h-full w-24 bg-gradient-to-r from-transparent via-[#FF5800] to-transparent"
+                    className="absolute h-full w-32 bg-gradient-to-r from-transparent via-violet-400/60 to-transparent"
                     style={{
-                      animation: "visor-scan 4.8s cubic-bezier(0.4, 0, 0.6, 1) infinite",
-                      boxShadow: "0 0 15px 3px rgba(255, 88, 0, 0.7)",
-                      filter: "blur(0.5px)",
-                    }}
-                  />
-                  <div
-                    className="absolute h-full w-16 bg-gradient-to-r from-transparent via-[#FF5800]/60 to-transparent"
-                    style={{
-                      animation: "visor-scan-delayed 6.2s cubic-bezier(0.3, 0.1, 0.7, 0.9) infinite 1.5s",
-                      boxShadow: "0 0 10px 2px rgba(255, 88, 0, 0.5)",
-                      filter: "blur(1px)",
+                      animation: "visor-scan 3s ease-in-out infinite",
                     }}
                   />
                 </div>
@@ -2838,29 +2828,29 @@ ANTHROPIC_API_KEY=your_key_here`}
                 }}
                 onInput={(e) => {
                   const target = e.target as HTMLTextAreaElement;
-                  target.style.height = "52px";
-                  target.style.height = Math.min(target.scrollHeight, 150) + "px";
+                  target.style.height = "48px";
+                  target.style.height = Math.min(target.scrollHeight, 120) + "px";
                 }}
                 rows={1}
                 placeholder="Describe what you want to build..."
                 disabled={status !== "ready"}
-                className="w-full bg-transparent px-4 pt-3 pb-3 text-[15px] text-white placeholder:text-white/40 focus:outline-none disabled:opacity-50 resize-none leading-relaxed"
-                style={{ minHeight: "52px", maxHeight: "150px" }}
+                className="w-full bg-transparent px-4 pt-3 pb-2 text-[14px] text-white/90 placeholder:text-white/30 focus:outline-none disabled:opacity-50 resize-none leading-relaxed"
+                style={{ minHeight: "48px", maxHeight: "120px" }}
               />
 
               {/* Bottom bar with send button */}
-              <div className="flex items-center justify-end px-2 py-2">
+              <div className="flex items-center justify-end px-2 pb-2">
                 <Button
                   type="button"
                   onClick={() => sendPrompt()}
                   disabled={!input.trim() || status !== "ready"}
                   size="icon"
-                  className="h-8 w-8 rounded-lg bg-transparent hover:bg-white/[0.06] disabled:opacity-40 border-0 transition-colors"
+                  className="h-7 w-7 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] disabled:opacity-30 border border-white/[0.06] transition-all"
                 >
                   {status === "generating" ? (
-                    <Loader2 className="h-4 w-4 animate-spin text-[#FF5800]" />
+                    <Loader2 className="h-3.5 w-3.5 animate-spin text-white/50" />
                   ) : (
-                    <Send className="h-4 w-4 text-[#FF5800]" />
+                    <Send className="h-3.5 w-3.5 text-white/60" />
                   )}
                 </Button>
               </div>
