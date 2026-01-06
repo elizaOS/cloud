@@ -67,7 +67,7 @@ const ChatInputInner = memo(function ChatInputInner({
   }, [input, status, onSendPrompt]);
 
   return (
-    <div className="flex-shrink-0 p-4 border-t border-white/[0.04]">
+    <div className="flex-shrink-0 p-2 xl:p-4 border-t border-white/[0.04] bg-[#0a0a0b]">
       {/* Visor Scanner Animation Styles */}
       <style jsx global>{`
         @keyframes visor-scan {
@@ -102,23 +102,39 @@ const ChatInputInner = memo(function ChatInputInner({
           rows={1}
           placeholder="Describe what you want to build..."
           disabled={status !== "ready"}
-          className="w-full bg-transparent px-4 pt-3 pb-2 text-[14px] text-white/90 placeholder:text-white/30 focus:outline-none disabled:opacity-50 resize-none leading-relaxed"
-          style={{ minHeight: "48px", maxHeight: "120px" }}
+          className="w-full bg-transparent px-3 xl:px-4 pt-2.5 xl:pt-3 pb-2 text-[13px] xl:text-[14px] text-white/90 placeholder:text-white/30 focus:outline-none disabled:opacity-50 resize-none leading-relaxed"
+          style={{ minHeight: "44px", maxHeight: "100px" }}
         />
 
         {/* Bottom bar with send button */}
-        <div className="flex items-center justify-end px-2 pb-2">
+        <div className="flex items-center justify-between px-2 pb-2">
+          {/* Status indicator for mobile/tablet */}
+          <div className="flex items-center gap-1.5 xl:hidden">
+            {status === "generating" && (
+              <span className="text-[10px] text-violet-400 flex items-center gap-1">
+                <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                Building...
+              </span>
+            )}
+            {status === "recovering" && (
+              <span className="text-[10px] text-cyan-400 flex items-center gap-1">
+                <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                Reconnecting...
+              </span>
+            )}
+          </div>
+          <div className="hidden xl:block" />
           <Button
             type="button"
             onClick={handleSend}
             disabled={!input.trim() || status !== "ready"}
             size="icon"
-            className="h-7 w-7 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] disabled:opacity-30 border border-white/[0.06] transition-all"
+            className="h-8 w-8 xl:h-7 xl:w-7 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] disabled:opacity-30 border border-white/[0.06] transition-all touch-manipulation"
           >
             {status === "generating" ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin text-white/50" />
+              <Loader2 className="h-4 w-4 xl:h-3.5 xl:w-3.5 animate-spin text-white/50" />
             ) : (
-              <Send className="h-3.5 w-3.5 text-white/60" />
+              <Send className="h-4 w-4 xl:h-3.5 xl:w-3.5 text-white/60" />
             )}
           </Button>
         </div>

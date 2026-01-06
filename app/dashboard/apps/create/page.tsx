@@ -93,6 +93,11 @@ import {
   Wand2,
   DollarSign,
   LineChart,
+  Menu,
+  X,
+  PanelLeftClose,
+  PanelRightClose,
+  MoreVertical,
   type LucideIcon,
 } from "lucide-react";
 import { SandboxFileExplorer } from "@/components/sandbox/sandbox-file-explorer";
@@ -102,6 +107,27 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from "@/components/ui/drawer";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -129,19 +155,19 @@ const ChatMessage = memo(function ChatMessage({ msg, index: i, session, status, 
       <div
         className={`${
           msg.role === "user"
-            ? "max-w-[85%] py-2.5 px-4 bg-[#FF5800]/10 border border-[#FF5800]/20 rounded-2xl rounded-tr-md"
+            ? "max-w-[90%] xl:max-w-[85%] py-2 xl:py-2.5 px-3 xl:px-4 bg-[#FF5800]/10 border border-[#FF5800]/20 rounded-2xl rounded-tr-md"
             : isProcessing
-              ? "max-w-[90%] py-3 px-4 bg-gradient-to-br from-violet-500/[0.06] to-transparent border border-violet-400/[0.12] rounded-2xl rounded-tl-md"
-              : "max-w-[90%] py-3 px-4 bg-white/[0.015] border border-white/[0.05] rounded-2xl rounded-tl-md"
+              ? "max-w-[95%] xl:max-w-[90%] py-2.5 xl:py-3 px-3 xl:px-4 bg-gradient-to-br from-violet-500/[0.06] to-transparent border border-violet-400/[0.12] rounded-2xl rounded-tl-md"
+              : "max-w-[95%] xl:max-w-[90%] py-2.5 xl:py-3 px-3 xl:px-4 bg-white/[0.015] border border-white/[0.05] rounded-2xl rounded-tl-md"
         }`}
       >
-        <div className="flex items-center justify-between mb-1.5">
-          <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between mb-1 xl:mb-1.5">
+          <div className="flex items-center gap-1.5 xl:gap-2">
             {isProcessing && (
-              <Loader2 className="h-3 w-3 animate-spin text-violet-400" />
+              <Loader2 className="h-2.5 w-2.5 xl:h-3 xl:w-3 animate-spin text-violet-400" />
             )}
             <span
-              className={`text-[11px] ${
+              className={`text-[10px] xl:text-[11px] ${
                 msg.role === "user"
                   ? "text-[#FF5800]/70"
                   : isProcessing
@@ -156,11 +182,11 @@ const ChatMessage = memo(function ChatMessage({ msg, index: i, session, status, 
                   : "Assistant"}
             </span>
           </div>
-          <span className="text-[10px] text-white/20 font-mono opacity-0 group-hover/message:opacity-100 transition-opacity">
+          <span className="text-[9px] xl:text-[10px] text-white/20 font-mono opacity-100 xl:opacity-0 group-hover/message:opacity-100 transition-opacity">
             {msgTime}
           </span>
         </div>
-        <div className="text-[14px] leading-[1.7] text-white/80">
+        <div className="text-[13px] xl:text-[14px] leading-[1.6] xl:leading-[1.7] text-white/80 prose-pre:max-w-full prose-pre:overflow-x-auto">
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
             components={markdownComponents}
@@ -172,17 +198,17 @@ const ChatMessage = memo(function ChatMessage({ msg, index: i, session, status, 
           msg.role === "assistant" &&
           session?.examplePrompts &&
           session.examplePrompts.length > 0 && (
-            <div className="mt-4 pt-3 border-t border-white/[0.05]">
-              <p className="text-[10px] text-white/35 mb-2 uppercase tracking-wider">
+            <div className="mt-3 xl:mt-4 pt-2.5 xl:pt-3 border-t border-white/[0.05]">
+              <p className="text-[9px] xl:text-[10px] text-white/35 mb-1.5 xl:mb-2 uppercase tracking-wider">
                 Suggestions
               </p>
-              <div className="flex flex-wrap gap-1.5">
+              <div className="flex flex-wrap gap-1 xl:gap-1.5">
                 {session.examplePrompts.map((prompt, idx) => (
                   <button
                     key={idx}
                     onClick={() => sendPrompt(prompt)}
                     disabled={status !== "ready"}
-                    className="px-2.5 py-1.5 text-[12px] bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.08] hover:border-white/[0.15] text-white/60 hover:text-white/80 rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed text-left"
+                    className="px-2 xl:px-2.5 py-1 xl:py-1.5 text-[11px] xl:text-[12px] bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.08] hover:border-white/[0.15] text-white/60 hover:text-white/80 rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed text-left touch-manipulation"
                   >
                     {prompt}
                   </button>
@@ -191,15 +217,15 @@ const ChatMessage = memo(function ChatMessage({ msg, index: i, session, status, 
             </div>
           )}
         {msg.filesAffected && msg.filesAffected.length > 0 && (
-          <div className="mt-3 pt-2.5 border-t border-white/[0.04]">
-            <p className="text-[10px] text-white/30 mb-1.5 uppercase tracking-wider">
+          <div className="mt-2.5 xl:mt-3 pt-2 xl:pt-2.5 border-t border-white/[0.04]">
+            <p className="text-[9px] xl:text-[10px] text-white/30 mb-1 xl:mb-1.5 uppercase tracking-wider">
               Changed
             </p>
             <div className="flex flex-wrap gap-1">
               {msg.filesAffected.map((file) => (
                 <span
                   key={file}
-                  className="px-2 py-0.5 text-[10px] bg-[#FF5800]/10 border border-[#FF5800]/20 text-white/70 font-mono rounded"
+                  className="px-1.5 xl:px-2 py-0.5 text-[9px] xl:text-[10px] bg-[#FF5800]/10 border border-[#FF5800]/20 text-white/70 font-mono rounded truncate max-w-full"
                 >
                   {file}
                 </span>
@@ -379,6 +405,9 @@ export default function AppCreatorPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  // Mobile panel state - 'chat' or 'preview' to toggle which panel is visible on mobile
+  const [mobilePanel, setMobilePanel] = useState<"chat" | "preview">("chat");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [progressStep, setProgressStep] = useState<ProgressStep>("creating");
   const [previewTab, setPreviewTab] = useState<PreviewTab>("preview");
@@ -2095,37 +2124,53 @@ ANTHROPIC_API_KEY=your_key_here`}
         {/* Ambient background effects */}
         <div className="fixed inset-0 overflow-hidden pointer-events-none">
           <div 
-            className="absolute top-1/3 -left-32 w-72 h-72 rounded-full blur-[100px] opacity-15"
+            className="absolute top-1/3 -left-32 w-48 md:w-72 h-48 md:h-72 rounded-full blur-[100px] opacity-15"
             style={{ backgroundColor: selectedTemplate?.color || "#06B6D4" }}
           />
           <div 
-            className="absolute bottom-1/3 -right-32 w-72 h-72 rounded-full blur-[100px] opacity-10"
+            className="absolute bottom-1/3 -right-32 w-48 md:w-72 h-48 md:h-72 rounded-full blur-[100px] opacity-10"
             style={{ backgroundColor: selectedTemplate?.color || "#8B5CF6" }}
           />
         </div>
 
-        <div className="relative max-w-6xl mx-auto px-6 py-5">
+        <div className="relative max-w-6xl mx-auto px-3 md:px-6 py-3 md:py-5">
           {/* Header - compact */}
-          <div className="flex items-center justify-between mb-5">
-            <div className="flex items-center gap-3">
+          <div className="flex items-center justify-between mb-3 md:mb-5">
+            <div className="flex items-center gap-2 md:gap-3">
               <Link
                 href={backLink}
-                className="p-2 hover:bg-white/10 rounded-lg transition-all duration-300 border border-white/5 hover:border-white/20"
+                className="p-1.5 md:p-2 hover:bg-white/10 rounded-lg transition-all duration-300 border border-white/5 hover:border-white/20"
               >
                 <ArrowLeft className="h-4 w-4 text-white/60" />
               </Link>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 md:gap-2">
                 <div className="relative">
                   <div className="absolute inset-0 bg-gradient-to-r from-cyan-500 to-violet-500 rounded-full blur-sm opacity-50" />
-                  <Sparkles className="relative h-5 w-5 text-white" />
+                  <Sparkles className="relative h-4 w-4 md:h-5 md:w-5 text-white" />
                 </div>
-                <h1 className="text-xl font-semibold tracking-tight text-white">
+                <h1 className="text-base md:text-xl font-semibold tracking-tight text-white">
                   App Creator
                 </h1>
               </div>
             </div>
 
-            {/* Step indicator */}
+            {/* Mobile step indicator */}
+            <div className="flex md:hidden items-center gap-1">
+              {[1, 2, 3].map((num) => (
+                <div
+                  key={num}
+                  className={`h-1.5 rounded-full transition-all duration-300 ${
+                    setupStep === num 
+                      ? "bg-gradient-to-r from-cyan-500 to-violet-500 w-6" 
+                      : setupStep > num 
+                        ? "bg-white/40 w-3" 
+                        : "bg-white/10 w-3"
+                  }`}
+                />
+              ))}
+            </div>
+
+            {/* Desktop step indicator */}
             <div className="hidden md:flex items-center gap-2">
               {[
                 { num: 1, label: "Template" },
@@ -2174,7 +2219,7 @@ ANTHROPIC_API_KEY=your_key_here`}
 
           {sourceContext && (
             <div 
-              className="mb-4 p-3 rounded-lg border-l-2 bg-black/30 border border-white/5"
+              className="mb-3 md:mb-4 p-2.5 md:p-3 rounded-lg border-l-2 bg-black/30 border border-white/5"
               style={{ borderLeftColor: SOURCE_CONTEXT_INFO[sourceContext.type].color }}
             >
               <div className="flex items-center gap-2">
@@ -2182,12 +2227,12 @@ ANTHROPIC_API_KEY=your_key_here`}
                   const Icon = SOURCE_CONTEXT_INFO[sourceContext.type].icon;
                   return (
                     <Icon
-                      className="h-4 w-4"
+                      className="h-3.5 w-3.5 md:h-4 md:w-4"
                       style={{ color: SOURCE_CONTEXT_INFO[sourceContext.type].color }}
                     />
                   );
                 })()}
-                <p className="text-xs text-white/70">
+                <p className="text-[11px] md:text-xs text-white/70">
                   Building for <span className="text-white font-medium">{sourceContext.name}</span>
                 </p>
               </div>
@@ -2204,36 +2249,36 @@ ANTHROPIC_API_KEY=your_key_here`}
               );
               
               return (
-                <div className="space-y-5">
+                <div className="space-y-3 md:space-y-5">
                   {/* Header row with title and navigation */}
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-0">
                     <div>
-                      <h2 className="text-2xl font-bold text-white">
+                      <h2 className="text-xl md:text-2xl font-bold text-white">
                         What are you building?
                       </h2>
-                      <p className="text-white/50 text-sm">
+                      <p className="text-white/50 text-xs md:text-sm">
                         Choose a template to kickstart your project
                       </p>
                     </div>
                     
                     {/* Carousel navigation */}
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center justify-center md:justify-end gap-2 md:gap-3">
                       <button
                         onClick={() => setTemplatePage(p => Math.max(0, p - 1))}
                         disabled={templatePage === 0}
-                        className="p-2.5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-all hover:scale-105"
+                        className="p-2 md:p-2.5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-all hover:scale-105"
                       >
-                        <ChevronLeft className="h-5 w-5 text-white/70" />
+                        <ChevronLeft className="h-4 w-4 md:h-5 md:w-5 text-white/70" />
                       </button>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5 md:gap-2">
                         {Array.from({ length: totalPages }).map((_, i) => (
                           <button
                             key={i}
                             onClick={() => setTemplatePage(i)}
-                            className={`h-2 rounded-full transition-all duration-300 ${
+                            className={`h-1.5 md:h-2 rounded-full transition-all duration-300 ${
                               i === templatePage 
-                                ? "bg-white/70 w-6" 
-                                : "bg-white/20 hover:bg-white/40 w-2"
+                                ? "bg-white/70 w-5 md:w-6" 
+                                : "bg-white/20 hover:bg-white/40 w-1.5 md:w-2"
                             }`}
                           />
                         ))}
@@ -2241,15 +2286,15 @@ ANTHROPIC_API_KEY=your_key_here`}
                       <button
                         onClick={() => setTemplatePage(p => Math.min(totalPages - 1, p + 1))}
                         disabled={templatePage >= totalPages - 1}
-                        className="p-2.5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-all hover:scale-105"
+                        className="p-2 md:p-2.5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-all hover:scale-105"
                       >
-                        <ChevronRight className="h-5 w-5 text-white/70" />
+                        <ChevronRight className="h-4 w-4 md:h-5 md:w-5 text-white/70" />
                       </button>
                     </div>
                   </div>
 
                   {/* Template cards - larger, more detailed */}
-                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 md:gap-4">
                     {visibleTemplates.map((template) => {
                       const Icon = template.icon;
                       const isSelected = templateType === template.value;
@@ -2264,43 +2309,43 @@ ANTHROPIC_API_KEY=your_key_here`}
                             }
                           }}
                           disabled={isDisabled}
-                          className={`group relative p-5 rounded-2xl text-left transition-all duration-300 border ${
+                          className={`group relative p-3 md:p-5 rounded-xl md:rounded-2xl text-left transition-all duration-300 border touch-manipulation ${
                             isSelected
                               ? "bg-white/10 border-white/30 scale-[1.02]"
                               : isDisabled
                                 ? "bg-white/[0.02] border-white/5 opacity-50 cursor-not-allowed"
-                                : "bg-white/[0.02] border-white/10 hover:bg-white/[0.05] hover:border-white/20"
+                                : "bg-white/[0.02] border-white/10 hover:bg-white/[0.05] hover:border-white/20 active:scale-[0.98]"
                           }`}
                         >
                           {/* Glow effect on selected */}
                           {isSelected && (
                             <div 
-                              className="absolute inset-0 rounded-2xl blur-xl opacity-20 -z-10"
+                              className="absolute inset-0 rounded-xl md:rounded-2xl blur-xl opacity-20 -z-10"
                               style={{ backgroundColor: template.color }}
                             />
                           )}
 
                           {/* Coming soon badge */}
                           {isDisabled && (
-                            <div className="absolute top-3 right-3 px-2 py-0.5 bg-amber-500/20 border border-amber-500/30 rounded-full">
-                              <span className="text-[10px] font-medium text-amber-400">Coming Soon</span>
+                            <div className="absolute top-2 right-2 md:top-3 md:right-3 px-1.5 md:px-2 py-0.5 bg-amber-500/20 border border-amber-500/30 rounded-full">
+                              <span className="text-[8px] md:text-[10px] font-medium text-amber-400">Soon</span>
                             </div>
                           )}
 
                           {/* Selection indicator */}
                           {!isDisabled && (
-                            <div className={`absolute top-4 right-4 w-5 h-5 rounded-full border-2 transition-all duration-300 flex items-center justify-center ${
+                            <div className={`absolute top-2.5 right-2.5 md:top-4 md:right-4 w-4 h-4 md:w-5 md:h-5 rounded-full border-2 transition-all duration-300 flex items-center justify-center ${
                               isSelected 
                                 ? "border-white bg-white" 
                                 : "border-white/20 group-hover:border-white/40"
                             }`}>
-                              {isSelected && <Check className="h-3 w-3 text-black" />}
+                              {isSelected && <Check className="h-2.5 w-2.5 md:h-3 md:w-3 text-black" />}
                             </div>
                           )}
 
                           {/* Icon */}
                           <div 
-                            className={`inline-flex p-3 rounded-xl mb-3 transition-all duration-300 ${
+                            className={`inline-flex p-2 md:p-3 rounded-lg md:rounded-xl mb-2 md:mb-3 transition-all duration-300 ${
                               isSelected ? "scale-110" : "group-hover:scale-105"
                             }`}
                             style={{ 
@@ -2309,21 +2354,21 @@ ANTHROPIC_API_KEY=your_key_here`}
                             }}
                           >
                             <Icon 
-                              className="h-6 w-6 transition-colors duration-300" 
+                              className="h-4 w-4 md:h-6 md:w-6 transition-colors duration-300" 
                               style={{ color: template.color }}
                             />
                           </div>
 
                           {/* Content */}
-                          <h3 className="text-base font-semibold text-white mb-1">
+                          <h3 className="text-sm md:text-base font-semibold text-white mb-0.5 md:mb-1 pr-6">
                             {template.label}
                           </h3>
-                          <p className="text-sm text-white/50 mb-3 line-clamp-2">
+                          <p className="text-xs md:text-sm text-white/50 mb-2 md:mb-3 line-clamp-2">
                             {template.description}
                           </p>
 
-                          {/* Features */}
-                          <div className="flex flex-wrap gap-1.5">
+                          {/* Features - hidden on mobile to save space */}
+                          <div className="hidden md:flex flex-wrap gap-1.5">
                             {template.features.map((feature) => (
                               <span
                                 key={feature}
@@ -2334,8 +2379,8 @@ ANTHROPIC_API_KEY=your_key_here`}
                             ))}
                           </div>
 
-                          {/* Tech stack on hover/selected */}
-                          <div className={`mt-3 pt-3 border-t border-white/5 transition-all duration-300 ${
+                          {/* Tech stack on hover/selected - desktop only */}
+                          <div className={`hidden md:block mt-3 pt-3 border-t border-white/5 transition-all duration-300 ${
                             isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"
                           }`}>
                             <div className="flex gap-2">
@@ -2352,8 +2397,8 @@ ANTHROPIC_API_KEY=your_key_here`}
                   </div>
 
                   {/* Continue button row */}
-                  <div className="flex items-center justify-between pt-2">
-                    <p className="text-sm text-white/40">
+                  <div className="flex flex-col-reverse md:flex-row items-stretch md:items-center justify-between gap-3 pt-2">
+                    <p className="text-xs md:text-sm text-white/40 text-center md:text-left">
                       {selectedTemplate ? (
                         <>Selected: <span className="text-white/60 font-medium">{selectedTemplate.label}</span></>
                       ) : (
@@ -2363,7 +2408,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                     <button
                       onClick={() => setSetupStep(2)}
                       disabled={!templateType || TEMPLATE_OPTIONS.find(t => t.value === templateType)?.comingSoon}
-                      className="group flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-cyan-500 to-violet-500 rounded-xl text-white font-medium transition-all duration-300 hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 hover:shadow-lg hover:shadow-violet-500/25"
+                      className="group flex items-center justify-center gap-2 px-6 md:px-8 py-2.5 md:py-3 bg-gradient-to-r from-cyan-500 to-violet-500 rounded-xl text-white text-sm md:text-base font-medium transition-all duration-300 hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 hover:shadow-lg hover:shadow-violet-500/25 touch-manipulation"
                     >
                       Continue
                       <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
@@ -2377,24 +2422,24 @@ ANTHROPIC_API_KEY=your_key_here`}
           {/* STEP 2: App Details */}
           <div className={`transition-all duration-500 ${setupStep === 2 ? "opacity-100" : "opacity-0 absolute pointer-events-none"}`}>
             {setupStep === 2 && (
-              <div className="max-w-2xl mx-auto space-y-4">
-                <div className="flex items-center justify-between">
+              <div className="max-w-2xl mx-auto space-y-3 md:space-y-4">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 md:gap-0">
                   <div>
-                    <h2 className="text-2xl font-bold text-white">
+                    <h2 className="text-xl md:text-2xl font-bold text-white">
                       Tell us about your app
                     </h2>
-                    <p className="text-white/50 text-sm">
+                    <p className="text-white/50 text-xs md:text-sm">
                       Give your creation a name and description
                     </p>
                   </div>
                   {/* Selected template preview */}
                   {selectedTemplate && (
-                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10">
+                    <div className="flex items-center gap-2 px-2.5 md:px-3 py-1 md:py-1.5 rounded-lg bg-white/5 border border-white/10 w-fit">
                       <selectedTemplate.icon 
-                        className="h-4 w-4" 
+                        className="h-3.5 w-3.5 md:h-4 md:w-4" 
                         style={{ color: selectedTemplate.color }}
                       />
-                      <span className="text-xs text-white/60">{selectedTemplate.label}</span>
+                      <span className="text-[11px] md:text-xs text-white/60">{selectedTemplate.label}</span>
                       <button
                         onClick={() => setSetupStep(1)}
                         className="text-[10px] text-white/40 hover:text-white/60 underline"
@@ -2405,7 +2450,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                   )}
                 </div>
 
-                <div className="space-y-4 p-5 rounded-xl bg-white/[0.02] border border-white/10">
+                <div className="space-y-3 md:space-y-4 p-3 md:p-5 rounded-xl bg-white/[0.02] border border-white/10">
                   {/* App Name */}
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
@@ -2466,18 +2511,18 @@ ANTHROPIC_API_KEY=your_key_here`}
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between pt-3">
+                <div className="flex items-center justify-between pt-2 md:pt-3">
                   <button
                     onClick={() => setSetupStep(1)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-white/60 hover:text-white transition-colors"
+                    className="flex items-center gap-1 md:gap-1.5 px-2 md:px-3 py-1.5 text-[11px] md:text-xs text-white/60 hover:text-white transition-colors"
                   >
-                    <ArrowLeft className="h-3.5 w-3.5" />
+                    <ArrowLeft className="h-3 w-3 md:h-3.5 md:w-3.5" />
                     Back
                   </button>
                   <button
                     onClick={() => setSetupStep(3)}
                     disabled={!appName.trim() || appName.length > 100 || appDescription.length > 500}
-                    className="group flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-cyan-500 to-violet-500 rounded-lg text-white text-sm font-medium transition-all duration-300 hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 hover:shadow-lg hover:shadow-violet-500/25"
+                    className="group flex items-center gap-2 px-5 md:px-6 py-2 md:py-2.5 bg-gradient-to-r from-cyan-500 to-violet-500 rounded-lg text-white text-sm font-medium transition-all duration-300 hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 hover:shadow-lg hover:shadow-violet-500/25 touch-manipulation"
                   >
                     Continue
                     <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
@@ -2490,57 +2535,57 @@ ANTHROPIC_API_KEY=your_key_here`}
           {/* STEP 3: Features */}
           <div className={`transition-all duration-500 ${setupStep === 3 ? "opacity-100" : "opacity-0 absolute pointer-events-none"}`}>
             {setupStep === 3 && (
-              <div className="max-w-2xl mx-auto space-y-4">
-                <div className="flex items-center justify-between">
+              <div className="max-w-2xl mx-auto space-y-3 md:space-y-4">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 md:gap-0">
                   <div>
-                    <h2 className="text-2xl font-bold text-white">
+                    <h2 className="text-xl md:text-2xl font-bold text-white">
                       Supercharge your app
                     </h2>
-                    <p className="text-white/50 text-sm">
+                    <p className="text-white/50 text-xs md:text-sm">
                       Add powerful features to your project
                     </p>
                   </div>
                   {/* App summary */}
-                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10">
+                  <div className="flex items-center gap-2 px-2.5 md:px-3 py-1 md:py-1.5 rounded-lg bg-white/5 border border-white/10 w-fit">
                     {selectedTemplate && (
                       <selectedTemplate.icon 
-                        className="h-4 w-4" 
+                        className="h-3.5 w-3.5 md:h-4 md:w-4" 
                         style={{ color: selectedTemplate.color }}
                       />
                     )}
-                    <span className="text-xs text-white/70">{appName || "Your App"}</span>
+                    <span className="text-[11px] md:text-xs text-white/70 truncate max-w-[150px]">{appName || "Your App"}</span>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-2.5 md:gap-3">
                   {/* Monetization */}
                   <button
                     onClick={() => setIncludeMonetization(!includeMonetization)}
-                    className={`p-4 rounded-xl text-left transition-all duration-300 border ${
+                    className={`p-3 md:p-4 rounded-xl text-left transition-all duration-300 border touch-manipulation ${
                       includeMonetization
                         ? "bg-emerald-500/10 border-emerald-500/30"
                         : "bg-white/[0.02] border-white/10 hover:bg-white/[0.04] hover:border-white/20"
                     }`}
                   >
-                    <div className="flex items-center justify-between mb-2">
-                      <div className={`p-2 rounded-lg transition-colors ${
+                    <div className="flex items-center justify-between mb-1.5 md:mb-2">
+                      <div className={`p-1.5 md:p-2 rounded-lg transition-colors ${
                         includeMonetization ? "bg-emerald-500/20" : "bg-white/5"
                       }`}>
-                        <DollarSign className={`h-4 w-4 ${
+                        <DollarSign className={`h-3.5 w-3.5 md:h-4 md:w-4 ${
                           includeMonetization ? "text-emerald-400" : "text-white/40"
                         }`} />
                       </div>
-                      <div className={`w-8 h-5 rounded-full transition-colors duration-300 flex items-center ${
+                      <div className={`w-7 h-4 md:w-8 md:h-5 rounded-full transition-colors duration-300 flex items-center ${
                         includeMonetization ? "bg-emerald-500 justify-end" : "bg-white/10 justify-start"
                       }`}>
-                        <div className="w-3 h-3 mx-1 rounded-full bg-white transition-all" />
+                        <div className="w-2.5 h-2.5 md:w-3 md:h-3 mx-0.5 md:mx-1 rounded-full bg-white transition-all" />
                       </div>
                     </div>
-                    <h3 className="text-sm font-medium text-white">Monetization</h3>
-                    <p className="text-xs text-white/50 mt-0.5">
+                    <h3 className="text-xs md:text-sm font-medium text-white">Monetization</h3>
+                    <p className="text-[10px] md:text-xs text-white/50 mt-0.5">
                       Payments & subscriptions
                     </p>
-                    <div className="flex gap-1 mt-2">
+                    <div className="hidden md:flex gap-1 mt-2">
                       <span className="px-1.5 py-0.5 text-[9px] bg-white/5 border border-white/10 rounded text-white/40">
                         Stripe
                       </span>
@@ -2553,31 +2598,31 @@ ANTHROPIC_API_KEY=your_key_here`}
                   {/* Analytics */}
                   <button
                     onClick={() => setIncludeAnalytics(!includeAnalytics)}
-                    className={`p-4 rounded-xl text-left transition-all duration-300 border ${
+                    className={`p-3 md:p-4 rounded-xl text-left transition-all duration-300 border touch-manipulation ${
                       includeAnalytics
                         ? "bg-blue-500/10 border-blue-500/30"
                         : "bg-white/[0.02] border-white/10 hover:bg-white/[0.04] hover:border-white/20"
                     }`}
                   >
-                    <div className="flex items-center justify-between mb-2">
-                      <div className={`p-2 rounded-lg transition-colors ${
+                    <div className="flex items-center justify-between mb-1.5 md:mb-2">
+                      <div className={`p-1.5 md:p-2 rounded-lg transition-colors ${
                         includeAnalytics ? "bg-blue-500/20" : "bg-white/5"
                       }`}>
-                        <LineChart className={`h-4 w-4 ${
+                        <LineChart className={`h-3.5 w-3.5 md:h-4 md:w-4 ${
                           includeAnalytics ? "text-blue-400" : "text-white/40"
                         }`} />
                       </div>
-                      <div className={`w-8 h-5 rounded-full transition-colors duration-300 flex items-center ${
+                      <div className={`w-7 h-4 md:w-8 md:h-5 rounded-full transition-colors duration-300 flex items-center ${
                         includeAnalytics ? "bg-blue-500 justify-end" : "bg-white/10 justify-start"
                       }`}>
-                        <div className="w-3 h-3 mx-1 rounded-full bg-white transition-all" />
+                        <div className="w-2.5 h-2.5 md:w-3 md:h-3 mx-0.5 md:mx-1 rounded-full bg-white transition-all" />
                       </div>
                     </div>
-                    <h3 className="text-sm font-medium text-white">Analytics</h3>
-                    <p className="text-xs text-white/50 mt-0.5">
+                    <h3 className="text-xs md:text-sm font-medium text-white">Analytics</h3>
+                    <p className="text-[10px] md:text-xs text-white/50 mt-0.5">
                       Track users & events
                     </p>
-                    <div className="flex gap-1 mt-2">
+                    <div className="hidden md:flex gap-1 mt-2">
                       <span className="px-1.5 py-0.5 text-[9px] bg-white/5 border border-white/10 rounded text-white/40">
                         Real-time
                       </span>
@@ -2588,18 +2633,18 @@ ANTHROPIC_API_KEY=your_key_here`}
                   </button>
                 </div>
 
-                <div className="flex items-center justify-between pt-3">
+                <div className="flex items-center justify-between pt-2 md:pt-3">
                   <button
                     onClick={() => setSetupStep(2)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-white/60 hover:text-white transition-colors"
+                    className="flex items-center gap-1 md:gap-1.5 px-2 md:px-3 py-1.5 text-[11px] md:text-xs text-white/60 hover:text-white transition-colors"
                   >
-                    <ArrowLeft className="h-3.5 w-3.5" />
+                    <ArrowLeft className="h-3 w-3 md:h-3.5 md:w-3.5" />
                     Back
                   </button>
                   <button
                     onClick={startSession}
                     disabled={isLoading}
-                    className="group relative flex items-center gap-2 px-6 py-2.5 rounded-lg text-white text-sm font-medium transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 overflow-hidden"
+                    className="group relative flex items-center gap-2 px-5 md:px-6 py-2 md:py-2.5 rounded-lg text-white text-sm font-medium transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 overflow-hidden touch-manipulation"
                   >
                     {/* Animated gradient background */}
                     <div className="absolute inset-0 bg-gradient-to-r from-cyan-500 via-violet-500 to-cyan-500 bg-[length:200%_100%] animate-[shimmer_2s_linear_infinite]" />
@@ -2609,12 +2654,14 @@ ANTHROPIC_API_KEY=your_key_here`}
                       {isLoading ? (
                         <>
                           <Loader2 className="h-4 w-4 animate-spin" />
-                          Launching...
+                          <span className="hidden sm:inline">Launching...</span>
+                          <span className="sm:hidden">...</span>
                         </>
                       ) : (
                         <>
                           <Rocket className="h-4 w-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-                          Start Building
+                          <span className="hidden sm:inline">Start Building</span>
+                          <span className="sm:hidden">Start</span>
                         </>
                       )}
                     </span>
@@ -2622,7 +2669,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                 </div>
 
                 {/* Summary footer */}
-                <p className="text-center text-[10px] text-white/25 pt-3">
+                <p className="text-center text-[9px] md:text-[10px] text-white/25 pt-2 md:pt-3">
                   Live sandbox • Hot reload • AI assistance • GitHub integration
                 </p>
               </div>
@@ -2833,7 +2880,219 @@ ANTHROPIC_API_KEY=your_key_here`}
 
   return (
     <div className="fixed top-16 left-0 md:left-64 right-0 bottom-0 flex flex-col overflow-hidden bg-[#0A0A0A] z-10">
-      <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-white/10 bg-black/40">
+      {/* MOBILE/TABLET TOOLBAR - visible up to xl (1280px) to include iPad Pro */}
+      <div className="flex-shrink-0 flex xl:hidden items-center justify-between px-2 py-2 border-b border-white/10 bg-black/40">
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <Link
+            href={backLink}
+            className="p-1.5 hover:bg-white/10 rounded-md transition-colors flex-shrink-0"
+          >
+            <ArrowLeft className="h-4 w-4 text-white/60" />
+          </Link>
+          <div className="flex items-center gap-1.5 min-w-0 flex-1">
+            <Sparkles className="h-3.5 w-3.5 text-cyan-400 flex-shrink-0" />
+            <span
+              className="text-xs text-white truncate"
+              style={{ fontFamily: "var(--font-roboto-mono)" }}
+            >
+              {appData?.name || appName}
+            </span>
+          </div>
+        </div>
+
+        {/* Mobile Panel Toggle */}
+        <div className="flex items-center gap-1 mx-2">
+          <button
+            onClick={() => setMobilePanel("chat")}
+            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              mobilePanel === "chat"
+                ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/30"
+                : "text-white/50 hover:text-white/70 hover:bg-white/5"
+            }`}
+          >
+            <MessageSquare className="h-3.5 w-3.5" />
+            Chat
+          </button>
+          <button
+            onClick={() => setMobilePanel("preview")}
+            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              mobilePanel === "preview"
+                ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/30"
+                : "text-white/50 hover:text-white/70 hover:bg-white/5"
+            }`}
+          >
+            <Monitor className="h-3.5 w-3.5" />
+            Preview
+          </button>
+        </div>
+
+        {/* Mobile Actions Dropdown */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button className="p-1.5 hover:bg-white/10 rounded-md transition-colors flex-shrink-0">
+              <MoreVertical className="h-5 w-5 text-white/60" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56 bg-[#1a1a1a] border-white/10">
+            {/* Timer & Session */}
+            {timeRemaining && (
+              <>
+                <div className="px-2 py-1.5 flex items-center gap-2">
+                  <Timer className={`h-3.5 w-3.5 ${
+                    timeRemaining === "Expired"
+                      ? "text-red-400"
+                      : parseInt(timeRemaining.split(":")[0] || "30") <= 5
+                        ? "text-yellow-400"
+                        : "text-white/60"
+                  }`} />
+                  <span className={`text-xs font-mono ${
+                    timeRemaining === "Expired"
+                      ? "text-red-400"
+                      : parseInt(timeRemaining.split(":")[0] || "30") <= 5
+                        ? "text-yellow-400"
+                        : "text-white/60"
+                  }`}>
+                    {timeRemaining} remaining
+                  </span>
+                </div>
+                <DropdownMenuSeparator className="bg-white/10" />
+              </>
+            )}
+
+            {/* Session Actions */}
+            {status === "timeout" && snapshotInfo?.canRestore ? (
+              <DropdownMenuItem
+                onClick={restoreSession}
+                disabled={isRestoring}
+                className="text-green-400 focus:text-green-400 focus:bg-green-500/10"
+              >
+                {isRestoring ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4" />
+                )}
+                Restore Session
+              </DropdownMenuItem>
+            ) : status !== "timeout" && (
+              <DropdownMenuItem
+                onClick={extendSession}
+                disabled={isExtending || status !== "ready"}
+                className="text-cyan-400 focus:text-cyan-400 focus:bg-cyan-500/10"
+              >
+                {isExtending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Plus className="h-4 w-4" />
+                )}
+                Extend +15 minutes
+              </DropdownMenuItem>
+            )}
+
+            {/* GitHub Actions */}
+            {(status === "ready" || status === "recovering") && appData?.github_repo && (
+              <>
+                <DropdownMenuSeparator className="bg-white/10" />
+                <DropdownMenuItem
+                  onClick={saveToGitHub}
+                  disabled={isSaving || !gitStatus?.hasChanges || status === "recovering"}
+                  className={gitStatus?.hasChanges ? "text-green-400 focus:text-green-400 focus:bg-green-500/10" : ""}
+                >
+                  {isSaving ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Save className="h-4 w-4" />
+                  )}
+                  {isSaving ? "Saving..." : gitStatus?.hasChanges ? "Save to GitHub" : "Saved"}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={deployToProduction}
+                  disabled={isDeploying || status === "recovering"}
+                  className="text-[#FF5800] focus:text-[#FF5800] focus:bg-[#FF5800]/10"
+                >
+                  {isDeploying ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Rocket className="h-4 w-4" />
+                  )}
+                  {isDeploying ? "Deploying..." : "Deploy"}
+                </DropdownMenuItem>
+                {productionUrl && (
+                  <DropdownMenuItem asChild>
+                    <a
+                      href={productionUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-cyan-400 focus:text-cyan-400"
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                      View Live Site
+                    </a>
+                  </DropdownMenuItem>
+                )}
+              </>
+            )}
+
+            {/* GitHub Repo Link */}
+            {appData?.github_repo && (
+              <DropdownMenuItem asChild>
+                <a
+                  href={`https://github.com/${appData.github_repo}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-white/70"
+                >
+                  <GitBranch className="h-4 w-4" />
+                  View on GitHub
+                </a>
+              </DropdownMenuItem>
+            )}
+
+            <DropdownMenuSeparator className="bg-white/10" />
+
+            {/* Sandbox Actions */}
+            {session?.sandboxUrl && (
+              <>
+                <DropdownMenuItem onClick={copySandboxUrl}>
+                  {copied ? (
+                    <Check className="h-4 w-4 text-green-400" />
+                  ) : (
+                    <Copy className="h-4 w-4" />
+                  )}
+                  {copied ? "Copied!" : "Copy Preview URL"}
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <a
+                    href={session.sandboxUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                    Open in New Tab
+                  </a>
+                </DropdownMenuItem>
+              </>
+            )}
+
+            {/* Stop Session */}
+            {(status === "ready" || status === "recovering") && (
+              <>
+                <DropdownMenuSeparator className="bg-white/10" />
+                <DropdownMenuItem
+                  onClick={stopSession}
+                  disabled={status === "recovering"}
+                  className="text-red-400 focus:text-red-400 focus:bg-red-500/10"
+                >
+                  <Square className="h-4 w-4" />
+                  Stop Session
+                </DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
+      {/* DESKTOP TOOLBAR - visible from xl (1280px) and up */}
+      <div className="flex-shrink-0 hidden xl:flex items-center justify-between px-4 py-3 border-b border-white/10 bg-black/40">
         <div className="flex items-center gap-4">
           <Link
             href={backLink}
@@ -2879,7 +3138,6 @@ ANTHROPIC_API_KEY=your_key_here`}
             >
               <GitBranch className="h-3 w-3" />
               <span
-                className="hidden sm:inline"
                 style={{ fontFamily: "var(--font-roboto-mono)" }}
               >
                 {appData.github_repo.split("/").pop()}
@@ -2892,7 +3150,7 @@ ANTHROPIC_API_KEY=your_key_here`}
               title="GitHub not configured"
             >
               <CloudOff className="h-3 w-3" />
-              <span className="hidden sm:inline">No GitHub</span>
+              <span>No GitHub</span>
             </div>
           ) : null}
         </div>
@@ -2979,7 +3237,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                 ) : (
                   <Save className="h-3 w-3" />
                 )}
-                <span className="ml-1 hidden sm:inline">
+                <span className="ml-1">
                   {isSaving
                     ? "Saving..."
                     : gitStatus?.hasChanges
@@ -3007,7 +3265,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                 ) : (
                   <Rocket className="h-3 w-3" />
                 )}
-                <span className="ml-1 hidden sm:inline">
+                <span className="ml-1">
                   {isDeploying ? "Deploying..." : "Deploy"}
                 </span>
               </Button>
@@ -3021,7 +3279,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                   title={`View live at ${productionUrl}`}
                 >
                   <ExternalLink className="h-3 w-3" />
-                  <span className="hidden sm:inline">Live</span>
+                  <span>Live</span>
                 </a>
               )}
               <div className="w-px h-4 bg-white/10" />
@@ -3077,13 +3335,13 @@ ANTHROPIC_API_KEY=your_key_here`}
 
       {/* Auto-recovery indicator - non-blocking banner */}
       {status === "recovering" && !isRestoring && (
-        <div className="absolute top-[57px] left-0 right-0 z-20 bg-gradient-to-r from-cyan-500/20 via-violet-500/20 to-cyan-500/20 border-b border-cyan-500/30">
-          <div className="flex items-center justify-center gap-3 px-4 py-2">
-            <Loader2 className="h-4 w-4 animate-spin text-cyan-400" />
-            <span className="text-sm text-white/80">
-              Reconnecting to sandbox...
+        <div className="absolute top-[49px] xl:top-[57px] left-0 right-0 z-20 bg-gradient-to-r from-cyan-500/20 via-violet-500/20 to-cyan-500/20 border-b border-cyan-500/30">
+          <div className="flex items-center justify-center gap-2 xl:gap-3 px-3 xl:px-4 py-1.5 xl:py-2">
+            <Loader2 className="h-3.5 w-3.5 xl:h-4 xl:w-4 animate-spin text-cyan-400 flex-shrink-0" />
+            <span className="text-xs xl:text-sm text-white/80">
+              Reconnecting...
             </span>
-            <span className="text-xs text-white/50">
+            <span className="text-[10px] xl:text-xs text-white/50 hidden sm:inline">
               This happens automatically
             </span>
           </div>
@@ -3092,23 +3350,23 @@ ANTHROPIC_API_KEY=your_key_here`}
 
       {/* Full overlay only for timeout/manual restore - not for auto-recovery */}
       {(status === "timeout" || isRestoring) && (
-        <div className="absolute inset-0 top-[57px] bg-black/80 backdrop-blur-sm z-20 flex items-center justify-center">
-          <BrandCard className="max-w-md mx-4">
+        <div className="absolute inset-0 top-[49px] xl:top-[57px] bg-black/80 backdrop-blur-sm z-20 flex items-center justify-center p-4">
+          <BrandCard className="max-w-md w-full">
             <CornerBrackets className="opacity-20" />
-            <div className="relative z-10 text-center space-y-4">
+            <div className="relative z-10 text-center space-y-3 xl:space-y-4 p-4 xl:p-6">
               <div
-                className={`w-16 h-16 rounded-full ${isRestoring ? "bg-green-500/10 border-green-500/20" : "bg-red-500/10 border-red-500/20"} border flex items-center justify-center mx-auto`}
+                className={`w-12 h-12 xl:w-16 xl:h-16 rounded-full ${isRestoring ? "bg-green-500/10 border-green-500/20" : "bg-red-500/10 border-red-500/20"} border flex items-center justify-center mx-auto`}
               >
                 {isRestoring ? (
-                  <Loader2 className="h-8 w-8 text-green-400 animate-spin" />
+                  <Loader2 className="h-6 w-6 xl:h-8 xl:w-8 text-green-400 animate-spin" />
                 ) : (
-                  <Timer className="h-8 w-8 text-red-400" />
+                  <Timer className="h-6 w-6 xl:h-8 xl:w-8 text-red-400" />
                 )}
               </div>
-              <h2 className="text-xl font-semibold text-white">
+              <h2 className="text-lg xl:text-xl font-semibold text-white">
                 {isRestoring ? "Restoring Session" : "Session Expired"}
               </h2>
-              <p className="text-sm text-white/60">
+              <p className="text-xs xl:text-sm text-white/60">
                 {isRestoring
                   ? "Setting up your development environment and restoring your files..."
                   : "Your sandbox session has timed out after 30 minutes of inactivity."}
@@ -3230,12 +3488,19 @@ ANTHROPIC_API_KEY=your_key_here`}
       )}
 
       <div className="flex-1 flex overflow-hidden">
+        {/* CHAT PANEL - visible on desktop (w-1/2), toggled on mobile/tablet */}
         <div
-          className={`flex flex-col border-r border-white/[0.04] bg-[#0a0a0b] transition-all overflow-hidden ${isFullscreen ? "w-0" : "w-1/2"}`}
+          className={`flex flex-col border-r border-white/[0.04] bg-[#0a0a0b] transition-all overflow-hidden ${
+            isFullscreen 
+              ? "w-0 hidden" 
+              : mobilePanel === "chat" 
+                ? "w-full xl:w-1/2" 
+                : "hidden xl:flex xl:w-1/2"
+          }`}
         >
           <div
             ref={messagesContainerRef}
-            className="flex-1 overflow-y-auto p-5 space-y-4"
+            className="flex-1 overflow-y-auto p-3 xl:p-5 space-y-3 xl:space-y-4"
           >
             {messages.map((msg, i) => (
               <ChatMessage
@@ -3254,10 +3519,107 @@ ANTHROPIC_API_KEY=your_key_here`}
           <ChatInput onSendPrompt={sendPrompt} status={status} />
         </div>
 
+        {/* PREVIEW PANEL - visible on desktop (flex-1), toggled on mobile/tablet */}
         <div
-          className={`flex-1 flex flex-col overflow-hidden ${isFullscreen ? "w-full" : ""}`}
+          className={`flex-1 flex flex-col overflow-hidden ${
+            isFullscreen 
+              ? "w-full" 
+              : mobilePanel === "preview" 
+                ? "w-full xl:flex" 
+                : "hidden xl:flex"
+          }`}
         >
-          <div className="flex-shrink-0 flex items-center gap-2 px-3 py-2 border-b border-white/10 bg-black/20">
+          {/* Mobile/Tablet Preview Tabs */}
+          <div className="flex-shrink-0 flex xl:hidden items-center gap-1.5 px-2 py-2 border-b border-white/10 bg-black/20 overflow-x-auto">
+            <div className="flex bg-white/5 rounded-md p-0.5 flex-shrink-0">
+              <button
+                onClick={() => setPreviewTab("preview")}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors whitespace-nowrap ${
+                  previewTab === "preview"
+                    ? "bg-white/10 text-white"
+                    : "text-white/50 hover:text-white/70"
+                }`}
+              >
+                <Monitor className="h-3.5 w-3.5" />
+                Preview
+              </button>
+              <button
+                onClick={() => setPreviewTab("console")}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors whitespace-nowrap ${
+                  previewTab === "console"
+                    ? "bg-white/10 text-white"
+                    : "text-white/50 hover:text-white/70"
+                }`}
+              >
+                <Terminal className="h-3.5 w-3.5" />
+                Console
+                {consoleLogs.length > 0 && (
+                  <span className="px-1.5 py-0.5 bg-[#FF5800]/20 text-[#FF5800] rounded-full text-[10px] min-w-[18px] text-center">
+                    {consoleLogs.length > 99 ? "99+" : consoleLogs.length}
+                  </span>
+                )}
+              </button>
+              <button
+                onClick={() => setPreviewTab("files")}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors whitespace-nowrap ${
+                  previewTab === "files"
+                    ? "bg-white/10 text-white"
+                    : "text-white/50 hover:text-white/70"
+                }`}
+              >
+                <FolderCode className="h-3.5 w-3.5" />
+                Files
+              </button>
+              <button
+                onClick={() => setPreviewTab("history")}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors whitespace-nowrap ${
+                  previewTab === "history"
+                    ? "bg-white/10 text-white"
+                    : "text-white/50 hover:text-white/70"
+                }`}
+              >
+                <History className="h-3.5 w-3.5" />
+                History
+                {commitHistory.length > 0 && (
+                  <span className="px-1.5 py-0.5 bg-cyan-500/20 text-cyan-400 rounded-full text-[10px] min-w-[18px] text-center">
+                    {commitHistory.length > 99 ? "99+" : commitHistory.length}
+                  </span>
+                )}
+              </button>
+            </div>
+            {/* Mobile/Tablet action buttons */}
+            <div className="flex items-center gap-1 ml-auto flex-shrink-0">
+              {previewTab === "console" && consoleLogs.length > 0 && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  onClick={() => setConsoleLogs([])}
+                  title="Clear console"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </Button>
+              )}
+              {previewTab === "preview" && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  onClick={() => {
+                    if (iframeRef.current && session) {
+                      iframeRef.current.src = session.sandboxUrl;
+                    }
+                  }}
+                  title="Refresh preview"
+                >
+                  <RefreshCw className="h-3.5 w-3.5" />
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {/* Desktop Preview Tabs */}
+          <div className="flex-shrink-0 hidden xl:flex items-center gap-2 px-3 py-2 border-b border-white/10 bg-black/20">
             <div className="flex bg-white/5 rounded-md p-0.5">
               <button
                 onClick={() => setPreviewTab("preview")}
