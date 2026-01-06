@@ -2568,11 +2568,11 @@ ANTHROPIC_API_KEY=your_key_here`}
 
       <div className="flex-1 flex overflow-hidden">
         <div
-          className={`flex flex-col border-r border-white/10 bg-black/20 transition-all overflow-hidden ${isFullscreen ? "w-0" : "w-1/2"}`}
+          className={`flex flex-col border-r border-white/[0.06] bg-black/30 transition-all overflow-hidden ${isFullscreen ? "w-0" : "w-1/2"}`}
         >
           <div
             ref={messagesContainerRef}
-            className="flex-1 overflow-y-auto p-4 space-y-4"
+            className="flex-1 overflow-y-auto p-6 space-y-5"
           >
             {messages.map((msg, i) => {
               const isProcessing = !!(msg as Message & { _thinkingId?: number })
@@ -2589,174 +2589,175 @@ ANTHROPIC_API_KEY=your_key_here`}
               return (
                 <div
                   key={i}
-                  className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} w-full`}
+                  className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} w-full group/message`}
                 >
                   <div
-                    className={`p-4 ${
+                    className={`${
                       msg.role === "user"
-                        ? "max-w-[75%] bg-cyan-500/20 border border-cyan-500/30"
+                        ? "max-w-[85%] py-2.5 px-4 bg-white/[0.06] border border-white/[0.08] rounded-2xl rounded-tr-md"
                         : isProcessing
-                          ? "w-full bg-purple-500/10 border border-purple-500/30"
-                          : "w-full bg-white/5 border border-white/10"
+                          ? "max-w-[90%] py-3 px-4 bg-gradient-to-br from-violet-500/[0.06] to-transparent border border-violet-400/[0.12] rounded-2xl rounded-tl-md"
+                          : "max-w-[90%] py-3 px-4 bg-white/[0.015] border border-white/[0.05] rounded-2xl rounded-tl-md"
                     }`}
                   >
-                    <div className="flex items-center justify-between mb-2 pb-2 border-b border-white/10">
+                    <div className="flex items-center justify-between mb-1.5">
                       <div className="flex items-center gap-2">
                         {isProcessing && (
-                          <Loader2 className="h-3 w-3 animate-spin text-purple-400" />
+                          <Loader2 className="h-3 w-3 animate-spin text-violet-400" />
                         )}
                         <span
-                          className={`text-xs font-medium ${
+                          className={`text-[11px] ${
                             msg.role === "user"
-                              ? "text-cyan-400"
+                              ? "text-white/50"
                               : isProcessing
-                                ? "text-purple-400"
-                                : "text-white/50"
+                                ? "text-violet-300/70"
+                                : "text-white/35"
                           }`}
                         >
                           {msg.role === "user"
                             ? "You"
                             : isProcessing
-                              ? "Processing"
+                              ? "Building"
                               : "Assistant"}
                         </span>
                       </div>
-                      <span className="text-xs text-white/30 font-mono">
+                      <span className="text-[10px] text-white/20 font-mono opacity-0 group-hover/message:opacity-100 transition-opacity">
                         {msgTime}
                       </span>
                     </div>
-                    <ReactMarkdown
-                      remarkPlugins={[remarkGfm]}
-                      components={{
-                        h1: ({ children }) => (
-                          <h1 className="text-xl font-bold text-white mb-3 pb-2 border-b border-white/10">
-                            {children}
-                          </h1>
-                        ),
-                        h2: ({ children }) => (
-                          <h2 className="text-lg font-semibold text-white mt-4 mb-2 flex items-center gap-2">
-                            {children}
-                          </h2>
-                        ),
-                        h3: ({ children }) => (
-                          <h3 className="text-base font-medium text-cyan-300 mt-3 mb-1">
-                            {children}
-                          </h3>
-                        ),
-                        p: ({ children }) => (
-                          <p className="text-sm text-white/80 mb-2 leading-relaxed">
-                            {children}
-                          </p>
-                        ),
-                        ul: ({ children }) => (
-                          <ul className="space-y-1 mb-3 ml-1">{children}</ul>
-                        ),
-                        ol: ({ children }) => (
-                          <ol className="space-y-1 mb-3 ml-1 list-decimal list-inside">
-                            {children}
-                          </ol>
-                        ),
-                        li: ({ children }) => (
-                          <li className="text-sm text-white/70 flex items-start gap-2">
-                            <span className="text-cyan-400 mt-1.5">-</span>
-                            <span>{children}</span>
-                          </li>
-                        ),
-                        code: ({ className, children }) => {
-                          const isInline = !className;
-                          if (isInline) {
+                    <div className="text-[14px] leading-[1.7] text-white/80">
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                          h1: ({ children }) => (
+                            <h1 className="text-base font-medium text-white/95 mb-2 mt-4 first:mt-0">
+                              {children}
+                            </h1>
+                          ),
+                          h2: ({ children }) => (
+                            <h2 className="text-[15px] font-medium text-white/90 mt-3 mb-1.5">
+                              {children}
+                            </h2>
+                          ),
+                          h3: ({ children }) => (
+                            <h3 className="text-[14px] font-medium text-white/85 mt-2.5 mb-1">
+                              {children}
+                            </h3>
+                          ),
+                          p: ({ children }) => (
+                            <p className="text-[14px] text-white/75 mb-2 leading-[1.7]">
+                              {children}
+                            </p>
+                          ),
+                          ul: ({ children }) => (
+                            <ul className="my-2 ml-4 space-y-1">{children}</ul>
+                          ),
+                          ol: ({ children }) => (
+                            <ol className="my-2 ml-4 space-y-1 list-decimal">
+                              {children}
+                            </ol>
+                          ),
+                          li: ({ children }) => (
+                            <li className="text-[14px] text-white/75 pl-1 list-item">
+                              {children}
+                            </li>
+                          ),
+                          code: ({ className, children }) => {
+                            const isInline = !className;
+                            if (isInline) {
+                              return (
+                                <code className="px-1.5 py-0.5 bg-sky-500/10 text-sky-300/90 text-[13px] font-mono rounded">
+                                  {children}
+                                </code>
+                              );
+                            }
                             return (
-                              <code className="px-1.5 py-0.5 bg-white/10 border border-white/20 text-cyan-300 text-xs font-mono rounded">
+                              <code className="block p-3 bg-[#0d1117] border border-white/[0.04] text-[#e6edf3] text-[13px] font-mono rounded-lg overflow-x-auto my-2">
                                 {children}
                               </code>
                             );
-                          }
-                          return (
-                            <code className="block p-3 bg-black/40 border border-white/10 text-green-300 text-xs font-mono rounded overflow-x-auto my-2">
+                          },
+                          pre: ({ children }) => (
+                            <pre className="bg-[#0d1117] border border-white/[0.04] rounded-lg overflow-hidden my-2.5">
                               {children}
-                            </code>
-                          );
-                        },
-                        pre: ({ children }) => (
-                          <pre className="bg-black/40 border border-white/10 rounded overflow-hidden my-3">
-                            {children}
-                          </pre>
-                        ),
-                        strong: ({ children }) => (
-                          <strong className="font-semibold text-white">
-                            {children}
-                          </strong>
-                        ),
-                        em: ({ children }) => (
-                          <em className="text-white/60 italic">{children}</em>
-                        ),
-                        a: ({ href, children }) => (
-                          <a
-                            href={href}
-                            className="text-cyan-400 hover:text-cyan-300 underline"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            {children}
-                          </a>
-                        ),
-                        blockquote: ({ children }) => (
-                          <blockquote className="border-l-2 border-cyan-500/50 pl-3 my-2 text-white/60 italic">
-                            {children}
-                          </blockquote>
-                        ),
-                        hr: () => <hr className="border-white/10 my-4" />,
-                        table: ({ children }) => (
-                          <div className="overflow-x-auto my-3">
-                            <table className="w-full text-xs border-collapse">
+                            </pre>
+                          ),
+                          strong: ({ children }) => (
+                            <strong className="font-medium text-white/90">
                               {children}
-                            </table>
-                          </div>
-                        ),
-                        thead: ({ children }) => (
-                          <thead className="bg-white/5 border-b border-white/10">
-                            {children}
-                          </thead>
-                        ),
-                        tbody: ({ children }) => (
-                          <tbody className="divide-y divide-white/5">
-                            {children}
-                          </tbody>
-                        ),
-                        tr: ({ children }) => (
-                          <tr className="hover:bg-white/5 transition-colors">
-                            {children}
-                          </tr>
-                        ),
-                        th: ({ children }) => (
-                          <th className="px-3 py-2 text-left text-white/70 font-medium">
-                            {children}
-                          </th>
-                        ),
-                        td: ({ children }) => (
-                          <td className="px-3 py-2 text-white/60">
-                            {children}
-                          </td>
-                        ),
-                      }}
-                    >
-                      {msg.content}
-                    </ReactMarkdown>
+                            </strong>
+                          ),
+                          em: ({ children }) => (
+                            <em className="text-white/65 italic">{children}</em>
+                          ),
+                          a: ({ href, children }) => (
+                            <a
+                              href={href}
+                              className="text-sky-400/90 hover:text-sky-300 underline underline-offset-2 decoration-sky-400/30"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              {children}
+                            </a>
+                          ),
+                          blockquote: ({ children }) => (
+                            <blockquote className="border-l-2 border-white/20 pl-3 my-2.5 text-white/55 italic">
+                              {children}
+                            </blockquote>
+                          ),
+                          hr: () => <hr className="border-white/[0.06] my-4" />,
+                          table: ({ children }) => (
+                            <div className="overflow-x-auto my-3 rounded-lg border border-white/[0.06]">
+                              <table className="w-full text-[13px]">
+                                {children}
+                              </table>
+                            </div>
+                          ),
+                          thead: ({ children }) => (
+                            <thead className="bg-white/[0.03]">
+                              {children}
+                            </thead>
+                          ),
+                          tbody: ({ children }) => (
+                            <tbody className="divide-y divide-white/[0.04]">
+                              {children}
+                            </tbody>
+                          ),
+                          tr: ({ children }) => (
+                            <tr className="hover:bg-white/[0.02] transition-colors">
+                              {children}
+                            </tr>
+                          ),
+                          th: ({ children }) => (
+                            <th className="px-3 py-2 text-left text-white/60 font-medium text-[12px]">
+                              {children}
+                            </th>
+                          ),
+                          td: ({ children }) => (
+                            <td className="px-3 py-2 text-white/55 text-[13px]">
+                              {children}
+                            </td>
+                          ),
+                        }}
+                      >
+                        {msg.content}
+                      </ReactMarkdown>
+                    </div>
                     {i === 0 &&
                       msg.role === "assistant" &&
                       session?.examplePrompts &&
                       session.examplePrompts.length > 0 && (
-                        <div className="mt-4 pt-4 border-t border-white/10">
-                          <p className="text-xs text-white/50 mb-2">
-                            Try one of these:
+                        <div className="mt-4 pt-3 border-t border-white/[0.05]">
+                          <p className="text-[10px] text-white/35 mb-2 uppercase tracking-wider">
+                            Suggestions
                           </p>
-                          <div className="flex flex-wrap gap-2">
+                          <div className="flex flex-wrap gap-1.5">
                             {session.examplePrompts.map((prompt, idx) => (
                               <button
                                 key={idx}
                                 onClick={() => sendPrompt(prompt)}
                                 disabled={status !== "ready"}
-                                className="px-3 py-1.5 text-xs bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-left"
+                                className="px-2.5 py-1.5 text-[12px] bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.08] hover:border-white/[0.15] text-white/60 hover:text-white/80 rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed text-left"
                               >
                                 {prompt}
                               </button>
@@ -2765,15 +2766,15 @@ ANTHROPIC_API_KEY=your_key_here`}
                         </div>
                       )}
                     {msg.filesAffected && msg.filesAffected.length > 0 && (
-                      <div className="mt-3 pt-3 border-t border-white/10">
-                        <p className="text-xs text-white/50 mb-1">
-                          Files modified:
+                      <div className="mt-3 pt-2 border-t border-white/[0.04]">
+                        <p className="text-[10px] text-white/40 mb-1.5 uppercase tracking-wider font-medium">
+                          Files modified
                         </p>
                         <div className="flex flex-wrap gap-1">
                           {msg.filesAffected.map((file) => (
                             <span
                               key={file}
-                              className="px-2 py-0.5 text-[10px] bg-white/5 border border-white/10 text-white/60 font-mono"
+                              className="px-2 py-0.5 text-[10px] bg-emerald-500/10 border border-emerald-500/20 text-emerald-300/80 font-mono rounded"
                             >
                               {file}
                             </span>
@@ -2788,25 +2789,81 @@ ANTHROPIC_API_KEY=your_key_here`}
             <div ref={messagesEndRef} />
           </div>
 
-          <div className="flex-shrink-0 p-4 border-t border-white/10">
-            <div className="flex gap-2">
-              <Input
+          <div className="flex-shrink-0 p-4 border-t border-white/[0.06]">
+            {/* Visor Scanner Animation Styles */}
+            <style jsx global>{`
+              @keyframes visor-scan {
+                0% { left: -100px; }
+                100% { left: calc(100% + 100px); }
+              }
+              @keyframes visor-scan-delayed {
+                0% { left: -80px; }
+                100% { left: calc(100% + 80px); }
+              }
+            `}</style>
+            <div className="relative rounded-2xl border border-white/[0.08] bg-white/[0.02] overflow-hidden transition-colors focus-within:border-white/[0.15] focus-within:bg-white/[0.03]">
+              {/* Robot Eye Visor Scanner */}
+              {status === "generating" && (
+                <div className="absolute top-0 left-0 right-0 h-[2px] overflow-hidden pointer-events-none z-10">
+                  <div
+                    className="absolute h-full w-24 bg-gradient-to-r from-transparent via-[#FF5800] to-transparent"
+                    style={{
+                      animation: "visor-scan 4.8s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+                      boxShadow: "0 0 15px 3px rgba(255, 88, 0, 0.7)",
+                      filter: "blur(0.5px)",
+                    }}
+                  />
+                  <div
+                    className="absolute h-full w-16 bg-gradient-to-r from-transparent via-[#FF5800]/60 to-transparent"
+                    style={{
+                      animation: "visor-scan-delayed 6.2s cubic-bezier(0.3, 0.1, 0.7, 0.9) infinite 1.5s",
+                      boxShadow: "0 0 10px 2px rgba(255, 88, 0, 0.5)",
+                      filter: "blur(1px)",
+                    }}
+                  />
+                </div>
+              )}
+
+              {/* Textarea */}
+              <textarea
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) =>
-                  e.key === "Enter" && !e.shiftKey && sendPrompt()
-                }
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    if (status === "ready" && input.trim()) {
+                      sendPrompt();
+                    }
+                  }
+                }}
+                onInput={(e) => {
+                  const target = e.target as HTMLTextAreaElement;
+                  target.style.height = "52px";
+                  target.style.height = Math.min(target.scrollHeight, 150) + "px";
+                }}
+                rows={1}
                 placeholder="Describe what you want to build..."
-                className="flex-1 bg-black/40 border-white/20 text-white"
                 disabled={status !== "ready"}
+                className="w-full bg-transparent px-4 pt-3 pb-3 text-[15px] text-white placeholder:text-white/40 focus:outline-none disabled:opacity-50 resize-none leading-relaxed"
+                style={{ minHeight: "52px", maxHeight: "150px" }}
               />
-              <BrandButton
-                variant="primary"
-                onClick={() => sendPrompt()}
-                disabled={!input.trim() || status !== "ready"}
-              >
-                <Send className="h-4 w-4" />
-              </BrandButton>
+
+              {/* Bottom bar with send button */}
+              <div className="flex items-center justify-end px-2 py-2">
+                <Button
+                  type="button"
+                  onClick={() => sendPrompt()}
+                  disabled={!input.trim() || status !== "ready"}
+                  size="icon"
+                  className="h-8 w-8 rounded-lg bg-transparent hover:bg-white/[0.06] disabled:opacity-40 border-0 transition-colors"
+                >
+                  {status === "generating" ? (
+                    <Loader2 className="h-4 w-4 animate-spin text-[#FF5800]" />
+                  ) : (
+                    <Send className="h-4 w-4 text-[#FF5800]" />
+                  )}
+                </Button>
+              </div>
             </div>
           </div>
         </div>
