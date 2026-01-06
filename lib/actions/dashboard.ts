@@ -12,6 +12,7 @@ import { apiKeysService } from "@/lib/services/api-keys";
 import { characterDeploymentDiscoveryService } from "@/lib/services/deployments";
 import { roomsService } from "@/lib/services/agents/rooms";
 import { usageService } from "@/lib/services/usage";
+import { appsService } from "@/lib/services/apps";
 import { cache as cacheClient } from "@/lib/cache/client";
 import { CacheKeys, CacheStaleTTL } from "@/lib/cache/keys";
 import { cache } from "react";
@@ -67,6 +68,19 @@ export interface DashboardData {
     created_at: Date;
     error_message: string | null;
   }>;
+  apps: Array<{
+    id: string;
+    name: string;
+    description: string | null;
+    slug: string;
+    app_url: string;
+    logo_url: string | null;
+    is_active: boolean;
+    total_users: number;
+    total_requests: number;
+    last_used_at: Date | null;
+    created_at: Date;
+  }>;
 }
 
 /**
@@ -81,13 +95,14 @@ async function fetchDashboardDataInternal(
   const organizationId = user.organization_id!;
 
   // Fetch only the data needed for the new dashboard
-  const [generationStats, userCharacters, containers, apiKeys, userRooms] =
+  const [generationStats, userCharacters, containers, apiKeys, userRooms, apps] =
     await Promise.all([
       generationsService.getStats(organizationId),
       charactersService.listByUser(user.id),
       listContainers(organizationId),
       apiKeysService.listByOrganization(organizationId),
       roomsService.getRoomsForEntity(user.id),
+      appsService.listByOrganization(organizationId),
     ]);
 
   const chatRoomCount = userRooms.length;
@@ -171,6 +186,19 @@ async function fetchDashboardDataInternal(
       created_at: c.created_at,
       error_message: c.error_message,
     })),
+    apps: apps.map((a) => ({
+      id: a.id,
+      name: a.name,
+      description: a.description,
+      slug: a.slug,
+      app_url: a.app_url,
+      logo_url: a.logo_url,
+      is_active: a.is_active,
+      total_users: a.total_users,
+      total_requests: a.total_requests,
+      last_used_at: a.last_used_at,
+      created_at: a.created_at,
+    })),
   };
 }
 
@@ -196,6 +224,24 @@ export const getDashboardData = cache(async (): Promise<DashboardData> => {
   // Fallback to direct fetch if cache returns null
   if (data === null) {
     return await fetchDashboardDataInternal(user);
+  }
+
+  // Handle cached data that doesn't have apps field (migration from old cache)
+  if (!data.apps) {
+    const apps = await appsService.listByOrganization(organizationId);
+    data.apps = apps.map((a) => ({
+      id: a.id,
+      name: a.name,
+      description: a.description,
+      slug: a.slug,
+      app_url: a.app_url,
+      logo_url: a.logo_url,
+      is_active: a.is_active,
+      total_users: a.total_users,
+      total_requests: a.total_requests,
+      last_used_at: a.last_used_at,
+      created_at: a.created_at,
+    }));
   }
 
   return data;
