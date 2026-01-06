@@ -39,8 +39,13 @@ import {
   Megaphone,
   CheckCircle,
   AlertCircle,
+  Twitter,
+  Bot,
+  ExternalLink,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useEffect } from "react";
+import Link from "next/link";
 
 interface PromoteAppDialogProps {
   open: boolean;
@@ -58,7 +63,17 @@ interface PromoteAppDialogProps {
   }>;
 }
 
-type PromotionChannel = "social" | "seo" | "advertising";
+type PromotionChannel = "social" | "seo" | "advertising" | "twitter_automation";
+
+interface TwitterAutomationConfig {
+  enabled: boolean;
+  autoPost: boolean;
+  autoReply: boolean;
+  autoEngage: boolean;
+  discovery: boolean;
+  postIntervalMin: number;
+  postIntervalMax: number;
+}
 
 interface PromotionConfig {
   channels: PromotionChannel[];
@@ -79,6 +94,7 @@ interface PromotionConfig {
     objective: string;
     duration?: number;
   };
+  twitterAutomation?: TwitterAutomationConfig;
 }
 
 const SOCIAL_PLATFORMS = [
@@ -131,6 +147,19 @@ export function PromoteAppDialog({
     channels: Record<string, { success: boolean; error?: string }>;
     totalCreditsUsed: number;
   } | null>(null);
+  const [twitterStatus, setTwitterStatus] = useState<{
+    configured: boolean;
+    connected: boolean;
+    username?: string;
+  }>({ configured: false, connected: false });
+
+  // Check Twitter connection status
+  useEffect(() => {
+    fetch("/api/v1/twitter/status")
+      .then((res) => res.json())
+      .then((data) => setTwitterStatus(data))
+      .catch(() => setTwitterStatus({ configured: false, connected: false }));
+  }, []);
 
   const toggleChannel = (channel: PromotionChannel) => {
     setConfig((prev) => ({
@@ -154,33 +183,43 @@ export function PromoteAppDialog({
   };
 
   const handlePromote = useCallback(async () => {
+    if (isLoading) return;
     setIsLoading(true);
 
-    const response = await fetch(`/api/v1/apps/${app.id}/promote`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(config),
-    });
-
-    const data = await response.json();
-    setIsLoading(false);
-
-    if (response.ok) {
-      setResult({
-        success: data.errors?.length === 0,
-        channels: {
-          social: data.channels?.social,
-          seo: data.channels?.seo,
-          advertising: data.channels?.advertising,
-        },
-        totalCreditsUsed: data.totalCreditsUsed,
+    let data;
+    try {
+      const response = await fetch(`/api/v1/apps/${app.id}/promote`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(config),
       });
-      setStep("result");
-      toast.success("Promotion launched!");
-    } else {
-      toast.error(data.error || "Failed to launch promotion");
+
+      data = await response.json();
+
+      if (response.ok) {
+        setResult({
+          success: data.errors?.length === 0,
+          channels: {
+            social: data.channels?.social,
+            seo: data.channels?.seo,
+            advertising: data.channels?.advertising,
+          },
+          totalCreditsUsed: data.totalCreditsUsed,
+        });
+        setStep("result");
+        toast.success("Promotion launched!");
+        setIsLoading(false);
+        return;
+      }
+    } catch {
+      toast.error("Network error. Please check your connection and try again.");
+      setIsLoading(false);
+      return;
     }
-  }, [app.id, config]);
+
+    toast.error(data?.error || "Failed to launch promotion. Please try again.");
+    setIsLoading(false);
+  }, [app.id, config, isLoading]);
 
   const handleClose = () => {
     setStep("channels");
@@ -199,6 +238,9 @@ export function PromoteAppDialog({
     }
     if (config.channels.includes("advertising") && config.advertising) {
       cost += 0.5 + config.advertising.budget * 1.15; // Setup + budget with markup
+    }
+    if (config.channels.includes("twitter_automation")) {
+      cost += 0.1; // Setup cost for Twitter automation
     }
     return cost.toFixed(2);
   };
@@ -284,6 +326,86 @@ export function PromoteAppDialog({
               </button>
             </div>
 
+            {/* Twitter Automation - Full width section */}
+            <div className="mt-4 pt-4 border-t">
+              <button
+                onClick={() => toggleChannel("twitter_automation")}
+                disabled={!twitterStatus.connected}
+                className={`w-full p-4 rounded-lg border-2 text-left transition-all ${
+                  config.channels.includes("twitter_automation")
+                    ? "border-sky-500 bg-sky-50 dark:bg-sky-950"
+                    : "border-gray-200 dark:border-gray-700 hover:border-gray-300"
+                } ${!twitterStatus.connected ? "opacity-50 cursor-not-allowed" : ""}`}
+              >
+                <div className="flex items-start gap-4">
+                  <div className="flex-shrink-0">
+                    <div className="w-12 h-12 rounded-lg bg-sky-500/20 flex items-center justify-center">
+                      <Bot className="h-6 w-6 text-sky-500" />
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-semibold">Twitter/X Automation</h3>
+                      <Badge variant="secondary" className="text-xs">
+                        AI Agent
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Deploy an AI agent to autonomously promote your app on
+                      Twitter. Posts in your app&apos;s voice, engages with
+                      mentions, and grows your audience 24/7.
+                    </p>
+                    <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        <CheckCircle className="h-3 w-3 text-green-500" />
+                        Auto-posting
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <CheckCircle className="h-3 w-3 text-green-500" />
+                        Reply to mentions
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <CheckCircle className="h-3 w-3 text-green-500" />
+                        Engagement
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <CheckCircle className="h-3 w-3 text-green-500" />
+                        Discovery
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex-shrink-0 text-right">
+                    {!twitterStatus.configured ? (
+                      <Badge variant="outline">Not configured</Badge>
+                    ) : !twitterStatus.connected ? (
+                      <Link
+                        href="/dashboard/settings?tab=connections"
+                        onClick={(e) => e.stopPropagation()}
+                        className="inline-flex"
+                      >
+                        <Badge
+                          variant="outline"
+                          className="cursor-pointer hover:bg-sky-500/10 hover:border-sky-500/50 transition-colors"
+                        >
+                          Connect Twitter
+                          <ExternalLink className="h-3 w-3 ml-1" />
+                        </Badge>
+                      </Link>
+                    ) : (
+                      <div>
+                        <Badge variant="default" className="bg-sky-500">
+                          @{twitterStatus.username}
+                        </Badge>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Enterprise API
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </button>
+            </div>
+
             <div className="flex justify-between items-center pt-4 border-t">
               <div className="text-sm text-muted-foreground">
                 {config.channels.length === 0
@@ -312,6 +434,11 @@ export function PromoteAppDialog({
                 )}
                 {config.channels.includes("advertising") && (
                   <TabsTrigger value="advertising">Advertising</TabsTrigger>
+                )}
+                {config.channels.includes("twitter_automation") && (
+                  <TabsTrigger value="twitter_automation">
+                    Twitter Automation
+                  </TabsTrigger>
                 )}
               </TabsList>
 
@@ -553,6 +680,221 @@ export function PromoteAppDialog({
                   </div>
                 </div>
               </TabsContent>
+
+              {/* Twitter Automation Config */}
+              <TabsContent value="twitter_automation" className="space-y-4">
+                <div className="bg-sky-50 dark:bg-sky-950/50 rounded-lg p-4 mb-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Bot className="h-5 w-5 text-sky-500" />
+                    <span className="font-medium">
+                      Connected as @{twitterStatus.username}
+                    </span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Your AI agent will post and engage using this Twitter
+                    account, promoting {app.name} autonomously.
+                  </p>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="space-y-3">
+                    <Label className="text-base font-medium">
+                      Automation Features
+                    </Label>
+
+                    <label className="flex items-center gap-3 p-3 rounded-lg border cursor-pointer hover:bg-muted/50">
+                      <Checkbox
+                        checked={config.twitterAutomation?.autoPost ?? true}
+                        onCheckedChange={(checked) =>
+                          setConfig((prev) => ({
+                            ...prev,
+                            twitterAutomation: {
+                              enabled: true,
+                              autoPost: !!checked,
+                              autoReply:
+                                prev.twitterAutomation?.autoReply ?? true,
+                              autoEngage:
+                                prev.twitterAutomation?.autoEngage ?? false,
+                              discovery:
+                                prev.twitterAutomation?.discovery ?? false,
+                              postIntervalMin:
+                                prev.twitterAutomation?.postIntervalMin ?? 90,
+                              postIntervalMax:
+                                prev.twitterAutomation?.postIntervalMax ?? 150,
+                            },
+                          }))
+                        }
+                      />
+                      <div className="flex-1">
+                        <div className="font-medium">Auto-Post</div>
+                        <div className="text-sm text-muted-foreground">
+                          Generate and post tweets about your app automatically
+                        </div>
+                      </div>
+                    </label>
+
+                    <label className="flex items-center gap-3 p-3 rounded-lg border cursor-pointer hover:bg-muted/50">
+                      <Checkbox
+                        checked={config.twitterAutomation?.autoReply ?? true}
+                        onCheckedChange={(checked) =>
+                          setConfig((prev) => ({
+                            ...prev,
+                            twitterAutomation: {
+                              enabled: true,
+                              autoPost:
+                                prev.twitterAutomation?.autoPost ?? true,
+                              autoReply: !!checked,
+                              autoEngage:
+                                prev.twitterAutomation?.autoEngage ?? false,
+                              discovery:
+                                prev.twitterAutomation?.discovery ?? false,
+                              postIntervalMin:
+                                prev.twitterAutomation?.postIntervalMin ?? 90,
+                              postIntervalMax:
+                                prev.twitterAutomation?.postIntervalMax ?? 150,
+                            },
+                          }))
+                        }
+                      />
+                      <div className="flex-1">
+                        <div className="font-medium">Reply to Mentions</div>
+                        <div className="text-sm text-muted-foreground">
+                          Automatically respond to users who mention you
+                        </div>
+                      </div>
+                    </label>
+
+                    <label className="flex items-center gap-3 p-3 rounded-lg border cursor-pointer hover:bg-muted/50">
+                      <Checkbox
+                        checked={config.twitterAutomation?.autoEngage ?? false}
+                        onCheckedChange={(checked) =>
+                          setConfig((prev) => ({
+                            ...prev,
+                            twitterAutomation: {
+                              enabled: true,
+                              autoPost:
+                                prev.twitterAutomation?.autoPost ?? true,
+                              autoReply:
+                                prev.twitterAutomation?.autoReply ?? true,
+                              autoEngage: !!checked,
+                              discovery:
+                                prev.twitterAutomation?.discovery ?? false,
+                              postIntervalMin:
+                                prev.twitterAutomation?.postIntervalMin ?? 90,
+                              postIntervalMax:
+                                prev.twitterAutomation?.postIntervalMax ?? 150,
+                            },
+                          }))
+                        }
+                      />
+                      <div className="flex-1">
+                        <div className="font-medium">Timeline Engagement</div>
+                        <div className="text-sm text-muted-foreground">
+                          Like, retweet, and quote relevant tweets
+                        </div>
+                      </div>
+                    </label>
+
+                    <label className="flex items-center gap-3 p-3 rounded-lg border cursor-pointer hover:bg-muted/50">
+                      <Checkbox
+                        checked={config.twitterAutomation?.discovery ?? false}
+                        onCheckedChange={(checked) =>
+                          setConfig((prev) => ({
+                            ...prev,
+                            twitterAutomation: {
+                              enabled: true,
+                              autoPost:
+                                prev.twitterAutomation?.autoPost ?? true,
+                              autoReply:
+                                prev.twitterAutomation?.autoReply ?? true,
+                              autoEngage:
+                                prev.twitterAutomation?.autoEngage ?? false,
+                              discovery: !!checked,
+                              postIntervalMin:
+                                prev.twitterAutomation?.postIntervalMin ?? 90,
+                              postIntervalMax:
+                                prev.twitterAutomation?.postIntervalMax ?? 150,
+                            },
+                          }))
+                        }
+                      />
+                      <div className="flex-1">
+                        <div className="font-medium">Discovery Mode</div>
+                        <div className="text-sm text-muted-foreground">
+                          Find and follow relevant accounts to grow audience
+                        </div>
+                      </div>
+                    </label>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 pt-4 border-t">
+                    <div>
+                      <Label htmlFor="postIntervalMin">
+                        Min Post Interval (minutes)
+                      </Label>
+                      <Input
+                        id="postIntervalMin"
+                        type="number"
+                        min={30}
+                        max={1440}
+                        value={config.twitterAutomation?.postIntervalMin ?? 90}
+                        onChange={(e) =>
+                          setConfig((prev) => ({
+                            ...prev,
+                            twitterAutomation: {
+                              ...prev.twitterAutomation!,
+                              enabled: true,
+                              autoPost:
+                                prev.twitterAutomation?.autoPost ?? true,
+                              autoReply:
+                                prev.twitterAutomation?.autoReply ?? true,
+                              autoEngage:
+                                prev.twitterAutomation?.autoEngage ?? false,
+                              discovery:
+                                prev.twitterAutomation?.discovery ?? false,
+                              postIntervalMin: parseInt(e.target.value) || 90,
+                              postIntervalMax:
+                                prev.twitterAutomation?.postIntervalMax ?? 150,
+                            },
+                          }))
+                        }
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="postIntervalMax">
+                        Max Post Interval (minutes)
+                      </Label>
+                      <Input
+                        id="postIntervalMax"
+                        type="number"
+                        min={60}
+                        max={1440}
+                        value={config.twitterAutomation?.postIntervalMax ?? 150}
+                        onChange={(e) =>
+                          setConfig((prev) => ({
+                            ...prev,
+                            twitterAutomation: {
+                              ...prev.twitterAutomation!,
+                              enabled: true,
+                              autoPost:
+                                prev.twitterAutomation?.autoPost ?? true,
+                              autoReply:
+                                prev.twitterAutomation?.autoReply ?? true,
+                              autoEngage:
+                                prev.twitterAutomation?.autoEngage ?? false,
+                              discovery:
+                                prev.twitterAutomation?.discovery ?? false,
+                              postIntervalMin:
+                                prev.twitterAutomation?.postIntervalMin ?? 90,
+                              postIntervalMax: parseInt(e.target.value) || 150,
+                            },
+                          }))
+                        }
+                      />
+                    </div>
+                  </div>
+                </div>
+              </TabsContent>
             </Tabs>
 
             <div className="flex justify-between items-center pt-4 border-t">
@@ -601,6 +943,18 @@ export function PromoteAppDialog({
                     <span>
                       Ad Campaign: ${config.advertising?.budget}{" "}
                       {config.advertising?.budgetType}
+                    </span>
+                  </div>
+                )}
+                {config.channels.includes("twitter_automation") && (
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-green-500" />
+                    <span>
+                      Twitter Automation: @{twitterStatus.username}
+                      {config.twitterAutomation?.autoPost && " • Auto-post"}
+                      {config.twitterAutomation?.autoReply && " • Replies"}
+                      {config.twitterAutomation?.autoEngage && " • Engagement"}
+                      {config.twitterAutomation?.discovery && " • Discovery"}
                     </span>
                   </div>
                 )}

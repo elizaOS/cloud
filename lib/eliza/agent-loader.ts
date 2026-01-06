@@ -3,7 +3,10 @@ import { elizaOSCloudPlugin } from "@elizaos/plugin-elizacloud";
 import { memoryPlugin } from "@elizaos/plugin-memory";
 import { elevenLabsPlugin } from "@elizaos/plugin-elevenlabs";
 import mcpPlugin from "@elizaos/plugin-mcp";
+import { TwitterPlugin } from "@elizaos/plugin-twitter";
 import { assistantPlugin } from "./plugin-assistant";
+import { twitterAutomationService } from "@/lib/services/twitter-automation";
+import type { TwitterSettings } from "./agent-mode-types";
 import { affiliatePlugin } from "./plugin-affiliate";
 import { chatPlaygroundPlugin } from "./plugin-chat-playground";
 import { characterBuilderPlugin } from "./plugin-character-builder";
@@ -201,6 +204,7 @@ const AVAILABLE_PLUGINS: Record<string, Plugin> = {
   "@elizaos/plugin-elevenlabs": asPlugin(elevenLabsPlugin),
   "@elizaos/plugin-memory": asPlugin(memoryPlugin),
   "@elizaos/plugin-mcp": asPlugin(mcpPlugin),
+  "@elizaos/plugin-twitter": asPlugin(TwitterPlugin),
   // Local plugins don't need casting - they use the same @elizaos/core
   "@eliza-cloud/plugin-assistant": assistantPlugin,
   "@eliza-cloud/plugin-affiliate": affiliatePlugin,
@@ -227,7 +231,6 @@ export class AgentLoader {
     }
 
     const elizaCharacter = charactersService.toElizaCharacter(dbCharacter);
-    const character = this.buildCharacter(elizaCharacter);
     const characterSettings = (elizaCharacter.settings ?? {}) as Record<
       string,
       unknown
@@ -238,6 +241,13 @@ export class AgentLoader {
     if (options?.webSearchEnabled) {
       characterSettings.webSearch = { enabled: true };
     }
+
+    // Build character with potential Twitter credentials injection
+    const character = await this.buildCharacter(
+      elizaCharacter,
+      dbCharacter.organization_id,
+      characterSettings,
+    );
 
     // Resolve effective mode based on character capabilities
     // NOTE: modeResolution includes documentCount to avoid duplicate DB query
@@ -283,7 +293,11 @@ export class AgentLoader {
   }
 
   /** Build Character with merged settings (env + character config) */
-  private buildCharacter(elizaCharacter: ElizaCharacter): Character {
+  private async buildCharacter(
+    elizaCharacter: ElizaCharacter,
+    organizationId: string,
+    characterSettings: Record<string, unknown>,
+  ): Promise<Character> {
     const characterId =
       elizaCharacter.id || "b850bc30-45f8-0041-a00a-83df46d8555d";
     const charSettings = (elizaCharacter.settings || {}) as Record<
@@ -305,6 +319,40 @@ export class AgentLoader {
         ? { avatarUrl: elizaCharacter.avatarUrl || elizaCharacter.avatar_url }
         : {}),
     };
+
+    // Inject Twitter credentials if Twitter automation is enabled
+    const twitterSettings = characterSettings.twitter as
+      | TwitterSettings
+      | undefined;
+    if (twitterSettings?.enabled) {
+      const twitterCreds =
+        await twitterAutomationService.getCredentialsForAgent(organizationId);
+      if (twitterCreds) {
+        // Inject API credentials
+        settings.TWITTER_API_KEY = twitterCreds.TWITTER_API_KEY;
+        settings.TWITTER_API_SECRET_KEY = twitterCreds.TWITTER_API_SECRET_KEY;
+        settings.TWITTER_ACCESS_TOKEN = twitterCreds.TWITTER_ACCESS_TOKEN;
+        settings.TWITTER_ACCESS_TOKEN_SECRET =
+          twitterCreds.TWITTER_ACCESS_TOKEN_SECRET;
+
+        // Map UI settings to plugin env vars
+        settings.TWITTER_ENABLE_POST = twitterSettings.autoPost ?? false;
+        settings.TWITTER_ENABLE_REPLIES = twitterSettings.autoReply ?? true;
+        settings.TWITTER_ENABLE_ACTIONS = twitterSettings.autoEngage ?? false;
+        settings.TWITTER_ENABLE_DISCOVERY = twitterSettings.discovery ?? false;
+        settings.TWITTER_DRY_RUN = twitterSettings.dryRun ?? false;
+
+        if (twitterSettings.postIntervalMin) {
+          settings.TWITTER_POST_INTERVAL_MIN = twitterSettings.postIntervalMin;
+        }
+        if (twitterSettings.postIntervalMax) {
+          settings.TWITTER_POST_INTERVAL_MAX = twitterSettings.postIntervalMax;
+        }
+        if (twitterSettings.targetUsers) {
+          settings.TWITTER_TARGET_USERS = twitterSettings.targetUsers;
+        }
+      }
+    }
 
     return {
       id: characterId as `${string}-${string}-${string}-${string}-${string}`,

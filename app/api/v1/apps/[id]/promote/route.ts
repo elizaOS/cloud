@@ -28,7 +28,7 @@ const SocialPlatformSchema = z.enum([
 ]);
 
 const PromotionConfigSchema = z.object({
-  channels: z.array(z.enum(["social", "seo", "advertising"])).min(1),
+  channels: z.array(z.enum(["social", "seo", "advertising", "twitter_automation"])).min(1),
   social: z
     .object({
       platforms: z.array(SocialPlatformSchema).min(1),
@@ -57,6 +57,19 @@ const PromotionConfigSchema = z.object({
       ]),
       duration: z.number().int().positive().max(365).optional(),
       targetLocations: z.array(z.string().length(2)).max(50).optional(),
+    })
+    .optional(),
+  twitterAutomation: z
+    .object({
+      enabled: z.boolean(),
+      autoPost: z.boolean(),
+      autoReply: z.boolean(),
+      autoEngage: z.boolean(),
+      discovery: z.boolean(),
+      postIntervalMin: z.number().int().min(30).max(1440).default(90),
+      postIntervalMax: z.number().int().min(60).max(1440).default(150),
+      vibeStyle: z.string().max(100).optional(),
+      topics: z.array(z.string().max(50)).max(10).optional(),
     })
     .optional(),
 });
@@ -113,6 +126,16 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       {
         error:
           "Advertising config required when advertising channel is selected",
+      },
+      { status: 400 },
+    );
+  }
+
+  if (config.channels.includes("twitter_automation") && !config.twitterAutomation) {
+    return NextResponse.json(
+      {
+        error:
+          "Twitter automation config required when twitter_automation channel is selected",
       },
       { status: 400 },
     );

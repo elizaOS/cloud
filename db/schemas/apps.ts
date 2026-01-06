@@ -141,6 +141,32 @@ export const apps = pgTable(
       .default({})
       .notNull(),
 
+    // Twitter Automation / Vibe Marketing
+    twitter_automation: jsonb("twitter_automation")
+      .$type<{
+        enabled: boolean;
+        autoPost: boolean;
+        autoReply: boolean;
+        autoEngage: boolean;
+        discovery: boolean;
+        postIntervalMin: number; // minutes
+        postIntervalMax: number; // minutes
+        vibeStyle?: string; // e.g., "professional", "casual", "witty"
+        topics?: string[]; // additional topics to post about
+        lastPostAt?: string; // ISO timestamp
+        totalPosts?: number;
+        agentCharacterId?: string; // the character used for automation
+      }>()
+      .default({
+        enabled: false,
+        autoPost: false,
+        autoReply: false,
+        autoEngage: false,
+        discovery: false,
+        postIntervalMin: 90,
+        postIntervalMax: 150,
+      }),
+
     // Status
     is_active: boolean("is_active").default(true).notNull(),
     is_approved: boolean("is_approved").default(true).notNull(), // For app review process

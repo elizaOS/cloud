@@ -22,8 +22,13 @@ import {
   ExternalLink,
   Loader2,
   Sparkles,
+  Link2,
+  Bot,
+  ArrowRight,
 } from "lucide-react";
 import { PromoteAppDialog } from "@/components/promotion/promote-app-dialog";
+import Link from "next/link";
+import { toast } from "sonner";
 import type { App } from "@/db/schemas";
 
 interface AppPromoteProps {
@@ -43,12 +48,22 @@ interface AdAccount {
   accountName: string;
 }
 
+interface TwitterStatus {
+  configured: boolean;
+  connected: boolean;
+  username?: string;
+}
+
 export function AppPromote({ app }: AppPromoteProps) {
   const [showPromoteDialog, setShowPromoteDialog] = useState(false);
   const [suggestions, setSuggestions] = useState<PromotionSuggestions | null>(
     null,
   );
   const [adAccounts, setAdAccounts] = useState<AdAccount[]>([]);
+  const [twitterStatus, setTwitterStatus] = useState<TwitterStatus>({
+    configured: false,
+    connected: false,
+  });
   const [isLoading, setIsLoading] = useState(true);
   const [isGeneratingAssets, setIsGeneratingAssets] = useState(false);
 
@@ -70,6 +85,13 @@ export function AppPromote({ app }: AppPromoteProps) {
         setAdAccounts(data.accounts || []);
       }
 
+      // Fetch Twitter connection status
+      const twitterRes = await fetch("/api/v1/twitter/status");
+      if (twitterRes.ok) {
+        const data = await twitterRes.json();
+        setTwitterStatus(data);
+      }
+
       setIsLoading(false);
     };
 
@@ -77,20 +99,28 @@ export function AppPromote({ app }: AppPromoteProps) {
   }, [app.id]);
 
   const handleGenerateAssets = async () => {
+    if (isGeneratingAssets) return;
     setIsGeneratingAssets(true);
 
-    const response = await fetch(`/api/v1/apps/${app.id}/promote/assets`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        includeCopy: true,
-        includeAdBanners: true,
-      }),
-    });
+    try {
+      const response = await fetch(`/api/v1/apps/${app.id}/promote/assets`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          includeCopy: true,
+          includeAdBanners: true,
+        }),
+      });
 
-    if (response.ok) {
-      // Refresh the page to show new assets
-      window.location.reload();
+      if (response.ok) {
+        window.location.reload();
+        return;
+      }
+
+      const data = await response.json().catch(() => ({}));
+      toast.error(data.error || "Failed to generate assets. Please try again.");
+    } catch {
+      toast.error("Network error. Please check your connection and try again.");
     }
 
     setIsGeneratingAssets(false);
@@ -125,6 +155,35 @@ export function AppPromote({ app }: AppPromoteProps) {
           Launch Promotion
         </Button>
       </div>
+
+      {/* Twitter Connection Banner */}
+      {!twitterStatus.connected && (
+        <BrandCard className="p-4 border-sky-500/30 bg-sky-500/5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="p-3 rounded-lg bg-sky-500/20">
+                <Bot className="h-6 w-6 text-sky-400" />
+              </div>
+              <div>
+                <h3 className="text-white font-semibold flex items-center gap-2">
+                  <Link2 className="h-4 w-4" />
+                  Connect Your Social Accounts
+                </h3>
+                <p className="text-white/60 text-sm mt-0.5">
+                  Enable AI-powered Twitter automation to promote your app 24/7
+                  with vibe marketing
+                </p>
+              </div>
+            </div>
+            <Button asChild variant="outline" className="border-sky-500/50 hover:bg-sky-500/10">
+              <Link href="/dashboard/settings?tab=connections">
+                Go to Connections
+                <ArrowRight className="h-4 w-4 ml-2" />
+              </Link>
+            </Button>
+          </div>
+        </BrandCard>
+      )}
 
       {/* Quick Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

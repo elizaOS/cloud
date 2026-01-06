@@ -9,6 +9,10 @@ import { socialMediaService } from "./social-media";
 import { advertisingService } from "./advertising";
 import { seoService } from "./seo";
 import { creditsService } from "./credits";
+import {
+  twitterAppAutomationService,
+  type TwitterAutomationConfig,
+} from "./twitter-automation/app-automation";
 import type { App } from "@/db/repositories";
 import type { SocialPlatform, PostContent } from "@/lib/types/social-media";
 import type {
@@ -17,7 +21,7 @@ import type {
   CreateCreativeInput,
 } from "./advertising/types";
 
-export type PromotionChannel = "social" | "seo" | "advertising";
+export type PromotionChannel = "social" | "seo" | "advertising" | "twitter_automation";
 
 export interface PromotionConfig {
   channels: PromotionChannel[];
@@ -39,6 +43,17 @@ export interface PromotionConfig {
     objective: "awareness" | "traffic" | "engagement" | "app_promotion";
     duration?: number;
     targetLocations?: string[];
+  };
+  twitterAutomation?: {
+    enabled: boolean;
+    autoPost: boolean;
+    autoReply: boolean;
+    autoEngage: boolean;
+    discovery: boolean;
+    postIntervalMin: number;
+    postIntervalMax: number;
+    vibeStyle?: string;
+    topics?: string[];
   };
 }
 
@@ -69,6 +84,13 @@ export interface PromotionResult {
       campaignName?: string;
       error?: string;
     };
+    twitterAutomation?: {
+      success: boolean;
+      enabled: boolean;
+      initialTweetId?: string;
+      initialTweetUrl?: string;
+      error?: string;
+    };
   };
   totalCreditsUsed: number;
   errors: string[];
@@ -97,6 +119,8 @@ const PROMOTION_COSTS = {
   socialPostBase: 0.01,
   seoBundle: 0.03,
   adCampaignSetup: 0.5,
+  twitterAutomationSetup: 0.1,
+  twitterAutomationInitialTweet: 0.02,
 } as const;
 
 class AppPromotionService {
@@ -238,6 +262,24 @@ Return ONLY valid JSON, no markdown.`;
           `Ad campaign creation failed: ${result.channels.advertising.error}`,
         );
       }
+    }
+
+    if (config.channels.includes("twitter_automation") && config.twitterAutomation) {
+      result.channels.twitterAutomation = await this.executeTwitterAutomation(
+        organizationId,
+        app,
+        config.twitterAutomation,
+      );
+      if (!result.channels.twitterAutomation.success) {
+        result.errors.push(
+          `Twitter automation failed: ${result.channels.twitterAutomation.error}`,
+        );
+      }
+      result.totalCreditsUsed +=
+        PROMOTION_COSTS.twitterAutomationSetup +
+        (result.channels.twitterAutomation.initialTweetId
+          ? PROMOTION_COSTS.twitterAutomationInitialTweet
+          : 0);
     }
 
     logger.info("[AppPromotion] Promotion complete", {
@@ -414,6 +456,71 @@ Return ONLY valid JSON, no markdown.`;
   }
 
   /**
+   * Execute Twitter/X automation setup for an app
+   * This enables the AI agent to autonomously promote the app
+   */
+  private async executeTwitterAutomation(
+    organizationId: string,
+    app: App,
+    config: NonNullable<PromotionConfig["twitterAutomation"]>,
+  ): Promise<NonNullable<PromotionResult["channels"]["twitterAutomation"]>> {
+    try {
+      // Enable automation with the provided config
+      await twitterAppAutomationService.enableAutomation(organizationId, app.id, {
+        enabled: config.enabled,
+        autoPost: config.autoPost,
+        autoReply: config.autoReply,
+        autoEngage: config.autoEngage,
+        discovery: config.discovery,
+        postIntervalMin: config.postIntervalMin,
+        postIntervalMax: config.postIntervalMax,
+        vibeStyle: config.vibeStyle,
+        topics: config.topics,
+      });
+
+      // Post an initial announcement tweet if autoPost is enabled
+      let initialTweetId: string | undefined;
+      let initialTweetUrl: string | undefined;
+
+      if (config.autoPost) {
+        const tweetResult = await twitterAppAutomationService.postAppTweet(
+          organizationId,
+          app.id,
+        );
+
+        if (tweetResult.success) {
+          initialTweetId = tweetResult.tweetId;
+          initialTweetUrl = tweetResult.tweetUrl;
+        }
+      }
+
+      logger.info("[AppPromotion] Twitter automation enabled", {
+        appId: app.id,
+        organizationId,
+        initialTweetId,
+      });
+
+      return {
+        success: true,
+        enabled: true,
+        initialTweetId,
+        initialTweetUrl,
+      };
+    } catch (error) {
+      logger.error("[AppPromotion] Twitter automation failed", {
+        appId: app.id,
+        error: extractErrorMessage(error),
+      });
+
+      return {
+        success: false,
+        enabled: false,
+        error: extractErrorMessage(error),
+      };
+    }
+  }
+
+  /**
    * Get promotion suggestions for an app
    */
   async getPromotionSuggestions(
@@ -424,6 +531,10 @@ Return ONLY valid JSON, no markdown.`;
     estimatedBudget: { min: number; max: number };
     suggestedPlatforms: SocialPlatform[];
     tips: string[];
+    twitterAutomationStatus?: {
+      connected: boolean;
+      enabled: boolean;
+    };
   }> {
     const app = await appsService.getById(appId);
     if (!app || app.organization_id !== organizationId) {
@@ -434,26 +545,53 @@ Return ONLY valid JSON, no markdown.`;
     const hasAdAccount =
       (await advertisingService.listAccounts(organizationId)).length > 0;
 
+    // Check Twitter automation status
+    let twitterAutomationStatus: { connected: boolean; enabled: boolean } | undefined;
+    try {
+      const status = await twitterAppAutomationService.getAutomationStatus(
+        organizationId,
+        appId,
+      );
+      twitterAutomationStatus = {
+        connected: status.twitterConnected,
+        enabled: status.enabled,
+      };
+    } catch {
+      twitterAutomationStatus = { connected: false, enabled: false };
+    }
+
     const recommendedChannels: PromotionChannel[] = ["social", "seo"];
     if (hasAdAccount) {
       recommendedChannels.push("advertising");
+    }
+    if (twitterAutomationStatus.connected) {
+      recommendedChannels.push("twitter_automation");
+    }
+
+    const tips = [
+      "Start with social media announcements to build initial awareness",
+      "Use SEO optimization to improve organic discoverability",
+      hasAdAccount
+        ? "Consider a small ad campaign to reach new audiences"
+        : "Connect an ad account to run paid promotions",
+      "Generate custom images to make your posts stand out",
+    ];
+
+    if (twitterAutomationStatus.connected && !twitterAutomationStatus.enabled) {
+      tips.unshift(
+        "🚀 Enable Twitter Automation for 24/7 AI-powered vibe marketing!",
+      );
     }
 
     return {
       recommendedChannels,
       estimatedBudget: {
-        min: 5, // Social + SEO
-        max: hasAdAccount ? 100 : 5, // With advertising
+        min: 5,
+        max: hasAdAccount ? 100 : 5,
       },
       suggestedPlatforms: ["twitter", "bluesky", "linkedin", "discord"],
-      tips: [
-        "Start with social media announcements to build initial awareness",
-        "Use SEO optimization to improve organic discoverability",
-        hasAdAccount
-          ? "Consider a small ad campaign to reach new audiences"
-          : "Connect an ad account to run paid promotions",
-        "Generate custom images to make your posts stand out",
-      ],
+      tips,
+      twitterAutomationStatus,
     };
   }
 

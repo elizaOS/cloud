@@ -21,6 +21,7 @@ import {
   ApisTab,
   AnalyticsTab,
   OrganizationTab,
+  ConnectionsTab,
 } from "./tabs";
 
 interface SettingsPageClientProps {
@@ -34,14 +35,15 @@ export type SettingsTab =
   | "billing"
   | "apis"
   | "analytics"
-  | "organization";
+  | "organization"
+  | "connections";
 
 export function SettingsPageClient({ user }: SettingsPageClientProps) {
   const searchParams = useSearchParams();
   const tabFromUrl = searchParams.get("tab") as SettingsTab | null;
 
   const [activeTab, setActiveTab] = useState<SettingsTab>(
-    tabFromUrl || "general",
+    tabFromUrl || "general"
   );
 
   useEffect(() => {
@@ -73,6 +75,8 @@ export function SettingsPageClient({ user }: SettingsPageClientProps) {
         return <AnalyticsTab user={user} />;
       case "organization":
         return <OrganizationTab user={user} />;
+      case "connections":
+        return <ConnectionsTab />;
       default:
         return <GeneralTab user={user} />;
     }
