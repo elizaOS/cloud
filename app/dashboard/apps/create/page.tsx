@@ -66,7 +66,9 @@ import {
   CloudOff,
   ChevronDown,
   Rocket,
+  FolderCode,
 } from "lucide-react";
+import { SandboxFileExplorer } from "@/components/sandbox/sandbox-file-explorer";
 import { toast } from "sonner";
 import { BrandCard, CornerBrackets, BrandButton } from "@/components/brand";
 import { Input } from "@/components/ui/input";
@@ -285,7 +287,7 @@ export default function AppCreatorPage() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [progressStep, setProgressStep] = useState<ProgressStep>("creating");
-  const [previewTab, setPreviewTab] = useState<"preview" | "console">(
+  const [previewTab, setPreviewTab] = useState<"preview" | "console" | "files">(
     "preview"
   );
   const [consoleLogs, setConsoleLogs] = useState<string[]>([]);
@@ -2890,6 +2892,17 @@ ANTHROPIC_API_KEY=your_key_here`}
                   </span>
                 )}
               </button>
+              <button
+                onClick={() => setPreviewTab("files")}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors ${
+                  previewTab === "files"
+                    ? "bg-white/10 text-white"
+                    : "text-white/50 hover:text-white/70"
+                }`}
+              >
+                <FolderCode className="h-3.5 w-3.5" />
+                Files
+              </button>
             </div>
             {previewTab === "console" && consoleLogs.length > 0 && (
               <Button
@@ -2934,6 +2947,17 @@ ANTHROPIC_API_KEY=your_key_here`}
                   <div className="text-center">
                     <Loader2 className="h-8 w-8 animate-spin text-cyan-400 mx-auto mb-4" />
                     <p className="text-white/60">Loading preview...</p>
+                  </div>
+                </div>
+              )
+            ) : previewTab === "files" ? (
+              session?.id ? (
+                <SandboxFileExplorer sessionId={session.id} className="h-full" />
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-center text-white/30">
+                    <FolderCode className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <p>Session not ready</p>
                   </div>
                 </div>
               )

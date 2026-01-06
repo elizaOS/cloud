@@ -529,9 +529,23 @@ async function listFilesViaSh(
   sandbox: SandboxInstance,
   dirPath: string
 ): Promise<string[]> {
+  // Exclude common non-source directories for better file listing
+  const excludes = [
+    ".git",
+    ".next",
+    "node_modules",
+    ".pnpm",
+    ".cache",
+    ".turbo",
+    "dist",
+    ".vercel",
+  ];
+  const pruneArgs = excludes.map(d => `-name "${d}" -prune`).join(" -o ");
+  const findCmd = `find ${dirPath} \\( ${pruneArgs} \\) -o -type f -print 2>/dev/null | head -200`;
+  
   const result = await sandbox.runCommand({
     cmd: "sh",
-    args: ["-c", `find ${dirPath} -type f 2>/dev/null | head -50`],
+    args: ["-c", findCmd],
   });
   return result.exitCode === 0
     ? (await result.stdout()).split("\n").filter(Boolean)
