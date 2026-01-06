@@ -57,6 +57,16 @@ interface CachedRuntime {
   characterName: string;
 }
 
+const safeClose = async (
+  closeable: { close(): Promise<void> },
+  label: string,
+  id: string,
+): Promise<void> => {
+  await closeable
+    .close()
+    .catch((e) => elizaLogger.debug(`[${label}] Close error for ${id}: ${e}`));
+};
+
 class RuntimeCache {
   private cache = new Map<string, CachedRuntime>();
   private readonly MAX_SIZE = 50; // Max cached runtimes
@@ -72,7 +82,7 @@ class RuntimeCache {
       now - entry.createdAt > this.MAX_AGE_MS ||
       now - entry.lastUsed > this.IDLE_TIMEOUT_MS
     ) {
-      await entry.runtime.close().catch(() => {});
+      await safeClose(entry.runtime, "RuntimeCache", agentId);
       this.cache.delete(agentId);
       elizaLogger.debug(`[RuntimeCache] Evicted stale runtime: ${agentId}`);
       return null;
@@ -94,7 +104,7 @@ class RuntimeCache {
       now - entry.createdAt > this.MAX_AGE_MS ||
       now - entry.lastUsed > this.IDLE_TIMEOUT_MS
     ) {
-      await entry.runtime.close().catch(() => {});
+      await safeClose(entry.runtime, "RuntimeCache", agentId);
       this.cache.delete(agentId);
       elizaLogger.debug(`[RuntimeCache] Evicted stale runtime: ${agentId}`);
       return null;
@@ -102,7 +112,7 @@ class RuntimeCache {
 
     const isHealthy = await dbPool.checkHealth(entry.agentId as UUID);
     if (!isHealthy) {
-      await entry.runtime.close().catch(() => {});
+      await safeClose(entry.runtime, "RuntimeCache", agentId);
       this.cache.delete(agentId);
       elizaLogger.debug(`[RuntimeCache] Evicted unhealthy runtime: ${agentId}`);
       return null;
@@ -138,8 +148,9 @@ class RuntimeCache {
   async delete(agentId: string): Promise<boolean> {
     const entry = this.cache.get(agentId);
     if (entry) {
-      await entry.runtime.close().catch(() => {});
+      await safeClose(entry.runtime, "RuntimeCache", agentId);
       this.cache.delete(agentId);
+      elizaLogger.info(`[RuntimeCache] Invalidated runtime: ${agentId}`);
       return true;
     }
     return false;
@@ -159,7 +170,7 @@ class RuntimeCache {
     if (oldest) {
       const entry = this.cache.get(oldest.key);
       if (entry) {
-        await entry.runtime.close().catch(() => {});
+        await safeClose(entry.runtime, "RuntimeCache", oldest.key);
       }
       this.cache.delete(oldest.key);
     }
@@ -170,9 +181,11 @@ class RuntimeCache {
   }
 
   async clear(): Promise<void> {
-    for (const [, entry] of this.cache.entries()) {
-      await entry.runtime.close().catch(() => {});
-    }
+    await Promise.all(
+      Array.from(this.cache.entries()).map(([id, entry]) =>
+        safeClose(entry.runtime, "RuntimeCache", id),
+      ),
+    );
     this.cache.clear();
   }
 }
@@ -194,9 +207,12 @@ class DbAdapterPool {
         return existingAdapter;
       }
 
-      await existingAdapter.close().catch(() => {});
+      await safeClose(existingAdapter, "DbAdapterPool", key);
       this.adapters.delete(key);
       adapterEmbeddingDimensions.delete(key);
+      elizaLogger.warn(
+        `[DbAdapterPool] Stale connection for ${agentId}, recreating`,
+      );
     }
 
     if (this.initPromises.has(key)) {
@@ -287,7 +303,7 @@ class DbAdapterPool {
   async invalidateAdapter(agentId: string): Promise<void> {
     const adapter = this.adapters.get(agentId);
     if (adapter) {
-      await adapter.close().catch(() => {});
+      await safeClose(adapter, "DbAdapterPool", agentId);
     }
     this.adapters.delete(agentId);
     adapterEmbeddingDimensions.delete(agentId);
