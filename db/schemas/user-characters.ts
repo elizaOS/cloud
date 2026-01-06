@@ -36,7 +36,9 @@ export const userCharacters = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
-    username: text("username"),
+    // Unique username for URL routing (/chat/@username) and display
+    // Validation: 3-30 chars, alphanumeric + hyphens, no consecutive/leading/trailing hyphens
+    username: text("username").unique(),
     system: text("system"),
     bio: jsonb("bio").$type<string | string[]>().notNull(),
     message_examples: jsonb("message_examples")
@@ -144,6 +146,7 @@ export const userCharacters = pgTable(
     ),
     user_idx: index("user_characters_user_idx").on(table.user_id),
     name_idx: index("user_characters_name_idx").on(table.name),
+    username_idx: index("user_characters_username_idx").on(table.username),
     category_idx: index("user_characters_category_idx").on(table.category),
     featured_idx: index("user_characters_featured_idx").on(table.featured),
     template_idx: index("user_characters_is_template_idx").on(

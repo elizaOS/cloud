@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import type { Metadata } from "next";
 import { charactersService } from "@/lib/services/characters";
 import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
 import { getCurrentUser } from "@/lib/auth";
@@ -7,6 +8,7 @@ import { migrateAnonymousSession } from "@/lib/session";
 import { ChatInterface } from "@/components/chat/chat-interface";
 import { logger } from "@/lib/utils/logger";
 import { resolveCharacterTheme } from "@/lib/config/affiliate-themes";
+import type { UserCharacter } from "@/db/schemas";
 
 interface ChatPageProps {
   params: Promise<{
@@ -17,6 +19,36 @@ interface ChatPageProps {
     session?: string;
     vibe?: string;
   }>;
+}
+
+/**
+ * Resolves a character from the URL parameter.
+ * Supports both UUID format (direct ID) and @username format.
+ *
+ * @param characterIdParam - The URL parameter (UUID or @username), already URL-decoded
+ * @returns The character if found, or null
+ */
+async function resolveCharacter(
+  characterIdParam: string,
+): Promise<UserCharacter | null> {
+  // Check if this is a username (starts with @)
+  if (characterIdParam.startsWith("@")) {
+    const username = characterIdParam.slice(1); // Remove @ prefix
+    logger.debug(`[Chat Page] Resolving character by username: @${username}`);
+
+    const character = await charactersService.getByUsername(username);
+    if (character) {
+      logger.debug(
+        `[Chat Page] Resolved @${username} to character ID: ${character.id}`,
+      );
+    }
+    return character || null;
+  }
+
+  // Otherwise, treat as UUID
+  logger.debug(`[Chat Page] Looking up character by ID: ${characterIdParam}`);
+  const character = await charactersService.getById(characterIdParam);
+  return character || null;
 }
 
 /**
@@ -34,7 +66,11 @@ interface ChatPageProps {
  * - Only "shared" knowledge items are accessible publicly
  * - Billing is charged to the user who chats (not the character owner)
  *
- * @param params - Route parameters containing the character ID.
+ * URL PATTERNS:
+ * - /chat/{uuid} - Direct character ID lookup
+ * - /chat/@{username} - Username-based lookup (e.g., /chat/@my-cool-agent)
+ *
+ * @param params - Route parameters containing the character ID or @username.
  * @param searchParams - Query parameters for source, session token, and vibe.
  * @returns Chat interface component with appropriate user context.
  */
@@ -42,16 +78,40 @@ export default async function ChatPage({
   params,
   searchParams,
 }: ChatPageProps) {
-  const { characterId } = await params;
+  const { characterId: characterIdParam } = await params;
   const { source, session: sessionId } = await searchParams;
 
-  // 1. Load character from database
-  const character = await charactersService.getById(characterId);
+  // URL-decode for @username check
+  const decodedParam = decodeURIComponent(characterIdParam);
+
+  // For @username URLs, redirect to the dashboard chat with resolved character ID
+  // This provides the full dashboard experience (sidebar, header, etc.)
+  if (decodedParam.startsWith("@")) {
+    const username = decodedParam.slice(1);
+    const character = await charactersService.getByUsername(username);
+
+    if (!character) {
+      logger.warn(`[Chat Page] Character not found by username: @${username}`);
+      notFound();
+    }
+
+    // Redirect to dashboard chat with the resolved character ID
+    logger.debug(
+      `[Chat Page] Redirecting @${username} to dashboard chat: ${character.id}`,
+    );
+    redirect(`/dashboard/chat?characterId=${character.id}`);
+  }
+
+  // 1. Resolve character from URL parameter (UUID only at this point)
+  const character = await resolveCharacter(decodedParam);
 
   if (!character) {
-    logger.warn(`[Chat Page] Character not found: ${characterId}`);
+    logger.warn(`[Chat Page] Character not found: ${decodedParam}`);
     notFound();
   }
+
+  // Use the resolved character ID for all subsequent operations
+  const characterId = character.id;
 
   // Cloud chat page only works with cloud-created agents (including affiliates)
   // Miniapp agents have their own chat interface
@@ -70,10 +130,16 @@ export default async function ChatPage({
   const isOwner = user && character.user_id === user.id;
   const isPublic = character.is_public === true;
 
+  // Initialize claimable affiliate state with defaults to ensure they're defined in all code paths
+  // These values are used for both access control (line 139) and character claiming logic (line 312)
+  let isClaimableAffiliate = false;
+  let claimCheck: { claimable: boolean; ownerId?: string } = { claimable: false };
+
   // Check if this is a claimable affiliate character (anonymous users can still access)
-  const claimCheck =
+  const claimCheckResult =
     await charactersService.isClaimableAffiliateCharacter(characterId);
-  const isClaimableAffiliate = claimCheck.claimable;
+  claimCheck = claimCheckResult;
+  isClaimableAffiliate = claimCheckResult.claimable;
 
   // Allow access if: character is public, user is owner, or it's a claimable affiliate character
   if (!isPublic && !isOwner && !isClaimableAffiliate) {
@@ -248,51 +314,47 @@ export default async function ChatPage({
   // CLAIM AFFILIATE CHARACTER
   // If this is an affiliate-created character owned by an anonymous user,
   // automatically transfer ownership to the authenticated user
-  if (user.organization_id) {
-    const claimCheck =
-      await charactersService.isClaimableAffiliateCharacter(characterId);
-
-    if (claimCheck.claimable) {
-      logger.info(
-        `[Chat Page] 🎯 Detected claimable affiliate character, initiating transfer...`,
-        {
-          characterId,
-          userId: user.id,
-          previousOwnerId: claimCheck.ownerId,
-        },
-      );
-
-      const claimResult = await charactersService.claimAffiliateCharacter(
+  // Note: We reuse the claimCheck/isClaimableAffiliate from line 137-139 to avoid duplicate database calls
+  if (user.organization_id && isClaimableAffiliate) {
+    logger.info(
+      `[Chat Page] 🎯 Detected claimable affiliate character, initiating transfer...`,
+      {
         characterId,
-        user.id,
-        user.organization_id,
-      );
+        userId: user.id,
+        previousOwnerId: claimCheck.ownerId,
+      },
+    );
 
-      if (claimResult.success) {
-        logger.info(
-          `[Chat Page] ✅ Successfully claimed affiliate character: ${characterId}`,
-        );
-        // Reload the character to get updated ownership
-        const updatedCharacter = await charactersService.getById(characterId);
-        if (updatedCharacter) {
-          return (
-            <ChatInterface
-              character={updatedCharacter}
-              user={{
-                id: user.id,
-                name: user.name || undefined,
-                email: user.email || undefined,
-              }}
-              source={source}
-              theme={theme}
-            />
-          );
-        }
-      } else {
-        logger.warn(
-          `[Chat Page] Failed to claim affiliate character: ${claimResult.message}`,
+    const claimResult = await charactersService.claimAffiliateCharacter(
+      characterId,
+      user.id,
+      user.organization_id,
+    );
+
+    if (claimResult.success) {
+      logger.info(
+        `[Chat Page] ✅ Successfully claimed affiliate character: ${characterId}`,
+      );
+      // Reload the character to get updated ownership
+      const updatedCharacter = await charactersService.getById(characterId);
+      if (updatedCharacter) {
+        return (
+          <ChatInterface
+            character={updatedCharacter}
+            user={{
+              id: user.id,
+              name: user.name || undefined,
+              email: user.email || undefined,
+            }}
+            source={source}
+            theme={theme}
+          />
         );
       }
+    } else {
+      logger.warn(
+        `[Chat Page] Failed to claim affiliate character: ${claimResult.message}`,
+      );
     }
   }
 
@@ -312,25 +374,35 @@ export default async function ChatPage({
 
 // Generate metadata for SEO with theme-aware branding
 // Only returns full metadata for public, claimable, or owner-viewed characters
+// Supports both /chat/{uuid} and /chat/@{username} URL patterns
 export async function generateMetadata({
   params,
   searchParams,
-}: ChatPageProps) {
-  const { characterId } = await params;
+}: ChatPageProps): Promise<Metadata> {
+  const { characterId: characterIdParam } = await params;
   const { source } = await searchParams;
 
-  const character = await charactersService.getById(characterId);
+  // URL-decode the parameter once at the entry point (@ gets encoded to %40)
+  const decodedParam = decodeURIComponent(characterIdParam);
+
+  // Resolve character from URL parameter (supports both UUID and @username)
+  const character = await resolveCharacter(decodedParam);
 
   if (!character) {
     return {
       title: "Character Not Found",
+      robots: {
+        index: false,
+        follow: false,
+      },
     };
   }
 
   // Check access - show full metadata if: public, claimable, or owned by current user
   const isPublic = character.is_public === true;
-  const claimCheck =
-    await charactersService.isClaimableAffiliateCharacter(characterId);
+  const claimCheck = await charactersService.isClaimableAffiliateCharacter(
+    character.id,
+  );
   const isClaimableAffiliate = claimCheck.claimable;
 
   // Check if current user is the owner (allows owners to see full metadata for their private chars)
@@ -358,12 +430,26 @@ export async function generateMetadata({
     ? character.bio.join(" ")
     : character.bio;
 
+  // For public agents with usernames, use the username URL as canonical
+  // This provides better SEO with human-readable URLs
+  const canonicalPath = character.username
+    ? `/chat/@${character.username}`
+    : `/chat/${character.id}`;
+
+  // Build the full canonical URL
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://eliza.gg";
+
   return {
     title: `Chat with ${character.name} | ${theme.branding.title}`,
     description: bioText.slice(0, 160),
+    alternates: {
+      canonical: `${baseUrl}${canonicalPath}`,
+    },
     openGraph: {
       title: `Chat with ${character.name}`,
       description: bioText.slice(0, 160),
+      url: `${baseUrl}${canonicalPath}`,
+      type: "profile",
       images: character.avatar_url ? [character.avatar_url] : ["/og-image.png"],
     },
     twitter: {
@@ -372,5 +458,9 @@ export async function generateMetadata({
       description: bioText.slice(0, 160),
       images: character.avatar_url ? [character.avatar_url] : ["/og-image.png"],
     },
+    // Only index public agents
+    robots: isPublic
+      ? { index: true, follow: true }
+      : { index: false, follow: false },
   };
 }
