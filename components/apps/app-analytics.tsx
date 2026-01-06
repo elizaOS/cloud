@@ -153,32 +153,37 @@ export function AppAnalytics({ appId }: AppAnalyticsProps) {
   const LOGS_PER_PAGE = 20;
   const AUTO_REFRESH_INTERVAL = 30000;
 
-  const fetchAnalytics = useCallback(async (showLoading = true) => {
-    if (showLoading) setIsLoading(true);
-    try {
-      const response = await fetch(
-        `/api/v1/apps/${appId}/analytics?period=${period}`,
-      );
-      const data = await response.json();
+  const fetchAnalytics = useCallback(
+    async (showLoading = true) => {
+      if (showLoading) setIsLoading(true);
+      try {
+        const response = await fetch(
+          `/api/v1/apps/${appId}/analytics?period=${period}`,
+        );
+        const data = await response.json();
 
-      if (data.success) {
-        setAnalytics(data.analytics);
-        setTotalStats(data.totalStats);
-        setLastUpdated(new Date());
+        if (data.success) {
+          setAnalytics(data.analytics);
+          setTotalStats(data.totalStats);
+          setLastUpdated(new Date());
+        }
+      } catch (error) {
+        console.error("Failed to fetch analytics:", error);
+      } finally {
+        setIsLoading(false);
       }
-    } catch (error) {
-      console.error("Failed to fetch analytics:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [appId, period]);
+    },
+    [appId, period],
+  );
 
   const fetchRequestStats = useCallback(async () => {
     setIsLoadingStats(true);
     try {
       const [statsRes, visitorsRes] = await Promise.all([
         fetch(`/api/v1/apps/${appId}/analytics/requests?view=stats`),
-        fetch(`/api/v1/apps/${appId}/analytics/requests?view=visitors&limit=10`),
+        fetch(
+          `/api/v1/apps/${appId}/analytics/requests?view=visitors&limit=10`,
+        ),
       ]);
 
       const [statsData, visitorsData] = await Promise.all([
@@ -199,24 +204,27 @@ export function AppAnalytics({ appId }: AppAnalyticsProps) {
     }
   }, [appId]);
 
-  const fetchRequestLogs = useCallback(async (page: number = 0) => {
-    setIsLoadingLogs(true);
-    try {
-      const response = await fetch(
-        `/api/v1/apps/${appId}/analytics/requests?view=logs&limit=${LOGS_PER_PAGE}&offset=${page * LOGS_PER_PAGE}`,
-      );
-      const data = await response.json();
+  const fetchRequestLogs = useCallback(
+    async (page: number = 0) => {
+      setIsLoadingLogs(true);
+      try {
+        const response = await fetch(
+          `/api/v1/apps/${appId}/analytics/requests?view=logs&limit=${LOGS_PER_PAGE}&offset=${page * LOGS_PER_PAGE}`,
+        );
+        const data = await response.json();
 
-      if (data.success) {
-        setRequestLogs(data.requests);
-        setLogsTotal(data.total);
+        if (data.success) {
+          setRequestLogs(data.requests);
+          setLogsTotal(data.total);
+        }
+      } catch (error) {
+        console.error("Failed to fetch request logs:", error);
+      } finally {
+        setIsLoadingLogs(false);
       }
-    } catch (error) {
-      console.error("Failed to fetch request logs:", error);
-    } finally {
-      setIsLoadingLogs(false);
-    }
-  }, [appId]);
+    },
+    [appId],
+  );
 
   useEffect(() => {
     fetchAnalytics();
@@ -242,7 +250,10 @@ export function AppAnalytics({ appId }: AppAnalyticsProps) {
   useEffect(() => {
     if (activeTab === "logs") {
       fetchRequestLogs(logsPage);
-      const interval = setInterval(() => fetchRequestLogs(logsPage), AUTO_REFRESH_INTERVAL);
+      const interval = setInterval(
+        () => fetchRequestLogs(logsPage),
+        AUTO_REFRESH_INTERVAL,
+      );
       return () => clearInterval(interval);
     }
   }, [activeTab, logsPage, fetchRequestLogs]);
@@ -301,7 +312,9 @@ export function AppAnalytics({ appId }: AppAnalyticsProps) {
             <div className="flex items-center gap-2">
               <Select
                 value={period}
-                onValueChange={(v: "hourly" | "daily" | "monthly") => setPeriod(v)}
+                onValueChange={(v: "hourly" | "daily" | "monthly") =>
+                  setPeriod(v)
+                }
               >
                 <SelectTrigger className="w-[140px]">
                   <SelectValue />
@@ -319,11 +332,14 @@ export function AppAnalytics({ appId }: AppAnalyticsProps) {
                 disabled={isLoading}
                 title="Refresh analytics"
               >
-                <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
+                <RefreshCw
+                  className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
+                />
               </Button>
               {lastUpdated && (
                 <span className="text-xs text-white/40 hidden sm:inline">
-                  Updated {formatDistanceToNow(lastUpdated, { addSuffix: true })}
+                  Updated{" "}
+                  {formatDistanceToNow(lastUpdated, { addSuffix: true })}
                 </span>
               )}
             </div>
@@ -370,7 +386,10 @@ export function AppAnalytics({ appId }: AppAnalyticsProps) {
                     <div>
                       <p className="text-sm text-white/60">Credits Used</p>
                       <p className="text-2xl font-bold text-white mt-1">
-                        ${parseFloat(totalStats.totalCreditsUsed || "0").toFixed(2)}
+                        $
+                        {parseFloat(totalStats.totalCreditsUsed || "0").toFixed(
+                          2,
+                        )}
                       </p>
                     </div>
                     <DollarSign className="h-8 w-8 text-green-500" />
@@ -420,7 +439,9 @@ export function AppAnalytics({ appId }: AppAnalyticsProps) {
                   </LineChart>
                 </ResponsiveContainer>
               ) : (
-                <p className="text-center text-white/60 py-12">No data available</p>
+                <p className="text-center text-white/60 py-12">
+                  No data available
+                </p>
               )}
             </div>
           </BrandCard>
@@ -428,7 +449,9 @@ export function AppAnalytics({ appId }: AppAnalyticsProps) {
           <BrandCard>
             <CornerBrackets className="opacity-20" />
             <div className="relative z-10">
-              <h3 className="text-lg font-semibold text-white mb-4">User Growth</h3>
+              <h3 className="text-lg font-semibold text-white mb-4">
+                User Growth
+              </h3>
               {chartData.length > 0 ? (
                 <ResponsiveContainer width="100%" height={300}>
                   <BarChart data={chartData}>
@@ -458,7 +481,9 @@ export function AppAnalytics({ appId }: AppAnalyticsProps) {
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
-                <p className="text-center text-white/60 py-12">No data available</p>
+                <p className="text-center text-white/60 py-12">
+                  No data available
+                </p>
               )}
             </div>
           </BrandCard>
@@ -504,7 +529,9 @@ export function AppAnalytics({ appId }: AppAnalyticsProps) {
                   </LineChart>
                 </ResponsiveContainer>
               ) : (
-                <p className="text-center text-white/60 py-12">No data available</p>
+                <p className="text-center text-white/60 py-12">
+                  No data available
+                </p>
               )}
             </div>
           </BrandCard>
@@ -533,7 +560,10 @@ export function AppAnalytics({ appId }: AppAnalyticsProps) {
                   <div className="relative z-10">
                     <p className="text-sm text-white/60">API Requests</p>
                     <p className="text-2xl font-bold text-[#FF5800] mt-1">
-                      {(requestStats.totalRequests - (requestStats.byType?.pageview || 0)).toLocaleString()}
+                      {(
+                        requestStats.totalRequests -
+                        (requestStats.byType?.pageview || 0)
+                      ).toLocaleString()}
                     </p>
                   </div>
                 </BrandCard>
@@ -592,7 +622,10 @@ export function AppAnalytics({ appId }: AppAnalyticsProps) {
                               dataKey="value"
                             >
                               {sourceData.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={entry.color} />
+                                <Cell
+                                  key={`cell-${index}`}
+                                  fill={entry.color}
+                                />
                               ))}
                             </Pie>
                             <Tooltip
@@ -607,7 +640,10 @@ export function AppAnalytics({ appId }: AppAnalyticsProps) {
                         </ResponsiveContainer>
                         <div className="space-y-2">
                           {sourceData.map((item) => (
-                            <div key={item.name} className="flex items-center gap-2">
+                            <div
+                              key={item.name}
+                              className="flex items-center gap-2"
+                            >
                               <div
                                 className="w-3 h-3 rounded-full"
                                 style={{ backgroundColor: item.color }}
@@ -620,7 +656,9 @@ export function AppAnalytics({ appId }: AppAnalyticsProps) {
                         </div>
                       </div>
                     ) : (
-                      <p className="text-center text-white/60 py-8">No data available</p>
+                      <p className="text-center text-white/60 py-8">
+                        No data available
+                      </p>
                     )}
                   </div>
                 </BrandCard>
@@ -633,38 +671,46 @@ export function AppAnalytics({ appId }: AppAnalyticsProps) {
                     </h3>
                     {Object.keys(requestStats.byType).length > 0 ? (
                       <div className="space-y-3">
-                        {Object.entries(requestStats.byType).map(([type, count]) => (
-                          <div key={type} className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <span
-                                className="inline-flex px-2 py-0.5 rounded text-xs"
-                                style={{
-                                  backgroundColor: `${TYPE_COLORS[type] || "#666"}20`,
-                                  color: TYPE_COLORS[type] || "#666",
-                                }}
-                              >
-                                {TYPE_LABELS[type] || type}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-3">
-                              <div className="w-32 h-2 bg-white/10 rounded-full overflow-hidden">
-                                <div
-                                  className="h-full rounded-full"
+                        {Object.entries(requestStats.byType).map(
+                          ([type, count]) => (
+                            <div
+                              key={type}
+                              className="flex items-center justify-between"
+                            >
+                              <div className="flex items-center gap-2">
+                                <span
+                                  className="inline-flex px-2 py-0.5 rounded text-xs"
                                   style={{
-                                    width: `${(count / requestStats.totalRequests) * 100}%`,
-                                    backgroundColor: TYPE_COLORS[type] || "#FF5800",
+                                    backgroundColor: `${TYPE_COLORS[type] || "#666"}20`,
+                                    color: TYPE_COLORS[type] || "#666",
                                   }}
-                                />
+                                >
+                                  {TYPE_LABELS[type] || type}
+                                </span>
                               </div>
-                              <span className="text-sm text-white/60 w-16 text-right">
-                                {count.toLocaleString()}
-                              </span>
+                              <div className="flex items-center gap-3">
+                                <div className="w-32 h-2 bg-white/10 rounded-full overflow-hidden">
+                                  <div
+                                    className="h-full rounded-full"
+                                    style={{
+                                      width: `${(count / requestStats.totalRequests) * 100}%`,
+                                      backgroundColor:
+                                        TYPE_COLORS[type] || "#FF5800",
+                                    }}
+                                  />
+                                </div>
+                                <span className="text-sm text-white/60 w-16 text-right">
+                                  {count.toLocaleString()}
+                                </span>
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          ),
+                        )}
                       </div>
                     ) : (
-                      <p className="text-center text-white/60 py-8">No data available</p>
+                      <p className="text-center text-white/60 py-8">
+                        No data available
+                      </p>
                     )}
                   </div>
                 </BrandCard>
@@ -678,36 +724,42 @@ export function AppAnalytics({ appId }: AppAnalyticsProps) {
                   </h3>
                   {Object.keys(requestStats.byStatus).length > 0 ? (
                     <div className="grid gap-4 md:grid-cols-3">
-                      {Object.entries(requestStats.byStatus).map(([status, count]) => (
-                        <div
-                          key={status}
-                          className="bg-white/5 rounded-lg p-4 text-center"
-                        >
-                          <p
-                            className={`text-2xl font-bold ${
-                              status === "success"
-                                ? "text-green-500"
-                                : status === "failed"
-                                  ? "text-red-500"
-                                  : "text-yellow-500"
-                            }`}
+                      {Object.entries(requestStats.byStatus).map(
+                        ([status, count]) => (
+                          <div
+                            key={status}
+                            className="bg-white/5 rounded-lg p-4 text-center"
                           >
-                            {count.toLocaleString()}
-                          </p>
-                          <p className="text-sm text-white/60 capitalize mt-1">
-                            {status.replace("_", " ")}
-                          </p>
-                        </div>
-                      ))}
+                            <p
+                              className={`text-2xl font-bold ${
+                                status === "success"
+                                  ? "text-green-500"
+                                  : status === "failed"
+                                    ? "text-red-500"
+                                    : "text-yellow-500"
+                              }`}
+                            >
+                              {count.toLocaleString()}
+                            </p>
+                            <p className="text-sm text-white/60 capitalize mt-1">
+                              {status.replace("_", " ")}
+                            </p>
+                          </div>
+                        ),
+                      )}
                     </div>
                   ) : (
-                    <p className="text-center text-white/60 py-8">No data available</p>
+                    <p className="text-center text-white/60 py-8">
+                      No data available
+                    </p>
                   )}
                 </div>
               </BrandCard>
             </>
           ) : (
-            <p className="text-center text-white/60 py-12">No request data available</p>
+            <p className="text-center text-white/60 py-12">
+              No request data available
+            </p>
           )}
         </TabsContent>
 
@@ -755,10 +807,15 @@ export function AppAnalytics({ appId }: AppAnalyticsProps) {
                     <div className="relative z-10">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-sm text-white/60">Avg Requests/IP</p>
+                          <p className="text-sm text-white/60">
+                            Avg Requests/IP
+                          </p>
                           <p className="text-2xl font-bold text-white mt-1">
                             {requestStats.uniqueIps > 0
-                              ? (requestStats.totalRequests / requestStats.uniqueIps).toFixed(1)
+                              ? (
+                                  requestStats.totalRequests /
+                                  requestStats.uniqueIps
+                                ).toFixed(1)
                               : "0"}
                           </p>
                         </div>
@@ -773,14 +830,18 @@ export function AppAnalytics({ appId }: AppAnalyticsProps) {
                 <CornerBrackets className="opacity-20" />
                 <div className="relative z-10">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-white">Top Visitors</h3>
+                    <h3 className="text-lg font-semibold text-white">
+                      Top Visitors
+                    </h3>
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => fetchRequestStats()}
                       disabled={isLoadingStats}
                     >
-                      <RefreshCw className={`h-4 w-4 ${isLoadingStats ? "animate-spin" : ""}`} />
+                      <RefreshCw
+                        className={`h-4 w-4 ${isLoadingStats ? "animate-spin" : ""}`}
+                      />
                     </Button>
                   </div>
                   {visitors.length > 0 ? (
@@ -821,9 +882,12 @@ export function AppAnalytics({ appId }: AppAnalyticsProps) {
                                 </span>
                               </td>
                               <td className="py-3 px-4 text-right text-white/60">
-                                {formatDistanceToNow(new Date(visitor.lastSeen), {
-                                  addSuffix: true,
-                                })}
+                                {formatDistanceToNow(
+                                  new Date(visitor.lastSeen),
+                                  {
+                                    addSuffix: true,
+                                  },
+                                )}
                               </td>
                             </tr>
                           ))}
@@ -831,7 +895,9 @@ export function AppAnalytics({ appId }: AppAnalyticsProps) {
                       </table>
                     </div>
                   ) : (
-                    <p className="text-center text-white/60 py-8">No visitor data available</p>
+                    <p className="text-center text-white/60 py-8">
+                      No visitor data available
+                    </p>
                   )}
                 </div>
               </BrandCard>
@@ -844,7 +910,9 @@ export function AppAnalytics({ appId }: AppAnalyticsProps) {
             <CornerBrackets className="opacity-20" />
             <div className="relative z-10">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-white">Request Logs</h3>
+                <h3 className="text-lg font-semibold text-white">
+                  Request Logs
+                </h3>
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-white/60">
                     {logsTotal.toLocaleString()} total
@@ -855,7 +923,9 @@ export function AppAnalytics({ appId }: AppAnalyticsProps) {
                     onClick={() => fetchRequestLogs(logsPage)}
                     disabled={isLoadingLogs}
                   >
-                    <RefreshCw className={`h-4 w-4 ${isLoadingLogs ? "animate-spin" : ""}`} />
+                    <RefreshCw
+                      className={`h-4 w-4 ${isLoadingLogs ? "animate-spin" : ""}`}
+                    />
                   </Button>
                 </div>
               </div>
@@ -906,10 +976,12 @@ export function AppAnalytics({ appId }: AppAnalyticsProps) {
                                 className="inline-flex px-2 py-0.5 rounded text-xs"
                                 style={{
                                   backgroundColor: `${TYPE_COLORS[log.request_type] || "#666"}20`,
-                                  color: TYPE_COLORS[log.request_type] || "#666",
+                                  color:
+                                    TYPE_COLORS[log.request_type] || "#666",
                                 }}
                               >
-                                {TYPE_LABELS[log.request_type] || log.request_type}
+                                {TYPE_LABELS[log.request_type] ||
+                                  log.request_type}
                               </span>
                             </td>
                             <td className="py-3 px-3">
@@ -936,9 +1008,14 @@ export function AppAnalytics({ appId }: AppAnalyticsProps) {
                               ) : (
                                 <span>
                                   {log.model || "N/A"}
-                                  {(log.input_tokens > 0 || log.output_tokens > 0) && (
+                                  {(log.input_tokens > 0 ||
+                                    log.output_tokens > 0) && (
                                     <span className="ml-2 text-white/40">
-                                      ({(log.input_tokens + log.output_tokens).toLocaleString()} tokens)
+                                      (
+                                      {(
+                                        log.input_tokens + log.output_tokens
+                                      ).toLocaleString()}{" "}
+                                      tokens)
                                     </span>
                                   )}
                                   {parseFloat(log.credits_used || "0") > 0 && (
@@ -983,7 +1060,9 @@ export function AppAnalytics({ appId }: AppAnalyticsProps) {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => setLogsPage(Math.min(totalPages - 1, logsPage + 1))}
+                          onClick={() =>
+                            setLogsPage(Math.min(totalPages - 1, logsPage + 1))
+                          }
                           disabled={logsPage >= totalPages - 1 || isLoadingLogs}
                         >
                           <ChevronRight className="h-4 w-4" />
@@ -994,7 +1073,8 @@ export function AppAnalytics({ appId }: AppAnalyticsProps) {
                 </>
               ) : (
                 <p className="text-center text-white/60 py-12">
-                  No request logs available yet. Logs will appear here once your app receives requests.
+                  No request logs available yet. Logs will appear here once your
+                  app receives requests.
                 </p>
               )}
             </div>

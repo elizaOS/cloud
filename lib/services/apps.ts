@@ -360,11 +360,7 @@ export class AppsService {
   /**
    * Get detailed request statistics for an app.
    */
-  async getRequestStats(
-    appId: string,
-    startDate?: Date,
-    endDate?: Date,
-  ) {
+  async getRequestStats(appId: string, startDate?: Date, endDate?: Date) {
     return appsRepository.getRequestStats(appId, startDate, endDate);
   }
 
@@ -406,7 +402,12 @@ export class AppsService {
     startDate: Date,
     endDate: Date,
   ) {
-    return appsRepository.getRequestsOverTime(appId, periodType, startDate, endDate);
+    return appsRepository.getRequestsOverTime(
+      appId,
+      periodType,
+      startDate,
+      endDate,
+    );
   }
 
   async getAppUsers(appId: string, limit?: number): Promise<AppUser[]> {

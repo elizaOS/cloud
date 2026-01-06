@@ -63,7 +63,7 @@ export class AppFactoryService {
    */
   async createApp(
     data: CreateAppInput,
-    options: CreateAppOptions = {}
+    options: CreateAppOptions = {},
   ): Promise<CreateAppResult> {
     const {
       createGitHubRepo = true,
@@ -97,7 +97,9 @@ export class AppFactoryService {
     // Step 2: Create GitHub repo if requested
     if (createGitHubRepo) {
       try {
-        const repoName = options.repoName || githubReposService.generateRepoName(app.id, app.slug);
+        const repoName =
+          options.repoName ||
+          githubReposService.generateRepoName(app.id, app.slug);
 
         logger.info("AppFactory: Creating GitHub repo", {
           appId: app.id,
@@ -126,9 +128,10 @@ export class AppFactoryService {
           githubRepo: repoInfo.fullName,
         });
       } catch (repoError) {
-        const errorMessage = repoError instanceof Error
-          ? repoError.message
-          : "Unknown error creating GitHub repo";
+        const errorMessage =
+          repoError instanceof Error
+            ? repoError.message
+            : "Unknown error creating GitHub repo";
 
         errors.push(`GitHub repo creation failed: ${errorMessage}`);
 
@@ -152,12 +155,14 @@ export class AppFactoryService {
 
         const subdomainResult = await vercelDeploymentsService.assignSubdomain(
           app.id,
-          preferredSubdomain || app.slug
+          preferredSubdomain || app.slug,
         );
 
         if (subdomainResult.success && subdomainResult.subdomain) {
           subdomain = subdomainResult.subdomain;
-          productionUrl = subdomainResult.fullDomain ? `https://${subdomainResult.fullDomain}` : undefined;
+          productionUrl = subdomainResult.fullDomain
+            ? `https://${subdomainResult.fullDomain}`
+            : undefined;
           subdomainAssigned = true;
 
           // Update app with production URL
@@ -171,16 +176,19 @@ export class AppFactoryService {
             productionUrl,
           });
         } else {
-          errors.push(`Subdomain assignment failed: ${subdomainResult.error || "Unknown error"}`);
+          errors.push(
+            `Subdomain assignment failed: ${subdomainResult.error || "Unknown error"}`,
+          );
           logger.warn("AppFactory: Failed to assign subdomain", {
             appId: app.id,
             error: subdomainResult.error,
           });
         }
       } catch (subdomainError) {
-        const errorMessage = subdomainError instanceof Error
-          ? subdomainError.message
-          : "Unknown error assigning subdomain";
+        const errorMessage =
+          subdomainError instanceof Error
+            ? subdomainError.message
+            : "Unknown error assigning subdomain";
 
         errors.push(`Subdomain assignment failed: ${errorMessage}`);
 
@@ -207,7 +215,9 @@ export class AppFactoryService {
    * Create an app without GitHub repository.
    * Use this for apps that don't need version control.
    */
-  async createAppWithoutRepo(data: CreateAppInput): Promise<{ app: App; apiKey: string }> {
+  async createAppWithoutRepo(
+    data: CreateAppInput,
+  ): Promise<{ app: App; apiKey: string }> {
     return appsService.create(data);
   }
 
@@ -217,7 +227,7 @@ export class AppFactoryService {
    */
   async ensureGitHubRepo(
     appId: string,
-    options?: { repoPrivate?: boolean }
+    options?: { repoPrivate?: boolean },
   ): Promise<{ githubRepo: string | null; created: boolean; error?: string }> {
     const { repoPrivate = true } = options || {};
 
@@ -261,11 +271,15 @@ export class AppFactoryService {
 
       return { githubRepo: repoInfo.fullName, created: true };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Unknown error";
-      logger.error("AppFactory: Failed to create GitHub repo for existing app", {
-        appId,
-        error: errorMessage,
-      });
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      logger.error(
+        "AppFactory: Failed to create GitHub repo for existing app",
+        {
+          appId,
+          error: errorMessage,
+        },
+      );
       return { githubRepo: null, created: false, error: errorMessage };
     }
   }
@@ -276,7 +290,7 @@ export class AppFactoryService {
    */
   async deleteApp(
     appId: string,
-    options?: { deleteGitHubRepo?: boolean }
+    options?: { deleteGitHubRepo?: boolean },
   ): Promise<{ success: boolean; errors: string[] }> {
     const { deleteGitHubRepo = false } = options || {};
     const errors: string[] = [];
@@ -300,7 +314,8 @@ export class AppFactoryService {
           githubRepo: app.github_repo,
         });
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : "Unknown error";
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
         errors.push(`Failed to delete GitHub repo: ${errorMessage}`);
         logger.warn("AppFactory: Failed to delete GitHub repo", {
           appId,

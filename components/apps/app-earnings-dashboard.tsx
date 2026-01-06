@@ -88,7 +88,9 @@ export function AppEarningsDashboard({ appId }: AppEarningsDashboardProps) {
 
   const [isLoading, setIsLoading] = useState(true);
   const [isTestData, setIsTestData] = useState(false);
-  const [monetizationEnabled, setMonetizationEnabled] = useState<boolean | null>(null);
+  const [monetizationEnabled, setMonetizationEnabled] = useState<
+    boolean | null
+  >(null);
   const [period, setPeriod] = useState<"7" | "30" | "90">("30");
   const [summary, setSummary] = useState<EarningsSummary | null>(null);
   const [breakdown, setBreakdown] = useState<{

@@ -149,7 +149,7 @@ const nextConfig: NextConfig = {
       config.resolve.alias = config.resolve.alias || {};
       config.resolve.alias["thread-stream"] = path.resolve(
         __dirname,
-        "lib/stubs/thread-stream.ts"
+        "lib/stubs/thread-stream.ts",
       );
     }
 
@@ -161,7 +161,7 @@ const nextConfig: NextConfig = {
           analyzerMode: "static",
           reportFilename: "./analyze/client.html",
           openAnalyzer: false,
-        })
+        }),
       );
     }
 

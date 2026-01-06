@@ -49,7 +49,7 @@ export function ActiveSessionsBanner() {
               (s: ActiveSession) =>
                 s.status === "ready" ||
                 s.status === "generating" ||
-                s.status === "initializing"
+                s.status === "initializing",
             );
             setSessions(activeSessions);
           }
@@ -92,9 +92,7 @@ export function ActiveSessionsBanner() {
           </div>
           <div>
             <h3 className="font-semibold text-white">Active Build Sessions</h3>
-            <p className="text-xs text-white/60">
-              Continue where you left off
-            </p>
+            <p className="text-xs text-white/60">Continue where you left off</p>
           </div>
         </div>
 

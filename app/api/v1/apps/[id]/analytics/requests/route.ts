@@ -22,7 +22,7 @@ import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
  */
 async function handleGET(
   request: NextRequest,
-  context?: { params: Promise<{ id: string }> }
+  context?: { params: Promise<{ id: string }> },
 ): Promise<Response> {
   const { params } = context ?? { params: Promise.resolve({ id: "" }) };
   try {
@@ -35,14 +35,14 @@ async function handleGET(
     if (!existingApp) {
       return NextResponse.json(
         { success: false, error: "App not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
     if (existingApp.organization_id !== user.organization_id) {
       return NextResponse.json(
         { success: false, error: "Access denied" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -62,7 +62,7 @@ async function handleGET(
     const rawOffset = Number.parseInt(searchParams.get("offset") || "0", 10);
     const limit = Math.min(
       Math.max(Number.isNaN(rawLimit) ? 50 : rawLimit, 1),
-      MAX_LIMIT
+      MAX_LIMIT,
     );
     const offset = Math.max(Number.isNaN(rawOffset) ? 0 : rawOffset, 0);
 
@@ -89,7 +89,7 @@ async function handleGET(
           id,
           limit,
           startDate,
-          endDate
+          endDate,
         );
         return NextResponse.json({
           success: true,
@@ -110,7 +110,7 @@ async function handleGET(
           id,
           periodType,
           timelineStart,
-          timelineEnd
+          timelineEnd,
         );
         return NextResponse.json({
           success: true,
@@ -142,7 +142,7 @@ async function handleGET(
             ? error.message
             : "Failed to get request analytics",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

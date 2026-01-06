@@ -491,11 +491,11 @@ function isPathAllowed(filePath: string): boolean {
 async function writeFileViaSh(
   sandbox: SandboxInstance,
   filePath: string,
-  content: string
+  content: string,
 ): Promise<void> {
   if (!isPathAllowed(filePath)) {
     throw new Error(
-      `Path not allowed: ${filePath}. Files must be in allowed directories (${ALLOWED_DIRECTORIES.join(", ")}) or match allowed root patterns (*.md, *.txt, config files, etc.)`
+      `Path not allowed: ${filePath}. Files must be in allowed directories (${ALLOWED_DIRECTORIES.join(", ")}) or match allowed root patterns (*.md, *.txt, config files, etc.)`,
     );
   }
 
@@ -519,7 +519,7 @@ async function writeFileViaSh(
 
 async function readFileViaSh(
   sandbox: SandboxInstance,
-  filePath: string
+  filePath: string,
 ): Promise<string | null> {
   const result = await sandbox.runCommand({ cmd: "cat", args: [filePath] });
   return result.exitCode === 0 ? await result.stdout() : null;
@@ -527,7 +527,7 @@ async function readFileViaSh(
 
 async function listFilesViaSh(
   sandbox: SandboxInstance,
-  dirPath: string
+  dirPath: string,
 ): Promise<string[]> {
   // Exclude common non-source directories for better file listing
   const excludes = [
@@ -540,9 +540,9 @@ async function listFilesViaSh(
     "dist",
     ".vercel",
   ];
-  const pruneArgs = excludes.map(d => `-name "${d}" -prune`).join(" -o ");
+  const pruneArgs = excludes.map((d) => `-name "${d}" -prune`).join(" -o ");
   const findCmd = `find ${dirPath} \\( ${pruneArgs} \\) -o -type f -print 2>/dev/null | head -200`;
-  
+
   const result = await sandbox.runCommand({
     cmd: "sh",
     args: ["-c", findCmd],
@@ -554,7 +554,7 @@ async function listFilesViaSh(
 
 async function installPackages(
   sandbox: SandboxInstance,
-  packages: string[]
+  packages: string[],
 ): Promise<string> {
   if (!packages || packages.length === 0) return "No packages specified";
 
@@ -713,7 +713,7 @@ export class SandboxService {
     const openaiKey = process.env.OPENAI_API_KEY;
     if (openaiKey) {
       logger.warn(
-        "Anthropic API key not available, falling back to OpenAI for app builder"
+        "Anthropic API key not available, falling back to OpenAI for app builder",
       );
       this.openai = new OpenAI({ apiKey: openaiKey });
       this.preferredProvider = "openai";
@@ -721,7 +721,7 @@ export class SandboxService {
     }
 
     throw new Error(
-      "No AI provider configured. Set either ANTHROPIC_API_KEY or OPENAI_API_KEY in environment variables."
+      "No AI provider configured. Set either ANTHROPIC_API_KEY or OPENAI_API_KEY in environment variables.",
     );
   }
 
@@ -754,7 +754,7 @@ export class SandboxService {
 
     if (!creds.hasOIDC && !creds.hasAccessToken) {
       throw new Error(
-        "Vercel Sandbox credentials not configured. Run 'vercel env pull' to get OIDC token, or set VERCEL_TOKEN, VERCEL_TEAM_ID, and VERCEL_PROJECT_ID."
+        "Vercel Sandbox credentials not configured. Run 'vercel env pull' to get OIDC token, or set VERCEL_TOKEN, VERCEL_TEAM_ID, and VERCEL_PROJECT_ID.",
       );
     }
 
@@ -783,7 +783,7 @@ export class SandboxService {
     } catch (error) {
       if (error instanceof Error && error.message.includes("OIDC")) {
         throw new Error(
-          `OIDC token expired or invalid. Run 'vercel env pull' to refresh it. Original error: ${error.message}`
+          `OIDC token expired or invalid. Run 'vercel env pull' to refresh it. Original error: ${error.message}`,
         );
       }
       throw error;
@@ -853,7 +853,7 @@ export class SandboxService {
 
     const analyticsBase64 = Buffer.from(
       ELIZA_ANALYTICS_COMPONENT,
-      "utf-8"
+      "utf-8",
     ).toString("base64");
     await sandbox.runCommand({
       cmd: "sh",
@@ -878,7 +878,7 @@ export class SandboxService {
         const bodyTag = bodyMatch[0];
         updatedLayout = updatedLayout.replace(
           bodyTag,
-          `${bodyTag}\n        <ElizaAnalytics />`
+          `${bodyTag}\n        <ElizaAnalytics />`,
         );
       }
 
@@ -888,7 +888,7 @@ export class SandboxService {
         {
           sandboxId,
           layoutPath,
-        }
+        },
       );
     }
 
@@ -898,12 +898,12 @@ export class SandboxService {
     const isLocalDev =
       process.env.NEXT_PUBLIC_APP_URL?.includes("localhost") ||
       process.env.NEXT_PUBLIC_APP_URL?.includes("127.0.0.1");
-    
+
     const elizaApiUrl =
       process.env.ELIZA_API_URL ||
       process.env.NEXT_PUBLIC_ELIZA_API_URL ||
       config.env?.NEXT_PUBLIC_ELIZA_API_URL;
-    
+
     const elizaProxyUrl =
       config.env?.NEXT_PUBLIC_ELIZA_PROXY_URL ||
       process.env.NEXT_PUBLIC_ELIZA_PROXY_URL;
@@ -924,7 +924,8 @@ export class SandboxService {
       });
     } else if (isLocalDev && !config.env?.NEXT_PUBLIC_ELIZA_API_URL) {
       // Local dev without explicit config: default to proxy bridge
-      const localServerUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+      const localServerUrl =
+        process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
       mergedEnv.NEXT_PUBLIC_ELIZA_PROXY_URL = localServerUrl;
       logger.info("Local dev: defaulting to postMessage proxy bridge", {
         sandboxId,
@@ -976,7 +977,7 @@ export class SandboxService {
   private async waitForDevServer(
     sandbox: SandboxInstance,
     port: number,
-    maxAttempts = 45
+    maxAttempts = 45,
   ): Promise<void> {
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       const result = await sandbox.runCommand({
@@ -1003,7 +1004,7 @@ export class SandboxService {
    */
   private async callAIWithFallback(
     params: Anthropic.MessageCreateParams,
-    maxRetries = 3
+    maxRetries = 3,
   ): Promise<Anthropic.Message> {
     let lastAnthropicError: Error | null = null;
     let lastOpenAIError: Error | null = null;
@@ -1033,7 +1034,7 @@ export class SandboxService {
         return await this.callOpenAIAsAnthropicFormat(
           openai,
           params,
-          maxRetries
+          maxRetries,
         );
       } catch (error) {
         lastOpenAIError =
@@ -1047,27 +1048,27 @@ export class SandboxService {
     // Both failed or no keys available
     if (lastAnthropicError && lastOpenAIError) {
       throw new Error(
-        `Both AI providers failed. Anthropic: ${lastAnthropicError.message}. OpenAI: ${lastOpenAIError.message}`
+        `Both AI providers failed. Anthropic: ${lastAnthropicError.message}. OpenAI: ${lastOpenAIError.message}`,
       );
     } else if (lastAnthropicError) {
       throw new Error(
-        `Anthropic failed and OpenAI not configured: ${lastAnthropicError.message}`
+        `Anthropic failed and OpenAI not configured: ${lastAnthropicError.message}`,
       );
     } else if (lastOpenAIError) {
       throw new Error(
-        `Anthropic not configured and OpenAI failed: ${lastOpenAIError.message}`
+        `Anthropic not configured and OpenAI failed: ${lastOpenAIError.message}`,
       );
     }
 
     throw new Error(
-      "No AI provider configured. Set either ANTHROPIC_API_KEY or OPENAI_API_KEY"
+      "No AI provider configured. Set either ANTHROPIC_API_KEY or OPENAI_API_KEY",
     );
   }
 
   private async callAnthropicWithRetry(
     anthropic: Anthropic,
     params: Anthropic.MessageCreateParams,
-    maxRetries = 3
+    maxRetries = 3,
   ): Promise<Anthropic.Message> {
     let lastError: Error | null = null;
 
@@ -1088,7 +1089,7 @@ export class SandboxService {
             error: errorMessage,
           });
           throw new Error(
-            "Anthropic API key is invalid or expired. Please update ANTHROPIC_API_KEY."
+            "Anthropic API key is invalid or expired. Please update ANTHROPIC_API_KEY.",
           );
         }
 
@@ -1128,7 +1129,7 @@ export class SandboxService {
   private async callOpenAIAsAnthropicFormat(
     openai: OpenAI,
     params: Anthropic.MessageCreateParams,
-    maxRetries = 3
+    maxRetries = 3,
   ): Promise<Anthropic.Message> {
     let lastError: Error | null = null;
 
@@ -1210,7 +1211,7 @@ export class SandboxService {
           errorMessage.includes("401")
         ) {
           throw new Error(
-            "OpenAI API key is invalid or expired. Please update OPENAI_API_KEY."
+            "OpenAI API key is invalid or expired. Please update OPENAI_API_KEY.",
           );
         }
 
@@ -1248,7 +1249,7 @@ export class SandboxService {
       onThinking?: (text: string) => void;
       abortSignal?: AbortSignal;
       timeoutMs?: number;
-    } = {}
+    } = {},
   ): Promise<{
     output: string;
     filesAffected: string[];
@@ -1294,17 +1295,17 @@ export class SandboxService {
       const globalsCss = await readFileViaSh(sandbox, "src/app/globals.css");
 
       // Detect Tailwind v3 syntax in globals.css that needs fixing
-      const hasTailwindV3Syntax = globalsCss && (
-        globalsCss.includes('@tailwind') ||
-        globalsCss.includes('tailwindcss/tailwind.css') ||
-        globalsCss.includes('tailwindcss/base') ||
-        globalsCss.includes('tailwindcss/components') ||
-        globalsCss.includes('tailwindcss/utilities')
-      );
+      const hasTailwindV3Syntax =
+        globalsCss &&
+        (globalsCss.includes("@tailwind") ||
+          globalsCss.includes("tailwindcss/tailwind.css") ||
+          globalsCss.includes("tailwindcss/base") ||
+          globalsCss.includes("tailwindcss/components") ||
+          globalsCss.includes("tailwindcss/utilities"));
 
       const tailwindWarning = hasTailwindV3Syntax
         ? `\n⚠️ CRITICAL: globals.css uses Tailwind v3 syntax which will cause build errors. Fix it IMMEDIATELY by replacing the content with:\n@import "tailwindcss";\n`
-        : '';
+        : "";
 
       const contextPrompt = `CURRENT FILES:
 
@@ -1470,7 +1471,10 @@ REMEMBER:
         if (response.stop_reason === "end_turn" || toolResults.length === 0) {
           // Before stopping, check if there are build errors that need fixing
           const buildCheck = await checkBuild(sandbox);
-          if (buildCheck.includes("BUILD ERRORS") && iteration < MAX_ITERATIONS - 5) {
+          if (
+            buildCheck.includes("BUILD ERRORS") &&
+            iteration < MAX_ITERATIONS - 5
+          ) {
             // Force another iteration to fix build errors
             logger.info("Build errors detected, forcing AI to fix them", {
               sandboxId,
@@ -1546,7 +1550,7 @@ REMEMBER:
   async writeFile(
     sandboxId: string,
     path: string,
-    content: string
+    content: string,
   ): Promise<void> {
     const sandbox = getActiveSandboxes().get(sandboxId);
     if (!sandbox) throw new Error(`Sandbox ${sandboxId} not found`);
@@ -1567,7 +1571,7 @@ REMEMBER:
 
   async installPackages(
     sandboxId: string,
-    packages: string[]
+    packages: string[],
   ): Promise<string> {
     const sandbox = getActiveSandboxes().get(sandboxId);
     if (!sandbox) throw new Error(`Sandbox ${sandboxId} not found`);
@@ -1613,25 +1617,33 @@ REMEMBER:
 
   async installDependenciesAndRestart(
     sandboxId: string,
-    onProgress?: (progress: SandboxProgress) => void
+    onProgress?: (progress: SandboxProgress) => void,
   ): Promise<void> {
     const sandbox = getActiveSandboxes().get(sandboxId);
     if (!sandbox) {
       throw new Error(`Sandbox ${sandboxId} not found`);
     }
 
-    logger.info("Starting dependency install and dev server restart", { sandboxId });
+    logger.info("Starting dependency install and dev server restart", {
+      sandboxId,
+    });
 
     onProgress?.({ step: "installing", message: "Stopping dev server..." });
     await sandbox.runCommand({
       cmd: "sh",
-      args: ["-c", "pkill -f 'next dev' 2>/dev/null || true; pkill -f 'node.*next' 2>/dev/null || true"],
+      args: [
+        "-c",
+        "pkill -f 'next dev' 2>/dev/null || true; pkill -f 'node.*next' 2>/dev/null || true",
+      ],
     });
     await new Promise((r) => setTimeout(r, 1000));
 
     onProgress?.({ step: "installing", message: "Installing dependencies..." });
     const installResult = await installDependencies(sandbox);
-    logger.info("Dependencies installed for restore", { sandboxId, result: installResult });
+    logger.info("Dependencies installed for restore", {
+      sandboxId,
+      result: installResult,
+    });
 
     onProgress?.({ step: "starting", message: "Starting dev server..." });
     await sandbox.runCommand({

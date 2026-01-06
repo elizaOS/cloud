@@ -100,7 +100,9 @@ export function SandboxFileExplorer({
   const [activeFile, setActiveFile] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [loadingFile, setLoadingFile] = useState<string | null>(null);
-  const editorRef = useRef<monacoEditor.editor.IStandaloneCodeEditor | null>(null);
+  const editorRef = useRef<monacoEditor.editor.IStandaloneCodeEditor | null>(
+    null,
+  );
 
   // Fetch file tree
   const fetchFileTree = useCallback(async () => {
@@ -108,7 +110,7 @@ export function SandboxFileExplorer({
     try {
       const res = await fetch(
         `/api/v1/app-builder/sessions/${sessionId}/files?path=.`,
-        { credentials: "include" }
+        { credentials: "include" },
       );
       const data = await res.json();
       if (data.success) {
@@ -151,7 +153,7 @@ export function SandboxFileExplorer({
           credentials: "include",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ operation: "read", path }),
-        }
+        },
       );
       const data = await res.json();
       if (data.success) {
@@ -186,7 +188,9 @@ export function SandboxFileExplorer({
     setOpenFiles((prev) => prev.filter((f) => f.path !== path));
     if (activeFile === path) {
       const remaining = openFiles.filter((f) => f.path !== path);
-      setActiveFile(remaining.length > 0 ? remaining[remaining.length - 1].path : null);
+      setActiveFile(
+        remaining.length > 0 ? remaining[remaining.length - 1].path : null,
+      );
     }
   };
 
@@ -208,14 +212,14 @@ export function SandboxFileExplorer({
             path,
             content: file.content,
           }),
-        }
+        },
       );
       const data = await res.json();
       if (data.success) {
         setOpenFiles((prev) =>
           prev.map((f) =>
-            f.path === path ? { ...f, originalContent: f.content } : f
-          )
+            f.path === path ? { ...f, originalContent: f.content } : f,
+          ),
         );
         toast.success("File saved");
       } else {
@@ -232,7 +236,7 @@ export function SandboxFileExplorer({
   // Update file content
   const updateFileContent = (path: string, content: string) => {
     setOpenFiles((prev) =>
-      prev.map((f) => (f.path === path ? { ...f, content } : f))
+      prev.map((f) => (f.path === path ? { ...f, content } : f)),
     );
   };
 
@@ -266,7 +270,7 @@ export function SandboxFileExplorer({
   // Monaco editor setup
   const handleEditorDidMount = (
     editor: monacoEditor.editor.IStandaloneCodeEditor,
-    monaco: Monaco
+    monaco: Monaco,
   ) => {
     editorRef.current = editor;
 
@@ -314,7 +318,7 @@ export function SandboxFileExplorer({
             onClick={() => toggleDir(node.path)}
             className={cn(
               "w-full flex items-center gap-1 py-1 px-2 text-xs hover:bg-white/5 transition-colors",
-              "text-white/70 hover:text-white"
+              "text-white/70 hover:text-white",
             )}
             style={{ paddingLeft: `${depth * 12 + 8}px` }}
           >
@@ -347,7 +351,7 @@ export function SandboxFileExplorer({
           "w-full flex items-center gap-1.5 py-1 px-2 text-xs transition-colors",
           isActive
             ? "bg-white/10 text-white"
-            : "text-white/60 hover:bg-white/5 hover:text-white/80"
+            : "text-white/60 hover:bg-white/5 hover:text-white/80",
         )}
         style={{ paddingLeft: `${depth * 12 + 20}px` }}
         disabled={isLoading}
@@ -355,7 +359,9 @@ export function SandboxFileExplorer({
         {isLoading ? (
           <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-white/40" />
         ) : (
-          <File className={cn("h-3.5 w-3.5 shrink-0", getFileColor(node.name))} />
+          <File
+            className={cn("h-3.5 w-3.5 shrink-0", getFileColor(node.name))}
+          />
         )}
         <span className="truncate">{node.name}</span>
       </button>
@@ -416,7 +422,7 @@ export function SandboxFileExplorer({
                     "group flex items-center gap-1.5 px-3 py-1.5 text-xs border-r border-white/5 min-w-0",
                     isActive
                       ? "bg-[#0a0a0a] text-white"
-                      : "bg-black/20 text-white/50 hover:text-white/70"
+                      : "bg-black/20 text-white/50 hover:text-white/70",
                   )}
                 >
                   <File

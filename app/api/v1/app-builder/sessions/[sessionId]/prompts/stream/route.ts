@@ -27,7 +27,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     await aiAppBuilder.verifySessionOwnership(sessionId, user.id);
 
-    const rateLimitResult = await checkRateLimitAsync(request, PROMPT_RATE_LIMIT);
+    const rateLimitResult = await checkRateLimitAsync(
+      request,
+      PROMPT_RATE_LIMIT,
+    );
     if (!rateLimitResult.allowed) {
       const maxRequests = PROMPT_RATE_LIMIT.maxRequests;
       const windowSeconds = PROMPT_RATE_LIMIT.windowMs / 1000;
@@ -43,7 +46,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
             "Content-Type": "application/json",
             "Retry-After": rateLimitResult.retryAfter?.toString() || "60",
           },
-        }
+        },
       );
     }
 
@@ -57,7 +60,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
           error: "Invalid request data",
           details: validationResult.error.format(),
         }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
+        { status: 400, headers: { "Content-Type": "application/json" } },
       );
     }
 
@@ -96,7 +99,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
               });
             },
             abortSignal: abortController.signal,
-          }
+          },
         );
 
         if (streamWriter.isConnected()) {
@@ -151,13 +154,15 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     return new Response(stream.readable, { headers: SSE_HEADERS });
   } catch (error) {
-    logger.error("Auth or ownership verification failed for prompt stream", { error });
+    logger.error("Auth or ownership verification failed for prompt stream", {
+      error,
+    });
     const status = getErrorStatusCode(error);
     const message = getSafeErrorMessage(error);
 
-    return new Response(
-      JSON.stringify({ success: false, error: message }),
-      { status, headers: { "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ success: false, error: message }), {
+      status,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 }

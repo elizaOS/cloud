@@ -13,7 +13,7 @@ interface RouteParams {
 
 /**
  * POST /api/v1/app-builder/sessions/[sessionId]/resume/stream
- * 
+ *
  * Resumes a timed-out or stopped session by creating a new sandbox.
  * If the app has a GitHub repo, the sandbox will be cloned from it.
  * Returns a stream of progress events.
@@ -43,20 +43,16 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       streamWriter.startHeartbeat(15000);
 
       try {
-        const session = await aiAppBuilder.resumeSession(
-          sessionId,
-          user.id,
-          {
-            onProgress: async (progress: SandboxProgress) => {
-              if (!streamWriter.isConnected()) return;
-              await streamWriter.sendEvent("progress", progress);
-            },
-            onRestoreProgress: async (restoreProgress) => {
-              if (!streamWriter.isConnected()) return;
-              await streamWriter.sendEvent("restore_progress", restoreProgress);
-            },
-          }
-        );
+        const session = await aiAppBuilder.resumeSession(sessionId, user.id, {
+          onProgress: async (progress: SandboxProgress) => {
+            if (!streamWriter.isConnected()) return;
+            await streamWriter.sendEvent("progress", progress);
+          },
+          onRestoreProgress: async (restoreProgress) => {
+            if (!streamWriter.isConnected()) return;
+            await streamWriter.sendEvent("restore_progress", restoreProgress);
+          },
+        });
 
         logger.info("Session resumed successfully via stream", {
           sessionId,
@@ -107,9 +103,15 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const message = error instanceof Error ? error.message : "Internal error";
 
     let status = 500;
-    if (message.includes("Authentication") || message.includes("Unauthorized")) {
+    if (
+      message.includes("Authentication") ||
+      message.includes("Unauthorized")
+    ) {
       status = 401;
-    } else if (message.includes("Access denied") || message.includes("don't own")) {
+    } else if (
+      message.includes("Access denied") ||
+      message.includes("don't own")
+    ) {
       status = 403;
     } else if (message.includes("not found")) {
       status = 404;
@@ -117,9 +119,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       status = 400;
     }
 
-    return new Response(
-      JSON.stringify({ success: false, error: message }),
-      { status, headers: { "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ success: false, error: message }), {
+      status,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 }

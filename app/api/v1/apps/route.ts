@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
       },
       {
         createGitHubRepo: !data.skipGitHubRepo,
-      }
+      },
     );
 
     logger.info(`Created app: ${result.app.name}`, {

@@ -40,7 +40,7 @@ export const apps = pgTable(
 
     // App URL and security
     app_url: text("app_url").notNull(), // Primary app URL
-    
+
     // GitHub repository for this app (org/repo format or just repo name)
     github_repo: text("github_repo"), // e.g., "eliza-cloud-apps/app-my-app"
     allowed_origins: jsonb("allowed_origins")
@@ -302,12 +302,16 @@ export const appRequests = pgTable(
     country: text("country"), // Derived from IP
     city: text("city"), // Derived from IP
 
-    user_id: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+    user_id: uuid("user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
 
     model: text("model"),
     input_tokens: integer("input_tokens").default(0),
     output_tokens: integer("output_tokens").default(0),
-    credits_used: numeric("credits_used", { precision: 10, scale: 6 }).default("0.00"),
+    credits_used: numeric("credits_used", { precision: 10, scale: 6 }).default(
+      "0.00",
+    ),
 
     response_time_ms: integer("response_time_ms"),
     status: text("status").notNull().default("success"), // 'success', 'failed', 'rate_limited'

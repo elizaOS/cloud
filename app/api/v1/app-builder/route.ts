@@ -38,7 +38,7 @@ export const GET = withRateLimit(async (request: NextRequest) => {
     // Check if app has GitHub storage (Git-based persistence)
     if (checkSnapshots && appId) {
       const app = await appsService.getById(appId);
-      
+
       if (!app?.github_repo) {
         return NextResponse.json({
           success: true,
@@ -49,7 +49,9 @@ export const GET = withRateLimit(async (request: NextRequest) => {
       let lastBackup: string | null = null;
       try {
         const repoName = app.github_repo.split("/").pop() || app.github_repo;
-        const commits = await githubReposService.listCommits(repoName, { limit: 1 });
+        const commits = await githubReposService.listCommits(repoName, {
+          limit: 1,
+        });
         if (commits.length > 0) {
           lastBackup = commits[0].date;
         }

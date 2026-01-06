@@ -7,7 +7,7 @@ import Link from "next/link";
 async function fetchWithRetry(
   url: string,
   options: RequestInit = {},
-  maxRetries = 1
+  maxRetries = 1,
 ): Promise<Response> {
   const fetchOptions: RequestInit = {
     ...options,
@@ -256,24 +256,24 @@ export default function AppCreatorPage() {
   }, [searchParams]);
 
   const [isInitializing, setIsInitializing] = useState(
-    isEditMode || !!sessionIdFromUrl
+    isEditMode || !!sessionIdFromUrl,
   );
   const [step, setStep] = useState<"setup" | "building">(
-    isEditMode ? "building" : "setup"
+    isEditMode ? "building" : "setup",
   );
   const [appData, setAppData] = useState<AppData | null>(null);
   const [appName, setAppName] = useState(
-    sourceContext ? `${sourceContext.name} App` : ""
+    sourceContext ? `${sourceContext.name} App` : "",
   );
   const [appDescription, setAppDescription] = useState(
     sourceContext
       ? `An app built with ${sourceContext.name} ${sourceContext.type}`
-      : ""
+      : "",
   );
   const [templateType, setTemplateType] = useState<TemplateType>(
     sourceContext
       ? SOURCE_CONTEXT_INFO[sourceContext.type].templateSuggestion
-      : "blank"
+      : "blank",
   );
   const [includeMonetization, setIncludeMonetization] = useState(false);
   const [includeAnalytics, setIncludeAnalytics] = useState(true);
@@ -288,7 +288,7 @@ export default function AppCreatorPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [progressStep, setProgressStep] = useState<ProgressStep>("creating");
   const [previewTab, setPreviewTab] = useState<"preview" | "console" | "files">(
-    "preview"
+    "preview",
   );
   const [consoleLogs, setConsoleLogs] = useState<string[]>([]);
   const [expiresAt, setExpiresAt] = useState<Date | null>(null);
@@ -339,7 +339,7 @@ export default function AppCreatorPage() {
       setMessages([]);
       setStatus("idle");
       setIsInitializing(!!appIdFromUrl || !!sessionIdFromUrl);
-      
+
       if (appChanged) {
         setAppData(null);
         setAppSnapshotInfo(null);
@@ -372,14 +372,17 @@ export default function AppCreatorPage() {
 
     const tryRestoreSession = async (sessionId: string): Promise<boolean> => {
       try {
-        const response = await fetchWithRetry(`/api/v1/app-builder/sessions/${sessionId}`);
+        const response = await fetchWithRetry(
+          `/api/v1/app-builder/sessions/${sessionId}`,
+        );
         if (!response.ok) return false;
 
         const data = await response.json();
         if (!data.success || !data.session) return false;
 
         const sessionStatus = data.session.status as SessionStatus;
-        const isExpiredOrStopped = sessionStatus === "timeout" || sessionStatus === "stopped";
+        const isExpiredOrStopped =
+          sessionStatus === "timeout" || sessionStatus === "stopped";
 
         // Session must have a sandbox URL or be expired/stopped to be valid
         if (!data.session.sandboxUrl && !isExpiredOrStopped) return false;
@@ -402,13 +405,19 @@ export default function AppCreatorPage() {
         } else {
           const stored = sessionStorage.getItem(messagesStorageKey);
           if (stored) {
-            try { setMessages(JSON.parse(stored)); } catch { /* ignore */ }
+            try {
+              setMessages(JSON.parse(stored));
+            } catch {
+              /* ignore */
+            }
           }
         }
 
         // Load app data if we have appId
         if (appIdFromUrl) {
-          const appResponse = await fetchWithRetry(`/api/v1/apps/${appIdFromUrl}`);
+          const appResponse = await fetchWithRetry(
+            `/api/v1/apps/${appIdFromUrl}`,
+          );
           if (appResponse.ok) {
             const appData = await appResponse.json();
             if (appData.success && appData.app) {
@@ -452,7 +461,7 @@ export default function AppCreatorPage() {
 
         // Check for existing active session
         const sessionResponse = await fetchWithRetry(
-          `/api/v1/app-builder?appId=${appId}&limit=1&includeInactive=true`
+          `/api/v1/app-builder?appId=${appId}&limit=1&includeInactive=true`,
         );
         if (sessionResponse.ok) {
           const sessionData = await sessionResponse.json();
@@ -460,7 +469,7 @@ export default function AppCreatorPage() {
             // Redirect to existing session
             router.replace(
               `/dashboard/apps/create?appId=${appId}&sessionId=${sessionData.sessions[0].id}`,
-              { scroll: false }
+              { scroll: false },
             );
             initializationRef.current = false;
             return;
@@ -469,7 +478,7 @@ export default function AppCreatorPage() {
 
         // Check GitHub snapshot info
         const snapshotResponse = await fetchWithRetry(
-          `/api/v1/app-builder?appId=${appId}&checkSnapshots=true`
+          `/api/v1/app-builder?appId=${appId}&checkSnapshots=true`,
         );
         if (snapshotResponse.ok) {
           const snapshotData = await snapshotResponse.json();
@@ -584,7 +593,7 @@ export default function AppCreatorPage() {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ durationMs: 900000 }),
-        }
+        },
       );
 
       if (!response.ok) {
@@ -611,7 +620,7 @@ export default function AppCreatorPage() {
     if (!session) return;
     try {
       const response = await fetchWithRetry(
-        `/api/v1/app-builder/sessions/${session.id}/snapshots`
+        `/api/v1/app-builder/sessions/${session.id}/snapshots`,
       );
       if (response.ok) {
         const data = await response.json();
@@ -633,7 +642,7 @@ export default function AppCreatorPage() {
     if (!session) return;
     try {
       const response = await fetchWithRetry(
-        `/api/v1/app-builder/sessions/${session.id}/commit`
+        `/api/v1/app-builder/sessions/${session.id}/commit`,
       );
       if (response.ok) {
         const data = await response.json();
@@ -657,7 +666,7 @@ export default function AppCreatorPage() {
     if (!session) return;
     try {
       const response = await fetchWithRetry(
-        `/api/v1/app-builder/sessions/${session.id}/history`
+        `/api/v1/app-builder/sessions/${session.id}/history`,
       );
       if (response.ok) {
         const data = await response.json();
@@ -683,7 +692,7 @@ export default function AppCreatorPage() {
           body: JSON.stringify({
             message: `Manual save at ${new Date().toLocaleString()}`,
           }),
-        }
+        },
       );
 
       if (!response.ok) {
@@ -697,7 +706,10 @@ export default function AppCreatorPage() {
         toast.success("Saved to GitHub", {
           description: `${data.filesCommitted} file(s) committed`,
         });
-        addLog(`Saved to GitHub: ${data.commitSha?.substring(0, 7)}`, "success");
+        addLog(
+          `Saved to GitHub: ${data.commitSha?.substring(0, 7)}`,
+          "success",
+        );
         // Refresh git status
         await checkGitStatus();
         // Refresh commit history
@@ -707,7 +719,10 @@ export default function AppCreatorPage() {
       toast.error("Failed to save", {
         description: error instanceof Error ? error.message : "Unknown error",
       });
-      addLog(`Save failed: ${error instanceof Error ? error.message : "Unknown error"}`, "error");
+      addLog(
+        `Save failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+        "error",
+      );
     } finally {
       setIsSaving(false);
     }
@@ -731,7 +746,7 @@ export default function AppCreatorPage() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ target: "production" }),
-        }
+        },
       );
 
       if (!response.ok) {
@@ -746,13 +761,15 @@ export default function AppCreatorPage() {
           setProductionUrl(data.productionUrl);
         }
         toast.success("Deployment started!", {
-          description: data.productionUrl 
-            ? `Deploying to ${data.productionUrl}` 
+          description: data.productionUrl
+            ? `Deploying to ${data.productionUrl}`
             : "Your app is being deployed to production",
-          action: data.productionUrl ? {
-            label: "Open",
-            onClick: () => window.open(data.productionUrl, "_blank"),
-          } : undefined,
+          action: data.productionUrl
+            ? {
+                label: "Open",
+                onClick: () => window.open(data.productionUrl, "_blank"),
+              }
+            : undefined,
         });
         addLog(`Deployment started: ${data.deploymentId}`, "success");
       }
@@ -760,7 +777,10 @@ export default function AppCreatorPage() {
       toast.error("Deployment failed", {
         description: error instanceof Error ? error.message : "Unknown error",
       });
-      addLog(`Deploy failed: ${error instanceof Error ? error.message : "Unknown error"}`, "error");
+      addLog(
+        `Deploy failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+        "error",
+      );
     } finally {
       setIsDeploying(false);
     }
@@ -769,10 +789,12 @@ export default function AppCreatorPage() {
   // Fetch production URL on load
   useEffect(() => {
     if (!appData?.id) return;
-    
+
     const fetchDeploymentInfo = async () => {
       try {
-        const response = await fetchWithRetry(`/api/v1/apps/${appData.id}/deploy`);
+        const response = await fetchWithRetry(
+          `/api/v1/apps/${appData.id}/deploy`,
+        );
         if (response.ok) {
           const data = await response.json();
           if (data.productionUrl) {
@@ -783,7 +805,7 @@ export default function AppCreatorPage() {
         // Not critical
       }
     };
-    
+
     fetchDeploymentInfo();
   }, [appData?.id]);
 
@@ -801,7 +823,13 @@ export default function AppCreatorPage() {
     }, 30000);
 
     return () => clearInterval(interval);
-  }, [status, session, appData?.github_repo, checkGitStatus, fetchCommitHistory]);
+  }, [
+    status,
+    session,
+    appData?.github_repo,
+    checkGitStatus,
+    fetchCommitHistory,
+  ]);
 
   const restoreSession = useCallback(async () => {
     if (!session || isRestoring) return;
@@ -815,7 +843,7 @@ export default function AppCreatorPage() {
     try {
       const response = await fetchWithRetry(
         `/api/v1/app-builder/sessions/${session.id}/resume/stream`,
-        { method: "POST" }
+        { method: "POST" },
       );
 
       if (!response.ok) {
@@ -860,7 +888,7 @@ export default function AppCreatorPage() {
                 });
                 addLog(
                   `Restoring: ${data.filePath} (${data.current}/${data.total})`,
-                  "info"
+                  "info",
                 );
               } else if (eventType === "complete") {
                 setSession({
@@ -896,15 +924,21 @@ export default function AppCreatorPage() {
         }
       }
     } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : "Restoration failed";
+      const errorMsg =
+        error instanceof Error ? error.message : "Restoration failed";
       addLog(`Restoration failed: ${errorMsg}`, "error");
-      
+
       // Set status to show "Start New Session" option
       // This will create a fresh session that clones from GitHub
       setStatus("timeout");
-      setSnapshotInfo({ canRestore: false, githubRepo: null, lastBackup: null });
+      setSnapshotInfo({
+        canRestore: false,
+        githubRepo: null,
+        lastBackup: null,
+      });
       toast.error("Could not resume session", {
-        description: "Click 'Start New Session' to restore your code from GitHub.",
+        description:
+          "Click 'Start New Session' to restore your code from GitHub.",
       });
     } finally {
       setIsRestoring(false);
@@ -932,7 +966,7 @@ export default function AppCreatorPage() {
 
       try {
         const res = await fetchWithRetry(
-          `/api/v1/app-builder/sessions/${session.id}/logs?tail=100`
+          `/api/v1/app-builder/sessions/${session.id}/logs?tail=100`,
         );
 
         if (res.status === 403 || res.status === 404) {
@@ -950,7 +984,7 @@ export default function AppCreatorPage() {
             setConsoleLogs((prev) => {
               const timestamp = new Date().toLocaleTimeString();
               const formatted = newLogs.map(
-                (log: string) => `[${timestamp}] ${log}`
+                (log: string) => `[${timestamp}] ${log}`,
               );
               return [...prev, ...formatted];
             });
@@ -1088,7 +1122,7 @@ export default function AppCreatorPage() {
 
                 addLog(
                   `Sandbox ready at ${data.session.sandboxUrl}`,
-                  "success"
+                  "success",
                 );
 
                 if (data.hasInitialPrompt) {
@@ -1189,7 +1223,7 @@ Some ideas:
                 });
                 addLog(
                   `${toolName}: ${data.input?.path || data.input?.packages?.join(", ") || ""}`,
-                  "info"
+                  "info",
                 );
 
                 if (initialThinkingIdRef.current) {
@@ -1208,8 +1242,8 @@ Some ideas:
                       (m as Message & { _thinkingId?: number })._thinkingId ===
                       thinkingId
                         ? { ...m, content: progressContent }
-                        : m
-                    )
+                        : m,
+                    ),
                   );
                 }
               } else if (eventType === "complete") {
@@ -1258,7 +1292,7 @@ Some ideas:
                         };
                       }
                       return m;
-                    })
+                    }),
                   );
 
                   if (iframeRef.current && data.session.sandboxUrl) {
@@ -1319,7 +1353,7 @@ Some ideas:
 
       addLog(
         `Sending prompt: "${text.substring(0, 50)}${text.length > 50 ? "..." : ""}"`,
-        "info"
+        "info",
       );
 
       const userMessage: Message = {
@@ -1371,7 +1405,7 @@ Some ideas:
         setMessages((prev) => {
           const updated = [...prev];
           const thinkingIdx = updated.findIndex(
-            (m) => m._thinkingId === thinkingId
+            (m) => m._thinkingId === thinkingId,
           );
           if (thinkingIdx >= 0) {
             updated[thinkingIdx] = {
@@ -1400,7 +1434,7 @@ Some ideas:
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ prompt: text }),
-          }
+          },
         );
 
         if (!response.ok) {
@@ -1495,7 +1529,7 @@ Some ideas:
 
                   addLog(
                     `${toolName}: ${data.input?.path || data.input?.packages?.join(", ") || ""}`,
-                    "info"
+                    "info",
                   );
                 } else if (eventType === "complete") {
                   finalData = data;
@@ -1592,7 +1626,7 @@ Some ideas:
         setStatus("ready");
         addLog(
           `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
-          "error"
+          "error",
         );
         toast.error("Failed to process prompt", {
           description:
@@ -1602,7 +1636,7 @@ Some ideas:
         setIsLoading(false);
       }
     },
-    [input, session, isLoading, addLog]
+    [input, session, isLoading, addLog],
   );
 
   const stopSession = useCallback(async () => {
@@ -1739,7 +1773,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                   onClick={() =>
                     window.open(
                       "https://vercel.com/docs/vercel-sandbox",
-                      "_blank"
+                      "_blank",
                     )
                   }
                 >
@@ -2059,7 +2093,14 @@ ANTHROPIC_API_KEY=your_key_here`}
                       {appSnapshotInfo.githubRepo.split("/").pop()}
                     </span>
                     {appSnapshotInfo.lastBackup && (
-                      <> (last updated {new Date(appSnapshotInfo.lastBackup).toLocaleDateString()})</>
+                      <>
+                        {" "}
+                        (last updated{" "}
+                        {new Date(
+                          appSnapshotInfo.lastBackup,
+                        ).toLocaleDateString()}
+                        )
+                      </>
                     )}
                   </p>
                 </div>
@@ -2230,7 +2271,10 @@ ANTHROPIC_API_KEY=your_key_here`}
               title="View on GitHub"
             >
               <GitBranch className="h-3 w-3" />
-              <span className="hidden sm:inline" style={{ fontFamily: "var(--font-roboto-mono)" }}>
+              <span
+                className="hidden sm:inline"
+                style={{ fontFamily: "var(--font-roboto-mono)" }}
+              >
                 {appData.github_repo.split("/").pop()}
               </span>
               <Cloud className="h-3 w-3" />
@@ -2305,7 +2349,11 @@ ANTHROPIC_API_KEY=your_key_here`}
                     ? "text-green-400 hover:text-green-300 hover:bg-green-500/10"
                     : "text-white/40 hover:bg-white/5"
                 }`}
-                title={gitStatus?.hasChanges ? "Save changes to GitHub" : "No unsaved changes"}
+                title={
+                  gitStatus?.hasChanges
+                    ? "Save changes to GitHub"
+                    : "No unsaved changes"
+                }
               >
                 {isSaving ? (
                   <Loader2 className="h-3 w-3 animate-spin" />
@@ -2313,7 +2361,11 @@ ANTHROPIC_API_KEY=your_key_here`}
                   <Save className="h-3 w-3" />
                 )}
                 <span className="ml-1 hidden sm:inline">
-                  {isSaving ? "Saving..." : gitStatus?.hasChanges ? "Save" : "Saved"}
+                  {isSaving
+                    ? "Saving..."
+                    : gitStatus?.hasChanges
+                      ? "Save"
+                      : "Saved"}
                 </span>
               </Button>
               {/* Commit History Button */}
@@ -2326,13 +2378,17 @@ ANTHROPIC_API_KEY=your_key_here`}
                   title="View commit history"
                 >
                   <History className="h-3 w-3" />
-                  <ChevronDown className={`h-3 w-3 ml-0.5 transition-transform ${showCommitHistory ? "rotate-180" : ""}`} />
+                  <ChevronDown
+                    className={`h-3 w-3 ml-0.5 transition-transform ${showCommitHistory ? "rotate-180" : ""}`}
+                  />
                 </Button>
                 {/* Commit History Dropdown */}
                 {showCommitHistory && (
                   <div className="absolute right-0 top-full mt-1 w-72 bg-black/95 border border-white/10 rounded-lg shadow-xl z-50 overflow-hidden">
                     <div className="p-2 border-b border-white/10">
-                      <span className="text-xs text-white/60 font-medium">Recent Commits</span>
+                      <span className="text-xs text-white/60 font-medium">
+                        Recent Commits
+                      </span>
                     </div>
                     <div className="max-h-64 overflow-y-auto">
                       {commitHistory.length > 0 ? (
@@ -2370,7 +2426,11 @@ ANTHROPIC_API_KEY=your_key_here`}
                 onClick={deployToProduction}
                 disabled={isDeploying}
                 className="h-7 text-xs text-[#FF5800] hover:text-[#FF7033] hover:bg-[#FF5800]/10"
-                title={productionUrl ? `Deploy to ${productionUrl}` : "Deploy to production"}
+                title={
+                  productionUrl
+                    ? `Deploy to ${productionUrl}`
+                    : "Deploy to production"
+                }
               >
                 {isDeploying ? (
                   <Loader2 className="h-3 w-3 animate-spin" />
@@ -2475,12 +2535,18 @@ ANTHROPIC_API_KEY=your_key_here`}
                     </p>
                     {snapshotInfo?.githubRepo && (
                       <p className="text-xs text-white/50 mt-1">
-                        From <span className="font-mono">{snapshotInfo.githubRepo.split("/").pop()}</span>
+                        From{" "}
+                        <span className="font-mono">
+                          {snapshotInfo.githubRepo.split("/").pop()}
+                        </span>
                       </p>
                     )}
                   </div>
 
-                  <Button disabled className="w-full bg-green-600 text-white cursor-wait">
+                  <Button
+                    disabled
+                    className="w-full bg-green-600 text-white cursor-wait"
+                  >
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                     {restoreProgress
                       ? `Restoring ${restoreProgress.current}/${restoreProgress.total}...`
@@ -2511,9 +2577,17 @@ ANTHROPIC_API_KEY=your_key_here`}
                       Your code is saved to GitHub
                     </p>
                     <p className="text-xs text-white/50 mt-1">
-                      <span className="font-mono">{snapshotInfo.githubRepo?.split("/").pop()}</span>
+                      <span className="font-mono">
+                        {snapshotInfo.githubRepo?.split("/").pop()}
+                      </span>
                       {snapshotInfo.lastBackup && (
-                        <> · Last updated {new Date(snapshotInfo.lastBackup).toLocaleDateString()}</>
+                        <>
+                          {" "}
+                          · Last updated{" "}
+                          {new Date(
+                            snapshotInfo.lastBackup,
+                          ).toLocaleDateString()}
+                        </>
                       )}
                     </p>
                   </div>
@@ -2585,7 +2659,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                   hour12: false,
                   hour: "2-digit",
                   minute: "2-digit",
-                }
+                },
               );
 
               return (
@@ -2795,12 +2869,20 @@ ANTHROPIC_API_KEY=your_key_here`}
             {/* Visor Scanner Animation Styles */}
             <style jsx global>{`
               @keyframes visor-scan {
-                0% { left: -100px; }
-                100% { left: calc(100% + 100px); }
+                0% {
+                  left: -100px;
+                }
+                100% {
+                  left: calc(100% + 100px);
+                }
               }
               @keyframes visor-scan-delayed {
-                0% { left: -80px; }
-                100% { left: calc(100% + 80px); }
+                0% {
+                  left: -80px;
+                }
+                100% {
+                  left: calc(100% + 80px);
+                }
               }
             `}</style>
             <div className="relative rounded-xl border border-white/[0.06] bg-white/[0.015] overflow-hidden transition-all focus-within:border-white/[0.12] focus-within:bg-white/[0.025]">
@@ -2831,7 +2913,8 @@ ANTHROPIC_API_KEY=your_key_here`}
                 onInput={(e) => {
                   const target = e.target as HTMLTextAreaElement;
                   target.style.height = "48px";
-                  target.style.height = Math.min(target.scrollHeight, 120) + "px";
+                  target.style.height =
+                    Math.min(target.scrollHeight, 120) + "px";
                 }}
                 rows={1}
                 placeholder="Describe what you want to build..."
@@ -2952,7 +3035,10 @@ ANTHROPIC_API_KEY=your_key_here`}
               )
             ) : previewTab === "files" ? (
               session?.id ? (
-                <SandboxFileExplorer sessionId={session.id} className="h-full" />
+                <SandboxFileExplorer
+                  sessionId={session.id}
+                  className="h-full"
+                />
               ) : (
                 <div className="flex items-center justify-center h-full">
                   <div className="text-center text-white/30">

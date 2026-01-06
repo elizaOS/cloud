@@ -51,7 +51,9 @@ export function AppUsers({ appId }: AppUsersProps) {
     try {
       const [usersRes, visitorsRes] = await Promise.all([
         fetch(`/api/v1/apps/${appId}/users?limit=50`),
-        fetch(`/api/v1/apps/${appId}/analytics/requests?view=visitors&limit=50`),
+        fetch(
+          `/api/v1/apps/${appId}/analytics/requests?view=visitors&limit=50`,
+        ),
       ]);
 
       const [usersData, visitorsData] = await Promise.all([
@@ -185,7 +187,9 @@ export function AppUsers({ appId }: AppUsersProps) {
                 onClick={() => fetchData()}
                 disabled={isLoading}
               >
-                <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
+                <RefreshCw
+                  className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
+                />
               </Button>
             </div>
 

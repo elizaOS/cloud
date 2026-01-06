@@ -15,13 +15,13 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { sessionId } = await params;
-    
+
     // Verify session ownership
     const session = await aiAppBuilder.getSession(sessionId, user.id);
     if (!session) {
       return NextResponse.json(
         { success: false, error: "Session not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -29,7 +29,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const path = searchParams.get("path") || ".";
 
     const allFiles = await sandboxService.listFiles(session.sandboxId, path);
-    
+
     // Filter out hidden directories and common non-source directories
     const EXCLUDED_PATTERNS = [
       /^\.git\//,
@@ -49,25 +49,29 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       /\.lock$/,
       /lock\.json$/,
     ];
-    
-    const files = allFiles.filter(file => {
+
+    const files = allFiles.filter((file) => {
       // Normalize path for matching
       const normalized = file.startsWith("./") ? file.slice(2) : file;
-      return !EXCLUDED_PATTERNS.some(pattern => pattern.test(normalized));
+      return !EXCLUDED_PATTERNS.some((pattern) => pattern.test(normalized));
     });
-    
+
     // Build a tree structure
     const fileTree = buildFileTree(files, path);
 
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json({
+      success: true,
       files,
-      tree: fileTree 
+      tree: fileTree,
     });
   } catch (error) {
     logger.error("Failed to list sandbox files", { error });
-    const message = error instanceof Error ? error.message : "Failed to list files";
-    return NextResponse.json({ success: false, error: message }, { status: 500 });
+    const message =
+      error instanceof Error ? error.message : "Failed to list files";
+    return NextResponse.json(
+      { success: false, error: message },
+      { status: 500 },
+    );
   }
 }
 
@@ -83,57 +87,67 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { sessionId } = await params;
-    
+
     // Verify session ownership
     const session = await aiAppBuilder.getSession(sessionId, user.id);
     if (!session) {
       return NextResponse.json(
         { success: false, error: "Session not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
     const body = await request.json();
     const validation = FileOperationSchema.safeParse(body);
-    
+
     if (!validation.success) {
       return NextResponse.json(
-        { success: false, error: "Invalid request", details: validation.error.format() },
-        { status: 400 }
+        {
+          success: false,
+          error: "Invalid request",
+          details: validation.error.format(),
+        },
+        { status: 400 },
       );
     }
 
     const { operation, path, content } = validation.data;
 
     if (operation === "read") {
-      const fileContent = await sandboxService.readFile(session.sandboxId, path);
-      return NextResponse.json({ 
-        success: true, 
+      const fileContent = await sandboxService.readFile(
+        session.sandboxId,
+        path,
+      );
+      return NextResponse.json({
+        success: true,
         content: fileContent,
-        path 
+        path,
       });
     } else if (operation === "write") {
       if (content === undefined) {
         return NextResponse.json(
           { success: false, error: "Content required for write operation" },
-          { status: 400 }
+          { status: 400 },
         );
       }
       await sandboxService.writeFile(session.sandboxId, path, content);
-      return NextResponse.json({ 
-        success: true, 
+      return NextResponse.json({
+        success: true,
         message: "File written successfully",
-        path 
+        path,
       });
     }
 
     return NextResponse.json(
       { success: false, error: "Invalid operation" },
-      { status: 400 }
+      { status: 400 },
     );
   } catch (error) {
     logger.error("Failed to perform file operation", { error });
-    const message = error instanceof Error ? error.message : "Failed to perform file operation";
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Failed to perform file operation";
     const status = message.includes("not found") ? 404 : 500;
     return NextResponse.json({ success: false, error: message }, { status });
   }
@@ -173,7 +187,7 @@ function buildFileTree(files: string[], basePath: string): FileTreeNode[] {
       currentPath = currentPath ? `${currentPath}/${part}` : part;
 
       let node = nodeMap.get(currentPath);
-      
+
       if (!node) {
         node = {
           name: part,
@@ -193,15 +207,17 @@ function buildFileTree(files: string[], basePath: string): FileTreeNode[] {
 
   // Sort: directories first, then alphabetically
   const sortNodes = (nodes: FileTreeNode[]): FileTreeNode[] => {
-    return nodes.sort((a, b) => {
-      if (a.type !== b.type) {
-        return a.type === "directory" ? -1 : 1;
-      }
-      return a.name.localeCompare(b.name);
-    }).map(node => ({
-      ...node,
-      children: node.children ? sortNodes(node.children) : undefined,
-    }));
+    return nodes
+      .sort((a, b) => {
+        if (a.type !== b.type) {
+          return a.type === "directory" ? -1 : 1;
+        }
+        return a.name.localeCompare(b.name);
+      })
+      .map((node) => ({
+        ...node,
+        children: node.children ? sortNodes(node.children) : undefined,
+      }));
   };
 
   return sortNodes(root);

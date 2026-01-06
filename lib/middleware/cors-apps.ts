@@ -19,8 +19,8 @@ const DEFAULT_ALLOWED_ORIGINS = [
 
 // Patterns for dynamically allowed origins (Vercel sandboxes, etc.)
 const ALLOWED_ORIGIN_PATTERNS = [
-  /^https:\/\/sb-[a-z0-9]+\.vercel\.run$/,  // Vercel sandbox domains
-  /^https:\/\/[a-z0-9-]+\.vercel\.app$/,     // Vercel preview deployments
+  /^https:\/\/sb-[a-z0-9]+\.vercel\.run$/, // Vercel sandbox domains
+  /^https:\/\/[a-z0-9-]+\.vercel\.app$/, // Vercel preview deployments
 ];
 
 /**

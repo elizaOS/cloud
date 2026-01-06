@@ -74,9 +74,15 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       error instanceof Error ? error.message : "Failed to send prompt";
 
     let status = 500;
-    if (message.includes("Authentication") || message.includes("Unauthorized")) {
+    if (
+      message.includes("Authentication") ||
+      message.includes("Unauthorized")
+    ) {
       status = 401;
-    } else if (message.includes("Access denied") || message.includes("Forbidden")) {
+    } else if (
+      message.includes("Access denied") ||
+      message.includes("Forbidden")
+    ) {
       status = 403;
     } else if (message.includes("not found") || message.includes("not ready")) {
       status = 404;
@@ -84,9 +90,6 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       status = 429;
     }
 
-    return NextResponse.json(
-      { success: false, error: message },
-      { status },
-    );
+    return NextResponse.json({ success: false, error: message }, { status });
   }
 }

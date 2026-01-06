@@ -13,9 +13,27 @@ import {
   type AppRequest,
   type NewAppRequest,
 } from "../schemas";
-import { eq, and, gte, lte, desc, sql, count, countDistinct } from "drizzle-orm";
+import {
+  eq,
+  and,
+  gte,
+  lte,
+  desc,
+  sql,
+  count,
+  countDistinct,
+} from "drizzle-orm";
 
-export type { App, NewApp, AppUser, NewAppUser, AppAnalytics, NewAppAnalytics, AppRequest, NewAppRequest };
+export type {
+  App,
+  NewApp,
+  AppUser,
+  NewAppUser,
+  AppAnalytics,
+  NewAppAnalytics,
+  AppRequest,
+  NewAppRequest,
+};
 
 /**
  * Repository for app database operations.
@@ -132,14 +150,21 @@ export class AppsRepository {
     periodType: string,
     startDate: Date,
     endDate: Date,
-  ): Promise<Array<{
-    period_start: Date;
-    total_requests: number;
-    unique_users: number;
-    new_users: number;
-    total_cost: string;
-  }>> {
-    const truncUnit = periodType === "hourly" ? "hour" : periodType === "monthly" ? "month" : "day";
+  ): Promise<
+    Array<{
+      period_start: Date;
+      total_requests: number;
+      unique_users: number;
+      new_users: number;
+      total_cost: string;
+    }>
+  > {
+    const truncUnit =
+      periodType === "hourly"
+        ? "hour"
+        : periodType === "monthly"
+          ? "month"
+          : "day";
 
     const results = await dbRead.execute<{
       period_start: string;
@@ -362,7 +387,10 @@ export class AppsRepository {
    * Logs an individual app request for detailed analytics.
    */
   async logRequest(data: NewAppRequest): Promise<AppRequest> {
-    const [request] = await dbWrite.insert(appRequests).values(data).returning();
+    const [request] = await dbWrite
+      .insert(appRequests)
+      .values(data)
+      .returning();
     return request;
   }
 

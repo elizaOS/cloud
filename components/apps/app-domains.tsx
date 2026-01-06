@@ -320,7 +320,8 @@ export function AppDomains({ appId }: AppDomainsProps) {
                         Development URL
                       </p>
                       <p className="text-xs text-blue-300/70 mt-1">
-                        This is your sandbox development URL. Deploy your app to get a permanent subdomain and add custom domains.
+                        This is your sandbox development URL. Deploy your app to
+                        get a permanent subdomain and add custom domains.
                       </p>
                     </div>
                   </div>

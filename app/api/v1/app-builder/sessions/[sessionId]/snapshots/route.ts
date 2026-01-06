@@ -14,11 +14,14 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { sessionId } = await params;
 
-    const session = await aiAppBuilder.verifySessionOwnership(sessionId, user.id);
+    const session = await aiAppBuilder.verifySessionOwnership(
+      sessionId,
+      user.id,
+    );
     if (!session) {
       return NextResponse.json(
         { success: false, error: "Session not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -43,7 +46,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     let lastBackup: string | null = null;
     try {
       const repoName = app.github_repo.split("/").pop() || app.github_repo;
-      const commits = await githubReposService.listCommits(repoName, { limit: 1 });
+      const commits = await githubReposService.listCommits(repoName, {
+        limit: 1,
+      });
       if (commits.length > 0) {
         lastBackup = commits[0].date;
       }
@@ -61,7 +66,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       lastBackup,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to get snapshot info";
+    const message =
+      error instanceof Error ? error.message : "Failed to get snapshot info";
     const status =
       message.includes("Unauthorized") || message.includes("Authentication")
         ? 401

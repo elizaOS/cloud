@@ -38,7 +38,10 @@ export async function POST(request: NextRequest) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
 
-    const rateLimitResult = await checkRateLimitAsync(request, SESSION_CREATE_LIMIT);
+    const rateLimitResult = await checkRateLimitAsync(
+      request,
+      SESSION_CREATE_LIMIT,
+    );
     if (!rateLimitResult.allowed) {
       const maxRequests = SESSION_CREATE_LIMIT.maxRequests;
       const windowSeconds = SESSION_CREATE_LIMIT.windowMs / 1000;
@@ -54,7 +57,7 @@ export async function POST(request: NextRequest) {
             "Content-Type": "application/json",
             "Retry-After": rateLimitResult.retryAfter?.toString() || "3600",
           },
-        }
+        },
       );
     }
 
@@ -68,7 +71,7 @@ export async function POST(request: NextRequest) {
           error: "Invalid request data",
           details: validationResult.error.format(),
         }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
+        { status: 400, headers: { "Content-Type": "application/json" } },
       );
     }
 
@@ -194,9 +197,15 @@ export async function POST(request: NextRequest) {
     const message = error instanceof Error ? error.message : "Internal error";
 
     let status = 500;
-    if (message.includes("Authentication") || message.includes("Unauthorized")) {
+    if (
+      message.includes("Authentication") ||
+      message.includes("Unauthorized")
+    ) {
       status = 401;
-    } else if (message.includes("Access denied") || message.includes("Forbidden")) {
+    } else if (
+      message.includes("Access denied") ||
+      message.includes("Forbidden")
+    ) {
       status = 403;
     } else if (message.includes("not found")) {
       status = 404;
@@ -206,9 +215,9 @@ export async function POST(request: NextRequest) {
       status = 400;
     }
 
-    return new Response(
-      JSON.stringify({ success: false, error: message }),
-      { status, headers: { "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ success: false, error: message }), {
+      status,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 }

@@ -33,7 +33,10 @@ export async function GET(request: NextRequest) {
     const MAX_LIMIT = 100;
     const rawLimit = Number.parseInt(searchParams.get("limit") || "50", 10);
     const rawOffset = Number.parseInt(searchParams.get("offset") || "0", 10);
-    const limit = Math.min(Math.max(Number.isNaN(rawLimit) ? 50 : rawLimit, 1), MAX_LIMIT);
+    const limit = Math.min(
+      Math.max(Number.isNaN(rawLimit) ? 50 : rawLimit, 1),
+      MAX_LIMIT,
+    );
     const offset = Math.max(Number.isNaN(rawOffset) ? 0 : rawOffset, 0);
 
     logger.info(`[User Voices API] Fetching voices for user ${user.id}`, {

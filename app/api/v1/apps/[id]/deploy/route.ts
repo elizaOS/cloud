@@ -151,7 +151,8 @@ export async function GET(
   const deployments = await vercelDeploymentsService.listDeployments(appId, 10);
 
   // Check if deployment is configured
-  const deploymentConfigured = vercelDeploymentsService.isDeploymentConfigured();
+  const deploymentConfigured =
+    vercelDeploymentsService.isDeploymentConfigured();
 
   return NextResponse.json({
     success: true,
