@@ -1,13 +1,13 @@
 import { Suspense } from "react";
+import Link from "next/link";
 import type { Metadata } from "next";
 import { requireAuthWithOrg } from "@/lib/auth";
 import { appsService } from "@/lib/services/apps";
 import { AppsTable } from "@/components/apps/apps-table";
 import { AppsSkeleton } from "@/components/apps/apps-skeleton";
-import { Grid3x3, Users, TrendingUp, Activity } from "lucide-react";
-import { BrandCard, CornerBrackets } from "@/components/brand";
+import { Grid3x3, Users, TrendingUp, Activity, Sparkles } from "lucide-react";
+import { BrandCard, CornerBrackets, BrandButton } from "@/components/brand";
 import { CreateAppButton } from "@/components/apps/create-app-button";
-import { AIAppBuilderButton } from "@/components/apps/ai-app-builder-button";
 
 export const metadata: Metadata = {
   title: "Apps",
@@ -58,7 +58,12 @@ export default async function AppsPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <AIAppBuilderButton />
+          <Link href="/dashboard/apps/create">
+            <BrandButton variant="hud">
+              <Sparkles className="h-4 w-4 mr-2" />
+              Build with AI
+            </BrandButton>
+          </Link>
           <CreateAppButton />
         </div>
       </div>

@@ -1,0 +1,348 @@
+import { logger } from "@/lib/utils/logger";
+import { appsService } from "./apps";
+import { githubReposService } from "./github-repos";
+import { vercelDeploymentsService } from "./vercel-deployments";
+import type { App } from "@/db/repositories/apps";
+
+/**
+ * App Factory Service
+ *
+ * Provides a unified interface for creating apps with all associated resources.
+ * This orchestration layer ensures consistency between app creation flows
+ * (manual API creation vs AI builder creation).
+ *
+ * Key responsibilities:
+ * - Create app record via appsService
+ * - Create GitHub repository for the app
+ * - Link app to its GitHub repo
+ * - Handle failures gracefully
+ */
+
+export interface CreateAppInput {
+  name: string;
+  description?: string;
+  organization_id: string;
+  created_by_user_id: string;
+  app_url: string;
+  allowed_origins?: string[];
+  logo_url?: string;
+  website_url?: string;
+  contact_email?: string;
+}
+
+export interface CreateAppOptions {
+  /** Whether to create a GitHub repository for this app (default: true) */
+  createGitHubRepo?: boolean;
+  /** Custom repo name (default: auto-generated from app slug) */
+  repoName?: string;
+  /** Whether the repo should be private (default: true) */
+  repoPrivate?: boolean;
+  /** Whether to assign a subdomain (default: true) */
+  assignSubdomain?: boolean;
+  /** Preferred subdomain (optional, will auto-generate if not available) */
+  preferredSubdomain?: string;
+}
+
+export interface CreateAppResult {
+  app: App;
+  apiKey: string;
+  githubRepo?: string;
+  githubRepoCreated: boolean;
+  subdomain?: string;
+  productionUrl?: string;
+  subdomainAssigned: boolean;
+  errors: string[];
+}
+
+export class AppFactoryService {
+  /**
+   * Create a new app with all associated resources.
+   *
+   * This is the primary method for app creation that should be used
+   * throughout the application to ensure consistency.
+   */
+  async createApp(
+    data: CreateAppInput,
+    options: CreateAppOptions = {},
+  ): Promise<CreateAppResult> {
+    const {
+      createGitHubRepo = true,
+      repoPrivate = true,
+      assignSubdomain = true,
+      preferredSubdomain,
+    } = options;
+
+    const errors: string[] = [];
+    let githubRepo: string | undefined;
+    let githubRepoCreated = false;
+    let subdomain: string | undefined;
+    let productionUrl: string | undefined;
+    let subdomainAssigned = false;
+
+    logger.info("AppFactory: Creating app", {
+      name: data.name,
+      organizationId: data.organization_id,
+      createGitHubRepo,
+      assignSubdomain,
+    });
+
+    // Step 1: Create the app record
+    const { app, apiKey } = await appsService.create(data);
+
+    logger.info("AppFactory: App record created", {
+      appId: app.id,
+      slug: app.slug,
+    });
+
+    // Step 2: Create GitHub repo if requested
+    if (createGitHubRepo) {
+      try {
+        const repoName =
+          options.repoName ||
+          githubReposService.generateRepoName(app.id, app.slug);
+
+        logger.info("AppFactory: Creating GitHub repo", {
+          appId: app.id,
+          repoName,
+        });
+
+        const repoInfo = await githubReposService.createAppRepo({
+          name: repoName,
+          description: `ElizaCloud App: ${app.name}`,
+          isPrivate: repoPrivate,
+        });
+
+        githubRepo = repoInfo.fullName;
+        githubRepoCreated = true;
+
+        // Step 3: Update app with GitHub repo reference
+        await appsService.update(app.id, {
+          github_repo: repoInfo.fullName,
+        });
+
+        // Update local app object
+        app.github_repo = repoInfo.fullName;
+
+        logger.info("AppFactory: GitHub repo created and linked", {
+          appId: app.id,
+          githubRepo: repoInfo.fullName,
+        });
+      } catch (repoError) {
+        const errorMessage =
+          repoError instanceof Error
+            ? repoError.message
+            : "Unknown error creating GitHub repo";
+
+        errors.push(`GitHub repo creation failed: ${errorMessage}`);
+
+        logger.warn("AppFactory: Failed to create GitHub repo", {
+          appId: app.id,
+          error: errorMessage,
+        });
+
+        // App is still usable without GitHub repo
+        // The repo can be created later
+      }
+    }
+
+    // Step 3: Assign subdomain if requested
+    if (assignSubdomain) {
+      try {
+        logger.info("AppFactory: Assigning subdomain", {
+          appId: app.id,
+          preferredSubdomain,
+        });
+
+        const subdomainResult = await vercelDeploymentsService.assignSubdomain(
+          app.id,
+          preferredSubdomain || app.slug,
+        );
+
+        if (subdomainResult.success && subdomainResult.subdomain) {
+          subdomain = subdomainResult.subdomain;
+          productionUrl = subdomainResult.fullDomain
+            ? `https://${subdomainResult.fullDomain}`
+            : undefined;
+          subdomainAssigned = true;
+
+          // Update app with production URL
+          await appsService.update(app.id, {
+            app_url: productionUrl || app.app_url,
+          });
+
+          logger.info("AppFactory: Subdomain assigned", {
+            appId: app.id,
+            subdomain,
+            productionUrl,
+          });
+        } else {
+          errors.push(
+            `Subdomain assignment failed: ${subdomainResult.error || "Unknown error"}`,
+          );
+          logger.warn("AppFactory: Failed to assign subdomain", {
+            appId: app.id,
+            error: subdomainResult.error,
+          });
+        }
+      } catch (subdomainError) {
+        const errorMessage =
+          subdomainError instanceof Error
+            ? subdomainError.message
+            : "Unknown error assigning subdomain";
+
+        errors.push(`Subdomain assignment failed: ${errorMessage}`);
+
+        logger.warn("AppFactory: Subdomain assignment error", {
+          appId: app.id,
+          error: errorMessage,
+        });
+      }
+    }
+
+    return {
+      app,
+      apiKey,
+      githubRepo,
+      githubRepoCreated,
+      subdomain,
+      productionUrl,
+      subdomainAssigned,
+      errors,
+    };
+  }
+
+  /**
+   * Create an app without GitHub repository.
+   * Use this for apps that don't need version control.
+   */
+  async createAppWithoutRepo(
+    data: CreateAppInput,
+  ): Promise<{ app: App; apiKey: string }> {
+    return appsService.create(data);
+  }
+
+  /**
+   * Ensure an existing app has a GitHub repository.
+   * Creates one if it doesn't exist.
+   */
+  async ensureGitHubRepo(
+    appId: string,
+    options?: { repoPrivate?: boolean },
+  ): Promise<{ githubRepo: string | null; created: boolean; error?: string }> {
+    const { repoPrivate = true } = options || {};
+
+    const app = await appsService.getById(appId);
+    if (!app) {
+      return { githubRepo: null, created: false, error: "App not found" };
+    }
+
+    // If app already has a repo, return it
+    if (app.github_repo) {
+      logger.info("AppFactory: App already has GitHub repo", {
+        appId,
+        githubRepo: app.github_repo,
+      });
+      return { githubRepo: app.github_repo, created: false };
+    }
+
+    // Create new repo
+    try {
+      const repoName = githubReposService.generateRepoName(app.id, app.slug);
+
+      logger.info("AppFactory: Creating GitHub repo for existing app", {
+        appId,
+        repoName,
+      });
+
+      const repoInfo = await githubReposService.createAppRepo({
+        name: repoName,
+        description: `ElizaCloud App: ${app.name}`,
+        isPrivate: repoPrivate,
+      });
+
+      await appsService.update(app.id, {
+        github_repo: repoInfo.fullName,
+      });
+
+      logger.info("AppFactory: GitHub repo created for existing app", {
+        appId,
+        githubRepo: repoInfo.fullName,
+      });
+
+      return { githubRepo: repoInfo.fullName, created: true };
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      logger.error(
+        "AppFactory: Failed to create GitHub repo for existing app",
+        {
+          appId,
+          error: errorMessage,
+        },
+      );
+      return { githubRepo: null, created: false, error: errorMessage };
+    }
+  }
+
+  /**
+   * Delete an app and its associated resources.
+   * Optionally deletes the GitHub repository as well.
+   */
+  async deleteApp(
+    appId: string,
+    options?: { deleteGitHubRepo?: boolean },
+  ): Promise<{ success: boolean; errors: string[] }> {
+    const { deleteGitHubRepo = false } = options || {};
+    const errors: string[] = [];
+
+    const app = await appsService.getById(appId);
+    if (!app) {
+      return { success: false, errors: ["App not found"] };
+    }
+
+    // Delete GitHub repo if requested
+    if (deleteGitHubRepo && app.github_repo) {
+      try {
+        const repoName = app.github_repo.includes("/")
+          ? app.github_repo.split("/").pop()!
+          : app.github_repo;
+
+        await githubReposService.deleteAppRepo(repoName);
+
+        logger.info("AppFactory: Deleted GitHub repo", {
+          appId,
+          githubRepo: app.github_repo,
+        });
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
+        errors.push(`Failed to delete GitHub repo: ${errorMessage}`);
+        logger.warn("AppFactory: Failed to delete GitHub repo", {
+          appId,
+          error: errorMessage,
+        });
+      }
+    }
+
+    // Delete the app record
+    await appsService.delete(appId);
+
+    logger.info("AppFactory: Deleted app", { appId });
+
+    return { success: true, errors };
+  }
+
+  /**
+   * Check if GitHub integration is properly configured.
+   */
+  async checkGitHubConfig(): Promise<{
+    configured: boolean;
+    org: string;
+    template: string;
+    error?: string;
+  }> {
+    return githubReposService.checkGitHubConfig();
+  }
+}
+
+export const appFactoryService = new AppFactoryService();

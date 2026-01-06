@@ -9,13 +9,26 @@ import { appsService } from "@/lib/services/apps";
 import { apiKeysService } from "@/lib/services/api-keys";
 import { logger } from "@/lib/utils/logger";
 
-// Default allowed origins for development
+// Default allowed origins for development and Vercel sandboxes
 const DEFAULT_ALLOWED_ORIGINS = [
   "http://localhost:3000",
   "http://localhost:3001",
   "http://127.0.0.1:3000",
   "http://127.0.0.1:3001",
 ];
+
+// Patterns for dynamically allowed origins (Vercel sandboxes, etc.)
+const ALLOWED_ORIGIN_PATTERNS = [
+  /^https:\/\/sb-[a-z0-9]+\.vercel\.run$/, // Vercel sandbox domains
+  /^https:\/\/[a-z0-9-]+\.vercel\.app$/, // Vercel preview deployments
+];
+
+/**
+ * Check if origin matches any allowed pattern
+ */
+function matchesAllowedPattern(origin: string): boolean {
+  return ALLOWED_ORIGIN_PATTERNS.some((pattern) => pattern.test(origin));
+}
 
 export interface CorsValidationResult {
   allowed: boolean;
@@ -38,6 +51,12 @@ export async function validateOrigin(
 
   // Always allow default development origins
   if (DEFAULT_ALLOWED_ORIGINS.includes(origin)) {
+    return { allowed: true, origin };
+  }
+
+  // Allow Vercel sandbox and preview deployment origins
+  if (matchesAllowedPattern(origin)) {
+    logger.debug("[CORS] Origin matched allowed pattern", { origin });
     return { allowed: true, origin };
   }
 

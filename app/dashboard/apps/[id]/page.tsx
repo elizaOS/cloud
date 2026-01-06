@@ -2,15 +2,11 @@ import type { Metadata } from "next";
 import { requireAuthWithOrg } from "@/lib/auth";
 import { appsService } from "@/lib/services/apps";
 import { redirect } from "next/navigation";
-import { AppOverview } from "@/components/apps/app-overview";
-import { AppSettings } from "@/components/apps/app-settings";
-import { AppAnalytics } from "@/components/apps/app-analytics";
-import { AppUsers } from "@/components/apps/app-users";
-import { BrandCard, CornerBrackets } from "@/components/brand";
-import { ArrowLeft, Grid3x3, Settings, BarChart3, Users } from "lucide-react";
+import { ArrowLeft, Grid3x3 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { AppDetailsTabs } from "@/components/apps/app-details-tabs";
+import { isValidUUID } from "@/lib/utils";
 
 // Force dynamic rendering since we use server-side auth (cookies)
 export const dynamic = "force-dynamic";
@@ -29,8 +25,16 @@ interface PageProps {
 export async function generateMetadata({
   params,
 }: PageProps): Promise<Metadata> {
-  const user = await requireAuthWithOrg();
   const { id } = await params;
+
+  if (!isValidUUID(id)) {
+    return {
+      title: "App Not Found",
+      robots: { index: false, follow: false },
+    };
+  }
+
+  const user = await requireAuthWithOrg();
   const app = await appsService.getById(id);
 
   if (!app || app.organization_id !== user.organization_id) {
@@ -61,8 +65,14 @@ export default async function AppDetailsPage({
   params,
   searchParams,
 }: PageProps) {
-  const user = await requireAuthWithOrg();
   const { id } = await params;
+
+  // Validate UUID format before querying database
+  if (!isValidUUID(id)) {
+    redirect("/dashboard/apps");
+  }
+
+  const user = await requireAuthWithOrg();
   const search = await searchParams;
 
   const app = await appsService.getById(id);

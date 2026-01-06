@@ -12,6 +12,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { App } from "@/db/schemas";
 import {
   Activity,
@@ -23,6 +24,8 @@ import {
   Key,
   Copy,
   Check,
+  Sparkles,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -32,20 +35,69 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { formatDistanceToNow } from "date-fns";
+import { toast } from "sonner";
 
 interface AppsTableProps {
   apps: App[];
 }
 
 export function AppsTable({ apps }: AppsTableProps) {
+  const router = useRouter();
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [appToDelete, setAppToDelete] = useState<App | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const copyToClipboard = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const handleDeleteClick = (app: App) => {
+    setAppToDelete(app);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!appToDelete) return;
+
+    setIsDeleting(true);
+    try {
+      const response = await fetch(`/api/v1/apps/${appToDelete.id}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to delete app");
+      }
+
+      toast.success("App deleted successfully");
+      router.refresh();
+    } catch (error) {
+      console.error("Error deleting app:", error);
+      toast.error("Failed to delete app", {
+        description:
+          error instanceof Error ? error.message : "Please try again",
+      });
+    } finally {
+      setIsDeleting(false);
+      setDeleteDialogOpen(false);
+      setAppToDelete(null);
+    }
   };
 
   if (apps.length === 0) {
@@ -188,19 +240,32 @@ export function AppsTable({ apps }: AppsTableProps) {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
                 <DropdownMenuItem asChild>
+                  <Link
+                    href={`/dashboard/apps/create?appId=${app.id}`}
+                    className="text-[#FF5800] focus:text-[#FF5800]"
+                  >
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    Continue Building
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
                   <Link href={`/dashboard/apps/${app.id}`}>
                     <Settings className="h-4 w-4 mr-2" />
                     Manage App
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link href={`/dashboard/apps/${app.id}?tab=api-key`}>
+                  <Link href={`/dashboard/apps/${app.id}?tab=settings`}>
                     <Key className="h-4 w-4 mr-2" />
                     View API Key
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem className="text-red-400 focus:text-red-400">
+                <DropdownMenuItem
+                  className="text-red-400 focus:text-red-400"
+                  onClick={() => handleDeleteClick(app)}
+                >
                   <Trash2 className="h-4 w-4 mr-2" />
                   Delete App
                 </DropdownMenuItem>
@@ -209,6 +274,36 @@ export function AppsTable({ apps }: AppsTableProps) {
           </div>
         </div>
       ))}
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete App?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the app
+              <strong className="text-white"> {appToDelete?.name}</strong> and
+              remove all associated data including analytics and user tracking.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              disabled={isDeleting}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete App"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

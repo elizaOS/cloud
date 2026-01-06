@@ -8,6 +8,7 @@ import { usageService } from "@/lib/services/usage";
 import { creditsService } from "@/lib/services/credits";
 import { generationsService } from "@/lib/services/generations";
 import { discordService } from "@/lib/services/discord";
+import { appsService } from "@/lib/services/apps";
 import { IMAGE_GENERATION_COST } from "@/lib/pricing";
 import { uploadBase64Image } from "@/lib/blob";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
@@ -385,6 +386,25 @@ async function handlePOST(req: NextRequest) {
         is_successful: true,
       });
       usageRecordId = usageRecord.id;
+
+      if (apiKey) {
+        const ipAddress =
+          req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+          req.headers.get("x-real-ip") ||
+          "unknown";
+        const userAgent = req.headers.get("user-agent") || "unknown";
+
+        await appsService.trackDetailedRequest(apiKey.id, {
+          requestType: "image",
+          source: "api_key",
+          ipAddress,
+          userAgent,
+          userId: user.id,
+          model: IMAGE_MODEL,
+          creditsUsed: String(actualCost),
+          status: "success",
+        });
+      }
     }
 
     // Upload all images to Vercel Blob

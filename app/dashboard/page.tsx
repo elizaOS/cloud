@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import { redirect } from "next/navigation";
 import { generatePageMetadata, ROUTE_METADATA } from "@/lib/seo";
 import { getDashboardData } from "@/lib/actions/dashboard";
 import { DashboardPageWrapper } from "@/components/dashboard/dashboard-page-wrapper";
@@ -26,7 +27,19 @@ export const dynamic = "force-dynamic";
  * @returns Dashboard page with agents and containers sections.
  */
 export default async function DashboardPage() {
-  const data = await getDashboardData();
+  let data;
+  try {
+    data = await getDashboardData();
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      (error.message.includes("Unauthorized") ||
+        error.message.includes("Forbidden"))
+    ) {
+      redirect("/login");
+    }
+    throw error;
+  }
 
   return (
     <DashboardPageWrapper userName={data.user.name.split(" ")[0] || "User"}>

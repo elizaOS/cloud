@@ -495,6 +495,158 @@ export class CreditsService {
   }
 
   /**
+   * Reserve credits before a streaming operation begins.
+   * This deducts the estimated cost upfront to prevent race conditions
+   * where credits could be spent elsewhere during streaming.
+   *
+   * After the operation completes, call settleReservation() to adjust
+   * based on actual usage.
+   */
+  async reserveCredits(params: DeductCreditsParams): Promise<{
+    success: boolean;
+    reservationId: string | null;
+    reservedAmount: number;
+    newBalance: number;
+    reason?: "insufficient_balance" | "org_not_found";
+  }> {
+    const result = await this.reserveAndDeductCredits(params);
+
+    return {
+      success: result.success,
+      reservationId: result.transaction?.id ?? null,
+      reservedAmount: result.success ? params.amount : 0,
+      newBalance: result.newBalance,
+      reason: result.reason as
+        | "insufficient_balance"
+        | "org_not_found"
+        | undefined,
+    };
+  }
+
+  /**
+   * Settle a credit reservation after streaming completes.
+   * If actual cost is less than reserved, refunds the difference.
+   * If actual cost is more than reserved, attempts to deduct the difference.
+   *
+   * @returns The final cost and any settlement adjustments made
+   */
+  async settleReservation(params: {
+    organizationId: string;
+    reservedAmount: number;
+    actualAmount: number;
+    description: string;
+    metadata?: Record<string, unknown>;
+    session_token?: string;
+    tokens_consumed?: number;
+  }): Promise<{
+    success: boolean;
+    finalCost: number;
+    adjustment: number;
+    adjustmentType: "refund" | "charge" | "none";
+    newBalance: number;
+  }> {
+    const {
+      organizationId,
+      reservedAmount,
+      actualAmount,
+      description,
+      metadata,
+      session_token,
+      tokens_consumed,
+    } = params;
+
+    const difference = reservedAmount - actualAmount;
+
+    if (Math.abs(difference) < 0.0001) {
+      // No adjustment needed
+      const org = await organizationsRepository.findById(organizationId);
+      return {
+        success: true,
+        finalCost: actualAmount,
+        adjustment: 0,
+        adjustmentType: "none",
+        newBalance: org ? Number(org.credit_balance) : 0,
+      };
+    }
+
+    if (difference > 0) {
+      // Reserved more than actual - refund the difference
+      const refundResult = await this.refundCredits({
+        organizationId,
+        amount: difference,
+        description: `${description} (settlement refund)`,
+        metadata: {
+          ...metadata,
+          settlement: true,
+          original_reserved: reservedAmount,
+        },
+      });
+
+      // Track session if provided
+      if (session_token) {
+        userSessionsService
+          .trackUsage({
+            session_token,
+            credits_used: actualAmount,
+            requests_made: 1,
+            tokens_consumed: tokens_consumed || 0,
+          })
+          .catch((error) => {
+            logger.error(
+              "[CreditsService] Failed to track session usage:",
+              error,
+            );
+          });
+      }
+
+      return {
+        success: true,
+        finalCost: actualAmount,
+        adjustment: difference,
+        adjustmentType: "refund",
+        newBalance: refundResult.newBalance,
+      };
+    } else {
+      // Actual cost exceeded reservation - need to charge more
+      const additionalCharge = Math.abs(difference);
+      const chargeResult = await this.deductCredits({
+        organizationId,
+        amount: additionalCharge,
+        description: `${description} (additional charge)`,
+        metadata: {
+          ...metadata,
+          settlement: true,
+          original_reserved: reservedAmount,
+        },
+        session_token,
+        tokens_consumed,
+      });
+
+      if (!chargeResult.success) {
+        // Log critical alert - service was provided but couldn't collect full payment
+        logger.error(
+          "[CreditsService] ALERT: Failed to collect additional charge after streaming",
+          {
+            organizationId,
+            reservedAmount,
+            actualAmount,
+            additionalChargeNeeded: additionalCharge,
+            reason: "insufficient_balance",
+          },
+        );
+      }
+
+      return {
+        success: chargeResult.success,
+        finalCost: chargeResult.success ? actualAmount : reservedAmount,
+        adjustment: chargeResult.success ? additionalCharge : 0,
+        adjustmentType: "charge",
+        newBalance: chargeResult.newBalance,
+      };
+    }
+  }
+
+  /**
    * Refund credits (e.g., when a generation fails after deduction)
    * Creates a credit transaction to restore the amount
    */
