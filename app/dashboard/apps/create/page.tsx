@@ -1,8 +1,25 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect, useMemo } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo, memo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { useChatInput } from "@/lib/app-builder/store";
+import { formatToolDisplay, getTimeString } from "@/lib/app-builder";
+import { markdownComponents } from "@/lib/app-builder/markdown-components";
+import type {
+  Message,
+  SessionData,
+  SessionStatus,
+  ProgressStep,
+  TemplateType,
+  AppData,
+  GitStatusInfo,
+  CommitInfo,
+  TemplateOption,
+  SourceType,
+  SourceContext,
+} from "@/lib/app-builder/types";
+import { ChatInput } from "@/components/app-builder/chat-input";
 
 async function fetchWithRetry(
   url: string,
@@ -39,7 +56,6 @@ async function fetchWithRetry(
 }
 import {
   Loader2,
-  Send,
   Sparkles,
   RefreshCw,
   ExternalLink,
@@ -72,11 +88,8 @@ import {
   FolderCode,
   MessageSquare,
   FileCode,
-  Layers,
-  Zap,
   Globe,
   Wand2,
-  TrendingUp,
   DollarSign,
   LineChart,
   type LucideIcon,
@@ -87,109 +100,119 @@ import { BrandCard, CornerBrackets, BrandButton } from "@/components/brand";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
-type TemplateType =
-  | "chat"
-  | "agent-dashboard"
-  | "landing-page"
-  | "blank"
-  | "mcp-service"
-  | "a2a-agent";
-
-type SessionStatus =
-  | "idle"
-  | "initializing"
-  | "ready"
-  | "generating"
-  | "error"
-  | "stopped"
-  | "timeout"
-  | "not_configured"
-  | "recovering"; // Auto-recovering sandbox in background
-
-type ProgressStep =
-  | "creating"
-  | "installing"
-  | "starting"
-  | "restoring"
-  | "ready"
-  | "error";
-type SourceType = "agent" | "workflow" | "service" | "standalone";
-
-interface Message {
-  role: "user" | "assistant";
-  content: string;
-  filesAffected?: string[];
-  timestamp: string;
-  _thinkingId?: number;
-}
-
-interface SessionData {
-  id: string;
-  sandboxId: string;
-  sandboxUrl: string;
+// Memoized chat message component to prevent re-renders when input changes
+interface ChatMessageProps {
+  msg: Message;
+  index: number;
+  session: SessionData | null;
   status: SessionStatus;
-  examplePrompts: string[];
-  expiresAt: string | null;
-  appId?: string;
-  githubRepo?: string | null;
+  sendPrompt: (promptText?: string) => void;
 }
 
-interface SourceContext {
-  type: SourceType;
-  id: string;
-  name: string;
-}
+const ChatMessage = memo(function ChatMessage({ msg, index: i, session, status, sendPrompt }: ChatMessageProps) {
+  const isProcessing = !!msg._thinkingId;
+  const msgTime = new Date(msg.timestamp).toLocaleTimeString("en-US", {
+    hour12: false,
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 
-interface AppData {
-  id: string;
-  name: string;
-  description: string | null;
-  monetization_enabled?: boolean;
-  github_repo?: string | null;
-}
+  return (
+    <div
+      className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} w-full group/message`}
+    >
+      <div
+        className={`${
+          msg.role === "user"
+            ? "max-w-[85%] py-2.5 px-4 bg-[#FF5800]/10 border border-[#FF5800]/20 rounded-2xl rounded-tr-md"
+            : isProcessing
+              ? "max-w-[90%] py-3 px-4 bg-gradient-to-br from-violet-500/[0.06] to-transparent border border-violet-400/[0.12] rounded-2xl rounded-tl-md"
+              : "max-w-[90%] py-3 px-4 bg-white/[0.015] border border-white/[0.05] rounded-2xl rounded-tl-md"
+        }`}
+      >
+        <div className="flex items-center justify-between mb-1.5">
+          <div className="flex items-center gap-2">
+            {isProcessing && (
+              <Loader2 className="h-3 w-3 animate-spin text-violet-400" />
+            )}
+            <span
+              className={`text-[11px] ${
+                msg.role === "user"
+                  ? "text-[#FF5800]/70"
+                  : isProcessing
+                    ? "text-violet-300/70"
+                    : "text-white/35"
+              }`}
+            >
+              {msg.role === "user"
+                ? "You"
+                : isProcessing
+                  ? "Building"
+                  : "Assistant"}
+            </span>
+          </div>
+          <span className="text-[10px] text-white/20 font-mono opacity-0 group-hover/message:opacity-100 transition-opacity">
+            {msgTime}
+          </span>
+        </div>
+        <div className="text-[14px] leading-[1.7] text-white/80">
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            components={markdownComponents}
+          >
+            {msg.content}
+          </ReactMarkdown>
+        </div>
+        {i === 0 &&
+          msg.role === "assistant" &&
+          session?.examplePrompts &&
+          session.examplePrompts.length > 0 && (
+            <div className="mt-4 pt-3 border-t border-white/[0.05]">
+              <p className="text-[10px] text-white/35 mb-2 uppercase tracking-wider">
+                Suggestions
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {session.examplePrompts.map((prompt, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => sendPrompt(prompt)}
+                    disabled={status !== "ready"}
+                    className="px-2.5 py-1.5 text-[12px] bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.08] hover:border-white/[0.15] text-white/60 hover:text-white/80 rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed text-left"
+                  >
+                    {prompt}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        {msg.filesAffected && msg.filesAffected.length > 0 && (
+          <div className="mt-3 pt-2.5 border-t border-white/[0.04]">
+            <p className="text-[10px] text-white/30 mb-1.5 uppercase tracking-wider">
+              Changed
+            </p>
+            <div className="flex flex-wrap gap-1">
+              {msg.filesAffected.map((file) => (
+                <span
+                  key={file}
+                  className="px-2 py-0.5 text-[10px] bg-[#FF5800]/10 border border-[#FF5800]/20 text-white/70 font-mono rounded"
+                >
+                  {file}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+});
 
-interface GitStatusInfo {
-  hasChanges: boolean;
-  staged: string[];
-  unstaged: string[];
-  untracked: string[];
-  currentCommitSha: string | null;
-  lastSavedCommitSha: string | null;
-}
-
-interface CommitInfo {
-  sha: string;
-  message: string;
-  author: string;
-  date: string;
-}
-
-interface TemplateOption {
-  value: TemplateType;
-  label: string;
-  description: string;
-  longDescription: string;
-  icon: LucideIcon;
-  color: string;
-  gradient: string;
-  features: string[];
-  techStack: string[];
-  comingSoon?: boolean;
-}
-
-const TEMPLATE_OPTIONS: TemplateOption[] = [
+// Template options with icons - icon field uses LucideIcon type from types.ts
+const TEMPLATE_OPTIONS: (TemplateOption & { icon: LucideIcon })[] = [
   {
     value: "blank",
     label: "Blank Canvas",
@@ -351,7 +374,7 @@ export default function AppCreatorPage() {
   const [session, setSession] = useState<SessionData | null>(null);
   const [status, setStatus] = useState<SessionStatus>("idle");
   const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState("");
+  // Input is managed by Zustand for isolated re-renders - see useChatInput
   const [isLoading, setIsLoading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -484,8 +507,8 @@ export default function AppCreatorPage() {
           if (stored) {
             try {
               setMessages(JSON.parse(stored));
-            } catch {
-              /* ignore */
+            } catch (parseError) {
+              console.warn("[AppBuilder] Failed to parse stored messages:", parseError);
             }
           }
         }
@@ -521,9 +544,10 @@ export default function AppCreatorPage() {
             // Sandbox is healthy, set status to ready
             setStatus("ready");
             setSandboxHealthy(true);
-          } catch {
+          } catch (healthCheckError) {
             // Sandbox is not responding - set to recovering and let the
             // health check useEffect handle auto-recovery
+            console.warn("[AppBuilder] Sandbox health check failed, initiating recovery:", healthCheckError);
             setStatus("recovering");
             setSandboxHealthy(false);
             healthCheckFailCountRef.current = 2;
@@ -533,7 +557,8 @@ export default function AppCreatorPage() {
         }
 
         return true;
-      } catch {
+      } catch (restoreError) {
+        console.warn("[AppBuilder] Session restore failed:", restoreError);
         return false;
       }
     };
@@ -591,7 +616,8 @@ export default function AppCreatorPage() {
             setAppSnapshotInfo(snapshotData.snapshotInfo);
           }
         }
-      } catch {
+      } catch (loadError) {
+        console.error("[AppBuilder] Failed to load app data:", loadError);
         toast.error("Failed to load app");
         router.push("/dashboard/apps");
       }
@@ -684,7 +710,8 @@ export default function AppCreatorPage() {
 
   const addLog = useCallback((message: string, level: string = "info") => {
     const timestamp = new Date().toLocaleTimeString();
-    setConsoleLogs((prev) => [...prev, `[${timestamp}] [${level}] ${message}`]);
+    // Limit console logs to prevent memory issues
+    setConsoleLogs((prev) => [...prev.slice(-499), `[${timestamp}] [${level}] ${message}`]);
   }, []);
 
   const extendSession = useCallback(async () => {
@@ -713,7 +740,8 @@ export default function AppCreatorPage() {
       toast.success("Session extended", {
         description: "Your session has been extended by 15 minutes.",
       });
-    } catch {
+    } catch (extendError) {
+      console.warn("[AppBuilder] Failed to extend session:", extendError);
       toast.error("Failed to extend session");
       addLog("Failed to extend session", "error");
     } finally {
@@ -737,8 +765,9 @@ export default function AppCreatorPage() {
           });
         }
       }
-    } catch {
-      // Snapshot check failed, not critical
+    } catch (snapshotError) {
+      // Snapshot check failed, not critical but log for debugging
+      console.warn("[AppBuilder] Snapshot check failed:", snapshotError);
     }
   }, [session]);
 
@@ -762,8 +791,9 @@ export default function AppCreatorPage() {
           });
         }
       }
-    } catch {
-      // Git status check failed, not critical
+    } catch (gitStatusError) {
+      // Git status check failed, not critical but log for debugging
+      console.warn("[AppBuilder] Git status check failed:", gitStatusError);
     }
   }, [session]);
 
@@ -779,8 +809,9 @@ export default function AppCreatorPage() {
           setCommitHistory(data.commits);
         }
       }
-    } catch {
-      // Commit history fetch failed, not critical
+    } catch (historyError) {
+      // Commit history fetch failed, not critical but log for debugging
+      console.warn("[AppBuilder] Commit history fetch failed:", historyError);
     }
   }, [session]);
 
@@ -906,8 +937,9 @@ export default function AppCreatorPage() {
             setProductionUrl(data.productionUrl);
           }
         }
-      } catch {
-        // Not critical
+      } catch (deployInfoError) {
+        // Not critical but log for debugging
+        console.warn("[AppBuilder] Deployment info fetch failed:", deployInfoError);
       }
     };
 
@@ -1269,8 +1301,11 @@ export default function AppCreatorPage() {
             lastLogIndexRef.current = data.logs.length;
           }
         }
-      } catch {
-        // Silently ignore network errors
+      } catch (logsError) {
+        // Network errors during log polling are expected, log only in debug
+        if (process.env.NODE_ENV === "development") {
+          console.debug("[AppBuilder] Log polling error:", logsError);
+        }
       }
     };
 
@@ -1450,37 +1485,7 @@ Some ideas:
                 addLog("Planning changes...", "info");
               } else if (eventType === "tool_use") {
                 const toolName = data.tool;
-                let toolDisplay = "";
-                let detail = "";
-
-                if (toolName === "write_file") {
-                  const path = data.input?.path || "file";
-                  toolDisplay = "Writing file";
-                  detail = path;
-                } else if (toolName === "read_file") {
-                  const path = data.input?.path || "file";
-                  toolDisplay = "Reading file";
-                  detail = path;
-                } else if (toolName === "install_packages") {
-                  const packages =
-                    data.input?.packages?.join(", ") || "packages";
-                  toolDisplay = "Installing packages";
-                  detail = packages;
-                } else if (toolName === "check_build") {
-                  toolDisplay = "Checking build";
-                  detail = "Verifying project compiles";
-                } else if (toolName === "list_files") {
-                  const path = data.input?.path || ".";
-                  toolDisplay = "Listing directory";
-                  detail = path;
-                } else if (toolName === "run_command") {
-                  const cmd = data.input?.command || "command";
-                  toolDisplay = "Running command";
-                  detail = cmd;
-                } else {
-                  toolDisplay = toolName.replace(/_/g, " ");
-                  detail = JSON.stringify(data.input || {}).slice(0, 50);
-                }
+                const { display: toolDisplay, detail } = formatToolDisplay(toolName, data.input);
 
                 if (sessionActionsLogRef.current.length > 0) {
                   sessionActionsLogRef.current[
@@ -1623,7 +1628,9 @@ Some ideas:
 
   const sendPrompt = useCallback(
     async (promptText?: string) => {
-      const text = promptText || input.trim();
+      // Get input from Zustand store for isolation
+      const currentInput = useChatInput.getState().input;
+      const text = promptText || currentInput.trim();
       if (!text || !session || isLoading) return;
 
       setIsLoading(true);
@@ -1640,7 +1647,8 @@ Some ideas:
         timestamp: new Date().toISOString(),
       };
       setMessages((prev) => [...prev, userMessage]);
-      setInput("");
+      // Clear input using Zustand
+      useChatInput.getState().clearInput();
 
       const thinkingId = Date.now();
       const actionsLog: {
@@ -1650,16 +1658,9 @@ Some ideas:
         status: "active" | "done";
       }[] = [];
 
-      const getTimeString = () => {
-        return new Date().toLocaleTimeString("en-US", {
-          hour12: false,
-          hour: "2-digit",
-          minute: "2-digit",
-          second: "2-digit",
-        });
-      };
+      // getTimeString is imported from @/lib/app-builder
 
-      const buildProgressContent = (currentStatus?: string) => {
+      const buildLocalProgressContent = (currentStatus?: string) => {
         let content = "**Processing your request**\n\n";
 
         if (actionsLog.length > 0) {
@@ -1679,7 +1680,7 @@ Some ideas:
       };
 
       const updateThinking = (currentStatus?: string) => {
-        const content = buildProgressContent(currentStatus);
+        const content = buildLocalProgressContent(currentStatus);
         setMessages((prev) => {
           const updated = [...prev];
           const thinkingIdx = updated.findIndex(
@@ -1755,44 +1756,7 @@ Some ideas:
                   updateThinking("Planning changes...");
                 } else if (eventType === "tool_use") {
                   const toolName = data.tool;
-                  let toolDisplay = "";
-                  let detail = "";
-                  let statusMsg = "Working...";
-
-                  if (toolName === "write_file") {
-                    const path = data.input?.path || "file";
-                    toolDisplay = "Writing file";
-                    detail = path;
-                    statusMsg = `Writing ${path.split("/").pop()}...`;
-                  } else if (toolName === "read_file") {
-                    const path = data.input?.path || "file";
-                    toolDisplay = "Reading file";
-                    detail = path;
-                    statusMsg = "Reading file...";
-                  } else if (toolName === "install_packages") {
-                    const packages =
-                      data.input?.packages?.join(", ") || "packages";
-                    toolDisplay = "Installing packages";
-                    detail = packages;
-                    statusMsg = "Installing dependencies...";
-                  } else if (toolName === "check_build") {
-                    toolDisplay = "Checking build";
-                    detail = "Verifying project compiles";
-                    statusMsg = "Running build check...";
-                  } else if (toolName === "list_files") {
-                    const path = data.input?.path || ".";
-                    toolDisplay = "Listing directory";
-                    detail = path;
-                    statusMsg = "Exploring project structure...";
-                  } else if (toolName === "run_command") {
-                    const cmd = data.input?.command || "command";
-                    toolDisplay = "Running command";
-                    detail = cmd;
-                    statusMsg = "Executing command...";
-                  } else {
-                    toolDisplay = toolName.replace(/_/g, " ");
-                    detail = JSON.stringify(data.input || {}).slice(0, 50);
-                  }
+                  const { display: toolDisplay, detail, statusMessage } = formatToolDisplay(toolName, data.input);
 
                   if (actionsLog.length > 0) {
                     actionsLog[actionsLog.length - 1].status = "done";
@@ -1803,7 +1767,7 @@ Some ideas:
                     timestamp: getTimeString(),
                     status: "active",
                   });
-                  updateThinking(statusMsg);
+                  updateThinking(statusMessage);
 
                   addLog(
                     `${toolName}: ${data.input?.path || data.input?.packages?.join(", ") || ""}`,
@@ -1914,7 +1878,7 @@ Some ideas:
         setIsLoading(false);
       }
     },
-    [input, session, isLoading, addLog],
+    [session, isLoading, addLog],
   );
 
   const stopSession = useCallback(async () => {
@@ -1937,7 +1901,8 @@ Some ideas:
 
       addLog("Session stopped", "info");
       toast.success("Session stopped");
-    } catch {
+    } catch (stopError) {
+      console.error("[AppBuilder] Failed to stop session:", stopError);
       toast.error("Failed to stop session");
     }
   }, [session, addLog, router, appIdFromUrl, messagesStorageKey]);
@@ -2082,23 +2047,45 @@ ANTHROPIC_API_KEY=your_key_here`}
     }
     
     setIsGeneratingDescription(true);
-    const selectedTemplate = TEMPLATE_OPTIONS.find(t => t.value === templateType);
+    const selectedTemplateInfo = TEMPLATE_OPTIONS.find(t => t.value === templateType);
     
-    // Simulate AI generation (replace with actual API call)
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    const descriptions: Record<TemplateType, string> = {
-      blank: `${appName} - A custom application built with modern web technologies. Features a clean, responsive design with seamless user experience.`,
-      chat: `${appName} - An intelligent conversational AI application that provides real-time responses with natural language understanding and message history.`,
-      "landing-page": `${appName} - A stunning, conversion-optimized landing page designed to captivate visitors and drive engagement with compelling visuals and clear calls-to-action.`,
-      "mcp-service": `${appName} - A Model Context Protocol service that extends AI capabilities with custom tools, resources, and seamless integration.`,
-      "a2a-agent": `${appName} - An Agent-to-Agent protocol endpoint enabling intelligent communication and task coordination between AI agents.`,
-      "agent-dashboard": `${appName} - A comprehensive control center for monitoring, configuring, and interacting with AI agents in real-time.`,
-    };
-    
-    setAppDescription(descriptions[templateType] || descriptions.blank);
-    setIsGeneratingDescription(false);
-    toast.success("Description generated!");
+    try {
+      const response = await fetchWithRetry("/api/v1/generate-prompts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: `Generate a concise, professional app description (2-3 sentences, under 200 characters) for an app called "${appName}". The app is based on the "${selectedTemplateInfo?.label || templateType}" template which is designed for: ${selectedTemplateInfo?.longDescription || "general web applications"}. Focus on the value proposition and key features.`,
+          maxTokens: 150,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to generate description");
+      }
+
+      const data = await response.json();
+      if (data.success && data.prompts?.[0]) {
+        setAppDescription(data.prompts[0]);
+        toast.success("Description generated!");
+      } else {
+        throw new Error("Invalid response from API");
+      }
+    } catch (error) {
+      console.warn("[generateAIDescription] Failed to generate:", error);
+      // Fallback to template-based descriptions
+      const fallbackDescriptions: Record<TemplateType, string> = {
+        blank: `${appName} - A custom application built with modern web technologies.`,
+        chat: `${appName} - An intelligent conversational AI application with real-time responses.`,
+        "landing-page": `${appName} - A conversion-optimized landing page with compelling visuals.`,
+        "mcp-service": `${appName} - A Model Context Protocol service extending AI capabilities.`,
+        "a2a-agent": `${appName} - An Agent-to-Agent protocol endpoint for AI coordination.`,
+        "agent-dashboard": `${appName} - A control center for monitoring and configuring AI agents.`,
+      };
+      setAppDescription(fallbackDescriptions[templateType] || fallbackDescriptions.blank);
+      toast.success("Description generated!");
+    } finally {
+      setIsGeneratingDescription(false);
+    }
   };
 
   // Get the selected template data
@@ -3303,297 +3290,21 @@ ANTHROPIC_API_KEY=your_key_here`}
             ref={messagesContainerRef}
             className="flex-1 overflow-y-auto p-5 space-y-4"
           >
-            {messages.map((msg, i) => {
-              const isProcessing = !!(msg as Message & { _thinkingId?: number })
-                ._thinkingId;
-              const msgTime = new Date(msg.timestamp).toLocaleTimeString(
-                "en-US",
-                {
-                  hour12: false,
-                  hour: "2-digit",
-                  minute: "2-digit",
-                },
-              );
-
-              return (
-                <div
-                  key={i}
-                  className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} w-full group/message`}
-                >
-                  <div
-                    className={`${
-                      msg.role === "user"
-                        ? "max-w-[85%] py-2.5 px-4 bg-[#FF5800]/10 border border-[#FF5800]/20 rounded-2xl rounded-tr-md"
-                        : isProcessing
-                          ? "max-w-[90%] py-3 px-4 bg-gradient-to-br from-violet-500/[0.06] to-transparent border border-violet-400/[0.12] rounded-2xl rounded-tl-md"
-                          : "max-w-[90%] py-3 px-4 bg-white/[0.015] border border-white/[0.05] rounded-2xl rounded-tl-md"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-1.5">
-                      <div className="flex items-center gap-2">
-                        {isProcessing && (
-                          <Loader2 className="h-3 w-3 animate-spin text-violet-400" />
-                        )}
-                        <span
-                          className={`text-[11px] ${
-                            msg.role === "user"
-                              ? "text-[#FF5800]/70"
-                              : isProcessing
-                                ? "text-violet-300/70"
-                                : "text-white/35"
-                          }`}
-                        >
-                          {msg.role === "user"
-                            ? "You"
-                            : isProcessing
-                              ? "Building"
-                              : "Assistant"}
-                        </span>
-                      </div>
-                      <span className="text-[10px] text-white/20 font-mono opacity-0 group-hover/message:opacity-100 transition-opacity">
-                        {msgTime}
-                      </span>
-                    </div>
-                    <div className="text-[14px] leading-[1.7] text-white/80">
-                      <ReactMarkdown
-                        remarkPlugins={[remarkGfm]}
-                        components={{
-                          h1: ({ children }) => (
-                            <h1 className="text-base font-medium text-white/95 mb-2 mt-4 first:mt-0">
-                              {children}
-                            </h1>
-                          ),
-                          h2: ({ children }) => (
-                            <h2 className="text-[15px] font-medium text-white/90 mt-3 mb-1.5">
-                              {children}
-                            </h2>
-                          ),
-                          h3: ({ children }) => (
-                            <h3 className="text-[14px] font-medium text-white/85 mt-2.5 mb-1">
-                              {children}
-                            </h3>
-                          ),
-                          p: ({ children }) => (
-                            <p className="text-[14px] text-white/75 mb-2 leading-[1.7]">
-                              {children}
-                            </p>
-                          ),
-                          ul: ({ children }) => (
-                            <ul className="my-2 ml-4 space-y-1">{children}</ul>
-                          ),
-                          ol: ({ children }) => (
-                            <ol className="my-2 ml-4 space-y-1 list-decimal">
-                              {children}
-                            </ol>
-                          ),
-                          li: ({ children }) => (
-                            <li className="text-[14px] text-white/75 pl-1 list-item">
-                              {children}
-                            </li>
-                          ),
-                          code: ({ className, children }) => {
-                            const isInline = !className;
-                            if (isInline) {
-                              return (
-                                <code className="px-1.5 py-0.5 bg-sky-500/10 text-sky-300/90 text-[13px] font-mono rounded">
-                                  {children}
-                                </code>
-                              );
-                            }
-                            return (
-                              <code className="block p-3 bg-[#0d1117] border border-white/[0.04] text-[#e6edf3] text-[13px] font-mono rounded-lg overflow-x-auto my-2">
-                                {children}
-                              </code>
-                            );
-                          },
-                          pre: ({ children }) => (
-                            <pre className="bg-[#0d1117] border border-white/[0.04] rounded-lg overflow-hidden my-2.5">
-                              {children}
-                            </pre>
-                          ),
-                          strong: ({ children }) => (
-                            <strong className="font-medium text-white/90">
-                              {children}
-                            </strong>
-                          ),
-                          em: ({ children }) => (
-                            <em className="text-white/65 italic">{children}</em>
-                          ),
-                          a: ({ href, children }) => (
-                            <a
-                              href={href}
-                              className="text-sky-400/90 hover:text-sky-300 underline underline-offset-2 decoration-sky-400/30"
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              {children}
-                            </a>
-                          ),
-                          blockquote: ({ children }) => (
-                            <blockquote className="border-l-2 border-white/20 pl-3 my-2.5 text-white/55 italic">
-                              {children}
-                            </blockquote>
-                          ),
-                          hr: () => <hr className="border-white/[0.06] my-4" />,
-                          table: ({ children }) => (
-                            <div className="overflow-x-auto my-3 rounded-lg border border-white/[0.06]">
-                              <table className="w-full text-[13px]">
-                                {children}
-                              </table>
-                            </div>
-                          ),
-                          thead: ({ children }) => (
-                            <thead className="bg-white/[0.03]">
-                              {children}
-                            </thead>
-                          ),
-                          tbody: ({ children }) => (
-                            <tbody className="divide-y divide-white/[0.04]">
-                              {children}
-                            </tbody>
-                          ),
-                          tr: ({ children }) => (
-                            <tr className="hover:bg-white/[0.02] transition-colors">
-                              {children}
-                            </tr>
-                          ),
-                          th: ({ children }) => (
-                            <th className="px-3 py-2 text-left text-white/60 font-medium text-[12px]">
-                              {children}
-                            </th>
-                          ),
-                          td: ({ children }) => (
-                            <td className="px-3 py-2 text-white/55 text-[13px]">
-                              {children}
-                            </td>
-                          ),
-                        }}
-                      >
-                        {msg.content}
-                      </ReactMarkdown>
-                    </div>
-                    {i === 0 &&
-                      msg.role === "assistant" &&
-                      session?.examplePrompts &&
-                      session.examplePrompts.length > 0 && (
-                        <div className="mt-4 pt-3 border-t border-white/[0.05]">
-                          <p className="text-[10px] text-white/35 mb-2 uppercase tracking-wider">
-                            Suggestions
-                          </p>
-                          <div className="flex flex-wrap gap-1.5">
-                            {session.examplePrompts.map((prompt, idx) => (
-                              <button
-                                key={idx}
-                                onClick={() => sendPrompt(prompt)}
-                                disabled={status !== "ready"}
-                                className="px-2.5 py-1.5 text-[12px] bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.08] hover:border-white/[0.15] text-white/60 hover:text-white/80 rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed text-left"
-                              >
-                                {prompt}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    {msg.filesAffected && msg.filesAffected.length > 0 && (
-                      <div className="mt-3 pt-2.5 border-t border-white/[0.04]">
-                        <p className="text-[10px] text-white/30 mb-1.5 uppercase tracking-wider">
-                          Changed
-                        </p>
-                        <div className="flex flex-wrap gap-1">
-                          {msg.filesAffected.map((file) => (
-                            <span
-                              key={file}
-                              className="px-2 py-0.5 text-[10px] bg-[#FF5800]/10 border border-[#FF5800]/20 text-white/70 font-mono rounded"
-                            >
-                              {file}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+            {messages.map((msg, i) => (
+              <ChatMessage
+                key={`${msg.timestamp}-${i}`}
+                msg={msg}
+                index={i}
+                session={session}
+                status={status}
+                sendPrompt={sendPrompt}
+              />
+            ))}
             <div ref={messagesEndRef} />
           </div>
 
-          <div className="flex-shrink-0 p-4 border-t border-white/[0.04]">
-            {/* Visor Scanner Animation Styles */}
-            <style jsx global>{`
-              @keyframes visor-scan {
-                0% {
-                  left: -100px;
-                }
-                100% {
-                  left: calc(100% + 100px);
-                }
-              }
-              @keyframes visor-scan-delayed {
-                0% {
-                  left: -80px;
-                }
-                100% {
-                  left: calc(100% + 80px);
-                }
-              }
-            `}</style>
-            <div className="relative rounded-xl border border-white/[0.06] bg-white/[0.015] overflow-hidden transition-all focus-within:border-white/[0.12] focus-within:bg-white/[0.025]">
-              {/* Subtle scanning animation */}
-              {status === "generating" && (
-                <div className="absolute top-0 left-0 right-0 h-[1px] overflow-hidden pointer-events-none z-10 bg-white/[0.03]">
-                  <div
-                    className="absolute h-full w-32 bg-gradient-to-r from-transparent via-violet-400/60 to-transparent"
-                    style={{
-                      animation: "visor-scan 3s ease-in-out infinite",
-                    }}
-                  />
-                </div>
-              )}
-
-              {/* Textarea */}
-              <textarea
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    if (status === "ready" && input.trim()) {
-                      sendPrompt();
-                    }
-                  }
-                }}
-                onInput={(e) => {
-                  const target = e.target as HTMLTextAreaElement;
-                  target.style.height = "48px";
-                  target.style.height =
-                    Math.min(target.scrollHeight, 120) + "px";
-                }}
-                rows={1}
-                placeholder="Describe what you want to build..."
-                disabled={status !== "ready"}
-                className="w-full bg-transparent px-4 pt-3 pb-2 text-[14px] text-white/90 placeholder:text-white/30 focus:outline-none disabled:opacity-50 resize-none leading-relaxed"
-                style={{ minHeight: "48px", maxHeight: "120px" }}
-              />
-
-              {/* Bottom bar with send button */}
-              <div className="flex items-center justify-end px-2 pb-2">
-                <Button
-                  type="button"
-                  onClick={() => sendPrompt()}
-                  disabled={!input.trim() || status !== "ready"}
-                  size="icon"
-                  className="h-7 w-7 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] disabled:opacity-30 border border-white/[0.06] transition-all"
-                >
-                  {status === "generating" ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin text-white/50" />
-                  ) : (
-                    <Send className="h-3.5 w-3.5 text-white/60" />
-                  )}
-                </Button>
-              </div>
-            </div>
-          </div>
+          {/* Isolated ChatInput component - uses Zustand for zero re-renders on typing */}
+          <ChatInput onSendPrompt={sendPrompt} status={status} />
         </div>
 
         <div

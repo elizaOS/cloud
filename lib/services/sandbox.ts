@@ -682,48 +682,6 @@ async function checkBuild(sandbox: SandboxInstance): Promise<string> {
 export class SandboxService {
   private anthropic: Anthropic | null = null;
   private openai: OpenAI | null = null;
-  private preferredProvider: "anthropic" | "openai" | null = null;
-
-  /**
-   * Get AI client with automatic fallback from Anthropic to OpenAI
-   * Returns the working provider
-   */
-  private getAIClient(): {
-    provider: "anthropic" | "openai";
-    client: Anthropic | OpenAI;
-  } {
-    // Check if we already determined the preferred provider
-    if (this.preferredProvider === "anthropic" && this.anthropic) {
-      return { provider: "anthropic", client: this.anthropic };
-    }
-    if (this.preferredProvider === "openai" && this.openai) {
-      return { provider: "openai", client: this.openai };
-    }
-
-    // Try Anthropic first
-    const anthropicKey = process.env.ANTHROPIC_API_KEY;
-    if (anthropicKey && anthropicKey.startsWith("sk-ant-")) {
-      logger.info("Using Anthropic (Claude) for app builder");
-      this.anthropic = new Anthropic({ apiKey: anthropicKey });
-      this.preferredProvider = "anthropic";
-      return { provider: "anthropic", client: this.anthropic };
-    }
-
-    // Fallback to OpenAI
-    const openaiKey = process.env.OPENAI_API_KEY;
-    if (openaiKey) {
-      logger.warn(
-        "Anthropic API key not available, falling back to OpenAI for app builder",
-      );
-      this.openai = new OpenAI({ apiKey: openaiKey });
-      this.preferredProvider = "openai";
-      return { provider: "openai", client: this.openai };
-    }
-
-    throw new Error(
-      "No AI provider configured. Set either ANTHROPIC_API_KEY or OPENAI_API_KEY in environment variables.",
-    );
-  }
 
   private getAnthropicClient(): Anthropic {
     if (!this.anthropic) {
