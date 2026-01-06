@@ -13,7 +13,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, usePathname } from "next/navigation";
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect } from "react";
 import {
   ArrowLeft,
   X,
@@ -100,19 +100,13 @@ export function ChatSidebar({
   };
 
   // Filter rooms by selected character
-  const filteredRooms = useMemo(() => {
-    // Default Eliza agent ID (same as in rooms/route.ts)
-    const DEFAULT_AGENT_ID = "b850bc30-45f8-0041-a00a-83df46d8555d";
-
-    if (!selectedCharacterId) {
-      // Show rooms with no character assignment OR default Eliza ID
-      return rooms.filter(
+  // Using direct computation instead of useMemo to ensure immediate reactivity
+  const DEFAULT_AGENT_ID = "b850bc30-45f8-0041-a00a-83df46d8555d";
+  const filteredRooms = selectedCharacterId
+    ? rooms.filter((room) => room.characterId === selectedCharacterId)
+    : rooms.filter(
         (room) => !room.characterId || room.characterId === DEFAULT_AGENT_ID,
       );
-    }
-    // Show rooms for the selected character
-    return rooms.filter((room) => room.characterId === selectedCharacterId);
-  }, [rooms, selectedCharacterId]);
 
   // Find selected character details
   const selectedCharacter = availableCharacters.find(
