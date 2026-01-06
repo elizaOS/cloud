@@ -5,3 +5,4 @@
  */
 
 export { ChatInput } from "./chat-input";
+export { HistoryTab } from "./history-tab";

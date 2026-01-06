@@ -114,7 +114,7 @@ export interface RestoreProgress {
   filePath: string;
 }
 
-export type PreviewTab = "preview" | "console" | "files";
+export type PreviewTab = "preview" | "console" | "files" | "history";
 
 export interface SourceContextInfo {
   icon: LucideIcon;

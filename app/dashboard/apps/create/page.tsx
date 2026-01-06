@@ -18,8 +18,9 @@ import type {
   TemplateOption,
   SourceType,
   SourceContext,
+  PreviewTab,
 } from "@/lib/app-builder/types";
-import { ChatInput } from "@/components/app-builder/chat-input";
+import { ChatInput, HistoryTab } from "@/components/app-builder";
 
 async function fetchWithRetry(
   url: string,
@@ -380,9 +381,7 @@ export default function AppCreatorPage() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [progressStep, setProgressStep] = useState<ProgressStep>("creating");
-  const [previewTab, setPreviewTab] = useState<"preview" | "console" | "files">(
-    "preview",
-  );
+  const [previewTab, setPreviewTab] = useState<PreviewTab>("preview");
   const [consoleLogs, setConsoleLogs] = useState<string[]>([]);
   const [expiresAt, setExpiresAt] = useState<Date | null>(null);
   const [timeRemaining, setTimeRemaining] = useState<string>("");
@@ -411,7 +410,6 @@ export default function AppCreatorPage() {
   const [lastDeployTime, setLastDeployTime] = useState<Date | null>(null);
   const [productionUrl, setProductionUrl] = useState<string | null>(null);
   const [commitHistory, setCommitHistory] = useState<CommitInfo[]>([]);
-  const [showCommitHistory, setShowCommitHistory] = useState(false);
 
   // Sandbox health tracking for automatic recovery
   const [sandboxHealthy, setSandboxHealthy] = useState(true);
@@ -2989,57 +2987,6 @@ ANTHROPIC_API_KEY=your_key_here`}
                       : "Saved"}
                 </span>
               </Button>
-              {/* Commit History Button */}
-              <div className="relative">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowCommitHistory(!showCommitHistory)}
-                  className="h-7 text-xs text-white/60 hover:text-white hover:bg-white/10"
-                  title="View commit history"
-                >
-                  <History className="h-3 w-3" />
-                  <ChevronDown
-                    className={`h-3 w-3 ml-0.5 transition-transform ${showCommitHistory ? "rotate-180" : ""}`}
-                  />
-                </Button>
-                {/* Commit History Dropdown */}
-                {showCommitHistory && (
-                  <div className="absolute right-0 top-full mt-1 w-72 bg-black/95 border border-white/10 rounded-lg shadow-xl z-50 overflow-hidden">
-                    <div className="p-2 border-b border-white/10">
-                      <span className="text-xs text-white/60 font-medium">
-                        Recent Commits
-                      </span>
-                    </div>
-                    <div className="max-h-64 overflow-y-auto">
-                      {commitHistory.length > 0 ? (
-                        commitHistory.slice(0, 10).map((commit) => (
-                          <div
-                            key={commit.sha}
-                            className="px-3 py-2 hover:bg-white/5 border-b border-white/5 last:border-0"
-                          >
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-mono text-cyan-400">
-                                {commit.sha.substring(0, 7)}
-                              </span>
-                              <span className="text-xs text-white/40">
-                                {new Date(commit.date).toLocaleDateString()}
-                              </span>
-                            </div>
-                            <p className="text-xs text-white/80 mt-0.5 line-clamp-2">
-                              {commit.message.split("\n")[0]}
-                            </p>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="px-3 py-4 text-center text-xs text-white/40">
-                          No commits yet
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
               {/* Deploy to Production Button */}
               <Button
                 variant="ghost"
@@ -3350,6 +3297,22 @@ ANTHROPIC_API_KEY=your_key_here`}
                 <FolderCode className="h-3.5 w-3.5" />
                 Files
               </button>
+              <button
+                onClick={() => setPreviewTab("history")}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors ${
+                  previewTab === "history"
+                    ? "bg-white/10 text-white"
+                    : "text-white/50 hover:text-white/70"
+                }`}
+              >
+                <History className="h-3.5 w-3.5" />
+                History
+                {commitHistory.length > 0 && (
+                  <span className="ml-1 px-1.5 py-0.5 bg-cyan-500/20 text-cyan-400 rounded-full text-[10px]">
+                    {commitHistory.length}
+                  </span>
+                )}
+              </button>
             </div>
             {previewTab === "console" && consoleLogs.length > 0 && (
               <Button
@@ -3409,6 +3372,32 @@ ANTHROPIC_API_KEY=your_key_here`}
                 <div className="flex items-center justify-center h-full">
                   <div className="text-center text-white/30">
                     <FolderCode className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <p>Session not ready</p>
+                  </div>
+                </div>
+              )
+            ) : previewTab === "history" ? (
+              session?.id ? (
+                <HistoryTab
+                  sessionId={session.id}
+                  className="h-full"
+                  currentCommitSha={gitStatus?.currentCommitSha}
+                  onRollbackComplete={() => {
+                    // Refresh the iframe after rollback
+                    if (iframeRef.current && session?.sandboxUrl) {
+                      iframeRef.current.src = session.sandboxUrl;
+                    }
+                    // Refresh git status
+                    checkGitStatus();
+                    // Refresh commit history
+                    fetchCommitHistory();
+                    addLog("Rolled back to previous version", "success");
+                  }}
+                />
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-center text-white/30">
+                    <History className="h-8 w-8 mx-auto mb-2 opacity-50" />
                     <p>Session not ready</p>
                   </div>
                 </div>
