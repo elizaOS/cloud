@@ -44,6 +44,7 @@ import {
   RefreshCw,
   ExternalLink,
   ArrowLeft,
+  ArrowRight,
   Bot,
   Square,
   Copy,
@@ -65,8 +66,21 @@ import {
   Cloud,
   CloudOff,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Rocket,
   FolderCode,
+  MessageSquare,
+  BarChart3,
+  FileCode,
+  Layers,
+  Zap,
+  Globe,
+  Wand2,
+  TrendingUp,
+  DollarSign,
+  LineChart,
+  type LucideIcon,
 } from "lucide-react";
 import { SandboxFileExplorer } from "@/components/sandbox/sandbox-file-explorer";
 import { toast } from "sonner";
@@ -163,36 +177,99 @@ interface CommitInfo {
   date: string;
 }
 
-const TEMPLATE_OPTIONS = [
-  { value: "blank", label: "Blank Project", description: "Start from scratch" },
-  { value: "chat", label: "Chat App", description: "AI chat interface" },
+interface TemplateOption {
+  value: TemplateType;
+  label: string;
+  description: string;
+  longDescription: string;
+  icon: LucideIcon;
+  color: string;
+  gradient: string;
+  features: string[];
+  techStack: string[];
+  comingSoon?: boolean;
+}
+
+const TEMPLATE_OPTIONS: TemplateOption[] = [
+  {
+    value: "blank",
+    label: "Blank Canvas",
+    description: "Start from scratch",
+    longDescription: "A clean slate with Next.js, React, and Tailwind CSS ready to go. Build anything you can imagine.",
+    icon: FileCode,
+    color: "#64748B",
+    gradient: "from-slate-500 to-slate-700",
+    features: ["Full flexibility", "Minimal setup", "Your vision"],
+    techStack: ["Next.js", "React", "Tailwind"],
+  },
+  {
+    value: "chat",
+    label: "AI Chat App",
+    description: "Conversational AI interface",
+    longDescription: "A sleek chat interface with real-time streaming, conversation history, and AI model integration.",
+    icon: MessageSquare,
+    color: "#06B6D4",
+    gradient: "from-cyan-500 to-blue-600",
+    features: ["Real-time streaming", "Message history", "Model switching"],
+    techStack: ["Next.js", "OpenAI", "Vercel AI SDK"],
+  },
+  {
+    value: "landing-page",
+    label: "Landing Page",
+    description: "Marketing & conversion",
+    longDescription: "Beautiful, conversion-optimized landing page with hero sections, features, and call-to-actions.",
+    icon: Globe,
+    color: "#8B5CF6",
+    gradient: "from-violet-500 to-purple-600",
+    features: ["Hero sections", "Responsive design", "CTA blocks"],
+    techStack: ["Next.js", "Framer Motion", "Tailwind"],
+  },
+  {
+    value: "analytics",
+    label: "Analytics Dashboard",
+    description: "Data visualization",
+    longDescription: "Interactive dashboard with charts, metrics, and real-time data visualization components.",
+    icon: BarChart3,
+    color: "#10B981",
+    gradient: "from-emerald-500 to-teal-600",
+    features: ["Interactive charts", "Real-time data", "Custom metrics"],
+    techStack: ["Next.js", "Recharts", "Tailwind"],
+  },
   {
     value: "mcp-service",
     label: "MCP Service",
-    description: "Model Context Protocol server",
+    description: "Model Context Protocol",
+    longDescription: "Build a Model Context Protocol server that extends AI capabilities with custom tools and resources.",
+    icon: Puzzle,
+    color: "#F59E0B",
+    gradient: "from-amber-500 to-orange-600",
+    features: ["Tool definitions", "Resource providers", "AI integration"],
+    techStack: ["MCP SDK", "TypeScript", "Node.js"],
     comingSoon: true,
   },
   {
     value: "a2a-agent",
     label: "A2A Agent",
-    description: "Agent-to-Agent protocol endpoint",
+    description: "Agent-to-Agent protocol",
+    longDescription: "Create an agent endpoint that can communicate with other AI agents using standardized protocols.",
+    icon: Workflow,
+    color: "#EC4899",
+    gradient: "from-pink-500 to-rose-600",
+    features: ["Agent protocol", "Task handling", "Multi-agent comms"],
+    techStack: ["A2A Protocol", "TypeScript", "elizaOS"],
     comingSoon: true,
   },
   {
     value: "agent-dashboard",
     label: "Agent Dashboard",
     description: "Manage AI agents",
+    longDescription: "A control center to monitor, configure, and interact with your AI agents in real-time.",
+    icon: Bot,
+    color: "#0B35F1",
+    gradient: "from-blue-600 to-indigo-700",
+    features: ["Agent monitoring", "Config editor", "Live chat"],
+    techStack: ["Next.js", "WebSocket", "elizaOS"],
     comingSoon: true,
-  },
-  {
-    value: "landing-page",
-    label: "Landing Page",
-    description: "Marketing page",
-  },
-  {
-    value: "analytics",
-    label: "Analytics Dashboard",
-    description: "Data visualization",
   },
 ];
 
@@ -261,6 +338,8 @@ export default function AppCreatorPage() {
   const [step, setStep] = useState<"setup" | "building">(
     isEditMode ? "building" : "setup",
   );
+  // Setup wizard steps: 1 = template, 2 = details, 3 = features
+  const [setupStep, setSetupStep] = useState<1 | 2 | 3>(1);
   const [appData, setAppData] = useState<AppData | null>(null);
   const [appName, setAppName] = useState(
     sourceContext ? `${sourceContext.name} App` : "",
@@ -277,6 +356,9 @@ export default function AppCreatorPage() {
   );
   const [includeMonetization, setIncludeMonetization] = useState(false);
   const [includeAnalytics, setIncludeAnalytics] = useState(true);
+  const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
+  const [templatePage, setTemplatePage] = useState(0);
+  const TEMPLATES_PER_PAGE = 4;
 
   const [session, setSession] = useState<SessionData | null>(null);
   const [status, setStatus] = useState<SessionStatus>("idle");
@@ -1796,240 +1878,585 @@ ANTHROPIC_API_KEY=your_key_here`}
     );
   }
 
+  // AI Description generation
+  const generateAIDescription = async () => {
+    if (!appName.trim()) {
+      toast.error("Please enter an app name first");
+      return;
+    }
+    
+    setIsGeneratingDescription(true);
+    const selectedTemplate = TEMPLATE_OPTIONS.find(t => t.value === templateType);
+    
+    // Simulate AI generation (replace with actual API call)
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    
+    const descriptions: Record<TemplateType, string> = {
+      blank: `${appName} - A custom application built with modern web technologies. Features a clean, responsive design with seamless user experience.`,
+      chat: `${appName} - An intelligent conversational AI application that provides real-time responses with natural language understanding and message history.`,
+      "landing-page": `${appName} - A stunning, conversion-optimized landing page designed to captivate visitors and drive engagement with compelling visuals and clear calls-to-action.`,
+      analytics: `${appName} - A powerful analytics dashboard featuring interactive visualizations, real-time metrics tracking, and customizable data views.`,
+      "mcp-service": `${appName} - A Model Context Protocol service that extends AI capabilities with custom tools, resources, and seamless integration.`,
+      "a2a-agent": `${appName} - An Agent-to-Agent protocol endpoint enabling intelligent communication and task coordination between AI agents.`,
+      "agent-dashboard": `${appName} - A comprehensive control center for monitoring, configuring, and interacting with AI agents in real-time.`,
+    };
+    
+    setAppDescription(descriptions[templateType] || descriptions.blank);
+    setIsGeneratingDescription(false);
+    toast.success("Description generated!");
+  };
+
+  // Get the selected template data
+  const selectedTemplate = TEMPLATE_OPTIONS.find(t => t.value === templateType);
+
   if (step === "setup" && !isEditMode && status !== "initializing") {
     return (
-      <div className="max-w-4xl mx-auto py-10 space-y-6">
-        <div className="flex items-center gap-4">
-          <Link
-            href={backLink}
-            className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-          >
-            <ArrowLeft className="h-5 w-5 text-white/60" />
-          </Link>
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span
-                className="inline-block w-2 h-2 rounded-full"
-                style={{ backgroundColor: "#06B6D4" }}
-              />
-              <h1
-                className="text-3xl font-normal tracking-tight text-white"
-                style={{ fontFamily: "var(--font-roboto-mono)" }}
+      <div className="min-h-screen bg-gradient-to-b from-black via-black to-slate-950">
+        {/* Ambient background effects */}
+        <div className="fixed inset-0 overflow-hidden pointer-events-none">
+          <div 
+            className="absolute top-1/3 -left-32 w-72 h-72 rounded-full blur-[100px] opacity-15"
+            style={{ backgroundColor: selectedTemplate?.color || "#06B6D4" }}
+          />
+          <div 
+            className="absolute bottom-1/3 -right-32 w-72 h-72 rounded-full blur-[100px] opacity-10"
+            style={{ backgroundColor: selectedTemplate?.color || "#8B5CF6" }}
+          />
+        </div>
+
+        <div className="relative max-w-6xl mx-auto px-6 py-5">
+          {/* Header - compact */}
+          <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center gap-3">
+              <Link
+                href={backLink}
+                className="p-2 hover:bg-white/10 rounded-lg transition-all duration-300 border border-white/5 hover:border-white/20"
               >
-                App Creator
-              </h1>
+                <ArrowLeft className="h-4 w-4 text-white/60" />
+              </Link>
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                  <div className="absolute inset-0 bg-gradient-to-r from-cyan-500 to-violet-500 rounded-full blur-sm opacity-50" />
+                  <Sparkles className="relative h-5 w-5 text-white" />
+                </div>
+                <h1 className="text-xl font-semibold tracking-tight text-white">
+                  App Creator
+                </h1>
+              </div>
             </div>
-            <p className="text-white/60">
-              Build apps with AI-powered code generation
-            </p>
+
+            {/* Step indicator */}
+            <div className="hidden md:flex items-center gap-2">
+              {[
+                { num: 1, label: "Template" },
+                { num: 2, label: "Details" },
+                { num: 3, label: "Features" },
+              ].map((s, i) => (
+                <div key={s.num} className="flex items-center">
+                  <button
+                    onClick={() => {
+                      if (s.num === 1 || (s.num === 2 && templateType) || (s.num === 3 && appName.trim())) {
+                        setSetupStep(s.num as 1 | 2 | 3);
+                      }
+                    }}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-full transition-all duration-300 ${
+                      setupStep === s.num
+                        ? "bg-white/10 border border-white/20"
+                        : setupStep > s.num
+                          ? "text-white/60 hover:text-white/80"
+                          : "text-white/30"
+                    }`}
+                  >
+                    <span
+                      className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-medium transition-all duration-300 ${
+                        setupStep === s.num
+                          ? "bg-gradient-to-r from-cyan-500 to-violet-500 text-white"
+                          : setupStep > s.num
+                            ? "bg-white/20 text-white"
+                            : "bg-white/5 text-white/40"
+                      }`}
+                    >
+                      {setupStep > s.num ? <Check className="h-3 w-3" /> : s.num}
+                    </span>
+                    <span className={`text-sm ${setupStep === s.num ? "text-white" : ""}`}>
+                      {s.label}
+                    </span>
+                  </button>
+                  {i < 2 && (
+                    <div className={`w-8 h-px mx-1 transition-colors duration-300 ${
+                      setupStep > s.num ? "bg-white/30" : "bg-white/10"
+                    }`} />
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {sourceContext && (
+            <div 
+              className="mb-4 p-3 rounded-lg border-l-2 bg-black/30 border border-white/5"
+              style={{ borderLeftColor: SOURCE_CONTEXT_INFO[sourceContext.type].color }}
+            >
+              <div className="flex items-center gap-2">
+                {(() => {
+                  const Icon = SOURCE_CONTEXT_INFO[sourceContext.type].icon;
+                  return (
+                    <Icon
+                      className="h-4 w-4"
+                      style={{ color: SOURCE_CONTEXT_INFO[sourceContext.type].color }}
+                    />
+                  );
+                })()}
+                <p className="text-xs text-white/70">
+                  Building for <span className="text-white font-medium">{sourceContext.name}</span>
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* STEP 1: Template Selection */}
+          <div className={`transition-all duration-500 ${setupStep === 1 ? "opacity-100" : "opacity-0 absolute pointer-events-none"}`}>
+            {setupStep === 1 && (() => {
+              const totalPages = Math.ceil(TEMPLATE_OPTIONS.length / TEMPLATES_PER_PAGE);
+              const visibleTemplates = TEMPLATE_OPTIONS.slice(
+                templatePage * TEMPLATES_PER_PAGE,
+                (templatePage + 1) * TEMPLATES_PER_PAGE
+              );
+              
+              return (
+                <div className="space-y-5">
+                  {/* Header row with title and navigation */}
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-2xl font-bold text-white">
+                        What are you building?
+                      </h2>
+                      <p className="text-white/50 text-sm">
+                        Choose a template to kickstart your project
+                      </p>
+                    </div>
+                    
+                    {/* Carousel navigation */}
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => setTemplatePage(p => Math.max(0, p - 1))}
+                        disabled={templatePage === 0}
+                        className="p-2.5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-all hover:scale-105"
+                      >
+                        <ChevronLeft className="h-5 w-5 text-white/70" />
+                      </button>
+                      <div className="flex items-center gap-2">
+                        {Array.from({ length: totalPages }).map((_, i) => (
+                          <button
+                            key={i}
+                            onClick={() => setTemplatePage(i)}
+                            className={`h-2 rounded-full transition-all duration-300 ${
+                              i === templatePage 
+                                ? "bg-white/70 w-6" 
+                                : "bg-white/20 hover:bg-white/40 w-2"
+                            }`}
+                          />
+                        ))}
+                      </div>
+                      <button
+                        onClick={() => setTemplatePage(p => Math.min(totalPages - 1, p + 1))}
+                        disabled={templatePage >= totalPages - 1}
+                        className="p-2.5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-all hover:scale-105"
+                      >
+                        <ChevronRight className="h-5 w-5 text-white/70" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Template cards - larger, more detailed */}
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    {visibleTemplates.map((template) => {
+                      const Icon = template.icon;
+                      const isSelected = templateType === template.value;
+                      const isDisabled = template.comingSoon;
+                      
+                      return (
+                        <button
+                          key={template.value}
+                          onClick={() => {
+                            if (!isDisabled) {
+                              setTemplateType(template.value);
+                            }
+                          }}
+                          disabled={isDisabled}
+                          className={`group relative p-5 rounded-2xl text-left transition-all duration-300 border ${
+                            isSelected
+                              ? "bg-white/10 border-white/30 scale-[1.02]"
+                              : isDisabled
+                                ? "bg-white/[0.02] border-white/5 opacity-50 cursor-not-allowed"
+                                : "bg-white/[0.02] border-white/10 hover:bg-white/[0.05] hover:border-white/20"
+                          }`}
+                        >
+                          {/* Glow effect on selected */}
+                          {isSelected && (
+                            <div 
+                              className="absolute inset-0 rounded-2xl blur-xl opacity-20 -z-10"
+                              style={{ backgroundColor: template.color }}
+                            />
+                          )}
+
+                          {/* Coming soon badge */}
+                          {isDisabled && (
+                            <div className="absolute top-3 right-3 px-2 py-0.5 bg-amber-500/20 border border-amber-500/30 rounded-full">
+                              <span className="text-[10px] font-medium text-amber-400">Coming Soon</span>
+                            </div>
+                          )}
+
+                          {/* Selection indicator */}
+                          {!isDisabled && (
+                            <div className={`absolute top-4 right-4 w-5 h-5 rounded-full border-2 transition-all duration-300 flex items-center justify-center ${
+                              isSelected 
+                                ? "border-white bg-white" 
+                                : "border-white/20 group-hover:border-white/40"
+                            }`}>
+                              {isSelected && <Check className="h-3 w-3 text-black" />}
+                            </div>
+                          )}
+
+                          {/* Icon */}
+                          <div 
+                            className={`inline-flex p-3 rounded-xl mb-3 transition-all duration-300 ${
+                              isSelected ? "scale-110" : "group-hover:scale-105"
+                            }`}
+                            style={{ 
+                              backgroundColor: `${template.color}20`,
+                              boxShadow: isSelected ? `0 0 20px ${template.color}40` : undefined
+                            }}
+                          >
+                            <Icon 
+                              className="h-6 w-6 transition-colors duration-300" 
+                              style={{ color: template.color }}
+                            />
+                          </div>
+
+                          {/* Content */}
+                          <h3 className="text-base font-semibold text-white mb-1">
+                            {template.label}
+                          </h3>
+                          <p className="text-sm text-white/50 mb-3 line-clamp-2">
+                            {template.description}
+                          </p>
+
+                          {/* Features */}
+                          <div className="flex flex-wrap gap-1.5">
+                            {template.features.map((feature) => (
+                              <span
+                                key={feature}
+                                className="px-2 py-0.5 text-[10px] font-medium bg-white/5 border border-white/10 rounded-full text-white/60"
+                              >
+                                {feature}
+                              </span>
+                            ))}
+                          </div>
+
+                          {/* Tech stack on hover/selected */}
+                          <div className={`mt-3 pt-3 border-t border-white/5 transition-all duration-300 ${
+                            isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                          }`}>
+                            <div className="flex gap-2">
+                              {template.techStack.map((tech) => (
+                                <span key={tech} className="text-[10px] text-white/40">
+                                  {tech}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Continue button row */}
+                  <div className="flex items-center justify-between pt-2">
+                    <p className="text-sm text-white/40">
+                      {selectedTemplate ? (
+                        <>Selected: <span className="text-white/60 font-medium">{selectedTemplate.label}</span></>
+                      ) : (
+                        "Select a template to continue"
+                      )}
+                    </p>
+                    <button
+                      onClick={() => setSetupStep(2)}
+                      disabled={!templateType || TEMPLATE_OPTIONS.find(t => t.value === templateType)?.comingSoon}
+                      className="group flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-cyan-500 to-violet-500 rounded-xl text-white font-medium transition-all duration-300 hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 hover:shadow-lg hover:shadow-violet-500/25"
+                    >
+                      Continue
+                      <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+
+          {/* STEP 2: App Details */}
+          <div className={`transition-all duration-500 ${setupStep === 2 ? "opacity-100" : "opacity-0 absolute pointer-events-none"}`}>
+            {setupStep === 2 && (
+              <div className="max-w-2xl mx-auto space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-2xl font-bold text-white">
+                      Tell us about your app
+                    </h2>
+                    <p className="text-white/50 text-sm">
+                      Give your creation a name and description
+                    </p>
+                  </div>
+                  {/* Selected template preview */}
+                  {selectedTemplate && (
+                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10">
+                      <selectedTemplate.icon 
+                        className="h-4 w-4" 
+                        style={{ color: selectedTemplate.color }}
+                      />
+                      <span className="text-xs text-white/60">{selectedTemplate.label}</span>
+                      <button
+                        onClick={() => setSetupStep(1)}
+                        className="text-[10px] text-white/40 hover:text-white/60 underline"
+                      >
+                        change
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-4 p-5 rounded-xl bg-white/[0.02] border border-white/10">
+                  {/* App Name */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-white/70 text-xs">App Name</Label>
+                      <span className={`text-[10px] transition-colors ${
+                        appName.length > 100 ? "text-red-400" : 
+                        appName.length > 80 ? "text-yellow-400" : "text-white/30"
+                      }`}>
+                        {appName.length}/100
+                      </span>
+                    </div>
+                    <Input
+                      value={appName}
+                      onChange={(e) => setAppName(e.target.value)}
+                      placeholder="My Awesome App"
+                      className="h-10 bg-black/40 border-white/10 text-white placeholder:text-white/20 focus:border-white/30 rounded-lg"
+                      maxLength={100}
+                    />
+                  </div>
+
+                  {/* Description */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-white/70 text-xs">Description</Label>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={generateAIDescription}
+                          disabled={isGeneratingDescription || !appName.trim()}
+                          className="flex items-center gap-1 px-2 py-0.5 text-[10px] bg-gradient-to-r from-violet-500/20 to-cyan-500/20 border border-violet-500/30 rounded text-violet-300 hover:text-violet-200 transition-all hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                        >
+                          {isGeneratingDescription ? (
+                            <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                          ) : (
+                            <Wand2 className="h-2.5 w-2.5" />
+                          )}
+                          AI Assist
+                        </button>
+                        <span className={`text-[10px] transition-colors ${
+                          appDescription.length > 500 ? "text-red-400" : 
+                          appDescription.length > 400 ? "text-yellow-400" : "text-white/30"
+                        }`}>
+                          {appDescription.length}/500
+                        </span>
+                      </div>
+                    </div>
+                    <Textarea
+                      value={appDescription}
+                      onChange={(e) => setAppDescription(e.target.value)}
+                      placeholder="Describe what your app should do... or let AI help you write it"
+                      className="min-h-[100px] bg-black/40 border-white/10 text-white text-sm placeholder:text-white/20 focus:border-white/30 rounded-lg resize-none"
+                    />
+                    {appDescription.length > 500 && (
+                      <p className="text-xs text-red-400 flex items-center gap-1">
+                        <AlertCircle className="h-3 w-3" />
+                        Description exceeds 500 character limit
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-3">
+                  <button
+                    onClick={() => setSetupStep(1)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-white/60 hover:text-white transition-colors"
+                  >
+                    <ArrowLeft className="h-3.5 w-3.5" />
+                    Back
+                  </button>
+                  <button
+                    onClick={() => setSetupStep(3)}
+                    disabled={!appName.trim() || appName.length > 100 || appDescription.length > 500}
+                    className="group flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-cyan-500 to-violet-500 rounded-lg text-white text-sm font-medium transition-all duration-300 hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 hover:shadow-lg hover:shadow-violet-500/25"
+                  >
+                    Continue
+                    <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* STEP 3: Features */}
+          <div className={`transition-all duration-500 ${setupStep === 3 ? "opacity-100" : "opacity-0 absolute pointer-events-none"}`}>
+            {setupStep === 3 && (
+              <div className="max-w-2xl mx-auto space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-2xl font-bold text-white">
+                      Supercharge your app
+                    </h2>
+                    <p className="text-white/50 text-sm">
+                      Add powerful features to your project
+                    </p>
+                  </div>
+                  {/* App summary */}
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10">
+                    {selectedTemplate && (
+                      <selectedTemplate.icon 
+                        className="h-4 w-4" 
+                        style={{ color: selectedTemplate.color }}
+                      />
+                    )}
+                    <span className="text-xs text-white/70">{appName || "Your App"}</span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  {/* Monetization */}
+                  <button
+                    onClick={() => setIncludeMonetization(!includeMonetization)}
+                    className={`p-4 rounded-xl text-left transition-all duration-300 border ${
+                      includeMonetization
+                        ? "bg-emerald-500/10 border-emerald-500/30"
+                        : "bg-white/[0.02] border-white/10 hover:bg-white/[0.04] hover:border-white/20"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div className={`p-2 rounded-lg transition-colors ${
+                        includeMonetization ? "bg-emerald-500/20" : "bg-white/5"
+                      }`}>
+                        <DollarSign className={`h-4 w-4 ${
+                          includeMonetization ? "text-emerald-400" : "text-white/40"
+                        }`} />
+                      </div>
+                      <div className={`w-8 h-5 rounded-full transition-colors duration-300 flex items-center ${
+                        includeMonetization ? "bg-emerald-500 justify-end" : "bg-white/10 justify-start"
+                      }`}>
+                        <div className="w-3 h-3 mx-1 rounded-full bg-white transition-all" />
+                      </div>
+                    </div>
+                    <h3 className="text-sm font-medium text-white">Monetization</h3>
+                    <p className="text-xs text-white/50 mt-0.5">
+                      Payments & subscriptions
+                    </p>
+                    <div className="flex gap-1 mt-2">
+                      <span className="px-1.5 py-0.5 text-[9px] bg-white/5 border border-white/10 rounded text-white/40">
+                        Stripe
+                      </span>
+                      <span className="px-1.5 py-0.5 text-[9px] bg-white/5 border border-white/10 rounded text-white/40">
+                        Billing
+                      </span>
+                    </div>
+                  </button>
+
+                  {/* Analytics */}
+                  <button
+                    onClick={() => setIncludeAnalytics(!includeAnalytics)}
+                    className={`p-4 rounded-xl text-left transition-all duration-300 border ${
+                      includeAnalytics
+                        ? "bg-blue-500/10 border-blue-500/30"
+                        : "bg-white/[0.02] border-white/10 hover:bg-white/[0.04] hover:border-white/20"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div className={`p-2 rounded-lg transition-colors ${
+                        includeAnalytics ? "bg-blue-500/20" : "bg-white/5"
+                      }`}>
+                        <LineChart className={`h-4 w-4 ${
+                          includeAnalytics ? "text-blue-400" : "text-white/40"
+                        }`} />
+                      </div>
+                      <div className={`w-8 h-5 rounded-full transition-colors duration-300 flex items-center ${
+                        includeAnalytics ? "bg-blue-500 justify-end" : "bg-white/10 justify-start"
+                      }`}>
+                        <div className="w-3 h-3 mx-1 rounded-full bg-white transition-all" />
+                      </div>
+                    </div>
+                    <h3 className="text-sm font-medium text-white">Analytics</h3>
+                    <p className="text-xs text-white/50 mt-0.5">
+                      Track users & events
+                    </p>
+                    <div className="flex gap-1 mt-2">
+                      <span className="px-1.5 py-0.5 text-[9px] bg-white/5 border border-white/10 rounded text-white/40">
+                        Real-time
+                      </span>
+                      <span className="px-1.5 py-0.5 text-[9px] bg-white/5 border border-white/10 rounded text-white/40">
+                        Events
+                      </span>
+                    </div>
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-between pt-3">
+                  <button
+                    onClick={() => setSetupStep(2)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-white/60 hover:text-white transition-colors"
+                  >
+                    <ArrowLeft className="h-3.5 w-3.5" />
+                    Back
+                  </button>
+                  <button
+                    onClick={startSession}
+                    disabled={isLoading}
+                    className="group relative flex items-center gap-2 px-6 py-2.5 rounded-lg text-white text-sm font-medium transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 overflow-hidden"
+                  >
+                    {/* Animated gradient background */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-cyan-500 via-violet-500 to-cyan-500 bg-[length:200%_100%] animate-[shimmer_2s_linear_infinite]" />
+                    {/* Glow effect */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-cyan-500 to-violet-500 blur-lg opacity-40 group-hover:opacity-60 transition-opacity" />
+                    <span className="relative flex items-center gap-2">
+                      {isLoading ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Launching...
+                        </>
+                      ) : (
+                        <>
+                          <Rocket className="h-4 w-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                          Start Building
+                        </>
+                      )}
+                    </span>
+                  </button>
+                </div>
+
+                {/* Summary footer */}
+                <p className="text-center text-[10px] text-white/25 pt-3">
+                  Live sandbox • Hot reload • AI assistance • GitHub integration
+                </p>
+              </div>
+            )}
           </div>
         </div>
 
-        {sourceContext && (
-          <BrandCard
-            className="relative border-l-4"
-            style={{
-              borderLeftColor: SOURCE_CONTEXT_INFO[sourceContext.type].color,
-            }}
-          >
-            <div className="flex items-center gap-3">
-              {(() => {
-                const Icon = SOURCE_CONTEXT_INFO[sourceContext.type].icon;
-                return (
-                  <div
-                    className="p-2 rounded-none border"
-                    style={{
-                      backgroundColor: `${SOURCE_CONTEXT_INFO[sourceContext.type].color}15`,
-                      borderColor: `${SOURCE_CONTEXT_INFO[sourceContext.type].color}40`,
-                    }}
-                  >
-                    <Icon
-                      className="h-5 w-5"
-                      style={{
-                        color: SOURCE_CONTEXT_INFO[sourceContext.type].color,
-                      }}
-                    />
-                  </div>
-                );
-              })()}
-              <div>
-                <p
-                  className="text-sm font-medium text-white"
-                  style={{ fontFamily: "var(--font-roboto-mono)" }}
-                >
-                  Building app for: {sourceContext.name}
-                </p>
-                <p className="text-xs text-white/60">
-                  This app will be integrated with your {sourceContext.type}
-                </p>
-              </div>
-            </div>
-          </BrandCard>
-        )}
-
-        <BrandCard className="relative shadow-lg shadow-black/50">
-          <CornerBrackets size="sm" className="opacity-50" />
-          <div className="relative z-10 space-y-6">
-            <div className="flex items-center gap-2 mb-4">
-              <Sparkles className="h-5 w-5 text-cyan-400" />
-              <h2
-                className="text-xl font-normal text-white"
-                style={{ fontFamily: "var(--font-roboto-mono)" }}
-              >
-                Configure Your App
-              </h2>
-            </div>
-
-            <div className="grid gap-6 md:grid-cols-2">
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label className="text-white/70">App Name</Label>
-                  <span
-                    className={`text-xs ${
-                      appName.length > 100
-                        ? "text-red-400"
-                        : appName.length > 80
-                          ? "text-yellow-400"
-                          : "text-white/40"
-                    }`}
-                  >
-                    {appName.length}/100
-                  </span>
-                </div>
-                <Input
-                  value={appName}
-                  onChange={(e) => setAppName(e.target.value)}
-                  placeholder="My Awesome App"
-                  className={`bg-black/40 border-white/20 text-white ${
-                    appName.length > 100
-                      ? "border-red-400/50 focus:border-red-400"
-                      : ""
-                  }`}
-                  maxLength={100}
-                />
-                {appName.length > 100 && (
-                  <p className="text-xs text-red-400 flex items-center gap-1">
-                    <AlertCircle className="h-3 w-3" />
-                    Name exceeds 100 character limit
-                  </p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-white/70">Template</Label>
-                <Select
-                  value={templateType}
-                  onValueChange={(v) => setTemplateType(v as TemplateType)}
-                >
-                  <SelectTrigger className="bg-black/40 border-white/20 text-white">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TEMPLATE_OPTIONS.map((opt) => (
-                      <SelectItem
-                        key={opt.value}
-                        value={opt.value}
-                        disabled={opt.comingSoon}
-                      >
-                        <div className="flex flex-col">
-                          <div className="flex items-center gap-2">
-                            <span>{opt.label}</span>
-                            {opt.comingSoon && (
-                              <span className="text-[10px] px-1.5 py-0.5 bg-yellow-500/20 text-yellow-400 rounded">
-                                Coming Soon
-                              </span>
-                            )}
-                          </div>
-                          <span className="text-xs text-white/50">
-                            {opt.description}
-                          </span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label className="text-white/70">Description</Label>
-                <span
-                  className={`text-xs ${
-                    appDescription.length > 500
-                      ? "text-red-400"
-                      : appDescription.length > 400
-                        ? "text-yellow-400"
-                        : "text-white/40"
-                  }`}
-                >
-                  {appDescription.length}/500
-                </span>
-              </div>
-              <Textarea
-                value={appDescription}
-                onChange={(e) => setAppDescription(e.target.value)}
-                placeholder="Describe what your app should do..."
-                className={`bg-black/40 border-white/20 text-white min-h-[100px] ${
-                  appDescription.length > 500
-                    ? "border-red-400/50 focus:border-red-400"
-                    : ""
-                }`}
-              />
-              {appDescription.length > 500 && (
-                <p className="text-xs text-red-400 flex items-center gap-1">
-                  <AlertCircle className="h-3 w-3" />
-                  Description exceeds 500 character limit
-                </p>
-              )}
-            </div>
-
-            <div className="flex items-center gap-6">
-              <div className="flex items-center gap-3">
-                <Switch
-                  checked={includeMonetization}
-                  onCheckedChange={setIncludeMonetization}
-                />
-                <Label className="text-white/70">Enable Monetization</Label>
-              </div>
-              <div className="flex items-center gap-3">
-                <Switch
-                  checked={includeAnalytics}
-                  onCheckedChange={setIncludeAnalytics}
-                />
-                <Label className="text-white/70">Include Analytics</Label>
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-3 pt-4">
-              <Link href={backLink}>
-                <BrandButton variant="ghost">Cancel</BrandButton>
-              </Link>
-              <BrandButton
-                variant="primary"
-                onClick={startSession}
-                disabled={
-                  !appName.trim() ||
-                  appName.length > 100 ||
-                  isLoading ||
-                  appDescription.length > 500
-                }
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Starting...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="h-4 w-4 mr-2" />
-                    Start Building
-                  </>
-                )}
-              </BrandButton>
-            </div>
-          </div>
-        </BrandCard>
+        {/* Shimmer animation */}
+        <style jsx global>{`
+          @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+          }
+        `}</style>
       </div>
     );
   }
