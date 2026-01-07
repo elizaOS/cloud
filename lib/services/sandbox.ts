@@ -254,7 +254,7 @@ const TOOLS: Anthropic.Tool[] = [
   {
     name: "install_packages",
     description:
-      "Install packages (pnpm/npm). Use this BEFORE writing files that import external packages.",
+      "Install packages (bun). Use this BEFORE writing files that import external packages.",
     input_schema: {
       type: "object" as const,
       properties: {
@@ -357,6 +357,7 @@ const ALLOWED_ROOT_PATTERNS = [
   /^package-lock\.json$/,
   /^bun\.lockb$/,
   /^pnpm-lock\.yaml$/,
+  /^bun\.lockb$/,
   /^yarn\.lock$/,
   /^tsconfig.*\.json$/,
   /^next\.config\.(ts|js|mjs)$/,
@@ -377,6 +378,8 @@ const ALLOWED_ROOT_PATTERNS = [
 ];
 
 const ALLOWED_COMMANDS = [
+  "bun",
+  "bunx",
   "pnpm",
   "npm",
   "npx",
@@ -529,9 +532,17 @@ async function installPackages(
   logger.info("Installing packages", { packages });
 
   let result = await sandbox.runCommand({
-    cmd: "pnpm",
+    cmd: "bun",
     args: ["add", ...packages],
   });
+
+  if (result.exitCode !== 0) {
+    logger.info("bun failed, trying pnpm", { packages });
+    result = await sandbox.runCommand({
+      cmd: "pnpm",
+      args: ["add", ...packages],
+    });
+  }
 
   if (result.exitCode !== 0) {
     logger.info("pnpm failed, trying npm", { packages });
@@ -564,22 +575,38 @@ async function installDependencies(
     });
   }
 
-  // Try pnpm with frozen lockfile first (fastest - uses exact versions from lockfile)
+  // Try bun install first (fastest)
   let result = await sandbox.runCommand({
-    cmd: "pnpm",
-    args: ["install", "--frozen-lockfile", "--prefer-offline"],
+    cmd: "bun",
+    args: ["install", "--frozen-lockfile"],
   });
 
-  // If frozen lockfile fails (lockfile out of sync), try regular install
+  // If frozen lockfile fails, try regular bun install
   if (result.exitCode !== 0) {
-    logger.info("pnpm frozen-lockfile failed, trying regular pnpm install");
+    logger.info("bun frozen-lockfile failed, trying regular bun install");
     result = await sandbox.runCommand({
-      cmd: "pnpm",
-      args: ["install", "--prefer-offline"],
+      cmd: "bun",
+      args: ["install"],
     });
   }
 
-  // Fall back to npm ci (faster than npm install)
+  // Fall back to pnpm
+  if (result.exitCode !== 0) {
+    logger.info("bun install failed, trying pnpm");
+    result = await sandbox.runCommand({
+      cmd: "pnpm",
+      args: ["install", "--frozen-lockfile", "--prefer-offline"],
+    });
+
+    if (result.exitCode !== 0) {
+      result = await sandbox.runCommand({
+        cmd: "pnpm",
+        args: ["install", "--prefer-offline"],
+      });
+    }
+  }
+
+  // Last resort: npm
   if (result.exitCode !== 0) {
     logger.info("pnpm install failed, trying npm ci");
     result = await sandbox.runCommand({
@@ -587,7 +614,6 @@ async function installDependencies(
       args: ["ci", "--prefer-offline"],
     });
 
-    // Last resort: npm install
     if (result.exitCode !== 0) {
       result = await sandbox.runCommand({
         cmd: "npm",
@@ -757,11 +783,41 @@ export class SandboxService {
     try {
       sandbox = (await Sandbox.create(createOptions)) as SandboxInstance;
     } catch (error) {
-      if (error instanceof Error && error.message.includes("OIDC")) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      
+      // Log full error details for debugging
+      logger.error("Sandbox creation failed", {
+        error: errorMessage,
+        createOptions: {
+          ...createOptions,
+          token: createOptions.token ? "[REDACTED]" : undefined,
+        },
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+
+      if (errorMessage.includes("OIDC")) {
         throw new Error(
-          `OIDC token expired or invalid. Run 'vercel env pull' to refresh it. Original error: ${error.message}`,
+          `OIDC token expired or invalid. Run 'vercel env pull' to refresh it. Original error: ${errorMessage}`,
         );
       }
+      
+      // Check for common Vercel Sandbox errors
+      if (errorMessage.includes("400") || errorMessage.includes("Bad Request")) {
+        throw new Error(
+          `Vercel Sandbox creation failed (400 Bad Request). This usually means:\n` +
+          `1. You've hit the concurrent sandbox limit - wait for existing sandboxes to expire (~30 min)\n` +
+          `2. The template URL is invalid or inaccessible\n` +
+          `3. Your Vercel account has reached its sandbox quota\n` +
+          `Check your Vercel dashboard for active sandboxes. Original error: ${errorMessage}`,
+        );
+      }
+      
+      if (errorMessage.includes("429") || errorMessage.includes("rate limit")) {
+        throw new Error(
+          `Vercel Sandbox rate limit exceeded. Wait a few minutes and try again. Original error: ${errorMessage}`,
+        );
+      }
+      
       throw error;
     }
     const devServerUrl = sandbox.domain(3000);
@@ -774,21 +830,35 @@ export class SandboxService {
     logger.info("Installing dependencies", { sandboxId });
     onProgress?.({ step: "installing", message: "Installing dependencies..." });
 
-    // Use frozen-lockfile for faster installs (exact versions from lockfile)
+    // Use bun for fastest installs
     let install = await sandbox.runCommand({
-      cmd: "pnpm",
-      args: ["install", "--frozen-lockfile", "--prefer-offline"],
+      cmd: "bun",
+      args: ["install", "--frozen-lockfile"],
     });
 
-    // Fall back to regular pnpm install if lockfile is out of sync
+    // Fall back to regular bun install if lockfile is out of sync
     if (install.exitCode !== 0) {
       install = await sandbox.runCommand({
-        cmd: "pnpm",
-        args: ["install", "--prefer-offline"],
+        cmd: "bun",
+        args: ["install"],
       });
     }
 
-    // Last resort: npm ci (faster than npm install)
+    // Fall back to pnpm
+    if (install.exitCode !== 0) {
+      install = await sandbox.runCommand({
+        cmd: "pnpm",
+        args: ["install", "--frozen-lockfile", "--prefer-offline"],
+      });
+      if (install.exitCode !== 0) {
+        install = await sandbox.runCommand({
+          cmd: "pnpm",
+          args: ["install", "--prefer-offline"],
+        });
+      }
+    }
+
+    // Last resort: npm ci
     if (install.exitCode !== 0) {
       install = await sandbox.runCommand({ cmd: "npm", args: ["ci"] });
       if (install.exitCode !== 0) {
@@ -976,7 +1046,7 @@ export class SandboxService {
     // Use --turbo for Next.js 15+ Turbopack (much faster HMR and cold starts)
     await sandbox.runCommand({
       cmd: "sh",
-      args: ["-c", "pnpm dev --turbo 2>&1 | tee /tmp/next-dev.log &"],
+      args: ["-c", "bun dev --turbo 2>&1 | tee /tmp/next-dev.log &"],
       detached: true,
       env: mergedEnv,
     });
@@ -1364,11 +1434,27 @@ ${tailwindWarning}
 ---
 USER REQUEST: ${prompt}
 
+CRITICAL - WRITE FILES PROGRESSIVELY:
+- Write EACH file immediately when ready - users see live updates!
+- Do NOT batch files or save page.tsx for last
+- Write layout.tsx FIRST with unique metadata (creative title, not "My App")
+- Write page.tsx EARLY - even a basic version, then iterate
+- Write components ONE BY ONE as you build them
+
+NEVER BREAK THE BUILD:
+- Do NOT import files that don't exist yet!
+- Write dependencies BEFORE files that import them
+- Example: Write components/button.tsx BEFORE page.tsx imports it
+- Each file write should result in a working build
+- Do NOT use check_build after every file - it's slow!
+- HMR auto-refreshes - only check_build ONCE at the very end
+
 REMEMBER:
 1. Use standard Tailwind classes only (no custom utilities)
 2. globals.css MUST use Tailwind v4 syntax: @import "tailwindcss"; (NOT @tailwind directives)
 3. Use check_build after changes to verify
-4. Fix any errors before finishing`;
+4. Fix any errors before finishing
+5. Generate UNIQUE metadata for this specific app (title, description, og tags)`;
 
       const messages: Anthropic.MessageParam[] = [
         { role: "user", content: contextPrompt },
@@ -1651,7 +1737,7 @@ REMEMBER:
         cmd: "sh",
         args: [
           "-c",
-          "pnpm install --frozen-lockfile --prefer-offline 2>&1 | tee /tmp/install.log || pnpm install --prefer-offline 2>&1 | tee -a /tmp/install.log &",
+          "bun install --frozen-lockfile 2>&1 | tee /tmp/install.log || bun install 2>&1 | tee -a /tmp/install.log &",
         ],
         detached: true,
       })
@@ -1703,7 +1789,7 @@ REMEMBER:
     // Use --turbo for Next.js 15+ Turbopack (much faster HMR and cold starts)
     await sandbox.runCommand({
       cmd: "sh",
-      args: ["-c", "pnpm dev --turbo 2>&1 | tee /tmp/next-dev.log &"],
+      args: ["-c", "bun dev --turbo 2>&1 | tee /tmp/next-dev.log &"],
       detached: true,
     });
 
@@ -1840,7 +1926,7 @@ REMEMBER:
 
             await existingSandbox.runCommand({
               cmd: "sh",
-              args: ["-c", "pnpm dev --turbo 2>&1 | tee /tmp/next-dev.log &"],
+              args: ["-c", "bun dev --turbo 2>&1 | tee /tmp/next-dev.log &"],
               detached: true,
             });
 
@@ -1942,7 +2028,7 @@ REMEMBER:
 
         await sandbox.runCommand({
           cmd: "sh",
-          args: ["-c", "pnpm dev --turbo 2>&1 | tee /tmp/next-dev.log &"],
+          args: ["-c", "bun dev --turbo 2>&1 | tee /tmp/next-dev.log &"],
           detached: true,
         });
 

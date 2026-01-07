@@ -898,13 +898,20 @@ export default function AppCreatorPage() {
       const data = await response.json();
       if (data.success) {
         setLastSaveTime(new Date());
-        toast.success("Saved to GitHub", {
-          description: `${data.filesCommitted} file(s) committed`,
-        });
-        addLog(
-          `Saved to GitHub: ${data.commitSha?.substring(0, 7)}`,
-          "success",
-        );
+        if (data.filesCommitted > 0 && data.commitSha) {
+          toast.success("Saved to GitHub", {
+            description: `${data.filesCommitted} file(s) committed`,
+          });
+          addLog(
+            `Saved to GitHub: ${data.commitSha.substring(0, 7)} (${data.filesCommitted} files)`,
+            "success",
+          );
+        } else {
+          toast.info("No changes to save", {
+            description: "All files are already up to date",
+          });
+          addLog("No changes to commit - files already up to date", "info");
+        }
         // Refresh git status
         await checkGitStatus();
         // Refresh commit history
@@ -3913,7 +3920,7 @@ ANTHROPIC_API_KEY=your_key_here`}
         >
           <div
             ref={messagesContainerRef}
-            className="flex-1 overflow-y-auto p-3 xl:p-5 space-y-3 xl:space-y-4"
+            className="flex-1 overflow-y-auto p-3 xl:p-5 space-y-3 xl:space-y-4 scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent hover:scrollbar-thumb-white/30"
           >
             {messages.map((msg, i) => (
               <ChatMessage
@@ -4178,7 +4185,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                 </div>
               )
             ) : (
-              <div className="h-full bg-[#1a1a1a] overflow-y-auto overflow-x-hidden font-mono text-xs">
+              <div className="h-full bg-[#1a1a1a] overflow-y-auto overflow-x-hidden font-mono text-xs scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent hover:scrollbar-thumb-white/30">
                 {consoleLogs.length === 0 ? (
                   <div className="flex items-center justify-center h-full text-white/30">
                     <div className="text-center">

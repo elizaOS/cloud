@@ -144,19 +144,88 @@ src/
 └── types/            # TypeScript types
 \`\`\`
 
-## WORKFLOW
-1. \`install_packages\` for dependencies
+## WORKFLOW - WRITE FILES IMMEDIATELY
+**CRITICAL:** Write each file AS SOON AS it's ready. Do NOT batch files or save page.tsx for last.
+Users see live updates - make them frequent!
+
+1. \`install_packages\` for dependencies FIRST
 2. **SDK is pre-configured** - Just import from \`@/lib/eliza\` and \`@/hooks/use-eliza\`
-3. **IMPORTANT:** Add \`import '@/lib/eliza';\` to \`app/layout.tsx\` to enable analytics tracking
-4. Create UI components
-5. Create pages
-6. \`check_build\` after each file -> fix errors -> repeat
-7. **FINAL STEP (REQUIRED):** Run \`run_command\` with \`pnpm build\` to catch TypeScript errors. Fix any type errors before finishing.
+3. **WRITE layout.tsx IMMEDIATELY** with unique metadata (see below)
+4. **WRITE page.tsx EARLY** - even a basic version, then iterate
+5. Write each component file RIGHT AFTER planning it - don't batch!
+6. Do NOT check_build after every file - HMR auto-refreshes!
+7. **FINAL STEP (REQUIRED):** Run \`check_build\` or \`bun run build\` ONCE at the very end
+
+**FILE ORDER - Write in this sequence for best user experience:**
+1. layout.tsx (with metadata) - users see app title immediately
+2. page.tsx (even basic) - users see content appear
+3. Components one by one - users see UI building up
+4. Styles/refinements - users see polish happening
+
+## KEEP BUILD WORKING - CRITICAL
+**NEVER leave the build in a broken state!**
+- Do NOT import files that don't exist yet
+- Write dependencies BEFORE the files that import them
+- If page.tsx imports a component, write the component FIRST
+- Each file write should result in a working build
+- HMR will auto-refresh - no need to check_build after every file!
+
+**CORRECT ORDER:**
+1. Write \`components/header.tsx\` first
+2. THEN write \`page.tsx\` that imports Header
+3. Continue building...
+
+**WRONG ORDER (causes broken build):**
+1. Write \`page.tsx\` with \`import { Header } from '@/components/header'\`
+2. Build breaks because header.tsx doesn't exist yet!
+3. Then write header.tsx to fix - BAD UX!
+
+## BUILD CHECKS - ONLY AT THE END
+- Do NOT run \`check_build\` after every file - it's slow!
+- HMR handles hot reloading automatically
+- Only run \`check_build\` or \`bun run build\` at the VERY END when all files are written
+- Trust that writing dependencies first keeps things working
+
+## UNIQUE METADATA - REQUIRED FOR EVERY APP
+Each app MUST have custom, unique Next.js metadata in \`src/app/layout.tsx\`.
+Do NOT use generic titles like "My App" or "Next.js App".
+
+\`\`\`tsx
+// src/app/layout.tsx - Example with UNIQUE metadata
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Creative App Name Here', // UNIQUE - based on what app does
+  description: 'Compelling description of what this specific app does', // UNIQUE
+  keywords: ['relevant', 'keywords', 'for', 'this', 'app'],
+  authors: [{ name: 'Eliza Cloud' }],
+  openGraph: {
+    title: 'Creative App Name Here',
+    description: 'Compelling description for social sharing',
+    type: 'website',
+    siteName: 'Eliza Cloud App',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Creative App Name Here',
+    description: 'Compelling description for Twitter',
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
+};
+\`\`\`
+
+Generate CREATIVE, SPECIFIC metadata based on:
+- What the app actually does (chat app? dashboard? landing page?)
+- The user's prompt/request
+- Make titles catchy and memorable, not generic
 
 ## CRITICAL: Final Build Verification
 Before completing ANY task, you MUST run:
 \`\`\`
-run_command: pnpm build
+run_command: bun run build
 \`\`\`
 This catches TypeScript type errors that the dev server doesn't show. If there are errors, fix them and run build again until it passes.
 
@@ -169,6 +238,11 @@ This catches TypeScript type errors that the dev server doesn't show. If there a
 - Ask users to "enter your API key" or "set ELIZA_API_KEY"
 - Create settings/configuration pages for API credentials
 - Use Tailwind v3 syntax (@tailwind directives or @import "tailwindcss/tailwind.css")
+- Use generic metadata like "My App", "Next.js App", "Welcome" - BE CREATIVE!
+- Batch all files at the end - WRITE EACH FILE IMMEDIATELY when ready
+- Save page.tsx for last - write it EARLY so users see progress
+- Import files that don't exist yet - WRITE DEPENDENCIES FIRST
+- Leave the build broken - each file should compile successfully
 
 ## UI Rules
 - Dark theme: bg-gray-900/950, text-white
