@@ -539,7 +539,11 @@ export class AIAppBuilderService {
       },
       {
         message: commitMessage,
-        author: { name: "ElizaCloud AI Builder", email: "ai@elizacloud.ai" },
+        // Use environment variables for commit author to match your GitHub account for Vercel attribution
+        author: {
+          name: process.env.GIT_COMMIT_AUTHOR_NAME || "ElizaCloud AI Builder",
+          email: process.env.GIT_COMMIT_AUTHOR_EMAIL || "ai@elizacloud.ai",
+        },
       },
     );
 
