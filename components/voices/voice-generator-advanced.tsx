@@ -168,7 +168,7 @@ export function VoiceGeneratorAdvanced({
   }>({
     activeTab: "creations",
     inputMode: "generate",
-    cloneMode: "select",
+    cloneMode: "upload",
     isDetailOpen: false,
     selectedAudio: null,
     editingId: null,
@@ -829,58 +829,10 @@ export function VoiceGeneratorAdvanced({
                   className="hidden"
                 />
 
-                {/* Select Mode - Upload or Record */}
-                {uiState.cloneMode === "select" && (
-                  <div className="flex items-center justify-center h-full min-h-[200px]">
-                    {/* Upload Option */}
-                    <button
-                      type="button"
-                      onClick={() => setUiState(prev => ({ ...prev, cloneMode: "upload" }))}
-                      className="flex-1 flex flex-col items-center justify-center gap-4 py-8 px-6 hover:bg-white/[0.02] transition-colors rounded-lg group"
-                    >
-                      <div className="rounded-full bg-white/[0.05] border border-white/10 p-6 group-hover:border-[#FF5800]/30 group-hover:bg-[#FF5800]/10 transition-colors">
-                        <Upload className="h-10 w-10 text-white/50 group-hover:text-[#FF5800] transition-colors" />
-                      </div>
-                      <span className="text-lg font-medium text-white/70 group-hover:text-white transition-colors">
-                        Upload
-                      </span>
-                    </button>
-
-                    {/* Divider */}
-                    <div className="h-32 w-px bg-white/10 mx-4" />
-
-                    {/* Record Option */}
-                    <button
-                      type="button"
-                      onClick={() => setUiState(prev => ({ ...prev, cloneMode: "record" }))}
-                      className="flex-1 flex flex-col items-center justify-center gap-4 py-8 px-6 hover:bg-white/[0.02] transition-colors rounded-lg group"
-                    >
-                      <div className="rounded-full bg-white/[0.05] border border-white/10 p-6 group-hover:border-[#FF5800]/30 group-hover:bg-[#FF5800]/10 transition-colors">
-                        <Mic className="h-10 w-10 text-white/50 group-hover:text-[#FF5800] transition-colors" />
-                      </div>
-                      <span className="text-lg font-medium text-white/70 group-hover:text-white transition-colors">
-                        Record
-                      </span>
-                    </button>
-                  </div>
-                )}
 
                 {/* Upload Mode - Drag & Drop */}
                 {uiState.cloneMode === "upload" && (
                   <div className="h-full min-h-[200px] flex flex-col">
-                    {/* Back button */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setUiState(prev => ({ ...prev, cloneMode: "select" }));
-                        setCloneState(prev => ({ ...prev, uploadedFiles: [], isDragging: false }));
-                      }}
-                      className="flex items-center gap-2 text-sm text-white/50 hover:text-white transition-colors mb-4 self-start"
-                    >
-                      <ArrowLeft className="h-4 w-4" />
-                      Back
-                    </button>
-
                     {/* Drag & Drop Area */}
                     <div
                       onDragOver={(e) => {

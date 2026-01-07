@@ -1,6 +1,6 @@
 /**
  * Voice clone form component for creating voice clones.
- * Supports instant and professional cloning modes with audio upload or recording.
+ * Supports instant and professional cloning modes with audio upload.
  * Includes advanced settings for stability, similarity, and style.
  *
  * @param props - Voice clone form configuration
@@ -20,9 +20,6 @@ import {
   FileAudio,
   Loader2,
   AlertCircle,
-  Mic,
-  Square,
-  CheckCircle,
   Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -31,17 +28,8 @@ import {
   VOICE_CLONE_INSTANT_COST,
   VOICE_CLONE_PROFESSIONAL_COST,
 } from "@/lib/pricing-constants";
-import { useAudioRecorder } from "@/components/chat/hooks/use-audio-recorder";
 import type { Voice } from "./types";
-import {
-  BrandTabs,
-  BrandTabsList,
-  BrandTabsTrigger,
-  BrandTabsContent,
-  BrandCard,
-  BrandButton,
-  CornerBrackets,
-} from "@/components/brand";
+import { BrandCard, BrandButton, CornerBrackets } from "@/components/brand";
 
 interface VoiceCloneFormProps {
   creditBalance: number;
@@ -91,10 +79,6 @@ export function VoiceCloneForm({
   const [settings, setSettings] = useState<VoiceSettings>(DEFAULT_SETTINGS);
   // File state
   const [files, setFiles] = useState<UploadedFile[]>([]);
-  const [recordings, setRecordings] = useState<
-    Array<{ blob: Blob; id: string; duration: number }>
-  >([]);
-  const [recordingName, setRecordingName] = useState("");
   // UI state
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -105,7 +89,6 @@ export function VoiceCloneForm({
   >(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const recorder = useAudioRecorder();
 
   const cost =
     formData.cloneType === "instant"
@@ -193,49 +176,6 @@ export function VoiceCloneForm({
 
   const removeFile = (id: string) => {
     setFiles((prev) => prev.filter((f) => f.id !== id));
-  };
-
-  const handleSaveRecording = () => {
-    if (!recorder.audioBlob) return;
-
-    const name = recordingName.trim() || `Recording ${recordings.length + 1}`;
-    const recording = {
-      blob: recorder.audioBlob,
-      id: Math.random().toString(36).substr(2, 9),
-      duration: recorder.recordingTime,
-    };
-
-    setRecordings((prev) => [...prev, recording]);
-
-    // Convert recording to File and add to files list
-    // Use correct file extension based on blob type
-    const ext = recorder.audioBlob.type.includes("webm") ? "webm" : "wav";
-    const file = new File([recorder.audioBlob], `${name}.${ext}`, {
-      type: recorder.audioBlob.type,
-    });
-
-    setFiles((prev) => [
-      ...prev,
-      {
-        file,
-        id: recording.id,
-      },
-    ]);
-
-    recorder.clearRecording();
-    setRecordingName("");
-    toast.success("Recording saved!");
-  };
-
-  const removeRecording = (id: string) => {
-    setRecordings((prev) => prev.filter((r) => r.id !== id));
-    removeFile(id);
-  };
-
-  const formatRecordingTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -475,187 +415,49 @@ export function VoiceCloneForm({
             </div>
           </div>
 
-          {/* Audio Source - Compact tabs for Upload or Record */}
+          {/* Audio Upload */}
           <div className="space-y-1.5">
             <label className="text-[10px] font-mono font-medium text-white/70 uppercase tracking-wide">
               Audio Samples <span className="text-rose-400">*</span>
             </label>
 
-            <BrandTabs
-              id="voice-upload-tabs"
-              defaultValue="upload"
-              className="w-full"
+            <button
+              type="button"
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              className={cn(
+                "border border-dashed p-4 text-center transition-colors cursor-pointer w-full",
+                isDragging
+                  ? "border-[#FF5800] bg-[#FF5800]/5"
+                  : "border-white/20 hover:border-white/40 bg-black/20",
+              )}
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading}
             >
-              <BrandTabsList className="w-full h-8">
-                <BrandTabsTrigger value="upload" className="flex-1 h-7">
-                  <Upload className="h-3 w-3 mr-1.5" />
-                  <span className="text-xs">Upload</span>
-                </BrandTabsTrigger>
-                <BrandTabsTrigger value="record" className="flex-1 h-7">
-                  <Mic className="h-3 w-3 mr-1.5" />
-                  <span className="text-xs">Record</span>
-                </BrandTabsTrigger>
-              </BrandTabsList>
-
-              {/* Upload Tab - Compact dropzone */}
-              <BrandTabsContent value="upload" className="space-y-2 mt-2">
-                <button
-                  type="button"
-                  onDragOver={handleDragOver}
-                  onDragLeave={handleDragLeave}
-                  onDrop={handleDrop}
-                  className={cn(
-                    "border border-dashed p-4 text-center transition-colors cursor-pointer w-full",
-                    isDragging
-                      ? "border-[#FF5800] bg-[#FF5800]/5"
-                      : "border-white/20 hover:border-white/40 bg-black/20",
-                  )}
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={isUploading}
-                >
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="audio/*"
-                    multiple
-                    onChange={(e) => handleFileSelect(e.target.files)}
-                    className="hidden"
-                    disabled={isUploading}
-                  />
-                  <div className="flex items-center justify-center gap-3">
-                    <Upload className="h-5 w-5 text-white/40 shrink-0" />
-                    <div className="text-left">
-                      <p className="text-xs font-mono font-medium text-white">
-                        Drop audio files or click to browse
-                      </p>
-                      <p className="text-[10px] font-mono text-white/50">
-                        MP3, WAV, WebM, OGG • Max 10MB each
-                      </p>
-                    </div>
-                  </div>
-                </button>
-              </BrandTabsContent>
-
-              {/* Record Tab - Compact recording UI */}
-              <BrandTabsContent value="record" className="space-y-2 mt-2">
-                <div className="border border-white/20 bg-black/20 p-3">
-                  {!recorder.isRecording && !recorder.audioBlob && (
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-2">
-                        <Mic className="h-5 w-5 text-muted-foreground" />
-                        <div>
-                          <p className="text-xs font-medium text-white">
-                            Ready to record
-                          </p>
-                          <p className="text-[10px] text-white/50">
-                            Speak clearly in a quiet space
-                          </p>
-                        </div>
-                      </div>
-                      <BrandButton
-                        type="button"
-                        onClick={recorder.startRecording}
-                        variant="primary"
-                        size="sm"
-                        disabled={isUploading}
-                        className="h-8"
-                      >
-                        <Mic className="mr-1.5 h-3 w-3" />
-                        Record
-                      </BrandButton>
-                    </div>
-                  )}
-
-                  {recorder.isRecording && (
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-3">
-                        <div className="relative">
-                          <div className="absolute inset-0 animate-ping opacity-50">
-                            <div className="h-8 w-8 rounded-full bg-destructive/30" />
-                          </div>
-                          <Mic className="h-8 w-8 text-destructive relative z-10" />
-                        </div>
-                        <div>
-                          <p className="text-lg font-mono font-semibold text-white">
-                            {formatRecordingTime(recorder.recordingTime)}
-                          </p>
-                          <p className="text-[10px] text-white/50">
-                            Recording...
-                          </p>
-                        </div>
-                      </div>
-                      <BrandButton
-                        type="button"
-                        onClick={recorder.stopRecording}
-                        variant="primary"
-                        size="sm"
-                        className="h-8 animate-pulse"
-                      >
-                        <Square
-                          className="mr-1.5 h-3 w-3"
-                          fill="currentColor"
-                        />
-                        Stop
-                      </BrandButton>
-                    </div>
-                  )}
-
-                  {recorder.audioBlob && !recorder.isRecording && (
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <CheckCircle className="h-4 w-4 text-green-500 shrink-0" />
-                        <span className="text-xs font-medium text-white">
-                          {formatRecordingTime(recorder.recordingTime)} recorded
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Input
-                          id="recording-name"
-                          placeholder={`Recording ${recordings.length + 1}`}
-                          value={recordingName}
-                          onChange={(e) => setRecordingName(e.target.value)}
-                          className="h-8 text-xs flex-1"
-                        />
-                        <BrandButton
-                          type="button"
-                          onClick={handleSaveRecording}
-                          variant="primary"
-                          size="sm"
-                          className="h-8 px-3"
-                        >
-                          Save
-                        </BrandButton>
-                        <BrandButton
-                          type="button"
-                          onClick={recorder.clearRecording}
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 px-2 text-rose-400"
-                        >
-                          <X className="h-4 w-4" />
-                        </BrandButton>
-                      </div>
-                      <audio
-                        controls
-                        src={URL.createObjectURL(recorder.audioBlob)}
-                        className="w-full h-8"
-                      >
-                        <track kind="captions" />
-                      </audio>
-                    </div>
-                  )}
-
-                  {recorder.error && (
-                    <div className="flex items-center gap-2 text-destructive text-xs mt-2">
-                      <AlertCircle className="h-3 w-3" />
-                      {recorder.error}
-                    </div>
-                  )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="audio/*"
+                multiple
+                onChange={(e) => handleFileSelect(e.target.files)}
+                className="hidden"
+                disabled={isUploading}
+              />
+              <div className="flex items-center justify-center gap-3">
+                <Upload className="h-5 w-5 text-white/40 shrink-0" />
+                <div className="text-left">
+                  <p className="text-xs font-mono font-medium text-white">
+                    Drop audio files or click to browse
+                  </p>
+                  <p className="text-[10px] font-mono text-white/50">
+                    MP3, WAV, WebM, OGG • Max 10MB each
+                  </p>
                 </div>
-              </BrandTabsContent>
-            </BrandTabs>
+              </div>
+            </button>
 
-            {/* Compact File List - Horizontal chips when few files, compact list otherwise */}
+            {/* File List */}
             {files.length > 0 && (
               <div className="space-y-1.5 pt-2">
                 <div className="flex items-center justify-between">
