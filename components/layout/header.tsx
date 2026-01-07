@@ -10,12 +10,13 @@
 
 "use client";
 
-import { memo, useCallback } from "react";
-import { Menu, LogIn } from "lucide-react";
+import { memo, useCallback, useState } from "react";
+import { Menu, LogIn, Plus } from "lucide-react";
 import { usePrivy } from "@privy-io/react-auth";
 import { BrandButton } from "@/components/brand";
 import UserMenu from "./user-menu";
 import { usePageHeader } from "./page-header-context";
+import { QuickCreateDialog } from "@/components/builders";
 
 interface HeaderProps {
   onToggleSidebar: () => void;
@@ -30,6 +31,7 @@ function HeaderComponent({
 }: HeaderProps) {
   const { pageInfo } = usePageHeader();
   const { login } = usePrivy();
+  const [showQuickCreate, setShowQuickCreate] = useState(false);
 
   // Memoize login handler to prevent unnecessary re-renders
   const handleLogin = useCallback(() => {
@@ -81,11 +83,25 @@ function HeaderComponent({
             <span className="md:hidden">Sign Up</span>
           </BrandButton>
         ) : (
-          <div className="flex flex-row items-center space-x-8">
+          <div className="flex flex-row items-center gap-3">
+            <BrandButton
+              variant="primary"
+              size="sm"
+              onClick={() => setShowQuickCreate(true)}
+              className="gap-2"
+            >
+              <Plus className="h-4 w-4" />
+              <span className="hidden md:inline">Create</span>
+            </BrandButton>
             <UserMenu />
           </div>
         )}
       </div>
+
+      <QuickCreateDialog
+        open={showQuickCreate}
+        onOpenChange={setShowQuickCreate}
+      />
     </header>
   );
 }

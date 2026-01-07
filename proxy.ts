@@ -102,6 +102,7 @@ const publicPaths = [
   "/api/mcp",
   "/api/a2a",
   "/api/agents",
+  "/api/v1/track",
   "/.well-known",
 ];
 

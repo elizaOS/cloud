@@ -33,35 +33,39 @@ export function SignupPromptBanner({
   const remaining = messagesLimit - messageCount;
 
   // Determine which prompt to show based on message count
+  // Thresholds adjusted for 3-message limit
   const getPromptConfig = () => {
-    if (messageCount >= 4) {
+    if (remaining <= 0) {
+      // Limit reached - show blocking message
       return {
         icon: Zap,
         iconColor: "#FF5800",
-        title: `${remaining} message${remaining === 1 ? "" : "s"} left`,
-        description: "Log in to save your character",
+        title: "Message limit reached",
+        description: "Sign up free to continue chatting",
+        bgColor: "bg-[#FF5800]/15",
+        borderColor: "border-[#FF5800]/40",
+        urgent: true,
+      };
+    } else if (remaining === 1) {
+      // Last message
+      return {
+        icon: Zap,
+        iconColor: "#FF5800",
+        title: "1 message left",
+        description: "Sign up to keep chatting",
         bgColor: "bg-[#FF5800]/10",
         borderColor: "border-[#FF5800]/30",
         urgent: true,
       };
-    } else if (messageCount >= 3) {
+    } else if (messageCount >= 1) {
+      // After first message
       return {
         icon: Clock,
         iconColor: "#FF5800",
         title: `${remaining} messages left`,
-        description: "Log in to save your character",
+        description: "Sign up free for unlimited access",
         bgColor: "bg-[#FF5800]/5",
         borderColor: "border-[#FF5800]/20",
-        urgent: false,
-      };
-    } else if (messageCount >= 1) {
-      return {
-        icon: Save,
-        iconColor: "#6366F1",
-        title: "Log in to save your character",
-        description: "It's free! Keep chatting forever",
-        bgColor: "bg-indigo-500/5",
-        borderColor: "border-indigo-500/20",
         urgent: false,
       };
     }
@@ -71,8 +75,9 @@ export function SignupPromptBanner({
 
   const config = getPromptConfig();
 
-  // Don't show banner if dismissed or no config
-  if (dismissed || !config) {
+  // Don't show banner if dismissed (unless limit reached) or no config
+  // Can't dismiss the banner when limit is reached - must sign up
+  if ((dismissed && remaining > 0) || !config) {
     return null;
   }
 
@@ -131,13 +136,16 @@ export function SignupPromptBanner({
             {config.urgent ? "Sign Up Now" : "Sign Up Free"}
           </BrandButton>
 
-          <button
-            onClick={handleDismiss}
-            className="p-1.5 rounded hover:bg-white/10 transition-colors"
-            aria-label="Dismiss"
-          >
-            <X className="h-4 w-4 text-white/40 hover:text-white/60" />
-          </button>
+          {/* Hide dismiss when limit reached */}
+          {remaining > 0 && (
+            <button
+              onClick={handleDismiss}
+              className="p-1.5 rounded hover:bg-white/10 transition-colors"
+              aria-label="Dismiss"
+            >
+              <X className="h-4 w-4 text-white/40 hover:text-white/60" />
+            </button>
+          )}
         </div>
       </div>
     </div>

@@ -146,10 +146,7 @@ function transformAISdkToOpenAI(aiSdkRequest: AISdkRequest): OpenAIChatRequest {
           if (typeof part === "object" && part !== null && "type" in part) {
             const typedPart = part as { type: string; text?: string };
             // Keep text blocks only if they have non-empty text
-            if (
-              typedPart.type === "text" ||
-              typedPart.type === "input_text"
-            ) {
+            if (typedPart.type === "text" || typedPart.type === "input_text") {
               const hasNonEmptyText =
                 typeof typedPart.text === "string" &&
                 typedPart.text.trim() !== "";
@@ -504,7 +501,10 @@ async function handlePOST(req: NextRequest) {
           const hasValidTextContent = msg.content.some((part) => {
             if (typeof part === "object" && part !== null && "type" in part) {
               const typedPart = part as { type: string; text?: string };
-              if (typedPart.type === "text" || typedPart.type === "input_text") {
+              if (
+                typedPart.type === "text" ||
+                typedPart.type === "input_text"
+              ) {
                 return (
                   typeof typedPart.text === "string" &&
                   typedPart.text.trim() !== ""

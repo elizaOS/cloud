@@ -156,11 +156,15 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                   Username
                 </label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 select-none pointer-events-none">@</span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 select-none pointer-events-none">
+                    @
+                  </span>
                   <Input
                     id="username"
                     value={character.username || ""}
-                    onChange={(e) => updateField("username", e.target.value.replace(/^@/, ""))}
+                    onChange={(e) =>
+                      updateField("username", e.target.value.replace(/^@/, ""))
+                    }
                     placeholder="agent"
                     className="rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800] pl-7"
                   />

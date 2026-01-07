@@ -6,6 +6,42 @@ import { organizationsService } from "@/lib/services/organizations";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
+// CORS headers for cross-origin sandbox requests
+function getCorsHeaders(origin: string | null) {
+  // Allow Vercel sandboxes, preview deployments, and elizacloud.ai app domains
+  const allowedOriginPatterns = [
+    /^https:\/\/sb-[a-z0-9]+\.vercel\.run$/,
+    /^https:\/\/[a-z0-9-]+\.vercel\.app$/,
+    /^https:\/\/[a-z0-9-]+\.apps\.elizacloud\.ai$/,
+    /^http:\/\/localhost:\d+$/,
+    /^http:\/\/127\.0\.0\.1:\d+$/,
+  ];
+
+  const isAllowed =
+    !origin || allowedOriginPatterns.some((p) => p.test(origin));
+  const corsOrigin = isAllowed && origin ? origin : "*";
+
+  return {
+    "Access-Control-Allow-Origin": corsOrigin,
+    "Access-Control-Allow-Methods": "GET, OPTIONS",
+    "Access-Control-Allow-Headers":
+      "Content-Type, Authorization, X-API-Key, X-Request-ID",
+    "Access-Control-Allow-Credentials": "true",
+    "Access-Control-Max-Age": "86400",
+  };
+}
+
+/**
+ * OPTIONS handler for CORS preflight
+ */
+export async function OPTIONS(request: NextRequest) {
+  const origin = request.headers.get("origin");
+  return new NextResponse(null, {
+    status: 204,
+    headers: getCorsHeaders(origin),
+  });
+}
+
 /**
  * GET /api/credits/balance
  * Gets the credit balance for the authenticated user's organization.
@@ -17,6 +53,8 @@ export const revalidate = 0;
  * @returns JSON response with balance or error.
  */
 export async function GET(req: NextRequest) {
+  const origin = req.headers.get("origin");
+  const corsHeaders = getCorsHeaders(origin);
   try {
     const user = await requireAuthWithOrg();
 
@@ -38,6 +76,7 @@ export async function GET(req: NextRequest) {
       { balance },
       {
         headers: {
+          ...corsHeaders,
           "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
           Pragma: "no-cache",
           Expires: "0",
@@ -60,6 +99,7 @@ export async function GET(req: NextRequest) {
         {
           status: 401,
           headers: {
+            ...corsHeaders,
             "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
             Pragma: "no-cache",
             Expires: "0",
@@ -74,6 +114,7 @@ export async function GET(req: NextRequest) {
       {
         status: 500,
         headers: {
+          ...corsHeaders,
           "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
           Pragma: "no-cache",
           Expires: "0",

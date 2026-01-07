@@ -113,6 +113,18 @@ const tierIcons: Record<string, React.ReactNode> = {
   ultra: <Crown className="h-3.5 w-3.5" />,
 };
 
+/**
+ * Check if an error message indicates the anonymous message limit was reached.
+ * Centralized detection to ensure consistent handling across onError and catch blocks.
+ */
+function isMessageLimitError(errorMessage: string): boolean {
+  const lowerMsg = errorMessage.toLowerCase();
+  return (
+    lowerMsg.includes("message limit") ||
+    lowerMsg.includes("sign up to continue")
+  );
+}
+
 export function ElizaChatInterface({
   onMessageSent,
   character,
@@ -275,6 +287,8 @@ export function ElizaChatInterface({
 
   const [isUploadingFiles, setIsUploadingFiles] = useState(false);
   const [webSearchEnabled, setWebSearchEnabled] = useState(true);
+  // Track if anonymous user has reached message limit - disables input
+  const [isMessageLimitReached, setIsMessageLimitReached] = useState(false);
 
   // Custom model selection (when user picks from "More models")
   const [customModel, setCustomModel] = useState<{
@@ -329,6 +343,13 @@ export function ElizaChatInterface({
 
   // Poll knowledge processing status and show toast when complete
   useKnowledgeProcessingStatus(selectedCharacterId || null);
+
+  // Reset message limit state when user authenticates (e.g., signs up via modal)
+  useEffect(() => {
+    if (authenticated && isMessageLimitReached) {
+      setIsMessageLimitReached(false);
+    }
+  }, [authenticated, isMessageLimitReached]);
 
   const loadMessages = useCallback(
     async (targetRoomId: string, skipLoadingState = false) => {
@@ -569,6 +590,39 @@ export function ElizaChatInterface({
     [accumulateChunk, scheduleUpdate],
   );
 
+  // Handle message limit reached - shows signup prompt instead of error
+  const handleMessageLimitReached = useCallback(() => {
+    clearAllStreaming();
+    if (thinkingTimeoutRef.current) {
+      clearTimeout(thinkingTimeoutRef.current);
+      thinkingTimeoutRef.current = null;
+    }
+
+    setIsMessageLimitReached(true);
+
+    setMessages((prev) => {
+      // Filter out temp (optimistic user message), thinking, and streaming messages
+      // The user's message was rejected, so we shouldn't show it
+      const filtered = prev.filter(
+        (msg) =>
+          !msg.id.startsWith("temp-") &&
+          !msg.id.startsWith("thinking-") &&
+          !msg.id.startsWith("streaming-"),
+      );
+
+      const signupPromptMessage: Message = {
+        id: `signup-prompt-${Date.now()}`,
+        content: {
+          text: `I'd love to continue our conversation!\n\nYou've used all your free messages. **Sign up for free** to keep chatting with me and unlock unlimited conversations.`,
+        },
+        isAgent: true,
+        createdAt: Date.now(),
+      };
+
+      return [...filtered, signupPromptMessage];
+    });
+  }, [clearAllStreaming]);
+
   const sendMessage = useCallback(
     async (textOverride?: string) => {
       const messageText = textOverride?.trim() || inputTextRef.current.trim();
@@ -686,14 +740,20 @@ export function ElizaChatInterface({
           onChunk: handleStreamChunk, // Handle real-time streaming chunks
           onReasoning: handleReasoningChunk, // Handle chain-of-thought display
           onError: (errorMsg) => {
+            // Check for anonymous message limit error
+            if (isMessageLimitError(errorMsg) && !authenticated) {
+              handleMessageLimitReached();
+              return;
+            }
+
+            // Regular error handling
             setError(errorMsg);
             toast.error(errorMsg);
-            // Remove temp, thinking, and streaming messages on error
             clearAllStreaming();
             setMessages((prev) =>
               prev.filter(
                 (msg) =>
-                  msg.id !== tempUserMessage.id &&
+                  !msg.id.startsWith("temp-") &&
                   !msg.id.startsWith("thinking-") &&
                   !msg.id.startsWith("streaming-"),
               ),
@@ -717,24 +777,29 @@ export function ElizaChatInterface({
           },
         });
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to send message");
-        console.error("Error sending message:", err);
-        toast.error(
-          err instanceof Error ? err.message : "Failed to send message",
-        );
-        // Remove temp, thinking, and streaming messages on error
-        clearAllStreaming();
-        setMessages((prev) =>
-          prev.filter(
-            (msg) =>
-              !msg.id.startsWith("temp-") &&
-              !msg.id.startsWith("thinking-") &&
-              !msg.id.startsWith("streaming-"),
-          ),
-        );
-        if (thinkingTimeoutRef.current) {
-          clearTimeout(thinkingTimeoutRef.current);
-          thinkingTimeoutRef.current = null;
+        const errorMessage =
+          err instanceof Error ? err.message : "Failed to send message";
+
+        // Check for anonymous message limit error
+        if (isMessageLimitError(errorMessage) && !authenticated) {
+          handleMessageLimitReached();
+        } else {
+          setError(errorMessage);
+          console.error("Error sending message:", err);
+          toast.error(errorMessage);
+          clearAllStreaming();
+          setMessages((prev) =>
+            prev.filter(
+              (msg) =>
+                !msg.id.startsWith("temp-") &&
+                !msg.id.startsWith("thinking-") &&
+                !msg.id.startsWith("streaming-"),
+            ),
+          );
+          if (thinkingTimeoutRef.current) {
+            clearTimeout(thinkingTimeoutRef.current);
+            thinkingTimeoutRef.current = null;
+          }
         }
       } finally {
         setLoadingState((prev) => ({ ...prev, isSending: false }));
@@ -753,9 +818,11 @@ export function ElizaChatInterface({
       handleStreamMessage,
       handleStreamChunk,
       handleReasoningChunk,
+      handleMessageLimitReached,
       loadRooms,
       onMessageSent,
       clearAllStreaming,
+      authenticated,
     ],
   );
 
@@ -918,31 +985,37 @@ export function ElizaChatInterface({
 
       setIsUploadingFiles(true);
 
-      const formData = new FormData();
-      formData.append("characterId", selectedCharacterId);
+      try {
+        const formData = new FormData();
+        formData.append("characterId", selectedCharacterId);
 
-      for (const file of files) {
-        formData.append("files", file, file.name);
-      }
+        for (const file of files) {
+          formData.append("files", file, file.name);
+        }
 
-      const response = await fetch("/api/v1/knowledge/upload-file", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        toast.success(`${files.length} file(s) uploaded`, {
-          description: "Files are now searchable",
+        const response = await fetch("/api/v1/knowledge/upload-file", {
+          method: "POST",
+          body: formData,
         });
-      } else {
-        const data = await response.json();
+
+        if (response.ok) {
+          toast.success(`${files.length} file(s) uploaded`, {
+            description: "Files are now searchable",
+          });
+        } else {
+          const data = await response.json();
+          toast.error("Upload failed", {
+            description: data.error || "Failed to upload files",
+          });
+        }
+      } catch (error) {
+        console.error("[ElizaChat] File upload error:", error);
         toast.error("Upload failed", {
-          description: data.error || "Failed to upload files",
+          description: "Network error - please try again",
         });
+      } finally {
+        setIsUploadingFiles(false);
       }
-
-      setIsUploadingFiles(false);
     },
     [selectedCharacterId],
   );
@@ -955,46 +1028,49 @@ export function ElizaChatInterface({
 
       setLoadingState((prev) => ({ ...prev, isProcessingSTT: true }));
 
-      // Ensure the blob is in proper audio format (fix Safari/macOS video/webm issue)
-      const audioBlob = await ensureAudioFormat(recorder.audioBlob);
+      try {
+        // Ensure the blob is in proper audio format (fix Safari/macOS video/webm issue)
+        const audioBlob = await ensureAudioFormat(recorder.audioBlob);
 
-      // Create FormData with audio file
-      const formData = new FormData();
-      const audioFile = new File([audioBlob], "recording.webm", {
-        type: audioBlob.type || "audio/webm",
-      });
-      formData.append("audio", audioFile);
+        // Create FormData with audio file
+        const formData = new FormData();
+        const audioFile = new File([audioBlob], "recording.webm", {
+          type: audioBlob.type || "audio/webm",
+        });
+        formData.append("audio", audioFile);
 
-      // Call STT API
-      const response = await fetch("/api/elevenlabs/stt", {
-        method: "POST",
-        body: formData,
-      });
+        // Call STT API
+        const response = await fetch("/api/elevenlabs/stt", {
+          method: "POST",
+          body: formData,
+        });
 
-      if (!response.ok) {
-        const error = await response.json();
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          toast.error(errorData.error || "Failed to transcribe audio");
+          console.error("[ElizaChat STT] API error:", errorData);
+          return;
+        }
+
+        const { transcript } = await response.json();
+
+        if (!transcript || transcript.trim().length === 0) {
+          toast.error("No speech detected. Please try again.");
+          console.warn("[ElizaChat STT] Empty transcript received");
+          return;
+        }
+
+        // Auto-send the transcribed message (will create room if needed)
+        // Use ref to avoid TDZ - sendMessage is defined later in the component
+        await sendMessageRef.current?.(transcript);
+      } catch (error) {
+        console.error("[ElizaChat STT] Processing error:", error);
+        toast.error("Failed to process audio. Please try again.");
+      } finally {
+        // Cleanup: Clear recording and reset processing state
         recorder.clearRecording();
         setLoadingState((prev) => ({ ...prev, isProcessingSTT: false }));
-        throw new Error(error.error || "Failed to transcribe audio");
       }
-
-      const { transcript } = await response.json();
-
-      if (!transcript || transcript.trim().length === 0) {
-        recorder.clearRecording();
-        setLoadingState((prev) => ({ ...prev, isProcessingSTT: false }));
-        toast.error("No speech detected. Please try again.");
-        console.warn("[ElizaChat STT] Empty transcript received");
-        return;
-      }
-
-      // Auto-send the transcribed message (will create room if needed)
-      // Use ref to avoid TDZ - sendMessage is defined later in the component
-      await sendMessageRef.current?.(transcript);
-
-      // Cleanup: Clear recording and reset processing state
-      recorder.clearRecording();
-      setLoadingState((prev) => ({ ...prev, isProcessingSTT: false }));
     };
 
     processAudioBlob();
@@ -1398,11 +1474,13 @@ export function ElizaChatInterface({
                 target.style.height = Math.min(target.scrollHeight, 200) + "px";
               }}
               placeholder={
-                recorder.isRecording
-                  ? "Recording... Click stop when done"
-                  : "Type your message..."
+                isMessageLimitReached
+                  ? "Sign up to continue chatting..."
+                  : recorder.isRecording
+                    ? "Recording... Click stop when done"
+                    : "Type your message..."
               }
-              disabled={recorder.isRecording}
+              disabled={recorder.isRecording || isMessageLimitReached}
               className="w-full bg-transparent px-4 pt-3 pb-3 text-[15px] text-white placeholder:text-white/40 focus:outline-none disabled:opacity-50 resize-none leading-relaxed"
               style={{ minHeight: "52px", maxHeight: "200px" }}
             />
@@ -1556,7 +1634,7 @@ export function ElizaChatInterface({
                   type="button"
                   variant="ghost"
                   size="icon"
-                  disabled={loadingState.isSending}
+                  disabled={loadingState.isSending || isMessageLimitReached}
                   onClick={handleVoiceInput}
                   className={`h-8 w-8 rounded-lg transition-colors ${
                     recorder.isRecording
@@ -1694,7 +1772,8 @@ export function ElizaChatInterface({
                   disabled={
                     loadingState.isSending ||
                     !inputText.trim() ||
-                    recorder.isRecording
+                    recorder.isRecording ||
+                    isMessageLimitReached
                   }
                   size="icon"
                   className="h-8 w-8 rounded-lg bg-transparent hover:bg-white/[0.06] disabled:opacity-40 border-0 transition-colors"
