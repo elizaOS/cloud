@@ -55,3 +55,4 @@ export * from "./ad-campaigns";
 export * from "./ad-creatives";
 export * from "./ad-transactions";
 export * from "./seo";
+export * from "./telegram-chats";

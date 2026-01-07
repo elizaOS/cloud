@@ -167,6 +167,30 @@ export const apps = pgTable(
         postIntervalMax: 150,
       }),
 
+    // Telegram Bot Automation
+    telegram_automation: jsonb("telegram_automation")
+      .$type<{
+        enabled: boolean;
+        botUsername?: string;
+        channelId?: string; // Primary announcement channel
+        groupId?: string; // Community group (optional)
+        autoReply: boolean; // Reply to messages in groups
+        autoAnnounce: boolean; // Periodic announcements
+        announceIntervalMin: number; // minutes
+        announceIntervalMax: number; // minutes
+        welcomeMessage?: string; // Custom /start response
+        vibeStyle?: string; // e.g., "professional", "casual", "witty"
+        lastAnnouncementAt?: string; // ISO timestamp
+        totalMessages?: number;
+      }>()
+      .default({
+        enabled: false,
+        autoReply: true,
+        autoAnnounce: false,
+        announceIntervalMin: 120,
+        announceIntervalMax: 240,
+      }),
+
     // Status
     is_active: boolean("is_active").default(true).notNull(),
     is_approved: boolean("is_approved").default(true).notNull(), // For app review process

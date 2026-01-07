@@ -63,7 +63,12 @@ interface PromoteAppDialogProps {
   }>;
 }
 
-type PromotionChannel = "social" | "seo" | "advertising" | "twitter_automation";
+type PromotionChannel =
+  | "social"
+  | "seo"
+  | "advertising"
+  | "twitter_automation"
+  | "telegram_automation";
 
 interface TwitterAutomationConfig {
   enabled: boolean;
@@ -73,6 +78,16 @@ interface TwitterAutomationConfig {
   discovery: boolean;
   postIntervalMin: number;
   postIntervalMax: number;
+}
+
+interface TelegramAutomationConfig {
+  enabled: boolean;
+  channelId?: string;
+  groupId?: string;
+  autoReply: boolean;
+  autoAnnounce: boolean;
+  announceIntervalMin: number;
+  announceIntervalMax: number;
 }
 
 interface PromotionConfig {
@@ -95,6 +110,7 @@ interface PromotionConfig {
     duration?: number;
   };
   twitterAutomation?: TwitterAutomationConfig;
+  telegramAutomation?: TelegramAutomationConfig;
 }
 
 const SOCIAL_PLATFORMS = [
@@ -152,13 +168,41 @@ export function PromoteAppDialog({
     connected: boolean;
     username?: string;
   }>({ configured: false, connected: false });
+  const [telegramStatus, setTelegramStatus] = useState<{
+    configured: boolean;
+    connected: boolean;
+    botUsername?: string;
+  }>({ configured: false, connected: false });
+  const [telegramChats, setTelegramChats] = useState<
+    Array<{
+      id: string;
+      type: string;
+      title: string;
+      username?: string;
+      isAdmin: boolean;
+      canPost: boolean;
+    }>
+  >([]);
 
-  // Check Twitter connection status
+  // Check Twitter and Telegram connection status
   useEffect(() => {
     fetch("/api/v1/twitter/status")
       .then((res) => res.json())
       .then((data) => setTwitterStatus(data))
       .catch(() => setTwitterStatus({ configured: false, connected: false }));
+
+    fetch("/api/v1/telegram/status")
+      .then((res) => res.json())
+      .then((data) => {
+        setTelegramStatus(data);
+        if (data.connected) {
+          fetch("/api/v1/telegram/chats")
+            .then((res) => res.json())
+            .then((chatsData) => setTelegramChats(chatsData.chats || []))
+            .catch(() => setTelegramChats([]));
+        }
+      })
+      .catch(() => setTelegramStatus({ configured: false, connected: false }));
   }, []);
 
   const toggleChannel = (channel: PromotionChannel) => {
@@ -241,6 +285,9 @@ export function PromoteAppDialog({
     }
     if (config.channels.includes("twitter_automation")) {
       cost += 0.1; // Setup cost for Twitter automation
+    }
+    if (config.channels.includes("telegram_automation")) {
+      cost += 0.08; // Setup cost for Telegram automation
     }
     return cost.toFixed(2);
   };
@@ -404,6 +451,84 @@ export function PromoteAppDialog({
                   </div>
                 </div>
               </button>
+
+              {/* Telegram Automation */}
+              <button
+                onClick={() => toggleChannel("telegram_automation")}
+                disabled={!telegramStatus.connected}
+                className={`w-full p-4 rounded-lg border-2 text-left transition-all mt-4 ${
+                  config.channels.includes("telegram_automation")
+                    ? "border-[#0088cc] bg-[#0088cc]/10 dark:bg-[#0088cc]/20"
+                    : "border-gray-200 dark:border-gray-700 hover:border-gray-300"
+                } ${!telegramStatus.connected ? "opacity-50 cursor-not-allowed" : ""}`}
+              >
+                <div className="flex items-start gap-4">
+                  <div className="flex-shrink-0">
+                    <div className="w-12 h-12 rounded-lg bg-[#0088cc]/20 flex items-center justify-center">
+                      <svg
+                        className="h-6 w-6 text-[#0088cc]"
+                        viewBox="0 0 24 24"
+                        fill="currentColor"
+                      >
+                        <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" />
+                      </svg>
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-semibold">Telegram Bot Automation</h3>
+                      <Badge variant="secondary" className="text-xs">
+                        AI Bot
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Deploy a Telegram bot to announce updates, answer
+                      questions, and engage with your community in channels and
+                      groups.
+                    </p>
+                    <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        <CheckCircle className="h-3 w-3 text-green-500" />
+                        Announcements
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <CheckCircle className="h-3 w-3 text-green-500" />
+                        Auto-replies
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <CheckCircle className="h-3 w-3 text-green-500" />
+                        Commands
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex-shrink-0 text-right">
+                    {!telegramStatus.connected ? (
+                      <Link
+                        href="/dashboard/settings?tab=connections"
+                        onClick={(e) => e.stopPropagation()}
+                        className="inline-flex"
+                      >
+                        <Badge
+                          variant="outline"
+                          className="cursor-pointer hover:bg-[#0088cc]/10 hover:border-[#0088cc]/50 transition-colors"
+                        >
+                          Connect Telegram
+                          <ExternalLink className="h-3 w-3 ml-1" />
+                        </Badge>
+                      </Link>
+                    ) : (
+                      <div>
+                        <Badge variant="default" className="bg-[#0088cc]">
+                          @{telegramStatus.botUsername}
+                        </Badge>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Bot Connected
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </button>
             </div>
 
             <div className="flex justify-between items-center pt-4 border-t">
@@ -440,6 +565,11 @@ export function PromoteAppDialog({
                     Twitter Automation
                   </TabsTrigger>
                 )}
+                {config.channels.includes("telegram_automation") && (
+                  <TabsTrigger value="telegram_automation">
+                    Telegram Bot
+                  </TabsTrigger>
+                )}
               </TabsList>
 
               {/* Social Media Config */}
@@ -458,7 +588,7 @@ export function PromoteAppDialog({
                       >
                         <Checkbox
                           checked={config.social?.platforms?.includes(
-                            platform.id,
+                            platform.id
                           )}
                           onCheckedChange={() =>
                             toggleSocialPlatform(platform.id)
@@ -895,6 +1025,436 @@ export function PromoteAppDialog({
                   </div>
                 </div>
               </TabsContent>
+
+              {/* Telegram Automation Config */}
+              <TabsContent value="telegram_automation" className="space-y-4">
+                <div className="bg-[#0088cc]/10 dark:bg-[#0088cc]/20 rounded-lg p-4 mb-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <svg
+                      className="h-5 w-5 text-[#0088cc]"
+                      viewBox="0 0 24 24"
+                      fill="currentColor"
+                    >
+                      <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" />
+                    </svg>
+                    <span className="font-medium">
+                      Bot: @{telegramStatus.botUsername}
+                    </span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Your AI bot will post announcements and respond to messages
+                    promoting {app.name} in your Telegram channels and groups.
+                  </p>
+                </div>
+
+                <div className="space-y-4">
+                  {telegramChats.length === 0 ? (
+                    <div className="space-y-4">
+                      <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
+                        <p className="text-sm text-blue-700 dark:text-blue-400 mb-2">
+                          <strong>Step 1:</strong> Add @
+                          {telegramStatus.botUsername} to your Telegram group or
+                          channel as an admin
+                        </p>
+                        <p className="text-sm text-blue-700 dark:text-blue-400 mb-2">
+                          <strong>Step 2:</strong> Send any message in that chat
+                        </p>
+                        <p className="text-sm text-blue-700 dark:text-blue-400 mb-3">
+                          <strong>Step 3:</strong> Click the button below to
+                          scan for chats
+                        </p>
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={async () => {
+                            const btn =
+                              document.activeElement as HTMLButtonElement;
+                            if (btn) btn.disabled = true;
+                            try {
+                              const res = await fetch(
+                                "/api/v1/telegram/scan-chats",
+                                {
+                                  method: "POST",
+                                }
+                              );
+                              const data = await res.json();
+                              if (data.chats) {
+                                setTelegramChats(data.chats);
+                                if (data.chats.length > 0) {
+                                  toast.success(
+                                    `Found ${data.chats.length} chat(s)!`
+                                  );
+                                } else {
+                                  toast.info(
+                                    "No chats found. Make sure you added the bot and sent a message."
+                                  );
+                                }
+                              } else if (data.error) {
+                                toast.error(data.error);
+                              }
+                            } catch {
+                              toast.error("Failed to scan for chats");
+                            }
+                            if (btn) btn.disabled = false;
+                          }}
+                        >
+                          🔍 Scan for Chats
+                        </Button>
+                      </div>
+
+                      <div>
+                        <Label>Group/Channel ID (manual entry)</Label>
+                        <Input
+                          placeholder="-1001234567890"
+                          value={
+                            config.telegramAutomation?.groupId ||
+                            config.telegramAutomation?.channelId ||
+                            ""
+                          }
+                          onChange={(e) => {
+                            const val = e.target.value.trim();
+                            setConfig((prev) => ({
+                              ...prev,
+                              telegramAutomation: {
+                                enabled: true,
+                                channelId: undefined,
+                                groupId: val || undefined,
+                                autoReply:
+                                  prev.telegramAutomation?.autoReply ?? true,
+                                autoAnnounce:
+                                  prev.telegramAutomation?.autoAnnounce ?? true,
+                                announceIntervalMin:
+                                  prev.telegramAutomation
+                                    ?.announceIntervalMin ?? 120,
+                                announceIntervalMax:
+                                  prev.telegramAutomation
+                                    ?.announceIntervalMax ?? 240,
+                              },
+                            }));
+                          }}
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Get this from @RawDataBot (add it to your group, it
+                          will show the chat ID)
+                        </p>
+                      </div>
+
+                      {/* Automation Settings for Manual Entry */}
+                      <div className="space-y-3 pt-4 border-t">
+                        <Label className="text-base font-medium">
+                          Automation Features
+                        </Label>
+
+                        <label className="flex items-center gap-3 p-3 rounded-lg border cursor-pointer hover:bg-muted/50">
+                          <Checkbox
+                            checked={
+                              config.telegramAutomation?.autoAnnounce ?? true
+                            }
+                            onCheckedChange={(checked) =>
+                              setConfig((prev) => ({
+                                ...prev,
+                                telegramAutomation: {
+                                  enabled: true,
+                                  channelId: prev.telegramAutomation?.channelId,
+                                  groupId: prev.telegramAutomation?.groupId,
+                                  autoReply:
+                                    prev.telegramAutomation?.autoReply ?? true,
+                                  autoAnnounce: !!checked,
+                                  announceIntervalMin:
+                                    prev.telegramAutomation
+                                      ?.announceIntervalMin ?? 120,
+                                  announceIntervalMax:
+                                    prev.telegramAutomation
+                                      ?.announceIntervalMax ?? 240,
+                                },
+                              }))
+                            }
+                          />
+                          <div className="flex-1">
+                            <div className="font-medium">
+                              Auto-Announcements
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                              Post periodic AI-generated updates
+                            </div>
+                          </div>
+                        </label>
+
+                        <label className="flex items-center gap-3 p-3 rounded-lg border cursor-pointer hover:bg-muted/50">
+                          <Checkbox
+                            checked={
+                              config.telegramAutomation?.autoReply ?? true
+                            }
+                            onCheckedChange={(checked) =>
+                              setConfig((prev) => ({
+                                ...prev,
+                                telegramAutomation: {
+                                  enabled: true,
+                                  channelId: prev.telegramAutomation?.channelId,
+                                  groupId: prev.telegramAutomation?.groupId,
+                                  autoReply: !!checked,
+                                  autoAnnounce:
+                                    prev.telegramAutomation?.autoAnnounce ??
+                                    true,
+                                  announceIntervalMin:
+                                    prev.telegramAutomation
+                                      ?.announceIntervalMin ?? 120,
+                                  announceIntervalMax:
+                                    prev.telegramAutomation
+                                      ?.announceIntervalMax ?? 240,
+                                },
+                              }))
+                            }
+                          />
+                          <div className="flex-1">
+                            <div className="font-medium">
+                              Auto-Reply to Messages
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                              Automatically respond to messages in your group
+                            </div>
+                          </div>
+                        </label>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div>
+                        <Label>Channel (for announcements)</Label>
+                        <Select
+                          value={config.telegramAutomation?.channelId || "none"}
+                          onValueChange={(value) =>
+                            setConfig((prev) => ({
+                              ...prev,
+                              telegramAutomation: {
+                                enabled: true,
+                                channelId: value === "none" ? undefined : value,
+                                groupId: prev.telegramAutomation?.groupId,
+                                autoReply:
+                                  prev.telegramAutomation?.autoReply ?? true,
+                                autoAnnounce:
+                                  prev.telegramAutomation?.autoAnnounce ?? true,
+                                announceIntervalMin:
+                                  prev.telegramAutomation
+                                    ?.announceIntervalMin ?? 120,
+                                announceIntervalMax:
+                                  prev.telegramAutomation
+                                    ?.announceIntervalMax ?? 240,
+                              },
+                            }))
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a channel" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">No channel</SelectItem>
+                            {telegramChats
+                              .filter((c) => c.type === "channel" && c.canPost)
+                              .map((chat) => (
+                                <SelectItem key={chat.id} value={chat.id}>
+                                  {chat.title}{" "}
+                                  {chat.username && `(@${chat.username})`}
+                                </SelectItem>
+                              ))}
+                          </SelectContent>
+                        </Select>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          AI will post periodic announcements to this channel
+                        </p>
+                      </div>
+
+                      <div>
+                        <Label>Group (for interactions)</Label>
+                        <Select
+                          value={config.telegramAutomation?.groupId || "none"}
+                          onValueChange={(value) =>
+                            setConfig((prev) => ({
+                              ...prev,
+                              telegramAutomation: {
+                                enabled: true,
+                                channelId: prev.telegramAutomation?.channelId,
+                                groupId: value === "none" ? undefined : value,
+                                autoReply:
+                                  prev.telegramAutomation?.autoReply ?? true,
+                                autoAnnounce:
+                                  prev.telegramAutomation?.autoAnnounce ?? true,
+                                announceIntervalMin:
+                                  prev.telegramAutomation
+                                    ?.announceIntervalMin ?? 120,
+                                announceIntervalMax:
+                                  prev.telegramAutomation
+                                    ?.announceIntervalMax ?? 240,
+                              },
+                            }))
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a group" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">No group</SelectItem>
+                            {telegramChats
+                              .filter(
+                                (c) =>
+                                  c.type === "group" || c.type === "supergroup"
+                              )
+                              .map((chat) => (
+                                <SelectItem key={chat.id} value={chat.id}>
+                                  {chat.title}
+                                </SelectItem>
+                              ))}
+                          </SelectContent>
+                        </Select>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          AI will respond to messages in this group
+                        </p>
+                      </div>
+                    </>
+                  )}
+
+                  <div className="space-y-3 pt-4 border-t">
+                    <Label className="text-base font-medium">
+                      Automation Features
+                    </Label>
+
+                    <label className="flex items-center gap-3 p-3 rounded-lg border cursor-pointer hover:bg-muted/50">
+                      <Checkbox
+                        checked={
+                          config.telegramAutomation?.autoAnnounce ?? true
+                        }
+                        onCheckedChange={(checked) =>
+                          setConfig((prev) => ({
+                            ...prev,
+                            telegramAutomation: {
+                              enabled: true,
+                              channelId: prev.telegramAutomation?.channelId,
+                              groupId: prev.telegramAutomation?.groupId,
+                              autoReply:
+                                prev.telegramAutomation?.autoReply ?? true,
+                              autoAnnounce: !!checked,
+                              announceIntervalMin:
+                                prev.telegramAutomation?.announceIntervalMin ??
+                                120,
+                              announceIntervalMax:
+                                prev.telegramAutomation?.announceIntervalMax ??
+                                240,
+                            },
+                          }))
+                        }
+                      />
+                      <div className="flex-1">
+                        <div className="font-medium">Auto-Announcements</div>
+                        <div className="text-sm text-muted-foreground">
+                          Post periodic AI-generated updates to your channel
+                        </div>
+                      </div>
+                    </label>
+
+                    <label className="flex items-center gap-3 p-3 rounded-lg border cursor-pointer hover:bg-muted/50">
+                      <Checkbox
+                        checked={config.telegramAutomation?.autoReply ?? true}
+                        onCheckedChange={(checked) =>
+                          setConfig((prev) => ({
+                            ...prev,
+                            telegramAutomation: {
+                              enabled: true,
+                              channelId: prev.telegramAutomation?.channelId,
+                              groupId: prev.telegramAutomation?.groupId,
+                              autoReply: !!checked,
+                              autoAnnounce:
+                                prev.telegramAutomation?.autoAnnounce ?? true,
+                              announceIntervalMin:
+                                prev.telegramAutomation?.announceIntervalMin ??
+                                120,
+                              announceIntervalMax:
+                                prev.telegramAutomation?.announceIntervalMax ??
+                                240,
+                            },
+                          }))
+                        }
+                      />
+                      <div className="flex-1">
+                        <div className="font-medium">
+                          Auto-Reply to Messages
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          Automatically respond to messages in your group
+                        </div>
+                      </div>
+                    </label>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 pt-4 border-t">
+                    <div>
+                      <Label htmlFor="announceIntervalMin">
+                        Min Announce Interval (minutes)
+                      </Label>
+                      <Input
+                        id="announceIntervalMin"
+                        type="number"
+                        min={30}
+                        max={1440}
+                        value={
+                          config.telegramAutomation?.announceIntervalMin ?? 120
+                        }
+                        onChange={(e) =>
+                          setConfig((prev) => ({
+                            ...prev,
+                            telegramAutomation: {
+                              enabled: true,
+                              channelId: prev.telegramAutomation?.channelId,
+                              groupId: prev.telegramAutomation?.groupId,
+                              autoReply:
+                                prev.telegramAutomation?.autoReply ?? true,
+                              autoAnnounce:
+                                prev.telegramAutomation?.autoAnnounce ?? true,
+                              announceIntervalMin:
+                                parseInt(e.target.value) || 120,
+                              announceIntervalMax:
+                                prev.telegramAutomation?.announceIntervalMax ??
+                                240,
+                            },
+                          }))
+                        }
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="announceIntervalMax">
+                        Max Announce Interval (minutes)
+                      </Label>
+                      <Input
+                        id="announceIntervalMax"
+                        type="number"
+                        min={60}
+                        max={1440}
+                        value={
+                          config.telegramAutomation?.announceIntervalMax ?? 240
+                        }
+                        onChange={(e) =>
+                          setConfig((prev) => ({
+                            ...prev,
+                            telegramAutomation: {
+                              enabled: true,
+                              channelId: prev.telegramAutomation?.channelId,
+                              groupId: prev.telegramAutomation?.groupId,
+                              autoReply:
+                                prev.telegramAutomation?.autoReply ?? true,
+                              autoAnnounce:
+                                prev.telegramAutomation?.autoAnnounce ?? true,
+                              announceIntervalMin:
+                                prev.telegramAutomation?.announceIntervalMin ??
+                                120,
+                              announceIntervalMax:
+                                parseInt(e.target.value) || 240,
+                            },
+                          }))
+                        }
+                      />
+                    </div>
+                  </div>
+                </div>
+              </TabsContent>
             </Tabs>
 
             <div className="flex justify-between items-center pt-4 border-t">
@@ -955,6 +1515,18 @@ export function PromoteAppDialog({
                       {config.twitterAutomation?.autoReply && " • Replies"}
                       {config.twitterAutomation?.autoEngage && " • Engagement"}
                       {config.twitterAutomation?.discovery && " • Discovery"}
+                    </span>
+                  </div>
+                )}
+                {config.channels.includes("telegram_automation") && (
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-green-500" />
+                    <span>
+                      Telegram Bot: @{telegramStatus.botUsername}
+                      {config.telegramAutomation?.autoAnnounce &&
+                        " • Announcements"}
+                      {config.telegramAutomation?.autoReply &&
+                        " • Auto-replies"}
                     </span>
                   </div>
                 )}
@@ -1030,7 +1602,7 @@ export function PromoteAppDialog({
                         </p>
                       )}
                     </div>
-                  ),
+                  )
               )}
             </div>
 
