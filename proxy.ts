@@ -79,8 +79,6 @@ const publicPaths = [
   "/auth/error",
   "/auth/cli-login",
   "/api/auth/cli-session",
-  "/api/auth/miniapp-session",
-  "/auth/miniapp-login",
   "/api/set-anonymous-session",
   "/api/anonymous-session",
   "/api/affiliate",
