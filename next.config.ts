@@ -1,6 +1,5 @@
 import type { NextConfig } from "next";
 import nextra from "nextra";
-import path from "path";
 
 const withNextra = nextra({
   // Only scan the content directory for MDX files
@@ -135,38 +134,6 @@ const nextConfig: NextConfig = {
     "@elizaos/core",
   ],
 
-  webpack: (config, { isServer, dev }) => {
-    // Fix for worker_threads not being handled by Turbopack
-    if (isServer) {
-      config.externals = config.externals || [];
-      if (Array.isArray(config.externals)) {
-        config.externals.push("worker_threads");
-      }
-
-      // Redirect thread-stream to our synchronous stub to avoid dynamic module names
-      // that cannot be resolved in serverless environments
-      config.resolve = config.resolve || {};
-      config.resolve.alias = config.resolve.alias || {};
-      config.resolve.alias["thread-stream"] = path.resolve(
-        __dirname,
-        "lib/stubs/thread-stream.ts",
-      );
-    }
-
-    // Enable bundle analyzer if env variable is set (dev only)
-    if (process.env.ANALYZE === "true" && !dev && !isServer) {
-      const { BundleAnalyzerPlugin } = require("webpack-bundle-analyzer");
-      config.plugins.push(
-        new BundleAnalyzerPlugin({
-          analyzerMode: "static",
-          reportFilename: "./analyze/client.html",
-          openAnalyzer: false,
-        }),
-      );
-    }
-
-    return config;
-  },
   async headers() {
     return [
       // CORS headers for all API routes - allow any origin with valid auth
