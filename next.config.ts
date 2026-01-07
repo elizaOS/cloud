@@ -181,8 +181,8 @@ const nextConfig: NextConfig = {
               // Images - allow self, data URIs, blob URIs, Vercel storage, Instagram CDN, DiceBear avatars, Unsplash
               // Note: Fal.ai URLs are proxied through our storage, so not needed here
               "img-src 'self' data: blob: https://*.public.blob.vercel-storage.com https://raw.githubusercontent.com https://*.fbcdn.net https://*.cdninstagram.com https://api.dicebear.com https://images.unsplash.com https://pbs.twimg.com https://abs.twimg.com",
-              // Fonts - allow self and Monaco Editor CDN
-              "font-src 'self' https://cdn.jsdelivr.net",
+              // Fonts - allow self, Monaco Editor CDN, and Vercel sandboxes (for iframe embedding)
+              "font-src 'self' https://cdn.jsdelivr.net https://*.vercel.run https://*.vercel.app",
               "object-src 'none'",
               "base-uri 'self'",
               "form-action 'self'",

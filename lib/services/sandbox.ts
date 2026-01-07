@@ -3,24 +3,24 @@ import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 import { buildFullAppPrompt } from "@/lib/fragments/prompt";
 
+/**
+ * Fallback SDK - Only injected if template doesn't have its own SDK.
+ * The cloud-apps-template repo is the source of truth for the full SDK.
+ * This is a minimal fallback for other templates.
+ */
 const ELIZA_SDK_FILE = `const apiKey = process.env.NEXT_PUBLIC_ELIZA_API_KEY || '';
 const apiBase = process.env.NEXT_PUBLIC_ELIZA_API_URL || 'https://elizacloud.ai';
 const appId = process.env.NEXT_PUBLIC_ELIZA_APP_ID || '';
 
-interface ChatMessage {
-  role: string;
-  content: string;
-}
+interface ChatMessage { role: string; content: string; }
 
 const trackedPaths = new Set<string>();
 
 export async function trackPageView(pathname?: string) {
   if (typeof window === 'undefined') return;
-
   const path = pathname || window.location.pathname;
   if (trackedPaths.has(path)) return;
   trackedPaths.add(path);
-
   try {
     const payload = {
       app_id: appId,
@@ -31,25 +31,11 @@ export async function trackPageView(pathname?: string) {
       screen_height: window.screen.height,
       ...(apiKey ? { api_key: apiKey } : {}),
     };
-
-    // Use sendBeacon for analytics - it doesn't require CORS preflight
-    // and works reliably even on page unload
     const url = \`\${apiBase}/api/v1/track/pageview\`;
     const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
-    
-    if (navigator.sendBeacon) {
-      navigator.sendBeacon(url, blob);
-    } else {
-      // Fallback for older browsers
-      fetch(url, {
-        method: 'POST',
-        body: blob,
-        keepalive: true,
-      }).catch(() => {});
-    }
-  } catch (e) {
-    // Silent fail - don't break the app for analytics
-  }
+    if (navigator.sendBeacon) navigator.sendBeacon(url, blob);
+    else fetch(url, { method: 'POST', body: blob, keepalive: true }).catch(() => {});
+  } catch {}
 }
 
 export async function chat(messages: ChatMessage[], model = 'gpt-4o') {
@@ -87,41 +73,23 @@ export async function generateImage(prompt: string, options?: { model?: string; 
     headers: { 'Content-Type': 'application/json', 'X-Api-Key': apiKey },
     body: JSON.stringify({ prompt, ...options }),
   });
-  return res.json() as Promise<{ url: string; id: string }>;
+  return res.json();
 }
 
-export async function uploadFile(file: File | Blob, filename: string) {
-  const formData = new FormData();
-  formData.append('file', file, filename);
-  const res = await fetch(\`\${apiBase}/api/v1/storage/upload\`, {
+export async function generateVideo(prompt: string, options?: { model?: string; duration?: number }) {
+  const res = await fetch(\`\${apiBase}/api/v1/generate-video\`, {
     method: 'POST',
-    headers: { 'X-Api-Key': apiKey },
-    body: formData,
+    headers: { 'Content-Type': 'application/json', 'X-Api-Key': apiKey },
+    body: JSON.stringify({ prompt, ...options }),
   });
-  return res.json() as Promise<{ id: string; url: string }>;
+  return res.json();
 }
 
 export async function getBalance() {
   const res = await fetch(\`\${apiBase}/api/v1/credits/balance\`, {
     headers: { 'X-Api-Key': apiKey },
   });
-  return res.json() as Promise<{ balance: number }>;
-}
-
-export async function listAgents() {
-  const res = await fetch(\`\${apiBase}/api/v1/agents\`, {
-    headers: { 'X-Api-Key': apiKey },
-  });
-  return res.json() as Promise<{ agents: Array<{ id: string; name: string; bio: string }> }>;
-}
-
-export async function chatWithAgent(agentId: string, message: string, roomId?: string) {
-  const res = await fetch(\`\${apiBase}/api/v1/agents/chat\`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Api-Key': apiKey },
-    body: JSON.stringify({ agentId, message, roomId }),
-  });
-  return res.json() as Promise<{ response: string; roomId: string }>;
+  return res.json();
 }
 `;
 
