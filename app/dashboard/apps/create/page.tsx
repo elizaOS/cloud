@@ -140,7 +140,13 @@ interface ChatMessageProps {
   sendPrompt: (promptText?: string) => void;
 }
 
-const ChatMessage = memo(function ChatMessage({ msg, index: i, session, status, sendPrompt }: ChatMessageProps) {
+const ChatMessage = memo(function ChatMessage({
+  msg,
+  index: i,
+  session,
+  status,
+  sendPrompt,
+}: ChatMessageProps) {
   const isProcessing = !!msg._thinkingId;
   const msgTime = new Date(msg.timestamp).toLocaleTimeString("en-US", {
     hour12: false,
@@ -244,7 +250,8 @@ const TEMPLATE_OPTIONS: (TemplateOption & { icon: LucideIcon })[] = [
     value: "blank",
     label: "Blank Canvas",
     description: "Start from scratch",
-    longDescription: "A clean slate with Next.js, React, and Tailwind CSS ready to go. Build anything you can imagine.",
+    longDescription:
+      "A clean slate with Next.js, React, and Tailwind CSS ready to go. Build anything you can imagine.",
     icon: FileCode,
     color: "#64748B",
     gradient: "from-slate-500 to-slate-700",
@@ -255,7 +262,8 @@ const TEMPLATE_OPTIONS: (TemplateOption & { icon: LucideIcon })[] = [
     value: "chat",
     label: "AI Chat App",
     description: "Conversational AI interface",
-    longDescription: "A sleek chat interface with real-time streaming, conversation history, and AI model integration.",
+    longDescription:
+      "A sleek chat interface with real-time streaming, conversation history, and AI model integration.",
     icon: MessageSquare,
     color: "#06B6D4",
     gradient: "from-cyan-500 to-blue-600",
@@ -266,7 +274,8 @@ const TEMPLATE_OPTIONS: (TemplateOption & { icon: LucideIcon })[] = [
     value: "landing-page",
     label: "Landing Page",
     description: "Marketing & conversion",
-    longDescription: "Beautiful, conversion-optimized landing page with hero sections, features, and call-to-actions.",
+    longDescription:
+      "Beautiful, conversion-optimized landing page with hero sections, features, and call-to-actions.",
     icon: Globe,
     color: "#8B5CF6",
     gradient: "from-violet-500 to-purple-600",
@@ -277,7 +286,8 @@ const TEMPLATE_OPTIONS: (TemplateOption & { icon: LucideIcon })[] = [
     value: "mcp-service",
     label: "MCP Service",
     description: "Model Context Protocol",
-    longDescription: "Build a Model Context Protocol server that extends AI capabilities with custom tools and resources.",
+    longDescription:
+      "Build a Model Context Protocol server that extends AI capabilities with custom tools and resources.",
     icon: Puzzle,
     color: "#F59E0B",
     gradient: "from-amber-500 to-orange-600",
@@ -289,7 +299,8 @@ const TEMPLATE_OPTIONS: (TemplateOption & { icon: LucideIcon })[] = [
     value: "a2a-agent",
     label: "A2A Agent",
     description: "Agent-to-Agent protocol",
-    longDescription: "Create an agent endpoint that can communicate with other AI agents using standardized protocols.",
+    longDescription:
+      "Create an agent endpoint that can communicate with other AI agents using standardized protocols.",
     icon: Workflow,
     color: "#EC4899",
     gradient: "from-pink-500 to-rose-600",
@@ -301,7 +312,8 @@ const TEMPLATE_OPTIONS: (TemplateOption & { icon: LucideIcon })[] = [
     value: "agent-dashboard",
     label: "Agent Dashboard",
     description: "Manage AI agents",
-    longDescription: "A control center to monitor, configure, and interact with your AI agents in real-time.",
+    longDescription:
+      "A control center to monitor, configure, and interact with your AI agents in real-time.",
     icon: Bot,
     color: "#0B35F1",
     gradient: "from-blue-600 to-indigo-700",
@@ -525,7 +537,7 @@ export default function AppCreatorPage() {
           examplePrompts: data.session.examplePrompts || [],
           expiresAt: data.session.expiresAt || null,
         };
-        
+
         setSession(sessionData);
         setStep("building");
 
@@ -538,7 +550,10 @@ export default function AppCreatorPage() {
             try {
               setMessages(JSON.parse(stored));
             } catch (parseError) {
-              console.warn("[AppBuilder] Failed to parse stored messages:", parseError);
+              console.warn(
+                "[AppBuilder] Failed to parse stored messages:",
+                parseError,
+              );
             }
           }
         }
@@ -563,21 +578,24 @@ export default function AppCreatorPage() {
           try {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 8000);
-            
+
             await fetch(data.session.sandboxUrl, {
               method: "HEAD",
               mode: "no-cors",
               signal: controller.signal,
             });
             clearTimeout(timeoutId);
-            
+
             // Sandbox is healthy, set status to ready
             setStatus("ready");
             setSandboxHealthy(true);
           } catch (healthCheckError) {
             // Sandbox is not responding - set to recovering and let the
             // health check useEffect handle auto-recovery
-            console.warn("[AppBuilder] Sandbox health check failed, initiating recovery:", healthCheckError);
+            console.warn(
+              "[AppBuilder] Sandbox health check failed, initiating recovery:",
+              healthCheckError,
+            );
             setStatus("recovering");
             setSandboxHealthy(false);
             healthCheckFailCountRef.current = 2;
@@ -607,7 +625,7 @@ export default function AppCreatorPage() {
 
     const loadAppData = async (appId: string) => {
       try {
-        // Fetch app details
+        // Fetch app details first (must complete before other checks)
         const appResponse = await fetchWithRetry(`/api/v1/apps/${appId}`);
         if (!appResponse.ok) {
           toast.error("App not found");
@@ -623,10 +641,17 @@ export default function AppCreatorPage() {
           setIncludeMonetization(appData.app.monetization_enabled || false);
         }
 
-        // Check for existing active session
-        const sessionResponse = await fetchWithRetry(
-          `/api/v1/app-builder?appId=${appId}&limit=1&includeInactive=true`,
-        );
+        // Run session and snapshot checks in parallel for faster loading
+        const [sessionResponse, snapshotResponse] = await Promise.all([
+          fetchWithRetry(
+            `/api/v1/app-builder?appId=${appId}&limit=1&includeInactive=true`,
+          ),
+          fetchWithRetry(
+            `/api/v1/app-builder?appId=${appId}&checkSnapshots=true`,
+          ),
+        ]);
+
+        // Process session response
         if (sessionResponse.ok) {
           const sessionData = await sessionResponse.json();
           if (sessionData.success && sessionData.sessions?.length > 0) {
@@ -640,10 +665,7 @@ export default function AppCreatorPage() {
           }
         }
 
-        // Check GitHub snapshot info
-        const snapshotResponse = await fetchWithRetry(
-          `/api/v1/app-builder?appId=${appId}&checkSnapshots=true`,
-        );
+        // Process snapshot response
         if (snapshotResponse.ok) {
           const snapshotData = await snapshotResponse.json();
           if (snapshotData.success && snapshotData.snapshotInfo) {
@@ -745,7 +767,10 @@ export default function AppCreatorPage() {
   const addLog = useCallback((message: string, level: string = "info") => {
     const timestamp = new Date().toLocaleTimeString();
     // Limit console logs to prevent memory issues
-    setConsoleLogs((prev) => [...prev.slice(-499), `[${timestamp}] [${level}] ${message}`]);
+    setConsoleLogs((prev) => [
+      ...prev.slice(-499),
+      `[${timestamp}] [${level}] ${message}`,
+    ]);
   }, []);
 
   const extendSession = useCallback(async () => {
@@ -973,7 +998,10 @@ export default function AppCreatorPage() {
         }
       } catch (deployInfoError) {
         // Not critical but log for debugging
-        console.warn("[AppBuilder] Deployment info fetch failed:", deployInfoError);
+        console.warn(
+          "[AppBuilder] Deployment info fetch failed:",
+          deployInfoError,
+        );
       }
     };
 
@@ -984,9 +1012,10 @@ export default function AppCreatorPage() {
   useEffect(() => {
     if (status !== "ready" || !session || !appData?.github_repo) return;
 
-    // Initial fetch
-    checkGitStatus();
-    fetchCommitHistory();
+    // Initial fetch - run both in parallel for faster load
+    Promise.all([checkGitStatus(), fetchCommitHistory()]).catch(() => {
+      // Silently handle errors - these are non-critical
+    });
 
     // Poll every 30 seconds
     const interval = setInterval(() => {
@@ -1128,11 +1157,11 @@ export default function AppCreatorPage() {
   const autoRecoverSession = useCallback(async () => {
     if (isRecoveringRef.current || !session) return;
     isRecoveringRef.current = true;
-    
+
     setStatus("recovering");
     setProgressStep("creating");
     addLog("Sandbox connection lost, auto-recovering...", "info");
-    
+
     // Show a non-blocking toast notification
     const toastId = toast.loading("Reconnecting to sandbox...", {
       description: "This happens automatically - no action needed",
@@ -1203,9 +1232,10 @@ export default function AppCreatorPage() {
         }
       }
     } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : "Recovery failed";
+      const errorMsg =
+        error instanceof Error ? error.message : "Recovery failed";
       addLog(`Auto-recovery failed: ${errorMsg}`, "error");
-      
+
       // Only show timeout status if recovery truly failed
       // This will display the recovery UI as a fallback
       setStatus("timeout");
@@ -1236,14 +1266,14 @@ export default function AppCreatorPage() {
         // We can't read the response body due to CORS, but we can detect network errors
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 10000);
-        
+
         const response = await fetch(session.sandboxUrl, {
           method: "HEAD",
           mode: "no-cors",
           signal: controller.signal,
         });
         clearTimeout(timeoutId);
-        
+
         // If we got here, the request completed (even if opaque)
         // Reset fail counter on success
         healthCheckFailCountRef.current = 0;
@@ -1251,11 +1281,14 @@ export default function AppCreatorPage() {
       } catch (error) {
         // Network error or timeout - sandbox may be dead
         healthCheckFailCountRef.current++;
-        
+
         // After 2 consecutive failures, trigger auto-recovery
         if (healthCheckFailCountRef.current >= 2 && !isRecoveringRef.current) {
           setSandboxHealthy(false);
-          addLog(`Sandbox health check failed (${healthCheckFailCountRef.current}x), initiating recovery...`, "warning");
+          addLog(
+            `Sandbox health check failed (${healthCheckFailCountRef.current}x), initiating recovery...`,
+            "warning",
+          );
           autoRecoverSession();
         }
       }
@@ -1263,7 +1296,7 @@ export default function AppCreatorPage() {
 
     // Check health every 15 seconds
     const interval = setInterval(checkSandboxHealth, 15000);
-    
+
     // Initial check after a short delay
     const initialCheck = setTimeout(checkSandboxHealth, 3000);
 
@@ -1521,21 +1554,28 @@ Some ideas:
                 // Stream actual reasoning text to show chain of thought
                 const reasoningText = data.text || "Planning changes...";
                 addLog(`💭 ${reasoningText.substring(0, 80)}...`, "info");
-                
+
                 // Update the thinking message with the reasoning
                 if (initialThinkingIdRef.current) {
                   const thinkingId = initialThinkingIdRef.current;
                   setMessages((prev) =>
                     prev.map((m) =>
-                      (m as Message & { _thinkingId?: number })._thinkingId === thinkingId
-                        ? { ...m, content: `**Setting up ${appName}**\n\n💭 *${reasoningText.substring(0, 200)}${reasoningText.length > 200 ? "..." : ""}*\n\n---\n\n*Thinking...*` }
+                      (m as Message & { _thinkingId?: number })._thinkingId ===
+                      thinkingId
+                        ? {
+                            ...m,
+                            content: `**Setting up ${appName}**\n\n💭 *${reasoningText.substring(0, 200)}${reasoningText.length > 200 ? "..." : ""}*\n\n---\n\n*Thinking...*`,
+                          }
                         : m,
                     ),
                   );
                 }
               } else if (eventType === "tool_use") {
                 const toolName = data.tool;
-                const { display: toolDisplay, detail } = formatToolDisplay(toolName, data.input);
+                const { display: toolDisplay, detail } = formatToolDisplay(
+                  toolName,
+                  data.input,
+                );
 
                 if (sessionActionsLogRef.current.length > 0) {
                   sessionActionsLogRef.current[
@@ -1713,7 +1753,7 @@ Some ideas:
 
       // Track current reasoning text for display
       let currentReasoning = "";
-      
+
       const buildLocalProgressContent = (currentStatus?: string) => {
         let content = "**Processing your request**\n\n";
 
@@ -1816,10 +1856,17 @@ Some ideas:
                   const reasoningText = data.text || "Planning changes...";
                   currentReasoning = reasoningText;
                   updateThinking("Analyzing...");
-                  addLog(`💭 ${reasoningText.substring(0, 80)}${reasoningText.length > 80 ? "..." : ""}`, "info");
+                  addLog(
+                    `💭 ${reasoningText.substring(0, 80)}${reasoningText.length > 80 ? "..." : ""}`,
+                    "info",
+                  );
                 } else if (eventType === "tool_use") {
                   const toolName = data.tool;
-                  const { display: toolDisplay, detail, statusMessage } = formatToolDisplay(toolName, data.input);
+                  const {
+                    display: toolDisplay,
+                    detail,
+                    statusMessage,
+                  } = formatToolDisplay(toolName, data.input);
 
                   if (actionsLog.length > 0) {
                     actionsLog[actionsLog.length - 1].status = "done";
@@ -2006,7 +2053,11 @@ Some ideas:
   }
 
   // Show standalone timeout card instead of full UI with overlay - prevents layout flash
-  if (showStandaloneTimeout && (status === "timeout" || status === "stopped") && !isRestoring) {
+  if (
+    showStandaloneTimeout &&
+    (status === "timeout" || status === "stopped") &&
+    !isRestoring
+  ) {
     return (
       <div className="max-w-4xl mx-auto py-10 animate-in fade-in duration-300">
         <BrandCard className="relative">
@@ -2016,11 +2067,10 @@ Some ideas:
               <div className="w-16 h-16 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mx-auto">
                 <Timer className="h-8 w-8 text-amber-400" />
               </div>
-              <h2 className="text-xl font-bold text-white">
-                Session Expired
-              </h2>
+              <h2 className="text-xl font-bold text-white">Session Expired</h2>
               <p className="text-white/60">
-                Your sandbox session has timed out. Your code is safely saved and can be restored.
+                Your sandbox session has timed out. Your code is safely saved
+                and can be restored.
               </p>
 
               {snapshotInfo?.canRestore ? (
@@ -2036,8 +2086,11 @@ Some ideas:
                         </span>
                         {snapshotInfo.lastBackup && (
                           <>
-                            {" "}· Last updated{" "}
-                            {new Date(snapshotInfo.lastBackup).toLocaleDateString()}
+                            {" "}
+                            · Last updated{" "}
+                            {new Date(
+                              snapshotInfo.lastBackup,
+                            ).toLocaleDateString()}
                           </>
                         )}
                       </p>
@@ -2143,9 +2196,10 @@ Some ideas:
                 Restoring Session
               </h2>
               <p className="text-white/60">
-                Setting up your development environment and restoring your files...
+                Setting up your development environment and restoring your
+                files...
               </p>
-              
+
               <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
                 <p className="text-sm text-green-400 font-medium">
                   {restoreProgress
@@ -2162,7 +2216,10 @@ Some ideas:
                 </p>
                 {snapshotInfo?.githubRepo && (
                   <p className="text-xs text-white/50 mt-1">
-                    From <span className="font-mono">{snapshotInfo.githubRepo.split("/").pop()}</span>
+                    From{" "}
+                    <span className="font-mono">
+                      {snapshotInfo.githubRepo.split("/").pop()}
+                    </span>
                   </p>
                 )}
               </div>
@@ -2276,10 +2333,12 @@ ANTHROPIC_API_KEY=your_key_here`}
       toast.error("Please enter an app name first");
       return;
     }
-    
+
     setIsGeneratingDescription(true);
-    const selectedTemplateInfo = TEMPLATE_OPTIONS.find(t => t.value === templateType);
-    
+    const selectedTemplateInfo = TEMPLATE_OPTIONS.find(
+      (t) => t.value === templateType,
+    );
+
     try {
       const response = await fetchWithRetry("/api/v1/generate-prompts", {
         method: "POST",
@@ -2312,7 +2371,9 @@ ANTHROPIC_API_KEY=your_key_here`}
         "a2a-agent": `${appName} - An Agent-to-Agent protocol endpoint for AI coordination.`,
         "agent-dashboard": `${appName} - A control center for monitoring and configuring AI agents.`,
       };
-      setAppDescription(fallbackDescriptions[templateType] || fallbackDescriptions.blank);
+      setAppDescription(
+        fallbackDescriptions[templateType] || fallbackDescriptions.blank,
+      );
       toast.success("Description generated!");
     } finally {
       setIsGeneratingDescription(false);
@@ -2320,18 +2381,20 @@ ANTHROPIC_API_KEY=your_key_here`}
   };
 
   // Get the selected template data
-  const selectedTemplate = TEMPLATE_OPTIONS.find(t => t.value === templateType);
+  const selectedTemplate = TEMPLATE_OPTIONS.find(
+    (t) => t.value === templateType,
+  );
 
   if (step === "setup" && !isEditMode && status !== "initializing") {
     return (
       <div className="min-h-screen bg-gradient-to-b from-black via-black to-slate-950">
         {/* Ambient background effects */}
         <div className="fixed inset-0 overflow-hidden pointer-events-none">
-          <div 
+          <div
             className="absolute top-1/3 -left-32 w-48 md:w-72 h-48 md:h-72 rounded-full blur-[100px] opacity-15"
             style={{ backgroundColor: selectedTemplate?.color || "#06B6D4" }}
           />
-          <div 
+          <div
             className="absolute bottom-1/3 -right-32 w-48 md:w-72 h-48 md:h-72 rounded-full blur-[100px] opacity-10"
             style={{ backgroundColor: selectedTemplate?.color || "#8B5CF6" }}
           />
@@ -2364,10 +2427,10 @@ ANTHROPIC_API_KEY=your_key_here`}
                 <div
                   key={num}
                   className={`h-1.5 rounded-full transition-all duration-300 ${
-                    setupStep === num 
-                      ? "bg-gradient-to-r from-cyan-500 to-violet-500 w-6" 
-                      : setupStep > num 
-                        ? "bg-white/40 w-3" 
+                    setupStep === num
+                      ? "bg-gradient-to-r from-cyan-500 to-violet-500 w-6"
+                      : setupStep > num
+                        ? "bg-white/40 w-3"
                         : "bg-white/10 w-3"
                   }`}
                 />
@@ -2384,7 +2447,11 @@ ANTHROPIC_API_KEY=your_key_here`}
                 <div key={s.num} className="flex items-center">
                   <button
                     onClick={() => {
-                      if (s.num === 1 || (s.num === 2 && templateType) || (s.num === 3 && appName.trim())) {
+                      if (
+                        s.num === 1 ||
+                        (s.num === 2 && templateType) ||
+                        (s.num === 3 && appName.trim())
+                      ) {
                         setSetupStep(s.num as 1 | 2 | 3);
                       }
                     }}
@@ -2405,16 +2472,24 @@ ANTHROPIC_API_KEY=your_key_here`}
                             : "bg-white/5 text-white/40"
                       }`}
                     >
-                      {setupStep > s.num ? <Check className="h-3 w-3" /> : s.num}
+                      {setupStep > s.num ? (
+                        <Check className="h-3 w-3" />
+                      ) : (
+                        s.num
+                      )}
                     </span>
-                    <span className={`text-sm ${setupStep === s.num ? "text-white" : ""}`}>
+                    <span
+                      className={`text-sm ${setupStep === s.num ? "text-white" : ""}`}
+                    >
                       {s.label}
                     </span>
                   </button>
                   {i < 2 && (
-                    <div className={`w-8 h-px mx-1 transition-colors duration-300 ${
-                      setupStep > s.num ? "bg-white/30" : "bg-white/10"
-                    }`} />
+                    <div
+                      className={`w-8 h-px mx-1 transition-colors duration-300 ${
+                        setupStep > s.num ? "bg-white/30" : "bg-white/10"
+                      }`}
+                    />
                   )}
                 </div>
               ))}
@@ -2422,9 +2497,11 @@ ANTHROPIC_API_KEY=your_key_here`}
           </div>
 
           {sourceContext && (
-            <div 
+            <div
               className="mb-3 md:mb-4 p-2.5 md:p-3 rounded-lg border-l-2 bg-black/30 border border-white/5"
-              style={{ borderLeftColor: SOURCE_CONTEXT_INFO[sourceContext.type].color }}
+              style={{
+                borderLeftColor: SOURCE_CONTEXT_INFO[sourceContext.type].color,
+              }}
             >
               <div className="flex items-center gap-2">
                 {(() => {
@@ -2432,199 +2509,243 @@ ANTHROPIC_API_KEY=your_key_here`}
                   return (
                     <Icon
                       className="h-3.5 w-3.5 md:h-4 md:w-4"
-                      style={{ color: SOURCE_CONTEXT_INFO[sourceContext.type].color }}
+                      style={{
+                        color: SOURCE_CONTEXT_INFO[sourceContext.type].color,
+                      }}
                     />
                   );
                 })()}
                 <p className="text-[11px] md:text-xs text-white/70">
-                  Building for <span className="text-white font-medium">{sourceContext.name}</span>
+                  Building for{" "}
+                  <span className="text-white font-medium">
+                    {sourceContext.name}
+                  </span>
                 </p>
               </div>
             </div>
           )}
 
           {/* STEP 1: Template Selection */}
-          <div className={`transition-all duration-500 ${setupStep === 1 ? "opacity-100" : "opacity-0 absolute pointer-events-none"}`}>
-            {setupStep === 1 && (() => {
-              const totalPages = Math.ceil(TEMPLATE_OPTIONS.length / TEMPLATES_PER_PAGE);
-              const visibleTemplates = TEMPLATE_OPTIONS.slice(
-                templatePage * TEMPLATES_PER_PAGE,
-                (templatePage + 1) * TEMPLATES_PER_PAGE
-              );
-              
-              return (
-                <div className="space-y-3 md:space-y-5">
-                  {/* Header row with title and navigation */}
-                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-0">
-                    <div>
-                      <h2 className="text-xl md:text-2xl font-bold text-white">
-                        What are you building?
-                      </h2>
-                      <p className="text-white/50 text-xs md:text-sm">
-                        Choose a template to kickstart your project
-                      </p>
-                    </div>
-                    
-                    {/* Carousel navigation */}
-                    <div className="flex items-center justify-center md:justify-end gap-2 md:gap-3">
-                      <button
-                        onClick={() => setTemplatePage(p => Math.max(0, p - 1))}
-                        disabled={templatePage === 0}
-                        className="p-2 md:p-2.5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-all hover:scale-105"
-                      >
-                        <ChevronLeft className="h-4 w-4 md:h-5 md:w-5 text-white/70" />
-                      </button>
-                      <div className="flex items-center gap-1.5 md:gap-2">
-                        {Array.from({ length: totalPages }).map((_, i) => (
-                          <button
-                            key={i}
-                            onClick={() => setTemplatePage(i)}
-                            className={`h-1.5 md:h-2 rounded-full transition-all duration-300 ${
-                              i === templatePage 
-                                ? "bg-white/70 w-5 md:w-6" 
-                                : "bg-white/20 hover:bg-white/40 w-1.5 md:w-2"
-                            }`}
-                          />
-                        ))}
+          <div
+            className={`transition-all duration-500 ${setupStep === 1 ? "opacity-100" : "opacity-0 absolute pointer-events-none"}`}
+          >
+            {setupStep === 1 &&
+              (() => {
+                const totalPages = Math.ceil(
+                  TEMPLATE_OPTIONS.length / TEMPLATES_PER_PAGE,
+                );
+                const visibleTemplates = TEMPLATE_OPTIONS.slice(
+                  templatePage * TEMPLATES_PER_PAGE,
+                  (templatePage + 1) * TEMPLATES_PER_PAGE,
+                );
+
+                return (
+                  <div className="space-y-3 md:space-y-5">
+                    {/* Header row with title and navigation */}
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-0">
+                      <div>
+                        <h2 className="text-xl md:text-2xl font-bold text-white">
+                          What are you building?
+                        </h2>
+                        <p className="text-white/50 text-xs md:text-sm">
+                          Choose a template to kickstart your project
+                        </p>
                       </div>
-                      <button
-                        onClick={() => setTemplatePage(p => Math.min(totalPages - 1, p + 1))}
-                        disabled={templatePage >= totalPages - 1}
-                        className="p-2 md:p-2.5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-all hover:scale-105"
-                      >
-                        <ChevronRight className="h-4 w-4 md:h-5 md:w-5 text-white/70" />
-                      </button>
-                    </div>
-                  </div>
 
-                  {/* Template cards - larger, more detailed */}
-                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 md:gap-4">
-                    {visibleTemplates.map((template) => {
-                      const Icon = template.icon;
-                      const isSelected = templateType === template.value;
-                      const isDisabled = template.comingSoon;
-                      
-                      return (
+                      {/* Carousel navigation */}
+                      <div className="flex items-center justify-center md:justify-end gap-2 md:gap-3">
                         <button
-                          key={template.value}
-                          onClick={() => {
-                            if (!isDisabled) {
-                              setTemplateType(template.value);
-                            }
-                          }}
-                          disabled={isDisabled}
-                          className={`group relative p-3 md:p-5 rounded-xl md:rounded-2xl text-left transition-all duration-300 border touch-manipulation ${
-                            isSelected
-                              ? "bg-white/10 border-white/30 scale-[1.02]"
-                              : isDisabled
-                                ? "bg-white/[0.02] border-white/5 opacity-50 cursor-not-allowed"
-                                : "bg-white/[0.02] border-white/10 hover:bg-white/[0.05] hover:border-white/20 active:scale-[0.98]"
-                          }`}
+                          onClick={() =>
+                            setTemplatePage((p) => Math.max(0, p - 1))
+                          }
+                          disabled={templatePage === 0}
+                          className="p-2 md:p-2.5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-all hover:scale-105"
                         >
-                          {/* Glow effect on selected */}
-                          {isSelected && (
-                            <div 
-                              className="absolute inset-0 rounded-xl md:rounded-2xl blur-xl opacity-20 -z-10"
-                              style={{ backgroundColor: template.color }}
+                          <ChevronLeft className="h-4 w-4 md:h-5 md:w-5 text-white/70" />
+                        </button>
+                        <div className="flex items-center gap-1.5 md:gap-2">
+                          {Array.from({ length: totalPages }).map((_, i) => (
+                            <button
+                              key={i}
+                              onClick={() => setTemplatePage(i)}
+                              className={`h-1.5 md:h-2 rounded-full transition-all duration-300 ${
+                                i === templatePage
+                                  ? "bg-white/70 w-5 md:w-6"
+                                  : "bg-white/20 hover:bg-white/40 w-1.5 md:w-2"
+                              }`}
                             />
-                          )}
+                          ))}
+                        </div>
+                        <button
+                          onClick={() =>
+                            setTemplatePage((p) =>
+                              Math.min(totalPages - 1, p + 1),
+                            )
+                          }
+                          disabled={templatePage >= totalPages - 1}
+                          className="p-2 md:p-2.5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-all hover:scale-105"
+                        >
+                          <ChevronRight className="h-4 w-4 md:h-5 md:w-5 text-white/70" />
+                        </button>
+                      </div>
+                    </div>
 
-                          {/* Coming soon badge */}
-                          {isDisabled && (
-                            <div className="absolute top-2 right-2 md:top-3 md:right-3 px-1.5 md:px-2 py-0.5 bg-amber-500/20 border border-amber-500/30 rounded-full">
-                              <span className="text-[8px] md:text-[10px] font-medium text-amber-400">Soon</span>
-                            </div>
-                          )}
+                    {/* Template cards - larger, more detailed */}
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 md:gap-4">
+                      {visibleTemplates.map((template) => {
+                        const Icon = template.icon;
+                        const isSelected = templateType === template.value;
+                        const isDisabled = template.comingSoon;
 
-                          {/* Selection indicator */}
-                          {!isDisabled && (
-                            <div className={`absolute top-2.5 right-2.5 md:top-4 md:right-4 w-4 h-4 md:w-5 md:h-5 rounded-full border-2 transition-all duration-300 flex items-center justify-center ${
-                              isSelected 
-                                ? "border-white bg-white" 
-                                : "border-white/20 group-hover:border-white/40"
-                            }`}>
-                              {isSelected && <Check className="h-2.5 w-2.5 md:h-3 md:w-3 text-black" />}
-                            </div>
-                          )}
-
-                          {/* Icon */}
-                          <div 
-                            className={`inline-flex p-2 md:p-3 rounded-lg md:rounded-xl mb-2 md:mb-3 transition-all duration-300 ${
-                              isSelected ? "scale-110" : "group-hover:scale-105"
-                            }`}
-                            style={{ 
-                              backgroundColor: `${template.color}20`,
-                              boxShadow: isSelected ? `0 0 20px ${template.color}40` : undefined
+                        return (
+                          <button
+                            key={template.value}
+                            onClick={() => {
+                              if (!isDisabled) {
+                                setTemplateType(template.value);
+                              }
                             }}
+                            disabled={isDisabled}
+                            className={`group relative p-3 md:p-5 rounded-xl md:rounded-2xl text-left transition-all duration-300 border touch-manipulation ${
+                              isSelected
+                                ? "bg-white/10 border-white/30 scale-[1.02]"
+                                : isDisabled
+                                  ? "bg-white/[0.02] border-white/5 opacity-50 cursor-not-allowed"
+                                  : "bg-white/[0.02] border-white/10 hover:bg-white/[0.05] hover:border-white/20 active:scale-[0.98]"
+                            }`}
                           >
-                            <Icon 
-                              className="h-4 w-4 md:h-6 md:w-6 transition-colors duration-300" 
-                              style={{ color: template.color }}
-                            />
-                          </div>
+                            {/* Glow effect on selected */}
+                            {isSelected && (
+                              <div
+                                className="absolute inset-0 rounded-xl md:rounded-2xl blur-xl opacity-20 -z-10"
+                                style={{ backgroundColor: template.color }}
+                              />
+                            )}
 
-                          {/* Content */}
-                          <h3 className="text-sm md:text-base font-semibold text-white mb-0.5 md:mb-1 pr-6">
-                            {template.label}
-                          </h3>
-                          <p className="text-xs md:text-sm text-white/50 mb-2 md:mb-3 line-clamp-2">
-                            {template.description}
-                          </p>
+                            {/* Coming soon badge */}
+                            {isDisabled && (
+                              <div className="absolute top-2 right-2 md:top-3 md:right-3 px-1.5 md:px-2 py-0.5 bg-amber-500/20 border border-amber-500/30 rounded-full">
+                                <span className="text-[8px] md:text-[10px] font-medium text-amber-400">
+                                  Soon
+                                </span>
+                              </div>
+                            )}
 
-                          {/* Features - hidden on mobile to save space */}
-                          <div className="hidden md:flex flex-wrap gap-1.5">
-                            {template.features.map((feature) => (
-                              <span
-                                key={feature}
-                                className="px-2 py-0.5 text-[10px] font-medium bg-white/5 border border-white/10 rounded-full text-white/60"
+                            {/* Selection indicator */}
+                            {!isDisabled && (
+                              <div
+                                className={`absolute top-2.5 right-2.5 md:top-4 md:right-4 w-4 h-4 md:w-5 md:h-5 rounded-full border-2 transition-all duration-300 flex items-center justify-center ${
+                                  isSelected
+                                    ? "border-white bg-white"
+                                    : "border-white/20 group-hover:border-white/40"
+                                }`}
                               >
-                                {feature}
-                              </span>
-                            ))}
-                          </div>
+                                {isSelected && (
+                                  <Check className="h-2.5 w-2.5 md:h-3 md:w-3 text-black" />
+                                )}
+                              </div>
+                            )}
 
-                          {/* Tech stack on hover/selected - desktop only */}
-                          <div className={`hidden md:block mt-3 pt-3 border-t border-white/5 transition-all duration-300 ${
-                            isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"
-                          }`}>
-                            <div className="flex gap-2">
-                              {template.techStack.map((tech) => (
-                                <span key={tech} className="text-[10px] text-white/40">
-                                  {tech}
+                            {/* Icon */}
+                            <div
+                              className={`inline-flex p-2 md:p-3 rounded-lg md:rounded-xl mb-2 md:mb-3 transition-all duration-300 ${
+                                isSelected
+                                  ? "scale-110"
+                                  : "group-hover:scale-105"
+                              }`}
+                              style={{
+                                backgroundColor: `${template.color}20`,
+                                boxShadow: isSelected
+                                  ? `0 0 20px ${template.color}40`
+                                  : undefined,
+                              }}
+                            >
+                              <Icon
+                                className="h-4 w-4 md:h-6 md:w-6 transition-colors duration-300"
+                                style={{ color: template.color }}
+                              />
+                            </div>
+
+                            {/* Content */}
+                            <h3 className="text-sm md:text-base font-semibold text-white mb-0.5 md:mb-1 pr-6">
+                              {template.label}
+                            </h3>
+                            <p className="text-xs md:text-sm text-white/50 mb-2 md:mb-3 line-clamp-2">
+                              {template.description}
+                            </p>
+
+                            {/* Features - hidden on mobile to save space */}
+                            <div className="hidden md:flex flex-wrap gap-1.5">
+                              {template.features.map((feature) => (
+                                <span
+                                  key={feature}
+                                  className="px-2 py-0.5 text-[10px] font-medium bg-white/5 border border-white/10 rounded-full text-white/60"
+                                >
+                                  {feature}
                                 </span>
                               ))}
                             </div>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
 
-                  {/* Continue button row */}
-                  <div className="flex flex-col-reverse md:flex-row items-stretch md:items-center justify-between gap-3 pt-2">
-                    <p className="text-xs md:text-sm text-white/40 text-center md:text-left">
-                      {selectedTemplate ? (
-                        <>Selected: <span className="text-white/60 font-medium">{selectedTemplate.label}</span></>
-                      ) : (
-                        "Select a template to continue"
-                      )}
-                    </p>
-                    <button
-                      onClick={() => setSetupStep(2)}
-                      disabled={!templateType || TEMPLATE_OPTIONS.find(t => t.value === templateType)?.comingSoon}
-                      className="group flex items-center justify-center gap-2 px-6 md:px-8 py-2.5 md:py-3 bg-gradient-to-r from-cyan-500 to-violet-500 rounded-xl text-white text-sm md:text-base font-medium transition-all duration-300 hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 hover:shadow-lg hover:shadow-violet-500/25 touch-manipulation"
-                    >
-                      Continue
-                      <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
-                    </button>
+                            {/* Tech stack on hover/selected - desktop only */}
+                            <div
+                              className={`hidden md:block mt-3 pt-3 border-t border-white/5 transition-all duration-300 ${
+                                isSelected
+                                  ? "opacity-100"
+                                  : "opacity-0 group-hover:opacity-100"
+                              }`}
+                            >
+                              <div className="flex gap-2">
+                                {template.techStack.map((tech) => (
+                                  <span
+                                    key={tech}
+                                    className="text-[10px] text-white/40"
+                                  >
+                                    {tech}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Continue button row */}
+                    <div className="flex flex-col-reverse md:flex-row items-stretch md:items-center justify-between gap-3 pt-2">
+                      <p className="text-xs md:text-sm text-white/40 text-center md:text-left">
+                        {selectedTemplate ? (
+                          <>
+                            Selected:{" "}
+                            <span className="text-white/60 font-medium">
+                              {selectedTemplate.label}
+                            </span>
+                          </>
+                        ) : (
+                          "Select a template to continue"
+                        )}
+                      </p>
+                      <button
+                        onClick={() => setSetupStep(2)}
+                        disabled={
+                          !templateType ||
+                          TEMPLATE_OPTIONS.find((t) => t.value === templateType)
+                            ?.comingSoon
+                        }
+                        className="group flex items-center justify-center gap-2 px-6 md:px-8 py-2.5 md:py-3 bg-gradient-to-r from-cyan-500 to-violet-500 rounded-xl text-white text-sm md:text-base font-medium transition-all duration-300 hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 hover:shadow-lg hover:shadow-violet-500/25 touch-manipulation"
+                      >
+                        Continue
+                        <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
+                      </button>
+                    </div>
                   </div>
-                </div>
-              );
-            })()}
+                );
+              })()}
           </div>
 
           {/* STEP 2: App Details */}
-          <div className={`transition-all duration-500 ${setupStep === 2 ? "opacity-100" : "opacity-0 absolute pointer-events-none"}`}>
+          <div
+            className={`transition-all duration-500 ${setupStep === 2 ? "opacity-100" : "opacity-0 absolute pointer-events-none"}`}
+          >
             {setupStep === 2 && (
               <div className="max-w-2xl mx-auto space-y-3 md:space-y-4">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 md:gap-0">
@@ -2639,11 +2760,13 @@ ANTHROPIC_API_KEY=your_key_here`}
                   {/* Selected template preview */}
                   {selectedTemplate && (
                     <div className="flex items-center gap-2 px-2.5 md:px-3 py-1 md:py-1.5 rounded-lg bg-white/5 border border-white/10 w-fit">
-                      <selectedTemplate.icon 
-                        className="h-3.5 w-3.5 md:h-4 md:w-4" 
+                      <selectedTemplate.icon
+                        className="h-3.5 w-3.5 md:h-4 md:w-4"
                         style={{ color: selectedTemplate.color }}
                       />
-                      <span className="text-[11px] md:text-xs text-white/60">{selectedTemplate.label}</span>
+                      <span className="text-[11px] md:text-xs text-white/60">
+                        {selectedTemplate.label}
+                      </span>
                       <button
                         onClick={() => setSetupStep(1)}
                         className="text-[10px] text-white/40 hover:text-white/60 underline"
@@ -2659,10 +2782,15 @@ ANTHROPIC_API_KEY=your_key_here`}
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
                       <Label className="text-white/70 text-xs">App Name</Label>
-                      <span className={`text-[10px] transition-colors ${
-                        appName.length > 100 ? "text-red-400" : 
-                        appName.length > 80 ? "text-yellow-400" : "text-white/30"
-                      }`}>
+                      <span
+                        className={`text-[10px] transition-colors ${
+                          appName.length > 100
+                            ? "text-red-400"
+                            : appName.length > 80
+                              ? "text-yellow-400"
+                              : "text-white/30"
+                        }`}
+                      >
                         {appName.length}/100
                       </span>
                     </div>
@@ -2678,7 +2806,9 @@ ANTHROPIC_API_KEY=your_key_here`}
                   {/* Description */}
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
-                      <Label className="text-white/70 text-xs">Description</Label>
+                      <Label className="text-white/70 text-xs">
+                        Description
+                      </Label>
                       <div className="flex items-center gap-2">
                         <button
                           onClick={generateAIDescription}
@@ -2692,10 +2822,15 @@ ANTHROPIC_API_KEY=your_key_here`}
                           )}
                           AI Assist
                         </button>
-                        <span className={`text-[10px] transition-colors ${
-                          appDescription.length > 500 ? "text-red-400" : 
-                          appDescription.length > 400 ? "text-yellow-400" : "text-white/30"
-                        }`}>
+                        <span
+                          className={`text-[10px] transition-colors ${
+                            appDescription.length > 500
+                              ? "text-red-400"
+                              : appDescription.length > 400
+                                ? "text-yellow-400"
+                                : "text-white/30"
+                          }`}
+                        >
                           {appDescription.length}/500
                         </span>
                       </div>
@@ -2725,7 +2860,11 @@ ANTHROPIC_API_KEY=your_key_here`}
                   </button>
                   <button
                     onClick={() => setSetupStep(3)}
-                    disabled={!appName.trim() || appName.length > 100 || appDescription.length > 500}
+                    disabled={
+                      !appName.trim() ||
+                      appName.length > 100 ||
+                      appDescription.length > 500
+                    }
                     className="group flex items-center gap-2 px-5 md:px-6 py-2 md:py-2.5 bg-gradient-to-r from-cyan-500 to-violet-500 rounded-lg text-white text-sm font-medium transition-all duration-300 hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 hover:shadow-lg hover:shadow-violet-500/25 touch-manipulation"
                   >
                     Continue
@@ -2737,7 +2876,9 @@ ANTHROPIC_API_KEY=your_key_here`}
           </div>
 
           {/* STEP 3: Features */}
-          <div className={`transition-all duration-500 ${setupStep === 3 ? "opacity-100" : "opacity-0 absolute pointer-events-none"}`}>
+          <div
+            className={`transition-all duration-500 ${setupStep === 3 ? "opacity-100" : "opacity-0 absolute pointer-events-none"}`}
+          >
             {setupStep === 3 && (
               <div className="max-w-2xl mx-auto space-y-3 md:space-y-4">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 md:gap-0">
@@ -2752,12 +2893,14 @@ ANTHROPIC_API_KEY=your_key_here`}
                   {/* App summary */}
                   <div className="flex items-center gap-2 px-2.5 md:px-3 py-1 md:py-1.5 rounded-lg bg-white/5 border border-white/10 w-fit">
                     {selectedTemplate && (
-                      <selectedTemplate.icon 
-                        className="h-3.5 w-3.5 md:h-4 md:w-4" 
+                      <selectedTemplate.icon
+                        className="h-3.5 w-3.5 md:h-4 md:w-4"
                         style={{ color: selectedTemplate.color }}
                       />
                     )}
-                    <span className="text-[11px] md:text-xs text-white/70 truncate max-w-[150px]">{appName || "Your App"}</span>
+                    <span className="text-[11px] md:text-xs text-white/70 truncate max-w-[150px]">
+                      {appName || "Your App"}
+                    </span>
                   </div>
                 </div>
 
@@ -2772,20 +2915,34 @@ ANTHROPIC_API_KEY=your_key_here`}
                     }`}
                   >
                     <div className="flex items-center justify-between mb-1.5 md:mb-2">
-                      <div className={`p-1.5 md:p-2 rounded-lg transition-colors ${
-                        includeMonetization ? "bg-emerald-500/20" : "bg-white/5"
-                      }`}>
-                        <DollarSign className={`h-3.5 w-3.5 md:h-4 md:w-4 ${
-                          includeMonetization ? "text-emerald-400" : "text-white/40"
-                        }`} />
+                      <div
+                        className={`p-1.5 md:p-2 rounded-lg transition-colors ${
+                          includeMonetization
+                            ? "bg-emerald-500/20"
+                            : "bg-white/5"
+                        }`}
+                      >
+                        <DollarSign
+                          className={`h-3.5 w-3.5 md:h-4 md:w-4 ${
+                            includeMonetization
+                              ? "text-emerald-400"
+                              : "text-white/40"
+                          }`}
+                        />
                       </div>
-                      <div className={`w-7 h-4 md:w-8 md:h-5 rounded-full transition-colors duration-300 flex items-center ${
-                        includeMonetization ? "bg-emerald-500 justify-end" : "bg-white/10 justify-start"
-                      }`}>
+                      <div
+                        className={`w-7 h-4 md:w-8 md:h-5 rounded-full transition-colors duration-300 flex items-center ${
+                          includeMonetization
+                            ? "bg-emerald-500 justify-end"
+                            : "bg-white/10 justify-start"
+                        }`}
+                      >
                         <div className="w-2.5 h-2.5 md:w-3 md:h-3 mx-0.5 md:mx-1 rounded-full bg-white transition-all" />
                       </div>
                     </div>
-                    <h3 className="text-xs md:text-sm font-medium text-white">Monetization</h3>
+                    <h3 className="text-xs md:text-sm font-medium text-white">
+                      Monetization
+                    </h3>
                     <p className="text-[10px] md:text-xs text-white/50 mt-0.5">
                       Payments & subscriptions
                     </p>
@@ -2809,20 +2966,30 @@ ANTHROPIC_API_KEY=your_key_here`}
                     }`}
                   >
                     <div className="flex items-center justify-between mb-1.5 md:mb-2">
-                      <div className={`p-1.5 md:p-2 rounded-lg transition-colors ${
-                        includeAnalytics ? "bg-blue-500/20" : "bg-white/5"
-                      }`}>
-                        <LineChart className={`h-3.5 w-3.5 md:h-4 md:w-4 ${
-                          includeAnalytics ? "text-blue-400" : "text-white/40"
-                        }`} />
+                      <div
+                        className={`p-1.5 md:p-2 rounded-lg transition-colors ${
+                          includeAnalytics ? "bg-blue-500/20" : "bg-white/5"
+                        }`}
+                      >
+                        <LineChart
+                          className={`h-3.5 w-3.5 md:h-4 md:w-4 ${
+                            includeAnalytics ? "text-blue-400" : "text-white/40"
+                          }`}
+                        />
                       </div>
-                      <div className={`w-7 h-4 md:w-8 md:h-5 rounded-full transition-colors duration-300 flex items-center ${
-                        includeAnalytics ? "bg-blue-500 justify-end" : "bg-white/10 justify-start"
-                      }`}>
+                      <div
+                        className={`w-7 h-4 md:w-8 md:h-5 rounded-full transition-colors duration-300 flex items-center ${
+                          includeAnalytics
+                            ? "bg-blue-500 justify-end"
+                            : "bg-white/10 justify-start"
+                        }`}
+                      >
                         <div className="w-2.5 h-2.5 md:w-3 md:h-3 mx-0.5 md:mx-1 rounded-full bg-white transition-all" />
                       </div>
                     </div>
-                    <h3 className="text-xs md:text-sm font-medium text-white">Analytics</h3>
+                    <h3 className="text-xs md:text-sm font-medium text-white">
+                      Analytics
+                    </h3>
                     <p className="text-[10px] md:text-xs text-white/50 mt-0.5">
                       Track users & events
                     </p>
@@ -2864,7 +3031,9 @@ ANTHROPIC_API_KEY=your_key_here`}
                       ) : (
                         <>
                           <Rocket className="h-4 w-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-                          <span className="hidden sm:inline">Start Building</span>
+                          <span className="hidden sm:inline">
+                            Start Building
+                          </span>
                           <span className="sm:hidden">Start</span>
                         </>
                       )}
@@ -2884,8 +3053,12 @@ ANTHROPIC_API_KEY=your_key_here`}
         {/* Shimmer animation */}
         <style jsx global>{`
           @keyframes shimmer {
-            0% { background-position: 200% 0; }
-            100% { background-position: -200% 0; }
+            0% {
+              background-position: 200% 0;
+            }
+            100% {
+              background-position: -200% 0;
+            }
           }
         `}</style>
       </div>
@@ -3137,25 +3310,32 @@ ANTHROPIC_API_KEY=your_key_here`}
               <MoreVertical className="h-5 w-5 text-white/60" />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56 bg-[#1a1a1a] border-white/10">
+          <DropdownMenuContent
+            align="end"
+            className="w-56 bg-[#1a1a1a] border-white/10"
+          >
             {/* Timer & Session */}
             {timeRemaining && (
               <>
                 <div className="px-2 py-1.5 flex items-center gap-2">
-                  <Timer className={`h-3.5 w-3.5 ${
-                    timeRemaining === "Expired"
-                      ? "text-red-400"
-                      : parseInt(timeRemaining.split(":")[0] || "30") <= 5
-                        ? "text-yellow-400"
-                        : "text-white/60"
-                  }`} />
-                  <span className={`text-xs font-mono ${
-                    timeRemaining === "Expired"
-                      ? "text-red-400"
-                      : parseInt(timeRemaining.split(":")[0] || "30") <= 5
-                        ? "text-yellow-400"
-                        : "text-white/60"
-                  }`}>
+                  <Timer
+                    className={`h-3.5 w-3.5 ${
+                      timeRemaining === "Expired"
+                        ? "text-red-400"
+                        : parseInt(timeRemaining.split(":")[0] || "30") <= 5
+                          ? "text-yellow-400"
+                          : "text-white/60"
+                    }`}
+                  />
+                  <span
+                    className={`text-xs font-mono ${
+                      timeRemaining === "Expired"
+                        ? "text-red-400"
+                        : parseInt(timeRemaining.split(":")[0] || "30") <= 5
+                          ? "text-yellow-400"
+                          : "text-white/60"
+                    }`}
+                  >
                     {timeRemaining} remaining
                   </span>
                 </div>
@@ -3177,64 +3357,79 @@ ANTHROPIC_API_KEY=your_key_here`}
                 )}
                 Restore Session
               </DropdownMenuItem>
-            ) : status !== "timeout" && (
-              <DropdownMenuItem
-                onClick={extendSession}
-                disabled={isExtending || status !== "ready"}
-                className="text-cyan-400 focus:text-cyan-400 focus:bg-cyan-500/10"
-              >
-                {isExtending ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Plus className="h-4 w-4" />
-                )}
-                Extend +15 minutes
-              </DropdownMenuItem>
+            ) : (
+              status !== "timeout" && (
+                <DropdownMenuItem
+                  onClick={extendSession}
+                  disabled={isExtending || status !== "ready"}
+                  className="text-cyan-400 focus:text-cyan-400 focus:bg-cyan-500/10"
+                >
+                  {isExtending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Plus className="h-4 w-4" />
+                  )}
+                  Extend +15 minutes
+                </DropdownMenuItem>
+              )
             )}
 
             {/* GitHub Actions */}
-            {(status === "ready" || status === "recovering") && appData?.github_repo && (
-              <>
-                <DropdownMenuSeparator className="bg-white/10" />
-                <DropdownMenuItem
-                  onClick={saveToGitHub}
-                  disabled={isSaving || !gitStatus?.hasChanges || status === "recovering"}
-                  className={gitStatus?.hasChanges ? "text-green-400 focus:text-green-400 focus:bg-green-500/10" : ""}
-                >
-                  {isSaving ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Save className="h-4 w-4" />
-                  )}
-                  {isSaving ? "Saving..." : gitStatus?.hasChanges ? "Save to GitHub" : "Saved"}
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={deployToProduction}
-                  disabled={isDeploying || status === "recovering"}
-                  className="text-[#FF5800] focus:text-[#FF5800] focus:bg-[#FF5800]/10"
-                >
-                  {isDeploying ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Rocket className="h-4 w-4" />
-                  )}
-                  {isDeploying ? "Deploying..." : "Deploy"}
-                </DropdownMenuItem>
-                {productionUrl && (
-                  <DropdownMenuItem asChild>
-                    <a
-                      href={productionUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-cyan-400 focus:text-cyan-400"
-                    >
-                      <ExternalLink className="h-4 w-4" />
-                      View Live Site
-                    </a>
+            {(status === "ready" || status === "recovering") &&
+              appData?.github_repo && (
+                <>
+                  <DropdownMenuSeparator className="bg-white/10" />
+                  <DropdownMenuItem
+                    onClick={saveToGitHub}
+                    disabled={
+                      isSaving ||
+                      !gitStatus?.hasChanges ||
+                      status === "recovering"
+                    }
+                    className={
+                      gitStatus?.hasChanges
+                        ? "text-green-400 focus:text-green-400 focus:bg-green-500/10"
+                        : ""
+                    }
+                  >
+                    {isSaving ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Save className="h-4 w-4" />
+                    )}
+                    {isSaving
+                      ? "Saving..."
+                      : gitStatus?.hasChanges
+                        ? "Save to GitHub"
+                        : "Saved"}
                   </DropdownMenuItem>
-                )}
-              </>
-            )}
+                  <DropdownMenuItem
+                    onClick={deployToProduction}
+                    disabled={isDeploying || status === "recovering"}
+                    className="text-[#FF5800] focus:text-[#FF5800] focus:bg-[#FF5800]/10"
+                  >
+                    {isDeploying ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Rocket className="h-4 w-4" />
+                    )}
+                    {isDeploying ? "Deploying..." : "Deploy"}
+                  </DropdownMenuItem>
+                  {productionUrl && (
+                    <DropdownMenuItem asChild>
+                      <a
+                        href={productionUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-cyan-400 focus:text-cyan-400"
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                        View Live Site
+                      </a>
+                    </DropdownMenuItem>
+                  )}
+                </>
+              )}
 
             {/* GitHub Repo Link */}
             {appData?.github_repo && (
@@ -3341,14 +3536,12 @@ ANTHROPIC_API_KEY=your_key_here`}
               title="View on GitHub"
             >
               <GitBranch className="h-3 w-3" />
-              <span
-                style={{ fontFamily: "var(--font-roboto-mono)" }}
-              >
+              <span style={{ fontFamily: "var(--font-roboto-mono)" }}>
                 {appData.github_repo.split("/").pop()}
               </span>
               <Cloud className="h-3 w-3" />
             </a>
-          ) : (status === "ready" || status === "recovering") ? (
+          ) : status === "ready" || status === "recovering" ? (
             <div
               className="flex items-center gap-1.5 px-2 py-1 text-xs bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 rounded"
               title="GitHub not configured"
@@ -3415,80 +3608,85 @@ ANTHROPIC_API_KEY=your_key_here`}
             </Button>
           )}
           {/* GitHub Save Button */}
-          {(status === "ready" || status === "recovering") && appData?.github_repo && (
-            <>
-              <div className="w-px h-4 bg-white/10" />
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={saveToGitHub}
-                disabled={isSaving || !gitStatus?.hasChanges || status === "recovering"}
-                className={`h-7 text-xs ${
-                  gitStatus?.hasChanges && status !== "recovering"
-                    ? "text-green-400 hover:text-green-300 hover:bg-green-500/10"
-                    : "text-white/40 hover:bg-white/5"
-                }`}
-                title={
-                  status === "recovering"
-                    ? "Reconnecting..."
-                    : gitStatus?.hasChanges
-                      ? "Save changes to GitHub"
-                      : "No unsaved changes"
-                }
-              >
-                {isSaving ? (
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                ) : (
-                  <Save className="h-3 w-3" />
-                )}
-                <span className="ml-1">
-                  {isSaving
-                    ? "Saving..."
-                    : gitStatus?.hasChanges
-                      ? "Save"
-                      : "Saved"}
-                </span>
-              </Button>
-              {/* Deploy to Production Button */}
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={deployToProduction}
-                disabled={isDeploying || status === "recovering"}
-                className="h-7 text-xs text-[#FF5800] hover:text-[#FF7033] hover:bg-[#FF5800]/10"
-                title={
-                  status === "recovering"
-                    ? "Reconnecting..."
-                    : productionUrl
-                      ? `Deploy to ${productionUrl}`
-                      : "Deploy to production"
-                }
-              >
-                {isDeploying ? (
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                ) : (
-                  <Rocket className="h-3 w-3" />
-                )}
-                <span className="ml-1">
-                  {isDeploying ? "Deploying..." : "Deploy"}
-                </span>
-              </Button>
-              {/* Production URL Link */}
-              {productionUrl && (
-                <a
-                  href={productionUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="h-7 px-2 text-xs text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10 rounded flex items-center gap-1"
-                  title={`View live at ${productionUrl}`}
+          {(status === "ready" || status === "recovering") &&
+            appData?.github_repo && (
+              <>
+                <div className="w-px h-4 bg-white/10" />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={saveToGitHub}
+                  disabled={
+                    isSaving ||
+                    !gitStatus?.hasChanges ||
+                    status === "recovering"
+                  }
+                  className={`h-7 text-xs ${
+                    gitStatus?.hasChanges && status !== "recovering"
+                      ? "text-green-400 hover:text-green-300 hover:bg-green-500/10"
+                      : "text-white/40 hover:bg-white/5"
+                  }`}
+                  title={
+                    status === "recovering"
+                      ? "Reconnecting..."
+                      : gitStatus?.hasChanges
+                        ? "Save changes to GitHub"
+                        : "No unsaved changes"
+                  }
                 >
-                  <ExternalLink className="h-3 w-3" />
-                  <span>Live</span>
-                </a>
-              )}
-              <div className="w-px h-4 bg-white/10" />
-            </>
-          )}
+                  {isSaving ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <Save className="h-3 w-3" />
+                  )}
+                  <span className="ml-1">
+                    {isSaving
+                      ? "Saving..."
+                      : gitStatus?.hasChanges
+                        ? "Save"
+                        : "Saved"}
+                  </span>
+                </Button>
+                {/* Deploy to Production Button */}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={deployToProduction}
+                  disabled={isDeploying || status === "recovering"}
+                  className="h-7 text-xs text-[#FF5800] hover:text-[#FF7033] hover:bg-[#FF5800]/10"
+                  title={
+                    status === "recovering"
+                      ? "Reconnecting..."
+                      : productionUrl
+                        ? `Deploy to ${productionUrl}`
+                        : "Deploy to production"
+                  }
+                >
+                  {isDeploying ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <Rocket className="h-3 w-3" />
+                  )}
+                  <span className="ml-1">
+                    {isDeploying ? "Deploying..." : "Deploy"}
+                  </span>
+                </Button>
+                {/* Production URL Link */}
+                {productionUrl && (
+                  <a
+                    href={productionUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="h-7 px-2 text-xs text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10 rounded flex items-center gap-1"
+                    title={`View live at ${productionUrl}`}
+                  >
+                    <ExternalLink className="h-3 w-3" />
+                    <span>Live</span>
+                  </a>
+                )}
+                <div className="w-px h-4 bg-white/10" />
+              </>
+            )}
           {session?.sandboxUrl && (
             <>
               <button
@@ -3529,7 +3727,9 @@ ANTHROPIC_API_KEY=your_key_here`}
               onClick={stopSession}
               disabled={status === "recovering"}
               className="p-2 hover:bg-red-500/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              title={status === "recovering" ? "Reconnecting..." : "Stop session"}
+              title={
+                status === "recovering" ? "Reconnecting..." : "Stop session"
+              }
             >
               <Square className="h-4 w-4 text-red-400" />
             </button>
@@ -3695,10 +3895,10 @@ ANTHROPIC_API_KEY=your_key_here`}
         {/* CHAT PANEL - visible on desktop (w-1/2), toggled on mobile/tablet */}
         <div
           className={`flex flex-col border-r border-white/[0.04] bg-[#0a0a0b] transition-all overflow-hidden ${
-            isFullscreen 
-              ? "w-0 hidden" 
-              : mobilePanel === "chat" 
-                ? "w-full xl:w-1/2" 
+            isFullscreen
+              ? "w-0 hidden"
+              : mobilePanel === "chat"
+                ? "w-full xl:w-1/2"
                 : "hidden xl:flex xl:w-1/2"
           }`}
         >
@@ -3726,10 +3926,10 @@ ANTHROPIC_API_KEY=your_key_here`}
         {/* PREVIEW PANEL - visible on desktop (flex-1), toggled on mobile/tablet */}
         <div
           className={`flex-1 flex flex-col overflow-hidden ${
-            isFullscreen 
-              ? "w-full" 
-              : mobilePanel === "preview" 
-                ? "w-full xl:flex" 
+            isFullscreen
+              ? "w-full"
+              : mobilePanel === "preview"
+                ? "w-full xl:flex"
                 : "hidden xl:flex"
           }`}
         >

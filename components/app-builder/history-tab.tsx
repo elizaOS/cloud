@@ -60,7 +60,7 @@ export function HistoryTab({
 
     try {
       const response = await fetch(
-        `/api/v1/app-builder/sessions/${sessionId}/history`
+        `/api/v1/app-builder/sessions/${sessionId}/history`,
       );
       if (response.ok) {
         const data = await response.json();
@@ -100,7 +100,7 @@ export function HistoryTab({
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ commitSha: sha }),
-        }
+        },
       );
 
       const data = await response.json();
@@ -169,7 +169,9 @@ export function HistoryTab({
               <div className="absolute inset-0 bg-cyan-500/20 rounded-full blur-xl animate-pulse" />
               <Loader2 className="h-8 w-8 animate-spin text-cyan-400 relative" />
             </div>
-            <p className="text-sm text-white/50 font-medium">Loading history...</p>
+            <p className="text-sm text-white/50 font-medium">
+              Loading history...
+            </p>
           </motion.div>
         </div>
       </div>
@@ -191,7 +193,9 @@ export function HistoryTab({
             </div>
             <div>
               <p className="text-sm text-white/70 font-medium mb-1">{error}</p>
-              <p className="text-xs text-white/40">Check your connection and try again</p>
+              <p className="text-xs text-white/40">
+                Check your connection and try again
+              </p>
             </div>
             <Button
               variant="outline"
@@ -225,9 +229,12 @@ export function HistoryTab({
               </div>
             </div>
             <div>
-              <p className="text-sm font-semibold text-white/80 mb-2">No version history</p>
+              <p className="text-sm font-semibold text-white/80 mb-2">
+                No version history
+              </p>
               <p className="text-xs text-white/40 leading-relaxed">
-                Save your work to GitHub to create version checkpoints. Each save becomes a restore point.
+                Save your work to GitHub to create version checkpoints. Each
+                save becomes a restore point.
               </p>
             </div>
           </motion.div>
@@ -294,7 +301,7 @@ export function HistoryTab({
                       <div
                         className={cn(
                           "group relative pl-10 transition-all duration-200",
-                          isExpanded && "pb-1"
+                          isExpanded && "pb-1",
                         )}
                       >
                         {/* Timeline node */}
@@ -306,7 +313,7 @@ export function HistoryTab({
                                 ? "bg-gradient-to-br from-cyan-400 to-cyan-600 shadow-lg shadow-cyan-500/25"
                                 : isCurrent
                                   ? "bg-gradient-to-br from-emerald-400/20 to-emerald-600/20 ring-2 ring-emerald-500/50"
-                                  : "bg-white/[0.06] group-hover:bg-white/10"
+                                  : "bg-white/[0.06] group-hover:bg-white/10",
                             )}
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
@@ -334,7 +341,9 @@ export function HistoryTab({
                               isExpanded
                                 ? "bg-white/[0.06] border-white/10"
                                 : "hover:bg-white/[0.04]",
-                              isCurrent && !isExpanded && "bg-emerald-500/[0.06] border-emerald-500/20"
+                              isCurrent &&
+                                !isExpanded &&
+                                "bg-emerald-500/[0.06] border-emerald-500/20",
                             )}
                             whileHover={{ x: 2 }}
                           >
@@ -423,90 +432,100 @@ export function HistoryTab({
                             {isExpanded && (
                               <motion.div
                                 initial={{ opacity: 0, height: 0 }}
-                                animate={{ 
-                                  opacity: 1, 
+                                animate={{
+                                  opacity: 1,
                                   height: "auto",
                                   transition: {
-                                    height: { duration: 0.25, ease: [0.4, 0, 0.2, 1] },
-                                    opacity: { duration: 0.2, delay: 0.05 }
-                                  }
+                                    height: {
+                                      duration: 0.25,
+                                      ease: [0.4, 0, 0.2, 1],
+                                    },
+                                    opacity: { duration: 0.2, delay: 0.05 },
+                                  },
                                 }}
-                                exit={{ 
-                                  opacity: 0, 
+                                exit={{
+                                  opacity: 0,
                                   height: 0,
                                   transition: {
-                                    height: { duration: 0.2, ease: [0.4, 0, 1, 1] },
-                                    opacity: { duration: 0.15 }
-                                  }
+                                    height: {
+                                      duration: 0.2,
+                                      ease: [0.4, 0, 1, 1],
+                                    },
+                                    opacity: { duration: 0.15 },
+                                  },
                                 }}
                                 className="overflow-hidden"
                               >
                                 <div className="px-3 pb-3 space-y-3">
-                              {/* Full SHA */}
-                              <div className="flex items-center justify-between py-2 px-3 bg-black/30 rounded-lg border border-white/[0.04]">
-                                <div>
-                                  <p className="text-[10px] text-white/40 uppercase tracking-wider mb-0.5">
-                                    Full Commit SHA
-                                  </p>
-                                  <p className="text-xs font-mono text-white/60 select-all">
-                                    {commit.sha}
-                                  </p>
-                                </div>
-                              </div>
+                                  {/* Full SHA */}
+                                  <div className="flex items-center justify-between py-2 px-3 bg-black/30 rounded-lg border border-white/[0.04]">
+                                    <div>
+                                      <p className="text-[10px] text-white/40 uppercase tracking-wider mb-0.5">
+                                        Full Commit SHA
+                                      </p>
+                                      <p className="text-xs font-mono text-white/60 select-all">
+                                        {commit.sha}
+                                      </p>
+                                    </div>
+                                  </div>
 
-                              {/* Extended commit message */}
-                              {commit.message.includes("\n") && (
-                                <div className="py-2 px-3 bg-black/30 rounded-lg border border-white/[0.04]">
-                                  <p className="text-[10px] text-white/40 uppercase tracking-wider mb-1.5">
-                                    Full Message
-                                  </p>
-                                  <p className="text-xs text-white/50 whitespace-pre-wrap font-mono leading-relaxed">
-                                    {commit.message.split("\n").slice(1).join("\n").trim()}
-                                  </p>
-                                </div>
-                              )}
+                                  {/* Extended commit message */}
+                                  {commit.message.includes("\n") && (
+                                    <div className="py-2 px-3 bg-black/30 rounded-lg border border-white/[0.04]">
+                                      <p className="text-[10px] text-white/40 uppercase tracking-wider mb-1.5">
+                                        Full Message
+                                      </p>
+                                      <p className="text-xs text-white/50 whitespace-pre-wrap font-mono leading-relaxed">
+                                        {commit.message
+                                          .split("\n")
+                                          .slice(1)
+                                          .join("\n")
+                                          .trim()}
+                                      </p>
+                                    </div>
+                                  )}
 
-                              {/* Action buttons */}
-                              <div className="flex items-center justify-end gap-2 pt-1">
-                                {isFirst ? (
-                                  <span className="text-xs text-cyan-400/70 flex items-center gap-1.5 px-3 py-1.5 bg-cyan-500/10 rounded-lg border border-cyan-500/20">
-                                    <Sparkles className="h-3.5 w-3.5" />
-                                    Latest Version
-                                  </span>
-                                ) : isCurrent ? (
-                                  <span className="text-xs text-emerald-400/70 flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 rounded-lg border border-emerald-500/20">
-                                    <Check className="h-3.5 w-3.5" />
-                                    Currently Active
-                                  </span>
-                                ) : (
-                                  <Button
-                                    size="sm"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleRollback(commit.sha);
-                                    }}
-                                    disabled={isRollingBack}
-                                    className="h-8 px-4 bg-gradient-to-r from-[#FF5800] to-[#FF7033] hover:from-[#FF6A1A] hover:to-[#FF8247] text-white font-medium shadow-lg shadow-[#FF5800]/20 rounded-lg"
-                                  >
-                                    {isRollingBack ? (
-                                      <>
-                                        <Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" />
-                                        Restoring...
-                                      </>
+                                  {/* Action buttons */}
+                                  <div className="flex items-center justify-end gap-2 pt-1">
+                                    {isFirst ? (
+                                      <span className="text-xs text-cyan-400/70 flex items-center gap-1.5 px-3 py-1.5 bg-cyan-500/10 rounded-lg border border-cyan-500/20">
+                                        <Sparkles className="h-3.5 w-3.5" />
+                                        Latest Version
+                                      </span>
+                                    ) : isCurrent ? (
+                                      <span className="text-xs text-emerald-400/70 flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 rounded-lg border border-emerald-500/20">
+                                        <Check className="h-3.5 w-3.5" />
+                                        Currently Active
+                                      </span>
                                     ) : (
-                                      <>
-                                        <RotateCcw className="h-3.5 w-3.5 mr-2" />
-                                        Restore This Version
-                                      </>
+                                      <Button
+                                        size="sm"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleRollback(commit.sha);
+                                        }}
+                                        disabled={isRollingBack}
+                                        className="h-8 px-4 bg-gradient-to-r from-[#FF5800] to-[#FF7033] hover:from-[#FF6A1A] hover:to-[#FF8247] text-white font-medium shadow-lg shadow-[#FF5800]/20 rounded-lg"
+                                      >
+                                        {isRollingBack ? (
+                                          <>
+                                            <Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" />
+                                            Restoring...
+                                          </>
+                                        ) : (
+                                          <>
+                                            <RotateCcw className="h-3.5 w-3.5 mr-2" />
+                                            Restore This Version
+                                          </>
+                                        )}
+                                      </Button>
                                     )}
-                                  </Button>
-                                )}
-                              </div>
-                            </div>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </CollapsibleContent>
+                                  </div>
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </CollapsibleContent>
                       </div>
                     </Collapsible>
                   </motion.div>

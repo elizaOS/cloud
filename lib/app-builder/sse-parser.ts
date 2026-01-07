@@ -1,6 +1,6 @@
 /**
  * Server-Sent Events (SSE) Parser utility
- * 
+ *
  * This module provides a reusable SSE stream parser for app-builder operations.
  */
 
@@ -22,7 +22,7 @@ export interface SSEParserOptions {
  */
 export async function parseSSEStream(
   response: Response,
-  options: SSEParserOptions
+  options: SSEParserOptions,
 ): Promise<void> {
   const reader = response.body?.getReader();
   if (!reader) {
@@ -72,7 +72,7 @@ export async function parseSSEStream(
  */
 export function isSSEEventType<T extends string>(
   event: SSEEvent,
-  type: T
+  type: T,
 ): event is SSEEvent & { type: T } {
   return event.type === type;
 }

@@ -95,15 +95,21 @@ async function fetchDashboardDataInternal(
   const organizationId = user.organization_id!;
 
   // Fetch only the data needed for the new dashboard
-  const [generationStats, userCharacters, containers, apiKeys, userRooms, apps] =
-    await Promise.all([
-      generationsService.getStats(organizationId),
-      charactersService.listByUser(user.id),
-      listContainers(organizationId),
-      apiKeysService.listByOrganization(organizationId),
-      roomsService.getRoomsForEntity(user.id),
-      appsService.listByOrganization(organizationId),
-    ]);
+  const [
+    generationStats,
+    userCharacters,
+    containers,
+    apiKeys,
+    userRooms,
+    apps,
+  ] = await Promise.all([
+    generationsService.getStats(organizationId),
+    charactersService.listByUser(user.id),
+    listContainers(organizationId),
+    apiKeysService.listByOrganization(organizationId),
+    roomsService.getRoomsForEntity(user.id),
+    appsService.listByOrganization(organizationId),
+  ]);
 
   const chatRoomCount = userRooms.length;
 

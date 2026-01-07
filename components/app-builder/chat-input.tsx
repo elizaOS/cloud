@@ -2,7 +2,7 @@
 
 /**
  * Optimized Chat Input Component with Speech-to-Text
- * 
+ *
  * Features:
  * - Zustand for isolated input state management
  * - ElevenLabs STT integration for voice input
@@ -17,7 +17,16 @@ import { useChatInput } from "@/lib/app-builder/store";
 import { useAppBuilderSTT } from "./use-app-builder-stt";
 import { cn } from "@/lib/utils";
 
-type SessionStatus = "idle" | "initializing" | "ready" | "generating" | "error" | "stopped" | "timeout" | "not_configured" | "recovering";
+type SessionStatus =
+  | "idle"
+  | "initializing"
+  | "ready"
+  | "generating"
+  | "error"
+  | "stopped"
+  | "timeout"
+  | "not_configured"
+  | "recovering";
 
 interface ChatInputProps {
   onSendPrompt: (text?: string) => void;
@@ -25,25 +34,28 @@ interface ChatInputProps {
 }
 
 // Audio waveform visualization component
-const AudioWaveform = memo(function AudioWaveform({ 
-  audioLevel, 
-  isRecording 
-}: { 
+const AudioWaveform = memo(function AudioWaveform({
+  audioLevel,
+  isRecording,
+}: {
   audioLevel: number;
   isRecording: boolean;
 }) {
   const bars = 5;
-  
+
   return (
     <div className="flex items-center justify-center gap-[3px] h-5">
       {Array.from({ length: bars }).map((_, i) => {
         // Create a wave effect with varying heights based on position and audio level
         const baseHeight = 0.3;
         const waveOffset = Math.sin((i / bars) * Math.PI) * 0.4;
-        const height = isRecording 
-          ? Math.max(baseHeight, (audioLevel * 0.7 + waveOffset) * (0.6 + Math.random() * 0.4))
+        const height = isRecording
+          ? Math.max(
+              baseHeight,
+              (audioLevel * 0.7 + waveOffset) * (0.6 + Math.random() * 0.4),
+            )
           : baseHeight;
-        
+
         return (
           <div
             key={i}
@@ -60,7 +72,11 @@ const AudioWaveform = memo(function AudioWaveform({
 });
 
 // Recording timer display
-const RecordingTimer = memo(function RecordingTimer({ seconds }: { seconds: number }) {
+const RecordingTimer = memo(function RecordingTimer({
+  seconds,
+}: {
+  seconds: number;
+}) {
   const minutes = Math.floor(seconds / 60);
   const secs = seconds % 60;
   return (
@@ -119,10 +135,10 @@ const MicButton = memo(function MicButton({
             <div className="h-2 w-2 rounded-full bg-red-500" />
             <div className="absolute inset-0 h-2 w-2 rounded-full bg-red-500 animate-ping opacity-75" />
           </div>
-          
+
           {/* Waveform visualization */}
           <AudioWaveform audioLevel={audioLevel} isRecording={isRecording} />
-          
+
           {/* Timer */}
           <RecordingTimer seconds={recordingTime} />
         </div>
@@ -164,7 +180,7 @@ const MicButton = memo(function MicButton({
         "h-8 w-8 xl:h-7 xl:w-7 rounded-lg transition-all touch-manipulation",
         "bg-white/[0.04] hover:bg-white/[0.08] disabled:opacity-30",
         "border border-white/[0.06] hover:border-white/[0.1]",
-        "group"
+        "group",
       )}
       title="Start voice input"
     >
@@ -174,14 +190,14 @@ const MicButton = memo(function MicButton({
 });
 
 // Completely isolated input component - only subscribes to input state
-const ChatInputInner = memo(function ChatInputInner({ 
+const ChatInputInner = memo(function ChatInputInner({
   onSendPrompt,
   status,
 }: ChatInputProps) {
   const input = useChatInput((state) => state.input);
   const setInput = useChatInput((state) => state.setInput);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  
+
   // STT hook
   const stt = useAppBuilderSTT();
 
@@ -199,7 +215,7 @@ const ChatInputInner = memo(function ChatInputInner({
     (e: React.ChangeEvent<HTMLTextAreaElement>) => {
       setInput(e.target.value);
     },
-    [setInput]
+    [setInput],
   );
 
   // Handle key down
@@ -212,7 +228,7 @@ const ChatInputInner = memo(function ChatInputInner({
         }
       }
     },
-    [status, input, onSendPrompt]
+    [status, input, onSendPrompt],
   );
 
   // Handle send button click
@@ -272,13 +288,15 @@ const ChatInputInner = memo(function ChatInputInner({
           }
         }
       `}</style>
-      
-      <div className={cn(
-        "relative rounded-xl border bg-white/[0.015] overflow-hidden transition-all",
-        stt.isRecording 
-          ? "border-red-500/30 bg-red-500/[0.02]" 
-          : "border-white/[0.06] focus-within:border-white/[0.12] focus-within:bg-white/[0.025]"
-      )}>
+
+      <div
+        className={cn(
+          "relative rounded-xl border bg-white/[0.015] overflow-hidden transition-all",
+          stt.isRecording
+            ? "border-red-500/30 bg-red-500/[0.02]"
+            : "border-white/[0.06] focus-within:border-white/[0.12] focus-within:bg-white/[0.025]",
+        )}
+      >
         {/* Subtle scanning animation for generating state */}
         {status === "generating" && (
           <div className="absolute top-0 left-0 right-0 h-[1px] overflow-hidden pointer-events-none z-10 bg-white/[0.03]">
@@ -304,11 +322,17 @@ const ChatInputInner = memo(function ChatInputInner({
           onKeyDown={handleKeyDown}
           onInput={handleInput}
           rows={1}
-          placeholder={stt.isRecording ? "Listening..." : stt.isProcessing ? "Processing speech..." : "Describe what you want to build..."}
+          placeholder={
+            stt.isRecording
+              ? "Listening..."
+              : stt.isProcessing
+                ? "Processing speech..."
+                : "Describe what you want to build..."
+          }
           disabled={isDisabled}
           className={cn(
             "w-full bg-transparent px-3 xl:px-4 pt-2.5 xl:pt-3 pb-2 text-[13px] xl:text-[14px] text-white/90 placeholder:text-white/30 focus:outline-none disabled:opacity-50 resize-none leading-relaxed",
-            stt.isRecording && "placeholder:text-red-400/50"
+            stt.isRecording && "placeholder:text-red-400/50",
           )}
           style={{ minHeight: "44px", maxHeight: "100px" }}
         />
@@ -331,7 +355,7 @@ const ChatInputInner = memo(function ChatInputInner({
             )}
           </div>
           <div className="hidden xl:block" />
-          
+
           {/* Right side - mic and send buttons */}
           <div className="flex items-center gap-2">
             {/* Mic button with STT functionality */}
@@ -346,7 +370,7 @@ const ChatInputInner = memo(function ChatInputInner({
               onCancelRecording={handleCancelRecording}
               disabled={isMicDisabled}
             />
-            
+
             {/* Send button - hidden during recording */}
             {!stt.isRecording && !stt.isProcessing && (
               <Button
@@ -366,7 +390,7 @@ const ChatInputInner = memo(function ChatInputInner({
           </div>
         </div>
       </div>
-      
+
       {/* STT error display */}
       {stt.error && (
         <div className="mt-2 px-3 py-1.5 text-[11px] text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg">

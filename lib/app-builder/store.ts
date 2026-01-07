@@ -47,7 +47,7 @@ interface MessagesSlice {
   addMessage: (message: Message) => void;
   updateMessage: (
     thinkingId: number,
-    updater: (msg: Message) => Message
+    updater: (msg: Message) => Message,
   ) => void;
   clearMessages: () => void;
 }
@@ -66,7 +66,7 @@ export const useMessages = create<MessagesSlice>()((set) => ({
   updateMessage: (thinkingId, updater) =>
     set((state) => ({
       messages: state.messages.map((m) =>
-        m._thinkingId === thinkingId ? updater(m) : m
+        m._thinkingId === thinkingId ? updater(m) : m,
       ),
     })),
   clearMessages: () => set({ messages: [] }),
@@ -121,7 +121,7 @@ export const useSession = create<SessionSlice>()(
         expiresAt: null,
         timeRemaining: "",
       }),
-  }))
+  })),
 );
 
 // ============================================

@@ -169,7 +169,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   // Atomically initialize auth state, characters, and selection together
   // Prevents race conditions when all three need to be set during page initialization
-  initializeState: ({ isAuthenticated, userId, characters, selectedCharacterId }) => {
+  initializeState: ({
+    isAuthenticated,
+    userId,
+    characters,
+    selectedCharacterId,
+  }) => {
     // Compute viewer state with all the new values at once
     const viewerState = computeViewerState(
       isAuthenticated,

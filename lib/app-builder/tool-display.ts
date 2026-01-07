@@ -1,6 +1,6 @@
 /**
  * Tool Display Formatter utility
- * 
+ *
  * Provides consistent formatting for app-builder tool names and details.
  */
 
@@ -25,7 +25,10 @@ export interface ToolInput {
  * @param input - The tool input parameters
  * @returns Formatted display information
  */
-export function formatToolDisplay(toolName: string, input?: ToolInput): ToolDisplayInfo {
+export function formatToolDisplay(
+  toolName: string,
+  input?: ToolInput,
+): ToolDisplayInfo {
   switch (toolName) {
     case "write_file": {
       const path = input?.path || "file";
@@ -113,7 +116,7 @@ export interface ActionLogEntry {
 export function buildProgressContent(
   actionsLog: ActionLogEntry[],
   currentStatus?: string,
-  currentReasoning?: string
+  currentReasoning?: string,
 ): string {
   let content = "**Processing your request**\n\n";
 
@@ -149,7 +152,7 @@ export function buildProgressContent(
  */
 export function buildCompletionContent(
   output: string | undefined,
-  actionsLog: ActionLogEntry[]
+  actionsLog: ActionLogEntry[],
 ): string {
   let content = "";
 
@@ -181,11 +184,12 @@ export function buildCompletionContent(
  */
 export function buildErrorContent(
   error: Error | string,
-  actionsLog: ActionLogEntry[]
+  actionsLog: ActionLogEntry[],
 ): string {
   const errorMessage = error instanceof Error ? error.message : error;
   let content = `**Error:** ${errorMessage}\n\n`;
-  content += "The operation could not be completed. Please try again or modify your request.";
+  content +=
+    "The operation could not be completed. Please try again or modify your request.";
 
   if (actionsLog.length > 0) {
     content += "\n\n---\n\n";
