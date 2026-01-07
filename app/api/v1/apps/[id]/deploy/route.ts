@@ -14,6 +14,10 @@ import { appsService } from "@/lib/services/apps";
 import { vercelDeploymentsService } from "@/lib/services/vercel-deployments";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
+import { dbWrite } from "@/db/client";
+import { apps } from "@/db/schemas";
+import { eq } from "drizzle-orm";
+import type { AppDeploymentStatus } from "@/db/schemas";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -99,6 +103,15 @@ export async function POST(
     commitSha,
   });
 
+  // Update deployment status to "deploying"
+  await dbWrite
+    .update(apps)
+    .set({
+      deployment_status: "deploying" as AppDeploymentStatus,
+      updated_at: new Date(),
+    })
+    .where(eq(apps.id, appId));
+
   // Trigger deployment
   const result = await vercelDeploymentsService.createDeployment(appId, {
     branch,
@@ -107,10 +120,34 @@ export async function POST(
   });
 
   if (!result.success) {
+    // Update status to "failed" on error
+    await dbWrite
+      .update(apps)
+      .set({
+        deployment_status: "failed" as AppDeploymentStatus,
+        updated_at: new Date(),
+      })
+      .where(eq(apps.id, appId));
+
     return NextResponse.json(
       { success: false, error: result.error },
       { status: 500 },
     );
+  }
+
+  // If deployment was triggered successfully, update status to "deployed"
+  // and set the production URL
+  // Note: In production, this should be updated via webhook when deployment completes
+  if (result.productionUrl) {
+    await dbWrite
+      .update(apps)
+      .set({
+        deployment_status: "deployed" as AppDeploymentStatus,
+        production_url: result.productionUrl,
+        last_deployed_at: new Date(),
+        updated_at: new Date(),
+      })
+      .where(eq(apps.id, appId));
   }
 
   return NextResponse.json({
