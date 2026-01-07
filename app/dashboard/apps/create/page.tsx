@@ -1500,6 +1500,15 @@ export default function AppCreatorPage() {
                 const newUrl = effectiveAppId
                   ? `/dashboard/apps/create?appId=${effectiveAppId}&sessionId=${data.session.id}`
                   : `/dashboard/apps/create?sessionId=${data.session.id}`;
+
+                // Update refs BEFORE router.replace to prevent the initialization
+                // effect from detecting this as a "session change" and resetting state
+                // (which causes the flash-to-recovery-then-back jank on new app creation)
+                prevSessionIdRef.current = data.session.id;
+                if (effectiveAppId) {
+                  prevAppIdRef.current = effectiveAppId;
+                }
+
                 router.replace(newUrl, { scroll: false });
 
                 addLog(
@@ -2387,7 +2396,7 @@ ANTHROPIC_API_KEY=your_key_here`}
 
   if (step === "setup" && !isEditMode && status !== "initializing") {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-black via-black to-slate-950">
+      <div className="min-h-screen bg-[#0A0A0A]">
         {/* Ambient background effects */}
         <div className="fixed inset-0 overflow-hidden pointer-events-none">
           <div
