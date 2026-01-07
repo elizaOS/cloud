@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 import nextra from "nextra";
+import path from "path";
 
 const withNextra = nextra({
   // Only scan the content directory for MDX files
@@ -83,9 +84,29 @@ const nextConfig: NextConfig = {
     // Resolve thread-stream to a synchronous stub to avoid dynamic module names
     // that pino/thread-stream creates at runtime (like pino-28069d5257187539)
     // which cannot be resolved in serverless environments
+    // Note: turbopack requires relative paths from project root
     resolveAlias: {
       "thread-stream": "./lib/stubs/thread-stream.ts",
+      "@walletconnect/logger": "./lib/stubs/walletconnect-logger.ts",
     },
+  },
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      // Resolve thread-stream to synchronous stub in production webpack builds
+      // This prevents pino from creating dynamic worker modules like pino-28069d5257187539
+      const stubPath = path.join(__dirname, "lib/stubs/thread-stream.ts");
+      const loggerStubPath = path.join(
+        __dirname,
+        "lib/stubs/walletconnect-logger.ts"
+      );
+      config.resolve.alias = {
+        ...config.resolve.alias,
+        "thread-stream": stubPath,
+        // Stub walletconnect logger to prevent nested pino 7.x from loading
+        "@walletconnect/logger": loggerStubPath,
+      };
+    }
+    return config;
   },
   transpilePackages: ["next-mdx-remote"],
   typescript: {
@@ -98,13 +119,6 @@ const nextConfig: NextConfig = {
     "/api/v1/containers": ["./scripts/cloudformation/**/*"],
     "/api/v1/containers/[id]": ["./scripts/cloudformation/**/*"],
     "/api/v1/cron/deployment-monitor": ["./scripts/cloudformation/**/*"],
-  },
-  outputFileTracingExcludes: {
-    "*": [
-      "node_modules/thread-stream/**/*",
-      "node_modules/pino/**/*",
-      "node_modules/sonic-boom/**/*",
-    ],
   },
   serverExternalPackages: [
     "pdfjs-dist",
@@ -122,16 +136,9 @@ const nextConfig: NextConfig = {
     "electron",
     // oxapay uses __dirname + fs.readFile for method info JSON
     "oxapay",
-    // pino uses thread-stream for worker threads which creates dynamic module names
-    // that can't be resolved in serverless environments
-    "pino",
-    "pino-std-serializers",
-    "thread-stream",
-    "sonic-boom",
-    "on-exit-leak-free",
-    "process-warning",
-    // @elizaos/core uses pino internally
-    "@elizaos/core",
+    // NOTE: pino and thread-stream are NOT external - they get bundled with
+    // the thread-stream alias to our synchronous stub, preventing dynamic
+    // worker module loading (pino-28069d5257187539) that fails in serverless
   ],
 
   async headers() {
