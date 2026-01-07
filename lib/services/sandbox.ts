@@ -616,8 +616,35 @@ async function installDependencies(sandbox: SandboxInstance): Promise<string> {
   return "Dependencies installed successfully";
 }
 
+/**
+ * Quick TypeScript check - runs tsc --noEmit for fast type validation
+ * Much faster than full build check, ideal for after file writes
+ */
+async function quickTypeCheck(sandbox: SandboxInstance): Promise<string> {
+  const result = await sandbox.runCommand({
+    cmd: "sh",
+    args: ["-c", "cd /app && npx tsc --noEmit 2>&1 | head -20"],
+  });
+  const output = await result.stdout();
+  const stderr = await result.stderr();
+  
+  if (result.exitCode === 0 && !output.includes("error TS")) {
+    return "Types OK";
+  }
+  
+  // Extract just the first few TypeScript errors
+  const errors = (output + stderr)
+    .split("\n")
+    .filter((l) => l.includes("error TS") || l.includes("Error:"))
+    .slice(0, 5)
+    .join("\n");
+  
+  return errors || "Types OK";
+}
+
 async function checkBuild(sandbox: SandboxInstance): Promise<string> {
-  await new Promise((r) => setTimeout(r, 2000));
+  // Reduced delay - HMR should have already processed changes
+  await new Promise((r) => setTimeout(r, 500));
 
   const logsResult = await sandbox.runCommand({
     cmd: "sh",
@@ -1354,18 +1381,21 @@ REMEMBER:
                 await writeFileViaSh(sandbox, path, content);
                 filesAffected.push(path);
 
-                await new Promise((r) => setTimeout(r, 1500));
-                const buildStatus = await checkBuild(sandbox);
-                result = `Wrote ${path}\n\nBuild Status: ${buildStatus}`;
-
-                if (buildStatus.includes("BUILD ERRORS")) {
-                  result += `\n\nPlease fix the errors above!`;
+                // Rely on HMR for instant feedback - only do quick type check for .ts/.tsx files
+                const isTypeScriptFile = path.endsWith('.ts') || path.endsWith('.tsx');
+                let typeStatus = "";
+                if (isTypeScriptFile) {
+                  // Brief delay for file system sync, then quick type check
+                  await new Promise((r) => setTimeout(r, 200));
+                  typeStatus = await quickTypeCheck(sandbox);
                 }
+                
+                result = `Wrote ${path}. HMR will auto-refresh.${typeStatus && typeStatus !== "Types OK" ? `\n\nType issues:\n${typeStatus}` : ""}`;
 
                 logger.info("File written", {
                   sandboxId,
                   path,
-                  buildOk: !buildStatus.includes("BUILD ERRORS"),
+                  typeCheck: typeStatus || "skipped",
                 });
               } else if (block.name === "read_file") {
                 const { path } = block.input as { path: string };

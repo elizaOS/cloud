@@ -426,6 +426,9 @@ export default function AppCreatorPage() {
     total: number;
     filePath: string;
   } | null>(null);
+  // Track if we just loaded a session that needs user action (timeout/expired)
+  // This prevents jarring layout flash between loading card and full UI overlay
+  const [showStandaloneTimeout, setShowStandaloneTimeout] = useState(false);
   const [appSnapshotInfo, setAppSnapshotInfo] = useState<{
     githubRepo: string;
     lastBackup: string | null;
@@ -581,6 +584,10 @@ export default function AppCreatorPage() {
           }
         } else {
           setStatus(sessionStatus);
+          // If session is expired/stopped, show standalone timeout card to avoid layout flash
+          if (sessionStatus === "timeout" || sessionStatus === "stopped") {
+            setShowStandaloneTimeout(true);
+          }
         }
 
         return true;
@@ -1061,6 +1068,7 @@ export default function AppCreatorPage() {
                 });
                 setStatus("ready");
                 setStep("building");
+                setShowStandaloneTimeout(false);
 
                 if (data.session.expiresAt) {
                   setExpiresAt(new Date(data.session.expiresAt));
@@ -1170,6 +1178,7 @@ export default function AppCreatorPage() {
                   expiresAt: data.session.expiresAt,
                 });
                 setStatus("ready");
+                setShowStandaloneTimeout(false);
                 setSandboxHealthy(true);
                 healthCheckFailCountRef.current = 0;
 
@@ -1509,7 +1518,21 @@ Some ideas:
                   });
                 }
               } else if (eventType === "thinking") {
-                addLog("Planning changes...", "info");
+                // Stream actual reasoning text to show chain of thought
+                const reasoningText = data.text || "Planning changes...";
+                addLog(`💭 ${reasoningText.substring(0, 80)}...`, "info");
+                
+                // Update the thinking message with the reasoning
+                if (initialThinkingIdRef.current) {
+                  const thinkingId = initialThinkingIdRef.current;
+                  setMessages((prev) =>
+                    prev.map((m) =>
+                      (m as Message & { _thinkingId?: number })._thinkingId === thinkingId
+                        ? { ...m, content: `**Setting up ${appName}**\n\n💭 *${reasoningText.substring(0, 200)}${reasoningText.length > 200 ? "..." : ""}*\n\n---\n\n*Thinking...*` }
+                        : m,
+                    ),
+                  );
+                }
               } else if (eventType === "tool_use") {
                 const toolName = data.tool;
                 const { display: toolDisplay, detail } = formatToolDisplay(toolName, data.input);
@@ -1541,7 +1564,7 @@ Some ideas:
                   let progressContent = `**Setting up ${appName}**\n\n`;
                   sessionActionsLogRef.current.forEach((action) => {
                     const statusMarker =
-                      action.status === "active" ? "[RUNNING]" : "[DONE]";
+                      action.status === "active" ? "⏳" : "✓";
                     progressContent += `\`${action.timestamp}\` ${statusMarker} **${action.tool}**\n`;
                     progressContent += `> \`${action.detail}\`\n\n`;
                   });
@@ -1559,6 +1582,7 @@ Some ideas:
               } else if (eventType === "complete") {
                 setSession(data.session);
                 setStatus("ready");
+                setShowStandaloneTimeout(false);
 
                 if (
                   data.session.initialPromptResult &&
@@ -1580,7 +1604,7 @@ Some ideas:
                     assistantContent += "\n\n---\n\n";
                     assistantContent += "**Operations Completed**\n\n";
                     sessionActionsLogRef.current.forEach((action) => {
-                      assistantContent += `\`${action.timestamp}\` **${action.tool}**\n`;
+                      assistantContent += `\`${action.timestamp}\` ✓ **${action.tool}**\n`;
                       assistantContent += `> \`${action.detail}\`\n\n`;
                     });
                   }
@@ -1687,13 +1711,21 @@ Some ideas:
 
       // getTimeString is imported from @/lib/app-builder
 
+      // Track current reasoning text for display
+      let currentReasoning = "";
+      
       const buildLocalProgressContent = (currentStatus?: string) => {
         let content = "**Processing your request**\n\n";
 
+        // Show current chain-of-thought reasoning
+        if (currentReasoning) {
+          content += `💭 *${currentReasoning.substring(0, 200)}${currentReasoning.length > 200 ? "..." : ""}*\n\n`;
+        }
+
         if (actionsLog.length > 0) {
-          actionsLog.forEach((action, idx) => {
+          actionsLog.forEach((action) => {
             const isActive = action.status === "active";
-            const statusMarker = isActive ? "[RUNNING]" : "[DONE]";
+            const statusMarker = isActive ? "⏳" : "✓";
             content += `\`${action.timestamp}\` ${statusMarker} **${action.tool}**\n`;
             content += `> \`${action.detail}\`\n\n`;
           });
@@ -1780,7 +1812,11 @@ Some ideas:
                   // Heartbeat received, connection is alive
                   continue;
                 } else if (eventType === "thinking") {
-                  updateThinking("Planning changes...");
+                  // Stream the actual reasoning/thinking text to UI for chain-of-thought visibility
+                  const reasoningText = data.text || "Planning changes...";
+                  currentReasoning = reasoningText;
+                  updateThinking("Analyzing...");
+                  addLog(`💭 ${reasoningText.substring(0, 80)}${reasoningText.length > 80 ? "..." : ""}`, "info");
                 } else if (eventType === "tool_use") {
                   const toolName = data.tool;
                   const { display: toolDisplay, detail, statusMessage } = formatToolDisplay(toolName, data.input);
@@ -1839,7 +1875,7 @@ Some ideas:
                 content += "\n\n---\n\n";
                 content += "**Operations Completed**\n\n";
                 actionsLog.forEach((action) => {
-                  content += `\`${action.timestamp}\` **${action.tool}**\n`;
+                  content += `\`${action.timestamp}\` ✓ **${action.tool}**\n`;
                   content += `> \`${action.detail}\`\n\n`;
                 });
               }
@@ -1948,7 +1984,7 @@ Some ideas:
 
   if (isInitializing) {
     return (
-      <div className="max-w-4xl mx-auto py-10">
+      <div className="max-w-4xl mx-auto py-10 animate-in fade-in duration-200">
         <BrandCard className="relative">
           <CornerBrackets className="opacity-20" />
           <div className="relative z-10 p-8">
@@ -1962,6 +1998,174 @@ Some ideas:
                   ? "Loading your sandbox environment..."
                   : "Preparing app builder..."}
               </p>
+            </div>
+          </div>
+        </BrandCard>
+      </div>
+    );
+  }
+
+  // Show standalone timeout card instead of full UI with overlay - prevents layout flash
+  if (showStandaloneTimeout && (status === "timeout" || status === "stopped") && !isRestoring) {
+    return (
+      <div className="max-w-4xl mx-auto py-10 animate-in fade-in duration-300">
+        <BrandCard className="relative">
+          <CornerBrackets className="opacity-20" />
+          <div className="relative z-10 p-8">
+            <div className="max-w-md mx-auto text-center space-y-4">
+              <div className="w-16 h-16 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mx-auto">
+                <Timer className="h-8 w-8 text-amber-400" />
+              </div>
+              <h2 className="text-xl font-bold text-white">
+                Session Expired
+              </h2>
+              <p className="text-white/60">
+                Your sandbox session has timed out. Your code is safely saved and can be restored.
+              </p>
+
+              {snapshotInfo?.canRestore ? (
+                <div className="space-y-3 pt-2">
+                  <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
+                    <p className="text-sm text-green-400 font-medium">
+                      Your code is saved to GitHub
+                    </p>
+                    {snapshotInfo.githubRepo && (
+                      <p className="text-xs text-white/50 mt-1">
+                        <span className="font-mono">
+                          {snapshotInfo.githubRepo.split("/").pop()}
+                        </span>
+                        {snapshotInfo.lastBackup && (
+                          <>
+                            {" "}· Last updated{" "}
+                            {new Date(snapshotInfo.lastBackup).toLocaleDateString()}
+                          </>
+                        )}
+                      </p>
+                    )}
+                  </div>
+
+                  <Button
+                    onClick={restoreSession}
+                    className="w-full bg-green-600 hover:bg-green-500 text-white"
+                  >
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Restore & Continue
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setShowStandaloneTimeout(false);
+                      router.push("/dashboard/apps");
+                    }}
+                    className="w-full"
+                  >
+                    Return to Apps
+                  </Button>
+                </div>
+              ) : appSnapshotInfo?.githubRepo ? (
+                <div className="space-y-3 pt-2">
+                  <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
+                    <p className="text-sm text-green-400 font-medium">
+                      Your code is saved to GitHub
+                    </p>
+                    <p className="text-xs text-white/50 mt-1">
+                      <span className="font-mono">
+                        {appSnapshotInfo.githubRepo.split("/").pop()}
+                      </span>
+                    </p>
+                  </div>
+
+                  <Button
+                    onClick={restoreSession}
+                    className="w-full bg-green-600 hover:bg-green-500 text-white"
+                  >
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Restore & Continue
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setShowStandaloneTimeout(false);
+                      router.push("/dashboard/apps");
+                    }}
+                    className="w-full"
+                  >
+                    Return to Apps
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-3 pt-2">
+                  <p className="text-xs text-white/40">
+                    Start a new session to continue building.
+                  </p>
+                  <Button
+                    onClick={() => {
+                      setShowStandaloneTimeout(false);
+                      startSession();
+                    }}
+                    className="w-full"
+                  >
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    Start New Session
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setShowStandaloneTimeout(false);
+                      router.push("/dashboard/apps");
+                    }}
+                    className="w-full"
+                  >
+                    Return to Apps
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
+        </BrandCard>
+      </div>
+    );
+  }
+
+  // If restoring from standalone timeout, show the unified restore progress card
+  if (showStandaloneTimeout && isRestoring) {
+    return (
+      <div className="max-w-4xl mx-auto py-10 animate-in fade-in duration-300">
+        <BrandCard className="relative">
+          <CornerBrackets className="opacity-20" />
+          <div className="relative z-10 p-8">
+            <div className="max-w-md mx-auto text-center space-y-4">
+              <Loader2 className="h-12 w-12 animate-spin text-green-400 mx-auto" />
+              <h2 className="text-xl font-bold text-white">
+                Restoring Session
+              </h2>
+              <p className="text-white/60">
+                Setting up your development environment and restoring your files...
+              </p>
+              
+              <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
+                <p className="text-sm text-green-400 font-medium">
+                  {restoreProgress
+                    ? `Restoring ${restoreProgress.current}/${restoreProgress.total}...`
+                    : progressStep === "creating"
+                      ? "Creating sandbox..."
+                      : progressStep === "installing"
+                        ? "Installing dependencies..."
+                        : progressStep === "starting"
+                          ? "Starting dev server..."
+                          : progressStep === "restoring"
+                            ? "Restoring files..."
+                            : "Preparing..."}
+                </p>
+                {snapshotInfo?.githubRepo && (
+                  <p className="text-xs text-white/50 mt-1">
+                    From <span className="font-mono">{snapshotInfo.githubRepo.split("/").pop()}</span>
+                  </p>
+                )}
+              </div>
             </div>
           </div>
         </BrandCard>
@@ -2804,7 +3008,7 @@ ANTHROPIC_API_KEY=your_key_here`}
     const currentStepIndex = steps.findIndex((s) => s.key === progressStep);
 
     return (
-      <div className="max-w-4xl mx-auto py-10">
+      <div className="max-w-4xl mx-auto py-10 animate-in fade-in duration-200">
         <BrandCard className="relative">
           <CornerBrackets className="opacity-20" />
           <div className="relative z-10 p-8">
@@ -2853,7 +3057,7 @@ ANTHROPIC_API_KEY=your_key_here`}
 
   if (status === "error") {
     return (
-      <div className="max-w-4xl mx-auto py-10">
+      <div className="max-w-4xl mx-auto py-10 animate-in fade-in duration-200">
         <BrandCard className="relative">
           <CornerBrackets className="opacity-20" />
           <div className="relative z-10 p-8">
@@ -2879,7 +3083,7 @@ ANTHROPIC_API_KEY=your_key_here`}
   }
 
   return (
-    <div className="fixed top-16 left-0 md:left-64 right-0 bottom-0 flex flex-col overflow-hidden bg-[#0A0A0A] z-10">
+    <div className="fixed top-16 left-0 md:left-64 right-0 bottom-0 flex flex-col overflow-hidden bg-[#0A0A0A] z-10 animate-in fade-in duration-300">
       {/* MOBILE/TABLET TOOLBAR - visible up to xl (1280px) to include iPad Pro */}
       <div className="flex-shrink-0 flex xl:hidden items-center justify-between px-2 py-2 border-b border-white/10 bg-black/40">
         <div className="flex items-center gap-2 flex-1 min-w-0">

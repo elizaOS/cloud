@@ -8,6 +8,8 @@ export interface ToolDisplayInfo {
   display: string;
   detail: string;
   statusMessage: string;
+  /** Optional reasoning/chain-of-thought text */
+  reasoning?: string;
 }
 
 export interface ToolInput {
@@ -97,25 +99,38 @@ export interface ActionLogEntry {
   detail: string;
   timestamp: string;
   status: "active" | "done";
+  /** Optional reasoning/chain-of-thought text explaining why this action was taken */
+  reasoning?: string;
 }
 
 /**
  * Builds progress content markdown from action log entries
  * @param actionsLog - Array of action log entries
  * @param currentStatus - Optional current status message
+ * @param currentReasoning - Optional current reasoning/thinking text
  * @returns Markdown formatted progress content
  */
 export function buildProgressContent(
   actionsLog: ActionLogEntry[],
-  currentStatus?: string
+  currentStatus?: string,
+  currentReasoning?: string
 ): string {
   let content = "**Processing your request**\n\n";
 
+  // Show current reasoning/thinking if available
+  if (currentReasoning) {
+    content += `💭 *${currentReasoning.substring(0, 200)}${currentReasoning.length > 200 ? "..." : ""}*\n\n`;
+  }
+
   if (actionsLog.length > 0) {
     actionsLog.forEach((action) => {
-      const statusMarker = action.status === "active" ? "[RUNNING]" : "[DONE]";
+      const statusMarker = action.status === "active" ? "⏳" : "✓";
       content += `\`${action.timestamp}\` ${statusMarker} **${action.tool}**\n`;
-      content += `> \`${action.detail}\`\n\n`;
+      content += `> \`${action.detail}\`\n`;
+      if (action.reasoning) {
+        content += `> 💭 *${action.reasoning.substring(0, 100)}${action.reasoning.length > 100 ? "..." : ""}*\n`;
+      }
+      content += "\n";
     });
   }
 
@@ -146,8 +161,12 @@ export function buildCompletionContent(
     content += "\n\n---\n\n";
     content += "**Operations Completed**\n\n";
     actionsLog.forEach((action) => {
-      content += `\`${action.timestamp}\` **${action.tool}**\n`;
-      content += `> \`${action.detail}\`\n\n`;
+      content += `\`${action.timestamp}\` ✓ **${action.tool}**\n`;
+      content += `> \`${action.detail}\`\n`;
+      if (action.reasoning) {
+        content += `> 💭 *${action.reasoning.substring(0, 100)}${action.reasoning.length > 100 ? "..." : ""}*\n`;
+      }
+      content += "\n";
     });
   }
 
@@ -172,7 +191,8 @@ export function buildErrorContent(
     content += "\n\n---\n\n";
     content += "**Attempted Actions**\n\n";
     actionsLog.forEach((action) => {
-      content += `\`${action.timestamp}\` **${action.tool}**\n`;
+      const statusMarker = action.status === "done" ? "✓" : "✗";
+      content += `\`${action.timestamp}\` ${statusMarker} **${action.tool}**\n`;
       content += `> \`${action.detail}\`\n\n`;
     });
   }
