@@ -2,7 +2,7 @@
  * App details tabs component organizing app management views.
  * Provides tabs for overview, AI builder, analytics, earnings, users, monetization, and settings.
  * Syncs active tab with URL search parameters.
- * 
+ *
  * Note: The "Build" tab redirects to the unified App Creator page at /dashboard/apps/create
  * for the full-featured AI builder experience with GitHub integration, deploys, etc.
  *
@@ -53,7 +53,7 @@ export function AppDetailsTabs({ app, showApiKey }: AppDetailsTabsProps) {
       router.push(`/dashboard/apps/create?appId=${app.id}`);
       return;
     }
-    
+
     const params = new URLSearchParams(searchParams.toString());
     params.set("tab", value);
     router.push(`/dashboard/apps/${app.id}?${params.toString()}`, {

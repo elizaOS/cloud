@@ -26,7 +26,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     const campaigns = await advertisingService.listCampaigns(
       user.organization_id!,
-      { appId: id }
+      { appId: id },
     );
 
     const totals = campaigns.reduce(
@@ -36,7 +36,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         clicks: acc.clicks + c.total_clicks,
         conversions: acc.conversions + c.total_conversions,
       }),
-      { spend: 0, impressions: 0, clicks: 0, conversions: 0 }
+      { spend: 0, impressions: 0, clicks: 0, conversions: 0 },
     );
 
     const round2 = (n: number) => Math.round(n * 100) / 100;
@@ -45,7 +45,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     const attribution = await conversionTrackingService.getCampaignAttribution(
       user.organization_id!,
-      { appId: id }
+      { appId: id },
     );
 
     return NextResponse.json({

@@ -23,7 +23,7 @@ import type { LogLevel, ParsedLogEntry } from "@/lib/types/containers";
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { id } = await params;
@@ -38,7 +38,7 @@ export async function GET(
           success: false,
           error: "Container not found",
         },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -50,7 +50,7 @@ export async function GET(
           error:
             "Container has not been deployed to ECS yet. Logs will be available once deployment is complete.",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -60,7 +60,7 @@ export async function GET(
     const rawLimit = Number.parseInt(searchParams.get("limit") || "100", 10);
     const limit = Math.min(
       Math.max(Number.isNaN(rawLimit) ? 100 : rawLimit, 1),
-      MAX_LOG_LIMIT
+      MAX_LOG_LIMIT,
     );
     const since = searchParams.get("since"); // ISO timestamp
     const level = searchParams.get("level") || "all"; // Log level filter
@@ -73,7 +73,7 @@ export async function GET(
       {
         limit,
         since: since ? new Date(since) : undefined,
-      }
+      },
     );
 
     // Parse and filter logs
@@ -115,7 +115,7 @@ export async function GET(
             ? error.message
             : "Failed to fetch container logs",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -225,7 +225,7 @@ async function getCloudWatchLogs(
   options: {
     limit?: number;
     since?: Date;
-  }
+  },
 ): Promise<
   Array<{
     timestamp: string;
@@ -266,7 +266,7 @@ async function getCloudWatchLogs(
         orderBy: "LastEventTime",
         descending: true,
         limit: 5, // Get up to 5 most recent streams
-      })
+      }),
     );
 
     const logStreams = streamsResponse.logStreams || [];
@@ -298,12 +298,12 @@ async function getCloudWatchLogs(
           ...events.map((event: OutputLogEvent) => ({
             timestamp: new Date(event.timestamp || 0).toISOString(),
             message: event.message || "",
-          }))
+          })),
         );
       } catch (streamError) {
         console.warn(
           `Failed to fetch logs from stream ${stream.logStreamName}:`,
-          streamError
+          streamError,
         );
         // Continue with other streams
       }
@@ -313,7 +313,7 @@ async function getCloudWatchLogs(
     return allLogs
       .sort(
         (a, b) =>
-          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
       )
       .slice(0, options.limit || 100);
   } catch (error) {
@@ -324,7 +324,7 @@ async function getCloudWatchLogs(
       logGroupName === newLogGroupName
     ) {
       console.warn(
-        `Log group ${newLogGroupName} not found, trying old format: ${oldLogGroupName}`
+        `Log group ${newLogGroupName} not found, trying old format: ${oldLogGroupName}`,
       );
       logGroupName = oldLogGroupName;
 
@@ -339,7 +339,7 @@ async function getCloudWatchLogs(
             orderBy: "LastEventTime",
             descending: true,
             limit: 5,
-          })
+          }),
         );
 
         const logStreams = streamsResponse.logStreams || [];
@@ -369,12 +369,12 @@ async function getCloudWatchLogs(
               ...events.map((event: OutputLogEvent) => ({
                 timestamp: new Date(event.timestamp || 0).toISOString(),
                 message: event.message || "",
-              }))
+              })),
             );
           } catch (streamError) {
             console.warn(
               `Failed to fetch logs from stream ${stream.logStreamName}:`,
-              streamError
+              streamError,
             );
           }
         }
@@ -382,7 +382,7 @@ async function getCloudWatchLogs(
         return allLogs
           .sort(
             (a, b) =>
-              new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+              new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
           )
           .slice(0, options.limit || 100);
       } catch (oldFormatError) {

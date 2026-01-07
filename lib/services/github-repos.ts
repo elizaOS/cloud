@@ -12,7 +12,8 @@ import { Octokit } from "@octokit/rest";
  */
 
 const GITHUB_ORG = process.env.GITHUB_ORG_NAME || "eliza-cloud-apps";
-const TEMPLATE_REPO = process.env.GITHUB_TEMPLATE_REPO || "eliza-cloud-apps/cloud-apps-template";
+const TEMPLATE_REPO =
+  process.env.GITHUB_TEMPLATE_REPO || "eliza-cloud-apps/cloud-apps-template";
 
 // Retry configuration
 const MAX_RETRIES = 3;
@@ -26,7 +27,7 @@ function getOctokit(): Octokit {
     const token = process.env.GITHUB_APP_TOKEN || process.env.GIT_ACCESS_TOKEN;
     if (!token) {
       throw new Error(
-        "GitHub token not configured. Set GITHUB_APP_TOKEN or GIT_ACCESS_TOKEN environment variable."
+        "GitHub token not configured. Set GITHUB_APP_TOKEN or GIT_ACCESS_TOKEN environment variable.",
       );
     }
     octokitInstance = new Octokit({ auth: token });
@@ -39,17 +40,17 @@ function getOctokit(): Octokit {
  */
 async function withRetry<T>(
   operation: () => Promise<T>,
-  context: string
+  context: string,
 ): Promise<T> {
   let lastError: Error | null = null;
-  
+
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     try {
       return await operation();
     } catch (error: unknown) {
       lastError = error instanceof Error ? error : new Error(String(error));
       const status = (error as { status?: number }).status;
-      
+
       // Only retry on rate limits (403) or server errors (5xx)
       if (status === 403 || (status && status >= 500)) {
         const delay = INITIAL_DELAY_MS * Math.pow(2, attempt);
@@ -62,12 +63,12 @@ async function withRetry<T>(
         await new Promise((resolve) => setTimeout(resolve, delay));
         continue;
       }
-      
+
       // Don't retry other errors (404, 401, etc.)
       throw error;
     }
   }
-  
+
   throw lastError;
 }
 
@@ -101,7 +102,9 @@ export interface CommitInfo {
 /**
  * Create a new repository from the template
  */
-export async function createAppRepo(options: CreateRepoOptions): Promise<RepoInfo> {
+export async function createAppRepo(
+  options: CreateRepoOptions,
+): Promise<RepoInfo> {
   const octokit = getOctokit();
   const { name, description, isPrivate = true } = options;
 
@@ -114,7 +117,7 @@ export async function createAppRepo(options: CreateRepoOptions): Promise<RepoInf
   return withRetry(async () => {
     // Create repo from template
     const [templateOwner, templateRepoName] = TEMPLATE_REPO.split("/");
-    
+
     const response = await octokit.repos.createUsingTemplate({
       template_owner: templateOwner,
       template_repo: templateRepoName,
@@ -154,7 +157,7 @@ export async function getRepoInfo(repoName: string): Promise<RepoInfo | null> {
   try {
     const response = await withRetry(
       () => octokit.repos.get({ owner: GITHUB_ORG, repo: repoName }),
-      `getRepoInfo(${repoName})`
+      `getRepoInfo(${repoName})`,
     );
 
     const repo = response.data;
@@ -198,7 +201,7 @@ export async function deleteAppRepo(repoName: string): Promise<void> {
  */
 export async function listCommits(
   repoName: string,
-  options?: { branch?: string; limit?: number }
+  options?: { branch?: string; limit?: number },
 ): Promise<CommitInfo[]> {
   const octokit = getOctokit();
   const { branch, limit = 20 } = options || {};
@@ -254,7 +257,10 @@ export function generateRepoName(appId: string, appSlug?: string): string {
   // Use slug if available for readability, otherwise use app ID
   const base = appSlug || appId;
   // Ensure valid GitHub repo name (lowercase, alphanumeric, hyphens)
-  return `app-${base.toLowerCase().replace(/[^a-z0-9-]/g, "-").slice(0, 50)}`;
+  return `app-${base
+    .toLowerCase()
+    .replace(/[^a-z0-9-]/g, "-")
+    .slice(0, 50)}`;
 }
 
 /**
@@ -268,14 +274,14 @@ export async function checkGitHubConfig(): Promise<{
 }> {
   try {
     const octokit = getOctokit();
-    
+
     // Try to get org info
     await octokit.orgs.get({ org: GITHUB_ORG });
-    
+
     // Try to get template repo
     const [templateOwner, templateRepoName] = TEMPLATE_REPO.split("/");
     await octokit.repos.get({ owner: templateOwner, repo: templateRepoName });
-    
+
     return {
       configured: true,
       org: GITHUB_ORG,

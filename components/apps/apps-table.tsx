@@ -90,7 +90,8 @@ export function AppsTable({ apps }: AppsTableProps) {
     } catch (error) {
       console.error("Error deleting app:", error);
       toast.error("Failed to delete app", {
-        description: error instanceof Error ? error.message : "Please try again",
+        description:
+          error instanceof Error ? error.message : "Please try again",
       });
     } finally {
       setIsDeleting(false);

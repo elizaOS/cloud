@@ -83,7 +83,10 @@ export default function SandboxProxyPage() {
   const handleMessage = useCallback(async (event: MessageEvent) => {
     // Validate origin
     if (!isAllowedOrigin(event.origin)) {
-      console.warn("[SandboxProxy] Rejected message from origin:", event.origin);
+      console.warn(
+        "[SandboxProxy] Rejected message from origin:",
+        event.origin,
+      );
       return;
     }
 
@@ -174,7 +177,9 @@ export default function SandboxProxyPage() {
   if (process.env.NODE_ENV !== "development") {
     return (
       <div className="p-4">
-        <p className="text-red-500">Sandbox proxy is only available in development mode.</p>
+        <p className="text-red-500">
+          Sandbox proxy is only available in development mode.
+        </p>
       </div>
     );
   }
@@ -182,7 +187,9 @@ export default function SandboxProxyPage() {
   return (
     <div className="p-4 text-sm text-gray-500">
       <p>🔌 Eliza Sandbox Proxy Active</p>
-      <p className="text-xs mt-2">This page proxies API requests from sandbox apps to your local server.</p>
+      <p className="text-xs mt-2">
+        This page proxies API requests from sandbox apps to your local server.
+      </p>
     </div>
   );
 }

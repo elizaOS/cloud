@@ -33,7 +33,11 @@ const CORS_HEADERS = {
   "Access-Control-Max-Age": "86400",
 };
 
-function detectSource(origin: string, referer: string, pageUrl: string): string {
+function detectSource(
+  origin: string,
+  referer: string,
+  pageUrl: string,
+): string {
   const combined = `${origin} ${referer} ${pageUrl}`.toLowerCase();
 
   if (
@@ -101,7 +105,7 @@ export async function POST(req: NextRequest) {
     if (!appId) {
       return NextResponse.json(
         { success: false, error: "Missing app_id or valid API key" },
-        { status: 400, headers: CORS_HEADERS }
+        { status: 400, headers: CORS_HEADERS },
       );
     }
 
@@ -109,7 +113,7 @@ export async function POST(req: NextRequest) {
     if (!app) {
       return NextResponse.json(
         { success: false, error: "App not found" },
-        { status: 404, headers: CORS_HEADERS }
+        { status: 404, headers: CORS_HEADERS },
       );
     }
 
@@ -140,13 +144,13 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(
       { success: true },
-      { status: 200, headers: CORS_HEADERS }
+      { status: 200, headers: CORS_HEADERS },
     );
   } catch (error) {
     logger.error("[Track] Failed to record page view:", error);
     return NextResponse.json(
       { success: false, error: "Failed to track page view" },
-      { status: 500, headers: CORS_HEADERS }
+      { status: 500, headers: CORS_HEADERS },
     );
   }
 }

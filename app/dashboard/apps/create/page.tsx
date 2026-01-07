@@ -7,7 +7,7 @@ import Link from "next/link";
 async function fetchWithRetry(
   url: string,
   options: RequestInit = {},
-  maxRetries = 1
+  maxRetries = 1,
 ): Promise<Response> {
   const fetchOptions: RequestInit = {
     ...options,
@@ -66,7 +66,9 @@ import {
   CloudOff,
   ChevronDown,
   Rocket,
+  FolderCode,
 } from "lucide-react";
+import { SandboxFileExplorer } from "@/components/sandbox/sandbox-file-explorer";
 import { toast } from "sonner";
 import { BrandCard, CornerBrackets, BrandButton } from "@/components/brand";
 import { Input } from "@/components/ui/input";
@@ -254,24 +256,24 @@ export default function AppCreatorPage() {
   }, [searchParams]);
 
   const [isInitializing, setIsInitializing] = useState(
-    isEditMode || !!sessionIdFromUrl
+    isEditMode || !!sessionIdFromUrl,
   );
   const [step, setStep] = useState<"setup" | "building">(
-    isEditMode ? "building" : "setup"
+    isEditMode ? "building" : "setup",
   );
   const [appData, setAppData] = useState<AppData | null>(null);
   const [appName, setAppName] = useState(
-    sourceContext ? `${sourceContext.name} App` : ""
+    sourceContext ? `${sourceContext.name} App` : "",
   );
   const [appDescription, setAppDescription] = useState(
     sourceContext
       ? `An app built with ${sourceContext.name} ${sourceContext.type}`
-      : ""
+      : "",
   );
   const [templateType, setTemplateType] = useState<TemplateType>(
     sourceContext
       ? SOURCE_CONTEXT_INFO[sourceContext.type].templateSuggestion
-      : "blank"
+      : "blank",
   );
   const [includeMonetization, setIncludeMonetization] = useState(false);
   const [includeAnalytics, setIncludeAnalytics] = useState(true);
@@ -285,8 +287,8 @@ export default function AppCreatorPage() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [progressStep, setProgressStep] = useState<ProgressStep>("creating");
-  const [previewTab, setPreviewTab] = useState<"preview" | "console">(
-    "preview"
+  const [previewTab, setPreviewTab] = useState<"preview" | "console" | "files">(
+    "preview",
   );
   const [consoleLogs, setConsoleLogs] = useState<string[]>([]);
   const [expiresAt, setExpiresAt] = useState<Date | null>(null);
@@ -337,7 +339,7 @@ export default function AppCreatorPage() {
       setMessages([]);
       setStatus("idle");
       setIsInitializing(!!appIdFromUrl || !!sessionIdFromUrl);
-      
+
       if (appChanged) {
         setAppData(null);
         setAppSnapshotInfo(null);
@@ -370,14 +372,17 @@ export default function AppCreatorPage() {
 
     const tryRestoreSession = async (sessionId: string): Promise<boolean> => {
       try {
-        const response = await fetchWithRetry(`/api/v1/app-builder/sessions/${sessionId}`);
+        const response = await fetchWithRetry(
+          `/api/v1/app-builder/sessions/${sessionId}`,
+        );
         if (!response.ok) return false;
 
         const data = await response.json();
         if (!data.success || !data.session) return false;
 
         const sessionStatus = data.session.status as SessionStatus;
-        const isExpiredOrStopped = sessionStatus === "timeout" || sessionStatus === "stopped";
+        const isExpiredOrStopped =
+          sessionStatus === "timeout" || sessionStatus === "stopped";
 
         // Session must have a sandbox URL or be expired/stopped to be valid
         if (!data.session.sandboxUrl && !isExpiredOrStopped) return false;
@@ -400,13 +405,19 @@ export default function AppCreatorPage() {
         } else {
           const stored = sessionStorage.getItem(messagesStorageKey);
           if (stored) {
-            try { setMessages(JSON.parse(stored)); } catch { /* ignore */ }
+            try {
+              setMessages(JSON.parse(stored));
+            } catch {
+              /* ignore */
+            }
           }
         }
 
         // Load app data if we have appId
         if (appIdFromUrl) {
-          const appResponse = await fetchWithRetry(`/api/v1/apps/${appIdFromUrl}`);
+          const appResponse = await fetchWithRetry(
+            `/api/v1/apps/${appIdFromUrl}`,
+          );
           if (appResponse.ok) {
             const appData = await appResponse.json();
             if (appData.success && appData.app) {
@@ -450,7 +461,7 @@ export default function AppCreatorPage() {
 
         // Check for existing active session
         const sessionResponse = await fetchWithRetry(
-          `/api/v1/app-builder?appId=${appId}&limit=1&includeInactive=true`
+          `/api/v1/app-builder?appId=${appId}&limit=1&includeInactive=true`,
         );
         if (sessionResponse.ok) {
           const sessionData = await sessionResponse.json();
@@ -458,7 +469,7 @@ export default function AppCreatorPage() {
             // Redirect to existing session
             router.replace(
               `/dashboard/apps/create?appId=${appId}&sessionId=${sessionData.sessions[0].id}`,
-              { scroll: false }
+              { scroll: false },
             );
             initializationRef.current = false;
             return;
@@ -467,7 +478,7 @@ export default function AppCreatorPage() {
 
         // Check GitHub snapshot info
         const snapshotResponse = await fetchWithRetry(
-          `/api/v1/app-builder?appId=${appId}&checkSnapshots=true`
+          `/api/v1/app-builder?appId=${appId}&checkSnapshots=true`,
         );
         if (snapshotResponse.ok) {
           const snapshotData = await snapshotResponse.json();
@@ -582,7 +593,7 @@ export default function AppCreatorPage() {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ durationMs: 900000 }),
-        }
+        },
       );
 
       if (!response.ok) {
@@ -609,7 +620,7 @@ export default function AppCreatorPage() {
     if (!session) return;
     try {
       const response = await fetchWithRetry(
-        `/api/v1/app-builder/sessions/${session.id}/snapshots`
+        `/api/v1/app-builder/sessions/${session.id}/snapshots`,
       );
       if (response.ok) {
         const data = await response.json();
@@ -631,7 +642,7 @@ export default function AppCreatorPage() {
     if (!session) return;
     try {
       const response = await fetchWithRetry(
-        `/api/v1/app-builder/sessions/${session.id}/commit`
+        `/api/v1/app-builder/sessions/${session.id}/commit`,
       );
       if (response.ok) {
         const data = await response.json();
@@ -655,7 +666,7 @@ export default function AppCreatorPage() {
     if (!session) return;
     try {
       const response = await fetchWithRetry(
-        `/api/v1/app-builder/sessions/${session.id}/history`
+        `/api/v1/app-builder/sessions/${session.id}/history`,
       );
       if (response.ok) {
         const data = await response.json();
@@ -681,7 +692,7 @@ export default function AppCreatorPage() {
           body: JSON.stringify({
             message: `Manual save at ${new Date().toLocaleString()}`,
           }),
-        }
+        },
       );
 
       if (!response.ok) {
@@ -695,7 +706,10 @@ export default function AppCreatorPage() {
         toast.success("Saved to GitHub", {
           description: `${data.filesCommitted} file(s) committed`,
         });
-        addLog(`Saved to GitHub: ${data.commitSha?.substring(0, 7)}`, "success");
+        addLog(
+          `Saved to GitHub: ${data.commitSha?.substring(0, 7)}`,
+          "success",
+        );
         // Refresh git status
         await checkGitStatus();
         // Refresh commit history
@@ -705,7 +719,10 @@ export default function AppCreatorPage() {
       toast.error("Failed to save", {
         description: error instanceof Error ? error.message : "Unknown error",
       });
-      addLog(`Save failed: ${error instanceof Error ? error.message : "Unknown error"}`, "error");
+      addLog(
+        `Save failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+        "error",
+      );
     } finally {
       setIsSaving(false);
     }
@@ -729,7 +746,7 @@ export default function AppCreatorPage() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ target: "production" }),
-        }
+        },
       );
 
       if (!response.ok) {
@@ -744,13 +761,15 @@ export default function AppCreatorPage() {
           setProductionUrl(data.productionUrl);
         }
         toast.success("Deployment started!", {
-          description: data.productionUrl 
-            ? `Deploying to ${data.productionUrl}` 
+          description: data.productionUrl
+            ? `Deploying to ${data.productionUrl}`
             : "Your app is being deployed to production",
-          action: data.productionUrl ? {
-            label: "Open",
-            onClick: () => window.open(data.productionUrl, "_blank"),
-          } : undefined,
+          action: data.productionUrl
+            ? {
+                label: "Open",
+                onClick: () => window.open(data.productionUrl, "_blank"),
+              }
+            : undefined,
         });
         addLog(`Deployment started: ${data.deploymentId}`, "success");
       }
@@ -758,7 +777,10 @@ export default function AppCreatorPage() {
       toast.error("Deployment failed", {
         description: error instanceof Error ? error.message : "Unknown error",
       });
-      addLog(`Deploy failed: ${error instanceof Error ? error.message : "Unknown error"}`, "error");
+      addLog(
+        `Deploy failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+        "error",
+      );
     } finally {
       setIsDeploying(false);
     }
@@ -767,10 +789,12 @@ export default function AppCreatorPage() {
   // Fetch production URL on load
   useEffect(() => {
     if (!appData?.id) return;
-    
+
     const fetchDeploymentInfo = async () => {
       try {
-        const response = await fetchWithRetry(`/api/v1/apps/${appData.id}/deploy`);
+        const response = await fetchWithRetry(
+          `/api/v1/apps/${appData.id}/deploy`,
+        );
         if (response.ok) {
           const data = await response.json();
           if (data.productionUrl) {
@@ -781,7 +805,7 @@ export default function AppCreatorPage() {
         // Not critical
       }
     };
-    
+
     fetchDeploymentInfo();
   }, [appData?.id]);
 
@@ -799,7 +823,13 @@ export default function AppCreatorPage() {
     }, 30000);
 
     return () => clearInterval(interval);
-  }, [status, session, appData?.github_repo, checkGitStatus, fetchCommitHistory]);
+  }, [
+    status,
+    session,
+    appData?.github_repo,
+    checkGitStatus,
+    fetchCommitHistory,
+  ]);
 
   const restoreSession = useCallback(async () => {
     if (!session || isRestoring) return;
@@ -813,7 +843,7 @@ export default function AppCreatorPage() {
     try {
       const response = await fetchWithRetry(
         `/api/v1/app-builder/sessions/${session.id}/resume/stream`,
-        { method: "POST" }
+        { method: "POST" },
       );
 
       if (!response.ok) {
@@ -858,7 +888,7 @@ export default function AppCreatorPage() {
                 });
                 addLog(
                   `Restoring: ${data.filePath} (${data.current}/${data.total})`,
-                  "info"
+                  "info",
                 );
               } else if (eventType === "complete") {
                 setSession({
@@ -894,15 +924,21 @@ export default function AppCreatorPage() {
         }
       }
     } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : "Restoration failed";
+      const errorMsg =
+        error instanceof Error ? error.message : "Restoration failed";
       addLog(`Restoration failed: ${errorMsg}`, "error");
-      
+
       // Set status to show "Start New Session" option
       // This will create a fresh session that clones from GitHub
       setStatus("timeout");
-      setSnapshotInfo({ canRestore: false, githubRepo: null, lastBackup: null });
+      setSnapshotInfo({
+        canRestore: false,
+        githubRepo: null,
+        lastBackup: null,
+      });
       toast.error("Could not resume session", {
-        description: "Click 'Start New Session' to restore your code from GitHub.",
+        description:
+          "Click 'Start New Session' to restore your code from GitHub.",
       });
     } finally {
       setIsRestoring(false);
@@ -930,7 +966,7 @@ export default function AppCreatorPage() {
 
       try {
         const res = await fetchWithRetry(
-          `/api/v1/app-builder/sessions/${session.id}/logs?tail=100`
+          `/api/v1/app-builder/sessions/${session.id}/logs?tail=100`,
         );
 
         if (res.status === 403 || res.status === 404) {
@@ -948,7 +984,7 @@ export default function AppCreatorPage() {
             setConsoleLogs((prev) => {
               const timestamp = new Date().toLocaleTimeString();
               const formatted = newLogs.map(
-                (log: string) => `[${timestamp}] ${log}`
+                (log: string) => `[${timestamp}] ${log}`,
               );
               return [...prev, ...formatted];
             });
@@ -1086,7 +1122,7 @@ export default function AppCreatorPage() {
 
                 addLog(
                   `Sandbox ready at ${data.session.sandboxUrl}`,
-                  "success"
+                  "success",
                 );
 
                 if (data.hasInitialPrompt) {
@@ -1187,7 +1223,7 @@ Some ideas:
                 });
                 addLog(
                   `${toolName}: ${data.input?.path || data.input?.packages?.join(", ") || ""}`,
-                  "info"
+                  "info",
                 );
 
                 if (initialThinkingIdRef.current) {
@@ -1206,8 +1242,8 @@ Some ideas:
                       (m as Message & { _thinkingId?: number })._thinkingId ===
                       thinkingId
                         ? { ...m, content: progressContent }
-                        : m
-                    )
+                        : m,
+                    ),
                   );
                 }
               } else if (eventType === "complete") {
@@ -1256,7 +1292,7 @@ Some ideas:
                         };
                       }
                       return m;
-                    })
+                    }),
                   );
 
                   if (iframeRef.current && data.session.sandboxUrl) {
@@ -1317,7 +1353,7 @@ Some ideas:
 
       addLog(
         `Sending prompt: "${text.substring(0, 50)}${text.length > 50 ? "..." : ""}"`,
-        "info"
+        "info",
       );
 
       const userMessage: Message = {
@@ -1369,7 +1405,7 @@ Some ideas:
         setMessages((prev) => {
           const updated = [...prev];
           const thinkingIdx = updated.findIndex(
-            (m) => m._thinkingId === thinkingId
+            (m) => m._thinkingId === thinkingId,
           );
           if (thinkingIdx >= 0) {
             updated[thinkingIdx] = {
@@ -1398,7 +1434,7 @@ Some ideas:
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ prompt: text }),
-          }
+          },
         );
 
         if (!response.ok) {
@@ -1493,7 +1529,7 @@ Some ideas:
 
                   addLog(
                     `${toolName}: ${data.input?.path || data.input?.packages?.join(", ") || ""}`,
-                    "info"
+                    "info",
                   );
                 } else if (eventType === "complete") {
                   finalData = data;
@@ -1590,7 +1626,7 @@ Some ideas:
         setStatus("ready");
         addLog(
           `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
-          "error"
+          "error",
         );
         toast.error("Failed to process prompt", {
           description:
@@ -1600,7 +1636,7 @@ Some ideas:
         setIsLoading(false);
       }
     },
-    [input, session, isLoading, addLog]
+    [input, session, isLoading, addLog],
   );
 
   const stopSession = useCallback(async () => {
@@ -1737,7 +1773,7 @@ ANTHROPIC_API_KEY=your_key_here`}
                   onClick={() =>
                     window.open(
                       "https://vercel.com/docs/vercel-sandbox",
-                      "_blank"
+                      "_blank",
                     )
                   }
                 >
@@ -2057,7 +2093,14 @@ ANTHROPIC_API_KEY=your_key_here`}
                       {appSnapshotInfo.githubRepo.split("/").pop()}
                     </span>
                     {appSnapshotInfo.lastBackup && (
-                      <> (last updated {new Date(appSnapshotInfo.lastBackup).toLocaleDateString()})</>
+                      <>
+                        {" "}
+                        (last updated{" "}
+                        {new Date(
+                          appSnapshotInfo.lastBackup,
+                        ).toLocaleDateString()}
+                        )
+                      </>
                     )}
                   </p>
                 </div>
@@ -2228,7 +2271,10 @@ ANTHROPIC_API_KEY=your_key_here`}
               title="View on GitHub"
             >
               <GitBranch className="h-3 w-3" />
-              <span className="hidden sm:inline" style={{ fontFamily: "var(--font-roboto-mono)" }}>
+              <span
+                className="hidden sm:inline"
+                style={{ fontFamily: "var(--font-roboto-mono)" }}
+              >
                 {appData.github_repo.split("/").pop()}
               </span>
               <Cloud className="h-3 w-3" />
@@ -2303,7 +2349,11 @@ ANTHROPIC_API_KEY=your_key_here`}
                     ? "text-green-400 hover:text-green-300 hover:bg-green-500/10"
                     : "text-white/40 hover:bg-white/5"
                 }`}
-                title={gitStatus?.hasChanges ? "Save changes to GitHub" : "No unsaved changes"}
+                title={
+                  gitStatus?.hasChanges
+                    ? "Save changes to GitHub"
+                    : "No unsaved changes"
+                }
               >
                 {isSaving ? (
                   <Loader2 className="h-3 w-3 animate-spin" />
@@ -2311,7 +2361,11 @@ ANTHROPIC_API_KEY=your_key_here`}
                   <Save className="h-3 w-3" />
                 )}
                 <span className="ml-1 hidden sm:inline">
-                  {isSaving ? "Saving..." : gitStatus?.hasChanges ? "Save" : "Saved"}
+                  {isSaving
+                    ? "Saving..."
+                    : gitStatus?.hasChanges
+                      ? "Save"
+                      : "Saved"}
                 </span>
               </Button>
               {/* Commit History Button */}
@@ -2324,13 +2378,17 @@ ANTHROPIC_API_KEY=your_key_here`}
                   title="View commit history"
                 >
                   <History className="h-3 w-3" />
-                  <ChevronDown className={`h-3 w-3 ml-0.5 transition-transform ${showCommitHistory ? "rotate-180" : ""}`} />
+                  <ChevronDown
+                    className={`h-3 w-3 ml-0.5 transition-transform ${showCommitHistory ? "rotate-180" : ""}`}
+                  />
                 </Button>
                 {/* Commit History Dropdown */}
                 {showCommitHistory && (
                   <div className="absolute right-0 top-full mt-1 w-72 bg-black/95 border border-white/10 rounded-lg shadow-xl z-50 overflow-hidden">
                     <div className="p-2 border-b border-white/10">
-                      <span className="text-xs text-white/60 font-medium">Recent Commits</span>
+                      <span className="text-xs text-white/60 font-medium">
+                        Recent Commits
+                      </span>
                     </div>
                     <div className="max-h-64 overflow-y-auto">
                       {commitHistory.length > 0 ? (
@@ -2368,7 +2426,11 @@ ANTHROPIC_API_KEY=your_key_here`}
                 onClick={deployToProduction}
                 disabled={isDeploying}
                 className="h-7 text-xs text-[#FF5800] hover:text-[#FF7033] hover:bg-[#FF5800]/10"
-                title={productionUrl ? `Deploy to ${productionUrl}` : "Deploy to production"}
+                title={
+                  productionUrl
+                    ? `Deploy to ${productionUrl}`
+                    : "Deploy to production"
+                }
               >
                 {isDeploying ? (
                   <Loader2 className="h-3 w-3 animate-spin" />
@@ -2473,12 +2535,18 @@ ANTHROPIC_API_KEY=your_key_here`}
                     </p>
                     {snapshotInfo?.githubRepo && (
                       <p className="text-xs text-white/50 mt-1">
-                        From <span className="font-mono">{snapshotInfo.githubRepo.split("/").pop()}</span>
+                        From{" "}
+                        <span className="font-mono">
+                          {snapshotInfo.githubRepo.split("/").pop()}
+                        </span>
                       </p>
                     )}
                   </div>
 
-                  <Button disabled className="w-full bg-green-600 text-white cursor-wait">
+                  <Button
+                    disabled
+                    className="w-full bg-green-600 text-white cursor-wait"
+                  >
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                     {restoreProgress
                       ? `Restoring ${restoreProgress.current}/${restoreProgress.total}...`
@@ -2509,9 +2577,17 @@ ANTHROPIC_API_KEY=your_key_here`}
                       Your code is saved to GitHub
                     </p>
                     <p className="text-xs text-white/50 mt-1">
-                      <span className="font-mono">{snapshotInfo.githubRepo?.split("/").pop()}</span>
+                      <span className="font-mono">
+                        {snapshotInfo.githubRepo?.split("/").pop()}
+                      </span>
                       {snapshotInfo.lastBackup && (
-                        <> · Last updated {new Date(snapshotInfo.lastBackup).toLocaleDateString()}</>
+                        <>
+                          {" "}
+                          · Last updated{" "}
+                          {new Date(
+                            snapshotInfo.lastBackup,
+                          ).toLocaleDateString()}
+                        </>
                       )}
                     </p>
                   </div>
@@ -2568,11 +2644,11 @@ ANTHROPIC_API_KEY=your_key_here`}
 
       <div className="flex-1 flex overflow-hidden">
         <div
-          className={`flex flex-col border-r border-white/10 bg-black/20 transition-all overflow-hidden ${isFullscreen ? "w-0" : "w-1/2"}`}
+          className={`flex flex-col border-r border-white/[0.04] bg-[#0a0a0b] transition-all overflow-hidden ${isFullscreen ? "w-0" : "w-1/2"}`}
         >
           <div
             ref={messagesContainerRef}
-            className="flex-1 overflow-y-auto p-4 space-y-4"
+            className="flex-1 overflow-y-auto p-5 space-y-4"
           >
             {messages.map((msg, i) => {
               const isProcessing = !!(msg as Message & { _thinkingId?: number })
@@ -2583,180 +2659,181 @@ ANTHROPIC_API_KEY=your_key_here`}
                   hour12: false,
                   hour: "2-digit",
                   minute: "2-digit",
-                }
+                },
               );
 
               return (
                 <div
                   key={i}
-                  className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} w-full`}
+                  className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} w-full group/message`}
                 >
                   <div
-                    className={`p-4 ${
+                    className={`${
                       msg.role === "user"
-                        ? "max-w-[75%] bg-cyan-500/20 border border-cyan-500/30"
+                        ? "max-w-[85%] py-2.5 px-4 bg-[#FF5800]/10 border border-[#FF5800]/20 rounded-2xl rounded-tr-md"
                         : isProcessing
-                          ? "w-full bg-purple-500/10 border border-purple-500/30"
-                          : "w-full bg-white/5 border border-white/10"
+                          ? "max-w-[90%] py-3 px-4 bg-gradient-to-br from-violet-500/[0.06] to-transparent border border-violet-400/[0.12] rounded-2xl rounded-tl-md"
+                          : "max-w-[90%] py-3 px-4 bg-white/[0.015] border border-white/[0.05] rounded-2xl rounded-tl-md"
                     }`}
                   >
-                    <div className="flex items-center justify-between mb-2 pb-2 border-b border-white/10">
+                    <div className="flex items-center justify-between mb-1.5">
                       <div className="flex items-center gap-2">
                         {isProcessing && (
-                          <Loader2 className="h-3 w-3 animate-spin text-purple-400" />
+                          <Loader2 className="h-3 w-3 animate-spin text-violet-400" />
                         )}
                         <span
-                          className={`text-xs font-medium ${
+                          className={`text-[11px] ${
                             msg.role === "user"
-                              ? "text-cyan-400"
+                              ? "text-[#FF5800]/70"
                               : isProcessing
-                                ? "text-purple-400"
-                                : "text-white/50"
+                                ? "text-violet-300/70"
+                                : "text-white/35"
                           }`}
                         >
                           {msg.role === "user"
                             ? "You"
                             : isProcessing
-                              ? "Processing"
+                              ? "Building"
                               : "Assistant"}
                         </span>
                       </div>
-                      <span className="text-xs text-white/30 font-mono">
+                      <span className="text-[10px] text-white/20 font-mono opacity-0 group-hover/message:opacity-100 transition-opacity">
                         {msgTime}
                       </span>
                     </div>
-                    <ReactMarkdown
-                      remarkPlugins={[remarkGfm]}
-                      components={{
-                        h1: ({ children }) => (
-                          <h1 className="text-xl font-bold text-white mb-3 pb-2 border-b border-white/10">
-                            {children}
-                          </h1>
-                        ),
-                        h2: ({ children }) => (
-                          <h2 className="text-lg font-semibold text-white mt-4 mb-2 flex items-center gap-2">
-                            {children}
-                          </h2>
-                        ),
-                        h3: ({ children }) => (
-                          <h3 className="text-base font-medium text-cyan-300 mt-3 mb-1">
-                            {children}
-                          </h3>
-                        ),
-                        p: ({ children }) => (
-                          <p className="text-sm text-white/80 mb-2 leading-relaxed">
-                            {children}
-                          </p>
-                        ),
-                        ul: ({ children }) => (
-                          <ul className="space-y-1 mb-3 ml-1">{children}</ul>
-                        ),
-                        ol: ({ children }) => (
-                          <ol className="space-y-1 mb-3 ml-1 list-decimal list-inside">
-                            {children}
-                          </ol>
-                        ),
-                        li: ({ children }) => (
-                          <li className="text-sm text-white/70 flex items-start gap-2">
-                            <span className="text-cyan-400 mt-1.5">-</span>
-                            <span>{children}</span>
-                          </li>
-                        ),
-                        code: ({ className, children }) => {
-                          const isInline = !className;
-                          if (isInline) {
+                    <div className="text-[14px] leading-[1.7] text-white/80">
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                          h1: ({ children }) => (
+                            <h1 className="text-base font-medium text-white/95 mb-2 mt-4 first:mt-0">
+                              {children}
+                            </h1>
+                          ),
+                          h2: ({ children }) => (
+                            <h2 className="text-[15px] font-medium text-white/90 mt-3 mb-1.5">
+                              {children}
+                            </h2>
+                          ),
+                          h3: ({ children }) => (
+                            <h3 className="text-[14px] font-medium text-white/85 mt-2.5 mb-1">
+                              {children}
+                            </h3>
+                          ),
+                          p: ({ children }) => (
+                            <p className="text-[14px] text-white/75 mb-2 leading-[1.7]">
+                              {children}
+                            </p>
+                          ),
+                          ul: ({ children }) => (
+                            <ul className="my-2 ml-4 space-y-1">{children}</ul>
+                          ),
+                          ol: ({ children }) => (
+                            <ol className="my-2 ml-4 space-y-1 list-decimal">
+                              {children}
+                            </ol>
+                          ),
+                          li: ({ children }) => (
+                            <li className="text-[14px] text-white/75 pl-1 list-item">
+                              {children}
+                            </li>
+                          ),
+                          code: ({ className, children }) => {
+                            const isInline = !className;
+                            if (isInline) {
+                              return (
+                                <code className="px-1.5 py-0.5 bg-sky-500/10 text-sky-300/90 text-[13px] font-mono rounded">
+                                  {children}
+                                </code>
+                              );
+                            }
                             return (
-                              <code className="px-1.5 py-0.5 bg-white/10 border border-white/20 text-cyan-300 text-xs font-mono rounded">
+                              <code className="block p-3 bg-[#0d1117] border border-white/[0.04] text-[#e6edf3] text-[13px] font-mono rounded-lg overflow-x-auto my-2">
                                 {children}
                               </code>
                             );
-                          }
-                          return (
-                            <code className="block p-3 bg-black/40 border border-white/10 text-green-300 text-xs font-mono rounded overflow-x-auto my-2">
+                          },
+                          pre: ({ children }) => (
+                            <pre className="bg-[#0d1117] border border-white/[0.04] rounded-lg overflow-hidden my-2.5">
                               {children}
-                            </code>
-                          );
-                        },
-                        pre: ({ children }) => (
-                          <pre className="bg-black/40 border border-white/10 rounded overflow-hidden my-3">
-                            {children}
-                          </pre>
-                        ),
-                        strong: ({ children }) => (
-                          <strong className="font-semibold text-white">
-                            {children}
-                          </strong>
-                        ),
-                        em: ({ children }) => (
-                          <em className="text-white/60 italic">{children}</em>
-                        ),
-                        a: ({ href, children }) => (
-                          <a
-                            href={href}
-                            className="text-cyan-400 hover:text-cyan-300 underline"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            {children}
-                          </a>
-                        ),
-                        blockquote: ({ children }) => (
-                          <blockquote className="border-l-2 border-cyan-500/50 pl-3 my-2 text-white/60 italic">
-                            {children}
-                          </blockquote>
-                        ),
-                        hr: () => <hr className="border-white/10 my-4" />,
-                        table: ({ children }) => (
-                          <div className="overflow-x-auto my-3">
-                            <table className="w-full text-xs border-collapse">
+                            </pre>
+                          ),
+                          strong: ({ children }) => (
+                            <strong className="font-medium text-white/90">
                               {children}
-                            </table>
-                          </div>
-                        ),
-                        thead: ({ children }) => (
-                          <thead className="bg-white/5 border-b border-white/10">
-                            {children}
-                          </thead>
-                        ),
-                        tbody: ({ children }) => (
-                          <tbody className="divide-y divide-white/5">
-                            {children}
-                          </tbody>
-                        ),
-                        tr: ({ children }) => (
-                          <tr className="hover:bg-white/5 transition-colors">
-                            {children}
-                          </tr>
-                        ),
-                        th: ({ children }) => (
-                          <th className="px-3 py-2 text-left text-white/70 font-medium">
-                            {children}
-                          </th>
-                        ),
-                        td: ({ children }) => (
-                          <td className="px-3 py-2 text-white/60">
-                            {children}
-                          </td>
-                        ),
-                      }}
-                    >
-                      {msg.content}
-                    </ReactMarkdown>
+                            </strong>
+                          ),
+                          em: ({ children }) => (
+                            <em className="text-white/65 italic">{children}</em>
+                          ),
+                          a: ({ href, children }) => (
+                            <a
+                              href={href}
+                              className="text-sky-400/90 hover:text-sky-300 underline underline-offset-2 decoration-sky-400/30"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              {children}
+                            </a>
+                          ),
+                          blockquote: ({ children }) => (
+                            <blockquote className="border-l-2 border-white/20 pl-3 my-2.5 text-white/55 italic">
+                              {children}
+                            </blockquote>
+                          ),
+                          hr: () => <hr className="border-white/[0.06] my-4" />,
+                          table: ({ children }) => (
+                            <div className="overflow-x-auto my-3 rounded-lg border border-white/[0.06]">
+                              <table className="w-full text-[13px]">
+                                {children}
+                              </table>
+                            </div>
+                          ),
+                          thead: ({ children }) => (
+                            <thead className="bg-white/[0.03]">
+                              {children}
+                            </thead>
+                          ),
+                          tbody: ({ children }) => (
+                            <tbody className="divide-y divide-white/[0.04]">
+                              {children}
+                            </tbody>
+                          ),
+                          tr: ({ children }) => (
+                            <tr className="hover:bg-white/[0.02] transition-colors">
+                              {children}
+                            </tr>
+                          ),
+                          th: ({ children }) => (
+                            <th className="px-3 py-2 text-left text-white/60 font-medium text-[12px]">
+                              {children}
+                            </th>
+                          ),
+                          td: ({ children }) => (
+                            <td className="px-3 py-2 text-white/55 text-[13px]">
+                              {children}
+                            </td>
+                          ),
+                        }}
+                      >
+                        {msg.content}
+                      </ReactMarkdown>
+                    </div>
                     {i === 0 &&
                       msg.role === "assistant" &&
                       session?.examplePrompts &&
                       session.examplePrompts.length > 0 && (
-                        <div className="mt-4 pt-4 border-t border-white/10">
-                          <p className="text-xs text-white/50 mb-2">
-                            Try one of these:
+                        <div className="mt-4 pt-3 border-t border-white/[0.05]">
+                          <p className="text-[10px] text-white/35 mb-2 uppercase tracking-wider">
+                            Suggestions
                           </p>
-                          <div className="flex flex-wrap gap-2">
+                          <div className="flex flex-wrap gap-1.5">
                             {session.examplePrompts.map((prompt, idx) => (
                               <button
                                 key={idx}
                                 onClick={() => sendPrompt(prompt)}
                                 disabled={status !== "ready"}
-                                className="px-3 py-1.5 text-xs bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-left"
+                                className="px-2.5 py-1.5 text-[12px] bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.08] hover:border-white/[0.15] text-white/60 hover:text-white/80 rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed text-left"
                               >
                                 {prompt}
                               </button>
@@ -2765,15 +2842,15 @@ ANTHROPIC_API_KEY=your_key_here`}
                         </div>
                       )}
                     {msg.filesAffected && msg.filesAffected.length > 0 && (
-                      <div className="mt-3 pt-3 border-t border-white/10">
-                        <p className="text-xs text-white/50 mb-1">
-                          Files modified:
+                      <div className="mt-3 pt-2.5 border-t border-white/[0.04]">
+                        <p className="text-[10px] text-white/30 mb-1.5 uppercase tracking-wider">
+                          Changed
                         </p>
                         <div className="flex flex-wrap gap-1">
                           {msg.filesAffected.map((file) => (
                             <span
                               key={file}
-                              className="px-2 py-0.5 text-[10px] bg-white/5 border border-white/10 text-white/60 font-mono"
+                              className="px-2 py-0.5 text-[10px] bg-[#FF5800]/10 border border-[#FF5800]/20 text-white/70 font-mono rounded"
                             >
                               {file}
                             </span>
@@ -2788,25 +2865,80 @@ ANTHROPIC_API_KEY=your_key_here`}
             <div ref={messagesEndRef} />
           </div>
 
-          <div className="flex-shrink-0 p-4 border-t border-white/10">
-            <div className="flex gap-2">
-              <Input
+          <div className="flex-shrink-0 p-4 border-t border-white/[0.04]">
+            {/* Visor Scanner Animation Styles */}
+            <style jsx global>{`
+              @keyframes visor-scan {
+                0% {
+                  left: -100px;
+                }
+                100% {
+                  left: calc(100% + 100px);
+                }
+              }
+              @keyframes visor-scan-delayed {
+                0% {
+                  left: -80px;
+                }
+                100% {
+                  left: calc(100% + 80px);
+                }
+              }
+            `}</style>
+            <div className="relative rounded-xl border border-white/[0.06] bg-white/[0.015] overflow-hidden transition-all focus-within:border-white/[0.12] focus-within:bg-white/[0.025]">
+              {/* Subtle scanning animation */}
+              {status === "generating" && (
+                <div className="absolute top-0 left-0 right-0 h-[1px] overflow-hidden pointer-events-none z-10 bg-white/[0.03]">
+                  <div
+                    className="absolute h-full w-32 bg-gradient-to-r from-transparent via-violet-400/60 to-transparent"
+                    style={{
+                      animation: "visor-scan 3s ease-in-out infinite",
+                    }}
+                  />
+                </div>
+              )}
+
+              {/* Textarea */}
+              <textarea
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) =>
-                  e.key === "Enter" && !e.shiftKey && sendPrompt()
-                }
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    if (status === "ready" && input.trim()) {
+                      sendPrompt();
+                    }
+                  }
+                }}
+                onInput={(e) => {
+                  const target = e.target as HTMLTextAreaElement;
+                  target.style.height = "48px";
+                  target.style.height =
+                    Math.min(target.scrollHeight, 120) + "px";
+                }}
+                rows={1}
                 placeholder="Describe what you want to build..."
-                className="flex-1 bg-black/40 border-white/20 text-white"
                 disabled={status !== "ready"}
+                className="w-full bg-transparent px-4 pt-3 pb-2 text-[14px] text-white/90 placeholder:text-white/30 focus:outline-none disabled:opacity-50 resize-none leading-relaxed"
+                style={{ minHeight: "48px", maxHeight: "120px" }}
               />
-              <BrandButton
-                variant="primary"
-                onClick={() => sendPrompt()}
-                disabled={!input.trim() || status !== "ready"}
-              >
-                <Send className="h-4 w-4" />
-              </BrandButton>
+
+              {/* Bottom bar with send button */}
+              <div className="flex items-center justify-end px-2 pb-2">
+                <Button
+                  type="button"
+                  onClick={() => sendPrompt()}
+                  disabled={!input.trim() || status !== "ready"}
+                  size="icon"
+                  className="h-7 w-7 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] disabled:opacity-30 border border-white/[0.06] transition-all"
+                >
+                  {status === "generating" ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin text-white/50" />
+                  ) : (
+                    <Send className="h-3.5 w-3.5 text-white/60" />
+                  )}
+                </Button>
+              </div>
             </div>
           </div>
         </div>
@@ -2842,6 +2974,17 @@ ANTHROPIC_API_KEY=your_key_here`}
                     {consoleLogs.length}
                   </span>
                 )}
+              </button>
+              <button
+                onClick={() => setPreviewTab("files")}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors ${
+                  previewTab === "files"
+                    ? "bg-white/10 text-white"
+                    : "text-white/50 hover:text-white/70"
+                }`}
+              >
+                <FolderCode className="h-3.5 w-3.5" />
+                Files
               </button>
             </div>
             {previewTab === "console" && consoleLogs.length > 0 && (
@@ -2887,6 +3030,20 @@ ANTHROPIC_API_KEY=your_key_here`}
                   <div className="text-center">
                     <Loader2 className="h-8 w-8 animate-spin text-cyan-400 mx-auto mb-4" />
                     <p className="text-white/60">Loading preview...</p>
+                  </div>
+                </div>
+              )
+            ) : previewTab === "files" ? (
+              session?.id ? (
+                <SandboxFileExplorer
+                  sessionId={session.id}
+                  className="h-full"
+                />
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-center text-white/30">
+                    <FolderCode className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <p>Session not ready</p>
                   </div>
                 </div>
               )

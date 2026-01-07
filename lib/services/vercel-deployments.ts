@@ -3,7 +3,7 @@
  *
  * Handles deploying apps to Vercel from GitHub repositories.
  * Each app gets its own Vercel project under the team.
- * 
+ *
  * Architecture:
  * - Each app = its own Vercel project
  * - Projects are created under VERCEL_TEAM_ID
@@ -347,7 +347,8 @@ export async function createDeployment(
   if (!VERCEL_TOKEN || !VERCEL_TEAM_ID) {
     return {
       success: false,
-      error: "Vercel deployment is not configured. Set VERCEL_TOKEN and VERCEL_TEAM_ID.",
+      error:
+        "Vercel deployment is not configured. Set VERCEL_TOKEN and VERCEL_TEAM_ID.",
     };
   }
 
@@ -458,7 +459,8 @@ export async function createDeployment(
       productionUrl,
     };
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
     logger.error("[Vercel Deployments] Failed to create deployment", {
       appId,
       projectId: project.projectId,
@@ -475,9 +477,7 @@ export async function createDeployment(
 /**
  * Get deployment status
  */
-export async function getDeploymentStatus(
-  deploymentId: string,
-): Promise<{
+export async function getDeploymentStatus(deploymentId: string): Promise<{
   id: string;
   state: string;
   url?: string;
@@ -514,13 +514,15 @@ export async function getDeploymentStatus(
 export async function listDeployments(
   appId: string,
   limit: number = 10,
-): Promise<Array<{
-  id: string;
-  state: string;
-  url?: string;
-  createdAt: Date;
-  target?: string;
-}>> {
+): Promise<
+  Array<{
+    id: string;
+    state: string;
+    url?: string;
+    createdAt: Date;
+    target?: string;
+  }>
+> {
   if (!VERCEL_TOKEN) {
     return [];
   }
@@ -535,9 +537,9 @@ export async function listDeployments(
   }
 
   try {
-    const response = await vercelFetch<{ deployments: VercelDeploymentResponse[] }>(
-      `/v6/deployments?projectId=${domain.vercel_project_id}&limit=${limit}`,
-    );
+    const response = await vercelFetch<{
+      deployments: VercelDeploymentResponse[];
+    }>(`/v6/deployments?projectId=${domain.vercel_project_id}&limit=${limit}`);
 
     return response.deployments.map((d) => ({
       id: d.id,
@@ -591,7 +593,9 @@ export async function getProductionUrl(appId: string): Promise<string | null> {
 /**
  * Get the Vercel project ID for an app
  */
-export async function getVercelProjectId(appId: string): Promise<string | null> {
+export async function getVercelProjectId(
+  appId: string,
+): Promise<string | null> {
   const domain = await dbRead.query.appDomains.findFirst({
     where: eq(appDomains.app_id, appId),
   });

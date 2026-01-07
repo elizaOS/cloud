@@ -16,7 +16,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     if (!session) {
       return NextResponse.json(
         { success: false, error: "Session not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -56,14 +56,14 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
           error: "Invalid request data",
           details: validationResult.error.format(),
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     const result = await aiAppBuilder.extendSession(
       sessionId,
       user.id,
-      validationResult.data.durationMs
+      validationResult.data.durationMs,
     );
 
     return NextResponse.json({

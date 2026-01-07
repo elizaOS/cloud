@@ -76,8 +76,8 @@ async function handlePOST(req: NextRequest) {
       return withCors(
         NextResponse.json(
           { error: { message: "Origin not allowed", type: "cors_error" } },
-          { status: 403 }
-        )
+          { status: 403 },
+        ),
       );
     }
 
@@ -97,11 +97,11 @@ async function handlePOST(req: NextRequest) {
 
     // Log detailed message breakdown
     const systemMessages = request.messages.filter(
-      (msg) => msg.role === "system"
+      (msg) => msg.role === "system",
     );
     const userMessages = request.messages.filter((msg) => msg.role === "user");
     const assistantMessages = request.messages.filter(
-      (msg) => msg.role === "assistant"
+      (msg) => msg.role === "assistant",
     );
     const toolMessages = request.messages.filter((msg) => msg.role === "tool");
 
@@ -148,7 +148,7 @@ async function handlePOST(req: NextRequest) {
             code: "missing_required_parameter",
           },
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -162,7 +162,7 @@ async function handlePOST(req: NextRequest) {
             code: "invalid_value",
           },
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -180,7 +180,7 @@ async function handlePOST(req: NextRequest) {
               code: "invalid_value",
             },
           },
-          { status: 400 }
+          { status: 400 },
         );
       }
 
@@ -200,7 +200,7 @@ async function handlePOST(req: NextRequest) {
               code: "invalid_value",
             },
           },
-          { status: 400 }
+          { status: 400 },
         );
       }
 
@@ -217,7 +217,7 @@ async function handlePOST(req: NextRequest) {
               if (!hasNonEmptyText) {
                 logger.debug(
                   "[Chat Completions API] Filtering out empty text content block",
-                  { messageIndex: i, role: msg.role }
+                  { messageIndex: i, role: msg.role },
                 );
               }
               return hasNonEmptyText;
@@ -236,7 +236,7 @@ async function handlePOST(req: NextRequest) {
               role: msg.role,
               originalParts: msg.content.length,
               remainingParts: filteredContent.length,
-            }
+            },
           );
           msg.content = filteredContent;
         }
@@ -250,7 +250,7 @@ async function handlePOST(req: NextRequest) {
         ) {
           logger.warn(
             "[Chat Completions API] Content array has no valid content",
-            { messageIndex: i, role: msg.role }
+            { messageIndex: i, role: msg.role },
           );
           return Response.json(
             {
@@ -262,7 +262,7 @@ async function handlePOST(req: NextRequest) {
                 code: "invalid_value",
               },
             },
-            { status: 400 }
+            { status: 400 },
           );
         }
       }
@@ -274,7 +274,7 @@ async function handlePOST(req: NextRequest) {
         "[Chat Completions API] User blocked due to moderation violations",
         {
           userId: user.id,
-        }
+        },
       );
       return Response.json(
         {
@@ -285,7 +285,7 @@ async function handlePOST(req: NextRequest) {
             code: "moderation_violation",
           },
         },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -311,9 +311,9 @@ async function handlePOST(req: NextRequest) {
                 userId: user.id,
                 categories: result.flaggedCategories,
                 action: result.action,
-              }
+              },
             );
-          }
+          },
         );
       }
     }
@@ -350,7 +350,7 @@ async function handlePOST(req: NextRequest) {
             code: "insufficient_balance",
           },
         },
-        { status: 402 }
+        { status: 402 },
       );
     }
 
@@ -395,7 +395,7 @@ async function handlePOST(req: NextRequest) {
               code: "credit_reservation_failed",
             },
           },
-          { status: 402 }
+          { status: 402 },
         );
       }
     }
@@ -418,7 +418,7 @@ async function handlePOST(req: NextRequest) {
         origin,
         ipAddress,
         userAgent,
-        creditReservation!.reservedAmount
+        creditReservation!.reservedAmount,
       );
     } else {
       return withCors(
@@ -432,8 +432,8 @@ async function handlePOST(req: NextRequest) {
           session_token,
           origin,
           ipAddress,
-          userAgent
-        )
+          userAgent,
+        ),
       );
     }
   } catch (error) {
@@ -472,8 +472,8 @@ async function handlePOST(req: NextRequest) {
         return withCors(
           Response.json(
             { error: gatewayError.error },
-            { status: gatewayError.status }
-          )
+            { status: gatewayError.status },
+          ),
         );
       }
     }
@@ -489,8 +489,8 @@ async function handlePOST(req: NextRequest) {
             code: "internal_server_error",
           },
         },
-        { status: 500 }
-      )
+        { status: 500 },
+      ),
     );
   }
 }
@@ -506,7 +506,7 @@ async function handleNonStreamingResponse(
   session_token?: string,
   origin?: string | null,
   ipAddress?: string,
-  userAgent?: string
+  userAgent?: string,
 ) {
   // Parse response
   const data: OpenAIChatResponse = await providerResponse.json();
@@ -521,7 +521,7 @@ async function handleNonStreamingResponse(
       model,
       provider,
       usage.prompt_tokens,
-      usage.completion_tokens
+      usage.completion_tokens,
     );
 
     // CRITICAL: Deduct credits before returning response
@@ -552,7 +552,7 @@ async function handleNonStreamingResponse(
             code: "credit_deduction_failed",
           },
         },
-        { status: 402 }
+        { status: 402 },
       );
     }
 
@@ -643,7 +643,7 @@ function handleStreamingResponse(
   origin?: string | null,
   ipAddress?: string,
   userAgent?: string,
-  reservedAmount?: number
+  reservedAmount?: number,
 ) {
   let totalTokens = 0;
   let inputTokens = 0;
@@ -743,7 +743,7 @@ function handleStreamingResponse(
           {
             model,
             contentLength: fullContent.length,
-          }
+          },
         );
 
         // Estimate tokens from content
@@ -751,7 +751,7 @@ function handleStreamingResponse(
           .map((m) =>
             typeof m.content === "string"
               ? m.content
-              : JSON.stringify(m.content)
+              : JSON.stringify(m.content),
           )
           .join(" ");
         inputTokens = estimateTokens(messageText);
@@ -764,7 +764,7 @@ function handleStreamingResponse(
           model,
           provider,
           inputTokens,
-          outputTokens
+          outputTokens,
         );
 
         // Settle the credit reservation - credits were already reserved before streaming
@@ -793,7 +793,7 @@ function handleStreamingResponse(
                 reservedAmount: String(reservedAmount),
                 actualCost: String(totalCost),
                 finalCost: String(settlementResult.finalCost),
-              }
+              },
             );
           } else if (settlementResult.adjustmentType !== "none") {
             logger.info("[OpenAI Proxy] Credit settlement completed", {
@@ -823,7 +823,7 @@ function handleStreamingResponse(
                 userId: user.id,
                 cost: String(totalCost),
                 balance: deductResult.newBalance,
-              }
+              },
             );
           }
         }
@@ -908,7 +908,7 @@ function handleStreamingResponse(
           {
             organizationId: user.organization_id,
             refundedAmount: reservedAmount,
-          }
+          },
         );
       }
 

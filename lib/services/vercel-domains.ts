@@ -4,7 +4,7 @@
  * Manages custom domains for apps through Vercel's API.
  * Each app has its own Vercel project, so domain operations
  * use the app's specific project ID.
- * 
+ *
  * Supports:
  * - Adding custom domains programmatically
  * - Domain ownership verification
@@ -224,7 +224,8 @@ export async function addDomain(
       domain,
       verified: false,
       verificationRecords: [],
-      error: "App must be deployed before adding a custom domain. The app does not have a Vercel project yet.",
+      error:
+        "App must be deployed before adding a custom domain. The app does not have a Vercel project yet.",
     };
   }
 
@@ -498,10 +499,9 @@ export async function removeDomain(
   });
 
   // Remove from Vercel project
-  await vercelFetch(
-    `/v9/projects/${projectId}/domains/${normalizedDomain}`,
-    { method: "DELETE" },
-  );
+  await vercelFetch(`/v9/projects/${projectId}/domains/${normalizedDomain}`, {
+    method: "DELETE",
+  });
 
   // Update database
   await dbWrite

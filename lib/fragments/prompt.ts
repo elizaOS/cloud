@@ -12,7 +12,7 @@ import { ELIZA_SDK_REFERENCE } from "./eliza-sdk";
  */
 export async function buildFragmentPrompt(
   template: Templates,
-  includeApiContext = true
+  includeApiContext = true,
 ): Promise<string> {
   const basePrompt = `
     You are a skilled software engineer.
@@ -389,7 +389,7 @@ export function buildFullAppPrompt(config: {
  * Get example prompts for a template type
  */
 export function getExamplePrompts(
-  templateType: FullAppTemplateType = "blank"
+  templateType: FullAppTemplateType = "blank",
 ): string[] {
   return (
     FULL_APP_EXAMPLE_PROMPTS[templateType] || FULL_APP_EXAMPLE_PROMPTS.blank

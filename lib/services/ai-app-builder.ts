@@ -79,7 +79,7 @@ export interface PromptResult {
 export class AIAppBuilderService {
   private async verifyOwnership(
     sessionId: string,
-    userId: string
+    userId: string,
   ): Promise<AppSandboxSession> {
     const session = await dbRead.query.appSandboxSessions.findFirst({
       where: eq(appSandboxSessions.id, sessionId),
@@ -136,19 +136,19 @@ export class AIAppBuilderService {
           createGitHubRepo: true,
           repoPrivate: true,
           assignSubdomain: true,
-        }
+        },
       );
       appId = result.app.id;
       appApiKey = result.apiKey;
       githubRepo = result.githubRepo || null;
-      
-      logger.info("Created app for AI builder session with GitHub repo", { 
-        appId, 
+
+      logger.info("Created app for AI builder session with GitHub repo", {
+        appId,
         appName,
         githubRepo,
         githubRepoCreated: result.githubRepoCreated,
       });
-      
+
       if (result.errors.length > 0) {
         logger.warn("App creation had warnings", { warnings: result.errors });
       }
@@ -157,12 +157,15 @@ export class AIAppBuilderService {
       // Fetch existing app to get GitHub repo
       const existingApp = await appsService.getById(appId);
       githubRepo = existingApp?.github_repo || null;
-      logger.info("Regenerated API key for existing app", { appId, githubRepo });
+      logger.info("Regenerated API key for existing app", {
+        appId,
+        githubRepo,
+      });
     }
 
     // Determine template URL for sandbox creation
     let templateUrl: string | undefined;
-    
+
     // Priority 1: If existing app has a GitHub repo, clone from that
     if (githubRepo) {
       const repoName = githubRepo.split("/").pop() || githubRepo;
@@ -173,25 +176,30 @@ export class AIAppBuilderService {
           githubRepo,
         });
       } catch (error) {
-        logger.warn("Failed to get authenticated clone URL, falling back to template", {
-          appId,
-          githubRepo,
-          error: error instanceof Error ? error.message : "Unknown",
-        });
+        logger.warn(
+          "Failed to get authenticated clone URL, falling back to template",
+          {
+            appId,
+            githubRepo,
+            error: error instanceof Error ? error.message : "Unknown",
+          },
+        );
       }
     }
-    
+
     // Priority 2: If no GitHub repo, use template from database
     if (!templateUrl && templateType !== "blank") {
       const template = await dbRead.query.appTemplates.findFirst({
         where: eq(appTemplates.slug, templateType),
       });
-      templateUrl = template?.github_repo ? `https://github.com/${template.github_repo}` : undefined;
+      templateUrl = template?.github_repo
+        ? `https://github.com/${template.github_repo}`
+        : undefined;
 
       if (!templateUrl) {
         logger.info(
           "Template not found in database, using prompt-based template guidance",
-          { templateType }
+          { templateType },
         );
       } else {
         logger.info("Using template from database", {
@@ -209,26 +217,28 @@ export class AIAppBuilderService {
       process.env.NEXT_PUBLIC_APP_URL?.includes("127.0.0.1");
 
     const sandboxEnv: Record<string, string> = {};
-    
+
     if (isLocalDev) {
       // Local development: Use postMessage proxy bridge
       // The sandbox will embed an iframe to /sandbox-proxy which forwards API calls to localhost
-      const localServerUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+      const localServerUrl =
+        process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
       sandboxEnv.NEXT_PUBLIC_ELIZA_PROXY_URL = localServerUrl;
-      
+
       // If ELIZA_API_URL is explicitly set (e.g., ngrok), use it as a direct API URL instead
       if (process.env.ELIZA_API_URL) {
         sandboxEnv.NEXT_PUBLIC_ELIZA_API_URL = process.env.ELIZA_API_URL;
         delete sandboxEnv.NEXT_PUBLIC_ELIZA_PROXY_URL; // Don't use proxy if direct URL is set
       }
-      
+
       logger.info("Local dev mode: using postMessage proxy bridge", {
         proxyUrl: sandboxEnv.NEXT_PUBLIC_ELIZA_PROXY_URL,
         directUrl: sandboxEnv.NEXT_PUBLIC_ELIZA_API_URL,
       });
     } else {
       // Production: Use direct API URL
-      const apiUrl = process.env.ELIZA_API_URL || process.env.NEXT_PUBLIC_APP_URL;
+      const apiUrl =
+        process.env.ELIZA_API_URL || process.env.NEXT_PUBLIC_APP_URL;
       if (apiUrl) {
         sandboxEnv.NEXT_PUBLIC_ELIZA_API_URL = apiUrl;
       }
@@ -331,7 +341,7 @@ export class AIAppBuilderService {
         session.id,
         initialPrompt,
         userId,
-        { onToolUse, onThinking, abortSignal }
+        { onToolUse, onThinking, abortSignal },
       );
 
       logger.info("Initial prompt completed", {
@@ -353,7 +363,7 @@ export class AIAppBuilderService {
           role: "assistant",
           content: initialPromptResult.output,
           timestamp: new Date().toISOString(),
-        }
+        },
       );
     }
 
@@ -379,7 +389,7 @@ export class AIAppBuilderService {
       onToolUse?: (tool: string, input: unknown, result: string) => void;
       onThinking?: (text: string) => void;
       abortSignal?: AbortSignal;
-    } = {}
+    } = {},
   ): Promise<PromptResult> {
     logger.info("Sending prompt to AI App Builder", {
       sessionId,
@@ -391,7 +401,7 @@ export class AIAppBuilderService {
     if (!session.sandbox_id) throw new Error("Sandbox not available");
     if (session.status !== "ready")
       throw new Error(
-        `Session is not ready. Current status: ${session.status}`
+        `Session is not ready. Current status: ${session.status}`,
       );
 
     await dbWrite
@@ -412,7 +422,7 @@ export class AIAppBuilderService {
     const systemPromptRecord = await dbRead.query.appBuilderPrompts.findFirst({
       where: and(
         eq(appBuilderPrompts.sandbox_session_id, sessionId),
-        eq(appBuilderPrompts.role, "system")
+        eq(appBuilderPrompts.role, "system"),
       ),
     });
 
@@ -425,7 +435,7 @@ export class AIAppBuilderService {
         onToolUse: options.onToolUse,
         onThinking: options.onThinking,
         abortSignal: options.abortSignal,
-      }
+      },
     );
     const durationMs = Date.now() - startTime;
 
@@ -457,7 +467,7 @@ export class AIAppBuilderService {
         role: "assistant",
         content: result.output,
         timestamp: new Date().toISOString(),
-      }
+      },
     );
 
     await dbWrite
@@ -483,7 +493,7 @@ export class AIAppBuilderService {
           logger.warn("Auto-commit failed (non-blocking)", {
             sessionId,
             error: err instanceof Error ? err.message : "Unknown error",
-          })
+          }),
       );
     }
 
@@ -497,7 +507,7 @@ export class AIAppBuilderService {
   private async autoCommitToGitHub(
     session: AppSandboxSession,
     prompt: string,
-    filesAffected: string[]
+    filesAffected: string[],
   ): Promise<void> {
     if (!session.sandbox_id || !session.app_id) return;
 
@@ -530,7 +540,7 @@ export class AIAppBuilderService {
       {
         message: commitMessage,
         author: { name: "ElizaCloud AI Builder", email: "ai@elizacloud.ai" },
-      }
+      },
     );
 
     if (commitResult.success && commitResult.commitSha) {
@@ -550,8 +560,8 @@ export class AIAppBuilderService {
         .where(
           and(
             eq(appBuilderPrompts.sandbox_session_id, session.id),
-            eq(appBuilderPrompts.role, "user")
-          )
+            eq(appBuilderPrompts.role, "user"),
+          ),
         );
 
       logger.info("Auto-commit successful", {
@@ -569,14 +579,14 @@ export class AIAppBuilderService {
 
   async verifySessionOwnership(
     sessionId: string,
-    userId: string
+    userId: string,
   ): Promise<AppSandboxSession> {
     return this.verifyOwnership(sessionId, userId);
   }
 
   async getSession(
     sessionId: string,
-    userId: string
+    userId: string,
   ): Promise<BuilderSession | null> {
     const session = await this.verifyOwnership(sessionId, userId);
 
@@ -640,7 +650,7 @@ export class AIAppBuilderService {
 
   async listSessions(
     userId: string,
-    options: { limit?: number; includeInactive?: boolean; appId?: string } = {}
+    options: { limit?: number; includeInactive?: boolean; appId?: string } = {},
   ): Promise<AppSandboxSession[]> {
     const { limit = 10, includeInactive = false, appId } = options;
 
@@ -657,7 +667,7 @@ export class AIAppBuilderService {
 
     if (!includeInactive) {
       return sessions.filter(
-        (s) => s.status !== "stopped" && s.status !== "timeout"
+        (s) => s.status !== "stopped" && s.status !== "timeout",
       );
     }
 
@@ -667,7 +677,7 @@ export class AIAppBuilderService {
   async extendSession(
     sessionId: string,
     userId: string,
-    durationMs: number = 15 * 60 * 1000
+    durationMs: number = 15 * 60 * 1000,
   ): Promise<{ expiresAt: Date }> {
     const session = await this.verifyOwnership(sessionId, userId);
 
@@ -702,7 +712,7 @@ export class AIAppBuilderService {
   async getLogs(
     sessionId: string,
     userId: string,
-    tail = 50
+    tail = 50,
   ): Promise<string[]> {
     const session = await this.verifyOwnership(sessionId, userId);
     if (!session.sandbox_id) return [];
@@ -755,19 +765,25 @@ export class AIAppBuilderService {
     userId: string,
     options: {
       onProgress?: (progress: SandboxProgress) => void;
-      onRestoreProgress?: (progress: { current: number; total: number; filePath: string }) => void;
-    } = {}
+      onRestoreProgress?: (progress: {
+        current: number;
+        total: number;
+        filePath: string;
+      }) => void;
+    } = {},
   ): Promise<BuilderSession> {
     const { onProgress, onRestoreProgress } = options;
-    
+
     const session = await this.verifyOwnership(sessionId, userId);
 
     // Check if session can be resumed (must be timeout or stopped)
     if (session.status !== "timeout" && session.status !== "stopped") {
-      throw new Error(`Session cannot be resumed. Current status: ${session.status}`);
+      throw new Error(
+        `Session cannot be resumed. Current status: ${session.status}`,
+      );
     }
 
-    logger.info("Resuming session", { 
+    logger.info("Resuming session", {
       sessionId,
       oldSandboxId: session.sandbox_id,
       appId: session.app_id,
@@ -776,17 +792,17 @@ export class AIAppBuilderService {
     // Get the app to check for GitHub repo
     let githubRepo: string | null = null;
     let templateUrl: string | undefined;
-    
+
     if (session.app_id) {
       const app = await appsService.getById(session.app_id);
       githubRepo = app?.github_repo || null;
-      
+
       if (githubRepo) {
         const repoName = githubRepo.split("/").pop() || githubRepo;
         try {
           templateUrl = githubReposService.getAuthenticatedCloneUrl(repoName);
-          logger.info("Resuming from GitHub repo", { 
-            sessionId, 
+          logger.info("Resuming from GitHub repo", {
+            sessionId,
             githubRepo,
             repoName,
           });
@@ -801,25 +817,30 @@ export class AIAppBuilderService {
     }
 
     // Notify progress
-    onProgress?.({ step: "creating", message: "Creating new sandbox instance..." });
-    
+    onProgress?.({
+      step: "creating",
+      message: "Creating new sandbox instance...",
+    });
+
     // Determine API URL for sandbox
     const isLocalDev =
       process.env.NEXT_PUBLIC_APP_URL?.includes("localhost") ||
       process.env.NEXT_PUBLIC_APP_URL?.includes("127.0.0.1");
 
     const sandboxEnv: Record<string, string> = {};
-    
+
     if (isLocalDev) {
-      const localServerUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+      const localServerUrl =
+        process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
       sandboxEnv.NEXT_PUBLIC_ELIZA_PROXY_URL = localServerUrl;
-      
+
       if (process.env.ELIZA_API_URL) {
         sandboxEnv.NEXT_PUBLIC_ELIZA_API_URL = process.env.ELIZA_API_URL;
         delete sandboxEnv.NEXT_PUBLIC_ELIZA_PROXY_URL;
       }
     } else {
-      const apiUrl = process.env.ELIZA_API_URL || process.env.NEXT_PUBLIC_APP_URL;
+      const apiUrl =
+        process.env.ELIZA_API_URL || process.env.NEXT_PUBLIC_APP_URL;
       if (apiUrl) {
         sandboxEnv.NEXT_PUBLIC_ELIZA_API_URL = apiUrl;
       }
@@ -847,7 +868,11 @@ export class AIAppBuilderService {
 
     // Report restore progress if we're using a GitHub template
     if (templateUrl && onRestoreProgress) {
-      onRestoreProgress({ current: 1, total: 1, filePath: "Cloned from GitHub" });
+      onRestoreProgress({
+        current: 1,
+        total: 1,
+        filePath: "Cloned from GitHub",
+      });
     }
 
     const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
@@ -872,7 +897,10 @@ export class AIAppBuilderService {
           repoFullName: githubRepo,
           branch: session.git_branch || "main",
         });
-        logger.info("Git configured for resumed session", { sessionId, githubRepo });
+        logger.info("Git configured for resumed session", {
+          sessionId,
+          githubRepo,
+        });
       } catch (error) {
         logger.warn("Failed to configure git for resumed session", {
           sessionId,

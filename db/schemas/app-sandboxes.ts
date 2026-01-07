@@ -18,7 +18,7 @@ import { organizations } from "./organizations";
  *
  * Tracks Vercel Sandbox instances for AI-powered app building.
  * Each session represents a sandbox connected to a GitHub repo.
- * 
+ *
  * Storage is now handled by GitHub:
  * - Each app = one private GitHub repo
  * - Version history = git commits
@@ -48,7 +48,7 @@ export const appSandboxSessions = pgTable(
 
     // Git branch being edited (default: main)
     git_branch: text("git_branch").default("main").notNull(),
-    
+
     // Last known commit SHA
     last_commit_sha: text("last_commit_sha"),
 
@@ -160,7 +160,7 @@ export const appBuilderPrompts = pgTable(
 
     // Response metadata (for assistant messages)
     files_affected: jsonb("files_affected").$type<string[]>().default([]),
-    
+
     // Git commit created by this prompt (if any)
     commit_sha: text("commit_sha"),
 
@@ -334,6 +334,12 @@ export type NewAppBuilderPrompt = InferInsertModel<typeof appBuilderPrompts>;
 export type AppTemplate = InferSelectModel<typeof appTemplates>;
 export type NewAppTemplate = InferInsertModel<typeof appTemplates>;
 export type SessionFileSnapshot = InferSelectModel<typeof sessionFileSnapshots>;
-export type NewSessionFileSnapshot = InferInsertModel<typeof sessionFileSnapshots>;
-export type SessionRestoreHistory = InferSelectModel<typeof sessionRestoreHistory>;
-export type NewSessionRestoreHistory = InferInsertModel<typeof sessionRestoreHistory>;
+export type NewSessionFileSnapshot = InferInsertModel<
+  typeof sessionFileSnapshots
+>;
+export type SessionRestoreHistory = InferSelectModel<
+  typeof sessionRestoreHistory
+>;
+export type NewSessionRestoreHistory = InferInsertModel<
+  typeof sessionRestoreHistory
+>;
