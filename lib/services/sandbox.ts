@@ -782,12 +782,21 @@ export class SandboxService {
     let sandbox: SandboxInstance;
     try {
       sandbox = (await Sandbox.create(createOptions)) as SandboxInstance;
-    } catch (error) {
+    } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
+      
+      // Extract additional error details from Vercel SDK APIError
+      const apiError = error as { json?: unknown; text?: string; response?: { status?: number } };
+      const jsonDetails = apiError.json ? JSON.stringify(apiError.json, null, 2) : undefined;
+      const textDetails = apiError.text;
+      const statusCode = apiError.response?.status;
       
       // Log full error details for debugging
       logger.error("Sandbox creation failed", {
         error: errorMessage,
+        statusCode,
+        jsonDetails,
+        textDetails,
         createOptions: {
           ...createOptions,
           token: createOptions.token ? "[REDACTED]" : undefined,
@@ -795,30 +804,40 @@ export class SandboxService {
         stack: error instanceof Error ? error.stack : undefined,
       });
 
+      // Build detailed error message
+      let detailedMessage = errorMessage;
+      if (jsonDetails) {
+        detailedMessage += `\n\nVercel API Response:\n${jsonDetails}`;
+      } else if (textDetails) {
+        detailedMessage += `\n\nVercel API Response:\n${textDetails}`;
+      }
+
       if (errorMessage.includes("OIDC")) {
         throw new Error(
-          `OIDC token expired or invalid. Run 'vercel env pull' to refresh it. Original error: ${errorMessage}`,
+          `OIDC token expired or invalid. Run 'vercel env pull' to refresh it. Original error: ${detailedMessage}`,
         );
       }
       
       // Check for common Vercel Sandbox errors
-      if (errorMessage.includes("400") || errorMessage.includes("Bad Request")) {
+      if (errorMessage.includes("400") || errorMessage.includes("Bad Request") || statusCode === 400) {
         throw new Error(
-          `Vercel Sandbox creation failed (400 Bad Request). This usually means:\n` +
-          `1. You've hit the concurrent sandbox limit - wait for existing sandboxes to expire (~30 min)\n` +
-          `2. The template URL is invalid or inaccessible\n` +
-          `3. Your Vercel account has reached its sandbox quota\n` +
-          `Check your Vercel dashboard for active sandboxes. Original error: ${errorMessage}`,
+          `Vercel Sandbox creation failed (400 Bad Request).\n\n` +
+          `Possible causes:\n` +
+          `1. Concurrent sandbox limit reached - wait for existing sandboxes to expire\n` +
+          `2. Template URL is invalid or inaccessible\n` +
+          `3. Account sandbox quota exceeded\n` +
+          `4. Invalid configuration parameters\n\n` +
+          `Details: ${detailedMessage}`,
         );
       }
       
-      if (errorMessage.includes("429") || errorMessage.includes("rate limit")) {
+      if (errorMessage.includes("429") || errorMessage.includes("rate limit") || statusCode === 429) {
         throw new Error(
-          `Vercel Sandbox rate limit exceeded. Wait a few minutes and try again. Original error: ${errorMessage}`,
+          `Vercel Sandbox rate limit exceeded. Wait a few minutes and try again.\n\nDetails: ${detailedMessage}`,
         );
       }
       
-      throw error;
+      throw new Error(`Sandbox creation failed: ${detailedMessage}`);
     }
     const devServerUrl = sandbox.domain(3000);
     const sandboxId = sandbox.id ?? extractSandboxIdFromUrl(devServerUrl);
