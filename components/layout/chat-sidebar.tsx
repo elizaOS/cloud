@@ -313,7 +313,7 @@ export function ChatSidebar({
         className={cn(
           "flex h-full flex-col transition-all duration-300 ease-in-out",
           isMobile
-            ? `fixed inset-y-0 left-0 z-50 w-80 p-1.5 ${isOpen ? "translate-x-0" : "-translate-x-full"}`
+            ? `fixed bg-[#191919] inset-y-0 left-0 z-50 w-80 p-1.5 ${isOpen ? "translate-x-0" : "-translate-x-full"}`
             : isCollapsed
               ? "w-14 p-1.5"
               : "w-80 p-1.5",
@@ -359,7 +359,7 @@ export function ChatSidebar({
           {isMobile && onToggle && (
             <button
               onClick={handleCloseClick}
-              className="rounded-none p-2 hover:bg-white/10 focus:bg-white/10 focus:outline-none relative z-10 transition-colors"
+              className="rounded-lg p-2 hover:bg-white/10 focus:bg-white/10 focus:outline-none relative z-10 transition-colors"
               aria-label="Close navigation"
             >
               <X className="h-4 w-4 text-white" />
