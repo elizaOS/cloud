@@ -101,6 +101,23 @@ const CONSTRAINTS = `
 - \`@/hooks/use-eliza.ts\` - React hooks are pre-built
 - \`@/components/eliza/\` - Provider and utilities are ready to use
 
+### CRITICAL: ElizaProvider in layout.tsx
+**NEVER remove ElizaProvider from layout.tsx!** Without it, all Eliza hooks will fail.
+When writing layout.tsx, you MUST include:
+\`\`\`tsx
+import { ElizaProvider } from '@/components/eliza';
+
+export default function RootLayout({ children }) {
+  return (
+    <html lang="en">
+      <body>
+        <ElizaProvider>{children}</ElizaProvider>
+      </body>
+    </html>
+  );
+}
+\`\`\`
+
 ### API Key Handling:
 - **DO NOT** create API key input fields, forms, or configuration screens
 - **DO NOT** ask users to "enter your API key" or "set ELIZA_API_KEY"
@@ -117,7 +134,16 @@ const CONSTRAINTS = `
 - **DO NOT** build custom API clients (use \`@/lib/eliza\`)
 - **DO NOT** build custom streaming logic (use \`useChatStream\` hook)
 - **DO NOT** implement credit checking manually (use \`useElizaCredits\` hook)
-- **ALWAYS** wrap app in \`ElizaProvider\` (already in layout.tsx)
+- **ALWAYS** keep \`ElizaProvider\` wrapping children in layout.tsx
+
+### Client vs Server Components:
+- **ADD \`'use client'\` at the top of files that use:**
+  - React hooks: useState, useEffect, useRef, useContext, useCallback
+  - Eliza hooks: useChat, useChatStream, useEliza, useElizaCredits
+  - Event handlers: onClick, onChange, onSubmit
+  - Browser APIs: window, document, localStorage
+- **Server Components (default) CANNOT use hooks or event handlers**
+- **Forgetting 'use client' causes "useState is not a function" errors**
 `;
 
 // ============================================================================
