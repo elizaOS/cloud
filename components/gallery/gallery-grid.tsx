@@ -21,7 +21,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { DownloadIcon, TrashIcon } from "@radix-ui/react-icons";
-import { Eye, X } from "lucide-react";
+import { Eye, X, Volume2, Play } from "lucide-react";
 import { DialogClose } from "@/components/ui/dialog";
 import type { GalleryItem } from "@/app/actions/gallery";
 import { deleteMedia } from "@/app/actions/gallery";
@@ -79,32 +79,40 @@ export function GalleryGrid({ items, onItemDeleted }: GalleryGridProps) {
 
   return (
     <>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2">
         {items.map((item) => (
           <div
             key={item.id}
             onClick={() => setSelectedItem(item)}
-            className={`overflow-hidden group cursor-pointer rounded-md relative bg-black/60 ${item.type === "image" ? "aspect-square" : "aspect-video"}`}
+            className="overflow-hidden group cursor-pointer rounded-md relative aspect-square"
           >
             {item.type === "image" ? (
               <Image
                 src={item.url}
                 alt={item.prompt}
                 fill
-                className="object-cover"
-                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                className="object-cover w-full h-full"
+                sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
                 unoptimized
               />
+            ) : item.mimeType?.startsWith("audio/") ? (
+              <div className="absolute inset-0 bg-gradient-to-br from-[#FF5800]/20 via-black to-[#FF5800]/10 flex items-center justify-center">
+                <div className="rounded-full bg-[#FF5800]/10 border border-[#FF5800]/30 p-4 group-hover:bg-[#FF5800]/20 transition-colors">
+                  <Play className="w-8 h-8 text-[#FF5800]" />
+                </div>
+              </div>
             ) : (
               <video
                 src={item.url}
-                className="w-full h-full object-cover"
+                className="absolute inset-0 w-full h-full object-cover"
                 preload="metadata"
               />
             )}
-            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center">
-              <Eye className="w-8 h-8 text-[#FF5800] opacity-0 group-hover:opacity-100 transition-opacity" />
-            </div>
+            {!item.mimeType?.startsWith("audio/") && (
+              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center">
+                <Eye className="w-8 h-8 text-[#FF5800] opacity-0 group-hover:opacity-100 transition-opacity" />
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -136,6 +144,30 @@ export function GalleryGrid({ items, onItemDeleted }: GalleryGridProps) {
                     unoptimized
                     priority
                   />
+                ) : selectedItem.mimeType?.startsWith("audio/") ? (
+                  <div className="flex flex-col items-center justify-center gap-8">
+                    <div className="relative">
+                      <div className="absolute inset-0 bg-[#FF5800]/20 rounded-full blur-3xl scale-150" />
+                      <div className="relative rounded-full bg-[#FF5800]/10 border border-[#FF5800]/30 p-12">
+                        <Volume2 className="w-24 h-24 text-[#FF5800]" />
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {[0.4, 0.7, 1, 0.8, 0.5, 0.9, 0.6, 0.75, 0.45, 0.85, 0.65, 0.95, 0.5, 0.8, 0.6].map((h, i) => (
+                        <div
+                          key={i}
+                          className="w-2 bg-[#FF5800]/60 rounded-full"
+                          style={{ height: `${h * 48}px` }}
+                        />
+                      ))}
+                    </div>
+                    <audio
+                      src={selectedItem.url}
+                      controls
+                      className="w-full max-w-md"
+                      autoPlay={false}
+                    />
+                  </div>
                 ) : (
                   <video
                     src={selectedItem.url}
@@ -291,11 +323,11 @@ export function GalleryGrid({ items, onItemDeleted }: GalleryGridProps) {
 
 export function GalleryGridSkeleton() {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
-      {Array.from({ length: 8 }).map((_, i) => (
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2">
+      {Array.from({ length: 10 }).map((_, i) => (
         <div
           key={i}
-          className="overflow-hidden group cursor-pointer relative bg-black/60 aspect-square"
+          className="overflow-hidden rounded-md relative aspect-square"
         >
           <Skeleton className="w-full h-full bg-white/10" />
         </div>
