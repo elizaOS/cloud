@@ -1,6 +1,10 @@
 {
   "crons": [
     {
+      "path": "/api/cron/social-automation",
+      "schedule": "*/5 * * * *"
+    },
+    {
       "path": "/api/cron/auto-top-up",
       "schedule": "*/15 * * * *"
     },

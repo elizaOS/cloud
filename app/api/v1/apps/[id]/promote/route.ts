@@ -8,6 +8,7 @@ import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -111,14 +112,14 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
   if (isHistory) {
     const history = await appPromotionService.getPromotionHistory(
-      user.organization_id!,
+      user.organization_id,
       id,
     );
     return NextResponse.json(history);
   }
 
   const suggestions = await appPromotionService.getPromotionSuggestions(
-    user.organization_id!,
+    user.organization_id,
     id,
   );
 
@@ -201,7 +202,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   });
 
   const result = await appPromotionService.promoteApp(
-    user.organization_id!,
+    user.organization_id,
     user.id,
     id,
     config,

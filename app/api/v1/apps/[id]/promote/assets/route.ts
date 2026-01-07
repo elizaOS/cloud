@@ -11,6 +11,7 @@ import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60; // Asset generation with AI can take 30-60 seconds
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -54,9 +55,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   const copyCost = parsed.data.includeCopy !== false ? COPY_GENERATION_COST : 0;
   const totalCost = totalImageCost + copyCost;
 
-  // Deduct credits
+  // Deduct credits (organization_id is guaranteed after requireAuthOrApiKeyWithOrg)
   const deduction = await creditsService.deductCredits({
-    organizationId: user.organization_id!,
+    organizationId: user.organization_id,
     amount: totalCost,
     description: `Generate promotional assets for ${app.name}`,
     metadata: { appId: id, imageCount: imageCount + bannerCount },
@@ -88,10 +89,29 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   const failedImages = imageCount + bannerCount - successfulImages;
   if (failedImages > 0) {
     await creditsService.refundCredits({
-      organizationId: user.organization_id!,
+      organizationId: user.organization_id,
       amount: failedImages * ASSET_GENERATION_COST,
       description: `Refund for failed asset generations`,
       metadata: { appId: id, failedCount: failedImages },
+    });
+  }
+
+  // Save successful assets to the app record
+  if (successfulImages > 0) {
+    const promotionalAssets = result.assets.map((asset) => ({
+      type: asset.type as "social_card" | "banner",
+      url: asset.url,
+      size: { width: asset.size.width, height: asset.size.height },
+      generatedAt: asset.generatedAt.toISOString(),
+    }));
+
+    await appsService.update(id, {
+      promotional_assets: promotionalAssets,
+    });
+
+    logger.info("[Promote Assets API] Saved promotional assets to app", {
+      appId: id,
+      assetCount: promotionalAssets.length,
     });
   }
 

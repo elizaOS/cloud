@@ -211,6 +211,18 @@ export const apps = pgTable(
         announceIntervalMax: 240,
       }),
 
+    // Promotional Assets - AI-generated images for campaigns
+    promotional_assets: jsonb("promotional_assets")
+      .$type<
+        Array<{
+          type: "social_card" | "banner";
+          url: string;
+          size: { width: number; height: number };
+          generatedAt: string;
+        }>
+      >()
+      .default([]),
+
     // Status
     is_active: boolean("is_active").default(true).notNull(),
     is_approved: boolean("is_approved").default(true).notNull(), // For app review process

@@ -42,6 +42,10 @@ import {
   Twitter,
   Bot,
   ExternalLink,
+  RefreshCw,
+  MessageSquare,
+  Send,
+  Hash,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useEffect } from "react";
@@ -55,18 +59,13 @@ interface PromoteAppDialogProps {
     name: string;
     description?: string;
     app_url: string;
+    website_url?: string;
   };
-  adAccounts?: Array<{
-    id: string;
-    platform: string;
-    accountName: string;
-  }>;
+  twitterEnabled?: boolean;
 }
 
 type PromotionChannel =
   | "social"
-  | "seo"
-  | "advertising"
   | "twitter_automation"
   | "telegram_automation"
   | "discord_automation";
@@ -122,6 +121,13 @@ interface PromotionConfig {
   twitterAutomation?: TwitterAutomationConfig;
   telegramAutomation?: TelegramAutomationConfig;
   discordAutomation?: DiscordAutomationConfig;
+}
+
+interface PostPreview {
+  platform: "discord" | "telegram" | "twitter";
+  content: string;
+  type: string;
+  timestamp: string;
 }
 
 const SOCIAL_PLATFORMS = [
@@ -213,6 +219,8 @@ export function PromoteAppDialog({
       canSend: boolean;
     }>
   >([]);
+  const [postPreviews, setPostPreviews] = useState<PostPreview[]>([]);
+  const [isLoadingPreviews, setIsLoadingPreviews] = useState(false);
 
   // Check Twitter, Telegram, and Discord connection status
   useEffect(() => {
@@ -243,12 +251,48 @@ export function PromoteAppDialog({
   }, []);
 
   const toggleChannel = (channel: PromotionChannel) => {
-    setConfig((prev) => ({
-      ...prev,
-      channels: prev.channels.includes(channel)
+    setConfig((prev) => {
+      const isRemoving = prev.channels.includes(channel);
+      const newChannels = isRemoving
         ? prev.channels.filter((c) => c !== channel)
-        : [...prev.channels, channel],
-    }));
+        : [...prev.channels, channel];
+
+      // Initialize automation config with valid defaults when adding channel
+      const updates: Partial<PromotionConfig> = { channels: newChannels };
+
+      if (!isRemoving) {
+        if (channel === "discord_automation" && !prev.discordAutomation) {
+          updates.discordAutomation = {
+            enabled: true,
+            autoAnnounce: true,
+            announceIntervalMin: 60,
+            announceIntervalMax: 240,
+          };
+        }
+        if (channel === "telegram_automation" && !prev.telegramAutomation) {
+          updates.telegramAutomation = {
+            enabled: true,
+            autoReply: true,
+            autoAnnounce: true,
+            announceIntervalMin: 60,
+            announceIntervalMax: 240,
+          };
+        }
+        if (channel === "twitter_automation" && !prev.twitterAutomation) {
+          updates.twitterAutomation = {
+            enabled: true,
+            autoPost: true,
+            autoReply: true,
+            autoEngage: false,
+            discovery: false,
+            postIntervalMin: 90,
+            postIntervalMax: 180,
+          };
+        }
+      }
+
+      return { ...prev, ...updates };
+    });
   };
 
   const toggleSocialPlatform = (platformId: string) => {
@@ -311,8 +355,46 @@ export function PromoteAppDialog({
     setStep("channels");
     setConfig({ channels: [] });
     setResult(null);
+    setPostPreviews([]);
     onOpenChange(false);
   };
+
+  const fetchPreviews = useCallback(async () => {
+    if (isLoadingPreviews) return;
+
+    const platforms: ("discord" | "telegram" | "twitter")[] = [];
+    if (config.channels.includes("discord_automation")) platforms.push("discord");
+    if (config.channels.includes("telegram_automation")) platforms.push("telegram");
+    if (config.channels.includes("twitter_automation")) platforms.push("twitter");
+
+    if (platforms.length === 0) return;
+
+    setIsLoadingPreviews(true);
+    setPostPreviews([]);
+
+    fetch(`/api/v1/apps/${app.id}/promote/preview`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ platforms, count: 3 }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.previews) {
+          setPostPreviews(data.previews);
+        }
+      })
+      .catch(() => {
+        toast.error("Failed to generate previews");
+      })
+      .finally(() => {
+        setIsLoadingPreviews(false);
+      });
+  }, [app.id, config.channels, isLoadingPreviews]);
+
+  const handleReviewStep = useCallback(() => {
+    setStep("review");
+    fetchPreviews();
+  }, [fetchPreviews]);
 
   const estimatedCost = () => {
     let cost = 0;
@@ -1095,7 +1177,8 @@ export function PromoteAppDialog({
                         min={30}
                         max={1440}
                         value={config.twitterAutomation?.postIntervalMin ?? 90}
-                        onChange={(e) =>
+                        onChange={(e) => {
+                          const value = Math.max(30, Math.min(1440, parseInt(e.target.value) || 90));
                           setConfig((prev) => ({
                             ...prev,
                             twitterAutomation: {
@@ -1109,12 +1192,12 @@ export function PromoteAppDialog({
                                 prev.twitterAutomation?.autoEngage ?? false,
                               discovery:
                                 prev.twitterAutomation?.discovery ?? false,
-                              postIntervalMin: parseInt(e.target.value) || 90,
+                              postIntervalMin: value,
                               postIntervalMax:
-                                prev.twitterAutomation?.postIntervalMax ?? 150,
+                                prev.twitterAutomation?.postIntervalMax ?? 180,
                             },
-                          }))
-                        }
+                          }));
+                        }}
                       />
                     </div>
                     <div>
@@ -1126,8 +1209,9 @@ export function PromoteAppDialog({
                         type="number"
                         min={60}
                         max={1440}
-                        value={config.twitterAutomation?.postIntervalMax ?? 150}
-                        onChange={(e) =>
+                        value={config.twitterAutomation?.postIntervalMax ?? 180}
+                        onChange={(e) => {
+                          const value = Math.max(60, Math.min(1440, parseInt(e.target.value) || 180));
                           setConfig((prev) => ({
                             ...prev,
                             twitterAutomation: {
@@ -1143,10 +1227,10 @@ export function PromoteAppDialog({
                                 prev.twitterAutomation?.discovery ?? false,
                               postIntervalMin:
                                 prev.twitterAutomation?.postIntervalMin ?? 90,
-                              postIntervalMax: parseInt(e.target.value) || 150,
+                              postIntervalMax: value,
                             },
-                          }))
-                        }
+                          }));
+                        }}
                       />
                     </div>
                   </div>
@@ -1523,9 +1607,10 @@ export function PromoteAppDialog({
                         min={30}
                         max={1440}
                         value={
-                          config.telegramAutomation?.announceIntervalMin ?? 120
+                          config.telegramAutomation?.announceIntervalMin ?? 60
                         }
-                        onChange={(e) =>
+                        onChange={(e) => {
+                          const value = Math.max(30, Math.min(1440, parseInt(e.target.value) || 60));
                           setConfig((prev) => ({
                             ...prev,
                             telegramAutomation: {
@@ -1536,14 +1621,13 @@ export function PromoteAppDialog({
                                 prev.telegramAutomation?.autoReply ?? true,
                               autoAnnounce:
                                 prev.telegramAutomation?.autoAnnounce ?? true,
-                              announceIntervalMin:
-                                parseInt(e.target.value) || 120,
+                              announceIntervalMin: value,
                               announceIntervalMax:
                                 prev.telegramAutomation?.announceIntervalMax ??
                                 240,
                             },
-                          }))
-                        }
+                          }));
+                        }}
                       />
                     </div>
                     <div>
@@ -1558,7 +1642,8 @@ export function PromoteAppDialog({
                         value={
                           config.telegramAutomation?.announceIntervalMax ?? 240
                         }
-                        onChange={(e) =>
+                        onChange={(e) => {
+                          const value = Math.max(60, Math.min(1440, parseInt(e.target.value) || 240));
                           setConfig((prev) => ({
                             ...prev,
                             telegramAutomation: {
@@ -1571,12 +1656,11 @@ export function PromoteAppDialog({
                                 prev.telegramAutomation?.autoAnnounce ?? true,
                               announceIntervalMin:
                                 prev.telegramAutomation?.announceIntervalMin ??
-                                120,
-                              announceIntervalMax:
-                                parseInt(e.target.value) || 240,
+                                60,
+                              announceIntervalMax: value,
                             },
-                          }))
-                        }
+                          }));
+                        }}
                       />
                     </div>
                   </div>
@@ -1756,9 +1840,10 @@ export function PromoteAppDialog({
                         min={30}
                         max={1440}
                         value={
-                          config.discordAutomation?.announceIntervalMin ?? 120
+                          config.discordAutomation?.announceIntervalMin ?? 60
                         }
-                        onChange={(e) =>
+                        onChange={(e) => {
+                          const value = Math.max(30, Math.min(1440, parseInt(e.target.value) || 60));
                           setConfig((prev) => ({
                             ...prev,
                             discordAutomation: {
@@ -1767,14 +1852,13 @@ export function PromoteAppDialog({
                               channelId: prev.discordAutomation?.channelId,
                               autoAnnounce:
                                 prev.discordAutomation?.autoAnnounce ?? true,
-                              announceIntervalMin:
-                                parseInt(e.target.value) || 120,
+                              announceIntervalMin: value,
                               announceIntervalMax:
                                 prev.discordAutomation?.announceIntervalMax ??
                                 240,
                             },
-                          }))
-                        }
+                          }));
+                        }}
                       />
                     </div>
                     <div>
@@ -1789,7 +1873,8 @@ export function PromoteAppDialog({
                         value={
                           config.discordAutomation?.announceIntervalMax ?? 240
                         }
-                        onChange={(e) =>
+                        onChange={(e) => {
+                          const value = Math.max(60, Math.min(1440, parseInt(e.target.value) || 240));
                           setConfig((prev) => ({
                             ...prev,
                             discordAutomation: {
@@ -1800,12 +1885,11 @@ export function PromoteAppDialog({
                                 prev.discordAutomation?.autoAnnounce ?? true,
                               announceIntervalMin:
                                 prev.discordAutomation?.announceIntervalMin ??
-                                120,
-                              announceIntervalMax:
-                                parseInt(e.target.value) || 240,
+                                60,
+                              announceIntervalMax: value,
                             },
-                          }))
-                        }
+                          }));
+                        }}
                       />
                     </div>
                   </div>
@@ -1817,7 +1901,7 @@ export function PromoteAppDialog({
               <Button variant="outline" onClick={() => setStep("channels")}>
                 Back
               </Button>
-              <Button onClick={() => setStep("review")}>Review & Launch</Button>
+              <Button onClick={handleReviewStep}>Review & Launch</Button>
             </div>
           </div>
         )}
@@ -1834,9 +1918,19 @@ export function PromoteAppDialog({
                 </div>
                 <div className="flex justify-between">
                   <span>URL:</span>
-                  <span className="font-medium text-blue-500">
-                    {app.app_url}
-                  </span>
+                  {(app.website_url || app.app_url)?.includes("placeholder") ? (
+                    <span className="text-muted-foreground italic">Not configured</span>
+                  ) : (
+                    <a 
+                      href={app.website_url || app.app_url} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="font-medium text-blue-500 hover:underline flex items-center gap-1"
+                    >
+                      {app.website_url || app.app_url}
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                  )}
                 </div>
               </div>
 
@@ -1866,11 +1960,14 @@ export function PromoteAppDialog({
                   <div className="flex items-center gap-2">
                     <CheckCircle className="h-4 w-4 text-green-500" />
                     <span>
-                      Twitter Automation: @{twitterStatus.username}
+                      Twitter/X: @{twitterStatus.username}
                       {config.twitterAutomation?.autoPost && " • Auto-post"}
                       {config.twitterAutomation?.autoReply && " • Replies"}
                       {config.twitterAutomation?.autoEngage && " • Engagement"}
                       {config.twitterAutomation?.discovery && " • Discovery"}
+                      {config.twitterAutomation?.postIntervalMin && config.twitterAutomation?.postIntervalMax && (
+                        <> ({config.twitterAutomation.postIntervalMin}-{config.twitterAutomation.postIntervalMax} min)</>
+                      )}
                     </span>
                   </div>
                 )}
@@ -1879,10 +1976,11 @@ export function PromoteAppDialog({
                     <CheckCircle className="h-4 w-4 text-green-500" />
                     <span>
                       Telegram Bot: @{telegramStatus.botUsername}
-                      {config.telegramAutomation?.autoAnnounce &&
-                        " • Announcements"}
-                      {config.telegramAutomation?.autoReply &&
-                        " • Auto-replies"}
+                      {config.telegramAutomation?.autoAnnounce && " • Auto-announcements"}
+                      {config.telegramAutomation?.autoReply && " • Auto-replies"}
+                      {config.telegramAutomation?.announceIntervalMin && config.telegramAutomation?.announceIntervalMax && (
+                        <> ({config.telegramAutomation.announceIntervalMin}-{config.telegramAutomation.announceIntervalMax} min)</>
+                      )}
                     </span>
                   </div>
                 )}
@@ -1890,9 +1988,14 @@ export function PromoteAppDialog({
                   <div className="flex items-center gap-2">
                     <CheckCircle className="h-4 w-4 text-green-500" />
                     <span>
-                      Discord Bot: {discordStatus.guilds.find(g => g.id === config.discordAutomation?.guildId)?.name || "Selected Server"}
-                      {config.discordAutomation?.autoAnnounce &&
-                        " • Announcements"}
+                      Discord Bot: {discordStatus.guilds.find(g => g.id === config.discordAutomation?.guildId)?.name || "Server"}
+                      {config.discordAutomation?.channelId && discordChannels.length > 0 && (
+                        <> → #{discordChannels.find(c => c.id === config.discordAutomation?.channelId)?.name || "channel"}</>
+                      )}
+                      {config.discordAutomation?.autoAnnounce && " • Auto-announcements"}
+                      {config.discordAutomation?.announceIntervalMin && config.discordAutomation?.announceIntervalMax && (
+                        <> ({config.discordAutomation.announceIntervalMin}-{config.discordAutomation.announceIntervalMax} min)</>
+                      )}
                     </span>
                   </div>
                 )}
@@ -1905,6 +2008,94 @@ export function PromoteAppDialog({
                 </div>
               </div>
             </div>
+
+            {/* Post Previews Section */}
+            {(config.channels.includes("discord_automation") ||
+              config.channels.includes("telegram_automation") ||
+              config.channels.includes("twitter_automation")) && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-semibold flex items-center gap-2">
+                    <MessageSquare className="h-4 w-4" />
+                    Upcoming Posts Preview
+                  </h4>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={fetchPreviews}
+                    disabled={isLoadingPreviews}
+                  >
+                    {isLoadingPreviews ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <>
+                        <RefreshCw className="h-4 w-4 mr-1" />
+                        Regenerate
+                      </>
+                    )}
+                  </Button>
+                </div>
+
+                {isLoadingPreviews ? (
+                  <div className="flex items-center justify-center p-8 text-muted-foreground">
+                    <Loader2 className="h-6 w-6 animate-spin mr-2" />
+                    Generating sample posts...
+                  </div>
+                ) : postPreviews.length === 0 ? (
+                  <div className="text-center p-4 text-muted-foreground text-sm">
+                    Click &quot;Regenerate&quot; to preview sample posts
+                  </div>
+                ) : (
+                  <div className="space-y-3 max-h-64 overflow-y-auto">
+                    {postPreviews.map((preview, index) => (
+                      <div
+                        key={`${preview.platform}-${index}`}
+                        className={`p-3 rounded-lg border ${
+                          preview.platform === "discord"
+                            ? "border-[#5865F2]/30 bg-[#5865F2]/5"
+                            : preview.platform === "telegram"
+                            ? "border-[#0088cc]/30 bg-[#0088cc]/5"
+                            : "border-sky-500/30 bg-sky-500/5"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 mb-2">
+                          {preview.platform === "discord" && (
+                            <>
+                              <Hash className="h-4 w-4 text-[#5865F2]" />
+                              <span className="text-xs font-medium text-[#5865F2]">
+                                Discord
+                              </span>
+                            </>
+                          )}
+                          {preview.platform === "telegram" && (
+                            <>
+                              <Send className="h-4 w-4 text-[#0088cc]" />
+                              <span className="text-xs font-medium text-[#0088cc]">
+                                Telegram
+                              </span>
+                            </>
+                          )}
+                          {preview.platform === "twitter" && (
+                            <>
+                              <Twitter className="h-4 w-4 text-sky-500" />
+                              <span className="text-xs font-medium text-sky-500">
+                                Twitter/X
+                              </span>
+                            </>
+                          )}
+                          <Badge variant="outline" className="text-xs ml-auto">
+                            {preview.type}
+                          </Badge>
+                        </div>
+                        <p className="text-sm whitespace-pre-wrap">
+                          {preview.content}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="flex justify-between items-center pt-4 border-t">
               <Button variant="outline" onClick={() => setStep("configure")}>
