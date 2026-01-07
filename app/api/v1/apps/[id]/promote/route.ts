@@ -28,7 +28,14 @@ const SocialPlatformSchema = z.enum([
 ]);
 
 const PromotionConfigSchema = z.object({
-  channels: z.array(z.enum(["social", "seo", "advertising", "twitter_automation"])).min(1),
+  channels: z.array(z.enum([
+    "social",
+    "seo",
+    "advertising",
+    "twitter_automation",
+    "telegram_automation",
+    "discord_automation",
+  ])).min(1),
   social: z
     .object({
       platforms: z.array(SocialPlatformSchema).min(1),
@@ -72,6 +79,27 @@ const PromotionConfigSchema = z.object({
       topics: z.array(z.string().max(50)).max(10).optional(),
     })
     .optional(),
+  telegramAutomation: z
+    .object({
+      enabled: z.boolean(),
+      chatId: z.string().optional(),
+      autoAnnounce: z.boolean(),
+      announceIntervalMin: z.number().int().min(30).max(1440).default(60),
+      announceIntervalMax: z.number().int().min(60).max(1440).default(120),
+      vibeStyle: z.string().max(100).optional(),
+    })
+    .optional(),
+  discordAutomation: z
+    .object({
+      enabled: z.boolean().default(true),
+      guildId: z.string().optional(),
+      channelId: z.string().optional(),
+      autoAnnounce: z.boolean().default(true),
+      announceIntervalMin: z.number().int().min(30).max(1440).default(60),
+      announceIntervalMax: z.number().int().min(60).max(1440).default(120),
+      vibeStyle: z.string().max(100).optional(),
+    })
+    .optional(),
 });
 
 export async function GET(request: NextRequest, { params }: RouteParams) {
@@ -105,6 +133,11 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   const parsed = PromotionConfigSchema.safeParse(body);
 
   if (!parsed.success) {
+    logger.warn("[Promote API] Validation failed", {
+      appId: id,
+      errors: parsed.error.flatten(),
+      receivedChannels: body.channels,
+    });
     return NextResponse.json(
       { error: "Invalid request", details: parsed.error.flatten() },
       { status: 400 },
@@ -136,6 +169,26 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       {
         error:
           "Twitter automation config required when twitter_automation channel is selected",
+      },
+      { status: 400 },
+    );
+  }
+
+  if (config.channels.includes("telegram_automation") && !config.telegramAutomation) {
+    return NextResponse.json(
+      {
+        error:
+          "Telegram automation config required when telegram_automation channel is selected",
+      },
+      { status: 400 },
+    );
+  }
+
+  if (config.channels.includes("discord_automation") && !config.discordAutomation) {
+    return NextResponse.json(
+      {
+        error:
+          "Discord automation config required when discord_automation channel is selected",
       },
       { status: 400 },
     );

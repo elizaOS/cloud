@@ -278,13 +278,18 @@ export function PromoteAppDialog({
       data = await response.json();
 
       if (response.ok) {
+        // Build channels object with only the channels that have results
+        const channelResults: Record<string, { success: boolean; error?: string }> = {};
+        if (data.channels?.social) channelResults.social = data.channels.social;
+        if (data.channels?.seo) channelResults.seo = data.channels.seo;
+        if (data.channels?.advertising) channelResults.advertising = data.channels.advertising;
+        if (data.channels?.twitterAutomation) channelResults["Twitter Automation"] = data.channels.twitterAutomation;
+        if (data.channels?.telegramAutomation) channelResults["Telegram Automation"] = data.channels.telegramAutomation;
+        if (data.channels?.discordAutomation) channelResults["Discord Automation"] = data.channels.discordAutomation;
+
         setResult({
           success: data.errors?.length === 0,
-          channels: {
-            social: data.channels?.social,
-            seo: data.channels?.seo,
-            advertising: data.channels?.advertising,
-          },
+          channels: channelResults,
           totalCreditsUsed: data.totalCreditsUsed,
         });
         setStep("result");

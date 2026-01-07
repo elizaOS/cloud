@@ -1,9 +1,7 @@
 import { logger } from "@/lib/utils/logger";
 import { extractErrorMessage } from "@/lib/utils/error-handling";
-import { parseAiJson } from "@/lib/utils/ai-json-parse";
 import { generateText } from "ai";
 import { gateway } from "@ai-sdk/gateway";
-import { z } from "zod";
 import { appsService } from "./apps";
 import { socialMediaService } from "./social-media";
 import { advertisingService } from "./advertising";
@@ -13,6 +11,7 @@ import {
   twitterAppAutomationService,
   type TwitterAutomationConfig,
 } from "./twitter-automation/app-automation";
+import { discordAppAutomationService } from "./discord-automation/app-automation";
 import type { App } from "@/db/repositories";
 import type { SocialPlatform, PostContent } from "@/lib/types/social-media";
 import type {
@@ -21,7 +20,13 @@ import type {
   CreateCreativeInput,
 } from "./advertising/types";
 
-export type PromotionChannel = "social" | "seo" | "advertising" | "twitter_automation";
+export type PromotionChannel =
+  | "social"
+  | "seo"
+  | "advertising"
+  | "twitter_automation"
+  | "telegram_automation"
+  | "discord_automation";
 
 export interface PromotionConfig {
   channels: PromotionChannel[];
@@ -54,6 +59,23 @@ export interface PromotionConfig {
     postIntervalMax: number;
     vibeStyle?: string;
     topics?: string[];
+  };
+  telegramAutomation?: {
+    enabled: boolean;
+    chatId?: string;
+    autoAnnounce: boolean;
+    announceIntervalMin: number;
+    announceIntervalMax: number;
+    vibeStyle?: string;
+  };
+  discordAutomation?: {
+    enabled: boolean;
+    guildId?: string;
+    channelId?: string;
+    autoAnnounce: boolean;
+    announceIntervalMin: number;
+    announceIntervalMax: number;
+    vibeStyle?: string;
   };
 }
 
@@ -91,6 +113,19 @@ export interface PromotionResult {
       initialTweetUrl?: string;
       error?: string;
     };
+    telegramAutomation?: {
+      success: boolean;
+      enabled: boolean;
+      initialMessageId?: string;
+      error?: string;
+    };
+    discordAutomation?: {
+      success: boolean;
+      enabled: boolean;
+      initialMessageId?: string;
+      channelId?: string;
+      error?: string;
+    };
   };
   totalCreditsUsed: number;
   errors: string[];
@@ -105,15 +140,6 @@ export interface GeneratedPromotionalContent {
   socialPosts: Partial<Record<SocialPlatform, string>>;
 }
 
-const PromotionalContentSchema = z.object({
-  headline: z.string(),
-  shortDescription: z.string(),
-  longDescription: z.string(),
-  callToAction: z.string(),
-  hashtags: z.array(z.string()),
-  socialPosts: z.record(z.string()),
-});
-
 const PROMOTION_COSTS = {
   contentGeneration: 0.02,
   socialPostBase: 0.01,
@@ -121,9 +147,63 @@ const PROMOTION_COSTS = {
   adCampaignSetup: 0.5,
   twitterAutomationSetup: 0.1,
   twitterAutomationInitialTweet: 0.02,
+  telegramAutomationSetup: 0.05,
+  telegramAutomationInitialMessage: 0.02,
+  discordAutomationSetup: 0.05,
+  discordAutomationInitialMessage: 0.02,
 } as const;
 
 class AppPromotionService {
+  /**
+   * Validate promotional content structure manually.
+   * Bypasses Zod to avoid Turbopack bundling issues with Zod internals.
+   */
+  private validatePromotionalContent(data: unknown): GeneratedPromotionalContent {
+    if (!data || typeof data !== "object") {
+      throw new Error("Promotional content must be an object");
+    }
+
+    const obj = data as Record<string, unknown>;
+
+    // Validate required string fields
+    const requiredStrings = ["headline", "shortDescription", "longDescription", "callToAction"];
+    for (const field of requiredStrings) {
+      if (typeof obj[field] !== "string") {
+        throw new Error(`Missing or invalid field: ${field}`);
+      }
+    }
+
+    // Validate hashtags array
+    if (!Array.isArray(obj.hashtags)) {
+      throw new Error("hashtags must be an array");
+    }
+    for (const tag of obj.hashtags) {
+      if (typeof tag !== "string") {
+        throw new Error("All hashtags must be strings");
+      }
+    }
+
+    // Validate socialPosts object
+    if (!obj.socialPosts || typeof obj.socialPosts !== "object") {
+      throw new Error("socialPosts must be an object");
+    }
+    const socialPosts = obj.socialPosts as Record<string, unknown>;
+    for (const [platform, content] of Object.entries(socialPosts)) {
+      if (typeof content !== "string") {
+        throw new Error(`Social post for ${platform} must be a string`);
+      }
+    }
+
+    return {
+      headline: obj.headline as string,
+      shortDescription: obj.shortDescription as string,
+      longDescription: obj.longDescription as string,
+      callToAction: obj.callToAction as string,
+      hashtags: obj.hashtags as string[],
+      socialPosts: obj.socialPosts as Partial<Record<SocialPlatform, string>>,
+    };
+  }
+
   async generatePromotionalContent(
     app: App,
     targetAudience?: string,
@@ -164,11 +244,50 @@ Return ONLY valid JSON, no markdown.`;
       prompt,
     });
 
-    return parseAiJson(
-      text,
-      PromotionalContentSchema,
-      "promotional content",
-    ) as GeneratedPromotionalContent;
+    // Parse and validate the AI response
+    const extracted = text.trim();
+    let jsonText = extracted;
+
+    // Extract JSON from markdown code blocks if present
+    const fenceMatch = extracted.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (fenceMatch) {
+      jsonText = fenceMatch[1].trim();
+    }
+
+    // Find JSON boundaries
+    const jsonStart = jsonText.search(/[{[]/);
+    const lastBrace = jsonText.lastIndexOf("}");
+    const lastBracket = jsonText.lastIndexOf("]");
+    const jsonEnd = Math.max(lastBrace, lastBracket);
+
+    if (jsonStart === -1 || jsonEnd === -1) {
+      throw new Error("No JSON found in AI response for promotional content");
+    }
+
+    const jsonString = jsonText.slice(jsonStart, jsonEnd + 1);
+
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(jsonString);
+    } catch (parseError) {
+      logger.error("[AppPromotion] Failed to parse AI response JSON", {
+        appId: app.id,
+        error: parseError instanceof Error ? parseError.message : "Unknown error",
+        jsonString: jsonString.substring(0, 500),
+      });
+      throw new Error("Failed to parse promotional content JSON");
+    }
+
+    // Validate structure manually (bypasses Zod to avoid Turbopack bundling issues)
+    try {
+      return this.validatePromotionalContent(parsed);
+    } catch (validationError) {
+      logger.error("[AppPromotion] Content validation failed", {
+        appId: app.id,
+        error: validationError instanceof Error ? validationError.message : "Unknown error",
+      });
+      throw new Error("Promotional content validation failed");
+    }
   }
 
   async promoteApp(
@@ -279,6 +398,24 @@ Return ONLY valid JSON, no markdown.`;
         PROMOTION_COSTS.twitterAutomationSetup +
         (result.channels.twitterAutomation.initialTweetId
           ? PROMOTION_COSTS.twitterAutomationInitialTweet
+          : 0);
+    }
+
+    if (config.channels.includes("discord_automation") && config.discordAutomation) {
+      result.channels.discordAutomation = await this.executeDiscordAutomation(
+        organizationId,
+        app,
+        config.discordAutomation,
+      );
+      if (!result.channels.discordAutomation.success) {
+        result.errors.push(
+          `Discord automation failed: ${result.channels.discordAutomation.error}`,
+        );
+      }
+      result.totalCreditsUsed +=
+        PROMOTION_COSTS.discordAutomationSetup +
+        (result.channels.discordAutomation.initialMessageId
+          ? PROMOTION_COSTS.discordAutomationInitialMessage
           : 0);
     }
 
@@ -508,6 +645,80 @@ Return ONLY valid JSON, no markdown.`;
       };
     } catch (error) {
       logger.error("[AppPromotion] Twitter automation failed", {
+        appId: app.id,
+        error: extractErrorMessage(error),
+      });
+
+      return {
+        success: false,
+        enabled: false,
+        error: extractErrorMessage(error),
+      };
+    }
+  }
+
+  /**
+   * Execute Discord automation setup for an app
+   * This enables the AI agent to autonomously promote the app on Discord
+   */
+  private async executeDiscordAutomation(
+    organizationId: string,
+    app: App,
+    config: NonNullable<PromotionConfig["discordAutomation"]>,
+  ): Promise<NonNullable<PromotionResult["channels"]["discordAutomation"]>> {
+    try {
+      // Validate that we have the required config
+      if (!config.guildId || !config.channelId) {
+        return {
+          success: false,
+          enabled: false,
+          error: "Discord server and channel must be selected",
+        };
+      }
+
+      // Enable automation with the provided config
+      await discordAppAutomationService.enableAutomation(organizationId, app.id, {
+        enabled: config.enabled,
+        guildId: config.guildId,
+        channelId: config.channelId,
+        autoAnnounce: config.autoAnnounce,
+        announceIntervalMin: config.announceIntervalMin,
+        announceIntervalMax: config.announceIntervalMax,
+        vibeStyle: config.vibeStyle,
+      });
+
+      // Post an initial announcement if autoAnnounce is enabled
+      let initialMessageId: string | undefined;
+      let channelId: string | undefined;
+
+      if (config.autoAnnounce) {
+        const postResult = await discordAppAutomationService.postAnnouncement(
+          organizationId,
+          app.id,
+        );
+
+        if (postResult.success) {
+          initialMessageId = postResult.messageId;
+          channelId = postResult.channelId;
+        }
+      }
+
+      logger.info("[AppPromotion] Discord automation enabled", {
+        appId: app.id,
+        organizationId,
+        guildId: config.guildId,
+        channelId: config.channelId,
+        initialMessageId,
+      });
+
+      return {
+        success: true,
+        enabled: true,
+        initialMessageId,
+        channelId,
+      };
+    } catch (error) {
+      logger.error("[AppPromotion] Discord automation failed", {
         appId: app.id,
         error: extractErrorMessage(error),
       });
