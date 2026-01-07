@@ -93,6 +93,13 @@ export const generations = pgTable(
     org_status_user_created_idx: index(
       "generations_org_status_user_created_idx",
     ).on(table.organization_id, table.status, table.user_id, table.created_at),
+    // Composite index for explore/discover queries: status + type + created_at ordering
+    // Optimized for: WHERE status='completed' AND type='image/video' ORDER BY created_at DESC
+    explore_idx: index("generations_explore_idx").on(
+      table.status,
+      table.type,
+      table.created_at,
+    ),
   }),
 );
 

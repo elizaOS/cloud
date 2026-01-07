@@ -105,32 +105,56 @@ export class GenerationsRepository {
 
   /**
    * Lists random completed images from all users (for explore/discover).
+   * Uses a two-step approach for performance: first gets recent images using index,
+   * then applies randomization only to that smaller pool.
    */
   async listRandomPublicImages(limit: number = 20): Promise<Generation[]> {
-    return await dbRead.query.generations.findMany({
-      where: and(
-        eq(generations.status, "completed"),
-        eq(generations.type, "image"),
-        sql`${generations.storage_url} IS NOT NULL`,
-      ),
-      orderBy: sql`RANDOM()`,
-      limit,
-    });
+    // Pool size to select from (larger pool = more variety, but keep reasonable)
+    const poolSize = Math.max(limit * 10, 200);
+
+    // Use raw SQL for efficient subquery-based random selection
+    // This first gets recent images (using created_at index), then randomizes only that pool
+    const result = await dbRead.execute<Generation>(sql`
+      SELECT * FROM (
+        SELECT * FROM ${generations}
+        WHERE ${generations.status} = 'completed'
+          AND ${generations.type} = 'image'
+          AND ${generations.storage_url} IS NOT NULL
+        ORDER BY ${generations.created_at} DESC
+        LIMIT ${poolSize}
+      ) AS recent_images
+      ORDER BY RANDOM()
+      LIMIT ${limit}
+    `);
+
+    return result.rows;
   }
 
   /**
    * Lists random completed videos from all users (for explore/discover).
+   * Uses a two-step approach for performance: first gets recent videos using index,
+   * then applies randomization only to that smaller pool.
    */
   async listRandomPublicVideos(limit: number = 20): Promise<Generation[]> {
-    return await dbRead.query.generations.findMany({
-      where: and(
-        eq(generations.status, "completed"),
-        eq(generations.type, "video"),
-        sql`${generations.storage_url} IS NOT NULL`,
-      ),
-      orderBy: sql`RANDOM()`,
-      limit,
-    });
+    // Pool size to select from (larger pool = more variety, but keep reasonable)
+    const poolSize = Math.max(limit * 10, 200);
+
+    // Use raw SQL for efficient subquery-based random selection
+    // This first gets recent videos (using created_at index), then randomizes only that pool
+    const result = await dbRead.execute<Generation>(sql`
+      SELECT * FROM (
+        SELECT * FROM ${generations}
+        WHERE ${generations.status} = 'completed'
+          AND ${generations.type} = 'video'
+          AND ${generations.storage_url} IS NOT NULL
+        ORDER BY ${generations.created_at} DESC
+        LIMIT ${poolSize}
+      ) AS recent_videos
+      ORDER BY RANDOM()
+      LIMIT ${limit}
+    `);
+
+    return result.rows;
   }
 
   /**
