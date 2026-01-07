@@ -169,8 +169,21 @@ const nextConfig: NextConfig = {
   },
   async headers() {
     return [
+      // CORS headers for all API routes - allow any origin with valid auth
+      // Note: Credentials cannot be used with wildcard origin - auth is via tokens in headers
       {
-        source: "/:path*",
+        source: "/api/:path*",
+        headers: [
+          { key: "Access-Control-Allow-Origin", value: "*" },
+          { key: "Access-Control-Allow-Methods", value: "GET, POST, PUT, PATCH, DELETE, OPTIONS" },
+          { key: "Access-Control-Allow-Headers", value: "Content-Type, Authorization, X-API-Key, X-Request-ID, Cookie" },
+          { key: "Access-Control-Max-Age", value: "86400" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+        ],
+      },
+      // CSP headers for non-API routes
+      {
+        source: "/:path((?!api).*)",
         headers: [
           {
             key: "Content-Security-Policy",
@@ -186,30 +199,12 @@ const nextConfig: NextConfig = {
               "object-src 'none'",
               "base-uri 'self'",
               "form-action 'self'",
-              "frame-ancestors 'none'",
+              // Allow iframes from any origin - sandbox apps need to embed
+              "frame-ancestors *",
               "child-src https://auth.privy.io https://verify.walletconnect.com https://verify.walletconnect.org https://oauth.telegram.org https://*.vercel.run https://www.youtube.com https://youtube.com",
               "frame-src https://auth.privy.io https://verify.walletconnect.com https://verify.walletconnect.org https://challenges.cloudflare.com https://oauth.telegram.org https://*.vercel.run https://www.youtube.com https://youtube.com",
               [
-                "connect-src 'self'",
-                "https://auth.privy.io",
-                "wss://relay.walletconnect.com",
-                "wss://relay.walletconnect.org",
-                "wss://www.walletlink.org",
-                "https://*.rpc.privy.systems",
-                "https://explorer-api.walletconnect.com",
-                "https://api.relay.link",
-                "https://api.testnets.relay.link",
-                "https://api.mainnet-beta.solana.com",
-                "https://api.devnet.solana.com",
-                "https://api.testnet.solana.com",
-                "https://api.openai.com",
-                "https://api.stripe.com",
-                "https://api.coingecko.com",
-                "https://*.fal.ai",
-                "https://api.elevenlabs.io",
-                "https://cdn.jsdelivr.net",
-                "https://vitals.vercel-insights.com",
-                "https://*.vercel.run",
+                "connect-src *",
               ].join(" "),
               "worker-src 'self' blob:",
               "manifest-src 'self'",
@@ -219,7 +214,7 @@ const nextConfig: NextConfig = {
               .join("; ")
               .replace(/\s+/g, " "),
           },
-          { key: "X-Frame-Options", value: "DENY" },
+          // Remove X-Frame-Options to allow iframes - frame-ancestors CSP handles this now
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           { key: "X-XSS-Protection", value: "1; mode=block" },

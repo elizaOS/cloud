@@ -19,27 +19,13 @@ import type { UserWithOrganization } from "@/lib/types";
 
 export const maxDuration = 30;
 
-// CORS headers for cross-origin sandbox requests
-function getCorsHeaders(origin: string | null) {
-  // Allow Vercel sandboxes, preview deployments, and elizacloud.ai app domains
-  const allowedOriginPatterns = [
-    /^https:\/\/sb-[a-z0-9]+\.vercel\.run$/,
-    /^https:\/\/[a-z0-9-]+\.vercel\.app$/,
-    /^https:\/\/[a-z0-9-]+\.apps\.elizacloud\.ai$/,
-    /^http:\/\/localhost:\d+$/,
-    /^http:\/\/127\.0\.0\.1:\d+$/,
-  ];
-
-  const isAllowed =
-    !origin || allowedOriginPatterns.some((p) => p.test(origin));
-  const corsOrigin = isAllowed && origin ? origin : "*";
-
+// CORS headers - fully open, security via auth tokens
+function getCorsHeaders(_origin: string | null) {
   return {
-    "Access-Control-Allow-Origin": corsOrigin,
+    "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
     "Access-Control-Allow-Headers":
       "Content-Type, Authorization, X-API-Key, X-Request-ID",
-    "Access-Control-Allow-Credentials": "true",
     "Access-Control-Max-Age": "86400",
   };
 }
