@@ -11,6 +11,7 @@ import {
   twitterAppAutomationService,
   type TwitterAutomationConfig,
 } from "./twitter-automation/app-automation";
+import { telegramAppAutomationService } from "./telegram-automation/app-automation";
 import { discordAppAutomationService } from "./discord-automation/app-automation";
 import type { App } from "@/db/repositories";
 import type { SocialPlatform, PostContent } from "@/lib/types/social-media";
@@ -62,8 +63,10 @@ export interface PromotionConfig {
   };
   telegramAutomation?: {
     enabled: boolean;
-    chatId?: string;
+    channelId?: string;
+    groupId?: string;
     autoAnnounce: boolean;
+    autoReply?: boolean;
     announceIntervalMin: number;
     announceIntervalMax: number;
     vibeStyle?: string;
@@ -401,6 +404,24 @@ Return ONLY valid JSON, no markdown.`;
           : 0);
     }
 
+    if (config.channels.includes("telegram_automation") && config.telegramAutomation) {
+      result.channels.telegramAutomation = await this.executeTelegramAutomation(
+        organizationId,
+        app,
+        config.telegramAutomation,
+      );
+      if (!result.channels.telegramAutomation.success) {
+        result.errors.push(
+          `Telegram automation failed: ${result.channels.telegramAutomation.error}`,
+        );
+      }
+      result.totalCreditsUsed +=
+        PROMOTION_COSTS.telegramAutomationSetup +
+        (result.channels.telegramAutomation.initialMessageId
+          ? PROMOTION_COSTS.telegramAutomationInitialMessage
+          : 0);
+    }
+
     if (config.channels.includes("discord_automation") && config.discordAutomation) {
       result.channels.discordAutomation = await this.executeDiscordAutomation(
         organizationId,
@@ -645,6 +666,81 @@ Return ONLY valid JSON, no markdown.`;
       };
     } catch (error) {
       logger.error("[AppPromotion] Twitter automation failed", {
+        appId: app.id,
+        error: extractErrorMessage(error),
+      });
+
+      return {
+        success: false,
+        enabled: false,
+        error: extractErrorMessage(error),
+      };
+    }
+  }
+
+  /**
+   * Execute Telegram automation setup for an app
+   * This enables the AI agent to autonomously promote the app on Telegram
+   */
+  private async executeTelegramAutomation(
+    organizationId: string,
+    app: App,
+    config: NonNullable<PromotionConfig["telegramAutomation"]>,
+  ): Promise<NonNullable<PromotionResult["channels"]["telegramAutomation"]>> {
+    try {
+      // Use channelId for announcements, or groupId as fallback
+      const chatId = config.channelId || config.groupId;
+
+      // Validate that we have the required config
+      if (!chatId) {
+        return {
+          success: false,
+          enabled: false,
+          error: "Telegram channel or group must be selected",
+        };
+      }
+
+      // Enable automation with the provided config
+      await telegramAppAutomationService.enableAutomation(organizationId, app.id, {
+        enabled: config.enabled,
+        channelId: config.channelId,
+        groupId: config.groupId,
+        autoAnnounce: config.autoAnnounce,
+        autoReply: config.autoReply,
+        announceIntervalMin: config.announceIntervalMin,
+        announceIntervalMax: config.announceIntervalMax,
+        vibeStyle: config.vibeStyle,
+      });
+
+      // Post an initial announcement if autoAnnounce is enabled
+      let initialMessageId: string | undefined;
+
+      if (config.autoAnnounce) {
+        const postResult = await telegramAppAutomationService.postAnnouncement(
+          organizationId,
+          app.id,
+        );
+
+        if (postResult.success && postResult.messageId) {
+          initialMessageId = postResult.messageId.toString();
+        }
+      }
+
+      logger.info("[AppPromotion] Telegram automation enabled", {
+        appId: app.id,
+        organizationId,
+        channelId: config.channelId,
+        groupId: config.groupId,
+        initialMessageId,
+      });
+
+      return {
+        success: true,
+        enabled: true,
+        initialMessageId,
+      };
+    } catch (error) {
+      logger.error("[AppPromotion] Telegram automation failed", {
         appId: app.id,
         error: extractErrorMessage(error),
       });

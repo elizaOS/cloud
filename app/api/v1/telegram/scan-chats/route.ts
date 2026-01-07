@@ -84,15 +84,28 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       }
     }
 
-    // Re-set the webhook
-    const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://eliza.gg";
-    await bot.telegram.setWebhook(
-      `${APP_URL}/api/v1/telegram/webhook/${user.organization_id}`,
-      {
-        allowed_updates: ["message", "callback_query", "channel_post", "my_chat_member"],
-        drop_pending_updates: true,
-      }
-    );
+    // Re-set the webhook (only if using HTTPS - required by Telegram)
+    // Use ELIZA_API_URL (ngrok) for local dev, otherwise NEXT_PUBLIC_APP_URL
+    const WEBHOOK_URL = process.env.ELIZA_API_URL || process.env.NEXT_PUBLIC_APP_URL || "https://eliza.gg";
+    if (WEBHOOK_URL.startsWith("https://")) {
+      await bot.telegram.setWebhook(
+        `${WEBHOOK_URL}/api/v1/telegram/webhook/${user.organization_id}`,
+        {
+          allowed_updates: ["message", "callback_query", "channel_post", "my_chat_member"],
+          drop_pending_updates: true,
+        }
+      );
+      logger.info("[Telegram Scan] Webhook set", {
+        organizationId: user.organization_id,
+        webhookUrl: WEBHOOK_URL,
+      });
+    } else {
+      // Skip webhook setup for local development without ngrok
+      logger.info("[Telegram Scan] Skipping webhook setup - HTTPS required (set ELIZA_API_URL with ngrok URL)", {
+        organizationId: user.organization_id,
+        appUrl: WEBHOOK_URL,
+      });
+    }
 
     logger.info("[Telegram Scan] Scanned for chats", {
       organizationId: user.organization_id,
