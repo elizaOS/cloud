@@ -107,7 +107,12 @@ export function AppsSection({ apps = [], className }: AppsSectionProps) {
           </div>
         </div>
         {apps.length > 0 && (
-          <BrandButton variant="outline" asChild size="sm" className="h-8 text-xs">
+          <BrandButton
+            variant="outline"
+            asChild
+            size="sm"
+            className="h-8 text-xs"
+          >
             <Link href="/dashboard/apps">View All</Link>
           </BrandButton>
         )}
@@ -165,7 +170,9 @@ function AppCard({ app }: { app: App }) {
                 className="w-12 h-12 rounded-lg object-cover flex-shrink-0"
               />
             ) : (
-              <div className={`w-12 h-12 rounded-lg bg-gradient-to-br ${getAppGradient(app.name)} flex items-center justify-center flex-shrink-0`}>
+              <div
+                className={`w-12 h-12 rounded-lg bg-gradient-to-br ${getAppGradient(app.name)} flex items-center justify-center flex-shrink-0`}
+              >
                 <span className="text-white font-bold text-lg">
                   {app.name.charAt(0).toUpperCase()}
                 </span>
@@ -251,7 +258,12 @@ function AppsEmptyState() {
               Build with AI
             </Link>
           </BrandButton>
-          <BrandButton variant="outline" asChild size="sm" className="h-8 text-xs">
+          <BrandButton
+            variant="outline"
+            asChild
+            size="sm"
+            className="h-8 text-xs"
+          >
             <Link href="/dashboard/apps">
               <Plus className="h-3.5 w-3.5 mr-1.5" />
               Create App

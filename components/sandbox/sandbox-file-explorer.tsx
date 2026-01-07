@@ -124,7 +124,7 @@ export function SandboxFileExplorer({
         });
       }
     } catch (error) {
-      console.error("Failed to fetch file tree:", error);
+      console.warn("[SandboxFileExplorer] Failed to fetch file tree:", error);
       toast.error("Failed to load files");
     } finally {
       setLoading(false);
@@ -169,7 +169,7 @@ export function SandboxFileExplorer({
         toast.error(data.error || "Failed to open file");
       }
     } catch (error) {
-      console.error("Failed to open file:", error);
+      console.warn("[SandboxFileExplorer] Failed to open file:", error);
       toast.error("Failed to open file");
     } finally {
       setLoadingFile(null);
@@ -226,7 +226,7 @@ export function SandboxFileExplorer({
         toast.error(data.error || "Failed to save file");
       }
     } catch (error) {
-      console.error("Failed to save file:", error);
+      console.warn("[SandboxFileExplorer] Failed to save file:", error);
       toast.error("Failed to save file");
     } finally {
       setSaving(false);

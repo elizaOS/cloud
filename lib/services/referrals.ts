@@ -135,7 +135,7 @@ export class ReferralsService {
 
     // Award bonus to referred user (app-specific or org balance)
     if (appContext?.appId) {
-      // App-specific credits for miniapp users
+      // App-specific credits for app users
       await appCreditsService.addCredits(
         appContext.appId,
         referredUserId,
@@ -390,7 +390,7 @@ export class SocialRewardsService {
 
     // Award credits (app-specific or org balance)
     if (appContext?.appId) {
-      // App-specific credits for miniapp users
+      // App-specific credits for app users
       await appCreditsService.addCredits(
         appContext.appId,
         userId,

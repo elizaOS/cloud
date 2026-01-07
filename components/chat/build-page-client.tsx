@@ -51,10 +51,7 @@ export function BuildPageClient({
   const pathname = usePathname();
 
   // Initialize store with characters
-  const {
-    setAnonymousSessionToken,
-    initializeState,
-  } = useChatStore();
+  const { setAnonymousSessionToken, initializeState } = useChatStore();
 
   useSetPageHeader({
     title: "Build",
@@ -114,14 +111,22 @@ export function BuildPageClient({
           }
         })
         .catch((error) => {
-          console.error("[BuildPageClient] Failed to create anonymous session:", error);
+          console.error(
+            "[BuildPageClient] Failed to create anonymous session:",
+            error,
+          );
         })
         .finally(() => {
           // Always set loading to false regardless of success/failure
           setIsLoadingSession(false);
         });
     }
-  }, [isAuthenticated, anonymousSession, isLoadingSession, setAnonymousSessionToken]);
+  }, [
+    isAuthenticated,
+    anonymousSession,
+    isLoadingSession,
+    setAnonymousSessionToken,
+  ]);
 
   // Intercept in-app navigation when there are unsaved changes
   useEffect(() => {
