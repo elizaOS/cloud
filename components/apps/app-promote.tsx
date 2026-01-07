@@ -14,7 +14,6 @@ import {
   Megaphone,
   Share2,
   Image as ImageIcon,
-  Video,
   Plus,
   Loader2,
   Sparkles,
@@ -28,6 +27,7 @@ import {
 } from "lucide-react";
 import { PromoteAppDialog } from "@/components/promotion/promote-app-dialog";
 import Link from "next/link";
+import Image from "next/image";
 import { toast } from "sonner";
 import type { App } from "@/db/schemas";
 
@@ -54,15 +54,18 @@ interface TwitterStatus {
 interface AutomationStatus {
   discord: {
     enabled: boolean;
+    ready: boolean; // Has channel configured
     guildName?: string;
     channelName?: string;
   };
   telegram: {
     enabled: boolean;
+    ready: boolean; // Has channel/group configured
     botUsername?: string;
   };
   twitter: {
     enabled: boolean;
+    ready: boolean;
     username?: string;
   };
 }
@@ -77,13 +80,15 @@ export function AppPromote({ app }: AppPromoteProps) {
     connected: false,
   });
   const [automationStatus, setAutomationStatus] = useState<AutomationStatus>({
-    discord: { enabled: false },
-    telegram: { enabled: false },
-    twitter: { enabled: false },
+    discord: { enabled: false, ready: false },
+    telegram: { enabled: false, ready: false },
+    twitter: { enabled: false, ready: false },
   });
   const [isLoading, setIsLoading] = useState(true);
   const [isGeneratingAssets, setIsGeneratingAssets] = useState(false);
   const [isPostingTo, setIsPostingTo] = useState<string | null>(null);
+  const [customPrompt, setCustomPrompt] = useState("");
+  const [showPromptInput, setShowPromptInput] = useState(false);
 
   // Calculate total social posts from automation configs
   const discordConfig = app.discord_automation as {
@@ -94,8 +99,9 @@ export function AppPromote({ app }: AppPromoteProps) {
     enabled?: boolean;
     botUsername?: string;
   } | null;
-  const totalSocialPosts =
+  const initialPostCount =
     (discordConfig?.totalMessages ?? 0) + (telegramConfig?.totalMessages ?? 0);
+  const [totalSocialPosts, setTotalSocialPosts] = useState(initialPostCount);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -126,21 +132,32 @@ export function AppPromote({ app }: AppPromoteProps) {
       const telegramAutomation = app.telegram_automation as {
         enabled?: boolean;
         botUsername?: string;
+        channelId?: string;
+        groupId?: string;
       } | null;
       const twitterAutomation = app.twitter_automation as {
         enabled?: boolean;
+        autoPost?: boolean;
       } | null;
 
       setAutomationStatus({
         discord: {
           enabled: discordAutomation?.enabled ?? false,
+          ready: !!(discordAutomation?.enabled && discordAutomation?.channelId),
         },
         telegram: {
           enabled: telegramAutomation?.enabled ?? false,
+          ready: !!(
+            telegramAutomation?.enabled &&
+            (telegramAutomation?.channelId || telegramAutomation?.groupId)
+          ),
           botUsername: telegramAutomation?.botUsername,
         },
         twitter: {
           enabled: TWITTER_ENABLED && (twitterAutomation?.enabled ?? false),
+          ready:
+            TWITTER_ENABLED &&
+            !!(twitterAutomation?.enabled && twitterAutomation?.autoPost),
         },
       });
 
@@ -166,21 +183,48 @@ export function AppPromote({ app }: AppPromoteProps) {
         body: JSON.stringify({
           includeCopy: true,
           includeAdBanners: true,
+          customPrompt: customPrompt.trim() || undefined, // Only send if provided
         }),
       });
 
-      if (response.ok) {
-        window.location.reload();
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        toast.error(
+          data.error || "Failed to generate assets. Please try again."
+        );
+        setIsGeneratingAssets(false);
         return;
       }
 
-      const data = await response.json().catch(() => ({}));
-      toast.error(data.error || "Failed to generate assets. Please try again.");
+      // Check if any assets were actually generated
+      const assetCount = data.assets?.length ?? 0;
+      const hasCopy = !!data.copy;
+
+      if (assetCount === 0 && !hasCopy) {
+        const errorMsg = data.errors?.join(", ") || "No assets generated";
+        toast.error(`Generation failed: ${errorMsg}`);
+        setIsGeneratingAssets(false);
+        return;
+      }
+
+      // Show success with details
+      if (data.errors?.length > 0) {
+        toast.warning(
+          `Generated ${assetCount} assets with some errors: ${data.errors.join(", ")}`
+        );
+      } else {
+        toast.success(
+          `Generated ${assetCount} promotional assets${hasCopy ? " and ad copy" : ""}`
+        );
+      }
+
+      // Reload to show new assets
+      window.location.reload();
     } catch {
       toast.error("Network error. Please check your connection and try again.");
+      setIsGeneratingAssets(false);
     }
-
-    setIsGeneratingAssets(false);
   };
 
   const handlePostNow = async (
@@ -207,6 +251,8 @@ export function AppPromote({ app }: AppPromoteProps) {
         toast.success(
           `Posted to ${platform.charAt(0).toUpperCase() + platform.slice(1)} successfully!`
         );
+        // Update local post count
+        setTotalSocialPosts((prev) => prev + 1);
       } else {
         toast.error(data.error || `Failed to post to ${platform}`);
       }
@@ -317,8 +363,13 @@ export function AppPromote({ app }: AppPromoteProps) {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {automationStatus.discord.enabled && (
               <button
-                onClick={() => handlePostNow("discord")}
-                disabled={isPostingTo !== null}
+                type="button"
+                onClick={() =>
+                  automationStatus.discord.ready && handlePostNow("discord")
+                }
+                disabled={
+                  isPostingTo !== null || !automationStatus.discord.ready
+                }
                 className="p-4 rounded-lg border border-[#5865F2]/30 bg-[#5865F2]/5 hover:bg-[#5865F2]/10 transition-colors text-left disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <div className="flex items-center gap-3 mb-2">
@@ -330,7 +381,9 @@ export function AppPromote({ app }: AppPromoteProps) {
                       Post to Discord
                     </div>
                     <div className="text-white/60 text-xs">
-                      Send announcement now
+                      {automationStatus.discord.ready
+                        ? "Send announcement now"
+                        : "No channel configured"}
                     </div>
                   </div>
                 </div>
@@ -351,8 +404,13 @@ export function AppPromote({ app }: AppPromoteProps) {
 
             {automationStatus.telegram.enabled && (
               <button
-                onClick={() => handlePostNow("telegram")}
-                disabled={isPostingTo !== null}
+                type="button"
+                onClick={() =>
+                  automationStatus.telegram.ready && handlePostNow("telegram")
+                }
+                disabled={
+                  isPostingTo !== null || !automationStatus.telegram.ready
+                }
                 className="p-4 rounded-lg border border-[#0088cc]/30 bg-[#0088cc]/5 hover:bg-[#0088cc]/10 transition-colors text-left disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <div className="flex items-center gap-3 mb-2">
@@ -364,9 +422,11 @@ export function AppPromote({ app }: AppPromoteProps) {
                       Post to Telegram
                     </div>
                     <div className="text-white/60 text-xs">
-                      {automationStatus.telegram.botUsername
-                        ? `@${automationStatus.telegram.botUsername}`
-                        : "Send announcement now"}
+                      {!automationStatus.telegram.ready
+                        ? "No channel/group configured"
+                        : automationStatus.telegram.botUsername
+                          ? `@${automationStatus.telegram.botUsername}`
+                          : "Send announcement now"}
                     </div>
                   </div>
                 </div>
@@ -387,8 +447,13 @@ export function AppPromote({ app }: AppPromoteProps) {
 
             {TWITTER_ENABLED && automationStatus.twitter.enabled && (
               <button
-                onClick={() => handlePostNow("twitter")}
-                disabled={isPostingTo !== null}
+                type="button"
+                onClick={() =>
+                  automationStatus.twitter.ready && handlePostNow("twitter")
+                }
+                disabled={
+                  isPostingTo !== null || !automationStatus.twitter.ready
+                }
                 className="p-4 rounded-lg border border-sky-500/30 bg-sky-500/5 hover:bg-sky-500/10 transition-colors text-left disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <div className="flex items-center gap-3 mb-2">
@@ -400,9 +465,11 @@ export function AppPromote({ app }: AppPromoteProps) {
                       Post to Twitter/X
                     </div>
                     <div className="text-white/60 text-xs">
-                      {twitterStatus.username
-                        ? `@${twitterStatus.username}`
-                        : "Send tweet now"}
+                      {!automationStatus.twitter.ready
+                        ? "Auto-post not enabled"
+                        : twitterStatus.username
+                          ? `@${twitterStatus.username}`
+                          : "Send tweet now"}
                     </div>
                   </div>
                 </div>
@@ -427,7 +494,7 @@ export function AppPromote({ app }: AppPromoteProps) {
       {/* Promotional Assets */}
       <BrandCard className="p-6">
         <CornerBrackets />
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between">
           <div>
             <h3 className="text-lg font-semibold text-white flex items-center gap-2">
               <ImageIcon className="h-5 w-5" />
@@ -437,44 +504,114 @@ export function AppPromote({ app }: AppPromoteProps) {
               AI-generated images and copy for your campaigns
             </p>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleGenerateAssets}
-            disabled={isGeneratingAssets}
-          >
-            {isGeneratingAssets ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Generating...
-              </>
-            ) : (
-              <>
-                <Sparkles className="h-4 w-4 mr-2" />
-                Generate Assets
-              </>
-            )}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowPromptInput(!showPromptInput)}
+              className="text-white/60 hover:text-white"
+            >
+              {showPromptInput ? "Hide" : "Custom"} Prompt
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleGenerateAssets}
+              disabled={isGeneratingAssets}
+            >
+              {isGeneratingAssets ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  Generate Assets
+                </>
+              )}
+            </Button>
+          </div>
         </div>
 
-        <div className="grid grid-cols-4 gap-4">
-          {/* Placeholder for generated assets */}
-          <div className="aspect-square rounded-lg border-2 border-dashed border-white/20 flex flex-col items-center justify-center text-white/40 hover:border-white/40 transition-colors cursor-pointer">
-            <ImageIcon className="h-8 w-8 mb-2" />
-            <span className="text-xs">Social Card</span>
+        {/* Optional custom prompt input */}
+        {showPromptInput && (
+          <div className="space-y-2 mt-4">
+            <label htmlFor="custom-prompt" className="text-sm text-white/70">
+              Custom Instructions{" "}
+              <span className="text-white/40">(optional)</span>
+            </label>
+            <textarea
+              id="custom-prompt"
+              value={customPrompt}
+              onChange={(e) => setCustomPrompt(e.target.value)}
+              placeholder="E.g., 'Use dark blue and gold colors, show a futuristic dashboard, emphasize AI capabilities...'"
+              className="w-full h-20 px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder:text-white/30 text-sm resize-none focus:outline-none focus:border-white/30"
+              maxLength={1000}
+            />
+            <p className="text-xs text-white/40">
+              Add specific instructions to guide the AI image generation.
+              {customPrompt.length > 0 && (
+                <span className="ml-2">
+                  {customPrompt.length}/1000 characters
+                </span>
+              )}
+            </p>
           </div>
-          <div className="aspect-square rounded-lg border-2 border-dashed border-white/20 flex flex-col items-center justify-center text-white/40 hover:border-white/40 transition-colors cursor-pointer">
-            <ImageIcon className="h-8 w-8 mb-2" />
-            <span className="text-xs">Banner</span>
-          </div>
-          <div className="aspect-square rounded-lg border-2 border-dashed border-white/20 flex flex-col items-center justify-center text-white/40 hover:border-white/40 transition-colors cursor-pointer">
-            <Video className="h-8 w-8 mb-2" />
-            <span className="text-xs">Video</span>
-          </div>
-          <div className="aspect-square rounded-lg border-2 border-dashed border-white/20 flex flex-col items-center justify-center text-white/40 hover:border-white/40 transition-colors cursor-pointer">
-            <Plus className="h-8 w-8 mb-2" />
-            <span className="text-xs">Upload</span>
-          </div>
+        )}
+
+        <div className="grid grid-cols-3 gap-4 mt-4">
+          {/* Display generated assets or placeholders */}
+          {app.promotional_assets && app.promotional_assets.length > 0 ? (
+            <>
+              {app.promotional_assets.map((asset, index) => (
+                <a
+                  key={`asset-${index}-${asset.type}`}
+                  href={asset.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="aspect-square rounded-lg border border-white/20 overflow-hidden hover:border-white/40 transition-colors cursor-pointer relative group"
+                >
+                  <Image
+                    src={asset.url}
+                    alt={`${asset.type} - ${asset.size.width}x${asset.size.height}`}
+                    fill
+                    className="object-cover"
+                    unoptimized
+                  />
+                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center">
+                    <span className="text-white text-xs font-medium capitalize">
+                      {asset.type.replace("_", " ")}
+                    </span>
+                    <span className="text-white/60 text-xs">
+                      {asset.size.width}x{asset.size.height}
+                    </span>
+                  </div>
+                </a>
+              ))}
+              {/* Upload placeholder for adding more */}
+              <div className="aspect-square rounded-lg border-2 border-dashed border-white/20 flex flex-col items-center justify-center text-white/40 hover:border-white/40 transition-colors cursor-pointer">
+                <Plus className="h-8 w-8 mb-2" />
+                <span className="text-xs">Add More</span>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="aspect-square rounded-lg border-2 border-dashed border-white/20 flex flex-col items-center justify-center text-white/40 hover:border-white/40 transition-colors cursor-pointer">
+                <ImageIcon className="h-8 w-8 mb-2" />
+                <span className="text-xs">Social Card</span>
+              </div>
+              <div className="aspect-square rounded-lg border-2 border-dashed border-white/20 flex flex-col items-center justify-center text-white/40 hover:border-white/40 transition-colors cursor-pointer">
+                <ImageIcon className="h-8 w-8 mb-2" />
+                <span className="text-xs">Banner</span>
+              </div>
+              <div className="aspect-square rounded-lg border-2 border-dashed border-white/20 flex flex-col items-center justify-center text-white/40 hover:border-white/40 transition-colors cursor-pointer">
+                <Plus className="h-8 w-8 mb-2" />
+                <span className="text-xs">Upload</span>
+              </div>
+            </>
+          )}
         </div>
       </BrandCard>
 
@@ -487,8 +624,11 @@ export function AppPromote({ app }: AppPromoteProps) {
           </h3>
           <div className="space-y-3">
             {suggestions.tips.map((tip, index) => (
-              <div key={index} className="flex items-start gap-3">
-                <div className="w-6 h-6 rounded-full bg-[#FF5800]/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <div
+                key={`tip-${index}-${tip.slice(0, 20)}`}
+                className="flex items-start gap-3"
+              >
+                <div className="w-6 h-6 rounded-full bg-[#FF5800]/20 flex items-center justify-center shrink-0 mt-0.5">
                   <span className="text-[#FF5800] text-xs font-semibold">
                     {index + 1}
                   </span>

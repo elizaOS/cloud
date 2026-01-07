@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { appsService } from "@/lib/services/apps";
 import {
@@ -24,6 +25,7 @@ const GenerateAssetsSchema = z.object({
   includeCopy: z.boolean().optional(),
   includeAdBanners: z.boolean().optional(),
   targetAudience: z.string().max(500).optional(),
+  customPrompt: z.string().max(1000).optional(), // Optional user-provided context
 });
 
 const ASSET_GENERATION_COST = 0.05;
@@ -44,13 +46,13 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   if (!parsed.success) {
     return NextResponse.json(
       { error: "Invalid request", details: parsed.error.flatten() },
-      { status: 400 },
+      { status: 400 }
     );
   }
 
-  // Calculate cost
-  const imageCount = parsed.data.includeCopy !== false ? 3 : 0; // Default social cards
-  const bannerCount = parsed.data.includeAdBanners ? 3 : 0;
+  // Calculate cost - simplified: 1 social card + 1 banner (if requested)
+  const imageCount = parsed.data.includeCopy !== false ? 1 : 0; // 1 social card
+  const bannerCount = parsed.data.includeAdBanners ? 1 : 0; // 1 banner
   const totalImageCost = (imageCount + bannerCount) * ASSET_GENERATION_COST;
   const copyCost = parsed.data.includeCopy !== false ? COPY_GENERATION_COST : 0;
   const totalCost = totalImageCost + copyCost;
@@ -66,7 +68,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   if (!deduction.success) {
     return NextResponse.json(
       { error: "Insufficient credits", required: totalCost },
-      { status: 402 },
+      { status: 402 }
     );
   }
 
@@ -82,6 +84,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     includeAdBanners: parsed.data.includeAdBanners,
     includeCopy: parsed.data.includeCopy,
     targetAudience: parsed.data.targetAudience,
+    customPrompt: parsed.data.customPrompt,
   });
 
   // Refund for failed generations
@@ -91,7 +94,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     await creditsService.refundCredits({
       organizationId: user.organization_id,
       amount: failedImages * ASSET_GENERATION_COST,
-      description: `Refund for failed asset generations`,
+      description: "Refund for failed asset generations",
       metadata: { appId: id, failedCount: failedImages },
     });
   }
@@ -159,7 +162,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     estimatedCost: {
       perImage: ASSET_GENERATION_COST,
       copyGeneration: COPY_GENERATION_COST,
-      fullBundle: ASSET_GENERATION_COST * 6 + COPY_GENERATION_COST, // 6 images + copy
+      fullBundle: ASSET_GENERATION_COST * 2 + COPY_GENERATION_COST, // 1 social card + 1 banner + copy
     },
   });
 }

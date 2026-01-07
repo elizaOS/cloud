@@ -285,17 +285,19 @@ class DiscordAutomationService {
           if (options?.components) body.components = options.components;
         }
 
-        const response = await fetch(
-          `${DISCORD_API_BASE}/channels/${channelId}/messages`,
-          {
+        const response = await Promise.race([
+          fetch(`${DISCORD_API_BASE}/channels/${channelId}/messages`, {
             method: "POST",
             headers: {
               Authorization: `Bot ${DISCORD_BOT_TOKEN}`,
               "Content-Type": "application/json",
             },
             body: JSON.stringify(body),
-          }
-        );
+          }),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error("Discord API timeout")), 25_000)
+          ),
+        ]);
 
         if (!response.ok) {
           const error = await response.text();

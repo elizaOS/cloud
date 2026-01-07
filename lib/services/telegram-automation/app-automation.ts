@@ -241,7 +241,29 @@ Maximum 300 characters.`;
   }
 
   /**
+   * Get the best promotional image for Telegram (prefer square for better display)
+   */
+  private getPromotionalImage(app: App): string | undefined {
+    const assets = app.promotional_assets;
+    if (!assets || assets.length === 0) return undefined;
+
+    // Prefer square images for Telegram (instagram_square)
+    const preferred = assets.find(
+      (a) =>
+        a.url &&
+        (a.size.width === a.size.height || // Square
+          a.type === "banner")
+    );
+    if (preferred?.url) return preferred.url;
+
+    // Fallback to any available image
+    const anyImage = assets.find((a) => a.url);
+    return anyImage?.url;
+  }
+
+  /**
    * Post an announcement to a channel or group.
+   * Sends promotional image if available.
    */
   async postAnnouncement(
     organizationId: string,
@@ -268,36 +290,81 @@ Maximum 300 characters.`;
     }
 
     const bot = new Telegraf(botToken);
-    const chunks = splitMessage(messageText, TELEGRAM_RATE_LIMITS.MAX_MESSAGE_LENGTH);
+    const buttonUrl = app.website_url || app.app_url;
+
+    // Get promotional image if available
+    const promotionalImageUrl = this.getPromotionalImage(app);
 
     let lastMessageId: number | undefined;
     let lastError: string | undefined;
 
     try {
-      for (const chunk of chunks) {
-        const isLastChunk = chunk === chunks[chunks.length - 1];
-        const replyMarkup = isLastChunk && app.app_url
-          ? createInlineKeyboard([{ text: "Visit App", url: app.app_url }])
+      // If we have a promotional image, send it as a photo with caption
+      if (promotionalImageUrl) {
+        // Telegram photo captions are limited to 1024 characters
+        const caption =
+          messageText.length > 1024
+            ? messageText.substring(0, 1021) + "..."
+            : messageText;
+
+        const replyMarkup = buttonUrl
+          ? createInlineKeyboard([{ text: "🚀 Try It Now", url: buttonUrl }])
           : undefined;
 
         const result = await Promise.race([
-          bot.telegram.sendMessage(chatId, chunk, {
+          bot.telegram.sendPhoto(chatId, promotionalImageUrl, {
+            caption,
             parse_mode: "HTML",
             reply_markup: replyMarkup,
           }),
           new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error("Telegram API timeout")), 25_000),
+            setTimeout(() => reject(new Error("Telegram API timeout")), 25_000)
           ),
         ]);
 
         lastMessageId = result.message_id;
+
+        logger.info("[TelegramAppAutomation] Photo announcement posted", {
+          appId,
+          chatId,
+          messageId: lastMessageId,
+          imageUrl: promotionalImageUrl,
+        });
+      } else {
+        // No image - send text message as before
+        const chunks = splitMessage(
+          messageText,
+          TELEGRAM_RATE_LIMITS.MAX_MESSAGE_LENGTH
+        );
+
+        for (const chunk of chunks) {
+          const isLastChunk = chunk === chunks[chunks.length - 1];
+          const replyMarkup =
+            isLastChunk && buttonUrl
+              ? createInlineKeyboard([{ text: "🚀 Try It Now", url: buttonUrl }])
+              : undefined;
+
+          const result = await Promise.race([
+            bot.telegram.sendMessage(chatId, chunk, {
+              parse_mode: "HTML",
+              reply_markup: replyMarkup,
+            }),
+            new Promise<never>((_, reject) =>
+              setTimeout(() => reject(new Error("Telegram API timeout")), 25_000)
+            ),
+          ]);
+
+          lastMessageId = result.message_id;
+        }
       }
     } catch (error) {
-      lastError = error instanceof Error ? error.message : "Failed to send message";
+      lastError =
+        error instanceof Error ? error.message : "Failed to send message";
       logger.error("[TelegramAppAutomation] Failed to post announcement", {
         appId,
         chatId,
         error: lastError,
+        hasImage: !!promotionalImageUrl,
       });
     }
 
@@ -322,6 +389,7 @@ Maximum 300 characters.`;
         appId,
         chatId,
         messageId: lastMessageId,
+        hasImage: !!promotionalImageUrl,
       });
 
       return { success: true, messageId: lastMessageId, chatId };

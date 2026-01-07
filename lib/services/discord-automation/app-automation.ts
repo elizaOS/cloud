@@ -228,7 +228,29 @@ Maximum 300 characters. Do not include the URL in your response - it will be add
   }
 
   /**
+   * Get the best promotional image for Discord (prefer landscape/twitter card)
+   */
+  private getPromotionalImage(app: App): string | undefined {
+    const assets = app.promotional_assets;
+    if (!assets || assets.length === 0) return undefined;
+
+    // Prefer twitter_card or facebook_feed (landscape) for Discord embeds
+    const preferred = assets.find(
+      (a) =>
+        a.url &&
+        (a.size.width === 1200 || // twitter_card, facebook_feed, linkedin
+          a.type === "social_card")
+    );
+    if (preferred?.url) return preferred.url;
+
+    // Fallback to any available image
+    const anyImage = assets.find((a) => a.url);
+    return anyImage?.url;
+  }
+
+  /**
    * Post an announcement to a configured Discord channel.
+   * Includes promotional image if available.
    */
   async postAnnouncement(
     organizationId: string,
@@ -257,18 +279,23 @@ Maximum 300 characters. Do not include the URL in your response - it will be add
 
     const messageText = text || (await this.generateAnnouncement(app));
 
-    // Build embed
+    // Get promotional image if available
+    const promotionalImageUrl = this.getPromotionalImage(app);
+
+    // Build embed with promotional image
     const embed = createEmbed({
       title: app.name,
       description: app.description || undefined,
-      url: app.app_url,
+      url: app.website_url || app.app_url,
       color: DISCORD_BLURPLE,
       thumbnailUrl: app.logo_url || undefined,
+      imageUrl: promotionalImageUrl, // Add promotional image to embed
     });
 
     // Build button
+    const buttonUrl = app.website_url || app.app_url;
     const components = [
-      createActionRow([{ label: "Try It Now", url: app.app_url }]),
+      createActionRow([{ label: "Try It Now", url: buttonUrl }]),
     ];
 
     const result = await discordAutomationService.sendMessage(
@@ -296,6 +323,7 @@ Maximum 300 characters. Do not include the URL in your response - it will be add
         appId,
         channelId: config.channelId,
         messageId: result.messageId,
+        hasImage: !!promotionalImageUrl,
       });
 
       return {

@@ -31,7 +31,7 @@ export async function POST(
 
   let body: z.infer<typeof postSchema>;
   try {
-    const rawBody = await request.json();
+    const rawBody = await request.json().catch(() => ({}));
     body = postSchema.parse(rawBody);
   } catch (error) {
     if (error instanceof z.ZodError) {
