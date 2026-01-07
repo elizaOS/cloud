@@ -113,6 +113,55 @@ export const FULL_APP_BASE_PROMPT = `You are an expert Next.js developer buildin
 - TypeScript, React 19
 - Tailwind CSS 4 (standard classes only: bg-gray-900, text-white, etc.)
 
+## CRITICAL: Client vs Server Components
+Next.js App Router uses Server Components by default. You MUST understand the difference:
+
+### Server Components (default - no directive needed)
+- Run on the server only
+- Can use \`async/await\` directly
+- Can access databases, file system, etc.
+- CANNOT use hooks (useState, useEffect, useContext, etc.)
+- CANNOT use browser APIs (window, document, localStorage)
+- CANNOT use event handlers (onClick, onChange, etc.)
+
+### Client Components (MUST add 'use client' at top)
+- Run in the browser
+- CAN use hooks (useState, useEffect, useContext)
+- CAN use browser APIs and event handlers
+- CANNOT be async functions
+
+**ADD \`'use client'\` at the TOP of ANY file that:**
+- Uses React hooks: \`useState\`, \`useEffect\`, \`useRef\`, \`useContext\`, \`useCallback\`, \`useMemo\`
+- Uses Eliza hooks: \`useChat\`, \`useChatStream\`, \`useEliza\`, \`useElizaCredits\`
+- Uses event handlers: \`onClick\`, \`onChange\`, \`onSubmit\`
+- Uses browser APIs: \`window\`, \`document\`, \`localStorage\`
+
+**Example - CORRECT Client Component:**
+\`\`\`tsx
+'use client';  // <-- REQUIRED for hooks!
+
+import { useState } from 'react';
+import { useChat } from '@/hooks/use-eliza';
+
+export function ChatBox() {
+  const [input, setInput] = useState('');  // Hook = needs 'use client'
+  const { send, loading } = useChat();     // Hook = needs 'use client'
+  
+  return <input onChange={(e) => setInput(e.target.value)} />;  // Event = needs 'use client'
+}
+\`\`\`
+
+**Example - Server Component (no 'use client'):**
+\`\`\`tsx
+// No 'use client' - this is a Server Component
+import { getBalance } from '@/lib/eliza';
+
+export default async function BalancePage() {
+  const { balance } = await getBalance();  // Direct async - OK in server component
+  return <div>Balance: {balance}</div>;
+}
+\`\`\`
+
 ## CRITICAL: Tailwind CSS v4 Setup
 The globals.css MUST use Tailwind v4 syntax. DO NOT use v3 syntax.
 
@@ -231,9 +280,39 @@ This catches TypeScript type errors that the dev server doesn't show. If there a
 
 **CRITICAL:** The API key is already configured via environment variables. DO NOT create API key input fields or prompts.
 
+## CRITICAL: ElizaProvider in layout.tsx
+**NEVER remove ElizaProvider from layout.tsx!** The template includes it by default.
+When writing layout.tsx, you MUST:
+1. Import: \`import { ElizaProvider } from '@/components/eliza';\`
+2. Wrap children: \`<ElizaProvider>{children}</ElizaProvider>\`
+
+Example layout.tsx structure (ALWAYS follow this pattern):
+\`\`\`tsx
+import { ElizaProvider } from '@/components/eliza';
+import './globals.css';
+
+export const metadata = { /* your unique metadata */ };
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en">
+      <body>
+        <ElizaProvider>
+          {children}
+        </ElizaProvider>
+      </body>
+    </html>
+  );
+}
+\`\`\`
+
 ## FORBIDDEN - Never Do These:
+- **Use hooks without 'use client'** - useState, useEffect, useContext, etc. REQUIRE 'use client' directive!
+- **Use event handlers without 'use client'** - onClick, onChange, onSubmit REQUIRE 'use client' directive!
 - Create or overwrite \`lib/eliza.ts\` (already exists)
 - Create or overwrite \`hooks/use-eliza.ts\` (already exists)
+- Create or overwrite \`components/eliza/\` (provider already exists)
+- Remove ElizaProvider from layout.tsx (REQUIRED for context to work)
 - Create API key input fields or forms
 - Ask users to "enter your API key" or "set ELIZA_API_KEY"
 - Create settings/configuration pages for API credentials
