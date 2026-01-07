@@ -42,6 +42,11 @@ import {
   Loader2,
   Coins,
   TrendingUp,
+  FileEdit,
+  Hammer,
+  Rocket,
+  CheckCircle2,
+  XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -168,18 +173,87 @@ export function AppOverview({ app, showApiKey }: AppOverviewProps) {
             </h2>
 
             <div className="space-y-3">
+              {/* Deployment Status */}
               <div>
-                <p className="text-sm text-white/60">App URL</p>
-                <div className="flex items-center gap-2 mt-1">
-                  <a
-                    href={app.app_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-white hover:text-[#FF5800] transition-colors flex items-center gap-1"
-                  >
-                    {app.app_url}
-                    <ExternalLink className="h-3 w-3" />
-                  </a>
+                <p className="text-sm text-white/60">Deployment Status</p>
+                <div className="mt-1">
+                  {(() => {
+                    const status = app.deployment_status || "draft";
+                    switch (status) {
+                      case "deployed":
+                        return (
+                          <Badge className="bg-green-500/10 text-green-400 border-green-500/20">
+                            <CheckCircle2 className="h-3 w-3 mr-1" />
+                            Deployed
+                          </Badge>
+                        );
+                      case "deploying":
+                        return (
+                          <Badge className="bg-blue-500/10 text-blue-400 border-blue-500/20">
+                            <Rocket className="h-3 w-3 mr-1 animate-pulse" />
+                            Deploying
+                          </Badge>
+                        );
+                      case "building":
+                        return (
+                          <Badge className="bg-yellow-500/10 text-yellow-400 border-yellow-500/20">
+                            <Hammer className="h-3 w-3 mr-1 animate-pulse" />
+                            Building
+                          </Badge>
+                        );
+                      case "failed":
+                        return (
+                          <Badge className="bg-red-500/10 text-red-400 border-red-500/20">
+                            <XCircle className="h-3 w-3 mr-1" />
+                            Failed
+                          </Badge>
+                        );
+                      case "draft":
+                      default:
+                        return (
+                          <Badge className="bg-white/10 text-white/60 border-white/20">
+                            <FileEdit className="h-3 w-3 mr-1" />
+                            Draft
+                          </Badge>
+                        );
+                    }
+                  })()}
+                </div>
+              </div>
+
+              {/* Production URL - Only shown when deployed */}
+              {app.deployment_status === "deployed" && app.production_url && (
+                <div>
+                  <p className="text-sm text-white/60">Production URL</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <a
+                      href={app.production_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-white hover:text-[#FF5800] transition-colors flex items-center gap-1"
+                    >
+                      {app.production_url}
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                  </div>
+                </div>
+              )}
+
+              {/* App Status (Active/Inactive) */}
+              <div>
+                <p className="text-sm text-white/60">Status</p>
+                <div className="mt-1">
+                  {app.is_active ? (
+                    <Badge className="bg-green-500/10 text-green-400 border-green-500/20">
+                      <Activity className="h-3 w-3 mr-1" />
+                      Active
+                    </Badge>
+                  ) : (
+                    <Badge className="bg-red-500/10 text-red-400 border-red-500/20">
+                      <AlertCircle className="h-3 w-3 mr-1" />
+                      Inactive
+                    </Badge>
+                  )}
                 </div>
               </div>
 
@@ -211,27 +285,25 @@ export function AppOverview({ app, showApiKey }: AppOverviewProps) {
                 </div>
               )}
 
-              <div>
-                <p className="text-sm text-white/60">Status</p>
-                <div className="mt-1">
-                  {app.is_active ? (
-                    <Badge className="bg-green-500/10 text-green-400 border-green-500/20">
-                      <Activity className="h-3 w-3 mr-1" />
-                      Active
-                    </Badge>
-                  ) : (
-                    <Badge className="bg-red-500/10 text-red-400 border-red-500/20">
-                      <AlertCircle className="h-3 w-3 mr-1" />
-                      Inactive
-                    </Badge>
-                  )}
-                </div>
-              </div>
-
               {app.description && (
                 <div>
                   <p className="text-sm text-white/60">Description</p>
                   <p className="text-white mt-1">{app.description}</p>
+                </div>
+              )}
+
+              {app.last_deployed_at && (
+                <div>
+                  <p className="text-sm text-white/60">Last Deployed</p>
+                  <p className="text-white mt-1">
+                    {new Date(app.last_deployed_at).toLocaleDateString("en-US", {
+                      year: "numeric",
+                      month: "short",
+                      day: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </p>
                 </div>
               )}
             </div>

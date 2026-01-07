@@ -6,3 +6,4 @@
 
 export { ChatInput } from "./chat-input";
 export { HistoryTab } from "./history-tab";
+export { useAppBuilderSTT } from "./use-app-builder-stt";
