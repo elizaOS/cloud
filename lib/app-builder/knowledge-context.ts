@@ -1091,12 +1091,32 @@ ${context.apiReference}
 - Use utility classes: \`.btn-eliza\`, \`.card-eliza\`, \`.input-eliza\`
 - Mobile-first responsive design
 
-## Workflow
-1. Use pre-built hooks (\`@/hooks/use-eliza\`) for all API calls
-2. Use \`ElizaProvider\` context (already wrapped in layout.tsx)
-3. Use utility CSS classes from globals.css
-4. Create new components only when needed
-5. Run \`pnpm build\` before completing to catch TypeScript errors
+## Workflow - WRITE FILES PROGRESSIVELY
+**CRITICAL:** Write each file IMMEDIATELY when ready. Users see live updates!
+
+1. Write layout.tsx FIRST with UNIQUE metadata (creative title, not "My App")
+2. Write page.tsx EARLY - even a basic version, then iterate
+3. Write each component ONE BY ONE as you build
+4. Do NOT batch files - do NOT save page.tsx for last
+5. Use pre-built hooks (\`@/hooks/use-eliza\`) for all API calls
+6. Run \`bun run build\` before completing to catch TypeScript errors
+
+## NEVER Break the Build
+- Do NOT import files that don't exist yet!
+- Write dependencies BEFORE files that import them
+- Example: Write header.tsx BEFORE page.tsx that imports it
+- Each file write should result in a working build
+- Do NOT check_build after every file - HMR auto-refreshes!
+- Only run check_build ONCE at the very end
+
+## UNIQUE Metadata - REQUIRED
+\`\`\`tsx
+export const metadata: Metadata = {
+  title: 'Creative Specific Title', // NOT "My App"!
+  description: 'Compelling description of this specific app',
+  openGraph: { title: 'Creative Title', description: '...', type: 'website' },
+};
+\`\`\`
 `;
 
   if (config.customInstructions) {
