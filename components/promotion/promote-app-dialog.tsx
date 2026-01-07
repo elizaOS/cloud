@@ -68,7 +68,8 @@ type PromotionChannel =
   | "seo"
   | "advertising"
   | "twitter_automation"
-  | "telegram_automation";
+  | "telegram_automation"
+  | "discord_automation";
 
 interface TwitterAutomationConfig {
   enabled: boolean;
@@ -85,6 +86,15 @@ interface TelegramAutomationConfig {
   channelId?: string;
   groupId?: string;
   autoReply: boolean;
+  autoAnnounce: boolean;
+  announceIntervalMin: number;
+  announceIntervalMax: number;
+}
+
+interface DiscordAutomationConfig {
+  enabled: boolean;
+  guildId?: string;
+  channelId?: string;
   autoAnnounce: boolean;
   announceIntervalMin: number;
   announceIntervalMax: number;
@@ -111,6 +121,7 @@ interface PromotionConfig {
   };
   twitterAutomation?: TwitterAutomationConfig;
   telegramAutomation?: TelegramAutomationConfig;
+  discordAutomation?: DiscordAutomationConfig;
 }
 
 const SOCIAL_PLATFORMS = [
@@ -183,8 +194,27 @@ export function PromoteAppDialog({
       canPost: boolean;
     }>
   >([]);
+  const [discordStatus, setDiscordStatus] = useState<{
+    configured: boolean;
+    connected: boolean;
+    guilds: Array<{
+      id: string;
+      name: string;
+      iconUrl: string | null;
+      channelCount: number;
+    }>;
+  }>({ configured: false, connected: false, guilds: [] });
+  const [discordChannels, setDiscordChannels] = useState<
+    Array<{
+      id: string;
+      name: string;
+      type: number;
+      typeName: string;
+      canSend: boolean;
+    }>
+  >([]);
 
-  // Check Twitter and Telegram connection status
+  // Check Twitter, Telegram, and Discord connection status
   useEffect(() => {
     fetch("/api/v1/twitter/status")
       .then((res) => res.json())
@@ -203,6 +233,13 @@ export function PromoteAppDialog({
         }
       })
       .catch(() => setTelegramStatus({ configured: false, connected: false }));
+
+    fetch("/api/v1/discord/status")
+      .then((res) => res.json())
+      .then((data) => {
+        setDiscordStatus(data);
+      })
+      .catch(() => setDiscordStatus({ configured: false, connected: false, guilds: [] }));
   }, []);
 
   const toggleChannel = (channel: PromotionChannel) => {
@@ -288,6 +325,9 @@ export function PromoteAppDialog({
     }
     if (config.channels.includes("telegram_automation")) {
       cost += 0.08; // Setup cost for Telegram automation
+    }
+    if (config.channels.includes("discord_automation")) {
+      cost += 0.08; // Setup cost for Discord automation
     }
     return cost.toFixed(2);
   };
@@ -529,6 +569,83 @@ export function PromoteAppDialog({
                   </div>
                 </div>
               </button>
+
+              {/* Discord Automation */}
+              <button
+                onClick={() => toggleChannel("discord_automation")}
+                disabled={!discordStatus.connected}
+                className={`w-full p-4 rounded-lg border-2 text-left transition-all mt-4 ${
+                  config.channels.includes("discord_automation")
+                    ? "border-[#5865F2] bg-[#5865F2]/10 dark:bg-[#5865F2]/20"
+                    : "border-gray-200 dark:border-gray-700 hover:border-gray-300"
+                } ${!discordStatus.connected ? "opacity-50 cursor-not-allowed" : ""}`}
+              >
+                <div className="flex items-start gap-4">
+                  <div className="flex-shrink-0">
+                    <div className="w-12 h-12 rounded-lg bg-[#5865F2]/20 flex items-center justify-center">
+                      <svg
+                        className="h-6 w-6 text-[#5865F2]"
+                        viewBox="0 0 24 24"
+                        fill="currentColor"
+                      >
+                        <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515a.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0a12.64 12.64 0 0 0-.617-1.25a.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057a19.9 19.9 0 0 0 5.993 3.03a.078.078 0 0 0 .084-.028a14.09 14.09 0 0 0 1.226-1.994a.076.076 0 0 0-.041-.106a13.107 13.107 0 0 1-1.872-.892a.077.077 0 0 1-.008-.128a10.2 10.2 0 0 0 .372-.292a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127a12.299 12.299 0 0 1-1.873.892a.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028a19.839 19.839 0 0 0 6.002-3.03a.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.956-2.419 2.157-2.419c1.21 0 2.176 1.096 2.157 2.42c0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.955-2.419 2.157-2.419c1.21 0 2.176 1.096 2.157 2.42c0 1.333-.946 2.418-2.157 2.418z" />
+                      </svg>
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-semibold">Discord Bot Automation</h3>
+                      <Badge variant="secondary" className="text-xs">
+                        AI Bot
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Deploy a Discord bot to post announcements and share app
+                      updates with your Discord community.
+                    </p>
+                    <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        <CheckCircle className="h-3 w-3 text-green-500" />
+                        Announcements
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <CheckCircle className="h-3 w-3 text-green-500" />
+                        Rich Embeds
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <CheckCircle className="h-3 w-3 text-green-500" />
+                        Action Buttons
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex-shrink-0 text-right">
+                    {!discordStatus.connected ? (
+                      <Link
+                        href="/dashboard/settings?tab=connections"
+                        onClick={(e) => e.stopPropagation()}
+                        className="inline-flex"
+                      >
+                        <Badge
+                          variant="outline"
+                          className="cursor-pointer hover:bg-[#5865F2]/10 hover:border-[#5865F2]/50 transition-colors"
+                        >
+                          Add to Discord
+                          <ExternalLink className="h-3 w-3 ml-1" />
+                        </Badge>
+                      </Link>
+                    ) : (
+                      <div>
+                        <Badge variant="default" className="bg-[#5865F2]">
+                          {discordStatus.guilds.length} Server{discordStatus.guilds.length !== 1 ? "s" : ""}
+                        </Badge>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Bot Connected
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </button>
             </div>
 
             <div className="flex justify-between items-center pt-4 border-t">
@@ -568,6 +685,11 @@ export function PromoteAppDialog({
                 {config.channels.includes("telegram_automation") && (
                   <TabsTrigger value="telegram_automation">
                     Telegram Bot
+                  </TabsTrigger>
+                )}
+                {config.channels.includes("discord_automation") && (
+                  <TabsTrigger value="discord_automation">
+                    Discord Bot
                   </TabsTrigger>
                 )}
               </TabsList>
@@ -1455,6 +1577,235 @@ export function PromoteAppDialog({
                   </div>
                 </div>
               </TabsContent>
+
+              {/* Discord Automation Config */}
+              <TabsContent value="discord_automation" className="space-y-4">
+                <div className="bg-[#5865F2]/10 dark:bg-[#5865F2]/20 rounded-lg p-4 mb-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <svg
+                      className="h-5 w-5 text-[#5865F2]"
+                      viewBox="0 0 24 24"
+                      fill="currentColor"
+                    >
+                      <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515a.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0a12.64 12.64 0 0 0-.617-1.25a.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057a19.9 19.9 0 0 0 5.993 3.03a.078.078 0 0 0 .084-.028a14.09 14.09 0 0 0 1.226-1.994a.076.076 0 0 0-.041-.106a13.107 13.107 0 0 1-1.872-.892a.077.077 0 0 1-.008-.128a10.2 10.2 0 0 0 .372-.292a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127a12.299 12.299 0 0 1-1.873.892a.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028a19.839 19.839 0 0 0 6.002-3.03a.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.956-2.419 2.157-2.419c1.21 0 2.176 1.096 2.157 2.42c0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.955-2.419 2.157-2.419c1.21 0 2.176 1.096 2.157 2.42c0 1.333-.946 2.418-2.157 2.418z" />
+                    </svg>
+                    <span className="font-medium">
+                      {discordStatus.guilds.length} Server{discordStatus.guilds.length !== 1 ? "s" : ""} Connected
+                    </span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Your AI bot will post announcements promoting {app.name} in
+                    your selected Discord channel.
+                  </p>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <Label>Select Server</Label>
+                    <Select
+                      value={config.discordAutomation?.guildId || ""}
+                      onValueChange={async (value) => {
+                        setConfig((prev) => ({
+                          ...prev,
+                          discordAutomation: {
+                            enabled: true,
+                            guildId: value,
+                            channelId: undefined,
+                            autoAnnounce:
+                              prev.discordAutomation?.autoAnnounce ?? true,
+                            announceIntervalMin:
+                              prev.discordAutomation?.announceIntervalMin ?? 120,
+                            announceIntervalMax:
+                              prev.discordAutomation?.announceIntervalMax ?? 240,
+                          },
+                        }));
+                        // Fetch channels for selected guild
+                        if (value) {
+                          try {
+                            const res = await fetch(
+                              `/api/v1/discord/channels?guildId=${value}`
+                            );
+                            const data = await res.json();
+                            setDiscordChannels(data.channels || []);
+                          } catch {
+                            setDiscordChannels([]);
+                          }
+                        } else {
+                          setDiscordChannels([]);
+                        }
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a server" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {discordStatus.guilds.map((guild) => (
+                          <SelectItem key={guild.id} value={guild.id}>
+                            <div className="flex items-center gap-2">
+                              {guild.iconUrl ? (
+                                <img
+                                  src={guild.iconUrl}
+                                  alt=""
+                                  className="h-5 w-5 rounded-full"
+                                />
+                              ) : (
+                                <div className="h-5 w-5 rounded-full bg-[#5865F2] flex items-center justify-center text-xs text-white">
+                                  {guild.name.charAt(0)}
+                                </div>
+                              )}
+                              {guild.name}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {config.discordAutomation?.guildId && (
+                    <div>
+                      <Label>Select Channel</Label>
+                      <Select
+                        value={config.discordAutomation?.channelId || ""}
+                        onValueChange={(value) =>
+                          setConfig((prev) => ({
+                            ...prev,
+                            discordAutomation: {
+                              enabled: true,
+                              guildId: prev.discordAutomation?.guildId,
+                              channelId: value,
+                              autoAnnounce:
+                                prev.discordAutomation?.autoAnnounce ?? true,
+                              announceIntervalMin:
+                                prev.discordAutomation?.announceIntervalMin ?? 120,
+                              announceIntervalMax:
+                                prev.discordAutomation?.announceIntervalMax ?? 240,
+                            },
+                          }))
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a channel" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {discordChannels
+                            .filter((c) => c.canSend)
+                            .map((channel) => (
+                              <SelectItem key={channel.id} value={channel.id}>
+                                # {channel.name}
+                              </SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        AI will post announcements to this channel
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="space-y-3 pt-4 border-t">
+                    <Label className="text-base font-medium">
+                      Automation Features
+                    </Label>
+
+                    <label className="flex items-center gap-3 p-3 rounded-lg border cursor-pointer hover:bg-muted/50">
+                      <Checkbox
+                        checked={
+                          config.discordAutomation?.autoAnnounce ?? true
+                        }
+                        onCheckedChange={(checked) =>
+                          setConfig((prev) => ({
+                            ...prev,
+                            discordAutomation: {
+                              enabled: true,
+                              guildId: prev.discordAutomation?.guildId,
+                              channelId: prev.discordAutomation?.channelId,
+                              autoAnnounce: !!checked,
+                              announceIntervalMin:
+                                prev.discordAutomation?.announceIntervalMin ??
+                                120,
+                              announceIntervalMax:
+                                prev.discordAutomation?.announceIntervalMax ??
+                                240,
+                            },
+                          }))
+                        }
+                      />
+                      <div className="flex-1">
+                        <div className="font-medium">Auto-Announcements</div>
+                        <div className="text-sm text-muted-foreground">
+                          Post periodic AI-generated updates with embeds and
+                          buttons
+                        </div>
+                      </div>
+                    </label>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 pt-4 border-t">
+                    <div>
+                      <Label htmlFor="discordAnnounceIntervalMin">
+                        Min Announce Interval (minutes)
+                      </Label>
+                      <Input
+                        id="discordAnnounceIntervalMin"
+                        type="number"
+                        min={30}
+                        max={1440}
+                        value={
+                          config.discordAutomation?.announceIntervalMin ?? 120
+                        }
+                        onChange={(e) =>
+                          setConfig((prev) => ({
+                            ...prev,
+                            discordAutomation: {
+                              enabled: true,
+                              guildId: prev.discordAutomation?.guildId,
+                              channelId: prev.discordAutomation?.channelId,
+                              autoAnnounce:
+                                prev.discordAutomation?.autoAnnounce ?? true,
+                              announceIntervalMin:
+                                parseInt(e.target.value) || 120,
+                              announceIntervalMax:
+                                prev.discordAutomation?.announceIntervalMax ??
+                                240,
+                            },
+                          }))
+                        }
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="discordAnnounceIntervalMax">
+                        Max Announce Interval (minutes)
+                      </Label>
+                      <Input
+                        id="discordAnnounceIntervalMax"
+                        type="number"
+                        min={60}
+                        max={1440}
+                        value={
+                          config.discordAutomation?.announceIntervalMax ?? 240
+                        }
+                        onChange={(e) =>
+                          setConfig((prev) => ({
+                            ...prev,
+                            discordAutomation: {
+                              enabled: true,
+                              guildId: prev.discordAutomation?.guildId,
+                              channelId: prev.discordAutomation?.channelId,
+                              autoAnnounce:
+                                prev.discordAutomation?.autoAnnounce ?? true,
+                              announceIntervalMin:
+                                prev.discordAutomation?.announceIntervalMin ??
+                                120,
+                              announceIntervalMax:
+                                parseInt(e.target.value) || 240,
+                            },
+                          }))
+                        }
+                      />
+                    </div>
+                  </div>
+                </div>
+              </TabsContent>
             </Tabs>
 
             <div className="flex justify-between items-center pt-4 border-t">
@@ -1527,6 +1878,16 @@ export function PromoteAppDialog({
                         " • Announcements"}
                       {config.telegramAutomation?.autoReply &&
                         " • Auto-replies"}
+                    </span>
+                  </div>
+                )}
+                {config.channels.includes("discord_automation") && (
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-green-500" />
+                    <span>
+                      Discord Bot: {discordStatus.guilds.find(g => g.id === config.discordAutomation?.guildId)?.name || "Selected Server"}
+                      {config.discordAutomation?.autoAnnounce &&
+                        " • Announcements"}
                     </span>
                   </div>
                 )}

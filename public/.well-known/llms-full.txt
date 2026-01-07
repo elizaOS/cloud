@@ -21,18 +21,34 @@ Summary: Build, deploy, and scale intelligent AI agents with elizaOS Cloud.
       <span>Documentation</span>
     </div>
     <h1 className="docs-hero-title">
-      <span className="docs-hero-title-line"><strong>Build</strong> Agents,</span>
-      <span className="docs-hero-title-line"><strong>Make</strong> Magic</span>
+      <span className="docs-hero-title-line">
+        <strong>Build</strong> Agents,
+      </span>
+      <span className="docs-hero-title-line">
+        <strong>Make</strong> Magic
+      </span>
     </h1>
     <p className="docs-hero-description">
-      The complete platform for building, deploying, and scaling intelligent AI agents.
-      Production-ready infrastructure with enterprise-grade reliability.
+      The complete platform for building, deploying, and scaling intelligent AI
+      agents. Production-ready infrastructure with enterprise-grade reliability.
     </p>
     <div className="docs-hero-actions">
       <a href="/docs/quickstart" className="docs-hero-btn-primary">
         <span>Get Started</span>
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 16 16"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M3 8h10M9 4l4 4-4 4"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
         </svg>
       </a>
       <a href="/dashboard" className="docs-hero-btn-secondary">
@@ -1887,7 +1903,8 @@ Add a custom domain to your app. Requires DNS configuration.
 }
 ```
 
-  For apex domains (e.g., `example.com`), use an A record pointing to `76.76.21.21` instead of a CNAME.
+  For apex domains (e.g., `example.com`), use an A record pointing to
+  `76.76.21.21` instead of a CNAME.
 
 ---
 
@@ -2017,6 +2034,7 @@ Refresh all domain statuses from Vercel to the database.
   "domains": [...],
   "syncedAt": "2024-01-15T12:00:00Z"
 }
+```
 
 ---
 
@@ -4286,13 +4304,13 @@ This works immediately with no DNS configuration required.
 
 ### Subdomain Rules
 
-| Rule | Example | Valid |
-| ---- | ------- | ----- |
-| Min 3 characters | `ab` | ❌ |
-| Max 63 characters | `my-long-subdomain...` | ✅ |
-| Alphanumeric + hyphens | `my-app-v2` | ✅ |
-| No leading/trailing hyphens | `-myapp-` | ❌ |
-| Lowercase only | `MyApp` → `myapp` | Auto-converted |
+| Rule                        | Example                | Valid          |
+| --------------------------- | ---------------------- | -------------- |
+| Min 3 characters            | `ab`                   | ❌             |
+| Max 63 characters           | `my-long-subdomain...` | ✅             |
+| Alphanumeric + hyphens      | `my-app-v2`            | ✅             |
+| No leading/trailing hyphens | `-myapp-`              | ❌             |
+| Lowercase only              | `MyApp` → `myapp`      | Auto-converted |
 
 ### Reserved Subdomains
 
@@ -4349,20 +4367,20 @@ curl -X POST "https://elizacloud.ai/api/v1/apps/{appId}/domains" \
 
 For subdomains like `app.example.com`:
 
-| Type | Name | Value |
-| ---- | ---- | ----- |
+| Type  | Name  | Value                  |
+| ----- | ----- | ---------------------- |
 | CNAME | `app` | `cname.vercel-dns.com` |
 
 ### Root/Apex Domains (A Record)
 
 For apex domains like `example.com`:
 
-| Type | Name | Value |
-| ---- | ---- | ----- |
-| A | `@` | `76.76.21.21` |
+| Type | Name | Value         |
+| ---- | ---- | ------------- |
+| A    | `@`  | `76.76.21.21` |
 
-  DNS changes can take 5 minutes to 48 hours to propagate worldwide.
-  You can check propagation status at [whatsmydns.net](https://www.whatsmydns.net/).
+  DNS changes can take 5 minutes to 48 hours to propagate worldwide. You can
+  check propagation status at [whatsmydns.net](https://www.whatsmydns.net/).
 
 ## Verifying Domain Ownership
 
@@ -4436,21 +4454,21 @@ curl -X POST "https://elizacloud.ai/api/v1/apps/{appId}/domains/status" \
 
 ### Status Values
 
-| Status | Description |
-| ------ | ----------- |
-| `pending` | DNS records not yet detected |
-| `valid` | Domain properly configured |
+| Status    | Description                      |
+| --------- | -------------------------------- |
+| `pending` | DNS records not yet detected     |
+| `valid`   | Domain properly configured       |
 | `invalid` | DNS misconfigured, check records |
-| `unknown` | Domain not found in project |
+| `unknown` | Domain not found in project      |
 
 ### SSL Status Values
 
-| SSL Status | Description |
-| ---------- | ----------- |
-| `pending` | Awaiting DNS verification |
-| `provisioning` | Certificate being issued |
-| `active` | Certificate active and valid |
-| `error` | Certificate issue (check configuration) |
+| SSL Status     | Description                             |
+| -------------- | --------------------------------------- |
+| `pending`      | Awaiting DNS verification               |
+| `provisioning` | Certificate being issued                |
+| `active`       | Certificate active and valid            |
+| `error`        | Certificate issue (check configuration) |
 
 ## Syncing Domain Status
 
@@ -4495,8 +4513,8 @@ curl -X DELETE "https://elizacloud.ai/api/v1/apps/{appId}/domains" \
   }'
 ```
 
-  After removing a domain, users will no longer be able to access your app via that URL.
-  The subdomain at `*.apps.elizacloud.ai` remains active.
+  After removing a domain, users will no longer be able to access your app via
+  that URL. The subdomain at `*.apps.elizacloud.ai` remains active.
 
 ## Apex and WWW Redirects
 
@@ -4509,9 +4527,9 @@ For the best user experience, configure both apex and www versions:
 
 ### Recommended DNS Setup
 
-| Domain | Type | Value |
-| ------ | ---- | ----- |
-| `example.com` | A | `76.76.21.21` |
+| Domain            | Type  | Value                  |
+| ----------------- | ----- | ---------------------- |
+| `example.com`     | A     | `76.76.21.21`          |
 | `www.example.com` | CNAME | `cname.vercel-dns.com` |
 
 ## Avoiding Duplicate Content
@@ -4544,7 +4562,8 @@ Configure redirects from subdomain to custom domain:
 
 **Problem**: Domain not working after adding DNS records.
 
-**Solution**: 
+**Solution**:
+
 - DNS changes can take 24-48 hours to propagate globally
 - Use [whatsmydns.net](https://www.whatsmydns.net/) to check propagation
 - Try clearing your local DNS cache
@@ -4554,6 +4573,7 @@ Configure redirects from subdomain to custom domain:
 **Problem**: TXT record verification not working.
 
 **Solution**:
+
 - Ensure the TXT record value is exactly as provided (no extra spaces)
 - TXT record name should include `_vercel` prefix
 - Wait 5-10 minutes after adding the record before verifying
@@ -4563,6 +4583,7 @@ Configure redirects from subdomain to custom domain:
 **Problem**: SSL status stuck on "pending" or "provisioning".
 
 **Solution**:
+
 - Verify DNS records are correctly configured
 - Ensure no CAA records are blocking certificate issuance
 - Check that the domain is not using a CDN that might intercept SSL
@@ -4572,6 +4593,7 @@ Configure redirects from subdomain to custom domain:
 **Problem**: Error saying domain is already connected to another project.
 
 **Solution**:
+
 - Add a TXT verification record to prove ownership
 - Or remove the domain from the other Vercel project first
 
@@ -4580,6 +4602,7 @@ Configure redirects from subdomain to custom domain:
 **Problem**: Preview URLs fail due to length.
 
 **Solution**:
+
 - Each DNS label has a 63-character limit
 - Keep branch names and subdomain identifiers concise
 - Total domain length must be under 253 characters
@@ -4589,6 +4612,7 @@ Configure redirects from subdomain to custom domain:
 ### Homograph Attack Prevention
 
 elizaOS Cloud blocks domains with:
+
 - Punycode characters (`xn--` prefixes)
 - Non-ASCII characters
 - Lookalike characters (Cyrillic, Greek homoglyphs)
@@ -4598,6 +4622,7 @@ This prevents phishing attacks using visually similar domain names.
 ### Domain Validation
 
 All domains are validated for:
+
 - Proper format (alphanumeric with hyphens and dots)
 - Minimum/maximum length constraints
 - Reserved subdomain conflicts
@@ -4607,14 +4632,14 @@ All domains are validated for:
 
 ### Endpoints
 
-| Method | Endpoint | Description |
-| ------ | -------- | ----------- |
-| GET | `/api/v1/apps/{id}/domains` | List all domains |
-| POST | `/api/v1/apps/{id}/domains` | Add custom domain |
-| DELETE | `/api/v1/apps/{id}/domains` | Remove custom domain |
-| POST | `/api/v1/apps/{id}/domains/verify` | Verify domain ownership |
-| POST | `/api/v1/apps/{id}/domains/status` | Check domain status |
-| POST | `/api/v1/apps/{id}/domains/sync` | Sync all domain statuses |
+| Method | Endpoint                           | Description              |
+| ------ | ---------------------------------- | ------------------------ |
+| GET    | `/api/v1/apps/{id}/domains`        | List all domains         |
+| POST   | `/api/v1/apps/{id}/domains`        | Add custom domain        |
+| DELETE | `/api/v1/apps/{id}/domains`        | Remove custom domain     |
+| POST   | `/api/v1/apps/{id}/domains/verify` | Verify domain ownership  |
+| POST   | `/api/v1/apps/{id}/domains/status` | Check domain status      |
+| POST   | `/api/v1/apps/{id}/domains/sync`   | Sync all domain statuses |
 
 ## Best Practices
 

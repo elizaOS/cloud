@@ -56,3 +56,5 @@ export * from "./ad-creatives";
 export * from "./ad-transactions";
 export * from "./seo";
 export * from "./telegram-chats";
+export * from "./discord-guilds";
+export * from "./discord-channels";

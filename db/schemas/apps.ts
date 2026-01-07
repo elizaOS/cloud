@@ -191,6 +191,26 @@ export const apps = pgTable(
         announceIntervalMax: 240,
       }),
 
+    // Discord Bot Automation
+    discord_automation: jsonb("discord_automation")
+      .$type<{
+        enabled: boolean;
+        guildId?: string; // Primary guild for automation
+        channelId?: string; // Announcement channel
+        autoAnnounce: boolean; // Periodic announcements
+        announceIntervalMin: number; // minutes
+        announceIntervalMax: number; // minutes
+        vibeStyle?: string; // e.g., "professional", "casual", "witty"
+        lastAnnouncementAt?: string; // ISO timestamp
+        totalMessages?: number;
+      }>()
+      .default({
+        enabled: false,
+        autoAnnounce: false,
+        announceIntervalMin: 120,
+        announceIntervalMax: 240,
+      }),
+
     // Status
     is_active: boolean("is_active").default(true).notNull(),
     is_approved: boolean("is_approved").default(true).notNull(), // For app review process
