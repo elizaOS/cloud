@@ -190,7 +190,8 @@ async function getOrCreateVercelProject(
           },
           {
             key: "NEXT_PUBLIC_ELIZA_API_URL",
-            value: process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai",
+            value:
+              process.env.NEXT_PUBLIC_APP_URL || "https://www.elizacloud.ai",
             target: ["production", "preview", "development"],
             type: "plain",
           },

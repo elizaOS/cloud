@@ -175,8 +175,15 @@ const nextConfig: NextConfig = {
         source: "/api/:path*",
         headers: [
           { key: "Access-Control-Allow-Origin", value: "*" },
-          { key: "Access-Control-Allow-Methods", value: "GET, POST, PUT, PATCH, DELETE, OPTIONS" },
-          { key: "Access-Control-Allow-Headers", value: "Content-Type, Authorization, X-API-Key, X-Request-ID, Cookie" },
+          {
+            key: "Access-Control-Allow-Methods",
+            value: "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+          },
+          {
+            key: "Access-Control-Allow-Headers",
+            value:
+              "Content-Type, Authorization, X-API-Key, X-Request-ID, Cookie",
+          },
           { key: "Access-Control-Max-Age", value: "86400" },
           { key: "X-Content-Type-Options", value: "nosniff" },
         ],
@@ -203,9 +210,7 @@ const nextConfig: NextConfig = {
               "frame-ancestors *",
               "child-src https://auth.privy.io https://verify.walletconnect.com https://verify.walletconnect.org https://oauth.telegram.org https://*.vercel.run https://www.youtube.com https://youtube.com",
               "frame-src https://auth.privy.io https://verify.walletconnect.com https://verify.walletconnect.org https://challenges.cloudflare.com https://oauth.telegram.org https://*.vercel.run https://www.youtube.com https://youtube.com",
-              [
-                "connect-src *",
-              ].join(" "),
+              ["connect-src *"].join(" "),
               "worker-src 'self' blob:",
               "manifest-src 'self'",
               // Media - allow self, data URIs, blob URIs, Vercel blob storage (for videos), and video placeholder domain

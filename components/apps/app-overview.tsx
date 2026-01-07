@@ -296,13 +296,16 @@ export function AppOverview({ app, showApiKey }: AppOverviewProps) {
                 <div>
                   <p className="text-sm text-white/60">Last Deployed</p>
                   <p className="text-white mt-1">
-                    {new Date(app.last_deployed_at).toLocaleDateString("en-US", {
-                      year: "numeric",
-                      month: "short",
-                      day: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
+                    {new Date(app.last_deployed_at).toLocaleDateString(
+                      "en-US",
+                      {
+                        year: "numeric",
+                        month: "short",
+                        day: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      },
+                    )}
                   </p>
                 </div>
               )}

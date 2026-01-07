@@ -15,9 +15,7 @@ import {
 } from "@/lib/pricing";
 import { logger } from "@/lib/utils/logger";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
-import {
-  createPreflightResponse,
-} from "@/lib/middleware/cors-apps";
+import { createPreflightResponse } from "@/lib/middleware/cors-apps";
 import type { NextRequest } from "next/server";
 import type {
   OpenAIChatRequest,
@@ -54,7 +52,10 @@ async function handlePOST(req: NextRequest) {
     const headers = new Headers(response.headers);
     headers.set("Access-Control-Allow-Origin", "*");
     headers.set("Access-Control-Allow-Methods", "POST, OPTIONS");
-    headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-API-Key, X-Request-ID");
+    headers.set(
+      "Access-Control-Allow-Headers",
+      "Content-Type, Authorization, X-API-Key, X-Request-ID",
+    );
     headers.set("Access-Control-Max-Age", "86400");
     return new Response(response.body, {
       status: response.status,
@@ -908,7 +909,8 @@ function handleStreamingResponse(
     Connection: "keep-alive",
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-API-Key, X-Request-ID",
+    "Access-Control-Allow-Headers":
+      "Content-Type, Authorization, X-API-Key, X-Request-ID",
     "Access-Control-Max-Age": "86400",
   };
 

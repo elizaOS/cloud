@@ -9,7 +9,7 @@ import { buildFullAppPrompt } from "@/lib/fragments/prompt";
  * This is a minimal fallback for other templates.
  */
 const ELIZA_SDK_FILE = `const apiKey = process.env.NEXT_PUBLIC_ELIZA_API_KEY || '';
-const apiBase = process.env.NEXT_PUBLIC_ELIZA_API_URL || 'https://elizacloud.ai';
+const apiBase = process.env.NEXT_PUBLIC_ELIZA_API_URL || 'https://www.elizacloud.ai';
 const appId = process.env.NEXT_PUBLIC_ELIZA_APP_ID || '';
 
 interface ChatMessage { role: string; content: string; }
@@ -549,30 +549,51 @@ async function installPackages(
   return `Installed: ${packages.join(", ")}`;
 }
 
-async function installDependencies(sandbox: SandboxInstance): Promise<string> {
+async function installDependencies(
+  sandbox: SandboxInstance,
+  options?: { force?: boolean },
+): Promise<string> {
+  const startTime = Date.now();
   logger.info("Installing dependencies from package.json");
 
-  await sandbox.runCommand({
-    cmd: "sh",
-    args: ["-c", "rm -rf node_modules/.cache 2>/dev/null || true"],
-  });
+  // Only clear caches if force is requested (e.g., after package.json changes)
+  if (options?.force) {
+    await sandbox.runCommand({
+      cmd: "sh",
+      args: ["-c", "rm -rf node_modules/.cache .next 2>/dev/null || true"],
+    });
+  }
 
-  await sandbox.runCommand({
-    cmd: "sh",
-    args: ["-c", "rm -rf .next 2>/dev/null || true"],
-  });
-
+  // Try pnpm with frozen lockfile first (fastest - uses exact versions from lockfile)
   let result = await sandbox.runCommand({
     cmd: "pnpm",
-    args: ["install", "--force"],
+    args: ["install", "--frozen-lockfile", "--prefer-offline"],
   });
 
+  // If frozen lockfile fails (lockfile out of sync), try regular install
   if (result.exitCode !== 0) {
-    logger.info("pnpm install failed, trying npm install");
+    logger.info("pnpm frozen-lockfile failed, trying regular pnpm install");
+    result = await sandbox.runCommand({
+      cmd: "pnpm",
+      args: ["install", "--prefer-offline"],
+    });
+  }
+
+  // Fall back to npm ci (faster than npm install)
+  if (result.exitCode !== 0) {
+    logger.info("pnpm install failed, trying npm ci");
     result = await sandbox.runCommand({
       cmd: "npm",
-      args: ["install", "--force"],
+      args: ["ci", "--prefer-offline"],
     });
+
+    // Last resort: npm install
+    if (result.exitCode !== 0) {
+      result = await sandbox.runCommand({
+        cmd: "npm",
+        args: ["install"],
+      });
+    }
   }
 
   if (result.exitCode !== 0) {
@@ -581,6 +602,8 @@ async function installDependencies(sandbox: SandboxInstance): Promise<string> {
     return `Failed to install dependencies: ${stderr}`;
   }
 
+  const duration = Date.now() - startTime;
+  logger.info("Dependencies installed successfully", { durationMs: duration });
   return "Dependencies installed successfully";
 }
 
@@ -595,18 +618,18 @@ async function quickTypeCheck(sandbox: SandboxInstance): Promise<string> {
   });
   const output = await result.stdout();
   const stderr = await result.stderr();
-  
+
   if (result.exitCode === 0 && !output.includes("error TS")) {
     return "Types OK";
   }
-  
+
   // Extract just the first few TypeScript errors
   const errors = (output + stderr)
     .split("\n")
     .filter((l) => l.includes("error TS") || l.includes("Error:"))
     .slice(0, 5)
     .join("\n");
-  
+
   return errors || "Types OK";
 }
 
@@ -750,9 +773,24 @@ export class SandboxService {
 
     logger.info("Installing dependencies", { sandboxId });
     onProgress?.({ step: "installing", message: "Installing dependencies..." });
-    let install = await sandbox.runCommand({ cmd: "pnpm", args: ["install"] });
+
+    // Use frozen-lockfile for faster installs (exact versions from lockfile)
+    let install = await sandbox.runCommand({
+      cmd: "pnpm",
+      args: ["install", "--frozen-lockfile", "--prefer-offline"],
+    });
+
+    // Fall back to regular pnpm install if lockfile is out of sync
     if (install.exitCode !== 0) {
-      install = await sandbox.runCommand({ cmd: "npm", args: ["install"] });
+      install = await sandbox.runCommand({
+        cmd: "pnpm",
+        args: ["install", "--prefer-offline"],
+      });
+    }
+
+    // Last resort: npm ci (faster than npm install)
+    if (install.exitCode !== 0) {
+      install = await sandbox.runCommand({ cmd: "npm", args: ["ci"] });
       if (install.exitCode !== 0) {
         throw new Error(`Install failed: ${await install.stderr()}`);
       }
@@ -760,98 +798,116 @@ export class SandboxService {
 
     onProgress?.({ step: "installing", message: "Dependencies installed" });
 
-    // Determine project structure
-    const srcCheck = await sandbox.runCommand({
+    // Fast path: Check for SDK marker file first (single filesystem call)
+    // The cloud-apps-template includes this marker to skip all SDK injection
+    const markerCheck = await sandbox.runCommand({
       cmd: "test",
-      args: ["-d", "src"],
+      args: ["-f", ".eliza-sdk-ready"],
     });
-    const useSrc = srcCheck.exitCode === 0;
-    const libPath = useSrc ? "src/lib" : "lib";
-    const hooksPath = useSrc ? "src/hooks" : "hooks";
-    const componentsPath = useSrc ? "src/components" : "components";
 
-    // Check if SDK files already exist in template (cloud-apps-template has them pre-built)
-    const sdkCheck = await sandbox.runCommand({
-      cmd: "test",
-      args: ["-f", `${libPath}/eliza.ts`],
-    });
-    const sdkExists = sdkCheck.exitCode === 0;
-
-    if (sdkExists) {
-      logger.info("SDK files already exist in template, skipping injection", {
+    if (markerCheck.exitCode === 0) {
+      logger.info("SDK marker found, skipping all SDK injection", {
         sandboxId,
-        libPath,
       });
-      onProgress?.({ step: "installing", message: "SDK already configured" });
+      onProgress?.({ step: "installing", message: "SDK pre-configured" });
     } else {
-      // Fallback: inject SDK files for templates that don't have them
-      logger.info("SDK files not found, injecting fallback SDK", { sandboxId });
-      onProgress?.({ step: "installing", message: "Setting up SDK..." });
-
-      await sandbox.runCommand({
-        cmd: "mkdir",
-        args: ["-p", libPath, hooksPath, componentsPath],
+      // Determine project structure (only if marker not found)
+      const srcCheck = await sandbox.runCommand({
+        cmd: "test",
+        args: ["-d", "src"],
       });
+      const useSrc = srcCheck.exitCode === 0;
+      const libPath = useSrc ? "src/lib" : "lib";
+      const hooksPath = useSrc ? "src/hooks" : "hooks";
+      const componentsPath = useSrc ? "src/components" : "components";
 
-      const sdkBase64 = Buffer.from(ELIZA_SDK_FILE, "utf-8").toString("base64");
-      await sandbox.runCommand({
-        cmd: "sh",
-        args: ["-c", `echo '${sdkBase64}' | base64 -d > ${libPath}/eliza.ts`],
+      // Check if SDK files already exist in template (cloud-apps-template has them pre-built)
+      const sdkCheck = await sandbox.runCommand({
+        cmd: "test",
+        args: ["-f", `${libPath}/eliza.ts`],
       });
+      const sdkExists = sdkCheck.exitCode === 0;
 
-      const hookBase64 = Buffer.from(ELIZA_HOOK_FILE, "utf-8").toString(
-        "base64",
-      );
-      await sandbox.runCommand({
-        cmd: "sh",
-        args: [
-          "-c",
-          `echo '${hookBase64}' | base64 -d > ${hooksPath}/use-eliza.ts`,
-        ],
-      });
-
-      const analyticsBase64 = Buffer.from(
-        ELIZA_ANALYTICS_COMPONENT,
-        "utf-8",
-      ).toString("base64");
-      await sandbox.runCommand({
-        cmd: "sh",
-        args: [
-          "-c",
-          `echo '${analyticsBase64}' | base64 -d > ${componentsPath}/eliza-analytics.tsx`,
-        ],
-      });
-
-      logger.info("SDK files injected", { sandboxId });
-
-      // Inject ElizaAnalytics into layout.tsx for templates without ElizaProvider
-      const layoutPath = useSrc ? "src/app/layout.tsx" : "app/layout.tsx";
-      const layoutContent = await readFileViaSh(sandbox, layoutPath);
-      if (
-        layoutContent &&
-        !layoutContent.includes("ElizaAnalytics") &&
-        !layoutContent.includes("ElizaProvider")
-      ) {
-        const analyticsImport = `import { ElizaAnalytics } from '@/components/eliza-analytics';\n`;
-        let updatedLayout = analyticsImport + layoutContent;
-
-        // Insert <ElizaAnalytics /> inside the body tag, right after opening
-        const bodyMatch = updatedLayout.match(/<body[^>]*>/);
-        if (bodyMatch) {
-          const bodyTag = bodyMatch[0];
-          updatedLayout = updatedLayout.replace(
-            bodyTag,
-            `${bodyTag}\n        <ElizaAnalytics />`,
-          );
-        }
-
-        await writeFileViaSh(sandbox, layoutPath, updatedLayout);
-        logger.info("Injected ElizaAnalytics component into layout.tsx", {
+      if (sdkExists) {
+        logger.info("SDK files already exist in template, skipping injection", {
           sandboxId,
-          layoutPath,
+          libPath,
         });
+        onProgress?.({ step: "installing", message: "SDK already configured" });
+      } else {
+        // Fallback: inject SDK files for templates that don't have them
+        logger.info("SDK files not found, injecting fallback SDK", {
+          sandboxId,
+        });
+        onProgress?.({ step: "installing", message: "Setting up SDK..." });
+
+        await sandbox.runCommand({
+          cmd: "mkdir",
+          args: ["-p", libPath, hooksPath, componentsPath],
+        });
+
+        const sdkBase64 = Buffer.from(ELIZA_SDK_FILE, "utf-8").toString(
+          "base64",
+        );
+        await sandbox.runCommand({
+          cmd: "sh",
+          args: ["-c", `echo '${sdkBase64}' | base64 -d > ${libPath}/eliza.ts`],
+        });
+
+        const hookBase64 = Buffer.from(ELIZA_HOOK_FILE, "utf-8").toString(
+          "base64",
+        );
+        await sandbox.runCommand({
+          cmd: "sh",
+          args: [
+            "-c",
+            `echo '${hookBase64}' | base64 -d > ${hooksPath}/use-eliza.ts`,
+          ],
+        });
+
+        const analyticsBase64 = Buffer.from(
+          ELIZA_ANALYTICS_COMPONENT,
+          "utf-8",
+        ).toString("base64");
+        await sandbox.runCommand({
+          cmd: "sh",
+          args: [
+            "-c",
+            `echo '${analyticsBase64}' | base64 -d > ${componentsPath}/eliza-analytics.tsx`,
+          ],
+        });
+
+        logger.info("SDK files injected", { sandboxId });
+
+        // Inject ElizaAnalytics into layout.tsx for templates without ElizaProvider
+        const layoutPath = useSrc ? "src/app/layout.tsx" : "app/layout.tsx";
+        const layoutContent = await readFileViaSh(sandbox, layoutPath);
+        if (
+          layoutContent &&
+          !layoutContent.includes("ElizaAnalytics") &&
+          !layoutContent.includes("ElizaProvider")
+        ) {
+          const analyticsImport = `import { ElizaAnalytics } from '@/components/eliza-analytics';\n`;
+          let updatedLayout = analyticsImport + layoutContent;
+
+          // Insert <ElizaAnalytics /> inside the body tag, right after opening
+          const bodyMatch = updatedLayout.match(/<body[^>]*>/);
+          if (bodyMatch) {
+            const bodyTag = bodyMatch[0];
+            updatedLayout = updatedLayout.replace(
+              bodyTag,
+              `${bodyTag}\n        <ElizaAnalytics />`,
+            );
+          }
+
+          await writeFileViaSh(sandbox, layoutPath, updatedLayout);
+          logger.info("Injected ElizaAnalytics component into layout.tsx", {
+            sandboxId,
+            layoutPath,
+          });
+        }
       }
-    }
+    } // End of SDK injection block (marker check)
 
     // Configure API communication for sandbox
     // For local dev: use postMessage proxy bridge (no ngrok required!)
@@ -913,10 +969,14 @@ export class SandboxService {
       sandboxId,
       envVarCount: Object.keys(mergedEnv).length,
     });
-    onProgress?.({ step: "starting", message: "Starting dev server..." });
+    onProgress?.({
+      step: "starting",
+      message: "Starting dev server with Turbopack...",
+    });
+    // Use --turbo for Next.js 15+ Turbopack (much faster HMR and cold starts)
     await sandbox.runCommand({
       cmd: "sh",
-      args: ["-c", "pnpm dev 2>&1 | tee /tmp/next-dev.log &"],
+      args: ["-c", "pnpm dev --turbo 2>&1 | tee /tmp/next-dev.log &"],
       detached: true,
       env: mergedEnv,
     });
@@ -935,12 +995,23 @@ export class SandboxService {
     };
   }
 
+  /**
+   * Wait for dev server to be ready with exponential backoff.
+   * Starts polling quickly (200ms) and gradually slows down to reduce CPU overhead.
+   * Much faster than fixed 1-second intervals for quick startups.
+   */
   private async waitForDevServer(
     sandbox: SandboxInstance,
     port: number,
-    maxAttempts = 45,
+    maxWaitMs = 60000, // 60 second max wait
   ): Promise<void> {
-    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const startTime = Date.now();
+    let delay = 200; // Start with 200ms polling
+    const maxDelay = 2000; // Cap at 2 seconds
+    let attempt = 0;
+
+    while (Date.now() - startTime < maxWaitMs) {
+      attempt++;
       const result = await sandbox.runCommand({
         cmd: "curl",
         args: [
@@ -949,14 +1020,28 @@ export class SandboxService {
           "/dev/null",
           "-w",
           "%{http_code}",
+          "-m",
+          "3", // 3 second timeout per request
           `http://localhost:${port}`,
         ],
       });
       const statusCode = await result.stdout();
-      if (statusCode === "200" || statusCode === "304") return;
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      if (statusCode === "200" || statusCode === "304") {
+        const totalTime = Date.now() - startTime;
+        logger.info("Dev server ready", {
+          attempts: attempt,
+          totalMs: totalTime,
+        });
+        return;
+      }
+
+      // Exponential backoff: 200ms → 300ms → 450ms → ... → 2000ms (capped)
+      await new Promise((resolve) => setTimeout(resolve, delay));
+      delay = Math.min(Math.floor(delay * 1.5), maxDelay);
     }
-    throw new Error(`Dev server did not start within ${maxAttempts}s`);
+
+    throw new Error(`Dev server did not start within ${maxWaitMs / 1000}s`);
   }
 
   /**
@@ -1350,14 +1435,15 @@ REMEMBER:
                 filesAffected.push(path);
 
                 // Rely on HMR for instant feedback - only do quick type check for .ts/.tsx files
-                const isTypeScriptFile = path.endsWith('.ts') || path.endsWith('.tsx');
+                const isTypeScriptFile =
+                  path.endsWith(".ts") || path.endsWith(".tsx");
                 let typeStatus = "";
                 if (isTypeScriptFile) {
                   // Brief delay for file system sync, then quick type check
                   await new Promise((r) => setTimeout(r, 200));
                   typeStatus = await quickTypeCheck(sandbox);
                 }
-                
+
                 result = `Wrote ${path}. HMR will auto-refresh.${typeStatus && typeStatus !== "Types OK" ? `\n\nType issues:\n${typeStatus}` : ""}`;
 
                 logger.info("File written", {
@@ -1559,12 +1645,13 @@ REMEMBER:
 
     logger.info("Starting background dependency install", { sandboxId });
 
+    // Use frozen-lockfile for speed, fall back to regular install
     sandbox
       .runCommand({
         cmd: "sh",
         args: [
           "-c",
-          "rm -rf .next node_modules/.cache 2>/dev/null; pnpm install --force 2>&1 | tee /tmp/install.log &",
+          "pnpm install --frozen-lockfile --prefer-offline 2>&1 | tee /tmp/install.log || pnpm install --prefer-offline 2>&1 | tee -a /tmp/install.log &",
         ],
         detached: true,
       })
@@ -1609,10 +1696,14 @@ REMEMBER:
       result: installResult,
     });
 
-    onProgress?.({ step: "starting", message: "Starting dev server..." });
+    onProgress?.({
+      step: "starting",
+      message: "Starting dev server with Turbopack...",
+    });
+    // Use --turbo for Next.js 15+ Turbopack (much faster HMR and cold starts)
     await sandbox.runCommand({
       cmd: "sh",
-      args: ["-c", "pnpm dev 2>&1 | tee /tmp/next-dev.log &"],
+      args: ["-c", "pnpm dev --turbo 2>&1 | tee /tmp/next-dev.log &"],
       detached: true,
     });
 
@@ -1652,6 +1743,279 @@ REMEMBER:
 
   getActiveSandboxes(): string[] {
     return Array.from(getActiveSandboxes().keys());
+  }
+
+  /**
+   * Try to reconnect to an existing sandbox by ID.
+   * This is MUCH faster than creating a new sandbox (~2-5 seconds vs 30-60 seconds).
+   * Returns null if the sandbox doesn't exist or can't be reconnected.
+   */
+  async tryReconnect(
+    sandboxId: string,
+    sandboxUrl: string,
+    options: {
+      onProgress?: (progress: SandboxProgress) => void;
+      timeoutMs?: number;
+    } = {},
+  ): Promise<SandboxSessionData | null> {
+    const { onProgress, timeoutMs = 30 * 60 * 1000 } = options;
+    const creds = getSandboxCredentials();
+
+    if (!creds.hasOIDC && !creds.hasAccessToken) {
+      logger.warn("Cannot reconnect: Vercel credentials not configured");
+      return null;
+    }
+
+    logger.info("Attempting to reconnect to sandbox", {
+      sandboxId,
+      sandboxUrl,
+    });
+    onProgress?.({
+      step: "restoring",
+      message: "Reconnecting to existing sandbox...",
+    });
+
+    try {
+      // First check if we already have a local reference to this sandbox
+      const existingSandbox = getActiveSandboxes().get(sandboxId);
+      if (existingSandbox) {
+        // Verify it's still alive
+        try {
+          const pingResult = await existingSandbox.runCommand({
+            cmd: "echo",
+            args: ["ping"],
+          });
+          if (pingResult.exitCode === 0) {
+            logger.info("Using existing local sandbox reference", {
+              sandboxId,
+            });
+
+            // Verify dev server is running
+            const healthCheck = await existingSandbox.runCommand({
+              cmd: "curl",
+              args: [
+                "-s",
+                "-o",
+                "/dev/null",
+                "-w",
+                "%{http_code}",
+                "-m",
+                "5",
+                "http://localhost:3000",
+              ],
+            });
+
+            const statusCode = await healthCheck.stdout();
+            if (statusCode === "200" || statusCode === "304") {
+              // Extend timeout
+              try {
+                await existingSandbox.extendTimeout(timeoutMs);
+              } catch {
+                // Ignore extension errors
+              }
+
+              onProgress?.({
+                step: "ready",
+                message: "Reconnected to sandbox!",
+              });
+              return {
+                sandboxId,
+                sandboxUrl,
+                status: "ready",
+                devServerUrl: sandboxUrl,
+                startedAt: new Date(),
+              };
+            }
+
+            // Dev server not responding - try to restart it
+            onProgress?.({
+              step: "starting",
+              message: "Restarting dev server...",
+            });
+            await existingSandbox.runCommand({
+              cmd: "sh",
+              args: ["-c", "pkill -f 'next dev' 2>/dev/null || true"],
+            });
+            await new Promise((r) => setTimeout(r, 500));
+
+            await existingSandbox.runCommand({
+              cmd: "sh",
+              args: ["-c", "pnpm dev --turbo 2>&1 | tee /tmp/next-dev.log &"],
+              detached: true,
+            });
+
+            await this.waitForDevServer(existingSandbox, 3000);
+
+            onProgress?.({ step: "ready", message: "Reconnected to sandbox!" });
+            return {
+              sandboxId,
+              sandboxUrl,
+              status: "ready",
+              devServerUrl: sandboxUrl,
+              startedAt: new Date(),
+            };
+          }
+        } catch {
+          // Existing reference is stale, remove it
+          getActiveSandboxes().delete(sandboxId);
+        }
+      }
+
+      // Try to connect using Vercel SDK
+      const SandboxModule = await import("@vercel/sandbox");
+      const Sandbox = SandboxModule.Sandbox || SandboxModule.default;
+
+      const connectOptions: Record<string, unknown> = {
+        id: sandboxId,
+      };
+
+      if (creds.hasAccessToken) {
+        connectOptions.teamId = creds.teamId;
+        connectOptions.projectId = creds.projectId;
+        connectOptions.token = creds.token;
+      }
+
+      // Try different methods to reconnect (SDK API varies by version)
+      let sandbox: SandboxInstance | null = null;
+
+      // Cast to any to check for methods that may not be in type definitions
+      const SandboxClass = Sandbox as unknown as {
+        connect?: (opts: unknown) => Promise<SandboxInstance>;
+        get?: (opts: unknown) => Promise<SandboxInstance>;
+        reconnect?: (opts: unknown) => Promise<SandboxInstance>;
+      };
+
+      // Method 1: Try Sandbox.connect if it exists
+      if (typeof SandboxClass.connect === "function") {
+        sandbox = await SandboxClass.connect(connectOptions);
+      }
+      // Method 2: Try Sandbox.get if it exists
+      else if (typeof SandboxClass.get === "function") {
+        sandbox = await SandboxClass.get(connectOptions);
+      }
+      // Method 3: Try Sandbox.reconnect if it exists
+      else if (typeof SandboxClass.reconnect === "function") {
+        sandbox = await SandboxClass.reconnect(connectOptions);
+      }
+
+      if (!sandbox) {
+        logger.info("Sandbox reconnection not supported or sandbox not found", {
+          sandboxId,
+        });
+        return null;
+      }
+
+      // Verify the sandbox is actually running by checking the dev server
+      const healthCheck = await sandbox.runCommand({
+        cmd: "curl",
+        args: [
+          "-s",
+          "-o",
+          "/dev/null",
+          "-w",
+          "%{http_code}",
+          "-m",
+          "5",
+          "http://localhost:3000",
+        ],
+      });
+
+      const statusCode = await healthCheck.stdout();
+      const isHealthy = statusCode === "200" || statusCode === "304";
+
+      if (!isHealthy) {
+        logger.info(
+          "Sandbox reconnected but dev server not responding, attempting restart",
+          {
+            sandboxId,
+            statusCode,
+          },
+        );
+
+        // Dev server might have died - try to restart it
+        onProgress?.({ step: "starting", message: "Restarting dev server..." });
+        await sandbox.runCommand({
+          cmd: "sh",
+          args: ["-c", "pkill -f 'next dev' 2>/dev/null || true"],
+        });
+        await new Promise((r) => setTimeout(r, 500));
+
+        await sandbox.runCommand({
+          cmd: "sh",
+          args: ["-c", "pnpm dev --turbo 2>&1 | tee /tmp/next-dev.log &"],
+          detached: true,
+        });
+
+        // Wait for dev server to be ready
+        await this.waitForDevServer(sandbox, 3000);
+      }
+
+      // Extend the timeout since we're resuming
+      try {
+        await sandbox.extendTimeout(timeoutMs);
+      } catch (extendError) {
+        logger.warn("Failed to extend sandbox timeout", {
+          sandboxId,
+          error: extendError instanceof Error ? extendError.message : "Unknown",
+        });
+      }
+
+      // Store the reconnected sandbox
+      getActiveSandboxes().set(sandboxId, sandbox);
+
+      logger.info("Successfully reconnected to sandbox", {
+        sandboxId,
+        sandboxUrl,
+      });
+      onProgress?.({ step: "ready", message: "Reconnected to sandbox!" });
+
+      return {
+        sandboxId,
+        sandboxUrl,
+        status: "ready",
+        devServerUrl: sandboxUrl,
+        startedAt: new Date(),
+      };
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      logger.info("Sandbox reconnection failed", {
+        sandboxId,
+        error: errorMessage,
+      });
+
+      // Common failure cases:
+      // - Sandbox was terminated/timed out
+      // - Network issues
+      // - Invalid sandbox ID
+      // - SDK doesn't support reconnection
+      return null;
+    }
+  }
+
+  /**
+   * Check if a sandbox is still alive and responsive.
+   * Returns true if the sandbox can be reconnected to.
+   */
+  async isSandboxAlive(sandboxId: string): Promise<boolean> {
+    const sandbox = getActiveSandboxes().get(sandboxId);
+
+    // If we have a local reference, check if it's still working
+    if (sandbox) {
+      try {
+        const result = await sandbox.runCommand({
+          cmd: "echo",
+          args: ["ping"],
+        });
+        return result.exitCode === 0;
+      } catch {
+        // Sandbox reference is stale
+        getActiveSandboxes().delete(sandboxId);
+        return false;
+      }
+    }
+
+    return false;
   }
 
   static isConfigured(): boolean {

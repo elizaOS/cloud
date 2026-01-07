@@ -655,7 +655,7 @@ const items = [
  * Get all components by category
  */
 export function getComponentsByCategory(
-  category: ComponentCategory
+  category: ComponentCategory,
 ): ComponentDefinition[] {
   return Object.values(ELIZA_COMPONENTS).filter((c) => c.category === category);
 }
@@ -665,7 +665,7 @@ export function getComponentsByCategory(
  */
 export function getCategories(): ComponentCategory[] {
   const categories = new Set(
-    Object.values(ELIZA_COMPONENTS).map((c) => c.category)
+    Object.values(ELIZA_COMPONENTS).map((c) => c.category),
   );
   return Array.from(categories);
 }
@@ -678,7 +678,7 @@ export function searchComponents(query: string): ComponentDefinition[] {
   return Object.values(ELIZA_COMPONENTS).filter(
     (c) =>
       c.name.toLowerCase().includes(lowerQuery) ||
-      c.description.toLowerCase().includes(lowerQuery)
+      c.description.toLowerCase().includes(lowerQuery),
   );
 }
 
@@ -686,11 +686,11 @@ export function searchComponents(query: string): ComponentDefinition[] {
  * Generate prompt-friendly component catalog
  */
 export function generateComponentCatalog(
-  categories?: ComponentCategory[]
+  categories?: ComponentCategory[],
 ): string {
   const components = categories
     ? Object.values(ELIZA_COMPONENTS).filter((c) =>
-        categories.includes(c.category)
+        categories.includes(c.category),
       )
     : Object.values(ELIZA_COMPONENTS);
 
@@ -700,7 +700,7 @@ export function generateComponentCatalog(
       acc[component.category].push(component);
       return acc;
     },
-    {} as Record<string, ComponentDefinition[]>
+    {} as Record<string, ComponentDefinition[]>,
   );
 
   let catalog = `## Pre-Built Eliza Components\n\n`;
@@ -738,7 +738,7 @@ export function generateCompactCatalog(): string {
       acc[c.category].push(c);
       return acc;
     },
-    {} as Record<string, ComponentDefinition[]>
+    {} as Record<string, ComponentDefinition[]>,
   );
 
   for (const [cat, comps] of Object.entries(byCategory)) {

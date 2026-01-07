@@ -1,6 +1,6 @@
 /**
  * App Builder Types
- * 
+ *
  * Shared type definitions for the app builder feature.
  */
 

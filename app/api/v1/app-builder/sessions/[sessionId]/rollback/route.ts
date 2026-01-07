@@ -16,7 +16,7 @@ const RollbackSchema = z.object({
 
 /**
  * POST /api/v1/app-builder/sessions/[sessionId]/rollback
- * 
+ *
  * Rolls back the sandbox to a specific commit.
  * This performs a hard reset to the specified commit and refreshes the sandbox.
  */
@@ -28,12 +28,12 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     // Verify session ownership
     const session = await aiAppBuilder.verifySessionOwnership(
       sessionId,
-      user.id
+      user.id,
     );
     if (!session) {
       return NextResponse.json(
         { success: false, error: "Session not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -41,7 +41,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     if (!session.app_id) {
       return NextResponse.json(
         { success: false, error: "No app associated with this session" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -49,22 +49,22 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     if (!app?.github_repo) {
       return NextResponse.json(
         { success: false, error: "No GitHub repository configured" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     // Parse and validate request body
     const body = await request.json();
     const parseResult = RollbackSchema.safeParse(body);
-    
+
     if (!parseResult.success) {
       return NextResponse.json(
-        { 
-          success: false, 
+        {
+          success: false,
           error: "Invalid commit SHA",
           details: parseResult.error.format(),
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -81,7 +81,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const rollbackResult = await performRollback(
       session.sandbox_id,
       commitSha,
-      app.github_repo
+      app.github_repo,
     );
 
     if (!rollbackResult.success) {
@@ -92,7 +92,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       });
       return NextResponse.json(
         { success: false, error: rollbackResult.error },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -136,14 +136,14 @@ interface RollbackResult {
 async function performRollback(
   sandboxId: string,
   commitSha: string,
-  repoFullName: string
+  repoFullName: string,
 ): Promise<RollbackResult> {
   try {
     // First ensure git is configured properly
     const repoName = repoFullName.includes("/")
       ? repoFullName.split("/").pop()!
       : repoFullName;
-    
+
     const configResult = await gitSyncService.configureGit({
       sandboxId,
       repoFullName: repoName,
@@ -171,7 +171,7 @@ async function performRollback(
       cmd: "git",
       args: ["fetch", "origin", "--all"],
     });
-    
+
     if (fetchResult.exitCode !== 0) {
       const stderr = await fetchResult.stderr();
       logger.warn("Git fetch had issues", { stderr });
@@ -217,7 +217,7 @@ async function performRollback(
       cmd: "git",
       args: ["rev-parse", "HEAD"],
     });
-    
+
     const currentSha = (await shaResult.stdout()).trim();
 
     return {
@@ -236,6 +236,8 @@ async function performRollback(
  * Gets the active sandbox instance from global state.
  */
 function getSandboxInstance(sandboxId: string) {
-  const sandboxes = (global as any).__sandboxInstances as Map<string, any> | undefined;
+  const sandboxes = (global as any).__sandboxInstances as
+    | Map<string, any>
+    | undefined;
   return sandboxes?.get(sandboxId) || null;
 }

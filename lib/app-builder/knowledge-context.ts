@@ -958,7 +958,7 @@ export default function AIFormPage() {
  * Build knowledge context for AI App Builder
  */
 export async function buildKnowledgeContext(
-  config: KnowledgeContextConfig = {}
+  config: KnowledgeContextConfig = {},
 ): Promise<KnowledgeContext> {
   const tier = config.tier || "standard";
   const tierConfig = TIER_CONFIG[tier];
@@ -1021,7 +1021,7 @@ export async function buildKnowledgeContext(
 }
 
 function getDefaultPatterns(
-  tierConfig: (typeof TIER_CONFIG)[ContextTier]
+  tierConfig: (typeof TIER_CONFIG)[ContextTier],
 ): PatternType[] {
   if (tierConfig.includes.patterns === "none") return [];
   if (tierConfig.includes.patterns === "common") {
@@ -1111,7 +1111,7 @@ ${context.apiReference}
  */
 export function selectContextTier(
   prompt: string,
-  templateType?: string
+  templateType?: string,
 ): ContextTier {
   const lowerPrompt = prompt.toLowerCase();
 
