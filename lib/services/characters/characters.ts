@@ -92,7 +92,7 @@ export class CharactersService {
     options?: {
       limit?: number;
       includeTemplates?: boolean;
-      source?: "cloud" | "miniapp";
+      source?: "cloud";
     },
   ): Promise<UserCharacter[]> {
     const source = options?.source ?? "cloud";
@@ -111,7 +111,7 @@ export class CharactersService {
 
   async listByOrganization(
     organizationId: string,
-    options?: { source?: "cloud" | "miniapp" },
+    options?: { source?: "cloud" },
   ): Promise<UserCharacter[]> {
     const source = options?.source ?? "cloud";
     return await userCharactersRepository.listByOrganization(

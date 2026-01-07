@@ -35,7 +35,7 @@ import {
   type EntityType,
 } from "./post-creation-app-prompt";
 
-export type QuickCreateType = "miniapp" | "workflow" | "service" | "agent";
+export type QuickCreateType = "app" | "workflow" | "service" | "agent";
 
 interface QuickCreateDialogProps {
   open: boolean;
@@ -61,8 +61,8 @@ interface TypeOption {
 
 const TYPE_OPTIONS: TypeOption[] = [
   {
-    type: "miniapp",
-    label: "Mini App",
+    type: "app",
+    label: "App",
     description: "Web app or mobile experience",
     icon: Smartphone,
     color: "from-blue-500 to-cyan-500",
@@ -217,7 +217,7 @@ export function QuickCreateDialog({
 
     try {
       switch (selectedType) {
-        case "miniapp":
+        case "app":
           result = await createApp(false);
           break;
         case "service":
@@ -255,7 +255,7 @@ export function QuickCreateDialog({
   const getNavigationPath = (): string => {
     if (!createdResult) return "/dashboard";
     switch (createdResult.type) {
-      case "miniapp":
+      case "app":
       case "service":
         return `/dashboard/apps/${createdResult.id}`;
       case "agent":
