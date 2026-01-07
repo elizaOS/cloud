@@ -765,9 +765,7 @@ export class SandboxService {
 
     onProgress?.({ step: "installing", message: "Dependencies installed" });
 
-    logger.info("Writing SDK files", { sandboxId });
-    onProgress?.({ step: "installing", message: "Setting up SDK..." });
-
+    // Determine project structure
     const srcCheck = await sandbox.runCommand({
       cmd: "test",
       args: ["-d", "src"],
@@ -775,79 +773,89 @@ export class SandboxService {
     const useSrc = srcCheck.exitCode === 0;
     const libPath = useSrc ? "src/lib" : "lib";
     const hooksPath = useSrc ? "src/hooks" : "hooks";
-
-    logger.info("SDK paths determined", {
-      sandboxId,
-      useSrc,
-      libPath,
-      hooksPath,
-    });
-
-    await sandbox.runCommand({
-      cmd: "mkdir",
-      args: ["-p", libPath, hooksPath],
-    });
-
-    const sdkBase64 = Buffer.from(ELIZA_SDK_FILE, "utf-8").toString("base64");
-    await sandbox.runCommand({
-      cmd: "sh",
-      args: ["-c", `echo '${sdkBase64}' | base64 -d > ${libPath}/eliza.ts`],
-    });
-
-    const hookBase64 = Buffer.from(ELIZA_HOOK_FILE, "utf-8").toString("base64");
-    await sandbox.runCommand({
-      cmd: "sh",
-      args: [
-        "-c",
-        `echo '${hookBase64}' | base64 -d > ${hooksPath}/use-eliza.ts`,
-      ],
-    });
-
     const componentsPath = useSrc ? "src/components" : "components";
-    await sandbox.runCommand({
-      cmd: "mkdir",
-      args: ["-p", componentsPath],
+
+    // Check if SDK files already exist in template (cloud-apps-template has them pre-built)
+    const sdkCheck = await sandbox.runCommand({
+      cmd: "test",
+      args: ["-f", `${libPath}/eliza.ts`],
     });
+    const sdkExists = sdkCheck.exitCode === 0;
 
-    const analyticsBase64 = Buffer.from(
-      ELIZA_ANALYTICS_COMPONENT,
-      "utf-8",
-    ).toString("base64");
-    await sandbox.runCommand({
-      cmd: "sh",
-      args: [
-        "-c",
-        `echo '${analyticsBase64}' | base64 -d > ${componentsPath}/eliza-analytics.tsx`,
-      ],
-    });
+    if (sdkExists) {
+      logger.info("SDK files already exist in template, skipping injection", {
+        sandboxId,
+        libPath,
+      });
+      onProgress?.({ step: "installing", message: "SDK already configured" });
+    } else {
+      // Fallback: inject SDK files for templates that don't have them
+      logger.info("SDK files not found, injecting fallback SDK", { sandboxId });
+      onProgress?.({ step: "installing", message: "Setting up SDK..." });
 
-    logger.info("SDK files written", { sandboxId });
+      await sandbox.runCommand({
+        cmd: "mkdir",
+        args: ["-p", libPath, hooksPath, componentsPath],
+      });
 
-    // Inject ElizaAnalytics client component into layout.tsx for page view tracking
-    const layoutPath = useSrc ? "src/app/layout.tsx" : "app/layout.tsx";
-    const layoutContent = await readFileViaSh(sandbox, layoutPath);
-    if (layoutContent && !layoutContent.includes("ElizaAnalytics")) {
-      const analyticsImport = `import { ElizaAnalytics } from '@/components/eliza-analytics';\n`;
-      let updatedLayout = analyticsImport + layoutContent;
+      const sdkBase64 = Buffer.from(ELIZA_SDK_FILE, "utf-8").toString("base64");
+      await sandbox.runCommand({
+        cmd: "sh",
+        args: ["-c", `echo '${sdkBase64}' | base64 -d > ${libPath}/eliza.ts`],
+      });
 
-      // Insert <ElizaAnalytics /> inside the body tag, right after opening
-      const bodyMatch = updatedLayout.match(/<body[^>]*>/);
-      if (bodyMatch) {
-        const bodyTag = bodyMatch[0];
-        updatedLayout = updatedLayout.replace(
-          bodyTag,
-          `${bodyTag}\n        <ElizaAnalytics />`,
-        );
-      }
+      const hookBase64 = Buffer.from(ELIZA_HOOK_FILE, "utf-8").toString(
+        "base64",
+      );
+      await sandbox.runCommand({
+        cmd: "sh",
+        args: [
+          "-c",
+          `echo '${hookBase64}' | base64 -d > ${hooksPath}/use-eliza.ts`,
+        ],
+      });
 
-      await writeFileViaSh(sandbox, layoutPath, updatedLayout);
-      logger.info(
-        "Injected ElizaAnalytics component into layout.tsx for page tracking",
-        {
+      const analyticsBase64 = Buffer.from(
+        ELIZA_ANALYTICS_COMPONENT,
+        "utf-8",
+      ).toString("base64");
+      await sandbox.runCommand({
+        cmd: "sh",
+        args: [
+          "-c",
+          `echo '${analyticsBase64}' | base64 -d > ${componentsPath}/eliza-analytics.tsx`,
+        ],
+      });
+
+      logger.info("SDK files injected", { sandboxId });
+
+      // Inject ElizaAnalytics into layout.tsx for templates without ElizaProvider
+      const layoutPath = useSrc ? "src/app/layout.tsx" : "app/layout.tsx";
+      const layoutContent = await readFileViaSh(sandbox, layoutPath);
+      if (
+        layoutContent &&
+        !layoutContent.includes("ElizaAnalytics") &&
+        !layoutContent.includes("ElizaProvider")
+      ) {
+        const analyticsImport = `import { ElizaAnalytics } from '@/components/eliza-analytics';\n`;
+        let updatedLayout = analyticsImport + layoutContent;
+
+        // Insert <ElizaAnalytics /> inside the body tag, right after opening
+        const bodyMatch = updatedLayout.match(/<body[^>]*>/);
+        if (bodyMatch) {
+          const bodyTag = bodyMatch[0];
+          updatedLayout = updatedLayout.replace(
+            bodyTag,
+            `${bodyTag}\n        <ElizaAnalytics />`,
+          );
+        }
+
+        await writeFileViaSh(sandbox, layoutPath, updatedLayout);
+        logger.info("Injected ElizaAnalytics component into layout.tsx", {
           sandboxId,
           layoutPath,
-        },
-      );
+        });
+      }
     }
 
     // Configure API communication for sandbox

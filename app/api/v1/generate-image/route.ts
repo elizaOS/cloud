@@ -14,9 +14,46 @@ import { uploadBase64Image } from "@/lib/blob";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { logger } from "@/lib/utils/logger";
 import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import type { UserWithOrganization } from "@/lib/types";
 
 export const maxDuration = 30;
+
+// CORS headers for cross-origin sandbox requests
+function getCorsHeaders(origin: string | null) {
+  // Allow Vercel sandboxes, preview deployments, and elizacloud.ai app domains
+  const allowedOriginPatterns = [
+    /^https:\/\/sb-[a-z0-9]+\.vercel\.run$/,
+    /^https:\/\/[a-z0-9-]+\.vercel\.app$/,
+    /^https:\/\/[a-z0-9-]+\.apps\.elizacloud\.ai$/,
+    /^http:\/\/localhost:\d+$/,
+    /^http:\/\/127\.0\.0\.1:\d+$/,
+  ];
+
+  const isAllowed =
+    !origin || allowedOriginPatterns.some((p) => p.test(origin));
+  const corsOrigin = isAllowed && origin ? origin : "*";
+
+  return {
+    "Access-Control-Allow-Origin": corsOrigin,
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers":
+      "Content-Type, Authorization, X-API-Key, X-Request-ID",
+    "Access-Control-Allow-Credentials": "true",
+    "Access-Control-Max-Age": "86400",
+  };
+}
+
+/**
+ * OPTIONS handler for CORS preflight
+ */
+export async function OPTIONS(request: NextRequest) {
+  const origin = request.headers.get("origin");
+  return new NextResponse(null, {
+    status: 204,
+    headers: getCorsHeaders(origin),
+  });
+}
 
 const IMAGE_MODEL = "google/gemini-2.5-flash-image";
 const IMAGE_PROVIDER = "google";

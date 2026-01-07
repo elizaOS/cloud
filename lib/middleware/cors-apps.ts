@@ -21,6 +21,7 @@ const DEFAULT_ALLOWED_ORIGINS = [
 const ALLOWED_ORIGIN_PATTERNS = [
   /^https:\/\/sb-[a-z0-9]+\.vercel\.run$/, // Vercel sandbox domains
   /^https:\/\/[a-z0-9-]+\.vercel\.app$/, // Vercel preview deployments
+  /^https:\/\/[a-z0-9-]+\.apps\.elizacloud\.ai$/, // ElizaCloud app domains
 ];
 
 /**

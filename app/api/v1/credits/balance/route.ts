@@ -1,6 +1,18 @@
+/**
+ * Credit Balance API (v1)
+ *
+ * GET /api/v1/credits/balance
+ * Gets the credit balance for the authenticated user's organization.
+ *
+ * This endpoint supports cross-origin requests from:
+ * - Vercel sandboxes (sb-*.vercel.run)
+ * - Vercel preview deployments (*.vercel.app)
+ * - Local development
+ */
+
 import { type NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/utils/logger";
-import { requireAuthWithOrg } from "@/lib/auth";
+import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { organizationsService } from "@/lib/services/organizations";
 
 export const dynamic = "force-dynamic";
@@ -43,7 +55,7 @@ export async function OPTIONS(request: NextRequest) {
 }
 
 /**
- * GET /api/credits/balance
+ * GET /api/v1/credits/balance
  * Gets the credit balance for the authenticated user's organization.
  *
  * Query params:
@@ -55,8 +67,9 @@ export async function OPTIONS(request: NextRequest) {
 export async function GET(req: NextRequest) {
   const origin = req.headers.get("origin");
   const corsHeaders = getCorsHeaders(origin);
+
   try {
-    const user = await requireAuthWithOrg();
+    const { user } = await requireAuthOrApiKeyWithOrg(req);
 
     // Check if fresh data is requested (e.g., after payment)
     const forceFresh = req.nextUrl.searchParams.get("fresh") === "true";
@@ -108,7 +121,7 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    logger.error("[Balance API] Error:", error);
+    logger.error("[Balance API v1] Error:", error);
     return NextResponse.json(
       { error: errorMessage },
       {
