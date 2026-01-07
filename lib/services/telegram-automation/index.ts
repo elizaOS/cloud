@@ -9,7 +9,8 @@ import { Telegraf } from "telegraf";
 import { secretsService } from "@/lib/services/secrets";
 import { logger } from "@/lib/utils/logger";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://eliza.gg";
+// Use ELIZA_API_URL (ngrok) for local dev webhooks, otherwise NEXT_PUBLIC_APP_URL
+const WEBHOOK_BASE_URL = process.env.ELIZA_API_URL || process.env.NEXT_PUBLIC_APP_URL || "https://eliza.gg";
 
 export interface TelegramBotInfo {
   botId: number;
@@ -206,6 +207,7 @@ class TelegramAutomationService {
 
   /**
    * Set webhook for receiving updates from Telegram.
+   * Requires HTTPS URL - use ELIZA_API_URL with ngrok for local development.
    */
   async setWebhook(organizationId: string): Promise<{ success: boolean; error?: string }> {
     const botToken = await this.getBotToken(organizationId);
@@ -213,9 +215,21 @@ class TelegramAutomationService {
       return { success: false, error: "Bot token not found" };
     }
 
+    // Telegram requires HTTPS for webhooks
+    if (!WEBHOOK_BASE_URL.startsWith("https://")) {
+      logger.warn("[TelegramAutomation] Skipping webhook - HTTPS required", {
+        organizationId,
+        hint: "Set ELIZA_API_URL with your ngrok HTTPS URL for local development",
+      });
+      return {
+        success: true, // Don't fail the connection, just skip webhook
+        error: "Webhook skipped - HTTPS required. Set ELIZA_API_URL with ngrok URL for local dev."
+      };
+    }
+
     try {
       const bot = new Telegraf(botToken);
-      const webhookUrl = `${APP_URL}/api/v1/telegram/webhook/${organizationId}`;
+      const webhookUrl = `${WEBHOOK_BASE_URL}/api/v1/telegram/webhook/${organizationId}`;
 
       await bot.telegram.setWebhook(webhookUrl, {
         allowed_updates: ["message", "callback_query", "channel_post", "my_chat_member"],

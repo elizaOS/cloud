@@ -83,8 +83,10 @@ const PromotionConfigSchema = z.object({
   telegramAutomation: z
     .object({
       enabled: z.boolean(),
-      chatId: z.string().optional(),
+      channelId: z.string().optional(),
+      groupId: z.string().optional(),
       autoAnnounce: z.boolean(),
+      autoReply: z.boolean().optional(),
       announceIntervalMin: z.number().int().min(30).max(1440).default(60),
       announceIntervalMax: z.number().int().min(60).max(1440).default(120),
       vibeStyle: z.string().max(100).optional(),
