@@ -254,7 +254,7 @@ const TOOLS: Anthropic.Tool[] = [
   {
     name: "install_packages",
     description:
-      "Install packages (bun). Use this BEFORE writing files that import external packages.",
+      "Install npm packages. Use this BEFORE writing files that import external packages.",
     input_schema: {
       type: "object" as const,
       properties: {
@@ -531,6 +531,7 @@ async function installPackages(
 
   logger.info("Installing packages", { packages });
 
+  // Try bun first (we installed it at sandbox creation)
   let result = await sandbox.runCommand({
     cmd: "bun",
     args: ["add", ...packages],
@@ -575,7 +576,7 @@ async function installDependencies(
     });
   }
 
-  // Try bun install first (fastest)
+  // Try bun first (we installed it at sandbox creation)
   let result = await sandbox.runCommand({
     cmd: "bun",
     args: ["install", "--frozen-lockfile"],
@@ -770,7 +771,7 @@ export class SandboxService {
       resources: { vcpus },
       timeout,
       ports,
-      runtime: "node22",
+      runtime: "node24", // node24 has npm and pnpm available (not bun)
     };
 
     if (creds.hasAccessToken) {
@@ -846,10 +847,29 @@ export class SandboxService {
     getActiveSandboxes().set(sandboxId, sandbox);
     onProgress?.({ step: "creating", message: "Sandbox instance created" });
 
+    // Install bun first - it's not included by default in Vercel Sandbox
+    // but we can install it via npm (faster than dnf)
+    logger.info("Installing bun runtime", { sandboxId });
+    onProgress?.({ step: "installing", message: "Installing bun runtime..." });
+
+    const bunInstall = await sandbox.runCommand({
+      cmd: "npm",
+      args: ["install", "-g", "bun"],
+    });
+
+    if (bunInstall.exitCode !== 0) {
+      logger.warn("Failed to install bun globally, will fall back to pnpm/npm", {
+        sandboxId,
+        stderr: await bunInstall.stderr(),
+      });
+    } else {
+      logger.info("Bun installed successfully", { sandboxId });
+    }
+
     logger.info("Installing dependencies", { sandboxId });
     onProgress?.({ step: "installing", message: "Installing dependencies..." });
 
-    // Use bun for fastest installs
+    // Try bun first (fastest) if it was installed successfully
     let install = await sandbox.runCommand({
       cmd: "bun",
       args: ["install", "--frozen-lockfile"],
@@ -863,12 +883,14 @@ export class SandboxService {
       });
     }
 
-    // Fall back to pnpm
+    // Fall back to pnpm if bun failed
     if (install.exitCode !== 0) {
+      logger.info("bun install failed, trying pnpm", { sandboxId });
       install = await sandbox.runCommand({
         cmd: "pnpm",
         args: ["install", "--frozen-lockfile", "--prefer-offline"],
       });
+
       if (install.exitCode !== 0) {
         install = await sandbox.runCommand({
           cmd: "pnpm",
@@ -877,9 +899,21 @@ export class SandboxService {
       }
     }
 
-    // Last resort: npm ci
+    // Last resort: npm
     if (install.exitCode !== 0) {
-      install = await sandbox.runCommand({ cmd: "npm", args: ["ci"] });
+      logger.info("pnpm install failed, trying npm", { sandboxId });
+      install = await sandbox.runCommand({
+        cmd: "npm",
+        args: ["ci"],
+      });
+
+      if (install.exitCode !== 0) {
+        install = await sandbox.runCommand({
+          cmd: "npm",
+          args: ["install"],
+        });
+      }
+
       if (install.exitCode !== 0) {
         throw new Error(`Install failed: ${await install.stderr()}`);
       }
@@ -1062,10 +1096,12 @@ export class SandboxService {
       step: "starting",
       message: "Starting dev server with Turbopack...",
     });
-    // Use --turbo for Next.js 15+ Turbopack (much faster HMR and cold starts)
+    // Use bun for fastest dev server startup (we installed it earlier)
+    // Falls back to pnpm if bun isn't available
+    // Next.js 15+ uses Turbopack by default in dev mode
     await sandbox.runCommand({
       cmd: "sh",
-      args: ["-c", "bun dev --turbo 2>&1 | tee /tmp/next-dev.log &"],
+      args: ["-c", "bun dev 2>&1 | tee /tmp/next-dev.log || pnpm dev 2>&1 | tee /tmp/next-dev.log &"],
       detached: true,
       env: mergedEnv,
     });
@@ -1750,13 +1786,14 @@ REMEMBER:
 
     logger.info("Starting background dependency install", { sandboxId });
 
-    // Use frozen-lockfile for speed, fall back to regular install
+    // Use bun for fastest installs (we installed it at sandbox creation)
+    // Falls back to pnpm if bun fails
     sandbox
       .runCommand({
         cmd: "sh",
         args: [
           "-c",
-          "bun install --frozen-lockfile 2>&1 | tee /tmp/install.log || bun install 2>&1 | tee -a /tmp/install.log &",
+          "bun install --frozen-lockfile 2>&1 | tee /tmp/install.log || bun install 2>&1 | tee -a /tmp/install.log || pnpm install 2>&1 | tee -a /tmp/install.log &",
         ],
         detached: true,
       })
@@ -1805,10 +1842,11 @@ REMEMBER:
       step: "starting",
       message: "Starting dev server with Turbopack...",
     });
-    // Use --turbo for Next.js 15+ Turbopack (much faster HMR and cold starts)
+    // Use bun for fastest dev server (we installed it at sandbox creation)
+    // Falls back to pnpm if bun isn't available
     await sandbox.runCommand({
       cmd: "sh",
-      args: ["-c", "bun dev --turbo 2>&1 | tee /tmp/next-dev.log &"],
+      args: ["-c", "bun dev 2>&1 | tee /tmp/next-dev.log || pnpm dev 2>&1 | tee /tmp/next-dev.log &"],
       detached: true,
     });
 
@@ -1945,7 +1983,7 @@ REMEMBER:
 
             await existingSandbox.runCommand({
               cmd: "sh",
-              args: ["-c", "bun dev --turbo 2>&1 | tee /tmp/next-dev.log &"],
+              args: ["-c", "bun dev 2>&1 | tee /tmp/next-dev.log || pnpm dev 2>&1 | tee /tmp/next-dev.log &"],
               detached: true,
             });
 
@@ -2047,7 +2085,7 @@ REMEMBER:
 
         await sandbox.runCommand({
           cmd: "sh",
-          args: ["-c", "bun dev --turbo 2>&1 | tee /tmp/next-dev.log &"],
+          args: ["-c", "bun dev 2>&1 | tee /tmp/next-dev.log || pnpm dev 2>&1 | tee /tmp/next-dev.log &"],
           detached: true,
         });
 
