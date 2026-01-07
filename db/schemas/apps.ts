@@ -4,6 +4,7 @@ import {
   integer,
   jsonb,
   numeric,
+  pgEnum,
   pgTable,
   text,
   timestamp,
@@ -13,6 +14,25 @@ import {
 import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
 import { organizations } from "./organizations";
 import { users } from "./users";
+
+/**
+ * App deployment status enum.
+ * Tracks the deployment lifecycle of an app.
+ */
+export const appDeploymentStatusEnum = pgEnum("app_deployment_status", [
+  "draft", // App created but not yet deployed
+  "building", // App is being built
+  "deploying", // App is being deployed to production
+  "deployed", // App is live and accessible
+  "failed", // Deployment failed
+]);
+
+export type AppDeploymentStatus =
+  | "draft"
+  | "building"
+  | "deploying"
+  | "deployed"
+  | "failed";
 
 /**
  * Apps table schema.
@@ -222,6 +242,13 @@ export const apps = pgTable(
         }>
       >()
       .default([]),
+
+    // Deployment status
+    deployment_status: appDeploymentStatusEnum("deployment_status")
+      .notNull()
+      .default("draft"),
+    production_url: text("production_url"), // Actual deployed URL (only set after successful deployment)
+    last_deployed_at: timestamp("last_deployed_at"), // When the app was last deployed
 
     // Status
     is_active: boolean("is_active").default(true).notNull(),

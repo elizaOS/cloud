@@ -12,6 +12,10 @@ import {
   ContainersSection,
   ContainersSectionSkeleton,
 } from "@/components/dashboard/containers-section";
+import {
+  AppsSection,
+  AppsSectionSkeleton,
+} from "@/components/dashboard/apps-section";
 
 export const metadata: Metadata = generatePageMetadata({
   ...ROUTE_METADATA.dashboard,
@@ -48,6 +52,12 @@ export default async function DashboardPage() {
           <section>
             <Suspense fallback={<AgentsSectionSkeleton />}>
               <AgentsSection agents={data.agents} />
+            </Suspense>
+          </section>
+
+          <section>
+            <Suspense fallback={<AppsSectionSkeleton />}>
+              <AppsSection apps={data.apps ?? []} />
             </Suspense>
           </section>
 
