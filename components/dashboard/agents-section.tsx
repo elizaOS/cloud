@@ -34,6 +34,9 @@ import {
   Trash2,
   MoreHorizontal,
   Upload,
+  Globe,
+  Lock,
+  Link as LinkIcon,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -49,6 +52,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import type { DashboardAgentStats as AgentStats } from "@/lib/actions/dashboard";
 import { Skeleton } from "../ui/skeleton";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 
 interface Agent {
@@ -284,6 +288,7 @@ function AgentCard({ agent }: { agent: Agent }) {
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
   const [isDeleting, setIsDeleting] = React.useState(false);
   const [dropdownOpen, setDropdownOpen] = React.useState(false);
+  const [isPublic, setIsPublic] = React.useState(agent.isPublic);
 
   const handleDuplicate = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -298,7 +303,7 @@ function AgentCard({ agent }: { agent: Agent }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: `${agent.name} (Copy)` }),
-      },
+      }
     );
 
     if (response.ok) {
@@ -326,6 +331,47 @@ function AgentCard({ agent }: { agent: Agent }) {
     link.click();
     URL.revokeObjectURL(url);
     toast.success("Agent exported successfully");
+  };
+
+  const handleToggleShare = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const newIsPublic = !isPublic;
+    setIsPublic(newIsPublic); // Optimistic update
+
+    try {
+      const response = await fetch(
+        `/api/my-agents/characters/${agent.id}/share`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ isPublic: newIsPublic }),
+        }
+      );
+
+      if (response.ok) {
+        toast.success(
+          newIsPublic ? "Agent is now public" : "Agent is now private"
+        );
+      } else {
+        setIsPublic(!newIsPublic); // Revert on error
+        toast.error("Failed to update sharing");
+      }
+    } catch {
+      setIsPublic(!newIsPublic); // Revert on error
+      toast.error("Failed to update sharing");
+    }
+  };
+
+  const handleCopyShareLink = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDropdownOpen(false);
+
+    const shareUrl = `${window.location.origin}/share/${agent.id}`;
+    navigator.clipboard.writeText(shareUrl);
+    toast.success("Share link copied!");
   };
 
   const handleDeleteClick = (e: React.MouseEvent) => {
@@ -439,10 +485,37 @@ function AgentCard({ agent }: { agent: Agent }) {
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
-                onClick={handleDeleteClick}
-                className="cursor-pointer text-red-600 focus:text-red-600"
+                onClick={handleToggleShare}
+                className="cursor-pointer flex items-center justify-between"
               >
-                <Trash2 className="h-4 w-4 mr-2" />
+                <span className="flex items-center">
+                  {isPublic ? (
+                    <Globe className="h-4 w-4 mr-4 text-green-500" />
+                  ) : (
+                    <Lock className="h-4 w-4 mr-4" />
+                  )}
+                  {isPublic ? "Public" : "Private"}
+                </span>
+                <Switch
+                  checked={isPublic}
+                  className="pointer-events-none data-[state=checked]:bg-green-500/20 [&_[data-slot=switch-thumb]]:data-[state=checked]:bg-green-500 [&_[data-slot=switch-thumb]]:data-[state=unchecked]:bg-white/40"
+                />
+              </DropdownMenuItem>
+              {isPublic && (
+                <DropdownMenuItem
+                  onClick={handleCopyShareLink}
+                  className="cursor-pointer"
+                >
+                  <LinkIcon className="h-4 w-4 mr-2" />
+                  Share
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={handleDeleteClick}
+                className="cursor-pointer text-red-500 bg-red-500/10 hover:bg-red-500/20 focus:bg-red-500/20 focus:text-red-500"
+              >
+                <Trash2 className="h-4 w-4 mr-2 text-red-500" />
                 Delete
               </DropdownMenuItem>
             </DropdownMenuContent>

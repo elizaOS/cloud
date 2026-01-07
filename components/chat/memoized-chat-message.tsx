@@ -462,7 +462,7 @@ function ChatMessageComponent(props: MemoizedChatMessageProps) {
               iconClassName="h-3 w-3"
               animate={isThinking}
             />
-            <span className="text-xs font-medium text-white/50">
+            <span className="text-sm font-medium text-white/50">
               {characterName}
             </span>
           </div>

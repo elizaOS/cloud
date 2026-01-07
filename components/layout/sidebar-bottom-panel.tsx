@@ -17,9 +17,10 @@ import { useCredits } from "@/lib/providers/CreditsProvider";
 
 interface SidebarBottomPanelProps {
   className?: string;
+  isCollapsed?: boolean;
 }
 
-export function SidebarBottomPanel({ className }: SidebarBottomPanelProps) {
+export function SidebarBottomPanel({ className, isCollapsed = false }: SidebarBottomPanelProps) {
   const { ready, authenticated, user, logout } = usePrivy();
   const router = useRouter();
 
@@ -28,6 +29,21 @@ export function SidebarBottomPanel({ className }: SidebarBottomPanelProps) {
     // Don't show anything while checking auth state
     if (!ready) {
       return null;
+    }
+
+    // Collapsed view - just show login icon
+    if (isCollapsed) {
+      return (
+        <div className={cn("flex justify-center py-3", className)}>
+          <button
+            onClick={() => router.push("/login")}
+            className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+            title="Sign Up / Log In"
+          >
+            <UserPlus className="h-5 w-5 text-white/60" />
+          </button>
+        </div>
+      );
     }
 
     // Anonymous user CTA panel
@@ -72,4 +88,22 @@ export function SidebarBottomPanel({ className }: SidebarBottomPanelProps) {
       </div>
     );
   }
+
+  // Authenticated user - collapsed view
+  if (isCollapsed) {
+    return (
+      <div className={cn("flex justify-center py-3", className)}>
+        <button
+          onClick={() => router.push("/dashboard/settings")}
+          className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+          title="Settings"
+        >
+          <Settings className="h-5 w-5 text-white/60" />
+        </button>
+      </div>
+    );
+  }
+
+  // Authenticated user - return null (handled elsewhere or not needed)
+  return null;
 }

@@ -297,6 +297,7 @@ export class CharactersService {
           }
         | undefined,
       avatarUrl: character.avatar_url ?? undefined,
+      isPublic: character.is_public,
     };
   }
 
