@@ -120,6 +120,21 @@ export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const startTime = Date.now();
 
+  // Handle CORS preflight (OPTIONS) requests for API routes
+  if (request.method === "OPTIONS" && pathname.startsWith("/api/")) {
+    return new NextResponse(null, {
+      status: 204,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+        "Access-Control-Allow-Headers":
+          "Content-Type, Authorization, X-API-Key, X-Request-ID, Cookie, X-Miniapp-Token, X-Anonymous-Session",
+        "Access-Control-Max-Age": "86400",
+        "X-Proxy-Time": `${Date.now() - startTime}ms`,
+      },
+    });
+  }
+
   const isPublicPath = publicPaths.some(
     (p) => pathname === p || pathname.startsWith(`${p}/`),
   );
