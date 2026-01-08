@@ -171,6 +171,15 @@ export function MyAgentsClient() {
     if (sortBy === "name") {
       return (a.name || "").localeCompare(b.name || "");
     }
+    if (sortBy === "created") {
+      // Sort by created_at timestamp (newest first)
+      const getCreatedTime = (char: AgentWithOwnership): number => {
+        return char.created_at ? new Date(char.created_at).getTime() : 0;
+      };
+      const timeDiff = getCreatedTime(b) - getCreatedTime(a);
+      if (timeDiff !== 0) return timeDiff;
+      return (a.name || '').localeCompare(b.name || '');
+    }
     // Default: sort by most recent activity
     const getRecentTime = (char: AgentWithOwnership): number => {
       if (char.isOwned) {

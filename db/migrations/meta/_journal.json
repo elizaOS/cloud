@@ -45,10 +45,10 @@
       "breakpoints": true
     },
     {
-      "idx": 4,
+      "idx": 6,
       "version": "7",
-      "when": 1767656232557,
-      "tag": "0004_add-unique-username-constraint",
+      "when": 1767903409196,
+      "tag": "0006_add-unique-username-constraint",
       "breakpoints": true
     }
   ]

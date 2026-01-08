@@ -202,6 +202,9 @@ export class CharactersService {
         throw new Error(`Invalid username: ${validation.error}`);
       }
 
+      // Use normalized (lowercased) username from validation
+      username = validation.normalized!;
+
       // Check uniqueness
       const exists = await userCharactersRepository.usernameExists(username);
       if (exists) {
@@ -557,6 +560,7 @@ export class CharactersService {
       name: string;
       username: string | null;
       avatar_url: string | null;
+      bio: string | string[] | null;
       owner_id: string;
       owner_name: string | null;
       last_interaction_time: string;
@@ -581,6 +585,7 @@ export class CharactersService {
         name: userCharacters.name,
         username: userCharacters.username,
         avatar_url: userCharacters.avatar_url,
+        bio: userCharacters.bio,
         owner_id: userCharacters.user_id,
         owner_name: sql<string | null>`COALESCE(${users.name}, ${users.nickname})`.as(
           "owner_name"
@@ -604,6 +609,7 @@ export class CharactersService {
         userCharacters.name,
         userCharacters.username,
         userCharacters.avatar_url,
+        userCharacters.bio,
         userCharacters.user_id,
         users.name,
         users.nickname

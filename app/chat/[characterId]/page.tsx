@@ -95,6 +95,45 @@ export default async function ChatPage({
       notFound();
     }
 
+    // ACCESS CONTROL: Apply same checks as UUID path
+    // Only cloud-created agents can use the cloud chat page
+    if (character.source !== "cloud") {
+      logger.warn(
+        `[Chat Page] Character @${username} is not a cloud agent (source: ${character.source})`,
+      );
+      notFound();
+    }
+
+    // Check if user has access
+    const user = await getCurrentUser();
+    const isOwner = user && character.user_id === user.id;
+    const isPublic = character.is_public === true;
+
+    // Check if this is a claimable affiliate character
+    const claimCheck = await charactersService.isClaimableAffiliateCharacter(character.id);
+    const isClaimableAffiliate = claimCheck.claimable;
+
+    // Allow access if: character is public, user is owner, or it's a claimable affiliate character
+    if (!isPublic && !isOwner && !isClaimableAffiliate) {
+      logger.warn(
+        `[Chat Page] Access denied to private character: @${username}`,
+        {
+          userId: user?.id,
+          characterOwnerId: character.user_id,
+          isPublic: character.is_public,
+        },
+      );
+
+      // Redirect with error
+      if (user) {
+        redirect(
+          `/dashboard/chat?error=private_character&name=${encodeURIComponent(character.name)}`,
+        );
+      } else {
+        redirect(`/?error=private_character`);
+      }
+    }
+
     // Redirect to dashboard chat with the resolved character ID
     logger.debug(
       `[Chat Page] Redirecting @${username} to dashboard chat: ${character.id}`,

@@ -1,2 +1,0 @@
-CREATE INDEX "user_characters_username_idx" ON "user_characters" USING btree ("username");--> statement-breakpoint
-ALTER TABLE "user_characters" ADD CONSTRAINT "user_characters_username_unique" UNIQUE("username");

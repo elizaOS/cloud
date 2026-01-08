@@ -207,10 +207,10 @@ export function CharacterForm({
                   id="username"
                   value={character.username || ""}
                   onChange={(e) => {
-                    // Sanitize: remove @ prefix and allow only alphanumeric, underscore, hyphen
+                    // Sanitize: remove @ prefix and allow only alphanumeric and hyphen (no underscores - server rejects them)
                     const sanitized = e.target.value
                       .replace(/^@/, "")
-                      .replace(/[^a-zA-Z0-9_-]/g, "");
+                      .replace(/[^a-zA-Z0-9-]/g, "");
                     updateField("username", sanitized);
                   }}
                   placeholder="eliza"
