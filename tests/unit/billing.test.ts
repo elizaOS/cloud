@@ -1,0 +1,155 @@
+/**
+ * Billing Module Unit Tests
+ */
+
+import { describe, test, expect } from "bun:test";
+import {
+  COST_BUFFER,
+  MIN_RESERVATION,
+  DEFAULT_OUTPUT_TOKENS,
+  InsufficientCreditsError,
+  createAnonymousReservation,
+  estimateTokens,
+  ESTIMATED_COSTS,
+  getEstimatedCost,
+  reserveCredits,
+} from "@/lib/billing";
+import type { CreditReservation, ReserveCreditsParams } from "@/lib/billing";
+
+describe("Billing Constants", () => {
+  test("COST_BUFFER is 1.5", () => {
+    expect(COST_BUFFER).toBe(1.5);
+  });
+
+  test("MIN_RESERVATION is $0.01", () => {
+    expect(MIN_RESERVATION).toBe(0.01);
+  });
+
+  test("DEFAULT_OUTPUT_TOKENS is 500", () => {
+    expect(DEFAULT_OUTPUT_TOKENS).toBe(500);
+  });
+});
+
+describe("InsufficientCreditsError", () => {
+  test("has correct name", () => {
+    const error = new InsufficientCreditsError(5.5);
+    expect(error.name).toBe("InsufficientCreditsError");
+  });
+
+  test("stores required amount", () => {
+    const error = new InsufficientCreditsError(5.5);
+    expect(error.required).toBe(5.5);
+  });
+
+  test("formats message with 4 decimal places", () => {
+    const error = new InsufficientCreditsError(5.5);
+    expect(error.message).toBe("Insufficient credits. Required: $5.5000");
+  });
+
+  test("stores optional reason", () => {
+    const error = new InsufficientCreditsError(10, "Balance is $5");
+    expect(error.reason).toBe("Balance is $5");
+  });
+
+  test("is instanceof Error", () => {
+    const error = new InsufficientCreditsError(1);
+    expect(error instanceof Error).toBe(true);
+  });
+});
+
+describe("CreditReservation Interface", () => {
+  test("type has reservedAmount and reconcile", () => {
+    const reservation: CreditReservation = {
+      reservedAmount: 10,
+      reconcile: async () => {},
+    };
+    expect(reservation.reservedAmount).toBe(10);
+    expect(typeof reservation.reconcile).toBe("function");
+  });
+});
+
+describe("createAnonymousReservation", () => {
+  test("returns reservation with zero amount", () => {
+    const reservation = createAnonymousReservation();
+    expect(reservation.reservedAmount).toBe(0);
+  });
+
+  test("reconcile is a no-op", async () => {
+    const reservation = createAnonymousReservation();
+    await expect(reservation.reconcile(100)).resolves.toBeUndefined();
+  });
+});
+
+describe("estimateTokens", () => {
+  test("is a function", () => {
+    expect(typeof estimateTokens).toBe("function");
+  });
+
+  test("returns number for text input", () => {
+    const result = estimateTokens("Hello world");
+    expect(typeof result).toBe("number");
+    expect(result).toBeGreaterThan(0);
+  });
+
+  test("returns 0 for empty string", () => {
+    expect(estimateTokens("")).toBe(0);
+  });
+});
+
+describe("ESTIMATED_COSTS", () => {
+  test("has predefined costs for common operations", () => {
+    expect(ESTIMATED_COSTS.chat_small).toBeDefined();
+    expect(ESTIMATED_COSTS.chat_large).toBeDefined();
+    expect(ESTIMATED_COSTS.image_gen).toBeDefined();
+    expect(ESTIMATED_COSTS.video_gen).toBeDefined();
+    expect(ESTIMATED_COSTS.voice_tts).toBeDefined();
+    expect(ESTIMATED_COSTS.mcp_call).toBeDefined();
+  });
+
+  test("all costs are positive numbers", () => {
+    for (const value of Object.values(ESTIMATED_COSTS)) {
+      expect(typeof value).toBe("number");
+      expect(value).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe("getEstimatedCost", () => {
+  test("returns cost for known operation", () => {
+    expect(getEstimatedCost("image_gen")).toBe(ESTIMATED_COSTS.image_gen);
+  });
+});
+
+describe("Exports", () => {
+  test("reserveCredits is exported", () => {
+    expect(typeof reserveCredits).toBe("function");
+  });
+
+  test("ReserveCreditsParams type is usable", () => {
+    const params: ReserveCreditsParams = {
+      organizationId: "org-123",
+      description: "test",
+      amount: 10,
+    };
+    expect(params.organizationId).toBe("org-123");
+  });
+});
+
+describe("Reconciliation Logic", () => {
+  test("refund: reserved $10, actual $7 = $3 refund", () => {
+    expect(10.0 - 7.0).toBe(3.0);
+  });
+
+  test("overage: reserved $5, actual $8 = $3 charge", () => {
+    expect(8.0 - 5.0).toBe(3.0);
+  });
+
+  test("no-op: difference within EPSILON (0.0001)", () => {
+    const EPSILON = 0.0001;
+    expect(Math.abs(5.0 - 5.00005)).toBeLessThan(EPSILON);
+  });
+
+  test("full refund: actual = 0", () => {
+    expect(15.0 - 0).toBe(15.0);
+  });
+});

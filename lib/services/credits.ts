@@ -712,6 +712,71 @@ export class CreditsService {
       });
   }
 
+  /**
+   * Reconcile credits after a request completes.
+   * Adjusts credits based on actual vs reserved cost.
+   * - Refunds excess if actual < reserved
+   * - Charges overage if actual > reserved
+   * - No-op if costs match (within epsilon for float precision)
+   */
+  async reconcile(params: {
+    organizationId: string;
+    reservedAmount: number;
+    actualCost: number;
+    description: string;
+    metadata?: Record<string, unknown>;
+  }): Promise<void> {
+    const {
+      organizationId,
+      reservedAmount,
+      actualCost,
+      description,
+      metadata,
+    } = params;
+    const difference = reservedAmount - actualCost;
+    const EPSILON = 0.0001; // $0.0001 threshold for float comparison
+
+    if (Math.abs(difference) < EPSILON) {
+      return;
+    }
+
+    const baseMetadata = {
+      ...metadata,
+      reserved: reservedAmount,
+      actual: actualCost,
+    };
+
+    if (difference > 0) {
+      await this.refundCredits({
+        organizationId,
+        amount: difference,
+        description: `${description} (refund)`,
+        metadata: { ...baseMetadata, type: "reconciliation_refund" },
+      });
+      logger.info("[Credits] Reconciled - refunded excess", {
+        organizationId,
+        reserved: reservedAmount,
+        actual: actualCost,
+        refunded: difference,
+      });
+      return;
+    }
+
+    const overage = -difference;
+    await this.deductCredits({
+      organizationId,
+      amount: overage,
+      description: `${description} (overage)`,
+      metadata: { ...baseMetadata, type: "reconciliation_overage" },
+    });
+    logger.warn("[Credits] Reconciled - charged overage", {
+      organizationId,
+      reserved: reservedAmount,
+      actual: actualCost,
+      overage,
+    });
+  }
+
   // Credit Packs
   async getCreditPackById(id: string): Promise<CreditPack | undefined> {
     return await creditPacksRepository.findById(id);

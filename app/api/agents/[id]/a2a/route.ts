@@ -16,7 +16,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { creditsService } from "@/lib/services/credits";
 import { charactersService } from "@/lib/services/characters/characters";
 import { streamText } from "ai";
 import { gateway } from "@ai-sdk/gateway";
@@ -27,6 +26,8 @@ import {
 } from "@/lib/pricing";
 import { agentMonetizationService } from "@/lib/services/agent-monetization";
 import { logger } from "@/lib/utils/logger";
+import { reserveCredits, InsufficientCreditsError } from "@/lib/billing";
+import type { CreditReservation } from "@/lib/billing";
 import type { UserCharacter } from "@/db/schemas/user-characters";
 
 export const maxDuration = 60;
@@ -303,7 +304,7 @@ async function handleChat(
     })),
   ];
 
-  // Calculate costs
+  // Calculate estimated costs
   const provider = getProviderFromModel(model);
   const baseCost = await estimateRequestCost(model, fullMessages);
 
@@ -314,28 +315,27 @@ async function handleChat(
     : 0;
   const totalCost = baseCost + creatorMarkup;
 
-  // Deduct credits
-  const deductResult = await creditsService.deductCredits({
-    organizationId: authResult.user.organization_id,
-    amount: totalCost,
-    description: `Agent: ${character.name} (${model})`,
-    metadata: {
-      agent_id: character.id,
-      agent_name: character.name,
-      base_cost: baseCost,
-      creator_markup: creatorMarkup,
-    },
-  });
-
-  if (!deductResult.success) {
-    return NextResponse.json({
-      jsonrpc: "2.0",
-      error: {
-        code: -32003,
-        message: `Insufficient credits. Required: $${totalCost.toFixed(4)}`,
-      },
-      id: rpcId,
+  // Reserve credits BEFORE LLM call to prevent TOCTOU race condition
+  let reservation: CreditReservation;
+  try {
+    reservation = await reserveCredits({
+      organizationId: authResult.user.organization_id,
+      amount: totalCost,
+      userId: authResult.user.id,
+      description: `Agent: ${character.name} (${model})`,
     });
+  } catch (error) {
+    if (error instanceof InsufficientCreditsError) {
+      return NextResponse.json({
+        jsonrpc: "2.0",
+        error: {
+          code: -32003,
+          message: `Insufficient credits. Required: $${error.required.toFixed(4)}`,
+        },
+        id: rpcId,
+      });
+    }
+    throw error;
   }
 
   // Generate response
@@ -385,21 +385,8 @@ async function handleChat(
     });
   }
 
-  // Handle cost difference (refund or charge extra)
-  const diff = actualTotal - totalCost;
-  if (diff < 0) {
-    await creditsService.refundCredits({
-      organizationId: authResult.user.organization_id,
-      amount: -diff,
-      description: `Agent refund: ${character.name}`,
-    });
-  } else if (diff > 0) {
-    await creditsService.deductCredits({
-      organizationId: authResult.user.organization_id,
-      amount: diff,
-      description: `Agent additional: ${character.name}`,
-    });
-  }
+  // Reconcile with actual cost (handles refund or overage)
+  await reservation.reconcile(actualTotal);
 
   return NextResponse.json({
     jsonrpc: "2.0",

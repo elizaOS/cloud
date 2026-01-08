@@ -5,7 +5,6 @@ import {
   getOrCreateAnonymousUser,
 } from "@/lib/auth-anonymous";
 import { usageService } from "@/lib/services/usage";
-import { creditsService } from "@/lib/services/credits";
 import { generationsService } from "@/lib/services/generations";
 import { discordService } from "@/lib/services/discord";
 import { appsService } from "@/lib/services/apps";
@@ -13,6 +12,12 @@ import { IMAGE_GENERATION_COST } from "@/lib/pricing";
 import { uploadBase64Image } from "@/lib/blob";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { logger } from "@/lib/utils/logger";
+import {
+  reserveCredits,
+  createAnonymousReservation,
+  InsufficientCreditsError,
+} from "@/lib/billing";
+import type { CreditReservation } from "@/lib/billing";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import type { UserWithOrganization } from "@/lib/types";
@@ -158,10 +163,35 @@ async function handlePOST(req: NextRequest) {
     }
 
     // Calculate total cost based on number of images
-    const totalCost = IMAGE_GENERATION_COST * numImages;
+    const estimatedCost = IMAGE_GENERATION_COST * numImages;
+
+    // Reserve credits BEFORE generation to prevent TOCTOU race condition
+    let reservation: CreditReservation;
+    if (!isAnonymous && user.organization_id) {
+      try {
+        reservation = await reserveCredits({
+          organizationId: user.organization_id,
+          amount: estimatedCost,
+          userId: user.id,
+          description: `Image generation (${numImages}x): ${IMAGE_MODEL}`,
+        });
+      } catch (error) {
+        if (error instanceof InsufficientCreditsError) {
+          return Response.json(
+            {
+              error: "Insufficient credits for image generation",
+              required: error.required,
+            },
+            { status: 402 },
+          );
+        }
+        throw error;
+      }
+    } else {
+      reservation = createAnonymousReservation();
+    }
 
     // Only create generation record for authenticated users with an organization
-    // Note: We set credits/cost to 0 initially - they'll be updated with actualCost on completion
     if (!isAnonymous && user.organization_id) {
       const generation = await generationsService.create({
         organization_id: user.organization_id,
@@ -314,6 +344,9 @@ async function handlePOST(req: NextRequest) {
     );
 
     if (successfulResults.length === 0) {
+      // Reconcile with 0 cost (full refund)
+      await reservation.reconcile(0);
+
       // Only create usage record for authenticated users
       if (!isAnonymous && user.organization_id) {
         const usageRecord = await usageService.create({
@@ -349,47 +382,16 @@ async function handlePOST(req: NextRequest) {
       );
     }
 
-    // Calculate actual cost based on successful images
+    // Calculate actual cost based on successful images and reconcile
     const actualCost = IMAGE_GENERATION_COST * successfulResults.length;
-    let deductionResult: { success: boolean; newBalance: number } = {
-      success: true,
-      newBalance: 0,
-    };
+    await reservation.reconcile(actualCost);
 
-    // Only deduct credits for authenticated users with an organization
-    if (!isAnonymous && user.organization_id) {
-      deductionResult = await creditsService.deductCredits({
-        organizationId: user.organization_id,
-        amount: actualCost,
-        description: `Image generation (${successfulResults.length}x): ${IMAGE_MODEL}`,
-        metadata: { user_id: user.id },
-        session_token,
+    if (!isAnonymous) {
+      logger.info("[Generate Image] Credits reconciled", {
+        reserved: reservation.reservedAmount,
+        actual: actualCost,
+        refunded: reservation.reservedAmount - actualCost,
       });
-
-      // Fail the request if credit deduction fails for authenticated users
-      if (!deductionResult.success) {
-        logger.error(
-          "[Generate Image] Failed to deduct credits - insufficient balance",
-          {
-            organizationId: user.organization_id,
-            cost: String(actualCost),
-            balance: deductionResult.newBalance,
-          },
-        );
-
-        return Response.json(
-          {
-            error: "Insufficient credits to complete image generation",
-            required: actualCost,
-            available: deductionResult.newBalance,
-          },
-          { status: 402 }, // Payment Required
-        );
-      }
-    } else {
-      logger.info(
-        "[Generate Image] Anonymous user - skipping credit deduction",
-      );
     }
 
     // Only create usage record for authenticated users
@@ -571,7 +573,7 @@ async function handlePOST(req: NextRequest) {
 
     if (!isAnonymous) {
       logger.info(
-        `[Generate Image] Generated ${successfulResults.length} image(s), Cost: $${actualCost.toFixed(2)}, New balance: $${deductionResult.newBalance.toFixed(2)}`,
+        `[Generate Image] Generated ${successfulResults.length} image(s), Cost: $${actualCost.toFixed(2)}`,
       );
     } else {
       logger.info(

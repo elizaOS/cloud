@@ -2,9 +2,9 @@ import { NextResponse } from "next/server";
 import { agentRuntime } from "@/lib/eliza/agent-runtime";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { getAnonymousUser, checkAnonymousLimit } from "@/lib/auth-anonymous";
-import { creditsService } from "@/lib/services/credits";
+import { reserveCredits, InsufficientCreditsError } from "@/lib/billing";
+import type { CreditReservation } from "@/lib/billing";
 import { usageService } from "@/lib/services/usage";
-import { organizationsService } from "@/lib/services/organizations";
 import { discordService } from "@/lib/services/discord";
 import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
 import { contentModerationService } from "@/lib/services/content-moderation";
@@ -164,20 +164,9 @@ export async function POST(
       });
     }
 
-    // For authenticated users: Check credit balance BEFORE processing
+    // For authenticated users: Reserve credits BEFORE processing
+    let reservation: CreditReservation | null = null;
     if (!isAnonymous) {
-      const estimatedInputTokens = estimateTokens(text);
-      const estimatedOutputTokens = 100;
-      const model = "gpt-4o";
-      const provider = getProviderFromModel(model);
-
-      const { totalCost: estimatedCost } = await calculateCost(
-        model,
-        provider,
-        estimatedInputTokens,
-        estimatedOutputTokens,
-      );
-
       if (!user.organization_id || !user.organization) {
         logger.error(
           "[Eliza Messages API] User has no organization - cannot proceed",
@@ -189,19 +178,27 @@ export async function POST(
         );
       }
 
-      // Use org data from auth (already fetched, avoids redundant DB call)
-      const creditBalance = Number.parseFloat(
-        String(user.organization.credit_balance),
-      );
-      if (creditBalance < estimatedCost) {
-        return NextResponse.json(
-          {
-            error: "Insufficient credits",
-            creditBalance,
-            estimatedCost,
-          },
-          { status: 402 },
-        );
+      try {
+        reservation = await reserveCredits({
+          organizationId: user.organization_id,
+          model: "gpt-4o",
+          provider: "openai",
+          estimatedInputTokens: estimateTokens(text),
+          estimatedOutputTokens: 100,
+          userId: user.id,
+          description: "Message processing (gpt-4o)",
+        });
+      } catch (error) {
+        if (error instanceof InsufficientCreditsError) {
+          return NextResponse.json(
+            {
+              error: "Insufficient credits",
+              required: error.required,
+            },
+            { status: 402 },
+          );
+        }
+        throw error;
       }
     }
 
@@ -214,18 +211,26 @@ export async function POST(
     const room = await roomsRepository.findById(roomId);
     const characterId = room?.agentId || undefined;
 
-    const result = await agentRuntime.handleMessage(
-      roomId,
-      { text, attachments },
-      characterId,
-      {
-        userId: user.id,
-        apiKey: apiKey?.key,
-      },
-    );
+    let result;
+    try {
+      result = await agentRuntime.handleMessage(
+        roomId,
+        { text, attachments },
+        characterId,
+        {
+          userId: user.id,
+          apiKey: apiKey?.key,
+        },
+      );
+    } catch (error) {
+      if (reservation) {
+        await reservation.reconcile(0);
+      }
+      throw error;
+    }
 
-    // Deduct credits and track usage for authenticated users
-    if (!isAnonymous && result.usage) {
+    // Reconcile credits and track usage for authenticated users
+    if (!isAnonymous && result.usage && reservation) {
       try {
         const provider = getProviderFromModel(result.usage.model);
         const { totalCost: cost } = await calculateCost(
@@ -235,16 +240,10 @@ export async function POST(
           result.usage.outputTokens,
         );
 
-        // Deduct credits
-        await creditsService.deductCredits({
-          organizationId: user.organization_id,
-          amount: cost,
-          description: `Message processing (${result.usage.model})`,
-        });
+        await reservation.reconcile(cost);
 
-        // Track usage
         await usageService.create({
-          organization_id: user.organization_id,
+          organization_id: user.organization_id!,
           user_id: user.id,
           type: "eliza",
           model: result.usage.model,
@@ -253,7 +252,7 @@ export async function POST(
           output_tokens: result.usage.outputTokens,
         });
 
-        logger.info("[Eliza Messages API] Credits deducted:", {
+        logger.info("[Eliza Messages API] Credits reconciled:", {
           cost,
           model: result.usage.model,
           tokens: {
