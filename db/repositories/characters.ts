@@ -11,9 +11,131 @@ import type { SearchFilters, SortOptions } from "@/lib/types/my-agents";
 export type { UserCharacter, NewUserCharacter };
 
 /**
+ * Escapes special LIKE pattern characters to prevent pattern injection.
+ * Characters %, _, and \ have special meaning in SQL LIKE patterns.
+ */
+function escapeLikePattern(str: string): string {
+  return str.replace(/[%_\\]/g, "\\$&");
+}
+
+/**
  * Repository for user character database operations.
  */
 export class UserCharactersRepository {
+  /**
+   * Builds search conditions for user character queries.
+   * Used by both search and count methods to avoid duplication.
+   */
+  private buildSearchConditions(filters: SearchFilters, userId: string): SQL[] {
+    const conditions: SQL[] = [];
+
+    if (filters.search) {
+      const escapedSearch = escapeLikePattern(filters.search);
+      conditions.push(
+        or(
+          ilike(userCharacters.name, `%${escapedSearch}%`),
+          sql`${userCharacters.bio}::text ILIKE ${"%" + escapedSearch + "%"}`,
+        )!,
+      );
+    }
+
+    if (filters.category) {
+      conditions.push(eq(userCharacters.category, filters.category));
+    }
+
+    if (filters.hasVoice) {
+      conditions.push(
+        sql`${userCharacters.plugins}::jsonb @> '["@elizaos/plugin-elevenlabs"]'::jsonb`,
+      );
+    }
+
+    if (filters.template !== undefined) {
+      conditions.push(eq(userCharacters.is_template, filters.template));
+    }
+
+    if (filters.public !== undefined) {
+      conditions.push(eq(userCharacters.is_public, filters.public));
+    }
+
+    if (filters.featured !== undefined) {
+      conditions.push(eq(userCharacters.featured, filters.featured));
+    }
+
+    // Filter by source (cloud vs miniapp)
+    if (filters.source) {
+      conditions.push(eq(userCharacters.source, filters.source));
+    }
+
+    // Include characters that user owns OR has interacted with via chat rooms
+    // This allows affiliate-created characters (clone-your-crush) to appear in my-agents
+    // when the user has chatted with them, even if they don't "own" the character
+    const interactedCharacterIds = dbRead
+      .selectDistinct({ character_id: elizaRoomCharactersTable.character_id })
+      .from(elizaRoomCharactersTable)
+      .where(eq(elizaRoomCharactersTable.user_id, userId));
+
+    conditions.push(
+      or(
+        eq(userCharacters.user_id, userId),
+        inArray(userCharacters.id, interactedCharacterIds),
+      )!,
+    );
+
+    return conditions;
+  }
+
+  /**
+   * Builds search conditions for public character queries.
+   * Used by both searchPublic and countPublic methods to avoid duplication.
+   */
+  private buildPublicSearchConditions(
+    filters: Omit<SearchFilters, "myCharacters" | "deployed">,
+  ): SQL[] {
+    const conditions: SQL[] = [];
+
+    conditions.push(
+      or(
+        eq(userCharacters.is_template, true),
+        eq(userCharacters.is_public, true),
+      )!,
+    );
+
+    if (filters.search) {
+      const escapedSearch = escapeLikePattern(filters.search);
+      conditions.push(
+        or(
+          ilike(userCharacters.name, `%${escapedSearch}%`),
+          sql`${userCharacters.bio}::text ILIKE ${"%" + escapedSearch + "%"}`,
+        )!,
+      );
+    }
+
+    if (filters.category) {
+      conditions.push(eq(userCharacters.category, filters.category));
+    }
+
+    if (filters.hasVoice) {
+      conditions.push(
+        sql`${userCharacters.plugins}::jsonb @> '["@elizaos/plugin-elevenlabs"]'::jsonb`,
+      );
+    }
+
+    if (filters.template !== undefined) {
+      conditions.push(eq(userCharacters.is_template, filters.template));
+    }
+
+    if (filters.featured !== undefined) {
+      conditions.push(eq(userCharacters.featured, filters.featured));
+    }
+
+    // Filter by source (cloud vs miniapp) - miniapp agents should never appear in public marketplace
+    if (filters.source) {
+      conditions.push(eq(userCharacters.source, filters.source));
+    }
+
+    return conditions;
+  }
+
   /**
    * Finds a character by ID.
    */
@@ -21,6 +143,44 @@ export class UserCharactersRepository {
     return await dbRead.query.userCharacters.findFirst({
       where: eq(userCharacters.id, id),
     });
+  }
+
+  /**
+   * Finds a character by username.
+   */
+  async findByUsername(username: string): Promise<UserCharacter | undefined> {
+    return await dbRead.query.userCharacters.findFirst({
+      where: eq(userCharacters.username, username.toLowerCase()),
+    });
+  }
+
+  /**
+   * Checks if a username exists.
+   */
+  async usernameExists(username: string): Promise<boolean> {
+    const result = await dbRead
+      .select({ id: userCharacters.id })
+      .from(userCharacters)
+      .where(eq(userCharacters.username, username.toLowerCase()))
+      .limit(1);
+    return result.length > 0;
+  }
+
+  /**
+   * Gets all existing usernames (for bulk uniqueness check).
+   */
+  async getAllUsernames(): Promise<Set<string>> {
+    const result = await dbRead
+      .select({ username: userCharacters.username })
+      .from(userCharacters);
+
+    const usernames = new Set<string>();
+    for (const row of result) {
+      if (row.username) {
+        usernames.add(row.username.toLowerCase());
+      }
+    }
+    return usernames;
   }
 
   /**
@@ -138,6 +298,35 @@ export class UserCharactersRepository {
   }
 
   /**
+   * Builds the sort order expression for search queries.
+   */
+  private buildSortOrder(sortOptions: SortOptions) {
+    const { sortBy, order } = sortOptions;
+    const direction = order === "asc" ? "asc" : "desc";
+
+    switch (sortBy) {
+      case "popularity":
+        return direction === "asc"
+          ? userCharacters.popularity_score
+          : desc(userCharacters.popularity_score);
+      case "newest":
+        return direction === "asc"
+          ? userCharacters.created_at
+          : desc(userCharacters.created_at);
+      case "name":
+        return direction === "asc"
+          ? userCharacters.name
+          : desc(userCharacters.name);
+      case "updated":
+        return direction === "asc"
+          ? userCharacters.updated_at
+          : desc(userCharacters.updated_at);
+      default:
+        return desc(userCharacters.popularity_score);
+    }
+  }
+
+  /**
    * Searches characters with filters and sorting.
    *
    * Includes characters the user owns or has interacted with via chat rooms.
@@ -145,94 +334,13 @@ export class UserCharactersRepository {
   async search(
     filters: SearchFilters,
     userId: string,
-    organizationId: string,
+    _organizationId: string,
     sortOptions: SortOptions,
     limit: number,
     offset: number,
   ): Promise<UserCharacter[]> {
-    const conditions: SQL[] = [];
-
-    if (filters.search) {
-      conditions.push(
-        or(
-          ilike(userCharacters.name, `%${filters.search}%`),
-          sql`${userCharacters.bio}::text ILIKE ${"%" + filters.search + "%"}`,
-        )!,
-      );
-    }
-
-    if (filters.category) {
-      conditions.push(eq(userCharacters.category, filters.category));
-    }
-
-    if (filters.hasVoice) {
-      conditions.push(
-        sql`${userCharacters.plugins}::jsonb @> '["@elizaos/plugin-elevenlabs"]'::jsonb`,
-      );
-    }
-
-    if (filters.template !== undefined) {
-      conditions.push(eq(userCharacters.is_template, filters.template));
-    }
-
-    if (filters.public !== undefined) {
-      conditions.push(eq(userCharacters.is_public, filters.public));
-    }
-
-    if (filters.featured !== undefined) {
-      conditions.push(eq(userCharacters.featured, filters.featured));
-    }
-
-    // Filter by source
-    if (filters.source) {
-      conditions.push(eq(userCharacters.source, filters.source));
-    }
-
-    // Include characters that user owns OR has interacted with via chat rooms
-    // This allows affiliate-created characters (clone-your-crush) to appear in my-agents
-    // when the user has chatted with them, even if they don't "own" the character
-    const interactedCharacterIds = dbRead
-      .selectDistinct({ character_id: elizaRoomCharactersTable.character_id })
-      .from(elizaRoomCharactersTable)
-      .where(eq(elizaRoomCharactersTable.user_id, userId));
-
-    conditions.push(
-      or(
-        eq(userCharacters.user_id, userId),
-        inArray(userCharacters.id, interactedCharacterIds),
-      )!,
-    );
-
-    const { sortBy, order } = sortOptions;
-    const direction = order === "asc" ? "asc" : "desc";
-
-    let secondaryOrderBy;
-    switch (sortBy) {
-      case "popularity":
-        secondaryOrderBy =
-          direction === "asc"
-            ? userCharacters.popularity_score
-            : desc(userCharacters.popularity_score);
-        break;
-      case "newest":
-        secondaryOrderBy =
-          direction === "asc"
-            ? userCharacters.created_at
-            : desc(userCharacters.created_at);
-        break;
-      case "name":
-        secondaryOrderBy =
-          direction === "asc" ? userCharacters.name : desc(userCharacters.name);
-        break;
-      case "updated":
-        secondaryOrderBy =
-          direction === "asc"
-            ? userCharacters.updated_at
-            : desc(userCharacters.updated_at);
-        break;
-      default:
-        secondaryOrderBy = desc(userCharacters.popularity_score);
-    }
+    const conditions = this.buildSearchConditions(filters, userId);
+    const secondaryOrderBy = this.buildSortOrder(sortOptions);
 
     return await dbRead
       .select()
@@ -249,58 +357,9 @@ export class UserCharactersRepository {
   async count(
     filters: SearchFilters,
     userId: string,
-    organizationId: string,
+    _organizationId: string,
   ): Promise<number> {
-    const conditions: SQL[] = [];
-
-    if (filters.search) {
-      conditions.push(
-        or(
-          ilike(userCharacters.name, `%${filters.search}%`),
-          sql`${userCharacters.bio}::text ILIKE ${"%" + filters.search + "%"}`,
-        )!,
-      );
-    }
-
-    if (filters.category) {
-      conditions.push(eq(userCharacters.category, filters.category));
-    }
-
-    if (filters.hasVoice) {
-      conditions.push(
-        sql`${userCharacters.plugins}::jsonb @> '["@elizaos/plugin-elevenlabs"]'::jsonb`,
-      );
-    }
-
-    if (filters.template !== undefined) {
-      conditions.push(eq(userCharacters.is_template, filters.template));
-    }
-
-    if (filters.public !== undefined) {
-      conditions.push(eq(userCharacters.is_public, filters.public));
-    }
-
-    if (filters.featured !== undefined) {
-      conditions.push(eq(userCharacters.featured, filters.featured));
-    }
-
-    // Filter by source
-    if (filters.source) {
-      conditions.push(eq(userCharacters.source, filters.source));
-    }
-
-    // Include characters that user owns OR has interacted with via chat rooms
-    const interactedCharacterIds = dbRead
-      .selectDistinct({ character_id: elizaRoomCharactersTable.character_id })
-      .from(elizaRoomCharactersTable)
-      .where(eq(elizaRoomCharactersTable.user_id, userId));
-
-    conditions.push(
-      or(
-        eq(userCharacters.user_id, userId),
-        inArray(userCharacters.id, interactedCharacterIds),
-      )!,
-    );
+    const conditions = this.buildSearchConditions(filters, userId);
 
     const result = await dbRead
       .select({ count: sql<number>`count(*)` })
@@ -390,77 +449,8 @@ export class UserCharactersRepository {
     limit: number,
     offset: number,
   ): Promise<UserCharacter[]> {
-    const conditions: SQL[] = [];
-
-    conditions.push(
-      or(
-        eq(userCharacters.is_template, true),
-        eq(userCharacters.is_public, true),
-      )!,
-    );
-
-    if (filters.search) {
-      conditions.push(
-        or(
-          ilike(userCharacters.name, `%${filters.search}%`),
-          sql`${userCharacters.bio}::text ILIKE ${"%" + filters.search + "%"}`,
-        )!,
-      );
-    }
-
-    if (filters.category) {
-      conditions.push(eq(userCharacters.category, filters.category));
-    }
-
-    if (filters.hasVoice) {
-      conditions.push(
-        sql`${userCharacters.plugins}::jsonb @> '["@elizaos/plugin-elevenlabs"]'::jsonb`,
-      );
-    }
-
-    if (filters.template !== undefined) {
-      conditions.push(eq(userCharacters.is_template, filters.template));
-    }
-
-    if (filters.featured !== undefined) {
-      conditions.push(eq(userCharacters.featured, filters.featured));
-    }
-
-    // Filter by source
-    if (filters.source) {
-      conditions.push(eq(userCharacters.source, filters.source));
-    }
-
-    const { sortBy, order } = sortOptions;
-    const direction = order === "asc" ? "asc" : "desc";
-
-    let secondaryOrderBy;
-    switch (sortBy) {
-      case "popularity":
-        secondaryOrderBy =
-          direction === "asc"
-            ? userCharacters.popularity_score
-            : desc(userCharacters.popularity_score);
-        break;
-      case "newest":
-        secondaryOrderBy =
-          direction === "asc"
-            ? userCharacters.created_at
-            : desc(userCharacters.created_at);
-        break;
-      case "name":
-        secondaryOrderBy =
-          direction === "asc" ? userCharacters.name : desc(userCharacters.name);
-        break;
-      case "updated":
-        secondaryOrderBy =
-          direction === "asc"
-            ? userCharacters.updated_at
-            : desc(userCharacters.updated_at);
-        break;
-      default:
-        secondaryOrderBy = desc(userCharacters.popularity_score);
-    }
+    const conditions = this.buildPublicSearchConditions(filters);
+    const secondaryOrderBy = this.buildSortOrder(sortOptions);
 
     return await dbRead
       .select()
@@ -477,46 +467,7 @@ export class UserCharactersRepository {
   async countPublic(
     filters: Omit<SearchFilters, "myCharacters" | "deployed">,
   ): Promise<number> {
-    const conditions: SQL[] = [];
-
-    conditions.push(
-      or(
-        eq(userCharacters.is_template, true),
-        eq(userCharacters.is_public, true),
-      )!,
-    );
-
-    if (filters.search) {
-      conditions.push(
-        or(
-          ilike(userCharacters.name, `%${filters.search}%`),
-          sql`${userCharacters.bio}::text ILIKE ${"%" + filters.search + "%"}`,
-        )!,
-      );
-    }
-
-    if (filters.category) {
-      conditions.push(eq(userCharacters.category, filters.category));
-    }
-
-    if (filters.hasVoice) {
-      conditions.push(
-        sql`${userCharacters.plugins}::jsonb @> '["@elizaos/plugin-elevenlabs"]'::jsonb`,
-      );
-    }
-
-    if (filters.template !== undefined) {
-      conditions.push(eq(userCharacters.is_template, filters.template));
-    }
-
-    if (filters.featured !== undefined) {
-      conditions.push(eq(userCharacters.featured, filters.featured));
-    }
-
-    // Filter by source
-    if (filters.source) {
-      conditions.push(eq(userCharacters.source, filters.source));
-    }
+    const conditions = this.buildPublicSearchConditions(filters);
 
     const result = await dbRead
       .select({ count: sql<number>`count(*)` })
