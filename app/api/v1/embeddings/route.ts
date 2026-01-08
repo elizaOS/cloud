@@ -14,7 +14,10 @@ import type {
 } from "@/lib/providers/types";
 import { logger } from "@/lib/utils/logger";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
-import { reserveCredits, InsufficientCreditsError } from "@/lib/billing";
+import {
+  creditsService,
+  InsufficientCreditsError,
+} from "@/lib/services/credits";
 import type { NextRequest } from "next/server";
 
 export const maxDuration = 60;
@@ -92,7 +95,7 @@ async function handlePOST(req: NextRequest) {
     // Reserve credits BEFORE making API call to prevent TOCTOU race condition
     let reservation;
     try {
-      reservation = await reserveCredits({
+      reservation = await creditsService.reserve({
         organizationId: user.organization_id!,
         model: normalizedModel,
         provider: providerName,

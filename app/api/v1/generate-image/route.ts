@@ -13,11 +13,10 @@ import { uploadBase64Image } from "@/lib/blob";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { logger } from "@/lib/utils/logger";
 import {
-  reserveCredits,
-  createAnonymousReservation,
+  creditsService,
   InsufficientCreditsError,
-} from "@/lib/billing";
-import type { CreditReservation } from "@/lib/billing";
+  type CreditReservation,
+} from "@/lib/services/credits";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import type { UserWithOrganization } from "@/lib/types";
@@ -169,7 +168,7 @@ async function handlePOST(req: NextRequest) {
     let reservation: CreditReservation;
     if (!isAnonymous && user.organization_id) {
       try {
-        reservation = await reserveCredits({
+        reservation = await creditsService.reserve({
           organizationId: user.organization_id,
           amount: estimatedCost,
           userId: user.id,
@@ -188,7 +187,7 @@ async function handlePOST(req: NextRequest) {
         throw error;
       }
     } else {
-      reservation = createAnonymousReservation();
+      reservation = creditsService.createAnonymousReservation();
     }
 
     // Only create generation record for authenticated users with an organization

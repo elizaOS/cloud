@@ -25,11 +25,7 @@ import type { CreditReservation } from "@/lib/billing";
 import { charactersService } from "@/lib/services/characters/characters";
 import { streamText } from "ai";
 import { gateway } from "@ai-sdk/gateway";
-import {
-  calculateCost,
-  getProviderFromModel,
-  estimateRequestCost,
-} from "@/lib/pricing";
+import { calculateCost, getProviderFromModel } from "@/lib/pricing";
 import { agentMonetizationService } from "@/lib/services/agent-monetization";
 import { logger } from "@/lib/utils/logger";
 
@@ -372,78 +368,95 @@ async function handleToolCall(
       throw error;
     }
 
-    const result = await streamText({
-      model: gateway.languageModel(model),
-      messages,
-    });
-
-    let fullText = "";
-    for await (const delta of result.textStream) {
-      fullText += delta;
-    }
-
-    const usage = await result.usage;
-
-    const { totalCost: actualBaseCost } = await calculateCost(
-      model,
-      provider,
-      usage?.inputTokens || 0,
-      usage?.outputTokens || 0,
-    );
-    const actualCreatorMarkup = character.monetization_enabled
-      ? actualBaseCost * (markupPct / 100)
-      : 0;
-    const actualTotal = actualBaseCost + actualCreatorMarkup;
-
-    if (character.monetization_enabled && actualCreatorMarkup > 0) {
-      await agentMonetizationService.recordCreatorEarnings({
-        agentId: character.id,
-        agentName: character.name,
-        ownerId: character.user_id,
-        ownerOrgId: character.organization_id,
-        earnings: actualCreatorMarkup,
-        consumerOrgId: authResult.user.organization_id,
-        model,
-        tokens: (usage?.inputTokens || 0) + (usage?.outputTokens || 0),
-        protocol: "mcp",
+    try {
+      const result = await streamText({
+        model: gateway.languageModel(model),
+        messages,
       });
 
-      logger.info(
-        "[Agent MCP] Creator earnings credited to redeemable balance",
-        {
-          agentId: character.id,
-          ownerId: character.user_id,
-          earnings: actualCreatorMarkup,
-        },
+      let fullText = "";
+      for await (const delta of result.textStream) {
+        fullText += delta;
+      }
+
+      const usage = await result.usage;
+
+      const { totalCost: actualBaseCost } = await calculateCost(
+        model,
+        provider,
+        usage?.inputTokens || 0,
+        usage?.outputTokens || 0,
       );
-    }
+      const actualCreatorMarkup = character.monetization_enabled
+        ? actualBaseCost * (markupPct / 100)
+        : 0;
+      const actualTotal = actualBaseCost + actualCreatorMarkup;
 
-    // Reconcile with actual cost (handles refund or overage)
-    await reservation.reconcile(actualTotal);
+      if (character.monetization_enabled && actualCreatorMarkup > 0) {
+        await agentMonetizationService.recordCreatorEarnings({
+          agentId: character.id,
+          agentName: character.name,
+          ownerId: character.user_id,
+          ownerOrgId: character.organization_id,
+          earnings: actualCreatorMarkup,
+          consumerOrgId: authResult.user.organization_id,
+          model,
+          tokens: (usage?.inputTokens || 0) + (usage?.outputTokens || 0),
+          protocol: "mcp",
+        });
 
-    return NextResponse.json({
-      jsonrpc: "2.0",
-      result: {
-        content: [
+        logger.info(
+          "[Agent MCP] Creator earnings credited to redeemable balance",
           {
-            type: "text",
-            text: fullText,
+            agentId: character.id,
+            ownerId: character.user_id,
+            earnings: actualCreatorMarkup,
           },
-        ],
-        _meta: {
-          cost: {
-            base: actualBaseCost,
-            markup: actualCreatorMarkup,
-            total: actualTotal,
-          },
-          usage: {
-            inputTokens: usage?.inputTokens || 0,
-            outputTokens: usage?.outputTokens || 0,
+        );
+      }
+
+      // Reconcile with actual cost (handles refund or overage)
+      await reservation.reconcile(actualTotal);
+
+      return NextResponse.json({
+        jsonrpc: "2.0",
+        result: {
+          content: [
+            {
+              type: "text",
+              text: fullText,
+            },
+          ],
+          _meta: {
+            cost: {
+              base: actualBaseCost,
+              markup: actualCreatorMarkup,
+              total: actualTotal,
+            },
+            usage: {
+              inputTokens: usage?.inputTokens || 0,
+              outputTokens: usage?.outputTokens || 0,
+            },
           },
         },
-      },
-      id: rpcId,
-    });
+        id: rpcId,
+      });
+    } catch (error) {
+      // Refund reserved credits on failure
+      await reservation.reconcile(0);
+      logger.error("[Agent MCP] Error generating response", {
+        error: error instanceof Error ? error.message : "Unknown error",
+        agentId: character.id,
+      });
+      return NextResponse.json({
+        jsonrpc: "2.0",
+        error: {
+          code: -32000,
+          message: error instanceof Error ? error.message : "Internal error",
+        },
+        id: rpcId,
+      });
+    }
   }
 
   return NextResponse.json({

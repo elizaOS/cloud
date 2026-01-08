@@ -19,9 +19,11 @@ type AuthResultWithOrg = AuthResult & {
   };
 };
 import { checkRateLimitRedis } from "@/lib/middleware/rate-limit-redis";
-import { creditsService } from "@/lib/services/credits";
-import { reserveCredits, InsufficientCreditsError } from "@/lib/billing";
-import type { CreditReservation } from "@/lib/billing";
+import {
+  creditsService,
+  InsufficientCreditsError,
+  type CreditReservation,
+} from "@/lib/services/credits";
 import { usageService } from "@/lib/services/usage";
 import { generationsService } from "@/lib/services/generations";
 import { conversationsService } from "@/lib/services/conversations";
@@ -341,7 +343,7 @@ const mcpHandler = createMcpHandler(
 
           // Reserve credits BEFORE generation to prevent TOCTOU race condition
           try {
-            reservation = await reserveCredits({
+            reservation = await creditsService.reserve({
               organizationId: user.organization_id!,
               model,
               provider,
@@ -562,7 +564,7 @@ const mcpHandler = createMcpHandler(
 
           // Reserve credits BEFORE generation to prevent TOCTOU race condition
           try {
-            reservation = await reserveCredits({
+            reservation = await creditsService.reserve({
               organizationId: user.organization_id!,
               amount: IMAGE_GENERATION_COST,
               userId: user.id,
@@ -953,7 +955,7 @@ const mcpHandler = createMcpHandler(
           // Reserve credits BEFORE expensive operation to prevent TOCTOU race condition
           let reservation: CreditReservation | null = null;
           try {
-            reservation = await reserveCredits({
+            reservation = await creditsService.reserve({
               organizationId: user.organization_id!,
               amount: MEMORY_SAVE_COST,
               userId: user.id,
@@ -1107,7 +1109,7 @@ const mcpHandler = createMcpHandler(
           // Reserve max credits BEFORE retrieval to prevent TOCTOU race condition
           let reservation: CreditReservation | null = null;
           try {
-            reservation = await reserveCredits({
+            reservation = await creditsService.reserve({
               organizationId: user.organization_id!,
               amount: MEMORY_RETRIEVAL_MAX_COST,
               userId: user.id,
@@ -1340,7 +1342,7 @@ const mcpHandler = createMcpHandler(
           // Reserve credits BEFORE operation to prevent TOCTOU race condition
           let reservation: CreditReservation | null = null;
           try {
-            reservation = await reserveCredits({
+            reservation = await creditsService.reserve({
               organizationId: user.organization_id!,
               amount: CONTEXT_RETRIEVAL_COST,
               userId: user.id,
@@ -1484,7 +1486,7 @@ const mcpHandler = createMcpHandler(
           // Reserve credits BEFORE operation to prevent TOCTOU race condition
           let reservation: CreditReservation | null = null;
           try {
-            reservation = await reserveCredits({
+            reservation = await creditsService.reserve({
               organizationId: user.organization_id!,
               amount: CONVERSATION_CREATE_COST,
               userId: user.id,
@@ -1620,7 +1622,7 @@ const mcpHandler = createMcpHandler(
           // Reserve credits BEFORE operation
           let reservation: CreditReservation | null = null;
           try {
-            reservation = await reserveCredits({
+            reservation = await creditsService.reserve({
               organizationId: user.organization_id!,
               amount: CONVERSATION_SEARCH_COST,
               userId: user.id,
@@ -1766,7 +1768,7 @@ const mcpHandler = createMcpHandler(
 
           let reservation: CreditReservation | null = null;
           try {
-            reservation = await reserveCredits({
+            reservation = await creditsService.reserve({
               organizationId: user.organization_id!,
               amount: estimatedCost,
               userId: user.id,
@@ -1906,7 +1908,7 @@ const mcpHandler = createMcpHandler(
           // Reserve credits BEFORE operation
           let reservation: CreditReservation | null = null;
           try {
-            reservation = await reserveCredits({
+            reservation = await creditsService.reserve({
               organizationId: user.organization_id!,
               amount: CONTEXT_OPTIMIZATION_COST,
               userId: user.id,
@@ -2038,7 +2040,7 @@ const mcpHandler = createMcpHandler(
           // Reserve credits BEFORE operation
           let reservation: CreditReservation | null = null;
           try {
-            reservation = await reserveCredits({
+            reservation = await creditsService.reserve({
               organizationId: user.organization_id!,
               amount: CONVERSATION_EXPORT_COST,
               userId: user.id,
@@ -2173,7 +2175,7 @@ const mcpHandler = createMcpHandler(
           // Reserve credits BEFORE operation
           let reservation: CreditReservation | null = null;
           try {
-            reservation = await reserveCredits({
+            reservation = await creditsService.reserve({
               organizationId: user.organization_id!,
               amount: CONVERSATION_CLONE_COST,
               userId: user.id,
@@ -2306,7 +2308,7 @@ const mcpHandler = createMcpHandler(
           // Reserve credits BEFORE operation
           let reservation: CreditReservation | null = null;
           try {
-            reservation = await reserveCredits({
+            reservation = await creditsService.reserve({
               organizationId: user.organization_id!,
               amount: MEMORY_ANALYSIS_COST,
               userId: user.id,
@@ -2480,7 +2482,7 @@ const mcpHandler = createMcpHandler(
 
           let reservation: CreditReservation | null = null;
           try {
-            reservation = await reserveCredits({
+            reservation = await creditsService.reserve({
               organizationId: user.organization_id!,
               amount: estimatedCost * 2, // Reserve 2x estimated for output tokens
               userId: user.id,
@@ -3074,7 +3076,7 @@ const mcpHandler = createMcpHandler(
           // Reserve credits BEFORE operation
           let reservation: CreditReservation | null = null;
           try {
-            reservation = await reserveCredits({
+            reservation = await creditsService.reserve({
               organizationId: user.organization_id!,
               amount: VIDEO_COST,
               userId: user.id,
@@ -3184,7 +3186,7 @@ const mcpHandler = createMcpHandler(
           // Reserve credits BEFORE operation
           let reservation: CreditReservation | null = null;
           try {
-            reservation = await reserveCredits({
+            reservation = await creditsService.reserve({
               organizationId: user.organization_id!,
               amount: cost,
               userId: user.id,
@@ -3488,7 +3490,7 @@ const mcpHandler = createMcpHandler(
           // Reserve credits BEFORE operation
           let reservation: CreditReservation | null = null;
           try {
-            reservation = await reserveCredits({
+            reservation = await creditsService.reserve({
               organizationId: user.organization_id!,
               amount: TTS_COST,
               userId: user.id,
@@ -3939,7 +3941,7 @@ const mcpHandler = createMcpHandler(
           // Reserve credits BEFORE operation
           let reservation: CreditReservation | null = null;
           try {
-            reservation = await reserveCredits({
+            reservation = await creditsService.reserve({
               organizationId: user.organization_id!,
               amount: COST,
               userId: user.id,
@@ -4028,7 +4030,7 @@ const mcpHandler = createMcpHandler(
           // Reserve credits BEFORE operation
           let reservation: CreditReservation | null = null;
           try {
-            reservation = await reserveCredits({
+            reservation = await creditsService.reserve({
               organizationId: user.organization_id!,
               amount: COST,
               userId: user.id,
@@ -4834,7 +4836,7 @@ const mcpHandler = createMcpHandler(
           // Reserve credits BEFORE operation
           let reservation: CreditReservation | null = null;
           try {
-            reservation = await reserveCredits({
+            reservation = await creditsService.reserve({
               organizationId: user.organization_id!,
               amount: DEPLOYMENT_COST,
               userId: user.id,

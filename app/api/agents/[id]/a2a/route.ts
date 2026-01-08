@@ -339,73 +339,93 @@ async function handleChat(
   }
 
   // Generate response
-  const result = await streamText({
-    model: gateway.languageModel(model),
-    messages: fullMessages,
-  });
-
-  let fullText = "";
-  for await (const delta of result.textStream) {
-    fullText += delta;
-  }
-
-  const usage = await result.usage;
-
-  // Calculate actual cost and handle difference
-  const { totalCost: actualBaseCost } = await calculateCost(
-    model,
-    provider,
-    usage?.inputTokens || 0,
-    usage?.outputTokens || 0,
-  );
-  const actualCreatorMarkup = character.monetization_enabled
-    ? actualBaseCost * (markupPct / 100)
-    : 0;
-  const actualTotal = actualBaseCost + actualCreatorMarkup;
-
-  // Credit the creator their markup if monetization is enabled
-  // IMPORTANT: This goes to REDEEMABLE EARNINGS (for elizaOS token redemption)
-  if (character.monetization_enabled && actualCreatorMarkup > 0) {
-    await agentMonetizationService.recordCreatorEarnings({
-      agentId: character.id,
-      agentName: character.name,
-      ownerId: character.user_id,
-      ownerOrgId: character.organization_id,
-      earnings: actualCreatorMarkup,
-      consumerOrgId: authResult.user.organization_id,
-      model,
-      tokens: usage?.totalTokens,
-      protocol: "a2a",
+  try {
+    const result = await streamText({
+      model: gateway.languageModel(model),
+      messages: fullMessages,
     });
 
-    logger.info("[Agent A2A] Creator earnings credited to redeemable balance", {
+    let fullText = "";
+    for await (const delta of result.textStream) {
+      fullText += delta;
+    }
+
+    const usage = await result.usage;
+
+    // Calculate actual cost and handle difference
+    const { totalCost: actualBaseCost } = await calculateCost(
+      model,
+      provider,
+      usage?.inputTokens || 0,
+      usage?.outputTokens || 0,
+    );
+    const actualCreatorMarkup = character.monetization_enabled
+      ? actualBaseCost * (markupPct / 100)
+      : 0;
+    const actualTotal = actualBaseCost + actualCreatorMarkup;
+
+    // Credit the creator their markup if monetization is enabled
+    // IMPORTANT: This goes to REDEEMABLE EARNINGS (for elizaOS token redemption)
+    if (character.monetization_enabled && actualCreatorMarkup > 0) {
+      await agentMonetizationService.recordCreatorEarnings({
+        agentId: character.id,
+        agentName: character.name,
+        ownerId: character.user_id,
+        ownerOrgId: character.organization_id,
+        earnings: actualCreatorMarkup,
+        consumerOrgId: authResult.user.organization_id,
+        model,
+        tokens: usage?.totalTokens,
+        protocol: "a2a",
+      });
+
+      logger.info(
+        "[Agent A2A] Creator earnings credited to redeemable balance",
+        {
+          agentId: character.id,
+          ownerId: character.user_id,
+          earnings: actualCreatorMarkup,
+        },
+      );
+    }
+
+    // Reconcile with actual cost (handles refund or overage)
+    await reservation.reconcile(actualTotal);
+
+    return NextResponse.json({
+      jsonrpc: "2.0",
+      result: {
+        content: fullText,
+        model,
+        usage: {
+          prompt_tokens: usage?.inputTokens || 0,
+          completion_tokens: usage?.outputTokens || 0,
+          total_tokens: usage?.totalTokens || 0,
+        },
+        cost: {
+          base: actualBaseCost,
+          markup: actualCreatorMarkup,
+          total: actualTotal,
+        },
+      },
+      id: rpcId,
+    });
+  } catch (error) {
+    // Refund reserved credits on failure
+    await reservation.reconcile(0);
+    logger.error("[Agent A2A] Error generating response", {
+      error: error instanceof Error ? error.message : "Unknown error",
       agentId: character.id,
-      ownerId: character.user_id,
-      earnings: actualCreatorMarkup,
+    });
+    return NextResponse.json({
+      jsonrpc: "2.0",
+      error: {
+        code: -32000,
+        message: error instanceof Error ? error.message : "Internal error",
+      },
+      id: rpcId,
     });
   }
-
-  // Reconcile with actual cost (handles refund or overage)
-  await reservation.reconcile(actualTotal);
-
-  return NextResponse.json({
-    jsonrpc: "2.0",
-    result: {
-      content: fullText,
-      model,
-      usage: {
-        prompt_tokens: usage?.inputTokens || 0,
-        completion_tokens: usage?.outputTokens || 0,
-        total_tokens: usage?.totalTokens || 0,
-      },
-      cost: {
-        base: actualBaseCost,
-        markup: actualCreatorMarkup,
-        total: actualTotal,
-      },
-    },
-    id: rpcId,
-  });
 }
 
 /**

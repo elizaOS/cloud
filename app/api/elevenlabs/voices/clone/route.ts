@@ -2,8 +2,11 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { requireAuthWithOrg } from "@/lib/auth";
 import { voiceCloningService } from "@/lib/services/voice-cloning";
-import { reserveCredits, InsufficientCreditsError } from "@/lib/billing";
-import type { CreditReservation } from "@/lib/billing";
+import {
+  creditsService,
+  InsufficientCreditsError,
+  type CreditReservation,
+} from "@/lib/services/credits";
 import { usageService } from "@/lib/services/usage";
 import { logger } from "@/lib/utils/logger";
 import {
@@ -127,7 +130,7 @@ export async function POST(request: NextRequest) {
 
     let reservation: CreditReservation;
     try {
-      reservation = await reserveCredits({
+      reservation = await creditsService.reserve({
         organizationId: user.organization_id!!,
         amount: cost,
         userId: user.id,

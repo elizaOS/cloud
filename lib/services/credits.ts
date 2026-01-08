@@ -2,6 +2,7 @@
  * Credits service for managing organization credit balances and transactions.
  */
 
+import { calculateCost, getProviderFromModel } from "@/lib/pricing";
 import {
   creditTransactionsRepository,
   creditPacksRepository,
@@ -24,6 +25,44 @@ import { CacheInvalidation } from "@/lib/cache/invalidation";
 import { invalidateOrganizationCache } from "@/lib/cache/organizations-cache";
 import { userSessionsService } from "./user-sessions";
 import { logger } from "@/lib/utils/logger";
+
+// ============================================================================
+// Constants
+// ============================================================================
+
+export const COST_BUFFER = 1.5;
+export const MIN_RESERVATION = 0.01;
+export const DEFAULT_OUTPUT_TOKENS = 500;
+
+// ============================================================================
+// Types
+// ============================================================================
+
+export class InsufficientCreditsError extends Error {
+  constructor(
+    public readonly required: number,
+    public readonly reason?: string,
+  ) {
+    super(`Insufficient credits. Required: $${required.toFixed(4)}`);
+    this.name = "InsufficientCreditsError";
+  }
+}
+
+export interface CreditReservation {
+  reservedAmount: number;
+  reconcile: (actualCost: number) => Promise<void>;
+}
+
+export interface ReserveCreditsParams {
+  organizationId: string;
+  userId?: string;
+  description: string;
+  amount?: number;
+  model?: string;
+  provider?: string;
+  estimatedInputTokens?: number;
+  estimatedOutputTokens?: number;
+}
 
 /**
  * Parameters for adding credits to an organization.
@@ -775,6 +814,94 @@ export class CreditsService {
       actual: actualCost,
       overage,
     });
+  }
+
+  // ============================================================================
+  // Reserve Credits (High-level API)
+  // ============================================================================
+
+  /**
+   * Reserve credits before an operation.
+   * - If `amount` is provided: fixed cost (images, videos, etc.)
+   * - If `model` is provided: estimates cost from tokens with 50% buffer
+   *
+   * Returns a CreditReservation object with a reconcile() method.
+   */
+  async reserve(params: ReserveCreditsParams): Promise<CreditReservation> {
+    const { organizationId, userId, description } = params;
+
+    let reservedAmount: number;
+    let model: string | undefined;
+
+    if (params.amount !== undefined) {
+      reservedAmount = params.amount;
+    } else if (params.model) {
+      model = params.model;
+      const provider = params.provider ?? getProviderFromModel(params.model);
+      const estimatedInputTokens = params.estimatedInputTokens ?? 0;
+      const estimatedOutputTokens =
+        params.estimatedOutputTokens ?? DEFAULT_OUTPUT_TOKENS;
+
+      const { totalCost: estimatedCost } = await calculateCost(
+        params.model,
+        provider,
+        estimatedInputTokens,
+        estimatedOutputTokens,
+      );
+
+      reservedAmount = Math.max(estimatedCost * COST_BUFFER, MIN_RESERVATION);
+    } else {
+      throw new Error("reserve() requires either `amount` or `model`");
+    }
+
+    const result = await this.reserveAndDeductCredits({
+      organizationId,
+      amount: reservedAmount,
+      description: `${description} (reserved)`,
+      metadata: {
+        user_id: userId,
+        type: "reservation",
+        ...(model && { model }),
+      },
+    });
+
+    if (!result.success) {
+      logger.warn("[Credits] Insufficient credits for reservation", {
+        organizationId,
+        required: reservedAmount,
+        reason: result.reason,
+      });
+      throw new InsufficientCreditsError(reservedAmount, result.reason);
+    }
+
+    logger.info("[Credits] Reserved", {
+      organizationId,
+      reservedAmount,
+      ...(model && { model }),
+    });
+
+    return {
+      reservedAmount,
+      reconcile: async (actualCost: number) => {
+        await this.reconcile({
+          organizationId,
+          reservedAmount,
+          actualCost,
+          description,
+          metadata: { user_id: userId, ...(model && { model }) },
+        });
+      },
+    };
+  }
+
+  /**
+   * Create a no-op reservation for anonymous users.
+   */
+  createAnonymousReservation(): CreditReservation {
+    return {
+      reservedAmount: 0,
+      reconcile: async () => {},
+    };
   }
 
   // Credit Packs

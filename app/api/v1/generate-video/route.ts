@@ -12,8 +12,11 @@ import {
 } from "@/lib/pricing";
 import { uploadFromUrl, isFalAiUrl } from "@/lib/blob";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
-import { reserveCredits, InsufficientCreditsError } from "@/lib/billing";
-import type { CreditReservation } from "@/lib/billing";
+import {
+  creditsService,
+  InsufficientCreditsError,
+  type CreditReservation,
+} from "@/lib/services/credits";
 
 fal.config({
   proxyUrl: "/api/fal/proxy",
@@ -83,7 +86,7 @@ async function handlePOST(request: NextRequest) {
     // Reserve credits BEFORE generation
     let reservation: CreditReservation;
     try {
-      reservation = await reserveCredits({
+      reservation = await creditsService.reserve({
         organizationId: user.organization_id!,
         amount: VIDEO_GENERATION_COST,
         userId: user.id,

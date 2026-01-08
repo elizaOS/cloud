@@ -2,8 +2,11 @@ import { NextResponse } from "next/server";
 import { agentRuntime } from "@/lib/eliza/agent-runtime";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { getAnonymousUser, checkAnonymousLimit } from "@/lib/auth-anonymous";
-import { reserveCredits, InsufficientCreditsError } from "@/lib/billing";
-import type { CreditReservation } from "@/lib/billing";
+import {
+  creditsService,
+  InsufficientCreditsError,
+  type CreditReservation,
+} from "@/lib/services/credits";
 import { usageService } from "@/lib/services/usage";
 import { discordService } from "@/lib/services/discord";
 import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
@@ -179,7 +182,7 @@ export async function POST(
       }
 
       try {
-        reservation = await reserveCredits({
+        reservation = await creditsService.reserve({
           organizationId: user.organization_id,
           model: "gpt-4o",
           provider: "openai",

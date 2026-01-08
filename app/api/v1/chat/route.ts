@@ -9,11 +9,10 @@ import { organizationsService } from "@/lib/services/organizations";
 import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
 import { contentModerationService } from "@/lib/services/content-moderation";
 import {
-  reserveCredits,
-  createAnonymousReservation,
+  creditsService,
   InsufficientCreditsError,
   type CreditReservation,
-} from "@/lib/billing";
+} from "@/lib/services/credits";
 import {
   calculateCost,
   getProviderFromModel,
@@ -165,7 +164,8 @@ async function handlePOST(req: NextRequest) {
     }
 
     // Reserve credits BEFORE making API call (prevents TOCTOU race condition)
-    let billing: CreditReservation = createAnonymousReservation();
+    let reservation: CreditReservation =
+      creditsService.createAnonymousReservation();
 
     if (!isAnonymous && user.organization_id) {
       const messageText = messages
@@ -176,7 +176,7 @@ async function handlePOST(req: NextRequest) {
       const estimatedInputTokens = estimateTokens(messageText);
 
       try {
-        billing = await reserveCredits({
+        reservation = await creditsService.reserve({
           organizationId: user.organization_id,
           model: selectedModel,
           provider,
@@ -233,10 +233,10 @@ async function handlePOST(req: NextRequest) {
           );
 
           // Reconcile credits (refund excess if actual < reserved)
-          // For anonymous users, billing.reconcile is a no-op
-          await billing.reconcile(totalCost);
+          // For anonymous users, reservation.reconcile is a no-op
+          await reservation.reconcile(totalCost);
 
-          // Track token usage for anonymous users (no billing, just analytics)
+          // Track token usage for anonymous users (no credits, just analytics)
           if (isAnonymous && anonymousSession) {
             await anonymousSessionsService.addTokenUsage(
               anonymousSession.id,

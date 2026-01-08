@@ -1,5 +1,5 @@
 /**
- * Billing Module Unit Tests
+ * Credits Service Unit Tests
  */
 
 import { describe, test, expect } from "bun:test";
@@ -8,15 +8,16 @@ import {
   MIN_RESERVATION,
   DEFAULT_OUTPUT_TOKENS,
   InsufficientCreditsError,
-  createAnonymousReservation,
-  estimateTokens,
-  ESTIMATED_COSTS,
-  getEstimatedCost,
-  reserveCredits,
-} from "@/lib/billing";
-import type { CreditReservation, ReserveCreditsParams } from "@/lib/billing";
+  creditsService,
+} from "@/lib/services/credits";
+import type {
+  CreditReservation,
+  ReserveCreditsParams,
+} from "@/lib/services/credits";
+import { estimateTokens } from "@/lib/pricing";
+import { ESTIMATED_COSTS, getEstimatedCost } from "@/lib/utils/agent-billing";
 
-describe("Billing Constants", () => {
+describe("Credits Constants", () => {
   test("COST_BUFFER is 1.5", () => {
     expect(COST_BUFFER).toBe(1.5);
   });
@@ -70,12 +71,12 @@ describe("CreditReservation Interface", () => {
 
 describe("createAnonymousReservation", () => {
   test("returns reservation with zero amount", () => {
-    const reservation = createAnonymousReservation();
+    const reservation = creditsService.createAnonymousReservation();
     expect(reservation.reservedAmount).toBe(0);
   });
 
   test("reconcile is a no-op", async () => {
-    const reservation = createAnonymousReservation();
+    const reservation = creditsService.createAnonymousReservation();
     await expect(reservation.reconcile(100)).resolves.toBeUndefined();
   });
 });
@@ -120,9 +121,13 @@ describe("getEstimatedCost", () => {
   });
 });
 
-describe("Exports", () => {
-  test("reserveCredits is exported", () => {
-    expect(typeof reserveCredits).toBe("function");
+describe("creditsService", () => {
+  test("reserve method exists", () => {
+    expect(typeof creditsService.reserve).toBe("function");
+  });
+
+  test("createAnonymousReservation method exists", () => {
+    expect(typeof creditsService.createAnonymousReservation).toBe("function");
   });
 
   test("ReserveCreditsParams type is usable", () => {

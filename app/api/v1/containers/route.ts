@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/utils/logger";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { reserveCredits, InsufficientCreditsError } from "@/lib/billing";
-import type { CreditReservation } from "@/lib/billing";
-import { creditsService } from "@/lib/services/credits";
+import {
+  creditsService,
+  InsufficientCreditsError,
+  type CreditReservation,
+} from "@/lib/services/credits";
 import { usageService } from "@/lib/services/usage";
 import { discordService } from "@/lib/services/discord";
 import {
@@ -257,7 +259,7 @@ async function handleCreateContainer(request: NextRequest) {
       // Reserve credits BEFORE update deployment
       let updateReservation: CreditReservation;
       try {
-        updateReservation = await reserveCredits({
+        updateReservation = await creditsService.reserve({
           organizationId: user.organization_id!!,
           amount: deploymentCost,
           userId: user.id,
@@ -327,7 +329,7 @@ async function handleCreateContainer(request: NextRequest) {
 
       let createReservation: CreditReservation;
       try {
-        createReservation = await reserveCredits({
+        createReservation = await creditsService.reserve({
           organizationId: user.organization_id!!,
           amount: deploymentCost,
           userId: user.id,
