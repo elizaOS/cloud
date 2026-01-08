@@ -34,7 +34,7 @@ export class UserCharactersRepository {
    */
   async listByUser(
     userId: string,
-    source: "cloud" | "miniapp" = "cloud",
+    source: "cloud" = "cloud",
   ): Promise<UserCharacter[]> {
     const interactedCharacterIds = dbRead
       .selectDistinct({ character_id: elizaRoomCharactersTable.character_id })
@@ -64,7 +64,7 @@ export class UserCharactersRepository {
    */
   async listByOrganization(
     organizationId: string,
-    source: "cloud" | "miniapp" = "cloud",
+    source: "cloud" = "cloud",
   ): Promise<UserCharacter[]> {
     return await dbRead.query.userCharacters.findMany({
       where: and(
@@ -183,7 +183,7 @@ export class UserCharactersRepository {
       conditions.push(eq(userCharacters.featured, filters.featured));
     }
 
-    // Filter by source (cloud vs miniapp)
+    // Filter by source
     if (filters.source) {
       conditions.push(eq(userCharacters.source, filters.source));
     }
@@ -284,7 +284,7 @@ export class UserCharactersRepository {
       conditions.push(eq(userCharacters.featured, filters.featured));
     }
 
-    // Filter by source (cloud vs miniapp)
+    // Filter by source
     if (filters.source) {
       conditions.push(eq(userCharacters.source, filters.source));
     }
@@ -426,7 +426,7 @@ export class UserCharactersRepository {
       conditions.push(eq(userCharacters.featured, filters.featured));
     }
 
-    // Filter by source (cloud vs miniapp) - miniapp agents should never appear in public marketplace
+    // Filter by source
     if (filters.source) {
       conditions.push(eq(userCharacters.source, filters.source));
     }
@@ -513,7 +513,7 @@ export class UserCharactersRepository {
       conditions.push(eq(userCharacters.featured, filters.featured));
     }
 
-    // Filter by source (cloud vs miniapp) - miniapp agents should never appear in public marketplace
+    // Filter by source
     if (filters.source) {
       conditions.push(eq(userCharacters.source, filters.source));
     }

@@ -1,6 +1,13 @@
+import type { Metadata } from "next";
 import { AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+
+export const metadata: Metadata = {
+  title: "Authentication Error",
+  description:
+    "An error occurred during authentication. Please try again or contact support if the issue persists.",
+};
 
 /**
  * Authentication error page displayed when Privy authentication succeeds

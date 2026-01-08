@@ -77,6 +77,9 @@ export default {
   apps: {
     title: "Apps",
   },
+  "app-domains": {
+    title: "App Domains",
+  },
   containers: {
     title: "Containers",
   },

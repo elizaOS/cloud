@@ -258,7 +258,7 @@ export function PluginsTab({ character, onChange }: PluginsTabProps) {
               className="w-full bg-white/5 border border-white/10 rounded-full pl-10 pr-4 py-2.5 text-sm text-white placeholder:text-white/40 focus:outline-none focus:border-[#FF5800]/50 transition-colors"
             />
           </div>
-          <div className="flex gap-2 flex-wrap">
+          <div className="flex gap-1.5 2xl:gap-2 flex-wrap overflow-x-auto scrollbar-none -mx-3 px-3 2xl:mx-0 2xl:px-0">
             <button
               onClick={() => setCategoryFilter("all")}
               className={cn(
@@ -294,7 +294,7 @@ export function PluginsTab({ character, onChange }: PluginsTabProps) {
           {/* Enabled MCPs Section */}
           {enabledMcps.length > 0 && (
             <section>
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center justify-between mb-3 2xl:mb-4">
                 <div className="flex items-center gap-2">
                   <Check className="h-4 w-4 text-green-500" />
                   <h4 className="text-sm font-medium text-white/70 uppercase tracking-wider">
@@ -316,17 +316,32 @@ export function PluginsTab({ character, onChange }: PluginsTabProps) {
                 </button>
               </div>
               {showEnabledMcps && (
-                <div className="grid gap-4 md:grid-cols-2">
-                  {enabledMcps.map((mcp) => (
-                    <McpCard
-                      key={mcp.id}
-                      mcp={mcp}
-                      isEnabled={true}
-                      onToggle={() => disableMcp(mcp.id)}
-                      onSelect={() => setSelectedMcp(mcp)}
-                    />
-                  ))}
-                </div>
+                <>
+                  {/* Mobile/Tablet: Compact List View - 2 cols on larger tablets */}
+                  <div className="2xl:hidden grid grid-cols-1 md:grid-cols-2 gap-1.5 md:gap-2">
+                    {enabledMcps.map((mcp) => (
+                      <McpListItem
+                        key={mcp.id}
+                        mcp={mcp}
+                        isEnabled={true}
+                        onToggle={() => disableMcp(mcp.id)}
+                        onSelect={() => setSelectedMcp(mcp)}
+                      />
+                    ))}
+                  </div>
+                  {/* Desktop: Card View */}
+                  <div className="hidden 2xl:grid gap-4 2xl:grid-cols-2">
+                    {enabledMcps.map((mcp) => (
+                      <McpCard
+                        key={mcp.id}
+                        mcp={mcp}
+                        isEnabled={true}
+                        onToggle={() => disableMcp(mcp.id)}
+                        onSelect={() => setSelectedMcp(mcp)}
+                      />
+                    ))}
+                  </div>
+                </>
               )}
             </section>
           )}
@@ -345,17 +360,32 @@ export function PluginsTab({ character, onChange }: PluginsTabProps) {
                 <p className="text-neutral-500 text-sm">No MCPs match your search</p>
               </div>
             ) : (
-              <div className="grid gap-4 md:grid-cols-2">
-                {availableMcps.map((mcp) => (
-                  <McpCard
-                    key={mcp.id}
-                    mcp={mcp}
-                    isEnabled={false}
-                    onToggle={() => enableMcp(mcp)}
-                    onSelect={() => setSelectedMcp(mcp)}
-                  />
-                ))}
-              </div>
+              <>
+                {/* Mobile/Tablet: Compact List View - 2 cols on larger tablets */}
+                <div className="2xl:hidden grid grid-cols-1 md:grid-cols-2 gap-1.5 md:gap-2">
+                  {availableMcps.map((mcp) => (
+                    <McpListItem
+                      key={mcp.id}
+                      mcp={mcp}
+                      isEnabled={false}
+                      onToggle={() => enableMcp(mcp)}
+                      onSelect={() => setSelectedMcp(mcp)}
+                    />
+                  ))}
+                </div>
+                {/* Desktop: Card View */}
+                <div className="hidden 2xl:grid gap-4 2xl:grid-cols-2">
+                  {availableMcps.map((mcp) => (
+                    <McpCard
+                      key={mcp.id}
+                      mcp={mcp}
+                      isEnabled={false}
+                      onToggle={() => enableMcp(mcp)}
+                      onSelect={() => setSelectedMcp(mcp)}
+                    />
+                  ))}
+                </div>
+              </>
             )}
           </section>
         </div>
@@ -376,6 +406,87 @@ export function PluginsTab({ character, onChange }: PluginsTabProps) {
           />
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+// MCP Compact List Item for Mobile/Tablet
+interface McpListItemProps {
+  mcp: McpRegistryEntry;
+  isEnabled: boolean;
+  onToggle: () => void;
+  onSelect: () => void;
+}
+
+function McpListItem({ mcp, isEnabled, onToggle, onSelect }: McpListItemProps) {
+  const Icon = iconMap[mcp.icon] || Puzzle;
+  const isDisabled = mcp.status !== "live";
+
+  return (
+    <div
+      className={cn(
+        "flex items-center gap-3 p-2.5 bg-black/40 border border-white/10 rounded-lg cursor-pointer transition-all",
+        "hover:bg-white/5 hover:border-white/20 active:bg-white/10",
+        isEnabled && "border-green-500/30 bg-green-500/5",
+        isDisabled && "opacity-60 cursor-not-allowed",
+      )}
+      onClick={onSelect}
+    >
+      {/* Icon */}
+      <div
+        className="p-1.5 rounded-md border shrink-0"
+        style={{
+          backgroundColor: `${mcp.color}15`,
+          borderColor: `${mcp.color}40`,
+        }}
+      >
+        <Icon className="h-3.5 w-3.5" style={{ color: mcp.color }} />
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1.5">
+          <h3 className="text-sm font-medium text-white truncate">
+            {mcp.name}
+          </h3>
+          {mcp.x402Enabled && (
+            <span className="px-1 py-0.5 text-[8px] bg-purple-500/20 border border-purple-500/40 text-purple-400 rounded shrink-0">
+              x402
+            </span>
+          )}
+          {mcp.status !== "live" && (
+            <span className="px-1 py-0.5 text-[8px] bg-yellow-500/20 border border-yellow-500/30 text-yellow-400 rounded shrink-0">
+              {mcp.status.replace("_", " ")}
+            </span>
+          )}
+        </div>
+        <p className="text-[10px] text-white/50">
+          {mcp.toolCount} tools • {mcp.pricing.description}
+        </p>
+      </div>
+
+      {/* Toggle Button */}
+      {!isDisabled && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggle();
+          }}
+          className={cn(
+            "p-1.5 rounded-md transition-colors shrink-0",
+            isEnabled
+              ? "bg-red-500/20 text-red-400 hover:bg-red-500/30"
+              : "bg-green-500/20 text-green-400 hover:bg-green-500/30",
+          )}
+          title={isEnabled ? "Disable MCP" : "Enable MCP"}
+        >
+          {isEnabled ? (
+            <Trash2 className="h-3.5 w-3.5" />
+          ) : (
+            <Plus className="h-3.5 w-3.5" />
+          )}
+        </button>
+      )}
     </div>
   );
 }
@@ -540,11 +651,14 @@ function McpDetailPanel({
               borderColor: `${mcp.color}40`,
             }}
           >
-            <Icon className="h-6 w-6" style={{ color: mcp.color }} />
+            <Icon
+              className="h-4 w-4 2xl:h-6 2xl:w-6"
+              style={{ color: mcp.color }}
+            />
           </div>
-          <div>
-            <h2 className="text-xl font-semibold text-white flex items-center gap-2">
-              {mcp.name}
+          <div className="min-w-0 flex-1">
+            <h2 className="text-base 2xl:text-xl font-semibold text-white flex items-center gap-2 flex-wrap">
+              <span className="truncate">{mcp.name}</span>
               {mcp.x402Enabled && (
                 <span className="px-2 py-0.5 text-xs bg-purple-500/20 border border-purple-500/40 text-purple-400 rounded-full">
                   x402
@@ -592,7 +706,7 @@ function McpDetailPanel({
           <label className="text-xs text-neutral-500 uppercase tracking-wider">
             Available Tools ({mcp.toolCount})
           </label>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-1.5 2xl:gap-2">
             {mcp.features.map((feature) => (
               <span
                 key={feature}
@@ -621,7 +735,7 @@ function McpDetailPanel({
               This MCP server supports accountless micropayments via the x402
               protocol. Pay only for what you use
               {mcp.pricing.pricePerRequest &&
-                ` with $${mcp.pricing.pricePerRequest} per request`}
+                ` ($${mcp.pricing.pricePerRequest}/request)`}
               . Powered by Coinbase CDP.
             </p>
           </div>
@@ -638,14 +752,15 @@ function McpDetailPanel({
               rel="noopener noreferrer"
               className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 text-white/70 hover:border-white/30 hover:text-white transition-colors rounded-xl text-sm"
             >
-              <ExternalLink className="h-4 w-4" />
-              Documentation
+              <ExternalLink className="h-3.5 w-3.5 2xl:h-4 2xl:w-4" />
+              <span className="hidden md:inline">Docs</span>
             </a>
           )}
         </div>
         <Button
           onClick={onToggle}
           disabled={mcp.status !== "live"}
+          size="sm"
           className={cn(
             "px-6 rounded-xl",
             isEnabled

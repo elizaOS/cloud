@@ -39,14 +39,14 @@ export function isAndroid(): boolean {
 
 /**
  * Get the appropriate API base URL
- * - Mobile: Always use production API (elizacloud.ai)
+ * - Mobile: Always use production API (www.elizacloud.ai)
  * - Web: Use current origin for same-origin requests
  * - SSR: Use environment variable or localhost
  */
 export function getApiBaseUrl(): string {
   // Mobile always uses production API
   if (isMobileApp()) {
-    return process.env.NEXT_PUBLIC_API_URL || "https://elizacloud.ai";
+    return process.env.NEXT_PUBLIC_API_URL || "https://www.elizacloud.ai";
   }
 
   // Server-side rendering

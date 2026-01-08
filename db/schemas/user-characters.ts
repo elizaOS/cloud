@@ -17,8 +17,7 @@ import { users } from "./users";
  * User characters table schema.
  *
  * Stores character definitions created by users. Characters can be templates,
- * public marketplace items, or private user characters. Supports both cloud
- * and miniapp sources.
+ * public marketplace items, or private user characters.
  *
  * When is_public=true, the character can be:
  * - Registered on ERC-8004 for discovery (erc8004_registered=true)
@@ -76,8 +75,7 @@ export const userCharacters = pgTable(
     interaction_count: integer("interaction_count").default(0).notNull(),
     popularity_score: integer("popularity_score").default(0).notNull(),
     // Source tracking: where the character was created
-    // "cloud" = created in main Eliza Cloud dashboard
-    // "miniapp" = created via miniapp integration
+    // "cloud" = created in Eliza Cloud
     source: text("source").default("cloud").notNull(),
 
     // =========================================================================

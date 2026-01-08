@@ -51,12 +51,30 @@ llms-full.txt: https://elizacloud.ai/.well-known/llms-full.txt
   https://elizacloud.ai/docs/api/video
 - Voice & TTS — Text-to-speech and voice cloning on elizaOS Cloud.
   https://elizacloud.ai/docs/api/voice
+- App Domains — Configure custom domains for your multi-tenant applications on elizaOS Cloud. Add wildcard subdomains and bring your own custom domains.
+  https://elizacloud.ai/docs/app-domains
 - Apps — Create and manage applications on elizaOS Cloud. Build integrations with your agents and APIs.
   https://elizacloud.ai/docs/apps
 - Authentication — Learn how to authenticate with elizaOS Cloud APIs using API keys, session tokens, and x402 payments.
   https://elizacloud.ai/docs/authentication
 - Billing & Credits — Understand elizaOS Cloud pricing, credits system, and billing management.
   https://elizacloud.ai/docs/billing
+- The Future of AI Agents in 2025 — Exploring the trends and innovations shaping the AI agent landscape this year.
+  https://elizacloud.ai/docs/blog/ai-agents-future
+- Community Spotlight: January 2025 — Highlighting amazing projects and contributions from the Eliza community this month.
+  https://elizacloud.ai/docs/blog/community-spotlight-january
+- Customizing Your Agent's Personality — Learn how to create unique and engaging personalities for your AI agents.
+  https://elizacloud.ai/docs/blog/customizing-agent-personality
+- Getting Started with AI Agents — A comprehensive guide to creating and deploying your first AI agent on Eliza Cloud.
+  https://elizacloud.ai/docs/blog/getting-started-guide
+- Integrating AI Agents with Discord — Step-by-step guide to connecting your Eliza Cloud agent to Discord servers.
+  https://elizacloud.ai/docs/blog/integrating-with-discord
+- Build AI Agents Faster. Ship Them Instantly. Introducing Eliza Cloud. — Eliza Cloud is a low-code platform for building and deploying AI agents. Focus on what your agent does - we handle everything else.
+  https://elizacloud.ai/docs/blog/introducing-eliza-cloud
+- Eliza Cloud v2.0 Released — Major update brings new features, improved performance, and enhanced developer experience.
+  https://elizacloud.ai/docs/blog/v2-release
+- Welcome to Eliza Cloud — Introducing Eliza Cloud - the easiest way to deploy and manage AI agents.
+  https://elizacloud.ai/docs/blog/welcome-to-eliza
 - Changelog — Latest updates, new features, and improvements to elizaOS Cloud.
   https://elizacloud.ai/docs/changelog
 - Character JSON — Complete reference for elizaOS character JSON configuration. Define agent personality, behavior, and settings.

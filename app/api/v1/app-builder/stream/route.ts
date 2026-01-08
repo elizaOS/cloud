@@ -1,11 +1,18 @@
 import { NextRequest } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import {
-  aiAppBuilderService,
+  aiAppBuilderService as aiAppBuilder,
   type SandboxProgress,
 } from "@/lib/services/ai-app-builder";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
+import { checkRateLimitAsync } from "@/lib/middleware/rate-limit";
+import { createStreamWriter, SSE_HEADERS } from "@/lib/api/stream-utils";
+
+const SESSION_CREATE_LIMIT = {
+  windowMs: 3600000,
+  maxRequests: process.env.NODE_ENV === "production" ? 5 : 100,
+};
 
 const CreateSessionSchema = z.object({
   appId: z.string().uuid().optional(),
@@ -13,19 +20,46 @@ const CreateSessionSchema = z.object({
   appDescription: z.string().max(500).optional(),
   initialPrompt: z.string().max(2000).optional(),
   templateType: z
-    .enum(["chat", "agent-dashboard", "landing-page", "analytics", "blank"])
+    .enum([
+      "chat",
+      "agent-dashboard",
+      "landing-page",
+      "analytics",
+      "blank",
+      "mcp-service",
+      "a2a-agent",
+    ])
     .default("blank"),
   includeMonetization: z.boolean().default(false),
   includeAnalytics: z.boolean().default(true),
 });
 
-/**
- * POST /api/v1/app-builder/stream
- * Create a new app builder session with SSE progress updates
- */
 export async function POST(request: NextRequest) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
+
+    const rateLimitResult = await checkRateLimitAsync(
+      request,
+      SESSION_CREATE_LIMIT,
+    );
+    if (!rateLimitResult.allowed) {
+      const maxRequests = SESSION_CREATE_LIMIT.maxRequests;
+      const windowSeconds = SESSION_CREATE_LIMIT.windowMs / 1000;
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: `Rate limit exceeded. Maximum ${maxRequests} sandbox sessions per ${windowSeconds}s.`,
+          retryAfter: rateLimitResult.retryAfter,
+        }),
+        {
+          status: 429,
+          headers: {
+            "Content-Type": "application/json",
+            "Retry-After": rateLimitResult.retryAfter?.toString() || "3600",
+          },
+        },
+      );
+    }
 
     const body = await request.json();
     const validationResult = CreateSessionSchema.safeParse(body);
@@ -43,21 +77,22 @@ export async function POST(request: NextRequest) {
 
     const data = validationResult.data;
 
-    // Create a TransformStream for SSE
-    const encoder = new TextEncoder();
     const stream = new TransformStream();
-    const writer = stream.writable.getWriter();
+    const rawWriter = stream.writable.getWriter();
+    const streamWriter = createStreamWriter(rawWriter);
 
-    // Helper to send SSE events
-    const sendEvent = async (event: string, data: unknown) => {
-      const message = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
-      await writer.write(encoder.encode(message));
-    };
+    const abortController = new AbortController();
 
-    // Start session creation in background
+    request.signal?.addEventListener("abort", () => {
+      logger.info("Client aborted session creation request");
+      abortController.abort();
+    });
+
     (async () => {
+      streamWriter.startHeartbeat(15000);
+
       try {
-        const session = await aiAppBuilderService.startSession({
+        const session = await aiAppBuilder.startSession({
           userId: user.id,
           organizationId: user.organization_id,
           appId: data.appId,
@@ -68,8 +103,40 @@ export async function POST(request: NextRequest) {
           includeMonetization: data.includeMonetization,
           includeAnalytics: data.includeAnalytics,
           onProgress: async (progress: SandboxProgress) => {
-            await sendEvent("progress", progress);
+            if (!streamWriter.isConnected()) return;
+            await streamWriter.sendEvent("progress", progress);
           },
+          onSandboxReady: async (readySession) => {
+            if (!streamWriter.isConnected()) return;
+            await streamWriter.sendEvent("sandbox_ready", {
+              session: {
+                id: readySession.id,
+                sandboxId: readySession.sandboxId,
+                sandboxUrl: readySession.sandboxUrl,
+                status: readySession.status,
+                examplePrompts: readySession.examplePrompts,
+                expiresAt: readySession.expiresAt,
+                appId: readySession.appId,
+                githubRepo: readySession.githubRepo,
+              },
+              hasInitialPrompt: !!data.initialPrompt,
+            });
+          },
+          onToolUse: async (tool, input, result) => {
+            if (!streamWriter.isConnected()) return;
+            await streamWriter.sendEvent("tool_use", {
+              tool,
+              input,
+              result: result.substring(0, 500),
+            });
+          },
+          onThinking: async (text) => {
+            if (!streamWriter.isConnected()) return;
+            await streamWriter.sendEvent("thinking", {
+              text: text.substring(0, 1000),
+            });
+          },
+          abortSignal: abortController.signal,
         });
 
         logger.info("Created app builder session via stream", {
@@ -77,46 +144,80 @@ export async function POST(request: NextRequest) {
           userId: user.id,
         });
 
-        // Send the final session data
-        await sendEvent("complete", {
-          success: true,
-          session: {
-            id: session.id,
-            sandboxId: session.sandboxId,
-            sandboxUrl: session.sandboxUrl,
-            status: session.status,
-            examplePrompts: session.examplePrompts,
-          },
-        });
+        if (streamWriter.isConnected()) {
+          await streamWriter.sendEvent("complete", {
+            success: true,
+            session: {
+              id: session.id,
+              sandboxId: session.sandboxId,
+              sandboxUrl: session.sandboxUrl,
+              status: session.status,
+              examplePrompts: session.examplePrompts,
+              messages: session.messages,
+              initialPromptResult: session.initialPromptResult,
+              appId: session.appId,
+              githubRepo: session.githubRepo,
+            },
+          });
+        }
       } catch (error) {
-        logger.error("Failed to create app builder session via stream", {
-          error,
-        });
-        await sendEvent("error", {
-          success: false,
-          error:
-            error instanceof Error ? error.message : "Failed to create session",
-        });
+        const errorMessage =
+          error instanceof Error ? error.message : "Failed to create session";
+
+        if (
+          errorMessage.includes("aborted") ||
+          errorMessage.includes("cancelled")
+        ) {
+          logger.info("Session creation cancelled by client");
+          if (streamWriter.isConnected()) {
+            await streamWriter.sendEvent("cancelled", {
+              success: false,
+              error: "Session creation cancelled",
+            });
+          }
+        } else {
+          logger.error("Failed to create app builder session via stream", {
+            error: errorMessage,
+          });
+          if (streamWriter.isConnected()) {
+            await streamWriter.sendEvent("error", {
+              success: false,
+              error: errorMessage,
+            });
+          }
+        }
       } finally {
-        await writer.close();
+        await streamWriter.close();
       }
     })();
 
-    return new Response(stream.readable, {
-      headers: {
-        "Content-Type": "text/event-stream",
-        "Cache-Control": "no-cache",
-        Connection: "keep-alive",
-      },
-    });
+    return new Response(stream.readable, { headers: SSE_HEADERS });
   } catch (error) {
-    logger.error("Auth failed for app builder stream", { error });
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: error instanceof Error ? error.message : "Authentication failed",
-      }),
-      { status: 401, headers: { "Content-Type": "application/json" } },
-    );
+    logger.error("Error in app builder stream", { error });
+    const message = error instanceof Error ? error.message : "Internal error";
+
+    let status = 500;
+    if (
+      message.includes("Authentication") ||
+      message.includes("Unauthorized")
+    ) {
+      status = 401;
+    } else if (
+      message.includes("Access denied") ||
+      message.includes("Forbidden")
+    ) {
+      status = 403;
+    } else if (message.includes("not found")) {
+      status = 404;
+    } else if (message.includes("Rate limit")) {
+      status = 429;
+    } else if (message.includes("Invalid") || message.includes("JSON")) {
+      status = 400;
+    }
+
+    return new Response(JSON.stringify({ success: false, error: message }), {
+      status,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 }

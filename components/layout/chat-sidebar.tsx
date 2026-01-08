@@ -211,7 +211,6 @@ export function ChatSidebar({
         (room) => !room.characterId || room.characterId === DEFAULT_AGENT_ID
       );
     }
-    // Show rooms for the selected character
     return rooms.filter((room) => room.characterId === selectedCharacterId);
   }, [rooms, selectedCharacterId]);
 

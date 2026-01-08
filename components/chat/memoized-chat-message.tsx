@@ -265,10 +265,7 @@ function normalizeMarkdownLists(text: string): string {
   // Pattern 1: Fix paragraph breaks between numbered list items
   // "11. **Item**...\n\n12. **Item**..." → "11. **Item**...\n12. **Item**..."
   // This ensures markdown recognizes consecutive numbered items as a list
-  let result = text.replace(
-    /(\d+\.\s+[^\n]+)\n\n+(?=\d+\.\s)/g,
-    "$1\n"
-  );
+  let result = text.replace(/(\d+\.\s+[^\n]+)\n\n+(?=\d+\.\s)/g, "$1\n");
 
   // Pattern 2: Fix numbered lists where number is on its own line
   // "1.\n\nVisit..." → "1. Visit..."

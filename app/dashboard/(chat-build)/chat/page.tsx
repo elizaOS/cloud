@@ -10,6 +10,7 @@ import {
 } from "@/lib/seo";
 import { db } from "@/db/client";
 import { userCharacters } from "@/db/schemas/user-characters";
+import { users } from "@/db/schemas/users";
 import { eq } from "drizzle-orm";
 import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
 import { migrateAnonymousSession } from "@/lib/session";
@@ -152,14 +153,22 @@ export default async function ElizaPage({ searchParams }: PageProps) {
     username?: string | null;
     avatarUrl?: string | null;
     bio?: string;
+    ownerId?: string;
+    creatorUsername?: string | null;
   } | null = null;
+
+  // Track if the current user owns the selected character
+  let isOwnerOfSelectedCharacter = false;
 
   // ACCESS CONTROL: Check if user can access the character before loading
   if (initialCharacterId && !errorType) {
     // Check if character is already in user's list (user owns it)
     const isOwnCharacter = characters.some((c) => c.id === initialCharacterId);
 
-    if (!isOwnCharacter) {
+    if (isOwnCharacter) {
+      // User owns this character
+      isOwnerOfSelectedCharacter = true;
+    } else {
       // Fetch character data to check access
       try {
         const character = await charactersService.getById(initialCharacterId);
@@ -181,6 +190,23 @@ export default async function ElizaPage({ searchParams }: PageProps) {
 
           if (isPublic || isOwner || isClaimableAffiliate) {
             // Access granted - load the shared character
+            isOwnerOfSelectedCharacter = !!isOwner;
+
+            // Fetch creator info for attribution
+            let creatorUsername: string | null = null;
+            if (character.user_id && !isOwner) {
+              try {
+                const ownerUser = await db
+                  .select({ username: users.username })
+                  .from(users)
+                  .where(eq(users.id, character.user_id))
+                  .limit(1);
+                creatorUsername = ownerUser[0]?.username || null;
+              } catch {
+                // Ignore errors fetching creator username
+              }
+            }
+
             sharedCharacter = {
               id: character.id,
               name: character.name,
@@ -189,6 +215,8 @@ export default async function ElizaPage({ searchParams }: PageProps) {
               bio: Array.isArray(character.bio)
                 ? character.bio[0]
                 : character.bio,
+              ownerId: character.user_id,
+              creatorUsername,
             };
             logger.debug(
               `[Dashboard Chat] Loaded shared character: ${character.name} (${character.id})`,
@@ -224,9 +252,11 @@ export default async function ElizaPage({ searchParams }: PageProps) {
     <ElizaPageClient
       initialCharacters={characters}
       isAuthenticated={!isAnonymous}
+      userId={user?.id || null}
       initialRoomId={initialRoomId}
       initialCharacterId={initialCharacterId}
       sharedCharacter={sharedCharacter}
+      isOwnerOfSelectedCharacter={isOwnerOfSelectedCharacter}
       accessError={
         errorType
           ? { type: errorType, characterName: errorCharacterName }

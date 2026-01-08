@@ -99,3 +99,14 @@ export * from "./token-redemptions";
 // Crypto Payments (CDP wallet payments)
 // ============================================
 export * from "./crypto-payments";
+
+// ============================================
+// Advertising Domain
+// ============================================
+export * from "./ad-accounts";
+export * from "./ad-campaigns";
+export * from "./ad-creatives";
+export * from "./ad-transactions";
+export * from "./seo-artifacts";
+export * from "./seo-provider-calls";
+export * from "./seo-requests";

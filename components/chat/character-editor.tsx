@@ -109,14 +109,13 @@ export function CharacterEditor({
     <div className="flex h-full flex-col rounded-2xl bg-[#0A0A0A]">
       {/* Header */}
       <div className="flex-shrink-0 px-3 sm:px-6 pt-3 md:pt-6">
-        <div className="flex flex-col sm:flex-row items-startsmd:items-center justify-between gap-2 mb-2">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-2">
           <div className="hidden sm:flex items-center gap-2">
             {showJson ? (
               <h2 className="text-xl font-bold text-white">JSON Editor</h2>
             ) : (
               <>
                 <h2 className="text-xl font-bold text-white">Agent Builder</h2>
-              
               </>
             )}
           </div>

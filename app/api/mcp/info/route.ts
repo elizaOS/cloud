@@ -134,16 +134,17 @@ export async function GET() {
       type: "credits",
       description: "Uses your organization's credit balance",
       rates: {
-        "generate_text": "Varies by model and tokens",
-        "generate_image": "Fixed cost per image",
-        "save_memory": "0.0001 credits",
-        "retrieve_memories": "0.0001 - 0.001 credits",
+        generate_text: "Varies by model and tokens",
+        generate_image: "Fixed cost per image",
+        save_memory: "0.0001 credits",
+        retrieve_memories: "0.0001 - 0.001 credits",
       },
     },
     authentication: {
       type: "Bearer",
       header: "Authorization",
-      description: "Requires API key in Authorization header: Bearer YOUR_API_KEY",
+      description:
+        "Requires API key in Authorization header: Bearer YOUR_API_KEY",
     },
     status: "live",
   });

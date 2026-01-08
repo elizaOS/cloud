@@ -13,7 +13,6 @@ const isCI = !!process.env.CI;
 const isProduction = process.env.NODE_ENV === "production";
 const useProductionServer = isCI || isProduction;
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000";
-// For miniapp tests, CI starts servers manually, so skip Playwright's webServer
 const skipWebServer = process.env.PLAYWRIGHT_SKIP_WEBSERVER === "1";
 
 const CACHE_DIR = path.join(__dirname, ".cache-synpress");
@@ -82,7 +81,6 @@ export default defineConfig({
       },
       testIgnore: [
         /wallet-login\.spec\.ts$/,
-        /miniapp.*\.spec\.ts$/,
         /.*-api\.spec\.ts$/,
       ],
     },
@@ -92,15 +90,7 @@ export default defineConfig({
         ...devices["Desktop Chrome"],
         viewport: { width: 1280, height: 720 },
       },
-      testMatch: [/.*-api\.spec\.ts$/, /miniapp-authenticated\.spec\.ts$/],
-    },
-    {
-      name: "miniapp",
-      use: {
-        ...devices["Desktop Chrome"],
-        viewport: { width: 1280, height: 720 },
-      },
-      testMatch: /miniapp.*\.spec\.ts$/,
+      testMatch: /.*-api\.spec\.ts$/,
     },
     {
       name: "cleanup",
@@ -111,7 +101,7 @@ export default defineConfig({
   timeout: testTimeout,
   expect: { timeout: expectTimeout },
 
-  // Skip webServer if PLAYWRIGHT_SKIP_WEBSERVER=1 (for miniapp tests in CI)
+  // Skip webServer if PLAYWRIGHT_SKIP_WEBSERVER=1
   // Otherwise, start/connect to the appropriate server
   webServer: skipWebServer
     ? undefined

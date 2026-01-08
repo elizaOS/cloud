@@ -8,48 +8,176 @@ import { CharacterFilters } from "@/components/my-agents/character-filters";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { logger } from "@/lib/utils/logger";
-import type { ElizaCharacter } from "@/lib/types";
 
-type ViewMode = "grid" | "list";
-type SortOption = "name" | "created" | "modified" | "recent";
+export type ViewMode = "grid" | "list";
+export type SortOption = "name" | "created" | "modified" | "recent";
+
+const PAGE_SIZE = 30;
+
+interface MyAgentCharacter {
+  id: string;
+  name: string;
+  bio: string | string[];
+  avatarUrl?: string;
+  avatar_url?: string;
+  topics?: string[];
+  adjectives?: string[];
+  created_at?: string;
+  updated_at?: string;
+}
+
+interface PaginationState {
+  page: number;
+  hasMore: boolean;
+  totalCount: number;
+}
+
+// Map client sort options to API sort options
+function getApiSortParams(sort: SortOption): { sortBy: string; order: string } {
+  switch (sort) {
+    case "name":
+      return { sortBy: "name", order: "asc" };
+    case "created":
+      return { sortBy: "newest", order: "desc" };
+    case "modified":
+      return { sortBy: "updated", order: "desc" };
+    default:
+      return { sortBy: "updated", order: "desc" };
+  }
+}
 
 /**
  * My Agents client component that handles character listing, filtering, and management.
- * Fetches characters client-side to enable real-time updates.
+ * Fetches characters client-side with infinite scroll pagination.
  */
 export function MyAgentsClient() {
   const router = useRouter();
   const claimAttempted = useRef(false);
-  const [characters, setCharacters] = useState<ElizaCharacter[]>([]);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
+  const [characters, setCharacters] = useState<MyAgentCharacter[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [sortBy, setSortBy] = useState<SortOption>("modified");
+  const [pagination, setPagination] = useState<PaginationState>({
+    page: 1,
+    hasMore: false,
+    totalCount: 0,
+  });
 
-  // Fetch characters
-  const fetchCharacters = useCallback(async () => {
-    try {
-      const response = await fetch("/api/my-agents/characters");
+  // Fetch characters with pagination
+  const fetchCharacters = useCallback(
+    async (page: number, sort: SortOption, append = false) => {
+      const { sortBy: apiSortBy, order } = getApiSortParams(sort);
+      const params = new URLSearchParams({
+        page: String(page),
+        limit: String(PAGE_SIZE),
+        sortBy: apiSortBy,
+        order,
+      });
+
+      const response = await fetch(`/api/my-agents/characters?${params}`);
       if (!response.ok) throw new Error("Failed to fetch characters");
+
       const result = await response.json();
-      setCharacters(result.data?.characters || []);
-    } catch (error) {
-      logger.error("[MyAgents] Failed to fetch characters:", error);
-      toast.error("Failed to load your agents");
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+      const newCharacters = result.data?.characters || [];
+      const paginationData = result.data?.pagination;
 
-  // Initial fetch and listen for updates
+      if (append) {
+        setCharacters((prev) => [...prev, ...newCharacters]);
+      } else {
+        setCharacters(newCharacters);
+      }
+
+      setPagination({
+        page: paginationData?.page || page,
+        hasMore: paginationData?.hasMore || false,
+        totalCount: paginationData?.totalCount || 0,
+      });
+
+      return { hasMore: paginationData?.hasMore || false };
+    },
+    [],
+  );
+
+  // Initial fetch and when sort changes
   useEffect(() => {
-    fetchCharacters();
+    let cancelled = false;
 
-    // Listen for character updates
-    const handleUpdate = () => fetchCharacters();
+    const loadInitial = async () => {
+      setIsLoading(true);
+      setCharacters([]);
+      setPagination({ page: 1, hasMore: false, totalCount: 0 });
+
+      try {
+        await fetchCharacters(1, sortBy, false);
+      } catch (error) {
+        if (!cancelled) {
+          logger.error("[MyAgents] Failed to fetch characters:", error);
+          toast.error("Failed to load your agents");
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadInitial();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [sortBy, fetchCharacters]);
+
+  // Listen for character updates
+  useEffect(() => {
+    const handleUpdate = async () => {
+      setCharacters([]);
+      setPagination({ page: 1, hasMore: false, totalCount: 0 });
+      try {
+        await fetchCharacters(1, sortBy, false);
+      } catch (error) {
+        logger.error("[MyAgents] Failed to refresh characters:", error);
+      }
+    };
+
     window.addEventListener("characters-updated", handleUpdate);
     return () => window.removeEventListener("characters-updated", handleUpdate);
-  }, [fetchCharacters]);
+  }, [sortBy, fetchCharacters]);
+
+  // Load more function for infinite scroll
+  const loadMore = useCallback(async () => {
+    if (isLoadingMore || !pagination.hasMore) return;
+
+    setIsLoadingMore(true);
+    try {
+      await fetchCharacters(pagination.page + 1, sortBy, true);
+    } catch (error) {
+      logger.error("[MyAgents] Failed to load more characters:", error);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [pagination.page, pagination.hasMore, isLoadingMore, sortBy, fetchCharacters]);
+
+  // Infinite scroll observer
+  useEffect(() => {
+    const element = loadMoreRef.current;
+    if (!element || isLoading || isLoadingMore || !pagination.hasMore) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          loadMore();
+        }
+      },
+      { threshold: 0.1, rootMargin: "100px" },
+    );
+
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [isLoading, isLoadingMore, pagination.hasMore, loadMore]);
 
   // Claim any affiliate characters the user has interacted with
   useEffect(() => {
@@ -65,7 +193,7 @@ export function MyAgentsClient() {
       body: JSON.stringify({ sessionToken: sessionToken || undefined }),
     })
       .then((res) => res.json())
-      .then((data) => {
+      .then(async (data) => {
         if (data.success && data.claimed?.length > 0) {
           toast.success(
             `${data.claimed.length} agent(s) added to your library!`,
@@ -75,23 +203,19 @@ export function MyAgentsClient() {
                 .join(", "),
             },
           );
-          fetchCharacters();
+          await fetchCharacters(1, sortBy, false);
 
           if (sessionToken) {
-            try {
-              localStorage.removeItem("eliza-anon-session-token");
-            } catch {
-              // Ignore cleanup errors
-            }
+            localStorage.removeItem("eliza-anon-session-token");
           }
         }
       })
       .catch((error) => {
         logger.error("[MyAgents] Failed to claim affiliate characters:", error);
       });
-  }, [fetchCharacters]);
+  }, [sortBy, fetchCharacters]);
 
-  // Filter characters based on search
+  // Filter characters based on search (client-side for instant feedback)
   const filteredCharacters = characters.filter((char) => {
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
@@ -104,16 +228,6 @@ export function MyAgentsClient() {
       char.topics?.some((t) => t.toLowerCase().includes(query)) ||
       char.adjectives?.some((a) => a.toLowerCase().includes(query))
     );
-  });
-
-  // Sort characters
-  const sortedCharacters = [...filteredCharacters].sort((a, b) => {
-    switch (sortBy) {
-      case "name":
-        return (a.name || "").localeCompare(b.name || "");
-      default:
-        return 0;
-    }
   });
 
   const handleCreateNew = useCallback(() => {
@@ -145,15 +259,25 @@ export function MyAgentsClient() {
         onViewModeChange={setViewMode}
         sortBy={sortBy}
         onSortChange={setSortBy}
-        totalCount={characters.length}
+        totalCount={pagination.totalCount}
         filteredCount={filteredCharacters.length}
+        onCreateNew={handleCreateNew}
       />
 
       <CharacterLibraryGrid
-        characters={sortedCharacters}
+        characters={filteredCharacters}
         viewMode={viewMode}
         onCreateNew={handleCreateNew}
       />
+
+      {/* Infinite scroll sentinel */}
+      <div ref={loadMoreRef} className="h-4" />
+
+      {isLoadingMore && (
+        <div className="flex items-center justify-center py-4">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      )}
     </div>
   );
 }
