@@ -165,7 +165,7 @@ export function CharacterForm({ character, onChange }: CharacterFormProps) {
                     onChange={(e) =>
                       updateField("username", e.target.value.replace(/^@/, ""))
                     }
-                    placeholder="eliza"
+                    placeholder="agent"
                     className="rounded-none border-white/10 bg-black/40 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800] pl-7"
                   />
                 </div>

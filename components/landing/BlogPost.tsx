@@ -63,7 +63,8 @@ export default function BlogPost({
                 <Image
                   src={image}
                   alt={title}
-                  fill
+                  width={1200}
+                  height={630}
                   className="object-cover"
                   priority
                 />

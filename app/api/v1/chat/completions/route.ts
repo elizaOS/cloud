@@ -5,6 +5,7 @@ import { creditsService } from "@/lib/services/credits";
 import { usageService } from "@/lib/services/usage";
 import { generationsService } from "@/lib/services/generations";
 import { contentModerationService } from "@/lib/services/content-moderation";
+import { appsService } from "@/lib/services/apps";
 import {
   calculateCost,
   getProviderFromModel,
@@ -14,14 +15,25 @@ import {
 } from "@/lib/pricing";
 import { logger } from "@/lib/utils/logger";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
+import { createPreflightResponse } from "@/lib/middleware/cors-apps";
 import type { NextRequest } from "next/server";
 import type {
   OpenAIChatRequest,
   OpenAIChatResponse,
   OpenAIChatMessage,
 } from "@/lib/providers/types";
+import { NextResponse } from "next/server";
 
 export const maxDuration = 60;
+
+/**
+ * OPTIONS /api/v1/chat/completions
+ * CORS preflight handler for chat completions endpoint.
+ */
+export async function OPTIONS(request: NextRequest) {
+  const origin = request.headers.get("origin");
+  return createPreflightResponse(origin, ["POST", "OPTIONS"]);
+}
 
 /**
  * POST /api/v1/chat/completions
@@ -33,11 +45,38 @@ export const maxDuration = 60;
  */
 async function handlePOST(req: NextRequest) {
   const startTime = Date.now();
+  const origin = req.headers.get("origin");
+
+  // Helper to add CORS headers to any response - fully open, security via auth
+  const withCors = (response: Response | NextResponse): Response => {
+    const headers = new Headers(response.headers);
+    headers.set("Access-Control-Allow-Origin", "*");
+    headers.set("Access-Control-Allow-Methods", "POST, OPTIONS");
+    headers.set(
+      "Access-Control-Allow-Headers",
+      "Content-Type, Authorization, X-API-Key, X-Request-ID",
+    );
+    headers.set("Access-Control-Max-Age", "86400");
+    return new Response(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers,
+    });
+  };
 
   try {
+    // CORS is fully open - security is via auth tokens (validated below)
+
     // 1. Authenticate
     const { user, apiKey, session_token } =
       await requireAuthOrApiKeyWithOrg(req);
+
+    // Extract client info for analytics
+    const ipAddress =
+      req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+      req.headers.get("x-real-ip") ||
+      "unknown";
+    const userAgent = req.headers.get("user-agent") || "unknown";
 
     // 2. Parse request (already in OpenAI format!)
     const request: OpenAIChatRequest = await req.json();
@@ -312,11 +351,46 @@ async function handlePOST(req: NextRequest) {
       estimatedCost,
     });
 
-    // 5. Forward to Vercel AI Gateway
+    // 5. For streaming requests, reserve credits BEFORE making API call
+    // This prevents race conditions where credits could be spent elsewhere during streaming
+    let creditReservation: {
+      success: boolean;
+      reservationId: string | null;
+      reservedAmount: number;
+    } | null = null;
+
+    if (isStreaming) {
+      creditReservation = await creditsService.reserveCredits({
+        organizationId: user.organization_id!!,
+        amount: estimatedCost,
+        description: `OpenAI Proxy (reserved): ${model}`,
+        metadata: { user_id: user.id, type: "streaming_reservation" },
+      });
+
+      if (!creditReservation.success) {
+        logger.warn("[OpenAI Proxy] Failed to reserve credits for streaming", {
+          organizationId: user.organization_id!!,
+          estimatedCost,
+        });
+
+        return Response.json(
+          {
+            error: {
+              message: "Failed to reserve credits for streaming request",
+              type: "insufficient_quota",
+              code: "credit_reservation_failed",
+            },
+          },
+          { status: 402 },
+        );
+      }
+    }
+
+    // 6. Forward to Vercel AI Gateway
     const providerInstance = getProvider();
     const providerResponse = await providerInstance.chatCompletions(request);
 
-    // 6. Handle streaming vs non-streaming
+    // 7. Handle streaming vs non-streaming
     if (isStreaming) {
       return handleStreamingResponse(
         providerResponse,
@@ -327,20 +401,44 @@ async function handlePOST(req: NextRequest) {
         startTime,
         request.messages,
         session_token,
+        origin,
+        ipAddress,
+        userAgent,
+        creditReservation!.reservedAmount,
       );
     } else {
-      return handleNonStreamingResponse(
-        providerResponse,
-        user,
-        apiKey ?? null,
-        normalizedModel,
-        provider,
-        startTime,
-        session_token,
+      return withCors(
+        await handleNonStreamingResponse(
+          providerResponse,
+          user,
+          apiKey ?? null,
+          normalizedModel,
+          provider,
+          startTime,
+          session_token,
+          origin,
+          ipAddress,
+          userAgent,
+        ),
       );
     }
   } catch (error) {
     logger.error("[OpenAI Proxy] Error:", error);
+
+    // Refund reserved credits if reservation was made before the error
+    if (creditReservation?.success && creditReservation.reservedAmount > 0) {
+      await creditsService.refundCredits({
+        organizationId: user.organization_id!!,
+        amount: creditReservation.reservedAmount,
+        description: `OpenAI Proxy (refund - request failed): ${request.model}`,
+        metadata: { user_id: user.id, reason: "request_failed" },
+      });
+
+      logger.info("[OpenAI Proxy] Refunded reserved credits after error", {
+        organizationId: user.organization_id!!,
+        refundedAmount: creditReservation.reservedAmount,
+      });
+    }
 
     // Check if error is a structured gateway error
     interface GatewayError {
@@ -357,24 +455,28 @@ async function handlePOST(req: NextRequest) {
       const status = (error as { status: unknown }).status;
       if (typeof status === "number") {
         const gatewayError = error as GatewayError;
-        return Response.json(
-          { error: gatewayError.error },
-          { status: gatewayError.status },
+        return withCors(
+          Response.json(
+            { error: gatewayError.error },
+            { status: gatewayError.status },
+          ),
         );
       }
     }
 
     // Fallback to generic error
-    return Response.json(
-      {
-        error: {
-          message:
-            error instanceof Error ? error.message : "Internal server error",
-          type: "api_error",
-          code: "internal_server_error",
+    return withCors(
+      Response.json(
+        {
+          error: {
+            message:
+              error instanceof Error ? error.message : "Internal server error",
+            type: "api_error",
+            code: "internal_server_error",
+          },
         },
-      },
-      { status: 500 },
+        { status: 500 },
+      ),
     );
   }
 }
@@ -388,6 +490,9 @@ async function handleNonStreamingResponse(
   provider: string,
   startTime: number,
   session_token?: string,
+  origin?: string | null,
+  ipAddress?: string,
+  userAgent?: string,
 ) {
   // Parse response
   const data: OpenAIChatResponse = await providerResponse.json();
@@ -478,6 +583,20 @@ async function handleNonStreamingResponse(
               totalTokens: usage.total_tokens,
             },
           });
+
+          await appsService.trackDetailedRequest(apiKey.id, {
+            requestType: "chat",
+            source: origin?.includes("sandbox") ? "sandbox_preview" : "api_key",
+            ipAddress: ipAddress,
+            userAgent: userAgent,
+            userId: user.id,
+            model,
+            inputTokens: usage.prompt_tokens,
+            outputTokens: usage.completion_tokens,
+            creditsUsed: String(totalCost),
+            responseTimeMs: Date.now() - startTime,
+            status: "success",
+          });
         }
 
         logger.info("[OpenAI Proxy] Chat completion completed", {
@@ -507,11 +626,16 @@ function handleStreamingResponse(
   startTime: number,
   messages: Array<{ role: string; content: string | object }>,
   session_token?: string,
+  origin?: string | null,
+  ipAddress?: string,
+  userAgent?: string,
+  reservedAmount?: number,
 ) {
   let totalTokens = 0;
   let inputTokens = 0;
   let outputTokens = 0;
   let fullContent = "";
+  let creditsSettled = false;
 
   // Create transform stream to track usage
   const { readable, writable } = new TransformStream();
@@ -629,29 +753,65 @@ function handleStreamingResponse(
           outputTokens,
         );
 
-        const deductResult = await creditsService.deductCredits({
-          organizationId: user.organization_id!!,
-          amount: totalCost,
-          description: `OpenAI Proxy: ${model}`,
-          metadata: { user_id: user.id },
-          session_token,
-          tokens_consumed: totalTokens,
-        });
+        // Settle the credit reservation - credits were already reserved before streaming
+        // This adjusts the balance based on actual usage (refund if less, charge more if needed)
+        if (reservedAmount !== undefined && reservedAmount > 0) {
+          const settlementResult = await creditsService.settleReservation({
+            organizationId: user.organization_id!!,
+            reservedAmount,
+            actualAmount: totalCost,
+            description: `OpenAI Proxy: ${model}`,
+            metadata: { user_id: user.id },
+            session_token,
+            tokens_consumed: totalTokens,
+          });
 
-        if (!deductResult.success) {
-          // CRITICAL: This should rarely happen since we checked credits before streaming
-          // But it can happen if credits were spent elsewhere between check and stream completion
-          logger.error(
-            "[OpenAI Proxy] CRITICAL: Failed to deduct credits after streaming - race condition detected",
-            {
-              organizationId: user.organization_id!!,
-              userId: user.id,
-              cost: String(totalCost),
-              balance: deductResult.newBalance,
-            },
-          );
-          // Stream has already completed, so we can't return an error to the client
-          // This should trigger an alert for manual review
+          creditsSettled = true;
+
+          if (!settlementResult.success) {
+            // Additional charge was needed but failed - log for monitoring
+            // The reserved amount was still charged, so no free service was given
+            logger.warn(
+              "[OpenAI Proxy] Settlement partial: additional charge failed (reserved amount was charged)",
+              {
+                organizationId: user.organization_id!!,
+                userId: user.id,
+                reservedAmount: String(reservedAmount),
+                actualCost: String(totalCost),
+                finalCost: String(settlementResult.finalCost),
+              },
+            );
+          } else if (settlementResult.adjustmentType !== "none") {
+            logger.info("[OpenAI Proxy] Credit settlement completed", {
+              adjustmentType: settlementResult.adjustmentType,
+              adjustment: String(settlementResult.adjustment),
+              finalCost: String(settlementResult.finalCost),
+            });
+          }
+        } else {
+          // Fallback: No reservation (shouldn't happen for streaming, but handle gracefully)
+          const deductResult = await creditsService.deductCredits({
+            organizationId: user.organization_id!!,
+            amount: totalCost,
+            description: `OpenAI Proxy: ${model}`,
+            metadata: { user_id: user.id },
+            session_token,
+            tokens_consumed: totalTokens,
+          });
+
+          creditsSettled = true;
+
+          if (!deductResult.success) {
+            logger.error(
+              "[OpenAI Proxy] Failed to deduct credits after streaming (no reservation)",
+              {
+                organizationId: user.organization_id!!,
+                userId: user.id,
+                cost: String(totalCost),
+                balance: deductResult.newBalance,
+              },
+            );
+          }
         }
 
         const usageRecord = await usageService.create({
@@ -691,6 +851,20 @@ function handleStreamingResponse(
               totalTokens,
             },
           });
+
+          await appsService.trackDetailedRequest(apiKey.id, {
+            requestType: "chat",
+            source: origin?.includes("sandbox") ? "sandbox_preview" : "api_key",
+            ipAddress: ipAddress,
+            userAgent: userAgent,
+            userId: user.id,
+            model,
+            inputTokens,
+            outputTokens,
+            creditsUsed: String(totalCost),
+            responseTimeMs: Date.now() - startTime,
+            status: "success",
+          });
         }
 
         logger.info("[OpenAI Proxy] Streaming chat completed", {
@@ -701,18 +875,46 @@ function handleStreamingResponse(
       }
     } catch (error) {
       logger.error("[OpenAI Proxy] Streaming error:", error);
+
+      // Refund reserved credits only if streaming failed BEFORE settlement
+      if (
+        !creditsSettled &&
+        reservedAmount !== undefined &&
+        reservedAmount > 0
+      ) {
+        await creditsService.refundCredits({
+          organizationId: user.organization_id,
+          amount: reservedAmount,
+          description: `OpenAI Proxy (refund - streaming failed): ${model}`,
+          metadata: { user_id: user.id, reason: "streaming_failed" },
+        });
+
+        logger.info(
+          "[OpenAI Proxy] Refunded reserved credits after streaming error",
+          {
+            organizationId: user.organization_id,
+            refundedAmount: reservedAmount,
+          },
+        );
+      }
+
       writer.abort();
     }
   })();
 
-  // Return streaming response immediately
-  return new Response(readable, {
-    headers: {
-      "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache",
-      Connection: "keep-alive",
-    },
-  });
+  // Return streaming response immediately with CORS headers - fully open
+  const headers: Record<string, string> = {
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache",
+    Connection: "keep-alive",
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers":
+      "Content-Type, Authorization, X-API-Key, X-Request-ID",
+    "Access-Control-Max-Age": "86400",
+  };
+
+  return new Response(readable, { headers });
 }
 
 export const POST = withRateLimit(handlePOST, RateLimitPresets.STRICT);

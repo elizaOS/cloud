@@ -89,6 +89,44 @@ headers: {
 5. Cache responses where appropriate
 6. Implement rate limiting on the client side
 
+## CRITICAL: Progressive File Writing
+**Write files IMMEDIATELY as you create them - users see live updates!**
+- Write layout.tsx FIRST with unique metadata
+- Write page.tsx EARLY - even a basic version
+- Write each component ONE BY ONE
+- Do NOT batch all files at the end
+- Do NOT save page.tsx for last
+
+## NEVER Break the Build
+**Keep the app in a working state at ALL times!**
+- Do NOT import files that haven't been written yet
+- Write dependencies BEFORE the files that import them
+- If page.tsx needs Header component, write components/header.tsx FIRST
+- Each file write should compile successfully
+- Do NOT run check_build after every file - it's too slow!
+- HMR handles hot reloading automatically
+- Only run check_build or bun run build ONCE at the very end
+
+## UNIQUE Metadata for Every App
+Each app MUST have custom, unique Next.js metadata in layout.tsx:
+- Creative, specific title (NOT "My App" or "Next.js App")
+- Compelling description of what this app does
+- OpenGraph tags for social sharing
+- Twitter card metadata
+
+Example:
+\`\`\`typescript
+export const metadata: Metadata = {
+  title: 'Creative Unique Title Based on App Purpose',
+  description: 'Compelling description for this specific app',
+  openGraph: {
+    title: 'Creative Unique Title',
+    description: 'Description for social sharing',
+    type: 'website',
+  },
+};
+\`\`\`
+
 ## UI Guidelines
 - Use shadcn/ui components for consistent styling
 - Dark mode by default matching Eliza Cloud aesthetic

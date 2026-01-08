@@ -88,6 +88,9 @@ export function AppEarningsDashboard({ appId }: AppEarningsDashboardProps) {
 
   const [isLoading, setIsLoading] = useState(true);
   const [isTestData, setIsTestData] = useState(false);
+  const [monetizationEnabled, setMonetizationEnabled] = useState<
+    boolean | null
+  >(null);
   const [period, setPeriod] = useState<"7" | "30" | "90">("30");
   const [summary, setSummary] = useState<EarningsSummary | null>(null);
   const [breakdown, setBreakdown] = useState<{
@@ -127,6 +130,9 @@ export function AppEarningsDashboard({ appId }: AppEarningsDashboardProps) {
       setChartData(data.earnings.chartData);
       setTransactions(data.earnings.recentTransactions);
       setIsTestData(data.testData === true);
+      if (data.monetization) {
+        setMonetizationEnabled(data.monetization.enabled);
+      }
     } else {
       setError(data.error || "Failed to load earnings data");
     }
@@ -249,17 +255,25 @@ export function AppEarningsDashboard({ appId }: AppEarningsDashboardProps) {
             <h3 className="text-lg font-semibold text-white mb-2">
               No earnings yet
             </h3>
-            <p className="text-white/60 mb-4">
-              Enable monetization to start earning from your app
-            </p>
-            <Button
-              onClick={() => {
-                router.push(`/dashboard/apps/${appId}?tab=monetization`);
-              }}
-              className="bg-gradient-to-r from-[#FF5800] to-purple-600"
-            >
-              Enable Monetization
-            </Button>
+            {monetizationEnabled ? (
+              <p className="text-white/60">
+                Earnings will appear here once users start using your app
+              </p>
+            ) : (
+              <>
+                <p className="text-white/60 mb-4">
+                  Enable monetization to start earning from your app
+                </p>
+                <Button
+                  onClick={() => {
+                    router.push(`/dashboard/apps/${appId}?tab=monetization`);
+                  }}
+                  className="bg-gradient-to-r from-[#FF5800] to-purple-600"
+                >
+                  Enable Monetization
+                </Button>
+              </>
+            )}
           </div>
         </BrandCard>
       )}

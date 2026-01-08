@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { appsService } from "@/lib/services/apps";
+import { appCleanupService } from "@/lib/services/app-cleanup";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
 
@@ -131,12 +132,18 @@ export async function PUT(
 
 /**
  * DELETE /api/v1/apps/[id]
- * Deletes an app and its associated API key.
+ * Deletes an app and all its associated resources:
+ * - Stops active sandboxes
+ * - Removes Vercel domains and project
+ * - Deletes GitHub repository
+ * - Cleans up secret bindings
+ * - Removes API key
+ *
  * Requires ownership verification.
  *
  * @param request - The Next.js request object.
  * @param params - Route parameters containing the app ID.
- * @returns Success status.
+ * @returns Success status with cleanup details.
  */
 export async function DELETE(
   request: NextRequest,
@@ -162,17 +169,34 @@ export async function DELETE(
       );
     }
 
-    await appsService.delete(id);
+    // Parse optional query params for cleanup options
+    const searchParams = request.nextUrl.searchParams;
+    const deleteGitHubRepo = searchParams.get("deleteGitHubRepo") !== "false";
+    const deleteVercelProject =
+      searchParams.get("deleteVercelProject") !== "false";
 
-    logger.info(`Deleted app: ${id}`, {
+    // Perform comprehensive cleanup and delete
+    const cleanupResult = await appCleanupService.deleteAppWithCleanup(id, {
+      deleteGitHubRepo,
+      deleteVercelProject,
+      continueOnError: true, // Always try to clean up as much as possible
+    });
+
+    logger.info(`Deleted app with cleanup: ${id}`, {
       appId: id,
       userId: user.id,
       organizationId: user.organization_id,
+      cleaned: cleanupResult.cleaned,
+      errors: cleanupResult.errors,
     });
 
     return NextResponse.json({
-      success: true,
-      message: "App deleted successfully",
+      success: cleanupResult.success,
+      message: cleanupResult.success
+        ? "App deleted successfully with all resources cleaned up"
+        : "App deleted with some cleanup errors",
+      cleaned: cleanupResult.cleaned,
+      errors: cleanupResult.errors.length > 0 ? cleanupResult.errors : undefined,
     });
   } catch (error) {
     logger.error("Failed to delete app:", error);

@@ -456,12 +456,12 @@ export class AppCreditsService {
       const result = await redeemableEarningsService.addEarnings({
         userId: app.created_by_user_id,
         amount,
-        source: "miniapp",
+        source: "miniapp", // Database enum value - "miniapp" refers to apps
         sourceId: appId,
         description:
           type === "inference_markup"
-            ? `Inference markup from miniapp: ${app.name || appId}`
-            : `Purchase share from miniapp: ${app.name || appId}`,
+            ? `Inference markup from app: ${app.name || appId}`
+            : `Purchase share from app: ${app.name || appId}`,
         metadata: {
           appId,
           earningsType: type,

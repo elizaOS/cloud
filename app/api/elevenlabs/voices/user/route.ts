@@ -23,15 +23,21 @@ export async function GET(request: NextRequest) {
     // Authenticate user
     const user = await requireAuthWithOrg();
 
-    // Parse query parameters
+    // Parse query parameters with bounds validation
     const { searchParams } = new URL(request.url);
     const includeInactive = searchParams.get("includeInactive") === "true";
     const cloneType = searchParams.get("cloneType") as
       | "instant"
       | "professional"
       | undefined;
-    const limit = Number.parseInt(searchParams.get("limit") || "50");
-    const offset = Number.parseInt(searchParams.get("offset") || "0");
+    const MAX_LIMIT = 100;
+    const rawLimit = Number.parseInt(searchParams.get("limit") || "50", 10);
+    const rawOffset = Number.parseInt(searchParams.get("offset") || "0", 10);
+    const limit = Math.min(
+      Math.max(Number.isNaN(rawLimit) ? 50 : rawLimit, 1),
+      MAX_LIMIT,
+    );
+    const offset = Math.max(Number.isNaN(rawOffset) ? 0 : rawOffset, 0);
 
     logger.info(`[User Voices API] Fetching voices for user ${user.id}`, {
       organizationId: user.organization_id!!,

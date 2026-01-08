@@ -7,14 +7,16 @@ import {
   Server,
   Video,
   UserCog,
-  Bot,
   Code,
   Mic,
+  Store,
   Puzzle,
   Grid3x3,
   Shield,
   Wallet,
   Coins,
+  Workflow,
+  Sparkles,
 } from "lucide-react";
 import type { ComponentType } from "react";
 import type { FeatureFlag } from "@/lib/config/feature-flags";
@@ -56,7 +58,7 @@ export const sidebarSections: SidebarSection[] = [
         id: "my-agents",
         label: "My Agents",
         href: "/dashboard/my-agents",
-        icon: Bot,
+        icon: Store,
         freeAllowed: false, // Requires signup
       },
       {
@@ -111,6 +113,33 @@ export const sidebarSections: SidebarSection[] = [
     ],
   },
   {
+    title: "Apps",
+    items: [
+      {
+        id: "app-creator",
+        label: "App Creator",
+        href: "/dashboard/apps/create",
+        icon: Sparkles,
+        freeAllowed: false,
+      },
+      {
+        id: "my-apps",
+        label: "My Apps",
+        href: "/dashboard/apps",
+        icon: Grid3x3,
+        freeAllowed: false,
+      },
+      {
+        id: "workflows",
+        label: "Workflows",
+        href: "/dashboard/workflows",
+        icon: Workflow,
+        freeAllowed: false,
+        comingSoon: true,
+      },
+    ],
+  },
+  {
     title: "Infrastructure",
     items: [
       {
@@ -128,14 +157,6 @@ export const sidebarSections: SidebarSection[] = [
         icon: Puzzle,
         freeAllowed: false,
         featureFlag: "mcp",
-      },
-      {
-        id: "apps",
-        label: "Apps",
-        href: "/dashboard/apps",
-        icon: Grid3x3,
-        freeAllowed: false, // Requires signup
-        comingSoon: true,
       },
     ],
   },

@@ -1,21 +1,17 @@
 /**
  * CORS Middleware for App Registry
  *
- * Validates requests against registered app origins and adds appropriate CORS headers.
+ * SECURITY MODEL: Authentication is handled via API keys/tokens, NOT origin validation.
+ * CORS is fully open (wildcard) for all API endpoints. Security is enforced by:
+ * 1. API Key validation - requests must provide valid credentials
+ * 2. Session token validation - authenticated user sessions
+ * 3. Rate limiting - prevents abuse
+ *
+ * This allows sandbox apps and embedded apps to call the API from any domain.
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { appsService } from "@/lib/services/apps";
-import { apiKeysService } from "@/lib/services/api-keys";
 import { logger } from "@/lib/utils/logger";
-
-// Default allowed origins for development
-const DEFAULT_ALLOWED_ORIGINS = [
-  "http://localhost:3000",
-  "http://localhost:3001",
-  "http://127.0.0.1:3000",
-  "http://127.0.0.1:3001",
-];
 
 export interface CorsValidationResult {
   allowed: boolean;
@@ -24,115 +20,42 @@ export interface CorsValidationResult {
 }
 
 /**
- * Validate if an origin is allowed based on app registry
+ * Validate if an origin is allowed - ALWAYS returns allowed=true.
+ * Security is enforced via auth tokens, not CORS origin validation.
  */
 export async function validateOrigin(
   request: NextRequest,
 ): Promise<CorsValidationResult> {
   const origin = request.headers.get("origin");
 
-  if (!origin) {
-    // No origin header - same-origin request, allow it
-    return { allowed: true, origin: null };
-  }
-
-  // Always allow default development origins
-  if (DEFAULT_ALLOWED_ORIGINS.includes(origin)) {
-    return { allowed: true, origin };
-  }
-
-  // Check if request has API key
-  const authHeader = request.headers.get("authorization");
-  const apiKeyHeader = request.headers.get("x-api-key");
-
-  let apiKeyValue: string | null = null;
-  if (authHeader?.startsWith("Bearer ")) {
-    apiKeyValue = authHeader.substring(7);
-  } else if (apiKeyHeader) {
-    apiKeyValue = apiKeyHeader;
-  }
-
-  if (!apiKeyValue) {
-    logger.warn("[CORS] No API key provided for cross-origin request", {
-      origin,
-    });
-    return { allowed: false, origin };
-  }
-
-  try {
-    // Validate API key and get associated app
-    const apiKey = await apiKeysService.validateApiKey(apiKeyValue);
-
-    if (!apiKey) {
-      logger.warn("[CORS] Invalid API key for cross-origin request", {
-        origin,
-      });
-      return { allowed: false, origin };
-    }
-
-    // Find the app associated with this API key
-    const apps = await appsService.listByOrganization(apiKey.organization_id);
-    const app = apps.find((a) => a.api_key_id === apiKey.id);
-
-    if (!app) {
-      // API key is valid but not associated with an app
-      // Check if it's from the same organization - allow for dev purposes
-      logger.info("[CORS] API key not associated with app, checking org", {
-        origin,
-        organizationId: apiKey.organization_id,
-      });
-      return { allowed: true, origin };
-    }
-
-    // Validate origin against app's allowed origins
-    const allowed = await appsService.validateOrigin(app.id, origin);
-
-    if (allowed) {
-      logger.debug("[CORS] Origin validated against app", {
-        origin,
-        appId: app.id,
-        appName: app.name,
-      });
-      return { allowed: true, origin, appId: app.id };
-    }
-
-    logger.warn("[CORS] Origin not in app's allowed origins", {
-      origin,
-      appId: app.id,
-      allowedOrigins: app.allowed_origins,
-    });
-    return { allowed: false, origin, appId: app.id };
-  } catch (error) {
-    logger.error("[CORS] Error validating origin", { origin, error });
-    return { allowed: false, origin };
-  }
+  // Always allow all origins - security is via auth tokens
+  logger.debug("[CORS] Allowing origin (security via auth)", { origin });
+  return { allowed: true, origin };
 }
 
 /**
- * Add CORS headers to response
+ * Add CORS headers to response - uses wildcard to allow all origins
  */
 export function addCorsHeaders(
   response: NextResponse,
   origin: string | null,
   methods: string[] = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
 ): NextResponse {
-  if (origin) {
-    response.headers.set("Access-Control-Allow-Origin", origin);
-  }
-
+  // Use wildcard for maximum compatibility - security is via auth tokens
+  response.headers.set("Access-Control-Allow-Origin", "*");
   response.headers.set("Access-Control-Allow-Methods", methods.join(", "));
   response.headers.set(
     "Access-Control-Allow-Headers",
     "Content-Type, Authorization, X-API-Key, X-Request-ID, Cookie",
   );
-  response.headers.set("Access-Control-Allow-Credentials", "true");
+  // Note: credentials cannot be used with wildcard, but we use auth tokens instead
   response.headers.set("Access-Control-Max-Age", "86400");
 
   return response;
 }
 
 /**
- * Create a preflight response for OPTIONS requests
+ * Create a preflight response for OPTIONS requests - fully open CORS
  */
 export function createPreflightResponse(
   origin: string | null,
@@ -143,7 +66,7 @@ export function createPreflightResponse(
 }
 
 /**
- * Wrapper for API handlers that validates CORS and adds headers
+ * Wrapper for API handlers that adds CORS headers
  */
 export function withCors<T extends NextResponse>(
   origin: string | null,
@@ -153,7 +76,8 @@ export function withCors<T extends NextResponse>(
 }
 
 /**
- * Higher-order function to wrap API handlers with CORS validation
+ * Higher-order function to wrap API handlers with CORS headers
+ * Note: No origin validation - security is via auth tokens
  */
 export function withCorsValidation(
   handler: (
@@ -165,31 +89,18 @@ export function withCorsValidation(
     request: NextRequest,
     context?: { params: Promise<Record<string, string | string[]>> },
   ): Promise<NextResponse> {
-    // Handle OPTIONS preflight
+    // Handle OPTIONS preflight - return immediately with CORS headers
     if (request.method === "OPTIONS") {
       const origin = request.headers.get("origin");
       return createPreflightResponse(origin);
     }
 
-    // Validate origin
-    const corsResult = await validateOrigin(request);
-
-    if (!corsResult.allowed) {
-      const errorResponse = NextResponse.json(
-        {
-          success: false,
-          error: "Origin not allowed",
-          origin: corsResult.origin,
-        },
-        { status: 403 },
-      );
-      return addCorsHeaders(errorResponse, corsResult.origin);
-    }
+    const origin = request.headers.get("origin");
 
     // Call the actual handler
     const response = await handler(request, context);
 
     // Add CORS headers to response
-    return addCorsHeaders(response, corsResult.origin);
+    return addCorsHeaders(response, origin);
   };
 }

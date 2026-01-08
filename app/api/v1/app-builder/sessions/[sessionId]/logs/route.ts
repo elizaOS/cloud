@@ -1,12 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { aiAppBuilderService } from "@/lib/services/ai-app-builder";
+import { aiAppBuilder } from "@/lib/services/ai-app-builder";
 import { logger } from "@/lib/utils/logger";
 
-/**
- * GET /api/v1/app-builder/sessions/:sessionId/logs
- * Get console logs from the sandbox
- */
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ sessionId: string }> },
@@ -15,13 +11,13 @@ export async function GET(
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { sessionId } = await params;
 
-    // Verify user owns this session
-    await aiAppBuilderService.verifySessionOwnership(sessionId, user.id);
+    await aiAppBuilder.verifySessionOwnership(sessionId, user.id);
 
     const url = new URL(request.url);
-    const tail = parseInt(url.searchParams.get("tail") || "50", 10);
+    const rawTail = parseInt(url.searchParams.get("tail") || "50", 10);
+    const tail = Math.min(Math.max(isNaN(rawTail) ? 50 : rawTail, 1), 1000);
 
-    const logs = await aiAppBuilderService.getLogs(sessionId, tail);
+    const logs = await aiAppBuilder.getLogs(sessionId, user.id, tail);
 
     return NextResponse.json({
       success: true,

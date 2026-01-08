@@ -54,9 +54,14 @@ export async function GET(
       );
     }
 
-    // Parse query parameters for filtering
+    // Parse query parameters for filtering with bounds validation
     const searchParams = request.nextUrl.searchParams;
-    const limit = parseInt(searchParams.get("limit") || "100");
+    const MAX_LOG_LIMIT = 500;
+    const rawLimit = Number.parseInt(searchParams.get("limit") || "100", 10);
+    const limit = Math.min(
+      Math.max(Number.isNaN(rawLimit) ? 100 : rawLimit, 1),
+      MAX_LOG_LIMIT,
+    );
     const since = searchParams.get("since"); // ISO timestamp
     const level = searchParams.get("level") || "all"; // Log level filter
 
