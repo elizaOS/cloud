@@ -262,23 +262,31 @@ export class CharactersService {
 
     // If username is being updated, validate it
     // Normalize before comparison to prevent validation bypass with different casing
+    // Handle null explicitly (allows clearing the username)
     if (updates.username !== undefined) {
-      const normalizedUsername = updates.username.toLowerCase();
-      if (normalizedUsername !== character.username) {
-        const validation = await this.validateUsernameForUpdate(
-          normalizedUsername,
-          characterId,
-        );
-        if (!validation.valid) {
-          throw new Error(`Invalid username: ${validation.error}`);
-        }
-        updates.username = normalizedUsername;
+      if (updates.username === null) {
+        // Allow clearing username - no validation needed
         logger.info(
-          `[Characters] Username updated: @${character.username} → @${updates.username}`,
+          `[Characters] Username cleared: @${character.username} → null`,
         );
       } else {
-        // Same username after normalization, ensure it's stored normalized
-        updates.username = normalizedUsername;
+        const normalizedUsername = updates.username.toLowerCase();
+        if (normalizedUsername !== character.username) {
+          const validation = await this.validateUsernameForUpdate(
+            normalizedUsername,
+            characterId,
+          );
+          if (!validation.valid) {
+            throw new Error(`Invalid username: ${validation.error}`);
+          }
+          updates.username = normalizedUsername;
+          logger.info(
+            `[Characters] Username updated: @${character.username} → @${updates.username}`,
+          );
+        } else {
+          // Same username after normalization, ensure it's stored normalized
+          updates.username = normalizedUsername;
+        }
       }
     }
 

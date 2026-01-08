@@ -218,16 +218,18 @@ export function generateUniqueUsername(
     return baseUsername;
   }
 
-  // Try with numeric suffix
-  let suffix = 2;
-  let candidate = `${baseUsername}-${suffix}`;
-
-  // Ensure we don't exceed max length
-  const maxBaseLength = USERNAME_MAX_LENGTH - 4; // Reserve space for "-999"
+  // Ensure we don't exceed max length when adding suffix
+  // Reserve space for "-999" (4 chars) to handle up to 999 collisions
+  // Truncate BEFORE creating first candidate to prevent over-length usernames
+  const maxBaseLength = USERNAME_MAX_LENGTH - 4;
   let truncatedBase = baseUsername;
   if (baseUsername.length > maxBaseLength) {
     truncatedBase = baseUsername.substring(0, maxBaseLength).replace(/-+$/, "");
   }
+
+  // Try with numeric suffix (use truncatedBase from the start)
+  let suffix = 2;
+  let candidate = `${truncatedBase}-${suffix}`;
 
   while (existingUsernames.has(candidate) && suffix < 10000) {
     suffix++;
