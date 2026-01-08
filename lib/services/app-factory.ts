@@ -2,6 +2,7 @@ import { logger } from "@/lib/utils/logger";
 import { appsService } from "./apps";
 import { githubReposService } from "./github-repos";
 import { vercelDeploymentsService } from "./vercel-deployments";
+import { discordService } from "./discord";
 import type { App } from "@/db/repositories/apps";
 
 /**
@@ -214,6 +215,26 @@ export class AppFactoryService {
         updates: Object.keys(updates),
       });
     }
+
+    // Send Discord notification for app creation (non-blocking)
+    discordService
+      .logAppCreated({
+        appId: app.id,
+        appName: app.name,
+        slug: app.slug,
+        userId: data.created_by_user_id,
+        organizationId: data.organization_id,
+        appUrl: productionUrl || data.app_url,
+        description: data.description,
+        githubRepo,
+        subdomain,
+      })
+      .catch((err) => {
+        logger.warn("AppFactory: Failed to send Discord notification", {
+          appId: app.id,
+          error: err instanceof Error ? err.message : "Unknown error",
+        });
+      });
 
     return {
       app,

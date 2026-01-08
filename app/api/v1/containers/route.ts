@@ -3,6 +3,7 @@ import { logger } from "@/lib/utils/logger";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { creditsService } from "@/lib/services/credits";
 import { usageService } from "@/lib/services/usage";
+import { discordService } from "@/lib/services/discord";
 import {
   containersService,
   listContainers,
@@ -431,6 +432,34 @@ async function handleCreateContainer(request: NextRequest) {
         validatedData,
         user.organization_id!,
       );
+
+      // Send Discord notification for container launch (non-blocking)
+      discordService
+        .logContainerLaunched({
+          containerId: container.id,
+          containerName: validatedData.name,
+          projectName: validatedData.project_name,
+          userId: user.id,
+          organizationId: user.organization_id!,
+          ecrImageUri: validatedData.ecr_image_uri,
+          architecture: validatedData.architecture || "arm64",
+          cpu: validatedData.cpu,
+          memory: validatedData.memory,
+          port: validatedData.port,
+          desiredCount: validatedData.desired_count,
+          cost: deploymentCost,
+          isUpdate,
+          stackName,
+        })
+        .catch((err) => {
+          logger.warn(
+            "[CONTAINER DEPLOYMENT] Failed to send Discord notification",
+            {
+              containerId: container.id,
+              error: err instanceof Error ? err.message : "Unknown error",
+            },
+          );
+        });
 
       // Return immediately with container info and polling instructions
       return NextResponse.json(
