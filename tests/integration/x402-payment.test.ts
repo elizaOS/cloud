@@ -81,12 +81,6 @@ interface AgentCard {
   };
 }
 
-interface ERC8004Registration {
-  type: string;
-  name: string;
-  description: string;
-  endpoints: Array<{ name: string; endpoint: string }>;
-}
 
 interface X402PaymentRequirements {
   x402Version: number;
@@ -229,32 +223,6 @@ describe("Discovery Endpoints", () => {
     });
   });
 
-  describe("GET /.well-known/erc8004-registration.json", () => {
-    test("returns valid ERC-8004 registration", async () => {
-      const response = await fetch(
-        `${config.apiUrl}/.well-known/erc8004-registration.json`,
-      );
-      expect(response.status).toBe(200);
-
-      const reg = (await response.json()) as ERC8004Registration;
-      expect(reg.type).toBe(
-        "https://eips.ethereum.org/EIPS/eip-8004#registration-v1",
-      );
-      expect(reg.name).toBe("Eliza Cloud");
-      expect(reg.endpoints).toBeInstanceOf(Array);
-    });
-
-    test("includes required endpoints", async () => {
-      const response = await fetch(
-        `${config.apiUrl}/.well-known/erc8004-registration.json`,
-      );
-      const reg = (await response.json()) as ERC8004Registration;
-
-      const endpointNames = reg.endpoints.map((e) => e.name);
-      expect(endpointNames).toContain("A2A");
-      expect(endpointNames).toContain("MCP");
-    });
-  });
 });
 
 // ===== Payment Flow Tests =====

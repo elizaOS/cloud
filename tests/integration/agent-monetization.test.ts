@@ -68,11 +68,10 @@ describe("Agent Monetization", () => {
         "a2a_enabled",
         "mcp_enabled",
         "is_public",
-        "erc8004_registered",
       ];
 
       // These fields enable external access to agents
-      expect(agentProtocolFields.length).toBe(4);
+      expect(agentProtocolFields.length).toBe(3);
 
       console.log("✅ Agents have protocol endpoint fields");
     });

@@ -5535,17 +5535,17 @@ const mcpHandler = createMcpHandler(
     );
 
     // =========================================================================
-    // ERC-8004 Discovery Tools
-    // Tools for discovering and searching services on the decentralized registry
+    // Discovery Tools
+    // Tools for discovering services on Eliza Cloud
     // =========================================================================
 
-    // Tool: Discover Services - Search the discovery API
+    // Tool: Discover Services - Search Eliza Cloud services
     server.registerTool(
       "discover_services",
       {
         description:
-          "Discover services (agents, MCPs, apps) from both Eliza Cloud and the ERC-8004 registry. " +
-          "Use this to find external services to interact with. FREE tool.",
+          "Discover services (agents, MCPs, apps) from Eliza Cloud. " +
+          "Use this to find services to interact with. FREE tool.",
         inputSchema: {
           query: z
             .string()
@@ -5555,25 +5555,11 @@ const mcpHandler = createMcpHandler(
             .array(z.enum(["agent", "mcp", "a2a", "app"]))
             .optional()
             .describe("Types of services to find"),
-          sources: z
-            .array(z.enum(["local", "erc8004"]))
-            .optional()
-            .describe(
-              "Sources to search (local = Eliza Cloud, erc8004 = decentralized)",
-            ),
           categories: z
             .array(z.string())
             .optional()
             .describe("Filter by categories"),
           tags: z.array(z.string()).optional().describe("Filter by tags"),
-          mcpTools: z
-            .array(z.string())
-            .optional()
-            .describe("Find services with specific MCP tools"),
-          a2aSkills: z
-            .array(z.string())
-            .optional()
-            .describe("Find services with specific A2A skills"),
           x402Only: z
             .boolean()
             .optional()
@@ -5591,11 +5577,7 @@ const mcpHandler = createMcpHandler(
       async ({
         query,
         types,
-        sources,
         categories,
-        tags,
-        mcpTools,
-        a2aSkills,
         x402Only,
         limit,
       }) => {
@@ -5614,101 +5596,65 @@ const mcpHandler = createMcpHandler(
             x402Support: boolean;
           }> = [];
 
-          const searchSources = sources ?? ["local", "erc8004"];
           const searchTypes = types ?? ["agent", "mcp"];
 
-          // Search local services
-          if (searchSources.includes("local")) {
-            if (searchTypes.includes("agent")) {
-              let chars = await charactersService.listPublic();
-              // Apply basic filtering
-              if (query) {
-                const q = query.toLowerCase();
-                chars = chars.filter(
-                  (c) =>
-                    c.name.toLowerCase().includes(q) ||
-                    (typeof c.bio === "string" &&
-                      c.bio.toLowerCase().includes(q)) ||
-                    (Array.isArray(c.bio) &&
-                      c.bio.some((b) => b.toLowerCase().includes(q))),
-                );
-              }
-              if (categories?.length) {
-                chars = chars.filter((c) =>
-                  categories.includes(c.category ?? ""),
-                );
-              }
-              chars = chars.slice(0, limit ?? 20);
-              for (const char of chars) {
-                services.push({
-                  id: char.id,
-                  name: char.name,
-                  description: Array.isArray(char.bio)
-                    ? char.bio.join(" ")
-                    : char.bio,
-                  type: "agent",
-                  source: "local",
-                  a2aEndpoint: `${baseUrl}/api/agents/${char.id}/a2a`,
-                  mcpEndpoint: `${baseUrl}/api/agents/${char.id}/mcp`,
-                  x402Support: false,
-                });
-              }
+          // Search agents
+          if (searchTypes.includes("agent")) {
+            let chars = await charactersService.listPublic();
+            // Apply basic filtering
+            if (query) {
+              const q = query.toLowerCase();
+              chars = chars.filter(
+                (c) =>
+                  c.name.toLowerCase().includes(q) ||
+                  (typeof c.bio === "string" &&
+                    c.bio.toLowerCase().includes(q)) ||
+                  (Array.isArray(c.bio) &&
+                    c.bio.some((b) => b.toLowerCase().includes(q))),
+              );
             }
-
-            if (searchTypes.includes("mcp")) {
-              const mcps = await userMcpsService.listPublic({
-                category: categories?.[0],
-                search: query,
-                limit: limit,
+            if (categories?.length) {
+              chars = chars.filter((c) =>
+                categories.includes(c.category ?? ""),
+              );
+            }
+            chars = chars.slice(0, limit ?? 20);
+            for (const char of chars) {
+              services.push({
+                id: char.id,
+                name: char.name,
+                description: Array.isArray(char.bio)
+                  ? char.bio.join(" ")
+                  : char.bio,
+                type: "agent",
+                source: "local",
+                a2aEndpoint: `${baseUrl}/api/agents/${char.id}/a2a`,
+                mcpEndpoint: `${baseUrl}/api/agents/${char.id}/mcp`,
+                x402Support: false,
               });
-              for (const mcp of mcps) {
-                services.push({
-                  id: mcp.id,
-                  name: mcp.name,
-                  description: mcp.description,
-                  type: "mcp",
-                  source: "local",
-                  mcpEndpoint: userMcpsService.getEndpointUrl(mcp, baseUrl),
-                  x402Support: mcp.x402_enabled,
-                });
-              }
             }
           }
 
-          // Search ERC-8004 registry
-          if (searchSources.includes("erc8004")) {
-            const network = getDefaultNetwork();
-            const chainId = CHAIN_IDS[network];
-
-            const agents = await agent0Service.searchAgentsCached({
-              name: query,
-              mcpTools: mcpTools,
-              a2aSkills: a2aSkills,
-              x402Support: x402Only,
-              active: true,
+          // Search MCPs
+          if (searchTypes.includes("mcp")) {
+            let mcps = await userMcpsService.listPublic({
+              category: categories?.[0],
+              search: query,
+              limit: limit,
             });
-
-            for (const agent of agents) {
-              const discovered = agent0ToDiscoveredService(
-                agent,
-                network,
-                chainId,
-              );
-              if (
-                !searchTypes.length ||
-                searchTypes.includes(discovered.type)
-              ) {
-                services.push({
-                  id: discovered.id,
-                  name: discovered.name,
-                  description: discovered.description,
-                  type: discovered.type,
-                  source: "erc8004",
-                  mcpEndpoint: discovered.mcpEndpoint,
-                  a2aEndpoint: discovered.a2aEndpoint,
-                  x402Support: discovered.x402Support,
-                });
-              }
+            if (x402Only) {
+              mcps = mcps.filter((m) => m.x402_enabled);
+            }
+            for (const mcp of mcps) {
+              services.push({
+                id: mcp.id,
+                name: mcp.name,
+                description: mcp.description,
+                type: "mcp",
+                source: "local",
+                mcpEndpoint: userMcpsService.getEndpointUrl(mcp, baseUrl),
+                x402Support: mcp.x402_enabled,
+              });
             }
           }
 
@@ -5739,238 +5685,6 @@ const mcpHandler = createMcpHandler(
                       error instanceof Error
                         ? error.message
                         : "Discovery failed",
-                  },
-                  null,
-                  2,
-                ),
-              },
-            ],
-            isError: true,
-          };
-        }
-      },
-    );
-
-    // Tool: Get Service Details - Get detailed info about a discovered service
-    server.registerTool(
-      "get_service_details",
-      {
-        description:
-          "Get detailed information about a specific service from the ERC-8004 registry. " +
-          "Use agentId in format 'chainId:tokenId'. FREE tool.",
-        inputSchema: {
-          agentId: z
-            .string()
-            .describe(
-              "Agent ID in format 'chainId:tokenId' (e.g., '84532:123')",
-            ),
-        },
-      },
-      async ({ agentId }) => {
-        try {
-          const agent = await agent0Service.getAgentCached(agentId);
-          if (!agent) {
-            return {
-              content: [
-                {
-                  type: "text" as const,
-                  text: JSON.stringify(
-                    { error: "Agent not found", agentId },
-                    null,
-                    2,
-                  ),
-                },
-              ],
-              isError: true,
-            };
-          }
-
-          const network = getDefaultNetwork();
-          const chainId = CHAIN_IDS[network];
-          const service = agent0ToDiscoveredService(agent, network, chainId);
-
-          return {
-            content: [
-              {
-                type: "text" as const,
-                text: JSON.stringify(
-                  {
-                    success: true,
-                    service,
-                  },
-                  null,
-                  2,
-                ),
-              },
-            ],
-          };
-        } catch (error) {
-          return {
-            content: [
-              {
-                type: "text" as const,
-                text: JSON.stringify(
-                  {
-                    error:
-                      error instanceof Error
-                        ? error.message
-                        : "Failed to get service details",
-                  },
-                  null,
-                  2,
-                ),
-              },
-            ],
-            isError: true,
-          };
-        }
-      },
-    );
-
-    // Tool: Find MCP Tools - Search for services that provide specific MCP tools
-    server.registerTool(
-      "find_mcp_tools",
-      {
-        description:
-          "Find services that provide specific MCP tools. " +
-          "Useful for discovering external capabilities. FREE tool.",
-        inputSchema: {
-          tools: z
-            .array(z.string())
-            .describe("List of MCP tool names to search for"),
-          x402Only: z
-            .boolean()
-            .optional()
-            .describe("Only return services with x402 payment"),
-        },
-      },
-      async ({ tools, x402Only }) => {
-        try {
-          const network = getDefaultNetwork();
-          const chainId = CHAIN_IDS[network];
-
-          const agents = await agent0Service.findAgentsWithToolsCached(tools);
-          const filtered = x402Only
-            ? agents.filter((a) => a.x402Support)
-            : agents;
-
-          const results = filtered.map((agent) => ({
-            agentId: agent.agentId,
-            name: agent.name,
-            description: agent.description,
-            mcpEndpoint: agent.mcpEndpoint,
-            mcpTools: agent.mcpTools,
-            x402Support: agent.x402Support,
-            network,
-            chainId,
-          }));
-
-          return {
-            content: [
-              {
-                type: "text" as const,
-                text: JSON.stringify(
-                  {
-                    success: true,
-                    searchedTools: tools,
-                    count: results.length,
-                    services: results,
-                  },
-                  null,
-                  2,
-                ),
-              },
-            ],
-          };
-        } catch (error) {
-          return {
-            content: [
-              {
-                type: "text" as const,
-                text: JSON.stringify(
-                  {
-                    error:
-                      error instanceof Error
-                        ? error.message
-                        : "Failed to find MCP tools",
-                  },
-                  null,
-                  2,
-                ),
-              },
-            ],
-            isError: true,
-          };
-        }
-      },
-    );
-
-    // Tool: Find A2A Skills - Search for agents with specific skills
-    server.registerTool(
-      "find_a2a_skills",
-      {
-        description:
-          "Find agents that have specific A2A skills for agent-to-agent communication. " +
-          "Useful for discovering agents to collaborate with. FREE tool.",
-        inputSchema: {
-          skills: z
-            .array(z.string())
-            .describe("List of A2A skill names to search for"),
-          x402Only: z
-            .boolean()
-            .optional()
-            .describe("Only return services with x402 payment"),
-        },
-      },
-      async ({ skills, x402Only }) => {
-        try {
-          const network = getDefaultNetwork();
-          const chainId = CHAIN_IDS[network];
-
-          const agents = await agent0Service.findAgentsWithSkillsCached(skills);
-          const filtered = x402Only
-            ? agents.filter((a) => a.x402Support)
-            : agents;
-
-          const results = filtered.map((agent) => ({
-            agentId: agent.agentId,
-            name: agent.name,
-            description: agent.description,
-            a2aEndpoint: agent.a2aEndpoint,
-            a2aSkills: agent.a2aSkills,
-            x402Support: agent.x402Support,
-            network,
-            chainId,
-          }));
-
-          return {
-            content: [
-              {
-                type: "text" as const,
-                text: JSON.stringify(
-                  {
-                    success: true,
-                    searchedSkills: skills,
-                    count: results.length,
-                    agents: results,
-                  },
-                  null,
-                  2,
-                ),
-              },
-            ],
-          };
-        } catch (error) {
-          return {
-            content: [
-              {
-                type: "text" as const,
-                text: JSON.stringify(
-                  {
-                    error:
-                      error instanceof Error
-                        ? error.message
-                        : "Failed to find A2A skills",
                   },
                   null,
                   2,

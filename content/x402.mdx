@@ -209,23 +209,6 @@ curl -X GET "https://elizacloud.ai/api/v1/x402/status" \
 }
 ```
 
-## ERC-8004 Integration
-
-elizaOS Cloud implements ERC-8004 for service discovery:
-
-```bash
-curl -X GET "https://elizacloud.ai/api/v1/erc8004/status"
-```
-
-```json
-{
-  "registered": true,
-  "openApiUrl": "https://elizacloud.ai/api/openapi.json",
-  "agentCardUrl": "https://elizacloud.ai/.well-known/agent-card.json",
-  "x402Support": true
-}
-```
-
 ## Security
 
 <Callout type="warning">

@@ -23,11 +23,6 @@ import {
   USDC_ADDRESSES,
   getDefaultNetwork,
 } from "@/lib/config/x402";
-import {
-  CHAIN_IDS,
-  IDENTITY_REGISTRY_ADDRESSES,
-  ELIZA_CLOUD_AGENT_ID,
-} from "@/lib/config/erc8004";
 
 // Test configuration
 const getConfig = () => ({
@@ -487,64 +482,7 @@ describe("Public Agent A2A Protocol", () => {
     });
   });
 
-  describe("5. ERC-8004 Integration", () => {
-    test("Eliza Cloud is registered on supported networks", () => {
-      console.log("\n📋 ERC-8004 Registration Status:");
-
-      const networks = ["base-sepolia", "base"] as const;
-      for (const network of networks) {
-        const chainId = CHAIN_IDS[network];
-        const agentId = ELIZA_CLOUD_AGENT_ID[network];
-        const registryAddress = IDENTITY_REGISTRY_ADDRESSES[network];
-
-        console.log(`\n   ${network}:`);
-        console.log(`      Chain ID: ${chainId}`);
-        console.log(`      Registry: ${registryAddress}`);
-        console.log(
-          `      Agent ID: ${agentId !== null && agentId !== 0 ? agentId : "Not registered yet"}`,
-        );
-
-        // Base Sepolia should be registered
-        if (network === "base-sepolia") {
-          expect(agentId).toBe(1583);
-        }
-        // Base mainnet is optional
-        if (agentId !== null && agentId !== 0) {
-          expect(agentId).toBeGreaterThan(0);
-        }
-      }
-    });
-
-    test("Platform ERC-8004 registration file accessible", async () => {
-      // Test platform registration (doesn't need TEST_PUBLIC_AGENT_ID)
-      const response = await fetchWithTimeout(
-        `${config.apiUrl}/.well-known/erc8004-registration.json`,
-      );
-
-      if (!response) {
-        console.log("ℹ️  Server not running - testing config only");
-        expect(IDENTITY_REGISTRY_ADDRESSES["base-sepolia"]).toBeDefined();
-        console.log("✅ ERC-8004 config is correct");
-        return;
-      }
-
-      expect(response.status).toBe(200);
-      const registration = await response.json();
-
-      expect(registration.name).toBeDefined();
-      expect(registration.endpoints).toBeInstanceOf(Array);
-      expect(registration.registrations).toBeDefined();
-
-      console.log("✅ Platform ERC-8004 registration file accessible");
-      console.log(`   Name: ${registration.name}`);
-      console.log(
-        `   Endpoints: ${registration.endpoints.map((e: { name: string }) => e.name).join(", ")}`,
-      );
-      console.log(`   Registrations: ${registration.registrations.length}`);
-    });
-  });
-
-  describe("6. CORS Support", () => {
+  describe("5. CORS Support", () => {
     test("Platform A2A OPTIONS returns correct CORS headers", async () => {
       // Test platform A2A endpoint (doesn't need TEST_PUBLIC_AGENT_ID)
       const response = await fetchWithTimeout(`${config.apiUrl}/api/a2a`, {
@@ -660,37 +598,6 @@ describe("Platform A2A (Eliza Cloud)", () => {
     console.log(`   Skills: ${card.skills?.length || 0}`);
   });
 
-  test("GET /.well-known/erc8004-registration.json returns ERC-8004 file", async () => {
-    const response = await fetchWithTimeout(
-      `${config.apiUrl}/.well-known/erc8004-registration.json`,
-    );
-
-    if (!response) {
-      console.log(
-        `ℹ️ Could not connect to ${config.apiUrl} - server may not be running`,
-      );
-      return;
-    }
-
-    if (response.status !== 200) {
-      console.log(
-        `ℹ️ Server returned ${response.status} - endpoint may not be deployed`,
-      );
-      return;
-    }
-
-    const registration = await response.json();
-    // Check structure - name and endpoints should be defined
-    expect(registration.name).toBeDefined();
-
-    console.log("✅ ERC-8004 Registration:");
-    console.log(`   Name: ${registration.name}`);
-    if (registration.endpoints) {
-      console.log(
-        `   Endpoints: ${Object.keys(registration.endpoints).join(", ")}`,
-      );
-    }
-  });
 });
 
 // ============================================================================
@@ -717,11 +624,6 @@ Monetization:
   - Base cost charged to consumer
   - Creator markup goes to redeemable earnings
   - Cost breakdown in response
-
-ERC-8004 Integration:
-  - Agents registered via /api/v1/agents/{id}/publish
-  - Registration file at /api/agents/{id}/registration.json
-  - Eliza Cloud pays gas for registration
 
 x402 Payment:
   - Top-up via /api/v1/credits/topup

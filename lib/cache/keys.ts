@@ -100,19 +100,14 @@ export const CacheKeys = {
     pattern: () => `eliza:*`,
   },
   /**
-   * ERC-8004 registry cache keys
-   * Used for caching searches and agent lookups from the on-chain registry
+   * Discovery cache keys
+   * Used for caching discovery results
    */
-  erc8004: {
-    /** Cache search results by network and filter hash */
-    search: (network: string, filterHash: string) =>
-      `erc8004:search:${network}:${filterHash}:v1`,
-    /** Cache individual agent details by agentId */
-    agent: (agentId: string) => `erc8004:agent:${agentId}:v1`,
-    /** Cache discovery results (combined local + external) */
-    discovery: (filterHash: string) => `erc8004:discovery:${filterHash}:v1`,
-    /** Pattern for invalidating all ERC-8004 cache */
-    pattern: () => `erc8004:*`,
+  discovery: {
+    /** Cache discovery results by filter hash */
+    list: (filterHash: string) => `discovery:list:${filterHash}:v1`,
+    /** Pattern for invalidating all discovery cache */
+    pattern: () => `discovery:*`,
   },
   /**
    * Code Agent cache keys
@@ -239,13 +234,10 @@ export const CacheTTL = {
     orgBalance: 30, // 30 seconds - balance changes frequently but we can tolerate slight staleness
   },
   /**
-   * ERC-8004 registry cache TTLs
-   * Longer TTLs since on-chain data changes infrequently
+   * Discovery cache TTLs
    */
-  erc8004: {
-    search: 300, // 5 minutes - search results
-    agent: 3600, // 1 hour - individual agent details (rarely change)
-    discovery: 180, // 3 minutes - combined discovery results
+  discovery: {
+    list: 180, // 3 minutes - discovery results
   },
   /**
    * Code Agent cache TTLs
@@ -296,9 +288,8 @@ export const CacheStaleTTL = {
     breakdown: 300, // Serve stale after 5 minutes
     stats: 300, // Serve stale after 5 minutes
   },
-  erc8004: {
-    search: 180, // Serve stale search results after 3 minutes
-    discovery: 120, // Serve stale discovery after 2 minutes
+  discovery: {
+    list: 120, // Serve stale discovery results after 2 minutes
   },
   codeAgent: {
     session: 30, // Serve stale after 30 seconds

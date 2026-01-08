@@ -19,7 +19,6 @@ import { z } from "zod";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { creditsService } from "@/lib/services/credits";
 import { charactersService } from "@/lib/services/characters/characters";
-import { agentRegistryService } from "@/lib/services/agent-registry";
 import { streamText } from "ai";
 import { gateway } from "@ai-sdk/gateway";
 import {
@@ -30,6 +29,7 @@ import {
 import { X402_ENABLED, isX402Configured } from "@/lib/config/x402";
 import { agentMonetizationService } from "@/lib/services/agent-monetization";
 import { logger } from "@/lib/utils/logger";
+import type { UserCharacter } from "@/db/schemas/user-characters";
 
 export const maxDuration = 60;
 
@@ -43,6 +43,89 @@ const JsonRpcRequestSchema = z.object({
   params: z.record(z.unknown()).optional(),
   id: z.union([z.string(), z.number()]),
 });
+
+// ============================================================================
+// Agent Card Generation
+// ============================================================================
+
+/**
+ * Generate A2A Agent Card for a character
+ */
+function generateAgentCard(character: UserCharacter, baseUrl: string) {
+  const bioText = Array.isArray(character.bio)
+    ? character.bio.join("\n")
+    : character.bio;
+
+  const markupPct = Number(character.inference_markup_percentage || 0);
+  const hasMonetization = character.monetization_enabled && markupPct > 0;
+
+  return {
+    name: character.name,
+    description: bioText,
+    image: character.avatar_url || `${baseUrl}/default-avatar.png`,
+    version: "1.0.0",
+
+    capabilities: {
+      streaming: true,
+      pushNotifications: false,
+      stateTransitionHistory: true,
+    },
+
+    authentication: {
+      schemes: [
+        {
+          scheme: "bearer",
+          description: "API Key authentication via Authorization header",
+        },
+        ...(X402_ENABLED
+          ? [
+              {
+                scheme: "x402",
+                description: "Pay-per-request via x402 protocol",
+              },
+            ]
+          : []),
+      ],
+    },
+
+    skills: [
+      {
+        id: "chat",
+        name: "Chat",
+        description: `Chat with ${character.name}`,
+        pricing: {
+          type: "token-based" as const,
+          inputCostPer1k: 0.005,
+          outputCostPer1k: 0.015,
+          ...(hasMonetization && { markupPercentage: markupPct }),
+        },
+      },
+      {
+        id: "generate_image",
+        name: "Image Generation",
+        description: `Generate images as ${character.name}`,
+        pricing: {
+          type: "fixed" as const,
+          amount: 0.05,
+          ...(hasMonetization && { markupPercentage: markupPct }),
+        },
+      },
+    ],
+
+    pricing: {
+      currency: "USD",
+      paymentMethods: X402_ENABLED
+        ? ["x402", "api_key_credits"]
+        : ["api_key_credits"],
+      minimumPayment: 0.001,
+    },
+
+    contact: {
+      creatorId: character.user_id,
+      organizationId: character.organization_id,
+    },
+  };
+}
 
 // ============================================================================
 // Handlers
@@ -77,7 +160,7 @@ export async function GET(
   }
 
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
-  const agentCard = agentRegistryService.generateAgentCard(character, baseUrl);
+  const agentCard = generateAgentCard(character, baseUrl);
 
   return NextResponse.json(agentCard, {
     headers: {

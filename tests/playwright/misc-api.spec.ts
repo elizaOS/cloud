@@ -365,23 +365,6 @@ test.describe(".well-known Endpoints", () => {
     }
   });
 
-  test("GET /.well-known/erc8004-registration.json returns ERC8004 info", async ({
-    request,
-  }) => {
-    const response = await request.get(
-      `${CLOUD_URL}/.well-known/erc8004-registration.json`,
-    );
-
-    expect([200, 404, 500]).toContain(response.status());
-
-    if (response.status() === 200) {
-      const data = await response.json();
-      expect(data).toBeDefined();
-      console.log("✅ ERC8004 registration endpoint works");
-    } else {
-      console.log("ℹ️ ERC8004 registration not found (may not be implemented)");
-    }
-  });
 });
 
 test.describe("Sitemap and Robots", () => {

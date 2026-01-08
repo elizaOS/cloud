@@ -129,7 +129,6 @@ const nextConfig: NextConfig = {
     "mcp-handler",
     "express",
     "worker_threads",
-    "agent0-sdk",
     "ipfs-http-client",
     "ipfs-utils",
     "electron-fetch",

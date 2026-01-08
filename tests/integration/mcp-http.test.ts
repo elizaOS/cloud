@@ -261,27 +261,3 @@ describe("Discovery API", () => {
   });
 });
 
-// ============================================================================
-// ERC-8004 STATUS
-// ============================================================================
-
-describe("ERC-8004 Status", () => {
-  test.skipIf(skipHttp)(
-    "GET /api/v1/erc8004/status returns config",
-    async () => {
-      const response = await fetchWithTimeout(
-        `${BASE_URL}/api/v1/erc8004/status`,
-      );
-      if (!response) return;
-
-      expect([200, 401, 403]).toContain(response.status);
-      if (response.status === 200) {
-        const data = await response.json();
-        expect(data.service).toBeDefined();
-        expect(data.network).toBeDefined();
-        expect(typeof data.configured).toBe("boolean");
-        expect(data.contracts).toBeDefined();
-      }
-    },
-  );
-});
