@@ -194,15 +194,25 @@ Write in a ${vibeStyle} style. Keep it concise and engaging.
 Use appropriate emojis sparingly. Do not use hashtags excessively.
 Maximum 500 characters.`;
 
-    const result = await generateText({
-      model: openai("gpt-4o-mini"),
-      system: systemPrompt,
-      prompt:
-        "Create a compelling announcement about this app that would engage a Telegram community. Focus on what makes it unique and valuable.",
-      maxTokens: 200,
-    });
+    try {
+      const result = await generateText({
+        model: openai("gpt-4o-mini"),
+        system: systemPrompt,
+        prompt:
+          "Create a compelling announcement about this app that would engage a Telegram community. Focus on what makes it unique and valuable.",
+        maxTokens: 200,
+      });
 
-    return result.text;
+      return result.text;
+    } catch (error) {
+      await creditsService.refundCredits({
+        organizationId,
+        amount: TELEGRAM_POST_COST,
+        description: "Refund for failed Telegram AI generation",
+        metadata: { appId: app.id, type: "telegram_announcement_refund" },
+      });
+      throw error;
+    }
   }
 
   async generateReply(
@@ -235,16 +245,26 @@ Respond in a ${vibeStyle} style. Be helpful and concise.
 If asked about features not related to the app, politely redirect to the app's purpose.
 Maximum 300 characters.`;
 
-    const result = await generateText({
-      model: openai("gpt-4o-mini"),
-      system: systemPrompt,
-      prompt: userName
-        ? `User ${userName} says: "${userMessage}"`
-        : `User says: "${userMessage}"`,
-      maxTokens: 150,
-    });
+    try {
+      const result = await generateText({
+        model: openai("gpt-4o-mini"),
+        system: systemPrompt,
+        prompt: userName
+          ? `User ${userName} says: "${userMessage}"`
+          : `User says: "${userMessage}"`,
+        maxTokens: 150,
+      });
 
-    return result.text;
+      return result.text;
+    } catch (error) {
+      await creditsService.refundCredits({
+        organizationId,
+        amount: TELEGRAM_POST_COST,
+        description: "Refund for failed Telegram AI reply",
+        metadata: { appId: app.id, type: "telegram_reply_refund" },
+      });
+      throw error;
+    }
   }
 
   /**
@@ -271,11 +291,13 @@ Maximum 300 characters.`;
   /**
    * Post an announcement to a channel or group.
    * Sends promotional image if available.
+   * @param chatIdOverride - Optional override for target chat (channelId or groupId)
    */
   async postAnnouncement(
     organizationId: string,
     appId: string,
-    text?: string
+    text?: string,
+    chatIdOverride?: string
   ): Promise<PostResult> {
     const app = await this.getAppForOrg(organizationId, appId);
     const config = app.telegram_automation;
@@ -284,7 +306,7 @@ Maximum 300 characters.`;
       return { success: false, error: "Automation not enabled for this app" };
     }
 
-    const chatId = config.channelId || config.groupId;
+    const chatId = chatIdOverride || config.channelId || config.groupId;
     if (!chatId) {
       return { success: false, error: "No channel or group configured" };
     }

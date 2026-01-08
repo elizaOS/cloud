@@ -73,10 +73,17 @@ function isAnnouncementDue(
     type === "announcement"
       ? (config.announceIntervalMax ?? 240)
       : (config.postIntervalMax ?? 240);
-  const targetInterval =
-    minInterval + Math.random() * (maxInterval - minInterval);
 
-  return minutesSince >= targetInterval;
+  // Use deterministic check: post is due if we've exceeded min interval
+  // and use a hash-based probability to add randomness within the window
+  if (minutesSince < minInterval) return false;
+  if (minutesSince >= maxInterval) return true;
+
+  // Between min and max: use deterministic probability based on time elapsed
+  // This ensures consistent behavior across cron runs
+  const windowProgress = (minutesSince - minInterval) / (maxInterval - minInterval);
+  return windowProgress >= 0.5; // Post at midpoint of the window
+
 }
 
 async function getAppsWithAutomation(): Promise<App[]> {
@@ -164,7 +171,7 @@ async function processTwitterAutomation(
 
 export async function POST(request: NextRequest): Promise<Response> {
   const authHeader = request.headers.get("authorization");
-  if (CRON_SECRET && authHeader !== `Bearer ${CRON_SECRET}`) {
+  if (!CRON_SECRET || authHeader !== `Bearer ${CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -240,7 +247,7 @@ export async function POST(request: NextRequest): Promise<Response> {
 
 export async function GET(request: NextRequest): Promise<Response> {
   const authHeader = request.headers.get("authorization");
-  if (CRON_SECRET && authHeader !== `Bearer ${CRON_SECRET}`) {
+  if (!CRON_SECRET || authHeader !== `Bearer ${CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

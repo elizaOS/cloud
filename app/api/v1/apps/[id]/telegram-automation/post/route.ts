@@ -44,10 +44,12 @@ export async function POST(
   }
 
   try {
+    const chatIdOverride = body.channelId || body.groupId;
     const result = await telegramAppAutomationService.postAnnouncement(
       user.organization_id,
       appId,
       body.text,
+      chatIdOverride,
     );
 
     if (!result.success) {

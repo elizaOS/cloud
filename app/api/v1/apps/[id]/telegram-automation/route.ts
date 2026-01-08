@@ -79,10 +79,28 @@ export async function POST(
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
   }
 
+  // Validate interval range - defaults are min=120, max=240
+  const DEFAULT_INTERVAL_MIN = 120;
+  const DEFAULT_INTERVAL_MAX = 240;
+
   if (body.announceIntervalMin && body.announceIntervalMax) {
     if (body.announceIntervalMin > body.announceIntervalMax) {
       return NextResponse.json(
         { error: "announceIntervalMin must be less than announceIntervalMax" },
+        { status: 400 },
+      );
+    }
+  } else if (body.announceIntervalMax && !body.announceIntervalMin) {
+    if (body.announceIntervalMax < DEFAULT_INTERVAL_MIN) {
+      return NextResponse.json(
+        { error: `announceIntervalMax must be >= ${DEFAULT_INTERVAL_MIN} (default min)` },
+        { status: 400 },
+      );
+    }
+  } else if (body.announceIntervalMin && !body.announceIntervalMax) {
+    if (body.announceIntervalMin > DEFAULT_INTERVAL_MAX) {
+      return NextResponse.json(
+        { error: `announceIntervalMin must be <= ${DEFAULT_INTERVAL_MAX} (default max)` },
         { status: 400 },
       );
     }

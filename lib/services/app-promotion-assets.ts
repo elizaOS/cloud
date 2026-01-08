@@ -61,6 +61,43 @@ class AppPromotionAssetsService {
   private websiteContextCache = new Map<string, WebsiteContext>();
 
   /**
+   * Validate URL to prevent SSRF attacks
+   */
+  private isValidExternalUrl(url: string): boolean {
+    const parsed = new URL(url);
+
+    // Only allow http/https protocols
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return false;
+    }
+
+    const hostname = parsed.hostname.toLowerCase();
+
+    // Block localhost and loopback
+    if (hostname === "localhost" || hostname === "127.0.0.1" || hostname === "[::1]") {
+      return false;
+    }
+
+    // Block private IP ranges
+    const ipParts = hostname.split(".");
+    if (ipParts.length === 4) {
+      const first = parseInt(ipParts[0], 10);
+      const second = parseInt(ipParts[1], 10);
+
+      // 10.x.x.x
+      if (first === 10) return false;
+      // 172.16.x.x - 172.31.x.x
+      if (first === 172 && second >= 16 && second <= 31) return false;
+      // 192.168.x.x
+      if (first === 192 && second === 168) return false;
+      // 169.254.x.x (link-local / AWS metadata)
+      if (first === 169 && second === 254) return false;
+    }
+
+    return true;
+  }
+
+  /**
    * Fetch and analyze website content for better image generation
    */
   private async fetchWebsiteContext(url: string): Promise<WebsiteContext> {
@@ -74,6 +111,12 @@ class AppPromotionAssetsService {
 
     // Skip placeholder URLs
     if (!url || url.includes("placeholder")) {
+      return context;
+    }
+
+    // Validate URL to prevent SSRF
+    if (!this.isValidExternalUrl(url)) {
+      logger.warn("[PromotionAssets] Blocked internal URL", { url });
       return context;
     }
 

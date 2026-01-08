@@ -55,6 +55,33 @@ export async function POST(
     );
   }
 
+  // Validate interval range - defaults are min=120, max=240
+  const DEFAULT_INTERVAL_MIN = 120;
+  const DEFAULT_INTERVAL_MAX = 240;
+
+  if (parsed.data.postIntervalMin && parsed.data.postIntervalMax) {
+    if (parsed.data.postIntervalMin > parsed.data.postIntervalMax) {
+      return NextResponse.json(
+        { error: "postIntervalMin must be less than postIntervalMax" },
+        { status: 400 }
+      );
+    }
+  } else if (parsed.data.postIntervalMax && !parsed.data.postIntervalMin) {
+    if (parsed.data.postIntervalMax < DEFAULT_INTERVAL_MIN) {
+      return NextResponse.json(
+        { error: `postIntervalMax must be >= ${DEFAULT_INTERVAL_MIN} (default min)` },
+        { status: 400 }
+      );
+    }
+  } else if (parsed.data.postIntervalMin && !parsed.data.postIntervalMax) {
+    if (parsed.data.postIntervalMin > DEFAULT_INTERVAL_MAX) {
+      return NextResponse.json(
+        { error: `postIntervalMin must be <= ${DEFAULT_INTERVAL_MAX} (default max)` },
+        { status: 400 }
+      );
+    }
+  }
+
   logger.info("[Twitter Automation API] Enabling automation", {
     appId: id,
     userId: user.id,

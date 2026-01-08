@@ -210,15 +210,25 @@ Write in a ${vibeStyle} style. Keep it concise and engaging.
 Use appropriate emojis sparingly (1-2 max). Do not use excessive formatting.
 Maximum 300 characters. Do not include the URL in your response - it will be added automatically.`;
 
-    const result = await generateText({
-      model: openai("gpt-4o-mini"),
-      system: systemPrompt,
-      prompt:
-        "Create a compelling Discord announcement about this app that would engage a community. Focus on what makes it unique and valuable.",
-      maxTokens: 150,
-    });
+    try {
+      const result = await generateText({
+        model: openai("gpt-4o-mini"),
+        system: systemPrompt,
+        prompt:
+          "Create a compelling Discord announcement about this app that would engage a community. Focus on what makes it unique and valuable.",
+        maxTokens: 150,
+      });
 
-    return truncate(result.text, 500);
+      return truncate(result.text, 500);
+    } catch (error) {
+      await creditsService.refundCredits({
+        organizationId,
+        amount: DISCORD_POST_COST,
+        description: "Refund for failed Discord AI generation",
+        metadata: { appId: app.id, type: "discord_announcement_refund" },
+      });
+      throw error;
+    }
   }
 
   /**

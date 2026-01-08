@@ -39,22 +39,39 @@ export async function POST(
     hasCustomText: !!parsed.data.text,
   });
 
-  const result = await twitterAppAutomationService.postAppTweet(
-    user.organization_id,
-    id,
-    parsed.data.text,
-  );
+  try {
+    const result = await twitterAppAutomationService.postAppTweet(
+      user.organization_id,
+      id,
+      parsed.data.text,
+    );
 
-  if (!result.success) {
+    if (!result.success) {
+      return NextResponse.json(
+        { error: result.error || "Failed to post tweet" },
+        { status: 400 },
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      tweetId: result.tweetId,
+      tweetUrl: result.tweetUrl,
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message === "App not found") {
+      return NextResponse.json({ error: "App not found" }, { status: 404 });
+    }
+    if (error instanceof Error && error.message.includes("Insufficient credits")) {
+      return NextResponse.json({ error: error.message }, { status: 402 });
+    }
+    logger.error("[Twitter Automation API] Failed to post tweet", {
+      appId: id,
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
     return NextResponse.json(
-      { error: result.error || "Failed to post tweet" },
+      { error: "Failed to post tweet. Please try again." },
       { status: 500 },
     );
   }
-
-  return NextResponse.json({
-    success: true,
-    tweetId: result.tweetId,
-    tweetUrl: result.tweetUrl,
-  });
 }

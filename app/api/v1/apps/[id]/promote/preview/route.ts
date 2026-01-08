@@ -16,7 +16,7 @@ import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 30;
+export const maxDuration = 60; // Generating multiple AI posts per platform can take time
 
 interface RouteParams {
   params: Promise<{ id: string }>;

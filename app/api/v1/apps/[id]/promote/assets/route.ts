@@ -52,9 +52,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     );
   }
 
-  // Calculate cost - simplified: 1 social card + 1 banner (if requested)
-  const imageCount = parsed.data.includeCopy !== false ? 1 : 0; // 1 social card
-  const bannerCount = parsed.data.includeAdBanners ? 1 : 0; // 1 banner
+  // Calculate cost - 1 social card always generated + 1 banner (if requested)
+  const imageCount = 1; // Social cards always generated (includeSocialCards: true)
+  const bannerCount = parsed.data.includeAdBanners ? 1 : 0;
   const totalImageCost = (imageCount + bannerCount) * PROMO_IMAGE_COST;
   const copyCost =
     parsed.data.includeCopy !== false ? AD_COPY_GENERATION_COST : 0;
@@ -80,56 +80,76 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     includeCopy: parsed.data.includeCopy !== false,
   });
 
-  const result = await appPromotionAssetsService.generateAssetBundle(app, {
-    includeSocialCards: true,
-    includeAdBanners: parsed.data.includeAdBanners,
-    includeCopy: parsed.data.includeCopy,
-    targetAudience: parsed.data.targetAudience,
-    customPrompt: parsed.data.customPrompt,
-  });
+  try {
+    const result = await appPromotionAssetsService.generateAssetBundle(app, {
+      includeSocialCards: true,
+      includeAdBanners: parsed.data.includeAdBanners,
+      includeCopy: parsed.data.includeCopy,
+      targetAudience: parsed.data.targetAudience,
+      customPrompt: parsed.data.customPrompt,
+    });
 
-  // Refund for failed generations
-  const successfulImages = result.assets.length;
-  const failedImages = imageCount + bannerCount - successfulImages;
-  if (failedImages > 0) {
+    // Refund for failed generations
+    const successfulImages = result.assets.length;
+    const failedImages = imageCount + bannerCount - successfulImages;
+    if (failedImages > 0) {
+      await creditsService.refundCredits({
+        organizationId: user.organization_id,
+        amount: failedImages * PROMO_IMAGE_COST,
+        description: "Refund for failed asset generations",
+        metadata: { appId: id, failedCount: failedImages },
+      });
+    }
+
+    if (successfulImages > 0) {
+      const promotionalAssets = result.assets.map((asset) => ({
+        type: asset.type as "social_card" | "banner",
+        url: asset.url,
+        size: { width: asset.size.width, height: asset.size.height },
+        generatedAt: asset.generatedAt.toISOString(),
+      }));
+
+      await appsService.update(id, {
+        promotional_assets: promotionalAssets,
+      });
+
+      logger.info("[Promote Assets API] Saved promotional assets to app", {
+        appId: id,
+        assetCount: promotionalAssets.length,
+      });
+    }
+
+    return NextResponse.json({
+      assets: result.assets.map((asset) => ({
+        type: asset.type,
+        size: asset.size,
+        url: asset.url,
+        format: asset.format,
+        generatedAt: asset.generatedAt.toISOString(),
+      })),
+      copy: result.copy,
+      errors: result.errors,
+      creditsUsed: totalCost - failedImages * PROMO_IMAGE_COST,
+    });
+  } catch (error) {
+    // Full refund on complete failure
     await creditsService.refundCredits({
       organizationId: user.organization_id,
-      amount: failedImages * PROMO_IMAGE_COST,
-      description: "Refund for failed asset generations",
-      metadata: { appId: id, failedCount: failedImages },
-    });
-  }
-
-  if (successfulImages > 0) {
-    const promotionalAssets = result.assets.map((asset) => ({
-      type: asset.type as "social_card" | "banner",
-      url: asset.url,
-      size: { width: asset.size.width, height: asset.size.height },
-      generatedAt: asset.generatedAt.toISOString(),
-    }));
-
-    await appsService.update(id, {
-      promotional_assets: promotionalAssets,
+      amount: totalCost,
+      description: "Refund for failed asset generation",
+      metadata: { appId: id, reason: "generation_error" },
     });
 
-    logger.info("[Promote Assets API] Saved promotional assets to app", {
+    logger.error("[Promote Assets API] Generation failed", {
       appId: id,
-      assetCount: promotionalAssets.length,
+      error: error instanceof Error ? error.message : "Unknown error",
     });
-  }
 
-  return NextResponse.json({
-    assets: result.assets.map((asset) => ({
-      type: asset.type,
-      size: asset.size,
-      url: asset.url,
-      format: asset.format,
-      generatedAt: asset.generatedAt.toISOString(),
-    })),
-    copy: result.copy,
-    errors: result.errors,
-    creditsUsed: totalCost - failedImages * PROMO_IMAGE_COST,
-  });
+    return NextResponse.json(
+      { error: "Failed to generate assets. Credits have been refunded." },
+      { status: 500 }
+    );
+  }
 }
 
 export async function GET(request: NextRequest, { params }: RouteParams) {

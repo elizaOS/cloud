@@ -34,7 +34,7 @@ export interface GeneratedTweet {
 class TwitterAppAutomationService {
   private async getAppForOrg(
     organizationId: string,
-    appId: string,
+    appId: string
   ): Promise<App> {
     const app = await appsRepository.findById(appId);
     if (!app || app.organization_id !== organizationId) {
@@ -46,14 +46,14 @@ class TwitterAppAutomationService {
   async enableAutomation(
     organizationId: string,
     appId: string,
-    config: Partial<TwitterAutomationConfig>,
+    config: Partial<TwitterAutomationConfig>
   ): Promise<App> {
     const app = await this.getAppForOrg(organizationId, appId);
 
     const hasTwitter = await this.isTwitterConnected(organizationId);
     if (!hasTwitter) {
       throw new Error(
-        "Twitter account must be connected before enabling automation",
+        "Twitter account must be connected before enabling automation"
       );
     }
 
@@ -93,10 +93,7 @@ class TwitterAppAutomationService {
     return updated;
   }
 
-  async disableAutomation(
-    organizationId: string,
-    appId: string,
-  ): Promise<App> {
+  async disableAutomation(organizationId: string, appId: string): Promise<App> {
     const app = await this.getAppForOrg(organizationId, appId);
 
     const currentConfig = (app.twitter_automation ||
@@ -124,7 +121,7 @@ class TwitterAppAutomationService {
 
   async getAutomationStatus(
     organizationId: string,
-    appId: string,
+    appId: string
   ): Promise<{
     enabled: boolean;
     config: TwitterAutomationConfig | null;
@@ -153,7 +150,7 @@ class TwitterAppAutomationService {
       | "promotional"
       | "engagement"
       | "educational"
-      | "announcement" = "promotional",
+      | "announcement" = "promotional"
   ): Promise<GeneratedTweet> {
     const deduction = await creditsService.deductCredits({
       organizationId,
@@ -163,7 +160,9 @@ class TwitterAppAutomationService {
     });
 
     if (!deduction.success) {
-      throw new Error(`Insufficient credits for AI generation. Required: $${TWITTER_POST_COST.toFixed(4)}`);
+      throw new Error(
+        `Insufficient credits for AI generation. Required: $${TWITTER_POST_COST.toFixed(4)}`
+      );
     }
 
     const config = app.twitter_automation as TwitterAutomationConfig | null;
@@ -193,22 +192,32 @@ Requirements:
 
 Return ONLY the tweet text, nothing else.`;
 
-    const { text } = await generateText({
-      model: gateway.languageModel("anthropic/claude-sonnet-4"),
-      temperature: 0.8,
-      prompt,
-    });
+    try {
+      const { text } = await generateText({
+        model: gateway.languageModel("anthropic/claude-sonnet-4"),
+        temperature: 0.8,
+        prompt,
+      });
 
-    return {
-      text: text.trim().slice(0, 280),
-      type,
-    };
+      return {
+        text: text.trim().slice(0, 280),
+        type,
+      };
+    } catch (error) {
+      await creditsService.refundCredits({
+        organizationId,
+        amount: TWITTER_POST_COST,
+        description: "Refund for failed Twitter AI generation",
+        metadata: { appId: app.id, type: "twitter_tweet_refund" },
+      });
+      throw error;
+    }
   }
 
   async postAppTweet(
     organizationId: string,
     appId: string,
-    tweetText?: string,
+    tweetText?: string
   ): Promise<{
     success: boolean;
     tweetId?: string;
@@ -227,7 +236,11 @@ Return ONLY the tweet text, nothing else.`;
 
     let text = tweetText;
     if (!text) {
-      const generated = await this.generateAppTweet(organizationId, app, "promotional");
+      const generated = await this.generateAppTweet(
+        organizationId,
+        app,
+        "promotional"
+      );
       text = generated.text;
     }
 
@@ -238,8 +251,8 @@ Return ONLY the tweet text, nothing else.`;
         new Promise<never>((_, reject) =>
           setTimeout(
             () => reject(new Error("Twitter API timeout")),
-            TWITTER_API_TIMEOUT_MS,
-          ),
+            TWITTER_API_TIMEOUT_MS
+          )
         ),
       ]);
     } catch (error) {
@@ -278,13 +291,13 @@ Return ONLY the tweet text, nothing else.`;
   private async isTwitterConnected(organizationId: string): Promise<boolean> {
     const accessToken = await secretsService.get(
       organizationId,
-      "TWITTER_ACCESS_TOKEN",
+      "TWITTER_ACCESS_TOKEN"
     );
     return !!accessToken;
   }
 
   private async getTwitterClient(
-    organizationId: string,
+    organizationId: string
   ): Promise<TwitterApi | null> {
     const [accessToken, accessTokenSecret] = await Promise.all([
       secretsService.get(organizationId, "TWITTER_ACCESS_TOKEN"),
