@@ -99,7 +99,11 @@ export function CharacterForm({
 
   const handleCopyShareLink = async () => {
     if (!character.id) return;
-    const shareUrl = `${window.location.origin}/share/${character.id}`;
+    if (!character.username) {
+      toast.error("Set a username first to share this agent");
+      return;
+    }
+    const shareUrl = `${window.location.origin}/chat/@${character.username}`;
     try {
       await navigator.clipboard.writeText(shareUrl);
       toast.success("Share link copied!");
@@ -203,10 +207,10 @@ export function CharacterForm({
                   id="username"
                   value={character.username || ""}
                   onChange={(e) => {
-                    // Sanitize: remove @ prefix and allow only alphanumeric, underscore, hyphen
+                    // Sanitize: remove @ prefix and allow only alphanumeric and hyphen (no underscores - server rejects them)
                     const sanitized = e.target.value
                       .replace(/^@/, "")
-                      .replace(/[^a-zA-Z0-9_-]/g, "");
+                      .replace(/[^a-zA-Z0-9-]/g, "");
                     updateField("username", sanitized);
                   }}
                   placeholder="eliza"

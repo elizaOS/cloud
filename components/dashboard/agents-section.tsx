@@ -62,6 +62,7 @@ interface Agent {
   avatarUrl: string | null;
   category: string | null;
   isPublic: boolean;
+  username?: string | null;
   stats?: AgentStats;
 }
 
@@ -365,14 +366,22 @@ function AgentCard({ agent }: { agent: Agent }) {
     }
   };
 
-  const handleCopyShareLink = (e: React.MouseEvent) => {
+  const handleCopyShareLink = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setDropdownOpen(false);
 
-    const shareUrl = `${window.location.origin}/share/${agent.id}`;
-    navigator.clipboard.writeText(shareUrl);
-    toast.success("Share link copied!");
+    if (!agent.username) {
+      toast.error("Set a username first to share this agent");
+      return;
+    }
+    const shareUrl = `${window.location.origin}/chat/@${agent.username}`;
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      toast.success("Share link copied!");
+    } catch {
+      toast.error("Failed to copy link to clipboard");
+    }
   };
 
   const handleDeleteClick = (e: React.MouseEvent) => {

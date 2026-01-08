@@ -12,13 +12,24 @@ import {
 import { agentsRepository } from "@/db/repositories/agents/agents";
 import { usersService } from "../users";
 import { logger } from "@/lib/utils/logger";
-import { dbWrite } from "@/db/client";
-import { elizaRoomCharactersTable } from "@/db/schemas";
-import { eq, and } from "drizzle-orm";
+import { dbRead, dbWrite } from "@/db/client";
+import { elizaRoomCharactersTable, userCharacters, users } from "@/db/schemas";
+import {
+  memoryTable,
+  roomTable,
+  participantTable,
+} from "@/db/schemas/eliza";
+import { eq, and, ne, inArray, sql } from "drizzle-orm";
 import type { ElizaCharacter } from "@/lib/types";
 import type { Agent } from "@elizaos/core";
 import { cache } from "@/lib/cache/client";
 import { CacheKeys, CacheTTL } from "@/lib/cache/keys";
+import {
+  generateUsernameFromName,
+  generateUniqueUsername,
+  validateUsername,
+  RESERVED_USERNAMES,
+} from "@/lib/utils/agent-username";
 
 // Cache key for character data (longer TTL since characters rarely change)
 const characterCacheKey = (id: string) => `character:data:${id}`;
@@ -128,9 +139,84 @@ export class CharactersService {
     return await userCharactersRepository.listTemplates();
   }
 
+  /**
+   * Generate a unique username for a character.
+   * Uses the name to create a slug, then ensures uniqueness.
+   */
+  async generateUniqueUsername(name: string): Promise<string> {
+    // Get all existing usernames
+    const existingUsernames = await userCharactersRepository.getAllUsernames();
+
+    // Add reserved usernames
+    for (const reserved of RESERVED_USERNAMES) {
+      existingUsernames.add(reserved);
+    }
+
+    // Generate base username from name
+    const baseUsername = generateUsernameFromName(name);
+
+    // Make it unique
+    return generateUniqueUsername(baseUsername, existingUsernames);
+  }
+
+  /**
+   * Validate a username for update.
+   * Checks format and uniqueness (excluding the character's own username).
+   */
+  async validateUsernameForUpdate(
+    username: string,
+    characterId: string,
+  ): Promise<{ valid: boolean; error?: string }> {
+    // Validate format
+    const validation = validateUsername(username);
+    if (!validation.valid) {
+      return { valid: false, error: validation.error };
+    }
+
+    // Check uniqueness (excluding own character)
+    const existing = await userCharactersRepository.findByUsername(username);
+    if (existing && existing.id !== characterId) {
+      return { valid: false, error: "This username is already taken" };
+    }
+
+    return { valid: true };
+  }
+
+  /**
+   * Get a character by username.
+   */
+  async getByUsername(username: string): Promise<UserCharacter | undefined> {
+    return await userCharactersRepository.findByUsername(username);
+  }
+
   async create(data: NewUserCharacter): Promise<UserCharacter> {
-    // Create the character in user_characters table
-    const character = await userCharactersRepository.create(data);
+    // Generate username if not provided
+    let username = data.username;
+    if (!username) {
+      username = await this.generateUniqueUsername(data.name);
+      logger.info(`[Characters] Generated username: @${username} for "${data.name}"`);
+    } else {
+      // Validate provided username
+      const validation = validateUsername(username);
+      if (!validation.valid) {
+        throw new Error(`Invalid username: ${validation.error}`);
+      }
+
+      // Use normalized (lowercased) username from validation
+      username = validation.normalized!;
+
+      // Check uniqueness
+      const exists = await userCharactersRepository.usernameExists(username);
+      if (exists) {
+        throw new Error("Username is already taken");
+      }
+    }
+
+    // Create the character in user_characters table with username
+    const character = await userCharactersRepository.create({
+      ...data,
+      username,
+    });
 
     // Also create the agent in the ElizaOS agents table
     const agent: Partial<Agent> = {
@@ -175,6 +261,36 @@ export class CharactersService {
     const character = await this.getByIdForUser(characterId, userId);
     if (!character) {
       return null;
+    }
+
+    // If username is being updated, validate it
+    // Normalize before comparison to prevent validation bypass with different casing
+    // Handle null explicitly (allows clearing the username)
+    if (updates.username !== undefined) {
+      if (updates.username === null) {
+        // Allow clearing username - no validation needed
+        logger.info(
+          `[Characters] Username cleared: @${character.username} → null`,
+        );
+      } else {
+        const normalizedUsername = updates.username.toLowerCase();
+        if (normalizedUsername !== character.username) {
+          const validation = await this.validateUsernameForUpdate(
+            normalizedUsername,
+            characterId,
+          );
+          if (!validation.valid) {
+            throw new Error(`Invalid username: ${validation.error}`);
+          }
+          updates.username = normalizedUsername;
+          logger.info(
+            `[Characters] Username updated: @${character.username} → @${updates.username}`,
+          );
+        } else {
+          // Same username after normalization, ensure it's stored normalized
+          updates.username = normalizedUsername;
+        }
+      }
     }
 
     const updated = await userCharactersRepository.update(characterId, updates);
@@ -424,6 +540,318 @@ export class CharactersService {
     return {
       success: true,
       message: `Character "${updated.name}" has been added to your account`,
+    };
+  }
+
+  // ============================================================================
+  // Saved Agents Methods
+  // ============================================================================
+
+  /**
+   * Get all saved agents for a user.
+   * Saved agents are public agents the user has interacted with but doesn't own.
+   *
+   * @param userId - The ID of the user to get saved agents for
+   * @returns Array of saved agents with their details and last interaction time
+   */
+  async getSavedAgentsForUser(userId: string): Promise<
+    Array<{
+      id: string;
+      name: string;
+      username: string | null;
+      avatar_url: string | null;
+      bio: string | string[] | null;
+      owner_id: string;
+      owner_name: string | null;
+      last_interaction_time: string;
+    }>
+  > {
+    logger.debug("[Characters] Fetching saved agents for user:", { userId });
+
+    // Query for distinct agents the user has chatted with
+    // - entity_id = current user (messages from this user)
+    // - user_id != current user (not owned by this user)
+    // - is_public = true (only public agents)
+    // Joins with users table to get owner's display name
+    /**
+     * Performance note: This query benefits from indexes on:
+     * - memoryTable(entityId, agentId) - for the WHERE and JOIN
+     * - userCharacters(id) - primary key, already indexed
+     * - userCharacters(user_id, is_public) - for the WHERE conditions
+     */
+    const savedAgents = await dbRead
+      .select({
+        id: userCharacters.id,
+        name: userCharacters.name,
+        username: userCharacters.username,
+        avatar_url: userCharacters.avatar_url,
+        bio: userCharacters.bio,
+        owner_id: userCharacters.user_id,
+        owner_name: sql<string | null>`COALESCE(${users.name}, ${users.nickname})`.as(
+          "owner_name"
+        ),
+        last_interaction_time: sql<string>`MAX(${memoryTable.createdAt})`.as(
+          "last_interaction_time"
+        ),
+      })
+      .from(memoryTable)
+      .innerJoin(userCharacters, eq(memoryTable.agentId, userCharacters.id))
+      .leftJoin(users, eq(userCharacters.user_id, users.id))
+      .where(
+        and(
+          eq(memoryTable.entityId, userId),
+          ne(userCharacters.user_id, userId),
+          eq(userCharacters.is_public, true)
+        )
+      )
+      .groupBy(
+        userCharacters.id,
+        userCharacters.name,
+        userCharacters.username,
+        userCharacters.avatar_url,
+        userCharacters.bio,
+        userCharacters.user_id,
+        users.name,
+        users.nickname
+      )
+      .orderBy(sql`MAX(${memoryTable.createdAt}) DESC`);
+
+    logger.debug("[Characters] Found saved agents:", {
+      userId,
+      count: savedAgents.length,
+    });
+
+    return savedAgents;
+  }
+
+  /**
+   * Get details for a specific saved agent.
+   * Verifies user has access (has interacted with agent and doesn't own it).
+   *
+   * @param userId - The ID of the user
+   * @param agentId - The ID of the agent to get details for
+   * @returns Agent details with stats, or null if not found/no access
+   */
+  async getSavedAgentDetails(
+    userId: string,
+    agentId: string
+  ): Promise<{
+    agent: {
+      id: string;
+      name: string;
+      username: string | null;
+      avatar_url: string | null;
+      owner_id: string;
+    };
+    stats: {
+      message_count: number;
+      room_count: number;
+    };
+  } | null> {
+    logger.debug("[Characters] Getting saved agent details:", {
+      userId,
+      agentId,
+    });
+
+    // Verify this is a saved agent (user doesn't own it and it's public)
+    const agent = await dbRead.query.userCharacters.findFirst({
+      where: and(
+        eq(userCharacters.id, agentId),
+        ne(userCharacters.user_id, userId),
+        eq(userCharacters.is_public, true)
+      ),
+    });
+
+    if (!agent) {
+      return null;
+    }
+
+    // Get count of memories/messages the user has with this agent
+    const messageResult = await dbRead
+      .select({ count: sql<number>`count(*)` })
+      .from(memoryTable)
+      .where(
+        and(eq(memoryTable.entityId, userId), eq(memoryTable.agentId, agentId))
+      );
+    const messageCount = messageResult[0]?.count ?? 0;
+
+    // Get rooms count for this user+agent combination
+    const roomResult = await dbRead
+      .select({ count: sql<number>`count(*)` })
+      .from(roomTable)
+      .innerJoin(participantTable, eq(roomTable.id, participantTable.roomId))
+      .where(
+        and(
+          eq(roomTable.agentId, agentId),
+          eq(participantTable.entityId, userId)
+        )
+      );
+    const roomCount = roomResult[0]?.count ?? 0;
+
+    return {
+      agent: {
+        id: agent.id,
+        name: agent.name,
+        username: agent.username,
+        avatar_url: agent.avatar_url,
+        owner_id: agent.user_id,
+      },
+      stats: {
+        message_count: Number(messageCount),
+        room_count: Number(roomCount),
+      },
+    };
+  }
+
+  /**
+   * Remove a saved agent from the user's list.
+   * This permanently deletes:
+   * - All conversation history (memories) between user and agent
+   * - Room associations for user with this agent
+   * - Empty rooms (rooms with no remaining participants)
+   *
+   * @param userId - The ID of the user
+   * @param agentId - The ID of the agent to remove
+   * @returns Result with success status and deletion stats, or error info
+   */
+  async removeSavedAgent(
+    userId: string,
+    agentId: string
+  ): Promise<
+    | {
+        success: true;
+        deleted: {
+          memories: number;
+          participants: number;
+          rooms: number;
+        };
+      }
+    | { success: false; error: string }
+  > {
+    logger.info("[Characters] Removing saved agent:", { userId, agentId });
+
+    // Verify this is a saved agent (not owned by user)
+    const agent = await dbRead.query.userCharacters.findFirst({
+      where: and(
+        eq(userCharacters.id, agentId),
+        ne(userCharacters.user_id, userId)
+      ),
+    });
+
+    if (!agent) {
+      return { success: false, error: "Agent not found or you own this agent" };
+    }
+
+    // Find all rooms where this user is a participant with this agent
+    const userRooms = await dbRead
+      .select({ roomId: participantTable.roomId })
+      .from(participantTable)
+      .innerJoin(roomTable, eq(participantTable.roomId, roomTable.id))
+      .where(
+        and(
+          eq(participantTable.entityId, userId),
+          eq(roomTable.agentId, agentId)
+        )
+      );
+
+    const roomIds = userRooms.map((r) => r.roomId);
+
+    // Use transaction to ensure atomicity of all delete operations
+    const { deletedMemories, deletedParticipants, deletedRooms } = await dbWrite.transaction(async (tx) => {
+      let memoryCount = 0;
+      let participantCount = 0;
+      let roomCount = 0;
+
+      if (roomIds.length > 0) {
+        // Delete memories in these rooms for this user
+        // Note: We only delete memories where entityId = user.id to preserve
+        // the agent's memories and other users' data
+        const memoryResult = await tx
+          .delete(memoryTable)
+          .where(
+            and(
+              eq(memoryTable.entityId, userId),
+              inArray(memoryTable.roomId, roomIds)
+            )
+          )
+          .returning({ id: memoryTable.id });
+        memoryCount = memoryResult.length;
+
+        // Delete participant records for this user in these rooms
+        const participantResult = await tx
+          .delete(participantTable)
+          .where(
+            and(
+              eq(participantTable.entityId, userId),
+              inArray(participantTable.roomId, roomIds)
+            )
+          )
+          .returning({ id: participantTable.id });
+        participantCount = participantResult.length;
+
+        // For DM rooms (1:1), check if we should delete the room entirely
+        // Only delete rooms where no other participants remain
+        // PERFORMANCE: Use batch query instead of N+1 individual queries
+        const roomParticipantCounts = await tx
+          .select({
+            roomId: participantTable.roomId,
+            count: sql<number>`count(*)`.as("count"),
+          })
+          .from(participantTable)
+          .where(inArray(participantTable.roomId, roomIds))
+          .groupBy(participantTable.roomId);
+
+        // Create a map for quick lookup
+        const participantCountMap = new Map(
+          roomParticipantCounts.map((r) => [r.roomId, Number(r.count)])
+        );
+
+        // Find rooms with no remaining participants (count = 0 or not in results)
+        const emptyRoomIds = roomIds.filter(
+          (roomId) => !participantCountMap.has(roomId) || participantCountMap.get(roomId) === 0
+        );
+
+        // Delete all empty rooms in a single batch query
+        if (emptyRoomIds.length > 0) {
+          await tx
+            .delete(roomTable)
+            .where(inArray(roomTable.id, emptyRoomIds));
+          roomCount = emptyRoomIds.length;
+        }
+      }
+
+      // Also delete any memories directly tied to this agent+user combination
+      // that might be in other rooms (e.g., world rooms, etc.)
+      const directMemoryResult = await tx
+        .delete(memoryTable)
+        .where(
+          and(eq(memoryTable.entityId, userId), eq(memoryTable.agentId, agentId))
+        )
+        .returning({ id: memoryTable.id });
+      memoryCount += directMemoryResult.length;
+
+      return {
+        deletedMemories: memoryCount,
+        deletedParticipants: participantCount,
+        deletedRooms: roomCount,
+      };
+    });
+
+    logger.info("[Characters] Removed saved agent:", {
+      userId,
+      agentId,
+      deletedMemories,
+      deletedParticipants,
+      deletedRooms,
+    });
+
+    return {
+      success: true,
+      deleted: {
+        memories: deletedMemories,
+        participants: deletedParticipants,
+        rooms: deletedRooms,
+      },
     };
   }
 }
