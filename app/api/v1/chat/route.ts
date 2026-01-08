@@ -3,12 +3,16 @@ import { gateway } from "@ai-sdk/gateway";
 import { requireAuthOrApiKey } from "@/lib/auth";
 import { getAnonymousUser, checkAnonymousLimit } from "@/lib/auth-anonymous";
 import { conversationsService } from "@/lib/services/conversations";
-import { creditsService } from "@/lib/services/credits";
 import { usageService } from "@/lib/services/usage";
 import { generationsService } from "@/lib/services/generations";
 import { organizationsService } from "@/lib/services/organizations";
 import { anonymousSessionsService } from "@/lib/services/anonymous-sessions";
 import { contentModerationService } from "@/lib/services/content-moderation";
+import {
+  creditsService,
+  InsufficientCreditsError,
+  type CreditReservation,
+} from "@/lib/services/credits";
 import {
   calculateCost,
   getProviderFromModel,
@@ -159,75 +163,38 @@ async function handlePOST(req: NextRequest) {
       });
     }
 
-    // For authenticated users: Check credit balance BEFORE starting stream
-    if (!isAnonymous) {
-      if (!user.organization_id) {
-        return NextResponse.json(
-          { error: "Organization not found for authenticated user" },
-          { status: 500 },
-        );
-      }
+    // Reserve credits BEFORE making API call (prevents TOCTOU race condition)
+    let reservation: CreditReservation =
+      creditsService.createAnonymousReservation();
 
-      const org = await organizationsService.getById(user.organization_id);
-      if (!org) {
-        logger.error("chat-api", "Organization not found", {
-          organizationId: user.organization_id,
-        });
-        return NextResponse.json(
-          { error: "Organization not found" },
-          { status: 404 },
-        );
-      }
-
-      const balance = Number(org.credit_balance) || 0;
-
-      // STRICT CHECK: Block users with zero or negative balance immediately
-      if (balance <= 0) {
-        logger.warn("chat-api", "Zero or negative balance", {
-          organizationId: user.organization_id,
-          balance: org.credit_balance,
-        });
-        return NextResponse.json(
-          {
-            error: "Insufficient balance",
-            details: `Your credit balance is $${balance.toFixed(2)}. Please add credits to continue.`,
-          },
-          { status: 402 },
-        );
-      }
-
-      // Also check against estimated cost for users with positive but low balance
+    if (!isAnonymous && user.organization_id) {
       const messageText = messages
         .map((m) =>
           m.parts.map((p) => (p.type === "text" ? p.text : "")).join(""),
         )
         .join(" ");
       const estimatedInputTokens = estimateTokens(messageText);
-      const estimatedOutputTokens = 500;
 
-      const { totalCost: estimatedCost } = await calculateCost(
-        selectedModel,
-        provider,
-        estimatedInputTokens,
-        estimatedOutputTokens,
-      );
-
-      // Ensure minimum cost of $0.01 to prevent bypass with 0-cost calculations
-      const effectiveEstimatedCost = Math.max(estimatedCost, 0.01);
-
-      if (balance < effectiveEstimatedCost) {
-        logger.warn("chat-api", "Insufficient credits", {
+      try {
+        reservation = await creditsService.reserve({
           organizationId: user.organization_id,
-          required: effectiveEstimatedCost,
-          balance: balance,
+          model: selectedModel,
+          provider,
+          estimatedInputTokens,
+          userId: user.id,
+          description: `Chat: ${selectedModel}`,
         });
-        return NextResponse.json(
-          {
-            error: "Insufficient balance",
-            details: `Required: $${effectiveEstimatedCost.toFixed(4)}, Available: $${balance.toFixed(2)}`,
-          },
-          { status: 402 },
-        );
+      } catch (error) {
+        if (error instanceof InsufficientCreditsError) {
+          return NextResponse.json(
+            {
+              error: "Insufficient balance",
+              details: error.message,
+            },
+            { status: 402 },
+          );
+        }
+        throw error;
       }
     }
 
@@ -265,30 +232,12 @@ async function handlePOST(req: NextRequest) {
             usage.outputTokens || 0,
           );
 
-          // Only deduct credits for authenticated users
-          let deductionResult: { success: boolean; newBalance: string } = {
-            success: true,
-            newBalance: "0",
-          };
+          // Reconcile credits (refund excess if actual < reserved)
+          // For anonymous users, reservation.reconcile is a no-op
+          await reservation.reconcile(totalCost);
 
-          if (!isAnonymous && user.organization_id) {
-            const result = await creditsService.deductCredits({
-              organizationId: user.organization_id!,
-              amount: totalCost,
-              description: `Chat completion: ${selectedModel}`,
-              metadata: {
-                user_id: user.id,
-                model: selectedModel,
-              },
-            });
-
-            // Convert to expected type
-            deductionResult = {
-              success: result.success,
-              newBalance: String(result.newBalance),
-            };
-          } else if (isAnonymous && anonymousSession) {
-            // Track token usage for analytics (no billing)
+          // Track token usage for anonymous users (no credits, just analytics)
+          if (isAnonymous && anonymousSession) {
             await anonymousSessionsService.addTokenUsage(
               anonymousSession.id,
               (usage.inputTokens || 0) + (usage.outputTokens || 0),
@@ -299,23 +248,6 @@ async function handlePOST(req: NextRequest) {
               tokens: (usage.inputTokens || 0) + (usage.outputTokens || 0),
               model: selectedModel,
             });
-          }
-
-          if (!deductionResult.success) {
-            // CRITICAL: This should rarely happen since we checked credits before streaming
-            // But it can happen if credits were spent elsewhere between check and stream completion
-            logger.error(
-              "chat-api",
-              "CRITICAL: Failed to deduct credits after streaming - race condition detected",
-              {
-                userId: user.id,
-                organizationId: user.organization_id,
-                cost: String(totalCost),
-                balance: deductionResult.newBalance,
-              },
-            );
-            // Stream has already completed, so we can't return an error
-            // This should trigger an alert for manual review
           }
 
           if (conversationId) {

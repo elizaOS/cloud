@@ -115,7 +115,7 @@ export function FeedbackModal({
 
           <div className="space-y-2">
             <Label htmlFor="feedback-comment" className="text-white/80">
-              Your Feedback <span className="text-red-500">*</span>
+              Feedback<span className="text-red-500 -ml-0.5">*</span>
             </Label>
             <Textarea
               id="feedback-comment"

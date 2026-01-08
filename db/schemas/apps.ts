@@ -4,6 +4,7 @@ import {
   integer,
   jsonb,
   numeric,
+  pgEnum,
   pgTable,
   text,
   timestamp,
@@ -13,6 +14,25 @@ import {
 import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
 import { organizations } from "./organizations";
 import { users } from "./users";
+
+/**
+ * App deployment status enum.
+ * Tracks the deployment lifecycle of an app.
+ */
+export const appDeploymentStatusEnum = pgEnum("app_deployment_status", [
+  "draft", // App created but not yet deployed
+  "building", // App is being built
+  "deploying", // App is being deployed to production
+  "deployed", // App is live and accessible
+  "failed", // Deployment failed
+]);
+
+export type AppDeploymentStatus =
+  | "draft"
+  | "building"
+  | "deploying"
+  | "deployed"
+  | "failed";
 
 /**
  * Apps table schema.
@@ -40,6 +60,9 @@ export const apps = pgTable(
 
     // App URL and security
     app_url: text("app_url").notNull(), // Primary app URL
+
+    // GitHub repository for this app (org/repo format or just repo name)
+    github_repo: text("github_repo"), // e.g., "eliza-cloud-apps/app-my-app"
     allowed_origins: jsonb("allowed_origins")
       .$type<string[]>()
       .notNull()
@@ -137,6 +160,13 @@ export const apps = pgTable(
       .$type<Record<string, unknown>>()
       .default({})
       .notNull(),
+
+    // Deployment status
+    deployment_status: appDeploymentStatusEnum("deployment_status")
+      .notNull()
+      .default("draft"),
+    production_url: text("production_url"), // Actual deployed URL (only set after successful deployment)
+    last_deployed_at: timestamp("last_deployed_at"), // When the app was last deployed
 
     // Status
     is_active: boolean("is_active").default(true).notNull(),
@@ -276,6 +306,61 @@ export const appAnalytics = pgTable(
   }),
 );
 
+/**
+ * App requests table schema.
+ *
+ * Logs individual API requests for detailed analytics and debugging.
+ * Provides granular visibility into app usage patterns.
+ */
+export const appRequests = pgTable(
+  "app_requests",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+
+    app_id: uuid("app_id")
+      .notNull()
+      .references(() => apps.id, { onDelete: "cascade" }),
+
+    request_type: text("request_type").notNull(), // 'chat', 'image', 'video', 'voice', 'agent'
+    source: text("source").notNull().default("api_key"), // 'sandbox_preview', 'api_key', 'embed'
+
+    ip_address: text("ip_address"),
+    user_agent: text("user_agent"),
+    country: text("country"), // Derived from IP
+    city: text("city"), // Derived from IP
+
+    user_id: uuid("user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+
+    model: text("model"),
+    input_tokens: integer("input_tokens").default(0),
+    output_tokens: integer("output_tokens").default(0),
+    credits_used: numeric("credits_used", { precision: 10, scale: 6 }).default(
+      "0.00",
+    ),
+
+    response_time_ms: integer("response_time_ms"),
+    status: text("status").notNull().default("success"), // 'success', 'failed', 'rate_limited'
+    error_message: text("error_message"),
+
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}),
+
+    created_at: timestamp("created_at").notNull().defaultNow(),
+  },
+  (table) => ({
+    app_id_idx: index("app_requests_app_id_idx").on(table.app_id),
+    created_at_idx: index("app_requests_created_at_idx").on(table.created_at),
+    request_type_idx: index("app_requests_type_idx").on(table.request_type),
+    source_idx: index("app_requests_source_idx").on(table.source),
+    ip_idx: index("app_requests_ip_idx").on(table.ip_address),
+    app_created_idx: index("app_requests_app_created_idx").on(
+      table.app_id,
+      table.created_at,
+    ),
+  }),
+);
+
 // Type inference
 export type App = InferSelectModel<typeof apps>;
 export type NewApp = InferInsertModel<typeof apps>;
@@ -283,3 +368,5 @@ export type AppUser = InferSelectModel<typeof appUsers>;
 export type NewAppUser = InferInsertModel<typeof appUsers>;
 export type AppAnalytics = InferSelectModel<typeof appAnalytics>;
 export type NewAppAnalytics = InferInsertModel<typeof appAnalytics>;
+export type AppRequest = InferSelectModel<typeof appRequests>;
+export type NewAppRequest = InferInsertModel<typeof appRequests>;

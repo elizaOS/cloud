@@ -3,6 +3,9 @@
  * Provides tabs for overview, AI builder, analytics, earnings, users, monetization, and settings.
  * Syncs active tab with URL search parameters.
  *
+ * Note: The "Build" tab redirects to the unified App Creator page at /dashboard/apps/create
+ * for the full-featured AI builder experience with GitHub integration, deploys, etc.
+ *
  * @param props - App details tabs configuration
  * @param props.app - App data
  * @param props.showApiKey - Optional API key to display in overview
@@ -20,6 +23,9 @@ import {
   DollarSign,
   TrendingUp,
   Sparkles,
+  Globe,
+  Megaphone,
+  ExternalLink,
 } from "lucide-react";
 import { AppOverview } from "./app-overview";
 import { AppSettings } from "./app-settings";
@@ -27,7 +33,8 @@ import { AppAnalytics } from "./app-analytics";
 import { AppUsers } from "./app-users";
 import { AppMonetizationSettings } from "./app-monetization-settings";
 import { AppEarningsDashboard } from "./app-earnings-dashboard";
-import { AppAIBuilder } from "./app-ai-builder";
+import { AppDomains } from "./app-domains";
+import { AppPromote } from "./app-promote";
 import type { App } from "@/db/schemas";
 
 interface AppDetailsTabsProps {
@@ -41,6 +48,12 @@ export function AppDetailsTabs({ app, showApiKey }: AppDetailsTabsProps) {
   const tab = searchParams.get("tab") || "overview";
 
   const handleTabChange = (value: string) => {
+    // Redirect "build" tab to the unified App Creator page for the full experience
+    if (value === "build") {
+      router.push(`/dashboard/apps/create?appId=${app.id}`);
+      return;
+    }
+
     const params = new URLSearchParams(searchParams.toString());
     params.set("tab", value);
     router.push(`/dashboard/apps/${app.id}?${params.toString()}`, {
@@ -50,7 +63,7 @@ export function AppDetailsTabs({ app, showApiKey }: AppDetailsTabsProps) {
 
   return (
     <Tabs value={tab} onValueChange={handleTabChange} className="space-y-6">
-      <TabsList className="grid w-full max-w-3xl grid-cols-7 bg-white/5">
+      <TabsList className="grid w-full max-w-5xl grid-cols-9 bg-white/5">
         <TabsTrigger value="overview" className="flex items-center gap-2">
           <Grid3x3 className="h-4 w-4" />
           <span className="hidden sm:inline">Overview</span>
@@ -58,6 +71,15 @@ export function AppDetailsTabs({ app, showApiKey }: AppDetailsTabsProps) {
         <TabsTrigger value="build" className="flex items-center gap-2">
           <Sparkles className="h-4 w-4" />
           <span className="hidden sm:inline">Build</span>
+          <ExternalLink className="h-3 w-3 opacity-50 hidden sm:inline" />
+        </TabsTrigger>
+        <TabsTrigger value="domains" className="flex items-center gap-2">
+          <Globe className="h-4 w-4" />
+          <span className="hidden sm:inline">Domains</span>
+        </TabsTrigger>
+        <TabsTrigger value="promote" className="flex items-center gap-2">
+          <Megaphone className="h-4 w-4" />
+          <span className="hidden sm:inline">Promote</span>
         </TabsTrigger>
         <TabsTrigger value="analytics" className="flex items-center gap-2">
           <BarChart3 className="h-4 w-4" />
@@ -85,8 +107,14 @@ export function AppDetailsTabs({ app, showApiKey }: AppDetailsTabsProps) {
         <AppOverview app={app} showApiKey={showApiKey} />
       </TabsContent>
 
-      <TabsContent value="build">
-        <AppAIBuilder app={app} />
+      {/* Build tab redirects to /dashboard/apps/create?appId={id} for the unified App Creator */}
+
+      <TabsContent value="domains">
+        <AppDomains appId={app.id} />
+      </TabsContent>
+
+      <TabsContent value="promote">
+        <AppPromote app={app} />
       </TabsContent>
 
       <TabsContent value="analytics">

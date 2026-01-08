@@ -5,17 +5,45 @@ import {
   getOrCreateAnonymousUser,
 } from "@/lib/auth-anonymous";
 import { usageService } from "@/lib/services/usage";
-import { creditsService } from "@/lib/services/credits";
 import { generationsService } from "@/lib/services/generations";
 import { discordService } from "@/lib/services/discord";
+import { appsService } from "@/lib/services/apps";
 import { IMAGE_GENERATION_COST } from "@/lib/pricing";
 import { uploadBase64Image } from "@/lib/blob";
 import { withRateLimit, RateLimitPresets } from "@/lib/middleware/rate-limit";
 import { logger } from "@/lib/utils/logger";
+import {
+  creditsService,
+  InsufficientCreditsError,
+  type CreditReservation,
+} from "@/lib/services/credits";
 import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import type { UserWithOrganization } from "@/lib/types";
 
 export const maxDuration = 30;
+
+// CORS headers - fully open, security via auth tokens
+function getCorsHeaders(_origin: string | null) {
+  return {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers":
+      "Content-Type, Authorization, X-API-Key, X-Request-ID",
+    "Access-Control-Max-Age": "86400",
+  };
+}
+
+/**
+ * OPTIONS handler for CORS preflight
+ */
+export async function OPTIONS(request: NextRequest) {
+  const origin = request.headers.get("origin");
+  return new NextResponse(null, {
+    status: 204,
+    headers: getCorsHeaders(origin),
+  });
+}
 
 const IMAGE_MODEL = "google/gemini-2.5-flash-image";
 const IMAGE_PROVIDER = "google";
@@ -134,10 +162,35 @@ async function handlePOST(req: NextRequest) {
     }
 
     // Calculate total cost based on number of images
-    const totalCost = IMAGE_GENERATION_COST * numImages;
+    const estimatedCost = IMAGE_GENERATION_COST * numImages;
+
+    // Reserve credits BEFORE generation to prevent TOCTOU race condition
+    let reservation: CreditReservation;
+    if (!isAnonymous && user.organization_id) {
+      try {
+        reservation = await creditsService.reserve({
+          organizationId: user.organization_id,
+          amount: estimatedCost,
+          userId: user.id,
+          description: `Image generation (${numImages}x): ${IMAGE_MODEL}`,
+        });
+      } catch (error) {
+        if (error instanceof InsufficientCreditsError) {
+          return Response.json(
+            {
+              error: "Insufficient credits for image generation",
+              required: error.required,
+            },
+            { status: 402 },
+          );
+        }
+        throw error;
+      }
+    } else {
+      reservation = creditsService.createAnonymousReservation();
+    }
 
     // Only create generation record for authenticated users with an organization
-    // Note: We set credits/cost to 0 initially - they'll be updated with actualCost on completion
     if (!isAnonymous && user.organization_id) {
       const generation = await generationsService.create({
         organization_id: user.organization_id,
@@ -290,6 +343,9 @@ async function handlePOST(req: NextRequest) {
     );
 
     if (successfulResults.length === 0) {
+      // Reconcile with 0 cost (full refund)
+      await reservation.reconcile(0);
+
       // Only create usage record for authenticated users
       if (!isAnonymous && user.organization_id) {
         const usageRecord = await usageService.create({
@@ -325,47 +381,16 @@ async function handlePOST(req: NextRequest) {
       );
     }
 
-    // Calculate actual cost based on successful images
+    // Calculate actual cost based on successful images and reconcile
     const actualCost = IMAGE_GENERATION_COST * successfulResults.length;
-    let deductionResult: { success: boolean; newBalance: number } = {
-      success: true,
-      newBalance: 0,
-    };
+    await reservation.reconcile(actualCost);
 
-    // Only deduct credits for authenticated users with an organization
-    if (!isAnonymous && user.organization_id) {
-      deductionResult = await creditsService.deductCredits({
-        organizationId: user.organization_id,
-        amount: actualCost,
-        description: `Image generation (${successfulResults.length}x): ${IMAGE_MODEL}`,
-        metadata: { user_id: user.id },
-        session_token,
+    if (!isAnonymous) {
+      logger.info("[Generate Image] Credits reconciled", {
+        reserved: reservation.reservedAmount,
+        actual: actualCost,
+        refunded: reservation.reservedAmount - actualCost,
       });
-
-      // Fail the request if credit deduction fails for authenticated users
-      if (!deductionResult.success) {
-        logger.error(
-          "[Generate Image] Failed to deduct credits - insufficient balance",
-          {
-            organizationId: user.organization_id,
-            cost: String(actualCost),
-            balance: deductionResult.newBalance,
-          },
-        );
-
-        return Response.json(
-          {
-            error: "Insufficient credits to complete image generation",
-            required: actualCost,
-            available: deductionResult.newBalance,
-          },
-          { status: 402 }, // Payment Required
-        );
-      }
-    } else {
-      logger.info(
-        "[Generate Image] Anonymous user - skipping credit deduction",
-      );
     }
 
     // Only create usage record for authenticated users
@@ -385,6 +410,25 @@ async function handlePOST(req: NextRequest) {
         is_successful: true,
       });
       usageRecordId = usageRecord.id;
+
+      if (apiKey) {
+        const ipAddress =
+          req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+          req.headers.get("x-real-ip") ||
+          "unknown";
+        const userAgent = req.headers.get("user-agent") || "unknown";
+
+        await appsService.trackDetailedRequest(apiKey.id, {
+          requestType: "image",
+          source: "api_key",
+          ipAddress,
+          userAgent,
+          userId: user.id,
+          model: IMAGE_MODEL,
+          creditsUsed: String(actualCost),
+          status: "success",
+        });
+      }
     }
 
     // Upload all images to Vercel Blob
@@ -528,7 +572,7 @@ async function handlePOST(req: NextRequest) {
 
     if (!isAnonymous) {
       logger.info(
-        `[Generate Image] Generated ${successfulResults.length} image(s), Cost: $${actualCost.toFixed(2)}, New balance: $${deductionResult.newBalance.toFixed(2)}`,
+        `[Generate Image] Generated ${successfulResults.length} image(s), Cost: $${actualCost.toFixed(2)}`,
       );
     } else {
       logger.info(

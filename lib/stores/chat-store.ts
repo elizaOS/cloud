@@ -25,6 +25,42 @@ export interface Character {
   name: string;
   username?: string;
   avatarUrl?: string;
+  bio?: string;
+  creatorUsername?: string;
+  ownerId?: string;
+}
+
+export type ViewerState = "unauthenticated" | "non-owner" | "owner";
+
+/**
+ * Compute viewer state based on authentication and character ownership.
+ * Centralized helper to prevent race conditions between setAuthState and setSelectedCharacterId.
+ */
+function computeViewerState(
+  isAuthenticated: boolean,
+  currentUserId: string | null,
+  selectedCharacterId: string | null,
+  availableCharacters: Character[],
+): ViewerState {
+  if (!isAuthenticated || !currentUserId) {
+    return "unauthenticated";
+  }
+
+  // No character selected = creator mode = owner
+  if (!selectedCharacterId) {
+    return "owner";
+  }
+
+  // Check if user owns the selected character
+  const selectedChar = availableCharacters.find(
+    (c) => c.id === selectedCharacterId,
+  );
+  // Only treat as owner if ownerId explicitly matches - missing ownerId means unknown ownership
+  if (selectedChar?.ownerId === currentUserId) {
+    return "owner";
+  }
+
+  return "non-owner";
 }
 
 interface ChatState {
@@ -37,6 +73,12 @@ interface ChatState {
   pendingMessage: string | null; // Message from landing page to auto-send
   loadRoomsPromise: Promise<void> | null; // Track ongoing loadRooms operation
   anonymousSessionToken: string | null; // Session token for anonymous users (from URL)
+  recentlyDeletedRoomIds: Set<string>; // Track recently deleted rooms to prevent re-adding
+
+  // Viewer state for public agent access control
+  isAuthenticated: boolean;
+  viewerState: ViewerState;
+  currentUserId: string | null; // The logged-in user's ID
 
   // Actions
   setRooms: (rooms: RoomItem[]) => void;
@@ -46,13 +88,21 @@ interface ChatState {
   setSelectedCharacterId: (characterId: string | null) => void;
   setPendingMessage: (message: string | null) => void;
   setAnonymousSessionToken: (token: string | null) => void;
+  setAuthState: (isAuthenticated: boolean, userId: string | null) => void;
+  /**
+   * Atomically set auth state and character selection together.
+   * Use this when both need to be updated to prevent race conditions.
+   */
+  initializeState: (params: {
+    isAuthenticated: boolean;
+    userId: string | null;
+    characters: Character[];
+    selectedCharacterId: string | null;
+  }) => void;
   updateRoom: (roomId: string, updates: Partial<Omit<RoomItem, "id">>) => void;
   updateCharacterAvatar: (characterId: string, avatarUrl: string) => void;
   loadRooms: (force?: boolean) => Promise<void>;
-  createRoom: (
-    characterId?: string | null,
-    skipLoadRooms?: boolean,
-  ) => Promise<string | null>;
+  createRoom: (characterId?: string | null) => Promise<string | null>;
   deleteRoom: (roomId: string) => Promise<void>;
   clearChatData: () => void;
 }
@@ -67,6 +117,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
   pendingMessage: null,
   loadRoomsPromise: null,
   anonymousSessionToken: null,
+  recentlyDeletedRoomIds: new Set<string>(),
+
+  // Viewer state
+  isAuthenticated: false,
+  viewerState: "unauthenticated" as ViewerState,
+  currentUserId: null,
 
   // Setters
   setRooms: (rooms) => set({ rooms }),
@@ -79,10 +135,61 @@ export const useChatStore = create<ChatState>((set, get) => ({
   setIsLoadingRooms: (isLoading) => set({ isLoadingRooms: isLoading }),
   setAvailableCharacters: (characters) =>
     set({ availableCharacters: characters }),
-  setSelectedCharacterId: (characterId) =>
-    set({ selectedCharacterId: characterId }),
+  setSelectedCharacterId: (characterId) => {
+    const { isAuthenticated, currentUserId, availableCharacters } = get();
+
+    // Use centralized helper to compute viewer state
+    const viewerState = computeViewerState(
+      isAuthenticated,
+      currentUserId,
+      characterId,
+      availableCharacters,
+    );
+
+    set({ selectedCharacterId: characterId, viewerState });
+  },
   setPendingMessage: (message) => set({ pendingMessage: message }),
   setAnonymousSessionToken: (token) => set({ anonymousSessionToken: token }),
+
+  // Set auth state and compute viewer state based on selected character ownership
+  setAuthState: (isAuthenticated, userId) => {
+    const { selectedCharacterId, availableCharacters } = get();
+
+    // Use centralized helper to compute viewer state
+    const viewerState = computeViewerState(
+      isAuthenticated,
+      userId,
+      selectedCharacterId,
+      availableCharacters,
+    );
+
+    set({ isAuthenticated, currentUserId: userId, viewerState });
+  },
+
+  // Atomically initialize auth state, characters, and selection together
+  // Prevents race conditions when all three need to be set during page initialization
+  initializeState: ({
+    isAuthenticated,
+    userId,
+    characters,
+    selectedCharacterId,
+  }) => {
+    // Compute viewer state with all the new values at once
+    const viewerState = computeViewerState(
+      isAuthenticated,
+      userId,
+      selectedCharacterId,
+      characters,
+    );
+
+    set({
+      isAuthenticated,
+      currentUserId: userId,
+      availableCharacters: characters,
+      selectedCharacterId,
+      viewerState,
+    });
+  },
 
   // Update an existing room's properties (for instant UI updates)
   updateRoom: (roomId: string, updates: Partial<Omit<RoomItem, "id">>) => {
@@ -93,7 +200,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
     set({ rooms: updatedRooms });
   },
 
-  // Update a character's avatar URL (used when avatar is generated in build mode)
   // Update a character's avatar URL (used when avatar is generated in build mode)
   updateCharacterAvatar: (characterId, avatarUrl) => {
     const { availableCharacters } = get();
@@ -117,80 +223,99 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const loadPromise = (async () => {
       set({ isLoadingRooms: true });
 
-      // Server derives entityId from authenticated user
-      const headers: Record<string, string> = {};
+      try {
+        // Server derives entityId from authenticated user
+        const headers: Record<string, string> = {};
 
-      // Pass anonymous session token if available (for affiliate flows)
-      if (anonymousSessionToken) {
-        headers["X-Anonymous-Session"] = anonymousSessionToken;
-      }
-
-      const res = await fetch(`/api/eliza/rooms`, {
-        headers,
-        credentials: "include",
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-
-        if (Array.isArray(data.rooms)) {
-          const roomItems: RoomItem[] = data.rooms
-            .slice(0, 20)
-            .map((r: RoomPreview) => ({
-              id: r.id,
-              characterId: r.characterId,
-              characterName: r.characterName,
-              lastText: r.lastText,
-              lastTime: r.lastTime,
-              title: r.title,
-              isLocked: r.isLocked,
-              isBuildRoom: r.isBuildRoom,
-            }));
-
-          const currentState = get();
-          const existingCharacterIds = new Set(
-            currentState.availableCharacters.map((c) => c.id),
-          );
-
-          const charactersFromRooms: Character[] = [];
-          for (const room of data.rooms as RoomPreview[]) {
-            if (
-              room.characterId &&
-              room.characterName &&
-              !existingCharacterIds.has(room.characterId)
-            ) {
-              charactersFromRooms.push({
-                id: room.characterId,
-                name: room.characterName,
-                avatarUrl: room.characterAvatarUrl,
-              });
-              existingCharacterIds.add(room.characterId);
-            }
-          }
-
-          const mergedCharacters = [
-            ...currentState.availableCharacters,
-            ...charactersFromRooms,
-          ];
-
-          let newSelectedCharacterId = currentState.selectedCharacterId;
-          if (
-            !newSelectedCharacterId &&
-            charactersFromRooms.length === 1 &&
-            currentState.availableCharacters.length === 0
-          ) {
-            newSelectedCharacterId = charactersFromRooms[0].id;
-          }
-
-          set({
-            rooms: roomItems,
-            availableCharacters: mergedCharacters,
-            selectedCharacterId: newSelectedCharacterId,
-          });
+        // Pass anonymous session token if available (for affiliate flows)
+        if (anonymousSessionToken) {
+          headers["X-Anonymous-Session"] = anonymousSessionToken;
         }
-      }
 
-      set({ isLoadingRooms: false, loadRoomsPromise: null });
+        const res = await fetch(`/api/eliza/rooms`, {
+          headers,
+          credentials: "include",
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+
+          if (Array.isArray(data.rooms)) {
+            const roomItems: RoomItem[] = data.rooms
+              .slice(0, 20)
+              .map((r: RoomPreview) => ({
+                id: r.id,
+                characterId: r.characterId,
+                characterName: r.characterName,
+                lastText: r.lastText,
+                lastTime: r.lastTime,
+                title: r.title,
+                isLocked: r.isLocked,
+                isBuildRoom: r.isBuildRoom,
+              }));
+
+            const currentState = get();
+            const existingCharacterIds = new Set(
+              currentState.availableCharacters.map((c) => c.id),
+            );
+
+            const charactersFromRooms: Character[] = [];
+            for (const room of data.rooms as RoomPreview[]) {
+              if (
+                room.characterId &&
+                room.characterName &&
+                !existingCharacterIds.has(room.characterId)
+              ) {
+                charactersFromRooms.push({
+                  id: room.characterId,
+                  name: room.characterName,
+                  avatarUrl: room.characterAvatarUrl,
+                });
+                existingCharacterIds.add(room.characterId);
+              }
+            }
+
+            const mergedCharacters = [
+              ...currentState.availableCharacters,
+              ...charactersFromRooms,
+            ];
+
+            let newSelectedCharacterId = currentState.selectedCharacterId;
+            if (
+              !newSelectedCharacterId &&
+              charactersFromRooms.length === 1 &&
+              currentState.availableCharacters.length === 0
+            ) {
+              newSelectedCharacterId = charactersFromRooms[0].id;
+            }
+
+            // Compute viewerState when auto-selecting a character
+            const viewerState = computeViewerState(
+              currentState.isAuthenticated,
+              currentState.currentUserId,
+              newSelectedCharacterId,
+              mergedCharacters,
+            );
+
+            // Filter out any recently deleted rooms to prevent them from reappearing
+            const filteredRoomItems = roomItems.filter(
+              (room) => !currentState.recentlyDeletedRoomIds.has(room.id),
+            );
+
+            set({
+              rooms: filteredRoomItems,
+              availableCharacters: mergedCharacters,
+              selectedCharacterId: newSelectedCharacterId,
+              viewerState,
+            });
+          }
+        }
+      } catch (error) {
+        console.error("[ChatStore] Failed to load rooms:", error);
+      } finally {
+        // Always clear loading state and promise, even on error
+        set({ isLoadingRooms: false, loadRoomsPromise: null });
+      }
     })();
 
     set({ loadRoomsPromise: loadPromise });
@@ -199,9 +324,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   // Create new room
   // entityId is derived from authenticated user on the server
-  // skipLoadRooms: if true, don't auto-reload rooms after creation (prevents flicker during message send)
-  createRoom: async (characterId?: string | null, skipLoadRooms = false) => {
-    const { loadRooms, setRoomId, anonymousSessionToken } = get();
+  createRoom: async (characterId?: string | null) => {
+    const { setRoomId, anonymousSessionToken } = get();
 
     const requestBody: Record<string, string | undefined> = {
       characterId: characterId || undefined,
@@ -238,39 +362,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
         );
       }
 
-      // Automatically switch to the new room FIRST (before loading rooms)
-      // This ensures the UI updates immediately
+      // Automatically switch to the new room
+      // The room will appear in the sidebar once the agent replies
       setRoomId(newRoomId);
-
-      // IMPORTANT: Add the new room to the rooms array immediately
-      // This ensures the sidebar shows the room instantly without waiting for loadRooms()
-      const currentState = get();
-      const newRoom: RoomItem = {
-        id: newRoomId,
-        characterId: characterId || undefined,
-        characterName: characterId
-          ? currentState.availableCharacters.find((c) => c.id === characterId)
-              ?.name
-          : undefined,
-        lastTime: Date.now(),
-        title: undefined, // Will be set when first message is sent
-        lastText: undefined,
-        isLocked: false,
-        isBuildRoom: false,
-      };
-
-      // Prepend new room to the beginning of the list (most recent first)
-      const updatedRooms = [newRoom, ...currentState.rooms];
-      set({ rooms: updatedRooms });
-
-      // Only reload rooms if not skipped (prevents flicker during message send flow)
-      // The reload will sync any server-side changes
-      if (!skipLoadRooms) {
-        // Use a slight delay to avoid race conditions
-        setTimeout(() => {
-          void loadRooms();
-        }, 100);
-      }
 
       return newRoomId;
     } else {
@@ -281,28 +375,59 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
   },
 
-  // Delete room
+  // Delete room - uses optimistic update for instant UI feedback
   deleteRoom: async (roomIdToDelete: string) => {
-    const { rooms, roomId, setRooms, setRoomId } = get();
+    // Optimistic update: remove from UI immediately before API call
+    const currentState = get();
+    const wasSelected = currentState.roomId === roomIdToDelete;
+    const previousRooms = currentState.rooms;
 
-    const response = await fetch(`/api/eliza/rooms/${roomIdToDelete}`, {
-      method: "DELETE",
-      credentials: "include",
+    // Add to recently deleted set to prevent loadRooms from re-adding it
+    const newDeletedSet = new Set(currentState.recentlyDeletedRoomIds);
+    newDeletedSet.add(roomIdToDelete);
+
+    // Update state immediately
+    set({
+      rooms: previousRooms.filter((r) => r.id !== roomIdToDelete),
+      roomId: wasSelected ? null : currentState.roomId,
+      recentlyDeletedRoomIds: newDeletedSet,
     });
 
-    if (response.ok) {
-      // Remove from local state
-      setRooms(rooms.filter((r) => r.id !== roomIdToDelete));
-
-      // If deleted room was selected, clear selection
-      if (roomId === roomIdToDelete) {
-        setRoomId(null);
-        // Also clear from localStorage
-        if (typeof window !== "undefined") {
-          window.localStorage.removeItem("elizaRoomId");
-        }
-      }
+    // Clear from localStorage if this was the selected room
+    if (wasSelected && typeof window !== "undefined") {
+      window.localStorage.removeItem("elizaRoomId");
     }
+
+    // Make API call in background - don't await, fire and forget
+    // The optimistic update has already removed the room from UI
+    fetch(`/api/eliza/rooms/${roomIdToDelete}`, {
+      method: "DELETE",
+      credentials: "include",
+    })
+      .then((response) => {
+        if (!response.ok) {
+          // Log error but don't rollback - the server delete often succeeds
+          // even when returning errors due to cascade operations
+          console.warn(
+            "[ChatStore] Delete API returned error, but room may have been deleted",
+          );
+        }
+        // Always clean up the deleted set after a delay
+        setTimeout(() => {
+          const cleanupDeletedSet = new Set(get().recentlyDeletedRoomIds);
+          cleanupDeletedSet.delete(roomIdToDelete);
+          set({ recentlyDeletedRoomIds: cleanupDeletedSet });
+        }, 5000);
+      })
+      .catch((error) => {
+        console.error("[ChatStore] Delete request failed:", error);
+        // Still clean up after delay - don't leave stale entries
+        setTimeout(() => {
+          const cleanupDeletedSet = new Set(get().recentlyDeletedRoomIds);
+          cleanupDeletedSet.delete(roomIdToDelete);
+          set({ recentlyDeletedRoomIds: cleanupDeletedSet });
+        }, 5000);
+      });
   },
 
   // Clear all chat data on logout
@@ -323,6 +448,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
       pendingMessage: null,
       loadRoomsPromise: null,
       anonymousSessionToken: null,
+      recentlyDeletedRoomIds: new Set<string>(),
+      isAuthenticated: false,
+      viewerState: "unauthenticated" as ViewerState,
+      currentUserId: null,
     });
   },
 }));

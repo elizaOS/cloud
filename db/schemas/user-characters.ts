@@ -17,8 +17,7 @@ import { users } from "./users";
  * User characters table schema.
  *
  * Stores character definitions created by users. Characters can be templates,
- * public marketplace items, or private user characters. Supports both cloud
- * and miniapp sources.
+ * public marketplace items, or private user characters.
  *
  * When is_public=true, the character can be:
  * - Registered on ERC-8004 for discovery (erc8004_registered=true)
@@ -36,7 +35,9 @@ export const userCharacters = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
-    username: text("username"),
+    // Unique username for URL routing (/chat/@username) and display
+    // Validation: 3-30 chars, alphanumeric + hyphens, no consecutive/leading/trailing hyphens
+    username: text("username").unique(),
     system: text("system"),
     bio: jsonb("bio").$type<string | string[]>().notNull(),
     message_examples: jsonb("message_examples")
@@ -76,8 +77,7 @@ export const userCharacters = pgTable(
     interaction_count: integer("interaction_count").default(0).notNull(),
     popularity_score: integer("popularity_score").default(0).notNull(),
     // Source tracking: where the character was created
-    // "cloud" = created in main Eliza Cloud dashboard
-    // "miniapp" = created via miniapp integration
+    // "cloud" = created in Eliza Cloud
     source: text("source").default("cloud").notNull(),
 
     // =========================================================================
@@ -144,6 +144,7 @@ export const userCharacters = pgTable(
     ),
     user_idx: index("user_characters_user_idx").on(table.user_id),
     name_idx: index("user_characters_name_idx").on(table.name),
+    username_idx: index("user_characters_username_idx").on(table.username),
     category_idx: index("user_characters_category_idx").on(table.category),
     featured_idx: index("user_characters_featured_idx").on(table.featured),
     template_idx: index("user_characters_is_template_idx").on(

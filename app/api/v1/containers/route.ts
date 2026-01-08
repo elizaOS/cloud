@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/utils/logger";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { creditsService } from "@/lib/services/credits";
+import {
+  creditsService,
+  InsufficientCreditsError,
+  type CreditReservation,
+} from "@/lib/services/credits";
 import { usageService } from "@/lib/services/usage";
+import { discordService } from "@/lib/services/discord";
 import {
   containersService,
   listContainers,
@@ -243,7 +248,7 @@ async function handleCreateContainer(request: NextRequest) {
 
       container = updatedContainer;
 
-      // For updates, still need to calculate cost and deduct credits
+      // For updates, still need to calculate cost and reserve credits
       deploymentCost = calculateDeploymentCost({
         desiredCount: validatedData.desired_count,
         cpu: validatedData.cpu,
@@ -251,30 +256,32 @@ async function handleCreateContainer(request: NextRequest) {
         includeUpload: false,
       });
 
-      // Deduct credits for update deployment
-      const creditResult = await creditsService.deductCredits({
-        organizationId: user.organization_id!!,
-        amount: deploymentCost,
-        description: `Container update deployment: ${validatedData.name}`,
-        metadata: {
-          type: "container_update",
-          containerId: container.id,
-          projectName: validatedData.project_name,
-        },
-      });
-
-      if (!creditResult.success) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: "Insufficient balance for update deployment",
-            requiredCredits: deploymentCost,
-          },
-          { status: 402 }, // Payment Required
-        );
+      // Reserve credits BEFORE update deployment
+      let updateReservation: CreditReservation;
+      try {
+        updateReservation = await creditsService.reserve({
+          organizationId: user.organization_id!!,
+          amount: deploymentCost,
+          userId: user.id,
+          description: `Container update deployment: ${validatedData.name}`,
+        });
+      } catch (error) {
+        if (error instanceof InsufficientCreditsError) {
+          return NextResponse.json(
+            {
+              success: false,
+              error: "Insufficient balance for update deployment",
+              requiredCredits: deploymentCost,
+            },
+            { status: 402 }, // Payment Required
+          );
+        }
+        throw error;
       }
 
-      newBalance = creditResult.newBalance;
+      // Confirm the reservation immediately for updates (reconciled later if stack fails)
+      await updateReservation.reconcile(deploymentCost);
+      newBalance = updateReservation.reservedAmount;
 
       creditEventEmitter.emitCreditUpdate({
         organizationId: user.organization_id!!,
@@ -313,56 +320,58 @@ async function handleCreateContainer(request: NextRequest) {
         },
       };
 
-      // Calculate deployment cost upfront (ECS is more expensive than Cloudflare)
       deploymentCost = calculateDeploymentCost({
         desiredCount: validatedData.desired_count,
         cpu: validatedData.cpu,
         memory: validatedData.memory,
-        includeUpload: false, // Image build/push is charged separately
+        includeUpload: false,
       });
 
-      // CRITICAL: Wrap container creation AND credit deduction in a single transaction
-      // This prevents race condition where container exists but credits fail to deduct
+      let createReservation: CreditReservation;
       try {
-        const result =
-          await containersService.createContainerWithCreditDeduction(
-            containerData,
-            user.id,
-            deploymentCost,
-          );
-
-        container = result.container;
-        newBalance = result.newBalance;
-
-        // Emit credit update event for real-time balance updates
-        creditEventEmitter.emitCreditUpdate({
+        createReservation = await creditsService.reserve({
           organizationId: user.organization_id!!,
-          newBalance: newBalance,
-          delta: -deploymentCost,
-          reason: `Container deployment: ${validatedData.name}`,
+          amount: deploymentCost,
           userId: user.id,
-          timestamp: new Date(),
+          description: `Container deployment: ${validatedData.name}`,
         });
       } catch (error) {
-        // Transaction rolled back - no orphaned container or credit inconsistency
-        const errorMessage =
-          error instanceof Error ? error.message : "Unknown error";
-
-        if (errorMessage.includes("Insufficient balance")) {
+        if (error instanceof InsufficientCreditsError) {
           return NextResponse.json(
             {
               success: false,
-              error: errorMessage,
+              error: `Insufficient balance. Required: $${deploymentCost.toFixed(2)}`,
               requiredCredits: deploymentCost,
             },
-            { status: 402 }, // Payment Required
+            { status: 402 },
           );
         }
-
-        throw error; // Re-throw for outer error handler
+        throw error;
       }
 
+      try {
+        container = await containersService.createWithQuotaCheck(containerData);
+      } catch (error) {
+        await createReservation.reconcile(0);
+        throw error;
+      }
+
+      await createReservation.reconcile(deploymentCost);
+      newBalance = createReservation.reservedAmount;
+
+      creditEventEmitter.emitCreditUpdate({
+        organizationId: user.organization_id!!,
+        newBalance: newBalance,
+        delta: -deploymentCost,
+        reason: `Container deployment: ${validatedData.name}`,
+        userId: user.id,
+        timestamp: new Date(),
+      });
+
       // Create usage record for audit trail
+      // NOTE: is_successful is FALSE initially - deployment monitor will mark it
+      // as successful when CloudFormation stack completes, or mark it as failed
+      // with error_message if the deployment fails
       await usageService.create({
         organization_id: user.organization_id!!,
         user_id: user.id,
@@ -371,7 +380,7 @@ async function handleCreateContainer(request: NextRequest) {
         provider: "aws_ecs",
         input_cost: String(deploymentCost),
         output_cost: String(0),
-        is_successful: true,
+        is_successful: false, // Will be updated by deployment-monitor cron when stack completes
         metadata: {
           container_id: container.id,
           container_name: validatedData.name,
@@ -387,22 +396,25 @@ async function handleCreateContainer(request: NextRequest) {
 
     // Create usage record for updates
     if (isUpdate) {
-      const deploymentCost = calculateDeploymentCost({
+      const updateDeploymentCost = calculateDeploymentCost({
         desiredCount: validatedData.desired_count,
         cpu: validatedData.cpu,
         memory: validatedData.memory,
         includeUpload: false,
       });
 
+      // NOTE: is_successful is FALSE initially - deployment monitor will mark it
+      // as successful when CloudFormation stack completes, or mark it as failed
+      // with error_message if the deployment fails
       await usageService.create({
         organization_id: user.organization_id!!,
         user_id: user.id,
         api_key_id: apiKey?.id,
         type: "container_update",
         provider: "aws_ecs",
-        input_cost: String(deploymentCost),
+        input_cost: String(updateDeploymentCost),
         output_cost: String(0),
-        is_successful: true,
+        is_successful: false, // Will be updated by deployment-monitor cron when stack completes
         metadata: {
           container_id: container.id,
           container_name: validatedData.name,
@@ -426,6 +438,34 @@ async function handleCreateContainer(request: NextRequest) {
         user.organization_id!,
       );
 
+      // Send Discord notification for container launch (non-blocking)
+      discordService
+        .logContainerLaunched({
+          containerId: container.id,
+          containerName: validatedData.name,
+          projectName: validatedData.project_name,
+          userId: user.id,
+          organizationId: user.organization_id!,
+          ecrImageUri: validatedData.ecr_image_uri,
+          architecture: validatedData.architecture || "arm64",
+          cpu: validatedData.cpu,
+          memory: validatedData.memory,
+          port: validatedData.port,
+          desiredCount: validatedData.desired_count,
+          cost: deploymentCost,
+          isUpdate,
+          stackName,
+        })
+        .catch((err) => {
+          logger.warn(
+            "[CONTAINER DEPLOYMENT] Failed to send Discord notification",
+            {
+              containerId: container.id,
+              error: err instanceof Error ? err.message : "Unknown error",
+            },
+          );
+        });
+
       // Return immediately with container info and polling instructions
       return NextResponse.json(
         {
@@ -445,6 +485,11 @@ async function handleCreateContainer(request: NextRequest) {
         { status: 202 }, // 202 Accepted - request accepted, processing asynchronously
       );
     } catch (stackError) {
+      const errorMessage =
+        stackError instanceof Error
+          ? stackError.message
+          : "CloudFormation stack creation failed";
+
       logger.error(
         `❌ [handleCreateContainer] CloudFormation stack creation failed:`,
         stackError,
@@ -452,11 +497,19 @@ async function handleCreateContainer(request: NextRequest) {
 
       // Update container status to failed
       await updateContainerStatus(container.id, "failed", {
-        errorMessage:
-          stackError instanceof Error
-            ? stackError.message
-            : "CloudFormation stack creation failed",
+        errorMessage,
       });
+
+      // Mark usage record as failed with error message
+      try {
+        await usageService.markDeploymentFailed(
+          container.id,
+          user.organization_id!,
+          errorMessage,
+        );
+      } catch (usageError) {
+        logger.error(`❌ Failed to update usage record:`, usageError);
+      }
 
       // Refund credits
       try {
@@ -464,7 +517,11 @@ async function handleCreateContainer(request: NextRequest) {
           organizationId: user.organization_id!,
           amount: deploymentCost,
           description: `Refund for failed container deployment: ${validatedData.name}`,
-          metadata: { type: "refund" },
+          metadata: {
+            type: "refund",
+            containerId: container.id,
+            reason: errorMessage,
+          },
         });
       } catch (refundError) {
         logger.error(`❌ Failed to refund credits:`, refundError);
@@ -473,10 +530,7 @@ async function handleCreateContainer(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error:
-            stackError instanceof Error
-              ? stackError.message
-              : "CloudFormation stack creation failed",
+          error: errorMessage,
           containerId: container.id,
         },
         { status: 500 },
@@ -593,7 +647,7 @@ async function initiateCloudFormationStack(
 
   // Get container to check if this is an update
   const container = await getContainer(containerId, organizationId);
-  const isUpdate = container?.is_update === "true";
+  const isUpdateInDb = container?.is_update === "true";
 
   const stackConfig = {
     userId: organizationId,
@@ -608,10 +662,36 @@ async function initiateCloudFormationStack(
     environmentVars: environmentVars,
   };
 
-  // Create or update CloudFormation stack
+  // Check if CloudFormation stack actually exists before deciding to update
+  // A container record might exist with is_update=true, but the stack could have been
+  // deleted/rolled back from a previous failed deployment
+  let stackActuallyExists = false;
+  if (isUpdateInDb) {
+    try {
+      const existingStack = await cloudFormationService.getStack(
+        organizationId,
+        config.project_name,
+      );
+      stackActuallyExists = existingStack !== null;
+      if (!stackActuallyExists) {
+        logger.info(
+          `Container ${containerId} marked as update, but CloudFormation stack does not exist. Creating new stack instead.`,
+        );
+      }
+    } catch (error) {
+      // If we can't check, assume stack doesn't exist and create new
+      logger.warn(
+        `Failed to check if stack exists for ${containerId}, will create new:`,
+        error,
+      );
+      stackActuallyExists = false;
+    }
+  }
+
+  // Create or update CloudFormation stack based on actual stack existence
   // This API call is FAST (milliseconds) - it just initiates the stack
   let stackId: string;
-  if (isUpdate) {
+  if (isUpdateInDb && stackActuallyExists) {
     stackId = await cloudFormationService.updateUserStack(stackConfig);
   } else {
     stackId = await cloudFormationService.createUserStack(stackConfig);

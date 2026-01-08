@@ -91,6 +91,10 @@ export class GenerationsService {
     await generationsRepository.delete(id);
   }
 
+  async listRandomPublicImages(limit: number = 20): Promise<Generation[]> {
+    return await generationsRepository.listRandomPublicImages(limit);
+  }
+
   async getStats(
     organizationId: string,
     startDate?: Date,

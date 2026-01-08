@@ -24,10 +24,10 @@ export const metadata: Metadata = {
     type: "website",
     images: [
       {
-        url: "/og-image.png",
+        url: "/cloudlogo.png",
         width: 1200,
         height: 630,
-        alt: "elizaOS Cloud Documentation",
+        alt: "elizaOS Cloud - Make Agents in Seconds",
       },
     ],
   },
@@ -36,7 +36,7 @@ export const metadata: Metadata = {
     title: "elizaOS Cloud Documentation",
     description:
       "Documentation for elizaOS Cloud - The AI Agent Development Platform.",
-    images: ["/og-image.png"],
+    images: ["/cloudlogo.png"],
     creator: "@elizaos",
     site: "@elizaos",
   },
@@ -129,7 +129,7 @@ const footer = (
               </div>
               <div className="flex items-baseline gap-1.5">
                 <span className="text-white font-bold text-lg tracking-tight">
-                  elizaOS
+                  Eliza
                 </span>
                 <span className="text-[#ff5800] font-bold text-lg tracking-tight">
                   Cloud
@@ -326,7 +326,7 @@ const footer = (
               </svg>
             </a>
             <a
-              href="https://discord.gg/elizaos"
+              href="https://discord.gg/7Rmq6NPR"
               target="_blank"
               rel="noopener noreferrer"
               className="p-2.5 rounded-lg text-white/30 hover:text-[#5865F2] hover:bg-[#5865F2]/10 transition-all duration-200"

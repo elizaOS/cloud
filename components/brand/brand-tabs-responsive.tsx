@@ -92,8 +92,8 @@ export function BrandTabsResponsive({
         <Select value={value || defaultValue} onValueChange={onValueChange}>
           <SelectTrigger
             className={cn(
-              "w-full h-9 rounded-sm border border-white/10 bg-black/50 backdrop-blur-sm",
-              "text-white px-4 py-1.5",
+              "w-full h-8 rounded-sm border border-white/10 bg-black/50 backdrop-blur-sm",
+              "text-white text-xs px-3 py-1",
               "hover:bg-[#252527] transition-colors",
             )}
           >
@@ -108,7 +108,7 @@ export function BrandTabsResponsive({
                 value={tab.value}
                 disabled={tab.disabled}
                 className={cn(
-                  "text-white cursor-pointer",
+                  "text-white text-xs cursor-pointer",
                   "hover:bg-[#252527] focus:bg-[#252527]",
                   "data-[disabled]:opacity-50 data-[disabled]:cursor-not-allowed",
                 )}
@@ -130,7 +130,7 @@ export function BrandTabsResponsive({
           breakpoint === "sm" && "sm:inline-flex",
           breakpoint === "md" && "md:inline-flex",
           breakpoint === "lg" && "lg:inline-flex",
-          "h-9 items-center justify-center rounded-none bg-black/50 border border-white/10 p-0 backdrop-blur-sm",
+          "h-8 lg:h-9 items-center justify-center rounded-none bg-black/50 border border-white/10 p-0 backdrop-blur-sm",
         )}
       >
         {tabs.map((tab) => (
@@ -139,7 +139,7 @@ export function BrandTabsResponsive({
             value={tab.value}
             disabled={tab.disabled}
             className={cn(
-              "inline-flex items-center gap-2 rounded-none px-4 sm:px-6 py-1.5 text-sm font-medium transition-all whitespace-nowrap",
+              "inline-flex items-center gap-1.5 lg:gap-2 rounded-none px-2.5 lg:px-4 xl:px-6 py-1 lg:py-1.5 text-xs lg:text-sm font-medium transition-all whitespace-nowrap",
               "border-b-2 border-transparent",
               "text-white/70 hover:text-white/90",
               "data-[state=active]:border-white data-[state=active]:bg-[#252527] data-[state=active]:text-white",
@@ -147,8 +147,10 @@ export function BrandTabsResponsive({
               "disabled:pointer-events-none disabled:opacity-50",
             )}
           >
-            {tab.icon}
-            <span className="hidden sm:inline">{tab.label}</span>
+            <span className="[&>svg]:h-3.5 [&>svg]:w-3.5 lg:[&>svg]:h-4 lg:[&>svg]:w-4">
+              {tab.icon}
+            </span>
+            <span className="hidden lg:inline">{tab.label}</span>
           </TabsPrimitive.Trigger>
         ))}
       </TabsPrimitive.List>

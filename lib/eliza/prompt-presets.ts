@@ -5,7 +5,29 @@
  * Example: APP_PROMPT_PRESET=clone-ur-crush
  */
 
-import type { PromptConfig } from "@/miniapp/app/config";
+/**
+ * Configuration for app-specific prompt customization
+ */
+export interface PromptConfig {
+  systemPrefix?: string;
+  systemSuffix?: string;
+  responseStyle?: string;
+  flirtiness?: "low" | "medium" | "high";
+  romanticMode?: boolean;
+  imageGeneration?: {
+    enabled: boolean;
+    autoGenerate: boolean;
+    defaultVibe?:
+      | "flirty"
+      | "shy"
+      | "bold"
+      | "spicy"
+      | "romantic"
+      | "playful"
+      | "mysterious"
+      | "intellectual";
+  };
+}
 
 export type PromptPresetName = "friend-ai" | "clone-ur-crush";
 

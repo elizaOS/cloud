@@ -34,7 +34,7 @@ export default function OnChainTrust() {
       image: "/cloud-agent-samples/3.png",
     },
     {
-      name: "echo",
+      name: "Echo",
       description: "Voice interaction specialist",
       address: "0xD4E2...B61",
       image: "/cloud-agent-samples/4.png",

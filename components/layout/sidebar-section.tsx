@@ -75,28 +75,6 @@ export function SidebarNavigationSection({
     return null;
   }
 
-  // Assign colors based on section type
-  const getSectionColor = () => {
-    if (!section.title) return "#FF5800"; // Default orange
-
-    switch (section.title.toLowerCase()) {
-      case "agents":
-        return "#0B35F1"; // Blue - AI/Agents
-      case "generation studio":
-        return "#FF5800"; // Orange - Creative/Generation
-      case "infrastructure":
-        return "#22C55E"; // Green - System/Infrastructure
-      case "monetization":
-        return "#FFD700"; // Gold - Monetization/Earnings
-      case "admin":
-        return "#EF4444"; // Red - Admin/Moderation
-      default:
-        return "#FF5800"; // Default orange
-    }
-  };
-
-  const dotColor = getSectionColor();
-
   // Check if this section is "coming soon" (disabled)
   const isComingSoon =
     section.title?.toLowerCase() === "monetization" ||
@@ -116,12 +94,8 @@ export function SidebarNavigationSection({
   // Render collapsed "coming soon" sections
   if (isComingSoon) {
     return (
-      <div className="w-full mb-3 px-3 flex items-center gap-2 opacity-50 select-none cursor-default">
-        <span
-          className="inline-block w-1.5 h-1.5 rounded-full flex-shrink-0"
-          style={{ backgroundColor: dotColor }}
-        />
-        <h3 className="flex-1 text-xs font-normal uppercase tracking-wider text-white/50 text-left">
+      <div className="w-full mb-3 px-3 flex items-center opacity-50 select-none cursor-default">
+        <h3 className="flex-1 text-sm font-mono text-white/50 text-left">
           {section.title}
         </h3>
         <span
@@ -138,19 +112,8 @@ export function SidebarNavigationSection({
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-      <CollapsibleTrigger className="group w-full mb-3 px-3 flex items-center gap-2 hover:opacity-80 transition-opacity">
-        <span
-          className="inline-block w-1.5 h-1.5 rounded-full flex-shrink-0"
-          style={{ backgroundColor: dotColor }}
-        />
-        <h3
-          className="flex-1 text-xs font-semibold uppercase tracking-wider text-white/50 text-left"
-          style={{
-            fontFamily: "var(--font-roboto-mono)",
-            fontWeight: 400,
-            letterSpacing: "-0.003em",
-          }}
-        >
+      <CollapsibleTrigger className="group w-full mb-3 px-3 flex items-center hover:opacity-80 transition-opacity">
+        <h3 className="flex-1 text-sm font-mono text-white/50 text-left">
           {section.title}
         </h3>
         <ChevronDown

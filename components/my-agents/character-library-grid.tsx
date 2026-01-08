@@ -1,30 +1,33 @@
 /**
  * Character library grid component displaying characters in grid or list view.
  * Shows empty state when no characters are available.
+ * Supports both owned and saved agents with appropriate actions for each.
  *
  * @param props - Character library grid configuration
- * @param props.characters - Array of characters to display
+ * @param props.characters - Array of characters to display (owned and saved)
  * @param props.viewMode - Display mode (grid or list)
  * @param props.onCreateNew - Callback when create button is clicked
+ * @param props.onRemoveSaved - Callback when a saved agent is removed
  */
 
 "use client";
 
-import { CharacterLibraryCard } from "./character-library-card";
+import { CharacterLibraryCard, type AgentWithOwnership } from "./character-library-card";
 import { EmptyState } from "./empty-state";
-import type { ElizaCharacter } from "@/lib/types";
 import type { ViewMode } from "./my-agents-client";
 
 interface CharacterLibraryGridProps {
-  characters: ElizaCharacter[];
+  characters: AgentWithOwnership[];
   viewMode: ViewMode;
   onCreateNew: () => void;
+  onRemoveSaved?: (characterId: string) => void;
 }
 
 export function CharacterLibraryGrid({
   characters,
   viewMode,
   onCreateNew,
+  onRemoveSaved,
 }: CharacterLibraryGridProps) {
   if (characters.length === 0) {
     return <EmptyState onCreateNew={onCreateNew} />;
@@ -43,6 +46,7 @@ export function CharacterLibraryGrid({
           <CharacterLibraryCard
             character={character}
             viewMode={viewMode}
+            onRemoveSaved={onRemoveSaved}
           />
         </div>
       ))}

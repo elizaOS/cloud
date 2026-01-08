@@ -1,8 +1,16 @@
-import { NextRequest } from "next/server";
+import type { NextRequest } from "next/server";
 import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
-import { aiAppBuilderService } from "@/lib/services/ai-app-builder";
+import { aiAppBuilder } from "@/lib/services/ai-app-builder";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
+import { checkRateLimitAsync } from "@/lib/middleware/rate-limit";
+import { getErrorStatusCode, getSafeErrorMessage } from "@/lib/api/errors";
+import { createStreamWriter, SSE_HEADERS } from "@/lib/api/stream-utils";
+
+const PROMPT_RATE_LIMIT = {
+  windowMs: 60000,
+  maxRequests: process.env.NODE_ENV === "production" ? 20 : 100,
+};
 
 interface RouteParams {
   params: Promise<{ sessionId: string }>;
@@ -12,17 +20,35 @@ const SendPromptSchema = z.object({
   prompt: z.string().min(1).max(10000),
 });
 
-/**
- * POST /api/v1/app-builder/sessions/:sessionId/prompts/stream
- * Send a prompt with SSE streaming for tool calls and thinking
- */
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
     const { user } = await requireAuthOrApiKeyWithOrg(request);
     const { sessionId } = await params;
 
-    // Verify user owns this session
-    await aiAppBuilderService.verifySessionOwnership(sessionId, user.id);
+    await aiAppBuilder.verifySessionOwnership(sessionId, user.id);
+
+    const rateLimitResult = await checkRateLimitAsync(
+      request,
+      PROMPT_RATE_LIMIT,
+    );
+    if (!rateLimitResult.allowed) {
+      const maxRequests = PROMPT_RATE_LIMIT.maxRequests;
+      const windowSeconds = PROMPT_RATE_LIMIT.windowMs / 1000;
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: `Rate limit exceeded. Maximum ${maxRequests} prompts per ${windowSeconds}s.`,
+          retryAfter: rateLimitResult.retryAfter,
+        }),
+        {
+          status: 429,
+          headers: {
+            "Content-Type": "application/json",
+            "Retry-After": rateLimitResult.retryAfter?.toString() || "60",
+          },
+        },
+      );
+    }
 
     const body = await request.json();
     const validationResult = SendPromptSchema.safeParse(body);
@@ -38,81 +64,105 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // Create SSE stream
-    const encoder = new TextEncoder();
     const stream = new TransformStream();
-    const writer = stream.writable.getWriter();
+    const rawWriter = stream.writable.getWriter();
+    const streamWriter = createStreamWriter(rawWriter);
 
-    const sendEvent = async (event: string, data: unknown) => {
-      const message = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
-      await writer.write(encoder.encode(message));
-    };
+    const abortController = new AbortController();
 
-    // Run prompt in background with callbacks
+    request.signal?.addEventListener("abort", () => {
+      logger.info("Client aborted request", { sessionId });
+      abortController.abort();
+    });
+
     (async () => {
+      streamWriter.startHeartbeat(15000);
+
       try {
-        const result = await aiAppBuilderService.sendPrompt(
+        const result = await aiAppBuilder.sendPrompt(
           sessionId,
           validationResult.data.prompt,
+          user.id,
           {
             onThinking: async (text) => {
-              // Send thinking/reasoning text
-              await sendEvent("thinking", {
-                text: text.substring(0, 1000), // Limit size
+              if (!streamWriter.isConnected()) return;
+              await streamWriter.sendEvent("thinking", {
+                text: text.substring(0, 1000),
               });
             },
             onToolUse: async (tool, input, result) => {
-              await sendEvent("tool_use", {
+              if (!streamWriter.isConnected()) return;
+              await streamWriter.sendEvent("tool_use", {
                 tool,
                 input,
                 result: result.substring(0, 500),
               });
             },
+            abortSignal: abortController.signal,
           },
         );
 
-        await sendEvent("complete", {
-          success: result.success,
-          output: result.output,
-          filesAffected: result.filesAffected,
-          error: result.error,
-        });
+        if (streamWriter.isConnected()) {
+          await streamWriter.sendEvent("complete", {
+            success: result.success,
+            output: result.output,
+            filesAffected: result.filesAffected,
+            error: result.error,
+          });
+        }
       } catch (error) {
-        logger.error("Failed to send prompt via stream", { error });
-        await sendEvent("error", {
-          success: false,
-          error:
-            error instanceof Error ? error.message : "Failed to send prompt",
-        });
+        const errorMessage =
+          error instanceof Error ? error.message : "Failed to send prompt";
+
+        // Reset session status to "ready" so user can try again
+        try {
+          await aiAppBuilder.resetSessionStatus(sessionId, user.id);
+        } catch (resetError) {
+          logger.warn("Failed to reset session status after error", {
+            sessionId,
+            resetError,
+          });
+        }
+
+        if (
+          errorMessage.includes("aborted") ||
+          errorMessage.includes("cancelled")
+        ) {
+          logger.info("Prompt operation cancelled", { sessionId });
+          if (streamWriter.isConnected()) {
+            await streamWriter.sendEvent("cancelled", {
+              success: false,
+              error: "Operation cancelled",
+            });
+          }
+        } else {
+          logger.error("Failed to send prompt via stream", {
+            error: errorMessage,
+            sessionId,
+          });
+          if (streamWriter.isConnected()) {
+            await streamWriter.sendEvent("error", {
+              success: false,
+              error: errorMessage,
+            });
+          }
+        }
       } finally {
-        await writer.close();
+        await streamWriter.close();
       }
     })();
 
-    return new Response(stream.readable, {
-      headers: {
-        "Content-Type": "text/event-stream",
-        "Cache-Control": "no-cache",
-        Connection: "keep-alive",
-      },
-    });
+    return new Response(stream.readable, { headers: SSE_HEADERS });
   } catch (error) {
     logger.error("Auth or ownership verification failed for prompt stream", {
       error,
     });
-    const message =
-      error instanceof Error ? error.message : "Authentication failed";
-    const status = message.includes("Unauthorized")
-      ? 403
-      : message.includes("not found")
-        ? 404
-        : 401;
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: message,
-      }),
-      { status, headers: { "Content-Type": "application/json" } },
-    );
+    const status = getErrorStatusCode(error);
+    const message = getSafeErrorMessage(error);
+
+    return new Response(JSON.stringify({ success: false, error: message }), {
+      status,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 }

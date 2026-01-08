@@ -2,6 +2,7 @@
  * Credits service for managing organization credit balances and transactions.
  */
 
+import { calculateCost, getProviderFromModel } from "@/lib/pricing";
 import {
   creditTransactionsRepository,
   creditPacksRepository,
@@ -24,6 +25,50 @@ import { CacheInvalidation } from "@/lib/cache/invalidation";
 import { invalidateOrganizationCache } from "@/lib/cache/organizations-cache";
 import { userSessionsService } from "./user-sessions";
 import { logger } from "@/lib/utils/logger";
+
+// ============================================================================
+// Constants
+// ============================================================================
+
+/** Buffer multiplier for cost estimation (default 50%). Configurable via env. */
+export const COST_BUFFER = Number(process.env.CREDIT_COST_BUFFER) || 1.5;
+/** Minimum reservation amount in USD */
+export const MIN_RESERVATION = 0.01;
+/** Default estimated output tokens when not specified */
+export const DEFAULT_OUTPUT_TOKENS = 500;
+
+// ============================================================================
+// Types
+// ============================================================================
+
+export class InsufficientCreditsError extends Error {
+  constructor(
+    public readonly required: number,
+    public readonly available: number,
+    public readonly reason?: string,
+  ) {
+    super(
+      `Insufficient credits. Required: $${required.toFixed(4)}, Available: $${available.toFixed(4)}`,
+    );
+    this.name = "InsufficientCreditsError";
+  }
+}
+
+export interface CreditReservation {
+  reservedAmount: number;
+  reconcile: (actualCost: number) => Promise<void>;
+}
+
+export interface ReserveCreditsParams {
+  organizationId: string;
+  userId?: string;
+  description: string;
+  amount?: number;
+  model?: string;
+  provider?: string;
+  estimatedInputTokens?: number;
+  estimatedOutputTokens?: number;
+}
 
 /**
  * Parameters for adding credits to an organization.
@@ -558,6 +603,205 @@ export class CreditsService {
         });
         return result;
       });
+  }
+
+  /**
+   * Reconcile credits after a request completes.
+   * Adjusts credits based on actual vs reserved cost.
+   * - Refunds excess if actual < reserved
+   * - Charges overage if actual > reserved
+   * - No-op if costs match (within epsilon for float precision)
+   *
+   * Includes retry logic for transient failures.
+   */
+  async reconcile(params: {
+    organizationId: string;
+    reservedAmount: number;
+    actualCost: number;
+    description: string;
+    metadata?: Record<string, unknown>;
+  }): Promise<void> {
+    const {
+      organizationId,
+      reservedAmount,
+      actualCost,
+      description,
+      metadata,
+    } = params;
+    const difference = reservedAmount - actualCost;
+    const EPSILON = 0.0001; // $0.0001 threshold for float comparison
+
+    if (Math.abs(difference) < EPSILON) {
+      return;
+    }
+
+    const baseMetadata = {
+      ...metadata,
+      reserved: reservedAmount,
+      actual: actualCost,
+    };
+
+    const MAX_RETRIES = 3;
+    const RETRY_DELAY_MS = 100;
+
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        if (difference > 0) {
+          await this.refundCredits({
+            organizationId,
+            amount: difference,
+            description: `${description} (refund)`,
+            metadata: { ...baseMetadata, type: "reconciliation_refund" },
+          });
+          logger.info("[Credits] Reconciled - refunded excess", {
+            organizationId,
+            reserved: reservedAmount,
+            actual: actualCost,
+            refunded: difference,
+          });
+          return;
+        }
+
+        const overage = -difference;
+        await this.deductCredits({
+          organizationId,
+          amount: overage,
+          description: `${description} (overage)`,
+          metadata: { ...baseMetadata, type: "reconciliation_overage" },
+        });
+        logger.warn("[Credits] Reconciled - charged overage", {
+          organizationId,
+          reserved: reservedAmount,
+          actual: actualCost,
+          overage,
+        });
+        return;
+      } catch (error) {
+        if (attempt === MAX_RETRIES) {
+          logger.error("[Credits] Reconciliation failed after retries", {
+            organizationId,
+            reserved: reservedAmount,
+            actual: actualCost,
+            difference,
+            error: error instanceof Error ? error.message : "Unknown error",
+          });
+          // Don't throw - operation completed, just log for manual review
+          return;
+        }
+        logger.warn("[Credits] Reconciliation retry", {
+          attempt,
+          organizationId,
+          error: error instanceof Error ? error.message : "Unknown error",
+        });
+        await new Promise((resolve) =>
+          setTimeout(resolve, RETRY_DELAY_MS * attempt),
+        );
+      }
+    }
+  }
+
+  // ============================================================================
+  // Reserve Credits (High-level API)
+  // ============================================================================
+
+  /**
+   * Reserve credits before an operation.
+   * - If `amount` is provided: fixed cost (images, videos, etc.)
+   * - If `model` is provided: estimates cost from tokens with 50% buffer
+   *
+   * Returns a CreditReservation object with a reconcile() method.
+   */
+  async reserve(params: ReserveCreditsParams): Promise<CreditReservation> {
+    const { organizationId, userId, description } = params;
+
+    // Input validation
+    if (!organizationId) {
+      throw new Error("reserve() requires organizationId");
+    }
+    if (!description) {
+      throw new Error("reserve() requires description");
+    }
+    if (params.amount !== undefined && params.amount < 0) {
+      throw new Error("reserve() amount must be non-negative");
+    }
+
+    let reservedAmount: number;
+    let model: string | undefined;
+
+    if (params.amount !== undefined) {
+      reservedAmount = params.amount;
+    } else if (params.model) {
+      model = params.model;
+      const provider = params.provider ?? getProviderFromModel(params.model);
+      const estimatedInputTokens = params.estimatedInputTokens ?? 0;
+      const estimatedOutputTokens =
+        params.estimatedOutputTokens ?? DEFAULT_OUTPUT_TOKENS;
+
+      const { totalCost: estimatedCost } = await calculateCost(
+        params.model,
+        provider,
+        estimatedInputTokens,
+        estimatedOutputTokens,
+      );
+
+      reservedAmount = Math.max(estimatedCost * COST_BUFFER, MIN_RESERVATION);
+    } else {
+      throw new Error("reserve() requires either `amount` or `model`");
+    }
+
+    const result = await this.reserveAndDeductCredits({
+      organizationId,
+      amount: reservedAmount,
+      description: `${description} (reserved)`,
+      metadata: {
+        user_id: userId,
+        type: "reservation",
+        ...(model && { model }),
+      },
+    });
+
+    if (!result.success) {
+      logger.warn("[Credits] Insufficient credits for reservation", {
+        organizationId,
+        required: reservedAmount,
+        available: result.newBalance,
+        reason: result.reason,
+      });
+      throw new InsufficientCreditsError(
+        reservedAmount,
+        result.newBalance,
+        result.reason,
+      );
+    }
+
+    logger.info("[Credits] Reserved", {
+      organizationId,
+      reservedAmount,
+      ...(model && { model }),
+    });
+
+    return {
+      reservedAmount,
+      reconcile: async (actualCost: number) => {
+        await this.reconcile({
+          organizationId,
+          reservedAmount,
+          actualCost,
+          description,
+          metadata: { user_id: userId, ...(model && { model }) },
+        });
+      },
+    };
+  }
+
+  /**
+   * Create a no-op reservation for anonymous users.
+   */
+  createAnonymousReservation(): CreditReservation {
+    return {
+      reservedAmount: 0,
+      reconcile: async () => {},
+    };
   }
 
   // Credit Packs

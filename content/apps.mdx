@@ -245,16 +245,38 @@ Restrict what your app key can access:
 }
 ```
 
+## Custom Domains
+
+Apps support custom domains for multi-tenant deployments:
+
+- **Wildcard Subdomains**: Every app gets `{app-slug}.apps.elizacloud.ai`
+- **Custom Domains**: Bring your own domain with automatic SSL
+- **DNS Management**: Easy verification and configuration
+
+```bash
+# Add a custom domain
+curl -X POST "https://elizacloud.ai/api/v1/apps/{appId}/domains" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"domain": "myapp.example.com"}'
+```
+
+See [App Domains](/docs/app-domains) for complete domain management documentation.
+
 ## Best Practices
 
 - **Secure Keys** — Never expose API keys in client-side code; use server-side proxying
 - **Monitor Usage** — Set up alerts in [Dashboard → Analytics](/dashboard/analytics) for unusual activity
 - **Rate Limiting** — Implement client-side rate limiting to avoid 429 errors
 - **Error Handling** — Handle API errors gracefully with retry logic (see [Error Handling](/docs/errors))
+- **Custom Domains** — Use canonical tags when serving from multiple domains to avoid SEO issues
 
 ## Next Steps
 
 <Cards>
+  <Cards.Card title="App Domains" href="/docs/app-domains">
+    Configure custom domains
+  </Cards.Card>
   <Cards.Card title="Containers" href="/docs/containers">
     Deploy custom containers
   </Cards.Card>

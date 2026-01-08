@@ -116,12 +116,12 @@ function transformAISdkToOpenAI(aiSdkRequest: AISdkRequest): OpenAIChatRequest {
   } = aiSdkRequest;
 
   // Transform messages: fix content types for multimodal
-  const transformedMessages = input.map((msg) => {
-    // If content is an array (multimodal), transform types
+  const transformedMessages = input.map((msg, msgIndex) => {
+    // If content is an array (multimodal), transform types and filter empty text blocks
     if (Array.isArray(msg.content)) {
-      return {
-        ...msg,
-        content: msg.content.map((part) => {
+      const originalLength = msg.content.length;
+      const transformedContent = msg.content
+        .map((part) => {
           // AI SDK uses "input_text" but OpenAI expects "text"
           if (typeof part === "object" && "type" in part) {
             if (part.type === "input_text") {
@@ -140,8 +140,60 @@ function transformAISdkToOpenAI(aiSdkRequest: AISdkRequest): OpenAIChatRequest {
             }
           }
           return part;
-        }),
-      };
+        })
+        // Filter out empty text content blocks (Anthropic API requires non-empty text)
+        .filter((part) => {
+          if (typeof part === "object" && part !== null && "type" in part) {
+            const typedPart = part as { type: string; text?: string };
+            // Keep text blocks only if they have non-empty text
+            if (typedPart.type === "text" || typedPart.type === "input_text") {
+              const hasNonEmptyText =
+                typeof typedPart.text === "string" &&
+                typedPart.text.trim() !== "";
+              if (!hasNonEmptyText) {
+                logger.debug(
+                  "[Responses API] Filtering out empty text content block",
+                  {
+                    messageIndex: msgIndex,
+                    role: msg.role,
+                    textValue: typedPart.text,
+                  },
+                );
+              }
+              return hasNonEmptyText;
+            }
+          }
+          // Keep non-text parts (images, etc.)
+          return true;
+        });
+
+      // Log if we filtered out content
+      if (transformedContent.length < originalLength) {
+        logger.info(
+          "[Responses API] Filtered empty text blocks from content array",
+          {
+            messageIndex: msgIndex,
+            role: msg.role,
+            originalParts: originalLength,
+            remainingParts: transformedContent.length,
+          },
+        );
+      }
+
+      // If content array is now empty or has only empty parts, convert to empty string
+      // This will be caught by validation later
+      if (transformedContent.length === 0) {
+        logger.warn(
+          "[Responses API] Content array became empty after filtering",
+          {
+            messageIndex: msgIndex,
+            role: msg.role,
+          },
+        );
+        return { ...msg, content: "" };
+      }
+
+      return { ...msg, content: transformedContent };
     }
     return msg;
   });
@@ -443,6 +495,57 @@ async function handlePOST(req: NextRequest) {
             { status: 400 },
           );
         }
+
+        // Validate array content has non-empty text blocks (Anthropic API requirement)
+        if (Array.isArray(msg.content)) {
+          const hasValidTextContent = msg.content.some((part) => {
+            if (typeof part === "object" && part !== null && "type" in part) {
+              const typedPart = part as { type: string; text?: string };
+              if (
+                typedPart.type === "text" ||
+                typedPart.type === "input_text"
+              ) {
+                return (
+                  typeof typedPart.text === "string" &&
+                  typedPart.text.trim() !== ""
+                );
+              }
+              // Non-text parts (images) are valid
+              return true;
+            }
+            return false;
+          });
+
+          // If we have a content array but no valid content, and no tool calls, reject
+          if (
+            !hasValidTextContent &&
+            !hasToolCalls &&
+            !hasToolCallId &&
+            !hasFunctionCall
+          ) {
+            logger.warn(
+              "[Responses API] Content array has no valid text content",
+              {
+                messageIndex: i,
+                role: msg.role,
+                contentLength: msg.content.length,
+              },
+            );
+
+            return Response.json(
+              {
+                error: {
+                  message:
+                    "Message content array must contain at least one non-empty text block",
+                  type: "invalid_request_error",
+                  param: `messages.${i}.content`,
+                  code: "invalid_value",
+                },
+              },
+              { status: 400 },
+            );
+          }
+        }
       }
     }
 
@@ -495,11 +598,12 @@ async function handlePOST(req: NextRequest) {
     const normalizedModel = normalizeModelName(model);
     const isStreaming = request.stream ?? false;
 
-    // 5. Check credits BEFORE making API call (skip for anonymous users)
+    // 5. DEDUCT credits BEFORE making API call (prevents TOCTOU race condition)
+    // Skip for anonymous users - they use message limits instead
     const estimatedCost = await estimateRequestCost(model, request.messages);
     let org = null;
+    let reservedAmount = 0;
 
-    // Anonymous users don't have organizations - they use message limits instead
     if (isAnonymous) {
       logger.info("[Responses API] Anonymous user - skipping credit check", {
         userId: user.id,
@@ -520,38 +624,30 @@ async function handlePOST(req: NextRequest) {
         );
       }
 
-      // Check if organization has sufficient credits
-      org = await organizationsService.getById(user.organization_id);
-      if (!org) {
-        return Response.json(
-          {
-            error: {
-              message: "Organization not found",
-              type: "invalid_request_error",
-              code: "organization_not_found",
-            },
-          },
-          { status: 404 },
-        );
-      }
+      // Add 50% buffer to estimated cost to account for longer responses
+      const COST_BUFFER = 1.5;
+      reservedAmount = estimatedCost * COST_BUFFER;
 
-      const creditCheck = {
-        sufficient: Number(org.credit_balance) >= estimatedCost,
-        required: estimatedCost,
-        balance: Number(org.credit_balance),
-      };
+      // Atomically deduct credits BEFORE calling the API
+      // This prevents race conditions where multiple requests pass the check
+      const reservationResult = await creditsService.reserveAndDeductCredits({
+        organizationId: user.organization_id,
+        amount: reservedAmount,
+        description: `Responses API (reserved): ${model}`,
+        metadata: { user_id: user.id, type: "reservation", estimated: true },
+      });
 
-      if (!creditCheck.sufficient) {
+      if (!reservationResult.success) {
         logger.warn("[Responses API] Insufficient credits", {
           organizationId: user.organization_id,
-          required: creditCheck.required,
-          balance: creditCheck.balance,
+          required: reservedAmount,
+          reason: reservationResult.reason,
         });
 
         return Response.json(
           {
             error: {
-              message: `Insufficient balance. Required: $${Number(creditCheck.required).toFixed(2)}, Available: $${Number(creditCheck.balance).toFixed(2)}`,
+              message: `Insufficient balance. Required: $${reservedAmount.toFixed(2)}`,
               type: "insufficient_quota",
               code: "insufficient_balance",
             },
@@ -559,7 +655,7 @@ async function handlePOST(req: NextRequest) {
           { status: 402 },
         );
       }
-    } // End of non-anonymous credit check block
+    } // End of non-anonymous credit deduction block
 
     // Log for anonymous users
     if (isAnonymous) {
@@ -597,6 +693,7 @@ async function handlePOST(req: NextRequest) {
         provider,
         startTime,
         request.messages,
+        reservedAmount,
       );
     } else {
       return handleNonStreamingResponse(
@@ -606,6 +703,7 @@ async function handlePOST(req: NextRequest) {
         normalizedModel,
         provider,
         startTime,
+        reservedAmount,
       );
     }
   } catch (error) {
@@ -675,6 +773,7 @@ async function handleNonStreamingResponse(
   model: string,
   provider: string,
   startTime: number,
+  reservedAmount?: number,
 ) {
   // Parse response
   const data: OpenAIChatResponse = await providerResponse.json();
@@ -683,8 +782,8 @@ async function handleNonStreamingResponse(
   const usage = data.usage;
   const content = data.choices[0]?.message?.content || "";
 
-  // Deduct credits SYNCHRONOUSLY before returning response (skip for anonymous users)
-  if (usage && user.organization_id) {
+  // Reconcile credits: refund difference if actual < reserved
+  if (usage && user.organization_id && reservedAmount) {
     const organizationId = user.organization_id;
     const { inputCost, outputCost, totalCost } = await calculateCost(
       model,
@@ -693,35 +792,13 @@ async function handleNonStreamingResponse(
       usage.completion_tokens,
     );
 
-    // CRITICAL: Deduct credits before returning response
-    const deductResult = await creditsService.deductCredits({
+    await creditsService.reconcile({
       organizationId,
-      amount: totalCost,
+      reservedAmount,
+      actualCost: totalCost,
       description: `Responses API: ${model}`,
       metadata: { user_id: user.id },
     });
-
-    if (!deductResult.success) {
-      logger.error(
-        "[Responses API] Failed to deduct credits after completion",
-        {
-          organizationId,
-          cost: String(totalCost),
-          balance: deductResult.newBalance,
-        },
-      );
-
-      return Response.json(
-        {
-          error: {
-            message: "Credit deduction failed. Please contact support.",
-            type: "billing_error",
-            code: "credit_deduction_failed",
-          },
-        },
-        { status: 402 },
-      );
-    }
 
     // Background analytics (usage records, generation records)
     (async () => {
@@ -793,6 +870,7 @@ function handleStreamingResponse(
   provider: string,
   startTime: number,
   messages: Array<{ role: string; content: string | object }>,
+  reservedAmount?: number,
 ) {
   let totalTokens = 0;
   let inputTokens = 0;
@@ -1042,26 +1120,15 @@ function handleStreamingResponse(
           outputTokens,
         );
 
-        // Only deduct credits and record usage for authenticated users with organizations
-        if (user.organization_id) {
-          const deductResult = await creditsService.deductCredits({
+        // Reconcile credits: refund difference if actual < reserved
+        if (user.organization_id && reservedAmount) {
+          await creditsService.reconcile({
             organizationId: user.organization_id,
-            amount: totalCost,
+            reservedAmount,
+            actualCost: totalCost,
             description: `Responses API: ${model}`,
             metadata: { user_id: user.id },
           });
-
-          if (!deductResult.success) {
-            logger.error(
-              "[Responses API] CRITICAL: Failed to deduct credits after streaming",
-              {
-                organizationId: user.organization_id,
-                userId: user.id,
-                cost: String(totalCost),
-                balance: deductResult.newBalance,
-              },
-            );
-          }
 
           const usageRecord = await usageService.create({
             organization_id: user.organization_id,
