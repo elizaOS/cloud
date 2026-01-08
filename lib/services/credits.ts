@@ -30,8 +30,11 @@ import { logger } from "@/lib/utils/logger";
 // Constants
 // ============================================================================
 
-export const COST_BUFFER = 1.5;
+/** Buffer multiplier for cost estimation (default 50%). Configurable via env. */
+export const COST_BUFFER = Number(process.env.CREDIT_COST_BUFFER) || 1.5;
+/** Minimum reservation amount in USD */
 export const MIN_RESERVATION = 0.01;
+/** Default estimated output tokens when not specified */
 export const DEFAULT_OUTPUT_TOKENS = 500;
 
 // ============================================================================
@@ -608,6 +611,8 @@ export class CreditsService {
    * - Refunds excess if actual < reserved
    * - Charges overage if actual > reserved
    * - No-op if costs match (within epsilon for float precision)
+   *
+   * Includes retry logic for transient failures.
    */
   async reconcile(params: {
     organizationId: string;
@@ -636,35 +641,63 @@ export class CreditsService {
       actual: actualCost,
     };
 
-    if (difference > 0) {
-      await this.refundCredits({
-        organizationId,
-        amount: difference,
-        description: `${description} (refund)`,
-        metadata: { ...baseMetadata, type: "reconciliation_refund" },
-      });
-      logger.info("[Credits] Reconciled - refunded excess", {
-        organizationId,
-        reserved: reservedAmount,
-        actual: actualCost,
-        refunded: difference,
-      });
-      return;
-    }
+    const MAX_RETRIES = 3;
+    const RETRY_DELAY_MS = 100;
 
-    const overage = -difference;
-    await this.deductCredits({
-      organizationId,
-      amount: overage,
-      description: `${description} (overage)`,
-      metadata: { ...baseMetadata, type: "reconciliation_overage" },
-    });
-    logger.warn("[Credits] Reconciled - charged overage", {
-      organizationId,
-      reserved: reservedAmount,
-      actual: actualCost,
-      overage,
-    });
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        if (difference > 0) {
+          await this.refundCredits({
+            organizationId,
+            amount: difference,
+            description: `${description} (refund)`,
+            metadata: { ...baseMetadata, type: "reconciliation_refund" },
+          });
+          logger.info("[Credits] Reconciled - refunded excess", {
+            organizationId,
+            reserved: reservedAmount,
+            actual: actualCost,
+            refunded: difference,
+          });
+          return;
+        }
+
+        const overage = -difference;
+        await this.deductCredits({
+          organizationId,
+          amount: overage,
+          description: `${description} (overage)`,
+          metadata: { ...baseMetadata, type: "reconciliation_overage" },
+        });
+        logger.warn("[Credits] Reconciled - charged overage", {
+          organizationId,
+          reserved: reservedAmount,
+          actual: actualCost,
+          overage,
+        });
+        return;
+      } catch (error) {
+        if (attempt === MAX_RETRIES) {
+          logger.error("[Credits] Reconciliation failed after retries", {
+            organizationId,
+            reserved: reservedAmount,
+            actual: actualCost,
+            difference,
+            error: error instanceof Error ? error.message : "Unknown error",
+          });
+          // Don't throw - operation completed, just log for manual review
+          return;
+        }
+        logger.warn("[Credits] Reconciliation retry", {
+          attempt,
+          organizationId,
+          error: error instanceof Error ? error.message : "Unknown error",
+        });
+        await new Promise((resolve) =>
+          setTimeout(resolve, RETRY_DELAY_MS * attempt),
+        );
+      }
+    }
   }
 
   // ============================================================================
@@ -680,6 +713,17 @@ export class CreditsService {
    */
   async reserve(params: ReserveCreditsParams): Promise<CreditReservation> {
     const { organizationId, userId, description } = params;
+
+    // Input validation
+    if (!organizationId) {
+      throw new Error("reserve() requires organizationId");
+    }
+    if (!description) {
+      throw new Error("reserve() requires description");
+    }
+    if (params.amount !== undefined && params.amount < 0) {
+      throw new Error("reserve() amount must be non-negative");
+    }
 
     let reservedAmount: number;
     let model: string | undefined;
