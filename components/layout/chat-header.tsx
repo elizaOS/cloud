@@ -133,6 +133,7 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
     selectedCharacterId,
     setSelectedCharacterId,
     setRoomId,
+    rooms,
     availableCharacters,
     viewerState,
   } = useChatStore();
@@ -148,7 +149,7 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
 
   // Find selected agent
   const selectedAgent = availableCharacters.find(
-    (a) => a.id === selectedCharacterId,
+    (a) => a.id === selectedCharacterId
   );
 
   // Determine if user is the owner of the selected character
@@ -277,10 +278,27 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
 
   const handleAgentChange = (characterId: string) => {
     setSelectedCharacterId(characterId);
-    setRoomId(null);
 
     const params = new URLSearchParams();
     params.set("characterId", characterId);
+
+    // Only handle room selection when in chat mode
+    if (mode === "chat") {
+      const characterRooms = rooms
+        .filter((room) => room.characterId === characterId)
+        .sort((a, b) => (b.lastTime ?? 0) - (a.lastTime ?? 0));
+
+      if (characterRooms.length > 0) {
+        const mostRecentRoom = characterRooms[0];
+        setRoomId(mostRecentRoom.id);
+        params.set("roomId", mostRecentRoom.id);
+      } else {
+        setRoomId(null);
+      }
+    } else {
+      setRoomId(null);
+    }
+
     const path = mode === "build" ? "/dashboard/build" : "/dashboard/chat";
     router.push(`${path}?${params.toString()}`);
   };
@@ -298,6 +316,19 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
     const params = new URLSearchParams();
     if (selectedCharacterId) {
       params.set("characterId", selectedCharacterId);
+
+      // When switching to chat mode, open most recent conversation if one exists
+      if (newMode === "chat") {
+        const characterRooms = rooms
+          .filter((room) => room.characterId === selectedCharacterId)
+          .sort((a, b) => (b.lastTime ?? 0) - (a.lastTime ?? 0));
+
+        if (characterRooms.length > 0) {
+          const mostRecentRoom = characterRooms[0];
+          setRoomId(mostRecentRoom.id);
+          params.set("roomId", mostRecentRoom.id);
+        }
+      }
     }
 
     const path = newMode === "build" ? "/dashboard/build" : "/dashboard/chat";

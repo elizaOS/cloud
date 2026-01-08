@@ -54,6 +54,7 @@ import type { DashboardAgentStats as AgentStats } from "@/lib/actions/dashboard"
 import { Skeleton } from "../ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
+import { useChatStore } from "@/lib/stores/chat-store";
 
 interface Agent {
   id: string;
@@ -284,6 +285,7 @@ function getAgentColor(name: string): string {
 // Individual Agent Card - Full card style with prominent avatar
 function AgentCard({ agent }: { agent: Agent }) {
   const router = useRouter();
+  const { loadRooms, rooms } = useChatStore();
   const bioText = Array.isArray(agent.bio) ? agent.bio[0] : agent.bio;
   const isDeployed = agent.stats?.deploymentStatus === "deployed";
   const isStopped = agent.stats?.deploymentStatus === "stopped";
@@ -417,18 +419,43 @@ function AgentCard({ agent }: { agent: Agent }) {
     setShowDeleteConfirm(false);
   };
 
-  // Prevent card click when delete dialog is open
-  const handleCardClick = (e: React.MouseEvent) => {
+  const handleCardClick = async (e: React.MouseEvent) => {
     if (showDeleteConfirm) {
       e.preventDefault();
+      return;
+    }
+
+    e.preventDefault();
+
+    // Ensure rooms are loaded
+    if (rooms.length === 0) {
+      await loadRooms();
+    }
+
+    const currentRooms = useChatStore.getState().rooms;
+    const characterRooms = currentRooms
+      .filter((r) => r.characterId === agent.id)
+      .sort((a, b) => (b.lastTime ?? 0) - (a.lastTime ?? 0));
+
+    if (characterRooms.length > 0) {
+      router.push(
+        `/dashboard/chat?characterId=${agent.id}&roomId=${characterRooms[0].id}`
+      );
+    } else {
+      router.push(`/dashboard/chat?characterId=${agent.id}`);
     }
   };
 
   return (
-    <Link
-      href={`/dashboard/chat?characterId=${agent.id}`}
-      className="block h-full"
+    <div
+      className="block h-full cursor-pointer"
       onClick={handleCardClick}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ")
+          handleCardClick(e as unknown as React.MouseEvent);
+      }}
+      role="button"
+      tabIndex={0}
     >
       <div className="group relative h-full overflow-hidden border border-white/10 bg-black/40 transition-all duration-300 hover:border-[#FF5800]/50 hover:shadow-lg hover:shadow-[#FF5800]/10 hover:-translate-y-1">
         <div className={cn("relative aspect-square w-full overflow-hidden")}>
@@ -579,7 +606,7 @@ function AgentCard({ agent }: { agent: Agent }) {
           </div>
         </div>
       </div>
-    </Link>
+    </div>
   );
 }
 
