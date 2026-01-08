@@ -75,7 +75,7 @@ export interface GitStatusResult {
  * Configure via environment variables to use your own email for Vercel attribution:
  * - GIT_COMMIT_AUTHOR_NAME: Name for commits (default: "ElizaCloud Bot")
  * - GIT_COMMIT_AUTHOR_EMAIL: Email for commits (default: "bot@elizacloud.ai")
- * 
+ *
  * Important: For Vercel deployments, use an email that matches your GitHub account
  * to ensure proper commit author attribution.
  */

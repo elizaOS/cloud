@@ -183,7 +183,7 @@ export async function sendStreamingMessage({
   let buffer = "";
 
   let completeCalled = false;
-  
+
   try {
     while (true) {
       const { done, value } = await reader.read();

@@ -128,9 +128,6 @@ export default {
   mcp: {
     title: "MCP Protocol",
   },
-  x402: {
-    title: "x402 Payments",
-  },
 
   // ─────────────────────────────────────────────────────────────────────
   // Reference

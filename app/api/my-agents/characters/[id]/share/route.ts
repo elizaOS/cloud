@@ -46,11 +46,8 @@ export async function GET(
           ? {
               chatUrl: `${baseUrl}/chat/${character.id}`,
               dashboardChatUrl: `${baseUrl}/dashboard/chat?characterId=${character.id}`,
-              // When ERC8004 registered, include protocol endpoints
-              ...(character.erc8004_registered && {
-                a2aEndpoint: `${baseUrl}/api/agents/${character.id}/a2a`,
-                mcpEndpoint: `${baseUrl}/api/agents/${character.id}/mcp`,
-              }),
+              a2aEndpoint: `${baseUrl}/api/agents/${character.id}/a2a`,
+              mcpEndpoint: `${baseUrl}/api/agents/${character.id}/mcp`,
             }
           : null,
       },
@@ -69,7 +66,7 @@ export async function GET(
  * Toggle the public sharing status of a character.
  *
  * This is a simpler alternative to the full /api/v1/agents/[agentId]/publish
- * endpoint which also handles ERC8004 registration and monetization.
+ * endpoint which also handles monetization settings.
  *
  * Use this endpoint for basic sharing (make character accessible via share link).
  * Use /publish for full marketplace publishing with monetization.

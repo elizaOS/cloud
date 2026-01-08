@@ -157,7 +157,6 @@ export function ElizaChatInterface({
   const [inputText, setInputText] = useState("");
   const inputTextRef = useRef(inputText);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
   const isPendingMessageProcessingRef = useRef(false);
   const pendingMessageToSendRef = useRef<string | null>(null);
   const isCreatingRoomRef = useRef(false);
@@ -1202,49 +1201,11 @@ export function ElizaChatInterface({
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
-      textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 400) + "px";
+      textareaRef.current.style.height =
+        Math.min(textareaRef.current.scrollHeight, 400) + "px";
     }
   }, [inputText]);
 
-  // Track if input is expanded (multiline mode)
-  const isExpanded = inputText.includes("\n") || inputText.length > 80;
-  const wasExpandedRef = useRef(isExpanded);
-
-  // Maintain focus when transitioning between layouts
-  useEffect(() => {
-    if (wasExpandedRef.current !== isExpanded) {
-      // Layout changed - restore focus to the appropriate input
-      requestAnimationFrame(() => {
-        if (isExpanded && textareaRef.current) {
-          textareaRef.current.focus();
-          // Move cursor to end of text
-          const len = textareaRef.current.value.length;
-          textareaRef.current.setSelectionRange(len, len);
-        } else if (!isExpanded && inputRef.current) {
-          inputRef.current.focus();
-          // Move cursor to end of text
-          const len = inputRef.current.value.length;
-          inputRef.current.setSelectionRange(len, len);
-        }
-      });
-    }
-    wasExpandedRef.current = isExpanded;
-  }, [isExpanded]);
-
-  // Focus the appropriate input when clicking the container
-  const handleContainerClick = useCallback((e: React.MouseEvent) => {
-    // Don't focus if clicking on a button or dropdown
-    const target = e.target as HTMLElement;
-    if (target.closest('button') || target.closest('[role="menu"]') || target.closest('[data-radix-popper-content-wrapper]')) {
-      return;
-    }
-
-    if (isExpanded && textareaRef.current) {
-      textareaRef.current.focus();
-    } else if (!isExpanded && inputRef.current) {
-      inputRef.current.focus();
-    }
-  }, [isExpanded]);
 
   // Auto-scroll to bottom when messages change
   // Uses smooth scrolling during streaming for a polished feel
@@ -1398,8 +1359,8 @@ export function ElizaChatInterface({
                       onImageLoad={scrollToBottom}
                       onTextReveal={() => scrollToBottom(true)}
                     />
-                  );
-                })}
+                              );
+                            })}
               </div>
             </ScrollArea>
           </div>
