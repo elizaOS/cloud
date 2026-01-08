@@ -73,6 +73,7 @@ interface ChatState {
   pendingMessage: string | null; // Message from landing page to auto-send
   loadRoomsPromise: Promise<void> | null; // Track ongoing loadRooms operation
   anonymousSessionToken: string | null; // Session token for anonymous users (from URL)
+  recentlyDeletedRoomIds: Set<string>; // Track recently deleted rooms to prevent re-adding
 
   // Viewer state for public agent access control
   isAuthenticated: boolean;
@@ -119,6 +120,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   pendingMessage: null,
   loadRoomsPromise: null,
   anonymousSessionToken: null,
+  recentlyDeletedRoomIds: new Set<string>(),
 
   // Viewer state
   isAuthenticated: false,
@@ -298,8 +300,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
               mergedCharacters,
             );
 
+            // Filter out any recently deleted rooms to prevent them from reappearing
+            const filteredRoomItems = roomItems.filter(
+              (room) => !currentState.recentlyDeletedRoomIds.has(room.id),
+            );
+
             set({
-              rooms: roomItems,
+              rooms: filteredRoomItems,
               availableCharacters: mergedCharacters,
               selectedCharacterId: newSelectedCharacterId,
               viewerState,
@@ -402,28 +409,55 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
   },
 
-  // Delete room
+  // Delete room - uses optimistic update for instant UI feedback
   deleteRoom: async (roomIdToDelete: string) => {
-    const { rooms, roomId, setRooms, setRoomId } = get();
+    // Optimistic update: remove from UI immediately before API call
+    const currentState = get();
+    const wasSelected = currentState.roomId === roomIdToDelete;
+    const previousRooms = currentState.rooms;
+    
+    // Add to recently deleted set to prevent loadRooms from re-adding it
+    const newDeletedSet = new Set(currentState.recentlyDeletedRoomIds);
+    newDeletedSet.add(roomIdToDelete);
+    
+    // Update state immediately
+    set({
+      rooms: previousRooms.filter((r) => r.id !== roomIdToDelete),
+      roomId: wasSelected ? null : currentState.roomId,
+      recentlyDeletedRoomIds: newDeletedSet,
+    });
+    
+    // Clear from localStorage if this was the selected room
+    if (wasSelected && typeof window !== "undefined") {
+      window.localStorage.removeItem("elizaRoomId");
+    }
 
-    const response = await fetch(`/api/eliza/rooms/${roomIdToDelete}`, {
+    // Make API call in background - don't await, fire and forget
+    // The optimistic update has already removed the room from UI
+    fetch(`/api/eliza/rooms/${roomIdToDelete}`, {
       method: "DELETE",
       credentials: "include",
-    });
-
-    if (response.ok) {
-      // Remove from local state
-      setRooms(rooms.filter((r) => r.id !== roomIdToDelete));
-
-      // If deleted room was selected, clear selection
-      if (roomId === roomIdToDelete) {
-        setRoomId(null);
-        // Also clear from localStorage
-        if (typeof window !== "undefined") {
-          window.localStorage.removeItem("elizaRoomId");
-        }
+    }).then((response) => {
+      if (!response.ok) {
+        // Log error but don't rollback - the server delete often succeeds
+        // even when returning errors due to cascade operations
+        console.warn("[ChatStore] Delete API returned error, but room may have been deleted");
       }
-    }
+      // Always clean up the deleted set after a delay
+      setTimeout(() => {
+        const cleanupDeletedSet = new Set(get().recentlyDeletedRoomIds);
+        cleanupDeletedSet.delete(roomIdToDelete);
+        set({ recentlyDeletedRoomIds: cleanupDeletedSet });
+      }, 5000);
+    }).catch((error) => {
+      console.error("[ChatStore] Delete request failed:", error);
+      // Still clean up after delay - don't leave stale entries
+      setTimeout(() => {
+        const cleanupDeletedSet = new Set(get().recentlyDeletedRoomIds);
+        cleanupDeletedSet.delete(roomIdToDelete);
+        set({ recentlyDeletedRoomIds: cleanupDeletedSet });
+      }, 5000);
+    });
   },
 
   // Clear all chat data on logout
@@ -444,6 +478,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       pendingMessage: null,
       loadRoomsPromise: null,
       anonymousSessionToken: null,
+      recentlyDeletedRoomIds: new Set<string>(),
       isAuthenticated: false,
       viewerState: "unauthenticated" as ViewerState,
       currentUserId: null,
