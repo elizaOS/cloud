@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef, Suspense } from "react";
 import {
   usePrivy,
+  useLogin,
   useLoginWithEmail,
   useLoginWithOAuth,
 } from "@privy-io/react-auth";
@@ -26,7 +27,8 @@ const DiscordIcon = ({ className }: { className?: string }) => (
 );
 
 function LoginPageContent() {
-  const { ready, authenticated, login, user } = usePrivy();
+  const { ready, authenticated, user } = usePrivy();
+  const { login } = useLogin();
   const { sendCode, loginWithCode, state: emailState } = useLoginWithEmail();
   const { initOAuth } = useLoginWithOAuth();
   const router = useRouter();
@@ -168,10 +170,9 @@ function LoginPageContent() {
     lastLoginAttemptRef.current = now;
     setLoadingButton("wallet");
 
-    // Use login() instead of connectWallet() for authentication
-    // This opens the Privy modal (non-blocking, returns immediately)
+    // Use login() with loginMethods restricted to 'wallet' to directly show wallet options
     // Authentication state changes are handled via the authenticated state in useEffect
-    login();
+    login({ loginMethods: ["wallet"] });
 
     // Reset the guard after a short delay to allow modal to open
     // If authentication succeeds, the useEffect will handle redirect

@@ -784,14 +784,21 @@ export class SandboxService {
     try {
       sandbox = (await Sandbox.create(createOptions)) as SandboxInstance;
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+
       // Extract additional error details from Vercel SDK APIError
-      const apiError = error as { json?: unknown; text?: string; response?: { status?: number } };
-      const jsonDetails = apiError.json ? JSON.stringify(apiError.json, null, 2) : undefined;
+      const apiError = error as {
+        json?: unknown;
+        text?: string;
+        response?: { status?: number };
+      };
+      const jsonDetails = apiError.json
+        ? JSON.stringify(apiError.json, null, 2)
+        : undefined;
       const textDetails = apiError.text;
       const statusCode = apiError.response?.status;
-      
+
       // Log full error details for debugging
       logger.error("Sandbox creation failed", {
         error: errorMessage,
@@ -818,26 +825,34 @@ export class SandboxService {
           `OIDC token expired or invalid. Run 'vercel env pull' to refresh it. Original error: ${detailedMessage}`,
         );
       }
-      
+
       // Check for common Vercel Sandbox errors
-      if (errorMessage.includes("400") || errorMessage.includes("Bad Request") || statusCode === 400) {
+      if (
+        errorMessage.includes("400") ||
+        errorMessage.includes("Bad Request") ||
+        statusCode === 400
+      ) {
         throw new Error(
           `Vercel Sandbox creation failed (400 Bad Request).\n\n` +
-          `Possible causes:\n` +
-          `1. Concurrent sandbox limit reached - wait for existing sandboxes to expire\n` +
-          `2. Template URL is invalid or inaccessible\n` +
-          `3. Account sandbox quota exceeded\n` +
-          `4. Invalid configuration parameters\n\n` +
-          `Details: ${detailedMessage}`,
+            `Possible causes:\n` +
+            `1. Concurrent sandbox limit reached - wait for existing sandboxes to expire\n` +
+            `2. Template URL is invalid or inaccessible\n` +
+            `3. Account sandbox quota exceeded\n` +
+            `4. Invalid configuration parameters\n\n` +
+            `Details: ${detailedMessage}`,
         );
       }
-      
-      if (errorMessage.includes("429") || errorMessage.includes("rate limit") || statusCode === 429) {
+
+      if (
+        errorMessage.includes("429") ||
+        errorMessage.includes("rate limit") ||
+        statusCode === 429
+      ) {
         throw new Error(
           `Vercel Sandbox rate limit exceeded. Wait a few minutes and try again.\n\nDetails: ${detailedMessage}`,
         );
       }
-      
+
       throw new Error(`Sandbox creation failed: ${detailedMessage}`);
     }
     const devServerUrl = sandbox.domain(3000);
@@ -858,10 +873,13 @@ export class SandboxService {
     });
 
     if (bunInstall.exitCode !== 0) {
-      logger.warn("Failed to install bun globally, will fall back to pnpm/npm", {
-        sandboxId,
-        stderr: await bunInstall.stderr(),
-      });
+      logger.warn(
+        "Failed to install bun globally, will fall back to pnpm/npm",
+        {
+          sandboxId,
+          stderr: await bunInstall.stderr(),
+        },
+      );
     } else {
       logger.info("Bun installed successfully", { sandboxId });
     }
@@ -1101,7 +1119,10 @@ export class SandboxService {
     // Next.js 15+ uses Turbopack by default in dev mode
     await sandbox.runCommand({
       cmd: "sh",
-      args: ["-c", "bun dev 2>&1 | tee /tmp/next-dev.log || pnpm dev 2>&1 | tee /tmp/next-dev.log &"],
+      args: [
+        "-c",
+        "bun dev 2>&1 | tee /tmp/next-dev.log || pnpm dev 2>&1 | tee /tmp/next-dev.log &",
+      ],
       detached: true,
       env: mergedEnv,
     });
@@ -1846,7 +1867,10 @@ REMEMBER:
     // Falls back to pnpm if bun isn't available
     await sandbox.runCommand({
       cmd: "sh",
-      args: ["-c", "bun dev 2>&1 | tee /tmp/next-dev.log || pnpm dev 2>&1 | tee /tmp/next-dev.log &"],
+      args: [
+        "-c",
+        "bun dev 2>&1 | tee /tmp/next-dev.log || pnpm dev 2>&1 | tee /tmp/next-dev.log &",
+      ],
       detached: true,
     });
 
@@ -1983,7 +2007,10 @@ REMEMBER:
 
             await existingSandbox.runCommand({
               cmd: "sh",
-              args: ["-c", "bun dev 2>&1 | tee /tmp/next-dev.log || pnpm dev 2>&1 | tee /tmp/next-dev.log &"],
+              args: [
+                "-c",
+                "bun dev 2>&1 | tee /tmp/next-dev.log || pnpm dev 2>&1 | tee /tmp/next-dev.log &",
+              ],
               detached: true,
             });
 
@@ -2085,7 +2112,10 @@ REMEMBER:
 
         await sandbox.runCommand({
           cmd: "sh",
-          args: ["-c", "bun dev 2>&1 | tee /tmp/next-dev.log || pnpm dev 2>&1 | tee /tmp/next-dev.log &"],
+          args: [
+            "-c",
+            "bun dev 2>&1 | tee /tmp/next-dev.log || pnpm dev 2>&1 | tee /tmp/next-dev.log &",
+          ],
           detached: true,
         });
 

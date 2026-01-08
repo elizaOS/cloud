@@ -6,6 +6,7 @@ import { requireAuthOrApiKeyWithOrg } from "@/lib/auth";
 import { usageService } from "@/lib/services/usage";
 import { creditsService } from "@/lib/services/credits";
 import { generationsService } from "@/lib/services/generations";
+import { discordService } from "@/lib/services/discord";
 import {
   VIDEO_GENERATION_COST,
   VIDEO_GENERATION_FALLBACK_COST,
@@ -219,6 +220,30 @@ async function handlePOST(request: NextRequest) {
           requestId: result.requestId,
         },
       });
+
+      // Send Discord notification for video generation (non-blocking)
+      discordService
+        .logVideoGenerated({
+          generationId,
+          prompt: prompt.trim(),
+          videoUrl: blobUrl,
+          userId: user.id,
+          organizationId: user.organization_id!,
+          model,
+          width: data.video.width,
+          height: data.video.height,
+          fileSize: blobFileSize ? Number(blobFileSize) : undefined,
+          cost: VIDEO_GENERATION_COST,
+        })
+        .catch((err) => {
+          logger.warn(
+            "[VIDEO GENERATION] Failed to send Discord notification",
+            {
+              generationId,
+              error: err instanceof Error ? err.message : "Unknown error",
+            },
+          );
+        });
     }
 
     return NextResponse.json(
