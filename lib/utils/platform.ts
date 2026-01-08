@@ -2,32 +2,19 @@
  * Platform Detection Utilities
  *
  * Provides utilities for detecting the current platform and adjusting
- * behavior accordingly for web, iOS, Android, and desktop Tauri builds.
+ * behavior accordingly for web, iOS, and Android.
  */
 
 /**
  * Platform types
  */
-export type Platform = "web" | "ios" | "android" | "desktop" | "unknown";
+export type Platform = "web" | "ios" | "android" | "unknown";
 
 /**
  * Check if running in a browser environment
  */
 export function isBrowser(): boolean {
   return typeof window !== "undefined";
-}
-
-/**
- * Check if running in a Tauri environment (any platform)
- */
-export function isTauri(): boolean {
-  if (!isBrowser()) return false;
-
-  return (
-    "__TAURI__" in window ||
-    "__TAURI_INTERNALS__" in window ||
-    process.env.NEXT_PUBLIC_IS_TAURI === "true"
-  );
 }
 
 /**
@@ -38,7 +25,8 @@ export function isMobileApp(): boolean {
 
   return (
     process.env.NEXT_PUBLIC_IS_MOBILE_APP === "true" ||
-    (isTauri() && (isIOS() || isAndroid()))
+    isIOS() ||
+    isAndroid()
   );
 }
 
@@ -63,15 +51,6 @@ export function isAndroid(): boolean {
 }
 
 /**
- * Check if running on desktop
- */
-export function isDesktop(): boolean {
-  if (!isBrowser()) return false;
-
-  return isTauri() && !isIOS() && !isAndroid();
-}
-
-/**
  * Check if running in a WebView (not standalone browser)
  */
 export function isWebView(): boolean {
@@ -83,8 +62,7 @@ export function isWebView(): boolean {
   return (
     userAgent.includes("wv") || // Android WebView
     userAgent.includes("webview") ||
-    (isIOS() && !userAgent.includes("safari")) || // iOS WebView (not Safari)
-    isTauri()
+    (isIOS() && !userAgent.includes("safari")) // iOS WebView (not Safari)
   );
 }
 
@@ -96,7 +74,6 @@ export function getPlatform(): Platform {
 
   if (isIOS()) return "ios";
   if (isAndroid()) return "android";
-  if (isDesktop()) return "desktop";
 
   return "web";
 }
@@ -139,9 +116,7 @@ export function getSafeAreaInsets(): {
 export function getPlatformConfig(): {
   platform: Platform;
   isMobile: boolean;
-  isTauri: boolean;
   isTouch: boolean;
-  supportsIAP: boolean;
   supportsNotifications: boolean;
   supportsHaptics: boolean;
 } {
@@ -151,9 +126,7 @@ export function getPlatformConfig(): {
   return {
     platform,
     isMobile,
-    isTauri: isTauri(),
     isTouch: isTouchDevice(),
-    supportsIAP: isMobile && isTauri(),
     supportsNotifications: isBrowser() && "Notification" in window,
     supportsHaptics: isBrowser() && "vibrate" in navigator,
   };
@@ -177,7 +150,6 @@ export function getUserAgentInfo(): Record<string, unknown> {
     maxTouchPoints: navigator.maxTouchPoints,
     detected: {
       platform: getPlatform(),
-      isTauri: isTauri(),
       isMobileApp: isMobileApp(),
       isWebView: isWebView(),
       isTouch: isTouchDevice(),

@@ -1,24 +1,18 @@
 /**
  * Mobile API Client
  *
- * Provides an API client that works in both web and mobile (Tauri) contexts.
+ * Provides an API client that works in both web and mobile contexts.
  * In mobile builds, all API calls are routed to elizacloud.ai.
  * In web builds, calls go to the current origin.
  */
 
 /**
- * Check if running in a Tauri mobile app
+ * Check if running in a mobile app
  */
 export function isMobileApp(): boolean {
   if (typeof window === "undefined") return false;
 
-  // Check for Tauri-specific globals
-  return (
-    process.env.NEXT_PUBLIC_IS_MOBILE_APP === "true" ||
-    process.env.NEXT_PUBLIC_IS_TAURI === "true" ||
-    "__TAURI__" in window ||
-    "__TAURI_INTERNALS__" in window
-  );
+  return process.env.NEXT_PUBLIC_IS_MOBILE_APP === "true";
 }
 
 /**
@@ -295,12 +289,6 @@ export const endpoints = {
   credits: {
     balance: "/api/credits/balance",
     topup: "/api/v1/credits/topup",
-  },
-
-  // IAP
-  iap: {
-    verify: "/api/v1/iap/verify",
-    products: "/api/v1/iap/products",
   },
 
   // Dashboard
