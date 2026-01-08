@@ -177,6 +177,8 @@ export async function sendStreamingMessage({
   const decoder = new TextDecoder();
   let buffer = "";
 
+  let completeCalled = false;
+  
   try {
     while (true) {
       const { done, value } = await reader.read();
@@ -191,12 +193,19 @@ export async function sendStreamingMessage({
               onChunk,
               onReasoning,
               onError,
-              onComplete,
+              () => {
+                completeCalled = true;
+                onComplete?.();
+              },
             );
           } catch (err) {
             console.error("[Stream] Error processing final buffer:", err);
             onError?.("Stream ended unexpectedly");
           }
+        }
+        // Always call onComplete when stream ends, if not already called
+        if (!completeCalled) {
+          onComplete?.();
         }
         break;
       }

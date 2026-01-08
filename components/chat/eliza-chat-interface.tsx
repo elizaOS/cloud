@@ -150,6 +150,8 @@ export function ElizaChatInterface({
   const [agentInfo, setAgentInfo] = useState<AgentInfoDisplay | null>(null);
   const [inputText, setInputText] = useState("");
   const inputTextRef = useRef(inputText);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const isPendingMessageProcessingRef = useRef(false);
   const pendingMessageToSendRef = useRef<string | null>(null);
   const isCreatingRoomRef = useRef(false);
@@ -764,12 +766,13 @@ export function ElizaChatInterface({
             }
           },
           onComplete: () => {
-            // Always reload rooms to update lastText and lastTime
-            // Use longer delay for newly created rooms to ensure server-side processing is complete
+            // Reload rooms to update lastText, lastTime, and AI-generated title
+            // Title is generated automatically by the server-side room-title service
             const delay = didCreateNewRoom ? 500 : 100;
             setTimeout(() => {
               loadRooms();
             }, delay);
+
             // Notify parent that a message was sent successfully (for anonymous message counting)
             if (onMessageSent) {
               onMessageSent();
@@ -1173,6 +1176,54 @@ export function ElizaChatInterface({
     inputTextRef.current = inputText;
   }, [inputText]);
 
+  // Auto-resize textarea when inputText changes
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+      textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 400) + "px";
+    }
+  }, [inputText]);
+
+  // Track if input is expanded (multiline mode)
+  const isExpanded = inputText.includes("\n") || inputText.length > 80;
+  const wasExpandedRef = useRef(isExpanded);
+
+  // Maintain focus when transitioning between layouts
+  useEffect(() => {
+    if (wasExpandedRef.current !== isExpanded) {
+      // Layout changed - restore focus to the appropriate input
+      requestAnimationFrame(() => {
+        if (isExpanded && textareaRef.current) {
+          textareaRef.current.focus();
+          // Move cursor to end of text
+          const len = textareaRef.current.value.length;
+          textareaRef.current.setSelectionRange(len, len);
+        } else if (!isExpanded && inputRef.current) {
+          inputRef.current.focus();
+          // Move cursor to end of text
+          const len = inputRef.current.value.length;
+          inputRef.current.setSelectionRange(len, len);
+        }
+      });
+    }
+    wasExpandedRef.current = isExpanded;
+  }, [isExpanded]);
+
+  // Focus the appropriate input when clicking the container
+  const handleContainerClick = useCallback((e: React.MouseEvent) => {
+    // Don't focus if clicking on a button or dropdown
+    const target = e.target as HTMLElement;
+    if (target.closest('button') || target.closest('[role="menu"]') || target.closest('[data-radix-popper-content-wrapper]')) {
+      return;
+    }
+    
+    if (isExpanded && textareaRef.current) {
+      textareaRef.current.focus();
+    } else if (!isExpanded && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [isExpanded]);
+
   // Auto-scroll to bottom when messages change
   // Uses smooth scrolling during streaming for a polished feel
   useEffect(() => {
@@ -1247,12 +1298,12 @@ export function ElizaChatInterface({
   };
 
   return (
-    <div className="flex h-full w-full min-h-0 justify-center">
-      {/* Main Chat Area - Centered with max width for readability */}
-      <div className="flex flex-col flex-1 min-h-0 max-w-7xl w-full px-4 sm:px-6 lg:px-8">
-        {/* Messages Area - No Header */}
-        <div className="flex-1 min-h-0 overflow-hidden">
-          <ScrollArea className="h-full py-6 px-2" ref={scrollAreaRef}>
+    <div className="flex flex-col h-full w-full min-h-0">
+      {/* Messages Area - Full width scroll area for better scroll UX */}
+      <div className="flex-1 min-h-0 overflow-hidden">
+        <ScrollArea className="h-full" ref={scrollAreaRef}>
+          {/* Centered content container */}
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
             <div className="space-y-6">
               {error && (
                 <div className="rounded-lg border border-destructive bg-destructive/10 p-3">
@@ -1419,18 +1470,23 @@ export function ElizaChatInterface({
                   );
                 })}
             </div>
-          </ScrollArea>
-        </div>
+          </div>
+        </ScrollArea>
+      </div>
 
-        {/* Input Area - Buttons inside input like Gemini/ChatGPT */}
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            sendMessage();
-          }}
-          className="border-t border-white/[0.06] p-4"
-        >
-          <div className="relative rounded-2xl border border-white/[0.08] bg-white/[0.02] overflow-hidden transition-colors focus-within:border-white/[0.15] focus-within:bg-white/[0.03]">
+      {/* Input Area - ChatGPT style */}
+      <div className="px-4 sm:px-6 lg:px-8 pb-4">
+        <div className="max-w-7xl mx-auto border-t border-white/[0.06] pt-4">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              sendMessage();
+            }}
+          >
+          <div 
+            className="relative rounded-2xl border border-white/[0.08] bg-white/[0.02] overflow-hidden transition-colors focus-within:border-white/[0.15] focus-within:bg-white/[0.03] cursor-text"
+            onClick={handleContainerClick}
+          >
             {/* Robot Eye Visor Scanner */}
             {loadingState.isSending && (
               <div className="absolute top-0 left-0 right-0 h-[2px] overflow-hidden pointer-events-none z-10">
@@ -1455,38 +1511,149 @@ export function ElizaChatInterface({
               </div>
             )}
 
-            {/* Textarea */}
-            <textarea
-              rows={1}
-              value={inputText}
-              onChange={(e) => setInputText(e.currentTarget.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  if (!loadingState.isSending && !recorder.isRecording) {
-                    sendMessage();
-                  }
-                }
-              }}
-              onInput={(e) => {
-                const target = e.target as HTMLTextAreaElement;
-                target.style.height = "52px";
-                target.style.height = Math.min(target.scrollHeight, 200) + "px";
-              }}
-              placeholder={
-                isMessageLimitReached
-                  ? "Sign up to continue chatting..."
-                  : recorder.isRecording
-                    ? "Recording... Click stop when done"
-                    : "Type your message..."
-              }
-              disabled={recorder.isRecording || isMessageLimitReached}
-              className="w-full bg-transparent px-4 pt-3 pb-3 text-[15px] text-white placeholder:text-white/40 focus:outline-none disabled:opacity-50 resize-none leading-relaxed"
-              style={{ minHeight: "52px", maxHeight: "200px" }}
-            />
+            {/* Compact single-line layout when text is short */}
+            {!(inputText.includes("\n") || inputText.length > 80) && (
+              <div className="flex items-center justify-center px-2 py-2 gap-1 min-h-[44px] animate-in fade-in duration-200">
+                {/* Left buttons */}
+                <div className="flex items-center gap-1">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 rounded-lg hover:bg-white/[0.06] transition-colors"
+                      >
+                        <Plus className="h-4 w-4 text-white/60" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent
+                      className="w-56 rounded-xl border-white/[0.08] bg-[#1a1a1a]/95 backdrop-blur-xl p-1"
+                      align="start"
+                      side="top"
+                      sideOffset={8}
+                    >
+                      <DropdownMenuItem
+                        className="flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer"
+                        disabled={isUploadingFiles || loadingState.isSending}
+                        onSelect={() => {
+                          document.getElementById("chat-file-upload")?.click();
+                        }}
+                      >
+                        {isUploadingFiles ? (
+                          <Loader2 className="h-4 w-4 text-white/50 animate-spin" />
+                        ) : (
+                          <FileText className="h-4 w-4 text-white/50" />
+                        )}
+                        <span className="text-sm">Upload files</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        className="flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer"
+                        onSelect={(e) => {
+                          e.preventDefault();
+                          setWebSearchEnabled(!webSearchEnabled);
+                        }}
+                      >
+                        <div className="flex items-center gap-3">
+                          <Globe className={`h-4 w-4 ${webSearchEnabled ? "text-[#FF5800]" : "text-white/50"}`} />
+                          <span className="text-sm">Web search</span>
+                        </div>
+                        {webSearchEnabled && <Check className="h-4 w-4 text-[#FF5800]" />}
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    disabled={loadingState.isSending || isMessageLimitReached}
+                    onClick={handleVoiceInput}
+                    className={`h-8 w-8 rounded-lg transition-colors ${recorder.isRecording ? "bg-red-500/10 hover:bg-red-500/20" : "hover:bg-white/[0.06]"} disabled:opacity-40`}
+                  >
+                    {recorder.isRecording ? <Square className="h-4 w-4 text-red-400" /> : <Mic className="h-4 w-4 text-white/60" />}
+                  </Button>
+                </div>
 
-            {/* Bottom bar with buttons inside input */}
-            <div className="flex items-center justify-between px-2 py-2">
+                {/* Input */}
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={inputText}
+                  onChange={(e) => setInputText(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      if (!loadingState.isSending && !recorder.isRecording) {
+                        sendMessage();
+                      }
+                    }
+                  }}
+                  placeholder={
+                    isMessageLimitReached
+                      ? "Sign up to continue chatting..."
+                      : recorder.isRecording
+                        ? "Recording..."
+                        : "Type your message..."
+                  }
+                  disabled={recorder.isRecording || isMessageLimitReached}
+                  className="flex-1 bg-transparent text-[15px] text-white placeholder:text-white/40 focus:outline-none disabled:opacity-50 px-2"
+                />
+
+                {/* Right buttons */}
+                <div className="flex items-center gap-1">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button type="button" variant="ghost" disabled={isLoadingModels} className="h-8 gap-1.5 px-2.5 rounded-lg hover:bg-white/[0.06] transition-colors">
+                        <span className="flex items-center gap-1.5 text-sm text-white/50">
+                          {!customModel && tierIcons[selectedTier]}
+                          {customModel ? customModel.name : tiers.find((t) => t.id === selectedTier)?.name || "Pro"}
+                        </span>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="w-72 rounded-xl border-white/[0.08] bg-[#252525] p-1.5" align="end" side="top" sideOffset={8}>
+                      {tiers.map((tier) => (
+                        <DropdownMenuItem key={tier.id} className="flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer" onSelect={() => { setTier(tier.id as "fast" | "pro" | "ultra"); setCustomModel(null); }}>
+                          <div className="flex items-start gap-3">
+                            <span className="mt-0.5 text-white/50">{tierIcons[tier.id]}</span>
+                            <div className="flex flex-col gap-0.5">
+                              <span className="text-[14px] font-medium text-white">{tier.name}</span>
+                              <span className="text-[12px] text-white/40">{tier.description}</span>
+                            </div>
+                          </div>
+                          {!customModel && selectedTier === tier.id && <Check className="h-4 w-4 text-[#FF5800]" />}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  <Button type="submit" disabled={loadingState.isSending || !inputText.trim() || recorder.isRecording || isMessageLimitReached} size="icon" className="h-8 w-8 rounded-lg bg-transparent hover:bg-white/[0.06] disabled:opacity-40 border-0 transition-colors">
+                    {loadingState.isSending ? <Loader2 className="h-4 w-4 animate-spin text-[#FF5800]" /> : <Send className="h-4 w-4 text-[#FF5800]" />}
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Expanded multi-line layout */}
+            {(inputText.includes("\n") || inputText.length > 80) && (
+              <div className="animate-in fade-in slide-in-from-bottom-1 duration-200">
+                <textarea
+                  ref={textareaRef}
+                  rows={1}
+                  value={inputText}
+                  onChange={(e) => setInputText(e.currentTarget.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      if (!loadingState.isSending && !recorder.isRecording) {
+                        sendMessage();
+                      }
+                    }
+                  }}
+                  placeholder={recorder.isRecording ? "Recording..." : "Type your message..."}
+                  disabled={recorder.isRecording}
+                  className="w-full bg-transparent text-[15px] text-white placeholder:text-white/40 focus:outline-none disabled:opacity-50 resize-none leading-relaxed px-4 pt-3 pb-2 overflow-y-auto transition-[height] duration-150 ease-out"
+                  style={{ minHeight: "44px", maxHeight: "400px" }}
+                />
+                <div className="flex items-center justify-between px-2 pb-2">
               {/* Left side - Plus menu and Mic */}
               <div className="flex items-center gap-1.5">
                 <input
@@ -1786,8 +1953,11 @@ export function ElizaChatInterface({
                 </Button>
               </div>
             </div>
+              </div>
+            )}
           </div>
-        </form>
+          </form>
+        </div>
       </div>
     </div>
   );

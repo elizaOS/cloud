@@ -168,6 +168,11 @@ export function CharacterBuildMode({
       return;
     }
 
+    if (!character.username) {
+      toast.error("Username is required");
+      return;
+    }
+
     if (!character.bio) {
       toast.error("Character bio is required");
       return;
