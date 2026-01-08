@@ -192,6 +192,7 @@ export function CharacterForm({
                 value={character.name || ""}
                 onChange={(e) => updateField("name", e.target.value)}
                 placeholder="Agent name"
+                autoCapitalize="words"
                 className="rounded-full border-white/10 bg-white/5 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800] px-4 py-2.5 selection:bg-[#FF5800]/30 selection:text-white"
               />
             </div>
