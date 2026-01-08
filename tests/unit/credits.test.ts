@@ -32,27 +32,34 @@ describe("Credits Constants", () => {
 
 describe("InsufficientCreditsError", () => {
   test("has correct name", () => {
-    const error = new InsufficientCreditsError(5.5);
+    const error = new InsufficientCreditsError(5.5, 2.0);
     expect(error.name).toBe("InsufficientCreditsError");
   });
 
   test("stores required amount", () => {
-    const error = new InsufficientCreditsError(5.5);
+    const error = new InsufficientCreditsError(5.5, 2.0);
     expect(error.required).toBe(5.5);
   });
 
-  test("formats message with 4 decimal places", () => {
-    const error = new InsufficientCreditsError(5.5);
-    expect(error.message).toBe("Insufficient credits. Required: $5.5000");
+  test("stores available amount", () => {
+    const error = new InsufficientCreditsError(5.5, 2.0);
+    expect(error.available).toBe(2.0);
+  });
+
+  test("formats message with required and available", () => {
+    const error = new InsufficientCreditsError(5.5, 2.0);
+    expect(error.message).toBe(
+      "Insufficient credits. Required: $5.5000, Available: $2.0000",
+    );
   });
 
   test("stores optional reason", () => {
-    const error = new InsufficientCreditsError(10, "Balance is $5");
-    expect(error.reason).toBe("Balance is $5");
+    const error = new InsufficientCreditsError(10, 5, "below_minimum");
+    expect(error.reason).toBe("below_minimum");
   });
 
   test("is instanceof Error", () => {
-    const error = new InsufficientCreditsError(1);
+    const error = new InsufficientCreditsError(1, 0);
     expect(error instanceof Error).toBe(true);
   });
 });

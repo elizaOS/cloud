@@ -41,9 +41,12 @@ export const DEFAULT_OUTPUT_TOKENS = 500;
 export class InsufficientCreditsError extends Error {
   constructor(
     public readonly required: number,
+    public readonly available: number,
     public readonly reason?: string,
   ) {
-    super(`Insufficient credits. Required: $${required.toFixed(4)}`);
+    super(
+      `Insufficient credits. Required: $${required.toFixed(4)}, Available: $${available.toFixed(4)}`,
+    );
     this.name = "InsufficientCreditsError";
   }
 }
@@ -717,9 +720,14 @@ export class CreditsService {
       logger.warn("[Credits] Insufficient credits for reservation", {
         organizationId,
         required: reservedAmount,
+        available: result.newBalance,
         reason: result.reason,
       });
-      throw new InsufficientCreditsError(reservedAmount, result.reason);
+      throw new InsufficientCreditsError(
+        reservedAmount,
+        result.newBalance,
+        result.reason,
+      );
     }
 
     logger.info("[Credits] Reserved", {
