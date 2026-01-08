@@ -261,19 +261,25 @@ export class CharactersService {
     }
 
     // If username is being updated, validate it
-    if (updates.username !== undefined && updates.username !== character.username) {
-      const validation = await this.validateUsernameForUpdate(
-        updates.username,
-        characterId,
-      );
-      if (!validation.valid) {
-        throw new Error(`Invalid username: ${validation.error}`);
+    // Normalize before comparison to prevent validation bypass with different casing
+    if (updates.username !== undefined) {
+      const normalizedUsername = updates.username.toLowerCase();
+      if (normalizedUsername !== character.username) {
+        const validation = await this.validateUsernameForUpdate(
+          normalizedUsername,
+          characterId,
+        );
+        if (!validation.valid) {
+          throw new Error(`Invalid username: ${validation.error}`);
+        }
+        updates.username = normalizedUsername;
+        logger.info(
+          `[Characters] Username updated: @${character.username} → @${updates.username}`,
+        );
+      } else {
+        // Same username after normalization, ensure it's stored normalized
+        updates.username = normalizedUsername;
       }
-      // Normalize to lowercase
-      updates.username = updates.username.toLowerCase();
-      logger.info(
-        `[Characters] Username updated: @${character.username} → @${updates.username}`,
-      );
     }
 
     const updated = await userCharactersRepository.update(characterId, updates);
@@ -736,77 +742,86 @@ export class CharactersService {
 
     const roomIds = userRooms.map((r) => r.roomId);
 
-    let deletedMemories = 0;
-    let deletedParticipants = 0;
-    let deletedRooms = 0;
+    // Use transaction to ensure atomicity of all delete operations
+    const { deletedMemories, deletedParticipants, deletedRooms } = await dbWrite.transaction(async (tx) => {
+      let memoryCount = 0;
+      let participantCount = 0;
+      let roomCount = 0;
 
-    if (roomIds.length > 0) {
-      // Delete memories in these rooms for this user
-      // Note: We only delete memories where entityId = user.id to preserve
-      // the agent's memories and other users' data
-      const memoryResult = await dbWrite
+      if (roomIds.length > 0) {
+        // Delete memories in these rooms for this user
+        // Note: We only delete memories where entityId = user.id to preserve
+        // the agent's memories and other users' data
+        const memoryResult = await tx
+          .delete(memoryTable)
+          .where(
+            and(
+              eq(memoryTable.entityId, userId),
+              inArray(memoryTable.roomId, roomIds)
+            )
+          )
+          .returning({ id: memoryTable.id });
+        memoryCount = memoryResult.length;
+
+        // Delete participant records for this user in these rooms
+        const participantResult = await tx
+          .delete(participantTable)
+          .where(
+            and(
+              eq(participantTable.entityId, userId),
+              inArray(participantTable.roomId, roomIds)
+            )
+          )
+          .returning({ id: participantTable.id });
+        participantCount = participantResult.length;
+
+        // For DM rooms (1:1), check if we should delete the room entirely
+        // Only delete rooms where no other participants remain
+        // PERFORMANCE: Use batch query instead of N+1 individual queries
+        const roomParticipantCounts = await tx
+          .select({
+            roomId: participantTable.roomId,
+            count: sql<number>`count(*)`.as("count"),
+          })
+          .from(participantTable)
+          .where(inArray(participantTable.roomId, roomIds))
+          .groupBy(participantTable.roomId);
+
+        // Create a map for quick lookup
+        const participantCountMap = new Map(
+          roomParticipantCounts.map((r) => [r.roomId, Number(r.count)])
+        );
+
+        // Find rooms with no remaining participants (count = 0 or not in results)
+        const emptyRoomIds = roomIds.filter(
+          (roomId) => !participantCountMap.has(roomId) || participantCountMap.get(roomId) === 0
+        );
+
+        // Delete all empty rooms in a single batch query
+        if (emptyRoomIds.length > 0) {
+          await tx
+            .delete(roomTable)
+            .where(inArray(roomTable.id, emptyRoomIds));
+          roomCount = emptyRoomIds.length;
+        }
+      }
+
+      // Also delete any memories directly tied to this agent+user combination
+      // that might be in other rooms (e.g., world rooms, etc.)
+      const directMemoryResult = await tx
         .delete(memoryTable)
         .where(
-          and(
-            eq(memoryTable.entityId, userId),
-            inArray(memoryTable.roomId, roomIds)
-          )
+          and(eq(memoryTable.entityId, userId), eq(memoryTable.agentId, agentId))
         )
         .returning({ id: memoryTable.id });
-      deletedMemories = memoryResult.length;
+      memoryCount += directMemoryResult.length;
 
-      // Delete participant records for this user in these rooms
-      const participantResult = await dbWrite
-        .delete(participantTable)
-        .where(
-          and(
-            eq(participantTable.entityId, userId),
-            inArray(participantTable.roomId, roomIds)
-          )
-        )
-        .returning({ id: participantTable.id });
-      deletedParticipants = participantResult.length;
-
-      // For DM rooms (1:1), check if we should delete the room entirely
-      // Only delete rooms where no other participants remain
-      // PERFORMANCE: Use batch query instead of N+1 individual queries
-      const roomParticipantCounts = await dbRead
-        .select({
-          roomId: participantTable.roomId,
-          count: sql<number>`count(*)`.as("count"),
-        })
-        .from(participantTable)
-        .where(inArray(participantTable.roomId, roomIds))
-        .groupBy(participantTable.roomId);
-
-      // Create a map for quick lookup
-      const participantCountMap = new Map(
-        roomParticipantCounts.map((r) => [r.roomId, Number(r.count)])
-      );
-
-      // Find rooms with no remaining participants (count = 0 or not in results)
-      const emptyRoomIds = roomIds.filter(
-        (roomId) => !participantCountMap.has(roomId) || participantCountMap.get(roomId) === 0
-      );
-
-      // Delete all empty rooms in a single batch query
-      if (emptyRoomIds.length > 0) {
-        await dbWrite
-          .delete(roomTable)
-          .where(inArray(roomTable.id, emptyRoomIds));
-        deletedRooms = emptyRoomIds.length;
-      }
-    }
-
-    // Also delete any memories directly tied to this agent+user combination
-    // that might be in other rooms (e.g., world rooms, etc.)
-    const directMemoryResult = await dbWrite
-      .delete(memoryTable)
-      .where(
-        and(eq(memoryTable.entityId, userId), eq(memoryTable.agentId, agentId))
-      )
-      .returning({ id: memoryTable.id });
-    deletedMemories += directMemoryResult.length;
+      return {
+        deletedMemories: memoryCount,
+        deletedParticipants: participantCount,
+        deletedRooms: roomCount,
+      };
+    });
 
     logger.info("[Characters] Removed saved agent:", {
       userId,
