@@ -1,15 +1,10 @@
-/**
- * Telegram App Automation Service
- *
- * Handles app-specific Telegram automation including AI-powered
- * message generation and automated announcements.
- */
-
 import { generateText } from "ai";
 import { openai } from "@ai-sdk/openai";
 import { Telegraf } from "telegraf";
 import { telegramAutomationService } from "./index";
 import { appsRepository } from "@/db/repositories/apps";
+import { creditsService } from "@/lib/services/credits";
+import { TELEGRAM_POST_COST } from "@/lib/promotion-pricing";
 import { logger } from "@/lib/utils/logger";
 import {
   splitMessage,
@@ -54,7 +49,10 @@ class TelegramAppAutomationService {
   /**
    * Get app for organization, checking ownership.
    */
-  private async getAppForOrg(organizationId: string, appId: string): Promise<App> {
+  private async getAppForOrg(
+    organizationId: string,
+    appId: string
+  ): Promise<App> {
     const app = await appsRepository.findById(appId);
     if (!app || app.organization_id !== organizationId) {
       throw new Error("App not found");
@@ -68,13 +66,16 @@ class TelegramAppAutomationService {
   async enableAutomation(
     organizationId: string,
     appId: string,
-    config: TelegramAutomationConfig,
+    config: TelegramAutomationConfig
   ): Promise<App> {
     const app = await this.getAppForOrg(organizationId, appId);
 
-    const isConnected = await telegramAutomationService.isConfigured(organizationId);
+    const isConnected =
+      await telegramAutomationService.isConfigured(organizationId);
     if (!isConnected) {
-      throw new Error("Telegram bot not connected. Connect a bot in Settings first.");
+      throw new Error(
+        "Telegram bot not connected. Connect a bot in Settings first."
+      );
     }
 
     const currentConfig = app.telegram_automation || {
@@ -138,12 +139,11 @@ class TelegramAppAutomationService {
    */
   async getAutomationStatus(
     organizationId: string,
-    appId: string,
+    appId: string
   ): Promise<TelegramAutomationStatus> {
     const app = await this.getAppForOrg(organizationId, appId);
-    const connectionStatus = await telegramAutomationService.getConnectionStatus(
-      organizationId,
-    );
+    const connectionStatus =
+      await telegramAutomationService.getConnectionStatus(organizationId);
 
     const config = app.telegram_automation || {
       enabled: false,
@@ -166,10 +166,23 @@ class TelegramAppAutomationService {
     };
   }
 
-  /**
-   * Generate an AI announcement for an app.
-   */
-  async generateAnnouncement(app: App): Promise<string> {
+  async generateAnnouncement(
+    organizationId: string,
+    app: App
+  ): Promise<string> {
+    const deduction = await creditsService.deductCredits({
+      organizationId,
+      amount: TELEGRAM_POST_COST,
+      description: `Telegram AI announcement: ${app.name}`,
+      metadata: { appId: app.id, type: "telegram_announcement" },
+    });
+
+    if (!deduction.success) {
+      throw new Error(
+        `Insufficient credits for AI generation. Required: $${TELEGRAM_POST_COST.toFixed(4)}`
+      );
+    }
+
     const config = app.telegram_automation;
     const vibeStyle = config?.vibeStyle || "professional and engaging";
 
@@ -181,33 +194,36 @@ Write in a ${vibeStyle} style. Keep it concise and engaging.
 Use appropriate emojis sparingly. Do not use hashtags excessively.
 Maximum 500 characters.`;
 
-    try {
-      const result = await generateText({
-        model: openai("gpt-4o-mini"),
-        system: systemPrompt,
-        prompt: "Create a compelling announcement about this app that would engage a Telegram community. Focus on what makes it unique and valuable.",
-        maxTokens: 200,
-      });
+    const result = await generateText({
+      model: openai("gpt-4o-mini"),
+      system: systemPrompt,
+      prompt:
+        "Create a compelling announcement about this app that would engage a Telegram community. Focus on what makes it unique and valuable.",
+      maxTokens: 200,
+    });
 
-      return result.text;
-    } catch (error) {
-      logger.error("[TelegramAppAutomation] Failed to generate announcement", {
-        appId: app.id,
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-      // Return a simple fallback message
-      return `Check out ${app.name}! ${app.description || "A great application you should try."} ${app.website_url || app.app_url}`;
-    }
+    return result.text;
   }
 
-  /**
-   * Generate an AI reply to a user message.
-   */
   async generateReply(
+    organizationId: string,
     app: App,
     userMessage: string,
-    userName?: string,
+    userName?: string
   ): Promise<string> {
+    const deduction = await creditsService.deductCredits({
+      organizationId,
+      amount: TELEGRAM_POST_COST,
+      description: `Telegram AI reply: ${app.name}`,
+      metadata: { appId: app.id, type: "telegram_reply" },
+    });
+
+    if (!deduction.success) {
+      throw new Error(
+        `Insufficient credits for AI generation. Required: $${TELEGRAM_POST_COST.toFixed(4)}`
+      );
+    }
+
     const config = app.telegram_automation;
     const vibeStyle = config?.vibeStyle || "helpful and friendly";
 
@@ -219,25 +235,16 @@ Respond in a ${vibeStyle} style. Be helpful and concise.
 If asked about features not related to the app, politely redirect to the app's purpose.
 Maximum 300 characters.`;
 
-    try {
-      const result = await generateText({
-        model: openai("gpt-4o-mini"),
-        system: systemPrompt,
-        prompt: userName
-          ? `User ${userName} says: "${userMessage}"`
-          : `User says: "${userMessage}"`,
-        maxTokens: 150,
-      });
+    const result = await generateText({
+      model: openai("gpt-4o-mini"),
+      system: systemPrompt,
+      prompt: userName
+        ? `User ${userName} says: "${userMessage}"`
+        : `User says: "${userMessage}"`,
+      maxTokens: 150,
+    });
 
-      return result.text;
-    } catch (error) {
-      logger.error("[TelegramAppAutomation] Failed to generate reply", {
-        appId: app.id,
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-      // Return a simple fallback message
-      return `Thanks for reaching out! Visit ${app.website_url || app.app_url} to learn more about ${app.name}.`;
-    }
+    return result.text;
   }
 
   /**
@@ -268,7 +275,7 @@ Maximum 300 characters.`;
   async postAnnouncement(
     organizationId: string,
     appId: string,
-    text?: string,
+    text?: string
   ): Promise<PostResult> {
     const app = await this.getAppForOrg(organizationId, appId);
     const config = app.telegram_automation;
@@ -282,9 +289,11 @@ Maximum 300 characters.`;
       return { success: false, error: "No channel or group configured" };
     }
 
-    const messageText = text || (await this.generateAnnouncement(app));
+    const messageText =
+      text || (await this.generateAnnouncement(organizationId, app));
 
-    const botToken = await telegramAutomationService.getBotToken(organizationId);
+    const botToken =
+      await telegramAutomationService.getBotToken(organizationId);
     if (!botToken) {
       return { success: false, error: "Bot not connected" };
     }
@@ -341,7 +350,9 @@ Maximum 300 characters.`;
           const isLastChunk = chunk === chunks[chunks.length - 1];
           const replyMarkup =
             isLastChunk && buttonUrl
-              ? createInlineKeyboard([{ text: "🚀 Try It Now", url: buttonUrl }])
+              ? createInlineKeyboard([
+                  { text: "🚀 Try It Now", url: buttonUrl },
+                ])
               : undefined;
 
           const result = await Promise.race([
@@ -350,7 +361,10 @@ Maximum 300 characters.`;
               reply_markup: replyMarkup,
             }),
             new Promise<never>((_, reject) =>
-              setTimeout(() => reject(new Error("Telegram API timeout")), 25_000)
+              setTimeout(
+                () => reject(new Error("Telegram API timeout")),
+                25_000
+              )
             ),
           ]);
 
@@ -410,7 +424,7 @@ Maximum 300 characters.`;
       text: string;
       userName?: string;
       replyToMessageId?: number;
-    },
+    }
   ): Promise<PostResult> {
     const app = await this.getAppForOrg(organizationId, appId);
     const config = app.telegram_automation;
@@ -419,12 +433,18 @@ Maximum 300 characters.`;
       return { success: false, error: "Auto-reply not enabled" };
     }
 
-    const botToken = await telegramAutomationService.getBotToken(organizationId);
+    const botToken =
+      await telegramAutomationService.getBotToken(organizationId);
     if (!botToken) {
       return { success: false, error: "Bot not connected" };
     }
 
-    const replyText = await this.generateReply(app, message.text, message.userName);
+    const replyText = await this.generateReply(
+      organizationId,
+      app,
+      message.text,
+      message.userName
+    );
 
     const bot = new Telegraf(botToken);
 
@@ -453,9 +473,14 @@ Maximum 300 characters.`;
         },
       });
 
-      return { success: true, messageId: result.message_id, chatId: message.chatId };
+      return {
+        success: true,
+        messageId: result.message_id,
+        chatId: message.chatId,
+      };
     } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : "Failed to send reply";
+      const errorMsg =
+        error instanceof Error ? error.message : "Failed to send reply";
       logger.error("[TelegramAppAutomation] Failed to handle message", {
         appId,
         chatId: message.chatId,

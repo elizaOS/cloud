@@ -1,16 +1,11 @@
-/**
- * Discord App Automation Service
- *
- * Handles app-specific Discord automation including AI-generated
- * announcements and message posting.
- */
-
 import { generateText } from "ai";
 import { openai } from "@ai-sdk/openai";
 import { discordAutomationService } from "./index";
 import { discordGuildsRepository } from "@/db/repositories/discord-guilds";
 import { discordChannelsRepository } from "@/db/repositories/discord-channels";
 import { appsRepository } from "@/db/repositories/apps";
+import { creditsService } from "@/lib/services/credits";
+import { DISCORD_POST_COST } from "@/lib/promotion-pricing";
 import { logger } from "@/lib/utils/logger";
 import {
   DISCORD_BLURPLE,
@@ -192,10 +187,18 @@ class DiscordAppAutomationService {
     };
   }
 
-  /**
-   * Generate an AI announcement for an app.
-   */
-  async generateAnnouncement(app: App): Promise<string> {
+  async generateAnnouncement(organizationId: string, app: App): Promise<string> {
+    const deduction = await creditsService.deductCredits({
+      organizationId,
+      amount: DISCORD_POST_COST,
+      description: `Discord AI announcement: ${app.name}`,
+      metadata: { appId: app.id, type: "discord_announcement" },
+    });
+
+    if (!deduction.success) {
+      throw new Error(`Insufficient credits for AI generation. Required: $${DISCORD_POST_COST.toFixed(4)}`);
+    }
+
     const config = app.discord_automation as DiscordAutomationConfig;
     const vibeStyle = config?.vibeStyle || "professional and engaging";
 
@@ -207,24 +210,15 @@ Write in a ${vibeStyle} style. Keep it concise and engaging.
 Use appropriate emojis sparingly (1-2 max). Do not use excessive formatting.
 Maximum 300 characters. Do not include the URL in your response - it will be added automatically.`;
 
-    try {
-      const result = await generateText({
-        model: openai("gpt-4o-mini"),
-        system: systemPrompt,
-        prompt:
-          "Create a compelling Discord announcement about this app that would engage a community. Focus on what makes it unique and valuable.",
-        maxTokens: 150,
-      });
+    const result = await generateText({
+      model: openai("gpt-4o-mini"),
+      system: systemPrompt,
+      prompt:
+        "Create a compelling Discord announcement about this app that would engage a community. Focus on what makes it unique and valuable.",
+      maxTokens: 150,
+    });
 
-      return truncate(result.text, 500);
-    } catch (error) {
-      logger.error("[DiscordAppAutomation] Failed to generate announcement", {
-        appId: app.id,
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-      // Return a simple fallback message
-      return `Check out **${app.name}**! ${app.description || "A great application you should try."}`;
-    }
+    return truncate(result.text, 500);
   }
 
   /**
@@ -277,7 +271,7 @@ Maximum 300 characters. Do not include the URL in your response - it will be add
       return { success: false, error: "Channel not found. Please reconfigure." };
     }
 
-    const messageText = text || (await this.generateAnnouncement(app));
+    const messageText = text || (await this.generateAnnouncement(organizationId, app));
 
     // Get promotional image if available
     const promotionalImageUrl = this.getPromotionalImage(app);

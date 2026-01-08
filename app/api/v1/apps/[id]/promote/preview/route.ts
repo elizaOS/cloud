@@ -81,7 +81,10 @@ export async function POST(
         ] as const;
         for (let i = 0; i < Math.min(count, postTypes.length); i++) {
           const content =
-            await discordAppAutomationService.generateAnnouncement(app);
+            await discordAppAutomationService.generateAnnouncement(
+              user.organization_id,
+              app
+            );
           previews.push({
             platform: "discord",
             content,
@@ -108,7 +111,10 @@ export async function POST(
         ] as const;
         for (let i = 0; i < Math.min(count, postTypes.length); i++) {
           const content =
-            await telegramAppAutomationService.generateAnnouncement(app);
+            await telegramAppAutomationService.generateAnnouncement(
+              user.organization_id,
+              app
+            );
           previews.push({
             platform: "telegram",
             content,
@@ -135,6 +141,7 @@ export async function POST(
         ] as const;
         for (let i = 0; i < Math.min(count, tweetTypes.length); i++) {
           const tweet = await twitterAppAutomationService.generateAppTweet(
+            user.organization_id,
             app,
             tweetTypes[i % tweetTypes.length]
           );

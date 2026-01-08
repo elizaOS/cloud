@@ -1,5 +1,7 @@
 import { appsRepository, type App } from "@/db/repositories";
 import { secretsService } from "@/lib/services/secrets";
+import { creditsService } from "@/lib/services/credits";
+import { TWITTER_POST_COST } from "@/lib/promotion-pricing";
 import { logger } from "@/lib/utils/logger";
 import { generateText } from "ai";
 import { gateway } from "@ai-sdk/gateway";
@@ -145,6 +147,7 @@ class TwitterAppAutomationService {
   }
 
   async generateAppTweet(
+    organizationId: string,
     app: App,
     type:
       | "promotional"
@@ -152,6 +155,17 @@ class TwitterAppAutomationService {
       | "educational"
       | "announcement" = "promotional",
   ): Promise<GeneratedTweet> {
+    const deduction = await creditsService.deductCredits({
+      organizationId,
+      amount: TWITTER_POST_COST,
+      description: `Twitter AI tweet: ${app.name}`,
+      metadata: { appId: app.id, type: "twitter_tweet" },
+    });
+
+    if (!deduction.success) {
+      throw new Error(`Insufficient credits for AI generation. Required: $${TWITTER_POST_COST.toFixed(4)}`);
+    }
+
     const config = app.twitter_automation as TwitterAutomationConfig | null;
     const vibeStyle = config?.vibeStyle ?? "professional yet approachable";
     const topics = config?.topics?.join(", ") ?? "";
@@ -213,7 +227,7 @@ Return ONLY the tweet text, nothing else.`;
 
     let text = tweetText;
     if (!text) {
-      const generated = await this.generateAppTweet(app, "promotional");
+      const generated = await this.generateAppTweet(organizationId, app, "promotional");
       text = generated.text;
     }
 

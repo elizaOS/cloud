@@ -121,21 +121,6 @@ export interface AffiliateData {
 }
 
 /**
- * Twitter automation settings
- */
-export interface TwitterSettings {
-  enabled: boolean;
-  autoPost?: boolean;
-  autoReply?: boolean;
-  autoEngage?: boolean;
-  discovery?: boolean;
-  postIntervalMin?: number;
-  postIntervalMax?: number;
-  dryRun?: boolean;
-  targetUsers?: string;
-}
-
-/**
  * Settings-based plugin configuration types
  * Used to detect which conditional plugins should be loaded
  */
@@ -146,7 +131,6 @@ export interface ConditionalPluginSettings {
   webSearch?: {
     enabled: boolean;
   };
-  twitter?: TwitterSettings;
 }
 
 /**
@@ -156,7 +140,6 @@ export interface ConditionalPluginSettings {
 export const SETTINGS_PLUGIN_MAP = {
   mcp: "@elizaos/plugin-mcp",
   webSearch: "@elizaos/plugin-web-search",
-  twitter: "@elizaos/plugin-twitter",
 } as const satisfies Record<keyof ConditionalPluginSettings, string>;
 
 /**
@@ -181,10 +164,6 @@ function hasValidConfiguration(
     case "webSearch": {
       const webSearchSettings = value as ConditionalPluginSettings["webSearch"];
       return webSearchSettings?.enabled === true;
-    }
-    case "twitter": {
-      const twitterSettings = value as ConditionalPluginSettings["twitter"];
-      return twitterSettings?.enabled === true;
     }
     default:
       return false;
