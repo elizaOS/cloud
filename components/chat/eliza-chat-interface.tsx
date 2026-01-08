@@ -1902,11 +1902,8 @@ export function ElizaChatInterface({
                 </div>
               </div>
             </div>
-              </div>
-            )}
           </div>
-          </form>
-        </div>
+        </form>
       </div>
     </div>
   );
