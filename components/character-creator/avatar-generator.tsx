@@ -12,9 +12,10 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { Loader2, Sparkles, RefreshCw, Check } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Loader2, Sparkles, RefreshCw, ImagePlus } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
@@ -22,7 +23,7 @@ import {
   getAvailableAvatarStyles,
 } from "@/lib/utils/default-avatar";
 import Image from "next/image";
-import { AvatarUpload } from "../character-builder";
+import { AvatarUpload, type AvatarUploadRef } from "../character-builder";
 
 interface AvatarGeneratorProps {
   characterName: string;
@@ -40,6 +41,7 @@ export function AvatarGenerator({
   className,
 }: AvatarGeneratorProps) {
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+  const avatarUploadRef = useRef<AvatarUploadRef>(null);
   const availableAvatars = getAvailableAvatarStyles();
 
   const handleSelectAvatar = (avatarUrl: string) => {
@@ -48,9 +50,8 @@ export function AvatarGenerator({
   };
 
   const handleRandomize = () => {
-    onAvatarChange(
-      generateDefaultAvatarUrl(characterName || `char-${Date.now()}`),
-    );
+    // Pass undefined to get truly random selection (not name-based deterministic)
+    onAvatarChange(generateDefaultAvatarUrl());
     toast.success("Random avatar selected");
   };
 
@@ -98,53 +99,61 @@ export function AvatarGenerator({
   };
 
   return (
-    <div className={cn("flex flex-col gap-4", className)}>
-      {/* Current Avatar Preview */}
-      <div className="flex items-center gap-4">
+    <div className={cn("flex flex-col gap-6 sm:gap-10 h-full", className)}>
+      {/* Centered Avatar Preview */}
+      <div className="shrink-0 flex flex-col items-center gap-4">
         <AvatarUpload
+          ref={avatarUploadRef}
           value={currentAvatarUrl}
           onChange={onAvatarChange}
           name={characterName}
-          size="lg"
+          size="xl"
         />
 
-        <div className="flex flex-col gap-2">
-          <p className="text-sm text-white/60">Current avatar</p>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleRandomize}
-              className="rounded-none border-white/10 bg-black/40 text-white/80 hover:bg-white/10 hover:text-white"
-            >
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Random
-            </Button>
+        {/* Action buttons */}
+        <div className="flex gap-3">
+          <Button
+            variant="outline"
+            onClick={handleRandomize}
+            className="rounded-full border border-white/20 bg-white/10 text-white hover:bg-white/15 px-6 py-2"
+          >
+            <RefreshCw className="h-4 w-4 mr-1" />
+            Random
+          </Button>
 
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleGenerateAIAvatar}
-              disabled={isGeneratingAI || !characterName}
-              className="rounded-none border-[#FF5800]/30 bg-[#FF5800]/10 text-[#FF5800] hover:bg-[#FF5800]/20"
-            >
-              {isGeneratingAI ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Sparkles className="h-4 w-4 mr-2" />
-              )}
-              {isGeneratingAI ? "Generating..." : "AI Avatar"}
-            </Button>
-          </div>
+          <Button
+            variant="outline"
+            onClick={handleGenerateAIAvatar}
+            disabled={isGeneratingAI || !characterName}
+            className="rounded-full border border-[#FF5800]/50 bg-[#FF5800]/40 text-white hover:bg-[#FF5800]/55 hover:border-[#FF5800]/90 px-4 py-2 w-32"
+          >
+            {isGeneratingAI ? (
+              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+            ) : (
+              <Sparkles className="h-4 w-4 mr-1" />
+            )}
+            {isGeneratingAI ? "Generating" : "AI Avatar"}
+          </Button>
         </div>
       </div>
 
       {/* Avatar Selection Grid */}
-      <div className="space-y-2">
-        <p className="text-sm text-white/60">Choose from built-in avatars:</p>
-
-        <div className="p-2">
-          <div className="grid grid-cols-[repeat(10,_auto)] gap-1">
+      <div className="flex-1 min-h-0">
+        <ScrollArea className="h-full rounded-l-lg overflow-y-auto sm:scrollbar-thin sm:scrollbar-thumb-brand-orange sm:scrollbar-track-black">
+          <div className="grid grid-cols-5 sm:grid-cols-7 gap-1 sm:gap-1.5">
+            {/* Upload button */}
+            <button
+              onClick={() => avatarUploadRef.current?.triggerUpload()}
+              className={cn(
+                "group relative w-full aspect-square rounded-lg overflow-hidden border-2 transition-all",
+                "border-dashed border-white/20 hover:border-[#FF5800]/50",
+                "bg-white/5 hover:bg-white/10",
+                "flex items-center justify-center",
+              )}
+              title="Upload your own"
+            >
+              <ImagePlus className="size-6 text-neutral-500 group-hover:text-[#FF5800] transition-colors" />
+            </button>
             {availableAvatars.map((avatar) => {
               const isSelected = currentAvatarUrl === avatar.url;
               return (
@@ -152,10 +161,10 @@ export function AvatarGenerator({
                   key={avatar.id}
                   onClick={() => handleSelectAvatar(avatar.url)}
                   className={cn(
-                    "relative w-[60px] h-[60px] rounded-lg overflow-hidden border-2 transition-all",
+                    "relative w-full aspect-square rounded-lg overflow-hidden border-2 transition-all",
                     isSelected
                       ? "border-[#FF5800] ring-2 ring-[#FF5800]/30"
-                      : "border-transparent hover:border-white/30",
+                      : "border-transparent hover:border-[#FF5800]/50",
                   )}
                   title={avatar.name}
                 >
@@ -163,20 +172,18 @@ export function AvatarGenerator({
                     src={avatar.url}
                     alt={avatar.name}
                     fill
-                    className="object-cover"
+                    className="object-cover size-full"
                     draggable={false}
-                    sizes="56px"
+                    sizes="160px"
                   />
                   {isSelected && (
-                    <div className="absolute inset-0 bg-[#FF5800]/20 flex items-center justify-center">
-                      <Check className="h-5 w-5 text-[#FF5800]" />
-                    </div>
+                    <div className="absolute inset-0 bg-[#FF5800]/20" />
                   )}
                 </button>
               );
             })}
           </div>
-        </div>
+        </ScrollArea>
       </div>
     </div>
   );

@@ -1,9 +1,9 @@
 /**
- * Chat header component for the /chat page with agent picker and mode toggle.
- * Renders different UI based on viewer state:
- * - Owner: Full controls (dropdown, edit, share toggle)
- * - Non-owner (authenticated): Static display, copy agent button
- * - Unauthenticated: Static display, copy link only
+ * Chat header component for the /chat page.
+ * Supports switching to build mode and sidebar toggle.
+ *
+ * @param props - Chat header configuration
+ * @param props.onToggleSidebar - Optional callback to toggle sidebar visibility
  */
 
 "use client";
@@ -15,15 +15,15 @@ import {
   Menu,
   ChevronDown,
   ChevronLeft,
-  MessageSquare,
   Wrench,
-  Plus,
   Check,
   Copy,
   Globe,
   Lock,
   Link2,
   GitFork,
+  MessageSquare,
+  Plus,
 } from "lucide-react";
 import { BrandButton } from "@/components/brand";
 import { cn } from "@/lib/utils";
@@ -35,8 +35,9 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { useChatStore } from "@/lib/stores/chat-store";
-import { ElizaAvatar } from "@/components/chat/eliza-avatar";
+import { usePrivy } from "@privy-io/react-auth";
 import { toast } from "sonner";
+import { ElizaAvatar } from "@/components/ui/eliza-avatar";
 
 interface ChatHeaderProps {
   onToggleSidebar?: () => void;
@@ -45,13 +46,13 @@ interface ChatHeaderProps {
 export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const { authenticated: isAuthenticated } = usePrivy();
   const {
-    availableCharacters,
     selectedCharacterId,
     setSelectedCharacterId,
     setRoomId,
+    availableCharacters,
     viewerState,
-    isAuthenticated,
   } = useChatStore();
 
   // Share status state (only fetched for owners)
@@ -85,7 +86,7 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
       try {
         const res = await fetch(
           `/api/my-agents/characters/${selectedCharacterId}/share`,
-          { signal: controller.signal },
+          { signal: controller.signal }
         );
 
         if (cancelled) return;
@@ -179,7 +180,7 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ isPublic: !isPublic }),
-        },
+        }
       );
 
       const data = await response.json();
@@ -579,8 +580,8 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
   );
 
   return (
-    <header className="flex h-16 items-center justify-between border-b border-white/10 bg-transparent backdrop-blur-3xl px-4 md:px-6">
-      <div className="flex items-center gap-3">
+    <header className="flex h-16 items-center justify-between backdrop-blur-3xl px-2 md:px-3">
+      <div className="flex items-center gap-1.5">
         {/* Mobile Menu Button */}
         {onToggleSidebar && (
           <BrandButton
@@ -598,10 +599,10 @@ export function ChatHeader({ onToggleSidebar }: ChatHeaderProps) {
         {isBuildPage && (
           <Link
             href="/dashboard"
-            className="flex items-center justify-center w-7 h-7 text-white/40 hover:text-white hover:bg-white/5 rounded transition-colors"
+            className="flex items-center justify-center size-10 border border-transparent hover:border-white/10 bg-white/5 text-white/60 hover:text-white hover:bg-white/10 rounded-2xl transition-colors"
             aria-label="Back to dashboard"
           >
-            <ChevronLeft className="h-5 w-5" />
+            <ChevronLeft className="size-5" />
           </Link>
         )}
 

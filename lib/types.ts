@@ -171,4 +171,5 @@ export interface ElizaCharacter {
     post?: string[];
   };
   avatar_url?: string;
+  isPublic?: boolean;
 }
