@@ -101,6 +101,7 @@ export function ChatSidebar({
 
   // Share/visibility state
   const [isPublic, setIsPublic] = useState<boolean | null>(null);
+  const [isTogglingShare, setIsTogglingShare] = useState(false);
 
   const updateOperation = (updates: Partial<OperationState>) => {
     setOperationState((prev) => ({ ...prev, ...updates }));
@@ -163,9 +164,10 @@ export function ChatSidebar({
 
   // Toggle share status
   const handleToggleShare = async () => {
-    if (!selectedCharacterId || isPublic === null) return;
+    if (!selectedCharacterId || isPublic === null || isTogglingShare) return;
 
     const newIsPublic = !isPublic;
+    setIsTogglingShare(true);
     setIsPublic(newIsPublic);
 
     try {
@@ -189,15 +191,21 @@ export function ChatSidebar({
     } catch {
       setIsPublic(!newIsPublic);
       toast.error("Failed to update visibility");
+    } finally {
+      setIsTogglingShare(false);
     }
   };
 
   // Copy share link
-  const handleCopyShareLink = () => {
+  const handleCopyShareLink = async () => {
     if (!selectedCharacterId) return;
     const shareUrl = `${window.location.origin}/chat/${selectedCharacterId}`;
-    navigator.clipboard.writeText(shareUrl);
-    toast.success("Share link copied!");
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      toast.success("Share link copied!");
+    } catch {
+      toast.error("Failed to copy link to clipboard");
+    }
   };
 
   // Filter rooms by selected character

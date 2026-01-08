@@ -49,11 +49,15 @@ export function CharacterForm({
   const [newUserMessage, setNewUserMessage] = useState("");
   const [newAgentMessage, setNewAgentMessage] = useState("");
   const [isPublic, setIsPublic] = useState(character.isPublic ?? false);
+  const [isTogglingShare, setIsTogglingShare] = useState(false);
 
   // Sync isPublic state when character data changes (e.g., loaded from API)
+  // Skip sync if currently toggling to prevent race condition
   useEffect(() => {
-    setIsPublic(character.isPublic ?? false);
-  }, [character.isPublic]);
+    if (!isTogglingShare) {
+      setIsPublic(character.isPublic ?? false);
+    }
+  }, [character.isPublic, isTogglingShare]);
 
   const handleToggleShare = async () => {
     if (!character.id) {
@@ -61,7 +65,10 @@ export function CharacterForm({
       return;
     }
 
+    if (isTogglingShare) return; // Prevent double-clicking
+
     const newIsPublic = !isPublic;
+    setIsTogglingShare(true);
     setIsPublic(newIsPublic);
 
     try {
@@ -85,14 +92,20 @@ export function CharacterForm({
     } catch {
       setIsPublic(!newIsPublic);
       toast.error("Failed to update visibility");
+    } finally {
+      setIsTogglingShare(false);
     }
   };
 
-  const handleCopyShareLink = () => {
+  const handleCopyShareLink = async () => {
     if (!character.id) return;
     const shareUrl = `${window.location.origin}/share/${character.id}`;
-    navigator.clipboard.writeText(shareUrl);
-    toast.success("Share link copied!");
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      toast.success("Share link copied!");
+    } catch {
+      toast.error("Failed to copy link to clipboard");
+    }
   };
 
   const updateField = (field: keyof ElizaCharacter, value: unknown) => {
@@ -189,9 +202,13 @@ export function CharacterForm({
                 <Input
                   id="username"
                   value={character.username || ""}
-                  onChange={(e) =>
-                    updateField("username", e.target.value.replace(/^@/, ""))
-                  }
+                  onChange={(e) => {
+                    // Sanitize: remove @ prefix and allow only alphanumeric, underscore, hyphen
+                    const sanitized = e.target.value
+                      .replace(/^@/, "")
+                      .replace(/[^a-zA-Z0-9_-]/g, "");
+                    updateField("username", sanitized);
+                  }}
                   placeholder="eliza"
                   className="rounded-full border-white/10 bg-white/5 text-white placeholder:text-white/40 focus:ring-1 focus:ring-[#FF5800] focus:border-[#FF5800] pl-8 pr-4 py-2.5 selection:bg-[#FF5800]/30 selection:text-white"
                 />
@@ -291,10 +308,13 @@ export function CharacterForm({
               {/* Custom Switch */}
               <button
                 type="button"
+                role="switch"
+                aria-checked={isPublic}
+                aria-label={isPublic ? "Make agent private" : "Make agent public"}
                 onClick={handleToggleShare}
-                disabled={!character.id}
+                disabled={!character.id || isTogglingShare}
                 className={`relative w-[62px] rounded-full p-1 transition-colors duration-300 border ${
-                  character.id
+                  character.id && !isTogglingShare
                     ? "cursor-pointer"
                     : "cursor-not-allowed opacity-50"
                 } ${

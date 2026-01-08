@@ -166,7 +166,7 @@ export function CharacterBuildMode({
     if (character.id) {
       router.push(`/dashboard/chat?characterId=${character.id}`);
     } else {
-      router.push("/dashboard/chat");
+      router.push("/dashboard");
     }
   }, [character.id, router]);
 

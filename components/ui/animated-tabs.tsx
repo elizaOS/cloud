@@ -21,12 +21,22 @@ export function AnimatedTabs({ tabs, value, onValueChange, variant = "default", 
 
   const isOrange = variant === "orange";
 
+  // Use refs to store current values for the resize handler to avoid recreating it
+  const tabsRef = useRef(tabs);
+  const valueRef = useRef(value);
+
+  // Keep refs in sync
+  useEffect(() => {
+    tabsRef.current = tabs;
+    valueRef.current = value;
+  }, [tabs, value]);
+
   const updateIndicator = useCallback((shouldAnimate: boolean = true) => {
     const container = containerRef.current;
     if (!container) return;
 
-    const activeIndex = tabs.findIndex((tab) => tab.value === value);
-    const buttons = container.querySelectorAll("button");
+    const activeIndex = tabsRef.current.findIndex((tab) => tab.value === valueRef.current);
+    const buttons = container.querySelectorAll("[data-tab-button]");
     const activeButton = buttons[activeIndex];
 
     if (activeButton) {
@@ -42,14 +52,14 @@ export function AnimatedTabs({ tabs, value, onValueChange, variant = "default", 
     } else {
       setIndicatorStyle((prev) => ({ ...prev, visible: false }));
     }
-  }, [tabs, value]);
+  }, []); // Stable - uses refs
 
   // Update indicator on value/tabs change
   useEffect(() => {
     updateIndicator(true);
-  }, [updateIndicator]);
+  }, [tabs, value, updateIndicator]);
 
-  // Update indicator on resize (without animation)
+  // Update indicator on resize (without animation) - stable handler
   useEffect(() => {
     const handleResize = () => {
       updateIndicator(false);
@@ -62,6 +72,7 @@ export function AnimatedTabs({ tabs, value, onValueChange, variant = "default", 
   return (
     <div
       ref={containerRef}
+      role="tablist"
       className={`relative ${fullWidth ? "flex w-full" : "inline-flex"} items-center gap-0.5 p-1 rounded-full bg-white/5 border border-white/10`}
     >
       {/* Animated indicator */}
@@ -73,12 +84,17 @@ export function AnimatedTabs({ tabs, value, onValueChange, variant = "default", 
           opacity: indicatorStyle.visible ? 1 : 0,
           transition: indicatorStyle.animate ? "all 300ms ease-out" : "opacity 300ms ease-out",
         }}
+        aria-hidden="true"
       />
 
       {/* Tab buttons */}
       {tabs.map((tab) => (
         <button
           key={tab.value}
+          data-tab-button
+          role="tab"
+          aria-selected={value === tab.value}
+          aria-controls={`tabpanel-${tab.value}`}
           onClick={() => onValueChange(tab.value)}
           className={`relative z-10 px-3 py-1.5 text-sm font-medium rounded-full transition-colors duration-300 ${
             fullWidth ? "flex-1 text-center" : ""

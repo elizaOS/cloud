@@ -322,6 +322,8 @@ export function ElizaChatInterface({
   // Clear audio cache when voice changes (so messages regenerate with new voice)
   useEffect(() => {
     if (messageAudioUrls.current.size > 0) {
+      // Revoke all object URLs to prevent memory leaks
+      messageAudioUrls.current.forEach((url) => URL.revokeObjectURL(url));
       messageAudioUrls.current.clear();
     }
   }, [audioState.selectedVoiceId]);
@@ -331,6 +333,7 @@ export function ElizaChatInterface({
     // Capture ref value inside effect for cleanup
     const renderedMessages = renderedMessagesRef.current;
     const thinkingTimeout = thinkingTimeoutRef.current;
+    const audioUrls = messageAudioUrls.current;
 
     return () => {
       if (thinkingTimeout) {
@@ -338,6 +341,9 @@ export function ElizaChatInterface({
       }
       clearAllStreaming();
       renderedMessages.clear();
+      // Revoke all audio URLs on unmount
+      audioUrls.forEach((url) => URL.revokeObjectURL(url));
+      audioUrls.clear();
     };
   }, [clearAllStreaming]);
 
@@ -861,6 +867,10 @@ export function ElizaChatInterface({
       return;
     }
 
+    let timeoutId1: NodeJS.Timeout | null = null;
+    let timeoutId2: NodeJS.Timeout | null = null;
+    let isCancelled = false;
+
     // If no roomId exists, create one first
     if (!roomId) {
       isPendingMessageProcessingRef.current = true;
@@ -876,9 +886,13 @@ export function ElizaChatInterface({
           // Room creation will update roomId, which will trigger sending logic
         })
         .catch(() => {
-          isPendingMessageProcessingRef.current = false;
+          if (!isCancelled) {
+            isPendingMessageProcessingRef.current = false;
+          }
         });
-      return;
+      return () => {
+        isCancelled = true;
+      };
     }
 
     // If we have a roomId and a pending message in ref (after room creation), send it
@@ -893,17 +907,27 @@ export function ElizaChatInterface({
       pendingMessageToSendRef.current = null;
 
       // Auto-send after a short delay (wait for room to be fully ready)
-      setTimeout(() => {
+      timeoutId1 = setTimeout(() => {
+        if (isCancelled) return;
         setInputText(messageToSend);
-        setTimeout(() => {
+        timeoutId2 = setTimeout(() => {
+          if (isCancelled) return;
           // Use ref to avoid TDZ - sendMessage is defined later in the component
           sendMessageRef.current?.(messageToSend).finally(() => {
             // Reset processing flag after message is sent
-            isPendingMessageProcessingRef.current = false;
+            if (!isCancelled) {
+              isPendingMessageProcessingRef.current = false;
+            }
           });
         }, 100);
       }, 500);
     }
+
+    return () => {
+      isCancelled = true;
+      if (timeoutId1) clearTimeout(timeoutId1);
+      if (timeoutId2) clearTimeout(timeoutId2);
+    };
   }, [
     roomId,
     loadingState.isSending,
