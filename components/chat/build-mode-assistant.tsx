@@ -228,7 +228,7 @@ export function BuildModeAssistant({
         }
 
         // No existing room found - create new one with welcome message
-        const welcomeText = "You can update your agent conversationally in this space, or edit them directly on the right. What needs tweaking?";
+        const welcomeText = "You can update your agent by describing the changes you have in mind here, or edit the agent directly on the right. What needs tweaking?";
         const roomTitle = `[BUILD] ${character?.name || "Character"} (${character?.id})`;
 
         const createResponse = await fetch("/api/eliza/rooms", {
@@ -274,7 +274,7 @@ export function BuildModeAssistant({
 
       // Creator mode: always create fresh room with Eliza
       const welcomeText =
-        "Hi, I'm Eliza. I can help build your agent in two different ways:\n1. You can describe what you're imagining - personality, purpose, whatever - and I'll create the agent conversationally as we go.\n2. You can also build the agent manually on the right.\n\nSo, what are we making?";
+        "Hi, I'm Eliza. There are two different ways to build your agent:\n1. You can describe what you're imagining - personality, purpose, whatever - and I'll create the agent by building its personality and assigning its capabilities as we go.\n2. You can also build the agent manually on the right.\n\nSo, what are we making?";
       const roomTitle = `[CREATOR] New Character Builder ${Date.now()}`;
 
       const createResponse = await fetch("/api/eliza/rooms", {
