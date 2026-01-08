@@ -1180,7 +1180,8 @@ export function ElizaChatInterface({
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
-      textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 400) + "px";
+      textareaRef.current.style.height =
+        Math.min(textareaRef.current.scrollHeight, 400) + "px";
     }
   }, [inputText]);
 
@@ -1210,19 +1211,26 @@ export function ElizaChatInterface({
   }, [isExpanded]);
 
   // Focus the appropriate input when clicking the container
-  const handleContainerClick = useCallback((e: React.MouseEvent) => {
-    // Don't focus if clicking on a button or dropdown
-    const target = e.target as HTMLElement;
-    if (target.closest('button') || target.closest('[role="menu"]') || target.closest('[data-radix-popper-content-wrapper]')) {
-      return;
-    }
-    
-    if (isExpanded && textareaRef.current) {
-      textareaRef.current.focus();
-    } else if (!isExpanded && inputRef.current) {
-      inputRef.current.focus();
-    }
-  }, [isExpanded]);
+  const handleContainerClick = useCallback(
+    (e: React.MouseEvent) => {
+      // Don't focus if clicking on a button or dropdown
+      const target = e.target as HTMLElement;
+      if (
+        target.closest("button") ||
+        target.closest('[role="menu"]') ||
+        target.closest("[data-radix-popper-content-wrapper]")
+      ) {
+        return;
+      }
+
+      if (isExpanded && textareaRef.current) {
+        textareaRef.current.focus();
+      } else if (!isExpanded && inputRef.current) {
+        inputRef.current.focus();
+      }
+    },
+    [isExpanded],
+  );
 
   // Auto-scroll to bottom when messages change
   // Uses smooth scrolling during streaming for a polished feel
@@ -1483,479 +1491,542 @@ export function ElizaChatInterface({
               sendMessage();
             }}
           >
-          <div 
-            className="relative rounded-2xl border border-white/[0.08] bg-white/[0.02] overflow-hidden transition-colors focus-within:border-white/[0.15] focus-within:bg-white/[0.03] cursor-text"
-            onClick={handleContainerClick}
-          >
-            {/* Robot Eye Visor Scanner */}
-            {loadingState.isSending && (
-              <div className="absolute top-0 left-0 right-0 h-[2px] overflow-hidden pointer-events-none z-10">
-                <div
-                  className="absolute h-full w-24 bg-gradient-to-r from-transparent via-[#FF5800] to-transparent"
-                  style={{
-                    animation:
-                      "visor-scan 4.8s cubic-bezier(0.4, 0, 0.6, 1) infinite",
-                    boxShadow: "0 0 15px 3px rgba(255, 88, 0, 0.7)",
-                    filter: "blur(0.5px)",
-                  }}
-                />
-                <div
-                  className="absolute h-full w-16 bg-gradient-to-r from-transparent via-[#FF5800]/60 to-transparent"
-                  style={{
-                    animation:
-                      "visor-scan-delayed 6.2s cubic-bezier(0.3, 0.1, 0.7, 0.9) infinite 1.5s",
-                    boxShadow: "0 0 10px 2px rgba(255, 88, 0, 0.5)",
-                    filter: "blur(1px)",
-                  }}
-                />
-              </div>
-            )}
-
-            {/* Compact single-line layout when text is short */}
-            {!(inputText.includes("\n") || inputText.length > 80) && (
-              <div className="flex items-center justify-center px-2 py-2 gap-1 min-h-[44px] animate-in fade-in duration-200">
-                {/* Left buttons */}
-                <div className="flex items-center gap-1">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 rounded-lg hover:bg-white/[0.06] transition-colors"
-                      >
-                        <Plus className="h-4 w-4 text-white/60" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent
-                      className="w-56 rounded-xl border-white/[0.08] bg-[#1a1a1a]/95 backdrop-blur-xl p-1"
-                      align="start"
-                      side="top"
-                      sideOffset={8}
-                    >
-                      <DropdownMenuItem
-                        className="flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer"
-                        disabled={isUploadingFiles || loadingState.isSending}
-                        onSelect={() => {
-                          document.getElementById("chat-file-upload")?.click();
-                        }}
-                      >
-                        {isUploadingFiles ? (
-                          <Loader2 className="h-4 w-4 text-white/50 animate-spin" />
-                        ) : (
-                          <FileText className="h-4 w-4 text-white/50" />
-                        )}
-                        <span className="text-sm">Upload files</span>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        className="flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer"
-                        onSelect={(e) => {
-                          e.preventDefault();
-                          setWebSearchEnabled(!webSearchEnabled);
-                        }}
-                      >
-                        <div className="flex items-center gap-3">
-                          <Globe className={`h-4 w-4 ${webSearchEnabled ? "text-[#FF5800]" : "text-white/50"}`} />
-                          <span className="text-sm">Web search</span>
-                        </div>
-                        {webSearchEnabled && <Check className="h-4 w-4 text-[#FF5800]" />}
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    disabled={loadingState.isSending || isMessageLimitReached}
-                    onClick={handleVoiceInput}
-                    className={`h-8 w-8 rounded-lg transition-colors ${recorder.isRecording ? "bg-red-500/10 hover:bg-red-500/20" : "hover:bg-white/[0.06]"} disabled:opacity-40`}
-                  >
-                    {recorder.isRecording ? <Square className="h-4 w-4 text-red-400" /> : <Mic className="h-4 w-4 text-white/60" />}
-                  </Button>
+            <div
+              className="relative rounded-2xl border border-white/[0.08] bg-white/[0.02] overflow-hidden transition-colors focus-within:border-white/[0.15] focus-within:bg-white/[0.03] cursor-text"
+              onClick={handleContainerClick}
+            >
+              {/* Robot Eye Visor Scanner */}
+              {loadingState.isSending && (
+                <div className="absolute top-0 left-0 right-0 h-[2px] overflow-hidden pointer-events-none z-10">
+                  <div
+                    className="absolute h-full w-24 bg-gradient-to-r from-transparent via-[#FF5800] to-transparent"
+                    style={{
+                      animation:
+                        "visor-scan 4.8s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+                      boxShadow: "0 0 15px 3px rgba(255, 88, 0, 0.7)",
+                      filter: "blur(0.5px)",
+                    }}
+                  />
+                  <div
+                    className="absolute h-full w-16 bg-gradient-to-r from-transparent via-[#FF5800]/60 to-transparent"
+                    style={{
+                      animation:
+                        "visor-scan-delayed 6.2s cubic-bezier(0.3, 0.1, 0.7, 0.9) infinite 1.5s",
+                      boxShadow: "0 0 10px 2px rgba(255, 88, 0, 0.5)",
+                      filter: "blur(1px)",
+                    }}
+                  />
                 </div>
+              )}
 
-                {/* Input */}
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={inputText}
-                  onChange={(e) => setInputText(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      if (!loadingState.isSending && !recorder.isRecording) {
-                        sendMessage();
-                      }
-                    }
-                  }}
-                  placeholder={
-                    isMessageLimitReached
-                      ? "Sign up to continue chatting..."
-                      : recorder.isRecording
-                        ? "Recording..."
-                        : "Type your message..."
-                  }
-                  disabled={recorder.isRecording || isMessageLimitReached}
-                  className="flex-1 bg-transparent text-[15px] text-white placeholder:text-white/40 focus:outline-none disabled:opacity-50 px-2"
-                />
-
-                {/* Right buttons */}
-                <div className="flex items-center gap-1">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button type="button" variant="ghost" disabled={isLoadingModels} className="h-8 gap-1.5 px-2.5 rounded-lg hover:bg-white/[0.06] transition-colors">
-                        <span className="flex items-center gap-1.5 text-sm text-white/50">
-                          {!customModel && tierIcons[selectedTier]}
-                          {customModel ? customModel.name : tiers.find((t) => t.id === selectedTier)?.name || "Pro"}
-                        </span>
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent className="w-72 rounded-xl border-white/[0.08] bg-[#252525] p-1.5" align="end" side="top" sideOffset={8}>
-                      {tiers.map((tier) => (
-                        <DropdownMenuItem key={tier.id} className="flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer" onSelect={() => { setTier(tier.id as "fast" | "pro" | "ultra"); setCustomModel(null); }}>
-                          <div className="flex items-start gap-3">
-                            <span className="mt-0.5 text-white/50">{tierIcons[tier.id]}</span>
-                            <div className="flex flex-col gap-0.5">
-                              <span className="text-[14px] font-medium text-white">{tier.name}</span>
-                              <span className="text-[12px] text-white/40">{tier.description}</span>
-                            </div>
-                          </div>
-                          {!customModel && selectedTier === tier.id && <Check className="h-4 w-4 text-[#FF5800]" />}
+              {/* Compact single-line layout when text is short */}
+              {!(inputText.includes("\n") || inputText.length > 80) && (
+                <div className="flex items-center justify-center px-2 py-2 gap-1 min-h-[44px] animate-in fade-in duration-200">
+                  {/* Left buttons */}
+                  <div className="flex items-center gap-1">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 rounded-lg hover:bg-white/[0.06] transition-colors"
+                        >
+                          <Plus className="h-4 w-4 text-white/60" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent
+                        className="w-56 rounded-xl border-white/[0.08] bg-[#1a1a1a]/95 backdrop-blur-xl p-1"
+                        align="start"
+                        side="top"
+                        sideOffset={8}
+                      >
+                        <DropdownMenuItem
+                          className="flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer"
+                          disabled={isUploadingFiles || loadingState.isSending}
+                          onSelect={() => {
+                            document
+                              .getElementById("chat-file-upload")
+                              ?.click();
+                          }}
+                        >
+                          {isUploadingFiles ? (
+                            <Loader2 className="h-4 w-4 text-white/50 animate-spin" />
+                          ) : (
+                            <FileText className="h-4 w-4 text-white/50" />
+                          )}
+                          <span className="text-sm">Upload files</span>
                         </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                  <Button type="submit" disabled={loadingState.isSending || !inputText.trim() || recorder.isRecording || isMessageLimitReached} size="icon" className="h-8 w-8 rounded-lg bg-transparent hover:bg-white/[0.06] disabled:opacity-40 border-0 transition-colors">
-                    {loadingState.isSending ? <Loader2 className="h-4 w-4 animate-spin text-[#FF5800]" /> : <Send className="h-4 w-4 text-[#FF5800]" />}
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {/* Expanded multi-line layout */}
-            {(inputText.includes("\n") || inputText.length > 80) && (
-              <div className="animate-in fade-in slide-in-from-bottom-1 duration-200">
-                <textarea
-                  ref={textareaRef}
-                  rows={1}
-                  value={inputText}
-                  onChange={(e) => setInputText(e.currentTarget.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      if (!loadingState.isSending && !recorder.isRecording) {
-                        sendMessage();
-                      }
-                    }
-                  }}
-                  placeholder={recorder.isRecording ? "Recording..." : "Type your message..."}
-                  disabled={recorder.isRecording}
-                  className="w-full bg-transparent text-[15px] text-white placeholder:text-white/40 focus:outline-none disabled:opacity-50 resize-none leading-relaxed px-4 pt-3 pb-2 overflow-y-auto transition-[height] duration-150 ease-out"
-                  style={{ minHeight: "44px", maxHeight: "400px" }}
-                />
-                <div className="flex items-center justify-between px-2 pb-2">
-              {/* Left side - Plus menu and Mic */}
-              <div className="flex items-center gap-1.5">
-                <input
-                  type="file"
-                  id="chat-file-upload"
-                  multiple
-                  accept=".pdf,.txt,.md,.doc,.docx,.json,.xml,.yaml,.yml,.csv"
-                  onChange={(e) => {
-                    const files = e.target.files;
-                    if (files && files.length > 0) {
-                      handleFileUpload(Array.from(files));
-                      e.target.value = "";
-                    }
-                  }}
-                  className="hidden"
-                />
-
-                {/* Plus Menu */}
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
+                        <DropdownMenuItem
+                          className="flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer"
+                          onSelect={(e) => {
+                            e.preventDefault();
+                            setWebSearchEnabled(!webSearchEnabled);
+                          }}
+                        >
+                          <div className="flex items-center gap-3">
+                            <Globe
+                              className={`h-4 w-4 ${webSearchEnabled ? "text-[#FF5800]" : "text-white/50"}`}
+                            />
+                            <span className="text-sm">Web search</span>
+                          </div>
+                          {webSearchEnabled && (
+                            <Check className="h-4 w-4 text-[#FF5800]" />
+                          )}
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                     <Button
                       type="button"
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8 rounded-lg hover:bg-white/[0.06] transition-colors"
+                      disabled={loadingState.isSending || isMessageLimitReached}
+                      onClick={handleVoiceInput}
+                      className={`h-8 w-8 rounded-lg transition-colors ${recorder.isRecording ? "bg-red-500/10 hover:bg-red-500/20" : "hover:bg-white/[0.06]"} disabled:opacity-40`}
                     >
-                      <Plus className="h-4 w-4 text-white/60" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent
-                    className="w-56 rounded-xl border-white/[0.08] bg-[#1a1a1a]/95 backdrop-blur-xl p-1"
-                    align="start"
-                    side="top"
-                    sideOffset={8}
-                  >
-                    <DropdownMenuItem
-                      className="flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer"
-                      disabled={isUploadingFiles || loadingState.isSending}
-                      onSelect={() => {
-                        document.getElementById("chat-file-upload")?.click();
-                      }}
-                    >
-                      {isUploadingFiles ? (
-                        <Loader2 className="h-4 w-4 text-white/50 animate-spin" />
+                      {recorder.isRecording ? (
+                        <Square className="h-4 w-4 text-red-400" />
                       ) : (
-                        <FileText className="h-4 w-4 text-white/50" />
+                        <Mic className="h-4 w-4 text-white/60" />
                       )}
-                      <span className="text-sm">Upload files</span>
-                    </DropdownMenuItem>
-
-                    <DropdownMenuItem
-                      className="flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer"
-                      onSelect={(e) => {
-                        e.preventDefault();
-                        setWebSearchEnabled(!webSearchEnabled);
-                      }}
-                    >
-                      <div className="flex items-center gap-3">
-                        <Globe
-                          className={`h-4 w-4 ${webSearchEnabled ? "text-[#FF5800]" : "text-white/50"}`}
-                        />
-                        <span className="text-sm">Web search</span>
-                      </div>
-                      {webSearchEnabled && (
-                        <Check className="h-4 w-4 text-[#FF5800]" />
-                      )}
-                    </DropdownMenuItem>
-
-                    <DropdownMenuItem
-                      className="flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer"
-                      onSelect={(e) => {
-                        e.preventDefault();
-                        setAudioState((prev) => ({
-                          ...prev,
-                          autoPlayTTS: !prev.autoPlayTTS,
-                        }));
-                      }}
-                    >
-                      <div className="flex items-center gap-3">
-                        <Volume2
-                          className={`h-4 w-4 ${audioState.autoPlayTTS ? "text-[#FF5800]" : "text-white/50"}`}
-                        />
-                        <span className="text-sm">Auto-play voice</span>
-                      </div>
-                      {audioState.autoPlayTTS && (
-                        <Check className="h-4 w-4 text-[#FF5800]" />
-                      )}
-                    </DropdownMenuItem>
-
-                    {audioState.customVoices.length > 0 && (
-                      <div className="px-3 py-2">
-                        <Select
-                          value={audioState.selectedVoiceId || "default"}
-                          onValueChange={(value) => {
-                            const newVoiceId =
-                              value === "default" ? null : value;
-                            setAudioState((prev) => ({
-                              ...prev,
-                              selectedVoiceId: newVoiceId,
-                            }));
-                            if (typeof window !== "undefined") {
-                              if (newVoiceId) {
-                                localStorage.setItem(
-                                  "eliza-selected-voice-id",
-                                  newVoiceId,
-                                );
-                              } else {
-                                localStorage.removeItem(
-                                  "eliza-selected-voice-id",
-                                );
-                              }
-                            }
-                            const voiceName = newVoiceId
-                              ? audioState.customVoices.find(
-                                  (v) => v.elevenlabsVoiceId === newVoiceId,
-                                )?.name || "Custom"
-                              : "Default";
-                            toast.success(`Voice: ${voiceName}`);
-                          }}
-                        >
-                          <SelectTrigger className="w-full h-8 rounded-lg border-white/[0.08] bg-white/[0.02] text-sm">
-                            <SelectValue placeholder="Select voice" />
-                          </SelectTrigger>
-                          <SelectContent className="rounded-lg border-white/[0.08]">
-                            <SelectItem value="default">
-                              Default Voice
-                            </SelectItem>
-                            {audioState.customVoices.map((voice) => (
-                              <SelectItem
-                                key={voice.id}
-                                value={voice.elevenlabsVoiceId}
-                              >
-                                {voice.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    )}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-
-                {/* Mic Button */}
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  disabled={loadingState.isSending || isMessageLimitReached}
-                  onClick={handleVoiceInput}
-                  className={`h-8 w-8 rounded-lg transition-colors ${
-                    recorder.isRecording
-                      ? "bg-red-500/10 hover:bg-red-500/20"
-                      : "hover:bg-white/[0.06]"
-                  } disabled:opacity-40`}
-                >
-                  {recorder.isRecording ? (
-                    <Square className="h-4 w-4 text-red-400" />
-                  ) : (
-                    <Mic className="h-4 w-4 text-white/60" />
-                  )}
-                </Button>
-              </div>
-
-              {/* Right side - Model selector and Send */}
-              <div className="flex items-center gap-1">
-                {/* Model Selector - Claude style */}
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      disabled={isLoadingModels}
-                      className="h-8 gap-1.5 px-2.5 rounded-lg hover:bg-white/[0.06] transition-colors"
-                    >
-                      <span className="flex items-center gap-1.5 text-sm text-white/50">
-                        {!customModel && tierIcons[selectedTier]}
-                        {customModel
-                          ? customModel.name
-                          : tiers.find((t) => t.id === selectedTier)?.name ||
-                            "Pro"}
-                      </span>
-                      <svg
-                        className="h-3.5 w-3.5 text-white/30"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M19 9l-7 7-7-7"
-                        />
-                      </svg>
                     </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent
-                    className="w-72 rounded-xl border-white/[0.08] bg-[#252525] p-1.5"
-                    align="end"
-                    side="top"
-                    sideOffset={8}
-                  >
-                    {tiers.map((tier) => (
-                      <DropdownMenuItem
-                        key={tier.id}
-                        className="flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer"
-                        onSelect={() => {
-                          setTier(tier.id as "fast" | "pro" | "ultra");
-                          setCustomModel(null);
-                        }}
-                      >
-                        <div className="flex items-start gap-3">
-                          <span className="mt-0.5 text-white/50">
-                            {tierIcons[tier.id]}
-                          </span>
-                          <div className="flex flex-col gap-0.5">
-                            <div className="flex items-center gap-2">
-                              <span className="text-[14px] font-medium text-white">
-                                {tier.name}
-                              </span>
-                              <span className="text-[11px] text-white/30 font-mono">
-                                {tier.modelId.split("/")[1]}
-                              </span>
-                            </div>
-                            <span className="text-[12px] text-white/40">
-                              {tier.description}
-                            </span>
-                          </div>
-                        </div>
-                        {!customModel && selectedTier === tier.id && (
-                          <Check className="h-4 w-4 text-[#FF5800]" />
-                        )}
-                      </DropdownMenuItem>
-                    ))}
+                  </div>
 
-                    {/* More models submenu */}
-                    <DropdownMenuSub>
-                      <DropdownMenuSubTrigger className="flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer text-[14px] text-white/70">
-                        More models
-                      </DropdownMenuSubTrigger>
-                      <DropdownMenuSubContent
-                        className="w-64 rounded-xl border-white/[0.08] bg-[#252525] p-1.5 max-h-80 overflow-y-auto"
+                  {/* Input */}
+                  <input
+                    ref={inputRef}
+                    type="text"
+                    value={inputText}
+                    onChange={(e) => setInputText(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        if (!loadingState.isSending && !recorder.isRecording) {
+                          sendMessage();
+                        }
+                      }
+                    }}
+                    placeholder={
+                      isMessageLimitReached
+                        ? "Sign up to continue chatting..."
+                        : recorder.isRecording
+                          ? "Recording..."
+                          : "Type your message..."
+                    }
+                    disabled={recorder.isRecording || isMessageLimitReached}
+                    className="flex-1 bg-transparent text-[15px] text-white placeholder:text-white/40 focus:outline-none disabled:opacity-50 px-2"
+                  />
+
+                  {/* Right buttons */}
+                  <div className="flex items-center gap-1">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          disabled={isLoadingModels}
+                          className="h-8 gap-1.5 px-2.5 rounded-lg hover:bg-white/[0.06] transition-colors"
+                        >
+                          <span className="flex items-center gap-1.5 text-sm text-white/50">
+                            {!customModel && tierIcons[selectedTier]}
+                            {customModel
+                              ? customModel.name
+                              : tiers.find((t) => t.id === selectedTier)
+                                  ?.name || "Pro"}
+                          </span>
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent
+                        className="w-72 rounded-xl border-white/[0.08] bg-[#252525] p-1.5"
+                        align="end"
+                        side="top"
                         sideOffset={8}
                       >
-                        {ADDITIONAL_MODELS.map((model) => (
+                        {tiers.map((tier) => (
                           <DropdownMenuItem
-                            key={model.id}
-                            className="flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer"
+                            key={tier.id}
+                            className="flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer"
                             onSelect={() => {
-                              setCustomModel({
-                                id: model.id,
-                                name: model.name,
-                                modelId: model.modelId,
-                              });
+                              setTier(tier.id as "fast" | "pro" | "ultra");
+                              setCustomModel(null);
                             }}
                           >
-                            <div className="flex flex-col">
-                              <div className="flex items-center gap-2">
-                                <span className="text-[13px] font-medium text-white">
-                                  {model.name}
+                            <div className="flex items-start gap-3">
+                              <span className="mt-0.5 text-white/50">
+                                {tierIcons[tier.id]}
+                              </span>
+                              <div className="flex flex-col gap-0.5">
+                                <span className="text-[14px] font-medium text-white">
+                                  {tier.name}
                                 </span>
-                                <span className="text-[10px] text-white/30 font-mono">
-                                  {model.modelId.split("/")[1]}
+                                <span className="text-[12px] text-white/40">
+                                  {tier.description}
                                 </span>
                               </div>
-                              <span className="text-[11px] text-white/40">
-                                {model.description}
-                              </span>
                             </div>
-                            {customModel?.id === model.id && (
+                            {!customModel && selectedTier === tier.id && (
                               <Check className="h-4 w-4 text-[#FF5800]" />
                             )}
                           </DropdownMenuItem>
                         ))}
-                      </DropdownMenuSubContent>
-                    </DropdownMenuSub>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                    <Button
+                      type="submit"
+                      disabled={
+                        loadingState.isSending ||
+                        !inputText.trim() ||
+                        recorder.isRecording ||
+                        isMessageLimitReached
+                      }
+                      size="icon"
+                      className="h-8 w-8 rounded-lg bg-transparent hover:bg-white/[0.06] disabled:opacity-40 border-0 transition-colors"
+                    >
+                      {loadingState.isSending ? (
+                        <Loader2 className="h-4 w-4 animate-spin text-[#FF5800]" />
+                      ) : (
+                        <Send className="h-4 w-4 text-[#FF5800]" />
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              )}
 
-                {/* Send Button */}
-                <Button
-                  type="submit"
-                  disabled={
-                    loadingState.isSending ||
-                    !inputText.trim() ||
-                    recorder.isRecording ||
-                    isMessageLimitReached
-                  }
-                  size="icon"
-                  className="h-8 w-8 rounded-lg bg-transparent hover:bg-white/[0.06] disabled:opacity-40 border-0 transition-colors"
-                >
-                  {loadingState.isSending ? (
-                    <Loader2 className="h-4 w-4 animate-spin text-[#FF5800]" />
-                  ) : (
-                    <Send className="h-4 w-4 text-[#FF5800]" />
-                  )}
-                </Button>
-              </div>
+              {/* Expanded multi-line layout */}
+              {(inputText.includes("\n") || inputText.length > 80) && (
+                <div className="animate-in fade-in slide-in-from-bottom-1 duration-200">
+                  <textarea
+                    ref={textareaRef}
+                    rows={1}
+                    value={inputText}
+                    onChange={(e) => setInputText(e.currentTarget.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        if (!loadingState.isSending && !recorder.isRecording) {
+                          sendMessage();
+                        }
+                      }
+                    }}
+                    placeholder={
+                      recorder.isRecording
+                        ? "Recording..."
+                        : "Type your message..."
+                    }
+                    disabled={recorder.isRecording}
+                    className="w-full bg-transparent text-[15px] text-white placeholder:text-white/40 focus:outline-none disabled:opacity-50 resize-none leading-relaxed px-4 pt-3 pb-2 overflow-y-auto transition-[height] duration-150 ease-out"
+                    style={{ minHeight: "44px", maxHeight: "400px" }}
+                  />
+                  <div className="flex items-center justify-between px-2 pb-2">
+                    {/* Left side - Plus menu and Mic */}
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="file"
+                        id="chat-file-upload"
+                        multiple
+                        accept=".pdf,.txt,.md,.doc,.docx,.json,.xml,.yaml,.yml,.csv"
+                        onChange={(e) => {
+                          const files = e.target.files;
+                          if (files && files.length > 0) {
+                            handleFileUpload(Array.from(files));
+                            e.target.value = "";
+                          }
+                        }}
+                        className="hidden"
+                      />
+
+                      {/* Plus Menu */}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 rounded-lg hover:bg-white/[0.06] transition-colors"
+                          >
+                            <Plus className="h-4 w-4 text-white/60" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent
+                          className="w-56 rounded-xl border-white/[0.08] bg-[#1a1a1a]/95 backdrop-blur-xl p-1"
+                          align="start"
+                          side="top"
+                          sideOffset={8}
+                        >
+                          <DropdownMenuItem
+                            className="flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer"
+                            disabled={
+                              isUploadingFiles || loadingState.isSending
+                            }
+                            onSelect={() => {
+                              document
+                                .getElementById("chat-file-upload")
+                                ?.click();
+                            }}
+                          >
+                            {isUploadingFiles ? (
+                              <Loader2 className="h-4 w-4 text-white/50 animate-spin" />
+                            ) : (
+                              <FileText className="h-4 w-4 text-white/50" />
+                            )}
+                            <span className="text-sm">Upload files</span>
+                          </DropdownMenuItem>
+
+                          <DropdownMenuItem
+                            className="flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer"
+                            onSelect={(e) => {
+                              e.preventDefault();
+                              setWebSearchEnabled(!webSearchEnabled);
+                            }}
+                          >
+                            <div className="flex items-center gap-3">
+                              <Globe
+                                className={`h-4 w-4 ${webSearchEnabled ? "text-[#FF5800]" : "text-white/50"}`}
+                              />
+                              <span className="text-sm">Web search</span>
+                            </div>
+                            {webSearchEnabled && (
+                              <Check className="h-4 w-4 text-[#FF5800]" />
+                            )}
+                          </DropdownMenuItem>
+
+                          <DropdownMenuItem
+                            className="flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer"
+                            onSelect={(e) => {
+                              e.preventDefault();
+                              setAudioState((prev) => ({
+                                ...prev,
+                                autoPlayTTS: !prev.autoPlayTTS,
+                              }));
+                            }}
+                          >
+                            <div className="flex items-center gap-3">
+                              <Volume2
+                                className={`h-4 w-4 ${audioState.autoPlayTTS ? "text-[#FF5800]" : "text-white/50"}`}
+                              />
+                              <span className="text-sm">Auto-play voice</span>
+                            </div>
+                            {audioState.autoPlayTTS && (
+                              <Check className="h-4 w-4 text-[#FF5800]" />
+                            )}
+                          </DropdownMenuItem>
+
+                          {audioState.customVoices.length > 0 && (
+                            <div className="px-3 py-2">
+                              <Select
+                                value={audioState.selectedVoiceId || "default"}
+                                onValueChange={(value) => {
+                                  const newVoiceId =
+                                    value === "default" ? null : value;
+                                  setAudioState((prev) => ({
+                                    ...prev,
+                                    selectedVoiceId: newVoiceId,
+                                  }));
+                                  if (typeof window !== "undefined") {
+                                    if (newVoiceId) {
+                                      localStorage.setItem(
+                                        "eliza-selected-voice-id",
+                                        newVoiceId,
+                                      );
+                                    } else {
+                                      localStorage.removeItem(
+                                        "eliza-selected-voice-id",
+                                      );
+                                    }
+                                  }
+                                  const voiceName = newVoiceId
+                                    ? audioState.customVoices.find(
+                                        (v) =>
+                                          v.elevenlabsVoiceId === newVoiceId,
+                                      )?.name || "Custom"
+                                    : "Default";
+                                  toast.success(`Voice: ${voiceName}`);
+                                }}
+                              >
+                                <SelectTrigger className="w-full h-8 rounded-lg border-white/[0.08] bg-white/[0.02] text-sm">
+                                  <SelectValue placeholder="Select voice" />
+                                </SelectTrigger>
+                                <SelectContent className="rounded-lg border-white/[0.08]">
+                                  <SelectItem value="default">
+                                    Default Voice
+                                  </SelectItem>
+                                  {audioState.customVoices.map((voice) => (
+                                    <SelectItem
+                                      key={voice.id}
+                                      value={voice.elevenlabsVoiceId}
+                                    >
+                                      {voice.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+
+                      {/* Mic Button */}
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        disabled={
+                          loadingState.isSending || isMessageLimitReached
+                        }
+                        onClick={handleVoiceInput}
+                        className={`h-8 w-8 rounded-lg transition-colors ${
+                          recorder.isRecording
+                            ? "bg-red-500/10 hover:bg-red-500/20"
+                            : "hover:bg-white/[0.06]"
+                        } disabled:opacity-40`}
+                      >
+                        {recorder.isRecording ? (
+                          <Square className="h-4 w-4 text-red-400" />
+                        ) : (
+                          <Mic className="h-4 w-4 text-white/60" />
+                        )}
+                      </Button>
+                    </div>
+
+                    {/* Right side - Model selector and Send */}
+                    <div className="flex items-center gap-1">
+                      {/* Model Selector - Claude style */}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            disabled={isLoadingModels}
+                            className="h-8 gap-1.5 px-2.5 rounded-lg hover:bg-white/[0.06] transition-colors"
+                          >
+                            <span className="flex items-center gap-1.5 text-sm text-white/50">
+                              {!customModel && tierIcons[selectedTier]}
+                              {customModel
+                                ? customModel.name
+                                : tiers.find((t) => t.id === selectedTier)
+                                    ?.name || "Pro"}
+                            </span>
+                            <svg
+                              className="h-3.5 w-3.5 text-white/30"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M19 9l-7 7-7-7"
+                              />
+                            </svg>
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent
+                          className="w-72 rounded-xl border-white/[0.08] bg-[#252525] p-1.5"
+                          align="end"
+                          side="top"
+                          sideOffset={8}
+                        >
+                          {tiers.map((tier) => (
+                            <DropdownMenuItem
+                              key={tier.id}
+                              className="flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer"
+                              onSelect={() => {
+                                setTier(tier.id as "fast" | "pro" | "ultra");
+                                setCustomModel(null);
+                              }}
+                            >
+                              <div className="flex items-start gap-3">
+                                <span className="mt-0.5 text-white/50">
+                                  {tierIcons[tier.id]}
+                                </span>
+                                <div className="flex flex-col gap-0.5">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-[14px] font-medium text-white">
+                                      {tier.name}
+                                    </span>
+                                    <span className="text-[11px] text-white/30 font-mono">
+                                      {tier.modelId.split("/")[1]}
+                                    </span>
+                                  </div>
+                                  <span className="text-[12px] text-white/40">
+                                    {tier.description}
+                                  </span>
+                                </div>
+                              </div>
+                              {!customModel && selectedTier === tier.id && (
+                                <Check className="h-4 w-4 text-[#FF5800]" />
+                              )}
+                            </DropdownMenuItem>
+                          ))}
+
+                          {/* More models submenu */}
+                          <DropdownMenuSub>
+                            <DropdownMenuSubTrigger className="flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer text-[14px] text-white/70">
+                              More models
+                            </DropdownMenuSubTrigger>
+                            <DropdownMenuSubContent
+                              className="w-64 rounded-xl border-white/[0.08] bg-[#252525] p-1.5 max-h-80 overflow-y-auto"
+                              sideOffset={8}
+                            >
+                              {ADDITIONAL_MODELS.map((model) => (
+                                <DropdownMenuItem
+                                  key={model.id}
+                                  className="flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer"
+                                  onSelect={() => {
+                                    setCustomModel({
+                                      id: model.id,
+                                      name: model.name,
+                                      modelId: model.modelId,
+                                    });
+                                  }}
+                                >
+                                  <div className="flex flex-col">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-[13px] font-medium text-white">
+                                        {model.name}
+                                      </span>
+                                      <span className="text-[10px] text-white/30 font-mono">
+                                        {model.modelId.split("/")[1]}
+                                      </span>
+                                    </div>
+                                    <span className="text-[11px] text-white/40">
+                                      {model.description}
+                                    </span>
+                                  </div>
+                                  {customModel?.id === model.id && (
+                                    <Check className="h-4 w-4 text-[#FF5800]" />
+                                  )}
+                                </DropdownMenuItem>
+                              ))}
+                            </DropdownMenuSubContent>
+                          </DropdownMenuSub>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+
+                      {/* Send Button */}
+                      <Button
+                        type="submit"
+                        disabled={
+                          loadingState.isSending ||
+                          !inputText.trim() ||
+                          recorder.isRecording ||
+                          isMessageLimitReached
+                        }
+                        size="icon"
+                        className="h-8 w-8 rounded-lg bg-transparent hover:bg-white/[0.06] disabled:opacity-40 border-0 transition-colors"
+                      >
+                        {loadingState.isSending ? (
+                          <Loader2 className="h-4 w-4 animate-spin text-[#FF5800]" />
+                        ) : (
+                          <Send className="h-4 w-4 text-[#FF5800]" />
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
-              </div>
-            )}
-          </div>
           </form>
         </div>
       </div>

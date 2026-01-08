@@ -97,7 +97,7 @@ const nextConfig: NextConfig = {
       const stubPath = path.join(__dirname, "lib/stubs/thread-stream.ts");
       const loggerStubPath = path.join(
         __dirname,
-        "lib/stubs/walletconnect-logger.ts"
+        "lib/stubs/walletconnect-logger.ts",
       );
       config.resolve.alias = {
         ...config.resolve.alias,

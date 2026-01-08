@@ -50,7 +50,7 @@ export async function generateRoomTitle(
 
   // Generate AI title
   let title: string;
-  
+
   try {
     const prompt = `Create a brief 3-5 word title summarizing this message topic. Output ONLY the title, no quotes or explanation.
 
@@ -59,7 +59,7 @@ Message: ${text.slice(0, 300)}
 Title:`;
 
     logger.info(`[RoomTitle] Generating AI title for room ${roomId}`);
-    
+
     const result = await generateText({
       model: gateway.languageModel("openai/gpt-4o-mini"),
       prompt,
@@ -98,42 +98,46 @@ Title:`;
  */
 function generateFallbackTitle(message: string): string {
   const cleaned = message.trim().toLowerCase();
-  
+
   // Common greeting patterns -> generic titles
   if (/^(hi|hello|hey|howdy|greetings|yo|sup)/i.test(cleaned)) {
     return "New Conversation";
   }
-  
+
   // Question patterns
-  if (/^(what|how|why|when|where|who|can|could|would|should|is|are|do|does)/i.test(cleaned)) {
+  if (
+    /^(what|how|why|when|where|who|can|could|would|should|is|are|do|does)/i.test(
+      cleaned,
+    )
+  ) {
     const words = message.trim().split(/\s+/).slice(0, 6);
     if (words.length >= 3) {
       return capitalizeFirst(words.slice(0, 5).join(" "));
     }
     return "Question & Answer";
   }
-  
+
   // Help/assist patterns
   if (/^(help|assist|support|i need|please)/i.test(cleaned)) {
     return "Help Request";
   }
-  
+
   // Code/technical patterns
   if (/^(code|write|create|build|make|implement|debug|fix)/i.test(cleaned)) {
     return "Coding Assistance";
   }
-  
+
   // Explain patterns
   if (/^(explain|tell me|describe|what is|define)/i.test(cleaned)) {
     return "Explanation Request";
   }
-  
+
   // For other messages, extract first few meaningful words
   const words = message.trim().split(/\s+/);
   if (words.length <= 5) {
     return capitalizeFirst(words.join(" ").replace(/[.!?]+$/, ""));
   }
-  
+
   // Take first 5 words and capitalize
   const title = words.slice(0, 5).join(" ");
   return capitalizeFirst(title) + "...";

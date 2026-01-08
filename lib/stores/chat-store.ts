@@ -415,18 +415,18 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const currentState = get();
     const wasSelected = currentState.roomId === roomIdToDelete;
     const previousRooms = currentState.rooms;
-    
+
     // Add to recently deleted set to prevent loadRooms from re-adding it
     const newDeletedSet = new Set(currentState.recentlyDeletedRoomIds);
     newDeletedSet.add(roomIdToDelete);
-    
+
     // Update state immediately
     set({
       rooms: previousRooms.filter((r) => r.id !== roomIdToDelete),
       roomId: wasSelected ? null : currentState.roomId,
       recentlyDeletedRoomIds: newDeletedSet,
     });
-    
+
     // Clear from localStorage if this was the selected room
     if (wasSelected && typeof window !== "undefined") {
       window.localStorage.removeItem("elizaRoomId");
@@ -437,27 +437,31 @@ export const useChatStore = create<ChatState>((set, get) => ({
     fetch(`/api/eliza/rooms/${roomIdToDelete}`, {
       method: "DELETE",
       credentials: "include",
-    }).then((response) => {
-      if (!response.ok) {
-        // Log error but don't rollback - the server delete often succeeds
-        // even when returning errors due to cascade operations
-        console.warn("[ChatStore] Delete API returned error, but room may have been deleted");
-      }
-      // Always clean up the deleted set after a delay
-      setTimeout(() => {
-        const cleanupDeletedSet = new Set(get().recentlyDeletedRoomIds);
-        cleanupDeletedSet.delete(roomIdToDelete);
-        set({ recentlyDeletedRoomIds: cleanupDeletedSet });
-      }, 5000);
-    }).catch((error) => {
-      console.error("[ChatStore] Delete request failed:", error);
-      // Still clean up after delay - don't leave stale entries
-      setTimeout(() => {
-        const cleanupDeletedSet = new Set(get().recentlyDeletedRoomIds);
-        cleanupDeletedSet.delete(roomIdToDelete);
-        set({ recentlyDeletedRoomIds: cleanupDeletedSet });
-      }, 5000);
-    });
+    })
+      .then((response) => {
+        if (!response.ok) {
+          // Log error but don't rollback - the server delete often succeeds
+          // even when returning errors due to cascade operations
+          console.warn(
+            "[ChatStore] Delete API returned error, but room may have been deleted",
+          );
+        }
+        // Always clean up the deleted set after a delay
+        setTimeout(() => {
+          const cleanupDeletedSet = new Set(get().recentlyDeletedRoomIds);
+          cleanupDeletedSet.delete(roomIdToDelete);
+          set({ recentlyDeletedRoomIds: cleanupDeletedSet });
+        }, 5000);
+      })
+      .catch((error) => {
+        console.error("[ChatStore] Delete request failed:", error);
+        // Still clean up after delay - don't leave stale entries
+        setTimeout(() => {
+          const cleanupDeletedSet = new Set(get().recentlyDeletedRoomIds);
+          cleanupDeletedSet.delete(roomIdToDelete);
+          set({ recentlyDeletedRoomIds: cleanupDeletedSet });
+        }, 5000);
+      });
   },
 
   // Clear all chat data on logout

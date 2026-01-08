@@ -159,7 +159,13 @@ export function MyAgentsClient() {
     } finally {
       setIsLoadingMore(false);
     }
-  }, [pagination.page, pagination.hasMore, isLoadingMore, sortBy, fetchCharacters]);
+  }, [
+    pagination.page,
+    pagination.hasMore,
+    isLoadingMore,
+    sortBy,
+    fetchCharacters,
+  ]);
 
   // Infinite scroll observer
   useEffect(() => {

@@ -372,14 +372,13 @@ class UserMcpsService {
     let creditsCharged = 0;
     let x402AmountUsd = 0;
 
-    // Import CREDITS_PER_DOLLAR for conversion
-    const { CREDITS_PER_DOLLAR } = await import("@/lib/config/x402");
+    const CREDITS_PER_DOLLAR = 100; // 1 cent = 1 credit
 
     if (params.paymentType === "credits") {
       creditsCharged = Number(mcp.credits_per_request);
     } else {
       x402AmountUsd = Number(mcp.x402_price_usd);
-      // Convert x402 USD to credits using configured rate
+      // Convert to credits using configured rate
       creditsCharged = x402AmountUsd * CREDITS_PER_DOLLAR;
     }
 
@@ -510,8 +509,7 @@ class UserMcpsService {
     const creatorEarnings = creditsCharged * creatorSharePct;
     const platformEarnings = creditsCharged * platformSharePct;
 
-    // Import CREDITS_PER_DOLLAR for conversion
-    const { CREDITS_PER_DOLLAR } = await import("@/lib/config/x402");
+    const CREDITS_PER_DOLLAR = 100; // 1 cent = 1 credit
 
     // Credit the creator's organization credits (for platform operations)
     if (creatorEarnings > 0) {

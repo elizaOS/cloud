@@ -30,7 +30,7 @@ const LOG_LEVELS: Record<LogLevel, number> = {
 
 function createLogger(
   level: LogLevel = "info",
-  _bindings?: Record<string, unknown>
+  _bindings?: Record<string, unknown>,
 ): Logger {
   const minLevel = LOG_LEVELS[level] || LOG_LEVELS.info;
 
@@ -50,26 +50,25 @@ function createLogger(
     warn: log("warn", "warn"),
     error: log("error", "error"),
     fatal: log("fatal", "error"),
-    child: (bindings?: Record<string, unknown>) => createLogger(level, bindings),
+    child: (bindings?: Record<string, unknown>) =>
+      createLogger(level, bindings),
   };
 }
 
 /**
  * Generate a logger with optional context namespace
  */
-export function generateChildLogger(
-  logger: Logger,
-  context: string
-): Logger {
+export function generateChildLogger(logger: Logger, context: string): Logger {
   return logger.child({ context });
 }
 
 /**
  * Generate a platform logger (used by @walletconnect/utils)
  */
-export function generatePlatformLogger(
-  level: LogLevel = "info"
-): { logger: Logger; chunkLoggerController: null } {
+export function generatePlatformLogger(level: LogLevel = "info"): {
+  logger: Logger;
+  chunkLoggerController: null;
+} {
   return {
     logger: createLogger(level),
     chunkLoggerController: null,
@@ -102,11 +101,8 @@ export function getDefaultLoggerOptions(): { level: LogLevel } {
 /**
  * Create a pino-compatible logger
  */
-export function pino(
-  opts?: { level?: LogLevel } | LogLevel
-): Logger {
-  const level =
-    typeof opts === "string" ? opts : (opts?.level ?? "info");
+export function pino(opts?: { level?: LogLevel } | LogLevel): Logger {
+  const level = typeof opts === "string" ? opts : (opts?.level ?? "info");
   return createLogger(level);
 }
 

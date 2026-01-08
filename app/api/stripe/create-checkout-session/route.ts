@@ -204,7 +204,7 @@ async function handleCheckoutSession(req: NextRequest) {
       baseUrl = "http://localhost:3000";
     }
 
-    const successUrl = `${baseUrl}/billing/success?session_id={CHECKOUT_SESSION_ID}&from=${returnUrl}`;
+    const successUrl = `${baseUrl}/dashboard/billing/success?session_id={CHECKOUT_SESSION_ID}&from=${returnUrl}`;
     const cancelUrl =
       returnUrl === "settings"
         ? `${baseUrl}/dashboard/settings?tab=billing`

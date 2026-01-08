@@ -33,6 +33,9 @@ interface ChatInputProps {
   status: SessionStatus;
 }
 
+// Deterministic pseudo-random values for each bar (seeded by index)
+const barRandomFactors = [0.85, 0.72, 0.93, 0.68, 0.79];
+
 // Audio waveform visualization component
 const AudioWaveform = memo(function AudioWaveform({
   audioLevel,
@@ -49,10 +52,12 @@ const AudioWaveform = memo(function AudioWaveform({
         // Create a wave effect with varying heights based on position and audio level
         const baseHeight = 0.3;
         const waveOffset = Math.sin((i / bars) * Math.PI) * 0.4;
+        // Use deterministic "random" factor based on bar index
+        const randomFactor = barRandomFactors[i] ?? 0.8;
         const height = isRecording
           ? Math.max(
               baseHeight,
-              (audioLevel * 0.7 + waveOffset) * (0.6 + Math.random() * 0.4),
+              (audioLevel * 0.7 + waveOffset) * (0.6 + randomFactor * 0.4),
             )
           : baseHeight;
 

@@ -26,7 +26,6 @@ import { conversationsService } from "@/lib/services/conversations";
 import { memoryService } from "@/lib/services/memory";
 import { containersService } from "@/lib/services/containers";
 import { contentModerationService } from "@/lib/services/content-moderation";
-import { agentReputationService } from "@/lib/services/agent-reputation";
 import { characterDeploymentDiscoveryService as agentDiscoveryService } from "@/lib/services/deployments/discovery";
 import { agentService } from "@/lib/services/agents/agents";
 import { charactersService } from "@/lib/services/characters/characters";
@@ -5574,13 +5573,7 @@ const mcpHandler = createMcpHandler(
             .describe("Max results"),
         },
       },
-      async ({
-        query,
-        types,
-        categories,
-        x402Only,
-        limit,
-      }) => {
+      async ({ query, types, categories, x402Only, limit }) => {
         try {
           const baseUrl =
             process.env.NEXT_PUBLIC_APP_URL || "https://elizacloud.ai";
@@ -5738,18 +5731,6 @@ async function handleRequest(req: NextRequest) {
       );
     }
 
-    // Track request for agent reputation (fire and forget)
-    const agentIdentifier = `org:${authResult.user.organization_id}`;
-    agentReputationService
-      .recordRequest({
-        agentIdentifier,
-        isSuccessful: true,
-        method: "mcp",
-      })
-      .catch(() => {
-        // Ignore errors - don't fail MCP request for reputation tracking
-      });
-
     // Run MCP handler within auth context using AsyncLocalStorage
     // NextRequest extends Request, but the mcp-handler declares a global Request augmentation
     // that adds an optional `auth` property. Direct cast is safe since NextRequest is a subtype.
@@ -5757,42 +5738,6 @@ async function handleRequest(req: NextRequest) {
       return await mcpHandler(req as Request);
     });
   } catch (error) {
-    // Return 402 with x402 payment info if enabled and configured
-    const {
-      X402_ENABLED,
-      X402_RECIPIENT_ADDRESS,
-      getDefaultNetwork,
-      USDC_ADDRESSES,
-      TOPUP_PRICE,
-      CREDITS_PER_DOLLAR,
-      isX402Configured,
-    } = await import("@/lib/config/x402");
-
-    if (isX402Configured()) {
-      return NextResponse.json(
-        {
-          error: "authentication_failed",
-          error_description:
-            "Authentication required. Get an API key or top up credits via x402 payment.",
-          x402: {
-            topupEndpoint: "/api/v1/credits/topup",
-            network: getDefaultNetwork(),
-            asset: USDC_ADDRESSES[getDefaultNetwork()],
-            payTo: X402_RECIPIENT_ADDRESS,
-            minimumTopup: TOPUP_PRICE,
-            creditsPerDollar: CREDITS_PER_DOLLAR,
-          },
-        },
-        {
-          status: 402,
-          headers: {
-            "WWW-Authenticate":
-              'Bearer realm="MCP Server", error="invalid_token"',
-          },
-        },
-      );
-    }
-
     // Return auth error in MCP format
     return NextResponse.json(
       {

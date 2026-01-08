@@ -196,7 +196,8 @@ export async function DELETE(
         ? "App deleted successfully with all resources cleaned up"
         : "App deleted with some cleanup errors",
       cleaned: cleanupResult.cleaned,
-      errors: cleanupResult.errors.length > 0 ? cleanupResult.errors : undefined,
+      errors:
+        cleanupResult.errors.length > 0 ? cleanupResult.errors : undefined,
     });
   } catch (error) {
     logger.error("Failed to delete app:", error);

@@ -36,7 +36,8 @@ export async function POST(
 
   return NextResponse.json({
     mcp,
-    message: "MCP published successfully. It is now discoverable in the registry.",
+    message:
+      "MCP published successfully. It is now discoverable in the registry.",
   });
 }
 

@@ -13,7 +13,6 @@
 
 import { hasBadWords, minimalBadWordsArray } from "expletives";
 import { adminService } from "./admin";
-import { agentReputationService } from "./agent-reputation";
 import { logger } from "@/lib/utils/logger";
 
 // OpenAI Moderation API types
@@ -592,81 +591,6 @@ class ContentModerationService {
         (u) => u.totalViolations >= THRESHOLDS.FLAG_FOR_BAN_AFTER_VIOLATIONS,
       )
       .map((u) => u.userId);
-  }
-
-  /**
-   * Fire-and-forget async moderation for external agents (ERC-8004/A2A)
-   * Also records violations to the agent reputation system
-   *
-   * @param text - The text to moderate
-   * @param userId - User ID for violation tracking
-   * @param agentIdentifier - Agent identifier (chainId:tokenId or org:orgId)
-   * @param roomId - Optional room ID
-   * @param onViolation - Callback when violation is detected
-   */
-  moderateAgentInBackground(
-    text: string,
-    userId: string,
-    agentIdentifier: string,
-    roomId?: string,
-    onViolation?: (
-      result: AsyncModerationResult & {
-        action: "refused" | "warned" | "flagged_for_ban";
-      },
-    ) => void,
-  ): void {
-    // Only run async moderation if keywords suggest it's needed
-    if (!this.needsAsyncModeration(text)) {
-      return;
-    }
-
-    // Fire and forget
-    this.moderateAsync(text, userId, roomId)
-      .then(async (result) => {
-        if (result.flagged && result.action) {
-          // Also record to agent reputation system
-
-          // Map moderation categories to flag types
-          let flagType: "csam" | "self_harm" | "harassment" | "spam" | "other" =
-            "other";
-          let severity: "low" | "medium" | "high" | "critical" = "medium";
-
-          if (result.flaggedCategories.includes("sexual/minors")) {
-            flagType = "csam";
-            severity = "critical";
-          } else if (
-            result.flaggedCategories.some((c) => c.startsWith("self-harm"))
-          ) {
-            flagType = "self_harm";
-            severity = "high";
-          }
-
-          await agentReputationService.recordViolation({
-            agentIdentifier,
-            flagType,
-            severity,
-            description: `Moderation violation: ${result.flaggedCategories.join(", ")}`,
-            evidence: text.slice(0, 500),
-            moderationScores: result.scores as Record<string, number>,
-            detectedBy: "auto",
-          });
-
-          if (onViolation) {
-            onViolation(
-              result as AsyncModerationResult & {
-                action: "refused" | "warned" | "flagged_for_ban";
-              },
-            );
-          }
-        }
-      })
-      .catch((error) => {
-        logger.error("[ContentModeration] Agent moderation failed", {
-          error: error instanceof Error ? error.message : String(error),
-          userId,
-          agentIdentifier,
-        });
-      });
   }
 }
 
