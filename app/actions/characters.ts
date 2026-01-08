@@ -82,7 +82,7 @@ export async function createCharacter(elizaCharacter: ElizaCharacter) {
     })(),
     avatar_url: elizaCharacter.avatarUrl ?? null,
     is_template: false,
-    is_public: false,
+    is_public: elizaCharacter.isPublic ?? false,
     source: "cloud", // Created from main Eliza Cloud dashboard
   };
 
