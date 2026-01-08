@@ -99,7 +99,11 @@ export function CharacterForm({
 
   const handleCopyShareLink = async () => {
     if (!character.id) return;
-    const shareUrl = `${window.location.origin}/share/${character.id}`;
+    if (!character.username) {
+      toast.error("Set a username first to share this agent");
+      return;
+    }
+    const shareUrl = `${window.location.origin}/chat/@${character.username}`;
     try {
       await navigator.clipboard.writeText(shareUrl);
       toast.success("Share link copied!");
