@@ -411,28 +411,9 @@ export function PromoteAppDialog({
     fetchPreviews();
   }, [fetchPreviews]);
 
-  const estimatedCost = () => {
-    let cost = 0;
-    if (config.channels.includes("social")) {
-      cost += (config.social?.platforms?.length || 0) * 0.01 + 0.02; // Posts + content gen
-    }
-    if (config.channels.includes("seo")) {
-      cost += 0.03;
-    }
-    if (config.channels.includes("advertising") && config.advertising) {
-      cost += 0.5 + config.advertising.budget * 1.15; // Setup + budget with markup
-    }
-    if (config.channels.includes("twitter_automation")) {
-      cost += 0.1; // Setup cost for Twitter automation
-    }
-    if (config.channels.includes("telegram_automation")) {
-      cost += 0.08; // Setup cost for Telegram automation
-    }
-    if (config.channels.includes("discord_automation")) {
-      cost += 0.08; // Setup cost for Discord automation
-    }
-    return cost.toFixed(2);
-  };
+  // Automation setup is FREE - no cost to display
+  // Post generation costs are hidden to encourage engagement
+  const getCostDisplay = () => "Free";
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -2122,7 +2103,7 @@ export function PromoteAppDialog({
                 <div className="border-t border-white/10 pt-3 mt-3">
                   <div className="flex justify-between font-semibold text-white">
                     <span>Estimated Cost:</span>
-                    <span>${estimatedCost()}</span>
+                    <span>{getCostDisplay()}</span>
                   </div>
                 </div>
               </div>

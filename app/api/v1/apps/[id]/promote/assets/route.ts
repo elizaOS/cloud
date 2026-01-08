@@ -10,6 +10,11 @@ import {
 import { creditsService } from "@/lib/services/credits";
 import { logger } from "@/lib/utils/logger";
 import { z } from "zod";
+import {
+  PROMO_IMAGE_COST,
+  AD_COPY_GENERATION_COST,
+  estimateAssetGenerationCost,
+} from "@/lib/promotion-pricing";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60; // Asset generation with AI can take 30-60 seconds
@@ -25,11 +30,8 @@ const GenerateAssetsSchema = z.object({
   includeCopy: z.boolean().optional(),
   includeAdBanners: z.boolean().optional(),
   targetAudience: z.string().max(500).optional(),
-  customPrompt: z.string().max(1000).optional(), // Optional user-provided context
+  customPrompt: z.string().max(1000).optional(),
 });
-
-const ASSET_GENERATION_COST = 0.05;
-const COPY_GENERATION_COST = 0.02;
 
 export async function POST(request: NextRequest, { params }: RouteParams) {
   const { user } = await requireAuthOrApiKeyWithOrg(request);
@@ -53,11 +55,11 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   // Calculate cost - simplified: 1 social card + 1 banner (if requested)
   const imageCount = parsed.data.includeCopy !== false ? 1 : 0; // 1 social card
   const bannerCount = parsed.data.includeAdBanners ? 1 : 0; // 1 banner
-  const totalImageCost = (imageCount + bannerCount) * ASSET_GENERATION_COST;
-  const copyCost = parsed.data.includeCopy !== false ? COPY_GENERATION_COST : 0;
+  const totalImageCost = (imageCount + bannerCount) * PROMO_IMAGE_COST;
+  const copyCost =
+    parsed.data.includeCopy !== false ? AD_COPY_GENERATION_COST : 0;
   const totalCost = totalImageCost + copyCost;
 
-  // Deduct credits (organization_id is guaranteed after requireAuthOrApiKeyWithOrg)
   const deduction = await creditsService.deductCredits({
     organizationId: user.organization_id,
     amount: totalCost,
@@ -78,7 +80,6 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     includeCopy: parsed.data.includeCopy !== false,
   });
 
-  // Generate assets
   const result = await appPromotionAssetsService.generateAssetBundle(app, {
     includeSocialCards: true,
     includeAdBanners: parsed.data.includeAdBanners,
@@ -93,13 +94,12 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   if (failedImages > 0) {
     await creditsService.refundCredits({
       organizationId: user.organization_id,
-      amount: failedImages * ASSET_GENERATION_COST,
+      amount: failedImages * PROMO_IMAGE_COST,
       description: "Refund for failed asset generations",
       metadata: { appId: id, failedCount: failedImages },
     });
   }
 
-  // Save successful assets to the app record
   if (successfulImages > 0) {
     const promotionalAssets = result.assets.map((asset) => ({
       type: asset.type as "social_card" | "banner",
@@ -128,7 +128,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     })),
     copy: result.copy,
     errors: result.errors,
-    creditsUsed: totalCost - failedImages * ASSET_GENERATION_COST,
+    creditsUsed: totalCost - failedImages * PROMO_IMAGE_COST,
   });
 }
 
@@ -153,6 +153,12 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     ? appPromotionAssetsService.getRecommendedSizes(platform)
     : Object.keys(AD_SIZES);
 
+  const costEstimate = estimateAssetGenerationCost({
+    imageCount: 1,
+    includeCopy: true,
+    includeBanner: true,
+  });
+
   return NextResponse.json({
     recommendedSizes,
     availableSizes: Object.entries(AD_SIZES).map(([name, dimensions]) => ({
@@ -160,9 +166,10 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       ...dimensions,
     })),
     estimatedCost: {
-      perImage: ASSET_GENERATION_COST,
-      copyGeneration: COPY_GENERATION_COST,
-      fullBundle: ASSET_GENERATION_COST * 2 + COPY_GENERATION_COST, // 1 social card + 1 banner + copy
+      perImage: PROMO_IMAGE_COST,
+      copyGeneration: AD_COPY_GENERATION_COST,
+      fullBundle: costEstimate.total,
+      display: costEstimate.display,
     },
   });
 }

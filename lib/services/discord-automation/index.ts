@@ -45,7 +45,9 @@ class DiscordAutomationService {
    * Check if Discord is configured (has required env vars)
    */
   isConfigured(): boolean {
-    return Boolean(DISCORD_CLIENT_ID && DISCORD_CLIENT_SECRET && DISCORD_BOT_TOKEN);
+    return Boolean(
+      DISCORD_CLIENT_ID && DISCORD_CLIENT_SECRET && DISCORD_BOT_TOKEN
+    );
   }
 
   /**
@@ -78,7 +80,12 @@ class DiscordAutomationService {
     guildId: string,
     stateBase64: string,
     permissions?: string
-  ): Promise<{ success: boolean; guildId?: string; guildName?: string; error?: string }> {
+  ): Promise<{
+    success: boolean;
+    guildId?: string;
+    guildName?: string;
+    error?: string;
+  }> {
     if (!DISCORD_BOT_TOKEN) {
       return { success: false, error: "Discord bot token not configured" };
     }
@@ -107,9 +114,10 @@ class DiscordAutomationService {
         });
         return {
           success: false,
-          error: guildResponse.status === 403
-            ? "Bot doesn't have access to this server"
-            : "Failed to verify server access",
+          error:
+            guildResponse.status === 403
+              ? "Bot doesn't have access to this server"
+              : "Failed to verify server access",
         };
       }
 
@@ -154,9 +162,8 @@ class DiscordAutomationService {
     }
 
     try {
-      const guilds = await discordGuildsRepository.findByOrganization(
-        organizationId
-      );
+      const guilds =
+        await discordGuildsRepository.findByOrganization(organizationId);
 
       if (guilds.length === 0) {
         return { connected: false, guilds: [] };
@@ -270,7 +277,10 @@ class DiscordAutomationService {
 
     try {
       // Split message if too long
-      const chunks = splitMessage(content, DISCORD_RATE_LIMITS.MAX_MESSAGE_LENGTH);
+      const chunks = splitMessage(
+        content,
+        DISCORD_RATE_LIMITS.MAX_MESSAGE_LENGTH
+      );
       let lastMessageId: string | undefined;
 
       for (let i = 0; i < chunks.length; i++) {
@@ -301,7 +311,10 @@ class DiscordAutomationService {
 
         if (!response.ok) {
           const error = await response.text();
-          logger.error("[Discord] Failed to send message:", { channelId, error });
+          logger.error("[Discord] Failed to send message:", {
+            channelId,
+            error,
+          });
           return { success: false, error: "Failed to send message" };
         }
 
@@ -337,7 +350,10 @@ class DiscordAutomationService {
    * Get sendable channels for a guild
    */
   async getSendableChannels(organizationId: string, guildId: string) {
-    return discordChannelsRepository.findSendableByGuild(organizationId, guildId);
+    return discordChannelsRepository.findSendableByGuild(
+      organizationId,
+      guildId
+    );
   }
 
   /**
@@ -379,10 +395,13 @@ class DiscordAutomationService {
 
       // Even if the API call fails (maybe already removed), clean up database
       if (!response.ok && response.status !== 404) {
-        logger.warn("[Discord] Failed to leave guild via API, cleaning up database anyway", {
-          guildId,
-          status: response.status,
-        });
+        logger.warn(
+          "[Discord] Failed to leave guild via API, cleaning up database anyway",
+          {
+            guildId,
+            status: response.status,
+          }
+        );
       }
 
       // Remove from database
@@ -449,6 +468,4 @@ export type {
   PostResult,
 } from "./types";
 
-export {
-  discordAppAutomationService,
-} from "./app-automation";
+export { discordAppAutomationService } from "./app-automation";

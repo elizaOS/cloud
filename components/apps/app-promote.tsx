@@ -281,7 +281,7 @@ export function AppPromote({ app }: AppPromoteProps) {
             Promote {app.name}
           </h2>
           <p className="text-white/60 text-sm mt-1">
-            Reach more users through social media, SEO, and advertising
+            Reach more users through social media automation
           </p>
         </div>
         <Button
@@ -636,16 +636,6 @@ export function AppPromote({ app }: AppPromoteProps) {
                 <p className="text-white/80 text-sm">{tip}</p>
               </div>
             ))}
-          </div>
-
-          <div className="mt-4 pt-4 border-t border-white/10">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-white/60">Estimated budget range:</span>
-              <span className="text-white font-semibold">
-                ${suggestions.estimatedBudget.min} - $
-                {suggestions.estimatedBudget.max}
-              </span>
-            </div>
           </div>
         </BrandCard>
       )}

@@ -10,7 +10,10 @@ import { secretsService } from "@/lib/services/secrets";
 import { logger } from "@/lib/utils/logger";
 
 // Use ELIZA_API_URL (ngrok) for local dev webhooks, otherwise NEXT_PUBLIC_APP_URL
-const WEBHOOK_BASE_URL = process.env.ELIZA_API_URL || process.env.NEXT_PUBLIC_APP_URL || "https://eliza.gg";
+const WEBHOOK_BASE_URL =
+  process.env.ELIZA_API_URL ||
+  process.env.NEXT_PUBLIC_APP_URL ||
+  "https://eliza.gg";
 
 export interface TelegramBotInfo {
   botId: number;
@@ -68,7 +71,9 @@ class TelegramAutomationService {
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error";
-      logger.warn("[TelegramAutomation] Token validation failed", { error: message });
+      logger.warn("[TelegramAutomation] Token validation failed", {
+        error: message,
+      });
       return { valid: false, error: message };
     }
   }
@@ -79,7 +84,7 @@ class TelegramAutomationService {
   async storeCredentials(
     organizationId: string,
     userId: string,
-    credentials: TelegramCredentials,
+    credentials: TelegramCredentials
   ): Promise<void> {
     const audit = {
       actorType: "user" as const,
@@ -95,7 +100,7 @@ class TelegramAutomationService {
         scope: "organization",
         createdBy: userId,
       },
-      audit,
+      audit
     );
 
     await secretsService.create(
@@ -106,7 +111,7 @@ class TelegramAutomationService {
         scope: "organization",
         createdBy: userId,
       },
-      audit,
+      audit
     );
 
     await secretsService.create(
@@ -117,7 +122,7 @@ class TelegramAutomationService {
         scope: "organization",
         createdBy: userId,
       },
-      audit,
+      audit
     );
 
     logger.info("[TelegramAutomation] Credentials stored", {
@@ -129,7 +134,10 @@ class TelegramAutomationService {
   /**
    * Remove bot credentials (disconnect).
    */
-  async removeCredentials(organizationId: string, userId: string): Promise<void> {
+  async removeCredentials(
+    organizationId: string,
+    userId: string
+  ): Promise<void> {
     const audit = {
       actorType: "user" as const,
       actorId: userId,
@@ -148,11 +156,18 @@ class TelegramAutomationService {
       "TELEGRAM_BOT_ID",
     ];
 
-    await Promise.all(
-      secretNames.map((name) =>
-        secretsService.delete({ organizationId, name }, audit).catch(() => {}),
-      ),
-    );
+    // Get secrets by name and delete them by ID
+    for (const name of secretNames) {
+      const secrets = await secretsService.list(organizationId);
+      const secret = secrets.find((s) => s.name === name);
+      if (secret) {
+        await secretsService.delete(secret.id, organizationId, audit);
+        logger.info("[TelegramAutomation] Deleted secret", {
+          name,
+          organizationId,
+        });
+      }
+    }
 
     logger.info("[TelegramAutomation] Credentials removed", { organizationId });
   }
@@ -167,7 +182,9 @@ class TelegramAutomationService {
   /**
    * Get connection status for an organization.
    */
-  async getConnectionStatus(organizationId: string): Promise<TelegramConnectionStatus> {
+  async getConnectionStatus(
+    organizationId: string
+  ): Promise<TelegramConnectionStatus> {
     const [botToken, botUsername, botId] = await Promise.all([
       secretsService.get(organizationId, "TELEGRAM_BOT_TOKEN"),
       secretsService.get(organizationId, "TELEGRAM_BOT_USERNAME"),
@@ -189,10 +206,13 @@ class TelegramAutomationService {
         botId: me.id,
       };
     } catch (error) {
-      logger.warn("[TelegramAutomation] Token validation failed during status check", {
-        organizationId,
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
+      logger.warn(
+        "[TelegramAutomation] Token validation failed during status check",
+        {
+          organizationId,
+          error: error instanceof Error ? error.message : "Unknown error",
+        }
+      );
 
       // Return stored data even if validation fails
       return {
@@ -209,7 +229,9 @@ class TelegramAutomationService {
    * Set webhook for receiving updates from Telegram.
    * Requires HTTPS URL - use ELIZA_API_URL with ngrok for local development.
    */
-  async setWebhook(organizationId: string): Promise<{ success: boolean; error?: string }> {
+  async setWebhook(
+    organizationId: string
+  ): Promise<{ success: boolean; error?: string }> {
     const botToken = await this.getBotToken(organizationId);
     if (!botToken) {
       return { success: false, error: "Bot token not found" };
@@ -223,7 +245,8 @@ class TelegramAutomationService {
       });
       return {
         success: true, // Don't fail the connection, just skip webhook
-        error: "Webhook skipped - HTTPS required. Set ELIZA_API_URL with ngrok URL for local dev."
+        error:
+          "Webhook skipped - HTTPS required. Set ELIZA_API_URL with ngrok URL for local dev.",
       };
     }
 
@@ -232,7 +255,12 @@ class TelegramAutomationService {
       const webhookUrl = `${WEBHOOK_BASE_URL}/api/v1/telegram/webhook/${organizationId}`;
 
       await bot.telegram.setWebhook(webhookUrl, {
-        allowed_updates: ["message", "callback_query", "channel_post", "my_chat_member"],
+        allowed_updates: [
+          "message",
+          "callback_query",
+          "channel_post",
+          "my_chat_member",
+        ],
         drop_pending_updates: true,
       });
 
@@ -296,7 +324,7 @@ class TelegramAutomationService {
         >;
       };
       disableWebPagePreview?: boolean;
-    },
+    }
   ): Promise<{ success: boolean; messageId?: number; error?: string }> {
     const bot = await this.getBotInstance(organizationId);
     if (!bot) {
