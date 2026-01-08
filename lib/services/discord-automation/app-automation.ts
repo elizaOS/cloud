@@ -20,6 +20,12 @@ import type {
   PostResult,
 } from "./types";
 
+// Constants for automation intervals
+const DEFAULT_INTERVAL_MIN = 120; // 2 hours minimum
+const DEFAULT_INTERVAL_MAX = 240; // 4 hours maximum
+const MAX_ANNOUNCEMENT_LENGTH = 300; // Max chars for AI-generated announcement
+const TRUNCATE_LENGTH = 500; // Max chars after truncation
+
 class DiscordAppAutomationService {
   /**
    * Get app for organization, checking ownership.
@@ -80,8 +86,8 @@ class DiscordAppAutomationService {
     const currentConfig = (app.discord_automation as DiscordAutomationConfig) || {
       enabled: false,
       autoAnnounce: false,
-      announceIntervalMin: 120,
-      announceIntervalMax: 240,
+      announceIntervalMin: DEFAULT_INTERVAL_MIN,
+      announceIntervalMax: DEFAULT_INTERVAL_MAX,
     };
 
     const updatedConfig: DiscordAutomationConfig = {
@@ -116,8 +122,8 @@ class DiscordAppAutomationService {
     const currentConfig = (app.discord_automation as DiscordAutomationConfig) || {
       enabled: false,
       autoAnnounce: false,
-      announceIntervalMin: 120,
-      announceIntervalMax: 240,
+      announceIntervalMin: DEFAULT_INTERVAL_MIN,
+      announceIntervalMax: DEFAULT_INTERVAL_MAX,
     };
 
     const updatedApp = await appsRepository.update(appId, {
@@ -150,8 +156,8 @@ class DiscordAppAutomationService {
     const config = (app.discord_automation as DiscordAutomationConfig) || {
       enabled: false,
       autoAnnounce: false,
-      announceIntervalMin: 120,
-      announceIntervalMax: 240,
+      announceIntervalMin: DEFAULT_INTERVAL_MIN,
+      announceIntervalMax: DEFAULT_INTERVAL_MAX,
     };
 
     // Get guild and channel names if configured
@@ -208,7 +214,7 @@ Website: ${app.website_url || app.app_url}
 
 Write in a ${vibeStyle} style. Keep it concise and engaging.
 Use appropriate emojis sparingly (1-2 max). Do not use excessive formatting.
-Maximum 300 characters. Do not include the URL in your response - it will be added automatically.`;
+Maximum ${MAX_ANNOUNCEMENT_LENGTH} characters. Do not include the URL in your response - it will be added automatically.`;
 
     try {
       const result = await generateText({
@@ -219,7 +225,7 @@ Maximum 300 characters. Do not include the URL in your response - it will be add
         maxTokens: 150,
       });
 
-      return truncate(result.text, 500);
+      return truncate(result.text, TRUNCATE_LENGTH);
     } catch (error) {
       await creditsService.refundCredits({
         organizationId,

@@ -93,9 +93,12 @@ export async function POST(
           });
         }
       })().catch((error) => {
-        errors.push(
-          `Discord: ${error instanceof Error ? error.message : "Unknown error"}`
-        );
+        const errorMessage = error instanceof Error ? error.message : "Unknown error";
+        logger.error("[Promote Preview API] Discord generation failed", {
+          appId: id,
+          error: errorMessage,
+        });
+        errors.push(`Discord: ${errorMessage}`);
       })
     );
   }
@@ -123,9 +126,12 @@ export async function POST(
           });
         }
       })().catch((error) => {
-        errors.push(
-          `Telegram: ${error instanceof Error ? error.message : "Unknown error"}`
-        );
+        const errorMessage = error instanceof Error ? error.message : "Unknown error";
+        logger.error("[Promote Preview API] Telegram generation failed", {
+          appId: id,
+          error: errorMessage,
+        });
+        errors.push(`Telegram: ${errorMessage}`);
       })
     );
   }
@@ -153,9 +159,12 @@ export async function POST(
           });
         }
       })().catch((error) => {
-        errors.push(
-          `Twitter: ${error instanceof Error ? error.message : "Unknown error"}`
-        );
+        const errorMessage = error instanceof Error ? error.message : "Unknown error";
+        logger.error("[Promote Preview API] Twitter generation failed", {
+          appId: id,
+          error: errorMessage,
+        });
+        errors.push(`Twitter: ${errorMessage}`);
       })
     );
   }

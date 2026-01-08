@@ -18,8 +18,13 @@ import { discordAppAutomationService } from "@/lib/services/discord-automation/a
 import { telegramAppAutomationService } from "@/lib/services/telegram-automation/app-automation";
 import { twitterAppAutomationService } from "@/lib/services/twitter-automation/app-automation";
 import { logger } from "@/lib/utils/logger";
-import { sql } from "drizzle-orm";
+import { sql, or } from "drizzle-orm";
 import type { App } from "@/db/schemas/apps";
+
+// Constants for automation intervals
+const DEFAULT_INTERVAL_MIN = 120; // 2 hours minimum
+const DEFAULT_INTERVAL_MAX = 240; // 4 hours maximum
+const MAX_CONCURRENT_POSTS = 5; // Process up to 5 apps concurrently
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -47,9 +52,25 @@ interface ProcessResult {
   error?: string;
 }
 
+/**
+ * Generate a deterministic hash value between 0 and 1 from a string.
+ * Used to distribute posts across the time window to avoid rate limit spikes.
+ */
+function hashToFraction(str: string): number {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32-bit integer
+  }
+  // Convert to positive fraction between 0 and 1
+  return Math.abs(hash % 1000) / 1000;
+}
+
 function isAnnouncementDue(
   config: AutomationConfig,
-  type: "announcement" | "post"
+  type: "announcement" | "post",
+  appId?: string
 ): boolean {
   if (!config.enabled) return false;
 
@@ -67,23 +88,23 @@ function isAnnouncementDue(
 
   const minInterval =
     type === "announcement"
-      ? (config.announceIntervalMin ?? 120)
-      : (config.postIntervalMin ?? 120);
+      ? (config.announceIntervalMin ?? DEFAULT_INTERVAL_MIN)
+      : (config.postIntervalMin ?? DEFAULT_INTERVAL_MIN);
   const maxInterval =
     type === "announcement"
-      ? (config.announceIntervalMax ?? 240)
-      : (config.postIntervalMax ?? 240);
+      ? (config.announceIntervalMax ?? DEFAULT_INTERVAL_MAX)
+      : (config.postIntervalMax ?? DEFAULT_INTERVAL_MAX);
 
-  // Use deterministic check: post is due if we've exceeded min interval
-  // and use a hash-based probability to add randomness within the window
+  // Before min interval: not due
   if (minutesSince < minInterval) return false;
+  // After max interval: definitely due
   if (minutesSince >= maxInterval) return true;
 
-  // Between min and max: use deterministic probability based on time elapsed
-  // This ensures consistent behavior across cron runs
+  // Between min and max: use hash-based threshold to distribute posts
+  // Each app gets a different position in the window based on its ID
   const windowProgress = (minutesSince - minInterval) / (maxInterval - minInterval);
-  return windowProgress >= 0.5; // Post at midpoint of the window
-
+  const threshold = appId ? hashToFraction(appId + type) : 0.5;
+  return windowProgress >= threshold;
 }
 
 async function getAppsWithAutomation(): Promise<App[]> {
@@ -91,9 +112,11 @@ async function getAppsWithAutomation(): Promise<App[]> {
     .select()
     .from(apps)
     .where(
-      sql`${apps.discord_automation}->>'enabled' = 'true' 
-          OR ${apps.telegram_automation}->>'enabled' = 'true' 
-          OR ${apps.twitter_automation}->>'enabled' = 'true'`
+      or(
+        sql`${apps.discord_automation}->>'enabled' = 'true'`,
+        sql`${apps.telegram_automation}->>'enabled' = 'true'`,
+        sql`${apps.twitter_automation}->>'enabled' = 'true'`
+      )
     );
 }
 
@@ -103,7 +126,7 @@ async function processDiscordAutomation(
   const config = app.discord_automation as AutomationConfig | null;
   if (!config?.enabled || !config.autoAnnounce) return null;
 
-  const isDue = isAnnouncementDue(config, "announcement");
+  const isDue = isAnnouncementDue(config, "announcement", app.id);
   if (!isDue) return null;
 
   const result = await discordAppAutomationService.postAnnouncement(
@@ -127,7 +150,7 @@ async function processTelegramAutomation(
   const config = app.telegram_automation as AutomationConfig | null;
   if (!config?.enabled || !config.autoAnnounce) return null;
 
-  const isDue = isAnnouncementDue(config, "announcement");
+  const isDue = isAnnouncementDue(config, "announcement", app.id);
   if (!isDue) return null;
 
   const result = await telegramAppAutomationService.postAnnouncement(
@@ -151,7 +174,7 @@ async function processTwitterAutomation(
   const config = app.twitter_automation as AutomationConfig | null;
   if (!config?.enabled || !config.autoPost) return null;
 
-  const isDue = isAnnouncementDue(config, "post");
+  const isDue = isAnnouncementDue(config, "post", app.id);
   if (!isDue) return null;
 
   const result = await twitterAppAutomationService.postAppTweet(
@@ -169,6 +192,86 @@ async function processTwitterAutomation(
   };
 }
 
+/**
+ * Process a single app across all platforms
+ */
+async function processApp(app: App): Promise<ProcessResult[]> {
+  const results: ProcessResult[] = [];
+
+  // Process all platforms for this app in parallel
+  const [discordResult, telegramResult, twitterResult] = await Promise.all([
+    processDiscordAutomation(app).catch((error) => {
+      logger.error("[SocialAutomation Cron] Discord error", {
+        appId: app.id,
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+      return null;
+    }),
+    processTelegramAutomation(app).catch((error) => {
+      logger.error("[SocialAutomation Cron] Telegram error", {
+        appId: app.id,
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+      return null;
+    }),
+    processTwitterAutomation(app).catch((error) => {
+      logger.error("[SocialAutomation Cron] Twitter error", {
+        appId: app.id,
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+      return null;
+    }),
+  ]);
+
+  if (discordResult) {
+    results.push(discordResult);
+    logger.info("[SocialAutomation Cron] Discord post", {
+      appId: app.id,
+      success: discordResult.success,
+      error: discordResult.error,
+    });
+  }
+
+  if (telegramResult) {
+    results.push(telegramResult);
+    logger.info("[SocialAutomation Cron] Telegram post", {
+      appId: app.id,
+      success: telegramResult.success,
+      error: telegramResult.error,
+    });
+  }
+
+  if (twitterResult) {
+    results.push(twitterResult);
+    logger.info("[SocialAutomation Cron] Twitter post", {
+      appId: app.id,
+      success: twitterResult.success,
+      error: twitterResult.error,
+    });
+  }
+
+  return results;
+}
+
+/**
+ * Process apps in batches with concurrency limit
+ */
+async function processAppsWithConcurrency(
+  apps: App[],
+  concurrency: number
+): Promise<ProcessResult[]> {
+  const results: ProcessResult[] = [];
+
+  // Process in batches
+  for (let i = 0; i < apps.length; i += concurrency) {
+    const batch = apps.slice(i, i + concurrency);
+    const batchResults = await Promise.all(batch.map(processApp));
+    results.push(...batchResults.flat());
+  }
+
+  return results;
+}
+
 export async function POST(request: NextRequest): Promise<Response> {
   const authHeader = request.headers.get("authorization");
   if (!CRON_SECRET || authHeader !== `Bearer ${CRON_SECRET}`) {
@@ -176,7 +279,6 @@ export async function POST(request: NextRequest): Promise<Response> {
   }
 
   const startTime = Date.now();
-  const results: ProcessResult[] = [];
 
   logger.info("[SocialAutomation Cron] Starting");
 
@@ -185,40 +287,11 @@ export async function POST(request: NextRequest): Promise<Response> {
     count: appsWithAutomation.length,
   });
 
-  for (const app of appsWithAutomation) {
-    // Process Discord
-    const discordResult = await processDiscordAutomation(app);
-    if (discordResult) {
-      results.push(discordResult);
-      logger.info("[SocialAutomation Cron] Discord post", {
-        appId: app.id,
-        success: discordResult.success,
-        error: discordResult.error,
-      });
-    }
-
-    // Process Telegram
-    const telegramResult = await processTelegramAutomation(app);
-    if (telegramResult) {
-      results.push(telegramResult);
-      logger.info("[SocialAutomation Cron] Telegram post", {
-        appId: app.id,
-        success: telegramResult.success,
-        error: telegramResult.error,
-      });
-    }
-
-    // Process Twitter
-    const twitterResult = await processTwitterAutomation(app);
-    if (twitterResult) {
-      results.push(twitterResult);
-      logger.info("[SocialAutomation Cron] Twitter post", {
-        appId: app.id,
-        success: twitterResult.success,
-        error: twitterResult.error,
-      });
-    }
-  }
+  // Process apps in parallel with concurrency limit
+  const results = await processAppsWithConcurrency(
+    appsWithAutomation,
+    MAX_CONCURRENT_POSTS
+  );
 
   const duration = Date.now() - startTime;
   const successCount = results.filter((r) => r.success).length;
@@ -232,6 +305,9 @@ export async function POST(request: NextRequest): Promise<Response> {
     failed: failureCount,
   });
 
+  // Return summary + only failures for large result sets
+  const failedResults = results.filter((r) => !r.success);
+
   return NextResponse.json({
     success: true,
     duration,
@@ -241,7 +317,8 @@ export async function POST(request: NextRequest): Promise<Response> {
       successful: successCount,
       failed: failureCount,
     },
-    results,
+    // Only include failures in response to reduce payload size
+    failures: failedResults,
   });
 }
 
